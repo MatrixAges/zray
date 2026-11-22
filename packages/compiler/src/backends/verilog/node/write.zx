@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import host from "hardware_graph_host"
 
 import { Kind } from "../../hardware/graph/model"
 import binary from "./binary"
@@ -15,7 +14,7 @@ export type Output = void
 export default function (in: Input): Output {
     declaration(in)
 
-    const kind = host.hardwareGraphNodeKind(in.node)
+    const kind = in.node.kind
 
     if (kind == Kind.Binary) {
         binary(in)

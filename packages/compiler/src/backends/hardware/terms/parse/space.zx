@@ -1,9 +1,9 @@
 import integers from "std:integer"
-import host from "hardware_build_host"
+import host from "hardware_graph_host"
 
 import { maximum_bit_width, maximum_nodes } from "../../const"
 
-import type { HardwareBuild } from "hardware_build_host"
+import type { HardwareBuild } from "hardware_graph_host"
 
 export type Input = {
     build: HardwareBuild,

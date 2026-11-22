@@ -1,7 +1,16 @@
 const std = @import("std");
 const ir = @import("../hardware/ir.zig");
+const hardware = @import("../hardware/root.zig");
 
 pub fn emit(allocator: std.mem.Allocator, module: ir.Module, clocked: bool) ![]u8 {
+    return renderModule(allocator, module, clocked);
+}
+
+pub fn emitCircuit(allocator: std.mem.Allocator, module: hardware.Circuit, clocked: bool) ![]u8 {
+    return renderModule(allocator, module, clocked);
+}
+
+fn renderModule(allocator: std.mem.Allocator, module: anytype, clocked: bool) ![]u8 {
     if (comptime !@import("parser_options").generated_parser) {
         if (!@import("../hardware/validate.zig").validate(module)) return error.InvalidHardwareIr;
 

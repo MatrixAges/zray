@@ -8,18 +8,31 @@ const generated = @import("parser_options").generated_parser;
 const scratch_buffer_size = 32 * 1024;
 pub const ir = @import("ir.zig");
 pub const validate = @import("validate.zig").validate;
+pub const Circuit = if (generated) @import("graph/circuit.zig") else ir.Module;
+pub const Result = Generated(ir.Module);
+pub const CircuitResult = Generated(Circuit);
 
-pub const Result = struct {
-    arena: std.heap.ArenaAllocator,
-    value: union(enum) { module: ir.Module, diagnostic: zx.Diagnostic },
-    pub fn deinit(self: *Result) void {
-        self.arena.deinit();
+fn Generated(comptime Graph: type) type {
+    return struct {
+        arena: std.heap.ArenaAllocator,
+        value: union(enum) { module: Graph, diagnostic: zx.Diagnostic },
+        pub fn deinit(self: *@This()) void {
+            self.arena.deinit();
 
-        self.* = undefined;
-    }
-};
+            self.* = undefined;
+        }
+    };
+}
 
 pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Allocator.Error!Result {
+    return generateGraph(ir.Module, allocator, program);
+}
+
+pub fn generateCircuit(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Allocator.Error!CircuitResult {
+    return generateGraph(Circuit, allocator, program);
+}
+
+fn generateGraph(comptime Graph: type, allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Allocator.Error!Generated(Graph) {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
@@ -46,7 +59,7 @@ pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Al
         return .{ .arena = arena, .value = .{ .diagnostic = reporter.diagnostic orelse diagnostic("unsupported hardware symbolic model") } };
     };
 
-    const module = build(arena.allocator(), scratch, program, model) catch |err| {
+    const module = build(Graph, arena.allocator(), scratch, program, model) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return .{ .arena = arena, .value = .{ .diagnostic = diagnostic("invalid or oversized typed hardware expression") } };
@@ -55,8 +68,8 @@ pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Al
     return .{ .arena = arena, .value = .{ .module = module } };
 }
 
-fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: zx.ir.Program, model: Conditions.Model) !ir.Module {
-    if (comptime generated) return @import("construction/workflow.zig").build(allocator, scratch, program, model);
+fn build(comptime Graph: type, allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: zx.ir.Program, model: Conditions.Model) !Graph {
+    if (comptime generated) return @import("construction/workflow.zig").build(Graph, allocator, scratch, program, model);
 
     var terms = Terms{ .allocator = allocator, .scratch = scratch };
 

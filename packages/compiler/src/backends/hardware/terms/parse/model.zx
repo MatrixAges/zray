@@ -1,4 +1,4 @@
-import type { Form, HardwareBuild } from "hardware_build_host"
+import type { Form, HardwareBuild } from "hardware_graph_host"
 import type { Cursor, Head, TermSort } from "../model"
 
 export type Input = {

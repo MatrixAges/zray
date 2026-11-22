@@ -10,7 +10,7 @@ const State = struct {
     program: *const compiler.ir.Program,
     sources: []const compiler.project.Source,
     entry: []const u8,
-    generated: ?compiler.hardware.Result = null,
+    generated: ?compiler.hardware.CircuitResult = null,
     text: ?[]const u8 = null,
     failure: Effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
@@ -58,8 +58,7 @@ pub fn lowerFpgaProgram(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
     const context = self.context;
 
-    self.generated = compiler.hardware.generate(context.allocator, self.program.*) catch |err| return self.failure.save(err);
-
+    self.generated = compiler.hardware.generateCircuit(context.allocator, self.program.*) catch |err| return self.failure.save(err);
     const generated = &self.generated.?.value;
 
     if (generated.* != .diagnostic) return true;
@@ -73,7 +72,7 @@ pub fn renderFpgaProgram(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
 
-    self.text = compiler.verilog.emit(context.allocator, self.generated.?.value.module, context.options.clocked) catch |err| return self.failure.save(err);
+    self.text = compiler.verilog.emitCircuit(context.allocator, self.generated.?.value.module, context.options.clocked) catch |err| return self.failure.save(err);
 }
 
 pub fn publishFpgaProgram(handle: *const anyopaque) Error!void {

@@ -26,9 +26,9 @@ export type Output = void
 export default function (in: Input): Output {
     const { writer, node } = in
 
-    const left = host.hardwareGraphNodeFirst(node)
-    const right = host.hardwareGraphNodeSecond(node)
-    const rendering = host.hardwareGraphNodeRendering(node)
+    const left = node.first
+    const right = integers.widen(node.second)
+    const rendering = host.hardwareTermRendering(node.operator)
 
     if (rendering == Rendering.SignedRemainder) {
         const width = memory.readColumnU16(in.widths, left)
@@ -51,7 +51,7 @@ export default function (in: Input): Output {
         return
     }
 
-    const token = host.hardwareGraphNodeToken(node)
+    const token = host.hardwareTermToken(node.operator)
 
     if (rendering == Rendering.Signed) {
         bytes.write(writer, bytes.fromText(signed_wire))

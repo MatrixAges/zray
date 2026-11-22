@@ -6,10 +6,13 @@ const Conditions = @import("../../../verification/conditions.zig");
 const bindings = @import("bindings.zig");
 const source = @import("generated_build_hardware_graph");
 const limits = @import("generated_hardware_limits").@"zx.constants";
-const native = @import("output_execution_abi").layouts.@"zig:hardware_build_host";
+const Circuit = @import("../graph/circuit.zig");
+const node = @import("../graph/node.zig");
+const native = @import("output_execution_abi").layouts.@"zig:hardware_graph_host";
 
 const Frame = struct {
     terms: Terms,
+    nodes: Nodes,
     model: Conditions.Model,
     inputs: []ir.Port = undefined,
     outputs: std.ArrayList(ir.Port) = .empty,
@@ -22,9 +25,36 @@ const Frame = struct {
     }
 };
 
-pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: zx.ir.Program, model: Conditions.Model) Terms.Error!ir.Module {
+const Nodes = union(enum) {
+    circuit: std.ArrayList(node.Row),
+    legacy: std.ArrayList(ir.Node),
+    fn count(self: *const Nodes) usize {
+        return switch (self.*) {
+            inline else => |rows| rows.items.len,
+        };
+    }
+    fn append(self: *Nodes, allocator: std.mem.Allocator, value: *const node.Node, origin: ?ir.Origin) std.mem.Allocator.Error!ir.Id {
+        const id: ir.Id = @fromBackingInt(@intCast(self.count()));
+
+        switch (self.*) {
+            .circuit => |*rows| try rows.append(allocator, .{ .node = value.*, .origin = origin }),
+            .legacy => |*rows| try rows.append(allocator, node.legacy(value, origin)),
+        }
+
+        return id;
+    }
+    fn sort(self: *const Nodes, index: u32) ir.Sort {
+        return switch (self.*) {
+            .circuit => |rows| .{ .width = rows.items[index].node.width, .boolean = rows.items[index].node.boolean },
+            .legacy => |rows| rows.items[index].sort,
+        };
+    }
+};
+
+pub fn build(comptime Graph: type, allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: zx.ir.Program, model: Conditions.Model) Terms.Error!Graph {
     var frame: Frame = .{
         .terms = .{ .allocator = allocator, .scratch = scratch },
+        .nodes = if (Graph == Circuit) .{ .circuit = .empty } else .{ .legacy = .empty },
         .model = model,
     };
 
@@ -59,7 +89,12 @@ pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: 
         else => unreachable,
     };
 
-    return .{ .nodes = frame.terms.nodes.items, .inputs = frame.inputs, .outputs = frame.outputs.items, .safe = @fromBackingInt(safe) };
+    return .{
+        .nodes = if (Graph == Circuit) frame.nodes.circuit.items else frame.nodes.legacy.items,
+        .inputs = frame.inputs,
+        .outputs = frame.outputs.items,
+        .safe = @fromBackingInt(safe),
+    };
 }
 
 pub fn reserveHardwareVariables(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
@@ -81,21 +116,34 @@ pub fn reserveHardwareInputs(handle: *const anyopaque, count: u64) std.mem.Alloc
 }
 
 pub fn reserveHardwareNodes(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const terms = &Frame.borrow(handle).terms;
+    const frame = Frame.borrow(handle);
 
-    try terms.nodes.ensureTotalCapacity(terms.allocator, @intCast(count));
+    switch (frame.nodes) {
+        inline else => |*rows| try rows.ensureTotalCapacity(frame.terms.allocator, @intCast(count)),
+    }
 }
 
 pub fn hardwareInputType(handle: *const anyopaque, row: u64) u32 {
     return @backingInt(Frame.borrow(handle).model.inputs[@intCast(row)].type_id);
 }
 
-pub fn writeHardwareInput(handle: *const anyopaque, row: u64, width: u64, boolean: bool, signed: bool) std.mem.Allocator.Error!void {
+pub fn writeHardwareInput(handle: *const anyopaque, row: u64, kind: native.Kind, width: u16, boolean: bool, signed: bool) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const index: usize = @intCast(row);
     const input = frame.model.inputs[index];
-    const sort: ir.Sort = .{ .width = @intCast(width), .boolean = boolean };
-    const id = try frame.terms.append(.{ .sort = sort, .value = .{ .input = index } });
+    const sort: ir.Sort = .{ .width = width, .boolean = boolean };
+
+    const id = try frame.nodes.append(frame.terms.allocator, &.{
+        .kind = kind,
+        .width = width,
+        .boolean = boolean,
+        .first = row,
+        .second = 0,
+        .third = 0,
+        .operator = 0,
+        .extra = 0,
+        .signed = false,
+    }, frame.terms.origin);
 
     frame.inputs[index] = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = signed, .node = id };
 }
@@ -166,47 +214,49 @@ pub fn growHardwareCache(handle: *const anyopaque) std.mem.Allocator.Error!void 
 }
 
 pub fn hardwareNodeCount(handle: *const anyopaque) u64 {
-    return Frame.borrow(handle).terms.nodes.items.len;
+    return Frame.borrow(handle).nodes.count();
 }
 
-pub fn appendHardwareTerm(handle: *const anyopaque, position: u64, key: []const u8, form: native.Form, width: u64, boolean: bool, first: u64, second: u32, third: u32, operator: ?u8, extra: u64) std.mem.Allocator.Error!u32 {
-    const terms = &Frame.borrow(handle).terms;
+pub fn appendHardwareTerm(handle: *const anyopaque, position: u64, key: []const u8, kind: native.Kind, width: u16, boolean: bool, first: u64, second: u32, third: u32, operator: u8, extra: u16, signed: bool) std.mem.Allocator.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const terms = &frame.terms;
 
-    const id = try terms.append(.{
-        .sort = .{ .width = @intCast(width), .boolean = boolean },
-        .value = switch (form) {
-            .Constant => .{ .constant = first },
-            .Invert => .{ .invert = @fromBackingInt(@as(u32, @intCast(first))) },
-            .Negate => .{ .negate = @fromBackingInt(@as(u32, @intCast(first))) },
-            .Binary => .{ .binary = .{ .operator = @fromBackingInt(@intCast(operator.?)), .left = @fromBackingInt(@as(u32, @intCast(first))), .right = @fromBackingInt(second) } },
-            .Select => .{ .select = .{ .condition = @fromBackingInt(@as(u32, @intCast(first))), .yes = @fromBackingInt(second), .no = @fromBackingInt(third) } },
-            .SignExtend, .ZeroExtend => .{ .extend = .{ .operand = @fromBackingInt(@as(u32, @intCast(first))), .extra = @intCast(extra), .signed = form == .SignExtend } },
-            else => unreachable,
-        },
-    });
+    const id = try frame.nodes.append(terms.allocator, &.{
+        .kind = kind,
+        .width = width,
+        .boolean = boolean,
+        .first = first,
+        .second = second,
+        .third = third,
+        .operator = operator,
+        .extra = extra,
+        .signed = signed,
+    }, terms.origin);
 
     terms.cache.fillVacant(@intCast(position), key, id);
 
     return @backingInt(id);
 }
 
-pub fn publishHardwareDefinition(handle: *const anyopaque, name: []const u8, width: u16, node: u32) Terms.Error!void {
-    try bindings.publish(&Frame.borrow(handle).terms, name, width, @fromBackingInt(node));
+pub fn publishHardwareDefinition(handle: *const anyopaque, name: []const u8, width: u16, index: u32) Terms.Error!void {
+    const frame = Frame.borrow(handle);
+
+    try bindings.publish(&frame.terms, name, width, @fromBackingInt(index), frame.nodes.sort(index));
 }
 
-pub fn hardwareNodeWidth(handle: *const anyopaque, node: u32) u16 {
-    return Frame.borrow(handle).terms.nodes.items[node].sort.width;
+pub fn hardwareNodeWidth(handle: *const anyopaque, index: u32) u16 {
+    return Frame.borrow(handle).nodes.sort(index).width;
 }
 
-pub fn hardwareNodeIsBoolean(handle: *const anyopaque, node: u32) bool {
-    return Frame.borrow(handle).terms.nodes.items[node].sort.boolean;
+pub fn hardwareNodeIsBoolean(handle: *const anyopaque, index: u32) bool {
+    return Frame.borrow(handle).nodes.sort(index).boolean;
 }
 
 pub fn hardwareOutputCount(handle: *const anyopaque) u64 {
     return Frame.borrow(handle).outputs.items.len;
 }
 
-pub fn writeHardwareOutput(handle: *const anyopaque, name: []const u8, path: []const u8, node: u32, width: u64, boolean: bool, signed: bool) std.mem.Allocator.Error!void {
+pub fn writeHardwareOutput(handle: *const anyopaque, name: []const u8, path: []const u8, index: u32, width: u64, boolean: bool, signed: bool) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     try frame.outputs.append(frame.terms.allocator, .{
@@ -214,7 +264,7 @@ pub fn writeHardwareOutput(handle: *const anyopaque, name: []const u8, path: []c
         .path = path,
         .sort = .{ .width = @intCast(width), .boolean = boolean },
         .signed = signed,
-        .node = @fromBackingInt(node),
+        .node = @fromBackingInt(index),
     });
 }
 

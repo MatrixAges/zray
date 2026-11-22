@@ -18,9 +18,8 @@ pub fn bindInputs(terms: *Terms, symbols: []const Conditions.Input) Terms.Error!
     terms.variables.count = zx.columns.invoke(inputs.executeValue, terms.scratch, &input) catch |err| return Terms.fromSourceError(err);
 }
 
-pub fn publish(terms: *Terms, name: []const u8, width: u16, id: ir.Id) Terms.Error!void {
+pub fn publish(terms: *Terms, name: []const u8, width: u16, id: ir.Id, sort: ir.Sort) Terms.Error!void {
     const table = terms.variables.view();
-    const sort = terms.nodes.items[@backingInt(id)].sort;
 
     const input: std.meta.Child(definition.Input) = .{
         .current = &table.read(), .target = &table.target(),

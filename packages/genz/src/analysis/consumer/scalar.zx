@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import { scalar_string, scalar_void } from "core/type_table/const"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+
+import type { Table } from "core/type_table/model"
+
+export type Input = {
+    types: Table,
+    id: u32
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { types } = in
+
+    const index = loop(integers.widen(in.id), {
+        while: index => kind(types.kinds[index]) == Kind.Optional,
+        next: index => { index = integers.widen(types.first[index]) }
+    })
+
+    return match kind(types.kinds[index]) {
+        Kind.Scalar => types.first[index] != scalar_string &&
+            types.first[index] != scalar_void,
+        Kind.Enumeration => true,
+        Kind.ErrorSet => true,
+        _ => false
+    }
+}

@@ -1,4 +1,4 @@
-import type { HardwareBuild } from "hardware_build_host"
+import type { HardwareBuild } from "hardware_graph_host"
 import type { SymbolicValue } from "verification_host"
 import type { Ports } from "../../../../verification/execution/program/model"
 

@@ -15,7 +15,11 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, value: ir.ExprId, result: ir.Exp
 
     if (self.transaction()) return null;
 
-    const scalar = switch (self.program.typeOf(self.program.expression(result).type_id)) {
+    var payload = self.program.typeOf(self.program.expression(result).type_id);
+
+    while (payload == .optional) payload = self.program.typeOf(payload.optional);
+
+    const scalar = switch (payload) {
         .scalar => |kind| kind != .string and kind != .void,
         .enumeration, .error_set => true,
         else => false,

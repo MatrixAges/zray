@@ -1,7 +1,7 @@
-import type { Form } from "hardware_build_host"
+import type { Form } from "hardware_graph_host"
 import type { Sort, Family } from "../binary/model"
 
-export { Form } from "hardware_build_host"
+export { Form } from "hardware_graph_host"
 
 export type Cursor = {
     source: u8[],

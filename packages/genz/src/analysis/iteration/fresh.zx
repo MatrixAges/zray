@@ -46,8 +46,19 @@ export default function (in: Input): Output {
             current.pending = current.pending.pop()[0]
 
             if (kind == ExpressionKind.Scope) {
-                current.pending =
-                    current.pending.push(current.table.scope_results[payload])[0]
+                const table = current.table
+                const result = table.scope_results[payload]
+                const position = integers.widen(result)
+                const count = integers.widen(table.scope_count[payload])
+                const end = integers.widen(table.scope_first[payload]) + count
+
+                const bound =
+                    count != 0 && table.kinds[position] == ExpressionKind.Reference
+                const same = bound && table.scope_symbols[end - 1] ==
+                    table.references[integers.widen(table.payloads[position])]
+                const value = same ? table.scope_values[end - 1] : result
+
+                current.pending = current.pending.push(value)[0]
             } else if (kind == ExpressionKind.Conditional) {
                 current.pending =
                     current.pending.push(current.table.conditional_yes[payload])[0]

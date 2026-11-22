@@ -1,6 +1,5 @@
 import integers from "std:integer"
-import host from "hardware_build_host"
-import graph from "hardware_graph_host"
+import host from "hardware_graph_host"
 import memory from "memory"
 
 import { Family } from "../../binary/model"
@@ -25,7 +24,7 @@ export default function (in: Input): Output {
     })
 
     const token = match form {
-        Form.Binary => graph.hardwareTermOperator(
+        Form.Binary => host.hardwareTermOperator(
             memory.borrowTextRange(
                 expression,
                 operator_start,
@@ -39,7 +38,7 @@ export default function (in: Input): Output {
         host.rejectHardwareTerm()
     }
 
-    const family = token == null ? Family.Logical : graph.hardwareTermFamily(token)
+    const family = token == null ? Family.Logical : host.hardwareTermFamily(token)
 
     const extra = bits
 

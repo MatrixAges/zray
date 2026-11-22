@@ -1,10 +1,10 @@
-import host from "hardware_build_host"
+import host from "hardware_graph_host"
 import memory from "memory"
 
 import { Form } from "../model"
 import intern from "./intern"
 
-import type { HardwareBuild } from "hardware_build_host"
+import type { HardwareBuild } from "hardware_graph_host"
 import type { Head } from "../model"
 
 export type Input = {

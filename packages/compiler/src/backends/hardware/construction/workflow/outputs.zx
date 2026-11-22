@@ -2,7 +2,7 @@ import integers from "std:integer"
 import { scalar_void } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import host from "hardware_build_host"
+import host from "hardware_graph_host"
 import symbolic from "verification_host"
 
 import name from "../../../../verification/ports/name"

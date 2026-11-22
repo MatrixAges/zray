@@ -1,4 +1,6 @@
-import host from "hardware_build_host"
+import integers from "std:integer"
+import host from "hardware_graph_host"
+import { Kind } from "hardware_graph_host"
 
 import requireSpace from "../../terms/parse/space"
 import portType from "./port_type"
@@ -28,10 +30,12 @@ export default function (in: Input): Output {
             host.writeHardwareInput(
                 build,
                 row,
-                port.width,
+                Kind.Input,
+                integers.narrowShort(port.width),
                 port.boolean,
                 port.signed
             )
+
             row += 1
         }
     })

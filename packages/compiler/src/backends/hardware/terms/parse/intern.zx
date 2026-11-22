@@ -1,6 +1,8 @@
+import integers from "std:integer"
 import lookup from "core/bytes/map/lookup"
 import slot from "core/bytes/map/slot"
-import host from "hardware_build_host"
+import host from "hardware_graph_host"
+import { Form, Kind } from "hardware_graph_host"
 
 import requireSpace from "./space"
 
@@ -39,17 +41,27 @@ export default function (in: Input): Output {
         width: in.width
     })
 
+    const kind = match in.form {
+        Form.Constant => Kind.Constant,
+        Form.Invert => Kind.Invert,
+        Form.Negate => Kind.Negate,
+        Form.Binary => Kind.Binary,
+        Form.Select => Kind.Select,
+        _ => Kind.Extend
+    }
+
     return host.appendHardwareTerm(
         build,
         position,
         key,
-        in.form,
-        in.width,
+        kind,
+        integers.narrowShort(in.width),
         in.boolean,
         in.first,
         in.second,
         in.third,
-        in.operator,
-        in.extra
+        in.operator ?? 0,
+        integers.narrowShort(in.extra),
+        in.form == Form.SignExtend
     )
 }

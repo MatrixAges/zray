@@ -10,28 +10,35 @@ export type Output = u64?
 export default function (in: Input): Output {
     const { graph, nodes } = in
 
+    const initial_count: u64? = 0
+
     return loop({
+        graph,
+        nodes,
         index: 0,
-        count: 0,
-        valid: true
+        count: initial_count
     }, {
-        while: state => state.valid && state.index < graph.count,
+        while: state => state.count != null && state.index < state.graph.count,
         next: state => {
-            const index = state.index
+            const { graph, nodes, index } = state
             const node = host.readHardwareGraphNode(nodes, index)
 
-            state.valid = check({
+            const valid = check({
                 graph,
                 index,
                 node
             })
 
-            if (host.hardwareGraphNodeKind(node) == Kind.Input) {
-                state.count += 1
-            }
+            const added = node.kind == Kind.Input ? 1 : 0
+            const count = state.count ?? 0
 
-            state.index += 1
+            state = {
+                graph,
+                nodes,
+                index: index + 1,
+                count: valid ? count + added : null
+            }
         },
-        return: state => state.valid ? state.count : null
+        return: state => state.count
     })
 }

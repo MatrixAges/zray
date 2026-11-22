@@ -16,7 +16,16 @@ pub fn observes(program: ir.Program, expression: ir.ExpressionRow, root: ir.Type
 pub fn fresh(program: ir.Program, id: ir.ExprId) bool {
     return switch (program.expression(id).value) {
         .object, .tuple => true,
-        .scope => |scope| fresh(program, scope.result),
+        .scope => |scope| blk: {
+            if (scope.bindings.len != 0) {
+                const last = scope.bindings.at(scope.bindings.len - 1);
+                const result = program.expression(scope.result).value;
+
+                if (result == .reference and last.symbol == result.reference) break :blk fresh(program, last.value);
+            }
+
+            break :blk fresh(program, scope.result);
+        },
         .conditional => |selection| fresh(program, selection.yes) and fresh(program, selection.no),
         .match_expr => |selection| blk: {
             for (0..selection.arms.len) |index| if (!fresh(program, selection.arms.at(index).result)) break :blk false;

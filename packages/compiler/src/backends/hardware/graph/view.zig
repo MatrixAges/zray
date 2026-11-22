@@ -2,6 +2,8 @@ const std = @import("std");
 const memory = @import("zx").memory;
 const ir = @import("../ir.zig");
 const binary = @import("../binary.zig");
+const node = @import("node.zig");
+const Circuit = @import("circuit.zig");
 const validate_graph = @import("generated_validate_hardware_graph");
 const native = @import("output_execution_abi").layouts.@"zig:hardware_graph_host";
 pub const Scan = std.meta.Child(validate_graph.Input);
@@ -18,7 +20,16 @@ inputs: Ports,
 outputs: Ports,
 sorts: Sorts,
 graph: Graph,
-nodes: []const ir.Node,
+nodes: Nodes,
+
+const Nodes = union(enum) {
+    direct: []const node.Row,
+    legacy: struct {
+        nodes: []const ir.Node,
+        current: node.Node = undefined,
+    },
+};
+
 const PortColumns = struct {
     names: memory.TextColumn,
     widths: memory.ReadColumn,
@@ -47,16 +58,24 @@ const PortColumns = struct {
 };
 
 /// Binds the borrowed column descriptors in place for this graph's synchronous consumers.
-pub fn init(self: *Self, module: ir.Module) void {
+pub fn init(self: *Self, module: anytype) void {
     self.input_columns = .init(module.inputs);
     self.output_columns = .init(module.outputs);
-    self.widths = memory.borrowNestedColumn(u16, &.{ "sort", "width" }, module.nodes);
-    self.booleans = memory.borrowNestedColumn(bool, &.{ "sort", "boolean" }, module.nodes);
+
+    if (@TypeOf(module) == Circuit) {
+        self.widths = memory.borrowNestedColumn(u16, &.{ "node", "width" }, module.nodes);
+        self.booleans = memory.borrowNestedColumn(bool, &.{ "node", "boolean" }, module.nodes);
+        self.nodes = .{ .direct = module.nodes };
+    } else {
+        self.widths = memory.borrowNestedColumn(u16, &.{ "sort", "width" }, module.nodes);
+        self.booleans = memory.borrowNestedColumn(bool, &.{ "sort", "boolean" }, module.nodes);
+        self.nodes = .{ .legacy = .{ .nodes = module.nodes } };
+    }
+
     self.inputs = self.input_columns.view();
     self.outputs = self.output_columns.view();
     self.sorts = .{ .widths = @ptrCast(&self.widths), .booleans = @ptrCast(&self.booleans) };
     self.graph = .{ .inputs = &self.inputs, .outputs = &self.outputs, .sorts = &self.sorts, .count = module.nodes.len, .safe = @backingInt(module.safe) };
-    self.nodes = module.nodes;
 }
 
 pub fn scan(self: *const Self) Scan {
@@ -69,81 +88,18 @@ pub fn validate(self: *const Self) bool {
     return validate_graph.executeIn(empty.allocator(), &self.scan()) catch unreachable;
 }
 
-pub fn readHardwareGraphNode(handle: *const anyopaque, index: u64) *const native.Node {
-    const nodes: *const []const ir.Node = @ptrCast(@alignCast(handle));
+pub fn readHardwareGraphNode(handle: *const anyopaque, index: u64) *const node.Node {
+    const nodes: *Nodes = @ptrCast(@alignCast(@constCast(handle)));
+    const row: usize = @intCast(index);
 
-    return @ptrCast(&nodes.*[@intCast(index)]);
-}
+    return switch (nodes.*) {
+        .direct => |rows| &rows[row].node,
+        .legacy => |*legacy| value: {
+            legacy.current = node.fromLegacy(&legacy.nodes[row]);
 
-fn node(handle: *const anyopaque) *const ir.Node {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn hardwareGraphNodeKind(handle: *const anyopaque) native.Kind {
-    return switch (node(handle).value) {
-        .input => .Input,
-        .constant => .Constant,
-        .invert => .Invert,
-        .negate => .Negate,
-        .extend => .Extend,
-        .select => .Select,
-        .binary => .Binary,
+            break :value &legacy.current;
+        },
     };
-}
-
-pub fn hardwareGraphNodeWidth(handle: *const anyopaque) u16 {
-    return node(handle).sort.width;
-}
-
-pub fn hardwareGraphNodeBoolean(handle: *const anyopaque) bool {
-    return node(handle).sort.boolean;
-}
-
-pub fn hardwareGraphNodeFirst(handle: *const anyopaque) u64 {
-    return switch (node(handle).value) {
-        .input => |index| index,
-        .constant => |literal| literal,
-        .invert, .negate => |operand| @backingInt(operand),
-        .extend => |extension| @backingInt(extension.operand),
-        .select => |selection| @backingInt(selection.condition),
-        .binary => |operation| @backingInt(operation.left),
-    };
-}
-
-pub fn hardwareGraphNodeSecond(handle: *const anyopaque) u64 {
-    return switch (node(handle).value) {
-        .select => |selection| @backingInt(selection.yes),
-        .binary => |operation| @backingInt(operation.right),
-        else => unreachable,
-    };
-}
-
-pub fn hardwareGraphNodeThird(handle: *const anyopaque) u64 {
-    return @backingInt(node(handle).value.select.no);
-}
-
-pub fn hardwareGraphNodeExtension(handle: *const anyopaque) u16 {
-    return node(handle).value.extend.extra;
-}
-
-pub fn hardwareGraphNodeSigned(handle: *const anyopaque) bool {
-    return node(handle).value.extend.signed;
-}
-
-fn traits(handle: *const anyopaque) binary.Traits {
-    return binary.traits(node(handle).value.binary.operator);
-}
-
-pub fn hardwareGraphNodeFamily(handle: *const anyopaque) native.Family {
-    return @fromBackingInt(@backingInt(traits(handle).family));
-}
-
-pub fn hardwareGraphNodeRendering(handle: *const anyopaque) native.Rendering {
-    return @fromBackingInt(@backingInt(traits(handle).rendering));
-}
-
-pub fn hardwareGraphNodeToken(handle: *const anyopaque) []const u8 {
-    return traits(handle).token;
 }
 
 pub fn hardwareTermOperator(text: []const u8) ?u8 {
@@ -154,4 +110,12 @@ pub fn hardwareTermOperator(text: []const u8) ?u8 {
 
 pub fn hardwareTermFamily(operator: u8) native.Family {
     return @fromBackingInt(@backingInt(binary.traits(@fromBackingInt(@intCast(operator))).family));
+}
+
+pub fn hardwareTermRendering(operator: u8) native.Rendering {
+    return @fromBackingInt(@backingInt(binary.traits(@fromBackingInt(@intCast(operator))).rendering));
+}
+
+pub fn hardwareTermToken(operator: u8) []const u8 {
+    return binary.traits(@fromBackingInt(@intCast(operator))).token;
 }
