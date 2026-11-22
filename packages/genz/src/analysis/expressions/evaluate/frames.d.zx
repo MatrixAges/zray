@@ -88,3 +88,7 @@ export enum StoredType {
 export type CallAstPublication = opaque
 
 export type PreconditionFrame = opaque
+
+export type AnalysisWork = opaque
+
+export type BasisWork = opaque

@@ -25,6 +25,14 @@ uniqueness: Uniqueness.Result,
 basis: *const Uniqueness.Basis,
 /// Replaces the entry plan for a body sharing the types and functions of the original analysis.
 pub fn reentry(self: *Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!void {
+    if (@import("genz_options").generated_analysis) return @import("function_analysis/workflow.zig").reentry(.{
+        .allocator = allocator,
+        .workspace = workspace,
+        .program = &program,
+        .source = .{ .ready = self.basis },
+        .memo = null,
+    }, self);
+
     self.entry_flags = try Entry.analyze(workspace, program, .{ .local = self.value.local, .pure = self.value.pure, .io = self.io, .process = self.process, .tasks = self.tasks });
     self.uniqueness.entry = try Uniqueness.analyzeEntry(allocator, workspace, program, self.basis);
 }
@@ -106,10 +114,10 @@ pub fn analyzeConcurrent(allocator: std.mem.Allocator, workspace: std.mem.Alloca
 }
 
 /// The basis uniqueness reads, or where to build it alongside function facts.
-const Source = union(enum) {
+pub const Source = union(enum) {
     ready: *const Uniqueness.Basis,
     build: *Uniqueness.Basis,
-    fn basis(self: Source) *const Uniqueness.Basis {
+    pub fn basis(self: Source) *const Uniqueness.Basis {
         return switch (self) {
             .ready => |value| value,
             .build => |value| value,
@@ -118,12 +126,15 @@ const Source = union(enum) {
 };
 
 fn analyzeFrom(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, source: Source, memo: ?*Uniqueness.Memo, comptime concurrent: bool) std.mem.Allocator.Error!Self {
-    var building = BasisBuild{ .allocator = allocator, .workspace = workspace, .program = program, .source = source, .memo = memo };
+    var building = BasisBuild{ .allocator = allocator, .workspace = workspace, .program = &program, .source = source, .memo = memo };
+
+    if (@import("genz_options").generated_analysis) return @import("function_analysis/workflow.zig").analyze(building, exported, concurrent);
+
     const thread: ?std.Thread = if (concurrent and source == .build) std.Thread.spawn(.{}, BasisBuild.run, .{&building}) catch null else null;
 
     if (thread == null) building.run();
 
-    const others = remaining(allocator, workspace, program, exported);
+    const others = remainingSeed(allocator, program, exported);
 
     if (thread) |running| running.join();
 
@@ -185,28 +196,7 @@ fn children(allocator: std.mem.Allocator, program: ir.Program, id: ir.TypeId, pe
 }
 
 /// Every fact but the uniqueness plans.
-fn remaining(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId) std.mem.Allocator.Error!Self {
-    if (@import("genz_options").generated_analysis) {
-        const generated = try @import("function_analysis/generated.zig").analyze(allocator, workspace, program, exported);
-
-        return .{
-            .value = generated.value,
-            .io = generated.io,
-            .process = generated.process,
-            .tasks = generated.tasks,
-            .grows = generated.grows,
-            .fresh_outputs = generated.fresh_outputs,
-            .constructed_outputs = generated.constructed_outputs,
-            .identity_free = generated.identity_free,
-            .errors = generated.errors,
-            .return_allocations = generated.return_allocations,
-            .layout_types = generated.layout_types,
-            .entry_flags = undefined,
-            .uniqueness = undefined,
-            .basis = undefined,
-        };
-    }
-
+fn remainingSeed(allocator: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId) std.mem.Allocator.Error!Self {
     const value = try @import("value_call/analysis.zig").analyzeExported(allocator, program, exported);
     const errors = try @import("zx").error_effects.perFunction(allocator, program.types, program.functions);
     const return_allocations = try allocator.alloc(bool, errors.len);
@@ -231,20 +221,21 @@ fn remaining(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program
     };
 }
 
-const BasisBuild = struct {
+pub const BasisBuild = struct {
     allocator: std.mem.Allocator,
     workspace: std.mem.Allocator,
-    program: ir.Program,
+    program: *const ir.Program,
     source: Source,
     memo: ?*Uniqueness.Memo,
-    result: std.mem.Allocator.Error!void = error.OutOfMemory,
-    fn run(self: *BasisBuild) void {
+    result: std.mem.Allocator.Error!void = {},
+    pub fn run(self: *BasisBuild) void {
         self.result = switch (self.source) {
             .ready => {},
             .build => |basis| init(self, basis),
         };
     }
+
     fn init(self: *BasisBuild, basis: *Uniqueness.Basis) std.mem.Allocator.Error!void {
-        basis.* = try Uniqueness.Basis.create(self.allocator, self.workspace, self.program, self.memo);
+        basis.* = try Uniqueness.Basis.create(self.allocator, self.workspace, self.program.*, self.memo);
     }
 };

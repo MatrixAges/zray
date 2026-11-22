@@ -59,3 +59,32 @@ export declare function emitPrecondition(frame: PreconditionFrame): void
     throws { OutOfMemory }
 
 export declare function publishPreconditionScope(frame: PreconditionFrame): void
+export declare function startAnalysisBasis(work: AnalysisWork): bool
+
+export declare function buildAnalysisBasis(work: AnalysisWork): void
+
+export declare function collectAnalysisFacts(work: AnalysisWork): void
+
+export declare function joinAnalysisBasis(work: AnalysisWork): void
+
+export declare function checkAnalysisFacts(work: AnalysisWork): void throws { OutOfMemory }
+
+export declare function checkAnalysisBasis(work: AnalysisWork): void throws { OutOfMemory }
+
+export declare function planAnalysis(work: AnalysisWork): void throws { OutOfMemory }
+
+export declare function planAnalysisConcurrent(work: AnalysisWork): void throws { OutOfMemory }
+
+export declare function analyzeEntryFlags(work: AnalysisWork): void throws { OutOfMemory }
+
+export declare function analyzeIndependentEntry(work: AnalysisWork): void throws { OutOfMemory }
+
+export declare function buildBasisSlots(work: BasisWork): void throws { OutOfMemory }
+
+export declare function hashBasis(work: BasisWork): void throws { OutOfMemory }
+
+export declare function buildBasisFlow(work: BasisWork): void throws { OutOfMemory }
+
+export declare function buildBasisReturns(work: BasisWork): void throws { OutOfMemory }
+
+export declare function buildBasisEffects(work: BasisWork): void throws { OutOfMemory }

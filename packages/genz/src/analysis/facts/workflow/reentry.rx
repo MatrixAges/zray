@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Workflow" />
+
+    <Args in={Workflow.Work} out={void} />
+
+    <Call fn="index.analyzeEntryFlags" in={$in} />
+    <Call fn="index.analyzeIndependentEntry" in={$in} />
+</Module>

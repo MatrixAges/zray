@@ -6,6 +6,8 @@ const Slots = @import("slots.zig");
 const Self = @This();
 const generated = @import("genz_options").generated_analysis;
 const analyzing_effects = if (generated) @import("generated_uniqueness_effects") else void;
+const identity = @import("identity.zig");
+const Error = std.mem.Allocator.Error;
 pub const Effects = if (generated) analyzing_effects.Output else void;
 
 /// What every body analysis of a program reads and none writes: the list slots of each type, and which input slots
@@ -19,30 +21,90 @@ effects: Effects,
 contents: []const [32]u8 = &.{},
 /// The digest of the type table, taken with `contents`.
 types: [32]u8 = @splat(0),
-pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, memo: ?*Memo) std.mem.Allocator.Error!Self {
-    const built = try Slots.init(allocator, program.types);
-    const slots = built.slots;
+pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, memo: ?*Memo) Error!Self {
     const kept = if (memo) |value| if (value.persistent) value else null else null;
-    const contents = if (kept != null) try @import("identity.zig").contents(allocator, &program) else &.{};
-    const types: [32]u8 = if (kept != null) @import("identity.zig").types(program.types) else @splat(0);
-    const flow = try Flow.create(allocator, workspace, program, slots, built.texts, contents, types, kept);
-    const return_only = try @import("return_only.zig").create(allocator, program);
 
-    const effects = if (generated)
-        analyzing_effects.executeIn(allocator, &.{ .held = flow.held, .written = flow.written, .return_only = return_only }) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => unreachable,
-        }
+    if (generated) {
+        const entry = @import("generated_basis_workflow");
+        var result: Self = .{ .slots = undefined, .flow = undefined, .return_only = undefined, .effects = undefined };
 
-    else {};
+        var frame: Frame = .{
+            .allocator = allocator,
+            .workspace = workspace,
+            .program = &program,
+            .memo = kept,
+            .result = &result,
+        };
+
+        const input: std.meta.Child(entry.Input) = .{ .work = @ptrCast(&frame), .persistent = kept != null };
+
+        try @import("../expressions/evaluate.zig").execute(entry, &input);
+
+        return result;
+    }
+
+    const built = try Slots.init(allocator, program.types);
+    const contents = if (kept != null) try identity.contents(allocator, &program) else &.{};
+    const types: [32]u8 = if (kept != null) identity.types(program.types) else @splat(0);
 
     return .{
-        .slots = slots,
-        .flow = flow,
-        .return_only = return_only,
-        .effects = effects,
+        .slots = built.slots,
+        .flow = try Flow.create(allocator, workspace, program, built.slots, built.texts, contents, types, kept),
+        .return_only = try @import("return_only.zig").create(allocator, program),
+        .effects = {},
         .contents = contents,
         .types = types,
+    };
+}
+
+const Frame = struct {
+    allocator: std.mem.Allocator,
+    workspace: std.mem.Allocator,
+    program: *const ir.Program,
+    memo: ?*Memo,
+    result: *Self,
+    texts: []const bool = undefined,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+pub fn buildBasisSlots(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const built = try Slots.init(frame.allocator, frame.program.types);
+    frame.result.slots = built.slots;
+    frame.texts = built.texts;
+}
+
+pub fn hashBasis(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    frame.result.contents = try identity.contents(frame.allocator, frame.program);
+    frame.result.types = identity.types(frame.program.types);
+}
+
+pub fn buildBasisFlow(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const result = frame.result;
+
+    result.flow = try Flow.create(frame.allocator, frame.workspace, frame.program.*, result.slots, frame.texts, result.contents, result.types, frame.memo);
+}
+
+pub fn buildBasisReturns(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    frame.result.return_only = try @import("return_only.zig").create(frame.allocator, frame.program.*);
+}
+
+pub fn buildBasisEffects(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const result = frame.result;
+
+    result.effects = analyzing_effects.executeIn(frame.allocator, &.{
+        .held = result.flow.held,
+        .written = result.flow.written,
+        .return_only = result.return_only,
+    }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
     };
 }
 

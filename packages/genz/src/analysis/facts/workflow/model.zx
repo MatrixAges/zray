@@ -1,0 +1,14 @@
+import type { AnalysisWork, BasisWork } from "lowering_host"
+
+export type Work = AnalysisWork
+
+export type Analysis = {
+    work: Work,
+    build: bool,
+    concurrent: bool
+}
+
+export type Basis = {
+    work: BasisWork,
+    persistent: bool
+}
