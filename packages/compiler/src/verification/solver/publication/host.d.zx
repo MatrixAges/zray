@@ -1,7 +1,54 @@
 export type VerificationPublication = opaque
 
-export declare function verificationEvidence(allocator, context: VerificationPublication): u8[]
-    throws { OutOfMemory }
+export type EvidenceOutput = opaque
+
+export type EvidenceSources = opaque
+
+export type EvidenceTypes = opaque
+
+export type EvidenceInputs = opaque
+
+export type EvidenceProgram = opaque
+
+export declare function beginEvidence(writer: EvidenceOutput): void throws { OutOfMemory }
+
+export declare function writeEvidenceSources(
+    writer: EvidenceOutput,
+    name: string,
+    value: EvidenceSources
+): void throws { OutOfMemory }
+
+export declare function writeEvidenceText(
+    writer: EvidenceOutput,
+    name: string,
+    value: string
+): void throws { OutOfMemory }
+
+export declare function writeEvidenceNumber(
+    writer: EvidenceOutput,
+    name: string,
+    value: u32
+): void throws { OutOfMemory }
+
+export declare function writeEvidenceTypes(
+    writer: EvidenceOutput,
+    name: string,
+    value: EvidenceTypes
+): void throws { OutOfMemory }
+
+export declare function writeEvidenceInputs(
+    writer: EvidenceOutput,
+    name: string,
+    value: EvidenceInputs
+): void throws { OutOfMemory }
+
+export declare function writeEvidenceProgram(
+    writer: EvidenceOutput,
+    name: string,
+    value: EvidenceProgram
+): void throws { OutOfMemory }
+
+export declare function finishEvidence(writer: EvidenceOutput): u8[] throws { OutOfMemory }
 
 export declare function finishVerificationDigest(context: VerificationPublication): u8[]
 

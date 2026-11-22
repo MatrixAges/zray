@@ -1,15 +1,11 @@
-import host from "verification_report_host"
-
 import { default_solver } from "./const"
 import path from "./path"
 
 import type { Proof as Output } from "../model"
-import type { Input } from "./model"
+import type { Prepare as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { feasibility, correctness } = in
-
-    const evidence = host.verificationEvidence(in.context)
+    const { evidence, feasibility, correctness } = in
 
     const output = in.output ?? path({
         context: in.context,

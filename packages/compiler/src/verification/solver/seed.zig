@@ -1,5 +1,18 @@
 const std = @import("std");
-const Query = @import("../conditions.zig").Query;
+const zx = @import("zx");
+const Conditions = @import("../conditions.zig");
+const Query = Conditions.Query;
+
+pub fn serialize(allocator: std.mem.Allocator, program: *const zx.ir.Program, sources: []const @import("frontend").project.Source, entry: []const u8, inputs: []const Conditions.Input) std.mem.Allocator.Error![]const u8 {
+    return std.json.Stringify.valueAlloc(allocator, .{
+        .sources = sources,
+        .entry = entry,
+        .ir_version = program.version,
+        .types = program.types,
+        .inputs = inputs,
+        .ir = program.*,
+    }, .{ .whitespace = .indent_2 });
+}
 
 pub fn check(io: std.Io, allocator: std.mem.Allocator, query: Query, evidence: []const u8, correctness_path: []const u8, solver: []const u8, writer: *std.Io.Writer) !bool {
     const feasibility_path = try std.fmt.allocPrint(allocator, "{s}.preconditions.smt2", .{correctness_path});

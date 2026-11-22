@@ -1,0 +1,44 @@
+import json from "verification_report_host"
+
+import {
+    sources_field,
+    entry_field,
+    ir_version_field,
+    types_field,
+    inputs_field,
+    ir_field
+} from "./const"
+
+import type {
+    EvidenceOutput,
+    EvidenceSources,
+    EvidenceTypes,
+    EvidenceInputs,
+    EvidenceProgram
+} from "verification_report_host"
+
+export type Input = {
+    writer: EvidenceOutput,
+    sources: EvidenceSources,
+    entry: string,
+    version: u32,
+    types: EvidenceTypes,
+    inputs: EvidenceInputs,
+    program: EvidenceProgram
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const { writer } = in
+
+    json.beginEvidence(writer)
+    json.writeEvidenceSources(writer, sources_field, in.sources)
+    json.writeEvidenceText(writer, entry_field, in.entry)
+    json.writeEvidenceNumber(writer, ir_version_field, in.version)
+    json.writeEvidenceTypes(writer, types_field, in.types)
+    json.writeEvidenceInputs(writer, inputs_field, in.inputs)
+    json.writeEvidenceProgram(writer, ir_field, in.program)
+
+    return json.finishEvidence(writer)
+}

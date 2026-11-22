@@ -2,13 +2,10 @@ const std = @import("std");
 const zx = @import("zx");
 const frontend = @import("frontend");
 const Conditions = @import("conditions.zig");
+const Evidence = @import("solver/publication/evidence/output.zig");
 const generated_parser = @import("parser_options").generated_parser;
 
 const Context = struct {
-    program: *const zx.ir.Program,
-    sources: []const frontend.project.Source,
-    entry: []const u8,
-    inputs: []const Conditions.Input,
     hash: *zx.Sha256,
     digest: *[zx.Sha256.digest_length]u8,
     path: *std.Io.Writer,
@@ -48,12 +45,13 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     var path_buffer: [settings.proof_path_prefix.len + digest.len * 2 + settings.proof_path_suffix.len]u8 = undefined;
     var path_writer = std.Io.Writer.fixed(&path_buffer);
     const hash_reference: zx.Sha256State = .{ .value = &hash };
+    var evidence_bytes: std.Io.Writer.Allocating = .init(allocator);
+
+    defer evidence_bytes.deinit();
+
+    var evidence = Evidence.init(&evidence_bytes);
 
     const context: Context = .{
-        .program = &program,
-        .sources = sources,
-        .entry = entry,
-        .inputs = query.inputs,
         .hash = &hash,
         .digest = &digest,
         .path = &path_writer,
@@ -73,6 +71,15 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .feasibility = query.feasibility,
         .correctness = query.correctness,
         .bindings = &.{ .symbols = @ptrCast(&symbols), .paths = @ptrCast(&paths), .count = query.inputs.len },
+        .evidence = &.{
+            .writer = @ptrCast(&evidence),
+            .sources = @ptrCast(&sources),
+            .entry = entry,
+            .version = program.version,
+            .types = @ptrCast(&program.types),
+            .inputs = @ptrCast(&query.inputs),
+            .program = @ptrCast(&program),
+        },
     };
 
     return switch (try proof.executeIn(allocator, &input, io)) {
@@ -83,12 +90,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .InvalidResponse => error.InvalidSolverResponse,
         .Continue => unreachable,
     };
-}
-
-pub fn verificationEvidence(allocator: std.mem.Allocator, handle: *const anyopaque) std.mem.Allocator.Error![]const u8 {
-    const context = Context.borrow(handle);
-
-    return serialize(allocator, context.program, context.sources, context.entry, context.inputs);
 }
 
 pub fn finishVerificationDigest(handle: *const anyopaque) []const u8 {
@@ -107,17 +108,6 @@ pub fn writeVerificationOutput(handle: *const anyopaque, content: []const u8) st
     return Context.borrow(handle).output.writeAll(content);
 }
 
-fn serialize(allocator: std.mem.Allocator, program: *const zx.ir.Program, sources: []const frontend.project.Source, entry: []const u8, inputs: []const Conditions.Input) std.mem.Allocator.Error![]const u8 {
-    return std.json.Stringify.valueAlloc(allocator, .{
-        .sources = sources,
-        .entry = entry,
-        .ir_version = program.version,
-        .types = program.types,
-        .inputs = inputs,
-        .ir = program.*,
-    }, .{ .whitespace = .indent_2 });
-}
-
 fn checkSeed(io: std.Io, allocator: std.mem.Allocator, program: *const zx.ir.Program, sources: []const frontend.project.Source, entry: []const u8, options: Options, writer: *std.Io.Writer, generated: *const @import("root.zig").Result) !bool {
     if (generated.value == .diagnostic) {
         try writer.print("verification: {s}\n", .{generated.value.diagnostic.message});
@@ -126,7 +116,8 @@ fn checkSeed(io: std.Io, allocator: std.mem.Allocator, program: *const zx.ir.Pro
     }
 
     const query = generated.value.query;
-    const evidence = try serialize(allocator, program, sources, entry, query.inputs);
+    const seed = @import("solver/seed.zig");
+    const evidence = try seed.serialize(allocator, program, sources, entry, query.inputs);
     var hash: [32]u8 = undefined;
     var fingerprint = std.crypto.hash.sha2.Sha256.init(.{});
 
@@ -138,5 +129,5 @@ fn checkSeed(io: std.Io, allocator: std.mem.Allocator, program: *const zx.ir.Pro
     const correctness_path = options.output orelse try std.fmt.allocPrint(allocator, ".zxc/proofs/{s}/correctness.smt2", .{std.fmt.bytesToHex(hash, .lower)});
     const solver = options.solver orelse "z3";
 
-    return @import("solver/seed.zig").check(io, allocator, query, evidence, correctness_path, solver, writer);
+    return seed.check(io, allocator, query, evidence, correctness_path, solver, writer);
 }

@@ -1,0 +1,11 @@
+export const sources_field: string = "sources"
+
+export const entry_field: string = "entry"
+
+export const ir_version_field: string = "ir_version"
+
+export const types_field: string = "types"
+
+export const inputs_field: string = "inputs"
+
+export const ir_field: string = "ir"

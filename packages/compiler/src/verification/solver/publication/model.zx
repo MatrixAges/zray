@@ -3,6 +3,7 @@ import type { Sha256State } from "std:crypto"
 import type { TextColumn } from "memory"
 import type { VerificationPublication } from "verification_report_host"
 import type { Proof } from "../model"
+import type { Input as Evidence } from "./evidence/write"
 
 export type Bindings = {
     symbols: TextColumn,
@@ -20,8 +21,13 @@ export type Input = Destination & Proof.Pick("feasibility", "correctness") & {
     diagnostic?: string,
     output?: string,
     solver?: string,
-    bindings: Bindings
+    bindings: Bindings,
+    evidence: Evidence
 }
+
+export type Prepare =
+    Destination & Proof.Pick("evidence", "feasibility", "correctness") &
+    Input.Pick("solver", "output")
 
 export type Path = Destination & Proof.Pick("feasibility", "correctness", "evidence")
 

@@ -16,7 +16,23 @@
         <Return value={Solver.Verdict.Unsupported} />
     </If>
 
-    <Call fn="prepare" in={$in} />
+    <Call fn="evidence/write" in={$in.evidence} />
+
+    <Call
+        fn="prepare"
+        in={{
+            ...$in.pick([
+                "context",
+                "hash",
+                "path_writer",
+                "output",
+                "solver",
+                "feasibility",
+                "correctness"
+            ]),
+            evidence: $ctx.write
+        }}
+    />
 
     <Call module="../check" />
 
