@@ -1,0 +1,51 @@
+import host from "rx_graph_host"
+
+import { Route } from "../../../../../zx/modules/project/target/model"
+import { invalid_import } from "./const"
+
+import type { GraphEdgeScan } from "rx_graph_host"
+import type { Output as Package } from "../../../../../zx/modules/project/target/select"
+
+export type Input = Package & {
+    target: GraphEdgeScan,
+    reference: string,
+    site: u64,
+    route: Route
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, reference, site, route } = in
+
+    if (route == Route.Invalid) {
+        host.rejectSourceGraphReference(target, site, invalid_import)
+
+        return
+    }
+
+    if (route == Route.Intrinsic || route == Route.Interface) {
+        host.appendSourceGraphNative(target, site, reference)
+
+        return
+    }
+
+    if (route == Route.Package) {
+        const internal = host.sourceGraphInternal(target, reference)
+
+        if (internal != null) {
+            host.appendSourceGraphNative(target, site, internal)
+
+            return
+        }
+    }
+
+    host.resolveSourceGraphImport(
+        target,
+        site,
+        reference,
+        route == Route.Package,
+        in.first,
+        in.duplicate
+    )
+}

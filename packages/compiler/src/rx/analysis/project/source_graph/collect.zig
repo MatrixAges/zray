@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const rx = @import("rx");
 const zx = @import("zx");
 const project = @import("frontend").project;
@@ -7,6 +6,7 @@ const model = @import("model.zig");
 const position = @import("position.zig");
 const Diagnostic = @import("../../call/target.zig").Diagnostic;
 const generated = @import("rx_options").generated_graph;
+const registered = if (generated) @import("references/registered.zig") else void;
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidGraph};
 
@@ -55,7 +55,7 @@ pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, owner: []
     defer temporary.free(absolute);
 
     if (comptime generated) {
-        return self.admit(absolute, location, .store, null, owner);
+        return registered.source(self, location, .store, .{ .path = absolute }, .{ .boundary = self.scope(), .store_owner = owner });
     }
 
     const index = self.paths.get(absolute);
@@ -104,7 +104,7 @@ pub fn local(self: *Self, path: []const u8, location: rx.ast.Location, reference
 
     defer if (resolved.path.ptr != absolute.ptr) temporary.free(resolved.path);
 
-    return self.localSelected(resolved, location, reference);
+    return self.localSelected(resolved, location, reference, false);
 }
 
 pub fn qualified(self: *Self, path: []const u8, member: []const u8, location: rx.ast.Location) Error!void {
@@ -119,63 +119,24 @@ pub fn qualified(self: *Self, path: []const u8, member: []const u8, location: rx
 
     defer if (selected.path.ptr != absolute.ptr) temporary.free(selected.path);
 
-    try self.localSelected(.{ .path = selected.path, .row = row }, location, .call);
-
-    self.edges.items[self.edges.items.len - 1].named = selected.named;
+    try self.localSelected(.{ .path = selected.path, .row = row }, location, .call, selected.named);
 }
 
-fn localSelected(self: *Self, resolved: project.SourceSelection, location: rx.ast.Location, reference: model.Reference) Error!void {
+fn localSelected(self: *Self, resolved: project.SourceSelection, location: rx.ast.Location, reference: model.Reference, named: bool) Error!void {
     if (comptime generated) {
-        return self.admit(resolved.path, location, reference, resolved.row, null);
+        return registered.source(self, location, reference, resolved, .{ .boundary = self.scope(), .named = named });
     }
 
     try self.checkBoundary(resolved.path, location);
     try self.source(resolved.path, location, reference, resolved.row);
+
+    self.edges.items[self.edges.items.len - 1].named = named;
 }
 
 fn missingStore(self: *Self, owner: []const u8, location: rx.ast.Location) Error {
     self.issue = .{ .path = self.allocator.dupe(u8, owner) catch return error.OutOfMemory, .location = location, .code = "capability", .message = "Store definition is not registered" };
 
     return error.InvalidGraph;
-}
-
-fn admit(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference, prior_row: ?usize, store_owner: ?[]const u8) Error!void {
-    const rule = @import("generated_rx_registered_target");
-    const import_scope = self.scope();
-    const roots = @import("zx").memory.borrowTextColumn("root", import_scope.scopes);
-
-    const input: std.meta.Child(rule.Input) = .{
-        .path = path,
-        .index = &.{
-            .keys = self.paths.keys,
-            .buckets = @ptrCast(&self.paths.buckets),
-            .capacity = self.paths.buckets.len,
-        },
-        .matched = if (self.options.source_index == self.paths) prior_row else null,
-        .scope = &.{
-            .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },
-            .owner = import_scope.owner,
-            .windows = builtin.os.tag == .windows,
-        },
-        .store_start = if (store_owner != null) self.sources.rx_end else null,
-    };
-
-    const Result = @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload;
-    const Value = if (@typeInfo(Result) == .pointer) std.meta.Child(Result) else Result;
-    var bytes: [@sizeOf(Value)]u8 align(@alignOf(Value)) = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&bytes);
-    const decision = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-
-    if (decision.store_missing) return self.missingStore(store_owner.?, location);
-
-    var reporter: zx.Reporter = .{};
-
-    project.ImportScope.report(decision.boundary, &reporter, .{ .start = location.offset, .end = location.offset }) catch
-        return self.fail(location, reporter.diagnostic.?.message);
-
-    const row = decision.row orelse return self.fail(location, "source module dependency is missing from the registered input set");
-
-    try self.sourceEdge(@intCast(row), location, reference);
 }
 
 fn checkBoundary(self: *Self, path: []const u8, location: rx.ast.Location) Error!void {
@@ -201,6 +162,10 @@ pub fn importPlanned(self: *Self, reference: []const u8, location: rx.ast.Locati
         .File => {},
     }
 
+    return self.resolveImport(reference, location, role, route, known);
+}
+
+pub fn resolveImport(self: *Self, reference: []const u8, location: rx.ast.Location, role: model.Reference, route: project.ImportRoute, known: ?project.PackageMatch) Error!void {
     var reporter: zx.Reporter = .{};
     const temporary = self.temporary.allocator();
 
@@ -214,9 +179,12 @@ pub fn importPlanned(self: *Self, reference: []const u8, location: rx.ast.Locati
         .source => |path| {
             defer temporary.free(path);
 
+            if (comptime generated) return registered.source(self, location, role, .{ .path = path, .row = resolved.source_row }, .{});
             try self.source(path, location, role, resolved.source_row);
         },
         .compiled => |compiled| {
+            if (comptime generated) return registered.external(self, location, role, .{ .compiled = compiled });
+
             self.modules.items(.compiled_dependency)[self.owner] = true;
 
             try self.edges.append(self.allocator, .{ .target = .{ .compiled = compiled }, .location = location, .reference = role });
@@ -224,6 +192,10 @@ pub fn importPlanned(self: *Self, reference: []const u8, location: rx.ast.Locati
     }
 }
 
-fn nativeImport(self: *Self, name: []const u8, location: rx.ast.Location, role: model.Reference) Error!void {
-    try self.edges.append(self.allocator, .{ .target = .{ .native = try self.allocator.dupe(u8, name) }, .location = location, .reference = role });
+pub fn nativeImport(self: *Self, name: []const u8, location: rx.ast.Location, role: model.Reference) Error!void {
+    const target: model.Target = .{ .native = try self.allocator.dupe(u8, name) };
+
+    if (comptime generated) return registered.external(self, location, role, target);
+
+    try self.edges.append(self.allocator, .{ .target = target, .location = location, .reference = role });
 }

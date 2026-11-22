@@ -1,0 +1,73 @@
+import host from "rx_graph_host"
+
+import { Boundary } from "../../../../../../zx/modules/project/target/scope/check"
+import check from "../../../../../../zx/modules/project/target/scope/check"
+import {
+    crossed_package,
+    missing_definition,
+    missing_owner,
+    missing_source
+} from "./const"
+import position from "./position"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { target, source } = in
+
+    if (source == null) {
+        if (in.compiled) {
+            host.markSourceGraphCompiled(target)
+        }
+
+        host.appendSourceGraphEdge(target, null)
+
+        return
+    }
+
+    const row = position(source.pick([
+        "path",
+        "index",
+        "matched"
+    ]))
+
+    const store_start = source.store_start
+
+    if (store_start != null) {
+        if (row == null || row < store_start) {
+            host.rejectSourceGraphEdge(target, true, missing_definition)
+
+            return
+        }
+    }
+
+    const scope = source.scope
+
+    if (scope != null) {
+        const boundary = check({
+            ...scope,
+            path: source.path
+        })
+
+        if (boundary == Boundary.MissingOwner) {
+            host.rejectSourceGraphEdge(target, false, missing_owner)
+
+            return
+        }
+
+        if (boundary == Boundary.Crossed) {
+            host.rejectSourceGraphEdge(target, false, crossed_package)
+
+            return
+        }
+    }
+
+    if (row == null) {
+        host.rejectSourceGraphEdge(target, false, missing_source)
+
+        return
+    }
+
+    host.linkSourceGraphEdge(target, row)
+    host.appendSourceGraphEdge(target, row)
+}

@@ -1,0 +1,114 @@
+import memory from "memory"
+import columns from "memory/columns"
+import host from "rx_graph_host"
+
+import { Route as ImportRoute } from "../../../../../zx/modules/project/target/model"
+import { Target } from "../../../../dependency_graph/reference/model"
+import { invalid_reference, missing_reference } from "./const"
+import publishImport from "./import"
+import { target_function, target_module } from "./route/batch/const"
+import { Kind } from "./route/model"
+import resolve from "./route/resolve"
+
+import type { GraphEdgeScan } from "rx_graph_host"
+import type { References } from "./route/batch/model"
+import type { Input as Route } from "./route/model"
+
+export type Input = Route.Pick("directory", "packages", "workspace") & {
+    target: GraphEdgeScan,
+    references: References
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, references, workspace } = in
+
+    const scanned = loop({
+        next: references.count,
+        bytes: workspace.bytes
+    }, {
+        while: state => state.next != 0,
+        next: state => {
+            state.next -= 1
+            const row = state.next
+            const reference =
+                columns.readOptionalIndirectTextColumn(references.values, row)
+
+            if (reference == null) {
+                host.rejectSourceGraphReference(target, row, missing_reference)
+            } else {
+                const code = references.target_codes[row * references.stride]
+                const kind = match code {
+                    target_module => Target.Module,
+                    target_function => Target.Function,
+                    _ => Target.Store
+                }
+                const package_allowed =
+                    memory.readColumnBool(references.package_allowed, row)
+
+                const request = {
+                    directory: in.directory,
+                    reference,
+                    target: kind,
+                    package_allowed,
+                    packages: in.packages,
+                    workspace: {
+                        bytes: state.bytes,
+                        target: workspace.target,
+                        start: 0
+                    }
+                }
+
+                const first = resolve(request)
+
+                if (first.kind == Kind.NeedSpace) {
+                    state.bytes = host.growSourceGraphPath(target, first.length)
+                }
+
+                const route = match first.kind {
+                    Kind.NeedSpace => resolve({
+                        ...request,
+                        workspace: {
+                            ...request.workspace,
+                            bytes: state.bytes
+                        }
+                    }),
+                    _ => first
+                }
+
+                switch (route.kind) {
+                    case Kind.Package:
+                        publishImport({
+                            target,
+                            reference,
+                            site: row,
+                            route: ImportRoute.Package,
+                            first: route.first,
+                            duplicate: route.duplicate
+                        })
+                    case Kind.Source:
+                        host.resolveSourceGraphReference(
+                            target,
+                            row,
+                            route.length,
+                            false
+                        )
+                    case Kind.Store:
+                        host.resolveSourceGraphReference(
+                            target,
+                            row,
+                            route.length,
+                            true
+                        )
+                    default:
+                        host.rejectSourceGraphReference(
+                            target,
+                            row,
+                            invalid_reference
+                        )
+                }
+            }
+        }
+    })
+}

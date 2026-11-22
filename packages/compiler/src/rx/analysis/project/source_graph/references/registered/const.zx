@@ -1,0 +1,9 @@
+export const crossed_package: string =
+    "file import crosses a package boundary; declare and import the package dependency"
+
+export const missing_definition: string = "Store definition is not registered"
+
+export const missing_owner: string = "source file does not belong to a declared package"
+
+export const missing_source: string =
+    "source module dependency is missing from the registered input set"

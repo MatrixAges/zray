@@ -121,15 +121,23 @@ const Scan = struct {
                 const header = result.header();
 
                 if (comptime enabled) {
-                    try @import("imports/indexed.zig").collect(collector, header);
+                    try @import("references/scan.zig").collectZx(collector, header);
                 } else {
                     try zx_edges.collect(collector, header);
                 }
             } else unreachable,
         }
     }
+
     fn collectRX(self: *Scan, owner: usize, module: rx.ModuleSource) Collector.Error!void {
         self.collector.begin(owner, "");
+
+        if (comptime enabled) {
+            if (module.indexedReferences()) |entries| {
+                return @import("references/scan.zig").collectRx(self.collector, module.path, entries);
+            }
+        }
+
         try rx_edges.collect(self.collector, module);
     }
     fn finish(self: *Scan, owner: usize) Collector.Error!?usize {

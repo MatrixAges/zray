@@ -1,0 +1,6 @@
+export const invalid_import: string = "invalid or unknown import specifier"
+
+export const missing_reference: string = "source dependency requires an explicit target"
+
+export const invalid_reference: string =
+    "source dependency escapes the project root or is not a valid module path"

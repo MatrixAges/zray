@@ -2,6 +2,10 @@ export type GraphConstruction = opaque
 
 export type GraphVisit = opaque
 
+export type GraphEdgePublication = opaque
+
+export type GraphEdgeScan = opaque
+
 export declare function sourceGraphPath(target: GraphConstruction, row: u64): string
 
 export declare function claimSourceGraphPath(
@@ -63,3 +67,50 @@ export declare function readSourceGraphRX(target: GraphVisit, owner: u64, row: u
 
 export declare function finishSourceGraphVisit(target: GraphVisit, owner: u64): u64
     throws { OutOfMemory, InvalidGraph }
+
+export declare function linkSourceGraphEdge(target: GraphEdgePublication, row: u64): void
+    throws { OutOfMemory }
+
+export declare function appendSourceGraphEdge(target: GraphEdgePublication, row: u64?): void
+    throws { OutOfMemory }
+
+export declare function markSourceGraphCompiled(target: GraphEdgePublication): void
+
+export declare function rejectSourceGraphEdge(
+    target: GraphEdgePublication,
+    store: bool,
+    message: string
+): void throws { OutOfMemory, InvalidGraph }
+
+export declare function growSourceGraphPath(target: GraphEdgeScan, count: u64): u8[]
+    throws { OutOfMemory }
+
+export declare function rejectSourceGraphReference(
+    target: GraphEdgeScan,
+    site: u64,
+    message: string
+): void throws { OutOfMemory, InvalidGraph }
+
+export declare function resolveSourceGraphReference(
+    target: GraphEdgeScan,
+    site: u64,
+    length: u64,
+    is_store: bool
+): void throws { OutOfMemory, InvalidGraph }
+
+export declare function sourceGraphInternal(target: GraphEdgeScan, reference: string): string?
+
+export declare function appendSourceGraphNative(
+    target: GraphEdgeScan,
+    site: u64,
+    name: string
+): void throws { OutOfMemory, InvalidGraph }
+
+export declare function resolveSourceGraphImport(
+    target: GraphEdgeScan,
+    site: u64,
+    reference: string,
+    package_route: bool,
+    first: u64?,
+    duplicate: bool
+): void throws { OutOfMemory, InvalidGraph }

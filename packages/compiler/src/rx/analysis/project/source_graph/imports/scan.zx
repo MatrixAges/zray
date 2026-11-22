@@ -1,0 +1,59 @@
+import encoding from "std:encoding"
+
+import classify from "../../../../../zx/modules/project/target/classify"
+import { Route } from "../../../../../zx/modules/project/target/model"
+import select from "../../../../../zx/modules/project/target/select"
+import publishImport from "../references/import"
+
+import type { GraphEdgeScan } from "rx_graph_host"
+import type { Import } from "../../../../../zx/frontend/parser/imports/model"
+import type { Rows } from "../../../../../zx/modules/project/target/select"
+
+export type Input = {
+    target: GraphEdgeScan,
+    source: string,
+    intrinsic: string,
+    packages: Rows,
+    imports: Import[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, source, intrinsic, packages, imports } = in
+
+    const scanned = loop(0, {
+        while: index => index < imports.length,
+        next: index => {
+            const item = imports[index]
+            const span = item.path
+            const reference = encoding.sliceBytes(source, span.start + 1, span.end - 1)
+            const route = classify({
+                path: reference,
+                intrinsic
+            })
+
+            const selected = match route {
+                Route.Package => select({
+                    specifiers: packages,
+                    name: reference,
+                    check_duplicates: true
+                }),
+                _ => ({
+                    first: null,
+                    duplicate: false
+                })
+            }
+
+            publishImport({
+                target,
+                reference,
+                site: item.span.start,
+                route,
+                ...selected
+            })
+
+            index += 1
+        }
+    })
+}
