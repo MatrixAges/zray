@@ -44,7 +44,10 @@ pub fn lowerMode(self: *Lower, symbol: ir.SymbolId, type_id: ir.TypeId, iteratio
 
     if (output.result == .Direct) return root;
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const converted = try @import("../state_value/conversion.zig").convert(self, &body, type_id, root, if (output.result == .ViewValue) .view_value else .value);
 
     return @import("../aggregate.zig").finish(self, &body, converted);

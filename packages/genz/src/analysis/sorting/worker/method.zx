@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import integers from "std:integer"
 
 import primitive from "../../../ast/context/primitive"
 import result from "../../../ast/context/result"
@@ -8,6 +7,7 @@ import errorUnion from "../../../ast/expressions/error_union"
 import appendField from "../../../ast/fields/append"
 import { ExpressionsPrimitive } from "../../../printer/model/expressions"
 import { context_name, compare_name } from "../functions/const"
+import layoutBody from "./body_layout"
 import { left_element_name, right_element_name } from "./const"
 
 import type { State as Input, Output } from "./model"
@@ -71,10 +71,15 @@ export default function (in: Input): Output {
         comptime_parameter: false
     })
 
-    const count = (
-        in.context_count + in.source.reference_count + in.source.helper_count +
-            in.bindings.tags.length + ending.statements.tags.length
-    )
+    const body = layoutBody({
+        base: in.source.bases.statement_base,
+        references: in.source.references,
+        left: in.source.left,
+        right: in.source.right,
+        prefix: in.prefix.tags.length,
+        bindings: in.bindings.tags.length,
+        ending: ending.statements.tags.length
+    })
 
     const function_value = declaration({
         base: in.source.declaration_base,
@@ -83,7 +88,7 @@ export default function (in: Input): Output {
         parameters_count: 3,
         return_type: returns.id,
         body_start: in.source.bases.statement_base,
-        body_count: integers.narrow(count),
+        body_count: body.count,
         exported: false,
         abi_export: false,
         inlined: false,
@@ -100,6 +105,7 @@ export default function (in: Input): Output {
         prefix: in.prefix,
         bindings: in.bindings,
         ending: ending.statements,
+        body,
         fields,
         declarations: function_value.table,
         valid: ending.valid && function_value.valid

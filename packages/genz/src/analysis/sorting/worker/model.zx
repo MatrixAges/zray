@@ -6,6 +6,17 @@ import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
 import type { StatementsKind } from "../../../printer/model/statements"
 
+export type Block = {
+    start: u32,
+    count: u32
+}
+
+export type Body = {
+    starts: u32[],
+    counts: u32[],
+    count: u32
+}
+
 export type Input = {
     child: u32,
     output_type: u32,
@@ -18,8 +29,9 @@ export type Input = {
     uses_io: bool,
     uses_process: bool,
     uses_environment: bool,
-    reference_count: u64,
-    helper_count: u64,
+    references: Block,
+    left: Block,
+    right: Block,
     bases: Bases,
     declaration_base: u32
 }
@@ -46,7 +58,6 @@ export type State = {
     discard: u32[],
     bindings: Bindings,
     prefix: Bindings,
-    context_count: u64,
     extra: Extra,
     fields: Fields
 }
@@ -58,6 +69,7 @@ export type Output = {
     prefix: Bindings,
     bindings: Bindings,
     ending: Statements,
+    body: Body,
     fields: Fields,
     declarations: Functions,
     valid: bool

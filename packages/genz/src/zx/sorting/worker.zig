@@ -1,4 +1,3 @@
-const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
@@ -27,13 +26,25 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
     try @import("../state_value/locals.zig").registerOwned(&worker, value.parameters);
 
     const result = try worker.expr(value.body);
-    var helpers: [2]std.ArrayList(node.Statement) = @splat(.empty);
+    var helper = self.builder.statementSequence(self.workspace);
+
+    defer helper.deinit();
+
+    const list_type = self.program.expression(value.target).type_id;
+    var helpers: [2]node.Block = @splat(.{});
     var elements: [2]node.ExpressionId = undefined;
     var used: [2]bool = undefined;
 
     for (value.parameters[0..2], prepared.raw, 0..) |symbol, raw, index| {
         used[index] = worker.used[@backingInt(symbol)];
-        elements[index] = if (used[index]) try @import("../state_value/elements.zig").read(&worker, &helpers[index], self.program.expression(value.target).type_id, raw) else raw;
+        elements[index] = raw;
+
+        if (used[index]) {
+            elements[index] = try @import("../state_value/elements.zig").read(&worker, &helper, list_type, raw);
+            helpers[index] = try helper.block(self.allocator);
+
+            helper.clearRetainingCapacity();
+        }
     }
 
     const output_type = try self.typeExpr(self.program.expression(value.body).type_id);
@@ -49,7 +60,7 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
             .raw = prepared.raw,
             .elements = elements,
             .used = used,
-            .helpers = .{ helpers[0].items, helpers[1].items },
+            .helpers = helpers,
         }),
         .io = worker.uses_io,
         .process = worker.uses_process,

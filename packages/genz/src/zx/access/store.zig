@@ -54,11 +54,7 @@ pub fn lower(self: *Lower, slot: u32, type_id: ir.TypeId) Lower.Error!node.Expre
         .ViewValue => unreachable,
     }
 
-    var body: std.ArrayList(node.Statement) = .empty;
-    const source = try @import("../aggregate.zig").bind(self, &body, root);
-    const converted = try @import("../state_value/conversion.zig").convert(self, &body, type_id, source, .value);
-
-    return @import("../aggregate.zig").finish(self, &body, converted);
+    return @import("../state_value/conversion.zig").read(self, type_id, root);
 }
 
 fn failure(err: anyerror) Lower.Error {

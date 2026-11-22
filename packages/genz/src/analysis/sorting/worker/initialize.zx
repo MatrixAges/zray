@@ -20,7 +20,6 @@ export default function (in: Input): Output {
         discard: [],
         bindings,
         prefix: bindings,
-        context_count: 0,
         extra: {
             error_union_payload: [],
             error_union_errors: [],

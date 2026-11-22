@@ -1,0 +1,45 @@
+import integers from "std:integer"
+
+import type { Block, Body as Output } from "./model"
+
+export type Input = {
+    base: u32,
+    references: Block,
+    left: Block,
+    right: Block,
+    prefix: u64,
+    bindings: u64,
+    ending: u64
+}
+
+export default function (in: Input): Output {
+    const { base, references, left, right, prefix, bindings, ending } = in
+
+    const binding = integers.widen(base) + prefix
+
+    const count = prefix + bindings + ending +
+        integers.widen(references.count) + integers.widen(left.count) +
+        integers.widen(right.count)
+
+    return {
+        starts: [
+            base,
+            references.start,
+            left.start,
+            integers.narrow(binding),
+            right.start,
+            integers.narrow(binding + 1),
+            integers.narrow(binding + bindings)
+        ],
+        counts: [
+            integers.narrow(prefix),
+            references.count,
+            left.count,
+            1,
+            right.count,
+            1,
+            integers.narrow(ending)
+        ],
+        count: integers.narrow(count)
+    }
+}

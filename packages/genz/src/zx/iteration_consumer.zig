@@ -50,10 +50,7 @@ fn readSeed(self: *Lower, consumer: Consumer, id: ir.ExprId, state: node.Express
 
             if (!self.state_active or !self.state_plan.represented(self.program, expression.type_id)) break :value projected;
 
-            var body: std.ArrayList(node.Statement) = .empty;
-            const converted = try @import("state_value/elements.zig").read(self, &body, self.program.expression(item.target).type_id, projected);
-
-            break :value @import("aggregate.zig").finish(self, &body, converted);
+            break :value @import("state_value/elements.zig").expression(self, self.program.expression(item.target).type_id, projected);
         },
         .length => |child| self.cast(try self.typeExpr(expression.type_id), try self.field(try @import("state_value/list.zig").items(self, self.program.expression(child).type_id, try readSeed(self, consumer, child, state)), "len")),
         else => unreachable,
@@ -64,9 +61,5 @@ fn fromAbi(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!no
     if (!self.state_plan.represented(self.program, id)) return value;
     if (self.program.typeOf(id) == .list and !@import("state_value/elements.zig").inlineStored(self, id)) return @import("state_value/list.zig").borrowed(self, id, value);
 
-    var body: std.ArrayList(node.Statement) = .empty;
-    const source = try @import("aggregate.zig").bind(self, &body, value);
-    const converted = try @import("state_value/conversion.zig").convert(self, &body, id, source, .value);
-
-    return @import("aggregate.zig").finish(self, &body, converted);
+    return @import("state_value/conversion.zig").read(self, id, value);
 }

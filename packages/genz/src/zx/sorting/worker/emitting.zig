@@ -17,7 +17,7 @@ pub const Final = struct {
     raw: [2]node.ExpressionId,
     elements: [2]node.ExpressionId,
     used: [2]bool,
-    helpers: [2][]const node.Statement,
+    helpers: [2]node.Block,
 };
 
 pub fn prepare(self: *Lower) Lower.Error!Prepared {
@@ -70,8 +70,9 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
         .uses_io = args.worker.uses_io,
         .uses_process = args.worker.uses_process,
         .uses_environment = args.worker.used[@backingInt(args.environment)],
-        .reference_count = references.len,
-        .helper_count = args.helpers[0].len + args.helpers[1].len,
+        .references = &.{ .start = references.start, .count = references.len },
+        .left = &.{ .start = args.helpers[0].start, .count = args.helpers[0].len },
+        .right = &.{ .start = args.helpers[1].start, .count = args.helpers[1].len },
         .bases = &bases,
         .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
     };
@@ -92,17 +93,15 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
 
     _ = @import("../../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
 
-    const prefix = try self.builder.publishStatements(&.{}, result.prefix);
-    const left = try self.builder.statements(args.helpers[0]);
-    const bindings = try self.builder.publishStatements(&.{}, result.bindings);
-    const right = try self.builder.statements(args.helpers[1]);
-    const ending = try self.builder.publishStatements(&.{}, result.ending);
+    try append(self, &self.builder.nodes.statements, result.prefix);
+    try append(self, &self.builder.nodes.statements, result.bindings);
+    try append(self, &self.builder.nodes.statements, result.ending);
 
     const body = try blocks.join(
         self.allocator,
         self.builder.nodes,
-        &.{ prefix.start, references.start, left.start, bindings.start, right.start, bindings.start + 1, ending.start },
-        &.{ prefix.len, references.len, left.len, 1, right.len, 1, ending.len },
+        result.body.starts,
+        result.body.counts,
     );
 
     var declarations = result.declarations.*;

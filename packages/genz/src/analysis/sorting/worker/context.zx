@@ -86,7 +86,6 @@ export default function (in: Input): Output {
                 "constant_exported"
             ]),
             discard: selected.values
-        },
-        context_count: selected.state.statements.tags.length
+        }
     }
 }

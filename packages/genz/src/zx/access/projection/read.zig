@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
-const aggregate = @import("../../aggregate.zig");
 const list = @import("../../state_value/list.zig");
 const emit = @import("../emit.zig");
 const path = @import("path.zig");
@@ -81,21 +80,12 @@ pub fn resolvedMember(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, item:
 }
 
 fn finish(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, value: node.ExpressionId, result: Result) Lower.Error!node.ExpressionId {
-    switch (result) {
-        .Direct => return value,
-        .Borrowed => return list.borrowed(self, id, value),
-        .Value, .Element => {},
-    }
-
-    var body: std.ArrayList(node.Statement) = .empty;
-
-    const converted = switch (result) {
-        .Value => try @import("../../state_value/conversion.zig").convert(self, &body, id, try aggregate.bind(self, &body, value), .value),
-        .Element => try @import("../../state_value/elements.zig").read(self, &body, target_type, value),
-        else => unreachable,
+    return switch (result) {
+        .Direct => value,
+        .Borrowed => list.borrowed(self, id, value),
+        .Value => @import("../../state_value/conversion.zig").read(self, id, value),
+        .Element => @import("../../state_value/elements.zig").expression(self, target_type, value),
     };
-
-    return aggregate.finish(self, &body, converted);
 }
 
 const MemberResult = struct { value: node.ExpressionId, result: Result };

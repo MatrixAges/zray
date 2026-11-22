@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const aggregate = @import("../aggregate.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const lists = @import("../state_value/list.zig");
 const entry = @import("generated_consumer_read");
@@ -73,19 +72,7 @@ pub fn convertLoopPath(handle: *const anyopaque, row: u32, id: u32, conversion: 
     return @backingInt(switch (conversion) {
         .Plain => unreachable,
         .BorrowList => try lists.borrowed(self, value.type_id, projected),
-        .ReadElement => converted: {
-            var body: std.ArrayList(node.Statement) = .empty;
-            const list = self.program.expression(value.value.index.target).type_id;
-            const element = try @import("../state_value/elements.zig").read(self, &body, list, projected);
-
-            break :converted try aggregate.finish(self, &body, element);
-        },
-        .Convert => converted: {
-            var body: std.ArrayList(node.Statement) = .empty;
-            const source = try aggregate.bind(self, &body, projected);
-            const result = try @import("../state_value/conversion.zig").convert(self, &body, value.type_id, source, .value);
-
-            break :converted try aggregate.finish(self, &body, result);
-        },
+        .ReadElement => try @import("../state_value/elements.zig").expression(self, self.program.expression(value.value.index.target).type_id, projected),
+        .Convert => try @import("../state_value/conversion.zig").read(self, value.type_id, projected),
     });
 }

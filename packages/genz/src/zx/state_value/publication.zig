@@ -1,6 +1,5 @@
 const std = @import("std");
 const zx = @import("zx");
-const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
@@ -11,28 +10,10 @@ const Projection = std.meta.Child(@import("generated_ownership_projection").Outp
 const Conversion = std.meta.Child(@import("generated_state_conversion_emit").Output);
 const entry = @import("generated_publish_state_ast");
 
-const Body = union(enum) {
-    sequence: *Sequence,
-    flat: *std.ArrayList(node.Statement),
-    fn bind(target: anytype) ?Body {
-        if (@TypeOf(target) == @TypeOf(null)) return null;
-
-        return if (@TypeOf(target) == *Sequence) .{ .sequence = target } else .{ .flat = target };
-    }
-    fn append(self: Body, allocator: std.mem.Allocator, source: anytype, borrowed: bool) rows.Error!void {
-        switch (self) {
-            inline else => |target| if (borrowed)
-                try statements.appendSelectedBorrowingText(allocator, target, source)
-            else
-                try statements.appendSelected(allocator, target, source),
-        }
-    }
-};
-
 const Frame = struct {
     lower: *Lower,
-    binding: ?Body,
-    body: ?Body,
+    binding: ?*Sequence,
+    body: ?*Sequence,
     source: union(enum) {
         projection: *const Projection,
         conversion: *const Conversion,
@@ -42,22 +23,21 @@ const Frame = struct {
     }
 };
 
-pub fn projection(self: *Lower, body: anytype, output: *const Projection) Lower.Error!void {
+pub fn projection(self: *Lower, body: *Sequence, output: *const Projection) Lower.Error!void {
     if (!output.result.valid) return error.OutOfMemory;
 
-    const target = Body.bind(body);
-    const frame: Frame = .{ .lower = self, .binding = target, .body = target, .source = .{ .projection = output } };
+    const frame: Frame = .{ .lower = self, .binding = body, .body = body, .source = .{ .projection = output } };
 
     return publish(&frame, output.result.segments.len, output.result.declaration != null, false);
 }
 
-pub fn conversion(self: *Lower, binding: anytype, body: anytype, output: anytype) Lower.Error!void {
+pub fn conversion(self: *Lower, binding: ?*Sequence, body: ?*Sequence, output: anytype) Lower.Error!void {
     if (!output.valid) return error.OutOfMemory;
 
     const frame: Frame = .{
         .lower = self,
-        .binding = Body.bind(binding),
-        .body = Body.bind(body),
+        .binding = binding,
+        .body = body,
         .source = .{ .conversion = zx.columns.pointer(*const Conversion, output) },
     };
 
@@ -143,6 +123,7 @@ pub fn appendAstHelper(handle: *const anyopaque) Lower.Error!void {
 
 pub fn appendAstBody(handle: *const anyopaque, binding: bool) Lower.Error!void {
     const frame = Frame.borrow(handle);
+    const allocator = frame.lower.allocator;
     const target = (if (binding) frame.binding else frame.body).?;
 
     switch (frame.source) {
@@ -150,13 +131,17 @@ pub fn appendAstBody(handle: *const anyopaque, binding: bool) Lower.Error!void {
             const part = if (binding) output.binding else output.body;
             const source = view.join(part.statements.*, part.variables.*);
 
-            target.append(frame.lower.allocator, &source, part.borrow_text) catch |err| return imported(err);
+            if (part.borrow_text) {
+                statements.appendSelectedBorrowingText(allocator, target, &source) catch |err| return imported(err);
+            } else {
+                statements.appendSelected(allocator, target, &source) catch |err| return imported(err);
+            }
         },
         .conversion => |output| {
             const part = if (binding) output.borrow_storage else output.body;
             const source = view.join(part.*, output.variables.*);
 
-            target.append(frame.lower.allocator, &source, false) catch |err| return imported(err);
+            statements.appendSelected(allocator, target, &source) catch |err| return imported(err);
         },
     }
 }
