@@ -1,0 +1,40 @@
+import { word_radix } from "../const"
+
+import type { LayoutRequest, Layout as Output } from "../model"
+
+export type Input = LayoutRequest.Pick("parts", "last", "end", "at_tail")
+
+export default function (in: Input): Output {
+    const { parts, last, end, at_tail } = in
+
+    const start = last / word_radix
+    const count = last % word_radix
+
+    if (parts.length == 0) {
+        const append = at_tail && start + count != end
+
+        return {
+            start: append ? end : start,
+            count,
+            append
+        }
+    }
+
+    const length = loop({
+        index: 0,
+        count
+    }, {
+        while: state => state.index < parts.length,
+        next: state => {
+            state.count += parts[state.index] % word_radix
+            state.index += 1
+        },
+        return: state => state.count
+    })
+
+    return {
+        start: end,
+        count: length,
+        append: true
+    }
+}

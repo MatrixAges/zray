@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Input} out={Block.Layout} />
+
+    <Call
+        fn="layout"
+        in={$in.pick([
+            "starts",
+            "counts",
+            "parts",
+            "last",
+            "end",
+            "at_tail"
+        ])}
+    />
+
+    <If on={$ctx.layout.append}>
+        <Call
+            fn="reserve"
+            in={{
+                ...$in.omit([
+                    "starts",
+                    "counts",
+                    "parts",
+                    "last",
+                    "end",
+                    "at_tail"
+                ]),
+                count: $ctx.layout.count
+            }}
+        />
+
+        <Call
+            fn="publish"
+            in={$in.omit([
+                "tags",
+                "offsets",
+                "allocator",
+                "end",
+                "at_tail"
+            ])}
+        />
+    </If>
+
+    <Return value={$ctx.layout} />
+</Module>

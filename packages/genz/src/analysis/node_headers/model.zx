@@ -26,9 +26,3 @@ export type Selected = Headers.Pick("tags", "mask") & Destination & {
     count: u64,
     bases: U32Buffer
 }
-
-export type References = Destination & {
-    tags: u8[],
-    offsets: u32[],
-    indices: u32[]
-}

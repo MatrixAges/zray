@@ -65,18 +65,20 @@ pub fn declarations(self: *Self, allocator: std.mem.Allocator, values: []const n
 }
 
 pub fn selectDeclarations(self: *Self, allocator: std.mem.Allocator, indices: []const u32) (std.mem.Allocator.Error || error{InvalidAst})!stored.Declarations {
-    const headers = @import("headers.zig");
-    const first = self.declaration_rows.tags.items.len;
+    const rows = &self.declaration_rows;
+    const start = rows.tags.items.len;
 
-    if (indices.len > std.math.maxInt(u32) - first) return error.OutOfMemory;
+    if (indices.len > std.math.maxInt(u32) - start) return error.OutOfMemory;
+    for (indices) |index| if (index >= start) return error.InvalidAst;
+    try rows.tags.ensureUnusedCapacity(allocator, indices.len);
+    try rows.offsets.ensureUnusedCapacity(allocator, indices.len);
 
-    try headers.validateReferences(indices, first);
-    try self.declaration_rows.tags.ensureUnusedCapacity(allocator, indices.len);
-    try self.declaration_rows.offsets.ensureUnusedCapacity(allocator, indices.len);
+    for (indices) |index| {
+        rows.tags.appendAssumeCapacity(rows.tags.items[index]);
+        rows.offsets.appendAssumeCapacity(rows.offsets.items[index]);
+    }
 
-    headers.publishReferences(&self.declaration_rows, indices);
-
-    return .{ .start = @intCast(first), .len = @intCast(indices.len) };
+    return .{ .start = @intCast(start), .len = @intCast(indices.len) };
 }
 
 pub fn materializeDeclaration(self: *const Self, allocator: std.mem.Allocator, index: u32) std.mem.Allocator.Error!node.Declaration {

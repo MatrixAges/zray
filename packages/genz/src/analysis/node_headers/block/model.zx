@@ -1,8 +1,11 @@
+import type { Allocator, U8Buffer, U8Storage, U32Buffer, U32Storage } from "memory"
 import type { Destination as Headers } from "../model"
 
 export type Blocks = {
     starts: u32[],
-    counts: u32[]
+    counts: u32[],
+    parts: u64[],
+    last: u64
 }
 
 export type LayoutRequest = Blocks & {
@@ -16,7 +19,21 @@ export type Layout = {
     append: bool
 }
 
-export type Destination = Blocks & Headers & {
-    tags: u8[],
-    offsets: u32[]
+export type Views = {
+    source_tags: U8Buffer,
+    source_offsets: U32Buffer
 }
+
+export type Storage = Headers & Views & {
+    allocator: Allocator,
+    tags: U8Storage,
+    offsets: U32Storage
+}
+
+export type Input = LayoutRequest & Storage
+
+export type Reservation = Storage & {
+    count: u64
+}
+
+export type Destination = Blocks & Headers & Views

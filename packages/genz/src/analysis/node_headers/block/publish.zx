@@ -1,49 +1,52 @@
 import integers from "std:integer"
 import memory from "memory"
 
+import { word_radix } from "./const"
+
 import type { Destination as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
+    const { starts, counts, parts, last } = in
+
+    const tags = memory.u8Views(in.source_tags)
+    const offsets = memory.u32Views(in.source_offsets)
+    const total = counts.length + parts.length
+
     const written = loop({
         index: 0,
         target: 0
     }, {
-        while: state => state.index < in.counts.length,
+        while: state => state.index < total,
         next: state => {
-            const count = integers.widen(in.counts[state.index])
+            const word = match {
+                state.index < counts.length => integers.widen(starts[state.index]) *
+                    word_radix + integers.widen(counts[state.index]),
+                _ => parts[state.index - counts.length]
+            }
+            const count = word % word_radix
 
             if (count != 0) {
-                const start = integers.widen(in.starts[state.index])
+                const start = word / word_radix
                 const end = start + count
 
                 const copied = memory.copyBytes(
                     in.target_tags,
                     state.target,
-                    in.tags,
+                    tags,
                     start,
                     end
                 )
 
-                const offsets = loop({
-                    source: start,
-                    target: state.target
-                }, {
-                    while: position => position.source < end,
-                    next: position => {
-                        memory.writeU32(
-                            in.target_offsets,
-                            position.target,
-                            in.offsets[position.source]
-                        )
-                        position.source += 1
-                        position.target += 1
-                    },
-                    return: position => position.target
-                })
-
-                state.target = offsets
+                memory.copyU32Range(
+                    in.target_offsets,
+                    state.target,
+                    offsets,
+                    start,
+                    end
+                )
+                state.target += count
             }
 
             state.index += 1
@@ -51,5 +54,15 @@ export default function (in: Input): Output {
         return: state => state.target
     })
 
-    memory.publishColumnLengths(in.lengths, written)
+    const tail_count = last % word_radix
+
+    if (tail_count != 0) {
+        const start = last / word_radix
+        const end = start + tail_count
+        const copied = memory.copyBytes(in.target_tags, written, tags, start, end)
+
+        memory.copyU32Range(in.target_offsets, written, offsets, start, end)
+    }
+
+    memory.publishColumnLengths(in.lengths, written + tail_count)
 }

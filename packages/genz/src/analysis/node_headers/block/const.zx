@@ -1,0 +1,1 @@
+export const word_radix: u64 = 4294967296

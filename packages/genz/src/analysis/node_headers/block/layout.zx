@@ -1,8 +1,19 @@
 import integers from "std:integer"
 
+import sequence from "./sequence/layout"
+
 import type { LayoutRequest as Input, Layout as Output } from "./model"
 
 export default function (in: Input): Output {
+    if (in.last != 0) {
+        return sequence(in.pick([
+            "parts",
+            "last",
+            "end",
+            "at_tail"
+        ]))
+    }
+
     const ranges = loop({
         start: 0,
         count: 0,

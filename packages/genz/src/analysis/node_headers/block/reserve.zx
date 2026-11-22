@@ -1,0 +1,24 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import memory from "memory"
+
+import type { Reservation as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { allocator, tags, offsets, count } = in
+
+    const limit = integers.widen(max_u32)
+
+    memory.reserveU8Tail(allocator, tags, in.source_tags, in.target_tags, count, limit)
+
+    memory.reserveU32Tail(
+        allocator,
+        offsets,
+        in.source_offsets,
+        in.target_offsets,
+        count,
+        limit
+    )
+}

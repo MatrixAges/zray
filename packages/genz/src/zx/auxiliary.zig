@@ -112,11 +112,7 @@ pub fn store(self: *const Self, allocator: std.mem.Allocator, nodes: *@import(".
 pub fn assemble(self: *const Self, allocator: std.mem.Allocator, nodes: *@import("../node/storage.zig"), prefix: *@import("../node/declarations.zig").Output, suffix: *@import("../node/declarations.zig").Output) std.mem.Allocator.Error!stored.Declarations {
     if (generated) {
         try prefix.spans.append(try self.store(allocator, nodes));
-
-        const spans = &suffix.spans;
-
-        for (0..spans.parts.len) |index| try prefix.spans.append(spans.parts.get(index));
-        try prefix.spans.append(spans.last);
+        try prefix.spans.extend(&suffix.spans);
 
         return prefix.spans.finish(allocator);
     }

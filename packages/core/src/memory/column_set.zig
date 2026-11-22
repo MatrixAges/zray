@@ -260,6 +260,25 @@ fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
     return @ptrCast(@alignCast(storage));
 }
 
+pub fn appendU64(resource: *const anyopaque, target: *const anyopaque, value: u64) std.mem.Allocator.Error!void {
+    try list(u64, @constCast(target)).append(borrowAllocator(resource), value);
+}
+
+pub fn reserveTail(comptime Item: type, resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
+    const column = list(Item, @constCast(storage));
+
+    if (column.items.len > limit or count > limit - column.items.len) return error.OutOfMemory;
+
+    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
+    const existing: *[]const Item = @ptrCast(@alignCast(@constCast(source)));
+    const writable: *[]Item = @ptrCast(@alignCast(@constCast(tail)));
+
+    try column.ensureUnusedCapacity(borrowAllocator(resource), length);
+
+    existing.* = column.items;
+    writable.* = column.unusedCapacitySlice()[0..length];
+}
+
 pub fn copyText(resource: *const anyopaque, source: []const u8) std.mem.Allocator.Error![]const u8 {
     return borrowAllocator(resource).dupe(u8, source);
 }

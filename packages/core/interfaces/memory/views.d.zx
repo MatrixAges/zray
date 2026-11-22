@@ -5,6 +5,9 @@ export type StreamReader = opaque
 export type U32Buffer = opaque
 export type U32Scratch = opaque
 export type U64Buffer = opaque
+export type U8Storage = opaque
+export type U32Storage = opaque
+export type U64Storage = opaque
 export type OptionalU32Buffer = opaque
 export type StringBuffer = opaque
 export type OptionalStringBuffer = opaque
@@ -127,7 +130,33 @@ export declare function setColumnRangeCount(
 
 export declare function stringViews(source: StringBuffer): string[]
 
+export declare function u8Views(source: U8Buffer): u8[]
+
 export declare function u32Views(source: U32Buffer): u32[]
+
+export declare function appendU64(
+    resource: Allocator,
+    target: U64Storage,
+    value: u64
+): void throws { OutOfMemory }
+
+export declare function reserveU8Tail(
+    resource: Allocator,
+    storage: U8Storage,
+    source: U8Buffer,
+    tail: U8Buffer,
+    count: u64,
+    limit: u64
+): void throws { OutOfMemory }
+
+export declare function reserveU32Tail(
+    resource: Allocator,
+    storage: U32Storage,
+    source: U32Buffer,
+    tail: U32Buffer,
+    count: u64,
+    limit: u64
+): void throws { OutOfMemory }
 
 export declare function optionalU32Views(source: OptionalU32Buffer): u32?[]
 

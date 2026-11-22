@@ -1,0 +1,32 @@
+import append from "./append"
+
+import type { Extend as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { parts, allocator, suffix, tail } = in
+
+    const progress = loop({
+        index: 0,
+        last: in.last
+    }, {
+        while: state => state.index < suffix.length,
+        next: state => {
+            state.last = append({
+                parts,
+                allocator,
+                last: state.last,
+                span: suffix[state.index]
+            })
+            state.index += 1
+        }
+    })
+
+    return append({
+        parts,
+        allocator,
+        last: progress.last,
+        span: tail
+    })
+}

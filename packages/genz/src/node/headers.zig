@@ -69,49 +69,6 @@ pub fn payloadBases(target: anytype, counts: *const Counts(@TypeOf(target))) Cou
     return bases;
 }
 
-pub fn validateReferences(indices: []const u32, count: usize) Error!void {
-    if (!generated) {
-        for (indices) |index| if (index >= count) return error.InvalidAst;
-
-        return;
-    }
-
-    const entry = @import("generated_node_header_reference_bounds");
-    const input: std.meta.Child(entry.Input) = .{ .indices = indices, .count = count };
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    if (!(zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable)) return error.InvalidAst;
-}
-
-pub fn publishReferences(target: anytype, indices: []const u32) void {
-    if (!generated) {
-        for (indices) |index| {
-            target.tags.appendAssumeCapacity(target.tags.items[index]);
-            target.offsets.appendAssumeCapacity(target.offsets.items[index]);
-        }
-
-        return;
-    }
-
-    const output_tags = std.mem.sliceAsBytes(target.tags.unusedCapacitySlice()[0..indices.len]);
-    const output_offsets = target.offsets.unusedCapacitySlice()[0..indices.len];
-    const lengths: zx.memory.ColumnLengths = &.{ &target.tags.items.len, &target.offsets.items.len };
-    const entry = @import("generated_node_header_references");
-
-    const input: std.meta.Child(entry.Input) = .{
-        .tags = bytes(target.tags.items),
-        .offsets = target.offsets.items,
-        .indices = indices,
-        .target_tags = @ptrCast(&output_tags),
-        .target_offsets = @ptrCast(&output_offsets),
-        .lengths = @ptrCast(&lengths),
-    };
-
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-}
-
 fn bytes(tags: anytype) []const u8 {
     comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(tags))) == 1);
 

@@ -69,6 +69,7 @@ pub const copyColumnBytes = column_set.copyText;
 pub const copyColumnTextViews = column_set.copyTextViews;
 pub const copyColumnTexts = column_set.copyTexts;
 pub const copyColumnOptionalTexts = column_set.copyTexts;
+pub const appendU64 = column_set.appendU64;
 pub const column_transfer = @import("column_transfer.zig");
 pub const copyColumnGroup = column_transfer.copy;
 pub const discardColumnGroup = column_transfer.discard;
@@ -123,6 +124,20 @@ pub fn allocateU64Views(allocator: std.mem.Allocator, target: *const anyopaque, 
 fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
     output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
+}
+
+pub inline fn u8Views(source: *const anyopaque) []const u8 {
+    const view: *const []const u8 = @ptrCast(@alignCast(source));
+
+    return view.*;
+}
+
+pub inline fn reserveU8Tail(resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
+    try column_set.reserveTail(u8, resource, storage, source, tail, count, limit);
+}
+
+pub inline fn reserveU32Tail(resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
+    try column_set.reserveTail(u32, resource, storage, source, tail, count, limit);
 }
 
 pub inline fn u32Views(source: *const anyopaque) []const u32 {
@@ -337,7 +352,15 @@ inline fn borrowRange(comptime T: type, source: []const T, first: u64, count: u6
 }
 
 pub inline fn copyBytes(target: *const anyopaque, offset: u64, source: []const u8, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
-    const output: *const []u8 = @ptrCast(@alignCast(target));
+    return copyRange(u8, target, offset, source, start, end);
+}
+
+pub inline fn copyU32Range(target: *const anyopaque, offset: u64, source: []const u32, start: u64, end: u64) error{IndexOutOfBounds}!void {
+    _ = try copyRange(u32, target, offset, source, start, end);
+}
+
+inline fn copyRange(comptime T: type, target: *const anyopaque, offset: u64, source: []const T, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
+    const output: *const []T = @ptrCast(@alignCast(target));
 
     if (start > end or end > source.len or offset > output.len) return error.IndexOutOfBounds;
 
