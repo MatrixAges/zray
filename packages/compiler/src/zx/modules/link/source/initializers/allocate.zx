@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import columns from "memory/columns"
 
 import type { RowBuffer } from "memory/columns"
@@ -14,7 +15,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { storage, shared, count, prefix } = in
 
-    columns.allocateRows(storage, count)
+    allocateRows({
+        target: storage,
+        count
+    })
 
     if (prefix != 0) {
         columns.copyRowPrefix(storage, shared, prefix)

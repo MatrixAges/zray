@@ -1,8 +1,8 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 import strings from "std:string"
+import { allocateRowList } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { ListColumn } from "memory"
 import type { RowBuffer, WriteColumn } from "memory/columns"
@@ -26,7 +26,12 @@ export default function (in: Input): Output {
 
     const count = memory.listLength(names, row)
 
-    columns.allocateRowList(in.column, in.output, in.buffer, count)
+    allocateRowList([
+        in.column,
+        in.output,
+        in.buffer,
+        count
+    ])
 
     const published = loop(0, {
         while: index => index < count,

@@ -1,4 +1,5 @@
 import { reserve } from "core/column_set"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory/columns"
 
 import type { Input } from "./model"
@@ -9,7 +10,10 @@ export default function (in: Input): Output {
     const { resource, storage, shape, maximum_count } = in.destination
     const { count } = in.rows
 
-    memory.allocateRows(in.member_storage, count)
+    allocateRows({
+        target: in.member_storage,
+        count
+    })
 
     reserve({
         resource,

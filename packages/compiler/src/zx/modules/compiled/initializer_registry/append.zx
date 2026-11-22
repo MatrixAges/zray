@@ -4,8 +4,8 @@ import strings from "std:string"
 import probe from "core/bytes/index/borrowed/probe"
 import refresh from "core/bytes/index/borrowed/refresh"
 import { load_numerator, load_denominator } from "core/bytes/index/const"
+import { growRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { Cursor as Output, Storage } from "./model"
 
@@ -27,7 +27,10 @@ export default function (in: Input): Output {
     const index = in.count
 
     const space = match {
-        index == in.space => columns.growRows(registry.growth, index),
+        index == in.space => growRows([
+            registry.growth,
+            index
+        ]),
         _ => in.space
     }
 

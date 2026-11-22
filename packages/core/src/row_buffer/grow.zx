@@ -1,0 +1,41 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import refreshReads from "./refresh_reads"
+import reserve from "./reserve"
+
+import type { RowGrowth } from "memory/columns"
+
+export type Input = [
+    RowGrowth,
+    u64
+]
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const [growth, used] = in
+
+    const target = columns.rowGrowthBuffer(growth, null)
+    const limit = columns.rowCapacityLimit()
+
+    memory.requireAllocation(used < limit)
+
+    const minimum = used + 1
+    const increment = minimum / 2 + columns.rowGrowthBase(target, used)
+
+    const capacity = match {
+        minimum <= limit - increment => minimum + increment,
+        _ => limit
+    }
+
+    reserve([
+        target,
+        used,
+        capacity
+    ])
+
+    refreshReads(growth)
+
+    return capacity
+}

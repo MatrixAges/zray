@@ -1,2 +1,2 @@
+export { allocateRows } from "core/row_buffer"
 export { borrowStringRange } from "memory"
-export { allocateRowsWithAllocator } from "memory/columns"

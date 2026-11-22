@@ -1,5 +1,5 @@
 import { max_u64 } from "core/const"
-import columns from "memory/columns"
+import { reserveRows } from "core/row_buffer"
 
 import type { RowBuffer } from "memory/columns"
 
@@ -27,5 +27,9 @@ export default function (in: Input): Output {
         _ => need + extra
     }
 
-    columns.reserveRows(rows, used, capacity)
+    reserveRows([
+        rows,
+        used,
+        capacity
+    ])
 }

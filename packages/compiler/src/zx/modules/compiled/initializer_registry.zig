@@ -144,13 +144,15 @@ pub fn Writer(comptime Storage: type) type {
         input: Storage,
         pub fn init(self: *@This(), registry: *Self, own: bool) void {
             self.target.init();
-            self.target.bind(registry.rows.allocatedSlice());
+
+            const storage = registry.rows.allocatedSlice();
+
+            self.target.bind(storage);
 
             self.growth = .{ .target = &self.target.buffer, .reads = &self.reads };
 
-            self.growth.refresh();
-
             inline for (@typeInfo(Target).@"struct".field_names, 0..) |name, index| {
+                self.growth.refreshCell(index, storage.len);
                 @field(self.published, name) = @ptrCast(&self.reads[index]);
             }
 

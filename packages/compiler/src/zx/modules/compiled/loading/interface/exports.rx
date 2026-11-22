@@ -7,10 +7,10 @@
 
     <Call
         fn="columns.allocateRows"
-        in={[
-            $in.buffers.exports,
-            $ctx.export_layout.count
-        ]}
+        in={{
+            target: $in.buffers.exports,
+            count: $ctx.export_layout.count
+        }}
     />
 
     <Loop on={$in.running}>

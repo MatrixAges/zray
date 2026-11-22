@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import columns from "memory/columns"
 
 import type { Identities as Input } from "./model"
@@ -5,6 +6,10 @@ import type { Identities as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    columns.allocateRows(in.target, in.count)
+    allocateRows({
+        target: in.target,
+        count: in.count
+    })
+
     columns.copyRowPrefix(in.target, in.source, in.count)
 }

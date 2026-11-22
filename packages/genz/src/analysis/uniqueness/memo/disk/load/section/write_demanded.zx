@@ -1,5 +1,5 @@
+import { moveRowList } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import claim from "../../../table/claim"
 import complete from "../../../table/complete"
@@ -18,9 +18,24 @@ export default function (in: Input): Output {
         used
     })
 
-    columns.moveRowList(target.marks, row, marks.storage)
-    columns.moveRowList(target.normalized, row, normalized.storage)
-    columns.moveRowList(target.renewed, row, renewed.storage)
+    moveRowList([
+        target.marks,
+        row,
+        marks.storage
+    ])
+
+    moveRowList([
+        target.normalized,
+        row,
+        normalized.storage
+    ])
+
+    moveRowList([
+        target.renewed,
+        row,
+        renewed.storage
+    ])
+
     memory.writeColumnBool(target.grew, row, record.grew)
     memory.writeColumnBool(target.used, row, false)
 

@@ -1,5 +1,5 @@
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import encode from "../levels/encode"
 import { Table } from "../levels/model"
@@ -20,7 +20,10 @@ export default function (in: Input): Output {
 
     const count = before.length + after.length
 
-    columns.allocateRows(target.storage, count)
+    allocateRows({
+        target: target.storage,
+        count
+    })
 
     const first: u64 = 0
 

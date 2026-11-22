@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -41,7 +42,11 @@ export default function (in: Input): Output {
         return
     }
 
-    columns.allocateRows(in.storage, header.count)
+    allocateRows({
+        target: in.storage,
+        count: header.count
+    })
+
     columns.copyRowPrefix(in.storage, in.records, header.count)
 
     const published = loop(0, {

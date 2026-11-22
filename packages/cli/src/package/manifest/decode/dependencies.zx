@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import yaml from "manifest_yaml_document"
 import columns from "memory/columns"
 
@@ -25,7 +26,10 @@ export default function (in: Input): Output {
 
     const count = pairs.length / mapping_size
 
-    columns.allocateRows(target.buffer, count)
+    allocateRows({
+        target: target.buffer,
+        count
+    })
 
     const written = loop(0, {
         while: row => row < count,

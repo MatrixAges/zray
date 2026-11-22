@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -9,7 +10,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { owners, first, width, source, target } = in
 
-    columns.allocateRows(target, owners.length)
+    allocateRows({
+        target,
+        count: owners.length
+    })
 
     const grouped = loop(owners.length, {
         while: index => index != 0,

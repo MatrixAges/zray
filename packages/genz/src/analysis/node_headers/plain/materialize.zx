@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import memory from "memory/columns"
 
 import type { ColumnAllocator, RowBuffer, WriteColumn } from "memory/columns"
@@ -33,7 +34,11 @@ export default function (in: Input): Output {
         return false
     }
 
-    memory.allocateRowsWithAllocator(in.allocator, in.rows, count)
+    allocateRows({
+        target: in.rows,
+        count,
+        owner: in.allocator
+    })
 
     const written = loop(0, {
         while: row => row < count,

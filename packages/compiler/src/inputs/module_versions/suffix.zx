@@ -1,5 +1,5 @@
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import sameRow from "./same_row"
 import start from "./start"
@@ -18,7 +18,10 @@ export default function (in: Input): Output {
     const { prior, current } = in.snapshot
     const { prefix, target } = in
 
-    columns.allocateRows(target.buffer, current.count - prefix)
+    allocateRows({
+        target: target.buffer,
+        count: current.count - prefix
+    })
 
     const selected = loop({
         row: prefix,

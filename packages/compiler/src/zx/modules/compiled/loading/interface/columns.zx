@@ -1,1 +1,2 @@
-export { allocateRows, copyRow } from "memory/columns"
+export { allocateRows } from "core/row_buffer"
+export { copyRow } from "memory/columns"

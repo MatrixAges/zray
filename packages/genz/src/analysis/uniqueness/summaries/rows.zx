@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -19,8 +20,15 @@ export default function (in: Input): Output {
 
     const length = first.length
 
-    columns.allocateRows(guarantee_rows, length)
-    columns.allocateRows(demand_rows, length)
+    allocateRows({
+        target: guarantee_rows,
+        count: length
+    })
+
+    allocateRows({
+        target: demand_rows,
+        count: length
+    })
 
     const initial: u64 = 0
 

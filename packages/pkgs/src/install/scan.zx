@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -27,7 +28,10 @@ export default function (in: Input): Output {
     if (in.allocate) {
         const capacity = count < remaining ? count : remaining
 
-        columns.allocateRows(in.storage, capacity)
+        allocateRows({
+            target: in.storage,
+            count: capacity
+        })
     }
 
     return loop({

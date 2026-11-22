@@ -43,9 +43,8 @@ pub fn View(comptime Alias: type) type {
 
             self.growth = .{ .target = &self.rows.buffer, .reads = &self.read };
 
-            self.growth.refresh();
-
             inline for (@typeInfo(Fields).@"struct".field_names, 0..) |name, index| {
+                self.growth.refreshCell(index, 0);
                 @field(self.published, name) = @ptrCast(&self.read[index]);
             }
 

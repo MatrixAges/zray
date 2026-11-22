@@ -4,12 +4,12 @@
     <Args in={Files.Publication} out={void} />
 
     <Call
-        fn="columns.allocateRowsWithAllocator"
-        in={[
-            $in.destination.owner,
-            $in.storage,
-            $in.count + $in.initializers.count
-        ]}
+        fn="columns.allocateRows"
+        in={{
+            owner: $in.destination.owner,
+            target: $in.storage,
+            count: $in.count + $in.initializers.count
+        }}
     />
 
     <Loop on={$in.running}>

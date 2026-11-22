@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import store from "../../identity/store"
 
@@ -22,7 +22,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { source, first, instance, target } = in
 
-    columns.allocateRows(in.buffer, source.count)
+    allocateRows({
+        target: in.buffer,
+        count: source.count
+    })
 
     const published = loop(0, {
         while: row => row < source.count,

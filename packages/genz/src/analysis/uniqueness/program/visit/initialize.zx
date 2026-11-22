@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import columns from "memory/columns"
 
 import type { RowBuffer } from "memory/columns"
@@ -13,7 +14,10 @@ export type Output = void
 export default function (in: Input): Output {
     const count = in.active.length - 1
 
-    columns.allocateRows(in.destination, count)
+    allocateRows({
+        target: in.destination,
+        count
+    })
 
     const result = loop({
         body: 0

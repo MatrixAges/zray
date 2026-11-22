@@ -306,26 +306,26 @@ pub const allocateNamedRows = rows.allocateNamedRows;
 const column = @import("write_column.zig");
 pub const WriteColumn = column.Column;
 pub const RowBuffer = column.RowBuffer;
-pub const refreshRowReads = column.refreshReads;
 pub const RowOutput = column.RowOutput;
 pub const RowGrowth = column.RowGrowth;
-pub const growRows = column.growRows;
-pub const reserveRows = column.reserveRows;
+pub const rowFieldCount = column.rowFieldCount;
+pub const rowStorageCount = column.rowStorageCount;
+pub const rowCapacityLimit = column.rowCapacityLimit;
+pub const rowGrowthBase = column.rowGrowthBase;
+pub const rowGrowthBuffer = column.rowGrowthBuffer;
+pub const refreshRowWrite = column.refreshRowWrite;
+pub const refreshRowRead = column.refreshRowRead;
+pub const clearRowStorage = column.clearRowStorage;
+pub const reserveRowStorage = column.reserveRowStorage;
+pub const allocateRowStorage = column.allocateRowStorage;
 pub const rowBufferBytes = column.rowBufferBytes;
-pub const allocateRows = column.allocateRows;
-pub const allocateRowList = column.allocateRowList;
 pub const writeRowList = column.writeRowList;
-pub const moveRowList = column.moveRowList;
+pub const writeRowListCount = column.writeRowListCount;
 pub const writeNamedRowList = column.writeNamedRowList;
 pub const copyRow = column.copyRow;
 pub const writeRow = column.writeRow;
 pub const writeRowByteView = column.writeRowByteView;
 pub const writeRowByteField = column.writeRowByteField;
-
-pub inline fn allocateRowsWithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    return column.allocateRows(column_set.borrowAllocator(resource), target, count);
-}
-
 pub const copyRowPrefix = column.copyRowPrefix;
 pub const borrowWriteColumn = column.borrow;
 pub const borrowNestedWriteColumn = column.borrowNested;

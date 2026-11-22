@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { Input } from "./model"
 
@@ -9,7 +9,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { needed, regular, target, count } = in
 
-    columns.allocateRows(in.storage, count)
+    allocateRows({
+        target: in.storage,
+        count
+    })
 
     if (count == 0) {
         return

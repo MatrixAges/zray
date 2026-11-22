@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -13,7 +14,10 @@ export default function (in: Input): Output {
 
     const { keys, wants } = target.columns
 
-    columns.allocateRows(target.storage, rows.count)
+    allocateRows({
+        target: target.storage,
+        count: rows.count
+    })
 
     if (rows.stored != null) {
         columns.copyRowPrefix(target.storage, rows.stored.bytes, rows.count)

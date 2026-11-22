@@ -1,0 +1,24 @@
+import columns from "memory/columns"
+
+import type { RowBuffer } from "memory/columns"
+
+export type Input = [
+    RowBuffer,
+    u64
+]
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const [target, count] = in
+
+    const fields = columns.rowFieldCount(target)
+
+    const refreshed = loop(0, {
+        while: slot => slot < fields,
+        next: slot => {
+            columns.refreshRowWrite(target, slot, count)
+            slot += 1
+        }
+    })
+}

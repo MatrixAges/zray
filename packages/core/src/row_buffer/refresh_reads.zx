@@ -1,0 +1,19 @@
+import columns from "memory/columns"
+
+import type { RowGrowth as Input } from "memory/columns"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const target = columns.rowGrowthBuffer(in, null)
+    const count = columns.rowStorageCount(target)
+    const fields = columns.rowFieldCount(target)
+
+    const refreshed = loop(0, {
+        while: slot => slot < fields,
+        next: slot => {
+            columns.refreshRowRead(in, slot, count)
+            slot += 1
+        }
+    })
+}

@@ -1,6 +1,6 @@
 import { projectLists } from "core/column_set"
+import { allocateRowList } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import { Kind } from "../../../artifact/remapping/model"
 import publish from "../../../artifact/surface/constants"
@@ -26,7 +26,12 @@ export default function (in: Input): Output {
 
     const count = memory.listLength(source.names, in.row)
 
-    columns.allocateRowList(in.column, in.output, in.buffer, count)
+    allocateRowList([
+        in.column,
+        in.output,
+        in.buffer,
+        count
+    ])
 
     if (count == 0) {
         return

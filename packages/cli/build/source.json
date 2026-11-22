@@ -472,6 +472,10 @@
     ],
     "packages": [
         {
+            "specifier": "core/row_buffer",
+            "entry": "core/row_buffer/index.zx"
+        },
+        {
             "specifier": "core/const",
             "entry": "core/const.zx"
         },

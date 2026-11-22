@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) void {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
     }
 
+    _ = files.addCopyDirectory(core.path("src/row_buffer"), "core/row_buffer", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
     _ = files.addCopyFile(compiler.namedLazyPath("memory_columns_interface"), "memory/columns.d.zx");
     _ = files.addCopyFile(compiler.path("src/zx/modules/path/lexical.d.zx"), "memory/lexical.d.zx");

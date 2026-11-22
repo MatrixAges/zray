@@ -42,18 +42,15 @@ pub const RowBuffer = struct {
 
         return std.mem.bytesAsSlice(Row, @as([]align(@alignOf(Row)) u8, @alignCast(self.bytes)));
     }
-    fn bind(self: *RowBuffer, bytes: []u8) void {
-        self.bytes = bytes;
-        const count = bytes.len / self.stride;
+    inline fn refreshCell(self: *RowBuffer, slot: usize, count: usize) void {
+        const field = self.fields[slot];
 
-        for (self.fields, self.columns) |field, *column| {
-            column.* = .{
-                .items = if (count == 0) bytes.ptr else bytes.ptr + field.offset,
-                .count = count,
-                .stride = self.stride,
-                .width = field.width,
-            };
-        }
+        self.columns[slot] = .{
+            .items = if (count == 0) self.bytes.ptr else self.bytes.ptr + field.offset,
+            .count = count,
+            .stride = self.stride,
+            .width = field.width,
+        };
     }
 };
 
@@ -92,7 +89,9 @@ pub fn RowOutput(comptime Row: type, comptime View: type, comptime fields: anyty
         }
 
         pub fn bind(self: *Self, storage: []Row) void {
-            self.buffer.bind(std.mem.sliceAsBytes(storage));
+            self.buffer.bytes = std.mem.sliceAsBytes(storage);
+
+            inline for (0..names.len) |slot| self.buffer.refreshCell(slot, storage.len);
         }
     };
 }
@@ -100,57 +99,69 @@ pub fn RowOutput(comptime Row: type, comptime View: type, comptime fields: anyty
 pub const RowGrowth = struct {
     target: *RowBuffer,
     reads: []ReadColumn,
-    pub fn refresh(self: RowGrowth) void {
+    pub inline fn refreshCell(self: RowGrowth, slot: usize, count: usize) void {
         const buffer = self.target;
-        const count = buffer.bytes.len / buffer.stride;
-
-        for (buffer.fields, self.reads) |field, *read| {
-            read.* = .{ .bytes = buffer.bytes, .count = count, .stride = buffer.stride, .offset = field.offset };
-        }
+        const field = buffer.fields[slot];
+        self.reads[slot] = .{ .bytes = buffer.bytes, .count = count, .stride = buffer.stride, .offset = field.offset };
     }
 };
 
-pub fn refreshReads(target: *const anyopaque) void {
-    const growth: *const RowGrowth = @ptrCast(@alignCast(target));
-
-    growth.refresh();
+inline fn rowBuffer(target: *const anyopaque) *RowBuffer {
+    return @ptrCast(@alignCast(@constCast(target)));
 }
 
-pub fn growRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u64) std.mem.Allocator.Error!u64 {
-    const growth: *const RowGrowth = @ptrCast(@alignCast(target));
-    const buffer = growth.target;
-    const stride = buffer.stride;
-    const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
-
-    std.debug.assert(length == buffer.bytes.len / stride);
-
-    const minimum = std.math.add(usize, length, 1) catch return error.OutOfMemory;
-    const capacity = minimum +| (minimum / 2 + @max(1, std.atomic.cache_line / stride));
-
-    try reserve(allocator, buffer, length, capacity);
-
-    growth.refresh();
-
-    return capacity;
+inline fn rowGrowth(target: *const anyopaque) *const RowGrowth {
+    return @ptrCast(@alignCast(target));
 }
 
-pub fn reserveRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u64, count: u64) std.mem.Allocator.Error!void {
-    const buffer: *RowBuffer = @ptrCast(@alignCast(@constCast(target)));
+pub inline fn rowFieldCount(target: *const anyopaque) u64 {
+    return rowBuffer(target).fields.len;
+}
+
+pub inline fn rowStorageCount(target: *const anyopaque) u64 {
+    const buffer = rowBuffer(target);
+
+    return buffer.bytes.len / buffer.stride;
+}
+
+pub inline fn rowCapacityLimit() u64 {
+    return std.math.maxInt(usize);
+}
+
+pub inline fn rowGrowthBase(target: *const anyopaque, used: u64) u64 {
+    std.debug.assert(used == rowStorageCount(target));
+
+    return @max(1, std.atomic.cache_line / rowBuffer(target).stride);
+}
+
+pub inline fn rowGrowthBuffer(target: *const anyopaque, output: anytype) std.meta.Child(@TypeOf(output)) {
+    return @ptrCast(rowGrowth(target).target);
+}
+
+pub inline fn refreshRowWrite(target: *const anyopaque, slot: u64, count: u64) void {
+    rowBuffer(target).refreshCell(@intCast(slot), @intCast(count));
+}
+
+pub inline fn refreshRowRead(target: *const anyopaque, slot: u64, count: u64) void {
+    rowGrowth(target).refreshCell(@intCast(slot), @intCast(count));
+}
+
+pub inline fn clearRowStorage(target: *const anyopaque) void {
+    rowBuffer(target).bytes = &.{};
+}
+
+pub fn reserveRowStorage(allocator: std.mem.Allocator, target: *const anyopaque, used: u64, count: u64) std.mem.Allocator.Error!bool {
+    const buffer = rowBuffer(target);
     const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
     const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
-
-    return reserve(allocator, buffer, length, capacity);
-}
-
-fn reserve(allocator: std.mem.Allocator, buffer: *RowBuffer, used: usize, count: usize) std.mem.Allocator.Error!void {
     const previous = buffer.bytes;
     const stride = buffer.stride;
 
-    std.debug.assert(used <= previous.len / stride);
+    std.debug.assert(length <= previous.len / stride);
 
-    if (count <= previous.len / stride) return;
+    if (capacity <= previous.len / stride) return false;
 
-    const size = std.math.mul(usize, count, stride) catch return error.OutOfMemory;
+    const size = std.math.mul(usize, capacity, stride) catch return error.OutOfMemory;
     const alignment = buffer.alignment;
     const address = @returnAddress();
 
@@ -163,7 +174,7 @@ fn reserve(allocator: std.mem.Allocator, buffer: *RowBuffer, used: usize, count:
         const storage = allocator.rawAlloc(size, alignment, address) orelse return error.OutOfMemory;
 
         if (previous.len != 0) {
-            const prefix = used * stride;
+            const prefix = length * stride;
 
             @memcpy(storage[0..prefix], previous[0..prefix]);
             allocator.rawFree(previous, alignment, address);
@@ -172,7 +183,9 @@ fn reserve(allocator: std.mem.Allocator, buffer: *RowBuffer, used: usize, count:
         break :block storage;
     };
 
-    buffer.bind(bytes[0..size]);
+    buffer.bytes = bytes[0..size];
+
+    return true;
 }
 
 pub inline fn rowBufferBytes(target: *const anyopaque) []const u8 {
@@ -181,43 +194,34 @@ pub inline fn rowBufferBytes(target: *const anyopaque) []const u8 {
     return buffer.bytes;
 }
 
-pub fn allocateRows(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const output: *RowBuffer = @ptrCast(@alignCast(@constCast(target)));
+pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!bool {
+    const buffer = rowBuffer(target);
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
-    const size = std.math.mul(usize, length, output.stride) catch return error.OutOfMemory;
+    const size = std.math.mul(usize, length, buffer.stride) catch return error.OutOfMemory;
 
-    std.debug.assert(output.bytes.len == 0);
+    std.debug.assert(buffer.bytes.len == 0);
 
-    if (size == 0) return;
+    if (size == 0) return false;
 
-    const bytes = allocator.rawAlloc(size, output.alignment, @returnAddress()) orelse return error.OutOfMemory;
+    const owner = if (resource) |value| @import("column_set.zig").borrowAllocator(value) else allocator;
+    const bytes = owner.rawAlloc(size, buffer.alignment, @returnAddress()) orelse return error.OutOfMemory;
 
-    output.bind(bytes[0..size]);
-}
+    buffer.bytes = bytes[0..size];
 
-/// Publishes a newly allocated list in a slice field of its owning row.
-pub fn allocateRowList(allocator: std.mem.Allocator, column: *const anyopaque, index: u64, target: *const anyopaque, count: u64) (std.mem.Allocator.Error || IndexError)!void {
-    const output: *RowBuffer = @ptrCast(@alignCast(@constCast(target)));
-
-    output.bytes = &.{};
-
-    try allocateRows(allocator, target, count);
-    try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
+    return true;
 }
 
 pub fn writeRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
     const output: *const RowBuffer = @ptrCast(@alignCast(source));
     const count = if (output.bytes.len == 0) 0 else output.bytes.len / output.stride;
 
-    try write([]const u8, column, index, output.bytes.ptr[0..count]);
+    try writeRowListCount(column, index, source, count);
 }
 
-pub fn moveRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
-    try writeRowList(column, index, source);
+pub inline fn writeRowListCount(column: *const anyopaque, index: u64, source: *const anyopaque, count: u64) IndexError!void {
+    const output = rowBuffer(source);
 
-    const output: *RowBuffer = @ptrCast(@alignCast(@constCast(source)));
-
-    output.bind(&.{});
+    try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
 }
 
 pub fn writeNamedRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {

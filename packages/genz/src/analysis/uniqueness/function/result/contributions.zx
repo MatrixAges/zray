@@ -1,4 +1,4 @@
-import columns from "memory/columns"
+import { allocateRows } from "core/row_buffer"
 
 import record from "./contribution"
 
@@ -9,7 +9,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { passed, target } = in
 
-    columns.allocateRows(target.storage, passed.length)
+    allocateRows({
+        target: target.storage,
+        count: passed.length
+    })
 
     const first: u64 = 0
 

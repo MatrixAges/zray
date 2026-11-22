@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import { false_byte, true_byte, mark_width } from "../const"
 import mark from "../rows/mark"
@@ -15,7 +15,10 @@ export default function (in: Input): Output {
 
     const count = integers.widen(in.count)
 
-    columns.allocateRows(target.storage, count)
+    allocateRows({
+        target: target.storage,
+        count
+    })
 
     const first: u64 = 0
 

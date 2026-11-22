@@ -1,3 +1,4 @@
+import { allocateRows } from "core/row_buffer"
 import yaml from "manifest_yaml_document"
 import columns from "memory/columns"
 
@@ -42,7 +43,10 @@ export default function (in: Input): Output {
         node: in.node
     })
 
-    columns.allocateRows(target.buffer, items.length)
+    allocateRows({
+        target: target.buffer,
+        count: items.length
+    })
 
     const written = loop(0, {
         while: row => row < items.length,

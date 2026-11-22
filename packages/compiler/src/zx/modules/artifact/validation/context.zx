@@ -1,6 +1,6 @@
 import { functionView, typeView } from "core/column_set"
+import { refreshRowReads } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { Allocator, ArenaScope } from "memory"
 import type { ColumnSet, ColumnView, RowGrowth } from "memory/columns"
@@ -41,7 +41,7 @@ export default function (in: Input): Output {
     memory.selectAllocator(scope, scratch)
 
     if (constants != null) {
-        columns.refreshRowReads(constants)
+        refreshRowReads(constants)
     }
 
     return {

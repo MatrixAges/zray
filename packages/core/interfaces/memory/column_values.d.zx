@@ -1,44 +1,46 @@
-export declare function allocateRows(
+export declare function rowFieldCount(target: RowBuffer): u64
+
+export declare function rowStorageCount(target: RowBuffer): u64
+
+export declare function rowCapacityLimit(): u64
+
+export declare function rowGrowthBase(target: RowBuffer, used: u64): u64
+
+export declare function rowGrowthBuffer(target: RowGrowth, shape: RowBuffer?): RowBuffer
+
+export declare function refreshRowWrite(target: RowBuffer, slot: u64, count: u64): void
+
+export declare function refreshRowRead(target: RowGrowth, slot: u64, count: u64): void
+
+export declare function clearRowStorage(target: RowBuffer): void
+
+export declare function rowBufferBytes(target: RowBuffer): u8[]
+
+export declare function allocateRowStorage(
     allocator,
+    owner: ColumnAllocator?,
     target: RowBuffer,
     count: u64
-): void throws { OutOfMemory }
+): bool throws { OutOfMemory }
 
-export declare function growRows(
-    allocator,
-    target: RowGrowth,
-    used: u64
-): u64 throws { OutOfMemory }
-
-export declare function reserveRows(
+export declare function reserveRowStorage(
     allocator,
     target: RowBuffer,
     used: u64,
     count: u64
-): void throws { OutOfMemory }
-
-export declare function rowBufferBytes(target: RowBuffer): u8[]
-
-export declare function refreshRowReads(target: RowGrowth): void
-
-export declare function allocateRowsWithAllocator(
-    resource: ColumnAllocator,
-    target: RowBuffer,
-    count: u64
-): void throws { OutOfMemory }
-
-export declare function allocateRowList(
-    allocator,
-    column: WriteColumn,
-    index: u64,
-    target: RowBuffer,
-    count: u64
-): void throws { OutOfMemory, IndexOutOfBounds }
+): bool throws { OutOfMemory }
 
 export declare function writeRowList(
     column: WriteColumn,
     index: u64,
     source: RowBuffer
+): void throws { IndexOutOfBounds }
+
+export declare function writeRowListCount(
+    column: WriteColumn,
+    index: u64,
+    source: RowBuffer,
+    count: u64
 ): void throws { IndexOutOfBounds }
 
 export declare function writeRowByteView(
@@ -52,12 +54,6 @@ export declare function writeRowByteField(
     index: u64,
     offset: u64,
     source: u8[]
-): void throws { IndexOutOfBounds }
-
-export declare function moveRowList(
-    column: WriteColumn,
-    index: u64,
-    source: RowBuffer
 ): void throws { IndexOutOfBounds }
 
 export declare function copyRow(

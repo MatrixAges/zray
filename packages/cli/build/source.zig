@@ -25,6 +25,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/cli/watch/diagnostics"), "watch_diagnostics", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyDirectory(b.path("src/cli/standard"), "standard", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/project/scopes"), "scopes", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(core.path("src/row_buffer"), "core/row_buffer", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
     _ = files.addCopyFile(compiler.namedLazyPath("memory_columns_interface"), "memory/columns.d.zx");
 

@@ -1,4 +1,4 @@
-import columns from "memory/columns"
+import { allocateRows } from "core/row_buffer"
 
 import type { ColumnAllocator, RowBuffer } from "memory/columns"
 
@@ -15,6 +15,15 @@ export type Input = Buffers & {
 export type Output = void
 
 export default function (in: Input): Output {
-    columns.allocateRowsWithAllocator(in.owner, in.slots, in.count)
-    columns.allocateRowsWithAllocator(in.owner, in.queued, in.count)
+    allocateRows({
+        target: in.slots,
+        count: in.count,
+        owner: in.owner
+    })
+
+    allocateRows({
+        target: in.queued,
+        count: in.count,
+        owner: in.owner
+    })
 }

@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import strings from "std:string"
+import { growRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { Rows } from "./model"
 
@@ -20,7 +20,10 @@ export default function (in: Input): Output {
     const { rows, count, capacity, name, specifier, own_name } = in
 
     const space = match count == capacity {
-        true => columns.growRows(rows.growth, count),
+        true => growRows([
+            rows.growth,
+            count
+        ]),
         _ => capacity
     }
 
