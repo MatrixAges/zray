@@ -78,9 +78,16 @@ export declare function writeRow(
     source: u8[]
 ): void throws { IndexOutOfBounds }
 
-export declare function projectListColumns(
-    target: ListProjection,
-    index: u64
+export declare function listProjectionSourceCount(projection: ListProjection): u64
+
+export declare function listProjectionTargetCount(projection: ListProjection): u64
+
+export declare function requireColumnBounds(valid: bool): void throws { IndexOutOfBounds }
+
+export declare function projectListCell(
+    projection: ListProjection,
+    slot: u64,
+    row: u64
 ): void throws { IndexOutOfBounds }
 
 export declare function columnLength(source: ReadColumn): u64

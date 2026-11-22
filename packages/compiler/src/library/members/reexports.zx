@@ -1,5 +1,5 @@
+import { projectLists } from "core/column_set"
 import memory from "memory"
-import columns from "memory/columns"
 
 import { Anonymous } from "../../zx/modules/link/source/members/model"
 import publish from "../../zx/modules/link/source/members/publish"
@@ -28,7 +28,10 @@ export default function (in: Input): Output {
             if (
                 memory.readTextColumn(records.paths, row) == records.entry_path
             ) {
-                columns.projectListColumns(in.projection, row)
+                projectLists([
+                    in.projection,
+                    row
+                ])
 
                 const result = publish({
                     ...public_members,

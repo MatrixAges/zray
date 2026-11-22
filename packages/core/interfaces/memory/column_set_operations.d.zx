@@ -1,16 +1,12 @@
-export declare function readTypeSliceRow(
-    source: SliceColumns,
-    buffer: ColumnView,
-    shape: TypeColumns?,
-    row: u64
-): TypeColumns throws { IndexOutOfBounds }
+export declare function sliceColumnCount(source: SliceColumns): u64
 
-export declare function readNominalSliceRow(
+export declare function readSliceCell(
     source: SliceColumns,
-    buffer: ColumnView,
-    shape: NominalColumns?,
+    view: ColumnView,
+    layout: ColumnViewLayout,
+    slot: u64,
     row: u64
-): NominalColumns throws { IndexOutOfBounds }
+): void throws { IndexOutOfBounds }
 
 export declare function columnSetSlotCount(storage: ColumnSet): u64
 

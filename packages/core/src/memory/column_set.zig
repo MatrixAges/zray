@@ -132,12 +132,16 @@ fn viewOffsets(comptime View: type) [@typeInfo(View).@"struct".field_names.len]u
 }
 
 pub inline fn readCell(source: *const anyopaque, buffer: *const anyopaque, layout: *const anyopaque, slot: u64) void {
+    writeViewCell(buffer, layout, slot, &storageAt(source, slot).items);
+}
+
+pub inline fn writeViewCell(buffer: *const anyopaque, layout: *const anyopaque, slot: u64, items: *const []const u8) void {
     const offsets: *const []const usize = @ptrCast(@alignCast(layout));
     const destination: [*]u8 = @ptrCast(@constCast(buffer));
-    const items = &storageAt(source, slot).items;
     const offset = offsets.*[@intCast(slot)];
+    const bytes = std.mem.asBytes(items);
 
-    @memcpy(destination[offset..][0..@sizeOf(@TypeOf(items.*))], std.mem.asBytes(items));
+    @memcpy(destination[offset..][0..bytes.len], bytes);
 }
 
 pub fn viewAt(buffer: *const anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {

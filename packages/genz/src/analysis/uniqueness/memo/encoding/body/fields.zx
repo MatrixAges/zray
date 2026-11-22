@@ -1,5 +1,5 @@
+import { projectLists } from "core/column_set"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { Body as Input, Fields as Output } from "./model"
 
@@ -8,7 +8,10 @@ export default function (in: Input): Output {
     const { growth, identities, empty_identity } = rows
     const { projection, normalized, renewed } = growth
 
-    columns.projectListColumns(projection, index)
+    projectLists([
+        projection,
+        index
+    ])
 
     const identity = match {
         index < memory.columnLength(identities) =>

@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import { projectLists } from "core/column_set"
 import memory from "memory"
-import columns from "memory/columns"
 
 import validConstants from "../../../../analysis/constants/validation/rows"
 import text from "../../../../ir/canonical/native/text"
@@ -44,7 +44,10 @@ export default function (in: Input): Output {
     const count = memory.listLength(constants.names, in.index)
 
     if (count != 0) {
-        columns.projectListColumns(constants.projection, in.index)
+        projectLists([
+            constants.projection,
+            in.index
+        ])
 
         if (!validConstants({
             constants: {

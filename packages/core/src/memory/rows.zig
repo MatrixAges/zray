@@ -196,16 +196,20 @@ pub fn bindSliceColumns(comptime View: type, comptime group: []const u8, items: 
     return result;
 }
 
-pub fn readSliceRow(source: *const anyopaque, buffer: *const anyopaque, shape: anytype, row: u64) error{IndexOutOfBounds}!std.meta.Child(@TypeOf(shape)) {
+inline fn sliceColumns(source: *const anyopaque) []const ReadColumn {
     const columns: *const []const ReadColumn = @ptrCast(@alignCast(source));
-    const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
-    const output: *View = @ptrCast(@alignCast(@constCast(buffer)));
 
-    inline for (@typeInfo(View).@"struct".field_names, 0..) |name, index| {
-        @field(output, name) = try readColumn(@FieldType(View, name), &columns.*[index], row);
-    }
+    return columns.*;
+}
 
-    return output;
+pub inline fn sliceColumnCount(source: *const anyopaque) u64 {
+    return sliceColumns(source).len;
+}
+
+pub inline fn readSliceCell(source: *const anyopaque, buffer: *const anyopaque, layout: *const anyopaque, slot: u64, row: u64) error{IndexOutOfBounds}!void {
+    const items = try readColumn([]const u8, &sliceColumns(source)[@intCast(slot)], row);
+
+    @import("column_set.zig").writeViewCell(buffer, layout, slot, &items);
 }
 
 pub inline fn borrowOptionalList(comptime field: []const u8, comptime member: []const u8, items: anytype) ListColumn {
@@ -345,14 +349,27 @@ pub inline fn readColumnOptionalU8(source: *const anyopaque, index: u64) error{I
     return readColumn(?u8, source, index);
 }
 
-pub inline fn projectListColumns(projection: *const anyopaque, index: u64) error{IndexOutOfBounds}!void {
-    const view: *const ListProjection = @ptrCast(@alignCast(projection));
+inline fn listProjection(projection: *const anyopaque) *const ListProjection {
+    return @ptrCast(@alignCast(projection));
+}
 
-    if (view.sources.len != view.target.len) return error.IndexOutOfBounds;
+pub inline fn listProjectionSourceCount(projection: *const anyopaque) u64 {
+    return listProjection(projection).sources.len;
+}
 
-    for (view.sources, view.target) |*source, *column| {
-        column.* = try listColumn(source, index);
-    }
+pub inline fn listProjectionTargetCount(projection: *const anyopaque) u64 {
+    return listProjection(projection).target.len;
+}
+
+pub inline fn requireColumnBounds(valid: bool) error{IndexOutOfBounds}!void {
+    if (!valid) return error.IndexOutOfBounds;
+}
+
+pub inline fn projectListCell(projection: *const anyopaque, slot: u64, row: u64) error{IndexOutOfBounds}!void {
+    const view = listProjection(projection);
+    const column: usize = @intCast(slot);
+
+    view.target[column] = try listColumn(&view.sources[column], row);
 }
 
 pub inline fn columnLength(source: *const anyopaque) u64 {

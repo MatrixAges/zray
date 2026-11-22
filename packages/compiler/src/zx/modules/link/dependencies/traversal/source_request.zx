@@ -1,3 +1,4 @@
+import { projectLists } from "core/column_set"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -17,7 +18,10 @@ export default function (in: Input): Output {
     const { row, target, imports, providers, checks } = in
     const { codes } = imports.edges
 
-    columns.projectListColumns(providers.projection, target)
+    projectLists([
+        providers.projection,
+        target
+    ])
 
     const kind = match in.kind {
         codes.type_only => Kind.TypeOnly,

@@ -1,3 +1,4 @@
+import { projectLists } from "core/column_set"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -31,7 +32,10 @@ export default function (in: Input): Output {
         return
     }
 
-    columns.projectListColumns(source.projection, in.row)
+    projectLists([
+        source.projection,
+        in.row
+    ])
 
     publish({
         source: {
