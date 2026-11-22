@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { reserve } from "core/column_set"
 import { max_u32 } from "core/const"
 import memory from "memory/columns"
 
@@ -14,13 +15,13 @@ export default function (in: Input): Output {
     const count = rows == null ? source.specifiers.length : rows.length
 
     if (count != 0) {
-        memory.reserveNativeColumnSet(
-            destination.resource,
-            destination.storage,
-            destination.shape,
+        reserve({
+            resource: destination.resource,
+            storage: destination.storage,
+            growth: memory.nativeColumnGrowth(destination.shape, null),
             count,
-            integers.widen(max_u32)
-        )
+            limit: integers.widen(max_u32)
+        })
     }
 
     return count

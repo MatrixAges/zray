@@ -1,3 +1,4 @@
+import { functionView, typeView } from "core/column_set"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -45,11 +46,13 @@ export default function (in: Input): Output {
 
     return {
         ...context,
-        table: columns.readTypeColumns(type_storage, type_view, null),
-        functions: columns.readFunctionColumns(
-            function_storage,
-            function_view,
-            null
-        )
+        table: typeView({
+            storage: type_storage,
+            view: type_view
+        }),
+        functions: functionView({
+            storage: function_storage,
+            view: function_view
+        })
     }
 }

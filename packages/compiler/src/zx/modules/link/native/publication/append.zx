@@ -1,6 +1,6 @@
+import { appendNative } from "core/column_set"
 import { copy } from "core/owned_text"
 import storage from "memory"
-import memory from "memory/columns"
 
 import type { Binding } from "core/native_module_table/model"
 import type { NativeModuleRow } from "memory/columns"
@@ -46,5 +46,8 @@ export default function (in: Input): Output {
         type_namespaces: namespace
     }
 
-    memory.appendNativeColumnSet(destination.storage, row)
+    appendNative({
+        storage: destination.storage,
+        row
+    })
 }

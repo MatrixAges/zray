@@ -1,3 +1,4 @@
+import { readCells } from "core/column_set"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -9,5 +10,10 @@ export type Output = void
 
 export default function (in: Input): Output {
     memory.refreshOptionalU32View(in.functions, in.mapping)
-    columns.refreshLinkedPorts(in.linked_columns, in.linked_view, in.linked_shape)
+
+    readCells({
+        storage: in.linked_columns,
+        view: in.linked_view,
+        layout: columns.linkedPortLayout(in.linked_shape, null)
+    })
 }

@@ -1,0 +1,22 @@
+import columns from "memory/columns"
+
+import writeCells from "./write_cells"
+
+import type { ColumnSet, NativeModuleRow } from "memory/columns"
+
+export type Input = {
+    storage: ColumnSet,
+    row: NativeModuleRow
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, row } = in
+
+    writeCells({
+        storage,
+        row: columns.borrowNativeModuleRecord(row, null),
+        layout: columns.nativeModuleRowLayout(null, null)
+    })
+}

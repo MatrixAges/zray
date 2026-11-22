@@ -1,0 +1,24 @@
+import columns from "memory/columns"
+
+import writeCells from "./write_cells"
+
+import type { ColumnSet, FunctionRow } from "memory/columns"
+
+export type Input = {
+    storage: ColumnSet,
+    row: FunctionRow,
+    index?: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, row, index } = in
+
+    writeCells({
+        storage,
+        row: columns.borrowFunctionRecord(row, null),
+        layout: columns.functionRowLayout(null, null),
+        index
+    })
+}

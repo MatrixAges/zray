@@ -1,3 +1,4 @@
+import { reserve } from "core/column_set"
 import memory from "memory/columns"
 
 import type { Input } from "./model"
@@ -9,5 +10,12 @@ export default function (in: Input): Output {
     const { count } = in.rows
 
     memory.allocateRows(in.member_storage, count)
-    memory.reserveColumnSet(resource, storage, shape, count, maximum_count)
+
+    reserve({
+        resource,
+        storage,
+        growth: memory.functionColumnGrowth(shape, null),
+        count,
+        limit: maximum_count
+    })
 }

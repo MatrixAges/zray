@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { reserve } from "core/column_set"
 import { max_u32 } from "core/const"
 import columns from "memory/columns"
 
@@ -16,11 +17,11 @@ export type Output = void
 export default function (in: Input): Output {
     const { resource, storage, shape, count } = in
 
-    columns.reserveColumnSet(
+    reserve({
         resource,
         storage,
-        shape,
+        growth: columns.functionColumnGrowth(shape, null),
         count,
-        integers.widen(max_u32)
-    )
+        limit: integers.widen(max_u32)
+    })
 }

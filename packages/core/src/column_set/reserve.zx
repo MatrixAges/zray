@@ -1,0 +1,32 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { ColumnAllocator, ColumnGrowth, ColumnSet } from "memory/columns"
+
+export type Input = {
+    resource: ColumnAllocator,
+    storage: ColumnSet,
+    growth: ColumnGrowth,
+    count: u64,
+    limit: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { resource, storage, growth, count, limit } = in
+
+    const current = columns.columnSetFirstLength(storage)
+
+    memory.requireAllocation(current <= limit && count <= limit - current)
+
+    const slots = columns.columnSetSlotCount(storage)
+
+    const reserved = loop(0, {
+        while: slot => slot < slots,
+        next: slot => {
+            columns.reserveColumnCell(resource, storage, growth, slot, count)
+            slot += 1
+        }
+    })
+}

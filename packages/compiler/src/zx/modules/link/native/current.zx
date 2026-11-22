@@ -1,4 +1,4 @@
-import columns from "memory/columns"
+import { moduleView } from "core/column_set"
 
 import type { Native } from "../artifact/binding"
 import type { Input as Plan } from "./plan"
@@ -10,10 +10,9 @@ export type Output = Plan
 export default function (in: Input): Output {
     return {
         ...in.plan,
-        base: columns.readNativeColumnSet(
-            in.publication.destination.storage,
-            in.snapshot,
-            null
-        )
+        base: moduleView({
+            storage: in.publication.destination.storage,
+            view: in.snapshot
+        })
     }
 }

@@ -46,18 +46,18 @@
         />
 
         <Call
-            fn="batch_views.readColumnSet"
-            in={[
-                $in.source.read_columns,
-                $in.source.snapshot,
-                $in.source.linked_shape
-            ]}
+            fn="../../../../core/column_set/signature_view"
+            in={{
+                storage: $in.source.read_columns,
+                view: $in.source.snapshot,
+                shape: $in.source.linked_shape
+            }}
         />
 
         <Return
             value={{
                 ...$in,
-                linked: $ctx.readColumnSet,
+                linked: $ctx.signature_view,
                 index: $in.index + 1,
                 running: $in.index + 1 < $in.source.signatures.files.length
             }}

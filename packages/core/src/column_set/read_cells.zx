@@ -1,0 +1,24 @@
+import columns from "memory/columns"
+
+import type { ColumnViewLayout } from "memory/columns"
+import type { View } from "./model"
+
+export type Input = View & {
+    layout: ColumnViewLayout
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, view, layout } = in
+
+    const count = columns.columnSetSlotCount(storage)
+
+    const read = loop(0, {
+        while: slot => slot < count,
+        next: slot => {
+            columns.readColumnCell(storage, view, layout, slot)
+            slot += 1
+        }
+    })
+}

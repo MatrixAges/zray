@@ -1,5 +1,5 @@
+import { writeFunction } from "core/column_set"
 import { StoreMode } from "core/function_table/complete"
-import memory from "memory/columns"
 import { ColumnStoreMode } from "memory/columns"
 
 import signature from "../../../link/signature/publication/signature_row"
@@ -35,17 +35,21 @@ export default function (in: Input): Output {
         ])
     })
 
-    memory.writeFunctionTail(storage, {
-        ...fields,
-        store_modes: match value.store_mode {
-            StoreMode.transaction => ColumnStoreMode.transaction,
-            _ => ColumnStoreMode.orchestration
+    writeFunction({
+        storage,
+        row: {
+            ...fields,
+            store_modes: match value.store_mode {
+                StoreMode.transaction => ColumnStoreMode.transaction,
+                _ => ColumnStoreMode.orchestration
+            },
+            roots: value.root,
+            symbols: value.symbols,
+            expressions: value.expressions,
+            contracts: value.contracts,
+            control: value.control,
+            stores: value.store_table
         },
-        roots: value.root,
-        symbols: value.symbols,
-        expressions: value.expressions,
-        contracts: value.contracts,
-        control: value.control,
-        stores: value.store_table
-    }, row)
+        index: row
+    })
 }

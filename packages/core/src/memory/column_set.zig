@@ -49,106 +49,175 @@ pub fn bind(comptime View: type, comptime scalar: bool, storage: anytype) [@type
     return result;
 }
 
-pub fn reserve(resource: *const anyopaque, target: *const anyopaque, shape: anytype, additional: u64, limit: u64) std.mem.Allocator.Error!void {
-    const allocator = borrowAllocator(resource);
+fn slots(target: *const anyopaque) ColumnSet {
     const columns: *const ColumnSet = @ptrCast(@alignCast(target));
-    const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
-    const names = @typeInfo(View).@"struct".field_names;
-    const first = list(@FieldType(View, names[0]), columns.*[0]);
 
-    if (first.items.len > limit or additional > limit - first.items.len) return error.OutOfMemory;
-
-    const count = std.math.cast(usize, additional) orelse return error.OutOfMemory;
-
-    inline for (names, 0..) |name, index| {
-        try list(@FieldType(View, name), columns.*[index]).ensureUnusedCapacity(allocator, count);
-    }
+    return columns.*;
 }
 
-pub fn read(source: *const anyopaque, buffer: *const anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    const columns: *const ColumnSet = @ptrCast(@alignCast(source));
-    const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
-    const output: *View = @ptrCast(@alignCast(@constCast(buffer)));
-
-    inline for (@typeInfo(View).@"struct".field_names, 0..) |name, index| {
-        @field(output, name) = list(std.meta.Elem(@FieldType(View, name)), columns.*[index]).items;
-    }
-
-    return output;
+fn storageAt(target: *const anyopaque, slot: u64) *std.ArrayList(u8) {
+    return list(u8, slots(target)[@intCast(slot)]);
 }
 
-pub fn append(target: *const anyopaque, row: anytype) void {
-    const columns: *const ColumnSet = @ptrCast(@alignCast(target));
-    const View = std.meta.Child(@TypeOf(row));
-
-    inline for (@typeInfo(View).@"struct".field_names, 0..) |name, index| {
-        list(@FieldType(View, name), columns.*[index]).appendAssumeCapacity(@field(row, name));
-    }
+pub inline fn slotCount(target: *const anyopaque) u64 {
+    return slots(target).len;
 }
 
-pub fn appendProjection(target: *const anyopaque, source: anytype, shape: anytype) void {
-    const columns: *const ColumnSet = @ptrCast(@alignCast(target));
-    const Layout = std.meta.Child(std.meta.Child(@TypeOf(shape)));
-    const optional = @typeInfo(@TypeOf(source)) == .optional;
-    const Row = std.meta.Child(if (optional) std.meta.Child(@TypeOf(source)) else @TypeOf(source));
-    const row: *const Row = if (optional) source orelse &std.mem.zeroes(Row) else source;
-
-    inline for (@typeInfo(Row).@"struct".field_names) |name| {
-        const index = comptime std.meta.fieldIndex(Layout, name).?;
-
-        list(@FieldType(Layout, name), columns.*[index]).appendAssumeCapacity(@field(row, name));
-    }
+pub inline fn firstLength(target: *const anyopaque) u64 {
+    return storageAt(target, 0).items.len;
 }
 
-pub fn writeTail(target: *const anyopaque, row: anytype, index: u64) void {
-    const columns: *const ColumnSet = @ptrCast(@alignCast(target));
-    const View = std.meta.Child(@TypeOf(row));
-    const offset: usize = @intCast(index);
+const Grow = *const fn (*anyopaque, std.mem.Allocator, usize) std.mem.Allocator.Error!void;
 
-    inline for (@typeInfo(View).@"struct".field_names, 0..) |name, slot| {
-        list(@FieldType(View, name), columns.*[slot]).unusedCapacitySlice()[offset] = @field(row, name);
-    }
-}
+pub fn growth(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+    const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
 
-pub fn writeSignatureTail(
-    target: *const anyopaque,
-    index: u64,
-    files: []const u8,
-    input_types: u32,
-    output_types: u32,
-    ownership: anytype,
-    native_modules: ?u32,
-    native_members: []const []const u8,
-    native_exports: ?[]const u8,
-    native_inputs: ?[]const ?[]const u8,
-    native_errors: ?[]const []const u8,
-    native_allocators: bool,
-    native_io: bool,
-    native_process: bool,
-    native_tuples: bool,
-    native_fallible: bool,
-    native_concurrent: bool,
-) void {
-    // The column set follows the generated signature field order.
-    const row = .{
-        .files = files,
-        .input_types = input_types,
-        .native_allocators = native_allocators,
-        .native_concurrent = native_concurrent,
-        .native_errors = native_errors,
-        .native_exports = native_exports,
-        .native_fallible = native_fallible,
-        .native_inputs = native_inputs,
-        .native_io = native_io,
-        .native_members = native_members,
-        .native_modules = native_modules,
-        .native_process = native_process,
-        .native_tuples = native_tuples,
-        .output_types = output_types,
-        .ownership = ownership,
+    const Layout = struct {
+        const values: []const Grow = &growers(Row);
     };
 
-    writeTail(target, &row, index);
+    return @ptrCast(&Layout.values);
+}
+
+fn growers(comptime Row: type) [@typeInfo(Row).@"struct".field_names.len]Grow {
+    const names = @typeInfo(Row).@"struct".field_names;
+    var result: [names.len]Grow = undefined;
+
+    for (names, &result) |name, *operation| {
+        const Item = @FieldType(Row, name);
+
+        const Typed = struct {
+            fn grow(column: *anyopaque, allocator: std.mem.Allocator, additional: usize) std.mem.Allocator.Error!void {
+                try list(Item, column).ensureUnusedCapacity(allocator, additional);
+            }
+        };
+
+        operation.* = Typed.grow;
+    }
+
+    return result;
+}
+
+pub fn reserveCell(resource: *const anyopaque, target: *const anyopaque, layout: *const anyopaque, slot: u64, additional: u64) std.mem.Allocator.Error!void {
+    const operations: *const []const Grow = @ptrCast(@alignCast(layout));
+    const index: usize = @intCast(slot);
+    const items = std.math.cast(usize, additional) orelse return error.OutOfMemory;
+
+    try operations.*[index](slots(target)[index], borrowAllocator(resource), items);
+}
+
+pub fn viewLayout(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+    const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
+
+    const Layout = struct {
+        const values: []const usize = &viewOffsets(View);
+    };
+
+    return @ptrCast(&Layout.values);
+}
+
+fn viewOffsets(comptime View: type) [@typeInfo(View).@"struct".field_names.len]usize {
+    const names = @typeInfo(View).@"struct".field_names;
+    var result: [names.len]usize = undefined;
+
+    for (names, &result) |name, *offset| {
+        const Field = @typeInfo(@FieldType(View, name)).pointer;
+
+        if (Field.size != .slice or @sizeOf(@FieldType(View, name)) != @sizeOf([]const u8)) @compileError("Column view fields must be slices");
+
+        offset.* = @offsetOf(View, name);
+    }
+
+    return result;
+}
+
+pub inline fn readCell(source: *const anyopaque, buffer: *const anyopaque, layout: *const anyopaque, slot: u64) void {
+    const offsets: *const []const usize = @ptrCast(@alignCast(layout));
+    const destination: [*]u8 = @ptrCast(@constCast(buffer));
+    const items = &storageAt(source, slot).items;
+    const offset = offsets.*[@intCast(slot)];
+
+    @memcpy(destination[offset..][0..@sizeOf(@TypeOf(items.*))], std.mem.asBytes(items));
+}
+
+pub fn viewAt(buffer: *const anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return @ptrCast(@alignCast(buffer));
+}
+
+const Cell = struct { slot: usize, offset: usize, width: usize };
+
+pub fn borrowRecord(row: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+    return @ptrCast(row);
+}
+
+pub fn zeroRecord(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+    const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
+
+    const empty = struct {
+        const value = std.mem.zeroes(Row);
+    };
+
+    return @ptrCast(&empty.value);
+}
+
+pub fn rowLayout(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+    const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
+
+    return @ptrCast(staticCells(Row, Row));
+}
+
+pub fn projectedLayout(shape: anytype, target: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+    const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
+    const Destination = std.meta.Child(std.meta.Child(@TypeOf(target)));
+
+    return @ptrCast(staticCells(Row, Destination));
+}
+
+fn staticCells(comptime Row: type, comptime Destination: type) *const []const Cell {
+    return &struct {
+        const values: []const Cell = &rowCells(Row, Destination);
+    }.values;
+}
+
+fn rowCells(comptime Row: type, comptime Destination: type) [@typeInfo(Row).@"struct".field_names.len]Cell {
+    const names = @typeInfo(Row).@"struct".field_names;
+    var result: [names.len]Cell = undefined;
+
+    for (names, &result) |name, *cell| {
+        const Field = @FieldType(Row, name);
+
+        if (Field != @FieldType(Destination, name)) @compileError("Incompatible record projection field " ++ name);
+
+        cell.* = .{
+            .slot = std.meta.fieldIndex(Destination, name).?,
+            .offset = @offsetOf(Row, name),
+            .width = @sizeOf(Field),
+        };
+    }
+
+    return result;
+}
+
+fn cellsAt(layout: *const anyopaque) []const Cell {
+    const cells: *const []const Cell = @ptrCast(@alignCast(layout));
+
+    return cells.*;
+}
+
+pub inline fn rowCellCount(layout: *const anyopaque) u64 {
+    return cellsAt(layout).len;
+}
+
+pub inline fn writeCell(target: *const anyopaque, row: *const anyopaque, layout: *const anyopaque, lane: u64, at: ?u64) void {
+    const cell = cellsAt(layout)[@intCast(lane)];
+    const storage = storageAt(target, cell.slot);
+    const position = storage.items.len + @as(usize, @intCast(at orelse 0));
+    const bytes: [*]const u8 = @ptrCast(row);
+
+    std.debug.assert(position < storage.capacity);
+    @memcpy(storage.items.ptr[position * cell.width ..][0..cell.width], bytes[cell.offset..][0..cell.width]);
+
+    if (at == null) storage.items.len += 1;
 }
 
 fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {

@@ -1,3 +1,4 @@
+import { reserve } from "core/column_set"
 import memory from "memory/columns"
 
 import type { Destination } from "./model"
@@ -7,5 +8,11 @@ export type Input = Destination
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.reserveColumnSet(in.resource, in.storage, in.shape, 1, in.maximum_count)
+    reserve({
+        resource: in.resource,
+        storage: in.storage,
+        growth: memory.functionColumnGrowth(in.shape, null),
+        count: 1,
+        limit: in.maximum_count
+    })
 }

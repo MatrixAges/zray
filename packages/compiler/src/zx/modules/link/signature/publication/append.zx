@@ -1,4 +1,4 @@
-import memory from "memory/columns"
+import { writeFunction } from "core/column_set"
 
 import complete from "./function_row"
 import signature from "./signature_row"
@@ -25,5 +25,8 @@ export default function (in: Input): Output {
         empty: in.empty
     })
 
-    memory.appendColumnSet(in.destination.storage, row)
+    writeFunction({
+        storage: in.destination.storage,
+        row
+    })
 }

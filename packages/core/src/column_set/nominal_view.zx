@@ -1,0 +1,24 @@
+import columns from "memory/columns"
+
+import readCells from "./read_cells"
+
+import type { NominalColumns } from "memory/columns"
+import type { View } from "./model"
+
+export type Input = View & {
+    shape?: NominalColumns
+}
+
+export type Output = NominalColumns
+
+export default function (in: Input): Output {
+    const { storage, view, shape } = in
+
+    readCells({
+        storage,
+        view,
+        layout: columns.nominalColumnLayout(shape, null)
+    })
+
+    return columns.nominalColumnView(view, shape)
+}

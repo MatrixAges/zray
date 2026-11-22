@@ -60,20 +60,36 @@ pub const columnRangeCount = column_range.count;
 pub const setColumnRangeCount = column_range.setCount;
 pub const reserveColumnRange = column_range.reserveOne;
 pub const publishColumnRange = column_range.publishOne;
-pub const reserveColumnSet = column_set.reserve;
-pub const readColumnSet = column_set.read;
-pub const readFunctionColumns = column_set.read;
-pub const readNativeColumnSet = column_set.read;
-pub const readTypeColumns = column_set.read;
-pub const readNominalColumns = column_set.read;
-pub const appendColumnSet = column_set.append;
-pub const appendFunctionBodyColumns = column_set.appendProjection;
-pub const appendFunctionNativeColumns = column_set.appendProjection;
-pub const appendSignatureColumnSet = column_set.append;
-pub const writeFunctionTail = column_set.writeTail;
-pub const writeSignatureTail = column_set.writeSignatureTail;
-pub const reserveNativeColumnSet = column_set.reserve;
-pub const appendNativeColumnSet = column_set.append;
+pub const columnSetSlotCount = column_set.slotCount;
+pub const columnSetFirstLength = column_set.firstLength;
+pub const functionColumnGrowth = column_set.growth;
+pub const nativeColumnGrowth = column_set.growth;
+pub const reserveColumnCell = column_set.reserveCell;
+pub const typeColumnLayout = column_set.viewLayout;
+pub const nominalColumnLayout = column_set.viewLayout;
+pub const moduleColumnLayout = column_set.viewLayout;
+pub const signatureColumnLayout = column_set.viewLayout;
+pub const linkedPortLayout = column_set.viewLayout;
+pub const functionColumnLayout = column_set.viewLayout;
+pub const readColumnCell = column_set.readCell;
+pub const typeColumnView = column_set.viewAt;
+pub const nominalColumnView = column_set.viewAt;
+pub const moduleColumnView = column_set.viewAt;
+pub const signatureColumnView = column_set.viewAt;
+pub const functionColumnView = column_set.viewAt;
+pub const borrowFunctionRecord = column_set.borrowRecord;
+pub const borrowSignatureRecord = column_set.borrowRecord;
+pub const borrowNativeModuleRecord = column_set.borrowRecord;
+pub const borrowFunctionBodyRecord = column_set.borrowRecord;
+pub const borrowFunctionNativeRecord = column_set.borrowRecord;
+pub const emptyFunctionNativeRecord = column_set.zeroRecord;
+pub const functionRowLayout = column_set.rowLayout;
+pub const signatureRowLayout = column_set.rowLayout;
+pub const nativeModuleRowLayout = column_set.rowLayout;
+pub const functionBodyLayout = column_set.projectedLayout;
+pub const functionNativeLayout = column_set.projectedLayout;
+pub const rowCellCount = column_set.rowCellCount;
+pub const writeColumnCell = column_set.writeCell;
 pub const allocateColumnU32s = column_set.allocateU32s;
 pub const writeColumnU32s = writeU32;
 pub const copyColumnText = column_set.copyText;
@@ -198,10 +214,6 @@ pub inline fn refreshOptionalU32View(target: *const anyopaque, source: *const an
 
 pub inline fn borrowOptionalU32Range(source: []const ?u32, first: u64, count: u64) error{IndexOutOfBounds}![]const ?u32 {
     return borrowRange(?u32, source, first, count);
-}
-
-pub inline fn refreshLinkedPorts(source: *const anyopaque, target: *const anyopaque, shape: anytype) void {
-    _ = column_set.read(source, target, shape);
 }
 
 const rows = @import("rows.zig");

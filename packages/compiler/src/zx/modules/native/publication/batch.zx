@@ -1,4 +1,4 @@
-import memory from "memory/columns"
+import { writeFunction } from "core/column_set"
 
 import complete from "../../link/signature/publication/function_row"
 import signature from "../../link/signature/publication/signature_row"
@@ -36,7 +36,11 @@ export default function (in: Input): Output {
                 empty
             })
 
-            memory.writeFunctionTail(destination.storage, value, row)
+            writeFunction({
+                storage: destination.storage,
+                row: value,
+                index: row
+            })
 
             bind({
                 target: members,

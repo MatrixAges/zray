@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { nominalView, typeView } from "core/column_set"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -15,13 +16,18 @@ export default function (in: Input): Output {
     const source =
         columns.readTypeSliceRow(types.rows, types.row_view, null, row)
 
-    const base = columns.readTypeColumns(types.storage, types.base_view, null)
+    const base = typeView({
+        storage: types.storage,
+        view: types.base_view
+    })
 
     const declared =
         columns.readNominalSliceRow(origins.rows, origins.row_view, null, row)
 
-    const known =
-        columns.readNominalColumns(origins.storage, origins.base_view, null)
+    const known = nominalView({
+        storage: origins.storage,
+        view: origins.base_view
+    })
 
     const offsets = {
         children: integers.narrow(base.children.length),

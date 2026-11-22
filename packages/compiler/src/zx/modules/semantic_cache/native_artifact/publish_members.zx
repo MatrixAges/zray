@@ -1,4 +1,4 @@
-import memory from "memory/columns"
+import { appendSignature } from "core/column_set"
 
 import signature from "../../link/signature/publication/signature_row"
 import bind from "../../native/publication/binding"
@@ -34,7 +34,10 @@ export default function (in: Input): Output {
                 "flags"
             ]))
 
-            memory.appendSignatureColumnSet(signature_target, fields)
+            appendSignature({
+                storage: signature_target,
+                row: fields
+            })
 
             bind({
                 target: binding_target,
