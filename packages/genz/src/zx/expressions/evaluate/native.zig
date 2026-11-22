@@ -216,17 +216,14 @@ pub fn lowerCall(frame: *const anyopaque, id: u32, mode: Mode, value: bool) Erro
     });
 }
 
-pub fn lowerUpdate(frame: *const anyopaque, id: u32, in_iteration: bool) Error!u32 {
+pub fn lowerUpdate(frame: *const anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
 
-    return @backingInt(if (in_iteration)
-        try @import("../../iteration_value/mutation.zig").update(self.iteration_value.?, @fromBackingInt(id))
-    else
-        try @import("../../list_update.zig").lower(self, @fromBackingInt(id)));
+    return @backingInt(try @import("../../list_update.zig").lower(self, @fromBackingInt(id)));
 }
 
 pub fn lowerMutation(frame: *const anyopaque, id: u32) Error!u32 {
-    return @backingInt(try @import("../../iteration_value/mutation.zig").operation(borrow(frame).iteration_value.?, @fromBackingInt(id)));
+    return @backingInt(try @import("../../iteration_value/mutation.zig").lower(borrow(frame).iteration_value.?, @fromBackingInt(id)));
 }
 
 pub fn reuseIteration(frame: *const anyopaque, id: u32) Error!void {

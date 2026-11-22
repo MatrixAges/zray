@@ -19,7 +19,8 @@
         <Return
             value={{
                 ...$ctx.range,
-                delayed: false
+                delayed: false,
+                emit: $ctx.range.first != $ctx.range.end
             }}
         />
     </If>

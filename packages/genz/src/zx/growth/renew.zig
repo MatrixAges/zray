@@ -10,12 +10,23 @@ const Input = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 pub const Target = union(enum) { reference: node.ExpressionId, name: []const u8 };
 
-pub fn entry(self: *Lower, type_id: ir.TypeId, target: Target, keys: []const u64, paths: []const []const u32, skipped: []const u64, filter_inline: bool) Lower.Error!node.Block {
+pub const Entries = struct {
+    type_id: ir.TypeId,
+    target: Target,
+    first: usize,
+    end: usize,
+    skipped: []const u64,
+    filtered_inline: bool,
+};
+
+pub fn entry(self: *Lower, request: Entries) Lower.Error!node.Block {
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
+    const records = zx.columns.view(std.meta.Child(@FieldType(Input, "records")), self.plan.renewals);
+    const range: std.meta.Child(@FieldType(Input, "range")) = .{ .first = request.first, .end = request.end };
 
     var source = calls.prepare(self, .Renew, .{
         .element = @fromBackingInt(0),
-        .value = if (target == .reference) target.reference else @fromBackingInt(0),
+        .value = if (request.target == .reference) request.target.reference else @fromBackingInt(0),
         .flag = !self.may_grow,
     });
 
@@ -30,12 +41,14 @@ pub fn entry(self: *Lower, type_id: ir.TypeId, target: Target, keys: []const u64
     const input: Input = .{
         .source = &source,
         .types = &types,
-        .type_id = @backingInt(type_id),
-        .keys = keys,
-        .paths = paths,
-        .skipped = skipped,
-        .name = if (target == .name) target.name else null,
-        .filter_inline = filter_inline,
+        .type_id = @backingInt(request.type_id),
+        .records = &records,
+        .range = &range,
+        .skipped = request.skipped,
+        .name = if (request.target == .name) request.target.name else null,
+        .entry_rows = true,
+        .inline_lists = inlineLists(self),
+        .filtered_inline = request.filtered_inline,
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -91,7 +104,7 @@ pub fn appendValue(self: *Lower, body: *Sequence, id: ir.ExprId, reference: node
         .type_id = @backingInt(self.program.expression(id).type_id),
         .owner = @backingInt(id),
         .records = @as(*const Records, &records),
-        .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
+        .inline_lists = inlineLists(self),
     });
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -125,4 +138,10 @@ pub fn appendValue(self: *Lower, body: *Sequence, id: ir.ExprId, reference: node
     };
 
     _ = try calls.publish(self, body, &output);
+}
+
+fn inlineLists(self: *const Lower) bool {
+    const context = self.iteration_value orelse return false;
+
+    return context.inline_lists;
 }

@@ -5,29 +5,29 @@ import buffered from "../buffered"
 import type { State as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const source = in.source
-
     return loop({
         growth: in.growth,
         applied: false,
-        index: 0,
+        index: in.source.range.first,
         skip_index: 0
     }, {
-        while: state => state.index < source.paths.length,
+        while: state => state.index < in.source.range.end,
         next: state => {
+            const source = in.source
             const index = state.index
             const type_id = source.type_id
             const types = source.types
 
             const skip = state.skip_index < source.skipped.length &&
-                source.skipped[state.skip_index] == index
+                source.skipped[state.skip_index] == index - source.range.first
 
             if (skip) {
                 state.skip_index += 1
             } else {
-                const path = source.paths[index]
+                const path = source.records.paths[index]
+                const filter_inline = source.inline_lists && !source.filtered_inline
 
-                const inline = source.filter_inline && buffered({
+                const inline = filter_inline && buffered({
                     types,
                     type_id,
                     path,
@@ -44,9 +44,10 @@ export default function (in: Input): Output {
                                 ...source.source,
                                 value: in.value,
                                 operation: match {
-                                    source.keys[index] % 2 == 1 =>
+                                    source.entry_rows &&
+                                        source.records.keys[index] % 2 == 1 =>
                                         Operation.RenewWritable,
-                                    _ => Operation.Renew
+                                    _ => source.source.operation
                                 }
                             }
                         },

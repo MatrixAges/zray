@@ -1,56 +1,53 @@
-const ir = @import("zx").ir;
+const std = @import("std");
+const zx = @import("zx");
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
+const evaluation = @import("../expressions/evaluate.zig");
 const Operand = @import("operand.zig");
-const emitting = @import("mutation_emission.zig");
+const emission = @import("mutation_emission.zig");
+const entry = @import("generated_execute_iteration_mutation");
+const Api = evaluation.Api;
+const Slot = Api.IterationOperandSlot;
+const slot_count = @typeInfo(Slot).@"enum".field_names.len;
 
-pub fn operation(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("mutation_seed.zig").operation(self, id);
+const Frame = struct {
+    context: *Context,
+    operands: [slot_count]Operand = @splat(.empty),
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
 
-    const lowering = self.lowering;
-    const row = lowering.program.expression(id);
-    const operation_value = row.value.list_operation;
-    const list_type = lowering.program.expression(operation_value.target).type_id;
-    const target = try Operand.lower(lowering, operation_value.target);
+pub fn lower(context: *Context, id: zx.ir.ExprId) Lower.Error!node.ExpressionId {
+    const Input = std.meta.Child(entry.Input);
+    const program: *const zx.ir.Program = &context.lowering.program;
+    const expressions = zx.columns.borrow(std.meta.Child(@FieldType(Input, "expressions")), &program.expressions);
+    var frame: Frame = .{ .context = context };
 
-    const mode: emitting.Mode = switch (operation_value.kind) {
-        .push => .Push,
-        .pop => .Pop,
-        else => unreachable,
-    };
-
-    const value = if (mode == .Push) try Operand.lower(lowering, operation_value.arguments[0]) else emitting.Operand.empty;
-    const list_layout = try @import("types.zig").get(self, list_type);
-    const result_layout = try @import("types.zig").get(self, row.type_id);
-
-    return emitting.lower(self, .{
-        .mode = mode,
-        .target = target,
-        .index = .empty,
-        .value = value,
-        .list_layout = list_layout,
-        .result_layout = result_layout,
+    return evaluation.invoke(entry, &.{
+        .frame = @ptrCast(&frame),
+        .context = @ptrCast(context),
+        .expressions = &expressions,
+        .id = @backingInt(id),
     });
 }
 
-pub fn update(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("mutation_seed.zig").update(self, id);
+pub fn bindIterationMutationOperand(handle: *const anyopaque, slot: Slot, id: u32) Lower.Error!void {
+    const frame = Frame.borrow(handle);
 
-    const lowering = self.lowering;
-    const write = lowering.program.expression(id).value.list_update;
-    const list_type = lowering.program.expression(write.target).type_id;
-    const target = try Operand.lower(lowering, write.target);
-    const index = try Operand.lower(lowering, write.index);
-    const value = try Operand.lower(lowering, write.value);
-    const layout = try @import("types.zig").get(self, list_type);
+    frame.operands[@intFromEnum(slot)] = try Operand.lower(frame.context.lowering, @fromBackingInt(id));
+}
 
-    return emitting.lower(self, .{
-        .mode = .Update,
-        .target = target,
-        .index = index,
-        .value = value,
-        .list_layout = layout,
-        .result_layout = @fromBackingInt(0),
-    });
+pub fn publishIterationMutation(handle: *const anyopaque, mode: Api.IterationMutationMode, list_layout: u32, result_layout: u32) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try emission.lower(frame.context, .{
+        .mode = zx.columns.view(emission.Mode, mode),
+        .target = frame.operands[@intFromEnum(Slot.Target)],
+        .index = frame.operands[@intFromEnum(Slot.Index)],
+        .value = frame.operands[@intFromEnum(Slot.Value)],
+        .list_layout = @fromBackingInt(list_layout),
+        .result_layout = @fromBackingInt(result_layout),
+    }));
 }

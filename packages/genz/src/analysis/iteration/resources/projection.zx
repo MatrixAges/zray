@@ -9,7 +9,7 @@ import type {
     IterationResourceFrame,
     Lowering
 } from "lowering_host"
-import type { U32Buffer } from "memory"
+import type { U32Buffer, U64Buffer } from "memory"
 import type { Plan } from "../projection/model"
 
 export type Input = {
@@ -17,17 +17,19 @@ export type Input = {
     context: IterationResourceFrame,
     history: IterationProjectionFrame,
     plan: Plan,
-    prepared: U32Buffer
+    prepared: U32Buffer,
+    serials: U64Buffer,
+    history_count: U64Buffer
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, context, history, plan, prepared } = in
-
     const resolved = loop(0, {
-        while: row => row < plan.operations.length,
+        while: row => row < in.plan.operations.length,
         next: row => {
+            const { frame, context, history, plan, prepared } = in
+            const { serials, history_count } = in
             const id = plan.values[row]
             const value = match plan.requirements[row] {
                 Requirement.None => 0,
@@ -47,7 +49,10 @@ export default function (in: Input): Output {
             }
 
             memory.writeU32(prepared, row, value)
-            host.recordIterationProjection(history, row, plan.fresh[row])
+            const stamp = host.reserveIterationProjection(history, plan.fresh[row])
+
+            memory.writeU64(serials, row, stamp.serial)
+            memory.writeU64(history_count, row, stamp.history_count)
 
             row += 1
         }

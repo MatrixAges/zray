@@ -1,0 +1,26 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import host from "lowering_host"
+import { IterationOperandSlot } from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { expressions, id, frame } = in
+
+    const row = integers.widen(id)
+    const payload = integers.widen(expressions.payloads[row])
+
+    const target = match expressions.kinds[row] {
+        ExpressionKind.ListUpdate => expressions.update_targets[payload],
+        _ => expressions.collection_targets[payload]
+    }
+
+    const list_type = expressions.types[integers.widen(target)]
+
+    host.bindIterationMutationOperand(frame, IterationOperandSlot.Target, target)
+
+    return list_type
+}

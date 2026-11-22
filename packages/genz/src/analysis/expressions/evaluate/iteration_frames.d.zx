@@ -1,0 +1,150 @@
+export type LoopConsumer = opaque
+
+export type LoopLayout = opaque
+
+export type LoopFrame = opaque
+
+export enum LoopParameterLayout {
+    Plain,
+    Stack,
+    State,
+    Deep
+}
+
+export enum LoopUpdateScope {
+    None,
+    Projected,
+    Ordinary
+}
+
+export enum ConsumerPhase {
+    Initial,
+    AfterSimd,
+    Fallback
+}
+
+export enum ConsumerAction {
+    None,
+    Simd,
+    Scalar,
+    Eligible,
+    Consume
+}
+
+export enum PathConversion {
+    Plain,
+    BorrowList,
+    Convert,
+    ReadElement
+}
+
+export enum LayoutAction {
+    CheckPure,
+    CheckLocal,
+    CheckForwarding,
+    CheckBuffers,
+    CheckDeep,
+    CheckAbi,
+    CheckShallow,
+    CheckProjection,
+    CheckInitial,
+    Dereference,
+    Reject,
+    Plain,
+    Stack,
+    State,
+    Deep,
+    Buffered
+}
+
+export enum LoopAdmission {
+    Proceed,
+    Dereference,
+    Reject
+}
+
+export enum LoopInitial {
+    Reference,
+    Value,
+    Deep
+}
+
+export type LoopOperands = {
+    condition: u32,
+    body: u32,
+    by_value: bool
+}
+
+export type IterationResourceFrame = opaque
+
+export enum IterationResource {
+    None,
+    IterationType,
+    IterationItem,
+    NativeLayout,
+    NativeType,
+    StateLayout,
+    Invalid
+}
+
+export type IterationPublication = opaque
+
+export type LoopStatePublication = opaque
+
+export type LoopFramePublication = opaque
+
+export type LoopFieldPublication = opaque
+
+export type LoopAssignmentPublication = opaque
+
+export enum LoopNameStorage {
+    Borrow,
+    Own,
+    Reuse
+}
+
+export enum LoopStorage {
+    Keep,
+    Dereference,
+    Deep,
+    State,
+    StateValue,
+    Clip
+}
+
+export enum LoopAssignment {
+    Direct,
+    State,
+    Projected
+}
+
+export type LoopFieldRebuild = opaque
+
+export type LoopResultFrame = opaque
+
+export enum LoopResultWrap {
+    Block,
+    Layout,
+    Pointer
+}
+
+export type IterationMutationFrame = opaque
+
+export enum IterationMutationMode {
+    Push,
+    Pop,
+    Update
+}
+
+export enum IterationOperandSlot {
+    Target,
+    Index,
+    Value
+}
+
+export type IterationProjectionFrame = opaque
+
+export type IterationProjectionStamp = {
+    serial: u64,
+    history_count: u64
+}

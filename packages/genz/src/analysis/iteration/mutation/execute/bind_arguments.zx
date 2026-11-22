@@ -1,0 +1,51 @@
+import integers from "std:integer"
+import { CollectionKind, ExpressionKind } from "core/expression_table/kinds"
+import host from "lowering_host"
+import { IterationMutationMode, IterationOperandSlot } from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = IterationMutationMode
+
+export default function (in: Input): Output {
+    const { expressions, frame, id } = in
+
+    const row = integers.widen(id)
+    const payload = integers.widen(expressions.payloads[row])
+
+    if (expressions.kinds[row] == ExpressionKind.ListUpdate) {
+        host.bindIterationMutationOperand(
+            frame,
+            IterationOperandSlot.Index,
+            expressions.update_indices[payload]
+        )
+
+        host.bindIterationMutationOperand(
+            frame,
+            IterationOperandSlot.Value,
+            expressions.update_values[payload]
+        )
+
+        return IterationMutationMode.Update
+    }
+
+    const operation = expressions.collection_kinds[payload]
+
+    if (operation == CollectionKind.Push) {
+        const first = integers.widen(expressions.collection_first[payload])
+
+        host.bindIterationMutationOperand(
+            frame,
+            IterationOperandSlot.Value,
+            expressions.collection_arguments[first]
+        )
+
+        return IterationMutationMode.Push
+    }
+
+    if (operation != CollectionKind.Pop) {
+        const invalid = host.invalidLowering()
+    }
+
+    return IterationMutationMode.Pop
+}

@@ -1,7 +1,8 @@
 import type { Append as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { state, type_id, owner, value, ready } = in
+    const { state, record } = in
+    const { type_id, owner, value, ready } = record
 
     return {
         types: state.types.push(type_id)[0],

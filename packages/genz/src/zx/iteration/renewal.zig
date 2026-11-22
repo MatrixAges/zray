@@ -12,6 +12,7 @@ pub const Plan = struct {
     first: usize = 0,
     end: usize = 0,
     delayed: bool = false,
+    emit: bool = false,
     filters_inline: bool = false,
     skipped: []const u64 = &.{},
     pub fn needsEntries(self: Plan, lowering: *const Lower) bool {
@@ -25,17 +26,16 @@ pub const Plan = struct {
     }
     pub fn store(self: Plan, lowering: *Lower, type_id: ir.TypeId, target: Target) Lower.Error!node.Block {
         if (generated) {
-            if (self.end - self.first == self.skipped.len) return .{};
+            if (!self.emit) return .{};
 
-            return renewal.entry(
-                lowering,
-                type_id,
-                target,
-                lowering.plan.renewals.keys[self.first..self.end],
-                lowering.plan.renewals.paths[self.first..self.end],
-                self.skipped,
-                !self.filters_inline and if (lowering.iteration_value) |context| context.inline_lists else false,
-            );
+            return renewal.entry(lowering, .{
+                .type_id = type_id,
+                .target = target,
+                .first = self.first,
+                .end = self.end,
+                .skipped = self.skipped,
+                .filtered_inline = self.filters_inline,
+            });
         }
 
         var body: std.ArrayList(node.Statement) = .empty;
@@ -107,6 +107,7 @@ pub fn plan(self: *const Lower, temporary: std.mem.Allocator, request: Request) 
         .first = @intCast(output.first),
         .end = @intCast(output.end),
         .delayed = output.delayed,
+        .emit = output.emit,
         .filters_inline = request.inline_lists,
         .skipped = skipped.items,
     };

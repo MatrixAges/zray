@@ -39,5 +39,6 @@ export type Schedule = {
 export type Output = {
     first: u64,
     end: u64,
-    delayed: bool
+    delayed: bool,
+    emit: bool
 }

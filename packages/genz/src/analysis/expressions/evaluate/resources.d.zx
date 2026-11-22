@@ -19,8 +19,20 @@ export declare function cacheIterationType(
     value: u32
 ): void throws { OutOfMemory }
 
-export declare function recordIterationProjection(
-    history: IterationProjectionFrame,
-    row: u64,
-    fresh: u64
+export declare function bindIterationMutationOperand(
+    frame: IterationMutationFrame,
+    slot: IterationOperandSlot,
+    id: u32
 ): void throws { OutOfMemory }
+
+export declare function publishIterationMutation(
+    frame: IterationMutationFrame,
+    mode: IterationMutationMode,
+    list_layout: u32,
+    result_layout: u32
+): u32 throws { OutOfMemory }
+
+export declare function reserveIterationProjection(
+    history: IterationProjectionFrame,
+    fresh: u64
+): IterationProjectionStamp throws { OutOfMemory }

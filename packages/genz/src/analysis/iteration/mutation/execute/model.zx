@@ -1,0 +1,31 @@
+import type { Expressions } from "core/expression_table/model"
+import type {
+    IterationMutationFrame,
+    IterationMutationMode,
+    IterationResourceFrame
+} from "lowering_host"
+
+export type Operands = Expressions.Pick(
+    "kinds",
+    "payloads",
+    "types",
+    "update_targets",
+    "update_indices",
+    "update_values",
+    "collection_targets",
+    "collection_kinds",
+    "collection_arguments",
+    "collection_first"
+)
+
+export type Input = {
+    frame: IterationMutationFrame,
+    context: IterationResourceFrame,
+    expressions: Operands,
+    id: u32
+}
+
+export type Publication = Input & {
+    mode: IterationMutationMode,
+    list_type: u32
+}

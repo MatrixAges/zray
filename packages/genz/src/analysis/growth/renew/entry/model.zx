@@ -1,15 +1,22 @@
 import type { Table } from "core/type_table/model"
+import type { Renewals } from "../../../uniqueness/renewals/model"
+import type { Output as Range } from "../../../uniqueness/renewals/range"
 import type { Input as GrowthInput, State as Growth } from "../../model"
 
-export type Input = {
+export type Source = {
     source: GrowthInput,
     types: Table,
     type_id: u32,
-    keys: u64[],
-    paths: u32[][],
+    records: Renewals,
+    inline_lists: bool
+}
+
+export type Input = Source & {
+    range: Range,
     skipped: u64[],
     name?: u8[],
-    filter_inline: bool
+    entry_rows: bool,
+    filtered_inline: bool
 }
 
 export type State = {

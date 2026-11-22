@@ -170,11 +170,7 @@ export declare function lowerCall(
     value_call: bool
 ): u32 throws { OutOfMemory }
 
-export declare function lowerUpdate(
-    frame: Lowering,
-    id: u32,
-    iteration: bool
-): u32 throws { OutOfMemory }
+export declare function lowerUpdate(frame: Lowering, id: u32): u32 throws { OutOfMemory }
 
 export declare function lowerMutation(frame: Lowering, id: u32): u32 throws { OutOfMemory }
 

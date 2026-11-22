@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import host from "lowering_host"
+import { IterationMutationMode, IterationResource } from "lowering_host"
+
+import type { Publication as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, context, expressions, id, list_type, mode } = in
+
+    const list_layout = host.materializeIterationResource(
+        context,
+        list_type,
+        IterationResource.IterationType
+    )
+
+    const result_layout = match mode {
+        IterationMutationMode.Update => 0,
+        _ => host.materializeIterationResource(
+            context,
+            expressions.types[integers.widen(id)],
+            IterationResource.IterationType
+        )
+    }
+
+    return host.publishIterationMutation(frame, mode, list_layout, result_layout)
+}

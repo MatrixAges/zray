@@ -68,7 +68,7 @@ export default function (in: Input): Output {
         ExpressionKind.Transform => host.lowerTransform(frame, id),
         ExpressionKind.Scope => host.lowerScope(frame, id, Representation.Regular),
         ExpressionKind.Iteration => host.lowerIteration(frame, id, false),
-        ExpressionKind.ListUpdate => host.lowerUpdate(frame, id, false),
+        ExpressionKind.ListUpdate => host.lowerUpdate(frame, id),
         ExpressionKind.Call => host.lowerCall(frame, id, Representation.Regular, false),
         ExpressionKind.Integer => host.lowerLiteral(frame, id, result_type),
         ExpressionKind.NegativeInteger => host.lowerLiteral(frame, id, result_type),

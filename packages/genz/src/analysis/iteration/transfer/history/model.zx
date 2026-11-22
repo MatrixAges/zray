@@ -12,6 +12,7 @@ export type Record = {
     ready: u32
 }
 
-export type Append = Record & {
-    state: State
+export type Append = {
+    state: State,
+    record: Record
 }

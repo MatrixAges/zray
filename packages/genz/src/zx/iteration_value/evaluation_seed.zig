@@ -42,8 +42,8 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         .scope => |scope| return try @import("scope.zig").lower(self, scope),
         .index => |item| if (self.buffered(lowering.program.expression(item.target).type_id)) return try @import("../intrinsics.zig").index(lowering, try lowering.field(try lowering.expr(item.target), "items"), try lowering.expr(item.index)),
         .length => |child| if (self.buffered(lowering.program.expression(child).type_id)) return try lowering.cast(try lowering.typeExpr(value.type_id), try lowering.field(try lowering.field(try lowering.expr(child), "items"), "len")),
-        .list_update => |write| if (self.buffered(lowering.program.expression(write.target).type_id)) return try @import("mutation.zig").update(self, id),
-        .list_operation => |operation| if (self.buffered(lowering.program.expression(operation.target).type_id)) return try @import("mutation.zig").operation(self, id),
+        .list_update => |write| if (self.buffered(lowering.program.expression(write.target).type_id)) return try @import("mutation_seed.zig").update(self, id),
+        .list_operation => |operation| if (self.buffered(lowering.program.expression(operation.target).type_id)) return try @import("mutation_seed.zig").operation(self, id),
         .list => |items| if (self.buffered(value.type_id)) return try @import("list.zig").lower(self, value.type_id, items),
         .call => |call| {
             if (analysis.represented(lowering, lowering.program.expression(call.argument).type_id)) return try @import("invocation.zig").lower(self, id, value, lowering.value_functions[@backingInt(call.function)]);

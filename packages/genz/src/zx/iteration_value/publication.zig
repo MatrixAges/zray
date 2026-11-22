@@ -174,14 +174,8 @@ pub fn cachePublishedIterationTypes(handle: *const anyopaque) Error!void {
 
 pub fn recordIterationTransfer(handle: *const anyopaque) Error!void {
     const frame = Frame.borrow(handle);
-    const record = frame.record.?;
 
-    return frame.context.?.transfers.append(frame.lowering.allocator, .{
-        .type_id = @fromBackingInt(record.type_id),
-        .owner = @fromBackingInt(record.owner),
-        .value = @fromBackingInt(record.value),
-        .ready = @fromBackingInt(record.ready),
-    });
+    return frame.context.?.transfers.retain(frame.lowering.allocator, frame.record.?);
 }
 
 pub fn finishIterationPublication(handle: *const anyopaque) void {

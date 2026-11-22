@@ -74,7 +74,7 @@ export default function (in: Input): Output {
         )
         case Route.Some: return host.lowerRead(frame, id, ReadAction.Wrap, true, null)
         case Route.None: return host.lowerRead(frame, id, ReadAction.Empty, true, null)
-        case Route.Update: return host.lowerUpdate(frame, id, true)
+        case Route.Update: return host.lowerMutation(frame, id)
         case Route.Mutation: return host.lowerMutation(frame, id)
         case Route.Aggregate: return host.lowerAggregate(
             frame,

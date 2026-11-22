@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Mutation" />
+
+    <Args in={Mutation.Input} out={u32} />
+
+    <Call fn="bind_target" in={$in} />
+    <Call fn="bind_arguments" in={$in} />
+
+    <Call
+        fn="publish"
+        in={{
+            ...$in,
+            list_type: $ctx.bind_target,
+            mode: $ctx.bind_arguments
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

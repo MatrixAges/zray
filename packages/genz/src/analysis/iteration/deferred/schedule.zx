@@ -8,7 +8,8 @@ import type { Schedule as Input, Output } from "./model"
 export default function (in: Input): Output {
     return loop({
         index: in.range.first,
-        delayed: false
+        delayed: false,
+        emit: false
     }, {
         while: state => state.index < in.range.end,
         next: state => {
@@ -33,6 +34,8 @@ export default function (in: Input): Output {
                     skipped,
                     state.index - in.range.first
                 )
+            } else {
+                state.emit = true
             }
 
             state.delayed = state.delayed || delay
@@ -40,7 +43,8 @@ export default function (in: Input): Output {
         },
         return: state => ({
             ...in.range,
-            delayed: state.delayed
+            delayed: state.delayed,
+            emit: state.emit
         })
     })
 }

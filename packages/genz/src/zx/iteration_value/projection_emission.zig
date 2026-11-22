@@ -5,6 +5,7 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const Consumer = @import("../iteration_consumer.zig").Consumer;
+const Api = @import("../expressions/evaluate.zig").Api;
 
 pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const self = context.lowering;
@@ -38,9 +39,9 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     const preparer = @import("generated_prepare_iteration_projection");
     const Prepare = std.meta.Child(preparer.Input);
     var prepared = try buffered.allocator().alloc(u32, plan.operations.len);
-    const serials = try buffered.allocator().alloc(u64, plan.operations.len);
-    const history_count = try buffered.allocator().alloc(u64, plan.operations.len);
-    var timeline: Timeline = .{ .context = context, .serials = serials, .history_count = history_count };
+    var serials = try buffered.allocator().alloc(u64, plan.operations.len);
+    var history_count = try buffered.allocator().alloc(u64, plan.operations.len);
+    var timeline: Timeline = .{ .context = context };
 
     const preparation: Prepare = .{
         .frame = @ptrCast(self),
@@ -48,6 +49,8 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
         .history = @ptrCast(&timeline),
         .plan = zx.columns.pointer(@FieldType(Prepare, "plan"), plan),
         .prepared = @ptrCast(&prepared),
+        .serials = @ptrCast(&serials),
+        .history_count = @ptrCast(&history_count),
     };
 
     try @import("../expressions/evaluate.zig").execute(preparer, &preparation);
@@ -82,17 +85,17 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
 
 const Timeline = struct {
     context: *Context,
-    serials: []u64,
-    history_count: []u64,
+    stamp: Api.IterationProjectionStamp = undefined,
 };
 
-pub fn recordIterationProjection(handle: *const anyopaque, row: u64, fresh: u64) Lower.Error!void {
-    const timeline: *const Timeline = @ptrCast(@alignCast(handle));
+pub fn reserveIterationProjection(handle: *const anyopaque, fresh: u64) Lower.Error!*const Api.IterationProjectionStamp {
+    const timeline: *Timeline = @ptrCast(@alignCast(@constCast(handle)));
     const self = timeline.context.lowering;
-    const index: usize = @intCast(row);
 
-    timeline.serials[index] = self.serial;
-    timeline.history_count[index] = timeline.context.transfers.len();
+    timeline.stamp = .{ .serial = self.serial, .history_count = timeline.context.transfers.len() };
+
     const reserved = std.math.cast(usize, fresh) orelse return error.OutOfMemory;
     self.serial = std.math.add(usize, self.serial, reserved) catch return error.OutOfMemory;
+
+    return &timeline.stamp;
 }

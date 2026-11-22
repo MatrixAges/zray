@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../node.zig");
 const generated = @import("genz_options").generated_analysis;
 const writing = @import("generated_transfer_append");
@@ -17,14 +18,15 @@ state: State = if (generated) .{
 pub const empty: Self = .{};
 
 pub fn append(self: *Self, allocator: std.mem.Allocator, record: Record) std.mem.Allocator.Error!void {
-    if (!generated) return self.state.append(allocator, record);
+    return self.state.append(allocator, record);
+}
+
+pub fn retain(self: *Self, allocator: std.mem.Allocator, record: anytype) std.mem.Allocator.Error!void {
+    const Input = @typeInfo(@TypeOf(writing.executeState)).@"fn".param_types[1].?;
 
     self.state = writing.executeState(allocator, .{
         .state = self.state,
-        .type_id = @backingInt(record.type_id),
-        .owner = @backingInt(record.owner),
-        .value = @backingInt(record.value),
-        .ready = @backingInt(record.ready),
+        .record = zx.columns.pointer(@FieldType(Input, "record"), record),
     }) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
@@ -40,14 +42,7 @@ pub fn len(self: *const Self) usize {
 }
 
 pub fn at(self: *const Self, index: usize) Record {
-    if (!generated) return self.state.items[index];
-
-    return .{
-        .type_id = @fromBackingInt(self.state.types.items[index]),
-        .owner = @fromBackingInt(self.state.owners.items[index]),
-        .value = @fromBackingInt(self.state.values.items[index]),
-        .ready = @fromBackingInt(self.state.ready.items[index]),
-    };
+    return self.state.items[index];
 }
 
 pub fn iterator(self: *const Self) Iterator {
