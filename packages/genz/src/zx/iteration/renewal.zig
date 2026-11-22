@@ -64,6 +64,7 @@ pub fn plan(self: *const Lower, temporary: std.mem.Allocator, request: Request) 
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
     const Facts = std.meta.Child(@FieldType(Input, "facts"));
     const Records = std.meta.Child(@FieldType(Input, "records"));
+    const Destination = std.meta.Child(@FieldType(Input, "destination"));
     const program = &self.program;
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), program.types);
     const roots = if (request.classify) |iteration| [2]u32{ @backingInt(iteration.condition), @backingInt(iteration.body) } else undefined;
@@ -84,10 +85,13 @@ pub fn plan(self: *const Lower, temporary: std.mem.Allocator, request: Request) 
     defer scratch.deinit();
 
     const records = zx.columns.view(Records, self.plan.renewals);
+    var skipped: std.ArrayList(u64) = .empty;
+    const destination: Destination = .{ .allocator = @ptrCast(&temporary), .skipped = @ptrCast(&skipped) };
 
     const input = zx.columns.view(Input, .{
         .facts = &facts,
         .records = @as(*const Records, &records),
+        .destination = @as(*const Destination, &destination),
         .owner = @backingInt(request.owner),
         .classify = request.classify != null,
         .inline_lists = request.inline_lists,
@@ -104,7 +108,7 @@ pub fn plan(self: *const Lower, temporary: std.mem.Allocator, request: Request) 
         .end = @intCast(output.end),
         .delayed = output.delayed,
         .filters_inline = request.inline_lists,
-        .skipped = if (output.skipped.len == 0) &.{} else try temporary.dupe(u64, output.skipped),
+        .skipped = skipped.items,
     };
 }
 

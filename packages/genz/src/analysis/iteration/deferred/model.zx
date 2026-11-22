@@ -1,7 +1,13 @@
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
+import type { Allocator, U64Storage } from "memory"
 import type { Renewals } from "../../uniqueness/renewals/model"
 import type { Output as Range } from "../../uniqueness/renewals/range"
+
+export type Destination = {
+    allocator: Allocator,
+    skipped: U64Storage
+}
 
 export type Facts = {
     expressions: Expressions,
@@ -15,6 +21,7 @@ export type Facts = {
 export type Input = {
     facts: Facts,
     records: Renewals,
+    destination: Destination,
     owner: u32,
     classify: bool,
     inline_lists: bool
@@ -23,6 +30,7 @@ export type Input = {
 export type Schedule = {
     facts: Facts,
     paths: u32[][],
+    destination: Destination,
     range: Range,
     classify: bool,
     inline_lists: bool
@@ -31,6 +39,5 @@ export type Schedule = {
 export type Output = {
     first: u64,
     end: u64,
-    delayed: bool,
-    skipped: u64[]
+    delayed: bool
 }

@@ -1,4 +1,4 @@
-import type { Index } from "core/integer/index/model"
+import type { Index, Mutable } from "core/integer/index/model"
 import type { StringBuffer } from "memory"
 
 export enum Layout {
@@ -56,3 +56,26 @@ export type Enter = Input & Change
 export type Scope = Output & Names
 
 export type Rename = Target & Names
+
+export type Removal = Slots & {
+    index: Mutable,
+    remove_condition: bool,
+    remove_step: bool
+}
+
+export type RemovalFlags = Output.Pick(
+    "remove_state_condition",
+    "remove_state_step",
+    "remove_stack_condition",
+    "remove_stack_step"
+)
+
+export type Restore = Target & Names & RemovalFlags & {
+    state: Mutable,
+    stack: Mutable
+}
+
+export type Counts = {
+    state: u64,
+    stack: u64
+}

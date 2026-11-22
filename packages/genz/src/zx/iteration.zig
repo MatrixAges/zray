@@ -76,17 +76,18 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
 
     const projected = frame.fields != null;
 
-    if (projected) try emit.declareLoopState(handle);
+    if (projected) try emit.declareLoopState(handle, .State, true);
 
     const first = try emit.lowerLoopFirstTest(handle);
-    const operands = emit.enterLoopUpdate(handle);
+    const operands = emit.enterLoopUpdate(handle, projected);
     const condition = try self.expr(@fromBackingInt(operands.condition));
     const body: ir.ExprId = @fromBackingInt(operands.body);
     const update = if (operands.by_value) try @import("value_call/root.zig").expression(self, body) else try self.expr(body);
 
+    frame.restoreUpdate();
     emit.saveLoopUpdate(handle, @backingInt(condition), @backingInt(update), first);
 
-    if (!projected) try emit.declareLoopState(handle);
+    if (!projected) try emit.declareLoopState(handle, frame.initial.parameters, false);
     try emit.enterLoweredLoop(handle);
     try emit.writeLoopUpdate(handle);
     try emit.frameLoweredLoop(handle);

@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Loop" />
+
+    <Args in={Loop.Frame} out={void} />
+
+    <Call fn="close_update" in={$in} />
+    <Call fn="index.closeLoopInitial" in={$in} />
+    <Call fn="index.releaseLoopScratch" in={$in} />
+    <Call fn="index.restoreLoopParameters" in={$in} />
+    <Call fn="index.closeLoopRepresentation" in={$in} />
+    <Call fn="index.releaseLoopStatements" in={$in} />
+</Module>

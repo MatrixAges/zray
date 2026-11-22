@@ -1,0 +1,37 @@
+import removePair from "./remove_pair"
+import rename from "./rename"
+
+import type { Restore as Input, Counts as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { condition, step, target, condition_name, step_name } = in
+
+    const state = removePair({
+        index: in.state,
+        condition,
+        step,
+        remove_condition: in.remove_state_condition,
+        remove_step: in.remove_state_step
+    })
+
+    const stack = removePair({
+        index: in.stack,
+        condition,
+        step,
+        remove_condition: in.remove_stack_condition,
+        remove_step: in.remove_stack_step
+    })
+
+    rename({
+        target,
+        condition,
+        step,
+        condition_name,
+        step_name
+    })
+
+    return {
+        state,
+        stack
+    }
+}

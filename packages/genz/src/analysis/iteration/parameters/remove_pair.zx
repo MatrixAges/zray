@@ -1,0 +1,30 @@
+import remove from "core/integer/index/remove"
+
+import type { Removal as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { index, condition, step } = in
+
+    const after_condition = match {
+        in.remove_condition => remove({
+            ...index,
+            key: condition
+        }),
+        _ => null
+    }
+
+    const count = after_condition == null ? index.count : index.count - 1
+
+    const after_step = match {
+        in.remove_step => remove({
+            ...index,
+            count,
+            key: step
+        }),
+        _ => null
+    }
+
+    return after_step == null ? count : count - 1
+}

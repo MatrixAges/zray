@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Loop" />
+    <Type from="index" as="Native" />
 
     <Args in={Loop.Frame} out={void} />
 
@@ -22,5 +23,14 @@
         <Call fn="index.trackLoopChange" in={$in} />
     </If>
 
-    <Call fn="index.openLoopParameters" in={$in} />
+    <Call fn="index.bindLoopParameters" in={$in} />
+    <Call fn="index.loopParameterLayout" in={$in} />
+
+    <If on={$ctx.loopParameterLayout != Native.LoopParameterLayout.Plain}>
+        <Call fn="index.addLoopParameterMembers" in={$in} />
+    </If>
+
+    <If on={$ctx.loopParameterLayout == Native.LoopParameterLayout.Deep}>
+        <Call fn="index.openLoopParameterContext" in={$in} />
+    </If>
 </Module>

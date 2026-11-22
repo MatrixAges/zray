@@ -1,4 +1,8 @@
 import host from "lowering_host"
+import { LoopParameterLayout } from "lowering_host"
+
+import closeUpdate from "./close_update"
+import firstCondition from "./first_condition"
 
 import type { Input } from "./model"
 
@@ -10,11 +14,11 @@ export default function (in: Input): Output {
     const projected = host.loopProjects(loop_frame)
 
     if (projected) {
-        host.declareLoopState(loop_frame)
+        host.declareLoopState(loop_frame, LoopParameterLayout.State, true)
     }
 
-    const first = host.lowerLoopFirstTest(loop_frame)
-    const operands = host.enterLoopUpdate(loop_frame)
+    const first = firstCondition(in)
+    const operands = host.enterLoopUpdate(loop_frame, projected)
     const condition = host.lowerExpression(frame, operands.condition, false, null)
 
     const value = match {
@@ -22,9 +26,12 @@ export default function (in: Input): Output {
         _ => host.lowerExpression(frame, operands.body, false, null)
     }
 
+    closeUpdate(loop_frame)
     host.saveLoopUpdate(loop_frame, condition, value, first)
 
     if (!projected) {
-        host.declareLoopState(loop_frame)
+        const layout = host.loopParameterLayout(loop_frame)
+
+        host.declareLoopState(loop_frame, layout, false)
     }
 }

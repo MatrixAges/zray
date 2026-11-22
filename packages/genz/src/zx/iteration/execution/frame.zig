@@ -24,6 +24,7 @@ pub const Operands = if (generated) Api.LoopOperands else struct {
     by_value: bool,
 };
 
+pub const UpdateScope = if (generated) Api.LoopUpdateScope else enum { None, Projected, Ordinary };
 const Self = @This();
 
 lowering: *Lower,
@@ -54,11 +55,11 @@ schedule: Step.Plan = undefined,
 operands: Operands = undefined,
 renewal_buffer: [256]u8 = undefined,
 renewals: Renewal.Plan = undefined,
-step_scope: union(enum) {
-    none,
-    projected: state_scope.Frame(.Projected),
-    ordinary: state_scope.Frame(.Deferred),
-} = .none,
+step_scope: union(UpdateScope) {
+    None,
+    Projected: state_scope.Frame(.Projected),
+    Ordinary: state_scope.Frame(.Deferred),
+} = .None,
 next: Step.Values = undefined,
 tracker: ?State.Tracker = undefined,
 prefix: Result.Prefix = .{},
@@ -92,31 +93,77 @@ pub fn output(self: *Self) *Context.Statements {
 }
 
 pub fn restoreUpdate(self: *Self) void {
-    switch (self.step_scope) {
-        .none => {},
-        .projected => |saved| saved.restore(),
-        .ordinary => |saved| {
-            saved.restore();
-            self.parameters.?.restoreContext();
-        },
-    }
+    const active: UpdateScope = self.step_scope;
 
-    self.step_scope = .none;
+    if (active != .None) {
+        closeLoopUpdate(self, active);
+
+        if (active == .Ordinary) {
+            self.parameters.?.restoreContext();
+        }
+    }
 }
 
 pub fn restore(self: *Self) void {
+    if (generated) {
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const entry = @import("generated_release_loop");
+
+        return entry.executeIn(empty.allocator(), @ptrCast(self)) catch unreachable;
+    }
+
     self.restoreUpdate();
 
     if (self.initial_scope) |saved| saved.restore();
-    if (generated) self.projected_body.deinit();
 
     self.renewal_arena.deinit();
 
     if (self.parameters) |parameters| parameters.restore();
     if (self.representation) |saved| saved.restore();
+}
 
-    if (generated) {
-        self.loop.deinit();
-        self.body.deinit();
+pub fn loopUpdateScope(handle: *const anyopaque) UpdateScope {
+    return borrow(handle).step_scope;
+}
+
+pub fn closeLoopUpdate(handle: *const anyopaque, active: UpdateScope) void {
+    const self = borrow(handle);
+
+    switch (active) {
+        .None => unreachable,
+        .Projected => self.step_scope.Projected.restore(),
+        .Ordinary => self.step_scope.Ordinary.restore(),
     }
+
+    self.step_scope = .None;
+}
+
+pub fn restoreLoopParameterContext(handle: *const anyopaque) void {
+    borrow(handle).parameters.?.restoreContext();
+}
+
+pub fn closeLoopInitial(handle: *const anyopaque) void {
+    if (borrow(handle).initial_scope) |saved| saved.restore();
+}
+
+pub fn releaseLoopScratch(handle: *const anyopaque) void {
+    const self = borrow(handle);
+
+    self.projected_body.deinit();
+    self.renewal_arena.deinit();
+}
+
+pub fn restoreLoopParameters(handle: *const anyopaque) void {
+    if (borrow(handle).parameters) |parameters| parameters.restore();
+}
+
+pub fn closeLoopRepresentation(handle: *const anyopaque) void {
+    if (borrow(handle).representation) |saved| saved.restore();
+}
+
+pub fn releaseLoopStatements(handle: *const anyopaque) void {
+    const self = borrow(handle);
+
+    self.loop.deinit();
+    self.body.deinit();
 }

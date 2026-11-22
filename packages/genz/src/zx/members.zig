@@ -111,13 +111,7 @@ pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
 
 fn edit(state: *State, keys: []const ir.SymbolId, comptime entry: type) void {
     const Input = std.meta.Child(entry.Input);
-
-    // Member scopes borrow the index by pointer. Its backing columns remain writable.
-    const index: std.meta.Child(@FieldType(Input, "index")) = .{
-        .count = state.count,
-        .keys = @ptrCast(&state.keys.items),
-        .buckets = @ptrCast(&state.buckets.items),
-    };
+    const index = writable(std.meta.Child(@FieldType(Input, "index")), state);
 
     const input: Input = .{
         .index = &index,
@@ -127,6 +121,14 @@ fn edit(state: *State, keys: []const ir.SymbolId, comptime entry: type) void {
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     state.count = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+}
+
+pub fn writable(comptime Target: type, state: *State) Target {
+    return .{
+        .count = state.count,
+        .keys = @ptrCast(&state.keys.items),
+        .buckets = @ptrCast(&state.buckets.items),
+    };
 }
 
 pub fn contains(self: *const Self, key: ir.SymbolId) bool {

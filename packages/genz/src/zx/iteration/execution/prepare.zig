@@ -151,6 +151,28 @@ pub fn openLoopParameters(handle: *const anyopaque) Error!void {
     frame.parameters = try parameters.enter(frame.lowering, frame.iteration, frame.initial.parameters, frame.name, &frame.context);
 }
 
+pub fn loopParameterLayout(handle: *const anyopaque) Api.LoopParameterLayout {
+    return zx.columns.view(Api.LoopParameterLayout, Frame.borrow(handle).initial.parameters);
+}
+
+pub fn bindLoopParameters(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    frame.parameters = parameters.bind(frame.lowering, frame.iteration, frame.initial.parameters, frame.name);
+}
+
+pub fn addLoopParameterMembers(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    try frame.parameters.?.addMembers(frame.initial.parameters, &frame.context);
+}
+
+pub fn openLoopParameterContext(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    frame.parameters.?.openContext(&frame.context);
+}
+
 pub fn prepareLoopUpdate(handle: *const anyopaque) Error!void {
     const value = switch (Frame.borrow(handle).initial.storage) {
         .Keep => loopInitialValue(handle),

@@ -28,32 +28,46 @@ step: ir.SymbolId,
 context: ?scope_state.Frame(.Iteration) = null,
 plan: Plan,
 pub fn enter(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []const u8, context: *Context) Lower.Error!Self {
-    const condition = iteration.condition_parameter;
-    const step = iteration.parameter;
-    const plan = bindNames(lowering, layout, condition, step, name);
-
-    var scope: Self = .{
-        .lowering = lowering,
-        .condition = condition,
-        .step = step,
-        .plan = plan,
-    };
+    var scope = bind(lowering, iteration, layout, name);
 
     errdefer scope.restore();
 
+    if (layout == .Plain) return scope;
+    try scope.addMembers(layout, context);
+    if (layout == .Deep) scope.openContext(context);
+
+    return scope;
+}
+
+pub fn bind(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []const u8) Self {
+    const condition = iteration.condition_parameter;
+    const step = iteration.parameter;
+
+    return .{
+        .lowering = lowering,
+        .condition = condition,
+        .step = step,
+        .plan = bindNames(lowering, layout, condition, step, name),
+    };
+}
+
+pub fn addMembers(self: Self, layout: Layout, context: *Context) Lower.Error!void {
+    const lowering = self.lowering;
+
     const symbols = switch (layout) {
-        .Plain => return scope,
+        .Plain => unreachable,
         .State => &lowering.state_symbols,
         .Stack => &lowering.stack_symbols,
         .Deep => &context.symbols,
     };
 
-    const ids = [_]ir.SymbolId{ condition, step };
+    const ids = [_]ir.SymbolId{ self.condition, self.step };
 
-    try symbols.addMany(lowering.allocator, members(&ids, plan.add_condition, plan.add_step));
-    if (layout == .Deep) scope.context = scope_state.enter(lowering, .Iteration, .{ .iteration_value = context });
+    try symbols.addMany(lowering.allocator, members(&ids, self.plan.add_condition, self.plan.add_step));
+}
 
-    return scope;
+pub fn openContext(self: *Self, context: *Context) void {
+    self.context = scope_state.enter(self.lowering, .Iteration, .{ .iteration_value = context });
 }
 
 pub fn rename(self: Self, name: []const u8) void {
@@ -67,23 +81,43 @@ pub fn restoreContext(self: Self) void {
 pub fn restore(self: Self) void {
     self.restoreContext();
 
-    if (generated) {
-        self.removeMembers(&self.lowering.state_symbols, self.plan.remove_state_condition, self.plan.remove_state_step);
-        self.removeMembers(&self.lowering.stack_symbols, self.plan.remove_stack_condition, self.plan.remove_stack_step);
-    } else {
-        if (self.plan.remove_state_condition) _ = self.lowering.state_symbols.remove(self.condition);
-        if (self.plan.remove_state_step) _ = self.lowering.state_symbols.remove(self.step);
-        if (self.plan.remove_stack_condition) _ = self.lowering.stack_symbols.remove(self.condition);
-        if (self.plan.remove_stack_step) _ = self.lowering.stack_symbols.remove(self.step);
-    }
+    if (generated) return self.restoreStorage();
+    if (self.plan.remove_state_condition) _ = self.lowering.state_symbols.remove(self.condition);
+    if (self.plan.remove_state_step) _ = self.lowering.state_symbols.remove(self.step);
+    if (self.plan.remove_stack_condition) _ = self.lowering.stack_symbols.remove(self.condition);
+    if (self.plan.remove_stack_step) _ = self.lowering.stack_symbols.remove(self.step);
 
     self.writeNames(self.plan.condition_name, self.plan.step_name);
 }
 
-fn removeMembers(self: Self, symbols: *@import("../members.zig"), condition: bool, step: bool) void {
-    const ids = [_]ir.SymbolId{ self.condition, self.step };
+fn restoreStorage(self: Self) void {
+    const operation = @import("generated_iteration_parameters_restore");
+    const Restore = std.meta.Child(operation.Input);
+    const Mutable = std.meta.Child(@FieldType(Restore, "state"));
+    const state = self.lowering.state_symbols.current();
+    const stack = self.lowering.stack_symbols.current();
+    const state_view = @import("../members.zig").writable(Mutable, state);
+    const stack_view = @import("../members.zig").writable(Mutable, stack);
 
-    symbols.removeMany(members(&ids, condition, step));
+    const input: Restore = .{
+        .target = @ptrCast(&self.lowering.names),
+        .state = &state_view,
+        .stack = &stack_view,
+        .condition = @backingInt(self.condition),
+        .step = @backingInt(self.step),
+        .condition_name = self.plan.condition_name,
+        .step_name = self.plan.step_name,
+        .remove_state_condition = self.plan.remove_state_condition,
+        .remove_state_step = self.plan.remove_state_step,
+        .remove_stack_condition = self.plan.remove_stack_condition,
+        .remove_stack_step = self.plan.remove_stack_step,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const output = zx.columns.invoke(operation.executeValue, fixed.allocator(), &input) catch unreachable;
+
+    state.count = output.state;
+    stack.count = output.stack;
 }
 
 fn members(ids: *const [2]ir.SymbolId, have_condition: bool, have_step: bool) []const ir.SymbolId {

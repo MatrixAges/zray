@@ -1,15 +1,14 @@
+import memory from "memory"
+
 import buffered from "../../growth/renew/buffered"
 import path from "./path"
 
 import type { Schedule as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const skipped: u64[] = []
-
     return loop({
         index: in.range.first,
-        delayed: false,
-        skipped
+        delayed: false
     }, {
         while: state => state.index < in.range.end,
         next: state => {
@@ -27,7 +26,13 @@ export default function (in: Input): Output {
             })
 
             if (skip) {
-                state.skipped = state.skipped.push(state.index - in.range.first)[0]
+                const { allocator, skipped } = in.destination
+
+                memory.appendU64(
+                    allocator,
+                    skipped,
+                    state.index - in.range.first
+                )
             }
 
             state.delayed = state.delayed || delay
@@ -35,8 +40,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             ...in.range,
-            delayed: state.delayed,
-            skipped: state.skipped
+            delayed: state.delayed
         })
     })
 }

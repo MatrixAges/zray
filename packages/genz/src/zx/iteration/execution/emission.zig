@@ -10,6 +10,7 @@ const result = @import("../result.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
 const Api = @import("../../expressions/evaluate.zig").Api;
+const Layout = if (generated) Api.LoopParameterLayout else @import("../parameters.zig").Layout;
 
 pub fn loopProjects(handle: *const anyopaque) bool {
     return Frame.borrow(handle).fields != null;
@@ -26,15 +27,26 @@ pub fn lowerLoopFirstTest(handle: *const anyopaque) Error!?u32 {
     return @backingInt(try frame.lowering.expr(@fromBackingInt(condition)));
 }
 
-pub fn enterLoopUpdate(handle: *const anyopaque) *const Frame.Operands {
+pub fn loopFirstCondition(handle: *const anyopaque) ?u32 {
+    return Frame.borrow(handle).schedule.first_test;
+}
+
+pub fn nameLoopParameters(handle: *const anyopaque, seed: bool) void {
+    const frame = Frame.borrow(handle);
+    const name = if (seed) frame.lowering.builder.nodes.get(frame.seed).identifier else frame.name;
+
+    frame.parameters.?.rename(name);
+}
+
+pub fn enterLoopUpdate(handle: *const anyopaque, projected: bool) *const Frame.Operands {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
-    frame.step_scope = if (frame.fields) |*fields|
-        .{ .projected = scope.enter(self, .Projected, .{ .loop_fields = fields }) }
+    frame.step_scope = if (projected)
+        .{ .Projected = scope.enter(self, .Projected, .{ .loop_fields = &frame.fields.? }) }
 
     else
-        .{ .ordinary = scope.enter(self, .Deferred, .{ .deferred_lists = frame.renewals.delayed }) };
+        .{ .Ordinary = scope.enter(self, .Deferred, .{ .deferred_lists = frame.renewals.delayed }) };
 
     frame.operands = .{
         .condition = frame.schedule.condition,
@@ -48,8 +60,6 @@ pub fn enterLoopUpdate(handle: *const anyopaque) *const Frame.Operands {
 pub fn saveLoopUpdate(handle: *const anyopaque, condition: u32, value: u32, first: ?u32) void {
     const frame = Frame.borrow(handle);
 
-    frame.restoreUpdate();
-
     frame.next = .{
         .condition = @fromBackingInt(condition),
         .value = @fromBackingInt(value),
@@ -57,14 +67,13 @@ pub fn saveLoopUpdate(handle: *const anyopaque, condition: u32, value: u32, firs
     };
 }
 
-pub fn declareLoopState(handle: *const anyopaque) Error!void {
+pub fn declareLoopState(handle: *const anyopaque, form: Layout, projected: bool) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
-    const projected = frame.fields != null;
     const type_id = frame.type_id;
     const name = if (projected) self.builder.nodes.get(frame.seed).identifier else frame.name;
 
-    const layout = if (projected) try self.layoutExpr(type_id) else switch (frame.initial.parameters) {
+    const layout = switch (form) {
         .Plain => try self.typeExpr(type_id),
         .Stack, .State => try self.layoutExpr(type_id),
         .Deep => try @import("../../iteration_value/types.zig").get(&frame.context, type_id),

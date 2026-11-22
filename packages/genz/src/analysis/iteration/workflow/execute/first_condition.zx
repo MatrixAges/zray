@@ -1,0 +1,23 @@
+import host from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { frame, loop_frame } = in
+
+    const first = host.loopFirstCondition(loop_frame)
+
+    if (first == null) {
+        return null
+    }
+
+    host.nameLoopParameters(loop_frame, true)
+
+    const value = host.lowerExpression(frame, first, false, null)
+
+    host.nameLoopParameters(loop_frame, false)
+
+    return value
+}

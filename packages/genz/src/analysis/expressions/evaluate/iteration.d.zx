@@ -13,15 +13,30 @@ export declare function prepareLoopInitial(loop_frame: LoopFrame): LoopInitial
 
 export declare function setLoopInitialScope(loop_frame: LoopFrame, active: bool): void
 
-export declare function openLoopParameters(loop_frame: LoopFrame): void
+export declare function loopParameterLayout(frame: LoopFrame): LoopParameterLayout
+
+export declare function bindLoopParameters(frame: LoopFrame): void
+
+export declare function addLoopParameterMembers(frame: LoopFrame): void
     throws { OutOfMemory }
+
+export declare function openLoopParameterContext(frame: LoopFrame): void
+
+export declare function restoreLoopParameterContext(frame: LoopFrame): void
+
+export declare function restoreLoopParameters(frame: LoopFrame): void
 
 export declare function loopProjects(loop_frame: LoopFrame): bool
 
-export declare function lowerLoopFirstTest(loop_frame: LoopFrame): u32?
-    throws { OutOfMemory }
+export declare function loopFirstCondition(frame: LoopFrame): u32?
 
-export declare function enterLoopUpdate(loop_frame: LoopFrame): LoopOperands
+export declare function nameLoopParameters(frame: LoopFrame, seed: bool): void
+
+export declare function enterLoopUpdate(frame: LoopFrame, projected: bool): LoopOperands
+
+export declare function loopUpdateScope(frame: LoopFrame): LoopUpdateScope
+
+export declare function closeLoopUpdate(frame: LoopFrame, scope: LoopUpdateScope): void
 
 export declare function saveLoopUpdate(
     loop_frame: LoopFrame,
@@ -30,8 +45,20 @@ export declare function saveLoopUpdate(
     first: u32?
 ): void
 
-export declare function declareLoopState(loop_frame: LoopFrame): void
+export declare function declareLoopState(
+    frame: LoopFrame,
+    layout: LoopParameterLayout,
+    projected: bool
+): void
     throws { OutOfMemory }
+
+export declare function closeLoopInitial(frame: LoopFrame): void
+
+export declare function releaseLoopScratch(frame: LoopFrame): void
+
+export declare function closeLoopRepresentation(frame: LoopFrame): void
+
+export declare function releaseLoopStatements(frame: LoopFrame): void
 
 export declare function frameLoweredLoop(loop_frame: LoopFrame): void
     throws { OutOfMemory }

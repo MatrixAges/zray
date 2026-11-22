@@ -26,6 +26,19 @@ export type LoopLayout = opaque
 
 export type LoopFrame = opaque
 
+export enum LoopParameterLayout {
+    Plain,
+    Stack,
+    State,
+    Deep
+}
+
+export enum LoopUpdateScope {
+    None,
+    Projected,
+    Ordinary
+}
+
 export type MatchFrame = opaque
 
 export enum StatementResultMode {

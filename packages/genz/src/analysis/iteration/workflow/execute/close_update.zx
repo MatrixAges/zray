@@ -1,0 +1,20 @@
+import host from "lowering_host"
+import { LoopUpdateScope } from "lowering_host"
+
+import type { Frame as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const scope = host.loopUpdateScope(in)
+
+    if (scope == LoopUpdateScope.None) {
+        return
+    }
+
+    host.closeLoopUpdate(in, scope)
+
+    if (scope == LoopUpdateScope.Ordinary) {
+        host.restoreLoopParameterContext(in)
+    }
+}
