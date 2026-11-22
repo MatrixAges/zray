@@ -148,7 +148,7 @@ pub const Project = struct {
     store_initializers: std.ArrayList(compiled.StoreInitializer) = .empty,
     compiled_units: compiled.imports.Cache = .empty,
     current_source: usize = 0,
-    fn bindingAllocator(self: *Project) std.mem.Allocator {
+    pub fn bindingAllocator(self: *Project) std.mem.Allocator {
         _ = self.binding_scratch.reset(.retain_capacity);
 
         return self.binding_scratch.allocator();
@@ -284,13 +284,6 @@ pub const Project = struct {
 
         try import_binding.publishTypes(self.allocator, selected, imported.exports, imported.constant_exports, aliases, constants);
         if (!item.exported) return;
-
-        if (comptime generated_parser) return Signature.publishReexports(self.allocator, self.arena.child_allocator, .{
-            .signatures = imported.signatures,
-            .bindings = members,
-            .stores = self.functions.stores.items,
-            .selected = selected.functions,
-        }, &frame.signature_members);
 
         for (selected.functions.names, selected.functions.indices) |name, index| {
             const row: usize = @intCast(index);

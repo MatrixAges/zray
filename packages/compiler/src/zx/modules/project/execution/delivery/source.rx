@@ -28,7 +28,9 @@
         </Case>
 
         <Case value={Host.ProjectSourceAction.DeferSignature}>
-            <Call fn="index.deferProjectSignature" in={$in.frame} />
+            <Call fn="index.prepareDeferredProjectSignature" in={$in.frame} />
+
+            <Call module="bind" in={$in} />
         </Case>
 
         <Case value={Host.ProjectSourceAction.SkipSignature}>

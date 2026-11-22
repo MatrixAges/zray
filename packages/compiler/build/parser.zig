@@ -37,12 +37,16 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const manifest = @import("generation_manifest.zig");
     const internal = @import("memory_interfaces.zig");
     const execution_interfaces_dir = b.addWriteFiles();
-    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "module.d.zx", "resources.d.zx", "publication.d.zx", "statement.d.zx" }));
+    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency.builder, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "module.d.zx", "resources.d.zx", "publication.d.zx", "statement.d.zx" }));
     const lowering_prefix = b.fmt("{s}/{s}", .{ directories[3], lowering_declarations });
+    const project_directory = "zx/modules/project/execution";
+    const project_prefix = b.fmt("{s}/{s}/", .{ directories[0], project_directory });
+    const project_interfaces_dir = b.addWriteFiles();
+    const project_interface = project_interfaces_dir.add("host.d.zx", internal.join(b, b, "src/" ++ project_directory, &.{ "types.d.zx", "project.d.zx", "delivery/host.d.zx", "cache/host.d.zx" }));
 
-    const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], .{
-        .directory = execution_interfaces_dir.getDirectory(),
-        .prefix = lowering_prefix,
+    const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], &.{
+        .{ .directory = execution_interfaces_dir.getDirectory(), .prefix = lowering_prefix },
+        .{ .directory = project_interfaces_dir.getDirectory(), .prefix = project_prefix },
     });
 
     b.addNamedLazyPath("memory_interface", declarations.index);
@@ -84,7 +88,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
         .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host" },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host" },
-        .{ .path = b.fmt("{s}/zx/modules/project/execution/host.d.zx", .{directories[0]}), .module = "project_host" },
+        .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host" },
         .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host" },
         .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host" },
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
@@ -164,6 +168,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             .execution => {
                 run.addFileInput(roots[3].path(b, ownership_interface));
                 run.addFileInput(lowering);
+                run.addFileInput(project_interface);
                 addSubtree(run, tracked[0], "zx/modules");
                 addSubtree(run, tracked[0], "zx/analysis/publication");
                 addSubtree(run, tracked[0], "zx/frontend/retention");

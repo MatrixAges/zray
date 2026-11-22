@@ -16,8 +16,10 @@ pub const Storage = struct {
     exports: valueType(Exports),
     constants: valueType(Constants),
     members: valueType(Members),
+    signatures: valueType(Members),
     constant_names: memory.TextColumn,
     member_names: memory.TextColumn,
+    signature_names: memory.TextColumn,
     pub fn init(self: *Storage, allocator: std.mem.Allocator, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) std.mem.Allocator.Error!Input {
         self.names = try importNames(allocator, item);
 
@@ -31,7 +33,7 @@ pub const Storage = struct {
 
         self.constants = record(Constants, .{
             .rows = @as(field(Constants, "rows"), @ptrCast(&self.constant_names)),
-            .length = @as(u64, if (item.kind == .type_only) 0 else self.constant_names.count),
+            .length = @as(u64, self.constant_names.count),
             .default_name = @as(?[]const u8, null),
         });
 
@@ -40,6 +42,16 @@ pub const Storage = struct {
             .length = @as(u64, symbols.functions.count()),
             .default_name = symbols.functions.default,
         });
+
+        if (symbols.signatures.len != 0) {
+            self.signature_names = memory.borrowTextColumn("name", symbols.signatures);
+
+            self.signatures = record(Members, .{
+                .rows = @as(field(Members, "rows"), @ptrCast(&self.signature_names)),
+                .length = @as(u64, self.signature_names.count),
+                .default_name = @as(?[]const u8, null),
+            });
+        }
 
         self.input = record(Input, .{
             .target = @as(@FieldType(Record, "target"), switch (symbols.target) {
@@ -61,6 +73,7 @@ pub const Storage = struct {
             .exports = reference(Exports, &self.exports),
             .constants = reference(Constants, &self.constants),
             .members = reference(Members, &self.members),
+            .signatures = @as(?Members, if (symbols.signatures.len != 0) reference(Members, &self.signatures) else null),
         });
 
         return reference(Input, &self.input);

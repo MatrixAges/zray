@@ -2,13 +2,12 @@ import encoding from "std:encoding"
 import strings from "std:string"
 import memory from "memory"
 
-import type { StringBuffer } from "memory"
 import type { Names } from "./model"
 
 export type Input = {
     names: Names,
-    locals: StringBuffer,
-    originals?: StringBuffer,
+    locals: string[],
+    originals?: string[],
     specifier: string,
     identity?: string
 }
@@ -33,13 +32,13 @@ export default function (in: Input): Output {
             const local = encoding.sliceBytes(source, span.start, span.end)
             const owned = strings.copy(local)
 
-            memory.writeString(in.locals, index, owned)
+            memory.writeTextSlot(in.locals, index, owned)
 
             if (output != null) {
                 const original = originals[index]
                 const same_span = original.start == span.start && original.end == span.end
                 if (same_span) {
-                    memory.writeString(output, index, owned)
+                    memory.writeTextSlot(output, index, owned)
                 } else {
                     const text =
                         encoding.sliceBytes(source, original.start, original.end)
@@ -48,7 +47,7 @@ export default function (in: Input): Output {
                         _ => strings.copy(text)
                     }
 
-                    memory.writeString(output, index, value)
+                    memory.writeTextSlot(output, index, value)
                 }
             }
 

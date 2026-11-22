@@ -9,9 +9,10 @@ export {
     projectImportSourceRow,
     prepareProjectSource,
     loadProjectLibrary,
-    bindProjectSignature,
-    bindProjectBody,
-    deferProjectSignature,
+    selectProjectBindings,
+    publishProjectBindings,
+    publishProjectReexports,
+    prepareDeferredProjectSignature,
     rejectProjectSource,
     recordProjectImport
 } from "project_host"

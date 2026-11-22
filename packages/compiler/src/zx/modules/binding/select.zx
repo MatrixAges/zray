@@ -31,13 +31,14 @@ export default function (in: Input): Output {
 
     const namespace = result.namespace != null
     const wildcard = !namespace && request.wildcard
+    const members = request.signatures ?? request.members
 
     const count = match {
-        namespace => request.members.length,
+        namespace => members.length,
         !request.wildcard => request.names.originals.length,
         request.kind == ImportKind.TypeOnly => request.exports.length,
         _ => request.exports.length + request.constants.length +
-            request.members.length
+            members.length
     }
 
     return loop({
@@ -53,7 +54,8 @@ export default function (in: Input): Output {
             const { original, local, start, end } = readName({
                 request,
                 index,
-                namespace
+                namespace,
+                members
             })
 
             if (!wildcard || original != "") {
@@ -70,7 +72,7 @@ export default function (in: Input): Output {
                         namespace => index,
                         request.kind == ImportKind.TypeOnly => null,
                         _ => position({
-                            names: request.members,
+                            names: members,
                             name: name
                         })
                     }

@@ -29,6 +29,10 @@ body: union(enum) { types, entry, function: zx.ir.FunctionId },
 own_function: ?zx.ir.FunctionId = null,
 /// Source targets borrow the normalized unit path held by the project arena.
 pub fn copyImport(allocator: std.mem.Allocator, item: anytype, target: Target.Wire, identity: ?[]const u8) std.mem.Allocator.Error!Import {
+    if (comptime @import("parser_options").generated_parser and @hasField(@TypeOf(item.header), "storage")) {
+        return @import("module_record/import.zig").copy(allocator, item, .from(target), identity);
+    }
+
     const names = try @import("module_record/names/host.zig").own(allocator, item, identity);
 
     return .{

@@ -46,7 +46,8 @@ export type Request = {
     type_kinds: u8[],
     exports: Exports,
     constants: PublicNames,
-    members: PublicNames
+    members: PublicNames,
+    signatures?: PublicNames
 }
 
 export type Bindings = {

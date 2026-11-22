@@ -23,6 +23,8 @@ duplicate: zx.ast.Name = undefined,
 resolved: Target.Resolved = undefined,
 source_row: usize = undefined,
 imported: owner.Imported = undefined,
+bindings: @import("../../../binding.zig").Selection = undefined,
+deferred: @import("../../../source_signature.zig").Member = undefined,
 dependency: ModuleRecord.Target.Wire = undefined,
 identity: ?[]const u8 = null,
 path_buffer: [512]u8 = undefined,
@@ -49,7 +51,15 @@ pub fn run(walk: *load.Walk, row: usize, completed: ?u64) zx.Error!?u64 {
         _ = walk.paths.reset(.retain_capacity);
     };
 
-    const request: Input = .{ .frame = @ptrCast(&frame), .signature = walk.phase == .signature, .completed = completed };
+    const request: Input = .{
+        .frame = @ptrCast(&frame),
+        .signature = walk.phase == .signature,
+        .exported = switch (frame.item) {
+            inline else => |item| item.exported,
+        },
+        .completed = completed,
+    };
+
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return entry.executeIn(empty.allocator(), &request) catch |err| @import("../invoke.zig").errorSet(err);

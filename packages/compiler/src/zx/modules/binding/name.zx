@@ -3,12 +3,13 @@ import memory from "memory"
 
 import publicName from "./public_name"
 
-import type { Name, Request } from "./model"
+import type { Name, PublicNames, Request } from "./model"
 
 export type Input = {
     request: Request,
     index: u64,
-    namespace: bool
+    namespace: bool,
+    members: PublicNames
 }
 
 export type Output = Name
@@ -22,7 +23,7 @@ export default function (in: Input): Output {
 
         const name = match {
             in.namespace => publicName({
-                names: request.members,
+                names: in.members,
                 index
             }),
             index < types => memory.readRowName(request.exports.rows, index),
@@ -31,7 +32,7 @@ export default function (in: Input): Output {
                 index: index - types
             }),
             _ => publicName({
-                names: request.members,
+                names: in.members,
                 index: index - constants_end
             })
         }

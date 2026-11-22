@@ -43,14 +43,12 @@ pub fn prepareProjectSource(handle: *const anyopaque, row: u64) void {
     frame.dependency = .{ .source = unit.path };
 }
 
-pub fn deferProjectSignature(handle: *const anyopaque) zx.Error!void {
+pub fn prepareDeferredProjectSignature(handle: *const anyopaque) error{OutOfMemory}!void {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
     const path = try project.allocator.dupe(u8, frame.resolved.target.source);
-
-    return switch (frame.item) {
-        inline else => |item| project.bindSignature(frame.active, item, .{ .exports = &.{}, .signatures = &.{.{ .name = "", .kind = .deferred, .source = path }} }),
-    };
+    frame.deferred = .{ .name = "", .kind = .deferred, .source = path };
+    frame.imported = .{ .exports = &.{}, .signatures = @as(*[1]@TypeOf(frame.deferred), @ptrCast(&frame.deferred)) };
 }
 
 pub fn rejectProjectSource(handle: *const anyopaque, action: Action) error{InvalidSource}!void {

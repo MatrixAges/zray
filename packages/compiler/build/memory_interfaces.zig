@@ -10,11 +10,11 @@ const Result = struct {
     manifests: LazyPath,
 };
 
-pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, source_root: []const u8, execution: Declarations) Result {
+pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, source_root: []const u8, execution: []const Declarations) Result {
     const files = b.addWriteFiles();
     const directory = "interfaces/memory";
-    const index = files.add("index.d.zx", join(b, core, directory, &.{ "views.d.zx", "row_reads.d.zx", "buffer_values.d.zx", "atomic_words.d.zx", "stream.d.zx", "column_writes.d.zx", "text_storage.d.zx" }));
-    const columns = files.add("columns.d.zx", join(b, core, directory, &.{ "function_descriptors.d.zx", "column_sets.d.zx", "column_set_operations.d.zx", "column_values.d.zx", "reference_views.d.zx" }));
+    const index = files.add("index.d.zx", join(b, core.builder, directory, &.{ "views.d.zx", "row_reads.d.zx", "buffer_values.d.zx", "atomic_words.d.zx", "stream.d.zx", "column_writes.d.zx", "text_storage.d.zx" }));
+    const columns = files.add("columns.d.zx", join(b, core.builder, directory, &.{ "function_descriptors.d.zx", "column_sets.d.zx", "column_set_operations.d.zx", "column_values.d.zx", "reference_views.d.zx" }));
     const prefix = b.fmt("{s}/memory/", .{source_root});
 
     const tool = b.addExecutable(.{
@@ -31,8 +31,11 @@ pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, s
     run.addDirectoryArg2(manifests, .{});
     run.addDirectoryArg2(files.getDirectory(), .{ .make_absolute = true });
     run.addArg(prefix);
-    run.addDirectoryArg2(execution.directory, .{ .make_absolute = true });
-    run.addArg(execution.prefix);
+
+    for (execution) |binding| {
+        run.addDirectoryArg2(binding.directory, .{ .make_absolute = true });
+        run.addArg(binding.prefix);
+    }
 
     return .{
         .index = index,
@@ -43,7 +46,7 @@ pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, s
     };
 }
 
-pub fn join(b: *std.Build, package: *std.Build.Dependency, directory: []const u8, comptime names: []const []const u8) []const u8 {
+pub fn join(b: *std.Build, package: *std.Build, directory: []const u8, comptime names: []const []const u8) []const u8 {
     var parts: [names.len][]const u8 = undefined;
 
     for (names, &parts) |name, *part| part.* = read(b, package, directory, name);
@@ -51,12 +54,12 @@ pub fn join(b: *std.Build, package: *std.Build.Dependency, directory: []const u8
     return std.mem.join(b.allocator, "\n", &parts) catch @panic("out of memory");
 }
 
-fn read(b: *std.Build, package: *std.Build.Dependency, directory: []const u8, name: []const u8) []const u8 {
+fn read(b: *std.Build, package: *std.Build, directory: []const u8, name: []const u8) []const u8 {
     const relative = b.fmt("{s}/{s}", .{ directory, name });
 
     b.dependOnFileContents(package.path(relative));
 
-    const path = package.builder.root.joinString(b.allocator, relative) catch @panic("out of memory");
+    const path = package.root.joinString(b.allocator, relative) catch @panic("out of memory");
 
     return std.Io.Dir.cwd().readFileAlloc(b.graph.io, path, b.allocator, .limited(1024 * 1024)) catch @panic("unable to read internal declarations");
 }

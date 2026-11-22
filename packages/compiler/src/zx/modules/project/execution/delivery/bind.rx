@@ -3,12 +3,28 @@
 
     <Args in={Delivery.Binding} out={void} />
 
-    <If on={$in.signature}>
-        <Call fn="index.bindProjectSignature" in={$in.frame} />
+    <Call
+        fn="index.selectProjectBindings"
+        in={[
+            $in.frame,
+            $in.signature
+        ]}
+    />
 
-        <Else>
-            <Call fn="index.bindProjectBody" in={$in.frame} />
-            <Call fn="index.recordProjectImport" in={$in.frame} />
-        </Else>
+    <Call
+        fn="index.publishProjectBindings"
+        in={[
+            $in.frame,
+            $in.exported,
+            !$in.signature
+        ]}
+    />
+
+    <If on={$in.signature && $in.exported}>
+        <Call fn="index.publishProjectReexports" in={$in.frame} />
+    </If>
+
+    <If on={!$in.signature}>
+        <Call fn="index.recordProjectImport" in={$in.frame} />
     </If>
 </Module>

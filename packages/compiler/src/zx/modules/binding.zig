@@ -37,7 +37,7 @@ pub fn select(allocator: std.mem.Allocator, diagnostics: std.mem.Allocator, item
 
 pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, context: Context, reporter: *zx.Reporter, aliases: *std.ArrayList(zx.ir.Export), imports: *std.ArrayList(FunctionImport), constants: *std.ArrayList(zx.ir.Constant)) zx.Error!void {
     const members: Members = .{ .default = if (context.default_member) |*member| member else null, .named = context.members };
-    const functions = if (item.kind == .type_only) Members.Names{} else members.names();
+    const functions = if (comptime generated) members.names() else if (item.kind == .type_only) Members.Names{} else members.names();
     const symbols = Symbols{ .target = context.target, .types = context.types, .exports = context.exports, .constants = context.constant_exports, .functions = functions };
     const selected = try select(temporary, allocator, item, &symbols, reporter);
 
@@ -90,7 +90,7 @@ const Types = struct {
 
 const Functions = struct { members: Members, imports: *std.ArrayList(FunctionImport) };
 
-fn publish(allocator: std.mem.Allocator, selected: Selection, types: Types, functions: ?Functions) std.mem.Allocator.Error!void {
+pub fn publish(allocator: std.mem.Allocator, selected: Selection, types: Types, functions: ?Functions) std.mem.Allocator.Error!void {
     const alias_count = selected.aliases.names.len;
     const constant_count = selected.constants.names.len;
     const function_count = if (functions != null) selected.functions.names.len else 0;

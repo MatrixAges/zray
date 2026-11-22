@@ -1,0 +1,73 @@
+export type ProjectWalk = opaque
+
+export type ProjectState = opaque
+
+export type ProjectSignatures = opaque
+
+export type ProjectSignature = opaque
+
+export type ProjectBody = opaque
+
+export type ProjectEntry = opaque
+
+export type ProjectNative = opaque
+
+export type CompiledImport = opaque
+
+export type CompiledUnit = opaque
+
+export type ArtifactLink = opaque
+
+export type AnalysisPublication = opaque
+
+export type AnalysisEntry = opaque
+
+export type SyntaxOrders = opaque
+
+export enum CacheWrite {
+    Stored,
+    MissingOrigin,
+    Invalid
+}
+
+export type ProjectImport = opaque
+
+export enum ProjectImportRoute {
+    Native,
+    Legacy,
+    Intrinsic,
+    Resolve,
+    DuplicateBinding,
+    InvalidSpecifier,
+    DuplicateInterface,
+    InterfaceConflict,
+    InvalidLegacy,
+    MissingLegacy
+}
+
+export enum ProjectSourceAction {
+    Descend,
+    Bind,
+    DeferSignature,
+    SkipSignature,
+    RejectRx,
+    Missing,
+    Cycle,
+    Depth
+}
+
+export type ParseReplacement = opaque
+
+export type ParseRetirement = opaque
+
+export type ParseAdoption = opaque
+
+export type ParseCacheEntry = opaque
+
+export type ParseCacheBatch = opaque
+
+export type ParseWorker = opaque
+
+export type NativeCacheLoad = opaque
+
+export type CacheSlot = opaque

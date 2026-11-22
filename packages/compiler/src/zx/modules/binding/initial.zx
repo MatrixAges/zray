@@ -14,10 +14,11 @@ export type Output = Result
 export default function (in: Input): Output {
     const native = in.target == Target.Native
     const callable = in.kind == ImportKind.Function
+    const members = in.signatures ?? in.members
 
     const member = match {
         callable && !native => position({
-            names: in.members,
+            names: members,
             name: ""
         }),
         _ => null
@@ -25,7 +26,7 @@ export default function (in: Input): Output {
 
     const invalid = callable && (
         in.names.originals.length != 1 ||
-            (native ? in.members.length == 0 : member == null)
+            (native ? members.length == 0 : member == null)
     )
 
     const namespace: string? = match {

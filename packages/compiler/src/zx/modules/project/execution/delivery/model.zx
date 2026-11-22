@@ -3,6 +3,7 @@ import type { ProjectImport } from "project_host"
 export type Input = {
     frame: ProjectImport,
     signature: bool,
+    exported: bool,
     completed?: u64
 }
 

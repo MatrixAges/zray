@@ -1,0 +1,76 @@
+import strings from "std:string"
+import memory from "memory"
+
+import hasAlias from "./names/alias"
+import own from "./names/own"
+
+import type { Allocator } from "memory"
+import type { Names } from "./names/model"
+
+export type Target = {
+    path: string,
+    instance: string,
+    member: string
+}
+
+export type Input = {
+    names: Names,
+    specifier: string,
+    identity?: string,
+    target: Target,
+    compiled: bool,
+    release: Allocator
+}
+
+export type Output = Target & {
+    locals: string[],
+    originals: string[],
+    specifier: string,
+    identity?: string
+}
+
+export default function (in: Input): Output {
+    const count = in.names.locals.length
+    const aliased = count != 0 && hasAlias(in.names)
+
+    const locals = memory.requireTextSlots(
+        memory.allocateTextSlots(in.release, count)
+    )
+
+    const originals = match {
+        aliased => memory.requireTextSlots(
+            memory.allocateTextSlots(in.release, count)
+        ),
+        _ => []
+    }
+
+    const owned = own({
+        names: in.names,
+        locals,
+        originals: aliased ? originals : null,
+        specifier: in.specifier,
+        identity: in.identity
+    })
+
+    if (in.compiled) {
+        const instance = strings.copy(in.target.instance)
+        const path = strings.copy(in.target.path)
+        const member = strings.copy(in.target.member)
+
+        return {
+            ...owned,
+            locals,
+            originals,
+            instance,
+            path,
+            member
+        }
+    }
+
+    return {
+        ...owned,
+        locals,
+        originals,
+        ...in.target
+    }
+}

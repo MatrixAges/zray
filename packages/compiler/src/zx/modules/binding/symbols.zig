@@ -7,6 +7,7 @@ pub const Symbols = struct {
     exports: []const zx.ir.Export,
     constants: []const zx.ir.Constant,
     functions: @import("members.zig").Names = .{},
+    signatures: []const @import("../source_signature.zig").Member = &.{},
 };
 
 pub const Bindings = struct {
