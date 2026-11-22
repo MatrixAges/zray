@@ -61,16 +61,16 @@ pub fn finishStatements(self: Self, output: anytype) std.mem.Allocator.Error!nod
     return self.statements(output.items);
 }
 
-pub fn publishStatements(self: Self, prefix: []const node.Statement, columns: anytype) std.mem.Allocator.Error!node.Block {
-    const first = try self.statements(prefix);
+pub fn publishStatements(self: Self, columns: anytype) std.mem.Allocator.Error!node.Block {
     const table = &self.nodes.statements;
+    const first: u32 = @intCast(table.tags.items.len);
 
     @import("node/import_rows.zig").appendBorrowed(self.allocator, table, columns) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidAst => unreachable,
     };
 
-    return .{ .start = first.start, .len = @intCast(table.tags.items.len - first.start) };
+    return .{ .start = first, .len = @intCast(columns.tags.len) };
 }
 
 pub fn binary(self: Self, operator: node.BinaryOperator, left: node.ExpressionId, right: node.ExpressionId) std.mem.Allocator.Error!node.ExpressionId {

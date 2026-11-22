@@ -2,15 +2,8 @@ const std = @import("std");
 const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
-const generated = @import("genz_options").generated_analysis;
 
-pub fn build(self: *Lower, child: node.ExpressionId, errors: ?[]const []const u8) Lower.Error![2]node.Declaration {
-    if (!generated) {
-        const seed = @import("functions_seed.zig");
-
-        return .{ try seed.less(self, child), try seed.sort(self, child, errors) };
-    }
-
+pub fn build(self: *Lower, child: node.ExpressionId, errors: ?[]const []const u8) Lower.Error![2]u32 {
     const entry = @import("generated_sorting_functions");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
@@ -49,14 +42,7 @@ pub fn build(self: *Lower, child: node.ExpressionId, errors: ?[]const []const u8
 
     try append(self, &self.builder.nodes.declaration_rows, result.declarations);
 
-    return .{
-        try declaration(self, result.ordering),
-        try declaration(self, result.sort),
-    };
-}
-
-fn declaration(self: *Lower, index: u32) Lower.Error!node.Declaration {
-    return .{ .function = try self.builder.nodes.materializeFunction(self.allocator, index) };
+    return .{ result.ordering, result.sort };
 }
 
 fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {

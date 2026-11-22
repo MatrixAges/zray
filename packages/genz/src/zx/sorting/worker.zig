@@ -4,15 +4,9 @@ const Lower = @import("../lower.zig");
 const emitting = @import("worker/emitting.zig");
 const scope = @import("../functions/scope.zig");
 
-pub const Result = struct { declaration: node.Declaration, io: bool, process: bool };
+pub const Result = struct { declaration: u32, io: bool, process: bool };
 
 pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors: ?[]const []const u8) Lower.Error!Result {
-    if (!@import("genz_options").generated_analysis) {
-        const result = try @import("worker_seed.zig").build(self, value, child, errors);
-
-        return .{ .declaration = result.declaration, .io = result.io, .process = result.process };
-    }
-
     var worker = scope.inherit(self, .Sort);
 
     try scope.reserve(&worker, self.allocator, .Sort);

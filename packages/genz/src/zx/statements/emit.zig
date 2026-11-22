@@ -28,7 +28,7 @@ pub fn emitEvaluation(handle: *const anyopaque, slot: u64, index: u64) bool {
     const self = frame.lowering;
     const id = frame.block(slot).at(@intCast(index)).evaluate;
     const value = @import("../iteration.zig").discard(self, id) catch return false;
-    const span = basic.discard(self, &frame.output, value) catch return false;
+    const span = basic.discard(self, value) catch return false;
 
     return frame.emitted(span, false);
 }
@@ -108,7 +108,7 @@ pub fn emitStatementBinding(handle: *const anyopaque, value: u32) bool {
 pub fn emitDestructureStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
     const frame = Frame.borrow(handle);
     const binding = frame.block(slot).at(@intCast(index)).destructure;
-    const span = @import("destructure/lower.zig").publish(frame.lowering, &frame.output, binding) catch return false;
+    const span = @import("destructure/lower.zig").publish(frame.lowering, binding) catch return false;
 
     return frame.emitted(span, false);
 }
@@ -119,7 +119,7 @@ pub fn emitStoreWriteStatement(handle: *const anyopaque, slot: u64, index: u64) 
     const setter = frame.block(slot).at(@intCast(index)).store_set;
     const target = basic.storeTarget(self, setter.slot) catch return false;
     const value = self.expr(setter.value) catch return false;
-    const span = basic.assignment(self, &frame.output, target, value) catch return false;
+    const span = basic.assignment(self, target, value) catch return false;
 
     return frame.emitted(span, false);
 }

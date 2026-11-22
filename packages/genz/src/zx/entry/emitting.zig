@@ -5,11 +5,12 @@ const rows = @import("../../node/import_rows.zig");
 const field_rows = @import("../../node/import_fields.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
+const Declarations = @import("../../node/declarations.zig").Sequence;
+const StoredFields = @import("../../node/stored.zig").Fields;
 pub const generated = @import("genz_options").generated_analysis;
-pub const Prepared = struct { parameters: []const node.Field, arguments: []node.ExpressionId };
-pub const Tail = struct { name: []const u8, return_type: node.ExpressionId, body: node.Block, inlined: bool };
+pub const Prepared = struct { parameters: StoredFields, arguments: []node.ExpressionId };
 
-pub fn arena(self: *Lower, inner: node.Function) Lower.Error!node.Declaration {
+pub fn arena(self: *Lower, declarations: *Declarations, inner: node.Function) Lower.Error!void {
     const entry = @import("generated_public_entry_arena");
     const Input = std.meta.Child(entry.Input);
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -20,7 +21,15 @@ pub fn arena(self: *Lower, inner: node.Function) Lower.Error!node.Declaration {
 
     const parameters = try fields(std.meta.Child(@FieldType(Input, "parameters")), memory.allocator(), inner.parameters);
     const bases = context(std.meta.Child(@FieldType(Input, "bases")), self);
-    const input: Input = .{ .name = inner.name, .parameters = &parameters, .return_type = @backingInt(inner.return_type), .bases = &bases };
+
+    const input: Input = .{
+        .name = inner.name,
+        .parameters = &parameters,
+        .return_type = @backingInt(inner.return_type),
+        .bases = &bases,
+        .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
+    };
+
     const output = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
     if (!output.valid) return error.OutOfMemory;
@@ -29,16 +38,13 @@ pub fn arena(self: *Lower, inner: node.Function) Lower.Error!node.Declaration {
 
     try append(self, &expressions);
 
-    return .{ .function = .{
-        .name = output.name,
-        .parameters = field_rows.materializeBorrowingText(self.allocator, output.parameters) catch |err| return failure(err),
-        .return_type = @fromBackingInt(output.return_type),
-        .body = try self.builder.publishStatements(&.{}, output.statements),
-        .exported = true,
-    } };
+    _ = field_rows.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.parameters) catch |err| return failure(err);
+    _ = try self.builder.publishStatements(output.statements);
+
+    declarations.appendColumns(self.allocator, output.declarations, true) catch |err| return failure(err);
 }
 
-pub fn alias(self: *Lower, state: bool, target: ?node.ExpressionId) Lower.Error!node.Declaration {
+pub fn alias(self: *Lower, declarations: *Declarations, state: bool, target: ?node.ExpressionId) Lower.Error!void {
     const entry = @import("generated_public_entry_alias");
     const Input = std.meta.Child(entry.Input);
     const bases = context(std.meta.Child(@FieldType(Input, "bases")), self);
@@ -55,11 +61,7 @@ pub fn alias(self: *Lower, state: bool, target: ?node.ExpressionId) Lower.Error!
 
     try append(self, output.expressions);
 
-    var storage: [1]node.Declaration = undefined;
-    var declarations = std.ArrayList(node.Declaration).initBuffer(&storage);
-    @import("../../node/import_constants.zig").appendBorrowingText(self.allocator, &declarations, output.declarations) catch |err| return failure(err);
-
-    return declarations.items[0];
+    declarations.appendColumns(self.allocator, output.declarations, true) catch |err| return failure(err);
 }
 
 pub fn prepare(self: *Lower, original: []const node.Field, input_type: node.ExpressionId) Lower.Error!Prepared {
@@ -85,7 +87,7 @@ pub fn prepare(self: *Lower, original: []const node.Field, input_type: node.Expr
     for (arguments, output.arguments) |*argument, id| argument.* = @fromBackingInt(id);
 
     return .{
-        .parameters = field_rows.materializeBorrowingText(self.allocator, output.parameters) catch |err| return failure(err),
+        .parameters = field_rows.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.parameters) catch |err| return failure(err),
         .arguments = arguments,
     };
 }
@@ -112,12 +114,34 @@ pub fn call(self: *Lower, name: []const u8, arguments: []const node.ExpressionId
     return @fromBackingInt(output.root);
 }
 
-pub fn finish(self: *Lower, state: node.Function, value: node.ExpressionId, output_type: node.ExpressionId) Lower.Error!Tail {
+pub const View = struct {
+    state: node.Function,
+    value: node.ExpressionId,
+    output_type: node.ExpressionId,
+    parameters: StoredFields,
+    body: node.Block,
+};
+
+pub fn finish(self: *Lower, declarations: *Declarations, args: View) Lower.Error!void {
     const entry = @import("generated_public_entry_finish");
     const Input = std.meta.Child(entry.Input);
-    const errors = self.builder.nodes.get(state.return_type).error_union;
+    const errors = self.builder.nodes.get(args.state.return_type).error_union;
     const bases = context(std.meta.Child(@FieldType(Input, "bases")), self);
-    const input: Input = .{ .value = @backingInt(value), .output_type = @backingInt(output_type), .errors = errors.errors, .inferred = errors.inferred, .inlined = state.inlined, .bases = &bases };
+
+    const input: Input = .{
+        .value = @backingInt(args.value),
+        .output_type = @backingInt(args.output_type),
+        .errors = errors.errors,
+        .inferred = errors.inferred,
+        .inlined = args.state.inlined,
+        .bases = &bases,
+        .parameters_start = args.parameters.start,
+        .parameters_count = args.parameters.len,
+        .body_start = args.body.start,
+        .body_count = args.body.len,
+        .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
+    };
+
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -132,12 +156,9 @@ pub fn finish(self: *Lower, state: node.Function, value: node.ExpressionId, outp
 
     try append(self, &expressions);
 
-    return .{
-        .name = output.name,
-        .return_type = @fromBackingInt(output.return_type),
-        .body = try self.builder.publishStatements(&.{}, output.statements),
-        .inlined = output.inlined,
-    };
+    _ = try self.builder.publishStatements(output.statements);
+
+    declarations.appendColumns(self.allocator, output.declarations, true) catch |err| return failure(err);
 }
 
 fn fields(comptime Fields: type, allocator: std.mem.Allocator, original: []const node.Field) Lower.Error!Fields {

@@ -17,7 +17,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
     const errors = try @import("../error_effects.zig").expression(self, id);
     const worker = try @import("worker.zig").build(self, value, child, errors);
     const helpers = try functions.build(self, child, errors);
-    const declarations = try self.allocator.dupe(node.Declaration, &.{ worker.declaration, helpers[0], helpers[1] });
+    const declarations = try @import("../../node/blocks.zig").joinDeclarations(self.allocator, self.builder.nodes, &.{ worker.declaration, helpers[0], helpers[1] }, &.{ 1, 1, 1 });
 
     try emission.publish(self, slot, name, declarations);
 

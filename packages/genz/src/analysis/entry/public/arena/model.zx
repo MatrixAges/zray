@@ -1,4 +1,5 @@
 import type { Input as Bases, State as Context } from "../../../../ast/context/model"
+import type { Columns as Functions } from "../../../../ast/declarations/function"
 import type { Columns as Forms } from "../../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../../ast/expressions/model"
 import type { Columns as Fields } from "../../../../ast/fields/model"
@@ -8,7 +9,8 @@ export type Input = {
     name: u8[],
     parameters: Fields,
     return_type: u32,
-    bases: Bases
+    bases: Bases,
+    declaration_base: u32
 }
 
 export type State = {
@@ -23,7 +25,6 @@ export type Output = {
     forms: Forms,
     parameters: Fields,
     statements: Statements,
-    name: u8[],
-    return_type: u32,
+    declarations: Functions,
     valid: bool
 }

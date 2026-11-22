@@ -32,16 +32,12 @@ pub fn reserve(self: *Lower, index: usize) Lower.Error![]const u8 {
 
     try append(self, &self.builder.nodes.expressions, result.expressions);
 
-    var storage: [1]node.Declaration = undefined;
-    var declarations = std.ArrayList(node.Declaration).initBuffer(&storage);
-    @import("../../node/import_constants.zig").append(self.allocator, &declarations, result.declarations) catch |err| return failure(err);
-    try self.task_declarations.append(self.allocator, declarations.items[0]);
+    const names = try self.task_declarations.appendConstants(self.allocator, result.declarations, false);
 
-    return declarations.items[0].constant.name;
+    return names[0];
 }
 
-pub fn publish(self: *Lower, slot: usize, name: []const u8, values: []const node.Declaration) Lower.Error!void {
-    const entries = try self.builder.nodes.declarations(self.allocator, values);
+pub fn publish(self: *Lower, slot: usize, name: []const u8, entries: @import("../../node/stored.zig").Declarations) Lower.Error!void {
     const entry = @import("generated_sorting_publish");
 
     const input: std.meta.Child(entry.Input) = .{
@@ -60,13 +56,8 @@ pub fn publish(self: *Lower, slot: usize, name: []const u8, values: []const node
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
     if (!result.valid) return error.OutOfMemory;
-
     try append(self, &self.builder.nodes.expressions, result.expressions);
-
-    var storage: [1]node.Declaration = undefined;
-    var declarations = std.ArrayList(node.Declaration).initBuffer(&storage);
-    @import("../../node/import_constants.zig").appendBorrowingText(self.allocator, &declarations, result.declarations) catch |err| return failure(err);
-    try self.task_declarations.replace(self.allocator, slot, declarations.items[0]);
+    try self.task_declarations.replaceConstant(self.allocator, slot, result.declarations);
 }
 
 pub fn reuse(self: *Lower, in_place: bool, selected: bool) Lower.Error!?node.ExpressionId {

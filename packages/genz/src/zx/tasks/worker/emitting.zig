@@ -32,15 +32,9 @@ pub fn reserve(self: *Lower, index: usize) Lower.Error![]const u8 {
 
     try append(self, &self.builder.nodes.expressions, result.expressions);
 
-    var storage: [1]node.Declaration = undefined;
-    var declarations = std.ArrayList(node.Declaration).initBuffer(&storage);
-    @import("../../../node/import_constants.zig").append(self.allocator, &declarations, result.declarations) catch |err| return failure(err);
+    const names = try self.task_declarations.appendConstants(self.allocator, result.declarations, false);
 
-    const declaration = declarations.items[0];
-
-    try self.task_declarations.append(self.allocator, declaration);
-
-    return declaration.constant.name;
+    return names[0];
 }
 
 pub fn prepare(self: *Lower, captures: []const ir.SymbolId, process: bool) Lower.Error!Parameters {
@@ -139,11 +133,7 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.ExpressionId {
     try append(self, &self.builder.nodes.expressions, &expressions);
     try append(self, &self.builder.nodes.statements, result.statements);
     try append(self, &self.builder.nodes.declaration_rows, result.declarations);
-
-    var storage: [1]node.Declaration = undefined;
-    var aliases = std.ArrayList(node.Declaration).initBuffer(&storage);
-    @import("../../../node/import_constants.zig").appendBorrowingText(self.allocator, &aliases, result.alias) catch |err| return failure(err);
-    try self.task_declarations.replace(self.allocator, args.slot, aliases.items[0]);
+    try self.task_declarations.replaceConstant(self.allocator, args.slot, result.alias);
 
     return @fromBackingInt(result.root);
 }

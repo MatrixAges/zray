@@ -105,7 +105,7 @@ fn complete(self: *Lower, type_id: zx.ir.TypeId, futures: []const []const u8, fi
 
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, compiled.fields) catch |err| return emit.failure(err);
 
-    const block = try self.builder.publishStatements(&.{}, compiled.statements);
+    const block = try self.builder.publishStatements(compiled.statements);
     const root: node.ExpressionId = @fromBackingInt(compiled.root);
     const value = if (compiled.construct) try self.construct(type_id, root) else root;
 

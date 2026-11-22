@@ -1,11 +1,14 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
 
 import initialize from "../../../../ast/context/initialize"
 import result from "../../../../ast/context/result"
+import functionDeclaration from "../../../../ast/declarations/function"
 import errorUnion from "../../../../ast/expressions/error_union"
 import { value_entry_name } from "../const"
 
 import type { Input as Bases } from "../../../../ast/context/model"
+import type { Columns as Functions } from "../../../../ast/declarations/function"
 import type { Columns as Expressions } from "../../../../ast/expressions/model"
 import type { Columns as Statements } from "../../../../ast/statements/model"
 
@@ -15,7 +18,12 @@ export type Input = {
     errors?: u8[][],
     inferred: bool,
     inlined: bool,
-    bases: Bases
+    bases: Bases,
+    parameters_start: u32,
+    parameters_count: u32,
+    body_start: u32,
+    body_count: u32,
+    declaration_base: u32
 }
 
 export type Extra = {
@@ -28,9 +36,7 @@ export type Output = {
     expressions: Expressions,
     extra: Extra,
     statements: Statements,
-    name: u8[],
-    return_type: u32,
-    inlined: bool,
+    declarations: Functions,
     valid: bool
 }
 
@@ -56,6 +62,22 @@ export default function (in: Input): Output {
         inferred: in.inferred
     })
 
+    const count = integers.widen(in.body_count) + context.statements.tags.length
+
+    const declaration = functionDeclaration({
+        base: in.declaration_base,
+        name: bytes.fromText(value_entry_name),
+        parameters_start: in.parameters_start,
+        parameters_count: in.parameters_count,
+        return_type: error_type.id,
+        body_start: in.body_start,
+        body_count: integers.narrow(count),
+        exported: true,
+        abi_export: false,
+        inlined: in.inlined,
+        calling_convention: null
+    })
+
     return {
         expressions: {
             ...context.expressions,
@@ -69,9 +91,7 @@ export default function (in: Input): Output {
             "offsets"
         ]),
         statements: context.statements,
-        name: bytes.fromText(value_entry_name),
-        return_type: error_type.id,
-        inlined: in.inlined,
-        valid: context.valid && error_type.valid
+        declarations: declaration.table,
+        valid: context.valid && error_type.valid && declaration.valid
     }
 }

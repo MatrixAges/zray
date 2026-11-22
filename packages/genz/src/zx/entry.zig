@@ -10,5 +10,5 @@ pub fn declarations(lowering: *Lower, output: *@import("../node/declarations.zig
     inner.function.exported = true;
 
     try output.append(lowering.allocator, inner);
-    if (route.forward) try output.append(lowering.allocator, try emit.arena(lowering, inner.function));
+    if (route.forward) try emit.arena(lowering, output, inner.function);
 }

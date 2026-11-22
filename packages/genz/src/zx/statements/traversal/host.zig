@@ -17,7 +17,6 @@ pub const Frame = struct {
     workspace: Scope.Buffer,
     scopes: []Scope,
     selections: []Selection,
-    output: std.ArrayList(node.Statement) = .empty,
     sequence: @import("../../../node/blocks.zig").Sequence,
     prefix: node.Block = undefined,
     body: node.Block = undefined,
@@ -71,7 +70,6 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .sequence = self.builder.statementSequence(self.workspace),
     };
 
-    defer frame.output.deinit(self.allocator);
     defer frame.sequence.deinit();
 
     const Execution = std.meta.Child(execute.Input);
@@ -157,10 +155,7 @@ pub fn saveStatementBranch(handle: *const anyopaque, slot: u64) bool {
 pub fn joinStatementBranch(handle: *const anyopaque, slot: u64, offset: u32) bool {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
-
-    frame.output.clearRetainingCapacity();
-
-    const branch = basic.branch(frame.lowering, &frame.output, scope.condition, scope.yes, frame.child) catch return false;
+    const branch = basic.branch(frame.lowering, scope.condition, scope.yes, frame.child) catch return false;
 
     scope.put(offset, branch);
 

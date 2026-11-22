@@ -5,7 +5,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const lists = @import("../state_value/list.zig");
-const functions = @import("functions.zig");
+const functions = @import("functions_seed.zig");
 const intrinsic = @import("../intrinsics.zig");
 
 pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.ExpressionId {
@@ -17,11 +17,12 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
     const list_type = self.program.expression(value.target).type_id;
     const child = try @import("../state_value/elements.zig").typeExpr(self, list_type);
     const errors = try @import("../error_effects.zig").expression(self, id);
-    const worker = try @import("worker.zig").build(self, value, child, errors);
-    const helpers = try functions.build(self, child, errors);
-    const declarations = try self.allocator.dupe(node.Declaration, &.{ worker.declaration, helpers[0], helpers[1] });
+    const worker = try @import("worker_seed.zig").build(self, value, child, errors);
+    const less = try functions.less(self, child);
+    const sort = try functions.sort(self, child, errors);
+    const declarations = try self.allocator.dupe(node.Declaration, &.{ worker.declaration, less, sort });
 
-    try self.task_declarations.replace(self.allocator, slot, .{ .constant = .{ .name = name, .value = try self.builder.expression(.{ .namespace_type = declarations }) } });
+    self.task_declarations.replace(slot, .{ .constant = .{ .name = name, .value = try self.builder.expression(.{ .namespace_type = declarations }) } });
 
     self.uses_allocator = true;
     self.uses_io = self.uses_io or worker.io;

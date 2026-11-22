@@ -116,6 +116,10 @@ pub fn join(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32
         collectSeed(node.Block, allocator, &storage.statements, starts, counts, false);
 }
 
+pub fn joinDeclarations(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!Declarations {
+    return collectSource(Declarations, allocator, &storage.declaration_rows, starts, counts, &.{}, 0, false);
+}
+
 /// Publish a block at the end of the statement table so a caller can append to it.
 pub fn tail(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!node.Block {
     return if (generated)

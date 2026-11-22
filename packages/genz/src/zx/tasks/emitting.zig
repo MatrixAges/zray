@@ -53,7 +53,7 @@ pub fn start(self: *Lower, worker: node.ExpressionId, id: zx.ir.ExprId, process:
     try append(self, &self.builder.nodes.expressions, &expressions);
 
     const block: node.Block = if (result.binding) |binding| written: {
-        _ = try self.builder.publishStatements(&.{}, binding.statements);
+        _ = try self.builder.publishStatements(binding.statements);
 
         break :written .{ .start = binding.first, .len = binding.count };
     } else .{};
@@ -89,7 +89,7 @@ pub fn complete(self: *Lower, started: node.Block, value: ?node.ExpressionId, na
 
     if (!result.wrap) return root;
 
-    const completed = try self.builder.publishStatements(&.{}, result.statements);
+    const completed = try self.builder.publishStatements(result.statements);
 
     const body = try @import("../../node/blocks.zig").tail(
         self.allocator,

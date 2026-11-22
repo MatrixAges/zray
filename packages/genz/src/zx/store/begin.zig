@@ -75,7 +75,7 @@ pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.
 
     const emitted = view.join(output.statements.*, output.variables.*);
 
-    _ = try self.builder.publishStatements(&.{}, &emitted);
+    _ = try self.builder.publishStatements(&emitted);
 
     return .{ .start = output.body, .len = 1 };
 }

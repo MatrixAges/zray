@@ -67,14 +67,7 @@ pub fn lower(self: *Lower, flags: Flags) Lower.Error!node.Block {
     const statement_rows = &self.builder.nodes.statements;
     const start: u32 = @intCast(statement_rows.tags.items.len);
     @import("../../../node/import_rows.zig").appendBorrowingText(self.allocator, statement_rows, &statements) catch |err| return failure(err);
-
-    var auxiliary_storage: [1]node.Declaration = undefined;
-    var auxiliary = std.ArrayList(node.Declaration).initBuffer(&auxiliary_storage);
-
-    @import("../../../node/import_constants.zig").appendBorrowingText(self.allocator, &auxiliary, result.declarations) catch |err| return failure(err);
-
-    for (auxiliary.items) |declaration| try self.task_declarations.append(self.allocator, declaration);
-
+    _ = try self.task_declarations.appendConstants(self.allocator, result.declarations, true);
     self.uses_io = result.uses_io;
 
     return .{ .start = start, .len = @intCast(statements.tags.len) };

@@ -8,7 +8,7 @@ pub fn declarations(lowering: *Lower, output: *@import("../node/declarations.zig
     const route = @import("entry/policy.zig").value(lowering);
 
     if (route.state and try @import("entry_state.zig").declarations(lowering, output, route.state_name)) return;
-    if (route.value == .Alias) return output.append(lowering.allocator, try emit.alias(lowering, false, null));
+    if (route.value == .Alias) return emit.alias(lowering, output, false, null);
 
     lowering.public_value_output = route.public_value_output;
     defer lowering.public_value_output = false;

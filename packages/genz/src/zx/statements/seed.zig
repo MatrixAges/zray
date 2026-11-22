@@ -65,7 +65,7 @@ fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, 
     const transaction = try @import("../store/begin.zig").lower(self, values, offset);
 
     const body = switch (values.at(offset)) {
-        .evaluate => |id| try basic.discard(self, output, try @import("../iteration.zig").discard(self, id)),
+        .evaluate => |id| try self.builder.statements(&.{.{ .discard = try @import("../iteration.zig").discard(self, id) }}),
         .parallel => |invocations| try @import("../parallel/root.zig").lower(self, invocations),
         .constant => |binding| bound: {
             const bind = @import("../binding.zig");
@@ -81,7 +81,11 @@ fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, 
 
             break :bound try bind.publish(self, output, .{ .symbol = binding.symbol, .value = value, .by_value = by_value });
         },
-        .destructure => |binding| try @import("destructure/lower.zig").publish(self, output, binding),
+        .destructure => |binding| bound: {
+            try @import("destructure/seed.zig").append(self, output, binding);
+
+            break :bound try self.builder.statements(output.items);
+        },
         .result => |value| result: {
             consumed_previous = try @import("result/seed.zig").append(self, output, values, offset, value);
 
@@ -92,14 +96,14 @@ fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, 
             const yes = try lower(self, branch.yes);
             const no = try lower(self, branch.no);
 
-            break :conditional try basic.branch(self, output, condition, yes, no);
+            break :conditional try self.builder.statements(&.{.{ .branch = .{ .condition = condition, .yes = yes, .no = no } }});
         },
         .switch_stmt => |selection| try @import("switch/seed.zig").lowerSwitch(self, selection),
         .store_set => |setter| set: {
             const target = try basic.storeTarget(self, setter.slot);
             const value = try self.expr(setter.value);
 
-            break :set try basic.assignment(self, output, target, value);
+            break :set try self.builder.statements(&.{.{ .assignment = .{ .target = target, .value = value } }});
         },
     };
 

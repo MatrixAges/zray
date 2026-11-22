@@ -4,15 +4,8 @@ const ir = zx.ir;
 const node = @import("../../../node.zig");
 const rows = @import("../../../node/import_rows.zig");
 const Lower = @import("../../lower.zig");
-const generated = @import("genz_options").generated_analysis;
 
-pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), binding: @FieldType(ir.StatementRow, "destructure")) Lower.Error!node.Block {
-    if (!generated) {
-        try @import("seed.zig").append(self, output, binding);
-
-        return self.builder.statements(output.items);
-    }
-
+pub fn publish(self: *Lower, binding: @FieldType(ir.StatementRow, "destructure")) Lower.Error!node.Block {
     const entry = @import("generated_destructure_emit");
     const Input = std.meta.Child(entry.Input);
     const Output = std.meta.Child(entry.Output);
@@ -50,7 +43,7 @@ pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), binding: @F
 
     rows.appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
 
-    return self.builder.publishStatements(output.items, result.statements);
+    return self.builder.publishStatements(result.statements);
 }
 
 fn fresh(self: *Lower) Lower.Error![]const u8 {

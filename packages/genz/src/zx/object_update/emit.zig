@@ -109,7 +109,7 @@ pub fn statementBlock(self: *Lower, change: Change) Lower.Error!node.Block {
 
     try append(self, &self.builder.nodes.expressions, &expressions);
 
-    const block = try self.builder.publishStatements(&.{}, &statements);
+    const block = try self.builder.publishStatements(&statements);
 
     self.used[@backingInt(change.previous)] = true;
 

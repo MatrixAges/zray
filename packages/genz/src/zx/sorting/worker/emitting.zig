@@ -41,7 +41,7 @@ pub fn prepare(self: *Lower) Lower.Error!Prepared {
     };
 }
 
-pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
+pub fn finish(self: *Lower, args: Final) Lower.Error!u32 {
     const entry = @import("generated_sorting_worker");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
@@ -110,7 +110,7 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
 
     try append(self, &self.builder.nodes.declaration_rows, &declarations);
 
-    return .{ .function = try self.builder.nodes.materializeFunction(self.allocator, input.declaration_base) };
+    return input.declaration_base;
 }
 
 fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {

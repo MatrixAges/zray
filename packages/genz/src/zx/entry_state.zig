@@ -9,7 +9,7 @@ pub fn declarations(self: *Lower, output: *@import("../node/declarations.zig").O
     if (!emit.generated) return @import("entry/state_seed.zig").declarations(self, output);
 
     if (@import("entry/policy.zig").forwarded(self)) |function| {
-        try output.append(self.allocator, try emit.alias(self, true, try self.requestFunction(function, .value)));
+        try emit.alias(self, output, true, try self.requestFunction(function, .value));
 
         return false;
     }
@@ -19,12 +19,12 @@ pub fn declarations(self: *Lower, output: *@import("../node/declarations.zig").O
     state.function.exported = true;
 
     try output.append(self.allocator, state);
-    try output.append(self.allocator, try view(self, state.function));
+    try view(self, output, state.function);
 
     return true;
 }
 
-fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
+fn view(self: *Lower, output: *@import("../node/declarations.zig").Sequence, state: node.Function) Lower.Error!void {
     const saved = try @import("state_value/root.zig").enter(self);
 
     defer if (saved) |scope| scope.restore();
@@ -44,22 +44,20 @@ fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
     const returned = try conversion.convert(self, &body, self.program.output_type, result, .view_layout);
     const output_type = try types.get(self, self.view_types, self.program.output_type);
     const references = try self.referenceBlock();
-    const values = try body.finish(self.allocator);
-    const ending = try emit.finish(self, state, returned, output_type);
+    const values = try body.block(self.allocator);
 
-    const statements = try @import("../node/blocks.zig").join(
+    const statements = try @import("../node/blocks.zig").tail(
         self.allocator,
         self.builder.nodes,
-        &.{ references.start, values.start, ending.body.start },
-        &.{ references.len, values.len, ending.body.len },
+        &.{ references.start, values.start },
+        &.{ references.len, values.len },
     );
 
-    return .{ .function = .{
-        .name = ending.name,
+    try emit.finish(self, output, .{
+        .state = state,
+        .value = returned,
+        .output_type = output_type,
         .parameters = prepared.parameters,
-        .return_type = ending.return_type,
         .body = statements,
-        .exported = true,
-        .inlined = ending.inlined,
-    } };
+    });
 }

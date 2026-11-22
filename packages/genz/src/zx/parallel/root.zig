@@ -66,7 +66,7 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
 
-    const block = try self.builder.publishStatements(&.{}, &statements);
+    const block = try self.builder.publishStatements(&statements);
 
     return .{ .start = block.start + result.inner_count, .len = block.len - result.inner_count };
 }

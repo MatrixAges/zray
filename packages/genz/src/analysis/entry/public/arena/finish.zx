@@ -1,8 +1,10 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
 
 import call from "../../../../ast/context/call"
 import identifier from "../../../../ast/context/identifier"
 import result from "../../../../ast/context/result"
+import functionDeclaration from "../../../../ast/declarations/function"
 import { execute_name } from "../const"
 
 import type { State as Input, Output } from "./model"
@@ -25,13 +27,26 @@ export default function (in: Input): Output {
         value: value.id
     })
 
+    const declaration = functionDeclaration({
+        base: in.source.declaration_base,
+        name: bytes.fromText(execute_name),
+        parameters_start: in.source.bases.field_base,
+        parameters_count: integers.narrow(in.parameters.name.length),
+        return_type: in.source.return_type,
+        body_start: in.source.bases.statement_base,
+        body_count: integers.narrow(context.statements.tags.length),
+        exported: true,
+        abi_export: false,
+        inlined: false,
+        calling_convention: null
+    })
+
     return {
         expressions: context.expressions,
         forms: context.forms,
         parameters: in.parameters,
         statements: context.statements,
-        name: bytes.fromText(execute_name),
-        return_type: in.source.return_type,
-        valid: context.valid
+        declarations: declaration.table,
+        valid: context.valid && declaration.valid
     }
 }

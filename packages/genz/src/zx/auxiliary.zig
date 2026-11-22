@@ -23,43 +23,48 @@ pub fn count(self: *const Self) usize {
 }
 
 pub fn append(self: *Self, allocator: std.mem.Allocator, value: node.Declaration) std.mem.Allocator.Error!void {
-    if (!generated) return self.state.append(allocator, value);
-
-    switch (value) {
-        .constant => |constant| try self.writeConstant(allocator, @import("generated_auxiliary_constant"), 0, constant),
-        else => @panic("unsupported auxiliary declaration"),
-    }
+    return self.state.append(allocator, value);
 }
 
-pub fn replace(self: *Self, allocator: std.mem.Allocator, index: usize, value: node.Declaration) std.mem.Allocator.Error!void {
-    if (!generated) {
-        self.state.items[index] = value;
-
-        return;
-    }
-
-    switch (value) {
-        .constant => |constant| try self.writeConstant(allocator, @import("generated_auxiliary_replace"), index, constant),
-        else => @panic("unsupported auxiliary replacement"),
-    }
+pub fn replace(self: *Self, index: usize, value: node.Declaration) void {
+    self.state.items[index] = value;
 }
 
-fn writeConstant(self: *Self, allocator: std.mem.Allocator, comptime entry: type, index: usize, value: node.Constant) std.mem.Allocator.Error!void {
-    const ValueField = @FieldType(Input(entry.executeState), "value");
-    const Constant = Child(ValueField);
+pub fn appendConstants(self: *Self, allocator: std.mem.Allocator, source: anytype, comptime borrow_text: bool) std.mem.Allocator.Error![]const []const u8 {
+    const first = self.state.constant_name.items.len;
 
-    const source = .{
-        .name = value.name,
-        .type_expr = if (value.type_expr) |id| @as(?u32, @backingInt(id)) else @as(?u32, null),
-        .value = @backingInt(value.value),
-        .exported = value.exported,
+    for (source.offsets) |offset| {
+        var value = constant(source, offset);
+
+        if (!borrow_text) value.name = try allocator.dupe(u8, value.name);
+        try self.writeConstant(allocator, @import("generated_auxiliary_constant"), 0, value);
+    }
+
+    return self.state.constant_name.items[first..];
+}
+
+pub fn replaceConstant(self: *Self, allocator: std.mem.Allocator, index: usize, source: anytype) std.mem.Allocator.Error!void {
+    return self.writeConstant(allocator, @import("generated_auxiliary_replace"), index, constant(source, source.offsets[0]));
+}
+
+const Constant = struct { name: []const u8, type_expr: ?u32, value: u32, exported: bool };
+
+fn constant(source: anytype, offset: u32) Constant {
+    return .{
+        .name = source.constant_name[offset],
+        .type_expr = source.constant_type_expr[offset],
+        .value = source.constant_value[offset],
+        .exported = source.constant_exported[offset],
     };
+}
 
-    const constant = borrow(Constant, source);
+fn writeConstant(self: *Self, allocator: std.mem.Allocator, comptime entry: type, index: usize, source: Constant) std.mem.Allocator.Error!void {
+    const ValueField = @FieldType(Input(entry.executeState), "value");
+    const value = borrow(Child(ValueField), source);
     var input: Input(entry.executeState) = undefined;
 
     input.state = self.state;
-    input.value = if (@typeInfo(ValueField) == .pointer) &constant else constant;
+    input.value = if (@typeInfo(ValueField) == .pointer) &value else value;
 
     if (@hasField(@TypeOf(input), "index")) input.index = index;
     try self.apply(allocator, entry, input);
