@@ -1,0 +1,21 @@
+import host from "lowering_host"
+
+import type { SortFrame } from "lowering_host"
+
+export type Input = SortFrame
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const target = host.evaluateSortTarget(in)
+
+    if (host.sortSourceSelected(in)) {
+        const qualified = host.clipSortTarget(in, target)
+
+        host.bindSortTarget(in, qualified)
+
+        return
+    }
+
+    host.bindSortTarget(in, target)
+}

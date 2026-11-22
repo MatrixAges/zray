@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="SIMD" />
+
+    <Args in={SIMD.Publication} out={void} />
+
+    <Call fn="append_columns" in={$in} />
+    <Call fn="index.publishSimdEffects" in={$in.frame} />
+</Module>

@@ -1,3 +1,5 @@
 export const worker_prefix: string = "zx_sort_worker_"
 
 export const context_prefix: string = "sort_context_"
+
+export const comparator_arity: u64 = 2

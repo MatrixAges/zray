@@ -1,0 +1,33 @@
+import host from "lowering_host"
+
+import type { SortFrame } from "lowering_host"
+
+export type Input = {
+    frame: SortFrame,
+    selected: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, selected } = in
+
+    const reusable = host.sortInputReusable(frame)
+
+    const condition = (
+        - selected
+        - and !reusable
+    )
+
+    if (condition) {
+        const writable = host.sortWritable(frame)
+
+        host.bindSortReuse(frame, writable)
+
+        return
+    }
+
+    const reuse = host.sortReuseFlag(frame, reusable)
+
+    host.bindSortReuse(frame, reuse)
+}

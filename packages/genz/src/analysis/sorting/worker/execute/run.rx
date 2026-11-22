@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Worker" />
+
+    <Args in={Worker.Input} out={Worker.Output} />
+
+    <Call fn="index.registerSortParameters" in={$in} />
+    <Call fn="index.evaluateSortComparator" in={$in} />
+    <Call fn="prepare_operands" in={$in} />
+    <Call fn="index.publishSortWorker" in={$in} />
+
+    <Return value={$ctx.publishSortWorker} />
+</Module>

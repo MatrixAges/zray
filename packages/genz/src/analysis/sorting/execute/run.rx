@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Sort" />
+
+    <Args in={Sort.Input} out={Sort.Output} />
+
+    <Call fn="index.reserveSortDeclaration" in={$in} />
+    <Call fn="index.prepareSortTypes" in={$in} />
+    <Call fn="index.buildSortComparator" in={$in} />
+    <Call fn="index.buildSortHelpers" in={$in} />
+    <Call fn="index.publishSortHelpers" in={$in} />
+    <Call fn="index.publishSortEffects" in={$in} />
+    <Call fn="bind_target" in={$in} />
+    <Call fn="index.sortSourceSelected" in={$in} />
+
+    <Call
+        fn="bind_reuse"
+        in={{
+            frame: $in,
+            selected: $ctx.sortSourceSelected
+        }}
+    />
+
+    <Call fn="index.bindSortEnvironment" in={$in} />
+
+    <Call
+        fn="finish"
+        in={{
+            frame: $in,
+            selected: $ctx.sortSourceSelected
+        }}
+    />
+
+    <Return value={$ctx.finish} />
+</Module>

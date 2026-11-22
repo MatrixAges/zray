@@ -60,24 +60,6 @@ pub fn publish(self: *Lower, slot: usize, name: []const u8, entries: @import("..
     try self.task_declarations.replaceConstant(self.allocator, slot, result.declarations);
 }
 
-pub fn reuse(self: *Lower, in_place: bool, selected: bool) Lower.Error!?node.ExpressionId {
-    const entry = @import("generated_sorting_reuse");
-    const input: std.meta.Child(entry.Input) = .{ .in_place = in_place, .selected = selected, .base = @intCast(self.builder.nodes.expressions.tags.items.len) };
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
-
-    defer scratch.deinit();
-
-    const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
-
-    if (!result.valid) return error.OutOfMemory;
-    if (result.writable) return null;
-    try append(self, &self.builder.nodes.expressions, result.expressions);
-
-    return @fromBackingInt(result.root);
-}
-
 pub fn expression(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, args: Expression) Lower.Error!Result {
     const entry = @import("generated_sorting_expression");
     const Input = std.meta.Child(entry.Input);
@@ -114,22 +96,20 @@ pub fn expression(self: *Lower, body: *@import("../../node/blocks.zig").Sequence
 
     if (!result.valid) return error.OutOfMemory;
 
-    var expressions = view.join(view.join(result.expressions.*, result.forms.*), result.extra.*);
+    const expressions = view.join(view.join(result.expressions.*, result.forms.*), result.extra.*);
     const name = try self.allocator.dupe(u8, result.name);
-    const identifiers = try memory.allocator().dupe([]const u8, expressions.identifier);
-
-    identifiers[@intCast(result.name_slot)] = name;
-
-    expressions.identifier = identifiers;
-
+    const target = &self.builder.nodes.expressions;
+    const identifiers = &target.payloads.identifier.values;
+    const first = identifiers.items.len;
     var variables = result.variables.*;
     const names = [_][]const u8{name};
-
     variables.variable_name = &names;
 
     const statements = view.join(result.statements.*, variables);
 
-    try append(self, &self.builder.nodes.expressions, &expressions);
+    try append(self, target, &expressions);
+
+    identifiers.items[first + @as(usize, @intCast(result.name_slot))] = name;
 
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
     @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);

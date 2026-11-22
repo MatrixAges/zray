@@ -1,0 +1,20 @@
+import host from "lowering_host"
+
+import type { Input as Execution } from "./model"
+
+export type Input = Execution.Pick(
+    "frame",
+    "wrap"
+) & {
+    result: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    if (in.wrap) {
+        return host.wrapSimdResult(in.frame, in.result)
+    }
+
+    return in.result
+}

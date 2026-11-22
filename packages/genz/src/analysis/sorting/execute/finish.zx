@@ -1,0 +1,18 @@
+import host from "lowering_host"
+
+import type { SortFrame } from "lowering_host"
+
+export type Input = {
+    frame: SortFrame,
+    selected: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, selected } = in
+
+    const header = selected ? host.readSortHeader(frame) : 0
+
+    return host.emitSort(frame, selected, header)
+}

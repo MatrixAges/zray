@@ -1,0 +1,70 @@
+export declare function reserveSortDeclaration(frame: SortFrame): void throws { OutOfMemory }
+
+export declare function prepareSortTypes(frame: SortFrame): void throws { OutOfMemory }
+
+export declare function buildSortComparator(frame: SortFrame): void throws { OutOfMemory }
+
+export declare function buildSortHelpers(frame: SortFrame): void throws { OutOfMemory }
+
+export declare function publishSortHelpers(frame: SortFrame): void
+    throws { OutOfMemory }
+
+export declare function publishSortEffects(frame: SortFrame): void
+
+export declare function evaluateSortTarget(frame: SortFrame): u32 throws { OutOfMemory }
+
+export declare function sortSourceSelected(frame: SortFrame): bool
+
+export declare function clipSortTarget(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
+
+export declare function bindSortTarget(frame: SortFrame, target: u32): void throws { OutOfMemory }
+
+export declare function sortInputReusable(frame: SortFrame): bool
+
+export declare function sortWritable(frame: SortFrame): u32 throws { OutOfMemory }
+
+export declare function sortReuseFlag(frame: SortFrame, reuse: bool): u32 throws { OutOfMemory }
+
+export declare function bindSortReuse(frame: SortFrame, reuse: u32): void throws { OutOfMemory }
+
+export declare function bindSortEnvironment(frame: SortFrame): void throws { OutOfMemory }
+
+export declare function readSortHeader(frame: SortFrame): u32 throws { OutOfMemory }
+
+export declare function emitSort(frame: SortFrame, selected: bool, header: u32): u32
+    throws { OutOfMemory }
+
+export declare function registerSortParameters(frame: SortWorkerFrame): void
+    throws { OutOfMemory }
+
+export declare function evaluateSortComparator(frame: SortWorkerFrame): void
+    throws { OutOfMemory }
+
+export declare function sortOperandUsed(frame: SortWorkerFrame, index: u64): bool
+
+export declare function readSortOperand(frame: SortWorkerFrame, index: u64): void
+    throws { OutOfMemory }
+
+export declare function publishSortWorker(frame: SortWorkerFrame): u32 throws { OutOfMemory }
+
+export declare function lowerSimdSource(frame: SimdFrame): void throws { OutOfMemory }
+
+export declare function lowerSimdElement(frame: SimdFrame): void throws { OutOfMemory }
+
+export declare function reserveSimdLiterals(frame: SimdFrame): void throws { OutOfMemory }
+
+export declare function simdNodeOperation(frame: SimdFrame, index: u64): SimdOperation
+
+export declare function storeSimdLiteral(frame: SimdFrame, index: u64, slot: u64): void
+    throws { OutOfMemory }
+
+export declare function emitSimd(frame: SimdFrame): u32 throws { OutOfMemory }
+
+export declare function wrapSimdResult(frame: SimdFrame, result: u32): u32 throws { OutOfMemory }
+
+export declare function appendSimdExpressions(frame: SimdPublication): void throws { OutOfMemory }
+
+export declare function appendSimdStatement(frame: SimdPublication, index: u64): void
+    throws { OutOfMemory }
+
+export declare function publishSimdEffects(frame: SimdPublication): void

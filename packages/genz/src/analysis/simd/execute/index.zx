@@ -1,0 +1,7 @@
+export {
+    lowerSimdSource,
+    lowerSimdElement,
+    reserveSimdLiterals,
+    emitSimd,
+    publishSimdEffects
+} from "lowering_host"

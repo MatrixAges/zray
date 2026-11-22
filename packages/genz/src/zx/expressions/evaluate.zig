@@ -86,6 +86,13 @@ pub fn invoke(comptime entry: type, input: entry.Input) Lower.Error!node.Express
     return @fromBackingInt(entry.executeIn(empty.allocator(), input) catch |err| return executionFailure(err));
 }
 
+pub fn invokeOptional(comptime entry: type, input: entry.Input) Lower.Error!?node.ExpressionId {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const output = entry.executeIn(empty.allocator(), input) catch |err| return executionFailure(err);
+
+    return if (output) |id| @fromBackingInt(id) else null;
+}
+
 pub fn execute(comptime entry: type, input: entry.Input) Lower.Error!void {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 

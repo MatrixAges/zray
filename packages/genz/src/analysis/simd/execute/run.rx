@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="SIMD" />
+
+    <Args in={SIMD.Input} out={SIMD.Output} />
+
+    <If on={!$in.accepted}>
+        <Return value={null} />
+    </If>
+
+    <Call fn="index.lowerSimdSource" in={$in.frame} />
+    <Call fn="index.lowerSimdElement" in={$in.frame} />
+    <Call fn="index.reserveSimdLiterals" in={$in.frame} />
+
+    <Call
+        fn="literal_operands"
+        in={{
+            frame: $in.frame,
+            count: $in.count
+        }}
+    />
+
+    <Call fn="index.emitSimd" in={$in.frame} />
+
+    <Call
+        fn="finish"
+        in={{
+            frame: $in.frame,
+            wrap: $in.wrap,
+            result: $ctx.emitSimd
+        }}
+    />
+
+    <Return value={$ctx.finish} />
+</Module>

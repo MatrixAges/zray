@@ -1,0 +1,5 @@
+import type { SortFrame } from "lowering_host"
+
+export type Input = SortFrame
+
+export type Output = u32

@@ -1,0 +1,19 @@
+import collect from "./fill_literals"
+
+import type { Literals } from "./model"
+
+export type Input = Literals
+
+export type Output = void
+
+export default function (in: Input): Output {
+    collect({
+        ...in,
+        offset: 0
+    })
+
+    collect({
+        ...in,
+        offset: in.count
+    })
+}

@@ -1,0 +1,25 @@
+import host from "lowering_host"
+import { SimdOperation } from "lowering_host"
+
+import type { Literals } from "./model"
+
+export type Input = Literals & {
+    offset: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const literals = loop(0, {
+        while: index => index < in.count,
+        next: index => {
+            if (
+                host.simdNodeOperation(in.frame, index) == SimdOperation.Literal
+            ) {
+                host.storeSimdLiteral(in.frame, index, in.offset + index)
+            }
+
+            index += 1
+        }
+    })
+}
