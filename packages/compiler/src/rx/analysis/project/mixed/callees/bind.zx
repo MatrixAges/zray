@@ -1,0 +1,116 @@
+import memory from "memory"
+import host from "rx_project_host"
+
+import admit from "../../../call/compiled_admission"
+import { Output as Admission } from "../../../call/compiled_admission"
+import {
+    missing_member,
+    missing_rx,
+    missing_zx,
+    not_executable_library,
+    not_executable_rx,
+    not_executable_zx,
+    unauthorized_transaction
+} from "./const"
+import lookup from "./lookup"
+import { Action } from "./model"
+
+import type { U32Buffer } from "memory"
+import type { MixedCallees } from "rx_project_host"
+import type { Published, Targets } from "./model"
+
+export type Input = {
+    calls: Targets,
+    published: Published,
+    zx_count: u64,
+    rx_end: u64,
+    ids: U32Buffer,
+    binding: MixedCallees
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const bound = loop(first, {
+        while: position => position < in.calls.rows.length,
+        next: position => {
+            const { calls, published, zx_count, rx_end, ids, binding } = in
+            const target = calls.rows[position]
+            const action = lookup({
+                calls,
+                published,
+                zx_count,
+                rx_end,
+                position,
+                target,
+                ids
+            })
+
+            if (action == Action.LoadLibrary) {
+                const imported = host.importMixedCallee(binding, position, target)
+                const function_id = imported.function_id
+
+                if (function_id == null) {
+                    host.rejectMixedCallee(
+                        binding,
+                        position,
+                        false,
+                        not_executable_library
+                    )
+                } else {
+                    const verdict = admit({
+                        executable: true,
+                        setter: imported.setter,
+                        has_stores: imported.has_stores,
+                        orchestration: imported.orchestration
+                    })
+
+                    if (verdict != Admission.Executable) {
+                        host.rejectMixedCallee(
+                            binding,
+                            position,
+                            false,
+                            unauthorized_transaction
+                        )
+                    }
+
+                    memory.writeU32(ids, position, function_id)
+                }
+            } else if (action == Action.CompileSetter) {
+                const id = host.compileMixedSetter(binding, position, target)
+
+                host.restoreMixedCalleeOwner(binding)
+
+                if (id == null) {
+                    host.rejectMixedCallee(
+                        binding,
+                        position,
+                        false,
+                        not_executable_zx
+                    )
+                } else {
+                    memory.writeU32(ids, position, id)
+                }
+            } else if (action != Action.Bind) {
+                const message = match action {
+                    Action.MissingMember => missing_member,
+                    Action.MissingRX => missing_rx,
+                    Action.MissingZX => missing_zx,
+                    Action.NotExecutableRX => not_executable_rx,
+                    _ => not_executable_zx
+                }
+
+                host.rejectMixedCallee(
+                    binding,
+                    position,
+                    action == Action.MissingMember,
+                    message
+                )
+            }
+
+            position += 1
+        }
+    })
+}

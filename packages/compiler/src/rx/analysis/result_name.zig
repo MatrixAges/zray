@@ -44,7 +44,8 @@ pub fn resolveCall(attribute: rx.ast.Attribute) Result {
     if (comptime @import("rx_options").generated_graph) {
         const rule = @import("generated_rx_result_name");
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const name = rule.executeValue(empty.allocator(), .{ .reference = attribute.value, .function_target = function_target }) catch unreachable;
+        const input: std.meta.Child(rule.Input) = .{ .reference = attribute.value, .function_target = function_target };
+        const name = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
         return .{ .name = name, .attribute = attribute };
     }

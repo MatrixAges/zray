@@ -10,6 +10,15 @@ export type MixedPreparation = opaque
 
 export type MixedWorker = opaque
 
+export type MixedCallees = opaque
+
+export type ImportedCallee = {
+    function_id?: u32,
+    setter: bool,
+    has_stores: bool,
+    orchestration: bool
+}
+
 export type HistoryStores = opaque
 
 export type HistoryParseCache = opaque
@@ -148,6 +157,27 @@ export declare function preparedMixedIsZX(worker: MixedWorker, row: u64): bool
 export declare function runPreparedMixedZX(worker: MixedWorker, row: u64): void
 
 export declare function runPreparedMixedRX(worker: MixedWorker, row: u64): void
+
+export declare function importMixedCallee(
+    binding: MixedCallees,
+    position: u64,
+    target: u64
+): ImportedCallee throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function compileMixedSetter(
+    binding: MixedCallees,
+    position: u64,
+    target: u64
+): u32? throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function restoreMixedCalleeOwner(binding: MixedCallees): void
+
+export declare function rejectMixedCallee(
+    binding: MixedCallees,
+    position: u64,
+    name: bool,
+    message: string
+): void throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function historyBodyOpening(
     cache: HistoryParseCache,

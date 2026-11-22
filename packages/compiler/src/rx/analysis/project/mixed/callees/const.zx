@@ -1,0 +1,17 @@
+export const missing_rx: string = "RX call target has not been lowered"
+
+export const missing_zx: string =
+    "source call target has not been analyzed in its required context"
+
+export const not_executable_rx: string =
+    "Call.module requires an executable source module"
+
+export const not_executable_zx: string = "Call requires an executable source module"
+
+export const missing_member: string = "selected ZX export was not linked"
+
+export const not_executable_library: string =
+    "Call.module requires an executable public module"
+
+export const unauthorized_transaction: string =
+    "compiled Store transactions require an explicit authorized RX module"
