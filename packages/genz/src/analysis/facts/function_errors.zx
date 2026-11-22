@@ -19,7 +19,8 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { scope, scratch, owned, names } = in.allocators
+    const { results, names } = in.allocators
+    const { scope, scratch, owned } = results
 
     const unknown: string[]? = null
 

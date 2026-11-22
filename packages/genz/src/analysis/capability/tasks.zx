@@ -1,33 +1,47 @@
+import memory from "memory"
+
 import expressions from "../calls/expressions"
+import flags from "../facts/flags"
 
-import type { Program } from "../model"
+import type { Allocator } from "memory"
+import type { Functions } from "../model"
 
-export type Input = Program
+export type Input = {
+    functions: Functions,
+    allocator: Allocator
+}
 
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const required = in.functions.output_types.map(id => false)[0]
+    const { functions, allocator } = in
 
-    return loop({
-        functions: in.functions,
-        required,
+    const required = flags({
+        count: functions.output_types.length,
+        allocator
+    })
+
+    const processed = loop({
+        functions,
         index: 0
     }, {
         while: current => current.index < current.functions.output_types.length,
         next: current => {
             const index = current.index
 
-            current.required[index] = !expressions({
+            const depends = !expressions({
                 expressions: current.functions.expressions[index],
-                allowed: current.required,
+                allowed: required.values,
                 expected: false,
                 self_function: index,
                 limit: index,
                 tasks: true
             })
+
+            memory.writeBool(required.buffer, index, depends)
             current.index += 1
-        },
-        return: state => state.required
+        }
     })
+
+    return required.values
 }

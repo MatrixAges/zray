@@ -3,9 +3,9 @@ const ir = @import("zx").ir;
 const Self = @This();
 
 element_storage: []const bool = &.{},
-selected: []bool,
+selected: []const bool,
 borrowed: []const bool,
-keys: [][32]u8,
+keys: []const [32]u8,
 queries: []const @import("queries.zig").Kind = &.{},
 pub fn create(allocator: std.mem.Allocator, program: ir.Program, local: []const bool, exported: []const ir.FunctionId) std.mem.Allocator.Error!Self {
     const boxed = try allocator.alloc(bool, program.types.count());

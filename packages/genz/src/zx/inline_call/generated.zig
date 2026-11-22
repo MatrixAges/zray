@@ -42,7 +42,11 @@ pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
 
     for (units, pointers) |*unit, *pointer| pointer.* = unit;
 
-    const input = Input{ .program = &view, .units = columns.slice(@FieldType(Input, "units"), @as([]const *const Unit, pointers)) };
+    const input: Input = .{
+        .program = &view,
+        .units = columns.slice(@FieldType(Input, "units"), @as([]const *const Unit, pointers)),
+        .allocator = @ptrCast(&temporary),
+    };
 
     const output = generated.execute(&scratch, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

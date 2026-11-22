@@ -17,7 +17,7 @@ pub fn functions(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allo
     return summary.values;
 }
 
-pub const Summary = struct { pure: []bool, local: []bool, values: []bool, state: @import("../state_value/analysis.zig") };
+pub const Summary = struct { pure: []const bool, local: []const bool, values: []const bool, state: @import("../state_value/analysis.zig") };
 
 pub fn analyze(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!Summary {
     return analyzeExported(allocator, program, &.{});

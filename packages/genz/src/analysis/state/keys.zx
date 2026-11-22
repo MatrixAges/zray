@@ -1,9 +1,11 @@
-import crypto from "std:crypto"
 import encoding from "std:encoding"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
+import memory from "memory"
 
+import flags from "../facts/flags"
 import {
+    state_key_size,
     value_layout_identity,
     inline_layout_flag,
     reference_layout_flag,
@@ -12,30 +14,41 @@ import {
 import material from "./material"
 
 import type { Table } from "core/type_table/model"
+import type { Allocator } from "memory"
 import type { State } from "../model"
 
 export type Input = {
     types: Table,
     element_storage: bool[],
     boxed: bool[]
-    borrowed: bool[]
+    borrowed: bool[],
+    allocator: Allocator
 }
 
 export type Output = State
 
 export default function (in: Input): Output {
-    const selected: bool[] = []
-    const keys: u8[] = []
+    const selected = flags({
+        count: in.types.kinds.length,
+        allocator: in.allocator
+    })
 
-    const result = loop({
+    const buffer =
+        memory.createU8Buffer(
+            in.allocator,
+            in.types.kinds.length * state_key_size,
+            null
+        )
+
+    const keys = memory.u8Views(buffer)
+
+    const processed = loop({
         types: in.types,
         element_storage: in.element_storage,
         boxed: in.boxed,
         borrowed: in.borrowed,
         prefix: encoding.encodeUtf8(value_layout_identity),
-        index: 0,
-        selected,
-        keys
+        index: 0
     }, {
         while: current => current.index < current.types.kinds.length,
         next: current => {
@@ -52,9 +65,10 @@ export default function (in: Input): Output {
                 chosen => inline_layout_flag,
                 _ => 0
             }
+            const offset = index * state_key_size
             const bytes = material({
                 types: current.types,
-                keys: current.keys,
+                keys: memory.borrowU8Range(keys, 0, offset),
                 bytes: current.prefix.push(
                     match {
                         current.element_storage[current.index] =>
@@ -66,16 +80,16 @@ export default function (in: Input): Output {
                 chosen
             })
 
-            current.selected = current.selected.push(chosen)[0]
-            current.keys = current.keys.concat(crypto.sha256(bytes))[0]
+            memory.sha256IntoRange(buffer, offset, bytes)
+            memory.writeBool(selected.buffer, index, chosen)
             current.index += 1
         }
     })
 
     return {
         element_storage: in.element_storage,
-        selected: result.selected,
+        selected: selected.values,
         borrowed: in.borrowed,
-        keys: result.keys
+        keys
     }
 }

@@ -5,7 +5,8 @@ import type { Expressions } from "core/expression_table/model"
 
 export type Input = {
     expressions: Expressions,
-    grows: bool[]
+    grows: bool[],
+    limit: u64
 }
 
 export type Output = bool
@@ -19,7 +20,7 @@ export default function (in: Input): Output {
 
     const condition_2 = in.expressions.call_functions.some(
         callee =>
-            integers.widen(callee) >= in.grows.length ||
+            integers.widen(callee) >= in.limit ||
             in.grows[integers.widen(callee)]
     )
 

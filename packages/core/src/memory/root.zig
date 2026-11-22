@@ -1,7 +1,11 @@
 const std = @import("std");
 const sha256 = @import("sha256.zig");
 pub const sha256Into = sha256.into;
+pub const sha256IntoRange = sha256.intoRange;
 pub const sha256FramedInto = sha256.framedInto;
+const buffer_owner = @import("buffer_owner.zig");
+pub const createBoolBuffer = buffer_owner.bools;
+pub const createU8Buffer = buffer_owner.bytes;
 pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
 pub const selectArena = ArenaScope.select;
@@ -495,6 +499,16 @@ pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *const anyopa
 
 pub inline fn writeU8(target: *const anyopaque, index: u64, value: u8) error{IndexOutOfBounds}!void {
     return write(u8, target, index, value);
+}
+
+pub inline fn writeBool(target: *const anyopaque, index: u64, value: bool) error{IndexOutOfBounds}!void {
+    return write(bool, target, index, value);
+}
+
+pub inline fn boolViews(source: *const anyopaque) []const bool {
+    const view: *const []bool = @ptrCast(@alignCast(source));
+
+    return view.*;
 }
 
 pub inline fn fillByteRange(target: *const anyopaque, first: u64, count: u64, value: u8) error{IndexOutOfBounds}!void {

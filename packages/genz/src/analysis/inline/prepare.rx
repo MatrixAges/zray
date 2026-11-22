@@ -2,11 +2,13 @@
     <Type from="../model" as="Model" />
     <Type from="../unit" as="Unit" />
     <Type from="apply" as="Apply" />
+    <Type from="../facts/allocators" as="Allocators" />
 
     <Args
         in={{
             program: Model.Program,
-            units: Unit.Unit[]
+            units: Unit.Unit[],
+            allocator: Allocators.Resource
         }}
         out={Apply.Output}
     />
@@ -14,7 +16,8 @@
     <Call
         fn="../value/pure"
         in={{
-            program: $in.program
+            program: $in.program,
+            allocator: $in.allocator
         }}
     />
 

@@ -1,29 +1,45 @@
+import memory from "memory"
+
+import flags from "../../facts/flags"
 import body from "./body"
 
+import type { Allocator } from "memory"
 import type { Functions } from "../../model"
 
-export type Input = Functions
+export type Input = {
+    functions: Functions,
+    allocator: Allocator
+}
 
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const grows: bool[] = []
+    const { functions, allocator } = in
 
-    return loop({
-        grows,
+    const grows = flags({
+        count: functions.output_types.length,
+        allocator
+    })
+
+    const processed = loop({
         index: 0
     }, {
-        while: state => state.index < in.output_types.length,
+        while: state => state.index < functions.output_types.length,
         next: state => {
-            state.grows = state.grows.push(
-                in.native_modules[state.index] != null ||
-                    in.roots[state.index] == null || body({
-                        expressions: in.expressions[state.index],
-                        grows: state.grows
-                    })
-            )[0]
+            const index = state.index
+            const unknown = functions.native_modules[index] != null ||
+                functions.roots[index] == null
+
+            const may_grow = unknown || body({
+                expressions: functions.expressions[index],
+                grows: grows.values,
+                limit: index
+            })
+
+            memory.writeBool(grows.buffer, index, may_grow)
             state.index += 1
-        },
-        return: state => state.grows
+        }
     })
+
+    return grows.values
 }

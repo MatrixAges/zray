@@ -1,26 +1,39 @@
 import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
+import memory from "memory"
 
+import flags from "../facts/flags"
 import nestedAppend from "./nested_append"
 
-import type { Program as Input } from "../model"
+import type { Allocator } from "memory"
+import type { Program } from "../model"
+
+export type Input = {
+    program: Program,
+    allocator: Allocator
+}
 
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const tables = [in.expressions].concat(in.functions.expressions)[0]
+    const { program, allocator } = in
+
+    const tables = [program.expressions].concat(program.functions.expressions)[0]
+
+    const values = flags({
+        count: program.types.kinds.length,
+        allocator
+    })
 
     const marked = loop({
-        values: in.types.kinds.map(value => false)[0],
         index: 0
     }, {
         while: state => state.index < tables.length,
         next: state => {
             const expressions = tables[state.index]
 
-            state.values = loop({
-                values: state.values,
+            const written = loop({
                 node: 0
             }, {
                 while: row => row.node < expressions.update_targets.length,
@@ -33,42 +46,41 @@ export default function (in: Input): Output {
                             expressions.update_targets[row.node]
                         )
 
-                        row.values[integers.widen(
-                            expressions.types[target]
-                        )] = true
+                        memory.writeBool(
+                            values.buffer,
+                            integers.widen(expressions.types[target]),
+                            true
+                        )
                     }
 
                     row.node += 1
-                },
-                return: state => state.values
+                }
             })
             state.index += 1
-        },
-        return: state => state.values
+        }
     })
 
-    const loop_initial = {
-        values: marked,
+    const readonly_types = program.types
+
+    const propagated = loop({
         index: 0
-    }
-
-    const readonly_types = in.types
-
-    return loop(loop_initial, {
+    }, {
         while: state => state.index < readonly_types.kinds.length,
         next: state => {
             if (kind(readonly_types.kinds[state.index]) == Kind.List) {
                 const child = integers.widen(readonly_types.first[state.index])
 
-                state.values[state.index] = state.values[state.index] ||
-                    (
-                        kind(readonly_types.kinds[child]) == Kind.List &&
-                            state.values[child]
-                    )
+                if (
+                    kind(readonly_types.kinds[child]) == Kind.List &&
+                        values.values[child]
+                ) {
+                    memory.writeBool(values.buffer, state.index, true)
+                }
             }
 
             state.index += 1
-        },
-        return: state => state.values
+        }
     })
+
+    return values.values
 }

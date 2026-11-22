@@ -1,5 +1,6 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
+import type { Allocator } from "memory"
 import type { Functions } from "../model"
 
 export type Origins = {
@@ -28,7 +29,8 @@ export type Input = TypeSource & {
     native_exports: string?[],
     known: bool,
     io: bool[],
-    process: bool[]
+    process: bool[],
+    allocator: Allocator
 }
 
 export enum Status {

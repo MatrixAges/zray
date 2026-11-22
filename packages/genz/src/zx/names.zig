@@ -20,6 +20,7 @@ pub fn createWith(allocator: std.mem.Allocator, workspace: std.mem.Allocator, pr
 
     const tables = TypeInputs(Input).borrow(&program, origins);
     const functions = zx.columns.view(std.meta.Child(@FieldType(Input, "functions")), &program.functions);
+    const temporary = scratch.allocator();
 
     const input = Input{
         .types = &tables.types,
@@ -32,9 +33,10 @@ pub fn createWith(allocator: std.mem.Allocator, workspace: std.mem.Allocator, pr
         .known = known != null,
         .io = if (known) |facts| facts.io else &.{},
         .process = if (known) |facts| facts.process else &.{},
+        .allocator = @ptrCast(&temporary),
     };
 
-    const output = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+    const output = generated.executeIn(temporary, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

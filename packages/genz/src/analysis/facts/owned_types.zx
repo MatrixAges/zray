@@ -6,10 +6,10 @@ import layouts from "../types/layout"
 import type { Table } from "core/type_table/model"
 import type { Output as Queries } from "../state/queries/build"
 import type { Output as Layouts } from "../types/layout"
-import type { Buffers } from "./allocators"
+import type { Result } from "./allocators"
 
 export type Input = {
-    allocators: Buffers,
+    allocators: Result,
     types: Table,
     selected: bool[]
 }

@@ -1,21 +1,30 @@
+import memory from "memory"
+
 import body from "../calls/body"
 import parallel from "../control/parallel"
+import flags from "../facts/flags"
 import boundary from "./boundary"
 
+import type { Allocator } from "memory"
 import type { Program } from "../model"
 
 export type Input = {
-    program: Program
+    program: Program,
+    allocator: Allocator
 }
 
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const pure = in.program.functions.output_types.map(id => false)[0]
+    const { program, allocator } = in
 
-    return loop({
-        program: in.program,
-        pure,
+    const pure = flags({
+        count: program.functions.output_types.length,
+        allocator
+    })
+
+    const processed = loop({
+        program,
         index: 0
     }, {
         while: current =>
@@ -25,11 +34,13 @@ export default function (in: Input): Output {
             const functions = current.program.functions
 
             if (functions.native_modules[index] != null) {
-                current.pure[index] = boundary({
+                const supported = boundary({
                     program: current.program,
                     position: index,
                     borrowed: false
                 })
+
+                memory.writeBool(pure.buffer, index, supported)
             } else {
                 const plain =
                     functions.stores[index].paths.length == 0 && !parallel({
@@ -37,17 +48,20 @@ export default function (in: Input): Output {
                         root: functions.roots[index]
                     })
 
-                current.pure[index] = plain && body({
+                const supported = plain && body({
                     expressions: functions.expressions[index],
                     contracts: functions.contracts[index],
-                    allowed: current.pure,
+                    allowed: pure.values,
                     self_function: index,
                     limit: index
                 })
+
+                memory.writeBool(pure.buffer, index, supported)
             }
 
             current.index += 1
-        },
-        return: state => state.pure
+        }
     })
+
+    return pure.values
 }

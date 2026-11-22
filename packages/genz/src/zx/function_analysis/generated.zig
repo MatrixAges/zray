@@ -11,12 +11,12 @@ const Boundaries = std.meta.Child(@FieldType(Input, "boundaries"));
 
 pub const Facts = struct {
     value: @import("../value_call/analysis.zig").Summary,
-    io: []bool,
-    process: []bool,
-    tasks: []bool,
-    fresh_outputs: []bool,
-    constructed_outputs: []bool,
-    identity_free: []bool,
+    io: []const bool,
+    process: []const bool,
+    tasks: []const bool,
+    fresh_outputs: []const bool,
+    constructed_outputs: []const bool,
+    identity_free: []const bool,
     errors: []const ?[]const []const u8,
     return_allocations: []const bool,
     layout_types: []const @import("../iteration_layout/generated.zig").Type,
@@ -69,11 +69,16 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
 
     var scope = zx.memory.ArenaScope{ .active = temporary };
     const Allocators = std.meta.Child(@FieldType(Input, "allocators"));
+    const Results = std.meta.Child(@FieldType(Allocators, "results"));
 
-    const allocators: Allocators = .{
+    const results: Results = .{
         .scope = @ptrCast(&scope),
         .scratch = @ptrCast(&temporary),
         .owned = @ptrCast(&allocator),
+    };
+
+    const allocators: Allocators = .{
+        .results = &results,
         .names = @ptrCast(&allocator),
     };
 
@@ -91,24 +96,24 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
 
     return .{
         .value = .{
-            .pure = try allocator.dupe(bool, output.pure),
-            .local = try allocator.dupe(bool, output.local),
-            .values = try allocator.dupe(bool, output.values),
+            .pure = output.pure,
+            .local = output.local,
+            .values = output.values,
             .state = .{
-                .element_storage = try allocator.dupe(bool, output.element_storage),
-                .selected = try allocator.dupe(bool, output.selected),
-                .borrowed = try allocator.dupe(bool, output.borrowed),
+                .element_storage = output.element_storage,
+                .selected = output.selected,
+                .borrowed = output.borrowed,
                 .queries = output.state_queries,
-                .keys = try allocator.dupe([32]u8, std.mem.bytesAsSlice([32]u8, output.keys)),
+                .keys = std.mem.bytesAsSlice([32]u8, output.keys),
             },
         },
-        .io = try allocator.dupe(bool, output.io),
-        .process = try allocator.dupe(bool, output.process),
-        .tasks = try allocator.dupe(bool, output.tasks),
-        .grows = try allocator.dupe(bool, output.grows),
-        .fresh_outputs = try allocator.dupe(bool, output.fresh_outputs),
-        .constructed_outputs = try allocator.dupe(bool, output.constructed_outputs),
-        .identity_free = try allocator.dupe(bool, output.identity_free),
+        .io = output.io,
+        .process = output.process,
+        .tasks = output.tasks,
+        .grows = output.grows,
+        .fresh_outputs = output.fresh_outputs,
+        .constructed_outputs = output.constructed_outputs,
+        .identity_free = output.identity_free,
         .errors = output.errors,
         .return_allocations = output.return_allocations,
         .layout_types = output.layout_types,

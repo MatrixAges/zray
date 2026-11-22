@@ -2,12 +2,14 @@
     <Type from="built" as="Built" />
     <Type from="keys" as="Keys" />
     <Type from="../model" as="Model" />
+    <Type from="../facts/allocators" as="Allocators" />
 
     <Args
         in={{
             program: Built.Input,
             boundaries: Model.Boundaries,
-            local: bool[]
+            local: bool[],
+            allocator: Allocators.Resource
         }}
         out={Keys.Output}
     />
@@ -75,11 +77,18 @@
         module="borrowing/plan"
         in={{
             program: $in.program,
-            boxed: $ctx.frozen
+            boxed: $ctx.frozen,
+            allocator: $in.allocator
         }}
     />
 
-    <Call fn="element_storage" in={$in.program} />
+    <Call
+        fn="element_storage"
+        in={{
+            program: $in.program,
+            allocator: $in.allocator
+        }}
+    />
 
     <Call
         fn="keys"
@@ -87,7 +96,8 @@
             types: $in.program.types,
             boxed: $ctx.frozen,
             element_storage: $ctx.element_storage,
-            borrowed: $ctx.plan
+            borrowed: $ctx.plan,
+            allocator: $in.allocator
         }}
     />
 

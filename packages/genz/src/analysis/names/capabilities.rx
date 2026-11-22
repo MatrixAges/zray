@@ -12,8 +12,21 @@
         />
     </If>
 
-    <Call fn="../capability/io" in={$in.functions} />
-    <Call fn="../capability/process" in={$in.functions} />
+    <Call
+        fn="../capability/io"
+        in={{
+            functions: $in.functions,
+            allocator: $in.allocator
+        }}
+    />
+
+    <Call
+        fn="../capability/process"
+        in={{
+            functions: $in.functions,
+            allocator: $in.allocator
+        }}
+    />
 
     <Return
         value={{

@@ -1,9 +1,15 @@
 import type { Allocator, ArenaScope } from "memory"
 import type { ColumnAllocator } from "memory/columns"
 
-export type Buffers = {
+export type Resource = Allocator
+
+export type Result = {
     scope: ArenaScope,
     scratch: Allocator,
-    owned: Allocator,
+    owned: Allocator
+}
+
+export type Buffers = {
+    results: Result,
     names: ColumnAllocator
 }

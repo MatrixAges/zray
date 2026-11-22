@@ -1,30 +1,35 @@
 import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
+import memory from "memory"
 
+import flags from "../facts/flags"
 import { Property } from "../state/queries/model"
 import query from "../state/queries/read"
 import purity from "./pure"
 
+import type { Allocator } from "memory"
 import type { Program, Values } from "../model"
 import type { Query } from "../state/queries/model"
 
 export type Input = {
     program: Program,
     queries: Query[],
-    local: bool[]
+    local: bool[],
+    allocator: Allocator
 }
 
 export type Output = Values
 
 export default function (in: Input): Output {
-    const values = in.program.functions.output_types.map(id => false)[0]
+    const values = flags({
+        count: in.program.functions.output_types.length,
+        allocator: in.allocator
+    })
 
-    const result = loop({
+    const processed = loop({
         program: in.program,
         queries: in.queries,
-        local: in.local,
-        values,
         index: 0
     }, {
         while: current =>
@@ -55,16 +60,19 @@ export default function (in: Input): Output {
             const native = functions.native_modules[index] != null
             const state = !native && represented
 
-            current.values[index] = current.local[index] && (object || state)
+            const enabled = in.local[index] && (object || state)
+
+            memory.writeBool(values.buffer, index, enabled)
             current.index += 1
         }
     })
 
     return {
         pure: purity({
-            program: in.program
+            program: in.program,
+            allocator: in.allocator
         }),
-        local: result.local,
-        values: result.values
+        local: in.local,
+        values: values.values
     }
 }
