@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import memory from "memory"
+import { matches } from "core/column_transfer"
 
 import type { Shape as Input } from "./model"
 
@@ -18,8 +18,12 @@ export default function (in: Input): Output {
             const count = integers.widen(counts[index])
             const supplied = count == 0 || complete[index]
 
-            state.valid =
-                supplied && memory.columnGroupMatchesLength(groups, index, count)
+            state.valid = supplied &&
+                matches({
+                    groups,
+                    index,
+                    count
+                })
             state.index += 1
         },
         return: state => state.valid

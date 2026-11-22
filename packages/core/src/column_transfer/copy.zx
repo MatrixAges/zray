@@ -1,0 +1,59 @@
+import memory from "memory"
+
+import retain from "./retain"
+import rollback from "./rollback"
+
+import type { Copy } from "./model"
+
+export type Input = Copy
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { allocator, groups, index, first, count } = in
+
+    if (count == 0) {
+        return true
+    }
+
+    const group = memory.borrowTransferGroup(groups, index, null)
+    const columns = memory.transferColumnCount(group)
+
+    const copied = loop({
+        column: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.column < columns,
+        next: state => {
+            if (memory.transferOwnsPayload(group, state.column)) {
+                state.valid = retain({
+                    allocator,
+                    group,
+                    column: state.column,
+                    first,
+                    count
+                })
+            } else {
+                memory.copyTransferValues(group, state.column, first, count)
+            }
+
+            if (state.valid) {
+                state.column += 1
+            }
+        },
+        return: state => state.column
+    })
+
+    if (copied == columns) {
+        return true
+    }
+
+    rollback({
+        allocator,
+        group,
+        completed: copied,
+        count
+    })
+
+    return false
+}

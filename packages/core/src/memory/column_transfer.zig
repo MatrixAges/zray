@@ -68,26 +68,6 @@ pub fn repeat(target: anytype, value: anytype) Column {
     return column;
 }
 
-pub fn matches(target: *const anyopaque, index: u64, count: u64) bool {
-    for (group(target, index)) |column| {
-        if (column.width != 0 and column.kind != .repeated and column.source_count != count) return false;
-    }
-
-    return true;
-}
-
-pub fn minimumLength(target: *const anyopaque, index: u64) u64 {
-    var length: u64 = std.math.maxInt(u64);
-
-    for (group(target, index)) |column| {
-        if (column.width != 0 and column.kind != .repeated) {
-            length = @min(length, column.source_count);
-        }
-    }
-
-    return length;
-}
-
 fn kind(comptime Value: type, comptime copy_payloads: bool, comptime borrow_text: bool) Kind {
     if (!copy_payloads) return .value;
     if (Value == Bytes) return if (borrow_text) .value else .text;
@@ -129,20 +109,6 @@ pub fn copy(resource: *const anyopaque, target: *const anyopaque, index: u64, fi
     return true;
 }
 
-pub fn reserve(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) std.mem.Allocator.Error!u64 {
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-    const fields = group(target, index);
-    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
-
-    for (fields) |column| {
-        if (length > column.storage.capacity - column.storage.items.len) {
-            try column.grow(column.storage, allocator.*, length);
-        }
-    }
-
-    return fields[0].storage.items.len;
-}
-
 pub fn discard(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) void {
     if (count == 0) return;
 
@@ -162,7 +128,106 @@ fn group(target: *const anyopaque, index: u64) []const Column {
     return groups.*[@intCast(index)];
 }
 
-fn copyColumn(allocator: std.mem.Allocator, column: Column, first: usize, count: usize) std.mem.Allocator.Error!void {
+pub fn borrowGroup(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    const groups: *const Groups = @ptrCast(@alignCast(target));
+
+    return @ptrCast(&groups.*[@intCast(index)]);
+}
+
+fn groupColumns(target: *const anyopaque) []const Column {
+    return (@as(*const []const Column, @ptrCast(@alignCast(target)))).*;
+}
+
+pub fn countColumns(target: *const anyopaque) u64 {
+    return groupColumns(target).len;
+}
+
+pub fn sourceLength(target: *const anyopaque, index: u64) ?u64 {
+    const column = groupColumns(target)[@intCast(index)];
+
+    return if (column.width != 0 and column.kind != .repeated) column.source_count else null;
+}
+
+pub fn ownsPayload(target: *const anyopaque, index: u64) bool {
+    return switch (groupColumns(target)[@intCast(index)].kind) {
+        .value, .strided, .repeated => false,
+        else => true,
+    };
+}
+
+pub fn reserveOne(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) std.mem.Allocator.Error!u64 {
+    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
+    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
+
+    return reserveColumn(allocator.*, groupColumns(target)[@intCast(index)], length);
+}
+
+fn reserveColumn(allocator: std.mem.Allocator, column: Column, count: usize) std.mem.Allocator.Error!usize {
+    if (count > column.storage.capacity - column.storage.items.len) {
+        try column.grow(column.storage, allocator, count);
+    }
+
+    return column.storage.items.len;
+}
+
+pub fn publishOne(target: *const anyopaque, index: u64, count: u64) void {
+    groupColumns(target)[@intCast(index)].storage.items.len += @intCast(count);
+}
+
+pub fn copyValues(target: *const anyopaque, index: u64, first: u64, count: u64) void {
+    copyBytes(groupColumns(target)[@intCast(index)], @intCast(first), @intCast(count));
+}
+
+pub fn retainItem(resource: *const anyopaque, target: *const anyopaque, index: u64, from: u64, to: u64) bool {
+    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
+    const column = groupColumns(target)[@intCast(index)];
+
+    switch (column.kind) {
+        .value, .strided, .repeated => unreachable,
+        inline else => |format| {
+            const payload = Payload(format);
+            const source: [*]const payload.Value = @ptrCast(@alignCast(column.source));
+            const destination: [*]payload.Value = @ptrCast(@alignCast(column.storage.items.ptr));
+            const item = clone(allocator.*, source[@intCast(from)], payload.borrow_text) catch return false;
+
+            destination[column.storage.items.len + @as(usize, @intCast(to))] = item;
+        },
+    }
+
+    return true;
+}
+
+pub fn releaseItem(resource: *const anyopaque, target: *const anyopaque, index: u64, row: u64) void {
+    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
+    const column = groupColumns(target)[@intCast(index)];
+
+    switch (column.kind) {
+        .value, .strided, .repeated => unreachable,
+        inline else => |format| {
+            const payload = Payload(format);
+            const destination: [*]const payload.Value = @ptrCast(@alignCast(column.storage.items.ptr));
+
+            release(allocator.*, destination[column.storage.items.len + @as(usize, @intCast(row))], payload.borrow_text);
+        },
+    }
+}
+
+fn Payload(comptime kind_value: Kind) type {
+    return struct {
+        const Value = switch (kind_value) {
+            .text => Bytes,
+            .optional_text => ?Bytes,
+            .words => []const u32,
+            .texts, .text_views => []const Bytes,
+            .optional_texts, .optional_text_views => ?[]const Bytes,
+            .value, .strided, .repeated => unreachable,
+        };
+
+        const borrow_text = kind_value == .text_views or kind_value == .optional_text_views;
+    };
+}
+
+fn copyBytes(column: Column, first: usize, count: usize) void {
     switch (column.kind) {
         .value => {
             if (column.width == 0) return;
@@ -187,13 +252,18 @@ fn copyColumn(allocator: std.mem.Allocator, column: Column, first: usize, count:
 
             for (0..count) |index| @memcpy(target[index * column.width ..][0..column.width], source);
         },
-        .text => try cloneRange(Bytes, false, allocator, column, first, count),
-        .optional_text => try cloneRange(?Bytes, false, allocator, column, first, count),
-        .words => try cloneRange([]const u32, false, allocator, column, first, count),
-        .texts => try cloneRange([]const Bytes, false, allocator, column, first, count),
-        .optional_texts => try cloneRange(?[]const Bytes, false, allocator, column, first, count),
-        .text_views => try cloneRange([]const Bytes, true, allocator, column, first, count),
-        .optional_text_views => try cloneRange(?[]const Bytes, true, allocator, column, first, count),
+        else => unreachable,
+    }
+}
+
+fn copyColumn(allocator: std.mem.Allocator, column: Column, first: usize, count: usize) std.mem.Allocator.Error!void {
+    switch (column.kind) {
+        .value, .strided, .repeated => copyBytes(column, first, count),
+        inline else => |format| {
+            const payload = Payload(format);
+
+            try cloneRange(payload.Value, payload.borrow_text, allocator, column, first, count);
+        },
     }
 }
 
@@ -202,13 +272,11 @@ fn discardColumns(allocator: std.mem.Allocator, columns: []const Column, count: 
 
     while (iterator.next()) |column| switch (column.kind) {
         .value, .strided, .repeated => {},
-        .text => releaseRange(Bytes, false, allocator, column, count),
-        .optional_text => releaseRange(?Bytes, false, allocator, column, count),
-        .words => releaseRange([]const u32, false, allocator, column, count),
-        .texts => releaseRange([]const Bytes, false, allocator, column, count),
-        .optional_texts => releaseRange(?[]const Bytes, false, allocator, column, count),
-        .text_views => releaseRange([]const Bytes, true, allocator, column, count),
-        .optional_text_views => releaseRange(?[]const Bytes, true, allocator, column, count),
+        inline else => |format| {
+            const payload = Payload(format);
+
+            releaseRange(payload.Value, payload.borrow_text, allocator, column, count);
+        },
     };
 }
 

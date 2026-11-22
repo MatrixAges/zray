@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import memory from "memory"
+import { copy, publish } from "core/column_transfer"
 
 import type { Input } from "./model"
 
@@ -18,10 +18,20 @@ export default function (in: Input): Output {
             const group = integers.andBits(byte, mask)
             const index = integers.widen(offsets[state.row])
 
-            state.ready = memory.copyColumnGroup(allocator, groups, group, index, 1)
+            state.ready = copy({
+                allocator,
+                groups,
+                index: group,
+                first: index,
+                count: 1
+            })
 
             if (state.ready) {
-                memory.publishColumnGroup(groups, group, 1)
+                publish({
+                    groups,
+                    index: group,
+                    count: 1
+                })
                 state.row += 1
             }
         },

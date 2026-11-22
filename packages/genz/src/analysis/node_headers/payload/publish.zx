@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import memory from "memory"
+import { publish } from "core/column_transfer"
 
 import type { Columns as Input } from "./model"
 
@@ -14,7 +14,11 @@ export default function (in: Input): Output {
             const count = integers.widen(counts[index])
 
             if (count != 0) {
-                memory.publishColumnGroup(groups, index, count)
+                publish({
+                    groups,
+                    index,
+                    count
+                })
             }
 
             index += 1

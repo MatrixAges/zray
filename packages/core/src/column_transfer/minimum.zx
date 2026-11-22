@@ -1,0 +1,31 @@
+import memory from "memory"
+
+import { max_u64 } from "../const"
+
+import type { Group } from "./model"
+
+export type Input = Group
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const group = memory.borrowTransferGroup(in.groups, in.index, null)
+    const columns = memory.transferColumnCount(group)
+
+    return loop({
+        column: 0,
+        minimum: max_u64
+    }, {
+        while: state => state.column < columns,
+        next: state => {
+            const length = memory.transferSourceLength(group, state.column)
+
+            if (length != null && length < state.minimum) {
+                state.minimum = length
+            }
+
+            state.column += 1
+        },
+        return: state => state.minimum
+    })
+}

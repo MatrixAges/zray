@@ -1,0 +1,25 @@
+import type { Allocator, ColumnTransfers, TransferGroup } from "memory"
+
+export type Group = {
+    groups: ColumnTransfers,
+    index: u64
+}
+
+export type Extent = Group & {
+    count: u64
+}
+
+export type Reservation = Extent & {
+    allocator: Allocator
+}
+
+export type Copy = Reservation & {
+    first: u64
+}
+
+export type Payload = {
+    allocator: Allocator,
+    group: TransferGroup,
+    column: u64,
+    count: u64
+}

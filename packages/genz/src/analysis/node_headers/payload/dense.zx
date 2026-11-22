@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import memory from "memory"
+import { copy, discard } from "core/column_transfer"
 
 import type { Input } from "./model"
 
@@ -17,8 +17,13 @@ export default function (in: Input): Output {
             const count = integers.widen(counts[state.group])
 
             if (count != 0) {
-                state.ready =
-                    memory.copyColumnGroup(allocator, groups, state.group, 0, count)
+                state.ready = copy({
+                    allocator,
+                    groups,
+                    index: state.group,
+                    first: 0,
+                    count
+                })
             }
 
             if (state.ready) {
@@ -38,7 +43,12 @@ export default function (in: Input): Output {
             const group = cursor - 1
             const count = integers.widen(counts[group])
 
-            memory.discardColumnGroup(allocator, groups, group, count)
+            discard({
+                allocator,
+                groups,
+                index: group,
+                count
+            })
             cursor = group
         }
     })

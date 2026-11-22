@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import type { Reservation } from "./model"
+
+export type Input = Reservation
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { allocator, groups, index, count } = in
+
+    const group = memory.borrowTransferGroup(groups, index, null)
+    const columns = memory.transferColumnCount(group)
+    const first = memory.reserveTransferColumn(allocator, group, 0, count)
+
+    const reserved = loop(1, {
+        while: column => column < columns,
+        next: column => {
+            const length = memory.reserveTransferColumn(allocator, group, column, count)
+
+            column += 1
+        }
+    })
+
+    return first
+}

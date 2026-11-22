@@ -1,4 +1,4 @@
-import memory from "memory"
+import { matches } from "core/column_transfer"
 
 import fits from "../fits"
 import { Check } from "../model"
@@ -8,7 +8,13 @@ import type { Input } from "./model"
 export type Output = Check
 
 export default function (in: Input): Output {
-    if (!memory.columnGroupMatchesLength(in.groups, 0, in.count)) {
+    const shape = matches({
+        groups: in.groups,
+        index: 0,
+        count: in.count
+    })
+
+    if (!shape) {
         return Check.Invalid
     }
 

@@ -70,6 +70,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "core/constant/const", .entry = "core/constant/const.zx" },
     .{ .specifier = "core/constant/model", .entry = "core/constant/model.zx" },
     .{ .specifier = "core/constant/rows", .entry = "core/constant/rows.zx" },
+    .{ .specifier = "core/column_transfer", .entry = "core/column_transfer/index.zx" },
     .{ .specifier = "core/constant/lookup", .entry = "core/constant/lookup.zx" },
     .{ .specifier = "core/contract_table/append", .entry = "core/contract_table/append.zx" },
     .{ .specifier = "core/contract_table/model", .entry = "core/contract_table/model.zx" },

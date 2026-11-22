@@ -1,4 +1,4 @@
-import memory from "memory"
+import { copy, publish, reserve } from "core/column_transfer"
 
 import type { Input } from "./model"
 
@@ -7,13 +7,26 @@ export type Output = bool
 export default function (in: Input): Output {
     const { allocator, groups, count } = in
 
-    const base = memory.reserveColumnGroup(allocator, groups, 0, count)
+    const extent = {
+        groups,
+        index: 0,
+        count
+    }
+
+    const base = reserve({
+        ...extent,
+        allocator
+    })
 
     if (in.borrowed) {
-        const copied = memory.copyColumnGroup(allocator, groups, 0, 0, count)
+        const copied = copy({
+            ...extent,
+            allocator,
+            first: 0
+        })
 
         if (copied) {
-            memory.publishColumnGroup(groups, 0, count)
+            publish(extent)
         }
 
         return copied
@@ -25,10 +38,20 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.row < count,
         next: state => {
-            state.valid = memory.copyColumnGroup(allocator, groups, 0, state.row, 1)
+            state.valid = copy({
+                allocator,
+                groups,
+                index: 0,
+                first: state.row,
+                count: 1
+            })
 
             if (state.valid) {
-                memory.publishColumnGroup(groups, 0, 1)
+                publish({
+                    groups,
+                    index: 0,
+                    count: 1
+                })
                 state.row += 1
             }
         },

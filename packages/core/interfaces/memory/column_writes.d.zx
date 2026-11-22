@@ -64,41 +64,55 @@ export declare function copyColumnValue(
     value: u8[]
 ): void throws { IndexOutOfBounds }
 
-export declare function copyColumnGroup(
-    allocator: Allocator,
+export declare function borrowTransferGroup(
     groups: ColumnTransfers,
     group: u64,
-    first: u64,
-    count: u64
+    shape: TransferGroup?
+): TransferGroup
+
+export declare function transferColumnCount(group: TransferGroup): u64
+
+export declare function transferSourceLength(
+    group: TransferGroup,
+    column: u64
+): u64?
+
+export declare function transferOwnsPayload(
+    group: TransferGroup,
+    column: u64
 ): bool
 
-export declare function reserveColumnGroup(
+export declare function reserveTransferColumn(
     allocator: Allocator,
-    groups: ColumnTransfers,
-    group: u64,
+    group: TransferGroup,
+    column: u64,
     count: u64
 ): u64 throws { OutOfMemory }
 
-export declare function columnGroupMatchesLength(
-    groups: ColumnTransfers,
-    group: u64,
-    count: u64
-): bool
-
-export declare function columnGroupMinimumLength(
-    groups: ColumnTransfers,
-    group: u64
-): u64
-
-export declare function discardColumnGroup(
-    allocator: Allocator,
-    groups: ColumnTransfers,
-    group: u64,
+export declare function copyTransferValues(
+    group: TransferGroup,
+    column: u64,
+    first: u64,
     count: u64
 ): void
 
-export declare function publishColumnGroup(
-    groups: ColumnTransfers,
-    group: u64,
+export declare function retainTransferItem(
+    allocator: Allocator,
+    group: TransferGroup,
+    column: u64,
+    source: u64,
+    target: u64
+): bool
+
+export declare function releaseTransferItem(
+    allocator: Allocator,
+    group: TransferGroup,
+    column: u64,
+    row: u64
+): void
+
+export declare function publishTransferColumn(
+    group: TransferGroup,
+    column: u64,
     count: u64
 ): void

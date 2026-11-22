@@ -1,4 +1,4 @@
-import memory from "memory"
+import { copy, publish } from "core/column_transfer"
 
 import type { Allocator, ColumnTransfers } from "memory"
 
@@ -19,13 +19,13 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < counts.length && state.valid,
         next: state => {
-            state.valid = memory.copyColumnGroup(
+            state.valid = copy({
                 allocator,
                 groups,
-                state.index,
-                0,
-                counts[state.index]
-            )
+                index: state.index,
+                first: 0,
+                count: counts[state.index]
+            })
             state.index += 1
         },
         return: state => state.valid
@@ -38,7 +38,11 @@ export default function (in: Input): Output {
     const published = loop(0, {
         while: index => index < counts.length,
         next: index => {
-            memory.publishColumnGroup(groups, index, counts[index])
+            publish({
+                groups,
+                index,
+                count: counts[index]
+            })
             index += 1
         }
     })

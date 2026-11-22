@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import type { Extent } from "./model"
+
+export type Input = Extent
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.count == 0) {
+        return
+    }
+
+    const group = memory.borrowTransferGroup(in.groups, in.index, null)
+    const columns = memory.transferColumnCount(group)
+
+    const published = loop(0, {
+        while: column => column < columns,
+        next: column => {
+            memory.publishTransferColumn(group, column, in.count)
+            column += 1
+        }
+    })
+}

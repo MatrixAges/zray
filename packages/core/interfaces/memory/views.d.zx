@@ -31,6 +31,7 @@ export type WriteColumn = opaque
 export type ColumnRanges = opaque
 export type ColumnLengths = opaque
 export type ColumnTransfers = opaque
+export type TransferGroup = opaque
 
 export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
 export type NominalRangeElements = [u32, u8, string, string, string]

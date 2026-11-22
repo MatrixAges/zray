@@ -1,0 +1,34 @@
+import memory from "memory"
+
+import release from "./release"
+
+import type { Allocator, TransferGroup } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    group: TransferGroup,
+    completed: u64,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { allocator, group, completed, count } = in
+
+    const released = loop(completed, {
+        while: cursor => cursor != 0,
+        next: cursor => {
+            cursor -= 1
+
+            if (memory.transferOwnsPayload(group, cursor)) {
+                release({
+                    allocator,
+                    group,
+                    column: cursor,
+                    count
+                })
+            }
+        }
+    })
+}
