@@ -1,59 +1,23 @@
 const std = @import("std");
-const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const generated = @import("generated_growth_call");
 const Input = std.meta.Child(generated.Input);
 
 const Request = struct {
     element: node.ExpressionId,
     value: node.ExpressionId,
-    count: node.ExpressionId = @fromBackingInt(0),
-    minimum: node.ExpressionId = @fromBackingInt(0),
     flag: bool = false,
 };
-
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), operation: @FieldType(Input, "operation"), request: Request) Lower.Error!node.ExpressionId {
-    const input = prepare(self, operation, request);
-
-    return execute(self, body, generated, &input, .{});
-}
-
-pub fn stateList(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.TypeId, value: node.ExpressionId, count: node.ExpressionId, frontier: bool) Lower.Error!node.ExpressionId {
-    const serial = self.serial;
-    const statements = body.items.len;
-    const element = try @import("../state_value/elements.zig").typeExpr(self, id);
-
-    std.debug.assert(serial == self.serial and statements == body.items.len);
-
-    const input = prepare(self, .Reserve, .{ .element = element, .value = value, .count = count, .flag = frontier });
-
-    return execute(self, body, @import("generated_growth_reserve"), &input, .{});
-}
-
-const Normalization = struct {
-    selected: bool = false,
-    layout: u32 = 0,
-    field_base: u32 = 0,
-};
-
-pub fn normalize(self: *Lower, body: *std.ArrayList(node.Statement), element: node.ExpressionId, value: node.ExpressionId, selected: bool, layout: ?node.ExpressionId) Lower.Error!node.ExpressionId {
-    const input = prepare(self, .Reserve, .{ .element = element, .value = value });
-
-    return execute(self, body, @import("generated_growth_normalize"), &input, .{
-        .selected = selected,
-        .layout = if (layout) |expression| @backingInt(expression) else 0,
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-    });
-}
 
 pub fn prepare(self: *const Lower, operation: @FieldType(Input, "operation"), request: Request) Input {
     return .{
         .operation = operation,
         .element = @backingInt(request.element),
         .value = @backingInt(request.value),
-        .count = @backingInt(request.count),
-        .minimum = @backingInt(request.minimum),
+        .count = 0,
+        .minimum = 0,
         .flag = request.flag,
         .shared = self.shared_types,
         .capture = null,
@@ -63,32 +27,32 @@ pub fn prepare(self: *const Lower, operation: @FieldType(Input, "operation"), re
     };
 }
 
-fn execute(self: *Lower, body: *std.ArrayList(node.Statement), comptime module: type, input: *const Input, normalization: Normalization) Lower.Error!node.ExpressionId {
+pub fn normalize(self: *Lower, body: *Sequence, element: node.ExpressionId, value: node.ExpressionId, selected: bool, layout: ?node.ExpressionId) Lower.Error!node.ExpressionId {
+    const entry = @import("generated_growth_normalize");
+    const Parameter = std.meta.Child(entry.Input);
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
+    var source = prepare(self, .Reserve, .{ .element = element, .value = value });
     const Capture = std.meta.Child(@typeInfo(@FieldType(Input, "capture")).optional.child);
     var boundary: Capture = undefined;
-    var prepared = input.*;
 
     if (self.capture) |capture| {
         boundary = .{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) };
-        prepared.capture = &boundary;
+        source.capture = &boundary;
     }
 
-    const Parameter = std.meta.Child(module.Input);
+    const input: Parameter = .{
+        .source = &source,
+        .selected = selected,
+        .layout = if (layout) |expression| @backingInt(expression) else 0,
+        .field_base = @intCast(self.builder.nodes.field_columns.count()),
+    };
 
-    const payload: Parameter = if (@hasField(Parameter, "source")) .{
-        .source = &prepared,
-        .selected = normalization.selected,
-        .layout = normalization.layout,
-        .field_base = normalization.field_base,
-    } else prepared;
-
-    const emitted = module.executeIn(buffered.allocator(), &payload) catch |err| switch (@as(anyerror, err)) {
+    const emitted = entry.executeIn(buffered.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -96,7 +60,7 @@ fn execute(self: *Lower, body: *std.ArrayList(node.Statement), comptime module: 
     return publish(self, body, emitted);
 }
 
-pub fn publish(self: *Lower, body: ?*std.ArrayList(node.Statement), emitted: anytype) Lower.Error!node.ExpressionId {
+pub fn publish(self: *Lower, body: ?*Sequence, emitted: anytype) Lower.Error!node.ExpressionId {
     const wrapped = @hasField(std.meta.Child(@TypeOf(emitted)), "result");
     const output = if (wrapped) emitted.result else emitted;
 
@@ -108,20 +72,19 @@ pub fn publish(self: *Lower, body: ?*std.ArrayList(node.Statement), emitted: any
     try apply.rows(self, &self.builder.nodes.statements, output.statements);
 
     if (body) |target| {
-        try apply.flat(self, target, output.body);
+        @import("../../node/import_statements.zig").append(self.allocator, target, output.body) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidAst => unreachable,
+        };
     } else {
         try apply.rows(self, &self.builder.nodes.statements, output.body);
     }
 
     if (wrapped) {
-        try self.builder.nodes.field_columns.reserve(self.allocator, emitted.fields.len);
-
-        for (emitted.fields) |field| self.builder.nodes.field_columns.append(.{
-            .name = try self.allocator.dupe(u8, field.name),
-            .value = @fromBackingInt(field.value),
-            .default_value = if (field.default_value) |value| @fromBackingInt(value) else null,
-            .comptime_parameter = field.comptime_parameter,
-        });
+        _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, emitted.fields) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidAst => unreachable,
+        };
     }
 
     self.serial = @intCast(output.serial);

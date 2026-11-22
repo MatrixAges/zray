@@ -5,6 +5,7 @@ const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
 const lists = @import("state_value/list.zig");
 const elements = @import("state_value/elements.zig");
+const Sequence = @import("../node/blocks.zig").Sequence;
 
 pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     if (comptime !@import("genz_options").generated_analysis) return @import("list_update_seed.zig").lower(self, id);
@@ -12,7 +13,10 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const update = self.program.expression(id).value.list_update;
     const type_id = self.program.expression(update.target).type_id;
     const selected = lists.selected(self, type_id);
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const evaluated = try self.expr(update.target);
     const qualified = if (selected) try @import("state_value/ownership.zig").clip(self, &body, update.target, evaluated) else evaluated;
     const target = try aggregate.bind(self, &body, qualified);
@@ -63,22 +67,14 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     roots.tags = result.body.tags;
     roots.offsets = result.body.offsets;
     @import("../node/import_statements.zig").appendSelected(self.allocator, &body, &roots) catch |err| return failure(err);
-    try self.builder.nodes.field_columns.reserve(self.allocator, result.fields.len);
-
-    for (result.fields) |field| self.builder.nodes.field_columns.append(.{
-        .name = try self.allocator.dupe(u8, field.name),
-        .value = @fromBackingInt(field.value),
-        .default_value = if (field.default_value) |item| @fromBackingInt(item) else null,
-        .comptime_parameter = field.comptime_parameter,
-    });
-
+    _ = @import("../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
     self.serial = @intCast(result.serial);
     self.uses_allocator = self.uses_allocator or result.uses_allocator;
 
     return aggregate.finish(self, &body, @fromBackingInt(result.root));
 }
 
-fn bounds(self: *Lower, body: *std.ArrayList(node.Statement), items: node.ExpressionId, index: node.ExpressionId) Lower.Error!void {
+fn bounds(self: *Lower, body: *Sequence, items: node.ExpressionId, index: node.ExpressionId) Lower.Error!void {
     const entry = @import("generated_list_update_bounds");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));

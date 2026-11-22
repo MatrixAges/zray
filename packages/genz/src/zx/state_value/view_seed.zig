@@ -62,5 +62,5 @@ pub fn convert(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.TypeId
         else => unreachable,
     };
 
-    return if (referenced) @import("reference.zig").store(self, body, id, result) else result;
+    return if (referenced) @import("reference_seed.zig").store(self, body, id, result) else result;
 }

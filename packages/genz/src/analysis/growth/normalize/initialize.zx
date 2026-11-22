@@ -1,3 +1,4 @@
+import emptyFields from "../../../ast/fields/empty"
 import initialize from "../initialize"
 
 import type { Input, State as Output } from "./model"
@@ -16,6 +17,6 @@ export default function (in: Input): Output {
             value: in.source.value
         },
         root: in.source.value,
-        fields: []
+        fields: emptyFields({})
     }
 }

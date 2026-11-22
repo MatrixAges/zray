@@ -1,6 +1,7 @@
 import assignment from "../../../ast/body/assignment"
 import builtin from "../../../ast/context/builtin"
 import index from "../../../ast/context/subscript"
+import emptyFields from "../../../ast/fields/empty"
 import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
 
 import type { Candidate, Input as Source, Written as Output } from "./model"
@@ -36,6 +37,6 @@ export default function (in: Input): Output {
         source: in.source,
         ...written,
         root: in.buffer.id,
-        fields: []
+        fields: emptyFields({})
     }
 }

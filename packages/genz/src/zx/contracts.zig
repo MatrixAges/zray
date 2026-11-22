@@ -4,9 +4,15 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const generated = @import("genz_options").generated_analysis;
 const scope = @import("functions/scope.zig");
+const Sequence = @import("../node/blocks.zig").Sequence;
 
 pub fn preconditions(self: *Lower) Lower.Error!node.Block {
-    var statements: std.ArrayList(node.Statement) = .empty;
+    const Statements = if (generated) Sequence else std.ArrayList(node.Statement);
+
+    var statements: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+    defer if (generated) statements.deinit();
+
     const contracts = self.program.contracts;
     var start: usize = 0;
 
@@ -50,7 +56,7 @@ pub fn preconditions(self: *Lower) Lower.Error!node.Block {
         }
     }
 
-    return self.builder.statements(statements.items);
+    return self.builder.finishStatements(&statements);
 }
 
 fn seed(self: *Lower, contract: *const zx.ir.Contract) Lower.Error!Lower {

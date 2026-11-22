@@ -1,5 +1,5 @@
 import type { State as Context } from "../../../ast/context/model"
-import type { Field } from "../../../ast/fields/model"
+import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
 import type { Input as GrowthInput, Output as GrowthOutput } from "../model"
 import type { Branch } from "../reserve/model"
@@ -19,10 +19,10 @@ export type State = {
     items: u32,
     copied: Branch,
     root: u32,
-    fields: Field[]
+    fields: Fields
 }
 
 export type Output = {
     result: GrowthOutput,
-    fields: Field[]
+    fields: Fields
 }

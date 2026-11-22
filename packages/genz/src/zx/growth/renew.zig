@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const calls = @import("call.zig");
 const generated = @import("generated_growth_renew_entry");
 const Input = std.meta.Child(generated.Input);
@@ -58,7 +59,7 @@ pub fn entry(self: *Lower, type_id: ir.TypeId, target: Target, keys: []const u64
     return .{ .start = @intCast(end - count), .len = @intCast(count) };
 }
 
-pub fn appendValue(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, reference: node.ExpressionId) Lower.Error!void {
+pub fn appendValue(self: *Lower, body: *Sequence, id: ir.ExprId, reference: node.ExpressionId) Lower.Error!void {
     const module = @import("generated_growth_value");
     const Abi = std.meta.Child(module.Input);
     const Parameter = @typeInfo(@TypeOf(module.executeValue)).@"fn".param_types[1].?;

@@ -3,40 +3,29 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
+const seed_calls = @import("growth/call_seed.zig");
+pub const reserve = seed_calls.reserve;
+pub const reserveBounded = seed_calls.reserveBounded;
+pub const copy = seed_calls.copy;
+pub const retract = seed_calls.retract;
 
 /// The value of `id` with the lists the plan renews in it moved to growth buffers of their own, where a value read out of
 /// a list or another opaque source enters the values that later appends extend.
 pub fn renewValue(self: *Lower, id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("growth/value_seed.zig").renewValue(self, id, value);
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const name = try self.fresh("renewed");
     const renewed = try self.builder.identifier(name);
     const source = if (self.state_active) try @import("state_value/ownership.zig").clip(self, &body, id, value) else value;
 
-    try body.append(self.allocator, .{ .variable = .{ .name = name, .value = source } });
+    try body.append(try self.builder.statements(&.{.{ .variable = .{ .name = name, .value = source } }}));
     try @import("growth/renew.zig").appendValue(self, &body, id, renewed);
 
     return aggregate.finish(self, &body, renewed);
-}
-
-/// A growable buffer of `count` elements holding `source` as its prefix; `frontier` reuses a headered source in place.
-pub fn reserve(self: *Lower, body: *std.ArrayList(node.Statement), element: node.ExpressionId, source: node.ExpressionId, count: node.ExpressionId, frontier: bool) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("growth/call_seed.zig").reserve(self, body, element, source, count, frontier);
-
-    return @import("growth/call.zig").lower(self, body, .Reserve, .{ .element = element, .value = source, .count = count, .flag = frontier });
-}
-
-pub fn reserveBounded(self: *Lower, body: *std.ArrayList(node.Statement), element: node.ExpressionId, source: node.ExpressionId, count: node.ExpressionId, minimum: node.ExpressionId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("growth/call_seed.zig").reserveBounded(self, body, element, source, count, minimum);
-
-    return @import("growth/call.zig").lower(self, body, .Bounded, .{ .element = element, .value = source, .count = count, .minimum = minimum });
-}
-
-pub fn copy(self: *Lower, body: *std.ArrayList(node.Statement), element: node.ExpressionId, source: node.ExpressionId, exact: bool) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("growth/call_seed.zig").copy(self, body, element, source, exact);
-
-    return @import("growth/call.zig").lower(self, body, .Copy, .{ .element = element, .value = source, .flag = exact });
 }
 
 /// One growth copy of a plain list the plan found flowing into appends, so they extend it in place from then on.
@@ -44,7 +33,10 @@ pub fn normalize(self: *Lower, id: ir.ExprId, value: node.ExpressionId) Lower.Er
     if (!@import("genz_options").generated_analysis) return @import("growth/normalize_seed.zig").normalize(self, id, value);
     if (self.iteration_value) |context| if (context.buffered(self.program.expression(id).type_id)) return value;
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const type_id = self.program.expression(id).type_id;
     const child = self.program.typeOf(type_id).list;
 
@@ -63,10 +55,4 @@ pub fn normalize(self: *Lower, id: ir.ExprId, value: node.ExpressionId) Lower.Er
     const result = try @import("growth/call.zig").normalize(self, &body, element, qualified, selected, layout);
 
     return aggregate.finish(self, &body, result);
-}
-
-pub fn retract(self: *Lower, body: *std.ArrayList(node.Statement), element: node.ExpressionId, source: node.ExpressionId, length: node.ExpressionId) Lower.Error!void {
-    if (!@import("genz_options").generated_analysis) return @import("growth/call_seed.zig").retract(self, body, element, source, length);
-
-    _ = try @import("growth/call.zig").lower(self, body, .Retract, .{ .element = element, .value = source, .count = length });
 }

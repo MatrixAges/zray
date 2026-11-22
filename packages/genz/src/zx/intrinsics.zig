@@ -1,4 +1,3 @@
-const std = @import("std");
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 
@@ -8,11 +7,7 @@ pub fn index(self: *Lower, values: node.ExpressionId, position: node.ExpressionI
     return @import("intrinsics/index.zig").lower(self, values, position);
 }
 
-pub fn failIf(self: *Lower, body: *std.ArrayList(node.Statement), condition: node.ExpressionId, name: []const u8) Lower.Error!void {
-    if (!@import("genz_options").generated_analysis) return @import("intrinsics/seed.zig").failIf(self, body, condition, name);
-
-    return @import("intrinsics/guard.zig").lower(self, body, condition, name);
-}
+pub const failIf = @import("intrinsics/seed.zig").failIf;
 
 pub fn binary(self: *Lower, operator: node.BinaryOperator, left: node.ExpressionId, right: node.ExpressionId) Lower.Error!node.ExpressionId {
     return self.builder.expression(.{ .binary = .{ .operator = operator, .left = left, .right = right } });

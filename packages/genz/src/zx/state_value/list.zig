@@ -89,11 +89,7 @@ pub fn wrap(self: *Lower, id: ir.TypeId, value: node.ExpressionId, has_header: b
     return @import("list_emission.zig").lower(self, id, .Wrap, .{ .value = value, .flag = has_header, .selected = selected(self, id) });
 }
 
-pub fn reserve(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.TypeId, value: node.ExpressionId, count: node.ExpressionId, frontier: bool) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return seed.reserve(self, body, id, value, count, frontier);
-
-    return @import("../growth/call.zig").stateList(self, body, id, value, count, frontier);
-}
+pub const reserve = seed.reserve;
 
 pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     return items(self, self.program.expression(id).type_id, try self.expr(id));

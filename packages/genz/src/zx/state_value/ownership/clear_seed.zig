@@ -10,7 +10,7 @@ pub fn clear(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
     const target = self.program.typeOf(type_id);
 
     if (self.state_plan.referenced(type_id)) {
-        const copied = try @import("../reference.zig").copy(self, body, type_id, value);
+        const copied = try @import("../reference_seed.zig").copy(self, body, type_id, value);
 
         try clearFields(self, body, id, target.object, copied, slot);
 
