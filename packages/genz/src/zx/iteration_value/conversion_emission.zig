@@ -62,42 +62,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const result = try apply(context, output);
-    const view = @import("../../node/view.zig");
-    const prefix = view.join(output.declarations.*, output.variables.*);
-
-    @import("../../node/import_statements.zig").append(self.allocator, context.declarations, &prefix) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    return result;
-}
-
-pub fn apply(context: *Context, output: anytype) Lower.Error!node.ExpressionId {
-    const self = context.lowering;
-    const view = @import("../../node/view.zig");
-    const expressions = view.join(output.expressions.*, output.forms.*);
-
-    try append(self, &self.builder.nodes.expressions, &expressions);
-    try append(self, &self.builder.nodes.statements, output.statements);
-
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    self.serial = @intCast(output.serial);
-    self.uses_allocator = self.uses_allocator or output.uses_allocator;
+    try @import("publication.zig").write(self, .Input, .{ .body = context.declarations }, output);
 
     return @fromBackingInt(output.root);
-}
-
-fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
-    @import("../../node/import_rows.zig").append(self.allocator, target, source) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
 }

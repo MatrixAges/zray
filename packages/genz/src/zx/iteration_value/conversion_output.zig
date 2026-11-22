@@ -4,7 +4,6 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
-const emission = @import("conversion_emission.zig");
 
 pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const self = context.lowering;
@@ -86,13 +85,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         else => unreachable,
     };
 
-    if (!output.result.valid) return error.OutOfMemory;
+    try @import("publication.zig").write(self, .Returned, .{}, output);
 
-    const result = try emission.apply(context, output.result);
-    const view = @import("../../node/view.zig");
-    const prefix = view.join(output.storage.*, output.result.variables.*);
-
-    try self.hoistReferences(&prefix);
-
-    return result;
+    return @fromBackingInt(output.result.root);
 }

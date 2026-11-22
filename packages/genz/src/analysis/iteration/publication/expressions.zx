@@ -1,0 +1,20 @@
+import host from "lowering_host"
+
+import { Mode } from "./model"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, mode } = in
+
+    const borrowed = match mode {
+        Mode.Mutation => true,
+        Mode.Buffer => true,
+        Mode.PrepareBuffer => true,
+        _ => false
+    }
+
+    host.appendIterationExpressions(target, borrowed)
+}

@@ -35,25 +35,22 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     if (!plan.valid) unreachable;
     if (plan.operations.len == 0) return value;
 
-    const prepared = try buffered.allocator().alloc(u32, plan.operations.len);
+    const preparer = @import("generated_prepare_iteration_projection");
+    const Prepare = std.meta.Child(preparer.Input);
+    var prepared = try buffered.allocator().alloc(u32, plan.operations.len);
     const serials = try buffered.allocator().alloc(u64, plan.operations.len);
     const history_count = try buffered.allocator().alloc(u64, plan.operations.len);
+    var timeline: Timeline = .{ .context = context, .serials = serials, .history_count = history_count };
 
-    for (plan.requirements, plan.values, plan.fresh, prepared, serials, history_count) |requirement, source, fresh, *target, *serial, *count| {
-        const expression = switch (requirement) {
-            .None => null,
-            .IterationType => try @import("types.zig").get(context, @fromBackingInt(source)),
-            .Expression => try self.expr(@fromBackingInt(source)),
-            .NativeType => try self.typeExpr(@fromBackingInt(source)),
-        };
+    const preparation: Prepare = .{
+        .frame = @ptrCast(self),
+        .context = @ptrCast(context),
+        .history = @ptrCast(&timeline),
+        .plan = zx.columns.pointer(@FieldType(Prepare, "plan"), plan),
+        .prepared = @ptrCast(&prepared),
+    };
 
-        target.* = if (expression) |result| @backingInt(result) else 0;
-        serial.* = self.serial;
-        count.* = context.transfers.len();
-        const reserved = std.math.cast(usize, fresh) orelse return error.OutOfMemory;
-
-        self.serial = std.math.add(usize, self.serial, reserved) catch return error.OutOfMemory;
-    }
+    try @import("../expressions/evaluate.zig").execute(preparer, &preparation);
 
     const emitter = @import("generated_projection_emit");
     const Input = std.meta.Child(emitter.Input);
@@ -78,24 +75,24 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = @import("../../node/view.zig").join(output.expressions.*, output.forms.*);
-
-    try append(self, &self.builder.nodes.expressions, &expressions);
-    try append(self, &self.builder.nodes.statements, output.statements);
-
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    try @import("publication.zig").write(self, .Projection, .{}, output);
 
     return @fromBackingInt(output.root);
 }
 
-fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
-    @import("../../node/import_rows.zig").append(self.allocator, target, source) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+const Timeline = struct {
+    context: *Context,
+    serials: []u64,
+    history_count: []u64,
+};
+
+pub fn recordIterationProjection(handle: *const anyopaque, row: u64, fresh: u64) Lower.Error!void {
+    const timeline: *const Timeline = @ptrCast(@alignCast(handle));
+    const self = timeline.context.lowering;
+    const index: usize = @intCast(row);
+
+    timeline.serials[index] = self.serial;
+    timeline.history_count[index] = timeline.context.transfers.len();
+    const reserved = std.math.cast(usize, fresh) orelse return error.OutOfMemory;
+    self.serial = std.math.add(usize, self.serial, reserved) catch return error.OutOfMemory;
 }

@@ -1055,6 +1055,8 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/module/workflow/execute/entry.rx", .name = "lower_entry_declarations", .owner = .genz },
     .{ .path = "genz/analysis/module/workflow/execute/function.rx", .name = "lower_function_declarations", .owner = .genz },
     .{ .path = "genz/analysis/invocation/execution/run.rx", .name = "lower_invocation", .owner = .genz },
+    .{ .path = "genz/analysis/iteration/publication/run.rx", .name = "publish_iteration_ast", .owner = .genz },
+    .{ .path = "genz/analysis/iteration/resources/projection.zx", .name = "prepare_iteration_projection", .owner = .genz },
     .{ .path = "genz/analysis/iteration/resources/resolve.zx", .name = "resolve_iteration_resources", .owner = .genz },
     .{ .path = "genz/analysis/iteration/resources/cache.zx", .name = "publish_iteration_type_cache", .owner = .genz },
     .{ .path = "genz/analysis/invocation/publication/run.rx", .name = "publish_call_ast", .owner = .genz },

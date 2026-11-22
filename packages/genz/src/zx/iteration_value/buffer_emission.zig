@@ -3,7 +3,6 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
-const rows = @import("../../node/import_rows.zig");
 
 pub fn view(context: *Context, id: ir.TypeId, owner: node.ExpressionId, items: node.ExpressionId, owned: bool) Lower.Error!node.ExpressionId {
     const self = context.lowering;
@@ -54,16 +53,7 @@ fn emitObject(self: *Lower, comptime generated: type, input: anytype) Lower.Erro
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = @import("../../node/view.zig").join(output.expressions.*, output.forms.*);
-
-    try importRows(self, &self.builder.nodes.expressions, &expressions);
-
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    try @import("publication.zig").write(self, .Buffer, .{}, output);
 
     return @fromBackingInt(output.root);
 }
@@ -91,24 +81,5 @@ pub fn prepare(context: *Context, body: anytype, source: node.ExpressionId) Lowe
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = @import("../../node/view.zig").join(output.expressions.*, output.forms.*);
-
-    try importRows(self, &self.builder.nodes.expressions, &expressions);
-    try importRows(self, &self.builder.nodes.statements, output.statements);
-
-    @import("../../node/import_statements.zig").append(self.allocator, body, output.roots) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    self.uses_allocator = true;
-}
-
-fn importRows(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
-    rows.appendBorrowingText(self.allocator, target, source) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    return @import("publication.zig").write(self, .PrepareBuffer, .{ .body = body }, output);
 }

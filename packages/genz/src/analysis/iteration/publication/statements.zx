@@ -1,0 +1,15 @@
+import host from "lowering_host"
+
+import { Mode } from "./model"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.appendIterationStatements(
+        in.target,
+        in.mode == Mode.PrepareBuffer,
+        in.mode == Mode.Mutation
+    )
+}

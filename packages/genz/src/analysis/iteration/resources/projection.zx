@@ -1,0 +1,55 @@
+import host from "lowering_host"
+import { IterationResource } from "lowering_host"
+import memory from "memory"
+
+import { Requirement } from "../projection/model"
+
+import type {
+    IterationProjectionFrame,
+    IterationResourceFrame,
+    Lowering
+} from "lowering_host"
+import type { U32Buffer } from "memory"
+import type { Plan } from "../projection/model"
+
+export type Input = {
+    frame: Lowering,
+    context: IterationResourceFrame,
+    history: IterationProjectionFrame,
+    plan: Plan,
+    prepared: U32Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, context, history, plan, prepared } = in
+
+    const resolved = loop(0, {
+        while: row => row < plan.operations.length,
+        next: row => {
+            const id = plan.values[row]
+            const value = match plan.requirements[row] {
+                Requirement.None => 0,
+                Requirement.Expression => host.lowerExpression(frame, id, false, null),
+                Requirement.IterationType =>
+                    host.materializeIterationResource(
+                        context,
+                        id,
+                        IterationResource.IterationType
+                    ),
+                _ =>
+                    host.materializeIterationResource(
+                        context,
+                        id,
+                        IterationResource.NativeType
+                    ),
+            }
+
+            memory.writeU32(prepared, row, value)
+            host.recordIterationProjection(history, row, plan.fresh[row])
+
+            row += 1
+        }
+    })
+}

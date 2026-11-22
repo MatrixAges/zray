@@ -18,3 +18,9 @@ export declare function cacheIterationType(
     id: u32,
     value: u32
 ): void throws { OutOfMemory }
+
+export declare function recordIterationProjection(
+    history: IterationProjectionFrame,
+    row: u64,
+    fresh: u64
+): void throws { OutOfMemory }

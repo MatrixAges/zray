@@ -1,7 +1,5 @@
 const std = @import("std");
 const node = @import("../../node.zig");
-const rows = @import("../../node/import_rows.zig");
-const view = @import("../../node/view.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const enabled = @import("genz_options").generated_analysis;
@@ -54,28 +52,7 @@ pub fn lower(context: *Context, args: Request) Lower.Error!node.ExpressionId {
     const temporary = memory.allocator();
     const result = entry.executeIn(temporary, &input) catch |err| return failure(err);
 
-    if (!result.valid) return error.OutOfMemory;
-
-    var expressions = view.join(result.expressions.*, result.forms.*);
-    var statements = result.statements.*;
-    const block_labels = try temporary.dupe([]const u8, expressions.block_label);
-    const break_labels = try temporary.dupe([]const u8, statements.break_value_label);
-    const label = try self.allocator.dupe(u8, block_labels[block_labels.len - 1]);
-    block_labels[block_labels.len - 1] = label;
-    break_labels[break_labels.len - 1] = label;
-    expressions.block_label = block_labels;
-    statements.break_value_label = break_labels;
-
-    rows.appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return failure(err);
-
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    self.uses_allocator = self.uses_allocator or result.uses_allocator;
-    self.serial = result.serial;
+    try @import("publication.zig").write(self, .Mutation, .{}, result);
 
     return @fromBackingInt(result.root);
 }

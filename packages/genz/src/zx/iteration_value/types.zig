@@ -60,28 +60,7 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = @import("../../node/view.zig").join(output.expressions.*, output.layouts.*);
-
-    @import("../../node/import_rows.zig").append(lowering.allocator, &lowering.builder.nodes.expressions, &expressions) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    @import("../../node/import_fields.zig").append(lowering.allocator, &lowering.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    @import("../../node/import_statements.zig").append(lowering.allocator, self.declarations, output.statements) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    try resources.publish(self, output.cache_types, output.cache_values);
-
-    lowering.serial = output.serial;
+    try @import("publication.zig").write(lowering, .Types, .{ .context = self, .body = self.declarations }, output);
 
     return @fromBackingInt(output.root);
 }

@@ -1,0 +1,18 @@
+import type { IterationPublication } from "lowering_host"
+
+export enum Mode {
+    Borrow,
+    Types,
+    Input,
+    Returned,
+    Projection,
+    Mutation,
+    Transfer,
+    Buffer,
+    PrepareBuffer
+}
+
+export type Input = {
+    target: IterationPublication,
+    mode: Mode
+}

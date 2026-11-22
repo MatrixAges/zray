@@ -1,0 +1,59 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <If on={$in.mode == Publication.Mode.Mutation}>
+        <Call fn="index.ownIterationLabel" in={$in.target} />
+    </If>
+
+    <Call fn="expressions" in={$in} />
+
+    <Switch on={$in.mode}>
+        <Case value={Publication.Mode.Borrow}>
+            <Call fn="fields" in={$in} />
+            <Call fn="index.appendIterationSequence" in={$in.target} />
+        </Case>
+
+        <Case value={Publication.Mode.Types}>
+            <Call fn="fields" in={$in} />
+            <Call fn="index.appendIterationSequence" in={$in.target} />
+            <Call fn="index.cachePublishedIterationTypes" in={$in.target} />
+        </Case>
+
+        <Case value={Publication.Mode.Transfer}>
+            <Call fn="statements" in={$in} />
+            <Call fn="index.appendIterationSequence" in={$in.target} />
+            <Call fn="index.recordIterationTransfer" in={$in.target} />
+        </Case>
+
+        <Case value={Publication.Mode.PrepareBuffer}>
+            <Call fn="statements" in={$in} />
+            <Call fn="index.appendIterationSequence" in={$in.target} />
+        </Case>
+
+        <Case value={Publication.Mode.Buffer}>
+            <Call fn="fields" in={$in} />
+        </Case>
+
+        <Default>
+            <Call fn="statements" in={$in} />
+            <Call fn="fields" in={$in} />
+        </Default>
+    </Switch>
+
+    <If
+        on={$in.mode != Publication.Mode.Buffer &&
+            $in.mode != Publication.Mode.Projection}
+    >
+        <Call fn="index.finishIterationPublication" in={$in.target} />
+    </If>
+
+    <If on={$in.mode == Publication.Mode.Input}>
+        <Call fn="index.appendIterationSequence" in={$in.target} />
+    </If>
+
+    <If on={$in.mode == Publication.Mode.Returned}>
+        <Call fn="index.hoistIterationStorage" in={$in.target} />
+    </If>
+</Module>

@@ -40,38 +40,7 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const view = @import("../../node/view.zig");
-    const rows = @import("../../node/import_rows.zig");
-    const expressions = view.join(output.expressions.*, output.forms.*);
-
-    rows.append(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    rows.append(self.allocator, &self.builder.nodes.statements, output.statements) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    const prefix = view.join(output.prefix.*, output.variables.*);
-
-    @import("../../node/import_statements.zig").append(self.allocator, body, &prefix) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    try context.transfers.append(self.allocator, .{
-        .type_id = @fromBackingInt(output.record.type_id),
-        .owner = @fromBackingInt(output.record.owner),
-        .value = @fromBackingInt(output.record.value),
-        .ready = @fromBackingInt(output.record.ready),
-    });
-
-    self.serial = output.serial;
-    self.uses_allocator = true;
+    try @import("publication.zig").write(self, .Transfer, .{ .context = context, .body = body }, output);
 
     return .{ .root = @fromBackingInt(output.root), .cached = @fromBackingInt(output.record.value) };
 }

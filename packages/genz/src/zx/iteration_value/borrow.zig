@@ -56,26 +56,7 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = @import("../../node/view.zig").join(output.expressions.*, output.forms.*);
-
-    @import("../../node/import_rows.zig").append(lowering.allocator, &lowering.builder.nodes.expressions, &expressions) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(lowering.allocator, &lowering.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    @import("../../node/import_statements.zig").append(lowering.allocator, body, output.statements) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    lowering.serial = output.serial;
+    try @import("publication.zig").write(lowering, .Borrow, .{ .body = body }, output);
 
     return @fromBackingInt(output.root);
 }

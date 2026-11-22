@@ -167,3 +167,7 @@ export enum IterationResource {
 }
 
 export type CallAstPublication = opaque
+
+export type IterationPublication = opaque
+
+export type IterationProjectionFrame = opaque
