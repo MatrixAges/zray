@@ -36,35 +36,68 @@ const Source = struct {
 
         errdefer self.leaves.shrinkRetainingCapacity(start);
 
-        try self.collect(allocator, argument);
+        var frame: Probe = .{ .cache = self, .allocator = allocator };
+        const entry = @import("generated_lookup_symbolic_call");
 
-        const values = self.leaves.items[start..];
-        const rule = @import("generated_verification_call_digest");
-        const input: std.meta.Child(rule.Input) = .{ .target = target, .terms = values };
+        const input: std.meta.Child(entry.Input) = .{
+            .key = @ptrCast(&frame),
+            .argument = @ptrCast(&argument),
+            .start = start,
+            .target = target,
+        };
+
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const digest = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-        const key = Key{ .target = target, .start = start, .length = values.len, .digest = digest };
 
-        if (self.rows.getContext(key, .{ .leaves = self.leaves.items })) |result| {
-            self.leaves.shrinkRetainingCapacity(start);
+        entry.executeIn(empty.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
 
-            return .{ .hit = result };
-        }
-
-        // Offsets survive pool growth while a nested call evaluates this miss.
-        return .{ .miss = key };
+        return frame.result;
     }
-    fn collect(self: *Source, allocator: Allocator, value: terms.Value) Allocator.Error!void {
-        switch (value) {
-            .scalar => |leaf| try self.leaves.append(allocator, leaf),
-            .fields => |fields| for (fields) |field| try self.collect(allocator, field),
-        }
-    }
-
     pub fn publish(self: *Source, allocator: Allocator, key: Key, result: terms.Evaluation) Allocator.Error!void {
         try self.rows.putContext(allocator, key, result, .{ .leaves = self.leaves.items });
     }
 };
+
+const Probe = struct {
+    cache: *Source,
+    allocator: Allocator,
+    result: Lookup(Source.Key) = undefined,
+    fn borrow(handle: *const anyopaque) *@This() {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+pub fn appendSymbolicCallKey(handle: *const anyopaque, text: []const u8) Allocator.Error!void {
+    const probe = Probe.borrow(handle);
+
+    try probe.cache.leaves.append(probe.allocator, text);
+}
+
+pub fn symbolicCallKeyTerms(handle: *const anyopaque, start: u64) []const []const u8 {
+    return Probe.borrow(handle).cache.leaves.items[@intCast(start)..];
+}
+
+pub fn probeSymbolicCallKey(handle: *const anyopaque, target: u32, start: u64, count: u64, digest: u64) bool {
+    const probe = Probe.borrow(handle);
+    // Offsets survive pool growth while a nested call evaluates this miss.
+    const key: Source.Key = .{ .target = target, .start = @intCast(start), .length = @intCast(count), .digest = digest };
+
+    if (probe.cache.rows.getContext(key, .{ .leaves = probe.cache.leaves.items })) |value| {
+        probe.result = .{ .hit = value };
+
+        return true;
+    }
+
+    probe.result = .{ .miss = key };
+
+    return false;
+}
+
+pub fn rewindSymbolicCallKey(handle: *const anyopaque, start: u64) void {
+    Probe.borrow(handle).cache.leaves.shrinkRetainingCapacity(@intCast(start));
+}
 
 const Seed = struct {
     rows: std.StringHashMapUnmanaged(terms.Evaluation) = .empty,

@@ -1,0 +1,13 @@
+import type { GraphRegistration } from "verification_publication_host"
+import type { Lookup, Selection } from "../model"
+
+export type Input = {
+    graph: GraphRegistration,
+    lookup: Lookup,
+    expression: string
+    names: string[]
+}
+
+export type Bind = Input & {
+    selected: Selection
+}

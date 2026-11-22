@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Graph" />
+
+    <Args in={Graph.Input} out={string} />
+
+    <Call fn="../admit" in={$in.lookup} />
+
+    <Call
+        fn="bind"
+        in={{
+            ...$in,
+            selected: $ctx.admit
+        }}
+    />
+
+    <Return value={$ctx.bind} />
+</Module>

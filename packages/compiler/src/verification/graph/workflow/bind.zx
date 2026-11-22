@@ -1,0 +1,38 @@
+import host from "verification_publication_host"
+
+import { definition_limit_message } from "../const"
+import { Action } from "../model"
+
+import type { Bind as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { graph, lookup, names, selected } = in
+
+    if (selected.action != Action.Append) {
+        return match selected.action {
+            Action.Atom => in.expression,
+            Action.Reuse => names[selected.position],
+            Action.Limit =>
+                host.rejectSymbolicDefinition(graph, definition_limit_message),
+            _ => host.rejectSymbolicDefinition(graph, null)
+        }
+    }
+
+    host.reserveSymbolicDefinition(graph)
+
+    const resized = selected.capacity != lookup.capacity
+
+    if (resized) {
+        host.allocateSymbolicIndex(graph, selected.capacity)
+    }
+
+    const name = host.writeSymbolicDefinition(graph, selected.position, resized)
+
+    if (resized) {
+        host.installSymbolicIndex(graph)
+    }
+
+    return name
+}

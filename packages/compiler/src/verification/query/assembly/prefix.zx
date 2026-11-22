@@ -1,0 +1,15 @@
+import host from "verification_publication_host"
+
+import type { Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { query, capacity, header, precondition_count } = in
+
+    host.reserveQueryBuffer(query, capacity)
+    host.appendQueryText(query, header)
+    host.appendQueryDefinitions(query, 0, precondition_count)
+
+    return host.queryWrittenLength(query)
+}

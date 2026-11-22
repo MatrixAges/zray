@@ -12,6 +12,8 @@ export type SymbolicExpression = opaque
 
 export type SymbolicInvocation = opaque
 
+export type SymbolicCallKey = opaque
+
 export enum SymbolicOperand {
     First,
     Second,
@@ -178,3 +180,18 @@ export declare function publishSymbolicCallee(call: SymbolicInvocation): void
 export declare function symbolicCalleeSafety(call: SymbolicInvocation): string
 
 export declare function writeSymbolicCallSafety(call: SymbolicInvocation, safe: string): void
+
+export declare function appendSymbolicCallKey(key: SymbolicCallKey, text: string): void
+    throws { OutOfMemory }
+
+export declare function symbolicCallKeyTerms(key: SymbolicCallKey, start: u64): string[]
+
+export declare function probeSymbolicCallKey(
+    key: SymbolicCallKey,
+    target: u32,
+    start: u64,
+    count: u64,
+    digest: u64
+): bool
+
+export declare function rewindSymbolicCallKey(key: SymbolicCallKey, start: u64): void

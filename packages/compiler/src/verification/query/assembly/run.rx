@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Query" />
+
+    <Args in={Query.Input} out={void} />
+
+    <Call fn="prefix" in={$in} />
+    <Call fn="body" in={$in} />
+
+    <Call
+        fn="publish"
+        in={{
+            query: $in.query,
+            prefix: $ctx.prefix,
+            feasibility: $in.feasibility
+        }}
+    />
+</Module>

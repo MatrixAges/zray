@@ -27,76 +27,9 @@ pub fn step(self: *Self, span: zx.Span) zx.Error!void {
 }
 
 pub fn bind(self: *Self, expression: []const u8, width: u16, origin: Origin) zx.Error![]const u8 {
-    if (comptime !generated) return self.bindSeed(expression, width, origin);
+    if (comptime generated) return @import("graph/registration.zig").bind(self, expression, width, origin);
 
-    const admission = @import("generated_verification_graph_admit");
-    const publication = @import("generated_verification_graph_publish");
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const input: std.meta.Child(admission.Input) = .{
-        .keys = self.definitions.items(.expression),
-        .key = expression,
-        .widths = self.definitions.items(.width),
-        .width = width,
-        .buckets = @ptrCast(&self.index),
-        .capacity = self.index.len,
-    };
-
-    const selected = zx.columns.invoke(admission.executeValue, empty.allocator(), &input) catch unreachable;
-
-    switch (selected.action) {
-        .Atom => return expression,
-        .Reuse => return self.definitions.items(.name)[@intCast(selected.position)],
-        .WidthMismatch => return error.InvalidSource,
-        .Limit => return self.reporter.fail(.unsupported, origin.span, limits.definition_limit_message),
-        .Append => {},
-    }
-
-    try self.definitions.ensureUnusedCapacity(self.allocator, 1);
-
-    const rows = self.definitions.slice();
-    const resized = selected.capacity != self.index.len;
-    const buckets = if (resized) try self.allocator.alloc(u64, @intCast(selected.capacity)) else self.index;
-
-    errdefer if (resized) self.allocator.free(buckets);
-
-    if (resized) @memset(buckets, 0);
-
-    const request: std.meta.Child(publication.Input) = .{
-        .origin = &.{
-            .count = rows.len,
-            .file = origin.file_name,
-            .previous = if (rows.len == 0) null else rows.items(.origin)[rows.len - 1].file_name,
-        },
-        .index = &.{
-            .keys = rows.items(.expression),
-            .key = expression,
-            .buckets = @ptrCast(&buckets),
-            .capacity = buckets.len,
-            .position = selected.position,
-            .resized = resized,
-        },
-    };
-
-    const identity = zx.columns.invoke(publication.executeValue, self.allocator, &request) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    self.appendDefinition(.{
-        .name = identity.name,
-        .expression = expression,
-        .width = width,
-        .origin = .{ .file_name = identity.file, .span = origin.span },
-    });
-
-    if (resized) {
-        self.allocator.free(self.index);
-
-        self.index = buckets;
-    }
-
-    return identity.name;
+    return self.bindSeed(expression, width, origin);
 }
 
 fn bindSeed(self: *Self, expression: []const u8, width: u16, origin: Origin) zx.Error![]const u8 {
@@ -123,7 +56,7 @@ fn bindSeed(self: *Self, expression: []const u8, width: u16, origin: Origin) zx.
     return name;
 }
 
-fn appendDefinition(self: *Self, definition: Definition) void {
+pub fn appendDefinition(self: *Self, definition: Definition) void {
     self.definitions.appendAssumeCapacity(definition);
 
     self.declaration_payload_bytes +|= definition.name.len +| definition.expression.len;

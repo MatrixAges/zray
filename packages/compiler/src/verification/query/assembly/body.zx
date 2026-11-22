@@ -1,0 +1,12 @@
+import host from "verification_publication_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { query, precondition_count, definition_count, correctness } = in
+
+    host.appendQueryDefinitions(query, precondition_count, definition_count)
+    host.appendQueryText(query, correctness)
+}

@@ -3,7 +3,8 @@ const zx = @import("zx");
 const Graph = @import("../graph.zig");
 const Conditions = @import("../conditions.zig");
 const Allocator = std.mem.Allocator;
-const layout = if (@import("parser_options").generated_parser) @import("generated_verification_query") else @import("seed.zig");
+const generated = @import("parser_options").generated_parser;
+const layout = if (generated) @import("generated_verification_query") else @import("seed.zig");
 const Request = @typeInfo(@TypeOf(layout.executeValue)).@"fn".param_types[1].?;
 const Input = if (@typeInfo(Request) == .pointer) std.meta.Child(Request) else Request;
 
@@ -13,6 +14,9 @@ pub fn render(result: Allocator, temporary: Allocator, graph: *Graph, preconditi
     defer scratch.deinit();
 
     const sections = try layout.executeValue(scratch.allocator(), if (Input == Request) input else &input);
+
+    if (comptime generated) return @import("assembly.zig").write(result, graph, precondition_count, sections, inputs);
+
     const capacity = sections.header.len +| graph.declarationCapacity() +| sections.correctness.len;
     var output = try std.Io.Writer.Allocating.initCapacity(result, capacity);
 

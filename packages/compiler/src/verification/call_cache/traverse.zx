@@ -1,0 +1,35 @@
+import host from "verification_host"
+
+import type { SymbolicCallKey, SymbolicValue } from "verification_host"
+
+export type Input = {
+    key: SymbolicCallKey,
+    value: SymbolicValue
+}
+
+export type Output = void
+
+export default function traverse(in: Input): Output {
+    const { key, value } = in
+
+    const text = host.symbolicText(value)
+
+    if (text != null) {
+        host.appendSymbolicCallKey(key, text)
+
+        return
+    }
+
+    const count = host.symbolicFieldCount(value)
+
+    const finished = loop(0, {
+        while: index => index < count,
+        next: index => {
+            traverse({
+                key,
+                value: host.symbolicField(value, index)
+            })
+            index += 1
+        }
+    })
+}

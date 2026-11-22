@@ -126,6 +126,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         generated.execution.addImport("output_host", module);
         generated.execution.addImport("verification_host", module);
         generated.execution.addImport("verification_program_host", module);
+        generated.execution.addImport("verification_publication_host", module);
 
         if (!native_genz and rx_analysis) {
             genz.addImport("execution_abi", generated.execution.import_table.get("zxc_abi").?);
