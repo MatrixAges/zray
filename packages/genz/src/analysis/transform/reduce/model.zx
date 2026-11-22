@@ -14,6 +14,8 @@ export type Input = {
     statement_base: u32,
     entered_start: u32,
     entered_count: u64,
+    element_start: u32,
+    before_assignment: u64,
     element_count: u64,
     outer_count: u64
 }

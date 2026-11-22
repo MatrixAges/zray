@@ -6,6 +6,8 @@ const Lower = @import("../lower.zig");
 const elements = @import("../state_value/elements.zig");
 const ownership = @import("../state_value/ownership.zig");
 const generated = @import("genz_options").generated_analysis;
+const blocks = @import("../../node/blocks.zig");
+const Statements = if (generated) blocks.Sequence else std.ArrayList(node.Statement);
 
 pub const Request = struct {
     operation: ir.ExprId,
@@ -15,7 +17,7 @@ pub const Request = struct {
     callback: node.ExpressionId,
 };
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.ExpressionId {
     const accumulator = self.names[@backingInt(args.transform.parameters[0])];
     const element = args.transform.parameters[1];
     const type_id = self.program.expression(args.operation).type_id;
@@ -45,7 +47,10 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
         .no = .{},
     } });
 
-    var loop: std.ArrayList(node.Statement) = .empty;
+    var loop: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+    defer if (generated) loop.deinit();
+
     const callback = if (self.state_active) try ownership.erase(self, &loop, type_id, args.callback) else args.callback;
 
     if (!generated) {
@@ -59,9 +64,19 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
         return @import("../aggregate.zig").finish(self, body, result);
     }
 
-    const before_assignment = loop.items.len;
-    const capture = try elements.captureName(self, &loop, source_type, element);
+    var binding = self.builder.statementSequence(self.workspace);
+
+    defer binding.deinit();
+
+    const capture = try elements.captureName(self, &binding, source_type, element);
     const label = try self.fresh("block");
+    const outer_prefix = try body.block(self.allocator);
+    const callback_body = try loop.block(self.allocator);
+    const element_binding = try binding.block(self.allocator);
+    const nodes = self.builder.nodes;
+    const element_body = try blocks.join(self.allocator, nodes, &.{ element_binding.start, callback_body.start }, &.{ element_binding.len, callback_body.len });
+    const before = node.Block{ .start = element_body.start, .len = callback_body.len };
+    const after = node.Block{ .start = before.start + before.len, .len = element_body.len - before.len };
     const entry = @import("generated_reduce_emit");
     const Input = std.meta.Child(entry.Input);
 
@@ -77,8 +92,10 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
         .entered_start = entered.start,
         .entered_count = entered.len,
-        .element_count = loop.items.len,
-        .outer_count = body.items.len,
+        .element_start = element_body.start,
+        .before_assignment = before.len,
+        .element_count = element_body.len,
+        .outer_count = outer_prefix.len,
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -94,14 +111,10 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
     const outer = view.join(output.outer.*, output.variables.*);
 
     try append(self, &self.builder.nodes.expressions, output.expressions);
-
-    _ = try self.builder.statements(loop.items[0..before_assignment]);
-
+    try blocks.appendAtTail(self.allocator, nodes, before);
     try append(self, &self.builder.nodes.statements, output.update);
-
-    _ = try self.builder.statements(loop.items[before_assignment..]);
-    _ = try self.builder.statements(body.items);
-
+    try blocks.appendAtTail(self.allocator, nodes, after);
+    try blocks.appendAtTail(self.allocator, nodes, outer_prefix);
     try append(self, &self.builder.nodes.statements, &outer);
 
     return @fromBackingInt(output.root);

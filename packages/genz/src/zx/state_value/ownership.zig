@@ -23,7 +23,7 @@ pub fn carries(self: *const Lower, type_id: ir.TypeId) bool {
     return needed(self, @fromBackingInt(std.math.maxInt(u32)), type_id, 0);
 }
 
-pub fn erase(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn erase(self: *Lower, body: anytype, type_id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     return projected(self, body, @fromBackingInt(std.math.maxInt(u32)), type_id, value, 0);
 }
 

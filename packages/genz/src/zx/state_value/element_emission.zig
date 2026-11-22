@@ -34,7 +34,7 @@ pub fn lower(self: *Lower, body: anytype, list: ir.TypeId, value: node.Expressio
     return (try execute(self, body, decision, value, &.{})).value;
 }
 
-pub fn capture(self: *Lower, body: *std.ArrayList(node.Statement), list: ir.TypeId, symbol: ir.SymbolId) Lower.Error![]const u8 {
+pub fn capture(self: *Lower, body: anytype, list: ir.TypeId, symbol: ir.SymbolId) Lower.Error![]const u8 {
     const decision = choice(self, list, .Capture, self.used[@backingInt(symbol)]);
 
     if (decision.discard) return decision.discard_name;
@@ -99,15 +99,7 @@ fn execute(self: *Lower, body: anytype, decision: Decision, value: node.Expressi
     };
 
     const output = entry.executeIn(allocator, &input) catch |err| return failure(err);
-
-    const result = if (@TypeOf(body) == *std.ArrayList(node.Statement) and decision.capture) captured: {
-        var prefix: std.ArrayList(node.Statement) = .empty;
-        const prepared = try conversion.apply(self, &prefix, &prefix, output.result);
-
-        try body.insertSlice(self.allocator, 0, prefix.items);
-
-        break :captured prepared;
-    } else try conversion.apply(self, body, body, output.result);
+    const result = try conversion.apply(self, body, body, output.result);
 
     return .{ .value = result, .name = if (decision.capture) try self.allocator.dupe(u8, output.name) else name };
 }

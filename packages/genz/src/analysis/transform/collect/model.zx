@@ -23,6 +23,7 @@ export type Publish = {
     capture: u8[],
     index?: u8[],
     name: u8[],
+    element_start: u32,
     element_count: u64,
     outer_count: u64
 }
@@ -35,11 +36,12 @@ export type Body = {
 export type Update = Body & {
     branch_body: Statements,
     update: Statements,
+    loop_start: u32,
     result: u32,
     valid: bool
 }
 
-export type Output = Update.Omit("source") & {
+export type Output = Update.Omit("source", "loop_start") & {
     outer_start: u32,
     outer_count: u32
 }

@@ -21,10 +21,15 @@ export default function (in: Input): Output {
         index: index.id
     })
 
+    const tail = integers.widen(source.bases.statement_base)
+    const end = integers.widen(source.element_start) + source.element_count
+    const reuse = source.element_count != 0 && end == tail
+    const loop_start = reuse ? source.element_start : source.bases.statement_base
+
     const update = assignment({
         table: empty({}),
         base: integers.narrow(
-            integers.widen(source.bases.statement_base) + source.element_count
+            integers.widen(loop_start) + source.element_count
         ),
         target: target.id,
         value: source.value
@@ -35,6 +40,7 @@ export default function (in: Input): Output {
         context: target.state,
         branch_body: empty({}),
         update: update.table,
+        loop_start,
         result: source.result,
         valid: target.state.valid && update.valid
     }

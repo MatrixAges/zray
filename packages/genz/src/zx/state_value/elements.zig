@@ -30,7 +30,7 @@ pub fn write(self: *Lower, body: anytype, list: ir.TypeId, value: node.Expressio
     return emission.lower(self, body, list, value, .Write);
 }
 
-pub fn captureName(self: *Lower, body: *std.ArrayList(node.Statement), list: ir.TypeId, symbol: ir.SymbolId) Lower.Error![]const u8 {
+pub fn captureName(self: *Lower, body: anytype, list: ir.TypeId, symbol: ir.SymbolId) Lower.Error![]const u8 {
     if (!generated) return seed.captureName(self, body, list, symbol);
 
     return emission.capture(self, body, list, symbol);

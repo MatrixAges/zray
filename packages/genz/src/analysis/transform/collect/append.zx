@@ -78,6 +78,7 @@ export default function (in: Input): Output {
             expression: [write.id]
         },
         update: update.table,
+        loop_start: integers.narrow(first + 1),
         result: finished.id,
         valid: finished.state.valid && update.valid
     }

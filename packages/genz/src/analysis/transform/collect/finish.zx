@@ -7,9 +7,7 @@ import type { Update as Input, Output } from "./model"
 export default function (in: Input): Output {
     const source = in.source
 
-    const start =
-        integers.widen(source.bases.statement_base) + in.branch_body.tags.length
-
+    const start = integers.widen(in.loop_start)
     const count = source.element_count + in.update.tags.length
     const outer = start + count
 
@@ -24,7 +22,10 @@ export default function (in: Input): Output {
     })
 
     return {
-        ...in.omit(["source"]),
+        ...in.omit([
+            "source",
+            "loop_start"
+        ]),
         context: {
             ...in.context,
             statements: loop_row.table

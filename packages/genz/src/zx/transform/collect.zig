@@ -7,7 +7,7 @@ const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const elements = @import("../state_value/elements.zig");
 const conversion = @import("../state_value/conversion_emission.zig");
-const Statements = std.ArrayList(node.Statement);
+const blocks = @import("../../node/blocks.zig");
 
 pub const Request = struct {
     transform: ir.Transform,
@@ -16,7 +16,7 @@ pub const Request = struct {
     callback: node.ExpressionId,
 };
 
-pub fn lower(self: *Lower, body: *Statements, request: Request) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *blocks.Sequence, request: Request) Lower.Error!node.ExpressionId {
     const transform = request.transform;
     const mapping = transform.kind == .map;
     const element = transform.parameters[0];
@@ -30,15 +30,27 @@ pub fn lower(self: *Lower, body: *Statements, request: Request) Lower.Error!node
     const allocation = try prepare(self, body, mapping, request.source, element_type, name);
     const result = if (mapping) try aggregate.bind(self, body, allocation) else allocation;
     const index_capture = if (mapping) try self.fresh("index") else null;
-    var loop: Statements = .empty;
+    var loop = self.builder.statementSequence(self.workspace);
+
+    defer loop.deinit();
+
     const value = if (mapping) try aggregate.bind(self, &loop, request.callback) else try self.builder.identifier(capture);
     const stored = try elements.write(self, &loop, request.type_id, value);
 
     if (!mapping) self.used[@backingInt(element)] = true;
 
-    const captured = try elements.captureName(self, &loop, source_type, element);
+    var binding = self.builder.statementSequence(self.workspace);
 
-    return publish(self, body.items, loop.items, .{
+    defer binding.deinit();
+
+    const captured = try elements.captureName(self, &binding, source_type, element);
+
+    try binding.extend(&loop);
+
+    const outer = try body.block(self.allocator);
+    const element_body = try binding.block(self.allocator);
+
+    return publish(self, outer, element_body, .{
         .source = request.source,
         .value = stored,
         .result = result,
@@ -50,7 +62,7 @@ pub fn lower(self: *Lower, body: *Statements, request: Request) Lower.Error!node
     });
 }
 
-fn prepare(self: *Lower, body: *Statements, mapping: bool, source: node.ExpressionId, element: node.ExpressionId, name: []const u8) Lower.Error!node.ExpressionId {
+fn prepare(self: *Lower, body: *blocks.Sequence, mapping: bool, source: node.ExpressionId, element: node.ExpressionId, name: []const u8) Lower.Error!node.ExpressionId {
     const entry = @import("generated_transform_collect_prepare");
     const Input = std.meta.Child(entry.Input);
     var boundary: conversion.Capture = undefined;
@@ -98,7 +110,7 @@ const Result = struct {
     type_id: ir.TypeId,
 };
 
-fn publish(self: *Lower, body: []const node.Statement, loop: []const node.Statement, result: Result) Lower.Error!node.ExpressionId {
+fn publish(self: *Lower, body: node.Block, loop: node.Block, result: Result) Lower.Error!node.ExpressionId {
     const entry = @import("generated_transform_collect_publish");
     const Input = std.meta.Child(entry.Input);
     var boundary: conversion.Capture = undefined;
@@ -113,6 +125,7 @@ fn publish(self: *Lower, body: []const node.Statement, loop: []const node.Statem
         .capture = result.capture,
         .index = result.index,
         .name = result.name,
+        .element_start = loop.start,
         .element_count = loop.len,
         .outer_count = body.len,
     };
@@ -132,13 +145,9 @@ fn publish(self: *Lower, body: []const node.Statement, loop: []const node.Statem
 
     try append(self, &nodes.expressions, &expressions);
     try append(self, &nodes.statements, output.branch_body);
-
-    _ = try self.builder.statements(loop);
-
+    try blocks.appendAtTail(self.allocator, nodes, loop);
     try append(self, &nodes.statements, output.update);
-
-    _ = try self.builder.statements(body);
-
+    try blocks.appendAtTail(self.allocator, nodes, body);
     try append(self, &nodes.statements, output.context.statements);
 
     self.uses_allocator = true;
