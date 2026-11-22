@@ -139,17 +139,7 @@ export declare function copyColumnBytes(
     source: u8[]
 ): u8[] throws { OutOfMemory }
 
-export declare function copyColumnTexts(
-    resource: ColumnAllocator,
-    source: string[]
-): string[] throws { OutOfMemory }
-
 export declare function copyColumnTextViews(
     resource: ColumnAllocator,
     source: string[]
 ): string[] throws { OutOfMemory }
-
-export declare function copyColumnOptionalTexts(
-    resource: ColumnAllocator,
-    source: ColumnNames
-): ColumnNames throws { OutOfMemory }

@@ -75,19 +75,45 @@ pub const writeColumnU32s = writeU32;
 pub const copyColumnText = column_set.copyText;
 pub const copyColumnBytes = column_set.copyText;
 pub const copyColumnTextViews = column_set.copyTextViews;
-pub const copyColumnTexts = column_set.copyTexts;
-pub const copyColumnOptionalTexts = column_set.copyTexts;
 pub const appendU64 = column_set.appendU64;
 pub const column_transfer = @import("column_transfer.zig");
 pub const borrowTransferGroup = column_transfer.borrowGroup;
 pub const transferColumnCount = column_transfer.countColumns;
 pub const transferSourceLength = column_transfer.sourceLength;
 pub const transferOwnsPayload = column_transfer.ownsPayload;
+pub const transferOwnsTextItems = column_transfer.ownsTextItems;
+pub const transferTextList = column_transfer.textList;
+pub const writeTransferTextList = column_transfer.writeTextList;
 pub const reserveTransferColumn = column_transfer.reserveOne;
 pub const copyTransferValues = column_transfer.copyValues;
 pub const retainTransferItem = column_transfer.retainItem;
 pub const releaseTransferItem = column_transfer.releaseItem;
 pub const publishTransferColumn = column_transfer.publishOne;
+const text_storage = @import("text_storage.zig");
+pub const duplicateText = text_storage.duplicate;
+pub const freeOwnedText = text_storage.free;
+pub const freeTextSlots = text_storage.free;
+pub const freeOptionalTextSlots = text_storage.free;
+pub const requireTextSlots = text_storage.require;
+pub const requireOptionalTextSlots = text_storage.require;
+pub const requireTextCopy = text_storage.requireCopy;
+pub const checkTextSlotCount = text_storage.checkLength;
+
+pub inline fn allocateTextSlots(resource: *const anyopaque, count: u64) ?[]const []const u8 {
+    return text_storage.allocate([]const u8, resource, count);
+}
+
+pub inline fn allocateOptionalTextSlots(resource: *const anyopaque, count: u64) ?[]const ?[]const u8 {
+    return text_storage.allocate(?[]const u8, resource, count);
+}
+
+pub inline fn writeTextSlot(target: []const []const u8, index: u64, value: []const u8) void {
+    text_storage.write([]const u8, target, index, value);
+}
+
+pub inline fn writeOptionalTextSlot(target: []const ?[]const u8, index: u64, value: ?[]const u8) void {
+    text_storage.write(?[]const u8, target, index, value);
+}
 
 pub inline fn reserveTypeRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype, limit: ?u64, precise: bool) std.mem.Allocator.Error!void {
     try column_set.reserveRanges(resource, target, elements, limit, precise, false);
@@ -595,28 +621,6 @@ pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const 
 
 pub inline fn writeStringList(target: *const anyopaque, index: u64, value: []const []const u8) error{IndexOutOfBounds}!void {
     return write([]const []const u8, target, index, value);
-}
-
-/// Copies text into an exclusively borrowed destination and releases partial copies on failure.
-pub fn copyStrings(allocator: std.mem.Allocator, target: *const anyopaque, source: []const []const u8) (std.mem.Allocator.Error || error{IndexOutOfBounds})!void {
-    const output: *const [][]const u8 = @ptrCast(@alignCast(target));
-
-    if (source.len != output.len) return error.IndexOutOfBounds;
-
-    var copied: usize = 0;
-
-    errdefer for (output.*[0..copied]) |text| allocator.free(text);
-
-    for (source, output.*) |text, *item| {
-        item.* = try allocator.dupe(u8, text);
-        copied += 1;
-    }
-}
-
-pub inline fn copyStringsWithAllocator(resource: *const anyopaque, target: *const anyopaque, source: []const []const u8) (std.mem.Allocator.Error || error{IndexOutOfBounds})!void {
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-
-    try copyStrings(allocator.*, target, source);
 }
 
 // The caller exclusively lends a descriptor for a mutable slice for the duration of the call.

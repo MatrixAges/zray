@@ -1,0 +1,29 @@
+export declare function allocateTextSlots(allocator: Allocator, count: u64): string[]?
+
+export declare function allocateOptionalTextSlots(allocator: Allocator, count: u64): string?[]?
+
+export declare function writeTextSlot(target: string[], index: u64, value: string): void
+
+export declare function writeOptionalTextSlot(target: string?[], index: u64, value: string?): void
+
+export declare function duplicateText(allocator: Allocator, source: string): string?
+
+export declare function copyColumnText(allocator: Allocator, source: string): string throws {
+    OutOfMemory
+}
+
+export declare function freeOwnedText(allocator: Allocator, text: string): void
+
+export declare function freeTextSlots(allocator: Allocator, slots: string[]): void
+
+export declare function freeOptionalTextSlots(allocator: Allocator, slots: string?[]): void
+
+export declare function requireTextSlots(value: string[]?): string[] throws { OutOfMemory }
+
+export declare function requireOptionalTextSlots(value: string?[]?): string?[] throws { OutOfMemory }
+
+export declare function requireTextCopy(success: bool): void throws { OutOfMemory }
+
+export declare function checkTextSlotCount(expected: u64, length: u64): void throws {
+    IndexOutOfBounds
+}

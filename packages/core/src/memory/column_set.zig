@@ -311,31 +311,6 @@ pub fn copyTextViews(resource: *const anyopaque, source: []const []const u8) std
     return borrowAllocator(resource).dupe([]const u8, source);
 }
 
-pub fn copyTexts(resource: *const anyopaque, source: anytype) std.mem.Allocator.Error!@TypeOf(source) {
-    const allocator = borrowAllocator(resource);
-    const Text = std.meta.Elem(@TypeOf(source));
-    const optional = @typeInfo(Text) == .optional;
-    const result = try allocator.alloc(Text, source.len);
-    var written: usize = 0;
-
-    errdefer {
-        for (result[0..written]) |item| {
-            if (optional) {
-                if (item) |text| allocator.free(text);
-            } else allocator.free(item);
-        }
-
-        allocator.free(result);
-    }
-
-    for (source, result) |item, *target| {
-        target.* = if (optional) (if (item) |text| try allocator.dupe(u8, text) else null) else try allocator.dupe(u8, item);
-        written += 1;
-    }
-
-    return result;
-}
-
 pub fn borrowAllocator(resource: *const anyopaque) std.mem.Allocator {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
 

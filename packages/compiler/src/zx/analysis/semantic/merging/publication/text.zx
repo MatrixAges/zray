@@ -1,3 +1,4 @@
+import { into } from "core/owned_text"
 import memory from "memory"
 
 import {
@@ -19,19 +20,44 @@ export default function (in: Input): Output {
     const { delta, origins, target, nominal, text_mode, progress, payload } = in
 
     if (text_mode == TextMode.Own) {
-        memory.copyStringsWithAllocator(payload, target.labels, delta.labels)
+        into({
+            allocator: payload,
+            target: target.labels,
+            source: delta.labels
+        })
+
         memory.writeU64(progress, 0, completed_labels)
 
-        memory.copyStringsWithAllocator(payload, target.field_names, delta.field_names)
+        into({
+            allocator: payload,
+            target: target.field_names,
+            source: delta.field_names
+        })
+
         memory.writeU64(progress, 0, completed_fields)
 
-        memory.copyStringsWithAllocator(payload, target.names, delta.names)
+        into({
+            allocator: payload,
+            target: target.names,
+            source: delta.names
+        })
+
         memory.writeU64(progress, 0, completed_names)
 
-        memory.copyStringsWithAllocator(payload, nominal.owners, origins.owners)
+        into({
+            allocator: payload,
+            target: nominal.owners,
+            source: origins.owners
+        })
+
         memory.writeU64(progress, 0, completed_owners)
 
-        memory.copyStringsWithAllocator(payload, nominal.members, origins.members)
+        into({
+            allocator: payload,
+            target: nominal.members,
+            source: origins.members
+        })
+
         memory.writeU64(progress, 0, completed_members)
 
         return
@@ -43,7 +69,12 @@ export default function (in: Input): Output {
     memory.copyStringViews(nominal.members, origins.members)
 
     if (text_mode == TextMode.OwnNames) {
-        memory.copyStringsWithAllocator(payload, target.names, delta.names)
+        into({
+            allocator: payload,
+            target: target.names,
+            source: delta.names
+        })
+
         memory.writeU64(progress, 0, completed_names)
     } else {
         memory.copyStringViews(target.names, delta.names)

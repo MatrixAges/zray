@@ -1,5 +1,7 @@
 import memory from "memory"
 
+import releaseTextLists from "./release_text_lists"
+
 import type { Payload } from "./model"
 
 export type Input = Payload
@@ -8,6 +10,12 @@ export type Output = void
 
 export default function (in: Input): Output {
     const { allocator, group, column, count } = in
+
+    if (memory.transferOwnsTextItems(group, column)) {
+        releaseTextLists(in)
+
+        return
+    }
 
     const released = loop(0, {
         while: row => row < count,

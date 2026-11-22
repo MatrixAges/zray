@@ -6,6 +6,6 @@
     <Call fn="write_columns" in={$in.columns} />
 
     <If on={$in.owned_text != null}>
-        <Call fn="own_text" in={$in.owned_text} />
+        <Call fn="../../../../../core/owned_text/into" in={$in.owned_text} />
     </If>
 </Module>

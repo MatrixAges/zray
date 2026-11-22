@@ -35,6 +35,7 @@ pub const View = struct {
             .storage = @ptrCast(&self.columns),
             .shape = null,
             .resource = @ptrCast(allocator),
+            .text_allocator = @ptrCast(allocator),
             .ids = @ptrCast(&self.ids),
         };
 

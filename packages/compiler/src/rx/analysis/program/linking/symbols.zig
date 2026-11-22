@@ -24,7 +24,7 @@ pub fn publish(builder: *Builder, source: ir.SymbolTable, first: usize, borrow_n
     const source_names = source.names[first..];
     const name_bytes = std.mem.sliceAsBytes(names);
     const borrowed: Column = .{ .source = std.mem.sliceAsBytes(source_names), .target = @ptrCast(&name_bytes) };
-    const owned: Text = .{ .source = source_names, .target = @ptrCast(&names) };
+    const owned: Text = .{ .allocator = @ptrCast(&builder.allocator), .source = source_names, .target = @ptrCast(&names) };
     const metadata = .{ "types", "span_start", "span_end" };
     var views: [metadata.len][]u8 = undefined;
     var columns: [metadata.len]Column = undefined;

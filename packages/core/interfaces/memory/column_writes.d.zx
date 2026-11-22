@@ -82,6 +82,22 @@ export declare function transferOwnsPayload(
     column: u64
 ): bool
 
+export declare function transferOwnsTextItems(group: TransferGroup, column: u64): bool
+
+export declare function transferTextList(
+    group: TransferGroup,
+    column: u64,
+    row: u64,
+    staged: bool
+): string[]?
+
+export declare function writeTransferTextList(
+    group: TransferGroup,
+    column: u64,
+    row: u64,
+    value: string[]?
+): void
+
 export declare function reserveTransferColumn(
     allocator: Allocator,
     group: TransferGroup,

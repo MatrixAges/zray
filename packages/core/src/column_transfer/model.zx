@@ -23,3 +23,7 @@ export type Payload = {
     column: u64,
     count: u64
 }
+
+export type Retain = Payload & {
+    first: u64
+}

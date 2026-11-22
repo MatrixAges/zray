@@ -1,0 +1,13 @@
+import memory from "memory"
+
+import clone from "./clone"
+
+import type { Allocation } from "./model"
+
+export type Input = Allocation
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return memory.requireTextSlots(clone(in))
+}

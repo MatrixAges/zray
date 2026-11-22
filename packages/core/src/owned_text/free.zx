@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import freePrefix from "./free_prefix"
+
+import type { Allocator } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    slots: string[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { allocator, slots } = in
+
+    freePrefix({
+        allocator,
+        slots,
+        count: slots.length
+    })
+
+    memory.freeTextSlots(allocator, slots)
+}

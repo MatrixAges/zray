@@ -1,14 +1,12 @@
-import type { StringBuffer, U8Buffer } from "memory"
+import type { Into } from "core/owned_text"
+import type { U8Buffer } from "memory"
 
 export type Column = {
     source: u8[],
     target: U8Buffer
 }
 
-export type Text = {
-    source: string[],
-    target: StringBuffer
-}
+export type Text = Into
 
 export type Input = {
     columns: Column[],

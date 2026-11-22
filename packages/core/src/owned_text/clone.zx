@@ -1,0 +1,31 @@
+import memory from "memory"
+
+import fill from "./fill"
+
+import type { Allocation } from "./model"
+
+export type Input = Allocation
+
+export type Output = string[]?
+
+export default function (in: Input): Output {
+    const { allocator, source } = in
+
+    const target = memory.allocateTextSlots(allocator, source.length)
+
+    if (target == null) {
+        return null
+    }
+
+    if (fill({
+        allocator,
+        source,
+        target
+    })) {
+        return target
+    }
+
+    memory.freeTextSlots(allocator, target)
+
+    return null
+}

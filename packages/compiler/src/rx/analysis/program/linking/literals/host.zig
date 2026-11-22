@@ -43,7 +43,7 @@ pub fn publish(builder: *Builder, source: *const ir.ExpressionTable, borrow_text
 
             if (own_text and !borrow_text) {
                 strings = tail;
-                text = .{ .source = values, .target = @ptrCast(&strings) };
+                text = .{ .allocator = @ptrCast(&builder.allocator), .source = values, .target = @ptrCast(&strings) };
             } else {
                 views[count] = std.mem.sliceAsBytes(tail);
                 columns[count] = .{ .source = std.mem.sliceAsBytes(values), .target = @ptrCast(&views[count]) };

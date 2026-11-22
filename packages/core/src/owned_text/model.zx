@@ -1,0 +1,16 @@
+import type { Allocator } from "memory"
+
+export type Allocation = {
+    allocator: Allocator,
+    source: string[]
+}
+
+export type Fill = Allocation & {
+    target: string[]
+}
+
+export type Release = {
+    allocator: Allocator,
+    slots: string[],
+    count: u64
+}

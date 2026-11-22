@@ -32,6 +32,7 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
     }
 
     const input: Input = .{
+        .allocator = @ptrCast(&allocator),
         .source = &origins,
         .names = source.names,
         .labels = labels,

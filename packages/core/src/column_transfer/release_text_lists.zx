@@ -1,0 +1,28 @@
+import { free } from "core/owned_text"
+import memory from "memory"
+
+import type { Payload } from "./model"
+
+export type Input = Payload
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { allocator, group, column, count } = in
+
+    const released = loop(0, {
+        while: row => row < count,
+        next: row => {
+            const slots = memory.transferTextList(group, column, row, true)
+
+            if (slots != null) {
+                free({
+                    allocator,
+                    slots
+                })
+            }
+
+            row += 1
+        }
+    })
+}

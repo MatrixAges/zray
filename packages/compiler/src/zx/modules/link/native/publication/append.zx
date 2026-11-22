@@ -1,3 +1,5 @@
+import { copy } from "core/owned_text"
+import storage from "memory"
 import memory from "memory/columns"
 
 import type { Binding } from "core/native_module_table/model"
@@ -14,18 +16,26 @@ export type Output = void
 
 export default function (in: Input): Output {
     const { source, destination, ids } = in
-    const { resource } = destination
+    const { text_allocator } = destination
     const { identity } = source
 
     const owned_identity: string? = match {
-        identity != null => memory.copyColumnText(resource, identity),
+        identity != null => storage.copyColumnText(text_allocator, identity),
         _ => null
     }
 
-    const specifier = memory.copyColumnText(resource, source.specifier)
-    const import_name = memory.copyColumnText(resource, source.import_name)
-    const namespace = memory.copyColumnTexts(resource, source.namespace)
-    const names = memory.copyColumnTexts(resource, source.names)
+    const specifier = storage.copyColumnText(text_allocator, source.specifier)
+    const import_name = storage.copyColumnText(text_allocator, source.import_name)
+
+    const namespace = copy({
+        allocator: text_allocator,
+        source: source.namespace
+    })
+
+    const names = copy({
+        allocator: text_allocator,
+        source: source.names
+    })
 
     const row: NativeModuleRow = {
         identities: owned_identity,

@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import fill from "./fill"
+
+import type { Allocator, StringBuffer } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    target: StringBuffer,
+    source: string[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { allocator, source } = in
+
+    const target = memory.stringViews(in.target)
+
+    memory.checkTextSlotCount(target.length, source.length)
+
+    memory.requireTextCopy(fill({
+        allocator,
+        source,
+        target
+    }))
+}

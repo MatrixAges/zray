@@ -13,7 +13,7 @@
                 "row",
                 "ports"
             ]),
-            resource: $in.destination.resource
+            allocator: $in.destination.text_allocator
         }}
     />
 

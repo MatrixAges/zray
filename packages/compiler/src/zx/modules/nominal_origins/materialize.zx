@@ -1,11 +1,13 @@
+import { into } from "core/owned_text"
 import memory from "memory"
 
 import bindNames from "./bind_names"
 
 import type { Bindings } from "core/type_table/nominal"
-import type { StringBuffer, U64Buffer } from "memory"
+import type { Allocator, StringBuffer, U64Buffer } from "memory"
 
 export type Input = {
+    allocator: Allocator,
     source: Bindings,
     names: string[],
     labels?: string[],
@@ -19,17 +21,32 @@ export type Input = {
 export type Output = void
 
 export default function (in: Input): Output {
-    const { source, labels, own_origins } = in
+    const { allocator, source, labels, own_origins } = in
 
     if (own_origins) {
-        memory.copyStrings(in.owners_out, source.owners)
+        into({
+            allocator,
+            target: in.owners_out,
+            source: source.owners
+        })
+
         memory.writeU64(in.progress, 0, 1)
-        memory.copyStrings(in.members_out, source.members)
+
+        into({
+            allocator,
+            target: in.members_out,
+            source: source.members
+        })
+
         memory.writeU64(in.progress, 0, 2)
     }
 
     if (labels == null) {
-        memory.copyStrings(in.names_out, in.names)
+        into({
+            allocator,
+            target: in.names_out,
+            source: in.names
+        })
 
         return
     }

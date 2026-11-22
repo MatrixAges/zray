@@ -1,4 +1,4 @@
-import type { OptionalU32Buffer, StringBuffer } from "memory"
+import type { Allocator, OptionalU32Buffer, StringBuffer } from "memory"
 import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
 
 export type Symbols = {
@@ -29,6 +29,7 @@ export type Span = {
 }
 
 export type Names = {
+    allocator: Allocator,
     source: string[],
     positions: u32[],
     names: StringBuffer,

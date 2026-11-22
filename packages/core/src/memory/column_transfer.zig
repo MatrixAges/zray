@@ -155,6 +155,38 @@ pub fn ownsPayload(target: *const anyopaque, index: u64) bool {
     };
 }
 
+pub fn ownsTextItems(target: *const anyopaque, index: u64) bool {
+    return switch (groupColumns(target)[@intCast(index)].kind) {
+        .texts, .optional_texts => true,
+        else => false,
+    };
+}
+
+pub inline fn textList(target: *const anyopaque, index: u64, row: u64, staged: bool) ?[]const Bytes {
+    const column = groupColumns(target)[@intCast(index)];
+    const address = if (staged) column.storage.items.ptr else column.source;
+    const item: usize = @intCast(row);
+    const offset = if (staged) column.storage.items.len + item else item;
+
+    return switch (column.kind) {
+        .texts => @as([*]const []const Bytes, @ptrCast(@alignCast(address)))[offset],
+        .optional_texts => @as([*]const ?[]const Bytes, @ptrCast(@alignCast(address)))[offset],
+        else => unreachable,
+    };
+}
+
+pub fn writeTextList(target: *const anyopaque, index: u64, row: u64, value: ?[]const Bytes) void {
+    const column = groupColumns(target)[@intCast(index)];
+    const address = column.storage.items.ptr;
+    const offset = column.storage.items.len + @as(usize, @intCast(row));
+
+    switch (column.kind) {
+        .texts => @as([*][]const Bytes, @ptrCast(@alignCast(address)))[offset] = value.?,
+        .optional_texts => @as([*]?[]const Bytes, @ptrCast(@alignCast(address)))[offset] = value,
+        else => unreachable,
+    }
+}
+
 pub fn reserveOne(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) std.mem.Allocator.Error!u64 {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
@@ -183,7 +215,7 @@ pub fn retainItem(resource: *const anyopaque, target: *const anyopaque, index: u
     const column = groupColumns(target)[@intCast(index)];
 
     switch (column.kind) {
-        .value, .strided, .repeated => unreachable,
+        .value, .strided, .repeated, .texts, .optional_texts => unreachable,
         inline else => |format| {
             const payload = Payload(format);
             const source: [*]const payload.Value = @ptrCast(@alignCast(column.source));
@@ -202,7 +234,7 @@ pub fn releaseItem(resource: *const anyopaque, target: *const anyopaque, index: 
     const column = groupColumns(target)[@intCast(index)];
 
     switch (column.kind) {
-        .value, .strided, .repeated => unreachable,
+        .value, .strided, .repeated, .texts, .optional_texts => unreachable,
         inline else => |format| {
             const payload = Payload(format);
             const destination: [*]const payload.Value = @ptrCast(@alignCast(column.storage.items.ptr));

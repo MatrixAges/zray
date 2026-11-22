@@ -199,6 +199,7 @@ fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStor
         const input: Binding = .{
             .prefix = &prefix_input,
             .names = &.{
+                .allocator = @ptrCast(&builder.allocator),
                 .source = output.names,
                 .positions = output.positions,
                 .names = @ptrCast(&symbols.names.items),
