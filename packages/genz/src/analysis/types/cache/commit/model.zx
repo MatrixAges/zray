@@ -1,0 +1,11 @@
+import type { Bound } from "../../../node_headers/payload/model"
+import type { Output as Abi } from "../../abi/model"
+import type { Entry } from "../../shared/model"
+import type { Columns } from "../model"
+
+export type Input = {
+    ast: Bound,
+    columns: Columns,
+    abi?: Abi.Pick("ids", "values", "layouts"),
+    state?: Entry[]
+}

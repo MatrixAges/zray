@@ -3,11 +3,9 @@ const zx = @import("zx");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
-const module = @import("../../node/import_module.zig");
 const Lower = @import("../lower.zig");
 const Cache = @import("cache.zig");
 const generated = @import("generated_shared_abi");
-const publish = @import("generated_publish_shared_abi");
 
 pub fn build(self: *Lower, index: usize) Lower.Error!void {
     const Input = std.meta.Child(generated.Input);
@@ -31,33 +29,7 @@ pub fn build(self: *Lower, index: usize) Lower.Error!void {
         else => unreachable,
     };
 
-    if (!output.valid) return error.OutOfMemory;
-
     const Output = std.meta.Child(generated.Output);
 
-    const imported = if (self.type_names != null)
-        module.appendBorrowingText(self.allocator, self.builder.nodes, Output, output)
-
-    else
-        module.append(self.allocator, self.builder.nodes, Output, output);
-
-    imported catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    const Publication = std.meta.Child(publish.Input);
-    const Columns = std.meta.Child(@FieldType(Publication, "columns"));
-    const target = Cache.borrow(self);
-    const tracked = target.touch(Cache.Touched(Columns));
-    const columns = target.columns(Columns, &tracked);
-
-    const publication: Publication = .{
-        .nodes = &.{ .ids = output.ids, .values = output.values, .layouts = output.layouts },
-        .columns = &columns,
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(publish.executeValue, fixed.allocator(), &publication) catch unreachable;
+    return if (self.type_names != null) Cache.publish(self, Output, output, true) else Cache.publish(self, Output, output, false);
 }

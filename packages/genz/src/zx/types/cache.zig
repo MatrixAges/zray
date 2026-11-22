@@ -1,5 +1,7 @@
 const std = @import("std");
+const zx = @import("zx");
 const Lower = @import("../lower.zig");
+const payloads = @import("../../node/import_payloads.zig");
 const Self = @This();
 
 abi_types: []u32,
@@ -39,5 +41,36 @@ pub fn columns(self: *const Self, comptime T: type, tracked: *const Touched(T)) 
         .state_layouts = @ptrCast(&self.state_layouts),
         .views = @ptrCast(&self.views),
         .touched = if (self.count.len == 0) null else tracked,
+    };
+}
+
+/// Cached handles refer only to expressions that were committed to the AST.
+pub fn publish(lower: *Lower, comptime Output: type, output: anytype, comptime borrow_text: bool) Lower.Error!void {
+    if (!output.valid) return error.OutOfMemory;
+
+    const entry = @import("generated_commit_shared_types");
+    const Input = std.meta.Child(entry.Input);
+    const Columns = std.meta.Child(@FieldType(Input, "columns"));
+    const Bound = std.meta.Child(@FieldType(Input, "ast"));
+    const Expressions = std.meta.Child(@FieldType(Output, "expressions"));
+    const expressions = zx.columns.view(Expressions, output.expressions);
+    const target = &lower.builder.nodes.expressions;
+    var binding: payloads.Binding(@TypeOf(target), Expressions, .dense) = .{};
+    const ast = binding.bind(Bound, &lower.allocator, target, &expressions, true, borrow_text);
+    const cache = borrow(lower);
+    const touched = cache.touch(Touched(Columns));
+    const rows = cache.columns(Columns, &touched);
+    const state = @hasField(Output, "entries");
+
+    const input: Input = .{
+        .ast = &ast,
+        .columns = &rows,
+        .abi = if (state) null else &.{ .ids = output.ids, .values = output.values, .layouts = output.layouts },
+        .state = if (state) output.entries else null,
+    };
+
+    payloads.invoke(entry.executeValue, &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
     };
 }

@@ -30,7 +30,7 @@ pub fn build(self: *Lower, declarations: ?*@import("../../node/declarations.zig"
 
     if (!output.valid) return error.OutOfMemory;
 
-    try @import("import.zig").append(self, declarations, Output, output, result.fields, if (self.type_names != null) .borrow_text else .copy);
+    try @import("import.zig").append(self, declarations, Output, output, result.fields, if (self.type_names != null) .text else .owned);
 
     return output.has_lists;
 }

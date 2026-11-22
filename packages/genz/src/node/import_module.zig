@@ -7,7 +7,14 @@ const fields = @import("import_fields.zig");
 const generated = @import("genz_options").generated_analysis;
 const Storage = @import("storage.zig");
 pub const Error = rows.Error;
-const Mode = enum { owned, text, borrowed };
+pub const Mode = enum { owned, text, borrowed };
+
+pub const Modes = struct {
+    expressions: Mode,
+    statements: Mode = .owned,
+    declarations: Mode = .owned,
+    borrow_field_text: bool = false,
+};
 
 pub fn append(allocator: std.mem.Allocator, target: *Storage, comptime Module: type, source: anytype) Error!void {
     return appendModule(allocator, target, Module, source, .owned);
@@ -28,9 +35,20 @@ fn appendModule(allocator: std.mem.Allocator, target: *Storage, comptime Module:
     const statements = statementColumns(Module, source);
     const declarations = declarationColumns(Module, source);
 
-    if (generated) return appendSource(allocator, target, expressions, statements, declarations, source, @hasField(Module, "fields"), mode);
+    if (generated) return appendColumns(allocator, target, .{
+        .expressions = expressions,
+        .statements = statements,
+        .declarations = declarations,
+        .fields = if (@hasField(Module, "fields")) source.fields else {},
+    }, .{
+        .expressions = mode,
+        .statements = mode,
+        .declarations = mode,
+        .borrow_field_text = mode != .owned,
+    });
 
     try appendRows(allocator, &target.expressions, &expressions, mode);
+
     if (@TypeOf(statements) != void) try appendRows(allocator, &target.statements, &statements, mode);
 
     if (@hasField(Module, "fields")) {
@@ -42,32 +60,35 @@ fn appendModule(allocator: std.mem.Allocator, target: *Storage, comptime Module:
     if (@TypeOf(declarations) != void) try appendRows(allocator, &target.declaration_rows, &declarations, mode);
 }
 
-fn appendSource(allocator: std.mem.Allocator, target: *Storage, expressions: anytype, statements: anytype, declarations: anytype, source: anytype, comptime has_fields: bool, comptime mode: Mode) Error!void {
+/// Publishes already bound column views, with each payload borrowing or owning its data.
+pub fn appendColumns(allocator: std.mem.Allocator, target: *Storage, source: anytype, comptime modes: Modes) Error!void {
     const entry = @import("generated_node_append_module");
     const Input = std.meta.Child(entry.Input);
     const Rows = std.meta.Child(@FieldType(Input, "expressions"));
     const Field = std.meta.Child(@typeInfo(@FieldType(Input, "fields")).optional.child);
-    const copy = mode != .borrowed;
-    const borrow_text = mode != .owned;
+    const expressions = source.expressions;
+    const statements = source.statements;
+    const declarations = source.declarations;
+    const has_fields = @TypeOf(source.fields) != void;
     var expression_binding: payloads.Binding(@TypeOf(&target.expressions), @TypeOf(expressions), .dense) = .{};
     var statement_binding: if (@TypeOf(statements) == void) void else payloads.Binding(@TypeOf(&target.statements), @TypeOf(statements), .dense) = if (@TypeOf(statements) == void) {} else .{};
     var declaration_binding: if (@TypeOf(declarations) == void) void else payloads.Binding(@TypeOf(&target.declaration_rows), @TypeOf(declarations), .dense) = if (@TypeOf(declarations) == void) {} else .{};
     var field_binding: payloads.Plain = .{};
-    const field_columns = if (has_fields) fields.bindColumns(&target.field_columns, source.fields, borrow_text) else {};
-    const expression_view = expression_binding.bind(Rows, &allocator, &target.expressions, &expressions, copy, borrow_text);
+    const field_columns = if (has_fields) fields.bindColumns(&target.field_columns, source.fields, modes.borrow_field_text) else {};
+    const expression_view = expression_binding.bind(Rows, &allocator, &target.expressions, &expressions, modes.expressions != .borrowed, modes.expressions != .owned);
 
     const statement_view = if (@TypeOf(statements) != void)
-        statement_binding.bind(Rows, &allocator, &target.statements, &statements, copy, borrow_text)
+        statement_binding.bind(Rows, &allocator, &target.statements, &statements, modes.statements != .borrowed, modes.statements != .owned)
 
     else {};
 
     const declaration_view = if (@TypeOf(declarations) != void)
-        declaration_binding.bind(Rows, &allocator, &target.declaration_rows, &declarations, copy, borrow_text)
+        declaration_binding.bind(Rows, &allocator, &target.declaration_rows, &declarations, modes.declarations != .borrowed, modes.declarations != .owned)
 
     else {};
 
     const field_view = if (has_fields)
-        field_binding.bind(Field, &allocator, &field_columns, source.fields.name.len, target.field_columns.count(), borrow_text)
+        field_binding.bind(Field, &allocator, &field_columns, source.fields.name.len, target.field_columns.count(), modes.borrow_field_text)
 
     else {};
 

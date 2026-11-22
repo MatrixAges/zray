@@ -63,14 +63,7 @@ fn appendNamespaces(self: *Lower, declaration_base: u32) Lower.Error!Range {
 
     if (!output.valid) return error.OutOfMemory;
 
-    const rows = @import("../node/import_rows.zig");
-
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.expressions, output.expressions) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.declaration_rows, output.declarations) catch |err| switch (err) {
+    @import("../node/import_module.zig").appendBorrowed(self.allocator, self.builder.nodes, std.meta.Child(generated.Output), output) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidAst => unreachable,
     };

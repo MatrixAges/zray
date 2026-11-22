@@ -33,8 +33,7 @@ pub fn build(self: *Lower, declarations: ?*@import("../../node/declarations.zig"
     const output = result.types;
 
     if (!output.valid) return error.OutOfMemory;
-
-    try @import("import.zig").append(self, declarations, Output, output, result.fields, .retain);
+    try @import("import.zig").append(self, declarations, Output, output, result.fields, .borrowed);
 
     // The three vectors are built in the owning AST allocator and never borrow the ABI vectors.
     self.state_types = @as([*]node.ExpressionId, @ptrCast(@constCast(output.values.ptr)))[0..output.values.len];

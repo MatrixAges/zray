@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Commit" />
+    <Type from="../../../node_headers/model" as="Headers" />
+
+    <Args in={Commit.Input} out={Headers.Check} />
+
+    <Call module="../../../node_headers/payload/validated" in={$in.ast} />
+
+    <If on={$ctx.validated == Headers.Check.Valid}>
+        <If on={$in.abi != null}>
+            <Call
+                fn="../publish_abi"
+                in={{
+                    nodes: $in.abi,
+                    columns: $in.columns
+                }}
+            />
+        </If>
+
+        <If on={$in.state != null}>
+            <Call
+                fn="../publish_shared"
+                in={{
+                    entries: $in.state,
+                    columns: $in.columns
+                }}
+            />
+        </If>
+    </If>
+
+    <Return value={$ctx.validated} />
+</Module>
