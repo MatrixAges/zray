@@ -1,9 +1,6 @@
 import type { Rows as ConstantRows } from "core/constant/rows"
 import type { TextColumn } from "memory"
-import type {
-    BindingColumns,
-    FunctionBinding
-} from "../../../../../zx/modules/binding/model"
+import type { BindingColumns } from "../../../../../zx/modules/binding/model"
 import type { Prefix } from "../../../../../zx/modules/link/source/initializer_rows"
 
 export type Port = {
@@ -35,7 +32,7 @@ export type ExportPair = RowPair & {
     type_id: u64
 }
 
-export type InitializerPair = Prefix.Omit("identity", "function_prefix")
+export type InitializerPair = Prefix
 
 export type Link = {
     ports: PortPair,
@@ -43,11 +40,6 @@ export type Link = {
     initializers: InitializerPair,
     members: Members,
     constants: Constants
-}
-
-export type MemberPair = {
-    left: FunctionBinding,
-    right: FunctionBinding
 }
 
 export type Members = {

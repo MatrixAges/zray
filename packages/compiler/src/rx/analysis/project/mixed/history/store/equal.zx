@@ -1,0 +1,78 @@
+import bytes from "std:bytes"
+import host from "rx_project_host"
+import { HistoryXmlPart } from "rx_project_host"
+
+import attributes from "./attributes"
+import texts from "./texts"
+
+import type { Nodes as Input } from "./model"
+
+export type Output = bool
+
+export default function equal(in: Input): Output {
+    const [left, right] = in
+
+    if (host.historyXmlNodesShare(left, right)) {
+        return true
+    }
+
+    if (host.historyNodeName(left) != host.historyNodeName(right)) {
+        return false
+    }
+
+    if (
+        !bytes.equals(
+            host.historyNodePosition(left),
+            host.historyNodePosition(right)
+        )
+    ) {
+        return false
+    }
+
+    if (!attributes([
+        host.historyNodeRows(
+            left,
+            HistoryXmlPart.Attributes,
+            null
+        ),
+        host.historyNodeRows(right, HistoryXmlPart.Attributes, null)
+    ])) {
+        return false
+    }
+
+    const left_children = host.historyNodeRows(left, HistoryXmlPart.Children, null)
+    const right_children = host.historyNodeRows(right, HistoryXmlPart.Children, null)
+    const count = host.historyXmlRowCount(left_children)
+
+    if (count != host.historyXmlRowCount(right_children)) {
+        return false
+    }
+
+    if (!host.historyXmlRowsShare(left_children, right_children)) {
+        const children = loop({
+            row: 0,
+            matches: true
+        }, {
+            while: state => state.matches && state.row < count,
+            next: state => {
+                const row = state.row
+
+                state.matches = equal([
+                    host.historyNodeAt(left_children, row, null),
+                    host.historyNodeAt(right_children, row, null)
+                ])
+                state.row += 1
+            },
+            return: state => state.matches
+        })
+
+        if (!children) {
+            return false
+        }
+    }
+
+    return texts([
+        host.historyNodeRows(left, HistoryXmlPart.Text, null),
+        host.historyNodeRows(right, HistoryXmlPart.Text, null)
+    ])
+}

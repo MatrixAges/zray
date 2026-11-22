@@ -1,3 +1,4 @@
+import type { HistoryStores } from "rx_project_host"
 import type { Ports } from "../../../signatures/model"
 import type { Ranges } from "../../../source_graph/source"
 
@@ -31,6 +32,11 @@ export type Signatures = {
     current: SignatureColumns
 }
 
+export type Stores = {
+    earlier: HistoryStores,
+    current: HistoryStores
+}
+
 export type History = {
     dependencies: Dependencies,
     earlier: Digests,
@@ -38,7 +44,7 @@ export type History = {
     boundaries: Boundaries,
     previous_sources: Ranges,
     signatures?: Signatures,
-    shared_stores: bool
+    stores?: Stores
 }
 
 export type Input = {
@@ -48,9 +54,4 @@ export type Input = {
     entry: u64,
     sources: Ranges,
     history: History
-}
-
-export type Output = {
-    position: u64,
-    inspect_store: bool
 }

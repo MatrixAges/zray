@@ -1,0 +1,26 @@
+import type {
+    HistoryXmlAttribute,
+    HistoryXmlNode,
+    HistoryXmlRows,
+    HistoryXmlText
+} from "rx_project_host"
+
+export type Nodes = [
+    HistoryXmlNode,
+    HistoryXmlNode
+]
+
+export type Rows = [
+    HistoryXmlRows,
+    HistoryXmlRows
+]
+
+export type Attributes = [
+    HistoryXmlAttribute,
+    HistoryXmlAttribute
+]
+
+export type Text = [
+    HistoryXmlText,
+    HistoryXmlText
+]

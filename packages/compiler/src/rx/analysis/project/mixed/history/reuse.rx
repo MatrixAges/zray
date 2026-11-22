@@ -27,5 +27,11 @@
 
     <Call fn="changed" in={$in.dependencies} />
 
-    <Return value={!$ctx.changed} />
+    <If on={$ctx.changed}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="confirm" in={$in.confirmation} />
+
+    <Return value={$ctx.confirm} />
 </Module>

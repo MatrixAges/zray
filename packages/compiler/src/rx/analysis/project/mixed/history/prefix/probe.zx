@@ -1,5 +1,8 @@
+import host from "rx_project_host"
+
 import changed from "../changed"
 import sameSignature from "../signature"
+import sameStore from "../store/equal"
 import sameBoundaries from "./boundaries"
 import sameDigest from "./digest"
 import readSignature from "./read_signature"
@@ -15,25 +18,19 @@ export type Input = {
     entry: u64
 }
 
-export enum Decision {
-    Analyze,
-    Reuse,
-    CompareStore
-}
-
-export type Output = Decision
+export type Output = bool
 
 export default function (in: Input): Output {
     const { history, index, position, entry, sources } = in
 
     if (history == null || index == entry) {
-        return Decision.Analyze
+        return false
     }
 
     const { compiled, starts, ends, targets, redone } = history.dependencies
 
     if (compiled[index]) {
-        return Decision.Analyze
+        return false
     }
 
     const dependency_changed = changed({
@@ -44,7 +41,7 @@ export default function (in: Input): Output {
     })
 
     if (dependency_changed) {
-        return Decision.Analyze
+        return false
     }
 
     const stable_links = sameBoundaries({
@@ -53,15 +50,32 @@ export default function (in: Input): Output {
     })
 
     if (!stable_links) {
-        return Decision.Analyze
+        return false
     }
 
     if (index >= sources.rx_end) {
         if (index < history.previous_sources.rx_end) {
-            return Decision.Analyze
+            return false
         }
 
-        return history.shared_stores ? Decision.Reuse : Decision.CompareStore
+        const stores = history.stores
+
+        if (stores == null) {
+            return true
+        }
+
+        return sameStore([
+            host.historyStoreNode(
+                stores.earlier,
+                index - history.previous_sources.rx_end,
+                null
+            ),
+            host.historyStoreNode(
+                stores.current,
+                index - sources.rx_end,
+                null
+            )
+        ])
     }
 
     const same = sameDigest({
@@ -71,26 +85,26 @@ export default function (in: Input): Output {
     })
 
     if (!same) {
-        return Decision.Analyze
+        return false
     }
 
     if (index < sources.zx_count) {
-        return Decision.Reuse
+        return true
     }
 
     const previous = history.previous_sources
 
     if (index < previous.zx_count || index >= previous.rx_end) {
-        return Decision.Analyze
+        return false
     }
 
     const signatures = history.signatures
 
     if (signatures == null) {
-        return Decision.Reuse
+        return true
     }
 
-    const compatible = sameSignature({
+    return sameSignature({
         previous: readSignature({
             columns: signatures.earlier,
             row: index - previous.zx_count
@@ -100,6 +114,4 @@ export default function (in: Input): Output {
             row: index - sources.zx_count
         })
     })
-
-    return compatible ? Decision.Reuse : Decision.Analyze
 }

@@ -1,0 +1,56 @@
+import bytes from "std:bytes"
+import host from "rx_project_host"
+
+import type { Attributes as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const [left, right] = in
+
+    const left_expression = host.historyAttributeIsExpression(left)
+    const right_expression = host.historyAttributeIsExpression(right)
+
+    if (left_expression != right_expression) {
+        return false
+    }
+
+    if (host.historyAttributeName(left) != host.historyAttributeName(right)) {
+        return false
+    }
+
+    if (host.historyAttributeValue(left) != host.historyAttributeValue(right)) {
+        return false
+    }
+
+    if (
+        !bytes.equals(
+            host.historyAttributePosition(left, false),
+            host.historyAttributePosition(right, false)
+        )
+    ) {
+        return false
+    }
+
+    if (
+        !bytes.equals(
+            host.historyAttributePosition(left, true),
+            host.historyAttributePosition(right, true)
+        )
+    ) {
+        return false
+    }
+
+    const raw_left = host.historyAttributeRaw(left)
+    const raw_right = host.historyAttributeRaw(right)
+
+    if (raw_left == null) {
+        return raw_right == null
+    }
+
+    if (raw_right == null) {
+        return false
+    }
+
+    return raw_left == raw_right
+}

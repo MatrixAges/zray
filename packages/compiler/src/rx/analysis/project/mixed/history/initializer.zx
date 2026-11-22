@@ -11,10 +11,7 @@ export default function (in: Input): Output {
         return false
     }
 
-    const count = prefix({
-        ...in,
-        identity: false
-    })
+    const count = prefix(in)
 
     return count == in.left.count
 }

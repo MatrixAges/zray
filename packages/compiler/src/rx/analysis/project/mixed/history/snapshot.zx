@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import type { ColumnLengths, WriteColumn } from "memory"
+import type { Extent } from "./extent"
+
+export type Input = {
+    types: ColumnLengths,
+    origins: ColumnLengths,
+    extent: Extent,
+    target: WriteColumn
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { types, origins, extent, target } = in
+
+    const type_count = memory.lengthSlotCount(types)
+    const total = type_count + memory.lengthSlotCount(origins)
+
+    const captured = loop(0, {
+        while: slot => slot < total,
+        next: slot => {
+            const count = match {
+                slot < type_count => memory.readLengthSlot(types, slot),
+                _ => memory.readLengthSlot(origins, slot - type_count)
+            }
+
+            memory.writeColumnIndex(target, slot, count)
+            slot += 1
+        }
+    })
+
+    memory.writeColumnIndex(target, total, extent.functions)
+    memory.writeColumnIndex(target, total + 1, extent.native_modules)
+    memory.writeColumnIndex(target, total + 2, extent.initializers)
+    memory.writeColumnIndex(target, total + 3, extent.libraries)
+}

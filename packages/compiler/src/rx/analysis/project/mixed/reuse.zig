@@ -14,6 +14,7 @@ const history = @import("../history.zig");
 const columns = @import("../history/columns.zig");
 const project = @import("frontend").project;
 const alignment = @import("history/alignment.zig");
+const snapshot = @import("history/snapshot.zig");
 const Graph = @FieldType(State, "graph");
 const generated = @import("rx_options").generated_graph;
 const batch_reuse = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
@@ -42,8 +43,8 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
     };
 
     @memset(self.redone, false);
+    snapshot.write(state, &self.boundaries[0]);
 
-    self.boundaries[0] = checkpoint(state);
     const retained = if (owner.bodies_only) &owner.previous.? else null;
     const paths = state.graph.modules.items(.path);
     const ranges = state.graph.sources;
@@ -94,7 +95,7 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
     if (comptime batch_reuse) {
         const admission = @import("history/admit.zig");
 
-        position = admission.advance(state, &self.derived, previous, &self.prefix.?.history, first, limit);
+        position = admission.advance(state, &self.prefix.?.history, first, limit);
     } else {
         while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}
     }
@@ -154,7 +155,9 @@ pub fn analyzed(self: *Self, state: *const State, index: usize, position: usize)
     const end = &self.boundaries[position + 1];
 
     self.redone[index] = true;
-    end.* = checkpoint(state);
+
+    snapshot.write(state, end);
+
     owner.analyzed += 1;
 
     const previous = self.previous orelse return;
@@ -357,15 +360,4 @@ fn signatures(left: ir.FunctionTable, right: ir.FunctionTable, count: usize) boo
     }
 
     return true;
-}
-
-fn checkpoint(state: *const State) history.Checkpoint {
-    return .{
-        .types = columns.measure(&state.types.items),
-        .origins = columns.measure(&state.types.origins.items),
-        .functions = state.functions.count(),
-        .native_modules = state.native_modules.count(),
-        .initializers = state.initializers.items.len,
-        .libraries = state.libraries.count(),
-    };
 }

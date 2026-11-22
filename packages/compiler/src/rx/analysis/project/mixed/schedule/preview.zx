@@ -1,7 +1,6 @@
 import memory from "memory"
 
 import probe from "../history/prefix/probe"
-import { Decision } from "../history/prefix/probe"
 
 import type { U64Buffer } from "memory"
 import type { History } from "../history/prefix/model"
@@ -52,7 +51,7 @@ export default function (in: Input): Output {
                 }
 
                 if (eligible) {
-                    const decision = probe({
+                    const reusable = probe({
                         history: in.history,
                         sources,
                         index,
@@ -60,7 +59,7 @@ export default function (in: Input): Output {
                         entry
                     })
 
-                    if (decision != Decision.Reuse) {
+                    if (!reusable) {
                         memory.writeU64(positions, state.count, state.next)
 
                         state.count += 1

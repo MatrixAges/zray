@@ -1,41 +1,32 @@
 import probe from "./probe"
-import { Decision } from "./probe"
 
-import type { Input as PrefixInput, Output as PrefixOutput } from "./model"
+import type { Input as Window } from "./model"
 
-export type Input = PrefixInput
+export type Input = Window
 
-export type Output = PrefixOutput
+export type Output = u64
 
 export default function (in: Input): Output {
     const { order, entry, end, sources, history } = in
 
     return loop({
         position: in.first,
-        stopped: false,
-        inspect_store: false
+        reuse: true
     }, {
-        while: state => state.position < end && !state.stopped,
+        while: state => state.reuse && state.position < end,
         next: state => {
-            const index = order[state.position]
-            const decision = probe({
+            state.reuse = probe({
                 history,
                 sources,
-                index,
+                index: order[state.position],
                 position: state.position,
                 entry
             })
 
-            if (decision == Decision.Reuse) {
+            if (state.reuse) {
                 state.position += 1
-            } else {
-                state.inspect_store = decision == Decision.CompareStore
-                state.stopped = true
             }
         },
-        return: state => ({
-            position: state.position,
-            inspect_store: state.inspect_store
-        })
+        return: state => state.position
     })
 }

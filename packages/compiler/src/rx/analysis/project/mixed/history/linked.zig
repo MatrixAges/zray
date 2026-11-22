@@ -58,6 +58,8 @@ pub fn equal(left: *const Loaded, right: *const Loaded) bool {
             .schema_version = offset(Initializer, "schema_version"),
             .little_endian = little_endian,
             .shared = left.store_initializers.ptr == right.store_initializers.ptr,
+            .identity = false,
+            .function_prefix = null,
         },
     };
 

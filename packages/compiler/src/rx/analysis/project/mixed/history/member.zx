@@ -1,23 +1,53 @@
-import type { MemberPair } from "./link_model"
+import memory from "memory"
 
-export type Input = MemberPair
+import type { Members } from "./link_model"
+
+export type Input = Members.Pick("left", "right") & {
+    row: u64
+}
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { left, right } = in
+    const { left, right, row } = in
 
-    const namespace = left.namespace == right.namespace
-    const input = left.input_type == right.input_type
-    const output = left.output_type == right.output_type
-    const intrinsic = left.intrinsic == right.intrinsic
+    const left_namespace = memory.readOptionalTextColumn(left.namespace, row)
+    const right_namespace = memory.readOptionalTextColumn(right.namespace, row)
 
-    return (
-        - namespace
-        - and left.name == right.name
-        - and left.id == right.id
-        - and input
-        - and output
-        - and intrinsic
-    )
+    if (left_namespace != right_namespace) {
+        return false
+    }
+
+    const left_name = memory.readTextColumn(left.name, row)
+    const right_name = memory.readTextColumn(right.name, row)
+
+    if (left_name != right_name) {
+        return false
+    }
+
+    const left_id = memory.readColumnOptionalU32(left.id, row)
+    const right_id = memory.readColumnOptionalU32(right.id, row)
+
+    if (left_id != right_id) {
+        return false
+    }
+
+    const left_input = memory.readColumnOptionalU32(left.input_type, row)
+    const right_input = memory.readColumnOptionalU32(right.input_type, row)
+
+    if (left_input != right_input) {
+        return false
+    }
+
+    const left_output = memory.readColumnOptionalU32(left.output_type, row)
+    const right_output = memory.readColumnOptionalU32(right.output_type, row)
+
+    if (left_output != right_output) {
+        return false
+    }
+
+    const left_intrinsic = memory.readColumnOptionalU8(left.intrinsic, row)
+    const right_intrinsic = memory.readColumnOptionalU8(right.intrinsic, row)
+
+    return left_intrinsic == right_intrinsic
 }

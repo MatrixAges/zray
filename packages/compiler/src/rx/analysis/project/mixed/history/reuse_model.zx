@@ -1,5 +1,7 @@
 import type { Input as Dependencies } from "./changed"
 import type { Links } from "./links"
+import type { Input as Signatures } from "./signature"
+import type { Nodes } from "./store/model"
 
 export type Source = {
     store: bool,
@@ -7,10 +9,17 @@ export type Source = {
     current_digest?: u8[]
 }
 
+export type Confirmation = {
+    matches: bool,
+    signature?: Signatures,
+    store?: Nodes
+}
+
 export type Input = {
     source: Source,
     compiled_dependency: bool,
     dependencies: Dependencies,
     before: Links,
-    after: Links
+    after: Links,
+    confirmation: Confirmation
 }
