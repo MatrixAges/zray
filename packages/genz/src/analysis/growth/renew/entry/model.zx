@@ -2,6 +2,7 @@ import type { Table } from "core/type_table/model"
 import type { Renewals } from "../../../uniqueness/renewals/model"
 import type { Output as Range } from "../../../uniqueness/renewals/range"
 import type { Input as GrowthInput, State as Growth } from "../../model"
+import type { Preparation } from "../model"
 
 export type Source = {
     source: GrowthInput,
@@ -24,4 +25,15 @@ export type State = {
     growth: Growth,
     value: u32,
     applied: bool
+}
+
+export type Traversal = State & {
+    index: u64,
+    skip_index: u64,
+    running: bool
+}
+
+export type Record = {
+    skip_index: u64,
+    renewal?: Preparation
 }

@@ -1,0 +1,57 @@
+<Module>
+    <Type from="model" as="Protocol" />
+
+    <Args in={Protocol.Reader} out={Protocol.Reader} />
+
+    <Call
+        fn="header"
+        in={$in.pick([
+            "bytes",
+            "offset",
+            "finished"
+        ])}
+    />
+
+    <If on={$ctx.header != null}>
+        <Call
+            module="frame"
+            in={{
+                ...$in.pick([
+                    "response",
+                    "version",
+                    "config_size",
+                    "digest_size",
+                    "saw_version",
+                    "saw_digest"
+                ]),
+                tag: $ctx.header.kind,
+                body: $ctx.header.body,
+                size: $ctx.header.length
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                status: $ctx.frame,
+                offset: $ctx.header.end,
+                saw_version: $in.saw_version || $ctx.header.kind == Protocol.Tag.Version,
+                saw_digest: $in.saw_digest || $ctx.header.kind == Protocol.Tag.Digest,
+                finished:
+                    $ctx.header.kind == Protocol.Tag.Diagnostics ||
+                    ($ctx.header.kind == Protocol.Tag.Digest && $in.translation),
+                running:
+                    $ctx.frame == Protocol.Status.Success &&
+                    $ctx.header.end < $in.bytes.length
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            status: Protocol.Status.InvalidBackendProtocol,
+            running: false
+        }}
+    />
+</Module>

@@ -1,0 +1,37 @@
+import field from "../../../ast/context/field"
+import integer from "../../../printer/text/integer"
+
+import type { Input as Conversion } from "../../state/conversion/emit/model"
+import type { Member as Output, Members as Input } from "./model"
+
+export default function (in: Input): Output {
+    const selected = field({
+        state: in.state.context,
+        target: in.root,
+        name: integer({
+            output: [],
+            value: in.index
+        })
+    })
+
+    const state = {
+        ...in.state,
+        context: selected.state
+    }
+
+    const source = in.source.members[in.index]
+
+    const conversion: Conversion? = match {
+        source == null => null,
+        _ => {
+            ...source,
+            value: selected.id
+        }
+    }
+
+    return {
+        state,
+        value: selected.id,
+        conversion
+    }
+}

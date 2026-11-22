@@ -1,0 +1,33 @@
+import tail from "./tail"
+import walk from "./walk"
+
+import type { Request as Input, Plan as Output } from "./model"
+
+export default function (in: Input): Output {
+    const ending = tail(in)
+
+    if (!ending.valid) {
+        return {
+            valid: false,
+            suffix: "",
+            attached: false,
+            length: 0
+        }
+    }
+
+    const counted = walk({
+        directory: in.directory,
+        path: in.path,
+        suffix: ending.suffix,
+        attached: ending.attached,
+        capacity: 0,
+        target: null
+    })
+
+    return {
+        valid: counted.parents == 0,
+        suffix: ending.suffix,
+        attached: ending.attached,
+        length: counted.length
+    }
+}

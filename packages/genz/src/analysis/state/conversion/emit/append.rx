@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Conversion" />
+
+    <Args in={Conversion.Walk} out={Conversion.State} />
+
+    <Call fn="append_input" in={$in} />
+
+    <Call module="walk" />
+
+    <Return value={$ctx.walk} />
+</Module>

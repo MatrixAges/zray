@@ -2,7 +2,7 @@ import memory from "memory"
 
 import { workspace_root } from "../../graph/const"
 import { Status as Archive } from "../../metadata/archive"
-import validateArchive from "../../metadata/validate.rx"
+import validateArchive from "../../metadata/validate"
 import { Kind } from "../../workspace/path/valid"
 import validPath from "../../workspace/path/valid"
 import { Status } from "../model"

@@ -1,0 +1,30 @@
+<Module>
+    <Type from="../model" as="Allocator" />
+
+    <Args in={Allocator.Operations} out={Allocator.Operations} />
+
+    <Call
+        module="build"
+        in={{
+            state: $in.state,
+            kind: $in.kinds[$in.index]
+        }}
+    />
+
+    <Call
+        fn="register"
+        in={{
+            state: $ctx.build,
+            kind: $in.kinds[$in.index]
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            state: $ctx.register,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.kinds.length
+        }}
+    />
+</Module>

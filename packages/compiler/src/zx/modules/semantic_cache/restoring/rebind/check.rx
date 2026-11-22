@@ -26,7 +26,7 @@
     </If>
 
     <Task name="imports" out={$ctx.bindings}>
-        <Call fn="../functions/bindings" in={$in.bindings} />
+        <Call module="../functions/bindings" in={$in.bindings} />
     </Task>
 
     <If on={!$ctx.task.imports}>
@@ -37,7 +37,7 @@
         />
     </If>
 
-    <Call fn="../functions/bindings" in={$in.members} />
+    <Call module="../functions/bindings" in={$in.members} />
 
     <If on={!$ctx.bindings}>
         <Return

@@ -1,0 +1,19 @@
+<Module>
+    <Type from="batch_model" as="Batch" />
+
+    <Args in={Batch.Traversal} out={Batch.Traversal} />
+
+    <Call fn="remap_request" in={$in} />
+
+    <Call module="remap" />
+
+    <Call
+        fn="append"
+        in={{
+            state: $in,
+            owned: $ctx.remap
+        }}
+    />
+
+    <Return value={$ctx.append} />
+</Module>

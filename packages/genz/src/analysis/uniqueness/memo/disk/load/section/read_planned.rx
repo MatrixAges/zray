@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.PlannedTraversal} out={Cache.PlannedTraversal} />
+
+    <Call
+        module="../plan"
+        in={{
+            source: $in.section.source,
+            start: $in.offset
+        }}
+    />
+
+    <If on={$ctx.plan != null}>
+        <Call
+            fn="write_planned"
+            in={{
+                section: $in.section,
+                used: $in.used,
+                record: $ctx.plan
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                offset: $ctx.plan.end,
+                remaining: $in.remaining - 1,
+                used: $ctx.write_planned,
+                running: $in.remaining != 1 && $ctx.plan.end != 0
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            offset: 0,
+            running: false
+        }}
+    />
+</Module>

@@ -1,0 +1,19 @@
+import category from "./category"
+import components from "./components"
+import native from "./native"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { absolute, path, native_only } = in
+
+    if (absolute || !components(path)) {
+        return false
+    }
+
+    const admitted = native(path)
+
+    return admitted || (!native_only && category(path))
+}

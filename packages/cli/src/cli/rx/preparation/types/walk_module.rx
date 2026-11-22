@@ -1,0 +1,33 @@
+<Module>
+    <Type from="../model" as="Preparation" />
+
+    <Args in={Preparation.TypeWalk} out={Preparation.TypeWalk} />
+
+    <Call
+        fn="../index.selectPreparationModule"
+        in={[
+            $in.references,
+            $in.index
+        ]}
+    />
+
+    <Call
+        module="walk_reference"
+        while="running"
+        in={{
+            ...$in,
+            count: $ctx.selectPreparationModule,
+            index: $ctx.selectPreparationModule,
+            running: $ctx.selectPreparationModule != 0
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.walk_reference.valid,
+            running: $ctx.walk_reference.valid && $in.index + 1 < $in.count
+        }}
+    />
+</Module>

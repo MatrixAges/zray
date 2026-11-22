@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Members} out={Workspace.Members} />
+
+    <Call
+        module="member"
+        in={$in.pick([
+            "collection",
+            "index"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
+</Module>

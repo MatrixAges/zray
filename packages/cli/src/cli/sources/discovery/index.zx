@@ -11,5 +11,6 @@ export {
     hasSource,
     loadImportText
 } from "source_loader_host"
+export { sourceCount, selectSource } from "source_loader_host"
 
 export type { Discovery as Input, Target } from "source_loader_host"

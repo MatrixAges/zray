@@ -7,7 +7,7 @@
 
     <If on={$in.memo != null}>
         <Call
-            fn="../../memo/record/write"
+            module="../../memo/record/write"
             in={{
                 target: $in.memo,
                 result: $ctx.run

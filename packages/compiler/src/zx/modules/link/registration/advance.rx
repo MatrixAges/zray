@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Types" />
+
+    <Args in={Types.Traversal} out={Types.Traversal} />
+
+    <Call fn="request" in={$in} />
+
+    <Call module="../../../analysis/semantic/merging/register" />
+
+    <Call
+        fn="publish_cursor"
+        in={{
+            source: $in,
+            status: $ctx.register
+        }}
+    />
+
+    <Return value={$ctx.publish_cursor} />
+</Module>

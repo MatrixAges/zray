@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Bindings" />
+
+    <Args in={Bindings.Traversal} out={Bindings.Traversal} />
+
+    <Call fn="member_request" in={$in} />
+
+    <Call module="service" />
+
+    <Return
+        value={{
+            state: $ctx.service,
+            position: $in.position + 1,
+            running:
+                $ctx.service.status == Bindings.Status.Valid &&
+                $in.position + 1 < $in.state.source.members.count
+        }}
+    />
+</Module>

@@ -2,6 +2,13 @@ import type { Template } from "source_loader_host"
 
 export type Row = [Template, u64]
 
+export type Walk = {
+    source: Template,
+    count: u64,
+    index: u64,
+    running: bool
+}
+
 export type File = {
     template: Template,
     path: string

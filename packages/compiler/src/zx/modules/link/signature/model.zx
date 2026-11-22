@@ -63,3 +63,19 @@ export type Batch = Request.Omit(
     snapshot: ColumnView,
     empty: BodyColumns
 }
+
+export type Traversal = {
+    source: Batch,
+    modules: Modules,
+    native_ids: u32?[],
+    linked: LinkedSignatureColumns,
+    index: u64,
+    status: Status,
+    running: bool
+}
+
+export type Reuse = {
+    target: OptionalU32Buffer,
+    index: u64,
+    row: u64
+}

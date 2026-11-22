@@ -30,7 +30,7 @@
     </If>
 
     <Call
-        fn="../../../../ir/canonical/validation/external/walk"
+        module="../../../../ir/canonical/validation/external/walk"
         in={{
             table: $in.types,
             functions: $in.request.signatures,

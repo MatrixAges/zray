@@ -47,7 +47,7 @@
         <Return value={Link.Status.Invalid} />
     </If>
 
-    <Call fn="named" in={$in} />
+    <Call module="named" in={$in} />
 
     <Return value={$ctx.named} />
 </Module>

@@ -6,6 +6,8 @@ import { Ownership } from "core/symbol_table/model"
 
 import returns from "../../control/returns"
 import cost from "../append"
+import bodyControl from "../body/control"
+import bodyExpressions from "../body/expressions"
 import { InlineOp } from "../model"
 
 import type { Inline, Step } from "../model"
@@ -17,8 +19,14 @@ export type Output = Inline
 export default function (in: Input): Output {
     const state = in.state
     const subject = state.stack[state.stack.length - 1]
-    const unit = state.units[state.mappings.units[in.frame.mapping]]
-    const control = unit.control
+
+    const address = {
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    }
+
+    const control = bodyControl(address)
+    const expressions = bodyExpressions(address)
     const payload = in.frame.f
     const first = integers.widen(control.selection_first[payload])
 
@@ -44,7 +52,7 @@ export default function (in: Input): Output {
     const continuation = continuing ? 0 : in.frame.b
 
     const subject_type =
-        unit.expressions.types[integers.widen(
+        expressions.types[integers.widen(
             control.selection_subjects[payload]
         )]
 

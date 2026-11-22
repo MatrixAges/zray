@@ -1,0 +1,44 @@
+<Module>
+    <Type from="model" as="Reuse" />
+
+    <Args in={Reuse.Scan} out={Reuse.Scan} />
+
+    <If on={$in.source.symbols[$in.row] != null}>
+        <Call
+            module="../../object_update/match/candidate"
+            in={{
+                ...$in.source.matching,
+                id: $in.source.bindings[$in.row],
+                evaluated: false
+            }}
+        />
+
+        <If on={$ctx.candidate != null}>
+            <Call
+                fn="add_candidate"
+                in={{
+                    found: $in.found,
+                    row: $in.row,
+                    change: $ctx.candidate
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    found: $ctx.add_candidate,
+                    row: $in.row + 1,
+                    running: $in.row + 1 < $in.source.symbols.length
+                }}
+            />
+        </If>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.source.symbols.length
+        }}
+    />
+</Module>

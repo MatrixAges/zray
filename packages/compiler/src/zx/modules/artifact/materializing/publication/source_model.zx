@@ -3,12 +3,12 @@ import type { Control } from "core/control_table/model"
 import type { Expressions } from "core/expression_table/model"
 import type { Stores } from "core/store_table/model"
 import type { Symbols } from "core/symbol_table/model"
-import type { ColumnLengths, U64Buffer } from "memory"
+import type { U64Buffer } from "memory"
 import type { Workspace } from "../../../../ir/canonical/body/workspace"
 import type { Mapping } from "../../remapping/model"
 import type { Output as External } from "../copy_external"
 import type { Input as FunctionInput, Owned } from "../function_model"
-import type { Attributes, BodyColumns, Columns, Publication, Target } from "./model"
+import type { Attributes, Columns, Publication, Target } from "./model"
 
 export type Source = Columns
 
@@ -33,13 +33,11 @@ export type Link = Owned?
 export type Input = {
     source: Source,
     target: Target,
-    tables: BodyColumns,
     mappings: Mappings,
     empty: Empty,
     workspace: Workspace,
     max_offset: u64,
-    progress: U64Buffer,
-    lengths: ColumnLengths
+    progress: U64Buffer
 }
 
 export type Output = Publication
@@ -60,4 +58,16 @@ export type Root = {
 
 export type RootRequest = Input.Omit("source") & {
     source: Root
+}
+
+export type Traversal = {
+    input: Input,
+    row: u64,
+    valid: bool,
+    running: bool
+}
+
+export type Append = Input.Pick("target", "empty", "progress") & {
+    value: Owned,
+    row: u64
 }

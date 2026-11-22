@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Members} out={Result.Members} />
+
+    <Call fn="select_member" in={$in} />
+
+    <If on={$ctx.select_member.conversion != null}>
+        <Call
+            module="../../state/conversion/emit/append"
+            in={{
+                source: $ctx.select_member.conversion,
+                state: $ctx.select_member.state
+            }}
+        />
+
+        <Call
+            fn="publish_member"
+            in={{
+                members: $in,
+                state: $ctx.append,
+                value: $ctx.append.nodes[0].result
+            }}
+        />
+
+        <Return value={$ctx.publish_member} />
+    </If>
+
+    <Call
+        fn="publish_member"
+        in={{
+            members: $in,
+            ...$ctx.select_member.pick([
+                "state",
+                "value"
+            ])
+        }}
+    />
+
+    <Return value={$ctx.publish_member} />
+</Module>

@@ -1,0 +1,65 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import { Kind } from "../model"
+
+import type { Request as Output } from "../model"
+import type { Tables, Walk } from "./model"
+
+export type Input = Walk.Pick("checks", "aliases", "constants", "imports") & {
+    providers: Tables,
+    row: u64,
+    target: u64,
+    kind: u8
+}
+
+export default function (in: Input): Output {
+    const { row, target, imports, providers, checks } = in
+    const { codes } = imports.edges
+
+    columns.projectListColumns(providers.projection, target)
+
+    const kind = match in.kind {
+        codes.type_only => Kind.TypeOnly,
+        codes.function => Kind.Function,
+        _ => Kind.Enumeration
+    }
+
+    const exported = memory.readColumnBool(imports.exported, row)
+    const members = exported ? checks.members : checks.imports
+
+    return {
+        dependency: {
+            kind,
+            names: memory.readTextListColumn(imports.names, row),
+            source_names: memory.readTextListColumn(imports.source_names, row),
+            wildcard: memory.readColumnBool(imports.wildcard, row)
+        },
+        consumer: {
+            members,
+            aliases: in.aliases,
+            constants: in.constants,
+            types: checks.types,
+            functions: checks.functions
+        },
+        provider: {
+            executable: providers.functions[target] != null,
+            members: {
+                ...providers.members,
+                count: memory.columnLength(providers.members.ids)
+            },
+            signatures: providers.signatures,
+            aliases: {
+                ...providers.aliases,
+                count: memory.columnLength(providers.aliases.ids)
+            },
+            kinds: providers.kinds,
+            constants: {
+                ...providers.constants,
+                count: columns.columnLength(providers.constants.types)
+            },
+            types: providers.types[target]
+        },
+        linked: checks.linked
+    }
+}

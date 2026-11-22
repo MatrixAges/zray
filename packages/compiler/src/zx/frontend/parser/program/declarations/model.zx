@@ -6,5 +6,11 @@ export type DeclarationStage = {
     prefix: ImportStage,
     declarations: State,
     constants: Constant[],
-    finished: bool
+    finished: bool,
+    pending_constant: bool
+}
+
+export type Traversal = {
+    stage: DeclarationStage,
+    running: bool
 }

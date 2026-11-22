@@ -1,7 +1,7 @@
 import type { Probe } from "../../../memo/encoding/body/model"
 import type { State as Encoding } from "../../../memo/encoding/model"
 import type { State as Channel } from "../../pool/model"
-import type { Input as Window } from "../scan"
+import type { Candidate, Input as Window } from "../scan"
 
 export type Offer = Probe.Omit("state", "index")
 
@@ -22,4 +22,15 @@ export type Output = {
     encoding: Encoding,
     next: u64,
     pending?: Pending
+}
+
+export type Traversal = Input & {
+    first: u64,
+    pending?: Pending,
+    running: bool
+}
+
+export type Queue = {
+    state: Traversal,
+    selected: Candidate
 }

@@ -6,7 +6,7 @@
     <Call module="../summary/settle" in={$in.analysis} />
 
     <Call
-        fn="publish_settlement"
+        module="publish_settlement"
         in={{
             ...$in.omit(["analysis"]),
             result: $ctx.settle

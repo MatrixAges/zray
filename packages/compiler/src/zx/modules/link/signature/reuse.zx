@@ -1,0 +1,10 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Reuse as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeOptionalU32(in.target, in.index, integers.narrow(in.row))
+}

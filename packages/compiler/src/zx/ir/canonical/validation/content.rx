@@ -41,7 +41,7 @@
         <Return value={null} />
     </If>
 
-    <Call fn="functions/check_all" in={$in.context} />
+    <Call module="functions/check_all" in={$in.context} />
 
     <If on={$ctx.check_all == null}>
         <Return value={null} />

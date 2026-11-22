@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Statements" />
+
+    <Args in={Statements.Body} out={Statements.Body} />
+
+    <Call
+        module="step"
+        while="running"
+        in={{
+            body: $in,
+            running: true
+        }}
+    />
+
+    <Return value={$ctx.step.body} />
+</Module>

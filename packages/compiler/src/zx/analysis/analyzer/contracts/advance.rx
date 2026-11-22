@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Contracts" />
+
+    <Args in={Contracts.Traversal} out={Contracts.Traversal} />
+
+    <Call
+        module="predicate/analyze"
+        in={{
+            types: $in.work.state.types,
+            aliases: $in.work.aliases,
+            source: $in.work.source,
+            contract: $in.work.items[$in.index],
+            input_type: $in.work.state.input_type,
+            output_type: $in.work.state.local.output_type
+        }}
+    />
+
+    <Call
+        fn="publish"
+        in={{
+            traversal: $in,
+            result: $ctx.analyze
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

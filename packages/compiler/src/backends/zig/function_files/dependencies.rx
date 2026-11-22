@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Files" />
+
+    <Args in={Files.Dependencies} out={string[]} />
+
+    <If on={$in.selected.native != null}>
+        <Call
+            fn="columns.borrowStringRange"
+            in={[
+                $in.source.native_names,
+                $in.selected.native,
+                1
+            ]}
+        />
+
+        <Return value={$ctx.borrowStringRange} />
+    </If>
+
+    <Call
+        module="genz/reference_imports"
+        in={{
+            expressions: $in.source.functions.expressions[$in.selected.id],
+            contracts: $in.source.functions.contracts[$in.selected.id],
+            names: $in.source.names,
+            members: [],
+            destination: $in.source.destination,
+            native: null
+        }}
+    />
+
+    <Return value={$ctx.reference_imports} />
+</Module>

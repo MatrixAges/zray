@@ -1,0 +1,15 @@
+import type { Members as Output, Publication as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { members, state, value } = in
+
+    const index = members.index + 1
+
+    return {
+        ...members,
+        state,
+        values: members.values.push(value)[0],
+        index,
+        running: index < members.source.members.length && state.context.valid
+    }
+}

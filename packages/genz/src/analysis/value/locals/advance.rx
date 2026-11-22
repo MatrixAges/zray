@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Locals" />
+
+    <Args in={Locals.Input} out={Locals.Walk} />
+
+    <If on={!$in.source.value_output && !$in.source.scalar}>
+        <Return value={$in.state} />
+    </If>
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            ...$in,
+            end: $in.first + $in.count,
+            running: $in.state.position < $in.first + $in.count
+        }}
+    />
+
+    <Return value={$ctx.next.state} />
+</Module>

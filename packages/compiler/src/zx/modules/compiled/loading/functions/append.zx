@@ -1,0 +1,45 @@
+import memory from "memory"
+
+import readAttributes from "../../../artifact/materializing/publication/attributes"
+import write from "../../../artifact/materializing/publication/write"
+
+import type { Append as Input, Traversal as Output } from "./batch_model"
+
+export default function (in: Input): Output {
+    const { state, owned } = in
+    const { source, target, progress } = state.input
+    const { row } = state
+
+    write({
+        storage: target.storage,
+        function: {
+            ...readAttributes({
+                source,
+                row
+            }),
+            file: owned.header.file,
+            ports: {
+                input: owned.header.input_type,
+                output: owned.header.output_type,
+                native_module: owned.header.native_module
+            },
+            external: owned.external,
+            symbols: owned.symbols,
+            expressions: owned.expressions,
+            contracts: owned.contracts,
+            control: owned.control,
+            store_table: owned.stores
+        },
+        row
+    })
+
+    const next = row + 1
+
+    memory.writeU64(progress, 0, next)
+
+    return {
+        ...state,
+        row: next,
+        running: next < source.files.length
+    }
+}

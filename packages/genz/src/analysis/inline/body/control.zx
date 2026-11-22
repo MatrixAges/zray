@@ -1,0 +1,15 @@
+import type { Control } from "core/control_table/model"
+import type { Position as Input } from "./model"
+
+export type Output = Control
+
+export default function (in: Input): Output {
+    const { program, index } = in
+
+    const functions = program.functions
+
+    return match {
+        index == functions.roots.length => program.control,
+        _ => functions.control[index]
+    }
+}

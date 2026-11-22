@@ -1,0 +1,9 @@
+import type { Services as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const bound = in.bound
+
+    return bound == null ? in.services.length : bound.ends.length
+}

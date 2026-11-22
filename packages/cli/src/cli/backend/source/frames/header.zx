@@ -1,0 +1,47 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import integer from "std:integer"
+
+import { frame_header_size, word_size } from "./const"
+import tag from "./tag"
+
+import type { Reader, Tag } from "./model"
+
+export type Input = Reader.Pick("bytes", "offset", "finished")
+
+export type Header = {
+    kind: Tag,
+    length: u64,
+    body: string,
+    end: u64
+}
+
+export type Output = Header?
+
+export default function (in: Input): Output {
+    const { offset, finished } = in
+
+    const stream = bytes.fromText(in.bytes)
+    const remaining = stream.length - offset
+
+    if (finished || remaining < frame_header_size) {
+        return null
+    }
+
+    const kind = tag(bytes.readU32(stream, offset, true))
+    const length = integer.widen(bytes.readU32(stream, offset + word_size, true))
+
+    if (length > remaining - frame_header_size) {
+        return null
+    }
+
+    const payload = offset + frame_header_size
+    const end = payload + length
+
+    return {
+        kind,
+        length,
+        body: encoding.sliceBytes(in.bytes, payload, end),
+        end
+    }
+}

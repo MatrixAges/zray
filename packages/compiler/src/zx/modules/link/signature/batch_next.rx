@@ -1,0 +1,74 @@
+<Module>
+    <Type from="model" as="Signature" />
+    <Type from="decision" as="Decision" />
+
+    <Args in={Signature.Traversal} out={Signature.Traversal} />
+
+    <Call fn="batch_request" in={$in} />
+
+    <Call module="bind" />
+
+    <If on={$ctx.bind.status == Decision.Status.Reuse}>
+        <Call
+            fn="reuse"
+            in={{
+                target: $in.source.target,
+                index: $in.index,
+                row: $ctx.bind.row
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                index: $in.index + 1,
+                running: $in.index + 1 < $in.source.signatures.files.length
+            }}
+        />
+    </If>
+
+    <If on={$ctx.bind.status == Decision.Status.Insert}>
+        <Call
+            module="publication/publish"
+            in={{
+                source: $in.source.signatures,
+                row: $in.index,
+                ports: {
+                    input: $ctx.bind.input_type,
+                    output: $ctx.bind.output_type,
+                    native_module: $ctx.bind.native_id
+                },
+                empty: $in.source.empty,
+                destination: $in.source.destination,
+                mapping: $in.source.target,
+                id: $ctx.bind.row
+            }}
+        />
+
+        <Call
+            fn="batch_views.readColumnSet"
+            in={[
+                $in.source.read_columns,
+                $in.source.snapshot,
+                $in.source.linked_shape
+            ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                linked: $ctx.readColumnSet,
+                index: $in.index + 1,
+                running: $in.index + 1 < $in.source.signatures.files.length
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            status: $ctx.bind.status,
+            running: false
+        }}
+    />
+</Module>

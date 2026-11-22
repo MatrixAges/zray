@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import bodyExpressions from "../body/expressions"
 import { InlineOp } from "../model"
 import symbols from "./symbols"
 
@@ -11,7 +12,12 @@ export type Output = Inline
 
 export default function (in: Input): Output {
     const state = in.state
-    const table = state.units[state.mappings.units[in.frame.mapping]].expressions
+
+    const table = bodyExpressions({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
+
     const id = in.frame.id
 
     const callee =
@@ -21,7 +27,7 @@ export default function (in: Input): Output {
             )]
         )
 
-    const unit = state.units[callee]
+    const functions = state.program.functions
     const offset = state.tables.symbols.names.length
     const base = state.ids.length
     const child = state.mappings.units.length
@@ -31,11 +37,11 @@ export default function (in: Input): Output {
         unit: callee
     })
 
-    const root = unit.root
+    const root = functions.roots[callee]
 
     const ids = loop({
         ids: extended.ids,
-        remaining: unit.expressions.kinds.length
+        remaining: functions.expressions[callee].kinds.length
     }, {
         while: current => current.remaining != 0,
         next: current => {
@@ -64,7 +70,7 @@ export default function (in: Input): Output {
         mapping: child,
         id: root == null ? 0 : integers.widen(root) + 1,
         b: 0,
-        c: integers.widen(unit.output_type),
+        c: integers.widen(functions.output_types[callee]),
         d: table.span_start[id],
         e: table.span_end[id]
     }

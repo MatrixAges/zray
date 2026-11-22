@@ -12,5 +12,12 @@ export type Input = {
 
 export type Poll = {
     watch: Watch,
-    retry_backend: bool
+    retry_backend: bool,
+    running: bool,
+    scans: u64,
+    changed: bool
+}
+
+export type Cycle = Input & {
+    running: bool
 }

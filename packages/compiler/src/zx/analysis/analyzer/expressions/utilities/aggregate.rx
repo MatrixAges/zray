@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Utility" />
+    <Type from="../model" as="Expressions" />
+    <Type from="../../../../modules/intrinsic/model" as="Intrinsic" />
+
+    <Args in={Utility.List} out={Expressions.Result} />
+
+    <Call fn="aggregate_plan" in={$in} />
+
+    <If on={$ctx.aggregate_plan.options != null}>
+        <Call
+            module="../../collections/lower"
+            in={{
+                ...$ctx.aggregate_plan.options,
+                state: $ctx.aggregate_plan.state
+            }}
+        />
+
+        <If on={$in.operation == Intrinsic.Operation.Sum}>
+            <Return value={$ctx.lower} />
+        </If>
+
+        <Call
+            fn="aggregate_finish"
+            in={{
+                source: $in,
+                result: $ctx.lower,
+                position: $ctx.aggregate_plan.position
+            }}
+        />
+
+        <Return value={$ctx.aggregate_finish} />
+    </If>
+
+    <Return
+        value={{
+            state: $ctx.aggregate_plan.state,
+            value: 0
+        }}
+    />
+</Module>

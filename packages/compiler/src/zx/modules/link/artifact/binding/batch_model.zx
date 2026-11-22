@@ -23,3 +23,8 @@ export type Output = {
     status: Status,
     entry?: Retained
 }
+
+export type Traversal = Input & Output & {
+    position: u64,
+    running: bool
+}

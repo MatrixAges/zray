@@ -5,9 +5,9 @@ const strings = @import("native.zig").strings;
 const Error = std.mem.Allocator.Error || error{InvalidModule};
 const columns = @import("../../artifact/materializing/publication/columns.zig");
 const publish = @import("generated_compiled_publish");
-pub const Request = @typeInfo(@TypeOf(publish.executeState)).@"fn".param_types[1].?;
-const Result = @typeInfo(@typeInfo(@TypeOf(publish.executeState)).@"fn".return_type.?).error_union.payload;
-const Input = @FieldType(Request, "functions");
+pub const Request = std.meta.Child(publish.Input);
+const Result = publish.Output;
+const Input = std.meta.Child(@FieldType(Request, "functions"));
 const Target = std.meta.Child(@FieldType(Input, "target"));
 const Source = std.meta.Child(@FieldType(Input, "source"));
 const Mapping = @FieldType(Input, "mapping");
@@ -50,20 +50,18 @@ pub const View = struct {
         self.input = .{
             .source = &self.source,
             .target = &self.target,
-            .tables = columns.body(@FieldType(Input, "tables"), functions, source.count()),
             .mapping = if (indirect_mapping) &self.mapping else columns.borrow(Mapping, context),
             .first = context.first,
             .instance = context.instance,
             .progress = @ptrCast(&self.progress),
-            .lengths = @ptrCast(&self.lengths),
         };
     }
 
     pub fn check(self: *const View, output: Result) Error!void {
-        switch (output.status) {
+        switch (output) {
             .Exhausted => return error.OutOfMemory,
             .Invalid => return error.InvalidModule,
-            .Complete => columns.checkBorrow(self.input.tables, output.tables.?),
+            .Complete => {},
         }
 
         std.debug.assert(self.completed[0] == self.source.files.len);

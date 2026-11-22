@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import write from "./write"
+
+import type { Append as Input } from "./source_model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, value, empty, row } = in
+
+    write({
+        storage: target.storage,
+        function: {
+            ...value.omit([
+                "stores",
+                "recursive",
+                "control",
+                "store_table"
+            ]),
+            control: value.control ?? empty.control,
+            store_table: value.store_table ?? empty.stores
+        },
+        row
+    })
+
+    memory.writeU64(in.progress, 0, row + 1)
+}

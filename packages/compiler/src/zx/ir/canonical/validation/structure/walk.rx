@@ -1,0 +1,18 @@
+<Module>
+    <Type from="../model" as="IR" />
+
+    <Args in={IR.Context} out={bool} />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            context: $in,
+            index: $in.verified,
+            valid: true,
+            running: $in.verified < $in.functions.files.length
+        }}
+    />
+
+    <Return value={$ctx.advance.valid} />
+</Module>

@@ -1,0 +1,30 @@
+import memory from "memory"
+
+import claim from "../../../table/claim"
+import complete from "../../../table/complete"
+
+import type { FlowedWrite as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { section, used, record } = in
+    const { index, target } = section
+
+    const row = claim({
+        ...index.omit(["used"]),
+        digest: record.digest,
+        used
+    })
+
+    memory.writeColumnBytes(target.held, row, record.held)
+    memory.writeColumnBytes(target.text_held, row, record.text_held)
+    memory.writeColumnBytes(target.written, row, record.written)
+    memory.writeColumnBool(target.used, row, false)
+
+    return complete({
+        target: index.used,
+        used,
+        row
+    })
+}

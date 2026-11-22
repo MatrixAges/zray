@@ -10,7 +10,7 @@
     </If>
 
     <Call
-        fn="publication"
+        module="publication"
         in={{
             ...$in,
             count: $ctx.collect.count

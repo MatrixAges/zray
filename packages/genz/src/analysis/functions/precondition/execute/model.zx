@@ -7,3 +7,8 @@ export type Input = {
 }
 
 export type Frame = PreconditionFrame
+
+export type Walk = Input & {
+    index: u64,
+    running: bool
+}

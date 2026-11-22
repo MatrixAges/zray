@@ -4,7 +4,6 @@ import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import memory from "memory"
 
-import appendField from "../../../ast/fields/append"
 import emptyFields from "../../../ast/fields/empty"
 
 import type { Input as Source, Output, Types } from "./model"
@@ -33,16 +32,16 @@ export default function (in: Input): Output {
             if (current.field_index < current.field_end) {
                 const field = current.field_index
 
-                current.fields = appendField({
-                    table: current.fields,
-                    name: bytes.fromText(current.source.field_names[field]),
-                    value: current
-                        .values[integers.widen(
-                            current.source.field_types[field]
-                        )],
-                    default_value: null,
-                    comptime_parameter: false
-                })
+                const name = bytes.fromText(current.source.field_names[field])
+                const field_type = integers.widen(current.source.field_types[field])
+
+                current.fields.name = current.fields.name.push(name)[0]
+                current.fields.value =
+                    current.fields.value.push(current.values[field_type])[0]
+                current.fields.default_value =
+                    current.fields.default_value.push(null)[0]
+                current.fields.comptime_parameter =
+                    current.fields.comptime_parameter.push(false)[0]
                 current.field_index += 1
             } else {
                 const index = current.type_index

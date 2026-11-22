@@ -21,6 +21,7 @@ pub const Call = struct {
     callee_suffix: ?*const zx.ir.FunctionTable = null,
     argument: zx.ir.Program,
     input_omitted: bool = false,
+    repeat_field: ?u32 = null,
     out: ?[]const u8,
 };
 

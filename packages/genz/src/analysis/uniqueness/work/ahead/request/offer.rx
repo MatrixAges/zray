@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Ahead" />
+
+    <Args in={Ahead.Input} out={Ahead.Output} />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            ...$in,
+            first: $in.window.first,
+            pending: null,
+            running: true
+        }}
+    />
+
+    <Return
+        value={{
+            encoding: $ctx.advance.encoding,
+            next: $ctx.advance.first,
+            pending: $ctx.advance.pending
+        }}
+    />
+</Module>

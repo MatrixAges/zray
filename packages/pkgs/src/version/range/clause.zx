@@ -1,0 +1,31 @@
+import hyphen from "./hyphen"
+import intersection from "./intersection"
+import layout from "./layout"
+
+import type { Clause as Input } from "../model"
+
+export type Output = bool?
+
+export default function (in: Input): Output {
+    const range = layout(in.pick([
+        "text",
+        "start",
+        "end"
+    ]))
+
+    if (range.first.start == range.first.end) {
+        return null
+    }
+
+    if (range.hyphen) {
+        return hyphen({
+            ...in,
+            ...range.omit(["hyphen"])
+        })
+    }
+
+    return intersection({
+        ...in,
+        first: range.first
+    })
+}

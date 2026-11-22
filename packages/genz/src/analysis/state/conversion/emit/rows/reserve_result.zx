@@ -1,0 +1,38 @@
+import binding from "../../../../../ast/body/binding"
+
+import type { StateBody } from "../../../../../ast/body/model"
+import type { State as Input } from "../../../../growth/model"
+import type { Reserved as Output } from "../model"
+
+export default function (in: Input): Output {
+    const result = in
+
+    const initial: StateBody = {
+        context: result.context,
+        body: {
+            tags: [],
+            offsets: []
+        }
+    }
+
+    const appended = loop({
+        state: initial,
+        index: 0
+    }, {
+        while: current => current.index < result.body.constant_name.length,
+        next: current => {
+            current.state = binding({
+                state: current.state,
+                name: result.body.constant_name[current.index],
+                value: result.body.constant_value[current.index]
+            })
+            current.index += 1
+        },
+        return: current => current.state
+    })
+
+    return {
+        ...appended,
+        root: result.root
+    }
+}

@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Scan" />
+    <Type from="../model" as="Trace" />
+
+    <Args in={Scan.Miss} out={Scan.Traversal} />
+
+    <Call fn="restore_scratch" in={$in.scan.arenas} />
+
+    <Call
+        module="restore"
+        in={{
+            ...$in.scan.recovery,
+            cursor: $in.scan.cursor,
+            source: $in.source
+        }}
+    />
+
+    <Call
+        fn="../../../program/allocators.selectAllocator"
+        in={[
+            $in.scan.arenas.scope,
+            $in.scan.arenas.staged
+        ]}
+    />
+
+    <If on={$ctx.restore}>
+        <Return
+            value={{
+                ...$in.scan,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
+        module="../advance"
+        in={{
+            ...$in.scan.replay,
+            cursor: $in.scan.cursor,
+            agreed: false
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in.scan,
+            cursor: $ctx.advance,
+            running:
+                $ctx.advance.phase != Trace.Phase.Done &&
+                $ctx.advance.phase != Trace.Phase.Reject
+        }}
+    />
+</Module>

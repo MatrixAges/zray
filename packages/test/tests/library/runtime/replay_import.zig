@@ -1,5 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const rx = @import("rx");
+const rx_analysis = @import("rx_analysis");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -26,20 +28,19 @@ pub fn main(init: std.process.Init) !void {
         try analyses.ensureTotalCapacity(allocator, library.exports.len);
 
         for (library.exports) |exported| {
-            const path = try std.fmt.allocPrint(allocator, "{s}.zx", .{exported.name});
-            const is_rx = std.mem.startsWith(u8, args[3], "mixed") and !std.mem.eql(u8, exported.name, "beta");
-            const bridge = if (is_rx) @embedFile("fixtures/import_rx_types.zx") else "import type { Input, Output } from \"dependency\"\nexport type SharedInput = Input\nexport type SharedOutput = Output\n";
-            const source = "import run from \"dependency\"\nimport type { SharedInput, SharedOutput } from \"./types\"\nexport type Input = SharedInput\nexport type Output = SharedOutput\nexport default function (in: Input): Output { return run(in) }\n";
+            const is_rx = std.mem.endsWith(u8, exported.path, ".rx");
+            const path = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ exported.name, if (is_rx) "rx" else "zx" });
 
-            var analysis = try compiler.project.analyze(std.heap.page_allocator, &.{
-                .{ .path = path, .source = source },
-                .{ .path = "types.zx", .source = bridge },
-            }, .{
+            const options: compiler.project.Options = .{
                 .entry = path,
                 .root_dir = "/consumer",
                 .packages = &.{.{ .specifier = "dependency", .compiled = .{ .instance = "workflow@1", .artifact = "library.zxlib", .name = exported.name } }},
                 .compiled_libraries = &.{.{ .instance = "workflow@1", .artifact = "library.zxlib", .program = library.program, .exports = library.exports, .nominal_types = library.nominal_types }},
-            });
+            };
+
+            var analysis = if (is_rx) try analyzeRx(path, options) else try compiler.project.analyze(std.heap.page_allocator, &.{
+                .{ .path = path, .source = "import run from \"dependency\"\nimport type { Input, Output } from \"dependency\"\nexport default function (in: Input): Output { return run(in) }\n" },
+            }, options);
 
             errdefer analysis.deinit();
 
@@ -62,4 +63,32 @@ pub fn main(init: std.process.Init) !void {
     defer imported.deinit();
 
     try @import("emit.zig").emit(init.io, allocator, &imported, args[2]);
+}
+
+fn analyzeRx(path: []const u8, options: compiler.project.Options) !compiler.AnalysisResult {
+    const allocator = std.heap.page_allocator;
+    var parsed = try rx.parseXml(allocator, "<Module><Call module='dependency' in={$in}/><Return value={$ctx.dependency}/></Module>");
+
+    defer parsed.deinit();
+
+    if (parsed.value != .node) return error.InvalidXml;
+
+    var inferred = try rx_analysis.project.infer(allocator, .{
+        .entry = path,
+        .modules = &.{.{ .path = path, .node = parsed.value.node }},
+        .sources = &.{},
+        .project = options,
+    });
+
+    errdefer inferred.deinit();
+
+    if (inferred.value == .diagnostic) {
+        std.debug.print("{s}: {s}\n", .{ path, inferred.value.diagnostic.message });
+
+        return error.InvalidConsumer;
+    }
+
+    const contract = inferred.value.contract;
+
+    return .{ .arena = inferred.arena, .value = .{ .ir = contract.program }, .nominal_types = contract.nominal_types };
 }

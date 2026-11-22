@@ -1,13 +1,11 @@
 <Module>
     <Type from="../model" as="Model" />
-    <Type from="../unit" as="Unit" />
     <Type from="apply" as="Apply" />
     <Type from="../facts/allocators" as="Allocators" />
 
     <Args
         in={{
             program: Model.Program,
-            units: Unit.Unit[],
             allocator: Allocators.Resource
         }}
         out={Apply.Output}
@@ -25,7 +23,7 @@
         fn="plan"
         in={{
             types: $in.program.types,
-            units: $in.units,
+            functions: $in.program.functions,
             pure: $ctx.pure
         }}
     />
@@ -42,8 +40,7 @@
     <Call
         fn="apply"
         in={{
-            types: $in.program.types,
-            units: $in.units,
+            program: $in.program,
             plan: $ctx.plan.costs
         }}
     />

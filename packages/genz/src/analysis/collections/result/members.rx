@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.State} out={Result.State} />
+
+    <Call
+        module="member"
+        while="running"
+        in={{
+            ...$in,
+            running: $in.index < $in.source.members.length && $in.state.context.valid
+        }}
+    />
+
+    <Return value={$ctx.member.omit(["running"])} />
+</Module>

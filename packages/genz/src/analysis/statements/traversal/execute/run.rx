@@ -4,13 +4,13 @@
     <Args in={Execution.Input} out={bool} />
 
     <If on={$in.plan.flat}>
-        <Call fn="flat" in={$in} />
+        <Call module="flat" in={$in} />
 
         <Return value={$ctx.flat} />
     </If>
 
     <Call
-        fn="walk"
+        module="walk"
         in={$in.pick([
             "traversal",
             "plan"

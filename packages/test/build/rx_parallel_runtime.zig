@@ -2,10 +2,10 @@ const std = @import("std");
 
 pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step {
     const step = b.step("test-rx-parallel-runtime", "Execute native RX parallel calls and Tasks with observed worker threads");
-    const migration = b.step("test-rx-value-migration-parallel", "Execute the migrated Task capture case across source and eight library routes");
+    const migration = b.step("test-rx-value-migration-parallel", "Execute the migrated Task capture case across source and library routes");
     const owned = b.step("test-rx-owned-runtime", "Execute owned inputs across RX parallel source and compiled library boundaries");
     const archived = b.step("test-rx-parallel-library", "Execute parallel workflows replayed from unified library artifacts");
-    const imported = b.step("test-rx-parallel-import", "Execute parallel workflows imported and republished by RX and ZX consumers");
+    const imported = b.step("test-rx-parallel-import", "Execute parallel workflows imported and republished by RX consumers");
     const all = b.step("test-rx-parallel", "Execute source, archived and imported RX parallel workflows");
 
     all.dependOn(step);
@@ -77,7 +77,7 @@ pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.Res
         .{ .mode = "thread_nested", .test_name = "thread" },
     };
 
-    for (cases) |case| for ([_][]const u8{ "source", "forward", "reverse", "rx_forward", "rx_reverse", "zx_forward", "zx_reverse", "republish_forward", "republish_reverse" }) |route| {
+    for (cases) |case| for ([_][]const u8{ "source", "forward", "reverse", "rx_forward", "rx_reverse", "republish_forward", "republish_reverse" }) |route| {
         const mode = case.mode;
         const compile = b.addRunArtifact(tool);
 
@@ -95,7 +95,7 @@ pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.Res
 
                 consume.addFileArg(artifact);
                 consume.addArg(export_name);
-                consume.addArg(if (std.mem.startsWith(u8, route, "zx_")) "zx" else "rx");
+                consume.addArg("rx");
 
                 artifact = consume.addOutputFileArg("consumer.zxlib");
                 export_name = "consumer";
@@ -106,7 +106,7 @@ pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.Res
 
                 consume.addFileArg(artifact);
                 consume.addArg(export_name);
-                consume.addArg("zx");
+                consume.addArg("rx");
 
                 artifact = consume.addOutputFileArg("republished.zxlib");
             }

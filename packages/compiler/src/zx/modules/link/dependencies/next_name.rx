@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Link" />
+
+    <Args in={Link.Named} out={Link.Named} />
+
+    <Call
+        module="item"
+        in={{
+            request: $in.request,
+            local: $in.request.dependency.names[$in.row],
+            original: match $in.aliased {
+                true => $in.request.dependency.source_names[$in.row],
+                _ => $in.request.dependency.names[$in.row]
+            }
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            status: $ctx.item,
+            row: $in.row + 1,
+            running:
+                $ctx.item == Link.Status.Ready &&
+                $in.row + 1 < $in.request.dependency.names.length
+        }}
+    />
+</Module>

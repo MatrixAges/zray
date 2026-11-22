@@ -14,14 +14,14 @@
             <Return value={$ctx.finish} />
         </If>
 
-        <Call fn="convert" in={$ctx.bind} />
+        <Call module="convert" in={$ctx.bind} />
 
         <Call fn="finish" />
 
         <Return value={$ctx.finish} />
     </If>
 
-    <Call fn="convert" in={$in} />
+    <Call module="convert" in={$in} />
 
     <Call fn="finish" />
 

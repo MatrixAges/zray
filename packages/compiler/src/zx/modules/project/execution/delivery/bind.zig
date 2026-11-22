@@ -44,7 +44,9 @@ pub fn loadProjectLibrary(handle: *const anyopaque) zx.Error!void {
         inline else => |item| item.span,
     };
 
-    frame.imported = try frame.walk.project.loadCompiled(target, span);
+    const project = frame.walk.project;
+
+    frame.imported = try project.loadCompiled(project.units[frame.active.index].path, target, span);
     frame.dependency = .{ .compiled = target };
 }
 

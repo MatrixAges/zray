@@ -1,0 +1,25 @@
+<Module>
+    <Type from="batch_model" as="Batch" />
+    <Type from="../binding" as="Binding" />
+
+    <Args in={Batch.Input} out={Batch.Output} />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            ...$in,
+            position: 0,
+            status: Binding.Status.Ready,
+            entry: null,
+            running: $in.rows.length != 0
+        }}
+    />
+
+    <Return
+        value={$ctx.advance.pick([
+            "status",
+            "entry"
+        ])}
+    />
+</Module>

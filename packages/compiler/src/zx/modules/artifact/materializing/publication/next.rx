@@ -1,0 +1,51 @@
+<Module>
+    <Type from="source_model" as="Source" />
+
+    <Args in={Source.Traversal} out={Source.Traversal} />
+
+    <Call
+        fn="read"
+        in={{
+            ...$in.input.pick([
+                "source",
+                "mappings",
+                "workspace",
+                "max_offset"
+            ]),
+            row: $in.row
+        }}
+    />
+
+    <Call module="link" />
+
+    <If on={$ctx.link != null}>
+        <Call
+            fn="append"
+            in={{
+                ...$in.input.pick([
+                    "target",
+                    "empty",
+                    "progress"
+                ]),
+                value: $ctx.link,
+                row: $in.row
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                row: $in.row + 1,
+                running: $in.row + 1 < $in.input.source.files.length
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            valid: false,
+            running: false
+        }}
+    />
+</Module>

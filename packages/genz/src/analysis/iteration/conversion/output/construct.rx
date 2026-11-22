@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Conversion" />
+
+    <Args in={Conversion.Step} out={Conversion.State} />
+
+    <Call fn="construct_input" in={$in} />
+
+    <Call module="../../../construction/apply" />
+
+    <Call
+        fn="construct_result"
+        in={{
+            step: $in,
+            result: $ctx.apply
+        }}
+    />
+
+    <Return value={$ctx.construct_result} />
+</Module>

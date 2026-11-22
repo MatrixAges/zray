@@ -15,3 +15,9 @@ export type Row = {
     build: NativeBuild,
     index: u64
 }
+
+export type NativeWalk = Modules & {
+    index: u64,
+    ready: bool,
+    running: bool
+}

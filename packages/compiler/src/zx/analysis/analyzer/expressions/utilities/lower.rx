@@ -7,7 +7,7 @@
     <Call fn="bindings" in={$in} />
 
     <Call
-        fn="dispatch"
+        module="dispatch"
         in={{
             ...$in,
             state: $ctx.bindings.state,

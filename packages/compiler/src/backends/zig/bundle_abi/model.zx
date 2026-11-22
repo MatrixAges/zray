@@ -81,3 +81,14 @@ export type Output = {
     aliases: Alias[],
     views: View[]
 }
+
+export type Traversal = Views & {
+    source: Input,
+    index: u64,
+    running: bool
+}
+
+export type ViewWrite = {
+    state: Traversal,
+    selected: ViewResult
+}

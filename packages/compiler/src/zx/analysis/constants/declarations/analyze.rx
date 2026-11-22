@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Constants" />
+
+    <Args in={Constants.Input} out={Constants.Result} />
+
+    <Call fn="initialize" in={$in} />
+
+    <If on={!$ctx.initialize.running}>
+        <Return
+            value={{
+                types: $in.types,
+                scope: $in.imports,
+                first: $ctx.initialize.first,
+                diagnostic: $ctx.initialize.diagnostic
+            }}
+        />
+    </If>
+
+    <Call module="advance" while="running" in={$ctx.initialize} />
+
+    <Return
+        value={{
+            types: $ctx.advance.types,
+            scope: match {
+                $ctx.advance.names.length != 0 => {
+                    names: $ctx.advance.names,
+                    values: $ctx.advance.values
+                },
+                _ => null
+            },
+            first: $ctx.advance.first,
+            diagnostic: $ctx.advance.diagnostic
+        }}
+    />
+</Module>

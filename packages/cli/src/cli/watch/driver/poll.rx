@@ -1,16 +1,24 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Watch} out={Driver.Scan} />
+    <Args in={Driver.Poll} out={Driver.Poll} />
 
-    <Call fn="index.delayPoll" in={$in} />
-    <Call fn="index.checkCanceled" in={$in} />
-    <Call fn="index.pollApplication" in={$in} />
-    <Call fn="index.scanInputs" in={$in} />
+    <Call fn="index.delayPoll" in={$in.watch} />
+    <Call fn="index.checkCanceled" in={$in.watch} />
+    <Call fn="index.pollApplication" in={$in.watch} />
+    <Call fn="index.scanInputs" in={$in.watch} />
 
     <If on={$ctx.scanInputs == Driver.Scan.NewError}>
-        <Call fn="index.reportScanError" in={$in} />
+        <Call fn="index.reportScanError" in={$in.watch} />
     </If>
 
-    <Return value={$ctx.scanInputs} />
+    <Call
+        fn="next_poll"
+        in={{
+            state: $in,
+            outcome: $ctx.scanInputs
+        }}
+    />
+
+    <Return value={$ctx.next_poll} />
 </Module>

@@ -1,0 +1,2 @@
+export { borrowStringRange } from "memory"
+export { allocateRowsWithAllocator } from "memory/columns"

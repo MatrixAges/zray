@@ -1,8 +1,10 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const rx = @import("rx");
+const rx_analysis = @import("rx_analysis");
 const fixture = @import("store_fixture.zig");
 
-fn analyze(call: bool, distinct: bool) !compiler.AnalysisResult {
+fn analyze(zx_consumer: bool, distinct: bool) !compiler.AnalysisResult {
     var original = try fixture.link(std.testing.allocator, "state.store.rx", "u64", false);
 
     defer original.deinit();
@@ -20,38 +22,60 @@ fn analyze(call: bool, distinct: bool) !compiler.AnalysisResult {
     var second = first;
     second.instance = "sample@2";
 
-    const source = if (call)
-        "import run from \"left\"\nexport type Input = void\nexport type Output = u64\nexport default function (in: Input): Output { return run(in) }\n"
-
-    else
-        "import first from \"left\"\nimport second from \"right\"\nexport type Input = u64\nexport type Output = u64\nexport default function (in: Input): Output { return in }\n";
-
-    var result = try compiler.project.analyze(std.testing.allocator, &.{.{ .path = "main.zx", .source = source }}, .{
-        .entry = "main.zx",
+    const options: compiler.project.Options = .{
+        .entry = if (zx_consumer) "consumer.zx" else "consumer.rx",
         .root_dir = "/consumer",
         .packages = &.{
             .{ .specifier = "left", .compiled = .{ .instance = first.instance, .artifact = first.artifact, .name = "left" } },
             .{ .specifier = "right", .compiled = .{ .instance = if (distinct) second.instance else first.instance, .artifact = first.artifact, .name = "right" } },
         },
         .compiled_libraries = if (distinct) &.{ first, second } else &.{first},
-    });
+    };
 
-    errdefer result.deinit();
+    if (zx_consumer) {
+        const source = "import run from \"left\"\nexport type Input = void\nexport type Output = u64\nexport default function (in: Input): Output { return run(in) }\n";
 
-    if (!call and result.value == .diagnostic) {
-        std.debug.print("compiled Store import: {t}: {s}\n", .{ result.value.diagnostic.code, result.value.diagnostic.message });
+        return compiler.project.analyze(std.testing.allocator, &.{.{ .path = options.entry, .source = source }}, options);
     }
 
-    return result;
+    const source = "<Module><Call module='left' in={$in}/><Call module='right' in={$in}/><Return value={$ctx.right}/></Module>";
+    var parsed = try rx.parseXml(std.testing.allocator, source);
+
+    defer parsed.deinit();
+
+    try std.testing.expect(parsed.value == .node);
+
+    var inferred = try rx_analysis.project.infer(std.testing.allocator, .{
+        .entry = options.entry,
+        .modules = &.{.{ .path = options.entry, .node = parsed.value.node }},
+        .sources = &.{},
+        .project = options,
+    });
+
+    errdefer inferred.deinit();
+
+    if (inferred.value == .diagnostic) {
+        std.debug.print("compiled Store import: {s}: {s}\n", .{ inferred.value.diagnostic.code, inferred.value.diagnostic.message });
+    }
+
+    try std.testing.expect(inferred.value == .contract);
+
+    const contract = inferred.value.contract;
+
+    return .{ .arena = inferred.arena, .value = .{ .ir = contract.program }, .nominal_types = contract.nominal_types, .store_initializers = contract.store_initializers };
 }
 
-test "compiled Store import preserves valid IR without granting caller state" {
+test "compiled RX calls share one read-only Store slot from the same instance" {
     var result = try analyze(false, false);
 
     defer result.deinit();
 
     try std.testing.expect(result.value == .ir);
-    try std.testing.expectEqual(@as(usize, 0), result.value.ir.stores.count());
+    try std.testing.expectEqual(@as(usize, 1), result.value.ir.stores.count());
+
+    const slot = result.value.ir.stores.at(0);
+
+    try std.testing.expect(slot.readable and !slot.writable);
     try std.testing.expect(try compiler.validateIr(std.testing.allocator, result.value.ir) == null);
 
     var bundle = try compiler.zig.emitModules(std.testing.allocator, &result);
@@ -85,12 +109,13 @@ test "compiled Store instances keep valid distinct state paths" {
     try std.testing.expectEqual(@as(usize, 2), paths.count());
 }
 
-test "ordinary ZX rejects imported Store calls without orchestration authority" {
+test "ordinary ZX rejects imports of compiled RX workflows with Store" {
     var result = try analyze(true, false);
 
     defer result.deinit();
 
     try std.testing.expect(result.value == .diagnostic);
-    try std.testing.expectEqual(.capability, result.value.diagnostic.code);
+    try std.testing.expectEqual(.module, result.value.diagnostic.code);
+    try std.testing.expect(std.mem.startsWith(u8, result.value.diagnostic.message, "ZX cannot import RX modules"));
     try std.testing.expectEqual(@as(?usize, 0), result.value.diagnostic.source_index);
 }

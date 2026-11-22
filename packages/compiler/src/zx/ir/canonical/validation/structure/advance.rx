@@ -1,0 +1,31 @@
+<Module>
+    <Type from="../model" as="IR" />
+
+    <Args in={IR.Walk} out={IR.Walk} />
+
+    <Call
+        fn="../functions/select"
+        in={{
+            functions: $in.context.functions,
+            index: $in.index
+        }}
+    />
+
+    <Call
+        module="unit"
+        in={{
+            unit: $ctx.select,
+            max_offset: $in.context.max_offset,
+            workspace: $in.context.workspace
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.unit,
+            running: $ctx.unit && $in.index + 1 < $in.context.functions.files.length
+        }}
+    />
+</Module>

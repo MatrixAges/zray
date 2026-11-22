@@ -1,0 +1,12 @@
+import memory from "memory"
+
+import type { Edge as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const edges = in.walk.imports.edges
+
+    return {
+        target: memory.readColumnU8(edges.target_kinds, in.row),
+        kind: memory.readColumnU8(edges.kinds, in.row)
+    }
+}

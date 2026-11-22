@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Step" />
+
+    <Args in={Step.Entries} out={Step.Entries} />
+
+    <Call
+        fn="index.selectProofExport"
+        in={[
+            $in.proof,
+            $in.index
+        ]}
+    />
+
+    <Call module="entry" in={$in.proof} />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.entry && $in.valid,
+            running: $in.index + 1 < $in.count
+        }}
+    />
+</Module>

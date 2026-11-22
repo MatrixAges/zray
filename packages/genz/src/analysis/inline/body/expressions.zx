@@ -1,0 +1,15 @@
+import type { Expressions } from "core/expression_table/model"
+import type { Position as Input } from "./model"
+
+export type Output = Expressions
+
+export default function (in: Input): Output {
+    const { program, index } = in
+
+    const functions = program.functions
+
+    return match {
+        index == functions.roots.length => program.expressions,
+        _ => functions.expressions[index]
+    }
+}

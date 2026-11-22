@@ -1,0 +1,21 @@
+import type { Span } from "../../../../../frontend/lexer/token_model"
+import type { Operation } from "../../../../../modules/intrinsic/model"
+import type { Work as Input } from "../model"
+
+export type Output = {
+    node: u64,
+    operation?: Operation,
+    span: Span,
+    values: u32[]
+}
+
+export default function (in: Input): Output {
+    const frame = in.frames.imported[in.frames.imported.length - 1]
+
+    return {
+        node: frame.node,
+        operation: in.imports.intrinsics[frame.import_index],
+        span: in.source.tree.nodes[frame.node].span,
+        values: frame.values
+    }
+}

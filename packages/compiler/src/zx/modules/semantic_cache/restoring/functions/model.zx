@@ -36,3 +36,10 @@ export type Row = {
     previous: u64,
     current: u64
 }
+
+export type Traversal = {
+    source: Bindings,
+    row: u64,
+    valid: bool,
+    running: bool
+}

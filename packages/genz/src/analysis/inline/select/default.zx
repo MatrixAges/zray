@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import bodyControl from "../body/control"
 import { InlineOp } from "../model"
 import next from "./next_case"
 
@@ -11,7 +12,12 @@ export type Output = Inline
 
 export default function (in: Input): Output {
     const state = in.state
-    const control = state.units[state.mappings.units[in.frame.mapping]].control
+
+    const control = bodyControl({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
+
     const payload = in.frame.f
 
     const index = next({

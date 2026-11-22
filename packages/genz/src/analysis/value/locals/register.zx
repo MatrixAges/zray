@@ -1,0 +1,31 @@
+import insert from "core/integer/index/insert"
+
+import type { Register as Input, Walk as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { state, decision } = in
+
+    const next = {
+        ...state,
+        cache: decision.cache,
+        pending: false,
+        position: state.position + 1
+    }
+
+    if (decision.borrowed) {
+        return next
+    }
+
+    const added = state.added.push(state.symbol)[0]
+
+    const registered = insert({
+        index: state.index,
+        key: state.symbol
+    })
+
+    return {
+        ...next,
+        added,
+        index: registered.index
+    }
+}

@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import bodyControl from "../body/control"
 import bound from "./bound"
 
 import type { Inline, Step } from "../model"
@@ -12,7 +13,10 @@ export default function (in: Input): Output {
     const state = in.state
     const value = state.stack[state.stack.length - 1]
 
-    const control = state.units[state.mappings.units[in.frame.mapping]].control
+    const control = bodyControl({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
 
     const symbol: u32? =
         integers.narrow(

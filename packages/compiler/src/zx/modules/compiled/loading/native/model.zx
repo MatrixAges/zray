@@ -15,3 +15,10 @@ export type Request = {
     instance: string,
     maximum: u64
 }
+
+export type Traversal = {
+    request: Request,
+    state: State,
+    index: u64,
+    running: bool
+}

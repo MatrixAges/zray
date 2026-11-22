@@ -59,7 +59,7 @@
             "name": "package_name"
         },
         {
-            "path": "metadata/validate.rx",
+            "path": "metadata/validate.zx",
             "name": "archive_metadata"
         },
         {
@@ -87,11 +87,11 @@
             "name": "version_accepts"
         },
         {
-            "path": "workspace/target/select.rx",
+            "path": "workspace/target/select.zx",
             "name": "workspace_select"
         },
         {
-            "path": "workspace/manifest/matches.rx",
+            "path": "workspace/manifest/matches.zx",
             "name": "manifest_matches"
         },
         {

@@ -1,0 +1,22 @@
+import read from "../../../binding/read"
+
+import type { Binding as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        ...source.omit([
+            "previous",
+            "current"
+        ]),
+        previous: read({
+            columns: source.previous,
+            row
+        }),
+        current: read({
+            columns: source.current,
+            row
+        })
+    }
+}

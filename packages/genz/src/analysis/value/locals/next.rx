@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Locals" />
+
+    <Args in={Locals.Scan} out={Locals.Scan} />
+
+    <If on={$in.state.pending}>
+        <Call module="accept" in={$in} />
+
+        <Return value={$ctx.accept} />
+    </If>
+
+    <Call
+        fn="candidate"
+        in={$in.omit([
+            "end",
+            "running"
+        ])}
+    />
+
+    <If on={$ctx.candidate.pending}>
+        <Call
+            module="accept"
+            in={{
+                ...$in,
+                state: $ctx.candidate
+            }}
+        />
+
+        <Return value={$ctx.accept} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            state: $ctx.candidate,
+            running: $ctx.candidate.position < $in.end
+        }}
+    />
+</Module>

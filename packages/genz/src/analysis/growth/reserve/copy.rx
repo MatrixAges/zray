@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Reserve" />
+
+    <Args in={Reserve.State} out={Reserve.State} />
+
+    <Call
+        module="branch"
+        in={{
+            state: $in,
+            frontier: false
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            context: $ctx.branch.context,
+            no: $ctx.branch.branch
+        }}
+    />
+</Module>

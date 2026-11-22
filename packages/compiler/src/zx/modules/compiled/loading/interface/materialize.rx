@@ -3,7 +3,7 @@
 
     <Args in={Interface.Request} out={void} />
 
-    <Call fn="exports" in={$in.omit(["initializers"])} />
+    <Call module="exports" in={$in.omit(["initializers"])} />
 
     <Call
         fn="initializers"

@@ -1,0 +1,19 @@
+import host from "hardware_graph_host"
+
+import type { Safety } from "./model"
+
+export type Input = Safety.Pick("build") & {
+    node: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { build, node } = in
+
+    if (!host.hardwareNodeIsBoolean(build, node)) {
+        host.rejectHardwareTerm()
+    }
+
+    return node
+}

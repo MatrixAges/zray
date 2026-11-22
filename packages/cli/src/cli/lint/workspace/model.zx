@@ -2,7 +2,10 @@ import type { WorkspaceLint } from "lint_workflow_host"
 
 export type Members = {
     check: WorkspaceLint,
-    count: u64
+    count: u64,
+    index: u64,
+    valid: bool,
+    running: bool
 }
 
 export type Member = [WorkspaceLint, u64]

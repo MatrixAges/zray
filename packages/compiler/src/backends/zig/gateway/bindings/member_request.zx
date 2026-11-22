@@ -1,0 +1,30 @@
+import memory from "memory"
+
+import type { Service as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const members = in.state.source.members
+
+    const { position } = in
+
+    return {
+        state: in.state,
+        member: {
+            export_name: memory.readTextColumn(members.export_names, position),
+            name: memory.readTextColumn(members.names, position),
+            function_id:
+                memory.readColumnOptionalU32(members.functions, position),
+            requires_io:
+                memory.readColumnOptionalBool(
+                    members.requires_io,
+                    position
+                ),
+            requires_process:
+                memory.readColumnBool(
+                    members.requires_process,
+                    position
+                )
+        },
+        position
+    }
+}

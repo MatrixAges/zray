@@ -1,0 +1,13 @@
+<Module>
+    <Type from="../model" as="Emission" />
+
+    <Args in={Emission.Reserve} out={Emission.Reserved} />
+
+    <Call fn="reserve_input" in={$in} />
+
+    <Call module="../../../../growth/apply" />
+
+    <Call fn="reserve_result" />
+
+    <Return value={$ctx.reserve_result} />
+</Module>

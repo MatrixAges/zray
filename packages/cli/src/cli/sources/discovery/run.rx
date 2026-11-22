@@ -6,10 +6,12 @@
     <Call fn="index.registerRoot" in={$in} />
 
     <Call
-        fn="walk"
+        module="walk"
+        while="running"
         in={{
             discovery: $in,
-            first: $ctx.registerRoot
+            index: $ctx.registerRoot,
+            running: true
         }}
     />
 </Module>

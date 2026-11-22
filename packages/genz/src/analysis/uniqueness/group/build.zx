@@ -1,0 +1,15 @@
+import arrange from "./arrange"
+import ends from "./ends"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    return arrange({
+        owners: in.owners,
+        items: in.items,
+        ends: ends(in.pick([
+            "count",
+            "owners"
+        ]))
+    })
+}

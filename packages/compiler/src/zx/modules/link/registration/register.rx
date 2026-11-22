@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="Types" />
+    <Type from="../../../analysis/semantic/merging/model" as="Merge" />
+
+    <Args in={Types.Input} out={Merge.Status} />
+
+    <Call fn="cursor" in={$in} />
+
+    <Call module="advance" while="running" />
+
+    <Call fn="status" in={$in.cursor} />
+
+    <Return value={$ctx.status} />
+</Module>

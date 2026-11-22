@@ -1,5 +1,5 @@
 <Module>
-    <Type from="../functions/batch" as="Batch" />
+    <Type from="../functions/batch_model" as="Batch" />
     <Type from="../interface/model" as="Interface" />
     <Type from="../../../artifact/materializing/publication/model" as="Publication" />
 
@@ -11,9 +11,9 @@
         out={Batch.Output}
     />
 
-    <Call fn="../functions/batch" in={$in.functions} />
+    <Call module="../functions/batch" in={$in.functions} />
 
-    <If on={$ctx.batch.status != Publication.PublicationStatus.Complete}>
+    <If on={$ctx.batch != Publication.PublicationStatus.Complete}>
         <Return value={$ctx.batch} />
     </If>
 

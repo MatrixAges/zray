@@ -222,7 +222,7 @@
             "name": "library_sources"
         },
         {
-            "path": "library/proof/entries.zx",
+            "path": "library/proof/entries.rx",
             "name": "library_public_proof"
         },
         {
@@ -390,7 +390,7 @@
             "name": "prepare_rx_types"
         },
         {
-            "path": "rx/preparation/compiled/walk.zx",
+            "path": "rx/preparation/compiled/walk.rx",
             "name": "prepare_rx_libraries"
         },
         {
@@ -462,7 +462,7 @@
             "name": "lint_workspace"
         },
         {
-            "path": "lint/reachable/run.zx",
+            "path": "lint/reachable/run.rx",
             "name": "lint_reachable"
         },
         {

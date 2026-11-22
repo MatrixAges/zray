@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import block from "core/control_table/append/block"
 
+import bodyControl from "../body/control"
 import truncate from "../truncate"
 import describe from "./describe"
 
@@ -15,7 +16,12 @@ export type Output = Inline
 
 export default function (in: Input): Output {
     const state = in.state
-    const source = state.units[state.mappings.units[in.frame.mapping]].control
+
+    const source = bodyControl({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
+
     const first = state.tables.control.statement_kinds.length
 
     const appended = describe({

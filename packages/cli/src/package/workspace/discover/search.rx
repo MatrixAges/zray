@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Cursor} out={Workspace.Cursor} />
+
+    <Call module="step" in={$in.search} />
+
+    <If on={$ctx.step}>
+        <Return
+            value={{
+                ...$in,
+                complete: true,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call fn="index.moveParent" in={$in.search} />
+
+    <Return
+        value={{
+            ...$in,
+            running: $ctx.moveParent
+        }}
+    />
+</Module>

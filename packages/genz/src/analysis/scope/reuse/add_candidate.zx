@@ -1,0 +1,16 @@
+import integers from "std:integer"
+
+import type { Add as Input, Candidates as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { found, row, change } = in
+
+    return {
+        bindings: found.bindings.push(integers.narrow(row))[0],
+        previous: found.previous.push(change.previous)[0],
+        types: found.types.push(change.type_id)[0],
+        references: found.references.push(change.reference)[0],
+        field_indices: found.field_indices.push(change.field_index)[0],
+        field_values: found.field_values.push(change.field_value)[0]
+    }
+}

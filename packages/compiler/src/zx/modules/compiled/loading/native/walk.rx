@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Request} out={Native.State} />
+
+    <Call fn="initialize" in={$in} />
+
+    <Call module="next" while="running" />
+
+    <Return value={$ctx.next.state} />
+</Module>

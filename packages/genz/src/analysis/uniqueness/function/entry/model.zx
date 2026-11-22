@@ -1,5 +1,5 @@
 import type { Source } from "../demand/model"
-import type { Context } from "../levels/model"
+import type { Context, State } from "../levels/model"
 import type { Snapshot } from "../plan/model"
 
 export type Solve = {
@@ -11,4 +11,9 @@ export type Solve = {
 export type Solved = {
     context: Context,
     state: Snapshot
+}
+
+export type Convergence = Solve & {
+    closure: State,
+    running: bool
 }

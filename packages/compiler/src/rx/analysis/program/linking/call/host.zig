@@ -1,10 +1,20 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const Builder = @import("../../builder.zig");
-const invoke = @import("../operands.zig").invoke;
+const invokeRule = @import("../operands.zig").invoke;
 const headers = @import("../headers.zig");
 const generated = @import("generated_rx_link_call");
 const operands: []const []const u8 = &.{ "call_functions", "call_arguments", "call_store_first", "call_store_count" };
+
+pub fn invoke(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, result_type: ir.TypeId, stores: []const u32) Builder.Error!ir.ExprId {
+    if (comptime @import("rx_options").generated_graph) return publish(builder, function, argument, result_type, stores.len);
+
+    return builder.seedExpression(.{
+        .type_id = result_type,
+        .span = builder.expressionSpan(argument),
+        .value = .{ .call = .{ .function = function, .argument = argument, .stores = stores } },
+    });
+}
 
 pub fn prepare(builder: *Builder, count: usize) std.mem.Allocator.Error![]u32 {
     const storage = &builder.expressions;
@@ -53,7 +63,7 @@ pub fn publish(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, 
         },
     };
 
-    try invoke(generated, input);
+    try invokeRule(generated, input);
 
     inline for (operands) |name| @field(storage, name).items.len += 1;
 

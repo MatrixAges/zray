@@ -11,7 +11,21 @@
 
     <Call fn="index.reserveTargets" in={$in} />
     <Call fn="targets" in={$in} />
-    <Call fn="walk" in={$in} />
+    <Call fn="index.retirementOldCount" in={$in} />
+    <Call fn="index.retirementNativeOnly" in={$in} />
 
-    <Return value={$ctx.walk} />
+    <Call
+        module="walk"
+        while="running"
+        in={{
+            retirement: $in,
+            native_only: $ctx.retirementNativeOnly,
+            count: $ctx.retirementOldCount,
+            index: 0,
+            status: Retirement.Status.Ready,
+            running: $ctx.retirementOldCount != 0
+        }}
+    />
+
+    <Return value={$ctx.walk.status} />
 </Module>

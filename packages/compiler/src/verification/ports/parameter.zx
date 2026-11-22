@@ -1,0 +1,29 @@
+import declaration from "./declaration"
+import domain from "./domain"
+import name from "./name"
+
+import type { Parameter as Input, Declaration as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { width, index, members } = in
+
+    const symbol = name({
+        index,
+        output: false
+    })
+
+    const declared = declaration({
+        name: symbol,
+        width
+    })
+
+    return {
+        symbol,
+        declaration: declared,
+        domain: domain({
+            name: symbol,
+            width,
+            members
+        })
+    }
+}

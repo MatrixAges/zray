@@ -5,7 +5,8 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call fn="operations" />
+    <Call module="operations" />
+
     <Call fn="getter_value" />
     <Call fn="getter" />
     <Call fn="finish" />

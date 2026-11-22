@@ -6,7 +6,9 @@
     <Call fn="initialize" in={$in} />
 
     <Call fn="bind" />
-    <Call fn="members" />
+
+    <Call module="members" />
+
     <Call fn="publish" />
 
     <Return value={$ctx.publish} />

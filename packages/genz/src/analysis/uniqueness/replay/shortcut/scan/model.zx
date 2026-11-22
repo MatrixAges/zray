@@ -111,3 +111,19 @@ export type Append = {
     value: u8[],
     used: u64
 }
+
+export type Consume = Compare & Input.Pick("replacements", "arenas", "count")
+
+export type Consumed = {
+    agreed: bool,
+    count: u64
+}
+
+export type Traversal = Input.Omit("recovered", "count") & Output & {
+    running: bool
+}
+
+export type Miss = {
+    scan: Traversal,
+    source: u8[]
+}

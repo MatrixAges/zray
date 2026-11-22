@@ -6,7 +6,7 @@
     <Call module="../demand/visit" in={$in.analysis} />
 
     <Call
-        fn="publish_demand"
+        module="publish_demand"
         in={{
             ...$in.omit(["analysis"]),
             result: $ctx.visit

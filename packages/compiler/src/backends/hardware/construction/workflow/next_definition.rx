@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Hardware" />
+
+    <Args in={Hardware.DefinitionWalk} out={Hardware.DefinitionWalk} />
+
+    <Call fn="definition_origin" in={$in} />
+
+    <Call
+        module="../../terms/parse/run"
+        in={{
+            build: $in.build,
+            expression: $in.rows.expressions[$in.row]
+        }}
+    />
+
+    <Call
+        fn="host.publishHardwareDefinition"
+        in={[
+            $in.build,
+            $in.rows.names[$in.row],
+            $in.rows.widths[$in.row],
+            $ctx.run
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.rows.names.length
+        }}
+    />
+</Module>

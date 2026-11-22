@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Directories} out={Workspace.Directories} />
+
+    <Call fn="index.nextDirectory" in={$in.collection} />
+
+    <If on={!$ctx.nextDirectory}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call fn="index.directoryPath" in={$in.collection} />
+    <Call fn="index.directoryName" in={$in.collection} />
+
+    <Call
+        module="visit"
+        in={{
+            collection: $in.collection,
+            patterns: $in.patterns,
+            path: $ctx.directoryPath,
+            name: $ctx.directoryName
+        }}
+    />
+
+    <Return value={$in} />
+</Module>

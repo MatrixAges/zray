@@ -174,7 +174,7 @@ fn visitImport(self: *Project, frame: *LoadFrame, header: anytype, import_row: u
             }
         },
         .compiled => |value| {
-            const imported = try self.loadCompiled(value, item.span);
+            const imported = try self.loadCompiled(unit.path, value, item.span);
 
             try bindResolved(self, frame, item, phase, imported, .{ .compiled = value });
         },

@@ -1,0 +1,62 @@
+<Module>
+    <Type from="model" as="Scan" />
+    <Type from="../model" as="Trace" />
+
+    <Args in={Scan.Traversal} out={Scan.Traversal} />
+
+    <Call
+        fn="lookup"
+        in={$in.pick([
+            "tables",
+            "cursor"
+        ])}
+    />
+
+    <If on={$ctx.lookup.row != null}>
+        <Call fn="integer.widen" in={$ctx.lookup.row} />
+
+        <Call
+            module="consume"
+            in={{
+                ...$in.pick([
+                    "tables",
+                    "cursor",
+                    "replacements",
+                    "arenas",
+                    "count"
+                ]),
+                row: $ctx.widen
+            }}
+        />
+
+        <Call
+            module="../advance"
+            in={{
+                ...$in.replay,
+                cursor: $in.cursor,
+                agreed: $ctx.consume.agreed
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                cursor: $ctx.advance,
+                count: $ctx.consume.count,
+                running:
+                    $ctx.advance.phase != Trace.Phase.Done &&
+                    $ctx.advance.phase != Trace.Phase.Reject
+            }}
+        />
+    </If>
+
+    <Call
+        module="miss"
+        in={{
+            scan: $in,
+            source: $ctx.lookup.state
+        }}
+    />
+
+    <Return value={$ctx.miss} />
+</Module>

@@ -2,6 +2,7 @@ import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
 
 import children from "../../ir/children"
+import bodyExpressions from "../body/expressions"
 import fail from "../fail"
 import frame from "../frame"
 import { InlineOp } from "../model"
@@ -28,7 +29,11 @@ export default function (in: Input): Output {
         return fail(state)
     }
 
-    const table = state.units[state.mappings.units[mapping]].expressions
+    const table = bodyExpressions({
+        program: state.program,
+        index: state.mappings.units[mapping]
+    })
+
     const id = in.frame.id
     const selected = state.mappings.all[mapping] || state.selected[id]
 

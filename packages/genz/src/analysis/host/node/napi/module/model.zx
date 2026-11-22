@@ -34,3 +34,9 @@ export type Member = {
     reading: bool,
     writing: bool
 }
+
+export type Types = {
+    state: State,
+    index: u64,
+    running: bool
+}

@@ -1,0 +1,34 @@
+<Module>
+    <Type from="../model" as="Expressions" />
+
+    <Args in={Expressions.Work} out={Expressions.Work} />
+
+    <Call fn="prepare" in={$in} />
+
+    <If on={$ctx.prepare.options != null}>
+        <Call
+            module="../../../collections/lower"
+            in={{
+                ...$ctx.prepare.options,
+                state: $ctx.prepare.state
+            }}
+        />
+
+        <Call
+            fn="publish"
+            in={{
+                work: $in,
+                result: $ctx.lower
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            state: $ctx.prepare.state
+        }}
+    />
+</Module>

@@ -12,7 +12,7 @@
                 $ctx.advance.first.length != 0}
         >
             <Call
-                fn="../ahead/request/offer"
+                module="../ahead/request/offer"
                 in={{
                     ...$in.prefetch,
                     window: {
@@ -39,7 +39,7 @@
         />
     </If>
 
-    <Call fn="../ahead/request/offer" in={$in.prefetch} />
+    <Call module="../ahead/request/offer" in={$in.prefetch} />
 
     <Return
         value={{

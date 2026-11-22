@@ -15,3 +15,4 @@ export {
     prepareIncludes,
     prepareFiles
 } from "native_resource_host"
+export { pendingCount } from "native_resource_host"

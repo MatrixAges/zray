@@ -1,0 +1,15 @@
+import memory from "memory"
+
+import { position_slot } from "./const"
+
+import type { Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const position = memory.readU64(in.cursor, position_slot)
+
+    return {
+        source: in,
+        position,
+        running: position < in.order.length
+    }
+}

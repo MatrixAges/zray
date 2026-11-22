@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Execution" />
+    <Type from="../model" as="Schedule" />
+
+    <Args in={Execution.ScheduleWalk} out={Execution.ScheduleWalk} />
+
+    <If on={$in.plan.actions[$in.index] == Schedule.Action.Execute}>
+        <Call
+            module="scope"
+            in={{
+                traversal: $in.traversal,
+                scope: $in.plan.scopes[$in.index],
+                first: $in.plan.offsets[$in.index],
+                count: $in.plan.counts[$in.index]
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                index: $in.index + ($ctx.scope ? 1 : 0),
+                running: $ctx.scope && $in.index + 1 < $in.plan.actions.length
+            }}
+        />
+    </If>
+
+    <Call
+        fn="step"
+        in={{
+            traversal: $in.traversal,
+            action: $in.plan.actions[$in.index],
+            first: $in.plan.offsets[$in.index],
+            count: $in.plan.counts[$in.index],
+            scope: $in.plan.scopes[$in.index],
+            placement: $in.plan.placements[$in.index]
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + ($ctx.step ? 1 : 0),
+            running: $ctx.step && $in.index + 1 < $in.plan.actions.length
+        }}
+    />
+</Module>

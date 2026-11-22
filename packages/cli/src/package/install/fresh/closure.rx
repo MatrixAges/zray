@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Fresh" />
+
+    <Args in={Fresh.Closure} out={Fresh.Closure} />
+
+    <Call fn="../effects.packageCount" in={$in.host} />
+
+    <If on={$in.owner >= $ctx.packageCount}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
+        module="edges"
+        in={{
+            ...$in.pick([
+                "host",
+                "members",
+                "owner"
+            ]),
+            remaining: $in.maximum_edges - $in.consumed
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            owner: $in.owner + 1,
+            consumed: $in.consumed + $ctx.edges
+        }}
+    />
+</Module>

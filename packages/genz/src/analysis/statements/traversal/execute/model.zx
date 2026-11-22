@@ -27,3 +27,15 @@ export type Scope = Step.Pick("traversal", "first", "count", "scope")
 export type Case = Step.Pick("traversal", "placement", "count", "first") & {
     after: bool
 }
+
+export type ScopeWalk = Scope.Pick("traversal", "scope") & {
+    first: u64,
+    cursor: u64,
+    valid: bool,
+    running: bool
+}
+
+export type ScheduleWalk = Run & {
+    index: u64,
+    running: bool
+}

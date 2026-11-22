@@ -12,7 +12,7 @@
         <Return value={$ctx.bindings} />
     </If>
 
-    <Call fn="advance" in={$in.walk} />
+    <Call module="advance" in={$in.walk} />
 
     <Return value={$ctx.advance} />
 </Module>

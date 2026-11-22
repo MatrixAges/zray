@@ -1,7 +1,7 @@
 import encoding from "std:encoding"
 import memory from "memory"
 
-import classify from "../../../../../zx/modules/project/target/classify.rx"
+import classify from "../../../../../zx/modules/project/target/classify"
 import { Route } from "../../../../../zx/modules/project/target/model"
 import select from "../../../../../zx/modules/project/target/select"
 import {

@@ -1,0 +1,9 @@
+import type { Proof } from "library_workflow_host"
+
+export type Entries = {
+    proof: Proof,
+    count: u64,
+    index: u64,
+    valid: bool,
+    running: bool
+}

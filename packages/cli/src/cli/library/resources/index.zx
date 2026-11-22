@@ -1,5 +1,7 @@
 export {
     allocateNativeRows,
+    nativeModuleCount,
+    selectNativeModule,
     selectLibraryPaths,
     hasBundleInput,
     hasNativeHeader,

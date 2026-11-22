@@ -1,0 +1,37 @@
+<Module>
+    <Type from="model" as="Emission" />
+
+    <Args in={Emission.Traversal} out={Emission.Traversal} />
+
+    <Call fn="event" in={$in} />
+
+    <If on={$ctx.event.enter_rows}>
+        <Call module="rows/enter" in={$ctx.event.step} />
+
+        <Return
+            value={{
+                ...$in,
+                state: {
+                    ...$ctx.enter,
+                    index: $ctx.enter.index + 1
+                },
+                running:
+                    $ctx.enter.index + 1 < $in.source.plan.events.length &&
+                    $ctx.enter.context.valid
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            state: {
+                ...$ctx.event.step.state,
+                index: $ctx.event.step.state.index + 1
+            },
+            running:
+                $ctx.event.step.state.index + 1 < $in.source.plan.events.length &&
+                $ctx.event.step.state.context.valid
+        }}
+    />
+</Module>

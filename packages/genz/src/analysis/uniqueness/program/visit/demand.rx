@@ -24,7 +24,7 @@
         <Call fn="../../retain/rows" in={$in.save.marks} />
 
         <Call
-            fn="../../memo/record/write"
+            module="../../memo/record/write"
             in={{
                 target: $in.save.memo,
                 result: {

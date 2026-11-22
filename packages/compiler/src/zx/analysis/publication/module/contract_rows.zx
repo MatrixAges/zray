@@ -1,6 +1,6 @@
 import host from "project_host"
 
-import retain from "../contracts.rx"
+import retain from "../../../modules/artifact/remapping/contracts"
 
 import type { Contracts } from "core/contract_table/model"
 import type { AnalysisPublication } from "project_host"
@@ -15,7 +15,12 @@ export type Output = Contracts?
 export default function (in: Input): Output {
     const { publication, contracts } = in
 
-    const retained: Contracts? = contracts.kinds.length == 0 ? null : retain(contracts)
+    const retained: Contracts? = match {
+        contracts.kinds.length == 0 => null,
+        _ => retain({
+            source: contracts
+        })
+    }
 
     host.publishAnalysisConstants(publication)
 

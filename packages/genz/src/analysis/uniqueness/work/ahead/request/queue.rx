@@ -1,0 +1,68 @@
+<Module>
+    <Type from="model" as="Ahead" />
+    <Type from="../model" as="Slot" />
+
+    <Args in={Ahead.Queue} out={Ahead.Traversal} />
+
+    <Call
+        fn="../transition"
+        in={{
+            words: $in.state.window.words,
+            event: Slot.Event.Queue,
+            index: $in.selected.index
+        }}
+    />
+
+    <Call fn="../../pool/reserve" in={$in.state.channel.counters} />
+
+    <If on={$ctx.reserve != null}>
+        <Call fn="integer.narrow" in={$in.selected.index} />
+
+        <If on={$in.state.needs_start}>
+            <Return
+                value={{
+                    ...$in.state,
+                    first: $in.selected.position + 1,
+                    pending: {
+                        index: $ctx.narrow,
+                        position: $ctx.reserve
+                    },
+                    running: false
+                }}
+            />
+        </If>
+
+        <Call
+            module="../../pool/submit"
+            in={{
+                ...$in.state.channel,
+                position: $ctx.reserve,
+                index: $ctx.narrow
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in.state,
+                first: $in.selected.position + 1
+            }}
+        />
+    </If>
+
+    <Call
+        fn="effects.withdraw"
+        in={{
+            words: $in.state.window.words,
+            event: Slot.Event.Withdraw,
+            index: $in.selected.index
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in.state,
+            first: $in.selected.position + 1,
+            running: false
+        }}
+    />
+</Module>

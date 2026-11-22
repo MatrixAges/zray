@@ -40,3 +40,14 @@ export type Program = {
     exports: Rows,
     constant_exports?: Constants
 }
+
+export type Walk = {
+    context: Context,
+    index: u64,
+    valid: bool,
+    running: bool
+}
+
+export type StoreWalk = Walk & {
+    stores_owned: bool
+}

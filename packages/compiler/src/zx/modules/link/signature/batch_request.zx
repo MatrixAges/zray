@@ -1,0 +1,52 @@
+import bytes from "std:bytes"
+
+import type { External } from "../native/signature/model"
+import type { Request as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { source, index } = in
+
+    const signatures = source.signatures
+
+    const path = signatures.files[index]
+    const module_id = signatures.native_modules[index]
+
+    const external: External? = match {
+        module_id == null => null,
+        _ => {
+            module_id,
+            member: signatures.native_members[index],
+            export_name: signatures.native_exports[index],
+            input: signatures.native_inputs[index],
+            allocator_argument: signatures.native_allocators[index],
+            io_argument: signatures.native_io[index],
+            process_argument: signatures.native_process[index],
+            expand_tuple: signatures.native_tuples[index],
+            fallible: signatures.native_fallible[index]
+        },
+    }
+
+    return {
+        ...source.omit([
+            "signatures",
+            "target",
+            "destination",
+            "read_columns",
+            "linked_shape",
+            "snapshot",
+            "empty",
+            "native"
+        ]),
+        linked: in.linked,
+        modules: in.modules,
+        native_ids: in.native_ids,
+        path,
+        key: bytes.fromText(path),
+        external,
+        ports: {
+            input_type: signatures.input_types[index],
+            output_type: signatures.output_types[index],
+            ownership: signatures.ownership[index]
+        }
+    }
+}

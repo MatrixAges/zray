@@ -22,3 +22,9 @@ export type Input = {
     limits: Shape.Pick("maximum_count", "scalar_count"),
     publication: Target
 }
+
+export type Traversal = {
+    source: Input,
+    position: u64,
+    running: bool
+}

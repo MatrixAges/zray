@@ -1,0 +1,32 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import claim from "../../../table/claim"
+import complete from "../../../table/complete"
+
+import type { DemandedWrite as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { section, used, record } = in
+    const { index, target, marks, normalized, renewed } = section
+
+    const row = claim({
+        ...index.omit(["used"]),
+        digest: record.digest,
+        used
+    })
+
+    columns.moveRowList(target.marks, row, marks.storage)
+    columns.moveRowList(target.normalized, row, normalized.storage)
+    columns.moveRowList(target.renewed, row, renewed.storage)
+    memory.writeColumnBool(target.grew, row, record.grew)
+    memory.writeColumnBool(target.used, row, false)
+
+    return complete({
+        target: index.used,
+        used,
+        row
+    })
+}

@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Signature" />
+    <Type from="decision" as="Decision" />
+
+    <Args in={Signature.Batch} out={Decision.Status} />
+
+    <Call fn="batch_initialize" in={$in} />
+
+    <Call module="batch_next" while="running" />
+
+    <Return value={$ctx.batch_next.status} />
+</Module>

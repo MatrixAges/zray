@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Locals" />
+
+    <Args in={Locals.Scan} out={Locals.Scan} />
+
+    <Call
+        module="resolve"
+        in={{
+            source: $in.source,
+            cache: $in.state.cache,
+            symbol: $in.state.symbol,
+            value: $in.state.value,
+            phase: Locals.Resource.None
+        }}
+    />
+
+    <Call
+        fn="register"
+        in={{
+            state: $in.state,
+            decision: $ctx.resolve
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            state: $ctx.register,
+            running: $ctx.register.position < $in.end
+        }}
+    />
+</Module>

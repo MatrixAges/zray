@@ -115,6 +115,8 @@ Call 使用 in 传参；读取输入写 `in={$in}`，字符串写 `in="$in"`；�
 
 父模块再用 `<Call module="checkout" in={$in} />` 调用整个组合模块。Call 的 fn 用于本地 ZX 函数，module 用于本地 RX 模块或依赖包的公开模块，两者必须且只能提供一个目标。
 
+`<Call module="step" while="running" in={$in} />` 以 `in` 为初值，调用前读取状态对象的 `running` 布尔字段。每次调用的输出成为下一次的输入，字段为 false 时把最终状态交给 `$ctx.step`。步骤的输入和输出使用同一对象类型。初值的字段为 false 时跳过调用。编译后复用普通 `loop` 的表达式和所有权规则。
+
 Call.fn 相对当前 RX 文件目录解析，省略后缀时补 `.zx`，普通文件调用使用默认导出。例如 `fn="load_user"` 指向 `load_user.zx`，也可写相对目录和显式 `.zx` 后缀。入口检查会读取函数及其 ZX 导入闭包并执行命名、类型和依赖检查。可使用 `check-rx --entry <file.rx> --project <pkg.yaml>` 指定包与原生接口配置。
 
 写 `<Call fn="operations.normalize" in={$in} />` 时，先按完整名称查找 `operations.normalize.zx` 和 `operations.normalize/index.zx`，命中后调用其默认函数。完整名称未命中时，再在 `operations.zx` 或 `operations/index.zx` 中选择公开函数 `normalize`。两种情况下都用 `$ctx.normalize` 引用输出。显式写出 `.zx` 后缀即可限定为文件调用。目录可以通过 `export { default as normalize } from "./normalize"` 归集函数。
@@ -155,7 +157,7 @@ Call.module 先匹配当前 RX 文件所属包中已声明的公开模块引用�
 | Type       | `from`、`as`                                                           | 无                                                                                              |
 | Args       | `in`、`out`，类型表达式                                                | 无                                                                                              |
 | Import     | `from`                                                                 | 无                                                                                              |
-| Call       | `fn?` / `module?` 二选一、`in?`、`setter?`                             | 无                                                                                              |
+| Call       | `fn?` / `module?` 二选一、`in?`、`while?`、`setter?`                   | 无                                                                                              |
 | Return     | `value`                                                                | 无                                                                                              |
 | Task       | `name`、`out?`                                                         | Call、Parallel、If、Switch、Emit、Return                                                        |
 | Parallel   | 无                                                                     | Task、Call                                                                                      |

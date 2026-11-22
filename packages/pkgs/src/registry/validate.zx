@@ -2,7 +2,7 @@ import memory from "memory"
 
 import { format_version } from "./const"
 import { Status } from "./model"
-import validatePackage from "./package.rx"
+import validatePackage from "./package"
 
 import type { Validation as Input } from "./model"
 

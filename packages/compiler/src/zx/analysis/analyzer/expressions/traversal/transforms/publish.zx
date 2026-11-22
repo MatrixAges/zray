@@ -1,0 +1,24 @@
+import { Phase } from "../model"
+
+import type { Result } from "../../model"
+import type { Work as Output } from "../model"
+
+export type Input = {
+    work: Output,
+    result: Result
+}
+
+export default function (in: Input): Output {
+    const { work, result } = in
+
+    return {
+        ...work,
+        state: result.state,
+        value: result.value,
+        phase: Phase.Complete,
+        frames: {
+            ...work.frames,
+            transforms: work.frames.transforms.pop()[0]
+        }
+    }
+}

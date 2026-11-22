@@ -5,7 +5,7 @@
 
     <If on={$in.compiled != null}>
         <Call
-            fn="publish_compiled"
+            module="publish_compiled"
             in={{
                 library: $in.compiled,
                 configured: $in.configured,

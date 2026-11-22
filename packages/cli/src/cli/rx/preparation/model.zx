@@ -30,3 +30,19 @@ export type CompiledReference = {
     references: References,
     diagnostic: string
 }
+
+export type RootWalk = Range & {
+    index: u64,
+    running: bool
+}
+
+export type Cursor = {
+    count: u64,
+    index: u64,
+    valid: bool,
+    running: bool
+}
+
+export type CompiledWalk = CompiledReference & Cursor
+
+export type TypeWalk = TypeReference & Cursor

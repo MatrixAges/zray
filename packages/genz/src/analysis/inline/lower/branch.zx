@@ -1,6 +1,7 @@
 import integers from "std:integer"
 
 import returns from "../../control/returns"
+import bodyControl from "../body/control"
 import { InlineOp } from "../model"
 
 import type { Inline, Step } from "../model"
@@ -11,7 +12,12 @@ export type Output = Inline
 
 export default function (in: Input): Output {
     const state = in.state
-    const control = state.units[state.mappings.units[in.frame.mapping]].control
+
+    const control = bodyControl({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
+
     const payload = in.frame.f
     const yes = control.branch_yes[payload]
     const no = control.branch_no[payload]

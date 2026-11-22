@@ -67,3 +67,5 @@ export type Generation = Visit & {
 export type Publication = Finish & {
     arenas: Arenas
 }
+
+export type Solve = Generation.Omit("arenas", "time")

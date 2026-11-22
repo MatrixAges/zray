@@ -1,0 +1,19 @@
+import { type_zx_required } from "../const"
+
+import type { TypePass, TypeWalk } from "../model"
+
+export type Input = TypePass & {
+    count: u64
+}
+
+export type Output = TypeWalk
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        diagnostic: type_zx_required,
+        index: 0,
+        valid: true,
+        running: in.count != 0
+    }
+}

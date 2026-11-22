@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Conversion" />
+
+    <Args in={Conversion.Walk} out={Conversion.State} />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            ...$in,
+            running: $in.state.emitted.index < $in.source.source.plan.events.length
+        }}
+    />
+
+    <Return value={$ctx.advance.state} />
+</Module>

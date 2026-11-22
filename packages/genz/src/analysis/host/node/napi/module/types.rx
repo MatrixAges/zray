@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Root" />
+
+    <Args in={Root.State} out={Root.State} />
+
+    <Call
+        module="next_type"
+        while="running"
+        in={{
+            state: $in,
+            index: 0,
+            running: $in.aliases.length != 0 && $in.codec.supported
+        }}
+    />
+
+    <Return value={$ctx.next_type.state} />
+</Module>

@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Contract" />
+    <Type from="core/contract_table/model" as="Table" />
+
+    <Args in={Contract.Walk} out={Contract.Walk} />
+
+    <If on={$in.kinds[$in.index] == Table.ContractKind.Requires}>
+        <Call
+            fn="index.openPreconditionScope"
+            in={[
+                $in.frame,
+                $in.index
+            ]}
+        />
+
+        <Call module="lower" in={$in.frame} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.kinds.length
+        }}
+    />
+</Module>

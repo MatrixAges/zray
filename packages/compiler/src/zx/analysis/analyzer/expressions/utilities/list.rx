@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Utility" />
+    <Type from="../model" as="Expressions" />
+    <Type from="../../../../modules/intrinsic/model" as="Intrinsic" />
+
+    <Args in={Utility.List} out={Expressions.Result} />
+
+    <If
+        on={$in.operation == Intrinsic.Operation.Head ||
+            $in.operation == Intrinsic.Operation.Last}
+    >
+        <Call fn="edge" in={$in} />
+
+        <Return value={$ctx.edge} />
+    </If>
+
+    <If
+        on={match $in.operation {
+            Intrinsic.Operation.Sum => true,
+            Intrinsic.Operation.Min => true,
+            Intrinsic.Operation.Max => true,
+            _ => false
+        }}
+    >
+        <Call module="aggregate" in={$in} />
+
+        <Return value={$ctx.aggregate} />
+    </If>
+
+    <Call module="slice" in={$in} />
+
+    <Return value={$ctx.slice} />
+</Module>

@@ -1,6 +1,6 @@
 import integers from "std:integer"
 
-import group from "../group/build.rx"
+import group from "../group/build"
 import { Role } from "../order/model"
 
 import type { Input, Index as Output } from "./model"

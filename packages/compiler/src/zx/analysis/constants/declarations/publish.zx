@@ -1,0 +1,40 @@
+import { code_contract, message_missing_value } from "../const"
+
+import type { Publication as Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { state, result } = in
+
+    const value = result.value
+    const constant = state.input.syntax.constants[state.index]
+    const valid = result.diagnostic.message == ""
+    const index = state.index + 1
+
+    const diagnostic = match {
+        value == null && valid => {
+            code: code_contract,
+            message: message_missing_value,
+            start: constant.span.start,
+            end: constant.span.end
+        },
+        _ => result.diagnostic
+    }
+
+    const append = value != null && valid
+
+    return {
+        ...state,
+        types: result.types,
+        diagnostic,
+        index,
+        names: match {
+            append => state.names.push(result.name.text)[0],
+            _ => state.names
+        },
+        values: match {
+            append => state.values.push(value)[0],
+            _ => state.values
+        },
+        running: diagnostic.message == "" && index < state.input.syntax.constants.length
+    }
+}

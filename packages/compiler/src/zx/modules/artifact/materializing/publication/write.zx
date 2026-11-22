@@ -1,57 +1,51 @@
+import { StoreMode } from "core/function_table/complete"
 import memory from "memory/columns"
+import { ColumnStoreMode } from "memory/columns"
 
-import ownership from "../../../link/signature/ownership"
+import signature from "../../../link/signature/publication/signature_row"
 
 import type { ColumnSet } from "memory/columns"
-import type { Output as External } from "../copy_external"
-import type { BodyColumns, Payload } from "./model"
+import type { Payload } from "./model"
 
 export type Input = {
     storage: ColumnSet,
-    tables: BodyColumns,
     function: Payload,
     row: u64
 }
 
-export type Output = BodyColumns
+export type Output = void
 
 export default function (in: Input): Output {
-    const { storage, tables, function: value, row } = in
+    const { storage, function: value, row } = in
 
-    const external: External = value.external ?? {
-        members: [],
-        errors: null,
-        export_name: null,
-        parameters: null
-    }
+    const fields = signature({
+        signature: value.pick([
+            "file",
+            "ports",
+            "external"
+        ]),
+        flags: value.pick([
+            "ownership",
+            "allocator_argument",
+            "io_argument",
+            "process_argument",
+            "expand_tuple",
+            "fallible",
+            "concurrent"
+        ])
+    })
 
-    memory.writeSignatureTail(
-        storage,
-        row,
-        value.file,
-        value.ports.input,
-        value.ports.output,
-        ownership(value.ownership),
-        value.ports.native_module,
-        external.members,
-        external.export_name,
-        external.parameters,
-        external.errors,
-        value.allocator_argument,
-        value.io_argument,
-        value.process_argument,
-        value.expand_tuple,
-        value.fallible,
-        value.concurrent
-    )
-
-    return {
-        store_modes: tables.store_modes.with(row, value.store_mode),
-        roots: tables.roots.with(row, value.root),
-        symbols: tables.symbols.with(row, value.symbols),
-        expressions: tables.expressions.with(row, value.expressions),
-        contracts: tables.contracts.with(row, value.contracts),
-        control: tables.control.with(row, value.control),
-        stores: tables.stores.with(row, value.store_table)
-    }
+    memory.writeFunctionTail(storage, {
+        ...fields,
+        store_modes: match value.store_mode {
+            StoreMode.transaction => ColumnStoreMode.transaction,
+            _ => ColumnStoreMode.orchestration
+        },
+        roots: value.root,
+        symbols: value.symbols,
+        expressions: value.expressions,
+        contracts: value.contracts,
+        control: value.control,
+        stores: value.store_table
+    }, row)
 }

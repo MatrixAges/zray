@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Contracts" />
+
+    <Args in={Contracts.ContractWork} out={Contracts.Output} />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            work: $in,
+            index: 0,
+            running: $in.items.length != 0 && $in.state.diagnostic.message == ""
+        }}
+    />
+
+    <Return
+        value={$ctx.advance.work.pick([
+            "state",
+            "contracts"
+        ])}
+    />
+</Module>

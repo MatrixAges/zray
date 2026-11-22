@@ -36,7 +36,7 @@
 
             <If on={$ctx.exports.state.diagnostic.message == ""}>
                 <Call
-                    fn="../../analysis/constants/declarations/analyze"
+                    module="../../analysis/constants/declarations/analyze"
                     in={{
                         ...$in.declarations.pick([
                             "bytes",

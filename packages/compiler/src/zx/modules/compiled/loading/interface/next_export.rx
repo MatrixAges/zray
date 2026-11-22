@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Interface" />
+
+    <Args in={Interface.Traversal} out={Interface.Traversal} />
+
+    <Call fn="export_row" in={$in} />
+
+    <If on={$ctx.export_row.first == $in.output}>
+        <Call
+            module="row"
+            in={{
+                ...$in.source.omit(["selection"]),
+                row: $ctx.export_row.row,
+                output: $in.output
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="columns.copyRow"
+                in={[
+                    $in.source.buffers.exports,
+                    $ctx.export_row.first,
+                    $in.output
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Call fn="export_name" in={$in} />
+
+    <Return
+        value={{
+            ...$in,
+            output: $in.output + 1,
+            running: $in.output + 1 < $in.count
+        }}
+    />
+</Module>

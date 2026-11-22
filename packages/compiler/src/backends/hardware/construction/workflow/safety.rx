@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Hardware" />
+
+    <Args in={Hardware.Safety} out={u32} />
+
+    <Call module="../../terms/parse/run" in={$in} />
+
+    <Call
+        fn="safety_check"
+        in={{
+            build: $in.build,
+            node: $ctx.run
+        }}
+    />
+
+    <Return value={$ctx.safety_check} />
+</Module>

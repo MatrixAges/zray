@@ -1,0 +1,20 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Demand } from "./model"
+
+export type Input = {
+    target: Demand,
+    grew: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, grew } = in
+
+    columns.writeRowList(target.mark_column, 0, target.marks)
+    memory.copyColumnValue(target.normalized, 0, target.source_normalized)
+    memory.copyColumnValue(target.renewed, 0, target.source_renewed)
+    memory.writeColumnBool(target.grew, 0, grew)
+}

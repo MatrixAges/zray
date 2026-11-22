@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Solve} out={Entry.Solved} />
+
+    <Call
+        module="../levels/close"
+        in={$in.pick([
+            "context",
+            "repeated"
+        ])}
+    />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            ...$in,
+            closure: $ctx.close,
+            running: true
+        }}
+    />
+
+    <Return
+        value={{
+            context: $ctx.advance.context,
+            state: $ctx.advance.closure.pick([
+                "known",
+                "carried"
+            ])
+        }}
+    />
+</Module>

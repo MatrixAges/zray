@@ -1,0 +1,24 @@
+<Module>
+    <Type from="../model" as="IR" />
+
+    <Args in={IR.StoreWalk} out={IR.StoreWalk} />
+
+    <Call
+        module="check"
+        in={$in.pick([
+            "context",
+            "index"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.check != null,
+            stores_owned: $in.stores_owned && $ctx.check == true,
+            running:
+                $ctx.check != null && $in.index + 1 < $in.context.functions.files.length
+        }}
+    />
+</Module>

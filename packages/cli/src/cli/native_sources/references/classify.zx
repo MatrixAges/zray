@@ -1,0 +1,19 @@
+import { Action } from "./model"
+import name from "./name"
+import { Kind } from "./name"
+
+import type { Input } from "./model"
+
+export type Output = Action
+
+export default function (in: Input): Output {
+    const builtin = name(in.name)
+
+    return match {
+        builtin == Kind.Other => Action.Ignore,
+        builtin == Kind.CImport => Action.CImport,
+        in.arguments != 1 => Action.InvalidSource,
+        builtin == Kind.Zig => in.literal ? Action.Zig : Action.InvalidImport,
+        _ => in.literal ? Action.Asset : Action.DynamicAsset
+    }
+}

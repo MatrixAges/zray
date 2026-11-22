@@ -1,0 +1,43 @@
+import append from "core/contract_table/append"
+import { ContractKind } from "core/contract_table/model"
+
+import type { Publication as Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { traversal, result } = in
+    const { work, index } = traversal
+
+    const item = work.items[index]
+
+    const valid = result.diagnostic.message == ""
+
+    const contracts = match valid {
+        true => append({
+            table: work.contracts,
+            kind: item.ensures ? ContractKind.Ensures : ContractKind.Requires,
+            symbols: result.symbols,
+            expressions: result.expressions,
+            predicate: result.predicate,
+            span_start: item.span.start,
+            span_end: item.span.end
+        }),
+        _ => work.contracts
+    }
+
+    return {
+        work: {
+            ...work,
+            contracts,
+            state: {
+                ...work.state,
+                types: {
+                    ...work.state.types,
+                    delta: result.types.delta
+                },
+                diagnostic: result.diagnostic
+            }
+        },
+        index: index + 1,
+        running: valid && index + 1 < work.items.length
+    }
+}

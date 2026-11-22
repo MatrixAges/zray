@@ -1,0 +1,27 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import type { Table } from "core/type_table/model"
+import type { Field } from "../../../ast/fields/model"
+import type { Record } from "./model"
+
+export type Input = {
+    source: Table,
+    record: Record,
+    member: u64,
+    values: u32[],
+    views: u32[]
+}
+
+export type Output = Field
+
+export default function (in: Input): Output {
+    const field = integers.widen(in.source.first[in.record.owner]) + in.member
+    const child = integers.widen(in.source.field_types[field])
+
+    return {
+        name: bytes.fromText(in.source.field_names[field]),
+        value: in.record.view ? in.views[child] : in.values[child],
+        comptime_parameter: false
+    }
+}

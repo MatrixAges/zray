@@ -1,0 +1,51 @@
+import { TransformKind } from "core/expression_table/kinds"
+
+import finish from "../../../collections/callback/finish"
+
+import type { Options } from "../../../collections/model"
+import type { Prepared } from "../../../model"
+import type { Work as Input } from "../model"
+
+export type Output = {
+    state: Prepared,
+    options?: Options.Omit("state")
+}
+
+export default function (in: Input): Output {
+    const work = in
+
+    const frame = work.frames.transforms[work.frames.transforms.length - 1]
+    const span = work.source.tree.nodes[frame.node].span
+
+    const completed = finish({
+        state: work.state,
+        frame: frame.capture_frame,
+        parameters: frame.parameters,
+        body: work.value,
+        kind: frame.kind,
+        result_type: frame.result_type,
+        span
+    })
+
+    if (completed.state.diagnostic.message != "") {
+        return {
+            state: completed.state,
+            options: null
+        }
+    }
+
+    return {
+        state: completed.state,
+        options: {
+            tuple_result: frame.tuple_result,
+            projection: frame.projection,
+            span,
+            kind: frame.kind,
+            target: frame.target,
+            initial: frame.kind == TransformKind.Reduce ? frame.second : null,
+            ignored: frame.kind == TransformKind.Reduce ? null : frame.second,
+            callback: completed.callback,
+            result_type: completed.result_type
+        }
+    }
+}

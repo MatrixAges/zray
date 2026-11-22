@@ -1,0 +1,21 @@
+import { accepted } from "./const"
+
+import type { State, Traversal as Output } from "./model"
+
+export type Input = {
+    current: Output,
+    state: State
+}
+
+export default function (in: Input): Output {
+    const index = in.current.index + 1
+
+    return {
+        ...in.current,
+        state: in.state,
+        index,
+        running:
+            in.state.status == accepted &&
+            index < in.current.request.source.specifiers.length
+    }
+}

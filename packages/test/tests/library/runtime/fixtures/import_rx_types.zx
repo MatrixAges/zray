@@ -1,3 +1,0 @@
-export type SharedInput = { choose: bool, left: u64[], right: u64[] }
-
-export type SharedOutput = u64

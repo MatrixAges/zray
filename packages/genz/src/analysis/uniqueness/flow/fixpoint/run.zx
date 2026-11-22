@@ -1,6 +1,6 @@
 import host from "ownership_host"
 
-import advance from "./advance.rx"
+import advance from "./advance"
 
 import type { FlowFixpoint } from "ownership_host"
 import type { Advance } from "./model"

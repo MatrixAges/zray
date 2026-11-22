@@ -1,7 +1,7 @@
 import host from "verification_host"
 import { SymbolicOperand } from "verification_host"
 
-import guarded from "../../predicate/guard.rx"
+import guarded from "../../predicate/guard"
 
 import type { Payload as Input } from "./model"
 

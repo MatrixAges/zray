@@ -19,12 +19,16 @@
     <Call fn="../index.locateLintWorkspace" in={$in} />
 
     <Call
-        fn="members"
+        module="members"
+        while="running"
         in={{
             check: $in,
-            count: $ctx.locateLintWorkspace
+            count: $ctx.locateLintWorkspace,
+            index: 0,
+            valid: true,
+            running: $ctx.locateLintWorkspace != 0
         }}
     />
 
-    <Return value={$ctx.members} />
+    <Return value={$ctx.members.valid} />
 </Module>

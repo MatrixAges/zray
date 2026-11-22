@@ -1,6 +1,6 @@
 import host from "native_resource_host"
 
-import classify from "./classify.rx"
+import classify from "./classify"
 import local from "./local"
 import { Action } from "./model"
 

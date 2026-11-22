@@ -40,3 +40,12 @@ export type Frame = {
     saw_version: bool,
     saw_digest: bool
 }
+
+export type Reader = Input & {
+    offset: u64,
+    status: Status,
+    saw_version: bool,
+    saw_digest: bool,
+    finished: bool,
+    running: bool
+}

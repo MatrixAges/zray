@@ -1,5 +1,5 @@
 import type { Expressions } from "core/expression_table/model"
-import type { Environment } from "../../object_update/match/model"
+import type { Change, Environment } from "../../object_update/match/model"
 import type { Last } from "../reads/model"
 
 export type Candidates = {
@@ -51,4 +51,15 @@ export type Work = Plan & {
     bound: Last,
     binding: u64,
     candidate: u64
+}
+
+export type Scan = {
+    source: Source,
+    found: Candidates,
+    row: u64,
+    running: bool
+}
+
+export type Add = Scan.Pick("found", "row") & {
+    change: Change
 }

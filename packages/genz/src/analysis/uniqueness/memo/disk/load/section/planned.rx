@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.PlannedSection} out={bool} />
+
+    <Call
+        fn="buffers.readU32"
+        in={[
+            $in.index.used,
+            0
+        ]}
+    />
+
+    <Call
+        module="read_planned"
+        while="running"
+        in={{
+            section: $in,
+            offset: $in.start,
+            remaining: $in.count,
+            used: $ctx.readU32,
+            running: $in.count != 0 && $in.start != 0
+        }}
+    />
+
+    <Return value={$ctx.read_planned.remaining == 0} />
+</Module>

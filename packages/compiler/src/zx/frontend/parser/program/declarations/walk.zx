@@ -1,0 +1,21 @@
+import advance from "./step"
+
+import type { DeclarationStage } from "./model"
+
+export type Input = DeclarationStage
+
+export type Output = DeclarationStage
+
+export default function (in: Input): Output {
+    return loop(in, {
+        while: value => {
+            const pending = value.finished || value.pending_constant
+            const count = value.prefix.prepared.lexical.lexed.tokens.length
+
+            return !pending && value.declarations.control.index < count
+        },
+        next: value => {
+            value = advance(value)
+        }
+    })
+}

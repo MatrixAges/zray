@@ -3,7 +3,14 @@ import type { WriteColumn as ListTarget } from "memory/columns"
 import type { PlanWrites } from "../../../../replay/shortcut/model"
 import type { Index } from "../../../table/model"
 import type { Input, Span } from "../../model"
-import type { Demand, Settlement } from "../model"
+import type {
+    Demand,
+    DemandResult,
+    Flow,
+    Plan,
+    Settlement,
+    SettlementResult
+} from "../model"
 
 export type Section = Input & Span.Pick("start", "count") & {
     index: Index
@@ -49,4 +56,43 @@ export type PlannedSection = Section & {
 
 export type FlowedSection = Section & {
     target: FlowColumns
+}
+
+export type Position = {
+    offset: u64,
+    remaining: u32,
+    used: u32,
+    running: bool
+}
+
+export type SettledTraversal = Position & {
+    section: SettledSection
+}
+
+export type SettledWrite = SettledTraversal.Pick("section", "used") & {
+    record: SettlementResult
+}
+
+export type DemandedTraversal = Position & {
+    section: DemandedSection
+}
+
+export type DemandedWrite = DemandedTraversal.Pick("section", "used") & {
+    record: DemandResult
+}
+
+export type PlannedTraversal = Position & {
+    section: PlannedSection
+}
+
+export type PlannedWrite = PlannedTraversal.Pick("section", "used") & {
+    record: Plan
+}
+
+export type FlowedTraversal = Position & {
+    section: FlowedSection
+}
+
+export type FlowedWrite = FlowedTraversal.Pick("section", "used") & {
+    record: Flow
 }

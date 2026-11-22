@@ -7,10 +7,13 @@
     <Call fn="index.openHeader" in={$in} />
 
     <Call
-        fn="imports"
+        module="load_import"
+        while="running"
         in={{
             discovery: $in,
-            count: $ctx.openHeader
+            count: $ctx.openHeader,
+            index: 0,
+            running: $ctx.openHeader != 0
         }}
     />
 

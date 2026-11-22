@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Declarations" />
+
+    <Args in={Declarations.Traversal} out={Declarations.Traversal} />
+
+    <Call fn="walk" in={$in.stage} />
+
+    <If on={$ctx.walk.pending_constant}>
+        <Call
+            module="../../constants/parse"
+            in={{
+                prepared: $ctx.walk.prefix.prepared,
+                start: $ctx.walk.declarations.control.index
+            }}
+        />
+
+        <Call
+            fn="constant_result"
+            in={{
+                stage: $ctx.walk,
+                parsed: $ctx.parse
+            }}
+        />
+
+        <Return
+            value={{
+                stage: $ctx.constant_result,
+                running: !$ctx.constant_result.finished
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            stage: $ctx.walk,
+            running: false
+        }}
+    />
+</Module>

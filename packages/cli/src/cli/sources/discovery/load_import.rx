@@ -2,27 +2,41 @@
     <Type from="index" as="Discovery" />
     <Type from="model" as="Import" />
 
-    <Args in={Import.Row} out={void} />
+    <Args in={Import.Header} out={Import.Header} />
 
-    <Call fn="index.resolveImport" in={$in} />
+    <Call
+        fn="index.resolveImport"
+        in={[
+            $in.discovery,
+            $in.index
+        ]}
+    />
 
     <If on={$ctx.resolveImport != Discovery.Target.Deferred}>
         <If on={$ctx.resolveImport == Discovery.Target.Compiled}>
-            <Call fn="index.admitCompiledImport" in={$in[0]} />
+            <Call fn="index.admitCompiledImport" in={$in.discovery} />
 
             <Else>
-                <Call fn="index.importPath" in={$in[0]} />
+                <Call fn="index.importPath" in={$in.discovery} />
 
                 <Call fn="../path/is_rx" />
 
                 <If on={$ctx.is_rx}>
-                    <Call fn="index.markRxImport" in={$in[0]} />
+                    <Call fn="index.markRxImport" in={$in.discovery} />
 
                     <Else>
-                        <Call module="load_source" in={$in[0]} />
+                        <Call module="load_source" in={$in.discovery} />
                     </Else>
                 </If>
             </Else>
         </If>
     </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
 </Module>

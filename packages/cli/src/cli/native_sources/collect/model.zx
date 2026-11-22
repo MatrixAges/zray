@@ -41,3 +41,7 @@ export type Pending = Walk.Pick("collection", "has_bundle") & {
     index: u64,
     flags: Decision
 }
+
+export type Step = Pending & {
+    running: bool
+}

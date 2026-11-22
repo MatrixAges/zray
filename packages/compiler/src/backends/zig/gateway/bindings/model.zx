@@ -78,3 +78,9 @@ export type Binding = {
 }
 
 export type Output = State.Omit("types", "source", "index")
+
+export type Traversal = {
+    state: State,
+    position: u64,
+    running: bool
+}

@@ -1,12 +1,12 @@
 <Module>
     <Type from="contracts/initial" as="Initial" />
-    <Type from="contracts/walk" as="Walk" />
+    <Type from="contracts/model" as="Walk" />
 
     <Args in={Initial.Input} out={Walk.Output} />
 
     <Call fn="contracts/initial" in={$in} />
 
-    <Call fn="contracts/walk" />
+    <Call module="contracts/walk" />
 
     <Return value={$ctx.walk} />
 </Module>

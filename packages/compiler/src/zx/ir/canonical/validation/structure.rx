@@ -13,7 +13,7 @@
     />
 
     <If on={$ctx.unit}>
-        <Call fn="structure/walk" in={$in.context} />
+        <Call module="structure/walk" in={$in.context} />
 
         <Return value={$ctx.walk} />
 

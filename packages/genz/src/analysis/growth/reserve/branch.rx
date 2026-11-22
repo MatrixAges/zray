@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Reserve" />
+
+    <Args in={Reserve.BranchInput} out={Reserve.BranchOutput} />
+
+    <Call fn="branch_input" in={$in} />
+
+    <Call module="../apply" />
+
+    <Return
+        value={{
+            context: $ctx.apply.context,
+            branch: {
+                body: $ctx.apply.body,
+                value: $ctx.apply.root
+            }
+        }}
+    />
+</Module>

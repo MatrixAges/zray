@@ -1,0 +1,28 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import { Status } from "./decision"
+
+import type { Batch as Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const modules =
+        columns.readNativeColumnSet(
+            in.native.storage,
+            in.native.snapshot,
+            in.native.shape
+        )
+
+    const native_ids = memory.optionalU32Views(in.native.ids)
+    const linked = columns.readColumnSet(in.read_columns, in.snapshot, in.linked_shape)
+
+    return {
+        source: in,
+        modules,
+        native_ids,
+        linked,
+        index: 0,
+        status: Status.Reuse,
+        running: in.signatures.files.length != 0
+    }
+}

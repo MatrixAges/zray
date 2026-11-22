@@ -61,6 +61,7 @@ pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.Res
 
     for (cases) |case| for (std.meta.tags(Route)) |route| for ([_]bool{ false, true }) |reverse| for ([_]bool{ false, true }) |pure| {
         if (route == .source and (reverse or pure)) continue;
+        if (route == .zx and !pure) continue;
 
         const compile = b.addRunArtifact(tool);
 
@@ -88,7 +89,7 @@ pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.Res
 
                 consume.addFileArg(artifact);
                 consume.addArg(export_name);
-                consume.addArg("zx");
+                consume.addArg("rx");
 
                 artifact = consume.addOutputFileArg("republished.zxlib");
             }

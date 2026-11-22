@@ -1,0 +1,103 @@
+import bytes from "std:bytes"
+
+import binding from "../../../../../ast/body/binding"
+import address from "../../../../../ast/context/address"
+import array from "../../../../../ast/context/array"
+import builtin from "../../../../../ast/context/builtin"
+import { operand_prefix } from "../../../../../ast/context/const"
+import constSlice from "../../../../../ast/context/const_slice"
+import field from "../../../../../ast/context/field"
+import identifier from "../../../../../ast/context/identifier"
+import fresh from "../../../../../ast/fresh"
+import {
+    ExpressionsBuiltinName
+} from "../../../../../printer/model/expressions"
+import { length_member } from "../../../../growth/const"
+import { items_field } from "../../../../types/state/const"
+import isInput from "../../is_input"
+
+import type { RowPlan as Output, Step as Input } from "../model"
+
+export default function (in: Input): Output {
+    const frame = in.state.nodes[in.node]
+
+    const value = match {
+        isInput(in.source.plan.modes[in.node]) => {
+            state: in.state.context,
+            id: frame.input
+        },
+        _ => field({
+            state: in.state.context,
+            target: frame.input,
+            name: bytes.fromText(items_field)
+        })
+    }
+
+    const name = fresh({
+        serial: value.state.serial,
+        prefix: operand_prefix
+    })
+
+    const bound = binding({
+        state: {
+            context: {
+                ...value.state,
+                serial: name.serial
+            },
+            body: in.state.body
+        },
+        name: name.name,
+        value: value.id
+    })
+
+    const source = identifier({
+        state: bound.context,
+        name: name.name
+    })
+
+    const element = in.source.elements[in.node]
+
+    const values = array({
+        state: source.state,
+        element,
+        values: []
+    })
+
+    const pointer = address({
+        state: values.state,
+        value: values.id
+    })
+
+    const slice = constSlice({
+        state: pointer.state,
+        value: element
+    })
+
+    const empty = builtin({
+        state: slice.state,
+        name: ExpressionsBuiltinName.As,
+        arguments: [
+            slice.id,
+            pointer.id
+        ]
+    })
+
+    const length = field({
+        state: empty.state,
+        target: source.id,
+        name: bytes.fromText(length_member)
+    })
+
+    return {
+        bound: bound.body,
+        operand: source.id,
+        empty: empty.id,
+        reserve: {
+            source: in.source,
+            context: length.state,
+            element,
+            value: empty.id,
+            count: length.id
+        }
+    }
+}

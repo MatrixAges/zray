@@ -5,9 +5,13 @@ export type Patterns = {
     patterns: string[]
 }
 
-export type Members = {
-    collection: Collection,
-    count: u64
+export type Directories = Patterns & {
+    running: bool
+}
+
+export type Members = Member & {
+    count: u64,
+    running: bool
 }
 
 export type Member = {

@@ -38,3 +38,28 @@ export type Assembly = {
     storage: RowBuffer,
     target: Target
 }
+
+export type Publication = Assembly & {
+    count: u64
+}
+
+export type Traversal = {
+    source: Publication,
+    row: u64,
+    running: bool
+}
+
+export type Selected = {
+    id: u64,
+    position: u64,
+    native?: u64
+}
+
+export type Write = {
+    source: Publication,
+    selected: Selected,
+    row: u64,
+    dependencies: string[]
+}
+
+export type Dependencies = Write.Pick("source", "selected")

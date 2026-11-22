@@ -1,0 +1,16 @@
+import integers from "std:integer"
+
+import type { Scope as Input, ScopeWalk as Output } from "./model"
+
+export default function (in: Input): Output {
+    const first = integers.widen(in.first)
+
+    return {
+        traversal: in.traversal,
+        scope: in.scope,
+        first,
+        cursor: first + integers.widen(in.count),
+        valid: true,
+        running: in.count != 0
+    }
+}

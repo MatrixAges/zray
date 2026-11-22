@@ -1,0 +1,23 @@
+<Module>
+    <Type from="source_model" as="Source" />
+    <Type from="model" as="Publication" />
+
+    <Args in={Source.Input} out={Source.Output} />
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            input: $in,
+            row: 0,
+            valid: true,
+            running: $in.source.files.length != 0
+        }}
+    />
+
+    <If on={$ctx.next.valid}>
+        <Return value={Publication.PublicationStatus.Complete} />
+    </If>
+
+    <Return value={Publication.PublicationStatus.Invalid} />
+</Module>

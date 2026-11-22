@@ -1,0 +1,117 @@
+import integers from "std:integer"
+import { scalar_void } from "core/type_table/const"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+import host from "hardware_graph_host"
+import symbolic from "verification_host"
+
+import fieldPath from "../../../../verification/ports/path"
+import portType from "./port_type"
+
+import type { OutputLeaf, OutputSearch as Output, OutputWalk as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { build, types } = in
+
+    const leaf: OutputLeaf? = null
+
+    return loop({
+        stack: in.stack,
+        leaf
+    }, {
+        while: state => state.leaf == null && state.stack.length != 0,
+        next: state => {
+            const position = state.stack.length - 1
+            const frame = state.stack[position]
+            const children = frame.children
+
+            if (children != null) {
+                const index = children.next
+
+                if (index == children.count) {
+                    state.stack = state.stack.pop()[0]
+                } else {
+                    const row = children.first + index
+                    const name: string? = match children.object {
+                        true => types.field_names[row],
+                        _ => null
+                    }
+                    const type_id = match children.object {
+                        true => types.field_types[row],
+                        _ => types.children[row]
+                    }
+                    const path = fieldPath({
+                        parent: frame.path,
+                        field: name,
+                        index
+                    })
+
+                    state.stack[position] = {
+                        ...frame,
+                        children: {
+                            ...children,
+                            next: index + 1
+                        }
+                    }
+                    state.stack = state.stack.push({
+                        type_id,
+                        value: symbolic.symbolicField(frame.value, index),
+                        path,
+                        children: null
+                    })[0]
+                }
+            } else {
+                const row = integers.widen(frame.type_id)
+                const shape = kind(types.kinds[row])
+
+                if (shape == Kind.Object || shape == Kind.Tuple) {
+                    const count = integers.widen(types.second[row])
+
+                    if (
+                        symbolic.symbolicText(frame.value) != null ||
+                            symbolic.symbolicFieldCount(frame.value) != count
+                    ) {
+                        host.rejectHardwareTerm()
+                    }
+
+                    state.stack[position] = {
+                        ...frame,
+                        children: {
+                            object: shape == Kind.Object,
+                            first: integers.widen(types.first[row]),
+                            count,
+                            next: 0
+                        }
+                    }
+                } else {
+                    state.stack = state.stack.pop()[0]
+
+                    if (
+                        shape != Kind.Scalar || types.first[row] != scalar_void
+                    ) {
+                        const text = symbolic.symbolicText(frame.value)
+
+                        if (text == null) {
+                            host.rejectHardwareTerm()
+                        } else {
+                            const port = portType({
+                                types,
+                                type_id: frame.type_id
+                            })
+
+                            if (port.width == 0) {
+                                host.rejectHardwareTerm()
+                            }
+
+                            state.leaf = {
+                                path: frame.path,
+                                expression: text,
+                                ...port
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}

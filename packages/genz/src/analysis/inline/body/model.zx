@@ -1,0 +1,6 @@
+import type { Program } from "../../model"
+
+export type Position = {
+    program: Program,
+    index: u64
+}

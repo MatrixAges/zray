@@ -2,6 +2,9 @@ import integers from "std:integer"
 import emptyControl from "core/control_table/empty"
 import emptyExpressions from "core/expression_table/empty"
 
+import bodyExpressions from "./body/expressions"
+import bodyRoot from "./body/root"
+import bodySymbols from "./body/symbols"
 import frame from "./frame"
 import { InlineOp } from "./model"
 import run from "./run"
@@ -10,12 +13,12 @@ import type { Control } from "core/control_table/model"
 import type { Expressions } from "core/expression_table/model"
 import type { Symbols } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
-import type { Unit } from "../unit"
+import type { Program } from "../model"
 import type { Inline, InlineFrame, Mappings } from "./model"
 
 export type Input = {
     types: Table,
-    units: Unit[],
+    program: Program,
     plan: u64[],
     limit: u64,
     void_type: u32,
@@ -33,7 +36,13 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const unit = in.units[in.unit]
+    const address = {
+        program: in.program,
+        index: in.unit
+    }
+
+    const expressions = bodyExpressions(address)
+    const symbols = bodySymbols(address)
 
     const mappings: Mappings = {
         units: [in.unit],
@@ -46,7 +55,7 @@ export default function (in: Input): Output {
     const frames: InlineFrame[] = []
     const stack: u64[] = []
     const costs: u64[] = []
-    const root = unit.root
+    const root = bodyRoot(address)
 
     const tail = frame({
         op: InlineOp.BlockStart,
@@ -56,7 +65,7 @@ export default function (in: Input): Output {
 
     const scheduled = loop({
         frames: frames.push(tail)[0],
-        remaining: unit.expressions.kinds.length
+        remaining: expressions.kinds.length
     }, {
         while: current => current.remaining != 0,
         next: current => {
@@ -79,7 +88,7 @@ export default function (in: Input): Output {
 
     const state: Inline = {
         types: in.types,
-        units: in.units,
+        program: in.program,
         plan: in.plan,
         limit: in.limit,
         void_type: in.void_type,
@@ -88,13 +97,13 @@ export default function (in: Input): Output {
         tables: {
             expressions: emptyExpressions(),
             control: emptyControl(),
-            symbols: unit.symbols
+            symbols
         },
         costs,
         depth: 0,
         failed: false,
         mappings,
-        ids: unit.expressions.kinds.map(kind => 0)[0],
+        ids: expressions.kinds.map(kind => 0)[0],
         frames: scheduled,
         stack,
         pool

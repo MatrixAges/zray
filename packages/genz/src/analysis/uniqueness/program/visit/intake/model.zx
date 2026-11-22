@@ -27,6 +27,10 @@ export type Cache = {
     temporary: Allocator
 }
 
+export type ProbeInput = Cache.Omit("history") & {
+    following: bool
+}
+
 export type Found = {
     trace_row?: u64,
     memo_row?: u32,

@@ -3,12 +3,15 @@ import find from "./selection/find"
 import mark from "./selection/mark"
 import walk from "./selection/walk"
 
+import type { Control } from "core/control_table/model"
+import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
-import type { Unit } from "../unit"
 
 export type Input = {
     types: Table,
-    unit: Unit,
+    expressions: Expressions,
+    control: Control,
+    root?: u32,
     costs: u64[],
     limit: u64
 }
@@ -19,13 +22,13 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const table = in.unit.expressions
+    const table = in.expressions
 
     const walked = walk({
         types: in.types,
         table,
-        control: in.unit.control,
-        root: in.unit.root
+        control: in.control,
+        root: in.root
     })
 
     const found = find({

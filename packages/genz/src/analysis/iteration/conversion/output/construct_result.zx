@@ -1,0 +1,21 @@
+import type { Publish as Input, State as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { step, result } = in
+    const { node } = step
+
+    const state = step.state.emitted
+
+    return {
+        emitted: {
+            ...state,
+            context: result.context,
+            uses_allocator: result.uses_allocator,
+            nodes: state.nodes.with(node, {
+                ...state.nodes[node],
+                result: result.root
+            })
+        },
+        storage: result.storage
+    }
+}

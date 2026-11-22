@@ -1,0 +1,40 @@
+import { code_contract, message_invalid_bindings } from "../const"
+import valid from "../valid"
+
+import type { Literal } from "core/constant/model"
+import type { Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const imports = in.imports
+    const first = imports != null ? imports.names.length : 0
+
+    const names: string[] = []
+    const values: Literal[] = []
+
+    const admitted = match {
+        imports == null => true,
+        _ => valid({
+            constants: imports,
+            types: {
+                base: in.types.context.base,
+                delta: in.types.delta
+            }
+        })
+    }
+
+    return {
+        input: in,
+        types: in.types,
+        names: imports != null ? imports.names : names,
+        values: imports != null ? imports.values : values,
+        first,
+        index: 0,
+        diagnostic: {
+            code: admitted ? "" : code_contract,
+            message: admitted ? "" : message_invalid_bindings,
+            start: 0,
+            end: 0
+        },
+        running: admitted && in.syntax.constants.length != 0
+    }
+}

@@ -1,0 +1,36 @@
+import { Phase } from "../../declarations/model"
+
+import type { Result } from "../../constants/model"
+import type { DeclarationStage as Output } from "./model"
+
+export type Input = {
+    stage: Output,
+    parsed: Result
+}
+
+export default function (in: Input): Output {
+    const { stage, parsed } = in
+
+    const value = parsed.constant
+
+    const constants = match {
+        value != null => stage.constants.push(value)[0],
+        _ => stage.constants
+    }
+
+    return {
+        ...stage,
+        constants,
+        finished: value == null,
+        pending_constant: false,
+        declarations: {
+            ...stage.declarations,
+            control: {
+                ...stage.declarations.control,
+                phase: value != null ? Phase.Start : Phase.Done,
+                index: parsed.index,
+                diagnostic: parsed.diagnostic
+            }
+        }
+    }
+}

@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={Entry.Work} />
+
+    <If on={$in.conversion != null}>
+        <Call fn="../../conversion/emit/initialize" in={$in.conversion} />
+
+        <Call
+            module="../../conversion/emit/walk"
+            in={{
+                source: $in.conversion,
+                state: $ctx.initialize
+            }}
+        />
+
+        <Return
+            value={{
+                state: $ctx.walk,
+                value: $ctx.walk.nodes[0].result
+            }}
+        />
+    </If>
+
+    <Call fn="initialize" in={$in} />
+
+    <Return value={$ctx.initialize} />
+</Module>

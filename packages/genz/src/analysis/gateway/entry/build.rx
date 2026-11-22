@@ -41,7 +41,7 @@
     </If>
 
     <Call
-        fn="services"
+        module="services"
         in={{
             writer: $in.writer,
             bases: $ctx.bases,

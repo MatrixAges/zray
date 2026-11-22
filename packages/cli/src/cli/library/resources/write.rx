@@ -6,5 +6,16 @@
     <Call fn="index.allocateNativeRows" in={$in} />
     <Call fn="index.selectLibraryPaths" in={$in} />
     <Call fn="resolve_paths" in={$in} />
-    <Call fn="modules" in={$in} />
+    <Call fn="index.nativeModuleCount" in={$in} />
+
+    <Call
+        module="modules"
+        while="running"
+        in={{
+            resources: $in,
+            count: $ctx.nativeModuleCount,
+            index: 0,
+            running: $ctx.nativeModuleCount != 0
+        }}
+    />
 </Module>

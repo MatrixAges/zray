@@ -40,3 +40,5 @@ export const unterminated_template: string = "unterminated template string"
 export const unterminated_template_comment: string = "unterminated comment in template"
 
 export const unterminated_interpolation: string = "unterminated template interpolation"
+
+export const invalid_utf8: string = "source must be valid UTF-8"

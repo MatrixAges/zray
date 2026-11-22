@@ -1,4 +1,5 @@
 export {
+    openPreconditionScope,
     evaluatePrecondition,
     emitPrecondition,
     publishPreconditionScope

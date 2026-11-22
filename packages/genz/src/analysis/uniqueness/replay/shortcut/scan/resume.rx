@@ -4,7 +4,7 @@
     <Args in={Scan.Resume} out={Scan.Output} />
 
     <Call
-        fn="consume"
+        module="consume"
         in={{
             ...$in.omit(["replay"]),
             cursor: $in.replay.cursor

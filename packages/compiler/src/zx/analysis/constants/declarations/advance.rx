@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Constants" />
+
+    <Args in={Constants.Traversal} out={Constants.Traversal} />
+
+    <Call
+        module="item/analyze"
+        in={{
+            bytes: $in.input.bytes,
+            index: $in.index,
+            constant: $in.input.syntax.constants[$in.index],
+            native: $in.input.native,
+            types: $in.types,
+            scope: match {
+                $in.names.length != 0 => {
+                    names: $in.names,
+                    values: $in.values
+                },
+                _ => null
+            }
+        }}
+    />
+
+    <Call
+        fn="publish"
+        in={{
+            state: $in,
+            result: $ctx.analyze
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

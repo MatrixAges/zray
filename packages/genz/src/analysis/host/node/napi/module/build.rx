@@ -22,8 +22,7 @@
     <Call fn="imports" in={$ctx.initialize} />
 
     <Call module="helpers" />
-
-    <Call fn="types" />
+    <Call module="types" />
 
     <If on={$ctx.types.codec.supported}>
         <Call module="public" in={$ctx.types} />

@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Traversal} out={Entry.Traversal} />
+
+    <Call fn="service_request" in={$in} />
+
+    <Call module="service" />
+
+    <Return
+        value={{
+            ...$in,
+            state: $ctx.service,
+            index: $in.index + 1,
+            running: $ctx.service.valid && $in.index + 1 < $in.count
+        }}
+    />
+</Module>

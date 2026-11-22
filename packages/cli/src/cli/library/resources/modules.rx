@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Step" />
+
+    <Args in={Step.Modules} out={Step.Modules} />
+
+    <Call
+        fn="index.selectNativeModule"
+        in={[
+            $in.resources,
+            $in.index
+        ]}
+    />
+
+    <Call module="module" in={$in.resources} />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
+</Module>

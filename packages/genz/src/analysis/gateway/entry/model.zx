@@ -70,3 +70,10 @@ export type Http = {
     writer: ByteWriter,
     bases: Bases
 }
+
+export type Traversal = Services & {
+    state: Output,
+    index: u64,
+    count: u64,
+    running: bool
+}

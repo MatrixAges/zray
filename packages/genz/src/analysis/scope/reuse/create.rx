@@ -3,7 +3,7 @@
 
     <Args in={Reuse.Source} out={Reuse.Output} />
 
-    <Call fn="scan" in={$in} />
+    <Call module="scan" in={$in} />
 
     <Call fn="has" />
 

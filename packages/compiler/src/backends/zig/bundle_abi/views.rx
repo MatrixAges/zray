@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Bundle" />
+
+    <Args in={Bundle.ViewsInput} out={Bundle.Views} />
+
+    <Call
+        module="next_view"
+        while="running"
+        in={{
+            ...$in,
+            views: [],
+            status: Bundle.Status.Valid,
+            index: 0,
+            running: $in.source.natives.length != 0
+        }}
+    />
+
+    <Return
+        value={$ctx.next_view.pick([
+            "status",
+            "views",
+            "defaults"
+        ])}
+    />
+</Module>

@@ -45,7 +45,7 @@
 
         <If on={$ctx.capacity}>
             <Call
-                fn="loading/native/walk"
+                module="loading/native/walk"
                 in={{
                     source: $in.graph.program.context.modules,
                     base: $in.destination.natives,

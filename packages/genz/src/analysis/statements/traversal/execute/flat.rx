@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Input} out={bool} />
+
+    <Call
+        fn="host.openStatementScope"
+        in={[
+            $in.traversal,
+            0,
+            $in.first,
+            $in.count,
+            0
+        ]}
+    />
+
+    <If on={!$ctx.openStatementScope}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        module="scope"
+        in={{
+            traversal: $in.traversal,
+            scope: 0,
+            first: 0,
+            count: $in.count
+        }}
+    />
+
+    <If on={$ctx.scope}>
+        <Call
+            fn="host.finishStatementScope"
+            in={[
+                $in.traversal,
+                0
+            ]}
+        />
+
+        <If on={$ctx.finishStatementScope}>
+            <Return value={true} />
+        </If>
+    </If>
+
+    <Call
+        fn="host.releaseStatementScope"
+        in={[
+            $in.traversal,
+            0
+        ]}
+    />
+
+    <Return value={false} />
+</Module>

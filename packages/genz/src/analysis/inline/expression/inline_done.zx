@@ -1,6 +1,7 @@
 import integers from "std:integer"
 
 import bind from "../bind"
+import bodyExpressions from "../body/expressions"
 import fail from "../fail"
 import memo from "../memo"
 
@@ -19,7 +20,10 @@ export default function (in: Input): Output {
         return fail(state)
     }
 
-    const table = state.units[state.mappings.units[in.frame.mapping]].expressions
+    const table = bodyExpressions({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
 
     const popped = {
         ...state,

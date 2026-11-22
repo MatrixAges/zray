@@ -2,7 +2,7 @@ import host from "hardware_graph_host"
 
 import { maximum_depth } from "../../const"
 import { Form } from "../model"
-import read from "../read.rx"
+import read from "../read"
 import apply from "./application"
 import literal from "./literal"
 

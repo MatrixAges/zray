@@ -1,0 +1,76 @@
+<Module>
+    <Type from="model" as="Ahead" />
+    <Type from="../model" as="Slot" />
+
+    <Args in={Ahead.Traversal} out={Ahead.Traversal} />
+
+    <Call
+        fn="../scan"
+        in={{
+            ...$in.window,
+            first: $in.first
+        }}
+    />
+
+    <If on={$ctx.scan != null}>
+        <If on={$in.memo != null}>
+            <Call
+                module="../../../memo/encoding/body/probe"
+                in={{
+                    ...$in.memo,
+                    state: $in.encoding,
+                    index: $ctx.scan.index
+                }}
+            />
+
+            <If on={$ctx.probe.row != null}>
+                <Call
+                    fn="../transition"
+                    in={{
+                        words: $in.window.words,
+                        event: Slot.Event.Hold,
+                        index: $ctx.scan.index
+                    }}
+                />
+
+                <Return
+                    value={{
+                        ...$in,
+                        encoding: $ctx.probe.state,
+                        first: $ctx.scan.position + 1
+                    }}
+                />
+            </If>
+
+            <Call
+                module="queue"
+                in={{
+                    state: {
+                        ...$in,
+                        encoding: $ctx.probe.state
+                    },
+                    selected: $ctx.scan
+                }}
+            />
+
+            <Return value={$ctx.queue} />
+        </If>
+
+        <Call
+            module="queue"
+            in={{
+                state: $in,
+                selected: $ctx.scan
+            }}
+        />
+
+        <Return value={$ctx.queue} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            running: false
+        }}
+    />
+</Module>

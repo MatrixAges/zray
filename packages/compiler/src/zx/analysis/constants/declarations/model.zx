@@ -36,3 +36,14 @@ export type ItemResult = {
     value?: Literal,
     diagnostic: Diagnostic
 }
+
+export type Traversal = Result.Pick("types", "first", "diagnostic") & Values & {
+    input: Input,
+    index: u64,
+    running: bool
+}
+
+export type Publication = {
+    state: Traversal,
+    result: ItemResult
+}

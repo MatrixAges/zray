@@ -3,7 +3,16 @@
 
     <Args in={Scopes.Input} out={void} />
 
-    <Call fn="prepare" in={$in} />
+    <Call
+        module="prepare"
+        while="running"
+        in={{
+            ...$in,
+            index: 0,
+            running: $in.count != 0
+        }}
+    />
+
     <Call fn="index.borrowScopeColumns" in={$in.binding} />
     <Call fn="publish" in={$in} />
 </Module>

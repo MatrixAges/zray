@@ -1,0 +1,78 @@
+<Module>
+    <Type from="model" as="Traversal" />
+    <Type from="../model" as="Link" />
+
+    <Args in={Traversal.Traversal} out={Traversal.Traversal} />
+
+    <Call fn="edge" in={$in} />
+
+    <If on={$ctx.edge.target == $in.walk.imports.edges.codes.source}>
+        <If on={$in.walk.providers != null}>
+            <Call
+                fn="source_request"
+                in={{
+                    ...$in.walk.pick([
+                        "checks",
+                        "aliases",
+                        "constants",
+                        "imports"
+                    ]),
+                    row: $in.row,
+                    providers: $in.walk.providers,
+                    target: $in.walk.imports.edges.targets[$in.source],
+                    kind: $ctx.edge.kind
+                }}
+            />
+
+            <Call module="../check" />
+
+            <Return
+                value={{
+                    ...$in,
+                    row: $in.row + 1,
+                    source: $in.source + 1,
+                    status: $ctx.check,
+                    running:
+                        $ctx.check == Link.Status.Ready &&
+                        $in.row + 1 < $in.walk.imports.edges.count
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                ...$in,
+                status: Link.Status.Invalid,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="columns.readTextColumn"
+        in={[
+            $in.walk.imports.specifiers,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="../external"
+        in={{
+            intrinsic: $ctx.edge.target == $in.walk.imports.edges.codes.intrinsic,
+            type_only: $ctx.edge.kind == $in.walk.imports.edges.codes.type_only,
+            specifier: $ctx.readTextColumn,
+            intrinsic_name: $in.walk.intrinsic_name,
+            native_specifiers: $in.walk.native_specifiers
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            status: $ctx.external ? Link.Status.Ready : Link.Status.Invalid,
+            running: $ctx.external && $in.row + 1 < $in.walk.imports.edges.count
+        }}
+    />
+</Module>

@@ -5,9 +5,9 @@
 
     <Args in={Initializer.Publication} out={Body.Output} />
 
-    <Call fn="../../artifact/materializing/publication/root" in={$in.body} />
+    <Call module="../../artifact/materializing/publication/root" in={$in.body} />
 
-    <If on={$ctx.root.status == Result.PublicationStatus.Complete}>
+    <If on={$ctx.root == Result.PublicationStatus.Complete}>
         <Call fn="../../compiled/initializer_registry/insert" in={$in.registry} />
     </If>
 

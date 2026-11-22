@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.DemandedTraversal} out={Cache.DemandedTraversal} />
+
+    <Call
+        module="../demand"
+        in={{
+            source: $in.section.source,
+            start: $in.offset,
+            marks: $in.section.marks,
+            normalized: $in.section.normalized,
+            renewed: $in.section.renewed
+        }}
+    />
+
+    <If on={$ctx.demand != null}>
+        <Call
+            fn="write_demanded"
+            in={{
+                section: $in.section,
+                used: $in.used,
+                record: $ctx.demand
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                offset: $ctx.demand.end,
+                remaining: $in.remaining - 1,
+                used: $ctx.write_demanded,
+                running: $in.remaining != 1 && $ctx.demand.end != 0
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            offset: 0,
+            running: false
+        }}
+    />
+</Module>

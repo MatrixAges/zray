@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Contract" />
+
+    <Args in={Contract.Input} out={void} />
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            ...$in,
+            index: 0,
+            running: $in.kinds.length != 0
+        }}
+    />
+</Module>

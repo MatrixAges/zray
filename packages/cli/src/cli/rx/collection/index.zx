@@ -20,5 +20,6 @@ export {
     prepareCollectionGateway,
     collectXmlReferences
 } from "rx_collection_host"
+export { collectionQueueLength, releaseRxDocument } from "rx_collection_host"
 
 export type { Collection, Kind, Availability } from "rx_collection_host"

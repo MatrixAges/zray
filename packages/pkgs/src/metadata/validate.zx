@@ -1,0 +1,15 @@
+import { Status } from "./archive"
+import digest from "./digest"
+import source from "./source"
+
+import type { Input } from "./archive"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    return match {
+        !source(in.archive) => Status.InvalidArchiveSource,
+        !digest(in.omit(["archive"])) => Status.InvalidArchiveDigest,
+        _ => Status.Valid
+    }
+}

@@ -1,0 +1,17 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Selected as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const registry = in.source.registry
+    const position = memory.readU64(registry.selected, in.row)
+    const id = integers.widen(memory.readColumnU32(registry.ids, position))
+    const native = in.source.native_ids[id]
+
+    return {
+        id,
+        position,
+        native: native == null ? null : integers.widen(native)
+    }
+}

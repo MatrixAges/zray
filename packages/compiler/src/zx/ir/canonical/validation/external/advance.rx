@@ -1,0 +1,22 @@
+<Module>
+    <Type from="walk_model" as="External" />
+
+    <Args in={External.Traversal} out={External.Traversal} />
+
+    <Call
+        module="check"
+        in={$in.omit([
+            "valid",
+            "running"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.check,
+            running: $ctx.check && $in.index + 1 < $in.functions.files.length
+        }}
+    />
+</Module>

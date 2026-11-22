@@ -1,0 +1,21 @@
+import integers from "std:integer"
+
+import type { Member, Types as Input } from "./model"
+
+export type Output = Member?
+
+export default function (in: Input): Output {
+    const alias = in.state.aliases[in.index]
+
+    if (alias == null) {
+        return null
+    }
+
+    return {
+        state: in.state,
+        id: integers.narrow(in.index),
+        alias,
+        reading: in.state.reads[in.index],
+        writing: in.state.writes[in.index]
+    }
+}

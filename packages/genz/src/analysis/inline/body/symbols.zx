@@ -1,0 +1,15 @@
+import type { Symbols } from "core/symbol_table/model"
+import type { Position as Input } from "./model"
+
+export type Output = Symbols
+
+export default function (in: Input): Output {
+    const { program, index } = in
+
+    const functions = program.functions
+
+    return match {
+        index == functions.roots.length => program.symbols,
+        _ => functions.symbols[index]
+    }
+}

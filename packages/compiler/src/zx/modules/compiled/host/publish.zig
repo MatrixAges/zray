@@ -33,13 +33,17 @@ pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, input: 
         .instance = library.instance,
     });
 
+    defer if (functions.completed[0] != 0) {
+        zx.memory.publishColumnLengths(@ptrCast(&functions.lengths), functions.completed[0]);
+    };
+
     var public: interface.View = undefined;
     const needs_interface = call_scratch == null;
 
     if (needs_interface) public.init(input, output, first_function);
 
-    const result = publish.executeState(function_allocator, .{
-        .functions = functions.input,
+    const result = publish.executeIn(function_allocator, &.{
+        .functions = &functions.input,
         .interface = if (needs_interface) &public.request else null,
     }) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,

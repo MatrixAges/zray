@@ -1,0 +1,23 @@
+import empty from "../../../ast/statements/empty"
+import { Operation } from "../const"
+
+import type { State as Growth } from "../model"
+import type { BranchInput as Input } from "./model"
+
+export type Output = Growth
+
+export default function (in: Input): Output {
+    return {
+        source: {
+            ...in.state.source,
+            operation: Operation.Reserve,
+            value: in.state.items,
+            flag: in.frontier
+        },
+        context: in.state.context,
+        body: empty({}),
+        arguments: [],
+        callee: 0,
+        root: in.state.items
+    }
+}

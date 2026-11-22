@@ -53,3 +53,8 @@ export type Body = {
     value: u32
     phase: Phase
 }
+
+export type Traversal = {
+    body: Body,
+    running: bool
+}

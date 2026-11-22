@@ -23,7 +23,7 @@
     </If>
 
     <Call
-        fn="../../constants/declarations/analyze"
+        module="../../constants/declarations/analyze"
         in={{
             bytes: $in.module.bytes,
             syntax: $in.module.syntax,

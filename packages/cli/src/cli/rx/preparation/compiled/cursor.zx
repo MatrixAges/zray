@@ -1,0 +1,21 @@
+import { module_executable_required } from "../const"
+
+import type { References } from "rx_preparation_host"
+import type { CompiledWalk } from "../model"
+
+export type Input = {
+    references: References,
+    count: u64
+}
+
+export type Output = CompiledWalk
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        diagnostic: module_executable_required,
+        index: 0,
+        valid: true,
+        running: in.count != 0
+    }
+}

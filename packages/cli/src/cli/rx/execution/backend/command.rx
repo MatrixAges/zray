@@ -25,14 +25,18 @@
     <Call fn="modules/generated" in={$in.build} />
 
     <Call
-        fn="modules/native"
+        module="modules/native"
+        while="running"
         in={{
             build: $in.build,
-            count: $ctx.reserveNativeNames
+            count: $ctx.reserveNativeNames,
+            index: 0,
+            ready: true,
+            running: $ctx.reserveNativeNames != 0
         }}
     />
 
-    <If on={!$ctx.native}>
+    <If on={!$ctx.native.ready}>
         <Return value={false} />
     </If>
 

@@ -10,3 +10,4 @@ export {
     retirementExpectedDigest,
     keepRetirement
 } from "publication_host"
+export { retirementOldCount, retirementNativeOnly } from "publication_host"

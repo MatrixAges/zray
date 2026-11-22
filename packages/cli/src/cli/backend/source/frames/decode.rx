@@ -3,7 +3,7 @@
 
     <Args in={Protocol.Input} out={Protocol.Status} />
 
-    <Call fn="read" in={$in} />
+    <Call module="read" in={$in} />
 
     <If
         on={$ctx.read != Protocol.Status.Success &&

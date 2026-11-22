@@ -514,3 +514,4 @@
 {"time": "2026-11-20", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "最新的论文来说明 如何通过类js语言实现rust级别的性能，而无需生命周期标注和指针（全在编译期间自动识别）\n深入研究这几篇论文 论文原文放到docs根目录 将之引用到zxc编译器中 深度优化现有的机制"}
 {"time": "2026-11-20", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "我要你优先考虑收敛 懂了吗 不是你来告诉我不知道"}
 {"time": "2026-11-20", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "你要记下来 做个明确的计划 优先迁移哪些模块 能进入收敛阶段 然后一直更新这个文档的进度"}
+{"time": "2026-11-22", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "我发现你在zx中import rx，这是绝对不允许的，zx中引入rx会导致副作用不可控，破坏zx的原子性，也会导致逻辑链条变得很复杂。\n\nrx才负责编排和逻辑调用入口，当你在zx中使用rx时，最佳实践是创建新的rx ，rx中可以调用rx\n\n改掉，并在程序层面不支持zx中import rx"}

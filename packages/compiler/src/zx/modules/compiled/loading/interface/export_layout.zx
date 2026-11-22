@@ -1,0 +1,16 @@
+import type { ExportRequest as Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { selection, exports } = in
+
+    const count = selection == null ? exports.count : selection.aliases.length
+    const names = selection == null ? exports.names : selection.names
+
+    return {
+        source: in,
+        output: 0,
+        count,
+        names,
+        running: count != 0
+    }
+}

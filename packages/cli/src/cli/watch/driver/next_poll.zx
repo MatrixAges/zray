@@ -1,0 +1,32 @@
+import { backend_retry_polls } from "./const"
+import { Scan } from "./model"
+
+import type { Poll } from "./model"
+
+export type Input = {
+    state: Poll,
+    outcome: Scan
+}
+
+export type Output = Poll
+
+export default function (in: Input): Output {
+    const { state, outcome } = in
+
+    const scans = state.scans + 1
+    const changed = outcome == Scan.Changed
+    const retry = outcome == Scan.Unchanged && state.retry_backend
+
+    const running = match {
+        changed => false,
+        retry => scans < backend_retry_polls,
+        _ => true
+    }
+
+    return {
+        ...state,
+        scans,
+        changed,
+        running
+    }
+}

@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="State" />
+
+    <Args in={State.Walk} out={State.Walk} />
+
+    <Call fn="index.sourceCount" in={$in.discovery} />
+
+    <If on={$in.index >= $ctx.sourceCount}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="index.selectSource"
+        in={[
+            $in.discovery,
+            $in.index
+        ]}
+    />
+
+    <Call module="source" in={$in.discovery} />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

@@ -216,6 +216,7 @@ pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage
     const id = options.ids[row];
     const base = options.shared_functions;
     const callee = try @import("project/mixed/function.zig").programView(self.metadataAllocator(), base.at(@backingInt(id)), id, base, options.types, options.native_modules);
+    const repeated = try self.repeatField(row, callee);
     const input = options.calls.items(.input)[row];
     const getters = options.calls.items(.getters)[row];
     var argument: zx.ir.Program = undefined;
@@ -238,7 +239,31 @@ pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage
         }
     }
 
-    return self.appendCall(.{ .function_id = id, .callee = callee, .store_initializers = options.store_initializers, .argument = argument, .input_omitted = input == null, .out = out, .getters = getters });
+    return self.appendCall(.{ .function_id = id, .callee = callee, .store_initializers = options.store_initializers, .argument = argument, .input_omitted = input == null, .repeat_field = repeated, .out = out, .getters = getters });
+}
+
+fn repeatField(self: *Self, row: u32, callee: zx.ir.Program) Error!?u32 {
+    const call_node = self.inputs.calls.items(.node)[row];
+    const predicate = @import("call/target.zig").borrowAttribute(call_node, "while") orelse return null;
+    const state = self.types.get(callee.input_type);
+
+    if (callee.input_type == callee.output_type and state == .object) {
+        const bool_type = @backingInt(frontend.types.scalarId(.bool));
+
+        for (state.object.names, state.object.types, 0..) |name, type_id, index| {
+            if (type_id == bool_type and std.mem.eql(u8, name, predicate.value)) return @intCast(index);
+        }
+    }
+
+    const location = predicate.location;
+
+    self.issue = .{ .location = location, .issue = .{
+        .code = .type_mismatch,
+        .span = .{ .start = location.offset, .end = location.offset },
+        .message = "Call while requires identical input and output objects with the named bool field",
+    } };
+
+    return error.InvalidFlow;
 }
 
 const Result = struct {

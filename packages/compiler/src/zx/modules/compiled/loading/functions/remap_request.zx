@@ -1,0 +1,38 @@
+import type { Output as External } from "../../../artifact/materializing/copy_external"
+import type { Traversal as Input } from "./batch_model"
+import type { Request as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { source, mapping, instance, first } = in.input
+
+    const row = in.row
+    const native_module = source.native_modules[row]
+
+    const external: External? = match {
+        native_module != null => {
+            members: source.native_members[row],
+            errors: source.native_errors[row],
+            export_name: source.native_exports[row],
+            parameters: source.native_inputs[row]
+        },
+        _ => null
+    }
+
+    return {
+        header: {
+            file: source.files[row],
+            input_type: source.input_types[row],
+            output_type: source.output_types[row],
+            native_module
+        },
+        mapping,
+        instance,
+        first,
+        symbols: source.symbols[row],
+        expressions: source.expressions[row],
+        contracts: source.contracts[row],
+        control: source.control[row],
+        stores: source.stores[row],
+        external
+    }
+}

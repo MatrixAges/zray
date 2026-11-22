@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="State" />
+
+    <Args in={State.Step} out={State.Step} />
+
+    <Call fn="../index.pendingCount" in={$in.collection} />
+
+    <If on={$in.index >= $ctx.pendingCount}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call module="item" in={$in.omit(["running"])} />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            flags: $ctx.item,
+            running: $ctx.item.valid
+        }}
+    />
+</Module>

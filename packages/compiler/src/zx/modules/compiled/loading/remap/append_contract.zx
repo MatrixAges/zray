@@ -1,0 +1,23 @@
+import type { Expressions } from "core/expression_table/model"
+import type { Symbols } from "core/symbol_table/model"
+import type { Traversal as Output } from "./contracts_model"
+
+export type Input = {
+    state: Output,
+    symbols: Symbols,
+    expressions: Expressions
+}
+
+export default function (in: Input): Output {
+    const { state, symbols, expressions } = in
+
+    const index = state.index + 1
+
+    return {
+        ...state,
+        symbols: state.symbols.push(symbols)[0],
+        expressions: state.expressions.push(expressions)[0],
+        index,
+        running: index < state.source.kinds.length
+    }
+}

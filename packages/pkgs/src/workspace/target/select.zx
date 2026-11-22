@@ -1,0 +1,40 @@
+import locate from "./locate"
+import { Status } from "./model"
+import version from "./version"
+
+import type { Input, Result as Output } from "./model"
+
+export default function (in: Input): Output {
+    const position = locate(in.omit([
+        "versions",
+        "range",
+        "limit"
+    ]))
+
+    if (position == null) {
+        return {
+            status: Status.Missing,
+            row: 0
+        }
+    }
+
+    const row = position ?? 0
+    const range = in.range
+
+    if (range == null) {
+        return {
+            status: Status.Found,
+            row
+        }
+    }
+
+    return {
+        status: version({
+            versions: in.versions,
+            row,
+            range: range ?? "",
+            limit: in.limit
+        }),
+        row
+    }
+}

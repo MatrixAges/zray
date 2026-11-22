@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Traversal} out={Native.Traversal} />
+
+    <Call
+        module="step"
+        in={$in.omit(["running"])}
+    />
+
+    <Call
+        fn="advance"
+        in={{
+            current: $in,
+            state: $ctx.step
+        }}
+    />
+
+    <Return value={$ctx.advance} />
+</Module>

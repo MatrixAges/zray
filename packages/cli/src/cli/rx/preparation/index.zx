@@ -1,5 +1,8 @@
 export {
     isPreparationPackage,
+    preparationModuleCount,
+    preparationReferenceRole,
+    selectPreparationModule,
     resolvePreparationTarget,
     preparationSourcePath,
     reportPreparationReference,
@@ -21,4 +24,10 @@ export {
     inferPreparedProject
 } from "rx_preparation_host"
 
-export type { Preparation, References, TypeSources, Target } from "rx_preparation_host"
+export type {
+    Preparation,
+    References,
+    TypeSources,
+    Target,
+    Role
+} from "rx_preparation_host"

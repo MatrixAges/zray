@@ -1,6 +1,6 @@
 import memory from "memory"
 
-import matches from "./matches.rx"
+import matches from "./matches"
 import member from "./member"
 
 import type { TextColumn } from "memory"

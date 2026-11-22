@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Files" />
+
+    <Args in={Files.Publication} out={void} />
+
+    <Call
+        fn="columns.allocateRowsWithAllocator"
+        in={[
+            $in.destination.owner,
+            $in.storage,
+            $in.count + $in.initializers.count
+        ]}
+    />
+
+    <Call
+        module="publish_next"
+        while="running"
+        in={{
+            source: $in,
+            row: 0,
+            running: $in.count != 0
+        }}
+    />
+</Module>

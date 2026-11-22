@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Convergence} out={Entry.Convergence} />
+
+    <Call module="demand" in={$in} />
+
+    <If on={$ctx.demand.grew}>
+        <Call
+            module="../levels/close"
+            in={{
+                context: $ctx.demand.context,
+                repeated: $in.repeated
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                context: $ctx.demand.context,
+                closure: $ctx.close,
+                running: true
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            running: false
+        }}
+    />
+</Module>

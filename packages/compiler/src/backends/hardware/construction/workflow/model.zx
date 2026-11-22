@@ -35,3 +35,45 @@ export type DefinitionRows = {
     expressions: string[],
     widths: u16[]
 }
+
+export type Definitions = Input.Pick("build", "rows")
+
+export type DefinitionWalk = Definitions & {
+    row: u64,
+    running: bool
+}
+
+export type OutputChildren = {
+    object: bool,
+    first: u64,
+    count: u64,
+    next: u64
+}
+
+export type OutputFrame = OutputTree.Pick("type_id", "value", "path") & {
+    children?: OutputChildren
+}
+
+export type OutputWalk = OutputTree.Pick("build", "types") & {
+    stack: OutputFrame[],
+    running: bool
+}
+
+export type OutputLeaf = {
+    path: string,
+    expression: string,
+    width: u64,
+    boolean: bool,
+    signed: bool
+}
+
+export type OutputSearch = {
+    stack: OutputFrame[],
+    leaf?: OutputLeaf
+}
+
+export type OutputWrite = {
+    build: HardwareBuild,
+    leaf: OutputLeaf,
+    node: u32
+}

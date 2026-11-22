@@ -1,4 +1,4 @@
-import type { WriteColumn } from "memory"
+import type { TextColumn, WriteColumn } from "memory"
 import type { RowBuffer, WriteColumn as Cell } from "memory/columns"
 import type { Target as ConstantFields } from "../../../artifact/surface/constants"
 import type { Exports, Initializers, SelectionPlan } from "../../model"
@@ -64,4 +64,17 @@ export type ExportRequest = Request.Omit("initializers")
 export type Row = ExportRequest.Omit("selection") & {
     row: u64,
     output: u64
+}
+
+export type Traversal = {
+    source: ExportRequest,
+    count: u64,
+    names: TextColumn,
+    output: u64,
+    running: bool
+}
+
+export type ExportRow = {
+    row: u64,
+    first: u64
 }

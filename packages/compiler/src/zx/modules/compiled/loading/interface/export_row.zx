@@ -1,0 +1,21 @@
+import type { ExportRow as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { output } = in
+
+    const selection = in.source.selection
+
+    if (selection == null) {
+        return {
+            row: output,
+            first: output
+        }
+    }
+
+    const selected = selection.aliases[output]
+
+    return {
+        row: selection.rows[selected],
+        first: selection.first[selected]
+    }
+}

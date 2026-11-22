@@ -39,7 +39,7 @@
         </If>
     </If>
 
-    <Call fn="../dependencies/check" in={$in.dependencies} />
+    <Call module="../dependencies/check" in={$in.dependencies} />
 
     <If on={!$ctx.check}>
         <Return value={false} />

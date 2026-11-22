@@ -1,0 +1,13 @@
+import finish from "./finish"
+import initial from "./initial"
+import walk from "./walk"
+
+import type { Request as Input } from "./model"
+
+export type Output = string[]?
+
+export default function (in: Input): Output {
+    const state = initial(in)
+
+    return finish(walk(state))
+}

@@ -13,7 +13,9 @@
     />
 
     <Call fn="program/imports" />
-    <Call fn="program/declarations" />
+
+    <Call module="program/declarations" />
+
     <Call fn="program/header" />
     <Call fn="program/body" />
     <Call fn="program/diagnostic" />

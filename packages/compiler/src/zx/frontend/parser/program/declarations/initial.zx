@@ -25,6 +25,7 @@ export default function (in: Input): Output {
         prefix: in,
         constants: [],
         finished: failed,
+        pending_constant: false,
         declarations: {
             declarations: state.declarations,
             members: state.members,

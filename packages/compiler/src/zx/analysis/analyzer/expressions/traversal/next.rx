@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Expressions" />
+
+    <Args in={Expressions.Traversal} out={Expressions.Traversal} />
+
+    <Call fn="walk" in={$in.work} />
+
+    <If
+        on={$ctx.walk.phase == Expressions.Phase.Intrinsic &&
+            $ctx.walk.state.diagnostic.message == ""}
+    >
+        <Call module="utilities/finish" in={$ctx.walk} />
+
+        <Return
+            value={{
+                work: $ctx.finish,
+                running: true
+            }}
+        />
+    </If>
+
+    <If
+        on={$ctx.walk.phase == Expressions.Phase.Transform &&
+            $ctx.walk.state.diagnostic.message == ""}
+    >
+        <Call module="transforms/complete" in={$ctx.walk} />
+
+        <Return
+            value={{
+                work: $ctx.complete,
+                running: true
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            work: $ctx.walk,
+            running: false
+        }}
+    />
+</Module>

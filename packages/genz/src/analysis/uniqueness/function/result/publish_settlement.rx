@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.PublishSettlement} out={Result.PublishedSettlement} />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.owner
+        ]}
+    />
+
+    <Call
+        module="settlement"
+        in={{
+            ...$in.result.pick([
+                "passed",
+                "levels",
+                "reads"
+            ]),
+            ...$in.targets
+        }}
+    />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.scratch
+        ]}
+    />
+
+    <Return
+        value={{
+            levels: $ctx.settlement,
+            changed: $in.result.changed
+        }}
+    />
+</Module>

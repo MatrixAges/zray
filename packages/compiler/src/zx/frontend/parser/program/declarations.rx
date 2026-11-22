@@ -1,0 +1,19 @@
+<Module>
+    <Type from="imports/model" as="Imports" />
+    <Type from="declarations/model" as="Declarations" />
+
+    <Args in={Imports.ImportStage} out={Declarations.DeclarationStage} />
+
+    <Call fn="declarations/initial" in={$in} />
+
+    <Call
+        module="declarations/advance"
+        while="running"
+        in={{
+            stage: $ctx.initial,
+            running: true
+        }}
+    />
+
+    <Return value={$ctx.advance.stage} />
+</Module>

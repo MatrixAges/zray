@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Scan" />
+    <Type from="../model" as="Trace" />
+
+    <Args in={Scan.Input} out={Scan.Output} />
+
+    <Call module="initialize" in={$in} />
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            ...$in.omit(["recovered"]),
+            ...$ctx.initialize,
+            running:
+                $ctx.initialize.cursor.phase != Trace.Phase.Done &&
+                $ctx.initialize.cursor.phase != Trace.Phase.Reject
+        }}
+    />
+
+    <Return
+        value={$ctx.next.pick([
+            "cursor",
+            "count"
+        ])}
+    />
+</Module>

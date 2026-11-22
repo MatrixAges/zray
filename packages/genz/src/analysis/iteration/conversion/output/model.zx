@@ -1,5 +1,5 @@
 import type { Columns as Statements } from "../../../../ast/statements/model"
-import type { Ast } from "../../../construction/model"
+import type { Ast, State as Construction } from "../../../construction/model"
 import type {
     Input as Conversion,
     State as Emission,
@@ -53,4 +53,23 @@ export type Step = {
 export type Output = {
     result: Result,
     storage: Statements
+}
+
+export type Walk = {
+    source: Input,
+    state: State
+}
+
+export type Traversal = Walk & {
+    running: bool
+}
+
+export type Event = {
+    step: Step,
+    construct: bool
+}
+
+export type Publish = {
+    step: Step,
+    result: Construction
 }

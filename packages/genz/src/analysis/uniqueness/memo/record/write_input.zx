@@ -1,0 +1,7 @@
+import type { Output as Analysis } from "../../function/visit/model"
+import type { Target } from "./model"
+
+export type Input = {
+    target: Target,
+    result: Analysis
+}

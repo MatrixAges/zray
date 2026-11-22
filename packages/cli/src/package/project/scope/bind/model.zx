@@ -13,3 +13,8 @@ export type Row = {
 export type Exports = Input & {
     compiled: bool
 }
+
+export type Prepare = Input & {
+    index: u64,
+    running: bool
+}

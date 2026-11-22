@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Record" />
+
+    <Args in={Record.Writer} out={u64} />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.scope,
+            $in.table.owner
+        ]}
+    />
+
+    <Call
+        module="../table/store"
+        in={{
+            ...$in.table,
+            value: $in.value
+        }}
+    />
+
+    <Call
+        fn="limit.writeU64"
+        in={[
+            $in.limit,
+            0,
+            $ctx.store.limit
+        ]}
+    />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.scope,
+            $in.scratch
+        ]}
+    />
+
+    <Return value={$ctx.store.row} />
+</Module>

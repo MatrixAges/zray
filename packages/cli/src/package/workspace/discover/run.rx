@@ -4,9 +4,18 @@
     <Args in={IO.Search} out={void} />
 
     <Call fn="index.startSearch" in={$in} />
-    <Call fn="search" in={$in} />
 
-    <If on={!$ctx.search}>
+    <Call
+        module="search"
+        while="running"
+        in={{
+            search: $in,
+            complete: false,
+            running: true
+        }}
+    />
+
+    <If on={!$ctx.search.complete}>
         <Call fn="index.selectNearest" in={$in} />
     </If>
 </Module>

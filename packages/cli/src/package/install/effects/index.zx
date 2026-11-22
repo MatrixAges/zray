@@ -1,6 +1,11 @@
 export {
     prepareIndex,
     finishFresh,
+    packageCount,
+    beginDependencies,
+    advanceDependency,
+    acceptArchive,
+    finishDependencies,
     findArchive,
     fetchArchive,
     readArchive,

@@ -26,3 +26,13 @@ export type Prepare = {
     resource: ColumnAllocator,
     scratch: Arena
 }
+
+export type Traversal = Prepare & {
+    index: u64,
+    running: bool
+}
+
+export type Publication = {
+    state: Traversal,
+    name: string
+}

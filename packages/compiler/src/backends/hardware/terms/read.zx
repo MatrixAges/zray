@@ -1,0 +1,38 @@
+import extension from "./extension"
+import literal from "./literal"
+import { Form } from "./model"
+import operator from "./operator"
+import prefix from "./prefix"
+import token from "./token"
+
+import type { Cursor as Input, Head as Output } from "./model"
+
+export default function (in: Input): Output {
+    const head = prefix(token(in))
+
+    if (head.form != Form.Open) {
+        return head
+    }
+
+    const source = in.source
+
+    const operation = operator({
+        head,
+        token: token({
+            source,
+            offset: head.next
+        })
+    })
+
+    return match operation.form {
+        Form.Constant => literal({
+            source,
+            head: operation
+        }),
+        Form.Indexed => extension({
+            source,
+            head: operation
+        }),
+        _ => operation
+    }
+}

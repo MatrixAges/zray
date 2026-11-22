@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Files" />
+
+    <Args in={Files.Traversal} out={Files.Traversal} />
+
+    <Call fn="selection" in={$in} />
+
+    <Call
+        module="dependencies"
+        in={{
+            source: $in.source,
+            selected: $ctx.selection
+        }}
+    />
+
+    <Call
+        fn="write"
+        in={{
+            source: $in.source,
+            selected: $ctx.selection,
+            row: $in.row,
+            dependencies: $ctx.dependencies
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.source.count
+        }}
+    />
+</Module>

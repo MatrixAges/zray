@@ -12,7 +12,7 @@
         />
     </If>
 
-    <Call module="../analyze" in={$in.request} />
+    <Call fn="../analyze" in={$in.request} />
 
     <Return
         value={{

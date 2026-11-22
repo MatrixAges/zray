@@ -6,11 +6,11 @@ import simple from "../control/simple"
 import primitive from "../types/primitive"
 
 import type { Table } from "core/type_table/model"
-import type { Unit } from "../unit"
+import type { Functions } from "../model"
 
 export type Input = {
     types: Table,
-    units: Unit[],
+    functions: Functions,
     pure: bool[]
 }
 
@@ -22,7 +22,7 @@ export type Output = {
 export default function (in: Input): Output {
     return loop({
         types: in.types,
-        units: in.units,
+        functions: in.functions,
         pure: in.pure,
         costs: in.pure.map(value => 0)[0],
         available: false,
@@ -30,23 +30,26 @@ export default function (in: Input): Output {
     }, {
         while: current => current.index < current.pure.length,
         next: current => {
-            const unit = current.units[current.index]
-            const input = integers.widen(unit.input_type)
-            const same_kinds = unit.contracts.kinds.length == 0
+            const { functions, index } = current
+            const input_type = functions.input_types[index]
+            const input = integers.widen(input_type)
+            const same_kinds = functions.contracts[index].kinds.length == 0
+            const local = functions.native_modules[index] == null
+            const no_stores = functions.stores[index].paths.length == 0
 
             const eligible =
                 (
                     - current.pure[current.index]
-                    - and !unit.external
-                    - and unit.stores.paths.length == 0
+                    - and local
+                    - and no_stores
                     - and same_kinds
                 )
             const primitives = primitive({
                 types: current.types,
-                id: unit.input_type
+                id: input_type
             }) && primitive({
                 types: current.types,
-                id: unit.output_type
+                id: functions.output_types[index]
             })
             const empty =
                 current.types.kinds[input] == 0 && current.types.first[input] == 0
@@ -58,16 +61,17 @@ export default function (in: Input): Output {
             )
 
             if (candidate && simple({
-                control: unit.control,
-                root: unit.root
+                control: functions.control[index],
+                root: functions.roots[index]
             })) {
-                const table = unit.expressions
+                const table = functions.expressions[index]
 
                 const counted = loop({
                     table,
                     costs: current.costs,
                     index: current.index,
-                    cost: table.kinds.length + unit.symbols.names.length + 1,
+                    cost:
+                        table.kinds.length + functions.symbols[index].names.length + 1,
                     position: 0
                 }, {
                     while: items =>

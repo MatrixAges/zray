@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Scan" />
+    <Type from="../model" as="Trace" />
+
+    <Args in={Scan.Consume} out={Scan.Consumed} />
+
+    <If on={$in.cursor.phase == Trace.Phase.Planned}>
+        <Call fn="consume_plan" in={$in} />
+
+        <Return value={$ctx.consume_plan} />
+    </If>
+
+    <Call fn="check_scratch" in={$in.arenas} />
+
+    <Call
+        module="compare"
+        in={$in.pick([
+            "tables",
+            "cursor",
+            "row"
+        ])}
+    />
+
+    <Call
+        fn="../../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.staged
+        ]}
+    />
+
+    <Return
+        value={{
+            agreed: $ctx.compare,
+            count: $in.count
+        }}
+    />
+</Module>

@@ -6,7 +6,6 @@ const generated = @import("generated_inline_prepare");
 const Input = std.meta.Child(generated.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
 const Functions = std.meta.Child(@FieldType(Program, "functions"));
-const Unit = std.meta.Child(@typeInfo(@FieldType(Input, "units")).pointer.child);
 const unwrap = @import("../function_analysis/abi.zig").unwrap;
 
 /// The returned program borrows unchanged storage from the input. The output allocator owns replacements.
@@ -37,14 +36,8 @@ pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .output_type = @backingInt(program.output_type),
     };
 
-    const units = try @import("../function_analysis/units.zig").build(Unit, temporary, &program);
-    const pointers = try temporary.alloc(*const Unit, units.len);
-
-    for (units, pointers) |*unit, *pointer| pointer.* = unit;
-
     const input: Input = .{
         .program = &view,
-        .units = columns.slice(@FieldType(Input, "units"), @as([]const *const Unit, pointers)),
         .allocator = @ptrCast(&temporary),
     };
 

@@ -29,3 +29,8 @@ export type Input = {
 export type Batch = Input & {
     count: u64
 }
+
+export type Traversal = Batch & {
+    index: u64,
+    running: bool
+}

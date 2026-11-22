@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Plan" />
+    <Type from="../entry/model" as="Entry" />
+
+    <Args in={Plan.Solve} out={Entry.Solved} />
+
+    <If on={$in.independent}>
+        <Call
+            module="../entry/converge"
+            in={{
+                context: $in.context,
+                repeated: $in.repeated,
+                source: {
+                    kinds: $in.types.kinds,
+                    operations: $in.operations,
+                    results: $in.results
+                }
+            }}
+        />
+
+        <Return value={$ctx.converge} />
+    </If>
+
+    <Call
+        module="../levels/close"
+        in={$in.pick([
+            "context",
+            "repeated"
+        ])}
+    />
+
+    <Return
+        value={{
+            context: $in.context,
+            state: $ctx.close.pick([
+                "known",
+                "carried"
+            ])
+        }}
+    />
+</Module>

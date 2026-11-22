@@ -1,0 +1,54 @@
+import select from "../../../zx/modules/project/target/select"
+import { Kind } from "../../path_kind/model"
+import { State } from "../../path_segments/reference/model"
+import resolve from "../../path_segments/reference/resolve"
+import { Issue } from "../model"
+import lookup from "./lookup"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    if (in.package_allowed && in.packages.length != 0) {
+        const found = select({
+            specifiers: in.packages,
+            name: in.reference,
+            check_duplicates: false
+        })
+
+        if (found.first != null) {
+            return {
+                included: false,
+                target: 0,
+                issue: Issue.None,
+                required: 0
+            }
+        }
+    }
+
+    const path = resolve({
+        directory: in.directory,
+        reference: in.reference,
+        kind: Kind.ModuleReference,
+        workspace: in.workspace
+    })
+
+    return match path.state {
+        State.Invalid => {
+            included: true,
+            target: 0,
+            issue: Issue.InvalidPath,
+            required: 0
+        },
+        State.NeedSpace => {
+            included: true,
+            target: 0,
+            issue: Issue.None,
+            required: path.length
+        },
+        _ => lookup({
+            registry: in.registry,
+            bytes: in.workspace.bytes,
+            length: path.length
+        })
+    }
+}

@@ -1,0 +1,44 @@
+import append from "./append"
+import { Status } from "./model"
+
+import type { ViewWrite as Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { state, selected } = in
+
+    const index = state.index + 1
+
+    if (selected.status != Status.Valid) {
+        return {
+            ...state,
+            status: selected.status,
+            index,
+            running: false
+        }
+    }
+
+    const views = state.views.push(selected.view)[0]
+
+    const defaults = loop({
+        state: state.defaults,
+        index: 0
+    }, {
+        while: entry => entry.index < selected.roots.length,
+        next: entry => {
+            entry.state = append({
+                state: entry.state,
+                alias: selected.roots[entry.index]
+            })
+            entry.index += 1
+        },
+        return: entry => entry.state
+    })
+
+    return {
+        ...state,
+        views,
+        defaults,
+        index,
+        running: index < state.source.natives.length
+    }
+}

@@ -1,7 +1,8 @@
 import type { Span } from "../../../../frontend/lexer/token_model"
 import type { Operation } from "../../../../modules/intrinsic/model"
-import type { Bindings } from "../../collections/model"
+import type { Bindings, Options } from "../../collections/model"
 import type { Prepared } from "../../model"
+import type { Result } from "../model"
 
 export type Input = {
     state: Prepared,
@@ -18,4 +19,21 @@ export type Bound = {
 
 export type List = Input & {
     element_type: u32
+}
+
+export type AggregatePlan = {
+    state: Prepared,
+    options?: Options.Omit("state"),
+    position: u32
+}
+
+export type AggregateFinish = {
+    source: List,
+    result: Result,
+    position: u32
+}
+
+export type ListTarget = {
+    element_type?: u32,
+    state: Prepared
 }

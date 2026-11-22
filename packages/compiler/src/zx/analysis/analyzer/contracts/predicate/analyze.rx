@@ -24,7 +24,8 @@
             }}
         />
 
-        <Call fn="../../expressions/traversal/advance" />
+        <Call module="../../expressions/traversal/advance" />
+
         <Call fn="check" />
 
         <Return value={$ctx.check} />

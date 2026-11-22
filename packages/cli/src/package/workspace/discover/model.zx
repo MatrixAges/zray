@@ -1,0 +1,7 @@
+import type { Search } from "package_workspace_host"
+
+export type Cursor = {
+    search: Search,
+    complete: bool,
+    running: bool
+}

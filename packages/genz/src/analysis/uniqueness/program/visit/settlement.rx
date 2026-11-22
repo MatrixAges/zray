@@ -7,7 +7,7 @@
         <Call fn="retain_settlement" in={$in.save.retain} />
 
         <Call
-            fn="../../memo/record/write"
+            module="../../memo/record/write"
             in={{
                 target: $in.save.memo,
                 result: {

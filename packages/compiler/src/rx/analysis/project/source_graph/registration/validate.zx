@@ -3,7 +3,7 @@ import memory from "memory"
 
 import { store_suffix } from "../../../../../const"
 import { Kind } from "../../../../path_kind/model"
-import normalize from "../../../../path_segments/normalize.rx"
+import normalize from "../../../../path_segments/normalize"
 
 import type { TextColumn } from "memory"
 

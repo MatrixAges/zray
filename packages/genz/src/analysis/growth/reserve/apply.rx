@@ -5,10 +5,10 @@
 
     <Call fn="prepare" in={$in} />
 
-    <Call fn="copy" />
+    <Call module="copy" />
 
     <If on={$in.source.flag}>
-        <Call fn="extend" in={$ctx.copy} />
+        <Call module="extend" in={$ctx.copy} />
 
         <Call fn="select" />
 

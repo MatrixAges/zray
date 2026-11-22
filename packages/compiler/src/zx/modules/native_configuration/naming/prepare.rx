@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Naming" />
+
+    <Args in={Naming.Prepare} out={void} />
+
+    <Call
+        module="next_name"
+        while="running"
+        in={{
+            ...$in,
+            index: 0,
+            running: $in.local.length != 0
+        }}
+    />
+</Module>

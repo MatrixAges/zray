@@ -2,6 +2,7 @@ import integers from "std:integer"
 
 import children from "../../ir/children"
 import append from "../append"
+import bodyExpressions from "../body/expressions"
 import memo from "../memo"
 import truncate from "../truncate"
 import copy from "./copy"
@@ -16,7 +17,11 @@ export type Output = Inline
 export default function (in: Input): Output {
     const state = in.state
     const mapping = in.frame.mapping
-    const source = state.units[state.mappings.units[mapping]].expressions
+
+    const source = bodyExpressions({
+        program: state.program,
+        index: state.mappings.units[mapping]
+    })
 
     const count = children({
         table: source,

@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Scope} out={bool} />
+
+    <Call fn="range" in={$in} />
+
+    <Call module="next_statement" while="running" />
+
+    <Return value={$ctx.next_statement.valid} />
+</Module>

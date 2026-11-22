@@ -1,0 +1,26 @@
+<Module>
+    <Type from="contracts_model" as="Remap" />
+
+    <Args in={Remap.Traversal} out={Remap.Traversal} />
+
+    <Call
+        module="contract"
+        in={{
+            symbols: $in.source.symbols[$in.index],
+            expressions: $in.source.expressions[$in.index],
+            mapping: $in.mapping,
+            first: $in.first
+        }}
+    />
+
+    <Call
+        fn="append_contract"
+        in={{
+            state: $in,
+            symbols: $ctx.contract.symbols,
+            expressions: $ctx.contract.expressions
+        }}
+    />
+
+    <Return value={$ctx.append_contract} />
+</Module>

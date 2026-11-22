@@ -3,7 +3,7 @@
 
     <Args in={u8[]} out={Legacy.Output} />
 
-    <Call module="scan" in={$in} />
+    <Call fn="scan" in={$in} />
 
     <Call fn="legacy" />
 

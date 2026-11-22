@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.SettledTraversal} out={Cache.SettledTraversal} />
+
+    <Call
+        module="../settlement"
+        in={{
+            source: $in.section.source,
+            start: $in.offset,
+            passed: $in.section.passed
+        }}
+    />
+
+    <If on={$ctx.settlement != null}>
+        <Call
+            fn="write_settled"
+            in={{
+                section: $in.section,
+                used: $in.used,
+                record: $ctx.settlement
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                offset: $ctx.settlement.end,
+                remaining: $in.remaining - 1,
+                used: $ctx.write_settled,
+                running: $in.remaining != 1 && $ctx.settlement.end != 0
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            offset: 0,
+            running: false
+        }}
+    />
+</Module>

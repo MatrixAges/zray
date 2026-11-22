@@ -13,7 +13,7 @@
         }}
     />
 
-    <Call fn="walk" in={$in} />
+    <Call module="walk" in={$in} />
 
     <Return value={$ctx.walk} />
 </Module>

@@ -1,0 +1,16 @@
+import check from "../../specifier/check"
+import route from "./route"
+
+import type { Route as Output } from "./model"
+
+export type Input = {
+    path: string,
+    intrinsic: string
+}
+
+export default function (in: Input): Output {
+    return route({
+        kind: check(in.path),
+        intrinsic: in.path == in.intrinsic
+    })
+}

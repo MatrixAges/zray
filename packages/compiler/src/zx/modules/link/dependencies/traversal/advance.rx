@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Traversal" />
+    <Type from="../model" as="Link" />
+
+    <Args in={Traversal.Walk} out={Link.Status} />
+
+    <Call
+        module="next_edge"
+        while="running"
+        in={{
+            walk: $in,
+            row: 0,
+            source: 0,
+            status: Link.Status.Ready,
+            running: $in.imports.edges.count != 0
+        }}
+    />
+
+    <Return value={$ctx.next_edge.status} />
+</Module>

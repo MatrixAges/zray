@@ -66,3 +66,44 @@ export type Output = {
     uses_allocator: bool,
     valid: bool
 }
+
+export type Walk = {
+    source: Input,
+    state: State
+}
+
+export type Traversal = Walk & {
+    running: bool
+}
+
+export type Event = {
+    step: Step,
+    enter_rows: bool
+}
+
+export type Reserve = {
+    source: Input,
+    context: Context,
+    element: u32,
+    value: u32,
+    count: u32
+}
+
+export type Reserved = {
+    context: Context,
+    body: Body,
+    root: u32
+}
+
+export type RowPlan = {
+    bound: Body,
+    operand: u32,
+    empty: u32,
+    reserve: Reserve
+}
+
+export type EnterRows = {
+    step: Step,
+    plan: RowPlan,
+    target: Reserved
+}

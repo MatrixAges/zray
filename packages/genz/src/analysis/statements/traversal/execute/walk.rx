@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Run} out={u64} />
+
+    <Call
+        module="next_action"
+        while="running"
+        in={{
+            ...$in,
+            index: 0,
+            running: $in.plan.actions.length != 0
+        }}
+    />
+
+    <Return value={$ctx.next_action.index} />
+</Module>

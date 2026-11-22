@@ -1,0 +1,15 @@
+import type { Modules } from "core/native_module_table/model"
+import type { Table as Signatures } from "core/signature_table/model"
+import type { Table } from "core/type_table/model"
+
+export type Input = {
+    table: Table,
+    functions: Signatures,
+    modules: Modules
+}
+
+export type Traversal = Input & {
+    index: u64,
+    valid: bool,
+    running: bool
+}

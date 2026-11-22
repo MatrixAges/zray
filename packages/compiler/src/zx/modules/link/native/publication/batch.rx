@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Batch} out={void} />
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            ...$in,
+            index: 0,
+            running: $in.count != 0
+        }}
+    />
+</Module>

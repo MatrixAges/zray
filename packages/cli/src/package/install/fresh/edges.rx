@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Fresh" />
+
+    <Args in={Fresh.Edges} out={u64} />
+
+    <Call
+        fn="../effects.beginDependencies"
+        in={[
+            $in.host,
+            $in.owner,
+            $in.owner < $in.members
+        ]}
+    />
+
+    <Call
+        module="dependency"
+        while="running"
+        in={{
+            ...$in.omit(["owner"]),
+            running: true
+        }}
+    />
+
+    <Call
+        fn="../effects.finishDependencies"
+        in={[
+            $in.host,
+            $in.owner
+        ]}
+    />
+
+    <Return value={$ctx.finishDependencies} />
+</Module>

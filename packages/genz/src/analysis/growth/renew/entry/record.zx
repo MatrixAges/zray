@@ -1,0 +1,58 @@
+import { Operation } from "../../const"
+import buffered from "../buffered"
+
+import type { Record as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { source, index, skip_index } = in
+    const { type_id, types } = source
+
+    if (skip_index < source.skipped.length) {
+        if (source.skipped[skip_index] == index - source.range.first) {
+            return {
+                skip_index: skip_index + 1,
+                renewal: null
+            }
+        }
+    }
+
+    const path = source.records.paths[index]
+    const filter_inline = source.inline_lists && !source.filtered_inline
+
+    const inline = filter_inline && buffered({
+        types,
+        type_id,
+        path,
+        inline_lists: true
+    })
+
+    if (inline) {
+        return {
+            skip_index,
+            renewal: null
+        }
+    }
+
+    const operation = match {
+        source.entry_rows && source.records.keys[index] % 2 == 1 =>
+            Operation.RenewWritable,
+        _ => source.source.operation
+    }
+
+    return {
+        skip_index,
+        renewal: {
+            source: {
+                types,
+                type_id,
+                path,
+                source: {
+                    ...source.source,
+                    value: in.value,
+                    operation
+                }
+            },
+            growth: in.growth
+        }
+    }
+}

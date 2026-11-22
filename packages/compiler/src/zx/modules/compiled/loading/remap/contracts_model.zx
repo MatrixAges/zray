@@ -1,0 +1,12 @@
+import type { Contracts } from "core/contract_table/model"
+
+export type Input = {
+    source: Contracts,
+    mapping: u32[],
+    first: u64
+}
+
+export type Traversal = Input & Contracts.Pick("symbols", "expressions") & {
+    index: u64,
+    running: bool
+}

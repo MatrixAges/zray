@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Fresh" />
+
+    <Args in={Fresh.Dependency} out={Fresh.Dependency} />
+
+    <Call
+        fn="../effects.advanceDependency"
+        in={[
+            $in.host,
+            $in.remaining
+        ]}
+    />
+
+    <If on={!$ctx.advanceDependency}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
+        module="archive"
+        in={$in.pick([
+            "host",
+            "members"
+        ])}
+    />
+
+    <Call
+        fn="../effects.acceptArchive"
+        in={[
+            $in.host,
+            $ctx.archive
+        ]}
+    />
+
+    <Return value={$in} />
+</Module>

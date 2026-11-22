@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.ScopeWalk} out={Execution.ScopeWalk} />
+
+    <Call
+        fn="host.statementRoute"
+        in={[
+            $in.traversal,
+            $in.scope,
+            $in.cursor - 1
+        ]}
+    />
+
+    <Call
+        module="../../emit/run"
+        in={{
+            traversal: $in.traversal,
+            scope: $in.scope,
+            index: $in.cursor - 1,
+            route: $ctx.statementRoute
+        }}
+    />
+
+    <If on={$ctx.run != null}>
+        <Return
+            value={{
+                ...$in,
+                cursor: $ctx.run,
+                running: $ctx.run > $in.first
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            valid: false,
+            running: false
+        }}
+    />
+</Module>

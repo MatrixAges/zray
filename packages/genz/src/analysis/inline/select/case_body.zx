@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import bodyControl from "../body/control"
 import frame from "../frame"
 import { InlineOp } from "../model"
 
@@ -11,7 +12,12 @@ export type Output = Inline
 
 export default function (in: Input): Output {
     const state = in.state
-    const control = state.units[state.mappings.units[in.frame.mapping]].control
+
+    const control = bodyControl({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
+
     const payload = in.frame.f
     const index = in.frame.n
     const last = index + 1 == integers.widen(control.selection_count[payload])

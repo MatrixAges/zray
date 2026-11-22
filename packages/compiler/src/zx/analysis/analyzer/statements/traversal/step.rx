@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Statements" />
+
+    <Args in={Statements.Traversal} out={Statements.Traversal} />
+
+    <Call fn="walk" in={$in.body} />
+
+    <If
+        on={$ctx.walk.phase == Statements.Phase.Expression &&
+            $ctx.walk.expression.state.diagnostic.message == ""}
+    >
+        <Call module="../../expressions/traversal/advance" in={$ctx.walk.expression} />
+
+        <Return
+            value={{
+                body: {
+                    ...$ctx.walk,
+                    expression: $ctx.advance,
+                    phase: Statements.Phase.Resume
+                },
+                running: true
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            body: $ctx.walk,
+            running: false
+        }}
+    />
+</Module>

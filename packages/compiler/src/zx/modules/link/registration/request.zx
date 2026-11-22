@@ -1,0 +1,56 @@
+import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Append as Output } from "../../../analysis/semantic/merging/model"
+import type { Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const state = in.source
+
+    const { types, origins, publication, order } = state
+
+    const row = order[in.position]
+
+    const source =
+        columns.readTypeSliceRow(types.rows, types.row_view, null, row)
+
+    const base = columns.readTypeColumns(types.storage, types.base_view, null)
+
+    const declared =
+        columns.readNominalSliceRow(origins.rows, origins.row_view, null, row)
+
+    const known =
+        columns.readNominalColumns(origins.storage, origins.base_view, null)
+
+    const offsets = {
+        children: integers.narrow(base.children.length),
+        fields: integers.narrow(base.field_types.length),
+        names: integers.narrow(base.names.length)
+    }
+
+    const mapping = memory.initializeU32ListSlot(state.mappings, row, null)
+
+    return {
+        preparation: {
+            request: {
+                source,
+                origins: declared,
+                base,
+                base_origins: known,
+                mapping,
+                first: 0,
+                source_first: 0,
+                checked: true
+            },
+            names: memory.readTextListColumn(state.names, row),
+            complete: true,
+            validation: state.limits,
+            resource: state.resource
+        },
+        publication: {
+            ...publication,
+            offsets
+        }
+    }
+}

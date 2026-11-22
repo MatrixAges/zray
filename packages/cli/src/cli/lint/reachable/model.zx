@@ -6,3 +6,9 @@ export type Rows = {
     check: ReachableLint,
     count: u64
 }
+
+export type Walk = Rows & {
+    index: u64,
+    valid: bool,
+    running: bool
+}

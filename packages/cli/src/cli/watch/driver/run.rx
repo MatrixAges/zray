@@ -4,5 +4,13 @@
     <Args in={Driver.Input} out={void} />
 
     <Call fn="index.announce" in={$in.watch} />
-    <Call fn="iterate" in={$in} />
+
+    <Call
+        module="cycle"
+        while="running"
+        in={{
+            ...$in,
+            running: true
+        }}
+    />
 </Module>

@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Step" />
+
+    <Args in={Step.Prepare} out={Step.Prepare} />
+
+    <Call
+        module="surface"
+        in={$in.pick([
+            "binding",
+            "index"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
+</Module>

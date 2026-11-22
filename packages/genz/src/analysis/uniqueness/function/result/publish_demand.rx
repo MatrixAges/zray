@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.PublishDemand} out={Result.PublishedDemand} />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.owner
+        ]}
+    />
+
+    <Call
+        module="demand"
+        in={{
+            ...$in.result.omit([
+                "grew",
+                "changed"
+            ]),
+            ...$in.targets.omit([
+                "growth",
+                "install"
+            ]),
+            growth: $in.result.grew || $in.restored_growth ? $in.targets.growth : null
+        }}
+    />
+
+    <If on={$in.result.grew || $in.restored_growth}>
+        <Call fn="install_growth" in={$in.targets} />
+    </If>
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.scratch
+        ]}
+    />
+
+    <Return
+        value={$in.result.pick([
+            "grew",
+            "changed"
+        ])}
+    />
+</Module>

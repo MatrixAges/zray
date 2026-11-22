@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Renew" />
+
+    <Args in={Renew.Traversal} out={Renew.Traversal} />
+
+    <Call fn="record" in={$in} />
+
+    <If on={$ctx.record.renewal != null}>
+        <Call module="../append" in={$ctx.record.renewal} />
+
+        <Return
+            value={{
+                ...$in,
+                growth: $ctx.append,
+                applied: true,
+                index: $in.index + 1,
+                skip_index: $ctx.record.skip_index,
+                running: $in.index + 1 < $in.source.range.end
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            skip_index: $ctx.record.skip_index,
+            running: $in.index + 1 < $in.source.range.end
+        }}
+    />
+</Module>

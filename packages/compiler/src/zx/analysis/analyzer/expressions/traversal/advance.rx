@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Expressions" />
+
+    <Args in={Expressions.Work} out={Expressions.Work} />
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            work: $in,
+            running: true
+        }}
+    />
+
+    <Return value={$ctx.next.work} />
+</Module>

@@ -22,6 +22,8 @@ export enum Phase {
     StateBlock,
     ScopeNext,
     StateSwitch,
+    Intrinsic,
+    Transform,
     Done
 }
 
@@ -219,4 +221,9 @@ export type Work = {
     expected?: u32
     value: u32
     phase: Phase
+}
+
+export type Traversal = {
+    work: Work,
+    running: bool
 }

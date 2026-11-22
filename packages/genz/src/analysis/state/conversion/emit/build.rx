@@ -6,7 +6,7 @@
     <Call fn="initialize" in={$in} />
 
     <Call
-        fn="walk"
+        module="walk"
         in={{
             source: $in,
             state: $ctx.initialize

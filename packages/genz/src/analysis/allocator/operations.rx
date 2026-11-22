@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Allocator" />
+    <Type from="const" as="Kinds" />
+
+    <Args in={Allocator.State} out={Allocator.State} />
+
+    <Call
+        module="operation/append"
+        while="running"
+        in={{
+            state: $in,
+            kinds: [
+                Kinds.Operation.Allocate,
+                Kinds.Operation.Resize,
+                Kinds.Operation.Remap,
+                Kinds.Operation.Release
+            ],
+            index: 0,
+            running: true
+        }}
+    />
+
+    <Return value={$ctx.append.state} />
+</Module>

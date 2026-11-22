@@ -1,0 +1,50 @@
+import identifier from "../../../../../ast/context/identifier"
+import fresh from "../../../../../ast/fresh"
+import { element_prefix, index_prefix } from "../../const"
+
+import type { EnterRows as Input, State as Output } from "../model"
+
+export default function (in: Input): Output {
+    const { plan, step, target } = in
+
+    const frame = step.state.nodes[step.node]
+
+    const capture = fresh({
+        serial: target.context.serial,
+        prefix: element_prefix
+    })
+
+    const index = fresh({
+        serial: capture.serial,
+        prefix: index_prefix
+    })
+
+    const captured = identifier({
+        state: {
+            ...target.context,
+            serial: index.serial
+        },
+        name: capture.name
+    })
+
+    return {
+        ...step.state,
+        context: captured.state,
+        uses_allocator: true,
+        body: {
+            tags: [],
+            offsets: []
+        },
+        nodes: step.state.nodes.with(step.node, {
+            ...frame,
+            input: plan.operand,
+            empty: plan.empty,
+            target: target.root,
+            child: captured.id,
+            capture: capture.name,
+            index: index.name,
+            outer: plan.bound,
+            filled: target.body
+        })
+    }
+}

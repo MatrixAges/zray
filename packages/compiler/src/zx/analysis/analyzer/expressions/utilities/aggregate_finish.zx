@@ -1,0 +1,60 @@
+import { type_id_u64 } from "core/const"
+import { ValueKind } from "core/expression_table/append/model"
+import { BinaryOperator } from "core/expression_table/kinds"
+
+import binary from "../operators/binary"
+import choice from "./building/choice"
+import none from "./building/none"
+import optional from "./building/optional"
+import value from "./building/value"
+
+import type { Result as Output } from "../model"
+import type { AggregateFinish as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { source, result } = in
+
+    const length = value({
+        state: result.state,
+        span: source.span,
+        type_id: type_id_u64,
+        kind: ValueKind.Length,
+        value: source.values[0]
+    })
+
+    const present = binary({
+        state: length.state,
+        span: source.span,
+        operator: BinaryOperator.Greater,
+        left: length.value,
+        right: in.position
+    })
+
+    const wrapped = optional({
+        state: present.state,
+        span: source.span,
+        type_id: source.element_type
+    })
+
+    const some = value({
+        state: wrapped.state,
+        span: source.span,
+        type_id: wrapped.id,
+        kind: ValueKind.Some,
+        value: result.value
+    })
+
+    const empty = none({
+        state: some.state,
+        span: source.span,
+        type_id: wrapped.id
+    })
+
+    return choice({
+        state: empty.state,
+        span: source.span,
+        condition: present.value,
+        yes: some.value,
+        no: empty.value
+    })
+}

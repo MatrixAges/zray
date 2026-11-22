@@ -1,0 +1,33 @@
+import validName from "../metadata/name"
+import find from "./find"
+import { Status } from "./model"
+import releases from "./releases"
+
+import type { Package as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    if (!validName(in.name)) {
+        return Status.InvalidPackageName
+    }
+
+    if (in.length == 0) {
+        return Status.PackageHasNoVersions
+    }
+
+    const existing = find({
+        name: in.name,
+        names: in.names,
+        count: in.row
+    })
+
+    if (existing != null) {
+        return Status.DuplicatePackage
+    }
+
+    return releases(in.omit([
+        "name",
+        "names"
+    ]))
+}

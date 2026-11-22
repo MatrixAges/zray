@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Scan" />
+
+    <Args in={Scan.Input} out={Scan.Output} />
+
+    <If on={$in.recovered != null}>
+        <Call fn="integer.widen" in={$in.recovered} />
+
+        <Call
+            module="resume"
+            in={{
+                ...$in.omit([
+                    "recovered",
+                    "recovery"
+                ]),
+                row: $ctx.widen
+            }}
+        />
+
+        <Return value={$ctx.resume} />
+    </If>
+
+    <Call module="../advance" in={$in.replay} />
+
+    <Return
+        value={{
+            cursor: $ctx.advance,
+            count: $in.count
+        }}
+    />
+</Module>

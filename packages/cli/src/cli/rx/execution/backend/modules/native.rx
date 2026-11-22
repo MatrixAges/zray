@@ -1,0 +1,22 @@
+<Module>
+    <Type from="../model" as="Backend" />
+
+    <Args in={Backend.NativeWalk} out={Backend.NativeWalk} />
+
+    <Call
+        module="append"
+        in={{
+            build: $in.build,
+            index: $in.index
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            ready: $ctx.append,
+            running: $ctx.append && $in.index + 1 < $in.count
+        }}
+    />
+</Module>

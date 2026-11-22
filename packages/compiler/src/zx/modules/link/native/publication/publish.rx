@@ -10,7 +10,7 @@
 
     <If on={$ctx.reserve != 0}>
         <Call
-            fn="batch"
+            module="batch"
             in={{
                 ...$in,
                 count: $ctx.reserve

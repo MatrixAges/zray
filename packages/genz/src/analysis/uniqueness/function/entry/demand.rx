@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Entry" />
+    <Type from="../demand/model" as="Demand" />
+
+    <Args in={Entry.Convergence} out={Demand.Working} />
+
+    <Call
+        fn="../demand/initialize"
+        in={{
+            context: $in.context,
+            known: $in.closure.known,
+            source: {
+                ...$in.source,
+                carried: $in.closure.carried,
+                function_index: null,
+                exchange: null
+            }
+        }}
+    />
+
+    <Call
+        fn="../demand/operations"
+        in={{
+            source: {
+                ...$in.source,
+                carried: $in.closure.carried,
+                function_index: null,
+                exchange: null
+            },
+            working: $ctx.initialize
+        }}
+    />
+
+    <Return value={$ctx.operations} />
+</Module>

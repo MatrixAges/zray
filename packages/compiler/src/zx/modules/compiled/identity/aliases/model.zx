@@ -84,3 +84,22 @@ export type Request = {
     configured?: Configured,
     output: Output
 }
+
+export type CompiledInput = {
+    library: Compiled,
+    configured?: Configured,
+    output: Output
+}
+
+export type CompiledWalk = CompiledInput & {
+    cursor: u64,
+    count: u64,
+    capacity: u64,
+    status: Status,
+    running: bool
+}
+
+export type CompiledWrite = {
+    state: CompiledWalk,
+    item: Item
+}

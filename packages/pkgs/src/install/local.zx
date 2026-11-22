@@ -3,7 +3,7 @@ import validPath from "../workspace/path/valid"
 import { Kind } from "../workspace/specifier"
 import { Status as Selected } from "../workspace/target/model"
 import query from "../workspace/target/query"
-import select from "../workspace/target/select.rx"
+import select from "../workspace/target/select"
 import { Status } from "./model"
 
 import type { Output as Specifier } from "../workspace/specifier"

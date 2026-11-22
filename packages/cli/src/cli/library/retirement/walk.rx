@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Step" />
+
+    <Args in={Step.Walk} out={Step.Walk} />
+
+    <Call
+        module="check"
+        in={$in.pick([
+            "retirement",
+            "index",
+            "native_only"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            status: $ctx.check,
+            running: $ctx.check == Step.Status.Ready && $in.index + 1 < $in.count
+        }}
+    />
+</Module>

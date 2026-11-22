@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Elements" />
+
+    <Args in={Elements.Work} out={Elements.Work} />
+
+    <If on={$in.source.conversion != null}>
+        <Call
+            module="../conversion/emit/append"
+            in={{
+                source: {
+                    ...$in.source.conversion,
+                    value: $in.root
+                },
+                state: $in.state
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                state: $ctx.append,
+                root: $ctx.append.nodes[0].result
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            state: {
+                ...$in.state,
+                context: {
+                    ...$in.state.context,
+                    valid: false
+                }
+            }
+        }}
+    />
+</Module>

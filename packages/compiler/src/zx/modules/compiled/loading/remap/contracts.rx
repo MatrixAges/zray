@@ -1,0 +1,22 @@
+<Module>
+    <Type from="contracts_model" as="Remap" />
+    <Type from="core/contract_table/model" as="Table" />
+
+    <Args in={Remap.Input} out={Table.Contracts} />
+
+    <Call
+        module="next_contract"
+        while="running"
+        in={{
+            ...$in,
+            symbols: [],
+            expressions: [],
+            index: 0,
+            running: $in.source.kinds.length != 0
+        }}
+    />
+
+    <Call fn="publish_contracts" />
+
+    <Return value={$ctx.publish_contracts} />
+</Module>

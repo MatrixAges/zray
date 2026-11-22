@@ -13,6 +13,16 @@
         ])}
     />
 
-    <Call fn="closure" in={$in} />
+    <Call
+        module="closure"
+        while="running"
+        in={{
+            ...$in,
+            owner: 0,
+            consumed: 0,
+            running: true
+        }}
+    />
+
     <Call fn="../effects.finishFresh" in={$in.host} />
 </Module>

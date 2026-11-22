@@ -1,0 +1,18 @@
+import read from "./read"
+
+import type { Pair as Output, Traversal as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        previous: read({
+            columns: source.previous,
+            row
+        }),
+        current: read({
+            columns: source.current,
+            row
+        })
+    }
+}

@@ -6,7 +6,7 @@ import type {
     LinkedPortColumns,
     ListProjection
 } from "memory/columns"
-import type { Aliases, Bindings, Checks, SignatureColumns } from "../model"
+import type { Aliases, Bindings, Checks, SignatureColumns, Status } from "../model"
 
 export type Codes = {
     source: u8,
@@ -65,4 +65,17 @@ export type Views = {
 export type Input = {
     walk: Walk,
     views: Views
+}
+
+export type Traversal = {
+    walk: Walk,
+    row: u64,
+    source: u64,
+    status: Status,
+    running: bool
+}
+
+export type Edge = {
+    target: u8,
+    kind: u8
 }

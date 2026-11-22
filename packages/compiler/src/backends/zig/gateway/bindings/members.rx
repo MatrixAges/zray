@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Bindings" />
+
+    <Args in={Bindings.State} out={Bindings.State} />
+
+    <Call
+        module="next_member"
+        while="running"
+        in={{
+            state: $in,
+            position: 0,
+            running: $in.status == Bindings.Status.Valid && $in.source.members.count != 0
+        }}
+    />
+
+    <Return value={$ctx.next_member.state} />
+</Module>

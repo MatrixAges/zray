@@ -2,7 +2,7 @@ import { Kind } from "../specifier"
 import parse from "../specifier"
 import { Status as Selection } from "../target/model"
 import query from "../target/query"
-import select from "../target/select.rx"
+import select from "../target/select"
 import { Status } from "./model"
 
 import type { Request } from "../target/query"

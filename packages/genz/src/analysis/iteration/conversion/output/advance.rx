@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Conversion" />
+
+    <Args in={Conversion.Traversal} out={Conversion.Traversal} />
+
+    <Call
+        fn="event"
+        in={$in.pick([
+            "source",
+            "state"
+        ])}
+    />
+
+    <If on={$ctx.event.construct}>
+        <Call module="construct" in={$ctx.event.step} />
+
+        <Return
+            value={{
+                ...$in,
+                state: {
+                    ...$ctx.construct,
+                    emitted: {
+                        ...$ctx.construct.emitted,
+                        index: $ctx.construct.emitted.index + 1
+                    }
+                },
+                running:
+                    $ctx.construct.emitted.index + 1 <
+                    $in.source.source.plan.events.length
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            state: {
+                ...$ctx.event.step.state,
+                emitted: {
+                    ...$ctx.event.step.state.emitted,
+                    index: $ctx.event.step.state.emitted.index + 1
+                }
+            },
+            running:
+                $ctx.event.step.state.emitted.index + 1 <
+                $in.source.source.plan.events.length
+        }}
+    />
+</Module>

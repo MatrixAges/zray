@@ -6,18 +6,33 @@
     <Call module="../topology/collect" in={$in.bodies} />
 
     <Call
-        fn="prepare_summaries"
-        in={{
-            shape: $in.shape,
-            views: $in.views,
-            arenas: $in.arenas
-        }}
+        fn="allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.summaries
+        ]}
+    />
+
+    <Call
+        module="../summaries/create"
+        in={$in.omit([
+            "bodies",
+            "arenas"
+        ])}
+    />
+
+    <Call
+        fn="allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.temporary
+        ]}
     />
 
     <Return
         value={{
             topology: $ctx.collect,
-            storage: $ctx.prepare_summaries
+            storage: $ctx.create
         }}
     />
 </Module>

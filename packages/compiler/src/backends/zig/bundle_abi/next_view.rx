@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Bundle" />
+
+    <Args in={Bundle.Traversal} out={Bundle.Traversal} />
+
+    <Call fn="view_request" in={$in} />
+
+    <If on={$ctx.view_request != null}>
+        <Call module="view" in={$ctx.view_request} />
+
+        <Call
+            fn="publish_view"
+            in={{
+                state: $in,
+                selected: $ctx.view
+            }}
+        />
+
+        <Return value={$ctx.publish_view} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.source.natives.length
+        }}
+    />
+</Module>

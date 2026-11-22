@@ -100,3 +100,11 @@ export type Member = {
     local: string,
     row: u64
 }
+
+export type Named = {
+    request: Request,
+    aliased: bool,
+    status: Status,
+    row: u64,
+    running: bool
+}

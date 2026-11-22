@@ -3,7 +3,7 @@ import host from "verification_host"
 import { SymbolicOperand } from "verification_host"
 
 import connect from "../../predicate/connect"
-import guarded from "../../predicate/guard.rx"
+import guarded from "../../predicate/guard"
 import { Operator } from "../../predicate/model"
 import conjunction from "../../scalar/conjunction"
 import { smt_true } from "../../scalar/const"

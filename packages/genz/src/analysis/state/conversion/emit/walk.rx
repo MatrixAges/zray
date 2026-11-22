@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Emission" />
+
+    <Args in={Emission.Walk} out={Emission.State} />
+
+    <Call
+        module="advance"
+        while="running"
+        in={{
+            ...$in,
+            running:
+                $in.state.index < $in.source.plan.events.length &&
+                $in.state.context.valid
+        }}
+    />
+
+    <Return value={$ctx.advance.state} />
+</Module>

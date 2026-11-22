@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Renew" />
+
+    <Args in={Renew.State} out={Renew.State} />
+
+    <Call
+        module="next"
+        while="running"
+        in={{
+            ...$in,
+            applied: false,
+            index: $in.source.range.first,
+            skip_index: 0,
+            running: $in.source.range.first < $in.source.range.end
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            growth: $ctx.next.growth,
+            applied: $ctx.next.applied
+        }}
+    />
+</Module>

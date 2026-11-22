@@ -1,0 +1,16 @@
+import host from "hardware_graph_host"
+
+import preserveOrigin from "./origin"
+
+import type { DefinitionWalk as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const file = preserveOrigin({
+        build: in.build,
+        file: host.hardwareDefinitionFile(in.build, in.row)
+    })
+
+    host.setHardwareOrigin(in.build, file, in.row)
+}

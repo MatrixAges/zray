@@ -1,0 +1,33 @@
+import type { RootRequest as Input, Row as Output } from "./source_model"
+
+export default function (in: Input): Output {
+    const { source, mappings, max_offset, workspace } = in
+
+    return {
+        admission: {
+            source: {
+                ...mappings,
+                ports: {
+                    input: source.input_type,
+                    output: source.output_type,
+                    native_module: source.native_module
+                },
+                symbols: source.symbols,
+                expressions: source.expressions,
+                contracts: source.contracts,
+                stores: source.stores.types,
+                candidate: null
+            },
+            stores: source.stores,
+            checked: false,
+            max_offset
+        },
+        metadata: {
+            file: source.file,
+            external: source.external
+        },
+        attributes: source.attributes,
+        control: source.control,
+        workspace
+    }
+}

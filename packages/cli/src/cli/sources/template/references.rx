@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Step" />
+
+    <Args in={Step.Walk} out={Step.Walk} />
+
+    <Call
+        module="load"
+        in={[
+            $in.source,
+            $in.index
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
+</Module>

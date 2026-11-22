@@ -84,3 +84,13 @@ export type Optional = {
     normalize: bool,
     renew: bool
 }
+
+export type Scan = Input & {
+    end: u64,
+    running: bool
+}
+
+export type Register = {
+    state: Walk,
+    decision: Resolution
+}

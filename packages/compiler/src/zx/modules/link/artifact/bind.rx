@@ -58,7 +58,7 @@
     </If>
 
     <If on={$in.signatures != null}>
-        <Call fn="../signature/batch" in={$in.signatures} />
+        <Call module="../signature/batch" in={$in.signatures} />
 
         <If on={$ctx.batch == Signature.Status.Conflict}>
             <Return

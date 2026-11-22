@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Plan" />
+
+    <Args in={Plan.Publication} out={Plan.Published} />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.owner
+        ]}
+    />
+
+    <Call module="finish" in={$in.omit(["arenas"])} />
+
+    <Call
+        fn="../../program/allocators.selectAllocator"
+        in={[
+            $in.arenas.scope,
+            $in.arenas.scratch
+        ]}
+    />
+
+    <Return value={$ctx.finish} />
+</Module>

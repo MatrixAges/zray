@@ -4,7 +4,6 @@ import { SequenceKind } from "core/expression_table/append/model"
 import sequence from "core/expression_table/append/sequence"
 
 import { Phase } from "../model"
-import intrinsic from "../utilities/finish"
 import invalid from "./invalid"
 
 import type { Work } from "../model"
@@ -16,10 +15,6 @@ export type Output = Work
 export default function (in: Input): Output {
     const frame = in.frames.imported[in.frames.imported.length - 1]
     const span = in.source.tree.nodes[frame.node].span
-
-    if (in.imports.intrinsics[frame.import_index] != null) {
-        return intrinsic(in)
-    }
 
     const input = in.imports.input_types[frame.import_index]
     const output = in.imports.output_types[frame.import_index]

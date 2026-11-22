@@ -1,0 +1,50 @@
+import select from "../../../../../../zx/modules/project/target/select"
+import { State } from "../../../../../path_segments/reference/model"
+import resolve from "../../../../../path_segments/reference/resolve"
+import { Kind } from "./model"
+import pathKind from "./path_kind"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    if (in.package_allowed && in.packages.length != 0) {
+        const found = select({
+            specifiers: in.packages,
+            name: in.reference,
+            check_duplicates: true
+        })
+
+        if (found.first != null) {
+            return {
+                kind: Kind.Package,
+                first: found.first,
+                duplicate: found.duplicate,
+                length: 0
+            }
+        }
+    }
+
+    const placement = pathKind(in.target)
+
+    const path = resolve({
+        kind: placement.path,
+        ...in.pick([
+            "directory",
+            "reference",
+            "workspace"
+        ])
+    })
+
+    const kind = match path.state {
+        State.Invalid => Kind.Invalid,
+        State.NeedSpace => Kind.NeedSpace,
+        _ => placement.destination
+    }
+
+    return {
+        kind,
+        first: null,
+        duplicate: false,
+        length: path.length
+    }
+}

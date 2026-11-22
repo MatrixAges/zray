@@ -333,7 +333,7 @@ pub const Project = struct {
     pub fn finishInput(self: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
         return @import("project/execution/body.zig").run(self, frame, input);
     }
-    pub fn loadCompiled(self: *Project, target: compiled.Target, span: zx.Span) zx.Error!Imported {
+    pub fn loadCompiled(self: *Project, from: []const u8, target: compiled.Target, span: zx.Span) zx.Error!Imported {
         const exported = compiled.imports.load(self.allocator, &self.options, target, .{
             .types = &self.types,
             .origins = &self.nominal_origins,
@@ -344,6 +344,8 @@ pub const Project = struct {
 
             return self.reporter.fail(.module, span, compiled.imports.message(err));
         };
+
+        try Target.checkImportDirection(std.mem.endsWith(u8, from, ".rx"), exported.path, self.reporter, span);
 
         const default: ?FunctionImport = if (exported.function) |id| binding: {
             const index = @backingInt(id);

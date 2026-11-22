@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Hardware" />
+
+    <Args in={Hardware.OutputTree} out={void} />
+
+    <Call
+        module="next_output"
+        while="running"
+        in={{
+            build: $in.build,
+            types: $in.types,
+            stack: [{
+                type_id: $in.type_id,
+                value: $in.value,
+                path: $in.path,
+                children: null
+            }],
+            running: true
+        }}
+    />
+</Module>

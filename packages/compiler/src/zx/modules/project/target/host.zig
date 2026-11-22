@@ -155,13 +155,19 @@ pub fn resolveIndexed(memory: Memory, from: []const u8, path: []const u8, route:
 
 fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []const u8, route: Route, options: anytype, scope: Scope, matched_package: ?registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
     if (route == .Invalid) return reporter.fail(.module, span, "invalid or unknown import specifier");
+
     try scope.checkOwner(reporter, span);
+
+    const allow_rx = std.mem.endsWith(u8, from, ".rx");
 
     switch (route) {
         .File => {
             const allocator = memory.source;
             const root = scope.root(options.root_dir);
-            const file = try resolveFile(allocator, from, path, root, true, reporter, span);
+
+            try checkImportDirection(allow_rx, path, reporter, span);
+
+            const file = try resolveFile(allocator, from, path, root, allow_rx, reporter, span);
 
             if (comptime enabled) return finishFile(keep_row, allocator, file, options.source_index, scope, reporter, span);
 
@@ -189,10 +195,16 @@ fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []
             const dependencies = scope.dependencies(options.packages);
             const package = matched_package orelse registry.package(dependencies, path, true);
 
-            return .{ .target = try dependency(memory, options.root_dir, dependencies, package, reporter, span) };
+            return .{ .target = try dependency(memory, options.root_dir, dependencies, package, allow_rx, reporter, span) };
         },
         .Intrinsic, .Interface => return reporter.fail(.module, span, "native and standard imports must use the interface registry"),
         .Invalid => unreachable,
+    }
+}
+
+pub fn checkImportDirection(allow_rx: bool, target: []const u8, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {
+    if (!allow_rx and std.mem.endsWith(u8, target, ".rx")) {
+        return reporter.fail(.module, span, "ZX cannot import RX modules; compose RX calls in an RX module");
     }
 }
 
@@ -237,9 +249,12 @@ fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: Resol
     return .{ .target = .{ .source = resolved }, .source_row = if (row) |value| @intCast(value) else null };
 }
 
-fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package, selected: registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
+fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package, selected: registry.Match, allow_rx: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
     const index = selected.first orelse return reporter.fail(.module, span, "ZX package is not declared in the project dependencies");
     const package = &packages[index];
+
+    if (package.compiled == null) try checkImportDirection(allow_rx, package.entry, reporter, span);
+
     const allocator = if (package.compiled != null) memory.compiled else memory.source;
     const artifact = if (package.compiled) |target| target.artifact else null;
 

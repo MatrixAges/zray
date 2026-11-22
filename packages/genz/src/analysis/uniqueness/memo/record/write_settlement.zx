@@ -1,0 +1,18 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Settlement } from "./model"
+
+export type Input = {
+    target: Settlement,
+    levels: u8[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, levels } = in
+
+    columns.writeRowList(target.passed, 0, target.contributions)
+    memory.writeColumnBytes(target.levels, 0, levels)
+}

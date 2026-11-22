@@ -44,10 +44,11 @@ pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source:
 
 fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStorage, source: anytype, count: usize, temporary: std.mem.Allocator, registration: if (entry == initializer) *const InitializerRegistration else void) Error!void {
     const single = entry != batch;
-    const State = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+    const State = std.meta.Child(entry.Input);
 
     const Input = if (entry == initializer)
-        @FieldType(State, "body")
+        std.meta.Child(@FieldType(State, "body"))
+
     else
         State;
 
@@ -68,6 +69,11 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     const progress: []u64 = &completed;
     const length_slots = zx.memory.borrowColumnLengths(storage);
     const lengths: zx.memory.ColumnLengths = &length_slots;
+
+    defer if (completed[0] != 0) {
+        zx.memory.publishColumnLengths(@ptrCast(&lengths), completed[0]);
+    };
+
     var target: columns.Tail(Target) = undefined;
 
     target.init(storage);
@@ -83,7 +89,6 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     const input: Input = .{
         .source = if (single) &descriptor else &source_view,
         .target = &.{ .storage = @ptrCast(&target.storage), .shape = null },
-        .tables = columns.body(@FieldType(Input, "tables"), storage, count),
         .mappings = &.{ .types = &types, .functions = &functions, .natives = &natives },
         .empty = &.{
             .control = zx.columns.pointer(@FieldType(Empty, "control"), (ir.ControlBody{}).control),
@@ -92,24 +97,23 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
         .workspace = &scratch.borrow(Workspace, false),
         .max_offset = std.math.maxInt(usize),
         .progress = @ptrCast(&progress),
-        .lengths = @ptrCast(&lengths),
     };
 
     const result = if (entry == initializer)
-        entry.executeState(nodes.allocator, .{ .body = input, .registry = registration })
+        entry.executeIn(nodes.allocator, &.{ .body = &input, .registry = registration })
 
     else
-        entry.executeState(nodes.allocator, input);
+        entry.executeIn(nodes.allocator, &input);
 
     const output = result catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    switch (output.status) {
+    switch (output) {
         .Exhausted => return error.OutOfMemory,
         .Invalid => return error.InvalidModule,
-        .Complete => columns.checkBorrow(input.tables, output.tables.?),
+        .Complete => {},
     }
 
     std.debug.assert(completed[0] == count);

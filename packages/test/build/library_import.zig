@@ -1,13 +1,17 @@
 const std = @import("std");
 
 pub fn add(b: *std.Build, compiler: *std.Build.Dependency, generator: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step {
-    const step = b.step("test-library-import", "Execute ZX imports from compiled public library modules");
+    const step = b.step("test-library-import", "Execute ZX and RX consumers of compiled public library modules");
 
     const tool = b.addExecutable(.{ .name = "import-library-runtime", .root_module = b.createModule(.{
         .root_source_file = b.path("tests/library/runtime/replay_import.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "compiler", .module = compiler.module("compiler") }},
+        .imports = &.{
+            .{ .name = "compiler", .module = compiler.module("compiler") },
+            .{ .name = "rx", .module = compiler.module("rx") },
+            .{ .name = "rx_analysis", .module = compiler.module("rx_analysis") },
+        },
     }) });
 
     for ([_][]const u8{ "forward", "reverse", "mixed_forward", "mixed_reverse", "native_forward", "native_reverse" }) |order| {

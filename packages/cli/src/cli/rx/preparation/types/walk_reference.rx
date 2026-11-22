@@ -1,0 +1,44 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Preparation" />
+
+    <Args in={Preparation.TypeWalk} out={Preparation.TypeWalk} />
+
+    <Call
+        fn="../index.preparationReferenceRole"
+        in={[
+            $in.references,
+            $in.index - 1
+        ]}
+    />
+
+    <If on={$ctx.preparationReferenceRole == IO.Role.TypeImport}>
+        <Call
+            module="reference"
+            in={$in.pick([
+                "types",
+                "references",
+                "diagnostic"
+            ])}
+        />
+
+        <If on={!$ctx.reference}>
+            <Return
+                value={{
+                    ...$in,
+                    index: $in.index - 1,
+                    valid: false,
+                    running: false
+                }}
+            />
+        </If>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index - 1,
+            running: $in.index > 1
+        }}
+    />
+</Module>

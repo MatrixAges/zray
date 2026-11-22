@@ -1,7 +1,7 @@
 import memory from "memory"
 
 import { Status as ArchiveStatus } from "../metadata/archive"
-import archive from "../metadata/validate.rx"
+import archive from "../metadata/validate"
 import { ParseStatus } from "../version/model"
 import parse from "../version/parse/partial"
 import identity from "./identity"

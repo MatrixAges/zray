@@ -4,6 +4,7 @@ import type { Columns as Forms } from "../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../ast/expressions/model"
 import type { Columns as Fields } from "../../ast/fields/model"
 import type { Columns as Statements } from "../../ast/statements/model"
+import type { Operation } from "./const"
 
 export type Input = {
     with_io: bool,
@@ -46,4 +47,11 @@ export type Output = {
     declarations: Functions,
     root: u32,
     valid: bool
+}
+
+export type Operations = {
+    state: State,
+    kinds: Operation[],
+    index: u64,
+    running: bool
 }

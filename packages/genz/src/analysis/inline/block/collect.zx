@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import { StatementKind } from "core/control_table/model"
 
+import bodyControl from "../body/control"
 import { InlineOp } from "../model"
 import truncate from "../truncate"
 import append from "./append"
@@ -14,7 +15,12 @@ export type Output = Inline
 
 export default function (in: Input): Output {
     const state = in.state
-    const control = state.units[state.mappings.units[in.frame.mapping]].control
+
+    const control = bodyControl({
+        program: state.program,
+        index: state.mappings.units[in.frame.mapping]
+    })
+
     const payload = in.frame.f
 
     const kind_input =

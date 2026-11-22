@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import { StatementKind } from "core/control_table/model"
 
+import bodyControl from "../body/control"
 import frame from "../frame"
 import { InlineOp } from "../model"
 import unit from "./unit"
@@ -38,7 +39,11 @@ export default function (in: Input): Output {
         }
     }
 
-    const control = state.units[state.mappings.units[current.mapping]].control
+    const control = bodyControl({
+        program: state.program,
+        index: state.mappings.units[current.mapping]
+    })
+
     const position = current.a - 1
     const statement = integers.widen(control.block_first[current.id - 1]) + position
     const kind = control.statement_kinds[statement]

@@ -41,3 +41,10 @@ export type Names = {
     previous: string[],
     current: string[]
 }
+
+export type Traversal = {
+    source: Records,
+    row: u64,
+    valid: bool,
+    running: bool
+}

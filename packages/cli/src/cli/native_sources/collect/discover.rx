@@ -14,13 +14,20 @@
     />
 
     <Call
-        fn="walk"
+        module="walk"
+        while="running"
         in={{
             collection: $in.collection,
             has_bundle: $in.bundle_files.length != 0,
-            header: $in.header
+            index: 0,
+            running: true,
+            flags: {
+                valid: true,
+                dynamic_resources: false,
+                c_imports: $in.header
+            }
         }}
     />
 
-    <Return value={$ctx.walk} />
+    <Return value={$ctx.walk.flags} />
 </Module>

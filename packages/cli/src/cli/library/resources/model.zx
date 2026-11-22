@@ -1,1 +1,10 @@
 export type { NativeResources as Input } from "library_stage_host"
+
+import type { NativeResources } from "library_stage_host"
+
+export type Modules = {
+    resources: NativeResources,
+    count: u64,
+    index: u64,
+    running: bool
+}

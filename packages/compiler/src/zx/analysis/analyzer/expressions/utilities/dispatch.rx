@@ -1,0 +1,56 @@
+<Module>
+    <Type from="model" as="Utility" />
+    <Type from="../model" as="Expressions" />
+    <Type from="../../../../modules/intrinsic/model" as="Intrinsic" />
+
+    <Args in={Utility.Input} out={Expressions.Result} />
+
+    <If on={$in.operation == Intrinsic.Operation.Identity}>
+        <Return
+            value={{
+                state: $in.state,
+                value: $in.values[0]
+            }}
+        />
+    </If>
+
+    <If
+        on={$in.operation == Intrinsic.Operation.IsNil ||
+            $in.operation == Intrinsic.Operation.IsNotNil}
+    >
+        <Call fn="predicate" in={$in} />
+
+        <Return value={$ctx.predicate} />
+    </If>
+
+    <If
+        on={$in.operation == Intrinsic.Operation.Clamp ||
+            $in.operation == Intrinsic.Operation.InRange}
+    >
+        <Call fn="numeric" in={$in} />
+
+        <Return value={$ctx.numeric} />
+    </If>
+
+    <Call fn="list_target" in={$in} />
+
+    <If on={$ctx.list_target.element_type != null}>
+        <Call
+            module="list"
+            in={{
+                ...$in,
+                state: $ctx.list_target.state,
+                element_type: $ctx.list_target.element_type
+            }}
+        />
+
+        <Return value={$ctx.list} />
+    </If>
+
+    <Return
+        value={{
+            state: $ctx.list_target.state,
+            value: 0
+        }}
+    />
+</Module>

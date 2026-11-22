@@ -21,20 +21,25 @@
         <Call fn="index.openDirectory" in={$in} />
 
         <Call
-            fn="walk"
+            module="walk"
+            while="running"
             in={{
                 collection: $in,
-                patterns: $ctx.readRoot
+                patterns: $ctx.readRoot,
+                running: true
             }}
         />
 
         <Call fn="index.orderMembers" in={$in} />
 
         <Call
-            fn="members"
+            module="members"
+            while="running"
             in={{
                 collection: $in,
-                count: $ctx.orderMembers
+                count: $ctx.orderMembers,
+                index: 0,
+                running: $ctx.orderMembers != 0
             }}
         />
     </If>

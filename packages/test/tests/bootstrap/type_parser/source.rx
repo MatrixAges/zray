@@ -1,5 +1,5 @@
 <Module>
-    <Call module="../../zx/frontend/lexer/scan" in={$in.source} />
+    <Call fn="../../zx/frontend/lexer/scan" in={$in.source} />
 
     <Switch on={$ctx.scan.diagnostic.message == ""}>
         <Case value={true}>

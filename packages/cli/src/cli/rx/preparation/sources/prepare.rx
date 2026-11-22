@@ -14,10 +14,13 @@
     />
 
     <Call
-        fn="roots"
+        module="roots"
+        while="running"
         in={{
             preparation: $in,
-            count: $ctx.reservePreparationRoots
+            count: $ctx.reservePreparationRoots,
+            index: 0,
+            running: $ctx.reservePreparationRoots != 0
         }}
     />
 </Module>

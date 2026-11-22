@@ -1,0 +1,24 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Publication as Input, Traversal as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { state, name } = in
+
+    memory.writeString(
+        state.names,
+        state.index,
+        columns.copyColumnText(state.resource, name)
+    )
+
+    memory.resetArena(state.scratch)
+
+    const index = state.index + 1
+
+    return {
+        ...state,
+        index,
+        running: index < state.local.length
+    }
+}

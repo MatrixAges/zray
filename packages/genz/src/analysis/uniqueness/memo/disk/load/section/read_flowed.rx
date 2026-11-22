@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.FlowedTraversal} out={Cache.FlowedTraversal} />
+
+    <Call
+        module="../flow"
+        in={{
+            source: $in.section.source,
+            start: $in.offset
+        }}
+    />
+
+    <If on={$ctx.flow != null}>
+        <Call
+            fn="write_flowed"
+            in={{
+                section: $in.section,
+                used: $in.used,
+                record: $ctx.flow
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                offset: $ctx.flow.end,
+                remaining: $in.remaining - 1,
+                used: $ctx.write_flowed,
+                running: $in.remaining != 1 && $ctx.flow.end != 0
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            offset: 0,
+            running: false
+        }}
+    />
+</Module>

@@ -1,7 +1,6 @@
 import unwrap from "../../../../ast/context/optional_unwrap"
 import { Operation } from "../model"
 import project from "./project"
-import rows from "./rows/enter"
 
 import type { Step as Input, State as Output } from "./model"
 
@@ -20,13 +19,6 @@ export default function (in: Input): Output {
         ...in.state,
         context: value.state,
         nodes: in.state.nodes.with(in.node, frame)
-    }
-
-    if (category == Operation.Rows) {
-        return rows({
-            ...in,
-            state
-        })
     }
 
     if (category == Operation.Optional) {

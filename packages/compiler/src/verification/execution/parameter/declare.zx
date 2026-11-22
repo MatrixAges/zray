@@ -1,6 +1,6 @@
 import host from "verification_program_host"
 
-import parameter from "../../ports/parameter.rx"
+import parameter from "../../ports/parameter"
 
 import type { Declaration as Input } from "./model"
 

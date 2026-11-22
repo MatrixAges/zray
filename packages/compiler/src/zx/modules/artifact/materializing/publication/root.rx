@@ -1,0 +1,29 @@
+<Module>
+    <Type from="source_model" as="Source" />
+    <Type from="model" as="Publication" />
+
+    <Args in={Source.RootRequest} out={Source.Output} />
+
+    <Call fn="root_request" in={$in} />
+
+    <Call module="link" />
+
+    <If on={$ctx.link != null}>
+        <Call
+            fn="append"
+            in={{
+                ...$in.pick([
+                    "target",
+                    "empty",
+                    "progress"
+                ]),
+                value: $ctx.link,
+                row: 0
+            }}
+        />
+
+        <Return value={Publication.PublicationStatus.Complete} />
+    </If>
+
+    <Return value={Publication.PublicationStatus.Invalid} />
+</Module>

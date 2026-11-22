@@ -1,0 +1,34 @@
+import integers from "std:integer"
+import host from "hardware_graph_host"
+
+import name from "../../../../verification/ports/name"
+
+import type { OutputWrite as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { build, leaf, node } = in
+
+    const width = integers.widenShort(host.hardwareNodeWidth(build, node))
+    const boolean = host.hardwareNodeIsBoolean(build, node)
+
+    if (width != leaf.width || boolean != leaf.boolean) {
+        host.rejectHardwareTerm()
+    }
+
+    const symbol = name({
+        index: host.hardwareOutputCount(build),
+        output: true
+    })
+
+    host.writeHardwareOutput(
+        build,
+        symbol,
+        leaf.path,
+        node,
+        leaf.width,
+        leaf.boolean,
+        leaf.signed
+    )
+}

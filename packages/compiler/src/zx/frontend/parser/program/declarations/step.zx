@@ -1,5 +1,3 @@
-import parseConstant from "compiler/constant_syntax"
-
 import { Keyword } from "../../../lexer/keyword_model"
 import { Phase } from "../../declarations/model"
 import step from "../../declarations/step"
@@ -41,26 +39,9 @@ export default function (in: Input): Output {
     }
 
     if (in.declarations.control.phase == Phase.Done) {
-        const parsed = parseConstant({
-            prepared: in.prefix.prepared,
-            start: in.declarations.control.index
-        })
-
-        const value = parsed.constant
-
         return {
             ...in,
-            constants: value != null ? in.constants.push(value)[0] : in.constants,
-            finished: value == null,
-            declarations: {
-                ...in.declarations,
-                control: {
-                    ...in.declarations.control,
-                    phase: value != null ? Phase.Start : Phase.Done,
-                    index: parsed.index,
-                    diagnostic: parsed.diagnostic
-                }
-            }
+            pending_constant: true
         }
     }
 

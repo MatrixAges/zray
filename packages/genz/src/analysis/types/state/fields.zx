@@ -3,10 +3,11 @@ import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import appendField from "../../../ast/fields/append"
 import emptyFields from "../../../ast/fields/empty"
 import { items_field, storage_field } from "./const"
+import objectField from "./object_field"
 
+import type { Field } from "../../../ast/fields/model"
 import type { Plan, Types, Output } from "./model"
 
 export type Input = {
@@ -37,41 +38,35 @@ export default function (in: Input): Output {
                 current.record += 1
                 current.member = 0
             } else {
-                if (list) {
-                    current.fields = appendField({
-                        table: current.fields,
+                const row: Field = match {
+                    list => {
                         name: bytes.fromText(
                             current.member == 0 ? items_field : storage_field
                         ),
                         value: record.start + (current.member == 0 ? 0 : 1),
-                        default_value: null,
                         comptime_parameter: false
-                    })
-                } else if (current.member + 1 == count) {
-                    current.fields = appendField({
-                        table: current.fields,
+                    },
+                    current.member + 1 == count => {
                         name: current.origins[owner],
                         value: record.start,
                         default_value: record.start + 1,
                         comptime_parameter: false
-                    })
-                } else {
-                    const field = integers.widen(current.source.first[owner]) +
-                        current.member
-                    const child = integers.widen(current.source.field_types[field])
-
-                    current.fields = appendField({
-                        table: current.fields,
-                        name: bytes.fromText(current.source.field_names[field]),
-                        value: match {
-                            record.view => current.views[child],
-                            _ => current.values[child]
-                        },
-                        default_value: null,
-                        comptime_parameter: false
+                    },
+                    _ => objectField({
+                        source: current.source,
+                        record,
+                        member: current.member,
+                        values: current.values,
+                        views: current.views
                     })
                 }
 
+                current.fields.name = current.fields.name.push(row.name)[0]
+                current.fields.value = current.fields.value.push(row.value)[0]
+                current.fields.default_value =
+                    current.fields.default_value.push(row.default_value)[0]
+                current.fields.comptime_parameter =
+                    current.fields.comptime_parameter.push(row.comptime_parameter)[0]
                 current.member += 1
             }
         }

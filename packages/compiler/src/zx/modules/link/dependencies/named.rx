@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Link" />
+
+    <Args in={Link.Request} out={Link.Status} />
+
+    <If
+        on={$in.dependency.source_names.length != 0 &&
+            $in.dependency.source_names.length != $in.dependency.names.length}
+    >
+        <Return value={Link.Status.Invalid} />
+    </If>
+
+    <Call
+        module="next_name"
+        while="running"
+        in={{
+            request: $in,
+            aliased: $in.dependency.source_names.length != 0,
+            status: Link.Status.Ready,
+            row: 0,
+            running: $in.dependency.names.length != 0
+        }}
+    />
+
+    <Return value={$ctx.next_name.status} />
+</Module>

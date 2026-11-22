@@ -1,0 +1,14 @@
+import type { Position as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { program, index } = in
+
+    const functions = program.functions
+
+    return match {
+        index == functions.roots.length => program.root,
+        _ => functions.roots[index]
+    }
+}

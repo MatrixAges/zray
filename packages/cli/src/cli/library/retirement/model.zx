@@ -31,3 +31,9 @@ export enum Status {
     Modified,
     OutsideOutput
 }
+
+export type Walk = Candidate & {
+    count: u64,
+    status: Status,
+    running: bool
+}

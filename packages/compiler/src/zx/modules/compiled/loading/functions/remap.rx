@@ -23,7 +23,7 @@
     />
 
     <Call
-        fn="../remap/contracts"
+        module="../remap/contracts"
         in={{
             source: $in.contracts,
             mapping: $in.mapping.types,

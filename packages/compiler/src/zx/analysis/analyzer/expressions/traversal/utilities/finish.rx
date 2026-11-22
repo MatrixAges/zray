@@ -1,0 +1,81 @@
+<Module>
+    <Type from="../model" as="Traversal" />
+    <Type from="../../../../../modules/intrinsic/model" as="Intrinsic" />
+
+    <Args in={Traversal.Work} out={Traversal.Work} />
+
+    <Call fn="request" in={$in} />
+
+    <If on={$ctx.request.operation != null}>
+        <If on={$ctx.request.operation == Intrinsic.Operation.Identity}>
+            <Call
+                fn="publish"
+                in={{
+                    work: $in,
+                    result: {
+                        state: $in.state,
+                        value: $ctx.request.values[0]
+                    }
+                }}
+            />
+
+            <Return value={$ctx.publish} />
+        </If>
+
+        <If
+            on={$ctx.request.operation == Intrinsic.Operation.Pick ||
+                $ctx.request.operation == Intrinsic.Operation.Omit}
+        >
+            <Call
+                fn="selection"
+                in={{
+                    work: $in,
+                    node: $ctx.request.node,
+                    span: $ctx.request.span,
+                    target: $ctx.request.values[0],
+                    omit: $ctx.request.operation == Intrinsic.Operation.Omit
+                }}
+            />
+
+            <Call
+                fn="publish"
+                in={{
+                    work: $in,
+                    result: $ctx.selection
+                }}
+            />
+
+            <Return value={$ctx.publish} />
+        </If>
+
+        <Call
+            module="../../utilities/lower"
+            in={{
+                state: $in.state,
+                operation: $ctx.request.operation,
+                values: $ctx.request.values,
+                span: $ctx.request.span
+            }}
+        />
+
+        <Call
+            fn="publish"
+            in={{
+                work: $in,
+                result: $ctx.lower
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Call
+        fn="../imported/invalid"
+        in={{
+            work: $in,
+            node: $ctx.request.node
+        }}
+    />
+
+    <Return value={$ctx.invalid} />
+</Module>

@@ -1,0 +1,29 @@
+import type { U64Buffer } from "memory"
+import type {
+    Columns,
+    Publication,
+    Target
+} from "../../../artifact/materializing/publication/model"
+import type { Mapped, Mapping } from "./model"
+
+export type Input = {
+    source: Columns,
+    target: Target,
+    mapping: Mapping,
+    instance: string,
+    first: u64,
+    progress: U64Buffer
+}
+
+export type Output = Publication
+
+export type Traversal = {
+    input: Input,
+    row: u64,
+    running: bool
+}
+
+export type Append = {
+    state: Traversal,
+    owned: Mapped
+}

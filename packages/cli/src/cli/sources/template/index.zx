@@ -1,5 +1,6 @@
 export {
     expandSourceTemplate,
+    templateReferenceCount,
     readTemplateFile,
     resolveTemplateReference
 } from "source_loader_host"

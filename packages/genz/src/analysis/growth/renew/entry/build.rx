@@ -6,7 +6,7 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call fn="execute" />
+    <Call module="execute" />
 
     <Call
         fn="../publish"

@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Hardware" />
+
+    <Args in={Hardware.Definitions} out={void} />
+
+    <Call
+        module="next_definition"
+        while="running"
+        in={{
+            ...$in,
+            row: 0,
+            running: $in.rows.names.length != 0
+        }}
+    />
+
+    <Call fn="host.clearHardwareOrigin" in={$in.build} />
+</Module>

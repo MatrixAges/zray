@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
+
+import { type_code, array_message } from "./const"
+
+import type { Input, ListTarget as Output } from "./model"
+
+export default function (in: Input): Output {
+    const target = row({
+        tables: {
+            base: in.state.types.context.base,
+            delta: in.state.types.delta
+        },
+        id: in.state.local.expressions.types[integers.widen(in.values[0])]
+    })
+
+    if (target.kind != Kind.List) {
+        return {
+            element_type: null,
+            state: {
+                ...in.state,
+                diagnostic: {
+                    code: type_code,
+                    message: array_message,
+                    start: in.span.start,
+                    end: in.span.end
+                }
+            }
+        }
+    }
+
+    return {
+        element_type: target.first,
+        state: in.state
+    }
+}

@@ -1,0 +1,41 @@
+import scan from "./bytes"
+import { invalid_utf8, lexical_code } from "./const"
+import failure from "./failure"
+import finish from "./finish"
+import flush from "./flush"
+import initial from "./initial"
+import publish from "./publish"
+import validate from "./utf8/validate"
+
+import type { Result as Output } from "./model"
+
+export type Input = u8[]
+
+export default function (in: Input): Output {
+    if (!validate(in)) {
+        return failure({
+            code: lexical_code,
+            start: 0,
+            end: in.length,
+            message: invalid_utf8
+        })
+    }
+
+    const state = initial({
+        start: 0,
+        end: in.length
+    })
+
+    const scanned = scan({
+        source: in,
+        state
+    })
+
+    const finished = finish(flush(scanned))
+
+    if (finished.diagnostic.message != "") {
+        return failure(finished.diagnostic)
+    }
+
+    return publish(finished)
+}

@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Traversal} out={Cache.Traversal} />
+
+    <Call fn="rows" in={$in} />
+
+    <Call module="bind" />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            valid: $ctx.bind,
+            running: $ctx.bind && $in.row + 1 < $in.source.previous.count
+        }}
+    />
+</Module>

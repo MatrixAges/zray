@@ -1,0 +1,16 @@
+import type { Fresh } from "../model"
+
+export type Edges = Fresh.Pick("host", "members") & {
+    owner: u64,
+    remaining: u64
+}
+
+export type Dependency = Edges.Omit("owner") & {
+    running: bool
+}
+
+export type Closure = Fresh & {
+    owner: u64,
+    consumed: u64,
+    running: bool
+}

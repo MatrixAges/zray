@@ -22,12 +22,16 @@
     <Call fn="index.beginLibraryAnalysis" in={$in} />
 
     <Call
-        fn="entries"
+        module="entries"
+        while="running"
         in={{
             analysis: $in,
-            count: $ctx.analysisExportCount
+            count: $ctx.analysisExportCount,
+            index: 0,
+            valid: true,
+            running: true
         }}
     />
 
-    <Return value={$ctx.entries} />
+    <Return value={$ctx.entries.valid} />
 </Module>

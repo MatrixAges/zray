@@ -1,0 +1,15 @@
+import type { Contracts as Output } from "core/contract_table/model"
+import type { Traversal as Input } from "./contracts_model"
+
+export default function (in: Input): Output {
+    const { source, symbols, expressions } = in
+
+    return {
+        kinds: source.kinds.slice(),
+        predicates: source.predicates.slice(),
+        span_start: source.span_start.slice(),
+        span_end: source.span_end.slice(),
+        symbols,
+        expressions
+    }
+}

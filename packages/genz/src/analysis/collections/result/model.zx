@@ -20,3 +20,17 @@ export type State = {
 }
 
 export type Output = Emission
+
+export type Members = State & {
+    running: bool
+}
+
+export type Member = {
+    state: ConversionState,
+    value: u32,
+    conversion?: Conversion
+}
+
+export type Publication = Member.Pick("state", "value") & {
+    members: Members
+}

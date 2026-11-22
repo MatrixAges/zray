@@ -16,6 +16,13 @@ export default function (in: Input): Output {
     const frame = in.frames.imported[in.frames.imported.length - 1]
 
     if (frame.index == frame.arguments.length) {
+        if (in.imports.intrinsics[frame.import_index] != null) {
+            return {
+                ...in,
+                phase: Phase.Intrinsic
+            }
+        }
+
         return finish(in)
     }
 

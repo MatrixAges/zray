@@ -1,6 +1,6 @@
 import host from "publication_host"
 
-import admit from "../../native_sources/inventory/admit.rx"
+import admit from "../../native_sources/inventory/admit"
 
 import type { InventoryCollector as Input } from "publication_host"
 

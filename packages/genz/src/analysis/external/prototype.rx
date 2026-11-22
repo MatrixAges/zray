@@ -1,0 +1,11 @@
+<Module>
+    <Type from="prototype_model" as="Prototype" />
+
+    <Args in={Prototype.Input} out={Prototype.Output} />
+
+    <Call fn="prototype_input" in={$in} />
+
+    <Call module="../functions/signature/build" />
+
+    <Return value={$ctx.build} />
+</Module>

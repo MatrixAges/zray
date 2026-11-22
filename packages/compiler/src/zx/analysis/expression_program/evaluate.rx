@@ -8,7 +8,8 @@
         <Call fn="evaluate/request" in={$in} />
 
         <Call fn="../analyzer/expressions/traversal/initial" />
-        <Call fn="../analyzer/expressions/traversal/advance" />
+
+        <Call module="../analyzer/expressions/traversal/advance" />
 
         <Return
             value={{

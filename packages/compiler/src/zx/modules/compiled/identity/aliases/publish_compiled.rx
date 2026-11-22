@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Aliases" />
+
+    <Args in={Aliases.CompiledInput} out={Aliases.Status} />
+
+    <Call
+        module="next_compiled"
+        while="running"
+        in={{
+            ...$in,
+            cursor: 0,
+            count: 0,
+            capacity: 0,
+            status: Aliases.Status.Ready,
+            running: true
+        }}
+    />
+
+    <Return value={$ctx.next_compiled.status} />
+</Module>

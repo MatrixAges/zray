@@ -1,5 +1,7 @@
 import append from "core/symbol_table/append"
 
+import bodySymbols from "../body/symbols"
+
 import type { Inline } from "../model"
 
 export type Input = {
@@ -10,7 +12,10 @@ export type Input = {
 export type Output = Inline
 
 export default function (in: Input): Output {
-    const source = in.state.units[in.unit].symbols
+    const source = bodySymbols({
+        program: in.state.program,
+        index: in.unit
+    })
 
     const result = loop({
         symbols: in.state.tables.symbols,

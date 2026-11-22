@@ -32,3 +32,10 @@ export type Imports = {
     collection: Collection,
     count: u64
 }
+
+export type Walk = {
+    collection: Collection,
+    index: u64,
+    valid: bool,
+    running: bool
+}

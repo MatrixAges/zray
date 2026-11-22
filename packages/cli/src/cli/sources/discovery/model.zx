@@ -1,7 +1,5 @@
 import type { Discovery } from "source_loader_host"
 
-export type Row = [Discovery, u64]
-
 export type Range = {
     discovery: Discovery,
     first: u64
@@ -9,5 +7,12 @@ export type Range = {
 
 export type Header = {
     discovery: Discovery,
-    count: u64
+    count: u64,
+    index: u64,
+    running: bool
+}
+
+export type Walk = Range.Omit("first") & {
+    index: u64,
+    running: bool
 }

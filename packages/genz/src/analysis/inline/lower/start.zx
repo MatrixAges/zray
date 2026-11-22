@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import bodyControl from "../body/control"
 import fail from "../fail"
 import { InlineOp } from "../model"
 import unit from "./unit"
@@ -22,7 +23,10 @@ export default function (in: Input): Output {
         depth: state.depth + 1
     }
 
-    const control = deeper.units[deeper.mappings.units[in.frame.mapping]].control
+    const control = bodyControl({
+        program: deeper.program,
+        index: deeper.mappings.units[in.frame.mapping]
+    })
 
     const count = match {
         in.frame.id == 0 => 0,

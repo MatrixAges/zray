@@ -1,0 +1,28 @@
+import empty from "../../../../../ast/statements/empty"
+import { Operation } from "../../../../growth/const"
+
+import type { State as Output } from "../../../../growth/model"
+import type { Reserve as Input } from "../model"
+
+export default function (in: Input): Output {
+    return {
+        source: {
+            operation: Operation.Reserve,
+            element: in.element,
+            value: in.value,
+            count: in.count,
+            minimum: 0,
+            flag: false,
+            shared: in.source.shared,
+            capture: in.source.capture,
+            expression_base: in.context.source.expression_base,
+            statement_base: in.context.source.statement_base,
+            serial: in.context.serial
+        },
+        context: in.context,
+        body: empty({}),
+        arguments: [],
+        callee: 0,
+        root: in.value
+    }
+}

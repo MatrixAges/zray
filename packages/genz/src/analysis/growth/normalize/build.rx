@@ -6,7 +6,8 @@
     <Call fn="initialize" in={$in} />
 
     <Call fn="prepare" />
-    <Call fn="copy" />
+
+    <Call module="copy" />
 
     <If on={$in.selected}>
         <Call fn="select" in={$ctx.copy} />

@@ -3,7 +3,7 @@ import columns from "memory/columns"
 
 import { Target } from "../../../../../../dependency_graph/reference/model"
 import { Kind } from "../model"
-import resolve from "../resolve.rx"
+import resolve from "../resolve"
 import {
     route_invalid,
     route_missing,

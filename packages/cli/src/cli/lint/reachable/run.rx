@@ -1,0 +1,21 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.ReachableLint} out={bool} />
+
+    <Call fn="../index.reachableLintModuleCount" in={$in} />
+
+    <Call
+        module="walk"
+        while="running"
+        in={{
+            check: $in,
+            count: $ctx.reachableLintModuleCount,
+            index: 0,
+            valid: true,
+            running: $ctx.reachableLintModuleCount != 0
+        }}
+    />
+
+    <Return value={$ctx.walk.valid} />
+</Module>

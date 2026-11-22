@@ -3,6 +3,18 @@
 
     <Args in={Template.Input} out={void} />
 
-    <Call fn="references" in={$in} />
+    <Call fn="index.templateReferenceCount" in={$in} />
+
+    <Call
+        module="references"
+        while="running"
+        in={{
+            source: $in,
+            count: $ctx.templateReferenceCount,
+            index: 0,
+            running: $ctx.templateReferenceCount != 0
+        }}
+    />
+
     <Call fn="index.expandSourceTemplate" in={$in} />
 </Module>

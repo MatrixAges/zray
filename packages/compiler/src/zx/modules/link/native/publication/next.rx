@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Traversal} out={Native.Traversal} />
+
+    <Call fn="request" in={$in} />
+
+    <Call module="row" />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
+</Module>

@@ -1,13 +1,18 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Input} out={bool} />
+    <Args in={Driver.Cycle} out={Driver.Cycle} />
 
     <If on={$in.run_application}>
         <Call fn="index.interrupted" in={$in.watch} />
 
         <If on={$ctx.interrupted}>
-            <Return value={false} />
+            <Return
+                value={{
+                    ...$in,
+                    running: false
+                }}
+            />
         </If>
     </If>
 
@@ -49,7 +54,12 @@
             <Call fn="index.interrupted" in={$in.watch} />
 
             <If on={$ctx.interrupted}>
-                <Return value={false} />
+                <Return
+                    value={{
+                        ...$in,
+                        running: false
+                    }}
+                />
             </If>
 
             <Call fn="index.flush" in={$in.watch} />
@@ -65,5 +75,5 @@
     <Call fn="index.flush" in={$in.watch} />
     <Call fn="index.releaseTurn" in={$in.watch} />
 
-    <Return value={true} />
+    <Return value={$in} />
 </Module>

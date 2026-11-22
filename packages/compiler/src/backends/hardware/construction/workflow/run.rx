@@ -22,7 +22,7 @@
     />
 
     <Call
-        fn="definitions"
+        module="definitions"
         in={$in.pick([
             "build",
             "rows"
@@ -30,7 +30,7 @@
     />
 
     <Call
-        fn="outputs"
+        module="outputs"
         in={{
             build: $in.build,
             types: $in.types,
@@ -41,7 +41,7 @@
     />
 
     <Call
-        fn="safety"
+        module="safety"
         in={{
             build: $in.build,
             expression: $in.safety

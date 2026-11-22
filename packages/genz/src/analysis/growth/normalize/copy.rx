@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Row" />
+
+    <Args in={Row.State} out={Row.State} />
+
+    <Call fn="copy_input" in={$in} />
+
+    <Call module="../apply" />
+
+    <Return
+        value={{
+            ...$in,
+            context: $ctx.apply.context,
+            copied: {
+                body: $ctx.apply.body,
+                value: $ctx.apply.root
+            }
+        }}
+    />
+</Module>
