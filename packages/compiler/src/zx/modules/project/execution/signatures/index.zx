@@ -1,6 +1,5 @@
 export {
     reserveProjectSignatures,
-    reserveProjectLibraries,
     finishProjectSignatures,
     installProjectSignatureMembers,
     mergeProjectSignatureExports,

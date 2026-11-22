@@ -8,11 +8,6 @@ export type Batch = {
     paths: string[]
 }
 
-export type Libraries = {
-    batch: ProjectSignatures,
-    count: u64
-}
-
 export type Publication = {
     signature: ProjectSignature,
     declared: bool,

@@ -20,6 +20,8 @@ export type CacheSlot = opaque
 
 export type CompiledImport = opaque
 
+export type CompiledUnit = opaque
+
 export type ArtifactLink = opaque
 
 export type AnalysisPublication = opaque
@@ -27,12 +29,6 @@ export type AnalysisPublication = opaque
 export type AnalysisEntry = opaque
 
 export type SyntaxOrders = opaque
-
-export enum LibraryResolution {
-    Found,
-    Missing,
-    Conflict
-}
 
 export enum CacheWrite {
     Stored,
@@ -115,11 +111,6 @@ export declare function writeProjectSignature(
     slot: u64,
     row: u64
 ): void
-
-export declare function reserveProjectLibraries(batch: ProjectSignatures): u64
-    throws { OutOfMemory }
-
-export declare function writeProjectLibrary(batch: ProjectSignatures, slot: u64): void
 
 export declare function finishProjectSignatures(batch: ProjectSignatures): void
 
@@ -280,22 +271,29 @@ export declare function appendCacheSlot(slot: CacheSlot, bucket: u64): void
 
 export declare function replaceCacheSlot(slot: CacheSlot, row: u64): void
 
-export declare function resolveCompiledImport(frame: CompiledImport): LibraryResolution
+export declare function resolveCompiledImport(frame: CompiledImport): u64
+    throws { OutOfMemory, MissingLibrary, ConflictingArtifact }
+
+export declare function findCompiledLibrary(
+    frame: CompiledImport,
+    index: u64,
+    inherited: bool
+): CompiledUnit?
+
+export declare function reserveCompiledImport(frame: CompiledImport, index: u64): void
     throws { OutOfMemory }
 
-export declare function reuseCompiledLibrary(frame: CompiledImport): bool
-
-export declare function reserveCompiledImport(frame: CompiledImport): void
-    throws { OutOfMemory }
-
-export declare function bindCompiledImport(frame: CompiledImport): bool
+export declare function bindCompiledImport(frame: CompiledImport, index: u64): bool
     throws { OutOfMemory }
 
 export declare function publishCompiledInitializers(frame: CompiledImport): void
 
-export declare function rememberCompiledLibrary(frame: CompiledImport): void
+export declare function rememberCompiledLibrary(
+    frame: CompiledImport,
+    index: u64
+): CompiledUnit
 
-export declare function selectCompiledMember(frame: CompiledImport): bool
+export declare function selectCompiledMember(frame: CompiledImport, library: CompiledUnit): bool
 
 export declare function orderArtifactLink(frame: ArtifactLink): void
     throws { OutOfMemory, InvalidModule, MissingModule, CyclicDependency }

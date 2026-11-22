@@ -1,13 +1,14 @@
-import type { CompiledImport } from "project_host"
+import type { CompiledImport, CompiledUnit } from "project_host"
 
 export type Input = CompiledImport
 
+export type Selection = {
+    frame: Input,
+    unit: CompiledUnit
+}
+
 export enum Status {
-    Reused,
-    NeedsLink,
     Ready,
-    MissingLibrary,
-    ConflictingArtifact,
     InvalidLibrary,
     MissingPublicModule
 }

@@ -19,8 +19,6 @@ pub const Module = struct {
     reexport_functions: []const @import("function_import.zig") = &.{},
 };
 
-pub const Library = struct { index: usize, unit: @import("compiled.zig").imports.Unit };
-
 pub const Data = struct {
     types: zx.ir.TypeTable,
     nominal_types: Origins.Table,
@@ -28,7 +26,7 @@ pub const Data = struct {
     functions: zx.ir.FunctionTable,
     store_initializers: []const @import("compiled.zig").StoreInitializer,
     modules: []const Module,
-    libraries: []const Library,
+    libraries: @import("compiled.zig").imports.Snapshot,
 };
 
 pub const Result = struct {

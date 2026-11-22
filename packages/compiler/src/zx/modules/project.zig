@@ -627,15 +627,6 @@ fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source
         };
     }
 
-    const libraries = try owned.alloc(signature_project.Library, project.compiled_units.count());
-    var iterator = project.compiled_units.iterator();
-
-    for (libraries) |*library| {
-        const entry = iterator.next().?;
-
-        library.* = .{ .index = entry.key_ptr.*, .unit = entry.value_ptr.* };
-    }
-
     return .{ .arena = arena, .value = .{ .data = .{
         .types = project.types.view(),
         .nominal_types = project.nominal_origins.items.view(),
@@ -643,7 +634,7 @@ fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source
         .functions = project.functions.view(),
         .store_initializers = project.store_initializers.items,
         .modules = modules,
-        .libraries = libraries,
+        .libraries = project.compiled_units.added,
     } } };
 }
 

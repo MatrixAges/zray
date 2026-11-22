@@ -9,8 +9,6 @@ const Batch = struct {
     state: *Project,
     registered: bool,
     modules: []project.Module = undefined,
-    libraries: []project.Library = undefined,
-    iterator: @TypeOf(@as(owner.compiled.imports.Cache, undefined).iterator()) = undefined,
     result: project.Data = undefined,
     fn read(handle: *const anyopaque) *Batch {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -86,23 +84,6 @@ pub fn writeProjectSignature(handle: *const anyopaque, slot: u64, row: u64) void
     };
 }
 
-pub fn reserveProjectLibraries(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
-    const batch = Batch.read(handle);
-    const units = &batch.state.compiled_units;
-    const count = units.count();
-    batch.libraries = try batch.state.allocator.alloc(project.Library, count);
-    batch.iterator = units.iterator();
-
-    return count;
-}
-
-pub fn writeProjectLibrary(handle: *const anyopaque, slot: u64) void {
-    const batch = Batch.read(handle);
-    const entry = batch.iterator.next().?;
-
-    batch.libraries[@intCast(slot)] = .{ .index = entry.key_ptr.*, .unit = entry.value_ptr.* };
-}
-
 pub fn finishProjectSignatures(handle: *const anyopaque) void {
     const batch = Batch.read(handle);
     const state = batch.state;
@@ -114,6 +95,6 @@ pub fn finishProjectSignatures(handle: *const anyopaque) void {
         .functions = state.functions.view(),
         .store_initializers = state.store_initializers.items,
         .modules = batch.modules,
-        .libraries = batch.libraries,
+        .libraries = state.compiled_units.added,
     };
 }

@@ -17,16 +17,6 @@
         <Return value={false} />
     </If>
 
-    <Call fn="index.reserveProjectLibraries" in={$in.batch} />
-
-    <Call
-        fn="libraries"
-        in={{
-            batch: $in.batch,
-            count: $ctx.reserveProjectLibraries
-        }}
-    />
-
     <Call fn="index.finishProjectSignatures" in={$in.batch} />
 
     <Return value={true} />

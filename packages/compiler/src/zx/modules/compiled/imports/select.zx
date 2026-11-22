@@ -2,12 +2,12 @@ import host from "project_host"
 
 import { Status } from "./model"
 
-import type { CompiledImport as Input } from "project_host"
+import type { Selection as Input } from "./model"
 
 export type Output = Status
 
 export default function (in: Input): Output {
-    const found = host.selectCompiledMember(in)
+    const found = host.selectCompiledMember(in.frame, in.unit)
 
     return found ? Status.Ready : Status.MissingPublicModule
 }

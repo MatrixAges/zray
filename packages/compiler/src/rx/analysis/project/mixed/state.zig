@@ -36,6 +36,7 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         .types = .{ .allocator = allocator, .items = try frontend.type_table.storage(allocator, types), .origins = .{ .allocator = allocator } },
         .native_modules = try frontend.native_context.storage(allocator, options.context.native_modules),
         .finished = try Finished.init(allocator, graph.modules.len),
+        .libraries = .{ .inherited = signatures.libraries },
         .signature_indices = signature_indices,
         .retained_initializers = signatures.store_initializers,
     };
@@ -58,7 +59,6 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         .end = @as(lengths, @splat(signatures.functions.count())),
     }});
 
-    for (signatures.libraries) |library| try self.libraries.put(allocator, library.index, library.unit);
     try self.initializers.appendSlice(allocator, signatures.store_initializers);
 
     return self;

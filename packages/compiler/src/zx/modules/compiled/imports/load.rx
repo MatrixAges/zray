@@ -3,25 +3,87 @@
 
     <Args in={Import.Input} out={Import.Status} />
 
-    <Call fn="resolve" in={$in} />
+    <Call fn="index.resolveCompiledImport" in={$in} />
 
-    <If on={$ctx.resolve == Import.Status.NeedsLink}>
-        <Call fn="bind" in={$in} />
+    <Call
+        fn="index.findAdded"
+        in={[
+            $in,
+            $ctx.resolveCompiledImport,
+            false
+        ]}
+    />
 
-        <If on={!$ctx.bind}>
-            <Return value={Import.Status.InvalidLibrary} />
-        </If>
+    <If on={$ctx.findAdded != null}>
+        <Call
+            fn="select"
+            in={{
+                frame: $in,
+                unit: $ctx.findAdded
+            }}
+        />
 
-        <Call fn="publish" in={$in} />
-
-        <Else>
-            <If on={$ctx.resolve != Import.Status.Reused}>
-                <Return value={$ctx.resolve} />
-            </If>
-        </Else>
+        <Return value={$ctx.select} />
     </If>
 
-    <Call fn="select" in={$in} />
+    <Call
+        fn="index.findInherited"
+        in={[
+            $in,
+            $ctx.resolveCompiledImport,
+            true
+        ]}
+    />
+
+    <If on={$ctx.findInherited != null}>
+        <Call
+            fn="select"
+            in={{
+                frame: $in,
+                unit: $ctx.findInherited
+            }}
+        />
+
+        <Return value={$ctx.select} />
+    </If>
+
+    <Call
+        fn="index.reserveCompiledImport"
+        in={[
+            $in,
+            $ctx.resolveCompiledImport
+        ]}
+    />
+
+    <Call
+        fn="index.bindCompiledImport"
+        in={[
+            $in,
+            $ctx.resolveCompiledImport
+        ]}
+    />
+
+    <If on={!$ctx.bindCompiledImport}>
+        <Return value={Import.Status.InvalidLibrary} />
+    </If>
+
+    <Call fn="index.publishCompiledInitializers" in={$in} />
+
+    <Call
+        fn="index.rememberCompiledLibrary"
+        in={[
+            $in,
+            $ctx.resolveCompiledImport
+        ]}
+    />
+
+    <Call
+        fn="select"
+        in={{
+            frame: $in,
+            unit: $ctx.rememberCompiledLibrary
+        }}
+    />
 
     <Return value={$ctx.select} />
 </Module>
