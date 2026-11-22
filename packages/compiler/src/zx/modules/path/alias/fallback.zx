@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
+import memory from "memory"
 
 import { module_extension } from "../const"
 import index from "../directory_entry"
@@ -35,11 +36,19 @@ export default function (in: Input): Output {
         rx: false
     })
 
+    const row = find({
+        path: fallback,
+        index: in.index
+    })
+
+    if (row == null) {
+        memory.freeOwnedText(in.release, fallback)
+
+        return missing
+    }
+
     return {
-        row: find({
-            path: fallback,
-            index: in.index
-        }),
+        row,
         fallback
     }
 }

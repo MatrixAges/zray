@@ -51,6 +51,10 @@ pub const CallSource = struct { path: []const u8, named: bool };
 
 /// The candidate is the normalized file path for the complete dotted spelling.
 pub fn selectQualified(allocator: std.mem.Allocator, candidate: []const u8, member: []const u8, known: anytype) !CallSource {
+    if (comptime generated and @TypeOf(known) == @import("source_index.zig").Known) {
+        return @import("path/named.zig").select(allocator, candidate, member, known);
+    }
+
     if (try known.has(candidate)) return .{ .path = candidate, .named = false };
 
     const indexed = try index(allocator, candidate);

@@ -1,0 +1,30 @@
+export const crossed_package: string =
+    "file import crosses a package boundary; declare and import the package dependency"
+
+export const missing_owner: string = "source file does not belong to a declared package"
+
+export const import_direction: string =
+    "ZX cannot import RX modules; compose RX calls in an RX module"
+
+export const invalid_extension: string =
+    "project imports must omit the .zx extension; runtime and RX imports are forbidden"
+
+export const invalid_path: string =
+    "imports require ./, ../ or @/ paths; external interfaces require explicit registration"
+
+export const undeclared_package: string =
+    "ZX package is not declared in the project dependencies"
+
+export const invalid_package_source: string =
+    "package entry must be a .zx or .rx source file"
+
+export const invalid_package_library: string =
+    "compiled package target must identify one instance, artifact and public module"
+
+export const duplicate_package: string = "duplicate ZX package specifier"
+
+export const path_slot: u64 = 0
+
+export const instance_slot: u64 = 1
+
+export const export_slot: u64 = 2

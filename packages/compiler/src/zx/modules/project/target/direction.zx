@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+
+import { rx_extension } from "../../path/const"
+import { import_direction } from "./const"
+
+export type Input = {
+    path: string,
+    allow_rx: bool
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const raw = bytes.fromText(in.path)
+
+    if (in.allow_rx || raw.length < rx_extension.length) {
+        return null
+    }
+
+    const suffix = raw.length - rx_extension.length
+
+    return bytes.startsWithText(raw, suffix, rx_extension) ? import_direction : null
+}

@@ -1,6 +1,9 @@
+import type { Allocator } from "memory"
 import type { Input as Lookup } from "./find"
 
-export type Input = Lookup
+export type Input = Lookup & {
+    release: Allocator
+}
 
 export type Output = {
     row?: u64,

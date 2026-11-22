@@ -1,0 +1,56 @@
+import memory from "memory"
+
+import select from "../../../path/alias/select"
+import { crossed_package, missing_owner } from "../const"
+import check from "../scope/check"
+import { Boundary } from "../scope/check"
+
+import type { FileProbe as Input, FileSelection as Output } from "../model"
+
+export default function (in: Input): Output {
+    const selected = select(in.pick([
+        "path",
+        "index",
+        "release"
+    ]))
+
+    const fallback = selected.fallback
+    const path = fallback ?? in.path
+
+    const boundary = check({
+        ...in.omit([
+            "index",
+            "release",
+            "path"
+        ]),
+        path
+    })
+
+    const issue: string? = match boundary {
+        Boundary.MissingOwner => missing_owner,
+        Boundary.Crossed => crossed_package,
+        _ => null
+    }
+
+    if (issue != null) {
+        if (fallback != null) {
+            memory.freeOwnedText(in.release, fallback)
+        }
+
+        return {
+            path: in.path,
+            row: null,
+            issue
+        }
+    }
+
+    if (fallback != null) {
+        memory.freeOwnedText(in.release, in.path)
+    }
+
+    return {
+        path,
+        row: selected.row,
+        issue: null
+    }
+}

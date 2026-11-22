@@ -1,0 +1,27 @@
+import fallback from "./fallback"
+import find from "./find"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    if (in.index.capacity == 0) {
+        return {
+            row: null,
+            fallback: null
+        }
+    }
+
+    const row = find(in.pick([
+        "path",
+        "index"
+    ]))
+
+    if (row != null) {
+        return {
+            row,
+            fallback: null
+        }
+    }
+
+    return fallback(in)
+}

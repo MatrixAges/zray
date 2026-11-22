@@ -1,6 +1,6 @@
 import type { Table } from "core/bytes/index/fixed"
-import type { Output as Alias } from "../../path/alias/model"
-import type { Boundary, Input as Scope } from "./scope/check"
+import type { Allocator } from "memory"
+import type { Input as Scope } from "./scope/check"
 
 export enum Route {
     File,
@@ -37,21 +37,25 @@ export type File = {
 
 export type FileRequest = File & {
     from: string,
-    root: string
+    root: string,
+    check_direction: bool
 }
 
 export type FileTarget = {
-    kind: PathBase,
+    issue?: string,
     path?: string,
     fallback: bool
 }
 
 export type FileProbe = Scope & {
-    index: Table
+    index: Table,
+    release: Allocator
 }
 
-export type FileSelection = Alias & {
-    boundary: Boundary
+export type FileSelection = {
+    path: string,
+    row?: u64,
+    issue?: string
 }
 
 export enum PackageShape {
@@ -70,14 +74,23 @@ export type Package = {
     name: bool
 }
 
+export type CompiledPackage = {
+    instance: string,
+    artifact: string,
+    name: string
+}
+
 export type PackageRequest = {
-    shape: Package,
+    present: bool,
+    entry: string,
+    members?: CompiledPackage,
     duplicate: bool,
+    allow_rx: bool,
     root: string,
-    artifact?: string
+    release: Allocator,
+    output: string[]
 }
 
 export type PackageTarget = {
-    kind: PackageShape,
-    path?: string
+    issue?: string
 }

@@ -1,0 +1,68 @@
+import encoding from "std:encoding"
+import strings from "std:string"
+import memory from "memory"
+
+import select from "../alias/select"
+import { module_extension } from "../const"
+
+import type { Input as Lookup } from "../alias/model"
+
+export type Input = Lookup & {
+    member_width: u64,
+    output: string[]
+}
+
+export type Output = {
+    row?: u64,
+    named: bool
+}
+
+export default function (in: Input): Output {
+    const { path, index, release } = in
+
+    const full = select(in.pick([
+        "path",
+        "index",
+        "release"
+    ]))
+
+    if (full.row != null) {
+        const indexed = full.fallback
+
+        if (indexed != null) {
+            memory.writeTextSlot(in.output, 0, indexed)
+        }
+
+        return {
+            row: full.row,
+            named: false
+        }
+    }
+
+    const end = path.length - module_extension.length - in.member_width - 1
+
+    const owner = strings.join("", [
+        encoding.sliceBytes(path, 0, end),
+        module_extension
+    ])
+
+    memory.writeTextSlot(in.output, 0, owner)
+
+    const selected = select({
+        path: owner,
+        index,
+        release
+    })
+
+    const indexed = selected.fallback
+
+    if (indexed != null) {
+        memory.writeTextSlot(in.output, 0, indexed)
+        memory.freeOwnedText(release, owner)
+    }
+
+    return {
+        row: selected.row,
+        named: true
+    }
+}

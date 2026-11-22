@@ -1,0 +1,92 @@
+import memory from "memory"
+
+import {
+    duplicate_package,
+    export_slot,
+    instance_slot,
+    invalid_package_library,
+    invalid_package_source,
+    path_slot,
+    undeclared_package
+} from "../const"
+import direction from "../direction"
+import { PackageShape } from "../model"
+import classify from "../package"
+import resolve from "./path"
+
+import type { PackageRequest as Input, PackageTarget as Output } from "../model"
+
+export default function (in: Input): Output {
+    if (!in.present) {
+        return {
+            issue: undeclared_package
+        }
+    }
+
+    const { entry, members } = in
+
+    if (members == null) {
+        const issue = direction({
+            path: entry,
+            allow_rx: in.allow_rx
+        })
+
+        if (issue != null) {
+            return {
+                issue
+            }
+        }
+    }
+
+    const kind = classify({
+        entry,
+        compiled: members != null,
+        instance: members != null && members.instance.length != 0,
+        artifact: members != null && members.artifact.length != 0,
+        name: members != null && members.name.length != 0
+    })
+
+    if (kind == PackageShape.InvalidSource) {
+        return {
+            issue: invalid_package_source
+        }
+    }
+
+    if (kind == PackageShape.InvalidCompiled) {
+        return {
+            issue: invalid_package_library
+        }
+    }
+
+    if (in.duplicate) {
+        return {
+            issue: duplicate_package
+        }
+    }
+
+    const target = match {
+        members == null => entry,
+        _ => members.artifact
+    }
+
+    const path = resolve({
+        root: in.root,
+        path: target
+    })
+
+    memory.writeTextSlot(in.output, path_slot, path)
+
+    if (members != null) {
+        const instance = memory.copyColumnText(in.release, members.instance)
+
+        memory.writeTextSlot(in.output, instance_slot, instance)
+
+        const name = memory.copyColumnText(in.release, members.name)
+
+        memory.writeTextSlot(in.output, export_slot, name)
+    }
+
+    return {
+        issue: null
+    }
+}

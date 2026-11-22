@@ -1,0 +1,65 @@
+import directoryReference from "../../path/directory"
+import base from "./base"
+import { invalid_extension, invalid_path } from "./const"
+import direction from "./direction"
+import resolve from "./file/resolve"
+import { PathBase } from "./model"
+import stem from "./stem"
+
+import type { FileRequest as Input, FileTarget as Output } from "./model"
+
+export default function (in: Input): Output {
+    const issue = direction({
+        path: in.path,
+        allow_rx: in.allow_rx || !in.check_direction
+    })
+
+    if (issue != null) {
+        return {
+            issue,
+            fallback: false
+        }
+    }
+
+    const source = stem(in.pick([
+        "path",
+        "basename",
+        "extension",
+        "allow_rx"
+    ]))
+
+    const directory = directoryReference(source.pick([
+        "path",
+        "basename"
+    ]))
+
+    const anchor = base({
+        path: source.path,
+        extension: source.extension,
+        directory
+    })
+
+    if (anchor.kind == PathBase.Extension) {
+        return {
+            issue: invalid_extension,
+            fallback: false
+        }
+    }
+
+    if (anchor.kind == PathBase.Invalid) {
+        return {
+            issue: invalid_path,
+            fallback: false
+        }
+    }
+
+    return resolve({
+        context: in.pick([
+            "from",
+            "root"
+        ]),
+        stem: source,
+        base: anchor,
+        directory
+    })
+}

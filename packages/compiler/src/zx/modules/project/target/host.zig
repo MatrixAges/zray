@@ -53,10 +53,10 @@ pub fn classify(path: []const u8) Route {
 }
 
 pub fn resolvePath(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, reporter: *zx.Reporter, span: zx.Span) zx.Error![]const u8 {
-    return (try resolveFile(allocator, from, path, root, false, reporter, span)).path;
+    return (try resolveFile(allocator, from, path, root, false, false, reporter, span)).path;
 }
 
-fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, allow_rx: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!ResolvedFile {
+fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, allow_rx: bool, check_direction: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!ResolvedFile {
     if (comptime enabled) {
         const rule = @import("generated_project_file_target");
 
@@ -67,6 +67,7 @@ fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8,
             .basename = std.fs.path.basename(path),
             .extension = std.fs.path.extension(path).len != 0,
             .allow_rx = allow_rx,
+            .check_direction = check_direction,
         };
 
         const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -74,10 +75,12 @@ fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8,
             else => unreachable,
         };
 
-        try reportPath(result.kind, reporter, span);
+        if (result.issue) |issue| return reporter.fail(.module, span, issue);
 
         return .{ .path = result.path.?, .fallback = result.fallback };
     }
+
+    if (check_direction) try checkImportDirection(allow_rx, path, reporter, span);
 
     const plan = seedFilePlan(path, allow_rx);
 
@@ -164,10 +167,7 @@ fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []
         .File => {
             const allocator = memory.source;
             const root = scope.root(options.root_dir);
-
-            try checkImportDirection(allow_rx, path, reporter, span);
-
-            const file = try resolveFile(allocator, from, path, root, allow_rx, reporter, span);
+            const file = try resolveFile(allocator, from, path, root, allow_rx, true, reporter, span);
 
             if (comptime enabled) return finishFile(keep_row, allocator, file, options.source_index, scope, reporter, span);
 
@@ -203,6 +203,17 @@ fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []
 }
 
 pub fn checkImportDirection(allow_rx: bool, target: []const u8, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {
+    if (comptime enabled) {
+        const rule = @import("generated_project_import_direction");
+        const input: std.meta.Child(rule.Input) = .{ .path = target, .allow_rx = allow_rx };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const issue = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        if (issue) |message| return reporter.fail(.module, span, message);
+
+        return;
+    }
+
     if (!allow_rx and std.mem.endsWith(u8, target, ".rx")) {
         return reporter.fail(.module, span, "ZX cannot import RX modules; compose RX calls in an RX module");
     }
@@ -210,7 +221,7 @@ pub fn checkImportDirection(allow_rx: bool, target: []const u8, reporter: *zx.Re
 
 fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: ResolvedFile, index: ?*const source_index.Map, scope: Scope, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
     const table = if (file.fallback) index orelse &source_index.Map.empty else &source_index.Map.empty;
-    var resolved = file.path;
+    const resolved = file.path;
 
     if (table.buckets.len == 0 and scope.scopes.len == 0) return .{ .target = .{ .source = resolved } };
 
@@ -221,6 +232,7 @@ fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: Resol
 
     const input: std.meta.Child(rule.Input) = .{
         .path = resolved,
+        .release = @ptrCast(&allocator),
         .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },
         .owner = scope.owner,
         .windows = builtin.os.tag == .windows,
@@ -232,24 +244,20 @@ fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: Resol
         else => unreachable,
     };
 
-    if (selected.fallback) |path| {
-        if (selected.row != null) {
-            allocator.free(resolved);
-
-            resolved = path;
-        } else {
-            allocator.free(path);
-        }
-    }
-
-    try Scope.report(selected.boundary, reporter, span);
+    if (selected.issue) |issue| return reporter.fail(.module, span, issue);
 
     const row = if (keep_row) selected.row else null;
 
-    return .{ .target = .{ .source = resolved }, .source_row = if (row) |value| @intCast(value) else null };
+    return .{ .target = .{ .source = selected.path }, .source_row = if (row) |value| @intCast(value) else null };
 }
 
 fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package, selected: registry.Match, allow_rx: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
+    if (comptime enabled) {
+        const package = if (selected.first) |index| &packages[index] else null;
+
+        return resolvePackage(memory, root, package, selected.duplicate, allow_rx, reporter, span);
+    }
+
     const index = selected.first orelse return reporter.fail(.module, span, "ZX package is not declared in the project dependencies");
     const package = &packages[index];
 
@@ -258,14 +266,9 @@ fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package
     const allocator = if (package.compiled != null) memory.compiled else memory.source;
     const artifact = if (package.compiled) |target| target.artifact else null;
 
-    const resolved = if (comptime enabled)
-        try resolvePackage(allocator, root, package, artifact, selected.duplicate, reporter, span)
+    try reportPackage(seedPackageShape(package, selected.duplicate), reporter, span);
 
-    else seed: {
-        try reportPackage(seedPackageShape(package, selected.duplicate), reporter, span);
-
-        break :seed try std.fs.path.resolve(allocator, &.{ root, artifact orelse package.entry });
-    };
+    const resolved = try std.fs.path.resolve(allocator, &.{ root, artifact orelse package.entry });
 
     errdefer allocator.free(resolved);
 
@@ -289,21 +292,31 @@ fn reportPackage(kind: anytype, reporter: *zx.Reporter, span: zx.Span) zx.Error!
     }
 }
 
-fn resolvePackage(allocator: std.mem.Allocator, root: []const u8, package: *const scopes.Package, artifact: ?[]const u8, duplicate: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error![]const u8 {
+fn resolvePackage(memory: Memory, root: []const u8, package: ?*const scopes.Package, duplicate: bool, allow_rx: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
     const rule = @import("generated_project_package_admission");
-    const value = if (package.compiled) |*target| target else null;
+    const compiled_target = if (package) |value| value.compiled else null;
+    const allocator = if (compiled_target != null) memory.compiled else memory.source;
+    var output = [_][]const u8{ "", "", "" };
+
+    errdefer {
+        allocator.free(output[2]);
+        allocator.free(output[1]);
+        allocator.free(output[0]);
+    }
 
     const input: std.meta.Child(rule.Input) = .{
-        .shape = &.{
-            .entry = package.entry,
-            .compiled = value != null,
-            .instance = if (value) |target| target.instance.len != 0 else false,
-            .artifact = if (value) |target| target.artifact.len != 0 else false,
-            .name = if (value) |target| target.name.len != 0 else false,
-        },
+        .present = package != null,
+        .entry = if (package) |value| value.entry else "",
+        .members = if (compiled_target) |value| &.{
+            .instance = value.instance,
+            .artifact = value.artifact,
+            .name = value.name,
+        } else null,
         .duplicate = duplicate,
+        .allow_rx = allow_rx,
         .root = root,
-        .artifact = artifact,
+        .release = @ptrCast(&allocator),
+        .output = &output,
     };
 
     const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -311,9 +324,15 @@ fn resolvePackage(allocator: std.mem.Allocator, root: []const u8, package: *cons
         else => unreachable,
     };
 
-    try reportPackage(result.kind, reporter, span);
+    if (result.issue) |issue| return reporter.fail(.module, span, issue);
 
-    return result.path.?;
+    const path, const instance, const name = output;
+
+    return if (compiled_target == null)
+        .{ .source = path }
+
+    else
+        .{ .compiled = .{ .artifact = path, .instance = instance, .name = name } };
 }
 
 fn seedPackageShape(package: *const scopes.Package, duplicate: bool) SeedShape {

@@ -27,7 +27,6 @@ export default function (in: Input): Output {
 
     if (directory) {
         return {
-            kind: base.kind,
             path: lexical.resolvePathJoined(
                 anchor,
                 trim(stem.path),
@@ -41,7 +40,6 @@ export default function (in: Input): Output {
     const spelling = encoding.sliceBytes(stem.path, base.prefix, stem.path.length)
 
     return {
-        kind: base.kind,
         path: lexical.resolvePathSuffix(anchor, spelling, stem.suffix),
         fallback: !stem.rx
     }

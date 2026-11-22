@@ -1,11 +1,13 @@
 import host from "rx_graph_host"
 
+import {
+    crossed_package,
+    missing_owner
+} from "../../../../../../zx/modules/project/target/const"
 import { Boundary } from "../../../../../../zx/modules/project/target/scope/check"
 import check from "../../../../../../zx/modules/project/target/scope/check"
 import {
-    crossed_package,
     missing_definition,
-    missing_owner,
     missing_source
 } from "./const"
 import position from "./position"
