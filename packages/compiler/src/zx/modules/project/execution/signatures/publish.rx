@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Signatures" />
+
+    <Args in={Signatures.Publication} out={void} />
+
+    <Call
+        fn="index.installProjectSignatureMembers"
+        in={[
+            $in.signature,
+            $in.members + ($in.declared ? 1 : 0)
+        ]}
+    />
+
+    <Call fn="index.mergeProjectSignatureExports" in={$in.signature} />
+
+    <If on={$in.reexports != 0 || $in.members != 0}>
+        <Call fn="index.selectProjectSignatureEntry" in={$in.signature} />
+    </If>
+
+    <Call fn="index.publishProjectSignatureBindings" in={$in.signature} />
+</Module>

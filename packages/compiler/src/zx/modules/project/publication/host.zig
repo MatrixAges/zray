@@ -102,23 +102,10 @@ const Entry = struct {
 
 pub const PublishedEntry = struct { visible_count: usize, recursive: ?ir.FunctionId };
 
-pub fn publishEntry(allocator: std.mem.Allocator, program: *ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) std.mem.Allocator.Error!PublishedEntry {
-    const publication = finalize(program, own, table);
+pub fn publishSeedEntry(allocator: std.mem.Allocator, program: *ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) std.mem.Allocator.Error!PublishedEntry {
+    const publication = finalizeSeed(program, own, table);
 
-    if (publication.body) |id| {
-        const function = table.at(@backingInt(id));
-
-        program.type_only = false;
-        program.input_type = function.input_type;
-        program.output_type = function.output_type;
-        program.output_ownership = function.output_ownership;
-        program.symbols = function.symbols;
-        program.expressions = function.expressions;
-        program.body = function.body;
-        program.contracts = function.contracts;
-        program.stores = function.stores;
-        program.store_mode = function.store_mode;
-    }
+    if (publication.body) |id| installBody(program, table.at(@backingInt(id)));
 
     program.functions = table.prefix(publication.visible_count);
 
@@ -131,35 +118,25 @@ pub fn publishEntry(allocator: std.mem.Allocator, program: *ir.Program, own: ?ir
     return .{ .visible_count = publication.visible_count, .recursive = if (publication.native) null else publication.forward };
 }
 
-fn finalize(program: *const ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) Entry {
+pub fn installBody(program: *ir.Program, function: ir.Function) void {
+    program.type_only = false;
+    program.input_type = function.input_type;
+    program.output_type = function.output_type;
+    program.output_ownership = function.output_ownership;
+    program.symbols = function.symbols;
+    program.expressions = function.expressions;
+    program.body = function.body;
+    program.contracts = function.contracts;
+    program.stores = function.stores;
+    program.store_mode = function.store_mode;
+}
+
+fn finalizeSeed(program: *const ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) Entry {
     const member = if (program.type_only) own else null;
     const row = if (member) |id| @backingInt(id) else null;
     const native = if (row) |index| table.native_modules[index] != null else false;
     const expressions = if (row) |index| table.expressions[index] else &program.expressions;
     const linked = table.count();
-
-    if (comptime enabled) {
-        const generated = @import("generated_project_entry_publish");
-
-        const input: std.meta.Child(generated.Input) = .{
-            .type_only = program.type_only,
-            .own = if (own) |id| @backingInt(id) else null,
-            .native = native,
-            .linked_count = linked,
-            .calls = expressions.call_functions,
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return .{
-            .body = if (result.body) |id| @fromBackingInt(id) else null,
-            .forward = if (result.forward) |id| @fromBackingInt(id) else null,
-            .native = result.native,
-            .visible_count = @intCast(result.visible_count),
-        };
-    }
-
     const recursive = if (own) |id| native or functions.calls(expressions.*, id) else false;
     const count = linked - @intFromBool(!program.type_only and !recursive);
 

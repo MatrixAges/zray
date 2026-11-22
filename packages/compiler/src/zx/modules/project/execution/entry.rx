@@ -4,18 +4,32 @@
     <Args in={Execution.Entry} out={bool} />
 
     <Call
-        fn="entry_prefix"
+        module="entry_publish"
         in={$in.pick([
             "entry",
-            "verified"
+            "plan"
         ])}
     />
 
-    <If on={!$ctx.entry_prefix}>
+    <Call
+        fn="index.validateProjectEntry"
+        in={[
+            $in.entry,
+            $ctx.entry_publish < $in.verified ? $ctx.entry_publish : $in.verified
+        ]}
+    />
+
+    <If on={!$ctx.validateProjectEntry}>
         <Return value={false} />
     </If>
 
-    <Call fn="entry_cache" in={$in.omit(["verified"])} />
+    <Call
+        fn="entry_cache"
+        in={$in.omit([
+            "verified",
+            "plan"
+        ])}
+    />
 
     <Return value={$ctx.entry_cache} />
 </Module>

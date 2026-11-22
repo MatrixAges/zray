@@ -1,0 +1,33 @@
+import host from "project_host"
+
+import type { Batch as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        request: in,
+        slot: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.slot < state.request.entries,
+        next: state => {
+            const { batch, rows, paths, units } = state.request
+            const slot = state.slot
+
+            const row = match {
+                rows != null => rows[slot],
+                _ => host.findProjectSignature(batch, paths[slot])
+            }
+
+            if (row == null || row >= units) {
+                state.valid = false
+            } else {
+                host.loadProjectSignature(batch, row)
+                host.writeProjectSignature(batch, slot, row)
+                state.slot += 1
+            }
+        },
+        return: state => state.valid
+    })
+}

@@ -1,6 +1,7 @@
 import type { U8Buffer } from "memory"
 import type { ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
 import type { Frame } from "../load/model"
+import type { Entry as Publication } from "../publication/model"
 
 export type Load = {
     walk: ProjectWalk,
@@ -26,7 +27,10 @@ export type Body = {
 
 export type Entry = {
     entry: ProjectEntry,
+    plan: Publication,
     verified: u64,
     records: u64,
     root?: u64
 }
+
+export type EntryPublication = Entry.Pick("entry", "plan")

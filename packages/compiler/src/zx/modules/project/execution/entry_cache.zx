@@ -3,7 +3,7 @@ import { CacheWrite } from "project_host"
 
 import type { Entry } from "./model"
 
-export type Input = Entry.Omit("verified")
+export type Input = Entry.Omit("verified", "plan")
 
 export type Output = bool
 

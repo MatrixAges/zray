@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.EntryPublication} out={u64} />
+
+    <Call module="../publication/finalize" in={$in.plan} />
+
+    <If on={$ctx.finalize.body != null}>
+        <Call
+            fn="index.installProjectEntryBody"
+            in={[
+                $in.entry,
+                $ctx.finalize.body
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.exposeProjectEntryFunctions"
+        in={[
+            $in.entry,
+            $ctx.finalize.visible_count
+        ]}
+    />
+
+    <If on={$ctx.finalize.forward != null}>
+        <If on={$ctx.finalize.native}>
+            <Call
+                fn="index.forwardProjectNativeEntry"
+                in={[
+                    $in.entry,
+                    $ctx.finalize.forward
+                ]}
+            />
+
+            <Else>
+                <Call
+                    fn="index.forwardProjectRecursiveEntry"
+                    in={[
+                        $in.entry,
+                        $ctx.finalize.forward
+                    ]}
+                />
+            </Else>
+        </If>
+    </If>
+
+    <Return value={$ctx.finalize.visible_count} />
+</Module>

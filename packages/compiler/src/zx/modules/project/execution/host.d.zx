@@ -2,6 +2,10 @@ export type ProjectWalk = opaque
 
 export type ProjectState = opaque
 
+export type ProjectSignatures = opaque
+
+export type ProjectSignature = opaque
+
 export type ProjectImport = opaque
 
 export type ProjectBody = opaque
@@ -99,6 +103,39 @@ export declare function copyProjectNatives(state: ProjectState): void throws { O
 
 export declare function copyProjectOrigins(state: ProjectState): void throws { OutOfMemory }
 
+export declare function reserveProjectSignatures(batch: ProjectSignatures, count: u64): void
+    throws { OutOfMemory }
+
+export declare function findProjectSignature(batch: ProjectSignatures, path: string): u64?
+    throws { OutOfMemory }
+
+export declare function loadProjectSignature(batch: ProjectSignatures, row: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function writeProjectSignature(
+    batch: ProjectSignatures,
+    slot: u64,
+    row: u64
+): void
+
+export declare function reserveProjectLibraries(batch: ProjectSignatures): u64
+    throws { OutOfMemory }
+
+export declare function writeProjectLibrary(batch: ProjectSignatures, slot: u64): void
+
+export declare function finishProjectSignatures(batch: ProjectSignatures): void
+
+export declare function installProjectSignatureMembers(signature: ProjectSignature, count: u64): void
+    throws { OutOfMemory }
+
+export declare function mergeProjectSignatureExports(signature: ProjectSignature): void
+    throws { OutOfMemory }
+
+export declare function selectProjectSignatureEntry(signature: ProjectSignature): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishProjectSignatureBindings(signature: ProjectSignature): void
+
 export declare function openProjectFrame(walk: ProjectWalk, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
@@ -191,7 +228,14 @@ export declare function registerProjectArtifact(body: ProjectBody): void
 export declare function commitProjectModule(body: ProjectBody): void
     throws { OutOfMemory }
 
-export declare function prepareProjectEntry(entry: ProjectEntry): u64
+export declare function installProjectEntryBody(entry: ProjectEntry, row: u32): void
+
+export declare function exposeProjectEntryFunctions(entry: ProjectEntry, count: u64): void
+
+export declare function forwardProjectNativeEntry(entry: ProjectEntry, row: u32): void
+    throws { OutOfMemory }
+
+export declare function forwardProjectRecursiveEntry(entry: ProjectEntry, row: u32): void
     throws { OutOfMemory }
 
 export declare function validateProjectEntry(entry: ProjectEntry, prefix: u64): bool

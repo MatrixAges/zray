@@ -1,0 +1,21 @@
+import type { ProjectSignature, ProjectSignatures } from "project_host"
+
+export type Batch = {
+    batch: ProjectSignatures,
+    entries: u64,
+    units: u64,
+    rows?: u64[],
+    paths: string[]
+}
+
+export type Libraries = {
+    batch: ProjectSignatures,
+    count: u64
+}
+
+export type Publication = {
+    signature: ProjectSignature,
+    declared: bool,
+    members: u64,
+    reexports: u64
+}

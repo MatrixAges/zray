@@ -153,7 +153,8 @@ pub const Project = struct {
 
         return self.binding_scratch.allocator();
     }
-    fn loadFrames(self: *Project, index: usize, comptime phase: Loading.Phase) zx.Error!void {
+
+    pub fn loadFrames(self: *Project, index: usize, comptime phase: Loading.Phase) zx.Error!void {
         if (comptime generated_parser) return @import("project/execution/load.zig").run(self, index, phase);
 
         return @import("project/load/seed.zig").run(self, index, phase);
@@ -214,13 +215,12 @@ pub const Project = struct {
         self.types = .{};
         defer self.types = types.items;
         unit.signature = try input.signature(&types, frame.constant_imports.items);
+        const publication = @import("project/execution/signatures/module.zig");
 
-        try self.publishSignature(frame, &unit.signature.?);
+        if (comptime generated_parser) return publication.run(self, frame, unit);
+        try self.publishSeedSignature(frame, &unit.signature.?);
 
-        unit.signature_aliases = frame.aliases.items;
-        unit.signature_imports = frame.imports.items;
-        unit.signature_reexports = frame.export_functions.items;
-        unit.signature_constant_imports = frame.constant_imports.items;
+        publication.publishBindings(unit, frame);
     }
 
     pub fn importIntrinsic(self: *Project, frame: *LoadFrame, item: anytype) zx.Error!void {
@@ -311,21 +311,17 @@ pub const Project = struct {
             .has_store = self.functions.stores.items[@backingInt(member.id.?)].count() != 0,
         };
     }
-    fn publishSignature(self: *Project, frame: *LoadFrame, signature: *Signature.Result) zx.Error!void {
+    fn publishSeedSignature(self: *Project, frame: *LoadFrame, signature: *Signature.Result) zx.Error!void {
         const own: usize = @intFromBool(!signature.type_only);
         const forwarded = frame.signature_members.items;
         const native = frame.export_functions.items;
         const members = try self.allocator.alloc(Signature.Member, own + forwarded.len + native.len);
 
-        if (comptime generated_parser) {
-            try Signature.publishMembers(self.allocator, signature, self.functions.stores.items, forwarded, native, members);
-        } else {
-            if (own != 0) members[0] = .{ .name = "", .kind = .callable, .ports = signature.ports, .has_store = signature.has_store };
+        if (own != 0) members[0] = .{ .name = "", .kind = .callable, .ports = signature.ports, .has_store = signature.has_store };
 
-            @memcpy(members[own..][0..forwarded.len], forwarded);
+        @memcpy(members[own..][0..forwarded.len], forwarded);
 
-            for (native, members[own + forwarded.len ..]) |*member, *binding| binding.* = self.memberSignature(member);
-        }
+        for (native, members[own + forwarded.len ..]) |*member, *binding| binding.* = self.memberSignature(member);
 
         signature.exports = try public_exports.merge(ir.Export, self.allocator, signature.exports, frame.export_aliases.items);
         signature.constant_exports = try public_exports.merge(ir.Constant, self.allocator, signature.constant_exports, frame.export_constants.items);
@@ -538,12 +534,7 @@ pub fn analyzePrefetchedSignatures(allocator: std.mem.Allocator, prefetched: Par
     return analyzeSignatureEntries(allocator, prefetched.sources, .{ .rows = entries }, options, prefetched.cache.?, registered, prefetched);
 }
 
-const SignatureEntries = union(enum) {
-    paths: []const []const u8,
-    rows: []const u64,
-};
-
-fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source, entries: SignatureEntries, options: Options, shared: ?*ParseCache, registered: ?*const source_index.Map, prefetched: ?ParseCache.Prefetched) std.mem.Allocator.Error!signature_project.Result {
+fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source, entries: signature_project.Entries, options: Options, shared: ?*ParseCache, registered: ?*const source_index.Map, prefetched: ?ParseCache.Prefetched) std.mem.Allocator.Error!signature_project.Result {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
@@ -591,6 +582,12 @@ fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source
 
     project.options.source_index = registered orelse &project.unit_indices;
 
+    if (comptime generated_parser) {
+        const value = try @import("project/execution/signatures/host.zig").run(&project, entries, registered != null);
+
+        return .{ .arena = arena, .value = value };
+    }
+
     const count = switch (entries) {
         inline else => |items| items.len,
     };
@@ -608,7 +605,7 @@ fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source
             },
         };
 
-        const index = selected orelse return .{ .arena = arena, .value = .{ .diagnostic = .{ .code = .module, .span = .{ .start = 0, .end = 0 }, .message = "signature entry module is missing" } } };
+        const index = selected orelse return .{ .arena = arena, .value = .{ .diagnostic = signature_project.missing_entry } };
 
         project.loadFrames(index, .signature) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;

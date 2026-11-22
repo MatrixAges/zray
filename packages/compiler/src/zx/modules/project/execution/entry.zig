@@ -4,6 +4,7 @@ const Project = @import("../../project.zig").Project;
 const Analysis = @import("../../../analysis/analyze.zig");
 const Validate = @import("../../../ir/validate.zig");
 const publication = @import("../publication/host.zig");
+const functions = @import("../../function_body.zig");
 const cache_publication = @import("../../semantic_cache/publication.zig");
 const generated = @import("parser_options").generated_parser;
 const Status = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".CacheWrite else cache_publication.Status;
@@ -22,15 +23,29 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
     var state: Entry = .{ .project = project, .root = root, .scratch = .init(project.arena.child_allocator) };
 
     defer state.scratch.deinit();
+    prepare(&state);
 
     if (comptime generated) {
         const entry = @import("generated_project_execute_entry");
+        const unit = &project.units[root];
+        const program = &state.result.value.ir;
+        const linked = project.functions.view();
+        const member = if (program.type_only) unit.function else null;
+        const row = if (member) |id| @backingInt(id) else null;
+        const expressions = if (row) |index| linked.expressions[index] else &program.expressions;
 
         const input: std.meta.Child(entry.Input) = .{
             .entry = @ptrCast(&state),
+            .plan = &.{
+                .type_only = program.type_only,
+                .own = if (unit.function) |id| @backingInt(id) else null,
+                .native = if (row) |index| linked.native_modules[index] != null else false,
+                .linked_count = linked.count(),
+                .calls = expressions.call_functions,
+            },
             .verified = project.verified.functions,
             .records = project.cache_records.items.len,
-            .root = if (project.cache_root) |row| row else null,
+            .root = if (project.cache_root) |cache_row| cache_row else null,
         };
 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
@@ -48,9 +63,12 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
 
 fn seed(state: *Entry) std.mem.Allocator.Error!void {
     const project = state.project;
-    const visible = try prepareProjectEntry(state);
+    const unit = &project.units[state.root];
+    const published = try publication.publishSeedEntry(project.allocator, &state.result.value.ir, unit.function, project.functions.view());
 
-    if (!try validateProjectEntry(state, @min(visible, project.verified.functions))) return;
+    state.result.entry_function = published.recursive;
+
+    if (!try validateProjectEntry(state, @min(published.visible_count, project.verified.functions))) return;
 
     for (project.cache_records.items) |index| {
         switch (try storeProjectRecord(state, index, project.cache_root == index)) {
@@ -61,8 +79,7 @@ fn seed(state: *Entry) std.mem.Allocator.Error!void {
     }
 }
 
-pub fn prepareProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
-    const entry = Entry.borrow(handle);
+fn prepare(entry: *Entry) void {
     const project = entry.project;
     const unit = &project.units[entry.root];
     var program = project.entry_program.?;
@@ -70,24 +87,47 @@ pub fn prepareProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!u64
     program.exports = unit.exports;
     program.constant_exports = unit.constants;
     program.native_modules = project.native_modules.view();
-    const published = try publication.publishEntry(project.allocator, &program, unit.function, project.functions.view());
 
     entry.result = .{
-        .arena = project.arena.*,
+        .arena = undefined,
         .value = .{ .ir = program },
         .nominal_types = project.nominal_origins.items.view(),
         .modules = project.modules.items,
         .store_initializers = project.store_initializers.items,
-        .entry_function = published.recursive,
     };
+}
 
-    return published.visible_count;
+pub fn installProjectEntryBody(handle: *const anyopaque, row: u32) void {
+    const entry = Entry.borrow(handle);
+    const body = entry.project.functions.view().at(row);
+
+    publication.installBody(&entry.result.value.ir, body);
+}
+
+pub fn exposeProjectEntryFunctions(handle: *const anyopaque, count: u64) void {
+    const entry = Entry.borrow(handle);
+    entry.result.value.ir.functions = entry.project.functions.view().prefix(@intCast(count));
+}
+
+pub fn forwardProjectNativeEntry(handle: *const anyopaque, row: u32) std.mem.Allocator.Error!void {
+    const entry = Entry.borrow(handle);
+
+    try functions.externalEntry(entry.project.allocator, &entry.result.value.ir, @fromBackingInt(row));
+}
+
+pub fn forwardProjectRecursiveEntry(handle: *const anyopaque, row: u32) std.mem.Allocator.Error!void {
+    const entry = Entry.borrow(handle);
+    const id: zx.ir.FunctionId = @fromBackingInt(row);
+
+    try functions.entry(entry.project.allocator, &entry.result.value.ir, id);
+
+    entry.result.entry_function = id;
 }
 
 pub fn validateProjectEntry(handle: *const anyopaque, prefix: u64) std.mem.Allocator.Error!bool {
     const entry = Entry.borrow(handle);
     const project = entry.project;
-
+    entry.result.arena = project.arena.*;
     project.verified.functions = @intCast(prefix);
 
     if (try Validate.validateProjectPrefix(project.arena.child_allocator, entry.result.value.ir, project.verified)) |issue| {
@@ -110,7 +150,7 @@ pub fn storeProjectRecord(handle: *const anyopaque, index: u64, root: bool) std.
 
     if (status == .Invalid) entry.result = .{ .arena = project.arena.*, .value = .{ .diagnostic = cache_publication.invalid } };
 
-    return @enumFromInt(@intFromEnum(status));
+    return @fromBackingInt(@intCast(@backingInt(status)));
 }
 
 pub fn recordMissingOrigin(handle: *const anyopaque) void {

@@ -2,6 +2,12 @@ const std = @import("std");
 const zx = @import("zx");
 const Origins = @import("nominal_origins.zig");
 pub const Ports = @import("source_signature.zig").Ports;
+pub const missing_entry: zx.Diagnostic = .{ .code = .module, .span = .{ .start = 0, .end = 0 }, .message = "signature entry module is missing" };
+
+pub const Entries = union(enum) {
+    paths: []const []const u8,
+    rows: []const u64,
+};
 
 pub const Module = struct {
     path: []const u8,
