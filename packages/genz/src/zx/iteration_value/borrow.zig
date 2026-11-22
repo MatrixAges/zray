@@ -36,15 +36,9 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
         else => unreachable,
     };
 
-    const layouts = try buffered.allocator().alloc(u32, plan.types.len);
-
-    for (plan.types, plan.kinds, layouts, 0..) |type_id, kind, *target, index| {
-        const selected: ir.TypeId = @fromBackingInt(type_id);
-        const layout = if (index == 0) root_layout else try lowering.layoutExpr(selected);
-
-        target.* = @backingInt(if (kind == .Optional) try lowering.typeExpr(selected) else layout);
-    }
-
+    const resources = @import("resources.zig");
+    const Layouts = @FieldType(std.meta.Child(@import("generated_resolve_iteration_resources").Input), "borrowed");
+    const layouts = try resources.layouts(self, buffered.allocator(), plan.types, root_layout, .{ .borrowed = zx.columns.slice(Layouts, plan.kinds) });
     const emitter = @import("generated_iteration_borrow_emit");
     const EmitInput = std.meta.Child(emitter.Input);
 

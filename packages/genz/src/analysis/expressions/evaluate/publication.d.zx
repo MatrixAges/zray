@@ -17,3 +17,17 @@ export declare function appendAstFields(target: AstPublication): void
     throws { OutOfMemory }
 
 export declare function finishAstPublication(target: AstPublication): void
+
+export declare function registerCallReference(target: CallAstPublication): void
+    throws { OutOfMemory }
+
+export declare function publishCallExpressions(
+    target: CallAstPublication,
+    function_name: u64?,
+    operand_name: u64?
+): void throws { OutOfMemory }
+
+export declare function publishCallBody(target: CallAstPublication): void
+    throws { OutOfMemory }
+
+export declare function finishCallPublication(target: CallAstPublication): void

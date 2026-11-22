@@ -1,0 +1,75 @@
+import host from "lowering_host"
+import { IterationResource } from "lowering_host"
+import memory from "memory"
+
+import { Operation as Borrow } from "../borrow/model"
+import { Operation } from "../conversion/model"
+import { Requirement } from "../conversion/output/model"
+import { Mode } from "./model"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, mode, operands } = in
+
+    const base_kind = match mode {
+        Mode.Input => IterationResource.IterationType,
+        Mode.Leaves => IterationResource.NativeType,
+        _ => IterationResource.NativeLayout
+    }
+
+    const resolved = loop(0, {
+        while: row => row < in.types.length,
+        next: row => {
+            const id = in.types[row]
+            const base = match {
+                row == 0 && mode != Mode.Leaves => in.root,
+                _ => host.materializeIterationResource(frame, id, base_kind)
+            }
+
+            const optional = match mode {
+                Mode.Borrow => in.borrowed[row] == Borrow.Optional,
+                Mode.Returned => in.requirements[row] == Requirement.OptionalType,
+                _ => false
+            }
+
+            const layout = match {
+                optional =>
+                    host.materializeIterationResource(
+                        frame,
+                        id,
+                        IterationResource.NativeType
+                    ),
+                _ => base
+            }
+
+            memory.writeU32(in.layouts, row, layout)
+
+            if (operands != null) {
+                const kind = match mode {
+                    Mode.Input => match in.operations[row] {
+                        Operation.Buffer => IterationResource.IterationItem,
+                        _ => IterationResource.None
+                    },
+                    _ => match in.requirements[row] {
+                        Requirement.HeapType => IterationResource.NativeType,
+                        Requirement.ReferenceLayout => IterationResource.StateLayout,
+                        Requirement.Unsupported => IterationResource.Invalid,
+                        _ => IterationResource.None
+                    }
+                }
+
+                const value = match kind {
+                    IterationResource.None => 0,
+                    _ => host.materializeIterationResource(frame, id, kind)
+                }
+
+                memory.writeU32(operands, row, value)
+            }
+
+            row += 1
+        }
+    })
+}

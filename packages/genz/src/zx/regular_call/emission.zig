@@ -43,12 +43,10 @@ pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
     const output = entry.executeIn(temporary, &input) catch |err| return reference.failure(err);
 
     if (!output.valid) return error.OutOfMemory;
-    if (output.request) try self.function_requests.add(self.allocator, request.function, .regular);
-    try reference.publish(self, temporary, output.nodes, output.request);
 
-    self.uses_allocator = true;
-    self.uses_io = self.uses_io or request.io;
-    self.uses_process = self.uses_process or request.process;
-
-    return @fromBackingInt(output.root);
+    return @import("../invocation/publication.zig").write(self, .{ .id = request.function, .variant = .regular }, .{ .regular = .{
+        .output = output,
+        .io = request.io,
+        .process = request.process,
+    } });
 }

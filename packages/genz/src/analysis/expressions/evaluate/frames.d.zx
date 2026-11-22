@@ -153,3 +153,17 @@ export enum StoredType {
     StateLayout,
     ViewType
 }
+
+export type IterationResourceFrame = opaque
+
+export enum IterationResource {
+    None,
+    IterationType,
+    IterationItem,
+    NativeLayout,
+    NativeType,
+    StateLayout,
+    Invalid
+}
+
+export type CallAstPublication = opaque

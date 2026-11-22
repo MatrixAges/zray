@@ -1,0 +1,10 @@
+import type { CallAstPublication } from "lowering_host"
+
+export type Input = {
+    target: CallAstPublication,
+    request: bool,
+    value_call: bool,
+    identifiers: u64,
+    operand?: u64,
+    body: bool
+}

@@ -40,24 +40,7 @@ pub fn lower(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error!n
     const temporary = memory.allocator();
     const output = entry.executeIn(temporary, &input) catch |err| return failure(err);
 
-    if (output.request) try self.function_requests.add(self.allocator, id, variant);
-    try publish(self, temporary, output.nodes, output.request);
-
-    return @fromBackingInt(output.root);
-}
-
-/// Generated function names are temporary; module paths and ABI member names already outlive the body.
-pub fn publish(self: *Lower, scratch: std.mem.Allocator, source: anytype, owns_name: bool) Lower.Error!void {
-    var rows = source.*;
-
-    if (owns_name) {
-        const names = try scratch.dupe([]const u8, rows.identifier);
-        const last = names.len - 1;
-        names[last] = try self.allocator.dupe(u8, names[last]);
-        rows.identifier = names;
-    }
-
-    @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &rows) catch |err| return failure(err);
+    return @import("../invocation/publication.zig").write(self, .{ .id = id, .variant = variant }, .{ .reference = output });
 }
 
 pub fn failure(err: anyerror) Lower.Error {

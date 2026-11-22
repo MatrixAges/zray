@@ -1,0 +1,30 @@
+import type { IterationResourceFrame } from "lowering_host"
+import type { U32Buffer } from "memory"
+import type { Operation as Borrow } from "../borrow/model"
+import type { Operation } from "../conversion/model"
+import type { Requirement } from "../conversion/output/model"
+
+export enum Mode {
+    Borrow,
+    Input,
+    Returned,
+    Leaves
+}
+
+export type Input = {
+    frame: IterationResourceFrame,
+    mode: Mode,
+    root: u32,
+    types: u32[],
+    borrowed: Borrow[],
+    operations: Operation[],
+    requirements: Requirement[],
+    layouts: U32Buffer,
+    operands?: U32Buffer
+}
+
+export type Cache = {
+    frame: IterationResourceFrame,
+    types: u32[],
+    values: u32[]
+}

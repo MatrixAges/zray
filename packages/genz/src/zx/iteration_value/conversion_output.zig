@@ -55,7 +55,8 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const serial = self.serial;
     const declarations = context.declarations.last;
     const storage = self.referenceBatches();
-    const resources = try emission.prepareResources(context, temporary, plan.types, prepared.requirements, root_layout, .returned);
+    const Requirements = @FieldType(std.meta.Child(@import("generated_resolve_iteration_resources").Input), "requirements");
+    const resources = try @import("resources.zig").conversion(context, temporary, plan.types, root_layout, .{ .returned = zx.columns.slice(Requirements, prepared.requirements) });
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last) and storage == self.referenceBatches());
 

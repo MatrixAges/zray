@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <If on={$in.request}>
+        <Call fn="index.registerCallReference" in={$in.target} />
+    </If>
+
+    <Call fn="expressions" in={$in} />
+
+    <If on={$in.body}>
+        <Call fn="index.publishCallBody" in={$in.target} />
+    </If>
+
+    <Call fn="index.finishCallPublication" in={$in.target} />
+</Module>

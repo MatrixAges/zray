@@ -5,7 +5,6 @@ const Lower = @import("../lower.zig");
 const policy = @import("policy.zig");
 const reference = @import("../functions/reference.zig");
 const Variant = @import("../functions/requests.zig").Variant;
-const view = @import("../../node/view.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const entry = @import("generated_value_call_emit");
 const Input = std.meta.Child(entry.Input);
@@ -64,38 +63,11 @@ pub fn emit(self: *Lower, body: ?*Sequence, arguments: Arguments) Lower.Error!no
     const output = entry.executeIn(allocator, &input) catch |err| return failure(err);
 
     if (!output.context.valid) return error.OutOfMemory;
-    if (output.request) try self.function_requests.add(self.allocator, arguments.function.?, variant);
 
-    var expressions = output.context.expressions.*;
-    var selected_body = output.body.*;
-    const name = if (output.name.len == 0) &.{} else try self.allocator.dupe(u8, output.name);
-    const names = [_][]const u8{name};
-
-    if (output.request or name.len != 0) {
-        const identifiers = try allocator.dupe([]const u8, expressions.identifier);
-
-        if (output.request) identifiers[0] = try self.allocator.dupe(u8, identifiers[0]);
-        if (name.len != 0) identifiers[@intCast(output.name_index)] = name;
-
-        expressions.identifier = identifiers;
-    }
-
-    if (name.len != 0 and selected_body.constant_name.len != 0) selected_body.constant_name = &names;
-
-    const joined = view.join(expressions, output.context.forms.*);
-
-    @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &joined) catch |err| return failure(err);
-
-    if (selected_body.tags.len != 0) {
-        const local = view.join(selected_body, output.context.variables.*);
-
-        @import("../../node/import_statements.zig").appendSelectedBorrowingText(self.allocator, body.?, &local) catch |err| return failure(err);
-    }
-
-    self.serial = @intCast(output.context.serial);
-    self.uses_allocator = self.uses_allocator or output.uses_allocator;
-
-    return @fromBackingInt(output.root);
+    return @import("../invocation/publication.zig").write(self, if (arguments.function) |id| .{ .id = id, .variant = variant } else null, .{ .value = .{
+        .output = output,
+        .body = body,
+    } });
 }
 
 fn failure(err: anyerror) Lower.Error {

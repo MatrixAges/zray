@@ -6,3 +6,15 @@ export declare function materializeType(
 
 export declare function loweringOrigin(frame: Lowering, id: u32): u8[]
     throws { OutOfMemory }
+
+export declare function materializeIterationResource(
+    frame: IterationResourceFrame,
+    id: u32,
+    resource: IterationResource
+): u32 throws { OutOfMemory }
+
+export declare function cacheIterationType(
+    frame: IterationResourceFrame,
+    id: u32,
+    value: u32
+): void throws { OutOfMemory }

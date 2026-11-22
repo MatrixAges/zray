@@ -41,12 +41,8 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         else => unreachable,
     };
 
-    const prepared = try buffered.allocator().alloc(u32, plan.leaves.len);
-
-    for (plan.leaves, prepared) |leaf, *value| {
-        value.* = @backingInt(try lowering.typeExpr(@fromBackingInt(leaf)));
-    }
-
+    const resources = @import("resources.zig");
+    const prepared = try resources.layouts(self, buffered.allocator(), plan.leaves, @fromBackingInt(0), .leaves);
     const emitter = @import("generated_iteration_types_emit");
     const EmitInput = std.meta.Child(emitter.Input);
 
@@ -83,9 +79,7 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         error.InvalidAst => unreachable,
     };
 
-    for (output.cache_types, output.cache_values) |type_id, value| {
-        try self.types.put(lowering.allocator, @fromBackingInt(type_id), @fromBackingInt(value));
-    }
+    try resources.publish(self, output.cache_types, output.cache_values);
 
     lowering.serial = output.serial;
 
