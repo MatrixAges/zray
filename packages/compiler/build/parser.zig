@@ -82,6 +82,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host" },
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
         .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host" },
+        .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host" },
     };
 
     const host_interfaces = interfaces ++ [_]manifest.Interface{

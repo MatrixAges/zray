@@ -1,0 +1,23 @@
+import type { SymbolicProgram, ParameterTarget } from "verification_program_host"
+import type { Ports } from "../program/model"
+
+export type Input = {
+    program: SymbolicProgram,
+    target: ParameterTarget,
+    types: Ports,
+    type_id: u32,
+    path: string,
+    proof: bool
+}
+
+export type Leaf = Input.Omit("types") & {
+    width: u64,
+    members: u64
+}
+
+export type Declaration = {
+    program: SymbolicProgram,
+    index: u64,
+    width: u64,
+    members: u64
+}

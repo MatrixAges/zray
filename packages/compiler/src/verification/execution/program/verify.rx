@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Program" />
+
+    <Args in={Program.Entry} out={void} />
+
+    <Call
+        fn="prepare"
+        in={{
+            ...$in,
+            proof: true
+        }}
+    />
+
+    <Call
+        fn="preconditions"
+        in={{
+            program: $in.program,
+            called: false
+        }}
+    />
+
+    <Call
+        fn="body"
+        in={{
+            program: $in.program,
+            called: false,
+            path: $ctx.preconditions
+        }}
+    />
+
+    <Call
+        fn="publish"
+        in={{
+            program: $in.program,
+            called: false,
+            path: $ctx.preconditions
+        }}
+    />
+</Module>

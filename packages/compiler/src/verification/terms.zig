@@ -37,7 +37,11 @@ pub fn integer(target: ir.Type) ?Integer {
 }
 
 pub fn enumWidth(target: ir.Type) u16 {
-    return @max(1, std.math.log2_int_ceil(usize, target.enumeration.members.len));
+    return enumWidthForCount(target.enumeration.members.len);
+}
+
+pub fn enumWidthForCount(count: usize) u16 {
+    return @max(1, std.math.log2_int_ceil(usize, count));
 }
 
 /// A width of zero denotes an SMT Bool. Enumeration members share their bit-vector sort.

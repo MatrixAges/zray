@@ -1,0 +1,35 @@
+import type { Table } from "core/type_table/model"
+import type { SymbolicProgram, ParameterTarget } from "verification_program_host"
+
+export type Ports = Table.Pick(
+    "kinds",
+    "first",
+    "second",
+    "children",
+    "field_types",
+    "field_names"
+)
+
+export type Entry = {
+    program: SymbolicProgram,
+    target: ParameterTarget,
+    types: Ports,
+    input: u32,
+    type_only: bool,
+    stores: u64
+}
+
+export type Prepare = Entry & {
+    proof: bool
+}
+
+export type Precondition = {
+    program: SymbolicProgram,
+    called: bool
+}
+
+export type Body = Precondition & {
+    path: string
+}
+
+export type Called = SymbolicProgram

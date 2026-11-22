@@ -1,0 +1,68 @@
+export type SymbolicProgram = opaque
+
+export type ParameterTarget = opaque
+
+export declare function symbolicParameterField(
+    target: ParameterTarget,
+    index: u64
+): ParameterTarget
+
+export declare function ensureSymbolicGraph(program: SymbolicProgram): void
+    throws { OutOfMemory }
+
+export declare function beginSymbolicCall(program: SymbolicProgram): void
+
+export declare function rejectSymbolicProgram(program: SymbolicProgram, message: string): void
+    throws { InvalidSource }
+
+export declare function symbolicProgramPreconditions(
+    program: SymbolicProgram,
+    called: bool
+): string throws { OutOfMemory, InvalidSource }
+
+export declare function markSymbolicQueryPrefix(program: SymbolicProgram): void
+
+export declare function runSymbolicProgramBody(program: SymbolicProgram, path: string): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function symbolicProgramReturnsUnit(program: SymbolicProgram): bool
+
+export declare function checkSymbolicUnit(program: SymbolicProgram, path: string): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function appendSymbolicUnit(program: SymbolicProgram, path: string): void
+    throws { OutOfMemory }
+
+export declare function publishSymbolicQuery(program: SymbolicProgram, path: string): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function hasSymbolicReturns(program: SymbolicProgram): bool
+
+export declare function rejectSymbolicReturn(program: SymbolicProgram, message: string): void
+    throws { InvalidSource }
+
+export declare function publishSymbolicProgramResult(program: SymbolicProgram): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveSymbolicParameter(
+    program: SymbolicProgram,
+    target: ParameterTarget,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function symbolicEnumWidth(members: u32): u64
+
+export declare function symbolicScalarWidth(scalar: u32): u64
+
+export declare function symbolicPortCount(program: SymbolicProgram): u64
+
+export declare function appendSymbolicDeclaration(program: SymbolicProgram, text: string): void
+    throws { OutOfMemory }
+
+export declare function publishSymbolicParameter(
+    program: SymbolicProgram,
+    target: ParameterTarget,
+    type_id: u32,
+    path: string,
+    symbol: string
+): void throws { OutOfMemory }

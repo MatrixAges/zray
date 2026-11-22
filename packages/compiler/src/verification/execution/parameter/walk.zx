@@ -1,0 +1,76 @@
+import integers from "std:integer"
+import { max_u64 } from "core/const"
+import { scalar_void } from "core/type_table/const"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+import host from "verification_program_host"
+
+import fieldPath from "../../ports/path"
+import leaf from "./leaf"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function walk(in: Input): Output {
+    const { program, target, types, type_id, path, proof } = in
+
+    const row = integers.widen(type_id)
+    const shape = kind(types.kinds[row])
+    const start = types.first[row]
+
+    if (shape == Kind.Object || shape == Kind.Tuple) {
+        const first = integers.widen(start)
+        const count = integers.widen(types.second[row])
+        const object = shape == Kind.Object
+        const children = object ? types.field_types : types.children
+
+        host.reserveSymbolicParameter(program, target, count)
+
+        const finished = loop(0, {
+            while: index => index < count,
+            next: index => {
+                const label: string? = match object {
+                    true => types.field_names[first + index],
+                    _ => null
+                }
+                const child_path = fieldPath({
+                    parent: path,
+                    field: label,
+                    index
+                })
+
+                walk({
+                    program,
+                    target: host.symbolicParameterField(target, index),
+                    types,
+                    type_id: children[first + index],
+                    path: child_path,
+                    proof
+                })
+                index += 1
+            }
+        })
+
+        return
+    }
+
+    if (shape == Kind.Scalar && start == scalar_void) {
+        host.reserveSymbolicParameter(program, target, 0)
+
+        return
+    }
+
+    leaf({
+        ...in.omit(["types"]),
+        width: match shape {
+            Kind.Enumeration => host.symbolicEnumWidth(types.second[row]),
+            Kind.Scalar => host.symbolicScalarWidth(start),
+            _ => max_u64
+        },
+        members: match shape {
+            Kind.Enumeration => integers.widen(types.second[row]),
+            _ => 0
+        }
+    })
+}

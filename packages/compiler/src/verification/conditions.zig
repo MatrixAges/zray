@@ -9,6 +9,7 @@ const Self = @This();
 const Graph = @import("graph.zig");
 const generated = @import("parser_options").generated_parser;
 const execution = @import("execution/context.zig");
+const workflow = @import("execution/program.zig");
 
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
@@ -29,6 +30,7 @@ pub const Query = struct { feasibility: []const u8, correctness: []const u8, inp
 pub const Model = struct { inputs: []const Input, output: terms.Evaluation, definitions: Graph.Definitions.Slice };
 
 pub fn model(self: *Self, port_allocator: std.mem.Allocator) zx.Error!Model {
+    if (comptime generated) return workflow.model(self, port_allocator);
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "symbolic execution requires a pure executable function without Store capabilities");
 
     self.input = try self.parameter(self.program.input_type, "in", port_allocator, .hardware);
@@ -38,6 +40,7 @@ pub fn model(self: *Self, port_allocator: std.mem.Allocator) zx.Error!Model {
 }
 
 pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.mem.Allocator) zx.Error!Query {
+    if (comptime generated) return workflow.generate(self, result_allocator, scratch);
     try self.ensureGraph();
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification requires an executable pure function without Store capabilities");
 
@@ -272,8 +275,6 @@ pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Err
 const Boundary = enum { entry, called };
 
 fn preconditions(self: *Self, comptime boundary: Boundary) zx.Error![]const u8 {
-    if (comptime generated) return execution.apply(self, if (boundary == .entry) .Entry else .Called, "true", null);
-
     var path: []const u8 = "true";
 
     for (0..self.program.contracts.count()) |contract_index| {
@@ -341,7 +342,7 @@ pub fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {
     return self.graph.?.bind(value, 0, .{ .file_name = self.program.file_name, .span = .{ .start = 0, .end = 0 } });
 }
 
-fn ensureGraph(self: *Self) zx.Error!void {
+pub fn ensureGraph(self: *Self) std.mem.Allocator.Error!void {
     if (self.graph != null) return;
 
     const graph = try self.allocator.create(Graph);
@@ -350,6 +351,8 @@ fn ensureGraph(self: *Self) zx.Error!void {
 }
 
 pub fn call(self: *Self) zx.Error!terms.Evaluation {
+    if (comptime generated) return workflow.call(self);
+
     try self.ensureGraph();
 
     const checkpoint = self.scratch.checkpoint();
@@ -373,7 +376,6 @@ pub fn call(self: *Self) zx.Error!terms.Evaluation {
     }
 
     if (self.returns.items.len == 0) return self.reporter.fail(.contract, .{ .start = 0, .end = 0 }, "verified call has no return value");
-    if (comptime generated) return execution.merge(self);
 
     var value = self.returns.items[0].value;
     var returned: []const u8 = "false";

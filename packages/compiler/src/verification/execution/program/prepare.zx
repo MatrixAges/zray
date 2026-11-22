@@ -1,0 +1,31 @@
+import host from "verification_program_host"
+
+import parameter from "../parameter/walk"
+import { hardware_requires_body, root_path, verification_requires_body } from "./const"
+
+import type { Prepare as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { program, type_only, stores, proof } = in
+
+    if (proof) {
+        host.ensureSymbolicGraph(program)
+    }
+
+    if (type_only || stores != 0) {
+        const message = proof ? verification_requires_body : hardware_requires_body
+
+        host.rejectSymbolicProgram(program, message)
+    }
+
+    parameter({
+        program,
+        target: in.target,
+        types: in.types,
+        type_id: in.input,
+        path: root_path,
+        proof
+    })
+}

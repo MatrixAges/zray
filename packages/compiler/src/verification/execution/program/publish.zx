@@ -1,0 +1,23 @@
+import host from "verification_program_host"
+
+import { no_return } from "./const"
+
+import type { Body as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { program, called, path } = in
+
+    if (!called) {
+        host.publishSymbolicQuery(program, path)
+
+        return
+    }
+
+    if (!host.hasSymbolicReturns(program)) {
+        host.rejectSymbolicReturn(program, no_return)
+    }
+
+    host.publishSymbolicProgramResult(program)
+}

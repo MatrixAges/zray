@@ -1,0 +1,22 @@
+import host from "verification_program_host"
+
+import type { Precondition as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { program, called } = in
+
+    if (called) {
+        host.ensureSymbolicGraph(program)
+        host.beginSymbolicCall(program)
+    }
+
+    const path = host.symbolicProgramPreconditions(program, called)
+
+    if (!called) {
+        host.markSymbolicQueryPrefix(program)
+    }
+
+    return path
+}

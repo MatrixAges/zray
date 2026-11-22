@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Program" />
+
+    <Args in={Program.Entry} out={void} />
+
+    <Call
+        fn="prepare"
+        in={{
+            ...$in,
+            proof: false
+        }}
+    />
+
+    <Call module="call" in={$in.program} />
+</Module>

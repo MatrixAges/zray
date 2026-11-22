@@ -1,0 +1,19 @@
+import host from "verification_program_host"
+
+import type { Body as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { program, path, called } = in
+
+    const remaining = host.runSymbolicProgramBody(program, path)
+
+    if (host.symbolicProgramReturnsUnit(program)) {
+        host.checkSymbolicUnit(program, remaining)
+
+        if (called) {
+            host.appendSymbolicUnit(program, remaining)
+        }
+    }
+}
