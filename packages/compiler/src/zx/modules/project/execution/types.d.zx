@@ -12,6 +12,10 @@ export type ProjectEntry = opaque
 
 export type ProjectNative = opaque
 
+export type ProjectNativeRegistry = opaque
+
+export type ProjectExternalBindings = opaque
+
 export type CompiledImport = opaque
 
 export type CompiledUnit = opaque

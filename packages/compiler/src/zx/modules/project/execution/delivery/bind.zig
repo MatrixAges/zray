@@ -1,18 +1,55 @@
 const zx = @import("zx");
 const Frame = @import("frame.zig");
 const Binding = @import("../../../binding.zig");
+const Native = @import("../native.zig");
 const Signature = @import("../../../source_signature.zig");
 
-pub fn bindProjectNative(handle: *const anyopaque) zx.Error!void {
+pub fn reuseProjectNativeUnit(handle: *const anyopaque) bool {
+    const frame = Frame.borrow(handle);
+    const project = frame.walk.project;
+    const native = frame.route.interface.native;
+    const key = native.key();
+
+    frame.dependency = .native;
+    frame.identity = key;
+    const unit = project.native_units.get(key) orelse return false;
+
+    frame.imported = .{ .exports = unit.exports, .members = unit.members };
+
+    return true;
+}
+
+pub fn registerProjectNativeUnit(handle: *const anyopaque) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const native = frame.route.interface.native;
 
-    switch (frame.item) {
-        inline else => |item| try frame.walk.project.importNative(frame.active, native.*, item),
-    }
+    const span = switch (frame.item) {
+        inline else => |item| item.span,
+    };
 
-    frame.dependency = .native;
-    frame.identity = native.key();
+    const id = try Native.register(frame.walk.project, native.specifier, native.identity, native.module, span);
+
+    return @backingInt(id);
+}
+
+pub fn loadProjectNativeUnit(handle: *const anyopaque, row: u32) zx.Error!void {
+    const frame = Frame.borrow(handle);
+
+    const span = switch (frame.item) {
+        inline else => |item| item.span,
+    };
+
+    const loaded = try Native.load(frame.walk.project, frame.route.interface.native, @fromBackingInt(row), span);
+
+    frame.imported = .{ .exports = loaded.exports, .members = loaded.members };
+}
+
+pub fn rememberProjectNativeUnit(handle: *const anyopaque, row: u32) error{OutOfMemory}!void {
+    const frame = Frame.borrow(handle);
+    const project = frame.walk.project;
+    const key = project.native_modules.at(row).key();
+
+    try project.native_units.put(project.allocator, key, .{ .exports = frame.imported.exports, .members = frame.imported.members });
 }
 
 pub fn bindProjectLegacy(handle: *const anyopaque) zx.Error!void {
@@ -22,19 +59,15 @@ pub fn bindProjectLegacy(handle: *const anyopaque) zx.Error!void {
     const first = frame.route.interface.legacy;
 
     switch (frame.item) {
-        inline else => |item| try project.importExternal(externals, first, item, &frame.active.imports),
+        inline else => |item| try @import("../legacy.zig").bind(project, externals, first, item, &frame.active.imports),
     }
 
     frame.dependency = .external;
 }
 
-pub fn bindProjectIntrinsic(handle: *const anyopaque) zx.Error!void {
+pub fn prepareProjectIntrinsic(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
-
-    switch (frame.item) {
-        inline else => |item| try frame.walk.project.importIntrinsic(frame.active, item),
-    }
-
+    frame.imported = .{ .exports = &.{}, .members = &@import("../../../intrinsic.zig").exports };
     frame.dependency = .intrinsic;
 }
 
@@ -58,7 +91,12 @@ pub fn selectProjectBindings(handle: *const anyopaque, signature: bool) zx.Error
     const imported = &frame.imported;
 
     const symbols: Binding.Symbols = .{
-        .target = if (signature or frame.dependency == .source) .source else .compiled,
+        .target = if (signature) .source else switch (frame.dependency) {
+            .source => .source,
+            .compiled => .compiled,
+            .native, .intrinsic => .native,
+            .external => unreachable,
+        },
         .types = project.types.view(),
         .exports = imported.exports,
         .constants = imported.constant_exports,

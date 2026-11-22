@@ -91,17 +91,6 @@ fn seedNative(scoped: []const Native, name: []const u8, check_duplicates: bool) 
 }
 
 pub fn registration(modules: zx.ir.NativeModuleTable, identity: []const u8, name: []const u8) Registration {
-    if (comptime enabled) {
-        const generated = @import("generated_project_interface_register");
-        const Input = std.meta.Child(generated.Input);
-        const table = zx.columns.columns(std.meta.Child(@FieldType(Input, "modules")), modules);
-        const input: Input = .{ .modules = &table, .identity = identity, .name = name };
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-        const result = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
-
-        return .{ .valid = result.valid, .existing = result.existing, .id = if (result.id) |id| @fromBackingInt(id) else null };
-    }
-
     if (name.len == 0 or std.mem.indexOfScalar(u8, name, 0) != null or !std.unicode.utf8ValidateSlice(name)) return .{ .valid = false };
 
     for (0..modules.count()) |index| {

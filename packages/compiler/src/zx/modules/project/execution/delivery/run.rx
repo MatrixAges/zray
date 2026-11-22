@@ -28,7 +28,7 @@
 
     <Switch on={$ctx.routeProjectImport}>
         <Case value={Host.ProjectImportRoute.Native}>
-            <Call fn="index.bindProjectNative" in={$in.frame} />
+            <Call module="native" in={$in.omit(["completed"])} />
         </Case>
 
         <Case value={Host.ProjectImportRoute.Legacy}>
@@ -36,7 +36,9 @@
         </Case>
 
         <Case value={Host.ProjectImportRoute.Intrinsic}>
-            <Call fn="index.bindProjectIntrinsic" in={$in.frame} />
+            <Call fn="index.prepareProjectIntrinsic" in={$in.frame} />
+
+            <Call module="bind_native" in={$in.omit(["completed"])} />
         </Case>
 
         <Default>

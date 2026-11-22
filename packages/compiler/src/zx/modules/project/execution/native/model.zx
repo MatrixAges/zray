@@ -1,5 +1,6 @@
+import type { Modules } from "core/native_module_table/model"
 import type { ColumnLengths, U8Buffer } from "memory"
-import type { ProjectNative } from "project_host"
+import type { ProjectNative, ProjectNativeRegistry } from "project_host"
 
 export type Verification = {
     functions: ColumnLengths,
@@ -9,5 +10,18 @@ export type Verification = {
 export type Import = {
     frame: ProjectNative,
     cached: bool,
+    verified: Verification
+}
+
+export type Names = {
+    specifier: string,
+    identity?: string,
+    import_name: string
+}
+
+export type Registration = {
+    registry: ProjectNativeRegistry,
+    modules: Modules,
+    names: Names,
     verified: Verification
 }

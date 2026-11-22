@@ -105,11 +105,11 @@ fn visitImport(self: *Project, frame: *LoadFrame, header: anytype, import_row: u
             .interface => |resolved| {
                 switch (resolved) {
                     .native => |entry| {
-                        try self.importNative(frame, entry.*, item);
+                        try self.importNativeSeed(frame, entry.*, item);
                         if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
                     },
                     .legacy => |first| {
-                        try self.importExternal(externals, first, item, &frame.imports);
+                        try self.importExternalSeed(externals, first, item, &frame.imports);
                         if (phase == .body) try self.rememberImport(frame, item, .external, null);
                     },
                     .duplicate => return self.reporter.fail(.module, item.span, "duplicate native interface module"),

@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Binding} out={void} />
+
+    <Call
+        fn="index.selectProjectBindings"
+        in={[
+            $in.frame,
+            false
+        ]}
+    />
+
+    <Call
+        fn="index.publishProjectBindings"
+        in={[
+            $in.frame,
+            $in.exported,
+            true
+        ]}
+    />
+</Module>

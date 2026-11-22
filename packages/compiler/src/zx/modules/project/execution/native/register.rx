@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Native" />
+    <Type from="../../target/interface/registry_slot" as="Slot" />
+
+    <Args in={Native.Registration} out={Slot.Output} />
+
+    <Call
+        module="../../target/interface/register"
+        in={{
+            modules: $in.modules,
+            identity: $in.names.identity ?? $in.names.specifier,
+            name: $in.names.import_name
+        }}
+    />
+
+    <If on={$ctx.register.valid && !$ctx.register.existing && $ctx.register.id != null}>
+        <Call fn="own_names" in={$in.names} />
+
+        <Call
+            fn="publication.appendProjectNativeModule"
+            in={[
+                $in.registry,
+                $ctx.own_names.specifier,
+                $ctx.own_names.identity,
+                $ctx.own_names.import_name
+            ]}
+        />
+
+        <Call fn="invalidate" in={$in.verified} />
+    </If>
+
+    <Return value={$ctx.register} />
+</Module>

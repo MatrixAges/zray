@@ -2,8 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const registry = @import("../target/registry.zig");
 const interface = @import("../../interface.zig");
-const enabled = @import("parser_options").generated_parser;
-const ExternalPlan = if (enabled) @typeInfo(@TypeOf(@import("generated_project_legacy_plan").executeValue(undefined, undefined))).error_union.payload else void;
 
 pub const Route = union(enum) { native: *const interface.Native, legacy: usize, duplicate, conflict, invalid_legacy, missing_legacy };
 
@@ -38,27 +36,6 @@ pub const Binding = struct {
     name: []const u8,
     namespace: ?[]const u8,
 };
-
-pub fn legacyPlan(allocator: std.mem.Allocator, rows: []const interface.External, first: usize, specifier: []const u8, local: []const u8) std.mem.Allocator.Error!ExternalPlan {
-    const generated = @import("generated_project_legacy_plan");
-    const Input = std.meta.Child(generated.Input);
-    const memory = zx.memory;
-    const specifiers = memory.borrowTextColumn("specifier", rows);
-    const exports = memory.borrowReadColumn(?[]const u8, "export_name", rows);
-
-    const input: Input = .{
-        .specifiers = &.{ .items = @ptrCast(&specifiers), .length = specifiers.count },
-        .exports = @ptrCast(&exports),
-        .first = first,
-        .specifier = specifier,
-        .local = local,
-    };
-
-    return zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
-}
 
 pub const Legacy = struct {
     names: std.StringHashMapUnmanaged(void) = .empty,

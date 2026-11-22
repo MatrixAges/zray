@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Binding} out={void} />
+
+    <Call fn="index.reuseProjectNativeUnit" in={$in.frame} />
+
+    <If on={!$ctx.reuseProjectNativeUnit}>
+        <Call fn="index.registerProjectNativeUnit" in={$in.frame} />
+
+        <Call
+            fn="index.loadProjectNativeUnit"
+            in={[
+                $in.frame,
+                $ctx.registerProjectNativeUnit
+            ]}
+        />
+
+        <Call
+            fn="index.rememberProjectNativeUnit"
+            in={[
+                $in.frame,
+                $ctx.registerProjectNativeUnit
+            ]}
+        />
+    </If>
+
+    <Call module="bind_native" in={$in} />
+</Module>

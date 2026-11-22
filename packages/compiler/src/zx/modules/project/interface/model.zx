@@ -46,10 +46,3 @@ export type External = {
     specifier: string,
     local: string
 }
-
-export type ExternalPlan = {
-    rows: u64[],
-    names: string[],
-    namespace?: string,
-    invalid: bool
-}

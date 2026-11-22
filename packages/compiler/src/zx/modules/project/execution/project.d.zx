@@ -181,3 +181,21 @@ export declare function bindArtifactWindow(frame: ArtifactLink, first: u64, coun
     MissingNominalOrigin,
     ConflictingInterface
 }
+
+export declare function appendProjectNativeModule(
+    registry: ProjectNativeRegistry,
+    specifier: string,
+    identity: string?,
+    name: string
+): void throws { OutOfMemory }
+
+export declare function materializeProjectExternal(
+    target: ProjectExternalBindings,
+    row: u64
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function appendProjectExternal(
+    target: ProjectExternalBindings,
+    name: string,
+    namespace: string?
+): void throws { OutOfMemory }

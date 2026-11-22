@@ -7,14 +7,21 @@ export declare function rejectProjectRoute(
     message: string
 ): void throws { InvalidSource }
 
-export declare function bindProjectNative(frame: ProjectImport): void
+export declare function reuseProjectNativeUnit(frame: ProjectImport): bool
+
+export declare function registerProjectNativeUnit(frame: ProjectImport): u32
     throws { OutOfMemory, InvalidSource }
+
+export declare function loadProjectNativeUnit(frame: ProjectImport, row: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rememberProjectNativeUnit(frame: ProjectImport, row: u32): void
+    throws { OutOfMemory }
 
 export declare function bindProjectLegacy(frame: ProjectImport): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function bindProjectIntrinsic(frame: ProjectImport): void
-    throws { OutOfMemory, InvalidSource }
+export declare function prepareProjectIntrinsic(frame: ProjectImport): void
 
 export declare function resolveProjectImport(frame: ProjectImport): bool
     throws { OutOfMemory, InvalidSource }

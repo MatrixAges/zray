@@ -1,0 +1,1 @@
+export { appendProjectNativeModule } from "project_host"

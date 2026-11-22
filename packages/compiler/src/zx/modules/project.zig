@@ -85,7 +85,7 @@ pub const Unit = struct {
     members: []const FunctionImport = &.{},
 };
 
-const NativeUnit = struct { exports: []const ir.Export, members: []const FunctionImport };
+pub const NativeUnit = struct { exports: []const ir.Export, members: []const FunctionImport };
 pub const Imported = struct { exports: []const ir.Export, constant_exports: []const ir.Constant = &.{}, members: []const FunctionImport = &.{}, default_member: ?FunctionImport = null, signatures: []const Signature.Member = &.{} };
 pub const ImportTarget = Target.Target;
 
@@ -370,7 +370,7 @@ pub const Project = struct {
 
         return true;
     }
-    fn nativeModule(self: *Project, source: []const u8, identity: ?[]const u8, name: []const u8, span: zx.Span) zx.Error!ir.NativeModuleId {
+    fn nativeModuleSeed(self: *Project, source: []const u8, identity: ?[]const u8, name: []const u8, span: zx.Span) zx.Error!ir.NativeModuleId {
         const selected = target_registry.registration(self.native_modules.view(), identity orelse source, name);
 
         if (!selected.valid) return self.reporter.fail(.module, span, "native import names must be nonempty UTF-8 strings");
@@ -380,25 +380,25 @@ pub const Project = struct {
         if (selected.existing) return id;
         try self.native_modules.append(self.allocator, .{ .specifier = try self.allocator.dupe(u8, source), .identity = if (identity) |key| try self.allocator.dupe(u8, key) else null, .import_name = try self.allocator.dupe(u8, name) });
 
-        NativeExecution.invalidate(&self.verified);
+        NativeExecution.invalidateSeed(&self.verified);
 
         return id;
     }
-    pub fn importNative(self: *Project, frame: *LoadFrame, entry: NativeInterface, item: anytype) zx.Error!void {
+    pub fn importNativeSeed(self: *Project, frame: *LoadFrame, entry: NativeInterface, item: anytype) zx.Error!void {
         const aliases = if (item.exported) &frame.export_aliases else &frame.aliases;
         const imports = if (item.exported) &frame.export_functions else &frame.imports;
         const constants = if (item.exported) &frame.export_constants else &frame.constant_imports;
 
         const unit = self.native_units.get(entry.key()) orelse blk: {
-            const module_id = try self.nativeModule(entry.specifier, entry.identity, entry.module, item.span);
+            const module_id = try self.nativeModuleSeed(entry.specifier, entry.identity, entry.module, item.span);
             const loaded = try NativeExecution.load(self, &entry, module_id, item.span);
             const native_index = @backingInt(module_id);
 
-            const members = if (comptime generated_parser) loaded.members else seed: {
+            const members = seed: {
                 const namespace = loaded.namespace orelse try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
                 const bindings = try ir.NativeBindings.fromValues(self.allocator, loaded.exports);
 
-                NativeExecution.invalidate(&self.verified);
+                NativeExecution.invalidateSeed(&self.verified);
 
                 self.native_modules.type_namespaces.items[native_index] = namespace;
                 self.native_modules.type_names.items[native_index] = bindings.names;
@@ -433,22 +433,9 @@ pub const Project = struct {
             .members = unit.members,
         }, self.reporter, aliases, imports, constants);
     }
-    pub fn importExternal(self: *Project, registry: []const External, first: usize, item: anytype, imports: *std.ArrayList(FunctionImport)) zx.Error!void {
+    pub fn importExternalSeed(self: *Project, registry: []const External, first: usize, item: anytype, imports: *std.ArrayList(FunctionImport)) zx.Error!void {
         const local = item.nameAt(0).text;
         var namespace: ?[]const u8 = null;
-
-        if (comptime generated_parser) {
-            const plan = try Interface.legacyPlan(self.bindingAllocator(), registry, first, item.path, local);
-
-            for (plan.rows, plan.names) |row, name| {
-                try self.appendExternal(registry[@intCast(row)], item.span, .{ .name = name, .namespace = plan.namespace }, &namespace, imports);
-            }
-
-            if (plan.invalid) return self.externalCollision(item.span);
-
-            return;
-        }
-
         var bindings: Interface.Legacy = .{};
 
         defer bindings.names.deinit(self.arena.child_allocator);
@@ -461,31 +448,34 @@ pub const Project = struct {
             try self.appendExternal(entry, item.span, binding, &namespace, imports);
         }
     }
-    fn externalCollision(self: *Project, span: zx.Span) zx.Error {
+    pub fn externalCollision(self: *Project, span: zx.Span) zx.Error {
         return self.reporter.fail(.module, span, "external modules require unique members or one default function");
     }
     fn appendExternal(self: *Project, entry: External, span: zx.Span, binding: Interface.Binding, namespace: *?[]const u8, imports: *std.ArrayList(FunctionImport)) zx.Error!void {
-        const shared = @import("../analysis/types.zig").Shared{ .origins = &self.nominal_origins, .origin = .{ .external = .{
-            .module = entry.key(),
-            .member = entry.exportName(),
-        } } };
-
-        const imported = try @import("external.zig").load(self.allocator, entry, try self.nativeModule(entry.specifier, entry.identity, entry.implementation.module, span), span, &self.types, shared, self.reporter);
-        const function_id: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
-
-        try self.functions.append(self.allocator, imported.function);
+        const id = try self.nativeModuleSeed(entry.specifier, entry.identity, entry.implementation.module, span);
+        var imported = try self.loadExternal(entry, id, span);
 
         if (namespace.* == null) {
             if (binding.namespace) |name| namespace.* = try self.allocator.dupe(u8, name);
         }
 
-        try imports.append(self.allocator, .{
-            .namespace = namespace.*,
-            .name = try self.allocator.dupe(u8, binding.name),
-            .id = function_id,
-            .input_type = imported.function.input_type,
-            .output_type = imported.function.output_type,
-        });
+        imported.namespace = namespace.*;
+        imported.name = try self.allocator.dupe(u8, binding.name);
+
+        try imports.append(self.allocator, imported);
+    }
+    pub fn loadExternal(self: *Project, entry: External, module: ir.NativeModuleId, span: zx.Span) zx.Error!FunctionImport {
+        const shared = @import("../analysis/types.zig").Shared{ .origins = &self.nominal_origins, .origin = .{ .external = .{
+            .module = entry.key(),
+            .member = entry.exportName(),
+        } } };
+
+        const imported = try @import("external.zig").load(self.allocator, entry, module, span, &self.types, shared, self.reporter);
+        const id: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
+
+        try self.functions.append(self.allocator, imported.function);
+
+        return .{ .name = "", .id = id, .input_type = imported.function.input_type, .output_type = imported.function.output_type };
     }
 };
 

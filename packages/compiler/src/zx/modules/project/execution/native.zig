@@ -32,21 +32,36 @@ const Frame = struct {
     }
 };
 
-pub fn invalidate(verified: *Verified) void {
-    if (comptime generated) {
-        const entry = @import("generated_project_invalidate_native");
-        var columns: Verification = undefined;
+pub fn invalidateSeed(verified: *Verified) void {
+    verified.functions = 0;
+    verified.native = false;
+}
 
-        columns.init(verified);
+pub fn register(project: *Project, source: []const u8, identity: ?[]const u8, name: []const u8, span: zx.Span) zx.Error!zx.ir.NativeModuleId {
+    const rule = @import("generated_project_register_native");
+    const Input = std.meta.Child(rule.Input);
+    var columns: Verification = undefined;
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const input = columns.input(std.meta.Child(entry.Input));
+    columns.init(&project.verified);
 
-        zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
-    } else {
-        verified.functions = 0;
-        verified.native = false;
-    }
+    const input: Input = .{
+        .registry = @ptrCast(project),
+        .modules = &zx.columns.columns(std.meta.Child(@FieldType(Input, "modules")), project.native_modules.view()),
+        .names = &.{ .specifier = source, .identity = identity, .import_name = name },
+        .verified = &columns.input(std.meta.Child(@FieldType(Input, "verified"))),
+    };
+
+    const selected = rule.executeIn(project.allocator, &input) catch |err| return @import("invoke.zig").errorSet(err);
+
+    if (!selected.valid) return project.reporter.fail(.module, span, "native import names must be nonempty UTF-8 strings");
+
+    return @fromBackingInt(selected.id orelse return error.OutOfMemory);
+}
+
+pub fn appendProjectNativeModule(handle: *const anyopaque, specifier: []const u8, identity: ?[]const u8, name: []const u8) std.mem.Allocator.Error!void {
+    const project: *Project = @ptrCast(@alignCast(@constCast(handle)));
+
+    try project.native_modules.append(project.allocator, .{ .specifier = specifier, .identity = identity, .import_name = name });
 }
 
 pub fn load(project: *Project, native: *const Native, module: zx.ir.NativeModuleId, span: zx.Span) zx.Error!Loaded.Result {
