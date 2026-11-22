@@ -14,7 +14,7 @@ const Frame = struct {
     row: ir.ExpressionRow,
     value_call: bool,
     previous: @FieldType(Context, "argument"),
-    body: std.ArrayList(node.Statement) = .empty,
+    body: Context.Statements,
     cached: ?Cache.Binding = null,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -27,9 +27,17 @@ const Frame = struct {
 };
 
 pub fn lower(self: *Context, id: ir.ExprId, row: ir.ExpressionRow, value_call: bool) Lower.Error!node.ExpressionId {
-    var frame: Frame = .{ .context = self, .call_id = id, .row = row, .value_call = value_call, .previous = self.argument };
+    var frame: Frame = .{
+        .context = self,
+        .call_id = id,
+        .row = row,
+        .value_call = value_call,
+        .previous = self.argument,
+        .body = if (generated) self.lowering.builder.statementSequence(self.lowering.workspace) else .empty,
+    };
 
     defer frame.restore();
+    defer if (generated) frame.body.deinit();
 
     if (!generated) {
         const value = try self.lowering.expr(row.value.call.argument);

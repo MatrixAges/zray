@@ -19,7 +19,9 @@
         ])}
     />
 
-    <Call fn="body" in={$in.target} />
+    <If on={$in.body}>
+        <Call fn="body" in={$in.target} />
+    </If>
 
     <Call
         fn="finish"

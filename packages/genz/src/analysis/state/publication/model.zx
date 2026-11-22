@@ -4,5 +4,6 @@ export type Input = {
     target: AstPublication,
     segments: u64,
     helper: bool,
-    fields: bool
+    fields: bool,
+    body: bool
 }

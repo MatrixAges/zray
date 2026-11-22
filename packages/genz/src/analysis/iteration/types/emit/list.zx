@@ -4,6 +4,7 @@ import integers from "std:integer"
 import call from "../../../../ast/expressions/call"
 import field from "../../../../ast/expressions/field"
 import identifier from "../../../../ast/expressions/identifier"
+import appendField from "../../../../ast/fields/append"
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 import {
     standard_name,
@@ -80,24 +81,31 @@ export default function (in: Input): Output {
         count: 0
     })
 
-    const first = owned.state.fields.length
+    const first = owned.state.fields.name.length
 
-    const fields = owned.state.fields.push({
+    const owner_fields = appendField({
+        table: owned.state.fields,
         name: bytes.fromText(owner_field),
         value: pointer.id,
         default_value: null,
         comptime_parameter: false
-    })[0].push({
+    })
+
+    const item_fields = appendField({
+        table: owner_fields,
         name: bytes.fromText(items_field),
         value: items.id,
         default_value: null,
         comptime_parameter: false
-    })[0].push({
+    })
+
+    const fields = appendField({
+        table: item_fields,
         name: bytes.fromText(owned_field),
         value: owned.id,
         default_value: null,
         comptime_parameter: false
-    })[0]
+    })
 
     return form({
         state: {
@@ -108,6 +116,6 @@ export default function (in: Input): Output {
         value: 0,
         children: [],
         first: integers.widen(in.source.field_base) + first,
-        count: fields.length - first
+        count: fields.name.length - first
     })
 }

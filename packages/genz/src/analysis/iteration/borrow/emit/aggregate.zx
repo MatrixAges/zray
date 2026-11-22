@@ -3,6 +3,7 @@ import integers from "std:integer"
 import builtin from "../../../../ast/context/builtin"
 import object from "../../../../ast/context/object"
 import tuple from "../../../../ast/context/tuple"
+import appendField from "../../../../ast/fields/append"
 import { ExpressionsBuiltinName } from "../../../../printer/model/expressions"
 import { Operation } from "../model"
 import children from "./children"
@@ -48,12 +49,13 @@ export default function (in: Input): Output {
         while: current => current.index < end,
         next: current => {
             const child = integers.widen(plan.children[current.index])
-            current.values = current.values.push({
+            current.values = appendField({
+                table: current.values,
                 name: plan.names[child],
                 value: state.results[child],
                 default_value: null,
                 comptime_parameter: false
-            })[0]
+            })
             current.index += 1
         },
         return: current => current.values
@@ -63,7 +65,7 @@ export default function (in: Input): Output {
         state: state.context,
         type_expr: layout,
         first: integers.narrow(
-            integers.widen(state.source.field_base) + state.fields.length
+            integers.widen(state.source.field_base) + state.fields.name.length
         ),
         count: integers.narrow(plan.count[in.node])
     })

@@ -5,7 +5,7 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 
-pub fn lower(self: *Context, body: *std.ArrayList(node.Statement), id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("borrow_seed.zig").lower(self, body, id, value);
 
     const lowering = self.lowering;
@@ -71,16 +71,10 @@ pub fn lower(self: *Context, body: *std.ArrayList(node.Statement), id: ir.TypeId
         error.InvalidAst => unreachable,
     };
 
-    try lowering.builder.nodes.field_columns.reserve(lowering.allocator, output.fields.len);
-
-    for (output.fields) |field| {
-        lowering.builder.nodes.field_columns.append(.{
-            .name = field.name,
-            .value = @fromBackingInt(field.value),
-            .default_value = if (field.default_value) |default| @fromBackingInt(default) else null,
-            .comptime_parameter = field.comptime_parameter,
-        });
-    }
+    _ = @import("../../node/import_fields.zig").appendBorrowingText(lowering.allocator, &lowering.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
 
     @import("../../node/import_statements.zig").append(lowering.allocator, body, output.statements) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

@@ -73,16 +73,10 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         error.InvalidAst => unreachable,
     };
 
-    try lowering.builder.nodes.field_columns.reserve(lowering.allocator, output.fields.len);
-
-    for (output.fields) |field| {
-        lowering.builder.nodes.field_columns.append(.{
-            .name = try lowering.allocator.dupe(u8, field.name),
-            .value = @fromBackingInt(field.value),
-            .default_value = if (field.default_value) |value| @fromBackingInt(value) else null,
-            .comptime_parameter = field.comptime_parameter,
-        });
-    }
+    @import("../../node/import_fields.zig").append(lowering.allocator, &lowering.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
 
     @import("../../node/import_statements.zig").append(lowering.allocator, self.declarations, output.statements) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

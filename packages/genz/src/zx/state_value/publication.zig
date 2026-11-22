@@ -14,7 +14,9 @@ const entry = @import("generated_publish_state_ast");
 const Body = union(enum) {
     sequence: *Sequence,
     flat: *std.ArrayList(node.Statement),
-    fn bind(target: anytype) Body {
+    fn bind(target: anytype) ?Body {
+        if (@TypeOf(target) == @TypeOf(null)) return null;
+
         return if (@TypeOf(target) == *Sequence) .{ .sequence = target } else .{ .flat = target };
     }
     fn append(self: Body, allocator: std.mem.Allocator, source: anytype, borrowed: bool) rows.Error!void {
@@ -29,8 +31,8 @@ const Body = union(enum) {
 
 const Frame = struct {
     lower: *Lower,
-    binding: Body,
-    body: Body,
+    binding: ?Body,
+    body: ?Body,
     source: union(enum) {
         projection: *const Projection,
         conversion: *const Conversion,
@@ -68,6 +70,7 @@ fn publish(frame: *const Frame, segments: usize, helper: bool, fields: bool) Low
         .segments = segments,
         .helper = helper,
         .fields = fields,
+        .body = frame.body != null,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
@@ -140,7 +143,7 @@ pub fn appendAstHelper(handle: *const anyopaque) Lower.Error!void {
 
 pub fn appendAstBody(handle: *const anyopaque, binding: bool) Lower.Error!void {
     const frame = Frame.borrow(handle);
-    const target = if (binding) frame.binding else frame.body;
+    const target = (if (binding) frame.binding else frame.body).?;
 
     switch (frame.source) {
         .projection => |output| {

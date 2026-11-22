@@ -96,9 +96,8 @@ fn emit(self: *Lower, layout: ?ir.TypeId, value: node.ExpressionId) Lower.Error!
 
     const input: EmitInput = .{ .context = &context, .conversion = if (common) |*prepared| prepared else null, .value = @backingInt(value) };
     const output = entry.executeIn(allocator, &input) catch |err| return failure(err);
-    var body: std.ArrayList(node.Statement) = .empty;
 
-    return conversion.apply(self, &body, &body, output);
+    return conversion.apply(self, null, null, output);
 }
 
 fn failure(err: anyerror) Lower.Error {

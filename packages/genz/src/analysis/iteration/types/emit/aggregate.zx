@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
+import appendField from "../../../../ast/fields/append"
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 import { Operation } from "../model"
 import children from "./children"
@@ -23,7 +24,7 @@ export default function (in: Input): Output {
         })
     }
 
-    const first = in.fields.length
+    const first = in.fields.name.length
     const type_id = plan.types[in.index]
     const names = integers.widen(in.source.types.first[integers.widen(type_id)])
 
@@ -33,7 +34,8 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < values.length,
         next: state => {
-            state.values = state.values.push({
+            state.values = appendField({
+                table: state.values,
                 name:
                     bytes.fromText(
                         in.source.types.field_names[names + state.index]
@@ -41,7 +43,7 @@ export default function (in: Input): Output {
                 value: values[state.index],
                 default_value: null,
                 comptime_parameter: false
-            })[0]
+            })
             state.index += 1
         },
         return: state => state.values

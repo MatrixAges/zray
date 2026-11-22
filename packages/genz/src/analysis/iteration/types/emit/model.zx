@@ -1,6 +1,6 @@
 import type { Table } from "core/type_table/model"
 import type { Columns as Expressions } from "../../../../ast/expressions/model"
-import type { Field } from "../../../../ast/fields/model"
+import type { Columns as Fields } from "../../../../ast/fields/model"
 import type { Columns as Statements } from "../../../../ast/statements/model"
 import type { ExpressionsPrimitive } from "../../../../printer/model/expressions"
 import type { Plan } from "../model"
@@ -29,7 +29,7 @@ export type State = {
     index: u64,
     expressions: Expressions,
     layouts: Layouts,
-    fields: Field[],
+    fields: Fields,
     statements: Statements,
     values: u32[],
     cache_types: u32[],
@@ -46,7 +46,7 @@ export type Node = {
 export type Output = {
     expressions: Expressions,
     layouts: Layouts,
-    fields: Field[],
+    fields: Fields,
     statements: Statements,
     cache_types: u32[],
     cache_values: u32[],
