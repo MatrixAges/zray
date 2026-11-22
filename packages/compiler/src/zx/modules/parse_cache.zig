@@ -8,6 +8,7 @@ const Self = @This();
 pub const ModuleResult = parser.ModuleResult;
 pub const indexed_enabled = @import("../frontend/module_result.zig").indexed_enabled;
 const generated = @import("parser_options").generated_parser;
+const Native = if (generated) @import("project_execution_abi").native.@"zig:project_host" else void;
 const Digest = [zx.Sha256.digest_length]u8;
 
 const Entry = struct {
@@ -348,6 +349,22 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
 
     parallel.spread(Prefetch, &work, Prefetch.run, workers);
 
+    if (comptime generated) {
+        const paths = if (comptime @hasField(@TypeOf(requests), "paths"))
+            zx.memory.borrowTextSlice(requests.paths)
+
+        else
+            zx.memory.borrowTextColumn("path", requests.items);
+
+        const output: BatchOutput = binding: {
+            const views = outputs orelse break :binding .none;
+
+            break :binding if (Output == Entry) .{ .entries = views } else .{ .modules = views };
+        };
+
+        return self.publishPrefetched(&paths, results, output, work.failed.load(.monotonic));
+    }
+
     var kept: usize = 0;
 
     errdefer for (results[kept..]) |result| if (result) |value| value.result.deinit();
@@ -366,34 +383,140 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
     if (work.failed.load(.monotonic)) return error.OutOfMemory;
 }
 
-fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) std.mem.Allocator.Error!*Entry {
-    if (found.existing) |entry| {
-        try self.replace(entry);
+const BatchOutput = union(enum) {
+    none,
+    entries: []*const Entry,
+    modules: []*const ModuleResult,
+};
+
+const Batch = struct {
+    adoption: Adoption,
+    output: BatchOutput,
+    fn borrow(handle: *const anyopaque) *Batch {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+fn publishPrefetched(self: *Self, paths: *const zx.memory.TextColumn, results: []const ?*Entry, output: BatchOutput, worker_failed: bool) std.mem.Allocator.Error!void {
+    const rule = @import("generated_parse_cache_publish");
+    var batch: Batch = .{ .adoption = .{ .cache = self, .path = undefined, .found = undefined }, .output = output };
+
+    const input: std.meta.Child(rule.Input) = .{
+        .batch = @ptrCast(&batch),
+        .paths = @ptrCast(paths),
+        .results = @ptrCast(results),
+        .has_output = output != .none,
+        .worker_failed = worker_failed,
+    };
+
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+    if (!(rule.executeIn(scratch.allocator(), &input) catch unreachable)) return error.OutOfMemory;
+}
+
+pub fn preparePrefetchedParse(handle: *const anyopaque, path: []const u8) Native.preparePrefetchedParse.Output {
+    const batch = Batch.borrow(handle);
+    batch.adoption.path = path;
+    batch.adoption.found = batch.adoption.cache.entries.probe(path);
+
+    return @ptrCast(&batch.adoption);
+}
+
+pub fn bindPrefetchedParse(handle: *const anyopaque, index: u64, handle_entry: *const anyopaque) void {
+    const batch = Batch.borrow(handle);
+    const entry: *const Entry = @ptrCast(@alignCast(handle_entry));
+    const row: usize = @intCast(index);
+
+    switch (batch.output) {
+        .none => unreachable,
+        .entries => |views| views[row] = entry,
+        .modules => |views| views[row] = &entry.result,
+    }
+}
+
+pub fn discardStagedParse(handle: *const anyopaque) void {
+    const entry: *Entry = @ptrCast(@alignCast(@constCast(handle)));
+
+    entry.result.deinit();
+}
+
+const Adoption = struct {
+    cache: *Self,
+    path: []const u8,
+    found: Index.Slot,
+    fn borrow(handle: *const anyopaque) *const Adoption {
+        return @ptrCast(@alignCast(handle));
+    }
+    fn replace(self: *const Adoption, entry: *Entry, value: *const Entry) std.mem.Allocator.Error!void {
+        try self.cache.replace(entry);
 
         entry.* = value.*;
-        entry.mark = self.clock.current;
-        self.parsed += 1;
+        entry.mark = self.cache.clock.current;
+        self.cache.parsed += 1;
+    }
+
+    fn insert(self: *const Adoption, value: *const Entry) std.mem.Allocator.Error!*Entry {
+        const cache = self.cache;
+
+        const slot = if (try cache.entries.reserve(cache.allocator))
+            cache.entries.probe(self.path).position
+
+        else
+            self.found.position;
+
+        const key = try cache.allocator.dupe(u8, self.path);
+
+        errdefer cache.allocator.free(key);
+
+        const entry = try cache.allocator.create(Entry);
+        entry.* = value.*;
+        entry.mark = cache.clock.current;
+
+        cache.entries.append(slot, key, entry);
+
+        cache.parsed += 1;
+
+        return entry;
+    }
+};
+
+pub fn existingParseEntry(handle: *const anyopaque) Native.existingParseEntry.Output {
+    const entry = Adoption.borrow(handle).found.existing orelse return null;
+
+    return @ptrCast(entry);
+}
+
+pub fn insertParseEntry(handle: *const anyopaque, candidate: *const anyopaque) Native.insertParseEntry.Output {
+    const entry = Adoption.borrow(handle).insert(@ptrCast(@alignCast(candidate))) catch return null;
+
+    return @ptrCast(entry);
+}
+
+pub fn replaceParseEntry(handle: *const anyopaque, existing: *const anyopaque, candidate: *const anyopaque) bool {
+    Adoption.borrow(handle).replace(@ptrCast(@alignCast(@constCast(existing))), @ptrCast(@alignCast(candidate))) catch return false;
+
+    return true;
+}
+
+fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) std.mem.Allocator.Error!*Entry {
+    const adoption: Adoption = .{ .cache = self, .path = path, .found = found };
+
+    if (comptime generated) {
+        const rule = @import("generated_parse_cache_adopt");
+        const input: std.meta.Child(rule.Input) = .{ .adoption = @ptrCast(&adoption), .candidate = @ptrCast(value) };
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+        const entry = (rule.executeIn(scratch.allocator(), &input) catch unreachable) orelse return error.OutOfMemory;
+
+        return @ptrCast(@alignCast(@constCast(entry)));
+    }
+
+    if (found.existing) |entry| {
+        try adoption.replace(entry, value);
 
         return entry;
     }
 
-    const slot = if (try self.entries.reserve(self.allocator)) self.entries.probe(path).position else found.position;
-    const key = try self.allocator.dupe(u8, path);
-
-    errdefer self.allocator.free(key);
-
-    const entry = try self.allocator.create(Entry);
-
-    errdefer self.allocator.destroy(entry);
-
-    entry.* = value.*;
-    entry.mark = self.clock.current;
-
-    self.entries.append(slot, key, entry);
-
-    self.parsed += 1;
-
-    return entry;
+    return adoption.insert(value);
 }
 
 const Replacement = struct {

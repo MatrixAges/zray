@@ -2,6 +2,12 @@ export type ParseReplacement = opaque
 
 export type ParseRetirement = opaque
 
+export type ParseAdoption = opaque
+
+export type ParseCacheEntry = opaque
+
+export type ParseCacheBatch = opaque
+
 export type ProjectWalk = opaque
 
 export type ProjectState = opaque
@@ -333,3 +339,29 @@ export declare function queueParseReplacement(
 export declare function retainPendingParse(cache: ParseRetirement, row: u64): u64
 
 export declare function discardPendingParse(cache: ParseRetirement, row: u64): void
+
+export declare function preparePrefetchedParse(
+    batch: ParseCacheBatch,
+    path: string
+): ParseAdoption
+
+export declare function existingParseEntry(adoption: ParseAdoption): ParseCacheEntry?
+
+export declare function insertParseEntry(
+    adoption: ParseAdoption,
+    candidate: ParseCacheEntry
+): ParseCacheEntry?
+
+export declare function replaceParseEntry(
+    adoption: ParseAdoption,
+    existing: ParseCacheEntry,
+    candidate: ParseCacheEntry
+): bool
+
+export declare function bindPrefetchedParse(
+    batch: ParseCacheBatch,
+    row: u64,
+    entry: ParseCacheEntry
+): void
+
+export declare function discardStagedParse(entry: ParseCacheEntry): void

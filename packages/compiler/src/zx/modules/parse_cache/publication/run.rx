@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Staging" />
+
+    <Args in={Staging.Publication} out={bool} />
+
+    <Call fn="commit" in={$in} />
+
+    <If on={$ctx.commit != null}>
+        <Call
+            fn="discard"
+            in={{
+                results: $in.results,
+                first: $ctx.commit
+            }}
+        />
+
+        <Return value={false} />
+    </If>
+
+    <Return value={!$in.worker_failed} />
+</Module>

@@ -1,0 +1,22 @@
+import host from "project_host"
+
+import type { ParseAdoption, ParseCacheEntry } from "project_host"
+
+export type Input = {
+    adoption: ParseAdoption,
+    candidate: ParseCacheEntry
+}
+
+export type Output = ParseCacheEntry?
+
+export default function (in: Input): Output {
+    const { adoption, candidate } = in
+
+    const existing = host.existingParseEntry(adoption)
+
+    if (existing == null) {
+        return host.insertParseEntry(adoption, candidate)
+    }
+
+    return host.replaceParseEntry(adoption, existing, candidate) ? existing : null
+}

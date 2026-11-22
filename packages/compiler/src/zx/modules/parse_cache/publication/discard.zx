@@ -1,0 +1,22 @@
+import host from "project_host"
+
+import type { Discard as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { results, first } = in
+
+    const discarded = loop(first, {
+        while: row => row < results.length,
+        next: row => {
+            const candidate = results[row]
+
+            if (candidate != null) {
+                host.discardStagedParse(candidate)
+            }
+
+            row += 1
+        }
+    })
+}

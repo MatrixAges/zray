@@ -1,0 +1,15 @@
+import type { TextColumn } from "memory"
+import type { ParseCacheBatch, ParseCacheEntry } from "project_host"
+
+export type Publication = {
+    batch: ParseCacheBatch,
+    paths: TextColumn,
+    results: ParseCacheEntry?[],
+    has_output: bool,
+    worker_failed: bool
+}
+
+export type Discard = {
+    results: ParseCacheEntry?[],
+    first: u64
+}
