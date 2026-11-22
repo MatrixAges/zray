@@ -7,9 +7,9 @@ const Lower = @import("../lower.zig");
 pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("worker_seed.zig").lower(self, id);
 
-    const function = self.program.functions.at(@backingInt(id));
-    const input_type = try self.typeExpr(function.input_type);
-    const output_type = try self.typeExpr(function.output_type);
+    const index = @backingInt(id);
+    const input_type = try self.typeExpr(@fromBackingInt(self.program.functions.input_types[index]));
+    const output_type = try self.typeExpr(@fromBackingInt(self.program.functions.output_types[index]));
     const callee = try self.functionReference(id);
     const entry = @import("generated_parallel_worker");
     const Input = std.meta.Child(entry.Input);

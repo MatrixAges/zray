@@ -28,6 +28,7 @@
             value={{
                 ...$ctx.admit_body,
                 ...$ctx.metadata,
+                ...$in.attributes,
                 control: $ctx.optional_control,
                 store_table: $ctx.optional
             }}

@@ -21,7 +21,7 @@ pub fn fromPublication(path: []const u8, published: anytype, tables: Tables, exp
         .output_ownership = @fromBackingInt(@intCast(@backingInt(published.ports.ownership))),
         .symbols = if (payload) |value| zx.columns.view(ir.SymbolTable, value.symbols) else .{},
         .expressions = if (payload) |value| zx.columns.view(ir.ExpressionTable, value.expressions) else .{},
-        .body = if (payload) |value| Nodes.controlBody(if (value.root) |id| @fromBackingInt(id) else null, value.control) else .{},
+        .body = if (payload) |value| @import("../../artifact/materializing/descriptor.zig").control(value.root, value.control) else .{},
         .contracts = if (payload) |value| zx.columns.view(ir.ContractTable, value.contracts) else .{},
         .exports = exports,
         .constant_exports = constants,

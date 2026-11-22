@@ -12,10 +12,10 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
     const body = prepared.body;
 
     const source = if (body.function_id) |row|
-        program.functions.at(row)
+        zx.ir.FunctionView.at(&program.functions, row)
 
     else if (body.use_entry)
-        @import("../../function_body.zig").value(program.*)
+        zx.ir.FunctionView.borrow(program)
     else
         null;
 
@@ -34,7 +34,7 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
     const functions = zx.columns.view(zx.ir.SignatureTable, materialized.signatures);
 
     const function = if (materialized.function) |mapped|
-        Nodes.linkedFunction(&source.?, mapped)
+        @import("../materializing/descriptor.zig").function(mapped)
 
     else
         null;

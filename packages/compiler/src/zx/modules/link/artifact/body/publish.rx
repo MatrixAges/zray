@@ -6,13 +6,7 @@
     <Call module="../../../artifact/materializing/own_function" in={$in.request.body} />
 
     <If on={$ctx.own_function != null}>
-        <Call
-            fn="retain"
-            in={{
-                value: $ctx.own_function,
-                attributes: $in.request.attributes
-            }}
-        />
+        <Call fn="retain" in={$ctx.own_function} />
 
         <If on={$in.request.append != null}>
             <Call

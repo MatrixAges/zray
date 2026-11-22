@@ -102,9 +102,10 @@ pub const FunctionEntry = struct {
 
 pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
     if (comptime generated) {
-        const linked = try remap.function(self, remap.BodyColumns.borrow(&value), value.body, value.file_name, value.external, candidate, structure);
+        const source = ir.FunctionView.borrow(&value);
+        const linked = try remap.function(self, &source, candidate, structure);
 
-        return FunctionEntry.fromLinked(linkedFunction(&value, linked), linked);
+        return FunctionEntry.fromLinked(@import("materializing/descriptor.zig").function(linked), linked);
     }
 
     var result = value;
@@ -122,51 +123,6 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
     const recursive = if (candidate) |id| if (@import("../function_body.zig").calls(result.expressions, id)) id else null else null;
 
     return .{ .body = result, .recursive = recursive };
-}
-
-pub fn linkedFunction(value: *const ir.Function, linked: anytype) ir.Function {
-    var result = linkedBody(value, linked);
-
-    result.external = linkedExternal(value.external, linked);
-
-    return result;
-}
-
-pub fn linkedBody(value: *const ir.Function, linked: anytype) ir.Function {
-    var result = materializeBody(value, linked, controlBody(value.body.root, linked.control));
-    result.file_name = linked.file;
-    result.stores = if (linked.store_table) |store_table| zx.columns.view(ir.StoreTable, store_table) else .{};
-
-    return result;
-}
-
-fn linkedExternal(value: ?ir.External, linked: anytype) ?ir.External {
-    const source = value orelse return null;
-    const module: ir.NativeModuleId = @fromBackingInt(linked.ports.native_module.?);
-
-    return @import("materializing/external_host.zig").apply(source, module, linked.external.?);
-}
-
-pub fn controlBody(root: ?ir.BlockId, table: anytype) ir.ControlBody {
-    return if (table) |owned|
-        .{ .control = zx.columns.pointer(*const ir.ControlTable, owned), .root = root }
-
-    else
-        .{};
-}
-
-pub fn materializeBody(value: *const ir.Function, mapped: anytype, control: ir.ControlBody) ir.Function {
-    return .{
-        .file_name = value.file_name,
-        .input_type = @fromBackingInt(mapped.ports.input),
-        .output_type = @fromBackingInt(mapped.ports.output),
-        .output_ownership = value.output_ownership,
-        .store_mode = value.store_mode,
-        .symbols = zx.columns.view(ir.SymbolTable, mapped.symbols),
-        .expressions = zx.columns.view(ir.ExpressionTable, mapped.expressions),
-        .body = control,
-        .contracts = zx.columns.view(ir.ContractTable, mapped.contracts),
-    };
 }
 
 pub fn stores(self: *Self, values: ir.StoreTable) Error!ir.StoreTable {

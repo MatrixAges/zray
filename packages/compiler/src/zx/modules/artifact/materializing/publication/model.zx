@@ -1,10 +1,11 @@
 import type { Control } from "core/control_table/model"
-import type { Complete, StoreMode } from "core/function_table/complete"
+import type { Complete } from "core/function_table/complete"
 import type { Table } from "core/signature_table/model"
 import type { Stores } from "core/store_table/model"
-import type { Ownership } from "core/symbol_table/model"
 import type { ColumnSet, SignatureRow } from "memory/columns"
 import type { Owned } from "../function_model"
+
+export type { Attributes, Flags } from "../function_model"
 
 export enum PublicationStatus {
     Complete,
@@ -44,21 +45,6 @@ export type FlagColumns = Table.Pick(
     "native_fallible",
     "native_concurrent"
 )
-
-export type Flags = {
-    ownership: Ownership,
-    allocator_argument: bool,
-    io_argument: bool,
-    process_argument: bool,
-    expand_tuple: bool,
-    fallible: bool,
-    concurrent: bool
-}
-
-export type Attributes = Flags & {
-    store_mode: StoreMode,
-    root?: u32
-}
 
 export type Payload = Owned.Omit("stores", "recursive", "control", "store_table") & {
     control: Control,

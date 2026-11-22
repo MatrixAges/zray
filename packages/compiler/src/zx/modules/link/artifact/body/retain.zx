@@ -1,31 +1,25 @@
 import type { Owned } from "../../../artifact/materializing/function_model"
-import type { Attributes } from "../../../artifact/materializing/publication/model"
 import type { Retained as Output } from "../../result/publication/model"
 
-export type Input = {
-    value: Owned,
-    attributes: Attributes
-}
+export type Input = Owned
 
 export default function (in: Input): Output {
-    const { value, attributes } = in
-
     return {
-        file: value.file,
-        recursive: value.recursive,
-        stores: value.store_table,
+        file: in.file,
+        recursive: in.recursive,
+        stores: in.store_table,
         ports: {
-            input_type: value.ports.input,
-            output_type: value.ports.output,
-            ownership: attributes.ownership,
-            store_mode: attributes.store_mode
+            input_type: in.ports.input,
+            output_type: in.ports.output,
+            ownership: in.ownership,
+            store_mode: in.store_mode
         },
         body: {
-            symbols: value.symbols,
-            expressions: value.expressions,
-            contracts: value.contracts,
-            control: value.control,
-            root: attributes.root
+            symbols: in.symbols,
+            expressions: in.expressions,
+            contracts: in.contracts,
+            control: in.control,
+            root: in.root
         }
     }
 }

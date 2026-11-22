@@ -34,17 +34,19 @@ pub fn dispatch(self: *const Lower, id: ir.ExprId) Expression {
 
 pub fn invocation(self: *const Lower, call: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), borrowed: bool, pointer: bool) Plan {
     const Input = std.meta.Child(planning.Input);
-    const function = self.program.functions.at(@backingInt(call.function));
+    const index = @backingInt(call.function);
+    const input_type = self.program.functions.input_types[index];
+    const output_type = self.program.functions.output_types[index];
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
     const cached = cache(self, std.meta.Child(@FieldType(Input, "cache")), call.argument);
 
     const input: Input = .{
         .types = &types,
         .cache = &cached,
-        .input = @backingInt(function.input_type),
-        .output = @backingInt(function.output_type),
-        .input_query = zx.columns.view(@FieldType(Input, "input_query"), self.state_plan.queries[@backingInt(function.input_type)]),
-        .output_query = zx.columns.view(@FieldType(Input, "output_query"), self.state_plan.queries[@backingInt(function.output_type)]),
+        .input = input_type,
+        .output = output_type,
+        .input_query = zx.columns.view(@FieldType(Input, "input_query"), self.state_plan.queries[input_type]),
+        .output_query = zx.columns.view(@FieldType(Input, "output_query"), self.state_plan.queries[output_type]),
         .argument_kind = zx.columns.view(@FieldType(Input, "argument_kind"), self.program.expressions.kinds[@backingInt(call.argument)]),
         .active = self.state_active,
         .allows_allocation = self.allows_allocation,

@@ -11,7 +11,7 @@ pub fn lower(self: *Lower, invocation: @FieldType(@FieldType(ir.ExpressionRow, "
     const entry = @import("generated_store_adapter");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
-    const slots = self.program.functions.at(@backingInt(invocation.function)).stores;
+    const slots = self.program.functions.stores[@backingInt(invocation.function)];
 
     const bases: Bases = .{
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,

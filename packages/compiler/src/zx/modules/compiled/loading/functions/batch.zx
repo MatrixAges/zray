@@ -81,6 +81,10 @@ export default function (in: Input): Output {
                 storage: target.storage,
                 tables: state.tables,
                 function: {
+                    ...readAttributes({
+                        source,
+                        row
+                    }),
                     file: owned.header.file,
                     ports: {
                         input: owned.header.input_type,
@@ -94,10 +98,6 @@ export default function (in: Input): Output {
                     control: owned.control,
                     store_table: owned.stores
                 },
-                attributes: readAttributes({
-                    source,
-                    row
-                }),
                 row
             })
 

@@ -22,12 +22,11 @@ pub fn source(table: *const ir.FunctionTable, row: u32, initial: Initializer.Bor
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Ids = std.meta.Child(@FieldType(Types, "symbols"));
     const Columns = std.meta.Child(@FieldType(Input, "columns"));
-    const signature = ir.SignatureTable.read(table, row);
-    const left_native = if (signature.external) |value| native(Native, value) else null;
+    const left_native = if (ir.SignatureTable.readExternal(table, row)) |value| native(Native, value) else null;
 
     const left_header: Header = .{
         .version = initial.schema_version,
-        .name = signature.file_name,
+        .name = table.files[row],
         .transaction = table.store_modes[row] == .transaction,
         .ownership = @fromBackingInt(@backingInt(table.ownership[row])),
         .input_type = table.input_types[row],

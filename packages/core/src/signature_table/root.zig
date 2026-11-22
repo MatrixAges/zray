@@ -1,5 +1,6 @@
 const std = @import("std");
 const ir = @import("../ir.zig");
+const columns = @import("../columns.zig");
 const Self = @This();
 
 files: []const []const u8 = &.{},
@@ -35,20 +36,24 @@ pub fn read(self: anytype, index: usize) ir.Signature {
             .Borrowed => .borrowed,
             .Owned => .owned,
         },
-        .external = if (self.native_modules[index]) |module| .{
-            .module = @fromBackingInt(module),
-            .input = if (self.native_inputs[index]) |names| .{ .names = names } else null,
-            .member = self.native_members[index],
-            .export_name = self.native_exports[index],
-            .allocator_argument = self.native_allocators[index],
-            .io_argument = self.native_io[index],
-            .process_argument = self.native_process[index],
-            .expand_tuple = self.native_tuples[index],
-            .fallible = self.native_fallible[index],
-            .errors = self.native_errors[index],
-            .concurrent = self.native_concurrent[index],
-        } else null,
+        .external = readExternal(self, index),
     };
+}
+
+pub fn readExternal(self: anytype, index: usize) ?ir.External {
+    return if (self.native_modules[index]) |module| .{
+        .module = @fromBackingInt(module),
+        .input = if (self.native_inputs[index]) |names| .{ .names = names } else null,
+        .member = self.native_members[index],
+        .export_name = self.native_exports[index],
+        .allocator_argument = self.native_allocators[index],
+        .io_argument = self.native_io[index],
+        .process_argument = self.native_process[index],
+        .expand_tuple = self.native_tuples[index],
+        .fallible = self.native_fallible[index],
+        .errors = self.native_errors[index],
+        .concurrent = self.native_concurrent[index],
+    } else null;
 }
 
 pub fn validStructure(self: Self) bool {
@@ -67,9 +72,22 @@ pub fn validStructure(self: Self) bool {
 }
 
 pub fn fromFunctions(functions: ir.FunctionTable) Self {
-    var result: Self = .{};
+    return borrow(Self, &functions);
+}
 
-    inline for (@typeInfo(Self).@"struct".field_names) |name| @field(result, name) = @field(functions, name);
+pub fn borrow(comptime Target: type, source: anytype) Target {
+    var result: Target = undefined;
+
+    inline for (@typeInfo(Target).@"struct".field_names) |name| {
+        const column = @field(source, name);
+
+        const values = if (@typeInfo(@TypeOf(column)) == .pointer)
+            column
+        else
+            @as([]const std.meta.Elem(@TypeOf(column.items)), column.items);
+
+        @field(result, name) = columns.slice(@FieldType(Target, name), values);
+    }
 
     return result;
 }

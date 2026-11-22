@@ -25,7 +25,6 @@ export type Empty = {
 
 export type Row = FunctionInput.Omit("control") & {
     control: Control,
-    root?: u32,
     workspace: Workspace
 }
 

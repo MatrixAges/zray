@@ -4,20 +4,19 @@ import ownership from "../../../link/signature/ownership"
 
 import type { ColumnSet } from "memory/columns"
 import type { Output as External } from "../copy_external"
-import type { Attributes, BodyColumns, Payload } from "./model"
+import type { BodyColumns, Payload } from "./model"
 
 export type Input = {
     storage: ColumnSet,
     tables: BodyColumns,
     function: Payload,
-    attributes: Attributes,
     row: u64
 }
 
 export type Output = BodyColumns
 
 export default function (in: Input): Output {
-    const { storage, tables, function: value, attributes, row } = in
+    const { storage, tables, function: value, row } = in
 
     const external: External = value.external ?? {
         members: [],
@@ -32,23 +31,23 @@ export default function (in: Input): Output {
         value.file,
         value.ports.input,
         value.ports.output,
-        ownership(attributes.ownership),
+        ownership(value.ownership),
         value.ports.native_module,
         external.members,
         external.export_name,
         external.parameters,
         external.errors,
-        attributes.allocator_argument,
-        attributes.io_argument,
-        attributes.process_argument,
-        attributes.expand_tuple,
-        attributes.fallible,
-        attributes.concurrent
+        value.allocator_argument,
+        value.io_argument,
+        value.process_argument,
+        value.expand_tuple,
+        value.fallible,
+        value.concurrent
     )
 
     return {
-        store_modes: tables.store_modes.with(row, attributes.store_mode),
-        roots: tables.roots.with(row, attributes.root),
+        store_modes: tables.store_modes.with(row, value.store_mode),
+        roots: tables.roots.with(row, value.root),
         symbols: tables.symbols.with(row, value.symbols),
         expressions: tables.expressions.with(row, value.expressions),
         contracts: tables.contracts.with(row, value.contracts),

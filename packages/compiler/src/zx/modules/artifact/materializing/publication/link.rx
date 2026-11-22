@@ -5,11 +5,11 @@
 
     <Call
         module="../../../../ir/canonical/control/structure"
-        in={$in.pick([
-            "control",
-            "root",
-            "workspace"
-        ])}
+        in={{
+            control: $in.control,
+            root: $in.attributes.root,
+            workspace: $in.workspace
+        }}
     />
 
     <If on={!$ctx.structure}>
@@ -21,7 +21,8 @@
         in={{
             admission: $in.admission,
             metadata: $in.metadata,
-            control: $in.root == null ? null : $in.control
+            attributes: $in.attributes,
+            control: $in.attributes.root == null ? null : $in.control
         }}
     />
 

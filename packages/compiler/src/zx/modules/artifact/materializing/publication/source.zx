@@ -1,7 +1,6 @@
 import link from "compiler/source_function_row"
 import memory from "memory"
 
-import readAttributes from "./attributes"
 import { PublicationStatus } from "./model"
 import read from "./read"
 import write from "./write"
@@ -46,10 +45,6 @@ export default function (in: Input): Output {
                         control: value.control ?? empty.control,
                         store_table: value.store_table ?? empty.stores
                     },
-                    attributes: readAttributes({
-                        source,
-                        row
-                    }),
                     row
                 })
 

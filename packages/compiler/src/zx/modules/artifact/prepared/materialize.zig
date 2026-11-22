@@ -23,17 +23,15 @@ pub const Result = struct {
     dependencies: []const Record.Import,
 };
 
-pub fn materialize(nodes: *const Nodes, program: *const ir.Program, nominal_types: Origins.Table, prepared: @import("run.zig").Prepared, source: ?*const ir.Function, record: *const Record) Error!Result {
+pub fn materialize(nodes: *const Nodes, program: *const ir.Program, nominal_types: Origins.Table, prepared: @import("run.zig").Prepared, source: ?*const ir.FunctionView, record: *const Record) Error!Result {
     const table = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "table")), program.types);
     const origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), nominal_types);
-    const declarations = borrow.columns(std.meta.Child(@FieldType(Input, "declarations")), ir.SignatureTable.fromFunctions(program.functions));
+    const declarations = ir.SignatureTable.borrow(std.meta.Child(@FieldType(Input, "declarations")), &program.functions);
     const stores = borrow.pointer(@FieldType(Content, "entry_stores"), &program.stores);
     const mapping = remap.typeMapping(std.meta.Child(@FieldType(Content, "type_mapping")), nodes.types);
     var function: remap.FunctionRequest = undefined;
 
-    if (source) |value| {
-        function.init(nodes, remap.BodyColumns.borrow(value), value.body, value.file_name, value.external, null, .validated);
-    }
+    if (source) |value| function.init(nodes, value, null, .validated);
 
     const function_input: *const @FieldType(remap.FunctionRequest, "input") = &function.input;
 

@@ -32,7 +32,7 @@ export default function (in: Input): Output {
             file: source.file,
             external: source.external
         },
-        root: source.attributes.root,
+        attributes: source.attributes,
         control: source.control,
         workspace
     })
@@ -57,7 +57,6 @@ export default function (in: Input): Output {
             control: value.control ?? empty.control,
             store_table: value.store_table ?? empty.stores
         },
-        attributes: source.attributes,
         row: 0
     })
 

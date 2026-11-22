@@ -1,15 +1,33 @@
 import type { Control } from "core/control_table/model"
+import type { StoreMode } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
+import type { Ownership } from "core/symbol_table/model"
 import type { Admission, FunctionOutput } from "../remapping/model"
 import type { Output as Metadata } from "./metadata"
 
 export type Input = {
     admission: Admission,
     metadata: Metadata,
+    attributes: Attributes,
     control?: Control
 }
 
-export type Owned = FunctionOutput & Metadata & {
+export type Flags = {
+    ownership: Ownership,
+    allocator_argument: bool,
+    io_argument: bool,
+    process_argument: bool,
+    expand_tuple: bool,
+    fallible: bool,
+    concurrent: bool
+}
+
+export type Attributes = Flags & {
+    store_mode: StoreMode,
+    root?: u32
+}
+
+export type Owned = FunctionOutput & Metadata & Attributes & {
     control?: Control,
     store_table?: Stores
 }

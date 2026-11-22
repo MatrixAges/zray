@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const generated = @import("generated_artifact_remap");
+const materialize = @import("generated_artifact_materialize");
 const functions = @import("generated_artifact_linked_function");
 const Nodes = @import("../nodes.zig");
 const Error = @import("../model.zig").Error;
@@ -9,34 +10,15 @@ const external_host = @import("../materializing/external_host.zig");
 const Input = std.meta.Child(generated.Input);
 const Mapping = std.meta.Child(@FieldType(Input, "type_mapping"));
 const Output = @typeInfo(@TypeOf(generated.executeValue(undefined, undefined))).error_union.payload;
-const Link = std.meta.Child(functions.Input);
+const Content = std.meta.Child(@FieldType(std.meta.Child(materialize.Input), "content"));
+const Link = std.meta.Child(@typeInfo(@FieldType(Content, "function")).optional.child);
 const Admission = std.meta.Child(@FieldType(Link, "admission"));
 const FunctionInput = std.meta.Child(@FieldType(Admission, "source"));
 const Metadata = std.meta.Child(@FieldType(Link, "metadata"));
 const External = std.meta.Child(@typeInfo(@FieldType(Metadata, "external")).optional.child);
 const Control = @typeInfo(@FieldType(Link, "control")).optional.child;
+const Attributes = std.meta.Child(@FieldType(Link, "attributes"));
 const FunctionOutput = @typeInfo(@typeInfo(@TypeOf(functions.executeValue(undefined, undefined))).error_union.payload).optional.child;
-
-pub const BodyColumns = struct {
-    input_type: ir.TypeId,
-    output_type: ir.TypeId,
-    native_module: ?ir.NativeModuleId,
-    symbols: *const ir.SymbolTable,
-    expressions: *const ir.ExpressionTable,
-    contracts: *const ir.ContractTable,
-    stores: *const ir.StoreTable,
-    pub fn borrow(value: *const ir.Function) BodyColumns {
-        return .{
-            .input_type = value.input_type,
-            .output_type = value.output_type,
-            .native_module = if (value.external) |external| external.module else null,
-            .symbols = &value.symbols,
-            .expressions = &value.expressions,
-            .contracts = &value.contracts,
-            .stores = &value.stores,
-        };
-    }
-};
 
 pub fn columns(allocator: std.mem.Allocator, nodes: *const Nodes, types: []const u32, calls: []const u32) Error!Output {
     if (types.len == 0 and calls.len == 0) return .{ .types = &.{}, .functions = &.{} };
@@ -54,15 +36,14 @@ pub fn columns(allocator: std.mem.Allocator, nodes: *const Nodes, types: []const
     return zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| return failure(err);
 }
 
-pub fn function(nodes: *const Nodes, body: BodyColumns, control: ir.ControlBody, file: []const u8, native: ?ir.External, candidate: ?ir.FunctionId, structure: Nodes.Structure) Error!FunctionOutput {
-    if (structure == .unchecked and !try @import("control.zig").valid(nodes.allocator, control)) return error.InvalidModule;
+pub fn function(nodes: *const Nodes, source: *const ir.FunctionView, candidate: ?ir.FunctionId, structure: Nodes.Structure) Error!FunctionOutput {
+    if (structure == .unchecked and !try @import("control.zig").valid(nodes.allocator, source.body)) return error.InvalidModule;
 
     var request: FunctionRequest = undefined;
 
-    request.init(nodes, body, control, file, native, candidate, structure);
+    request.init(nodes, source, candidate, structure);
 
-    const input: *const Link = &request.input;
-    const mapped = zx.columns.invoke(functions.executeValue, nodes.allocator, input) catch |err| return failure(err);
+    const mapped = zx.columns.invoke(functions.executeValue, nodes.allocator, &request.input) catch |err| return failure(err);
 
     return mapped orelse error.InvalidModule;
 }
@@ -72,27 +53,46 @@ pub const FunctionRequest = struct {
     admission: Admission,
     metadata: Metadata,
     abi: ?External,
+    attributes: Attributes,
     input: Link,
-    pub fn init(self: *FunctionRequest, nodes: *const Nodes, body: BodyColumns, control: ir.ControlBody, file: []const u8, native: ?ir.External, candidate: ?ir.FunctionId, structure: Nodes.Structure) void {
-        self.view.initColumns(nodes, body, candidate);
+    pub fn init(self: *FunctionRequest, nodes: *const Nodes, source: *const ir.FunctionView, candidate: ?ir.FunctionId, structure: Nodes.Structure) void {
+        self.view.initBorrowed(nodes, source, candidate);
 
         self.admission = .{
             .source = &self.view.input,
-            .stores = zx.columns.pointer(@FieldType(Admission, "stores"), body.stores),
+            .stores = zx.columns.pointer(@FieldType(Admission, "stores"), source.stores),
             .checked = structure == .validated,
             .max_offset = std.math.maxInt(usize),
         };
 
-        self.abi = if (native) |value| external_host.borrow(External, value) else null;
-        self.metadata = .{ .file = file, .external = if (self.abi) |*value| value else null };
+        self.abi = if (source.signature.external) |value| external_host.borrow(External, value) else null;
+        self.metadata = .{ .file = source.signature.file_name, .external = if (self.abi) |*value| value else null };
+        self.attributes = attributes(Attributes, source, source.store_mode);
 
         self.input = .{
             .admission = &self.admission,
             .metadata = &self.metadata,
-            .control = if (control.root != null) zx.columns.pointer(Control, control.control) else null,
+            .attributes = &self.attributes,
+            .control = if (source.body.root != null) zx.columns.pointer(Control, source.body.control) else null,
         };
     }
 };
+
+pub fn attributes(comptime Target: type, source: *const ir.FunctionView, store_mode: ir.StoreMode) Target {
+    const native = source.signature.external;
+
+    return .{
+        .ownership = @fromBackingInt(@intCast(@backingInt(source.signature.output_ownership))),
+        .store_mode = @fromBackingInt(@intCast(@backingInt(store_mode))),
+        .root = if (source.body.root) |id| @backingInt(id) else null,
+        .allocator_argument = if (native) |value| value.allocator_argument else false,
+        .io_argument = if (native) |value| value.io_argument else false,
+        .process_argument = if (native) |value| value.process_argument else false,
+        .expand_tuple = if (native) |value| value.expand_tuple else false,
+        .fallible = if (native) |value| value.fallible else false,
+        .concurrent = if (native) |value| value.concurrent else false,
+    };
+}
 
 pub fn FunctionView(comptime T: type) type {
     const FunctionMapping = std.meta.Child(@FieldType(T, "types"));
@@ -110,18 +110,20 @@ pub fn FunctionView(comptime T: type) type {
         contracts: Contracts,
         input: T,
         pub fn init(self: *Self, nodes: *const Nodes, value: *const ir.Function, candidate: ?ir.FunctionId) void {
-            self.initColumns(nodes, BodyColumns.borrow(value), candidate);
+            const source = ir.FunctionView.borrow(value);
+
+            self.initBorrowed(nodes, &source, candidate);
         }
-        fn initColumns(self: *Self, nodes: *const Nodes, value: BodyColumns, candidate: ?ir.FunctionId) void {
+        fn initBorrowed(self: *Self, nodes: *const Nodes, value: *const ir.FunctionView, candidate: ?ir.FunctionId) void {
             self.types = typeMapping(FunctionMapping, nodes.types);
             self.functions = idMapping(FunctionMapping, nodes.functions);
             self.natives = idMapping(FunctionMapping, nodes.native_modules);
             self.contracts = zx.columns.columns(Contracts, value.contracts.*);
 
             self.ports = .{
-                .input = @backingInt(value.input_type),
-                .output = @backingInt(value.output_type),
-                .native_module = if (value.native_module) |id| @backingInt(id) else null,
+                .input = @backingInt(value.signature.input_type),
+                .output = @backingInt(value.signature.output_type),
+                .native_module = if (value.signature.external) |native| @backingInt(native.module) else null,
             };
 
             self.input = .{

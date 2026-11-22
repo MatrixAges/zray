@@ -33,7 +33,9 @@ pub fn lower(self: *Lower, invocation: Operation) Error!node.ExpressionId {
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Cache = std.meta.Child(@FieldType(Input, "cache"));
     const index = @backingInt(invocation.function);
-    const function = self.program.functions.at(index);
+    const functions = &self.program.functions;
+    const input_type = functions.input_types[index];
+    const output_type = functions.output_types[index];
     const types: Types = .{ .kinds = self.program.types.kinds, .first = self.program.types.first };
 
     const cache: Cache = .{
@@ -46,12 +48,12 @@ pub fn lower(self: *Lower, invocation: Operation) Error!node.ExpressionId {
     const source: Input = .{
         .types = &types,
         .cache = &cache,
-        .input = @backingInt(function.input_type),
-        .output = @backingInt(function.output_type),
-        .input_query = zx.columns.view(@FieldType(Input, "input_query"), self.state_plan.queries[@backingInt(function.input_type)]),
-        .output_query = zx.columns.view(@FieldType(Input, "output_query"), self.state_plan.queries[@backingInt(function.output_type)]),
+        .input = input_type,
+        .output = output_type,
+        .input_query = zx.columns.view(@FieldType(Input, "input_query"), self.state_plan.queries[input_type]),
+        .output_query = zx.columns.view(@FieldType(Input, "output_query"), self.state_plan.queries[output_type]),
         .argument_kind = zx.columns.view(@FieldType(Input, "argument_kind"), self.program.expressions.kinds[@backingInt(invocation.argument)]),
-        .expand_tuple = if (function.external) |external| external.expand_tuple else false,
+        .expand_tuple = functions.native_modules[index] != null and functions.native_tuples[index],
         .active = self.state_active,
         .allows_allocation = self.allows_allocation,
         .function = index,

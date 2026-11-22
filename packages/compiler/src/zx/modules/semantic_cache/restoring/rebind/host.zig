@@ -38,11 +38,10 @@ pub const Maps = struct {
 pub const Prepared = struct { types: TypePlan, entry: ?ir.FunctionId };
 
 pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, maps: *Maps, types_request: *const TypeRequest) Artifact.Error!Prepared {
-    const linked = ir.SignatureTable.fromFunctions(current.functions.view());
     const SignatureTable = std.meta.Child(@FieldType(Signatures, "previous"));
     const NativeTable = std.meta.Child(@FieldType(Modules, "previous"));
-    const previous_signatures = zx.columns.columns(SignatureTable, module.functions);
-    const current_signatures = zx.columns.columns(SignatureTable, linked);
+    const previous_signatures = ir.SignatureTable.borrow(SignatureTable, &module.functions);
+    const current_signatures = ir.SignatureTable.borrow(SignatureTable, current.functions);
     const previous_modules = zx.columns.columns(NativeTable, module.native_modules);
     const current_modules = zx.columns.columns(NativeTable, current.native_modules);
     const AliasRows = std.meta.Child(@FieldType(Aliases, "previous"));
@@ -66,7 +65,7 @@ pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, cur
         .members = &.{ .previous = &old_exports, .current = &new_exports },
         .signatures = &.{ .previous = &previous_signatures, .current = &current_signatures },
         .has_body = module.function != null,
-        .linked_count = linked.count(),
+        .linked_count = current.functions.count(),
     };
 
     var preflight: Preflight = undefined;

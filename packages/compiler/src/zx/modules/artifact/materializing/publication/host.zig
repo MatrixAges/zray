@@ -116,42 +116,24 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
 }
 
 fn borrowRoot(comptime Root: type, source: anytype, external: anytype, attributes: anytype, identity: ?[]const u8) Root {
-    const signature: ?ir.External = if (@hasField(std.meta.Child(@TypeOf(source)), "external")) source.external else null;
+    const view = ir.FunctionView.borrow(source);
+    const native = view.signature.external;
 
-    if (signature) |native| external.* = .{
-        .members = native.member,
-        .errors = native.errors,
-        .export_name = native.export_name,
-        .parameters = if (native.input) |input| input.names else null,
-    };
+    if (native) |value| external.* = @import("../external_host.zig").borrow(@TypeOf(external.*), value);
 
-    attributes.* = .{
-        .ownership = switch (source.output_ownership) {
-            .copy => .Copy,
-            .borrowed => .Borrowed,
-            .owned => .Owned,
-        },
-        .store_mode = @fromBackingInt(@intCast(@backingInt(if (identity != null) ir.StoreMode.transaction else source.store_mode))),
-        .root = if (source.body.root) |id| @backingInt(id) else null,
-        .allocator_argument = if (signature) |native| native.allocator_argument else false,
-        .io_argument = if (signature) |native| native.io_argument else false,
-        .process_argument = if (signature) |native| native.process_argument else false,
-        .expand_tuple = if (signature) |native| native.expand_tuple else false,
-        .fallible = if (signature) |native| native.fallible else false,
-        .concurrent = if (signature) |native| native.concurrent else false,
-    };
+    attributes.* = remap.attributes(@TypeOf(attributes.*), &view, if (identity != null) .transaction else view.store_mode);
 
     return .{
-        .file = identity orelse source.file_name,
-        .input_type = @backingInt(source.input_type),
-        .output_type = @backingInt(source.output_type),
+        .file = identity orelse view.signature.file_name,
+        .input_type = @backingInt(view.signature.input_type),
+        .output_type = @backingInt(view.signature.output_type),
         .attributes = attributes,
-        .native_module = if (signature) |native| @backingInt(native.module) else null,
-        .external = if (signature != null) external else null,
-        .stores = zx.columns.pointer(@FieldType(Root, "stores"), &source.stores),
-        .symbols = zx.columns.pointer(@FieldType(Root, "symbols"), &source.symbols),
-        .expressions = zx.columns.pointer(@FieldType(Root, "expressions"), &source.expressions),
-        .contracts = zx.columns.pointer(@FieldType(Root, "contracts"), &source.contracts),
-        .control = zx.columns.pointer(@FieldType(Root, "control"), source.body.control),
+        .native_module = if (native) |value| @backingInt(value.module) else null,
+        .external = if (native != null) external else null,
+        .stores = zx.columns.pointer(@FieldType(Root, "stores"), view.stores),
+        .symbols = zx.columns.pointer(@FieldType(Root, "symbols"), view.symbols),
+        .expressions = zx.columns.pointer(@FieldType(Root, "expressions"), view.expressions),
+        .contracts = zx.columns.pointer(@FieldType(Root, "contracts"), view.contracts),
+        .control = zx.columns.pointer(@FieldType(Root, "control"), view.body.control),
     };
 }

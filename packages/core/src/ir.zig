@@ -16,6 +16,7 @@ pub const Signature = @import("signature_table/model.zig").Signature;
 pub const SignatureTable = @import("signature_table/root.zig");
 pub const SignatureStorage = @import("signature_table/storage.zig");
 pub const FunctionTable = @import("function_table/root.zig");
+pub const FunctionView = @import("function_table/view.zig");
 pub const FunctionStorage = @import("function_table/storage.zig");
 pub const NativeModuleId = enum(u32) { _ };
 pub const NativeModuleTable = @import("native_module_table/root.zig");
