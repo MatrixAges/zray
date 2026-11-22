@@ -1,0 +1,71 @@
+import bytes from "std:bytes"
+import slot from "core/bytes/index/slot"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Classification as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { cache, sources, buffers, range } = in
+
+    const classified = loop(0, {
+        while: row => row < range.count,
+        next: row => {
+            const index = range.first + row
+            const source = bytes.fromText(
+                memory.readTextColumn(sources.texts, index)
+            )
+
+            const entry = match {
+                cache.capacity == 0 => 0,
+                _ => slot({
+                    ...cache.pick([
+                        "keys",
+                        "buckets",
+                        "capacity"
+                    ]),
+                    key: bytes.fromText(
+                        memory.readTextColumn(
+                            sources.paths,
+                            index
+                        )
+                    )
+                }).entry
+            }
+
+            const text = match entry {
+                0 => null,
+                _ => columns.readReferencedOptionalBytes(cache.texts, entry - 1)
+            }
+
+            if (text != null && bytes.equals(text, source)) {
+                memory.writeU64(buffers.hits, row, entry)
+            } else {
+                const offset = row * buffers.digest_width
+
+                memory.sha256IntoRange(buffers.digests, offset, source)
+
+                const matching = match entry {
+                    0 => false,
+                    _ => bytes.equals(
+                        columns.readReferencedBytes(
+                            cache.digests,
+                            entry - 1
+                        ),
+                        memory.borrowU8Range(
+                            buffers.digest_bytes,
+                            offset,
+                            buffers.digest_width
+                        )
+                    )
+                }
+
+                memory.writeU64(buffers.hits, row, matching ? entry : 0)
+            }
+
+            row += 1
+        }
+    })
+}

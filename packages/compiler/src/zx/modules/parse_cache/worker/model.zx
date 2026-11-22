@@ -1,0 +1,52 @@
+import type { Lookup as Slot } from "core/bytes/index/slot"
+import type { TextColumn, U8Buffer, U64Buffer } from "memory"
+import type { ReferenceColumn } from "memory/columns"
+import type { ParseWorker } from "project_host"
+
+export type Cache = Slot.Omit("key") & {
+    texts: ReferenceColumn,
+    digests: ReferenceColumn
+}
+
+export type Sources = {
+    paths: TextColumn,
+    texts: TextColumn
+}
+
+export type Buffers = {
+    hits: U64Buffer,
+    hit_rows: u64[],
+    digests: U8Buffer,
+    digest_bytes: u8[],
+    digest_width: u64
+}
+
+export type Walk = {
+    worker: ParseWorker,
+    cache: Cache,
+    sources: Sources,
+    buffers: Buffers,
+    count: u64,
+    participants: u64,
+    has_output: bool
+}
+
+export type Range = {
+    first: u64,
+    count: u64
+}
+
+export type Classification = {
+    cache: Cache,
+    sources: Sources,
+    buffers: Buffers,
+    range: Range
+}
+
+export type Dispatch = {
+    worker: ParseWorker,
+    sources: Sources,
+    buffers: Buffers,
+    range: Range,
+    has_output: bool
+}

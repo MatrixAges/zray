@@ -254,84 +254,6 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
     if (count == 0) return;
 
     const parallel = zx.parallel;
-
-    const Prefetch = struct {
-        cache: *const Self,
-        requests: @TypeOf(requests),
-        results: []?*Entry,
-        outputs: ?[]*const Output,
-        staging: []std.heap.ArenaAllocator,
-        batch_size: usize,
-        next: std.atomic.Value(usize) = .init(0),
-        failed: std.atomic.Value(bool) = .init(false),
-        fn run(work: *@This(), participant: usize) void {
-            var scratch = zx.Arena.init(std.heap.page_allocator);
-
-            defer scratch.deinit();
-
-            const staged = work.staging[participant].allocator();
-            var hits: [max_parse_batch]u64 = undefined;
-            var digests: [max_parse_batch]Digest = undefined;
-            var digest_scratch: [max_parse_batch * @sizeOf(Digest)]u8 = undefined;
-
-            while (!work.failed.load(.monotonic)) {
-                const first = work.next.fetchAdd(work.batch_size, .monotonic);
-
-                if (first >= work.results.len) return;
-
-                const end = first + @min(work.batch_size, work.results.len - first);
-
-                if (comptime indexed_enabled) {
-                    const batch_count = end - first;
-
-                    @import("parse_cache/batch.zig").classify(&work.cache.entries, work.requests, first, hits[0..batch_count], digests[0..batch_count], &digest_scratch) catch {
-                        work.failed.store(true, .monotonic);
-
-                        return;
-                    };
-                }
-
-                for (first..end, 0..) |index, offset| {
-                    var digest: Digest = undefined;
-
-                    const found: ?*Entry = if (comptime indexed_enabled) hit: {
-                        const row = hits[offset];
-
-                        if (row != 0) break :hit work.cache.entries.values.items[@intCast(row - 1)];
-
-                        digest = digests[offset];
-
-                        break :hit null;
-                    } else seed: {
-                        const request = work.requests.at(index);
-                        const existing = work.cache.entries.get(request.path);
-
-                        break :seed if (lookup(existing, request.source, false, &digest) == .Reuse) existing else null;
-                    };
-
-                    if (found) |entry| {
-                        if (work.outputs) |views| views[index] = if (Output == Entry) entry else &entry.result;
-
-                        continue;
-                    }
-
-                    work.results[index] = parse(staged, &scratch, work.requests.at(index), digest) catch {
-                        work.failed.store(true, .monotonic);
-
-                        return;
-                    };
-                }
-            }
-        }
-        fn parse(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, digest: Digest) std.mem.Allocator.Error!*Entry {
-            const entry = try staged.create(Entry);
-            const result = try parser.parseAnalysisModuleIn(std.heap.smp_allocator, scratch, request.source, request.path);
-            entry.* = .init(digest, result);
-
-            return entry;
-        }
-    };
-
     const results = try self.allocator.alloc(?*Entry, count);
 
     defer self.allocator.free(results);
@@ -344,26 +266,84 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
     @memset(results, null);
     @memset(staging, .init(std.heap.smp_allocator));
 
-    const batch_size = @min(max_parse_batch, @max(1, count / workers));
-    var work = Prefetch{ .cache = self, .requests = requests, .results = results, .outputs = outputs, .staging = staging, .batch_size = batch_size };
+    const output: BatchOutput = binding: {
+        const views = outputs orelse break :binding .none;
 
-    parallel.spread(Prefetch, &work, Prefetch.run, workers);
+        break :binding if (Output == Entry) .{ .entries = views } else .{ .modules = views };
+    };
 
     if (comptime generated) {
-        const paths = if (comptime @hasField(@TypeOf(requests), "paths"))
-            zx.memory.borrowTextSlice(requests.paths)
+        const memory = zx.memory;
+        const registered = comptime @hasField(@TypeOf(requests), "paths");
+        const paths = if (registered) memory.borrowTextSlice(requests.paths) else memory.borrowTextColumn("path", requests.items);
+        const texts = memory.borrowTextColumn("source", if (registered) requests.sources else requests.items);
 
-        else
-            zx.memory.borrowTextColumn("path", requests.items);
-
-        const output: BatchOutput = binding: {
-            const views = outputs orelse break :binding .none;
-
-            break :binding if (Output == Entry) .{ .entries = views } else .{ .modules = views };
+        var work: ParseWork = .{
+            .cache = self,
+            .paths = &paths,
+            .texts = &texts,
+            .results = results,
+            .output = output,
+            .staging = staging,
         };
+
+        parallel.spread(ParseWork, &work, ParseWork.run, workers);
 
         return self.publishPrefetched(&paths, results, output, work.failed.load(.monotonic));
     }
+
+    const Seed = struct {
+        cache: *const Self,
+        requests: @TypeOf(requests),
+        results: []?*Entry,
+        output: BatchOutput,
+        staging: []std.heap.ArenaAllocator,
+        batch_size: usize,
+        next: std.atomic.Value(usize) = .init(0),
+        failed: std.atomic.Value(bool) = .init(false),
+        fn run(work: *@This(), participant: usize) void {
+            var scratch = zx.Arena.init(std.heap.page_allocator);
+
+            defer scratch.deinit();
+
+            const staged = work.staging[participant].allocator();
+
+            while (!work.failed.load(.monotonic)) {
+                const first = work.next.fetchAdd(work.batch_size, .monotonic);
+
+                if (first >= work.results.len) return;
+
+                const end = first + @min(work.batch_size, work.results.len - first);
+
+                for (first..end) |index| {
+                    const request = work.requests.at(index);
+                    const existing = work.cache.entries.get(request.path);
+                    var digest: Digest = undefined;
+
+                    if (lookup(existing, request.source, false, &digest) == .Reuse) {
+                        if (work.output != .none) work.output.bind(index, existing.?);
+                    } else work.results[index] = stageResult(staged, &scratch, request, digest) catch {
+                        work.failed.store(true, .monotonic);
+
+                        return;
+                    };
+                }
+            }
+        }
+    };
+
+    const batch_size = @min(max_parse_batch, @max(1, count / workers));
+
+    var work: Seed = .{
+        .cache = self,
+        .requests = requests,
+        .results = results,
+        .output = output,
+        .staging = staging,
+        .batch_size = batch_size,
+    };
+
+    parallel.spread(Seed, &work, Seed.run, workers);
 
     var kept: usize = 0;
 
@@ -374,7 +354,7 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
             const path = requests.at(index).path;
             const entry = try self.adopt(path, self.entries.probe(path), value);
 
-            if (outputs) |views| views[index] = if (Output == Entry) entry else &entry.result;
+            if (output != .none) output.bind(index, entry);
         }
 
         kept += 1;
@@ -387,7 +367,111 @@ const BatchOutput = union(enum) {
     none,
     entries: []*const Entry,
     modules: []*const ModuleResult,
+    fn bind(self: BatchOutput, index: usize, entry: *const Entry) void {
+        switch (self) {
+            .none => unreachable,
+            .entries => |views| views[index] = entry,
+            .modules => |views| views[index] = &entry.result,
+        }
+    }
 };
+
+const ParseWork = struct {
+    cache: *const Self,
+    paths: *const zx.memory.TextColumn,
+    texts: *const zx.memory.TextColumn,
+    results: []?*Entry,
+    output: BatchOutput,
+    staging: []std.heap.ArenaAllocator,
+    next: std.atomic.Value(usize) = .init(0),
+    failed: std.atomic.Value(bool) = .init(false),
+    fn run(work: *ParseWork, participant: usize) void {
+        const rule = @import("generated_parse_cache_worker");
+        const memory = zx.memory;
+        var scratch = zx.Arena.init(std.heap.page_allocator);
+
+        defer scratch.deinit();
+
+        const worker: ParseWorker = .{ .work = work, .arena = &scratch, .staged = work.staging[participant].allocator() };
+        const entries = &work.cache.entries;
+        const cached_text = memory.borrowReferenceColumn("text", entries.values.items);
+        const cached_digest = memory.borrowReferenceColumn("digest", entries.values.items);
+        var hits: [max_parse_batch]u64 = undefined;
+        var digests: [max_parse_batch]Digest = undefined;
+        const hit_rows: []u64 = &hits;
+        const digest_bytes = std.mem.sliceAsBytes(digests[0..]);
+
+        const input: std.meta.Child(rule.Input) = .{
+            .worker = @ptrCast(&worker),
+            .cache = &.{
+                .keys = entries.keys.items,
+                .buckets = @ptrCast(&entries.buckets),
+                .capacity = entries.buckets.len,
+                .texts = @ptrCast(&cached_text),
+                .digests = @ptrCast(&cached_digest),
+            },
+            .sources = &.{ .paths = @ptrCast(work.paths), .texts = @ptrCast(work.texts) },
+            .buffers = &.{
+                .hits = @ptrCast(&hit_rows),
+                .hit_rows = hit_rows,
+                .digests = @ptrCast(&digest_bytes),
+                .digest_bytes = digest_bytes,
+                .digest_width = @sizeOf(Digest),
+            },
+            .count = work.results.len,
+            .participants = work.staging.len,
+            .has_output = work.output != .none,
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        rule.executeIn(empty.allocator(), &input) catch unreachable;
+    }
+};
+
+const ParseWorker = struct {
+    work: *ParseWork,
+    arena: *zx.Arena,
+    staged: std.mem.Allocator,
+    fn borrow(handle: *const anyopaque) *const ParseWorker {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
+pub fn parseWorkerFailed(handle: *const anyopaque) bool {
+    return ParseWorker.borrow(handle).work.failed.load(.monotonic);
+}
+
+pub fn claimParseWorkerRows(handle: *const anyopaque, count: u64) u64 {
+    return ParseWorker.borrow(handle).work.next.fetchAdd(@intCast(count), .monotonic);
+}
+
+pub fn failParseWorker(handle: *const anyopaque) void {
+    ParseWorker.borrow(handle).work.failed.store(true, .monotonic);
+}
+
+pub fn bindParseWorkerHit(handle: *const anyopaque, index: u64, hit: u64) void {
+    const work = ParseWorker.borrow(handle).work;
+
+    work.output.bind(@intCast(index), work.cache.entries.values.items[@intCast(hit)]);
+}
+
+pub fn stageParseWorkerResult(handle: *const anyopaque, index: u64, source: []const u8, path: []const u8, digest: []const u8) bool {
+    const worker = ParseWorker.borrow(handle);
+    const entry = stageResult(worker.staged, worker.arena, .{ .path = path, .source = source }, digest[0..@sizeOf(Digest)].*) catch return false;
+
+    worker.work.results[@intCast(index)] = entry;
+
+    return true;
+}
+
+fn stageResult(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, digest: Digest) std.mem.Allocator.Error!*Entry {
+    const entry = try staged.create(Entry);
+    const result = try parser.parseAnalysisModuleIn(std.heap.smp_allocator, scratch, request.source, request.path);
+    entry.* = .init(digest, result);
+
+    return entry;
+}
 
 const Batch = struct {
     adoption: Adoption,
@@ -425,13 +509,8 @@ pub fn preparePrefetchedParse(handle: *const anyopaque, path: []const u8) Native
 pub fn bindPrefetchedParse(handle: *const anyopaque, index: u64, handle_entry: *const anyopaque) void {
     const batch = Batch.borrow(handle);
     const entry: *const Entry = @ptrCast(@alignCast(handle_entry));
-    const row: usize = @intCast(index);
 
-    switch (batch.output) {
-        .none => unreachable,
-        .entries => |views| views[row] = entry,
-        .modules => |views| views[row] = &entry.result,
-    }
+    batch.output.bind(@intCast(index), entry);
 }
 
 pub fn discardStagedParse(handle: *const anyopaque) void {
