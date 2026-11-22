@@ -198,8 +198,39 @@ pub fn publishOne(target: *const anyopaque, index: u64, count: u64) void {
     groupColumns(target)[@intCast(index)].storage.items.len += @intCast(count);
 }
 
-pub fn copyValues(target: *const anyopaque, index: u64, first: u64, count: u64) void {
-    copyBytes(groupColumns(target)[@intCast(index)], @intCast(first), @intCast(count));
+pub inline fn layout(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return switch (groupColumns(target)[@intCast(index)].kind) {
+        .value => .Contiguous,
+        .strided, .repeated => .Projected,
+        else => .Owned,
+    };
+}
+
+pub inline fn borrowColumn(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return @ptrCast(&groupColumns(target)[@intCast(index)]);
+}
+
+pub inline fn columnStride(target: *const anyopaque) u64 {
+    const column: *const Column = @ptrCast(@alignCast(target));
+
+    return column.stride;
+}
+
+pub inline fn columnLength(target: *const anyopaque, index: u64) u64 {
+    return groupColumns(target)[@intCast(index)].source_count;
+}
+
+pub inline fn copyRange(target: *const anyopaque, index: u64, first: u64, count: u64) void {
+    copyContiguous(groupColumns(target)[@intCast(index)], @intCast(first), @intCast(count));
+}
+
+pub inline fn copyCell(target: *const anyopaque, source_offset: u64, target_row: u64) void {
+    const column: *const Column = @ptrCast(@alignCast(target));
+    const storage = column.storage;
+    const width = column.width;
+    const start = (storage.items.len + @as(usize, @intCast(target_row))) * width;
+
+    copyBytesAt(storage.items.ptr + start, column.source + @as(usize, @intCast(source_offset)), width);
 }
 
 pub fn retainItem(resource: *const anyopaque, target: *const anyopaque, index: u64, from: u64, to: u64) bool {
@@ -251,30 +282,29 @@ fn Payload(comptime kind_value: Kind) type {
     };
 }
 
+inline fn copyBytesAt(target: [*]u8, source: [*]const u8, width: usize) void {
+    @memcpy(target[0..width], source[0..width]);
+}
+
+inline fn copyContiguous(column: Column, first: usize, count: usize) void {
+    if (column.width == 0 or count == 0) return;
+
+    const source = column.source + first * column.width;
+    const target = column.storage.items.ptr + column.storage.items.len * column.width;
+
+    copyBytesAt(target, source, count * column.width);
+}
+
 fn copyBytes(column: Column, first: usize, count: usize) void {
     switch (column.kind) {
-        .value => {
-            if (column.width == 0) return;
-
-            const source = column.source[first * column.width ..][0 .. count * column.width];
-            const target = column.storage.items.ptr[column.storage.items.len * column.width ..][0..source.len];
-
-            @memcpy(target, source);
-        },
-        .strided => {
-            const target = column.storage.items.ptr[column.storage.items.len * column.width ..];
-            const stride: usize = column.stride;
-            const source = column.source[first * stride ..];
+        .value => copyContiguous(column, first, count),
+        .strided, .repeated => {
+            const target = column.storage.items.ptr + column.storage.items.len * column.width;
+            const source = column.source + first * @as(usize, column.stride);
 
             for (0..count) |index| {
-                @memcpy(target[index * column.width ..][0..column.width], source[index * stride ..][0..column.width]);
+                copyBytesAt(target + index * column.width, source + index * @as(usize, column.stride), column.width);
             }
-        },
-        .repeated => {
-            const source = column.source[0..column.width];
-            const target = column.storage.items.ptr[column.storage.items.len * column.width ..];
-
-            for (0..count) |index| @memcpy(target[index * column.width ..][0..column.width], source);
         },
         else => unreachable,
     }

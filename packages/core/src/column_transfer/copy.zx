@@ -1,5 +1,7 @@
 import memory from "memory"
+import { TransferLayout } from "memory"
 
+import copyProjected from "./copy_projected"
 import retain from "./retain"
 import rollback from "./rollback"
 
@@ -25,7 +27,18 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.column < columns,
         next: state => {
-            if (memory.transferOwnsPayload(group, state.column)) {
+            const layout = memory.transferLayout(group, state.column, null)
+
+            if (layout == TransferLayout.Contiguous) {
+                memory.copyTransferRange(group, state.column, first, count)
+            } else if (layout == TransferLayout.Projected) {
+                copyProjected({
+                    group,
+                    column: state.column,
+                    first,
+                    count
+                })
+            } else {
                 state.valid = retain({
                     allocator,
                     group,
@@ -33,8 +46,6 @@ export default function (in: Input): Output {
                     first,
                     count
                 })
-            } else {
-                memory.copyTransferValues(group, state.column, first, count)
             }
 
             if (state.valid) {

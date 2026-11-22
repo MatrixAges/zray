@@ -1,51 +1,44 @@
-import { copy, publish } from "core/column_transfer"
+import memory from "memory"
 
-import type { Allocator, ColumnTransfers } from "memory"
+import type { Allocator, TransferGroup } from "memory"
 
 export type Input = {
     allocator: Allocator,
-    groups: ColumnTransfers,
-    counts: u64[]
+    group: TransferGroup
 }
 
-export type Output = bool
+export type Output = void
 
 export default function (in: Input): Output {
-    const { allocator, groups, counts } = in
+    const { allocator, group } = in
 
-    const copied = loop({
-        index: 0,
-        valid: true
-    }, {
-        while: state => state.index < counts.length && state.valid,
-        next: state => {
-            state.valid = copy({
-                allocator,
-                groups,
-                index: state.index,
-                first: 0,
-                count: counts[state.index]
-            })
-            state.index += 1
-        },
-        return: state => state.valid
-    })
+    const columns = memory.transferColumnCount(group)
 
-    if (!copied) {
-        return false
-    }
+    const reserved = loop(0, {
+        while: column => column < columns,
+        next: column => {
+            const count = memory.transferColumnLength(group, column)
 
-    const published = loop(0, {
-        while: index => index < counts.length,
-        next: index => {
-            publish({
-                groups,
-                index,
-                count: counts[index]
-            })
-            index += 1
+            if (count != 0) {
+                const length =
+                    memory.reserveTransferColumn(allocator, group, column, count)
+            }
+
+            column += 1
         }
     })
 
-    return true
+    const published = loop(0, {
+        while: column => column < columns,
+        next: column => {
+            const count = memory.transferColumnLength(group, column)
+
+            if (count != 0) {
+                memory.copyTransferRange(group, column, 0, count)
+                memory.publishTransferColumn(group, column, count)
+            }
+
+            column += 1
+        }
+    })
 }

@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import type { TransferGroup } from "memory"
+
+export type Input = {
+    group: TransferGroup,
+    column: u64,
+    first: u64,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { group, column, first, count } = in
+
+    const target = memory.transferColumn(group, column, null)
+    const stride = memory.transferColumnStride(target)
+    const offset = first * stride
+
+    const copied = loop(0, {
+        while: row => row < count,
+        next: row => {
+            memory.copyTransferCell(target, offset + row * stride, row)
+            row += 1
+        }
+    })
+}

@@ -105,11 +105,33 @@ export declare function reserveTransferColumn(
     count: u64
 ): u64 throws { OutOfMemory }
 
-export declare function copyTransferValues(
+export declare function transferLayout(
+    group: TransferGroup,
+    column: u64,
+    shape: TransferLayout?
+): TransferLayout
+
+export declare function transferColumn(
+    group: TransferGroup,
+    column: u64,
+    shape: TransferColumn?
+): TransferColumn
+
+export declare function transferColumnStride(column: TransferColumn): u64
+
+export declare function transferColumnLength(group: TransferGroup, column: u64): u64
+
+export declare function copyTransferRange(
     group: TransferGroup,
     column: u64,
     first: u64,
     count: u64
+): void
+
+export declare function copyTransferCell(
+    column: TransferColumn,
+    source_offset: u64,
+    target_row: u64
 ): void
 
 export declare function retainTransferItem(

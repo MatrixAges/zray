@@ -29,52 +29,33 @@ pub fn equal(left: anytype, left_start: anytype, left_end: @TypeOf(left_start), 
 
 /// Writes the selected ranges into reserved tails, sharing the payloads owned by the earlier analysis.
 pub fn transplant(allocator: std.mem.Allocator, ranges: anytype) std.mem.Allocator.Error!void {
-    inline for (ranges) |range| {
-        inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
-            try @field(range.storage, name).ensureUnusedCapacity(allocator, range.end[index] - range.start[index]);
-        }
-    }
-
     if (comptime generated) {
         const rule = @import("generated_rx_history_column_write");
         const Input = std.meta.Child(rule.Input);
         const Transfer = zx.memory.column_transfer;
         const capacity = comptime countColumns(@TypeOf(ranges));
         var columns: [capacity]Transfer.Column = undefined;
-        var bindings: [capacity][]const Transfer.Column = undefined;
-        var counts: [capacity]u64 = undefined;
-        var count: usize = 0;
+        comptime var slot: usize = 0;
 
         inline for (ranges) |range| {
             inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
-                const first = range.start[index];
-                const end = range.end[index];
-
-                if (first != end) {
-                    const source = @field(range.source, name)[first..end];
-                    columns[count] = Transfer.bind(&@field(range.storage, name), source, false, true);
-                    bindings[count] = columns[count..][0..1];
-                    counts[count] = source.len;
-                    count += 1;
-                }
+                const source = @field(range.source, name)[range.start[index]..range.end[index]];
+                columns[slot] = Transfer.bind(&@field(range.storage, name), source, false, true);
+                slot += 1;
             }
         }
 
-        if (count == 0) return;
-
-        const groups: Transfer.Groups = bindings[0..count];
-
-        const input: Input = .{
-            .allocator = @ptrCast(&allocator),
-            .groups = @ptrCast(&groups),
-            .counts = counts[0..count],
-        };
-
+        const group: []const Transfer.Column = &columns;
+        const input: Input = .{ .allocator = @ptrCast(&allocator), .group = @ptrCast(&group) };
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        if (!(zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable)) return error.OutOfMemory;
+        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
+    }
 
-        return;
+    inline for (ranges) |range| {
+        inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
+            try @field(range.storage, name).ensureUnusedCapacity(allocator, range.end[index] - range.start[index]);
+        }
     }
 
     inline for (ranges) |range| {
