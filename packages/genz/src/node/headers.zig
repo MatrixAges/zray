@@ -1,6 +1,5 @@
 const std = @import("std");
 const zx = @import("zx");
-const generated = @import("genz_options").generated_analysis;
 pub const Error = std.mem.Allocator.Error || error{InvalidAst};
 
 pub fn Counts(comptime Target: type) type {
@@ -10,49 +9,19 @@ pub fn Counts(comptime Target: type) type {
 }
 
 pub fn check(existing: usize, tags: anytype, offsets: []const u32, counts: []u32, limits: ?[]const u64) Error!void {
-    if (!generated) {
-        if (tags.len != offsets.len) return error.InvalidAst;
-        if (tags.len > std.math.maxInt(u32) - existing) return error.OutOfMemory;
+    if (tags.len != offsets.len) return error.InvalidAst;
+    if (tags.len > std.math.maxInt(u32) - existing) return error.OutOfMemory;
 
-        for (tags, offsets) |tag, offset| {
-            const index = @backingInt(tag);
+    for (tags, offsets) |tag, offset| {
+        const index = @backingInt(tag);
 
-            if (limits) |bounds| if (offset >= bounds[index]) return error.InvalidAst;
+        if (limits) |bounds| if (offset >= bounds[index]) return error.InvalidAst;
 
-            counts[index] += 1;
-        }
-
-        if (limits == null) for (tags, offsets) |tag, offset| {
-            if (offset >= counts[@backingInt(tag)]) return error.InvalidAst;
-        };
-
-        return;
+        counts[index] += 1;
     }
 
-    const entry = @import("generated_node_header_check");
-
-    const input: std.meta.Child(entry.Input) = .{
-        .tags = bytes(tags),
-        .offsets = offsets,
-        .existing = existing,
-        .mask = mask(std.meta.Elem(@TypeOf(tags))),
-        .counts = @ptrCast(&counts),
-        .variants = counts.len,
-        .limits = limits,
-    };
-
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        error.IndexOutOfBounds => return error.InvalidAst,
-        else => unreachable,
-    };
-
-    return switch (result) {
-        .Valid => {},
-        .Invalid => error.InvalidAst,
-        .Exhausted => error.OutOfMemory,
+    if (limits == null) for (tags, offsets) |tag, offset| {
+        if (offset >= counts[@backingInt(tag)]) return error.InvalidAst;
     };
 }
 
@@ -79,12 +48,6 @@ pub const Views = struct {
         return input;
     }
 };
-
-fn bytes(tags: anytype) []const u8 {
-    comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(tags))) == 1);
-
-    return std.mem.sliceAsBytes(tags);
-}
 
 pub fn mask(comptime Tag: type) u64 {
     // A small enum's byte can contain padding above its backing integer.

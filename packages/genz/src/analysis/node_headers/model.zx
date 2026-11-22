@@ -4,6 +4,7 @@ import type {
     U8Storage,
     U32Storage,
     U32Buffer,
+    U64Buffer,
     U8Buffer
 } from "memory"
 
@@ -17,7 +18,7 @@ export type Layout = Headers & {
     existing: u64,
     counts: U32Buffer,
     variants: u64,
-    limits?: u64[]
+    limits?: U64Buffer
 }
 
 export enum Check {

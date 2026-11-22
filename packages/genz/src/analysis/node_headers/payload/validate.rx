@@ -1,0 +1,57 @@
+<Module>
+    <Type from="model" as="Payload" />
+    <Type from="../model" as="Headers" />
+
+    <Args in={Payload.Validation} out={Headers.Check} />
+
+    <If on={$in.limits != null}>
+        <Call
+            fn="limits"
+            in={{
+                ...$in.pick([
+                    "complete",
+                    "groups"
+                ]),
+                limits: $in.limits
+            }}
+        />
+    </If>
+
+    <Call
+        module="../check"
+        in={{
+            ...$in.pick([
+                "existing",
+                "tags",
+                "offsets",
+                "mask",
+                "limits"
+            ]),
+            counts: $in.count_buffer,
+            variants: $in.counts.length
+        }}
+    />
+
+    <If on={$ctx.check != Headers.Check.Valid}>
+        <Return value={$ctx.check} />
+    </If>
+
+    <If on={$in.limits != null}>
+        <Return value={Headers.Check.Valid} />
+    </If>
+
+    <Call
+        fn="shape"
+        in={$in.pick([
+            "complete",
+            "groups",
+            "counts"
+        ])}
+    />
+
+    <If on={$ctx.shape}>
+        <Return value={Headers.Check.Valid} />
+    </If>
+
+    <Return value={Headers.Check.Invalid} />
+</Module>

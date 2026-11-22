@@ -2,11 +2,14 @@ const std = @import("std");
 const view = @import("view.zig");
 const payloads = @import("import_payloads.zig");
 const headers = @import("headers.zig");
+const generated = @import("genz_options").generated_analysis;
 const Counts = headers.Counts;
 const Error = headers.Error;
 
 /// Headers select rows from shared payload columns; unselected payloads are not imported.
 pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
+    if (generated) return payloads.check(target, source, .selected);
+
     @setEvalBranchQuota(100_000);
 
     const Tag = std.meta.Child(@TypeOf(target.tags.items));
@@ -43,9 +46,11 @@ pub fn appendBorrowingText(allocator: std.mem.Allocator, target: anytype, source
 }
 
 fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, comptime borrow_text: bool) Error!void {
+    if (generated) return payloads.append(allocator, target, source, .selected, true, borrow_text);
+
     const counts = try check(target, source);
 
-    return payloads.append(allocator, target, source, &counts, .selected, true, borrow_text);
+    return payloads.appendSeed(allocator, target, source, &counts, .selected, true, borrow_text);
 }
 
 fn schema(comptime View: type, comptime Column: type, comptime prefix: []const u8) usize {

@@ -85,6 +85,11 @@ export declare function columnGroupMatchesLength(
     count: u64
 ): bool
 
+export declare function columnGroupMinimumLength(
+    groups: ColumnTransfers,
+    group: u64
+): u64
+
 export declare function discardColumnGroup(
     allocator: Allocator,
     groups: ColumnTransfers,

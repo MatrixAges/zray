@@ -21,7 +21,10 @@ export default function (in: Input): Output {
                 state.valid = false
             } else if (
                 limits != null &&
-                    integers.widen(offsets[state.index]) >= limits[tag]
+                    integers.widen(offsets[state.index]) >= memory.readU64(
+                        limits,
+                        tag
+                    )
             ) {
                 state.valid = false
             } else {

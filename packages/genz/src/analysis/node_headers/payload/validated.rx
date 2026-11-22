@@ -5,34 +5,22 @@
     <Args in={Payload.Bound} out={Headers.Check} />
 
     <Call
-        module="../check"
-        in={{
-            ...$in.pick([
-                "existing",
-                "tags",
-                "offsets",
-                "mask"
-            ]),
-            counts: $in.count_buffer,
-            variants: $in.counts.length
-        }}
-    />
-
-    <If on={$ctx.check != Headers.Check.Valid}>
-        <Return value={$ctx.check} />
-    </If>
-
-    <Call
-        fn="shape"
+        module="validate"
         in={$in.pick([
             "complete",
+            "count_buffer",
+            "counts",
+            "existing",
             "groups",
-            "counts"
+            "limits",
+            "mask",
+            "offsets",
+            "tags"
         ])}
     />
 
-    <If on={!$ctx.shape}>
-        <Return value={Headers.Check.Invalid} />
+    <If on={$ctx.validate != Headers.Check.Valid}>
+        <Return value={$ctx.validate} />
     </If>
 
     <If on={$in.tags.length == 0}>
@@ -44,7 +32,8 @@
         in={$in.omit([
             "count_buffer",
             "complete",
-            "existing"
+            "existing",
+            "limits"
         ])}
     />
 

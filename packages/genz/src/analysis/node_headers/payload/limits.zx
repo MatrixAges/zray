@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import type { U64Buffer } from "memory"
+import type { Shape } from "./model"
+
+export type Input = Shape.Pick("groups", "complete") & {
+    limits: U64Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { groups, complete, limits } = in
+
+    const finished = loop(0, {
+        while: index => index < complete.length,
+        next: index => {
+            const limit = match complete[index] {
+                true => memory.columnGroupMinimumLength(groups, index),
+                _ => 0
+            }
+
+            memory.writeU64(limits, index, limit)
+            index += 1
+        }
+    })
+}

@@ -2,6 +2,7 @@ const std = @import("std");
 const view = @import("view.zig");
 const payloads = @import("import_payloads.zig");
 const headers = @import("headers.zig");
+const generated = @import("genz_options").generated_analysis;
 const Counts = headers.Counts;
 
 pub const Error = headers.Error;
@@ -21,6 +22,8 @@ pub fn appendBorrowingText(allocator: std.mem.Allocator, target: anytype, source
 }
 
 pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
+    if (generated) return payloads.check(target, source, .dense);
+
     @setEvalBranchQuota(100_000);
 
     const View = std.meta.Child(@TypeOf(source));
@@ -52,9 +55,11 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
 }
 
 fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, comptime copy_payloads: bool, comptime borrow_text: bool) Error!void {
+    if (generated) return payloads.append(allocator, target, source, .dense, copy_payloads, borrow_text);
+
     const counts = try check(target, source);
 
-    return payloads.append(allocator, target, source, &counts, .dense, copy_payloads, borrow_text);
+    return payloads.appendSeed(allocator, target, source, &counts, .dense, copy_payloads, borrow_text);
 }
 
 fn present(comptime View: type, comptime Column: type, comptime prefix: []const u8) usize {

@@ -49,9 +49,9 @@ fn appendSource(allocator: std.mem.Allocator, target: *Storage, expressions: any
     const Field = std.meta.Child(@typeInfo(@FieldType(Input, "fields")).optional.child);
     const copy = mode != .borrowed;
     const borrow_text = mode != .owned;
-    var expression_binding: payloads.Binding(@TypeOf(&target.expressions), @TypeOf(expressions)) = .{};
-    var statement_binding: if (@TypeOf(statements) == void) void else payloads.Binding(@TypeOf(&target.statements), @TypeOf(statements)) = if (@TypeOf(statements) == void) {} else .{};
-    var declaration_binding: if (@TypeOf(declarations) == void) void else payloads.Binding(@TypeOf(&target.declaration_rows), @TypeOf(declarations)) = if (@TypeOf(declarations) == void) {} else .{};
+    var expression_binding: payloads.Binding(@TypeOf(&target.expressions), @TypeOf(expressions), .dense) = .{};
+    var statement_binding: if (@TypeOf(statements) == void) void else payloads.Binding(@TypeOf(&target.statements), @TypeOf(statements), .dense) = if (@TypeOf(statements) == void) {} else .{};
+    var declaration_binding: if (@TypeOf(declarations) == void) void else payloads.Binding(@TypeOf(&target.declaration_rows), @TypeOf(declarations), .dense) = if (@TypeOf(declarations) == void) {} else .{};
     var field_binding: payloads.Plain = .{};
     const field_columns = if (has_fields) fields.bindColumns(&target.field_columns, source.fields, borrow_text) else {};
     const expression_view = expression_binding.bind(Rows, &allocator, &target.expressions, &expressions, copy, borrow_text);
@@ -78,14 +78,7 @@ fn appendSource(allocator: std.mem.Allocator, target: *Storage, expressions: any
         .declarations = if (@TypeOf(declarations) != void) &declaration_view else null,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| return payloads.failure(err);
-
-    return switch (result) {
-        .Valid => {},
-        .Invalid => error.InvalidAst,
-        .Exhausted => error.OutOfMemory,
-    };
+    return payloads.invoke(entry.executeValue, &input);
 }
 
 fn expressionColumns(comptime Module: type, source: anytype) ExpressionView(Module) {

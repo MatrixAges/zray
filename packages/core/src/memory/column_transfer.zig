@@ -58,6 +58,18 @@ pub fn matches(target: *const anyopaque, index: u64, count: u64) bool {
     return true;
 }
 
+pub fn minimumLength(target: *const anyopaque, index: u64) u64 {
+    var length: u64 = std.math.maxInt(u64);
+
+    for (group(target, index)) |column| {
+        if (column.width != 0 and column.kind != .repeated) {
+            length = @min(length, column.source_count);
+        }
+    }
+
+    return length;
+}
+
 fn kind(comptime Value: type, comptime copy_payloads: bool, comptime borrow_text: bool) Kind {
     if (!copy_payloads) return .value;
     if (Value == Bytes) return if (borrow_text) .value else .text;

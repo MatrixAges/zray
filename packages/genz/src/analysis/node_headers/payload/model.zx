@@ -1,5 +1,5 @@
-import type { Allocator, ColumnTransfers, U32Buffer } from "memory"
-import type { Rebase, Tail } from "../model"
+import type { Allocator, ColumnTransfers, U32Buffer, U64Buffer } from "memory"
+import type { Headers, Rebase, Tail } from "../model"
 
 export enum Layout {
     Dense,
@@ -20,11 +20,14 @@ export type Input = Rebase & Preparation & Tail & {
     layout: Layout
 }
 
-export type Validation = Columns & {
+export type Shape = Columns & {
     complete: bool[]
 }
 
-export type Bound = Input & Validation & {
+export type Validation = Headers & Shape & {
     count_buffer: U32Buffer,
-    existing: u64
+    existing: u64,
+    limits?: U64Buffer
 }
+
+export type Bound = Input & Validation
