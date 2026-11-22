@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Verilog" />
+
+    <Args in={Verilog.Input} out={bool} />
+
+    <Call module="../../hardware/graph/validate" in={$in.circuit} />
+
+    <If on={!$ctx.validate}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="reserve" in={$in} />
+    <Call fn="../layout/header" in={$in.layout} />
+
+    <Call
+        fn="nodes"
+        in={$in.pick([
+            "layout",
+            "circuit"
+        ])}
+    />
+
+    <Call module="../layout/finish" in={$in.layout} />
+
+    <Return value={true} />
+</Module>

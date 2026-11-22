@@ -2,13 +2,12 @@ const std = @import("std");
 const memory = @import("zx").memory;
 const ir = @import("../ir.zig");
 const binary = @import("../binary.zig");
-const check = @import("generated_hardware_graph_node");
-const endpoints = @import("generated_hardware_graph_ports");
-const Check = std.meta.Child(check.Input);
-const Graph = std.meta.Child(@FieldType(Check, "graph"));
+const validate_graph = @import("generated_validate_hardware_graph");
+const native = @import("output_execution_abi").layouts.@"zig:hardware_graph_host";
+pub const Scan = std.meta.Child(validate_graph.Input);
+const Graph = std.meta.Child(@FieldType(Scan, "graph"));
 const Ports = std.meta.Child(@FieldType(Graph, "inputs"));
 const Sorts = std.meta.Child(@FieldType(Graph, "sorts"));
-const Node = std.meta.Child(@FieldType(Check, "node"));
 const Self = @This();
 
 input_columns: PortColumns,
@@ -19,6 +18,7 @@ inputs: Ports,
 outputs: Ports,
 sorts: Sorts,
 graph: Graph,
+nodes: []const ir.Node,
 const PortColumns = struct {
     names: memory.TextColumn,
     widths: memory.ReadColumn,
@@ -56,79 +56,92 @@ pub fn init(self: *Self, module: ir.Module) void {
     self.outputs = self.output_columns.view();
     self.sorts = .{ .widths = @ptrCast(&self.widths), .booleans = @ptrCast(&self.booleans) };
     self.graph = .{ .inputs = &self.inputs, .outputs = &self.outputs, .sorts = &self.sorts, .count = module.nodes.len, .safe = @backingInt(module.safe) };
+    self.nodes = module.nodes;
 }
 
-pub fn validate(self: *const Self, nodes: []const ir.Node) bool {
+pub fn scan(self: *const Self) Scan {
+    return .{ .graph = &self.graph, .nodes = @ptrCast(&self.nodes) };
+}
+
+pub fn validate(self: *const Self) bool {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const allocator = empty.allocator();
-    var input_nodes: usize = 0;
 
-    for (nodes, 0..) |*node, index| {
-        const row = project(node);
-
-        if (!(check.executeValue(allocator, &.{ .graph = &self.graph, .index = index, .node = &row }) catch unreachable)) return false;
-
-        input_nodes += @intFromBool(row.kind == .Input);
-    }
-
-    return endpoints.executeValue(allocator, &.{ .graph = &self.graph, .input_nodes = input_nodes }) catch unreachable;
+    return validate_graph.executeIn(empty.allocator(), &self.scan()) catch unreachable;
 }
 
-pub fn project(node: *const ir.Node) Node {
-    var row = Node{
-        .width = node.sort.width,
-        .boolean = node.sort.boolean,
-        .kind = undefined,
-        .first = 0,
-        .second = 0,
-        .third = 0,
-        .extra = 0,
-        .signed = false,
-        .family = .Logical,
-        .rendering = .Plain,
-        .token = "",
+pub fn readHardwareGraphNode(handle: *const anyopaque, index: u64) *const native.Node {
+    const nodes: *const []const ir.Node = @ptrCast(@alignCast(handle));
+
+    return @ptrCast(&nodes.*[@intCast(index)]);
+}
+
+fn node(handle: *const anyopaque) *const ir.Node {
+    return @ptrCast(@alignCast(handle));
+}
+
+pub fn hardwareGraphNodeKind(handle: *const anyopaque) native.Kind {
+    return switch (node(handle).value) {
+        .input => .Input,
+        .constant => .Constant,
+        .invert => .Invert,
+        .negate => .Negate,
+        .extend => .Extend,
+        .select => .Select,
+        .binary => .Binary,
     };
+}
 
-    switch (node.value) {
-        .input => |i| {
-            row.kind = .Input;
-            row.first = i;
-        },
-        .constant => |value| {
-            row.kind = .Constant;
-            row.first = value;
-        },
-        .invert => |id| {
-            row.kind = .Invert;
-            row.first = @backingInt(id);
-        },
-        .negate => |id| {
-            row.kind = .Negate;
-            row.first = @backingInt(id);
-        },
-        .extend => |extension| {
-            row.kind = .Extend;
-            row.first = @backingInt(extension.operand);
-            row.extra = extension.extra;
-            row.signed = extension.signed;
-        },
-        .select => |selection| {
-            row.kind = .Select;
-            row.first = @backingInt(selection.condition);
-            row.second = @backingInt(selection.yes);
-            row.third = @backingInt(selection.no);
-        },
-        .binary => |operation| {
-            const traits = binary.traits(operation.operator);
+pub fn hardwareGraphNodeWidth(handle: *const anyopaque) u16 {
+    return node(handle).sort.width;
+}
 
-            row.kind = .Binary;
-            row.first = @backingInt(operation.left);
-            row.second = @backingInt(operation.right);
-            row.family = traits.family;
-            row.rendering = traits.rendering;
-            row.token = traits.token;
-        },
-    }
+pub fn hardwareGraphNodeBoolean(handle: *const anyopaque) bool {
+    return node(handle).sort.boolean;
+}
 
-    return row;
+pub fn hardwareGraphNodeFirst(handle: *const anyopaque) u64 {
+    return switch (node(handle).value) {
+        .input => |index| index,
+        .constant => |literal| literal,
+        .invert, .negate => |operand| @backingInt(operand),
+        .extend => |extension| @backingInt(extension.operand),
+        .select => |selection| @backingInt(selection.condition),
+        .binary => |operation| @backingInt(operation.left),
+    };
+}
+
+pub fn hardwareGraphNodeSecond(handle: *const anyopaque) u64 {
+    return switch (node(handle).value) {
+        .select => |selection| @backingInt(selection.yes),
+        .binary => |operation| @backingInt(operation.right),
+        else => unreachable,
+    };
+}
+
+pub fn hardwareGraphNodeThird(handle: *const anyopaque) u64 {
+    return @backingInt(node(handle).value.select.no);
+}
+
+pub fn hardwareGraphNodeExtension(handle: *const anyopaque) u16 {
+    return node(handle).value.extend.extra;
+}
+
+pub fn hardwareGraphNodeSigned(handle: *const anyopaque) bool {
+    return node(handle).value.extend.signed;
+}
+
+fn traits(handle: *const anyopaque) binary.Traits {
+    return binary.traits(node(handle).value.binary.operator);
+}
+
+pub fn hardwareGraphNodeFamily(handle: *const anyopaque) native.Family {
+    return @fromBackingInt(@backingInt(traits(handle).family));
+}
+
+pub fn hardwareGraphNodeRendering(handle: *const anyopaque) native.Rendering {
+    return @fromBackingInt(@backingInt(traits(handle).rendering));
+}
+
+pub fn hardwareGraphNodeToken(handle: *const anyopaque) []const u8 {
+    return traits(handle).token;
 }

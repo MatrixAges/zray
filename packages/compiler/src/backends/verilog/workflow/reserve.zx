@@ -1,0 +1,21 @@
+import host from "verilog_host"
+
+import capacity from "../layout/capacity"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, layout, circuit } = in
+    const { graph } = circuit
+
+    const size = capacity({
+        nodes: graph.count,
+        inputs: graph.inputs.count,
+        outputs: graph.outputs.count,
+        clocked: layout.clocked
+    })
+
+    host.reserveVerilogOutput(target, size)
+}

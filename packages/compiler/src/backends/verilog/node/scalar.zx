@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import host from "hardware_graph_host"
 import memory from "memory"
 
 import { Kind } from "../../hardware/graph/model"
@@ -19,36 +20,41 @@ export type Output = void
 export default function (in: Input): Output {
     const { writer, node } = in
 
-    if (node.kind == Kind.Input) {
+    const kind = host.hardwareGraphNodeKind(node)
+    const first = host.hardwareGraphNodeFirst(node)
+
+    if (kind == Kind.Input) {
         bytes.write(
             writer,
-            bytes.fromText(memory.readTextColumn(in.input_names, node.first))
+            bytes.fromText(memory.readTextColumn(in.input_names, first))
         )
 
         return
     }
 
-    if (node.kind == Kind.Constant) {
-        bytes.writeDecimalU64(writer, integers.widenShort(node.width))
+    if (kind == Kind.Constant) {
+        const width = host.hardwareGraphNodeWidth(node)
+
+        bytes.writeDecimalU64(writer, integers.widenShort(width))
         bytes.write(writer, bytes.fromText(decimal_literal))
-        bytes.writeDecimalU64(writer, node.first)
+        bytes.writeDecimalU64(writer, first)
 
         return
     }
 
-    if (node.kind == Kind.Select) {
+    if (kind == Kind.Select) {
         bytes.write(writer, bytes.fromText(wire_name))
-        bytes.writeDecimalU64(writer, node.first)
+        bytes.writeDecimalU64(writer, first)
         bytes.write(writer, bytes.fromText(choice_yes))
-        bytes.writeDecimalU64(writer, node.second)
+        bytes.writeDecimalU64(writer, host.hardwareGraphNodeSecond(node))
         bytes.write(writer, bytes.fromText(choice_no))
-        bytes.writeDecimalU64(writer, node.third)
+        bytes.writeDecimalU64(writer, host.hardwareGraphNodeThird(node))
 
         return
     }
 
-    const prefix = node.kind == Kind.Invert ? invert_wire : negate_wire
+    const prefix = kind == Kind.Invert ? invert_wire : negate_wire
 
     bytes.write(writer, bytes.fromText(prefix))
-    bytes.writeDecimalU64(writer, node.first)
+    bytes.writeDecimalU64(writer, first)
 }

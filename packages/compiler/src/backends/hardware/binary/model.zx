@@ -1,3 +1,7 @@
+import type { Family, Rendering } from "hardware_graph_host"
+
+export { Family, Rendering } from "hardware_graph_host"
+
 export enum Operator {
     logical_and,
     logical_or,
@@ -17,19 +21,6 @@ export enum Operator {
     signed_less_equal,
     signed_greater,
     signed_greater_equal
-}
-
-export enum Family {
-    Logical,
-    Equality,
-    Arithmetic,
-    Comparison
-}
-
-export enum Rendering {
-    Plain,
-    Signed,
-    SignedRemainder
 }
 
 export type Traits = {

@@ -1,0 +1,37 @@
+import host from "hardware_graph_host"
+
+import check from "./check"
+import { Kind } from "./model"
+
+import type { Scan as Input } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { graph, nodes } = in
+
+    return loop({
+        index: 0,
+        count: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < graph.count,
+        next: state => {
+            const index = state.index
+            const node = host.readHardwareGraphNode(nodes, index)
+
+            state.valid = check({
+                graph,
+                index,
+                node
+            })
+
+            if (host.hardwareGraphNodeKind(node) == Kind.Input) {
+                state.count += 1
+            }
+
+            state.index += 1
+        },
+        return: state => state.valid ? state.count : null
+    })
+}

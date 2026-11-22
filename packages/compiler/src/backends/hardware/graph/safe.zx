@@ -8,6 +8,10 @@ export default function (in: Input): Output {
     const { graph, input_nodes } = in
     const { safe, count, sorts } = graph
 
+    if (input_nodes == null) {
+        return false
+    }
+
     if (input_nodes != graph.inputs.count || safe >= count) {
         return false
     }

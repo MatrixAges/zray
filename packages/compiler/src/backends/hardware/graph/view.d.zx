@@ -1,0 +1,50 @@
+export type Nodes = opaque
+
+export type Node = opaque
+
+export enum Kind {
+    Input,
+    Constant,
+    Invert,
+    Negate,
+    Binary,
+    Select,
+    Extend
+}
+
+export enum Family {
+    Logical,
+    Equality,
+    Arithmetic,
+    Comparison
+}
+
+export enum Rendering {
+    Plain,
+    Signed,
+    SignedRemainder
+}
+
+export declare function readHardwareGraphNode(nodes: Nodes, index: u64): Node
+
+export declare function hardwareGraphNodeKind(node: Node): Kind
+
+export declare function hardwareGraphNodeWidth(node: Node): u16
+
+export declare function hardwareGraphNodeBoolean(node: Node): bool
+
+export declare function hardwareGraphNodeFirst(node: Node): u64
+
+export declare function hardwareGraphNodeSecond(node: Node): u64
+
+export declare function hardwareGraphNodeThird(node: Node): u64
+
+export declare function hardwareGraphNodeExtension(node: Node): u16
+
+export declare function hardwareGraphNodeSigned(node: Node): bool
+
+export declare function hardwareGraphNodeFamily(node: Node): Family
+
+export declare function hardwareGraphNodeRendering(node: Node): Rendering
+
+export declare function hardwareGraphNodeToken(node: Node): string

@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import host from "hardware_graph_host"
 import memory from "memory"
 
 import {
@@ -20,20 +21,21 @@ export type Output = void
 export default function (in: Input): Output {
     const { writer, node } = in
 
-    const operand = node.first
+    const operand = host.hardwareGraphNodeFirst(node)
+    const extra = host.hardwareGraphNodeExtension(node)
 
-    if (node.extra == 0) {
+    if (extra == 0) {
         bytes.write(writer, bytes.fromText(wire_name))
         bytes.writeDecimalU64(writer, operand)
 
         return
     }
 
-    if (node.signed) {
+    if (host.hardwareGraphNodeSigned(node)) {
         const width = memory.readColumnU16(in.widths, operand)
 
         bytes.write(writer, bytes.fromText(replicate))
-        bytes.writeDecimalU64(writer, integers.widenShort(node.extra))
+        bytes.writeDecimalU64(writer, integers.widenShort(extra))
         bytes.write(writer, bytes.fromText(replicate_wire))
         bytes.writeDecimalU64(writer, operand)
         bytes.write(writer, bytes.fromText(bit_select))
@@ -46,7 +48,7 @@ export default function (in: Input): Output {
     }
 
     bytes.write(writer, bytes.fromText(concat_start))
-    bytes.writeDecimalU64(writer, integers.widenShort(node.extra))
+    bytes.writeDecimalU64(writer, integers.widenShort(extra))
     bytes.write(writer, bytes.fromText(zero_prefix))
     bytes.writeDecimalU64(writer, operand)
     bytes.write(writer, bytes.fromText(concat_end))

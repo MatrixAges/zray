@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import host from "hardware_graph_host"
 import memory from "memory"
 
 import { Rendering } from "../../hardware/binary/model"
@@ -25,10 +26,11 @@ export type Output = void
 export default function (in: Input): Output {
     const { writer, node } = in
 
-    const left = node.first
-    const right = node.second
+    const left = host.hardwareGraphNodeFirst(node)
+    const right = host.hardwareGraphNodeSecond(node)
+    const rendering = host.hardwareGraphNodeRendering(node)
 
-    if (node.rendering == Rendering.SignedRemainder) {
+    if (rendering == Rendering.SignedRemainder) {
         const width = memory.readColumnU16(in.widths, left)
         const high = integers.widenShort(width) - 1
 
@@ -49,11 +51,13 @@ export default function (in: Input): Output {
         return
     }
 
-    if (node.rendering == Rendering.Signed) {
+    const token = host.hardwareGraphNodeToken(node)
+
+    if (rendering == Rendering.Signed) {
         bytes.write(writer, bytes.fromText(signed_wire))
         bytes.writeDecimalU64(writer, left)
         bytes.write(writer, bytes.fromText(signed_operator))
-        bytes.write(writer, bytes.fromText(node.token))
+        bytes.write(writer, bytes.fromText(token))
         bytes.write(writer, bytes.fromText(signed_right))
         bytes.writeDecimalU64(writer, right)
         bytes.write(writer, bytes.fromText(close_paren))
@@ -64,7 +68,7 @@ export default function (in: Input): Output {
     bytes.write(writer, bytes.fromText(wire_name))
     bytes.writeDecimalU64(writer, left)
     bytes.write(writer, bytes.fromText(space))
-    bytes.write(writer, bytes.fromText(node.token))
+    bytes.write(writer, bytes.fromText(token))
     bytes.write(writer, bytes.fromText(right_wire))
     bytes.writeDecimalU64(writer, right)
 }

@@ -71,8 +71,14 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = declarations.columns_path, .module = memory_columns },
     };
 
+    const hardware_graph_interface: manifest.Interface = .{
+        .path = b.fmt("{s}/backends/hardware/graph/view.d.zx", .{directories[0]}),
+        .module = "hardware_graph_host",
+    };
+
     const main_interfaces = interfaces ++ [_]manifest.Interface{
         .{ .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}), .module = lexical_path },
+        hardware_graph_interface,
     };
 
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
@@ -85,6 +91,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host" },
         .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host" },
         .{ .path = b.fmt("{s}/backends/hardware/construction/workflow/host.d.zx", .{directories[0]}), .module = "hardware_build_host" },
+        hardware_graph_interface,
+        .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host" },
     };
 
     const host_interfaces = interfaces ++ [_]manifest.Interface{
@@ -160,6 +168,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "rx/analysis/project/mixed");
                 addSubtree(run, tracked[0], "backends/zig");
                 addSubtree(run, tracked[0], "backends/hardware");
+                addSubtree(run, tracked[0], "backends/verilog");
                 addSubtree(run, tracked[0], "verification");
                 addSources(run, tracked[2]);
                 addSubtree(run, tracked[3], "analysis");

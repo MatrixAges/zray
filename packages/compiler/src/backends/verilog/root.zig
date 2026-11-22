@@ -13,31 +13,20 @@ pub fn emit(allocator: std.mem.Allocator, module: ir.Module, clocked: bool) ![]u
 
     view.init(module);
 
-    if (!view.validate(module.nodes)) return error.InvalidHardwareIr;
-
     var temporary = std.heap.ArenaAllocator.init(allocator);
 
     defer temporary.deinit();
 
-    const capacity = @import("generated_verilog_capacity");
-
-    const lower_bound = try capacity.executeValue(temporary.allocator(), &.{
-        .nodes = module.nodes.len,
-        .inputs = module.inputs.len,
-        .outputs = module.outputs.len,
-        .clocked = clocked,
-    });
-
-    const initial_size = std.math.cast(usize, lower_bound) orelse return error.OutOfMemory;
-    var output = try std.Io.Writer.Allocating.initCapacity(allocator, initial_size);
+    var output = std.Io.Writer.Allocating.init(allocator);
 
     errdefer output.deinit();
 
-    const header = @import("generated_verilog_header");
-    const write = @import("generated_verilog_node");
-    const finish = @import("generated_verilog_finish");
+    const render = @import("generated_render_verilog");
+    const Input = std.meta.Child(render.Input);
+    const circuit = view.scan();
+    const target = &output;
 
-    const frame: std.meta.Child(header.Input) = .{
+    const layout: std.meta.Child(@FieldType(Input, "layout")) = .{
         .writer = @ptrCast(&output.writer),
         .inputs = &view.inputs,
         .outputs = &view.outputs,
@@ -45,22 +34,23 @@ pub fn emit(allocator: std.mem.Allocator, module: ir.Module, clocked: bool) ![]u
         .clocked = clocked,
     };
 
-    header.executeValue(temporary.allocator(), &frame) catch |err| return writerError(err);
+    const input: Input = .{ .target = @ptrCast(&target), .layout = &layout, .circuit = &circuit };
 
-    for (module.nodes, 0..) |*node, index| {
-        const row = View.project(node);
+    const valid = render.executeIn(temporary.allocator(), &input) catch |err| return switch (err) {
+        error.OutputCapacity => error.OutOfMemory,
+        error.OutOfMemory => error.WriteFailed,
+        error.IndexOutOfBounds, error.IntegerOverflow => unreachable,
+    };
 
-        write.executeValue(temporary.allocator(), &.{ .writer = frame.writer, .index = index, .node = &row, .widths = view.sorts.widths, .input_names = view.inputs.names }) catch |err| return writerError(err);
-    }
-
-    finish.executeValue(temporary.allocator(), &frame) catch |err| return writerError(err);
+    if (!valid) return error.InvalidHardwareIr;
 
     return output.toOwnedSlice();
 }
 
-fn writerError(err: error{ IndexOutOfBounds, OutOfMemory }) error{WriteFailed} {
-    return switch (err) {
-        error.OutOfMemory => error.WriteFailed,
-        error.IndexOutOfBounds => unreachable,
-    };
+pub fn reserveVerilogOutput(handle: *const anyopaque, capacity: u64) error{OutputCapacity}!void {
+    const reference: *const *std.Io.Writer.Allocating = @ptrCast(@alignCast(handle));
+    const output = reference.*;
+    const size = std.math.cast(usize, capacity) orelse return error.OutputCapacity;
+
+    output.* = std.Io.Writer.Allocating.initCapacity(output.allocator, size) catch return error.OutputCapacity;
 }

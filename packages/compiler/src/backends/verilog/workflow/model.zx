@@ -1,0 +1,11 @@
+import type { OutputBuffer } from "verilog_host"
+import type { Scan } from "../../hardware/graph/model"
+import type { Module } from "../layout/model"
+
+export type Input = {
+    target: OutputBuffer,
+    layout: Module,
+    circuit: Scan
+}
+
+export type Nodes = Input.Omit("target")

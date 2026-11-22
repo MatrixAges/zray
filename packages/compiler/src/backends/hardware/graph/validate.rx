@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Circuit" />
+
+    <Args in={Circuit.Scan} out={bool} />
+
+    <Call fn="scan" in={$in} />
+
+    <If on={$ctx.scan == null}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        module="ports"
+        in={{
+            graph: $in.graph,
+            input_nodes: $ctx.scan
+        }}
+    />
+
+    <Return value={$ctx.ports} />
+</Module>

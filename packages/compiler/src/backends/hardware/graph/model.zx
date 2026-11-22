@@ -1,29 +1,9 @@
+import type { Node, Nodes } from "hardware_graph_host"
 import type { ReadColumn, TextColumn } from "memory"
-import type { Family, Rendering } from "../binary/model"
 
-export enum Kind {
-    Input,
-    Constant,
-    Invert,
-    Negate,
-    Binary,
-    Select,
-    Extend
-}
+export { Kind } from "hardware_graph_host"
 
-export type Node = {
-    kind: Kind,
-    width: u16,
-    boolean: bool,
-    first: u64,
-    second: u64,
-    third: u64,
-    extra: u16,
-    signed: bool,
-    family: Family,
-    rendering: Rendering,
-    token: string
-}
+export type { Node } from "hardware_graph_host"
 
 export type Sorts = {
     widths: ReadColumn,
@@ -45,6 +25,11 @@ export type Graph = {
     safe: u64
 }
 
+export type Scan = {
+    graph: Graph,
+    nodes: Nodes
+}
+
 export type Check = {
     graph: Graph,
     index: u64,
@@ -53,7 +38,7 @@ export type Check = {
 
 export type Endpoints = {
     graph: Graph,
-    input_nodes: u64
+    input_nodes?: u64
 }
 
 export type Bank = {

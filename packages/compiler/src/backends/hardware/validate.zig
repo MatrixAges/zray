@@ -7,5 +7,5 @@ pub fn validate(module: ir.Module) bool {
 
     view.init(module);
 
-    return view.validate(module.nodes);
+    return view.validate();
 }

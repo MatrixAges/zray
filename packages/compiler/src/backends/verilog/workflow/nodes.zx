@@ -1,0 +1,32 @@
+import host from "hardware_graph_host"
+
+import write from "../node/write"
+
+import type { Nodes as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { graph, nodes } = in.circuit
+
+    const writer = in.layout.writer
+    const input_names = graph.inputs.names
+    const widths = graph.sorts.widths
+
+    const written = loop(0, {
+        while: index => index < graph.count,
+        next: index => {
+            const node = host.readHardwareGraphNode(nodes, index)
+
+            write({
+                writer,
+                index,
+                node,
+                input_names,
+                widths
+            })
+
+            index += 1
+        }
+    })
+}
