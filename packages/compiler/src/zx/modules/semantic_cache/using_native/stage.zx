@@ -2,10 +2,9 @@ import host from "project_host"
 
 import prepare from "../slot/prepare"
 
-import type { CacheReplacement } from "project_host"
 import type { Input } from "./model"
 
-export type Output = CacheReplacement?
+export type Output = u64
 
 export default function (in: Input): Output {
     host.buildNativeCacheEntry(in.frame)

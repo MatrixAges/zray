@@ -5,11 +5,13 @@ import type { Commit as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { slot, existing } = in
+    const { slot, bucket } = in
 
-    if (existing != null) {
-        host.replaceCacheSlot(slot, existing)
+    const row = host.readCacheBucket(slot, bucket)
+
+    if (row != 0) {
+        host.replaceCacheSlot(slot, row - 1)
     } else {
-        host.appendCacheSlot(slot)
+        host.appendCacheSlot(slot, bucket)
     }
 }

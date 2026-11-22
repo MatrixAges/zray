@@ -507,6 +507,12 @@ pub inline fn writeU64(target: *const anyopaque, index: u64, value: u64) error{I
     return write(u64, target, index, value);
 }
 
+pub inline fn clearU64Buffer(target: *const anyopaque) void {
+    const output: *const []u64 = @ptrCast(@alignCast(target));
+
+    @memset(output.*, 0);
+}
+
 pub inline fn writeOptionalU32(target: *const anyopaque, index: u64, value: ?u32) error{IndexOutOfBounds}!void {
     return write(?u32, target, index, value);
 }

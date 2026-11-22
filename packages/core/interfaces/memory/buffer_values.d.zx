@@ -69,6 +69,8 @@ export declare function writeU64(
     value: u64
 ): void throws { IndexOutOfBounds }
 
+export declare function clearU64Buffer(target: U64Buffer): void
+
 export declare function copyBytes(
     target: U8Buffer,
     offset: u64,

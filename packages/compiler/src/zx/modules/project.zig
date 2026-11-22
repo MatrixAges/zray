@@ -364,9 +364,9 @@ pub const Project = struct {
         self.unit_indices = try source_index.Map.init(self.arena.child_allocator, self.units.len);
 
         if (comptime generated_parser) {
-            for (self.units, self.unit_indices.keys) |*unit, *key| key.* = unit.path;
+            const paths = zx.memory.borrowTextColumn("path", self.units);
 
-            return self.unit_indices.firstDuplicate(self.units.len) == null;
+            return self.unit_indices.registerPaths(&paths) == null;
         }
 
         for (self.units, 0..) |unit, index| {

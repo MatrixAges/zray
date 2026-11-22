@@ -1,8 +1,15 @@
+import bytes from "std:bytes"
 import memory from "memory"
 
 import probe from "./slot"
 
-import type { Input } from "./rebuild"
+import type { TextColumn, WriteColumn } from "memory"
+import type { Input as Table } from "./rebuild"
+
+export type Input = Table & {
+    source: TextColumn,
+    target: WriteColumn
+}
 
 export type Output = u64?
 
@@ -16,14 +23,18 @@ export default function (in: Input): Output {
         while: state => !state.duplicate && state.row < keys.length,
         next: state => {
             const row = state.row
+            const path = memory.readTextColumn(in.source, row)
+            const key = bytes.fromText(path)
+
             const found = probe({
                 keys,
                 buckets,
                 capacity,
-                key: keys[row]
+                key
             })
 
             if (found.entry == 0) {
+                memory.writeColumnBytes(in.target, row, key)
                 memory.writeU64(buckets, found.slot, row + 1)
                 state.row += 1
             } else {

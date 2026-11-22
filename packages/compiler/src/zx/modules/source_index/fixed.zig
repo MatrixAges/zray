@@ -50,15 +50,25 @@ pub fn claim(self: *Self, row: usize, key: []const u8) bool {
     return true;
 }
 
-/// Builds an empty index from the initialized prefix of its key column.
-pub fn firstDuplicate(self: *Self, count: usize) ?usize {
+/// Registers the borrowed paths in an empty index and identifies the first duplicate.
+pub fn registerPaths(self: *Self, paths: *const @import("zx").memory.TextColumn) ?usize {
     const generated = @import("generated_byte_index_unique");
+
+    const target: @import("zx").memory.WriteColumn = .{
+        .items = @ptrCast(self.keys.ptr),
+        .count = self.keys.len,
+        .stride = @sizeOf([]const u8),
+        .width = @sizeOf([]const u8),
+    };
+
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(generated.Input) = .{
-        .keys = self.keys[0..count],
+        .keys = self.keys,
         .buckets = @ptrCast(&self.buckets),
         .capacity = self.buckets.len,
+        .source = @ptrCast(paths),
+        .target = @ptrCast(&target),
     };
 
     const duplicate = @import("zx").columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;

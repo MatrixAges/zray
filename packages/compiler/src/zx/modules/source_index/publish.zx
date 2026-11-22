@@ -1,0 +1,20 @@
+import memory from "memory"
+
+import type { ColumnLengths, U64Buffer } from "memory"
+
+export type Input = {
+    buckets: U64Buffer,
+    lengths: ColumnLengths,
+    slot: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { buckets, lengths, slot } = in
+
+    const row = memory.firstColumnLength(lengths)
+
+    memory.writeU64(buckets, slot, row + 1)
+    memory.publishColumnLengths(lengths, 1)
+}

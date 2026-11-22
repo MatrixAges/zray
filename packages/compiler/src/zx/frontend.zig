@@ -124,6 +124,7 @@ pub const acceptNativeCacheHit = native_cache.acceptNativeCacheHit;
 pub const buildNativeCacheEntry = native_cache.buildNativeCacheEntry;
 pub const validateNativeCacheEntry = native_cache.validateNativeCacheEntry;
 pub const probeCacheSlot = cache_slots.probeCacheSlot;
+pub const readCacheBucket = cache_slots.readCacheBucket;
 pub const reserveCacheSlot = cache_slots.reserveCacheSlot;
 pub const stageCacheSlot = cache_slots.stageCacheSlot;
 pub const appendCacheSlot = cache_slots.appendCacheSlot;

@@ -1,4 +1,4 @@
-import type { CacheReplacement, CacheSlot, NativeCacheLoad } from "project_host"
+import type { CacheSlot, NativeCacheLoad } from "project_host"
 
 export type Input = {
     frame: NativeCacheLoad,
@@ -6,5 +6,5 @@ export type Input = {
 }
 
 export type Publication = Input & {
-    existing?: CacheReplacement
+    bucket: u64
 }

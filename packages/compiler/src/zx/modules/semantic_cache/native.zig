@@ -71,11 +71,11 @@ fn seed(request: *Request) zx.Error!void {
 
     try buildNativeCacheEntry(request);
 
-    const existing = try entries.prepareSeed(&request.slot);
+    const position = try entries.prepareSeed(&request.slot);
 
     try validateNativeCacheEntry(request);
 
-    entries.commitSeed(&request.slot, existing);
+    entries.commitSeed(&request.slot, position);
 }
 
 pub fn restoreNativeCacheHit(handle: *const anyopaque) std.mem.Allocator.Error!bool {

@@ -11,6 +11,6 @@ export default function (in: Input): Output {
 
     commit(in.pick([
         "slot",
-        "existing"
+        "bucket"
     ]))
 }

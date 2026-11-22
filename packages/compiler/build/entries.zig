@@ -50,6 +50,8 @@ pub const main = [_]Entry{
     .{ .path = "core/bytes/index/fixed.zx", .name = "fixed_byte_index" },
     .{ .path = "core/bytes/index/slot.zx", .name = "byte_index_slot" },
     .{ .path = "zx/modules/source_index/next_capacity.zx", .name = "source_index_next_capacity" },
+    .{ .path = "zx/modules/source_index/publish.zx", .name = "source_index_publish" },
+    .{ .path = "zx/modules/source_index/truncate.zx", .name = "source_index_truncate" },
     .{ .path = "core/bytes/index/rebuild.zx", .name = "byte_index_rebuild" },
     .{ .path = "core/bytes/index/unique.zx", .name = "byte_index_unique" },
     .{ .path = "rx/dependency_graph/reference/rule.zx", .name = "rx_reference_rule", .owner = .rx },

@@ -18,8 +18,6 @@ export type NativeCacheLoad = opaque
 
 export type CacheSlot = opaque
 
-export type CacheReplacement = opaque
-
 export type CompiledImport = opaque
 
 export type ArtifactLink = opaque
@@ -268,7 +266,9 @@ export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
 export declare function validateNativeCacheEntry(frame: NativeCacheLoad): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function probeCacheSlot(slot: CacheSlot): CacheReplacement?
+export declare function probeCacheSlot(slot: CacheSlot): u64
+
+export declare function readCacheBucket(slot: CacheSlot, bucket: u64): u64
 
 export declare function reserveCacheSlot(slot: CacheSlot): bool
     throws { OutOfMemory }
@@ -276,9 +276,9 @@ export declare function reserveCacheSlot(slot: CacheSlot): bool
 export declare function stageCacheSlot(slot: CacheSlot): void
     throws { OutOfMemory }
 
-export declare function appendCacheSlot(slot: CacheSlot): void
+export declare function appendCacheSlot(slot: CacheSlot, bucket: u64): void
 
-export declare function replaceCacheSlot(slot: CacheSlot, existing: CacheReplacement): void
+export declare function replaceCacheSlot(slot: CacheSlot, row: u64): void
 
 export declare function resolveCompiledImport(frame: CompiledImport): LibraryResolution
     throws { OutOfMemory }

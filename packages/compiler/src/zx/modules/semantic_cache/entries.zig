@@ -1,10 +1,8 @@
 const std = @import("std");
-const zx = @import("zx");
 const Artifact = @import("../artifact/model.zig");
 const State = @import("state/host.zig");
 const codec = @import("codec.zig");
 const generated = @import("parser_options").generated_parser;
-const Replacement = if (generated) *const @import("project_execution_abi").layouts.@"zig:project_host".CacheReplacement else *const anyopaque;
 
 pub const Entry = struct {
     dirty: bool = true,
@@ -61,7 +59,6 @@ pub const Pending = struct {
     allocator: std.mem.Allocator,
     entries: *Map,
     value: ?Entry = null,
-    position: usize = undefined,
     added: ?NewSlot = null,
     const NewSlot = struct { entry: *Entry, key: []const u8 };
 
@@ -76,12 +73,16 @@ pub const Pending = struct {
     }
 };
 
-pub fn probeCacheSlot(handle: *const anyopaque) ?Replacement {
+pub fn probeCacheSlot(handle: *const anyopaque) u64 {
     const slot = Pending.borrow(handle);
-    const selected = slot.entries.probe(slot.value.?.result.value.path);
-    slot.position = selected.position;
 
-    return if (selected.existing) |entry| @ptrCast(entry) else null;
+    return slot.entries.position(slot.value.?.result.value.path).slot;
+}
+
+pub fn readCacheBucket(handle: *const anyopaque, bucket: u64) u64 {
+    const entries = Pending.borrow(handle).entries;
+
+    return if (entries.buckets.len == 0) 0 else entries.buckets[@intCast(bucket)];
 }
 
 pub fn reserveCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!bool {
@@ -100,34 +101,40 @@ pub fn stageCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!void {
     slot.added = .{ .entry = entry, .key = key };
 }
 
-pub fn appendCacheSlot(handle: *const anyopaque) void {
+pub fn appendCacheSlot(handle: *const anyopaque, bucket: u64) void {
     const slot = Pending.borrow(handle);
     const added = slot.added.?;
 
-    slot.entries.append(slot.position, added.key, added.entry);
-
     added.entry.* = slot.value.?;
+
+    slot.entries.append(@intCast(bucket), added.key, added.entry);
 }
 
-pub fn replaceCacheSlot(handle: *const anyopaque, existing: *const anyopaque) void {
+pub fn replaceCacheSlot(handle: *const anyopaque, row: u64) void {
     const slot = Pending.borrow(handle);
-    const entry: *Entry = @ptrCast(@alignCast(@constCast(existing)));
+    const entry = slot.entries.values.items[@intCast(row)];
 
     entry.result.deinit();
 
     entry.* = slot.value.?;
 }
 
-pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!?*const anyopaque {
-    if (probeCacheSlot(slot)) |existing| return existing;
-    if (try reserveCacheSlot(slot)) _ = probeCacheSlot(slot);
+pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!u64 {
+    const found = probeCacheSlot(slot);
+
+    if (readCacheBucket(slot, found) != 0) return found;
+
+    const position = if (try reserveCacheSlot(slot)) probeCacheSlot(slot) else found;
+
     try stageCacheSlot(slot);
 
-    return null;
+    return position;
 }
 
-pub fn commitSeed(slot: *Pending, existing: ?*const anyopaque) void {
-    if (existing) |entry| replaceCacheSlot(slot, entry) else appendCacheSlot(slot);
+pub fn commitSeed(slot: *Pending, bucket: u64) void {
+    const row = readCacheBucket(slot, bucket);
+
+    if (row != 0) replaceCacheSlot(slot, row - 1) else appendCacheSlot(slot, bucket);
 }
 
 fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Allocator.Error!void {
@@ -140,7 +147,7 @@ fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Al
         const input: std.meta.Child(entry.Input) = .{ .slot = @ptrCast(&slot) };
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        return zx.columns.invoke(entry.executeValue, empty.allocator(), &input);
+        return entry.executeIn(empty.allocator(), &input);
     }
 
     commitSeed(&slot, try prepareSeed(&slot));

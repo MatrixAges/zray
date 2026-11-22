@@ -123,20 +123,58 @@ pub fn Map(comptime Value: type) type {
         }
         pub fn append(self: *Self, slot: usize, key: []const u8, entry: Value) void {
             std.debug.assert(self.buckets[slot] == 0);
+
+            if (comptime generated) {
+                self.keys.unusedCapacitySlice()[0] = key;
+                self.values.unusedCapacitySlice()[0] = entry;
+
+                const rule = @import("generated_source_index_publish");
+                const pointers = self.lengths();
+                const counts: zx.memory.ColumnLengths = &pointers;
+
+                const input: std.meta.Child(rule.Input) = .{
+                    .buckets = @ptrCast(&self.buckets),
+                    .lengths = @ptrCast(&counts),
+                    .slot = slot,
+                };
+
+                var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+                return rule.executeIn(scratch.allocator(), &input) catch unreachable;
+            }
+
             self.keys.appendAssumeCapacity(key);
             self.values.appendAssumeCapacity(entry);
 
             self.buckets[slot] = self.keys.items.len;
         }
-
         /// Rebuilds the index after its owner compacts the retained rows in place.
         pub fn truncate(self: *Self, count: usize) void {
+            if (comptime generated) {
+                const rule = @import("generated_source_index_truncate");
+                const pointers = self.lengths();
+                const counts: zx.memory.ColumnLengths = &pointers;
+
+                const input: std.meta.Child(rule.Input) = .{
+                    .keys = self.keys.items[0..count],
+                    .buckets = @ptrCast(&self.buckets),
+                    .capacity = self.buckets.len,
+                    .lengths = @ptrCast(&counts),
+                };
+
+                var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+                return rule.executeIn(scratch.allocator(), &input) catch unreachable;
+            }
+
             self.keys.shrinkRetainingCapacity(count);
             self.values.shrinkRetainingCapacity(count);
             @memset(self.buckets, 0);
             self.rebuild(self.buckets);
         }
-
+        fn lengths(self: *Self) [2]*usize {
+            return .{ &self.keys.items.len, &self.values.items.len };
+        }
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
             self.keys.deinit(allocator);
             self.values.deinit(allocator);

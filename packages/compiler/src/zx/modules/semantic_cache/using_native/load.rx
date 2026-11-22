@@ -12,7 +12,7 @@
             fn="publish"
             in={{
                 ...$in,
-                existing: $ctx.stage
+                bucket: $ctx.stage
             }}
         />
     </If>

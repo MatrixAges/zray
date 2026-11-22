@@ -1,21 +1,24 @@
 import host from "project_host"
 
-import type { CacheReplacement, CacheSlot as Input } from "project_host"
+import type { CacheSlot as Input } from "project_host"
 
-export type Output = CacheReplacement?
+export type Output = u64
 
 export default function (in: Input): Output {
-    const existing = host.probeCacheSlot(in)
+    const found = host.probeCacheSlot(in)
 
-    if (existing != null) {
-        return existing
+    if (host.readCacheBucket(in, found) != 0) {
+        return found
     }
 
-    if (host.reserveCacheSlot(in)) {
-        const refreshed = host.probeCacheSlot(in)
+    const reserved = host.reserveCacheSlot(in)
+
+    const position = match reserved {
+        true => host.probeCacheSlot(in),
+        _ => found
     }
 
     host.stageCacheSlot(in)
 
-    return null
+    return position
 }

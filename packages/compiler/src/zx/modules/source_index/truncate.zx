@@ -1,0 +1,19 @@
+import rebuild from "core/bytes/index/rebuild"
+import memory from "memory"
+
+import type { Input as Table } from "core/bytes/index/rebuild"
+import type { ColumnLengths } from "memory"
+
+export type Input = Table & {
+    lengths: ColumnLengths
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.clearU64Buffer(in.buckets)
+
+    const length = rebuild(in.omit(["lengths"]))
+
+    memory.truncateColumnLengths(in.lengths, length)
+}
