@@ -550,8 +550,9 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
 }
 
 pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, source: Sources, natives: Shared, strip: ?bool) @import("compiler.zig").ParserModules {
-    const type_views = @import("compiler.zig").typeViews(b, target, optimize);
-    const nominal_data = @import("compiler.zig").nominalData(b, target, optimize);
+    const core = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core");
+    const type_views = @import("compiler.zig").typeViews(b, target, optimize, core);
+    const nominal_data = @import("compiler.zig").nominalData(b, target, optimize, core);
     const bindings = b.allocator.alloc(@import("compiler.zig").ModuleBinding, entries.module_entries.len) catch @panic("out of memory");
 
     const host = @import("host_metadata.zig").generated(b, source.host, target, optimize, strip, .{

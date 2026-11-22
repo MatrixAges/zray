@@ -20,7 +20,7 @@ pub const ParserModules = struct {
 
 pub const Modules = struct { frontend: *std.Build.Module, compiler: *std.Build.Module };
 
-pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, lexer: *std.Build.Module, parser: ?ParserModules, lint: *std.Build.Module) Modules {
+pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, core: *std.Build.Module, lexer: *std.Build.Module, parser: ?ParserModules, lint: *std.Build.Module) Modules {
     const options = b.addOptions();
 
     options.addOption(bool, "generated_parser", parser != null);
@@ -31,7 +31,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .optimize = optimize,
         .imports = &.{
             .{ .name = "lexer", .module = lexer },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
             .{ .name = "dsl", .module = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl") },
             .{ .name = "lint", .module = lint },
             .{ .name = "standard_interfaces", .module = @import("standard.zig").create(b, if (parser) |generated| generated.host_metadata else null) },
@@ -41,8 +41,8 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     const parser_options = options.createModule();
 
     frontend.addImport("parser_options", parser_options);
-    frontend.addImport("type_views", if (parser) |generated| generated.type_views else typeViews(b, target, optimize));
-    frontend.addImport("nominal_data", if (parser) |generated| generated.nominal_data else nominalData(b, target, optimize));
+    frontend.addImport("type_views", if (parser) |generated| generated.type_views else typeViews(b, target, optimize, core));
+    frontend.addImport("nominal_data", if (parser) |generated| generated.nominal_data else nominalData(b, target, optimize, core));
 
     frontend.addImport("xml_adapter", b.createModule(.{
         .root_source_file = b.path("src/rx/syntax_adapter/root.zig"),
@@ -72,14 +72,14 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .root_source_file = b.path("bootstrap/refinement.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") }},
+            .imports = &.{.{ .name = "zx", .module = core }},
         }));
 
         frontend.addImport("ownership_seed", b.createModule(.{
             .root_source_file = b.path("bootstrap/ownership/check.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") }},
+            .imports = &.{.{ .name = "zx", .module = core }},
         }));
     }
 
@@ -99,7 +99,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .target = target,
         .optimize = optimize,
         .imports = &.{
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
             .{ .name = "genz_options", .module = genz_options.createModule() },
         },
     });
@@ -113,7 +113,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .imports = &.{
             .{ .name = "frontend", .module = frontend },
             .{ .name = "dsl", .module = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl") },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
             .{ .name = "genz", .module = genz },
             .{ .name = "lint", .module = lint },
         },
@@ -182,20 +182,20 @@ fn bootstrapModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: st
     });
 }
 
-pub fn nominalData(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+pub fn nominalData(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, core: *std.Build.Module) *std.Build.Module {
     return b.createModule(.{
         .root_source_file = b.path("src/zx/modules/nominal_origins/root.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") }},
+        .imports = &.{.{ .name = "zx", .module = core }},
     });
 }
 
-pub fn typeViews(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+pub fn typeViews(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, core: *std.Build.Module) *std.Build.Module {
     return b.createModule(.{
         .root_source_file = b.path("src/zx/analysis/types/view.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") }},
+        .imports = &.{.{ .name = "zx", .module = core }},
     });
 }

@@ -29,6 +29,9 @@ pub fn build(b: *std.Build) void {
     b.modules.put(b.allocator, "lint", lint) catch @panic("out of memory");
 
     const natives = parser.shared(b, target, optimize, parser_source, generated_strip, generated_partitions);
+    const core = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core");
+
+    core.addImport("ir_abi", natives.generated.import_table.get("zxc_abi").?);
 
     for (@import("build/entries.zig").main) |entry| {
         if (entry.owner == .lint) {
@@ -37,7 +40,7 @@ pub fn build(b: *std.Build) void {
     }
 
     const parser_modules = parser.modules(b, target, optimize, parser_source, natives, generated_strip);
-    const modules = @import("build/compiler.zig").create(b, target, optimize, lexer.module(b, target, optimize, parser_modules.get("lexer")), parser_modules, lint);
+    const modules = @import("build/compiler.zig").create(b, target, optimize, core, lexer.module(b, target, optimize, parser_modules.get("lexer")), parser_modules, lint);
 
     b.addNamedLazyPath("host_metadata_tool", parser_modules.host_metadata.getEmittedBin());
 
@@ -61,7 +64,7 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .name = "dsl", .module = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl") },
             .{ .name = "frontend", .module = frontend },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
         },
     });
 
@@ -83,7 +86,7 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .name = "rx", .module = rx },
             .{ .name = "dsl", .module = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl") },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
             .{ .name = "frontend", .module = frontend },
             .{ .name = "lint", .module = lint },
             .{ .name = "zxc_standard", .module = parser_modules.standard },
@@ -157,7 +160,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "compiler", .module = frontend },
-                .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+                .{ .name = "zx", .module = core },
             },
         }),
     });

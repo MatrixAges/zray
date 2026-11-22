@@ -1,8 +1,7 @@
 const std = @import("std");
 pub const Modules = struct { syntax: *std.Build.Module, analysis: *std.Build.Module };
 
-pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, frontend: *std.Build.Module, lint: *std.Build.Module) Modules {
-    const core = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core");
+pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, core: *std.Build.Module, frontend: *std.Build.Module, lint: *std.Build.Module) Modules {
     const dsl = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl");
 
     const rx = b.createModule(.{
