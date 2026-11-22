@@ -12,14 +12,15 @@
         ]}
     />
 
-    <Call
-        module="dependency"
-        while="running"
-        in={{
-            ...$in.omit(["owner"]),
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="dependency"
+            in={{
+                ...$in.omit(["owner"]),
+                running: true
+            }}
+        />
+    </Loop>
 
     <Call
         fn="../effects.finishDependencies"

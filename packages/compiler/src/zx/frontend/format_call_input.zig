@@ -14,6 +14,13 @@ pub const Output = struct {
 };
 
 pub fn of(node: anytype) ?Output {
+    if (std.mem.eql(u8, node.name(), "Loop")) {
+        var children = node.children();
+        const body = children.next() orelse return null;
+
+        return call(body);
+    }
+
     if (std.mem.eql(u8, node.name(), "Task")) {
         if (find(node, "out") == null) return null;
 
@@ -22,6 +29,10 @@ pub fn of(node: anytype) ?Output {
         return valid(name, "$ctx.task.");
     }
 
+    return call(node);
+}
+
+fn call(node: anytype) ?Output {
     if (!std.mem.eql(u8, node.name(), "Call")) return null;
 
     const function = find(node, "fn");

@@ -13,17 +13,18 @@
 
     <Call fn="index.clearScanError" in={$in} />
 
-    <Call
-        module="poll"
-        while="running"
-        in={{
-            watch: $in,
-            retry_backend: $ctx.lastStatus == Driver.Status.BackendFailed,
-            running: true,
-            scans: 0,
-            changed: false
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="poll"
+            in={{
+                watch: $in,
+                retry_backend: $ctx.lastStatus == Driver.Status.BackendFailed,
+                running: true,
+                scans: 0,
+                changed: false
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.poll.changed} />
 </Module>

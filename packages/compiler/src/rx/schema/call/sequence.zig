@@ -32,9 +32,15 @@ fn checkTree(parent: anytype, reporter: *dsl.Reporter) dsl.Error!void {
     while (children.next()) |item| {
         const child = dsl.ast.view(item);
 
-        if (std.mem.eql(u8, child.name(), "Call")) {
-            if (!available and checks.attribute(child, "fn") != null and checks.attribute(child, "in") == null) {
-                return fail(child.location(), reporter);
+        const call = if (std.mem.eql(u8, child.name(), "Loop"))
+            dsl.ast.view(dsl.ast.childAt(child, 0))
+
+        else
+            child;
+
+        if (std.mem.eql(u8, call.name(), "Call")) {
+            if (!available and checks.attribute(call, "fn") != null and checks.attribute(call, "in") == null) {
+                return fail(call.location(), reporter);
             }
 
             available = sequential;

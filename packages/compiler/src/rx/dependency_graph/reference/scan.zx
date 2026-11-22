@@ -4,8 +4,10 @@ import integers from "std:integer"
 import memory from "memory"
 
 import missingInput from "../../schema/call/input/missing"
+import { loop_tag } from "../../schema/execution/const"
 import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
+import matches from "../../syntax/document/name_matches"
 import bodyEvent from "../flow/body_event"
 import { declaration } from "../flow/const"
 import parallelParent from "../flow/parallel_parent"
@@ -140,7 +142,18 @@ export default function (in: Input): Output {
                         task_output: has_output
                     })
 
-                    if (state.depth != 0) {
+                    const has_call = tag == Tag.Call || tag == Tag.Loop
+                    const parent_row = match {
+                        has_call => memory.readU64(parents, state.depth - 1),
+                        _ => 0
+                    }
+                    const loop_body = tag == Tag.Call && matches({
+                        source,
+                        ...view.nodes[parent_row - 1].name,
+                        name: loop_tag
+                    })
+
+                    if (state.depth != 0 && !loop_body) {
                         const event = bodyEvent({
                             tag,
                             slot,
@@ -153,19 +166,24 @@ export default function (in: Input): Output {
                         }
                     }
 
-                    if (tag == Tag.Call) {
-                        state.calls += 1
+                    const call_row = match {
+                        tag == Tag.Call && !loop_body => row + 1,
+                        tag == Tag.Loop => node.children,
+                        _ => 0
+                    }
 
-                        const parent = memory.readU64(parents, state.depth - 1) - 1
+                    if (call_row != 0) {
+                        state.calls += 1
 
                         if (missingInput({
                             source,
                             nodes: view.nodes,
                             attributes: in.attributes,
-                            parent: view.nodes[parent],
-                            call: node
+                            parent: view.nodes[parent_row - 1],
+                            call: view.nodes[call_row - 1],
+                            previous: node.previous_sibling
                         })) {
-                            state.missing_input = row
+                            state.missing_input = call_row - 1
                         }
                     } else if (tag == Tag.Return) {
                         state.results += 1

@@ -3,15 +3,16 @@
 
     <Args in={Root.State} out={Root.State} />
 
-    <Call
-        module="next_type"
-        while="running"
-        in={{
-            state: $in,
-            index: 0,
-            running: $in.aliases.length != 0 && $in.codec.supported
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_type"
+            in={{
+                state: $in,
+                index: 0,
+                running: $in.aliases.length != 0 && $in.codec.supported
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.next_type.state} />
 </Module>

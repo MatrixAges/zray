@@ -4,17 +4,18 @@
 
     <Args in={Traversal.Walk} out={Link.Status} />
 
-    <Call
-        module="next_edge"
-        while="running"
-        in={{
-            walk: $in,
-            row: 0,
-            source: 0,
-            status: Link.Status.Ready,
-            running: $in.imports.edges.count != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_edge"
+            in={{
+                walk: $in,
+                row: 0,
+                source: 0,
+                status: Link.Status.Ready,
+                running: $in.imports.edges.count != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.next_edge.status} />
 </Module>

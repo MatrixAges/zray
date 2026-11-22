@@ -16,7 +16,9 @@
         />
     </If>
 
-    <Call module="advance" while="running" in={$ctx.initialize} />
+    <Loop on={$in.running}>
+        <Call module="advance" in={$ctx.initialize} />
+    </Loop>
 
     <Return
         value={{

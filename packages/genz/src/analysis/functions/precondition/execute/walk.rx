@@ -3,13 +3,14 @@
 
     <Args in={Contract.Input} out={void} />
 
-    <Call
-        module="next"
-        while="running"
-        in={{
-            ...$in,
-            index: 0,
-            running: $in.kinds.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next"
+            in={{
+                ...$in,
+                index: 0,
+                running: $in.kinds.length != 0
+            }}
+        />
+    </Loop>
 </Module>

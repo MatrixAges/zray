@@ -148,7 +148,7 @@ fn attributes(allocator: std.mem.Allocator, source: []const u8, node: anytype, l
     }
 
     var children = node.children();
-    var output: ?call_input.Output = null;
+    var output = if (std.mem.eql(u8, node.name(), "Loop")) previous else null;
     const sequential = !std.mem.eql(u8, node.name(), "Parallel");
 
     while (children.next()) |child| {

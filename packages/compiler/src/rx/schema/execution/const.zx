@@ -1,5 +1,7 @@
 export const call_tag: string = "Call"
 
+export const loop_tag: string = "Loop"
+
 export const task_tag: string = "Task"
 
 export const parallel_tag: string = "Parallel"

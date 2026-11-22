@@ -3,17 +3,18 @@
 
     <Args in={Bundle.ViewsInput} out={Bundle.Views} />
 
-    <Call
-        module="next_view"
-        while="running"
-        in={{
-            ...$in,
-            views: [],
-            status: Bundle.Status.Valid,
-            index: 0,
-            running: $in.source.natives.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_view"
+            in={{
+                ...$in,
+                views: [],
+                status: Bundle.Status.Valid,
+                index: 0,
+                running: $in.source.natives.length != 0
+            }}
+        />
+    </Loop>
 
     <Return
         value={$ctx.next_view.pick([

@@ -4,17 +4,18 @@
 
     <Args in={Batch.Input} out={Batch.Output} />
 
-    <Call
-        module="advance"
-        while="running"
-        in={{
-            ...$in,
-            position: 0,
-            status: Binding.Status.Ready,
-            entry: null,
-            running: $in.rows.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                ...$in,
+                position: 0,
+                status: Binding.Status.Ready,
+                entry: null,
+                running: $in.rows.length != 0
+            }}
+        />
+    </Loop>
 
     <Return
         value={$ctx.advance.pick([

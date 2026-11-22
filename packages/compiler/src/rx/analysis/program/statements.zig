@@ -120,8 +120,8 @@ fn lowerCall(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cu
                 }
             },
             .ImportCallee => function = try builder.importFunction(invocation.callee, invocation.callee_suffix, invocation.store_initializers, invocation.function_id),
-            .WriteCall => call_id = if (invocation.repeat_field) |field|
-                try @import("linking/call/repeat.zig").lower(builder, function, argument, stores, field)
+            .WriteCall => call_id = if (invocation.loop) |loop|
+                try @import("linking/call/loop.zig").lower(builder, function, argument, stores, loop)
             else
                 try write_call.invoke(builder, function, argument, invocation.callee.output_type, stores),
             else => unreachable,

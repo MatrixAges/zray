@@ -24,6 +24,7 @@ export default function (in: Input): Output {
         Tag.Parallel => Tag.Parallel,
         Tag.Switch => Tag.Switch,
         Tag.If => Tag.If,
+        Tag.Loop => Tag.Loop,
         Tag.Emit => Tag.Emit,
         Tag.Return => Tag.Return,
         _ => Tag.Unknown

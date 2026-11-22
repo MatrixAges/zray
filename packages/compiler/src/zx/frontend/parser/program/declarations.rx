@@ -6,14 +6,15 @@
 
     <Call fn="declarations/initial" in={$in} />
 
-    <Call
-        module="declarations/advance"
-        while="running"
-        in={{
-            stage: $ctx.initial,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="declarations/advance"
+            in={{
+                stage: $ctx.initial,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.advance.stage} />
 </Module>

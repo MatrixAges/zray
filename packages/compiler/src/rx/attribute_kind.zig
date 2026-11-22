@@ -23,7 +23,7 @@ pub fn role(element: []const u8, attribute: []const u8) Role {
     if (std.mem.eql(u8, element, "Args") and (std.mem.eql(u8, attribute, "in") or std.mem.eql(u8, attribute, "out"))) return .Type;
 
     const expression = (std.mem.eql(u8, element, "Task") and std.mem.eql(u8, attribute, "out")) or
-        (std.mem.eql(u8, element, "If") and std.mem.eql(u8, attribute, "on")) or
+        ((std.mem.eql(u8, element, "If") or std.mem.eql(u8, element, "Loop")) and std.mem.eql(u8, attribute, "on")) or
         (std.mem.eql(u8, element, "Call") and std.mem.eql(u8, attribute, "setter")) or
         (std.mem.eql(u8, element, "Store") and std.mem.eql(u8, attribute, "version")) or
         (std.mem.eql(u8, element, "Gateway") and (std.mem.eql(u8, attribute, "max_header_bytes") or std.mem.eql(u8, attribute, "max_body_bytes")));

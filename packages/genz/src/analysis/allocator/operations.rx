@@ -4,21 +4,22 @@
 
     <Args in={Allocator.State} out={Allocator.State} />
 
-    <Call
-        module="operation/append"
-        while="running"
-        in={{
-            state: $in,
-            kinds: [
-                Kinds.Operation.Allocate,
-                Kinds.Operation.Resize,
-                Kinds.Operation.Remap,
-                Kinds.Operation.Release
-            ],
-            index: 0,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="operation/append"
+            in={{
+                state: $in,
+                kinds: [
+                    Kinds.Operation.Allocate,
+                    Kinds.Operation.Resize,
+                    Kinds.Operation.Remap,
+                    Kinds.Operation.Release
+                ],
+                index: 0,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.append.state} />
 </Module>

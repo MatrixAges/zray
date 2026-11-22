@@ -3,15 +3,16 @@
 
     <Args in={Hardware.Definitions} out={void} />
 
-    <Call
-        module="next_definition"
-        while="running"
-        in={{
-            ...$in,
-            row: 0,
-            running: $in.rows.names.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_definition"
+            in={{
+                ...$in,
+                row: 0,
+                running: $in.rows.names.length != 0
+            }}
+        />
+    </Loop>
 
     <Call fn="host.clearHardwareOrigin" in={$in.build} />
 </Module>

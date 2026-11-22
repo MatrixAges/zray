@@ -7,15 +7,16 @@
         <Return value={$in.state} />
     </If>
 
-    <Call
-        module="next"
-        while="running"
-        in={{
-            ...$in,
-            end: $in.first + $in.count,
-            running: $in.state.position < $in.first + $in.count
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next"
+            in={{
+                ...$in,
+                end: $in.first + $in.count,
+                running: $in.state.position < $in.first + $in.count
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.next.state} />
 </Module>

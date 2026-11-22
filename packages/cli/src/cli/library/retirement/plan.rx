@@ -14,18 +14,19 @@
     <Call fn="index.retirementOldCount" in={$in} />
     <Call fn="index.retirementNativeOnly" in={$in} />
 
-    <Call
-        module="walk"
-        while="running"
-        in={{
-            retirement: $in,
-            native_only: $ctx.retirementNativeOnly,
-            count: $ctx.retirementOldCount,
-            index: 0,
-            status: Retirement.Status.Ready,
-            running: $ctx.retirementOldCount != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="walk"
+            in={{
+                retirement: $in,
+                native_only: $ctx.retirementNativeOnly,
+                count: $ctx.retirementOldCount,
+                index: 0,
+                status: Retirement.Status.Ready,
+                running: $ctx.retirementOldCount != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.walk.status} />
 </Module>

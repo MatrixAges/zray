@@ -19,16 +19,17 @@
         <Return value={false} />
     </If>
 
-    <Call
-        module="walk"
-        while="running"
-        in={{
-            collection: $in,
-            index: 0,
-            valid: true,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="walk"
+            in={{
+                collection: $in,
+                index: 0,
+                valid: true,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.walk.valid} />
 </Module>

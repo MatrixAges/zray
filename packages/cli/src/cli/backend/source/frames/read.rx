@@ -3,19 +3,20 @@
 
     <Args in={Protocol.Input} out={Protocol.Status} />
 
-    <Call
-        module="step"
-        while="running"
-        in={{
-            ...$in,
-            offset: 0,
-            status: Protocol.Status.Success,
-            saw_version: false,
-            saw_digest: false,
-            finished: false,
-            running: $in.bytes.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="step"
+            in={{
+                ...$in,
+                offset: 0,
+                status: Protocol.Status.Success,
+                saw_version: false,
+                saw_digest: false,
+                finished: false,
+                running: $in.bytes.length != 0
+            }}
+        />
+    </Loop>
 
     <If on={$ctx.step.status != Protocol.Status.Success}>
         <Return value={$ctx.step.status} />

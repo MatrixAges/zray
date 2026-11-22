@@ -6,7 +6,9 @@
 
     <Call fn="cursor" in={$in} />
 
-    <Call module="advance" while="running" />
+    <Loop on={$in.running}>
+        <Call module="advance" />
+    </Loop>
 
     <Call fn="status" in={$in.cursor} />
 

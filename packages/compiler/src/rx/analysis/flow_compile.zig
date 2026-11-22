@@ -139,6 +139,18 @@ pub fn value(self: *Self, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, 
 }
 
 pub fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, retain: bool) Error!zx.ir.Program {
+    return self.compileValue(parsed, attribute, expected, retain, null);
+}
+
+pub fn loopPredicate(self: *Self, attribute: rx.ast.Attribute, state: zx.ir.TypeId) Error!zx.ir.Program {
+    var parsed = try @import("attribute.zig").parseBorrowed(self.scratch, attribute, self.owner);
+
+    defer parsed.deinit();
+
+    return self.compileValue(&parsed, attribute, frontend.types.scalarId(.bool), false, state);
+}
+
+fn compileValue(self: *Self, parsed: *const frontend.ExpressionInput.Result, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, retain: bool, loop_state: ?zx.ir.TypeId) Error!zx.ir.Program {
     try self.ensureTypeStorage();
 
     var arena = std.heap.ArenaAllocator.init(self.scratch);
@@ -147,7 +159,14 @@ pub fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, 
 
     defer arena.deinit();
 
-    const scope = try @import("expression_scope.zig").select(scratch.allocator(), parsed, frontend.expressions.BindingColumns.view(self.bindings.slice()), self.nonnull.items);
+    const bindings: frontend.expressions.BindingColumns = if (loop_state) |state|
+        .{ .names = &.{"$in"}, .types = &.{state} }
+
+    else
+        frontend.expressions.BindingColumns.view(self.bindings.slice());
+
+    const facts = if (loop_state == null) self.nonnull.items else &.{};
+    const scope = try @import("expression_scope.zig").select(scratch.allocator(), parsed, bindings, facts);
     const backing = if (retain) self.allocator else self.binding_allocator;
 
     const compiled = try expression.compileParsed(backing, parsed, attribute, .{
@@ -159,8 +178,8 @@ pub fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, 
         .borrow_native_modules = true,
         .alias_columns = self.aliases,
         .binding_columns = scope.bindings,
-        .nonnull_bindings = self.nonnull.items,
-        .unit_bindings = if (self.unit_input) &.{"$in"} else &.{},
+        .nonnull_bindings = facts,
+        .unit_bindings = if (loop_state == null and self.unit_input) &.{"$in"} else &.{},
         .expected = expected,
         .scratch_backing = self.scratch,
     }, true);
@@ -177,7 +196,9 @@ pub fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, 
 
     self.types = program.types;
 
-    if (self.captures) |captures| captures.observeMapped(program.expressions.references, scope.positions);
+    if (loop_state == null) {
+        if (self.captures) |captures| captures.observeMapped(program.expressions.references, scope.positions);
+    }
 
     return program;
 }
@@ -216,7 +237,7 @@ pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage
     const id = options.ids[row];
     const base = options.shared_functions;
     const callee = try @import("project/mixed/function.zig").programView(self.metadataAllocator(), base.at(@backingInt(id)), id, base, options.types, options.native_modules);
-    const repeated = try self.repeatField(row, callee);
+    const loop = try @import("flow_compile/loop.zig").compile(self, row, callee);
     const input = options.calls.items(.input)[row];
     const getters = options.calls.items(.getters)[row];
     var argument: zx.ir.Program = undefined;
@@ -239,31 +260,7 @@ pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage
         }
     }
 
-    return self.appendCall(.{ .function_id = id, .callee = callee, .store_initializers = options.store_initializers, .argument = argument, .input_omitted = input == null, .repeat_field = repeated, .out = out, .getters = getters });
-}
-
-fn repeatField(self: *Self, row: u32, callee: zx.ir.Program) Error!?u32 {
-    const call_node = self.inputs.calls.items(.node)[row];
-    const predicate = @import("call/target.zig").borrowAttribute(call_node, "while") orelse return null;
-    const state = self.types.get(callee.input_type);
-
-    if (callee.input_type == callee.output_type and state == .object) {
-        const bool_type = @backingInt(frontend.types.scalarId(.bool));
-
-        for (state.object.names, state.object.types, 0..) |name, type_id, index| {
-            if (type_id == bool_type and std.mem.eql(u8, name, predicate.value)) return @intCast(index);
-        }
-    }
-
-    const location = predicate.location;
-
-    self.issue = .{ .location = location, .issue = .{
-        .code = .type_mismatch,
-        .span = .{ .start = location.offset, .end = location.offset },
-        .message = "Call while requires identical input and output objects with the named bool field",
-    } };
-
-    return error.InvalidFlow;
+    return self.appendCall(.{ .function_id = id, .callee = callee, .store_initializers = options.store_initializers, .argument = argument, .input_omitted = input == null, .loop = loop, .out = out, .getters = getters });
 }
 
 const Result = struct {

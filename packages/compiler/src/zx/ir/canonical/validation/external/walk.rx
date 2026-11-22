@@ -3,16 +3,17 @@
 
     <Args in={External.Input} out={bool} />
 
-    <Call
-        module="advance"
-        while="running"
-        in={{
-            ...$in,
-            index: 0,
-            valid: true,
-            running: $in.functions.files.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                ...$in,
+                index: 0,
+                valid: true,
+                running: $in.functions.files.length != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.advance.valid} />
 </Module>

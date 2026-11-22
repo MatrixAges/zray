@@ -4,15 +4,16 @@
 
     <Args in={Batch.Input} out={Batch.Output} />
 
-    <Call
-        module="next"
-        while="running"
-        in={{
-            input: $in,
-            row: 0,
-            running: $in.source.files.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next"
+            in={{
+                input: $in,
+                row: 0,
+                running: $in.source.files.length != 0
+            }}
+        />
+    </Loop>
 
     <Return value={Publication.PublicationStatus.Complete} />
 </Module>

@@ -4,17 +4,18 @@
 
     <Args in={Remap.Input} out={Table.Contracts} />
 
-    <Call
-        module="next_contract"
-        while="running"
-        in={{
-            ...$in,
-            symbols: [],
-            expressions: [],
-            index: 0,
-            running: $in.source.kinds.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_contract"
+            in={{
+                ...$in,
+                symbols: [],
+                expressions: [],
+                index: 0,
+                running: $in.source.kinds.length != 0
+            }}
+        />
+    </Loop>
 
     <Call fn="publish_contracts" />
 

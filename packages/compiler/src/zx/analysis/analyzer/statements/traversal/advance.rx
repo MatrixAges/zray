@@ -3,14 +3,15 @@
 
     <Args in={Statements.Body} out={Statements.Body} />
 
-    <Call
-        module="step"
-        while="running"
-        in={{
-            body: $in,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="step"
+            in={{
+                body: $in,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.step.body} />
 </Module>

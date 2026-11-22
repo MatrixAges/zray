@@ -2,14 +2,24 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Builder = @import("../../builder.zig");
 const call = @import("host.zig");
+const Loop = @import("../../../module.zig").Call.Loop;
 
-pub fn lower(builder: *Builder, function: ir.FunctionId, initial: ir.ExprId, stores: []const u32, field: u32) Builder.Error!ir.ExprId {
+pub fn lower(builder: *Builder, function: ir.FunctionId, initial: ir.ExprId, stores: []const u32, loop: Loop) Builder.Error!ir.ExprId {
     const span = builder.expressionSpan(initial);
     const state_type = builder.expressionType(initial);
     const bool_type = @import("frontend").types.scalarId(.bool);
-    const condition_parameter = try parameter(builder, "$loop_condition", state_type, span);
+    const condition_name = if (loop == .field) "$loop_condition" else "$in";
+    const condition_parameter = try parameter(builder, condition_name, state_type, span);
     const step_parameter = try parameter(builder, "$loop_state", state_type, span);
-    const condition = try builder.seedExpression(.{ .type_id = bool_type, .span = span, .value = .{ .field = .{ .target = condition_parameter.reference, .index = field } } });
+
+    const condition = switch (loop) {
+        .field => |field| try builder.seedExpression(.{
+            .type_id = bool_type,
+            .span = span,
+            .value = .{ .field = .{ .target = condition_parameter.reference, .index = field } },
+        }),
+        .predicate => |predicate| try inlineCondition(builder, predicate, condition_parameter.symbol),
+    };
 
     try builder.expressions.reserveHeaders(builder.allocator, 1);
 
@@ -31,6 +41,17 @@ pub fn lower(builder: *Builder, function: ir.FunctionId, initial: ir.ExprId, sto
             .postcondition = false,
         } },
     });
+}
+
+fn inlineCondition(builder: *Builder, predicate: *const ir.Program, symbol: ir.SymbolId) Builder.Error!ir.ExprId {
+    const previous = builder.bindings;
+    var active = [_]ir.SymbolId{symbol};
+
+    builder.bindings = @TypeOf(builder.bindings).initBuffer(&active);
+    builder.bindings.items.len = active.len;
+    defer builder.bindings = previous;
+
+    return @import("../../expression.zig").inlineValue(builder, predicate.*, false);
 }
 
 fn parameter(builder: *Builder, name: []const u8, state_type: ir.TypeId, span: zx.Span) Builder.Error!struct { symbol: ir.SymbolId, reference: ir.ExprId } {

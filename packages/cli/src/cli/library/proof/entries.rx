@@ -5,17 +5,18 @@
 
     <Call fn="index.proofExportCount" in={$in} />
 
-    <Call
-        module="verify_entry"
-        while="running"
-        in={{
-            proof: $in,
-            count: $ctx.proofExportCount,
-            index: 0,
-            valid: true,
-            running: $ctx.proofExportCount != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="verify_entry"
+            in={{
+                proof: $in,
+                count: $ctx.proofExportCount,
+                index: 0,
+                valid: true,
+                running: $ctx.proofExportCount != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.verify_entry.valid} />
 </Module>

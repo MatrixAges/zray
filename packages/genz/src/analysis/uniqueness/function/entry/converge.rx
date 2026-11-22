@@ -11,15 +11,16 @@
         ])}
     />
 
-    <Call
-        module="advance"
-        while="running"
-        in={{
-            ...$in,
-            closure: $ctx.close,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                ...$in,
+                closure: $ctx.close,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return
         value={{

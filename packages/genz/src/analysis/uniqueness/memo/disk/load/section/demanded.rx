@@ -11,17 +11,18 @@
         ]}
     />
 
-    <Call
-        module="read_demanded"
-        while="running"
-        in={{
-            section: $in,
-            offset: $in.start,
-            remaining: $in.count,
-            used: $ctx.readU32,
-            running: $in.count != 0 && $in.start != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="read_demanded"
+            in={{
+                section: $in,
+                offset: $in.start,
+                remaining: $in.count,
+                used: $ctx.readU32,
+                running: $in.count != 0 && $in.start != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.read_demanded.remaining == 0} />
 </Module>

@@ -5,13 +5,14 @@
 
     <Call fn="index.registerRoot" in={$in} />
 
-    <Call
-        module="walk"
-        while="running"
-        in={{
-            discovery: $in,
-            index: $ctx.registerRoot,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="walk"
+            in={{
+                discovery: $in,
+                index: $ctx.registerRoot,
+                running: true
+            }}
+        />
+    </Loop>
 </Module>

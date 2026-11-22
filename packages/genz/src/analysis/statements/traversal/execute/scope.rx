@@ -5,7 +5,9 @@
 
     <Call fn="range" in={$in} />
 
-    <Call module="next_statement" while="running" />
+    <Loop on={$in.running}>
+        <Call module="next_statement" />
+    </Loop>
 
     <Return value={$ctx.next_statement.valid} />
 </Module>

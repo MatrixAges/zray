@@ -5,12 +5,13 @@
 
     <Call fn="index.announce" in={$in.watch} />
 
-    <Call
-        module="cycle"
-        while="running"
-        in={{
-            ...$in,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="cycle"
+            in={{
+                ...$in,
+                running: true
+            }}
+        />
+    </Loop>
 </Module>

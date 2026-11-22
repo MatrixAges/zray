@@ -8,14 +8,15 @@
     <Call fn="resolve_paths" in={$in} />
     <Call fn="index.nativeModuleCount" in={$in} />
 
-    <Call
-        module="modules"
-        while="running"
-        in={{
-            resources: $in,
-            count: $ctx.nativeModuleCount,
-            index: 0,
-            running: $ctx.nativeModuleCount != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="modules"
+            in={{
+                resources: $in,
+                count: $ctx.nativeModuleCount,
+                index: 0,
+                running: $ctx.nativeModuleCount != 0
+            }}
+        />
+    </Loop>
 </Module>

@@ -3,13 +3,14 @@
 
     <Args in={Naming.Prepare} out={void} />
 
-    <Call
-        module="next_name"
-        while="running"
-        in={{
-            ...$in,
-            index: 0,
-            running: $in.local.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_name"
+            in={{
+                ...$in,
+                index: 0,
+                running: $in.local.length != 0
+            }}
+        />
+    </Loop>
 </Module>

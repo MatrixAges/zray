@@ -24,6 +24,7 @@ pub const Call = struct {
     node: rx.ast.Node,
     input: ?*const rx.ast.Attribute,
     name_source: *const rx.ast.Attribute,
+    loop_condition: ?*const rx.ast.Attribute = null,
     target_kind: CalleeKind,
     target: usize,
     callee: Callee,
@@ -372,7 +373,7 @@ fn seedAction(name: []const u8) Action {
     return switch (rx.execution.admit(name, .Any)) {
         .Import, .Store, .Type, .Args => .declaration,
         .Return => .result,
-        .Call => .call,
+        .Call, .Loop => .call,
         .Task => .task,
         .Parallel => .parallel,
         .Switch => .switch_flow,

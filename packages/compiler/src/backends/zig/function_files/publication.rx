@@ -12,13 +12,14 @@
         ]}
     />
 
-    <Call
-        module="publish_next"
-        while="running"
-        in={{
-            source: $in,
-            row: 0,
-            running: $in.count != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="publish_next"
+            in={{
+                source: $in,
+                row: 0,
+                running: $in.count != 0
+            }}
+        />
+    </Loop>
 </Module>

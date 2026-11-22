@@ -9,6 +9,7 @@ pub const Step = union(enum) {
     parallel: flow.Parallel.Data,
     @"switch": flow.Switch.Data,
     @"if": flow.If.Data,
+    loop: flow.Loop.Data,
     emit: flow.Emit.Data,
     @"return": flow.Return.Data,
 };
@@ -31,6 +32,7 @@ pub fn child(comptime scope: Scope) type {
                 .Task => .{ .task = try flow.Task.decode(allocator, input, reporter, context) },
                 .Parallel => .{ .parallel = try flow.Parallel.decode(allocator, input, reporter, context) },
                 .Switch => .{ .@"switch" = try flow.Switch.decode(allocator, input, reporter, context) },
+                .Loop => .{ .loop = try flow.Loop.decode(allocator, input, reporter, context) },
                 .If => .{ .@"if" = try flow.If.decode(allocator, input, reporter, context) },
                 .Emit => .{ .emit = try flow.Emit.decode(allocator, input, reporter, context) },
                 .Return => .{ .@"return" = try flow.Return.decode(allocator, input, reporter, context) },

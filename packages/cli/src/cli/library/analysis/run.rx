@@ -21,17 +21,18 @@
 
     <Call fn="index.beginLibraryAnalysis" in={$in} />
 
-    <Call
-        module="entries"
-        while="running"
-        in={{
-            analysis: $in,
-            count: $ctx.analysisExportCount,
-            index: 0,
-            valid: true,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="entries"
+            in={{
+                analysis: $in,
+                count: $ctx.analysisExportCount,
+                index: 0,
+                valid: true,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.entries.valid} />
 </Module>

@@ -1,6 +1,6 @@
 # RX
 
-`.rx` 文件的 Zig 语法定义库，基于 `dsl`。支持 XML 文本解析和带源码位置的 AST 校验，输出为强类型数据或诊断；普通 Call.fn/Call.module/Return、Task、If 和 Switch 已支持生成独立应用；其余流程执行能力见本文边界。
+`.rx` 文件的 Zig 语法定义库，基于 `dsl`。支持 XML 文本解析和带源码位置的 AST 校验，输出为强类型数据或诊断；普通 Call.fn/Call.module/Return、Loop、Task、If 和 Switch 已支持生成独立应用；其余流程执行能力见本文边界。
 
 ## 构建与测试
 
@@ -115,13 +115,19 @@ Call 使用 in 传参；读取输入写 `in={$in}`，字符串写 `in="$in"`；�
 
 父模块再用 `<Call module="checkout" in={$in} />` 调用整个组合模块。Call 的 fn 用于本地 ZX 函数，module 用于本地 RX 模块或依赖包的公开模块，两者必须且只能提供一个目标。
 
-`<Call module="step" while="running" in={$in} />` 以 `in` 为初值，调用前读取状态对象的 `running` 布尔字段。每次调用的输出成为下一次的输入，字段为 false 时把最终状态交给 `$ctx.step`。步骤的输入和输出使用同一对象类型。初值的字段为 false 时跳过调用。编译后复用普通 `loop` 的表达式和所有权规则。
+```xml
+<Loop on={$in.running}>
+    <Call module="step" in={$in} />
+</Loop>
+```
+
+Loop 包裹一个 Call，Call.in 提供初始状态。省略 in 时沿用同层顺序步骤的默认输入。on 每轮开始前求值，其中 $in 是当前循环状态。on 为 true 时执行 Call，并以输出更新状态。on 为 false 时把最终状态交给 $ctx.step。初始条件为 false 时，$ctx.step 即为初值。步骤使用同一非 void 输入输出类型。编译器用普通循环实现这一数据流。
 
 Call.fn 相对当前 RX 文件目录解析，省略后缀时补 `.zx`，普通文件调用使用默认导出。例如 `fn="load_user"` 指向 `load_user.zx`，也可写相对目录和显式 `.zx` 后缀。入口检查会读取函数及其 ZX 导入闭包并执行命名、类型和依赖检查。可使用 `check-rx --entry <file.rx> --project <pkg.yaml>` 指定包与原生接口配置。
 
 写 `<Call fn="operations.normalize" in={$in} />` 时，先按完整名称查找 `operations.normalize.zx` 和 `operations.normalize/index.zx`，命中后调用其默认函数。完整名称未命中时，再在 `operations.zx` 或 `operations/index.zx` 中选择公开函数 `normalize`。两种情况下都用 `$ctx.normalize` 引用输出。显式写出 `.zx` 后缀即可限定为文件调用。目录可以通过 `export { default as normalize } from "./normalize"` 归集函数。
 
-顺序编排中的 Call 可以省略 `in`，有输入的 Call 会接收同层紧邻前一个 Call 或带 `out` 的 Task 的输出。首个有输入的 Call 显式传参。并行分支和条件分支分别建立各自的顺序，分支之间不传递默认输入。使用 `zxc fmt --write` 时，直接引用前一步输出的 `in` 会被省略，`zxc lint` 提示需要格式化。
+顺序编排中的 Call 可以省略 `in`，有输入的 Call 会接收同层紧邻前一个 Call、Loop 或带 `out` 的 Task 的输出。首个有输入的 Call 显式传参。并行分支和条件分支分别建立各自的顺序，分支之间不传递默认输入。使用 `zxc fmt --write` 时，直接引用前一步输出的 `in` 会被省略，`zxc lint` 提示需要格式化。
 
 Call.module 先匹配当前 RX 文件所属包中已声明的公开模块引用；源码导出进入统一 RX/ZX 源码依赖图，编译库导出按实例装载统一库产物；未命中包引用时按当前文件目录解析本地 RX（可省略 .rx）。本地引用与包引用同名时显式加 ./。`Call.module="package/public-module"` 始终通过依赖和公开导出解析，不能穿透私有源码路径；编译库消费不要求原始源码。例如：
 
@@ -276,7 +282,7 @@ switch (inferred.value) {
 }
 ```
 
-当前 module.infer 接受 `Call.fn`、`Return`、Task 分组与 If / Switch 分支。`module.infer` 使用项目入口处理单个普通模块；有 module 依赖时应传入完整集合。`Call.in` 中的 `$in` 由目标函数的 Input 和字段用途共同约束；Call 返回值通过 `$ctx.<name>` 供后续步骤与 Return 使用。结果名取目标文件名（去掉源码后缀），点号 fn 取最后一段，例如 `operations.normalize` 绑定 `$ctx.normalize`；Call 不接受 name 属性。目标名必须是合法标识符，且不得为保留名 task。Task 返回值通过 $ctx.task.<name> 读取，可以与 Call 同名。绑定路径不能重叠，也不能覆盖 `$in`；Return 或必然返回的分支之后的步骤拒绝为不可达。输入既未被使用、也没有调用约束时推导为 void，无 Return 时输出为 void。使用输入却没有足够约束时报告无法推导，不默认为动态类型。
+当前 module.infer 接受 `Call.fn`、`Return`、Loop、Task 分组与 If / Switch 分支。`module.infer` 使用项目入口处理单个普通模块；有 module 依赖时应传入完整集合。`Call.in` 中的 `$in` 由目标函数的 Input 和字段用途共同约束；Call 返回值通过 `$ctx.<name>` 供后续步骤与 Return 使用。结果名取目标文件名（去掉源码后缀），点号 fn 取最后一段，例如 `operations.normalize` 绑定 `$ctx.normalize`；Call 不接受 name 属性。目标名必须是合法标识符，且不得为保留名 task。Task 返回值通过 $ctx.task.<name> 读取，可以与 Call 同名。绑定路径不能重叠，也不能覆盖 `$in`；Return 或必然返回的分支之后的步骤拒绝为不可达。输入既未被使用、也没有调用约束时推导为 void，无 Return 时输出为 void。使用输入却没有足够约束时报告无法推导，不默认为动态类型。
 
 数组字面量保留各元素的类型约束，等待目标上下文决定 list 或 tuple；目标仍不明确时才采用同质列表。嵌套数组先默认外层，再将得到的元素类型传回内层，避免把可接受 tuple 上下文的字面量提前固定为 list。空列表没有足够元素类型信息时仍拒绝推导。
 
@@ -346,7 +352,7 @@ Task.out 为可选的花括号表达式，在任务内部步骤结束后求值�
 | `stores`  | 可选的独立 Store 定义集合，每项为路径与真实 XML AST  |
 | `project` | 可选的既有 ZX 项目、包和原生接口配置                 |
 
-入口先对整个集合执行 `validateModules`，包括未使用 Import、所有嵌套 module 引用及循环检查。之后为每个模块登记一个输入输出契约，共同收集 Call.fn、Call.module、Return、Task、If、Switch 与 Parallel Call/Task 的类型约束，稳定后才生成代码。Import 仅声明依赖，不触发运行。Store 引用独立分析并进入显式调用授权；事件仍明确拒绝。
+入口先对整个集合执行 `validateModules`，包括未使用 Import、所有嵌套 module 引用及循环检查。之后为每个模块登记一个输入输出契约，共同收集 Call.fn、Call.module、Return、Loop、Task、If、Switch 与 Parallel Call/Task 的类型约束，稳定后才生成代码。Import 仅声明依赖，不触发运行。Store 引用独立分析并进入显式调用授权；事件仍明确拒绝。
 
 子模块可以只有 `<Return value={$in} />`，由调用者或下游函数确定其类型。同一个文件在所有调用点共享一个契约，不按调用点生成不同类型的实例；不相容的调用会报错。未读取输入的子模块仍可接收调用者传来的有类型值；无使用、无调用约束的输入才默认为 void。完整集合仍无法确定的类型会报告推导失败。
 

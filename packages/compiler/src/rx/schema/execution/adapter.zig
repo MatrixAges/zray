@@ -20,6 +20,7 @@ pub const Tag = if (generated) rule.Output else enum {
     Emit,
     Return,
     Route,
+    Loop,
 };
 
 const Input = if (generated) std.meta.Child(rule.Input) else void;
@@ -41,7 +42,7 @@ pub fn admit(name: []const u8, scope: Scope) Tag {
             else => .Unknown,
         },
         .Task, .Body => switch (tag) {
-            .Call, .Parallel, .Switch, .If, .Emit, .Return => tag,
+            .Call, .Parallel, .Switch, .If, .Loop, .Emit, .Return => tag,
             .Task => if (scope == .Body) tag else .Unknown,
             else => .Unknown,
         },

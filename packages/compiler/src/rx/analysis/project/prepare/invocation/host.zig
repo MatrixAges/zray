@@ -3,6 +3,7 @@ const rx = @import("rx");
 const frontend = @import("frontend");
 const prepare = @import("../../prepare.zig");
 const Attributes = @import("../../../call/attributes.zig");
+const target = @import("../../../call/target.zig");
 const StoreCall = @import("../../../store/call.zig");
 const availability = @import("../../../call/availability.zig");
 const schedule = @import("../schedule.zig");
@@ -15,7 +16,9 @@ const Target = struct {
     local: bool,
 };
 
-pub fn bind(loader: *prepare.Loader, node: rx.ast.Node, previous_end: u32) Error!usize {
+pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Error!usize {
+    const loop = std.mem.eql(u8, source.name, "Loop");
+    const node = if (loop) source.children[0] else source;
     const index = loader.calls.len;
     var attributes: Attributes = undefined;
     var input: ?*const frontend.ExpressionInput.Result = null;
@@ -46,6 +49,7 @@ pub fn bind(loader: *prepare.Loader, node: rx.ast.Node, previous_end: u32) Error
                 .setter = capability.setter,
                 .getters = capability.getters,
                 .input = attributes.argument,
+                .loop_condition = if (loop) target.borrowAttribute(source, "on") else null,
                 .name_source = attributes.function orelse attributes.module.?,
                 .target_kind = selected.kind,
                 .target = selected.row,

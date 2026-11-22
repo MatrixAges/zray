@@ -5,7 +5,7 @@ import {
     function_attribute,
     output_attribute
 } from "../../attribute/const"
-import { call_tag, parallel_tag, task_tag } from "../../execution/const"
+import { call_tag, loop_tag, parallel_tag, task_tag } from "../../execution/const"
 
 import type { Attribute, Node } from "../../../syntax/document/model"
 
@@ -17,7 +17,8 @@ export type Document = {
 
 export type Input = Document & {
     parent: Node,
-    call: Node
+    call: Node,
+    previous: u64
 }
 
 export type Output = bool
@@ -34,17 +35,25 @@ export default function (in: Input): Output {
         return false
     }
 
-    if (call.previous_sibling != 0 && !matches({
+    if (in.previous != 0 && !matches({
         source,
         ...in.parent.name,
         name: parallel_tag
     })) {
-        const previous = in.nodes[call.previous_sibling - 1]
+        const previous = in.nodes[in.previous - 1]
 
         if (matches({
             source,
             ...previous.name,
             name: call_tag
+        })) {
+            return false
+        }
+
+        if (matches({
+            source,
+            ...previous.name,
+            name: loop_tag
         })) {
             return false
         }

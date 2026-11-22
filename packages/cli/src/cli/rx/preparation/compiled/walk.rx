@@ -14,7 +14,9 @@
         }}
     />
 
-    <Call module="walk_module" while="running" />
+    <Loop on={$in.running}>
+        <Call module="walk_module" />
+    </Loop>
 
     <Return value={$ctx.walk_module.valid} />
 </Module>

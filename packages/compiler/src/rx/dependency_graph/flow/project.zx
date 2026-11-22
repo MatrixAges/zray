@@ -35,6 +35,7 @@ export default function (in: Input): Output {
         Tag.Store => declaration + declaration_action,
         Tag.Import => declaration + declaration_action,
         Tag.Call => call_action,
+        Tag.Loop => call_action,
         Tag.Task => sequence(children) + task_action,
         Tag.Parallel => parallel_action,
         Tag.Case => sequence(children),

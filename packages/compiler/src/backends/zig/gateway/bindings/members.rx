@@ -3,15 +3,17 @@
 
     <Args in={Bindings.State} out={Bindings.State} />
 
-    <Call
-        module="next_member"
-        while="running"
-        in={{
-            state: $in,
-            position: 0,
-            running: $in.status == Bindings.Status.Valid && $in.source.members.count != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_member"
+            in={{
+                state: $in,
+                position: 0,
+                running:
+                    $in.status == Bindings.Status.Valid && $in.source.members.count != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.next_member.state} />
 </Module>

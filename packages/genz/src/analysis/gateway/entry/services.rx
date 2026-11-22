@@ -5,20 +5,21 @@
 
     <Call fn="service_count" in={$in} />
 
-    <Call
-        module="next_service"
-        while="running"
-        in={{
-            ...$in,
-            state: {
-                valid: true,
-                invalid_route: false
-            },
-            index: 0,
-            count: $ctx.service_count,
-            running: $ctx.service_count != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_service"
+            in={{
+                ...$in,
+                state: {
+                    valid: true,
+                    invalid_route: false
+                },
+                index: 0,
+                count: $ctx.service_count,
+                running: $ctx.service_count != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.next_service.state} />
 </Module>

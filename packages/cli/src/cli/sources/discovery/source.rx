@@ -6,16 +6,17 @@
     <Call fn="index.prepareSource" in={$in} />
     <Call fn="index.openHeader" in={$in} />
 
-    <Call
-        module="load_import"
-        while="running"
-        in={{
-            discovery: $in,
-            count: $ctx.openHeader,
-            index: 0,
-            running: $ctx.openHeader != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="load_import"
+            in={{
+                discovery: $in,
+                count: $ctx.openHeader,
+                index: 0,
+                running: $ctx.openHeader != 0
+            }}
+        />
+    </Loop>
 
     <Call fn="index.closeHeader" in={$in} />
 </Module>

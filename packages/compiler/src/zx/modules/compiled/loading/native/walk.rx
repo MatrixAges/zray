@@ -5,7 +5,9 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="next" while="running" />
+    <Loop on={$in.running}>
+        <Call module="next" />
+    </Loop>
 
     <Return value={$ctx.next.state} />
 </Module>

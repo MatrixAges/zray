@@ -3,16 +3,17 @@
 
     <Args in={Cache.Records} out={bool} />
 
-    <Call
-        module="advance_check"
-        while="running"
-        in={{
-            source: $in,
-            row: 0,
-            valid: true,
-            running: $in.previous.header.count != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="advance_check"
+            in={{
+                source: $in,
+                row: 0,
+                valid: true,
+                running: $in.previous.header.count != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.advance_check.valid} />
 </Module>

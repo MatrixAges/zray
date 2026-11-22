@@ -6,7 +6,9 @@
 
     <Call fn="batch_initialize" in={$in} />
 
-    <Call module="batch_next" while="running" />
+    <Loop on={$in.running}>
+        <Call module="batch_next" />
+    </Loop>
 
     <Return value={$ctx.batch_next.status} />
 </Module>

@@ -6,17 +6,18 @@
 
     <Call module="initialize" in={$in} />
 
-    <Call
-        module="next"
-        while="running"
-        in={{
-            ...$in.omit(["recovered"]),
-            ...$ctx.initialize,
-            running:
-                $ctx.initialize.cursor.phase != Trace.Phase.Done &&
-                $ctx.initialize.cursor.phase != Trace.Phase.Reject
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next"
+            in={{
+                ...$in.omit(["recovered"]),
+                ...$ctx.initialize,
+                running:
+                    $ctx.initialize.cursor.phase != Trace.Phase.Done &&
+                    $ctx.initialize.cursor.phase != Trace.Phase.Reject
+            }}
+        />
+    </Loop>
 
     <Return
         value={$ctx.next.pick([

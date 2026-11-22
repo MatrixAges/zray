@@ -1,5 +1,5 @@
 import matches from "../../../syntax/document/name_matches"
-import { call_tag } from "../../execution/const"
+import { call_tag, loop_tag } from "../../execution/const"
 import missing from "./missing"
 
 import type { Document } from "./missing"
@@ -23,9 +23,14 @@ export default function (in: Input): Output {
         while: state => state.row < in.end,
         next: state => {
             const parent = in.nodes[state.row]
+            const inside_loop = matches({
+                source,
+                ...parent.name,
+                name: loop_tag
+            })
 
             state.finding = loop({
-                head: parent.children,
+                head: inside_loop ? 0 : parent.children,
                 finding: state.finding
             }, {
                 while: branch => branch.head != 0,
@@ -37,19 +42,32 @@ export default function (in: Input): Output {
 
                     const earlier = branch.finding == null || row < branch.finding
 
-                    if (earlier && matches({
-                        source: in.source,
+                    const call = matches({
+                        source,
                         ...child.name,
                         name: call_tag
-                    })) {
+                    })
+                    const loop_tagged = matches({
+                        source,
+                        ...child.name,
+                        name: loop_tag
+                    })
+                    const call_row = match {
+                        call => row + 1,
+                        loop_tagged => child.children,
+                        _ => 0
+                    }
+
+                    if (earlier && call_row != 0) {
                         if (missing({
                             source,
                             nodes,
                             attributes,
                             parent,
-                            call: child
+                            call: nodes[call_row - 1],
+                            previous: child.previous_sibling
                         })) {
-                            branch.finding = row
+                            branch.finding = call_row - 1
                         }
                     }
                 },

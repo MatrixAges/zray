@@ -5,15 +5,16 @@
 
     <Call fn="index.startSearch" in={$in} />
 
-    <Call
-        module="search"
-        while="running"
-        in={{
-            search: $in,
-            complete: false,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="search"
+            in={{
+                search: $in,
+                complete: false,
+                running: true
+            }}
+        />
+    </Loop>
 
     <If on={!$ctx.search.complete}>
         <Call fn="index.selectNearest" in={$in} />

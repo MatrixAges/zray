@@ -3,18 +3,19 @@
 
     <Args in={Aliases.CompiledInput} out={Aliases.Status} />
 
-    <Call
-        module="next_compiled"
-        while="running"
-        in={{
-            ...$in,
-            cursor: 0,
-            count: 0,
-            capacity: 0,
-            status: Aliases.Status.Ready,
-            running: true
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next_compiled"
+            in={{
+                ...$in,
+                cursor: 0,
+                count: 0,
+                capacity: 0,
+                status: Aliases.Status.Ready,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.next_compiled.status} />
 </Module>

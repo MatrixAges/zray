@@ -13,14 +13,15 @@
         }}
     />
 
-    <Call
-        module="roots"
-        while="running"
-        in={{
-            preparation: $in,
-            count: $ctx.reservePreparationRoots,
-            index: 0,
-            running: $ctx.reservePreparationRoots != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="roots"
+            in={{
+                preparation: $in,
+                count: $ctx.reservePreparationRoots,
+                index: 0,
+                running: $ctx.reservePreparationRoots != 0
+            }}
+        />
+    </Loop>
 </Module>

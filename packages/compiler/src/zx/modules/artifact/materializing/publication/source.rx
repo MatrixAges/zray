@@ -4,16 +4,17 @@
 
     <Args in={Source.Input} out={Source.Output} />
 
-    <Call
-        module="next"
-        while="running"
-        in={{
-            input: $in,
-            row: 0,
-            valid: true,
-            running: $in.source.files.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="next"
+            in={{
+                input: $in,
+                row: 0,
+                valid: true,
+                running: $in.source.files.length != 0
+            }}
+        />
+    </Loop>
 
     <If on={$ctx.next.valid}>
         <Return value={Publication.PublicationStatus.Complete} />

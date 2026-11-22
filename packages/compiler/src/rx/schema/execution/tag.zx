@@ -1,4 +1,4 @@
-import { call_tag, parallel_tag, task_tag } from "./const"
+import { call_tag, loop_tag, parallel_tag, task_tag } from "./const"
 import { Tag } from "./model"
 
 export type Input = string
@@ -13,6 +13,7 @@ export default function (in: Input): Output {
         "Store" => Tag.Store,
         "Import" => Tag.Import,
         call_tag => Tag.Call,
+        loop_tag => Tag.Loop,
         task_tag => Tag.Task,
         parallel_tag => Tag.Parallel,
         "Switch" => Tag.Switch,

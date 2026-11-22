@@ -15,7 +15,8 @@ export enum Tag {
     Default,
     Emit,
     Return,
-    Route
+    Route,
+    Loop
 }
 
 export enum Scope {

@@ -11,16 +11,17 @@
         ]}
     />
 
-    <Call
-        module="walk_reference"
-        while="running"
-        in={{
-            ...$in,
-            count: $ctx.selectPreparationModule,
-            index: $ctx.selectPreparationModule,
-            running: $ctx.selectPreparationModule != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="walk_reference"
+            in={{
+                ...$in,
+                count: $ctx.selectPreparationModule,
+                index: $ctx.selectPreparationModule,
+                running: $ctx.selectPreparationModule != 0
+            }}
+        />
+    </Loop>
 
     <Return
         value={{

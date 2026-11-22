@@ -21,8 +21,12 @@ pub const Call = struct {
     callee_suffix: ?*const zx.ir.FunctionTable = null,
     argument: zx.ir.Program,
     input_omitted: bool = false,
-    repeat_field: ?u32 = null,
+    loop: ?Loop = null,
     out: ?[]const u8,
+    pub const Loop = union(enum) {
+        field: u32,
+        predicate: *const zx.ir.Program,
+    };
 };
 
 pub const Contract = struct {

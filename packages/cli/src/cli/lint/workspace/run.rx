@@ -18,17 +18,18 @@
 
     <Call fn="../index.locateLintWorkspace" in={$in} />
 
-    <Call
-        module="members"
-        while="running"
-        in={{
-            check: $in,
-            count: $ctx.locateLintWorkspace,
-            index: 0,
-            valid: true,
-            running: $ctx.locateLintWorkspace != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="members"
+            in={{
+                check: $in,
+                count: $ctx.locateLintWorkspace,
+                index: 0,
+                valid: true,
+                running: $ctx.locateLintWorkspace != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.members.valid} />
 </Module>

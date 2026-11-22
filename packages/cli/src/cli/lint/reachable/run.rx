@@ -5,17 +5,18 @@
 
     <Call fn="../index.reachableLintModuleCount" in={$in} />
 
-    <Call
-        module="walk"
-        while="running"
-        in={{
-            check: $in,
-            count: $ctx.reachableLintModuleCount,
-            index: 0,
-            valid: true,
-            running: $ctx.reachableLintModuleCount != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="walk"
+            in={{
+                check: $in,
+                count: $ctx.reachableLintModuleCount,
+                index: 0,
+                valid: true,
+                running: $ctx.reachableLintModuleCount != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.walk.valid} />
 </Module>

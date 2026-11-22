@@ -13,5 +13,7 @@
         ]}
     />
 
-    <Call module="next_export" while="running" in={$ctx.export_layout} />
+    <Loop on={$in.running}>
+        <Call module="next_export" in={$ctx.export_layout} />
+    </Loop>
 </Module>

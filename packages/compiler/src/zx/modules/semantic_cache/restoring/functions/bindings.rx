@@ -7,16 +7,17 @@
         <Return value={false} />
     </If>
 
-    <Call
-        module="advance_bindings"
-        while="running"
-        in={{
-            source: $in,
-            row: 0,
-            valid: true,
-            running: $in.previous.count != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="advance_bindings"
+            in={{
+                source: $in,
+                row: 0,
+                valid: true,
+                running: $in.previous.count != 0
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.advance_bindings.valid} />
 </Module>

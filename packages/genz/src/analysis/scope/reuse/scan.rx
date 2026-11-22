@@ -3,23 +3,24 @@
 
     <Args in={Reuse.Source} out={Reuse.Input} />
 
-    <Call
-        module="scan_next"
-        while="running"
-        in={{
-            source: $in,
-            found: {
-                bindings: [],
-                previous: [],
-                types: [],
-                references: [],
-                field_indices: [],
-                field_values: []
-            },
-            row: 0,
-            running: $in.symbols.length != 0
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="scan_next"
+            in={{
+                source: $in,
+                found: {
+                    bindings: [],
+                    previous: [],
+                    types: [],
+                    references: [],
+                    field_indices: [],
+                    field_values: []
+                },
+                row: 0,
+                running: $in.symbols.length != 0
+            }}
+        />
+    </Loop>
 
     <Return
         value={{

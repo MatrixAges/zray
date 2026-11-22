@@ -13,21 +13,22 @@
         ])}
     />
 
-    <Call
-        module="walk"
-        while="running"
-        in={{
-            collection: $in.collection,
-            has_bundle: $in.bundle_files.length != 0,
-            index: 0,
-            running: true,
-            flags: {
-                valid: true,
-                dynamic_resources: false,
-                c_imports: $in.header
-            }
-        }}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="walk"
+            in={{
+                collection: $in.collection,
+                has_bundle: $in.bundle_files.length != 0,
+                index: 0,
+                running: true,
+                flags: {
+                    valid: true,
+                    dynamic_resources: false,
+                    c_imports: $in.header
+                }
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.walk.flags} />
 </Module>

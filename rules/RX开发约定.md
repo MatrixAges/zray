@@ -24,6 +24,8 @@
 
 RX 负责编排，可以调用其他 RX 和 ZX。ZX 依赖中禁止出现 RX，导入、类型导入、再导出及包别名遵守同一方向。组合多个效果和阶段时，把调用顺序放在 RX 中；算法本身的循环和只读查询保留在 ZX。
 
+RX 编排应能让阅读者直接看出阶段顺序和数据流。复用 RX 时，若调用方需要堆叠分支、循环或反复组装状态才能使用它，先检查底层 ZX 函数是否有内聚的职责和清晰的输入输出。把独立的算法、规则和数据变换放回 ZX，再用 RX 连接阶段、调用和效果。
+
 Call 目标只接受 fn/module，service 仅用于 Route；Call 参数属性为 in；Call 不接受 out；Task.out 为可选花括号表达式，在子步骤结束后聚合结果，不能与同一任务的 Return 并用。Call 不接受 name，普通调用取调用目标最后路径段并去掉源码后缀；点号 fn 取末段函数名，结果为 $ctx.<name>；Task 使用 $ctx.task.<name>，包括带 out 的顺序 Task。Call 目标文件名不得为保留名 task；两类结果可同名，同一作用域同类结果不得重名，void 调用保留执行但不产生值绑定。Module 的显式输入输出契约由 Type 声明后的 Args.in/out 类型表达式定义；Type.from 默认省略前导 ./ 和 .zx，本地路径与 Call.fn 一样相对当前模块解析，../ 保留；as 必填且当前模块唯一。Input/Output 标签及 Module.in/out 名称标注已移除。纯单函数转发使用 Module.fn，继承目标接口且与子节点互斥；实际编排保留完整 Module。
 
 RX 属性值仅负责数据引用、组装和简单运算；禁止普通函数/方法调用、lambda 和状态更新块，包括嵌套对象、分支或模板中的普通调用。pick/omit 仅作为静态字段组装：一个字符串字面量数组，解码后拒绝未知与重复字段，receiver 递归执行同一值边界；不得据方法名放开导入函数调用。loop、集合处理及其他计算在 ZX 中实现，由 Call.fn 或 Call.module 编排。普通属性编译、项目类型推导和 Store 初值必须共用这一边界。
@@ -34,7 +36,7 @@ RX 属性值仅负责数据引用、组装和简单运算；禁止普通函数/�
 
 命名调用使用 `<Call fn="operations.normalize" in={$in} />`。先解析完整文件名及对应目录入口，找不到时按最后一个点拆分，解析模块并查找其公开函数。命中完整文件后，该文件的编译错误或缺少默认函数直接报错。同一写法始终用 `$ctx.normalize` 绑定结果。名字、类型、Store 授权、依赖图和 CLI 使用相同的静态选择。
 
-顺序步骤可省略对同层紧邻 Call 或 Task.out 输出的直接 `in` 引用。分支分别计算自己的默认输入，直属并行 Call 独立传参。显式字段访问、其他值和跨步骤引用保留 `in`。
+顺序步骤可省略对同层紧邻 Call、Loop 或 Task.out 输出的直接 `in` 引用。分支分别计算自己的默认输入，直属并行 Call 独立传参。显式字段访问、其他值和跨步骤引用保留 `in`。
 
 ## 内部校验接口
 
@@ -78,7 +80,7 @@ zig build test
 
 ## 能力边界
 
-`zxc check-rx` 支持显式普通模块文件集合，以及 `--entry` 的普通模块/Gateway 可达依赖装载和 Store 定义检查。Gateway 先沿所有嵌套 Route.service 找到普通模块；普通模块沿 Import、所有嵌套 Call.module 和 Store.from 装载。入口装载检查物理身份和项目根边界，普通模块子集最终仍调用完整集合校验；Gateway/Store 只进入各自 Schema 检查，不混入普通调用图。它不扫描不可达文件。`zxc build` 已支持普通模块 Call.fn/Call.module/Return、Task、If 和 Switch 的项目推导与应用构建；Store 声明与单 Object setter 支持显式授权源码生成；目标为替代隐式全局变量的共享内存，当前已移除 --state-dir 与磁盘保存，顺序调用共享 State，独立请求由生成的 Request 管理 arena。Parallel 已支持直接纯计算 Call 和 Task 的真实线程执行与结果汇合；Task 静态提取为独立函数，通过 $ctx.task.<name> 公开分支返回值。Store 并发及原生副作用仍未实现。HTTP Gateway 已接通静态路由、统一服务链接和共享 State 的顺序请求宿主；独占 Store 写入已生成请求边界回收；其他协议、并发、超时及一般共享 Store 回收仍未实现。事件订阅调度尚未实现。Emit 的语法存在不代表事件处理已经可运行。表达式解析、ZX 类型联结与 Store 初始化执行也不能从结构校验成功推断出来。
+`zxc check-rx` 支持显式普通模块文件集合，以及 `--entry` 的普通模块/Gateway 可达依赖装载和 Store 定义检查。Gateway 先沿所有嵌套 Route.service 找到普通模块；普通模块沿 Import、所有嵌套 Call.module 和 Store.from 装载。入口装载检查物理身份和项目根边界，普通模块子集最终仍调用完整集合校验；Gateway/Store 只进入各自 Schema 检查，不混入普通调用图。它不扫描不可达文件。`zxc build` 已支持普通模块 Call.fn/Call.module/Return、Loop、Task、If 和 Switch 的项目推导与应用构建；Store 声明与单 Object setter 支持显式授权源码生成；目标为替代隐式全局变量的共享内存，当前已移除 --state-dir 与磁盘保存，顺序调用共享 State，独立请求由生成的 Request 管理 arena。Parallel 已支持直接纯计算 Call 和 Task 的真实线程执行与结果汇合；Task 静态提取为独立函数，通过 $ctx.task.<name> 公开分支返回值。Store 并发及原生副作用仍未实现。HTTP Gateway 已接通静态路由、统一服务链接和共享 State 的顺序请求宿主；独占 Store 写入已生成请求边界回收；其他协议、并发、超时及一般共享 Store 回收仍未实现。事件订阅调度尚未实现。Emit 的语法存在不代表事件处理已经可运行。表达式解析、ZX 类型联结与 Store 初始化执行也不能从结构校验成功推断出来。
 
 维护公开指导时，用使用者能理解的版本和环境能力描述这些限制，不要求使用者阅读内部 AST、修改编译器或运行 zray 仓库测试。
 
@@ -87,5 +89,7 @@ Store 语义以 [Store 设计](../docs/2026-10-05/Store设计.md)为准：不自
 普通模块图按 ModuleSource.packages 中当前源码所属包的声明区分包引用与本地 RX；CLI 装载、编译库收集和项目推导必须使用同一 module_reference 分类。不能按文件存在与否切换解析方式，也不能跳过未声明的本地目标或环检查。Route.service 保留普通 RX 路径语义，不继承 Call.module 的包分类。
 
 If.on 必须是花括号布尔表达式；直属步骤为真分支，Else 可选、最多一次且位于末尾，不能独立出现。不增加 Then。布尔二分优先 If，多值匹配使用 Switch；两者共用静态 selection、作用域、收窄及所有权处理。
+
+Loop.on 使用花括号布尔表达式，在每轮调用前以当前状态作为 $in 求值。Loop 包裹一个静态 Call，要求相同的非 void 输入输出类型，沿用 Call 的结果名称和同层默认输入。Loop 复用 Iteration IR。依赖图继续扫描内层 Call。禁止在 Call 上声明 while。
 
 静态字段选择在 RX 图推导中等待来源字段集合确定；选择结果不能被消费者补字段，也不能提前 resolve 来源来冻结输入。完整来源可由 Args、函数接口或对象构造确定；最终仍开放时给出类型诊断。键不进入运行时 IR，纯数据引用直接投影，其他 receiver 绑定一次；空选择也须保留原求值与错误，非 void 值保持合法 Scope 绑定。
