@@ -15,8 +15,6 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
 
     comptime view.compatible(Tag, std.meta.Child(@FieldType(View, "tags")));
 
-    try headers.capacity(target.tags.items.len, source.tags.len, source.offsets.len);
-
     comptime var columns: usize = 2;
 
     inline for (names) |name| columns += comptime schema(View, @TypeOf(@field(target.payloads, name)), name);
@@ -30,7 +28,7 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
         limit.* = available(@TypeOf(@field(target.payloads, name)), source, name);
     }
 
-    try headers.check(source.tags, source.offsets, &counts, &limits);
+    try headers.check(target.tags.items.len, source.tags, source.offsets, &counts, &limits);
 
     return counts;
 }

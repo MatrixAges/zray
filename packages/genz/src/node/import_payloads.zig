@@ -14,8 +14,10 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype, co
     const View = std.meta.Child(@TypeOf(source));
     const width = comptime fields(@TypeOf(target.payloads), View);
 
-    try target.tags.ensureUnusedCapacity(allocator, source.tags.len);
-    try target.offsets.ensureUnusedCapacity(allocator, source.offsets.len);
+    if (!generated) {
+        try target.tags.ensureUnusedCapacity(allocator, source.tags.len);
+        try target.offsets.ensureUnusedCapacity(allocator, source.offsets.len);
+    }
 
     var buffers: [width]transfer.Column = undefined;
     var groups: [names.len][]const transfer.Column = undefined;
@@ -26,7 +28,7 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype, co
         const end = first + comptime widthOf(std.meta.Child(@TypeOf(column)), View, name);
 
         if (count != 0) {
-            try column.reserve(allocator, count);
+            if (!generated) try column.reserve(allocator, count);
 
             attach(column, source, name, buffers[first..end], copy_payloads, borrow_text);
 
@@ -37,30 +39,29 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype, co
     }
 
     const rows: transfer.Groups = &groups;
-    var bases = headers.payloadBases(target, counts);
-    var bases_view: []u32 = &bases;
     const Tag = std.meta.Elem(@TypeOf(target.tags.items));
     const tags = @as([*]const Tag, @ptrCast(source.tags.ptr))[0..source.tags.len];
 
-    if (!generated) return @import("import_payloads/seed.zig").append(allocator, target, tags, source.offsets, counts, rows, &bases, layout == .selected);
+    if (!generated) return @import("import_payloads/seed.zig").append(allocator, target, tags, source.offsets, counts, rows, layout == .selected);
 
     const entry = @import("generated_node_payload_append");
-    const target_tags = std.mem.sliceAsBytes(target.tags.unusedCapacitySlice()[0..tags.len]);
-    const target_offsets = target.offsets.unusedCapacitySlice()[0..source.offsets.len];
+    var bases: headers.Counts(@TypeOf(target)) = undefined;
+    const bases_view: []u32 = &bases;
     const lengths: zx.memory.ColumnLengths = &.{ &target.tags.items.len, &target.offsets.items.len };
+    var views: headers.Views = .{};
 
-    const input: std.meta.Child(entry.Input) = .{
-        .tags = std.mem.sliceAsBytes(tags),
-        .offsets = source.offsets,
-        .mask = headers.mask(Tag),
-        .bases = @ptrCast(&bases_view),
-        .target_tags = @ptrCast(&target_tags),
-        .target_offsets = @ptrCast(&target_offsets),
-        .lengths = @ptrCast(&lengths),
-        .groups = @ptrCast(&rows),
-        .counts = counts,
-        .allocator = @ptrCast(&allocator),
-        .layout = if (comptime layout == .selected) .Selected else .Dense,
+    const input = input: {
+        var request = views.bind(std.meta.Child(entry.Input), &allocator, target, &lengths);
+
+        request.tags = std.mem.sliceAsBytes(tags);
+        request.offsets = source.offsets;
+        request.mask = headers.mask(Tag);
+        request.bases = @ptrCast(&bases_view);
+        request.groups = @ptrCast(&rows);
+        request.counts = counts;
+        request.layout = if (comptime layout == .selected) .Selected else .Dense;
+
+        break :input request;
     };
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});

@@ -72,6 +72,13 @@ export declare function copyColumnGroup(
     count: u64
 ): bool
 
+export declare function reserveColumnGroup(
+    allocator: Allocator,
+    groups: ColumnTransfers,
+    group: u64,
+    count: u64
+): u64 throws { OutOfMemory }
+
 export declare function discardColumnGroup(
     allocator: Allocator,
     groups: ColumnTransfers,

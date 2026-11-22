@@ -31,11 +31,9 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
 
     comptime view.compatible(Tag, std.meta.Child(@FieldType(View, "tags")));
 
-    try headers.capacity(target.tags.items.len, source.tags.len, source.offsets.len);
-
     var counts: Counts(@TypeOf(target)) = @splat(0);
 
-    try headers.check(source.tags, source.offsets, &counts, null);
+    try headers.check(target.tags.items.len, source.tags, source.offsets, &counts, null);
 
     comptime var column_count: usize = 2;
     var valid = true;

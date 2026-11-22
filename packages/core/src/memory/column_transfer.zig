@@ -4,10 +4,10 @@ const Kind = enum { value, text, optional_text, words, texts, optional_texts, te
 
 pub const Column = struct {
     source: [*]const u8,
-    target: [*]u8,
-    length: *usize,
+    storage: *std.ArrayList(u8),
     width: usize,
     kind: Kind,
+    grow: *const fn (*anyopaque, std.mem.Allocator, usize) std.mem.Allocator.Error!void,
 };
 
 pub const Groups = []const []const Column;
@@ -15,12 +15,27 @@ pub const Groups = []const []const Column;
 pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comptime borrow_text: bool) Column {
     const Value = std.meta.Elem(@TypeOf(target.items));
 
+    comptime {
+        const Storage = std.meta.Child(@TypeOf(target));
+        const Erased = std.ArrayList(u8);
+
+        std.debug.assert(@sizeOf(Storage) == @sizeOf(Erased) and @alignOf(Storage) == @alignOf(Erased));
+        std.debug.assert(@offsetOf(Storage, "items") == @offsetOf(Erased, "items"));
+        std.debug.assert(@offsetOf(Storage, "capacity") == @offsetOf(Erased, "capacity"));
+    }
+
     return .{
         .source = @ptrCast(source.ptr),
-        .target = @ptrCast(target.items.ptr),
-        .length = &target.items.len,
+        .storage = @ptrCast(target),
         .width = @sizeOf(Value),
         .kind = comptime kind(Value, copy_payloads, borrow_text),
+        .grow = struct {
+            fn ensure(storage: *anyopaque, allocator: std.mem.Allocator, additional: usize) std.mem.Allocator.Error!void {
+                const column: *std.ArrayList(Value) = @ptrCast(@alignCast(storage));
+
+                return column.ensureUnusedCapacity(allocator, additional);
+            }
+        }.ensure,
     };
 }
 
@@ -65,6 +80,20 @@ pub fn copy(resource: *const anyopaque, target: *const anyopaque, index: u64, fi
     return true;
 }
 
+pub fn reserve(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) std.mem.Allocator.Error!u64 {
+    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
+    const fields = group(target, index);
+    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
+
+    for (fields) |column| {
+        if (length > column.storage.capacity - column.storage.items.len) {
+            try column.grow(column.storage, allocator.*, length);
+        }
+    }
+
+    return fields[0].storage.items.len;
+}
+
 pub fn discard(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) void {
     if (count == 0) return;
 
@@ -75,7 +104,7 @@ pub fn discard(resource: *const anyopaque, target: *const anyopaque, index: u64,
 
 pub fn publish(target: *const anyopaque, index: u64, count: u64) void {
     if (count == 0) return;
-    for (group(target, index)) |column| column.length.* += @intCast(count);
+    for (group(target, index)) |column| column.storage.items.len += @intCast(count);
 }
 
 fn group(target: *const anyopaque, index: u64) []const Column {
@@ -90,7 +119,7 @@ fn copyColumn(allocator: std.mem.Allocator, column: Column, first: usize, count:
             if (column.width == 0) return;
 
             const source = column.source[first * column.width ..][0 .. count * column.width];
-            const target = column.target[column.length.* * column.width ..][0..source.len];
+            const target = column.storage.items.ptr[column.storage.items.len * column.width ..][0..source.len];
 
             @memcpy(target, source);
         },
@@ -121,8 +150,8 @@ fn discardColumns(allocator: std.mem.Allocator, columns: []const Column, count: 
 
 fn cloneRange(comptime Value: type, comptime borrow_text: bool, allocator: std.mem.Allocator, column: Column, first: usize, count: usize) std.mem.Allocator.Error!void {
     const source: [*]const Value = @ptrCast(@alignCast(column.source));
-    const target: [*]Value = @ptrCast(@alignCast(column.target));
-    const tail = target[column.length.*..][0..count];
+    const target: [*]Value = @ptrCast(@alignCast(column.storage.items.ptr));
+    const tail = target[column.storage.items.len..][0..count];
     var copied: usize = 0;
 
     errdefer for (tail[0..copied]) |value| release(allocator, value, borrow_text);
@@ -134,9 +163,9 @@ fn cloneRange(comptime Value: type, comptime borrow_text: bool, allocator: std.m
 }
 
 fn releaseRange(comptime Value: type, comptime borrow_text: bool, allocator: std.mem.Allocator, column: Column, count: usize) void {
-    const target: [*]const Value = @ptrCast(@alignCast(column.target));
+    const target: [*]const Value = @ptrCast(@alignCast(column.storage.items.ptr));
 
-    for (target[column.length.*..][0..count]) |value| release(allocator, value, borrow_text);
+    for (target[column.storage.items.len..][0..count]) |value| release(allocator, value, borrow_text);
 }
 
 fn clone(allocator: std.mem.Allocator, value: anytype, comptime borrow_text: bool) std.mem.Allocator.Error!@TypeOf(value) {

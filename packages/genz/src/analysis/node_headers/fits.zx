@@ -1,0 +1,15 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+export type Input = {
+    existing: u64,
+    count: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const limit = integers.widen(max_u32)
+
+    return in.existing <= limit && in.count <= limit - in.existing
+}

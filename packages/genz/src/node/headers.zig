@@ -9,17 +9,10 @@ pub fn Counts(comptime Target: type) type {
     return [@typeInfo(Payloads).@"struct".field_names.len]u32;
 }
 
-pub fn capacity(existing: usize, count: usize, offsets: usize) Error!void {
-    if (count > std.math.maxInt(u32) - existing) {
-        if (count != offsets) return error.InvalidAst;
-
-        return error.OutOfMemory;
-    }
-}
-
-pub fn check(tags: anytype, offsets: []const u32, counts: []u32, limits: ?[]const u64) Error!void {
+pub fn check(existing: usize, tags: anytype, offsets: []const u32, counts: []u32, limits: ?[]const u64) Error!void {
     if (!generated) {
         if (tags.len != offsets.len) return error.InvalidAst;
+        if (tags.len > std.math.maxInt(u32) - existing) return error.OutOfMemory;
 
         for (tags, offsets) |tag, offset| {
             const index = @backingInt(tag);
@@ -41,6 +34,7 @@ pub fn check(tags: anytype, offsets: []const u32, counts: []u32, limits: ?[]cons
     const input: std.meta.Child(entry.Input) = .{
         .tags = bytes(tags),
         .offsets = offsets,
+        .existing = existing,
         .mask = mask(std.meta.Elem(@TypeOf(tags))),
         .counts = @ptrCast(&counts),
         .variants = counts.len,
@@ -49,25 +43,42 @@ pub fn check(tags: anytype, offsets: []const u32, counts: []u32, limits: ?[]cons
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-    const valid = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         error.IndexOutOfBounds => return error.InvalidAst,
         else => unreachable,
     };
 
-    if (!valid) return error.InvalidAst;
+    return switch (result) {
+        .Valid => {},
+        .Invalid => error.InvalidAst,
+        .Exhausted => error.OutOfMemory,
+    };
 }
 
-pub fn payloadBases(target: anytype, counts: *const Counts(@TypeOf(target))) Counts(@TypeOf(target)) {
-    const names = @typeInfo(@TypeOf(target.payloads)).@"struct".field_names;
-    var bases: Counts(@TypeOf(target)) = undefined;
+pub const Views = struct {
+    source_tags: []const u8 = &.{},
+    source_offsets: []const u32 = &.{},
+    target_tags: []u8 = &.{},
+    target_offsets: []u32 = &.{},
+    pub fn bind(self: *Views, comptime Input: type, allocator: *const std.mem.Allocator, rows: anytype, lengths: *const zx.memory.ColumnLengths) Input {
+        const Tag = std.meta.Elem(@TypeOf(rows.tags.items));
 
-    inline for (names, counts, &bases) |name, count, *base| {
-        if (count != 0) base.* = @intCast(@field(target.payloads, name).count());
+        comptime std.debug.assert(@sizeOf(Tag) == @sizeOf(u8) and @alignOf(Tag) == @alignOf(u8));
+
+        var input: Input = undefined;
+        input.allocator = @ptrCast(allocator);
+        input.tag_storage = @ptrCast(&rows.tags);
+        input.offset_storage = @ptrCast(&rows.offsets);
+        input.source_tags = @ptrCast(&self.source_tags);
+        input.source_offsets = @ptrCast(&self.source_offsets);
+        input.target_tags = @ptrCast(&self.target_tags);
+        input.target_offsets = @ptrCast(&self.target_offsets);
+        input.lengths = @ptrCast(lengths);
+
+        return input;
     }
-
-    return bases;
-}
+};
 
 fn bytes(tags: anytype) []const u8 {
     comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(tags))) == 1);

@@ -1,23 +1,39 @@
 <Module>
     <Type from="model" as="Headers" />
 
-    <Args in={Headers.Layout} out={bool} />
+    <Args in={Headers.Layout} out={Headers.Check} />
 
     <If on={$in.tags.length != $in.offsets.length}>
-        <Return value={false} />
+        <Return value={Headers.Check.Invalid} />
+    </If>
+
+    <Call
+        fn="fits"
+        in={{
+            existing: $in.existing,
+            count: $in.tags.length
+        }}
+    />
+
+    <If on={!$ctx.fits}>
+        <Return value={Headers.Check.Exhausted} />
     </If>
 
     <Call fn="count" in={$in} />
 
     <If on={!$ctx.count}>
-        <Return value={false} />
+        <Return value={Headers.Check.Invalid} />
     </If>
 
     <If on={$in.limits != null}>
-        <Return value={true} />
+        <Return value={Headers.Check.Valid} />
     </If>
 
     <Call fn="dense" in={$in} />
 
-    <Return value={$ctx.dense} />
+    <If on={$ctx.dense}>
+        <Return value={Headers.Check.Valid} />
+    </If>
+
+    <Return value={Headers.Check.Invalid} />
 </Module>

@@ -124,40 +124,16 @@ pub fn tail(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32
         collectSeed(node.Block, allocator, &storage.statements, starts, counts, true);
 }
 
-const Views = struct {
-    source_tags: []const u8 = &.{},
-    source_offsets: []const u32 = &.{},
-    target_tags: []u8 = &.{},
-    target_offsets: []u32 = &.{},
-    fn bind(self: *Views, comptime Input: type, allocator: *const std.mem.Allocator, rows: anytype, lengths: *const zx.memory.ColumnLengths) Input {
-        const Tag = std.meta.Elem(@TypeOf(rows.tags.items));
-
-        comptime std.debug.assert(@sizeOf(Tag) == @sizeOf(u8) and @alignOf(Tag) == @alignOf(u8));
-
-        var input: Input = undefined;
-        input.allocator = @ptrCast(allocator);
-        input.tags = @ptrCast(&rows.tags);
-        input.offsets = @ptrCast(&rows.offsets);
-        input.source_tags = @ptrCast(&self.source_tags);
-        input.source_offsets = @ptrCast(&self.source_offsets);
-        input.target_tags = @ptrCast(&self.target_tags);
-        input.target_offsets = @ptrCast(&self.target_offsets);
-        input.lengths = @ptrCast(lengths);
-        input.end = rows.tags.items.len;
-
-        return input;
-    }
-};
-
 fn collectSource(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, starts: []const u32, counts: []const u32, parts: []const u64, last: u64, at_tail: bool) std.mem.Allocator.Error!Span {
     std.debug.assert(starts.len == counts.len);
 
     const entry = @import("generated_node_block_build");
     const lengths: zx.memory.ColumnLengths = &.{ &rows.tags.items.len, &rows.offsets.items.len };
-    var views: Views = .{};
+    var views: @import("headers.zig").Views = .{};
     var input = views.bind(std.meta.Child(entry.Input), &allocator, rows, &lengths);
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
+    input.end = rows.tags.items.len;
     input.starts = starts;
     input.counts = counts;
     input.parts = parts;

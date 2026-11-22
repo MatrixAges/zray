@@ -34,8 +34,8 @@
         <Call
             fn="publish"
             in={$in.omit([
-                "tags",
-                "offsets",
+                "tag_storage",
+                "offset_storage",
                 "allocator",
                 "end",
                 "at_tail"

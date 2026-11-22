@@ -1,7 +1,14 @@
 const std = @import("std");
 const transfer = @import("zx").memory.column_transfer;
 
-pub fn append(allocator: std.mem.Allocator, target: anytype, tags: anytype, offsets: []const u32, counts: []const u32, groups: transfer.Groups, bases: []u32, comptime selected: bool) std.mem.Allocator.Error!void {
+pub fn append(allocator: std.mem.Allocator, target: anytype, tags: anytype, offsets: []const u32, counts: []const u32, groups: transfer.Groups, comptime selected: bool) std.mem.Allocator.Error!void {
+    const names = @typeInfo(@TypeOf(target.payloads)).@"struct".field_names;
+    var bases: [names.len]u32 = undefined;
+
+    inline for (names, counts, &bases) |name, count, *base| {
+        if (count != 0) base.* = @intCast(@field(target.payloads, name).count());
+    }
+
     if (selected) {
         for (tags, offsets) |tag, source| {
             const group = @backingInt(tag);

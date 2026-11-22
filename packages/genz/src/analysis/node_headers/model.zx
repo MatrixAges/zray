@@ -1,4 +1,11 @@
-import type { ColumnLengths, U32Buffer, U8Buffer } from "memory"
+import type {
+    Allocator,
+    ColumnLengths,
+    U8Storage,
+    U32Storage,
+    U32Buffer,
+    U8Buffer
+} from "memory"
 
 export type Headers = {
     tags: u8[],
@@ -7,15 +14,37 @@ export type Headers = {
 }
 
 export type Layout = Headers & {
+    existing: u64,
     counts: U32Buffer,
     variants: u64,
     limits?: u64[]
+}
+
+export enum Check {
+    Valid,
+    Invalid,
+    Exhausted
 }
 
 export type Destination = {
     target_tags: U8Buffer,
     target_offsets: U32Buffer,
     lengths: ColumnLengths
+}
+
+export type Views = {
+    source_tags: U8Buffer,
+    source_offsets: U32Buffer
+}
+
+export type Tail = Destination & Views & {
+    allocator: Allocator,
+    tag_storage: U8Storage,
+    offset_storage: U32Storage
+}
+
+export type Reservation = Tail & {
+    count: u64
 }
 
 export type Rebase = Headers & Destination & {

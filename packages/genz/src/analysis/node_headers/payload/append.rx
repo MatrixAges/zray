@@ -3,6 +3,33 @@
 
     <Args in={Payload.Input} out={bool} />
 
+    <Call
+        fn="../block/reserve"
+        in={{
+            ...$in.pick([
+                "allocator",
+                "tag_storage",
+                "offset_storage",
+                "source_tags",
+                "source_offsets",
+                "target_tags",
+                "target_offsets",
+                "lengths"
+            ]),
+            count: $in.tags.length
+        }}
+    />
+
+    <Call
+        fn="prepare"
+        in={$in.pick([
+            "allocator",
+            "groups",
+            "counts",
+            "bases"
+        ])}
+    />
+
     <If on={$in.layout == Payload.Layout.Selected}>
         <Call fn="copy_selected" in={$in} />
 
