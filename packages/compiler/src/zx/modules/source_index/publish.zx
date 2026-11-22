@@ -1,3 +1,4 @@
+import { publish as publishLengths } from "core/column_lengths"
 import memory from "memory"
 
 import type { ColumnLengths, U64Buffer } from "memory"
@@ -13,8 +14,12 @@ export type Output = void
 export default function (in: Input): Output {
     const { buckets, lengths, slot } = in
 
-    const row = memory.firstColumnLength(lengths)
+    const row = memory.readLengthSlot(lengths, 0)
 
     memory.writeU64(buckets, slot, row + 1)
-    memory.publishColumnLengths(lengths, 1)
+
+    publishLengths({
+        target: lengths,
+        count: 1
+    })
 }

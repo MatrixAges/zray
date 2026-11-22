@@ -1,3 +1,4 @@
+import { capture } from "core/column_lengths"
 import memory from "memory"
 
 import type { ColumnLengths, U64Buffer } from "memory"
@@ -18,10 +19,13 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    memory.captureColumnLengths(in.types, in.type_counts)
+    capture({
+        source: in.types,
+        target: in.type_counts
+    })
 
     return {
-        function_count: memory.firstColumnLength(in.functions),
-        origin_count: memory.firstColumnLength(in.origins)
+        function_count: memory.readLengthSlot(in.functions, 0),
+        origin_count: memory.readLengthSlot(in.origins, 0)
     }
 }

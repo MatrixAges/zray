@@ -85,7 +85,7 @@ fn prepareStorage(comptime form: source.Form, program: *const ir.Program, origin
     var type_output: TypePublication = undefined;
 
     type_output.init(&options, .{}, @as(Origins.Table, .{}));
-    errdefer type_output.release(&options);
+    errdefer type_output.release();
 
     const has_natives = complete and native_count != 0;
     var native_view: @import("../../native/host.zig").View = undefined;

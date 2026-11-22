@@ -4,8 +4,6 @@ import type { Offsets } from "core/type_table/write_first"
 import type {
     Allocator,
     ColumnRanges,
-    NominalRangeElements,
-    TypeRangeElements,
     StringBuffer,
     U8Buffer,
     U32Buffer,
@@ -40,8 +38,6 @@ export type NominalTail = {
 export type Destination = {
     ranges: ColumnRanges,
     nominal_ranges?: ColumnRanges,
-    elements?: TypeRangeElements,
-    nominal_elements?: NominalRangeElements,
     resource: Allocator,
     precise: bool
 }

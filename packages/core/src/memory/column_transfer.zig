@@ -1,4 +1,5 @@
 const std = @import("std");
+const column_set = @import("column_set.zig");
 const Bytes = []const u8;
 const Kind = enum { value, strided, repeated, text, optional_text, words, texts, optional_texts, text_views, optional_text_views };
 
@@ -17,19 +18,10 @@ pub const Groups = []const []const Column;
 pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comptime borrow_text: bool) Column {
     const Value = std.meta.Elem(@TypeOf(target.items));
 
-    comptime {
-        const Storage = std.meta.Child(@TypeOf(target));
-        const Erased = std.ArrayList(u8);
-
-        std.debug.assert(@sizeOf(Storage) == @sizeOf(Erased) and @alignOf(Storage) == @alignOf(Erased));
-        std.debug.assert(@offsetOf(Storage, "items") == @offsetOf(Erased, "items"));
-        std.debug.assert(@offsetOf(Storage, "capacity") == @offsetOf(Erased, "capacity"));
-    }
-
     return .{
         .source = @ptrCast(source.ptr),
         .source_count = source.len,
-        .storage = @ptrCast(target),
+        .storage = column_set.erase(target),
         .width = @sizeOf(Value),
         .kind = comptime kind(Value, copy_payloads, borrow_text),
         .grow = struct {

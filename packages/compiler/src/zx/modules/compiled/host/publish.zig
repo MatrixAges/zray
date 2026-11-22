@@ -33,9 +33,7 @@ pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, input: 
         .instance = library.instance,
     });
 
-    defer if (functions.completed[0] != 0) {
-        zx.memory.publishColumnLengths(@ptrCast(&functions.lengths), functions.completed[0]);
-    };
+    defer @import("../../column_lengths.zig").publish(&functions.lengths, functions.completed[0]);
 
     var public: interface.View = undefined;
     const needs_interface = call_scratch == null;
@@ -72,7 +70,7 @@ fn prepareStorage(allocator: std.mem.Allocator, function_allocator: std.mem.Allo
     var types: TypeView = undefined;
 
     types.init(&options, delta, output.origins.*);
-    errdefer types.release(&options);
+    errdefer types.release();
 
     const pending = zx.columns.view(ir.NativeModuleTable, output.natives.*);
     var natives: native.View = undefined;

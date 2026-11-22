@@ -1,0 +1,72 @@
+import { releaseSlots } from "core/owned_text"
+import memory from "memory"
+
+import {
+    completed_fields,
+    completed_labels,
+    completed_members,
+    completed_names,
+    completed_owners,
+    progress_slot
+} from "./const"
+import { TextMode } from "./model"
+
+import type { Target } from "./model"
+
+export type Input = Target
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { payload, progress, target, nominal, text_mode } = in
+
+    const completed = memory.readU64(progress, progress_slot)
+
+    if (completed == 0 || text_mode == TextMode.Borrow) {
+        return
+    }
+
+    if (text_mode == TextMode.OwnNames) {
+        releaseSlots({
+            allocator: payload,
+            target: target.names
+        })
+
+        return
+    }
+
+    if (completed >= completed_labels) {
+        releaseSlots({
+            allocator: payload,
+            target: target.labels
+        })
+    }
+
+    if (completed >= completed_fields) {
+        releaseSlots({
+            allocator: payload,
+            target: target.field_names
+        })
+    }
+
+    if (completed >= completed_names) {
+        releaseSlots({
+            allocator: payload,
+            target: target.names
+        })
+    }
+
+    if (completed >= completed_owners) {
+        releaseSlots({
+            allocator: payload,
+            target: nominal.owners
+        })
+    }
+
+    if (completed >= completed_members) {
+        releaseSlots({
+            allocator: payload,
+            target: nominal.members
+        })
+    }
+}

@@ -1,3 +1,4 @@
+import { publish as publishLengths } from "core/column_lengths"
 import memory from "memory"
 
 import candidate from "./candidate"
@@ -26,7 +27,11 @@ export default function (in: Input): Output {
     memory.growU32Scratch(scratch, capacity, true)
     memory.writeU32(values, 0, in.first)
     memory.writeU32(values, 1, in.second)
-    memory.publishColumnLengths(lengths, 2)
+
+    publishLengths({
+        target: lengths,
+        count: 2
+    })
 
     const collected = loop({
         next: in.start,
@@ -47,7 +52,10 @@ export default function (in: Input): Output {
                 }
 
                 memory.writeU32(values, state.count, value)
-                memory.publishColumnLengths(lengths, 1)
+                publishLengths({
+                    target: lengths,
+                    count: 1
+                })
                 state.count += 1
             }
 

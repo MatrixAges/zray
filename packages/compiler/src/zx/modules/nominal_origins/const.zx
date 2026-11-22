@@ -1,0 +1,5 @@
+export const progress_slot: u64 = 0
+
+export const completed_owners: u64 = 1
+
+export const completed_members: u64 = 2

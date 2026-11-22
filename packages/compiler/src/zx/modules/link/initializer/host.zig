@@ -102,7 +102,7 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
     var type_output: TypePublication = undefined;
 
     type_output.init(&options, .{}, @as(Origins.Table, .{}));
-    errdefer type_output.release(&options);
+    errdefer type_output.release();
 
     const rows = Registry.readRows(registry.rows.items);
     const keys = rows.view(std.meta.Child(@FieldType(Lookup, "source")));

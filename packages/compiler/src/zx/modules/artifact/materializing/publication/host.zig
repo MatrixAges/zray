@@ -70,9 +70,7 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     const length_slots = zx.memory.borrowColumnLengths(storage);
     const lengths: zx.memory.ColumnLengths = &length_slots;
 
-    defer if (completed[0] != 0) {
-        zx.memory.publishColumnLengths(@ptrCast(&lengths), completed[0]);
-    };
+    defer @import("../../../column_lengths.zig").publish(&lengths, completed[0]);
 
     var target: columns.Tail(Target) = undefined;
 

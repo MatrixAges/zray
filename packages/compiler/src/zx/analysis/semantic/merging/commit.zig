@@ -96,7 +96,7 @@ fn write(
     var view: View = undefined;
 
     view.init(&options, table, bindings);
-    errdefer view.release(&options);
+    errdefer view.release();
 
     const publication = view.target;
 

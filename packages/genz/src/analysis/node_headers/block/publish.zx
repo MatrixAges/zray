@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { publish as publishLengths } from "core/column_lengths"
 import memory from "memory"
 
 import { word_radix } from "./const"
@@ -64,5 +65,8 @@ export default function (in: Input): Output {
         memory.copyU32Range(in.target_offsets, written, offsets, start, end)
     }
 
-    memory.publishColumnLengths(in.lengths, written + tail_count)
+    publishLengths({
+        target: in.lengths,
+        count: written + tail_count
+    })
 }

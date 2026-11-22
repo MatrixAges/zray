@@ -2,6 +2,7 @@ import { into } from "core/owned_text"
 import memory from "memory"
 
 import bindNames from "./bind_names"
+import { completed_members, completed_owners, progress_slot } from "./const"
 
 import type { Bindings } from "core/type_table/nominal"
 import type { Allocator, StringBuffer, U64Buffer } from "memory"
@@ -30,7 +31,7 @@ export default function (in: Input): Output {
             source: source.owners
         })
 
-        memory.writeU64(in.progress, 0, 1)
+        memory.writeU64(in.progress, progress_slot, completed_owners)
 
         into({
             allocator,
@@ -38,7 +39,7 @@ export default function (in: Input): Output {
             source: source.members
         })
 
-        memory.writeU64(in.progress, 0, 2)
+        memory.writeU64(in.progress, progress_slot, completed_members)
     }
 
     if (labels == null) {

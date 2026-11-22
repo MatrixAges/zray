@@ -1,0 +1,6 @@
+import type { ColumnLengths } from "memory"
+
+export type Extent = {
+    target: ColumnLengths,
+    count: u64
+}

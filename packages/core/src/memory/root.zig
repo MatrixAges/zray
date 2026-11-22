@@ -42,20 +42,24 @@ pub const borrowByteWriterBytes = ByteWriter.borrowBytes;
 pub const clearByteWriter = ByteWriter.clear;
 pub const reverseByteWriterTail = ByteWriter.reverseTail;
 pub const ColumnSet = column_set.ColumnSet;
-pub const ColumnLengths = column_set.Lengths;
-pub const borrowColumnLengths = column_set.borrowLengths;
-pub const publishColumnLengths = column_set.publishLengths;
-pub const restoreColumnLengths = column_set.restoreLengths;
-pub const captureColumnLengths = column_set.captureLengths;
-pub const firstColumnLength = column_set.firstLength;
-pub const truncateColumnLengths = column_set.truncateLengths;
 pub const bindColumnSet = column_set.bind;
-pub const ColumnRange = column_set.Range;
-pub const ColumnRanges = column_set.Ranges;
-pub const bindColumnRanges = column_set.bindRanges;
-pub const publishTypeRanges = column_set.publishRanges;
-pub const publishNominalRanges = column_set.publishRanges;
-pub const setColumnRangeCount = column_set.setRangeCount;
+const column_length = @import("column_length.zig");
+pub const ColumnLengths = column_length.Lengths;
+pub const borrowColumnLengths = column_length.borrow;
+pub const lengthSlotCount = column_length.count;
+pub const readLengthSlot = column_length.read;
+pub const advanceLengthSlot = column_length.advance;
+pub const shrinkLengthSlot = column_length.shrink;
+const column_range = @import("column_range.zig");
+pub const ColumnRange = column_range.Range;
+pub const ColumnRanges = column_range.Ranges;
+pub const bindColumnRanges = column_range.bind;
+pub const columnRangeSlotCount = column_range.columns;
+pub const columnRangeLength = column_range.length;
+pub const columnRangeCount = column_range.count;
+pub const setColumnRangeCount = column_range.setCount;
+pub const reserveColumnRange = column_range.reserveOne;
+pub const publishColumnRange = column_range.publishOne;
 pub const reserveColumnSet = column_set.reserve;
 pub const readColumnSet = column_set.read;
 pub const readFunctionColumns = column_set.read;
@@ -96,7 +100,6 @@ pub const freeTextSlots = text_storage.free;
 pub const freeOptionalTextSlots = text_storage.free;
 pub const requireTextSlots = text_storage.require;
 pub const requireOptionalTextSlots = text_storage.require;
-pub const requireTextCopy = text_storage.requireCopy;
 pub const checkTextSlotCount = text_storage.checkLength;
 
 pub inline fn allocateTextSlots(resource: *const anyopaque, count: u64) ?[]const []const u8 {
@@ -115,12 +118,8 @@ pub inline fn writeOptionalTextSlot(target: []const ?[]const u8, index: u64, val
     text_storage.write(?[]const u8, target, index, value);
 }
 
-pub inline fn reserveTypeRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype, limit: ?u64, precise: bool) std.mem.Allocator.Error!void {
-    try column_set.reserveRanges(resource, target, elements, limit, precise, false);
-}
-
-pub inline fn reserveNominalRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype) std.mem.Allocator.Error!void {
-    try column_set.reserveRanges(resource, target, elements, null, false, true);
+pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
+    if (!success) return error.OutOfMemory;
 }
 
 pub fn resetArena(source: *const anyopaque) std.mem.Allocator.Error!void {

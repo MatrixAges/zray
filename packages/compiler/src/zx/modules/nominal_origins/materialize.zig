@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const data = @import("nominal_data");
 const generated = @import("generated_origin_materialization");
+const release = @import("generated_origin_materialization_release");
 const Input = std.meta.Child(generated.Input);
 
 /// A null labels slice preserves and owns the original names for library admission.
@@ -26,11 +27,6 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
 
-    errdefer {
-        if (completed[0] >= 1) for (owners) |text| allocator.free(text);
-        if (completed[0] >= 2) for (members) |text| allocator.free(text);
-    }
-
     const input: Input = .{
         .allocator = @ptrCast(&allocator),
         .source = &origins,
@@ -42,6 +38,12 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
         .names_out = @ptrCast(&names),
         .progress = @ptrCast(&progress),
     };
+
+    errdefer {
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+        release.executeIn(scratch.allocator(), &input) catch unreachable;
+    }
 
     zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,

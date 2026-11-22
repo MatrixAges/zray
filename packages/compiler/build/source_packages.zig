@@ -71,6 +71,8 @@ pub const entries: []const Package = &.{
     .{ .specifier = "core/constant/model", .entry = "core/constant/model.zx" },
     .{ .specifier = "core/constant/rows", .entry = "core/constant/rows.zx" },
     .{ .specifier = "core/column_transfer", .entry = "core/column_transfer/index.zx" },
+    .{ .specifier = "core/column_lengths", .entry = "core/column_lengths/index.zx" },
+    .{ .specifier = "core/column_ranges", .entry = "core/column_ranges/index.zx" },
     .{ .specifier = "core/owned_text", .entry = "core/owned_text/index.zx" },
     .{ .specifier = "core/constant/lookup", .entry = "core/constant/lookup.zx" },
     .{ .specifier = "core/contract_table/append", .entry = "core/contract_table/append.zx" },

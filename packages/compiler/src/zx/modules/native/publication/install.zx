@@ -1,3 +1,4 @@
+import { publish as publishLengths } from "core/column_lengths"
 import memory from "memory"
 
 import type { Bindings, Destination } from "./finalize_model"
@@ -22,5 +23,9 @@ export default function (in: Input): Output {
 
     memory.writeU32List(destination.type_ids, module, memory.u32Views(exports.ids))
     memory.writeStringList(destination.namespaces, module, namespace)
-    memory.publishColumnLengths(destination.functions, destination.member_count)
+
+    publishLengths({
+        target: destination.functions,
+        count: destination.member_count
+    })
 }

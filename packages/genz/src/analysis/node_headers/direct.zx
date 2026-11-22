@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { publish as publishLengths } from "core/column_lengths"
 import host from "lowering_host"
 import memory from "memory"
 
@@ -30,7 +31,10 @@ export default function (in: Input): Output {
 
             memory.writeU8(in.tags, 0, integers.narrowByte(header / word_radix))
             memory.writeU32(in.offsets, 0, integers.narrow(header % word_radix))
-            memory.publishColumnLengths(in.lengths, 1)
+            publishLengths({
+                target: in.lengths,
+                count: 1
+            })
             position += 1
         }
     })

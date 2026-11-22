@@ -22,8 +22,6 @@ export declare function requireTextSlots(value: string[]?): string[] throws { Ou
 
 export declare function requireOptionalTextSlots(value: string?[]?): string?[] throws { OutOfMemory }
 
-export declare function requireTextCopy(success: bool): void throws { OutOfMemory }
-
 export declare function checkTextSlotCount(expected: u64, length: u64): void throws {
     IndexOutOfBounds
 }

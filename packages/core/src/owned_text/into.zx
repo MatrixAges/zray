@@ -19,7 +19,7 @@ export default function (in: Input): Output {
 
     memory.checkTextSlotCount(target.length, source.length)
 
-    memory.requireTextCopy(fill({
+    memory.requireAllocation(fill({
         allocator,
         source,
         target

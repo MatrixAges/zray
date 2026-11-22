@@ -1,3 +1,4 @@
+import { publish } from "core/column_ranges"
 import memory from "memory"
 
 import { progress_slot } from "./const"
@@ -9,12 +10,12 @@ export type Input = Publication.Pick("destination", "progress")
 export type Output = void
 
 export default function (in: Input): Output {
-    const { ranges, nominal_ranges, elements, nominal_elements } = in.destination
+    const { ranges, nominal_ranges } = in.destination
 
-    memory.publishTypeRanges(ranges, elements)
+    publish(ranges)
 
     if (nominal_ranges != null) {
-        memory.publishNominalRanges(nominal_ranges, nominal_elements)
+        publish(nominal_ranges)
     }
 
     memory.writeU64(in.progress, progress_slot, 0)

@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import { reserve } from "core/column_ranges"
 import { max_u32 } from "core/const"
-import memory from "memory"
 
 import type { Destination } from "./model"
 
@@ -9,13 +9,24 @@ export type Input = Destination
 export type Output = void
 
 export default function (in: Input): Output {
-    const { resource, ranges, nominal_ranges, elements, nominal_elements, precise } = in
+    const { resource, ranges, nominal_ranges, precise } = in
 
     if (nominal_ranges != null) {
-        memory.reserveNominalRanges(resource, nominal_ranges, nominal_elements)
+        reserve({
+            resource,
+            ranges: nominal_ranges,
+            precise: false,
+            uniform: true
+        })
     }
 
     const limit: u64? = precise ? null : integers.widen(max_u32)
 
-    memory.reserveTypeRanges(resource, ranges, elements, limit, precise)
+    reserve({
+        resource,
+        ranges,
+        limit,
+        precise,
+        uniform: false
+    })
 }

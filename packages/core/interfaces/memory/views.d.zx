@@ -33,9 +33,6 @@ export type ColumnLengths = opaque
 export type ColumnTransfers = opaque
 export type TransferGroup = opaque
 
-export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
-export type NominalRangeElements = [u32, u8, string, string, string]
-
 export declare function sha256Into(target: U8Buffer, input: u8[]): u8[]
 
 export declare function sha256IntoRange(
@@ -63,24 +60,13 @@ export declare function resetArenaRetainingCapacity(source: Arena): bool
 
 export declare function selectAllocator(scope: ArenaScope, allocator: Allocator): void
 
-export declare function publishColumnLengths(
-    target: ColumnLengths,
-    count: u64
-): void
+export declare function lengthSlotCount(source: ColumnLengths): u64
 
-export declare function restoreColumnLengths(
-    target: ColumnLengths,
-    counts: u64[]
-): void
+export declare function readLengthSlot(source: ColumnLengths, slot: u64): u64
 
-export declare function captureColumnLengths(source: ColumnLengths, target: U64Buffer): void
+export declare function advanceLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
 
-export declare function firstColumnLength(source: ColumnLengths): u64
-
-export declare function truncateColumnLengths(
-    target: ColumnLengths,
-    count: u64
-): void
+export declare function shrinkLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
 
 export declare function allocateStringViews(
     allocator,
@@ -106,35 +92,29 @@ export declare function allocateU64Views(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function reserveTypeRanges(
+export declare function columnRangeSlotCount(source: ColumnRanges): u64
+
+export declare function columnRangeLength(source: ColumnRanges, slot: u64): u64
+
+export declare function columnRangeCount(source: ColumnRanges, slot: u64): u64
+
+export declare function reserveColumnRange(
     resource: Allocator,
     target: ColumnRanges,
-    elements: TypeRangeElements?,
-    limit: u64?,
+    slot: u64,
+    uniform: u64?,
     precise: bool
 ): void throws { OutOfMemory }
 
-export declare function reserveNominalRanges(
-    resource: Allocator,
-    target: ColumnRanges,
-    elements: NominalRangeElements?
-): void throws { OutOfMemory }
-
-export declare function publishTypeRanges(
-    target: ColumnRanges,
-    elements: TypeRangeElements?
-): void
-
-export declare function publishNominalRanges(
-    target: ColumnRanges,
-    elements: NominalRangeElements?
-): void
+export declare function publishColumnRange(target: ColumnRanges, slot: u64): void
 
 export declare function setColumnRangeCount(
     target: ColumnRanges,
     index: u64,
     count: u64
 ): void
+
+export declare function requireAllocation(success: bool): void throws { OutOfMemory }
 
 export declare function stringViews(source: StringBuffer): string[]
 

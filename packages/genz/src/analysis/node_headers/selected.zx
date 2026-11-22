@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { publish as publishLengths } from "core/column_lengths"
 import memory from "memory"
 
 import type { Selected as Input } from "./model"
@@ -23,5 +24,8 @@ export default function (in: Input): Output {
 
     const copied = memory.copyBytes(target_tags, 0, tags, 0, count)
 
-    memory.publishColumnLengths(lengths, count)
+    publishLengths({
+        target: lengths,
+        count
+    })
 }

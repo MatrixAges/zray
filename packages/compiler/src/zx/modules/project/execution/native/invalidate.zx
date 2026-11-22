@@ -7,6 +7,6 @@ import type { Verification as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.publishColumnLengths(in.functions, empty_verified_prefix)
+    memory.shrinkLengthSlot(in.functions, 0, empty_verified_prefix)
     memory.writeU8(in.native, 0, unverified_native)
 }

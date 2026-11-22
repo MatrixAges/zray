@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import type { ColumnLengths, U64Buffer } from "memory"
+
+export type Input = {
+    source: ColumnLengths,
+    target: U64Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    const columns = memory.lengthSlotCount(source)
+
+    const captured = loop(0, {
+        while: slot => slot < columns,
+        next: slot => {
+            memory.writeU64(target, slot, memory.readLengthSlot(source, slot))
+            slot += 1
+        }
+    })
+}

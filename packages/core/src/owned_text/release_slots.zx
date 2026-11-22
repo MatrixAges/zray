@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import freePrefix from "./free_prefix"
+
+import type { Allocator, StringBuffer } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    target: StringBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const slots = memory.stringViews(in.target)
+
+    freePrefix({
+        allocator: in.allocator,
+        slots,
+        count: slots.length
+    })
+}

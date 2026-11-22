@@ -1,0 +1,47 @@
+import memory from "memory"
+
+import type { Allocator, ColumnRanges } from "memory"
+
+export type Input = {
+    resource: Allocator,
+    ranges: ColumnRanges,
+    limit?: u64,
+    precise: bool,
+    uniform: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { resource, ranges, limit, precise, uniform } = in
+
+    const columns = memory.columnRangeSlotCount(ranges)
+
+    if (limit != null) {
+        const checked = loop({
+            slot: 0,
+            valid: true
+        }, {
+            while: state => state.valid && state.slot < columns,
+            next: state => {
+                const current = memory.columnRangeLength(ranges, state.slot)
+                const additional = memory.columnRangeCount(ranges, state.slot)
+                state.valid = current <= limit && additional <= limit - current
+                state.slot += 1
+            },
+            return: state => state.valid
+        })
+
+        memory.requireAllocation(checked)
+    }
+
+    const count: u64? = uniform ? memory.columnRangeCount(ranges, 0) : null
+
+    const reserved = loop(0, {
+        while: slot => slot < columns,
+        next: slot => {
+            memory.reserveColumnRange(resource, ranges, slot, count, precise)
+            slot += 1
+        }
+    })
+}

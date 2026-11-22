@@ -1,3 +1,4 @@
+import { restore, truncate } from "core/column_lengths"
 import memory from "memory"
 
 import type { Columns, Output as Snapshot } from "./snapshot"
@@ -9,10 +10,20 @@ export type Input = Columns & Snapshot & {
 export type Output = void
 
 export default function (in: Input): Output {
-    if (in.function_count != memory.firstColumnLength(in.functions)) {
-        memory.truncateColumnLengths(in.functions, in.function_count)
+    if (in.function_count != memory.readLengthSlot(in.functions, 0)) {
+        truncate({
+            target: in.functions,
+            count: in.function_count
+        })
     }
 
-    memory.restoreColumnLengths(in.types, in.type_counts)
-    memory.truncateColumnLengths(in.origins, in.origin_count)
+    restore({
+        target: in.types,
+        counts: in.type_counts
+    })
+
+    truncate({
+        target: in.origins,
+        count: in.origin_count
+    })
 }

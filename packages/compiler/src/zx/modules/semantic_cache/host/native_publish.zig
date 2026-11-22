@@ -69,7 +69,7 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, scope: *memory.ArenaScope
 }
 
 pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
-    self.tail.release(&self.options);
+    self.tail.release();
     self.bindings.release(allocator);
 
     for (self.exports[0..@intCast(self.written[0])]) |item| allocator.free(item.name);

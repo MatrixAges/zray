@@ -1,4 +1,5 @@
 import rebuild from "core/bytes/index/rebuild"
+import { truncate as truncateLengths } from "core/column_lengths"
 import memory from "memory"
 
 import type { Input as Table } from "core/bytes/index/rebuild"
@@ -15,5 +16,8 @@ export default function (in: Input): Output {
 
     const length = rebuild(in.omit(["lengths"]))
 
-    memory.truncateColumnLengths(in.lengths, length)
+    truncateLengths({
+        target: in.lengths,
+        count: length
+    })
 }

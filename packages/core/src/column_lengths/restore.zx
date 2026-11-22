@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import type { ColumnLengths } from "memory"
+
+export type Input = {
+    target: ColumnLengths,
+    counts: u64[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, counts } = in
+
+    const columns = memory.lengthSlotCount(target)
+
+    const restored = loop(0, {
+        while: slot => slot < columns,
+        next: slot => {
+            memory.shrinkLengthSlot(target, slot, counts[slot])
+            slot += 1
+        }
+    })
+}

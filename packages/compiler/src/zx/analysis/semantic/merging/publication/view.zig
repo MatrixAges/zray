@@ -7,8 +7,6 @@ pub const Target = std.meta.Child(@FieldType(std.meta.Child(Merge.Input), "publi
 pub const Offsets = std.meta.Child(@typeInfo(@FieldType(Target, "offsets")).optional.child);
 const TextMode = @FieldType(Target, "text_mode");
 const Destination = std.meta.Child(@FieldType(Target, "destination"));
-const TypeElements = std.meta.Child(@typeInfo(@FieldType(Destination, "elements")).optional.child);
-const NominalElements = std.meta.Child(@typeInfo(@FieldType(Destination, "nominal_elements")).optional.child);
 
 pub const Options = struct {
     allocator: std.mem.Allocator,
@@ -27,8 +25,8 @@ const Nominal = std.meta.Child(@FieldType(Target, "nominal"));
 
 tails: ir.TypeTable,
 nominal_tails: Origins.Table,
-slots: [@typeInfo(TypeElements).@"struct".field_types.len]zx.memory.ColumnRange,
-nominal_slots: [@typeInfo(NominalElements).@"struct".field_types.len]zx.memory.ColumnRange,
+slots: [@typeInfo(ir.TypeStorage).@"struct".field_names.len]zx.memory.ColumnRange,
+nominal_slots: [@typeInfo(Origins.Storage).@"struct".field_names.len]zx.memory.ColumnRange,
 ranges: zx.memory.ColumnRanges,
 nominal_ranges: zx.memory.ColumnRanges,
 copied: [1]u64,
@@ -40,10 +38,10 @@ target: Target,
 pub fn init(self: *Self, options: *const Options, table: ir.TypeTable, bindings: anytype) void {
     self.tails = .{};
     self.nominal_tails = .{};
-    self.slots = zx.memory.bindColumnRanges(TypeElements, options.types, table, &self.tails);
+    self.slots = zx.memory.bindColumnRanges(options.types, table, &self.tails);
 
     if (options.origins) |storage| {
-        self.nominal_slots = zx.memory.bindColumnRanges(NominalElements, storage, .{
+        self.nominal_slots = zx.memory.bindColumnRanges(storage, .{
             .ids = bindings.ids,
             .kinds = bindings.kinds,
             .owners = bindings.owners,
@@ -79,8 +77,6 @@ pub fn init(self: *Self, options: *const Options, table: ir.TypeTable, bindings:
     self.destination = .{
         .ranges = @ptrCast(&self.ranges),
         .nominal_ranges = if (options.origins != null) @ptrCast(&self.nominal_ranges) else null,
-        .elements = null,
-        .nominal_elements = null,
         .resource = @ptrCast(&options.allocator),
         .precise = options.precise,
     };
@@ -97,18 +93,11 @@ pub fn init(self: *Self, options: *const Options, table: ir.TypeTable, bindings:
     };
 }
 
-pub fn release(self: *const Self, options: *const Options) void {
-    switch (options.text_mode) {
-        .Own => {
-            const ordered = .{ self.tails.labels, self.tails.field_names, self.tails.names, self.nominal_tails.owners, self.nominal_tails.members };
+pub fn release(self: *const Self) void {
+    const generated = @import("generated_type_merge_release");
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-            inline for (ordered, 0..) |column, index| {
-                if (index < self.copied[0]) for (column) |text| options.payload.free(text);
-            }
-        },
-        .OwnNames => if (self.copied[0] != 0) for (self.tails.names) |text| options.payload.free(text),
-        .Borrow => {},
-    }
+    generated.executeIn(scratch.allocator(), &self.target) catch unreachable;
 }
 
 pub fn request(self: *const Self, comptime Input: type, delta: @FieldType(Input, "delta"), origins: @FieldType(Input, "origins")) Input {
