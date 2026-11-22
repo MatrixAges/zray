@@ -1,0 +1,25 @@
+import host from "lowering_host"
+
+import type { Object as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const evaluated = loop(0, {
+        while: index => index < in.evaluation.length,
+        next: index => {
+            const id = in.evaluation[index]
+            const value = host.lowerBorrowedOperand(in.frame, id)
+            const reference = host.observeBorrowedOperand(in.object, index, id, value)
+
+            const cached = match {
+                in.convert => host.borrowedOperandCacheValue(in.frame, id, reference),
+                _ => reference
+            }
+
+            host.cacheBorrowedOperand(in.frame, id, cached)
+
+            index += 1
+        }
+    })
+}

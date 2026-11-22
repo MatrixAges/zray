@@ -1,0 +1,13 @@
+<Module>
+    <Type from="model" as="Argument" />
+
+    <Args in={Argument.Object} out={Argument.Output} />
+
+    <Call fn="evaluation" in={$in} />
+    <Call fn="index.prepareBorrowedFields" in={$in.object} />
+    <Call fn="fields" in={$in} />
+    <Call fn="index.retireBorrowedOperands" in={$in.object} />
+    <Call fn="index.finishBorrowedObject" in={$in.object} />
+
+    <Return value={$ctx.finishBorrowedObject} />
+</Module>

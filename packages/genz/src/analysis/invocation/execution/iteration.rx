@@ -4,7 +4,30 @@
     <Args in={Call.Iteration} out={Call.Output} />
 
     <Call fn="iteration_input" in={$in} />
-    <Call fn="iteration_emit" in={$in} />
 
-    <Return value={$ctx.iteration_emit} />
+    <If on={$in.value_call}>
+        <Call fn="index.invokeIterationValue" in={$in.call} />
+
+        <Call
+            fn="convert"
+            in={{
+                call: $in.call,
+                value: $ctx.invokeIterationValue
+            }}
+        />
+
+        <Return value={$ctx.convert} />
+    </If>
+
+    <Call fn="index.invokeIterationRegular" in={$in.call} />
+
+    <Call
+        fn="convert"
+        in={{
+            call: $in.call,
+            value: $ctx.invokeIterationRegular
+        }}
+    />
+
+    <Return value={$ctx.convert} />
 </Module>

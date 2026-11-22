@@ -1,0 +1,8 @@
+export {
+    materializeBorrowedObject,
+    materializeBorrowedTuple,
+    lowerExistingBorrowedArgument,
+    prepareBorrowedFields,
+    retireBorrowedOperands,
+    finishBorrowedObject
+} from "lowering_host"

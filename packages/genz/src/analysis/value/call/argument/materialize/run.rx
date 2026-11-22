@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Argument" />
+    <Type from="../route" as="Route" />
+
+    <Args in={Argument.Input} out={Argument.Output} />
+
+    <Call fn="../route" in={$in.route} />
+
+    <Switch on={$ctx.route}>
+        <Case value={Route.Output.Object}>
+            <Call fn="index.materializeBorrowedObject" in={$in.frame} />
+
+            <Return value={$ctx.materializeBorrowedObject} />
+        </Case>
+
+        <Case value={Route.Output.Tuple}>
+            <Call fn="index.materializeBorrowedTuple" in={$in.frame} />
+
+            <Return value={$ctx.materializeBorrowedTuple} />
+        </Case>
+
+        <Case value={Route.Output.Call}>
+            <Call fn="call" in={$in.frame} />
+
+            <Return value={$ctx.call} />
+        </Case>
+
+        <Case value={Route.Output.Existing}>
+            <Call fn="index.lowerExistingBorrowedArgument" in={$in.frame} />
+
+            <Return value={$ctx.lowerExistingBorrowedArgument} />
+        </Case>
+    </Switch>
+</Module>

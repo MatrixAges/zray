@@ -2,7 +2,9 @@ import { Property } from "../../state/queries/model"
 import query from "../../state/queries/read"
 import { Route } from "./model"
 
-import type { Input, Boundary as Output } from "./model"
+import type { Input } from "./model"
+
+export type Output = Route
 
 export default function (in: Input): Output {
     const represented = query({
@@ -26,10 +28,7 @@ export default function (in: Input): Output {
     const allows_allocation = in.allows_allocation
 
     if (!active && !allows_allocation) {
-        return {
-            route: Route.Regular,
-            represented
-        }
+        return represented ? Route.RegularRepresented : Route.Regular
     }
 
     const value_function = in.value_functions[in.function]
@@ -41,10 +40,7 @@ export default function (in: Input): Output {
     )
 
     if (active_value) {
-        return {
-            route: represented ? Route.Value : Route.Pointer,
-            represented
-        }
+        return represented ? Route.Value : Route.Pointer
     }
 
     const allocated_value = (
@@ -55,23 +51,14 @@ export default function (in: Input): Output {
     )
 
     if (allocated_value) {
-        return {
-            route: Route.Pointer,
-            represented
-        }
+        return Route.Pointer
     }
 
     if (allows_allocation && value_function) {
         if (in.constructed_outputs[in.function]) {
-            return {
-                route: Route.Pointer,
-                represented
-            }
+            return Route.Pointer
         }
     }
 
-    return {
-        route: Route.Regular,
-        represented
-    }
+    return represented ? Route.RegularRepresented : Route.Regular
 }

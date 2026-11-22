@@ -2,154 +2,141 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
-const object_fields = @import("../aggregate/object.zig");
-const operands = @import("../aggregate/operands.zig");
+const conversion = @import("../state_value/conversion.zig");
+const evaluation = @import("../expressions/evaluate.zig");
 const borrowed_argument = @import("borrowed_argument.zig");
 const generated = @import("genz_options").generated_analysis;
-const routing = if (generated) @import("generated_value_argument_route") else void;
-const Route = if (generated) @typeInfo(@typeInfo(@TypeOf(routing.executeValue)).@"fn".return_type.?).error_union.payload else enum { Existing, Object, Tuple, Call };
+const Error = Lower.Error;
 
-pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.ExpressionId {
-    switch (route(self, id)) {
-        .Object => return object(self, body, id),
-        .Tuple => {
-            const expression = self.program.expression(id);
-            const items = expression.value.tuple;
-            const values = try self.allocator.alloc(node.ExpressionId, items.len);
-
-            for (items, values) |item, *value| value.* = try aggregate.bind(self, body, try borrow(self, body, item));
-
-            const layout = try @import("../types.zig").get(self, self.abi_layouts, expression.type_id);
-
-            return borrowed_argument.lower(self, body, .{ .tuple = .{ .layout = layout, .values = values } });
-        },
-        .Call => {
-            const invocation = self.program.expression(id).value.call;
-            const argument = try borrow(self, body, invocation.argument);
-            const scope = @import("../state_value/root.zig").enterBorrowed(self);
-
-            defer scope.restore();
-
-            const cached = try self.cache.bind(self.allocator, invocation.argument, argument);
-
-            defer cached.restore();
-
-            return @import("root.zig").borrowInvocation(self, body, invocation);
-        },
-        .Existing => return existing(self, body, id),
+pub const Frame = struct {
+    lowering: *Lower,
+    body: *Sequence,
+    id: ir.ExprId,
+    pub fn borrow(handle: *const anyopaque) *const Frame {
+        return @ptrCast(@alignCast(handle));
     }
-}
+};
 
-fn route(self: *const Lower, id: ir.ExprId) Route {
+const Tuple = struct {
+    context: *const Frame,
+    values: []node.ExpressionId,
+    type_id: ir.TypeId,
+    fn borrow(handle: *const anyopaque) *const Tuple {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
+pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Error!node.ExpressionId {
+    if (comptime !generated) return @import("argument_seed.zig").borrow(self, body, id);
+
+    const entry = @import("generated_materialize_borrowed_argument");
+    const Input = std.meta.Child(entry.Input);
+    const Routing = std.meta.Child(@FieldType(Input, "route"));
     const row = @backingInt(id);
     const expressions = &self.program.expressions;
-    const kind = expressions.kinds[row];
     const callee = expressions.callee(row);
+    const frame: Frame = .{ .lowering = self, .body = body, .id = id };
 
-    if (comptime !generated) {
-        if (self.cache.contains(id)) return .Existing;
-
-        if (callee) |function| {
-            const index = @backingInt(function);
-
-            return if (self.value_functions[index] and self.constructed_outputs[index]) .Call else .Existing;
-        }
-
-        return switch (kind) {
-            .Object => .Object,
-            .Tuple => .Tuple,
-            else => .Existing,
-        };
-    }
-
-    const Input = std.meta.Child(routing.Input);
-
-    const cache: std.meta.Child(@FieldType(Input, "cache")) = .{
+    const cache: std.meta.Child(@FieldType(Routing, "cache")) = .{
         .count = self.cache.state.count,
         .metadata = self.cache.state.metadata.items,
         .keys = self.cache.state.keys.items,
         .key = row,
     };
 
-    const input: Input = .{
+    const route: Routing = .{
         .cache = &cache,
-        .kind = zx.columns.view(@FieldType(Input, "kind"), kind),
+        .kind = zx.columns.view(@FieldType(Routing, "kind"), expressions.kinds[row]),
         .callee = if (callee) |function| @backingInt(function) else null,
         .value_functions = self.value_functions,
         .constructed_outputs = self.constructed_outputs,
     };
 
-    var storage = std.heap.FixedBufferAllocator.init(&.{});
+    const input: Input = .{ .frame = @ptrCast(&frame), .route = &route };
 
-    return zx.columns.invoke(routing.executeValue, storage.allocator(), &input) catch unreachable;
+    return evaluation.invoke(entry, &input);
 }
 
-fn object(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.ExpressionId {
-    const expression = self.program.expression(id);
-    const value = expression.value.object;
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
-    var buffer: @TypeOf(self.cache).SnapshotBuffer = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+pub fn lowerBorrowedOperand(handle: *const anyopaque, id: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
 
-    defer scratch.deinit();
-
-    const temporary = memory.allocator();
-    const saved = try self.cache.snapshot(temporary, value.evaluation);
-
-    defer self.cache.restore(self.allocator, value.evaluation, saved);
-
-    const counts = try temporary.alloc(u64, value.evaluation.len);
-    const evaluated = try temporary.alloc(node.ExpressionId, value.evaluation.len);
-
-    for (value.evaluation, 0..) |item, index| {
-        evaluated[index] = try aggregate.bind(self, body, try borrow(self, body, item));
-        counts[index] = self.cache_reads[@backingInt(item)];
-
-        const cached = if (self.state_active)
-            try @import("../state_value/conversion.zig").convert(self, body, self.program.expression(item).type_id, evaluated[index], .value)
-        else
-            evaluated[index];
-
-        try self.cache.put(self.allocator, item, cached);
-    }
-
-    const field_names = self.program.typeOf(expression.type_id).object.names;
-    const fields = try object_fields.allocate(self, temporary, value.fields.len);
-
-    for (0..value.fields.len) |index| {
-        const field = value.fields.at(index);
-
-        fields[index] = object_fields.operand(field_names, field.index, try existing(self, body, field.value));
-    }
-
-    try operands.retire(self, temporary, body, .{
-        .evaluation = value.evaluation,
-        .prior = counts,
-        .references = evaluated,
-    });
-
-    const object_type = try @import("../types.zig").get(self, self.abi_layouts, expression.type_id);
-
-    return borrowed_argument.lower(self, body, .{ .object = .{
-        .scratch = temporary,
-        .request = .{
-            .type_expr = object_type,
-            .names = field_names,
-            .indices = value.fields.indices,
-            .fields = fields,
-        },
-    } });
+    return @backingInt(try borrow(frame.lowering, frame.body, @fromBackingInt(id)));
 }
 
-fn existing(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.ExpressionId {
+pub fn lowerExistingBorrowedArgument(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return existing(frame, frame.id);
+}
+
+pub fn lowerExistingBorrowedOperand(handle: *const anyopaque, id: u32) Error!u32 {
+    return existing(Frame.borrow(handle), @fromBackingInt(id));
+}
+
+fn existing(frame: *const Frame, id: ir.ExprId) Error!u32 {
+    const self = frame.lowering;
     const value = try self.expr(id);
     const type_id = self.program.expression(id).type_id;
 
-    if (!self.state_active or !self.state_plan.represented(self.program, type_id)) return value;
+    if (!self.state_active or !self.state_plan.represented(self.program, type_id)) return @backingInt(value);
 
-    const bound = try aggregate.bind(self, body, value);
+    const bound = try aggregate.bind(self, frame.body, value);
 
-    return @import("../state_value/conversion.zig").convert(self, body, type_id, bound, .borrow);
+    return @backingInt(try conversion.convert(self, frame.body, type_id, bound, .borrow));
+}
+
+pub fn borrowedCallOperand(handle: *const anyopaque) u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(frame.lowering.program.expression(frame.id).value.call.argument);
+}
+
+pub fn emitBorrowedCall(handle: *const anyopaque, value: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const invocation = self.program.expression(frame.id).value.call;
+    const scope = @import("../state_value/root.zig").enterBorrowed(self);
+
+    defer scope.restore();
+
+    const cached = try self.cache.bind(self.allocator, invocation.argument, @fromBackingInt(value));
+
+    defer cached.restore();
+
+    return @backingInt(try @import("root.zig").borrowInvocation(self, frame.body, invocation));
+}
+
+pub fn materializeBorrowedTuple(handle: *const anyopaque) Error!u32 {
+    const context = Frame.borrow(handle);
+    const self = context.lowering;
+    const expression = self.program.expression(context.id);
+    const items = expression.value.tuple;
+
+    const tuple: Tuple = .{
+        .context = context,
+        .values = try self.allocator.alloc(node.ExpressionId, items.len),
+        .type_id = expression.type_id,
+    };
+
+    const entry = @import("generated_materialize_borrowed_tuple");
+    const input: std.meta.Child(entry.Input) = .{ .frame = @ptrCast(handle), .tuple = @ptrCast(&tuple), .items = @ptrCast(items) };
+
+    return @backingInt(try evaluation.invoke(entry, &input));
+}
+
+pub fn publishBorrowedTupleElement(handle: *const anyopaque, index: u64, value: u32) Error!void {
+    const frame = Tuple.borrow(handle);
+
+    frame.values[@intCast(index)] = try aggregate.bind(frame.context.lowering, frame.context.body, @fromBackingInt(value));
+}
+
+pub fn finishBorrowedTuple(handle: *const anyopaque) Error!u32 {
+    const frame = Tuple.borrow(handle);
+    const self = frame.context.lowering;
+    const layout = try @import("../types.zig").get(self, self.abi_layouts, frame.type_id);
+
+    return @backingInt(try borrowed_argument.lower(self, frame.context.body, .{ .tuple = .{ .layout = layout, .values = frame.values } }));
 }

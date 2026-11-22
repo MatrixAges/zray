@@ -1,45 +1,39 @@
 <Module>
     <Type from="model" as="Invocation" />
 
-    <Args in={Invocation.Input} out={Invocation.Output} />
+    <Args in={Invocation.Invocation} out={Invocation.Output} />
 
-    <Call fn="route" in={$in} />
+    <Call fn="route" in={$in.source} />
 
-    <If on={$ctx.route.route != Invocation.Route.Regular}>
-        <Return
-            value={{
-                route: $ctx.route.route,
-                regular: null
-            }}
-        />
+    <If on={$ctx.route == Invocation.Route.Value}>
+        <Call fn="index.invokePlannedValueCall" in={$in.frame} />
+
+        <Return value={$ctx.invokePlannedValueCall} />
+    </If>
+
+    <If on={$ctx.route == Invocation.Route.Pointer}>
+        <Call fn="index.invokePlannedPointerCall" in={$in.frame} />
+
+        <Return value={$ctx.invokePlannedPointerCall} />
     </If>
 
     <Call
         fn="argument"
         in={{
-            source: $in,
-            represented: $ctx.route.represented
+            source: $in.source,
+            represented: $ctx.route == Invocation.Route.RegularRepresented
         }}
     />
 
     <Call
         fn="plan"
         in={{
+            call: $in.frame,
+            source: $in.source,
             argument: $ctx.argument,
-            represented: $ctx.route.represented,
-            ...$in.pick([
-                "active",
-                "stores"
-            ]),
-            io: $in.io_functions[$in.function],
-            process: $in.process_functions[$in.function]
+            represented: $ctx.route == Invocation.Route.RegularRepresented
         }}
     />
 
-    <Return
-        value={{
-            route: $ctx.route.route,
-            regular: $ctx.plan
-        }}
-    />
+    <Return value={$ctx.plan} />
 </Module>

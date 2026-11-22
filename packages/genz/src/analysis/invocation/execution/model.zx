@@ -21,5 +21,6 @@ export type Emission = Input.Pick("call", "stores", "convert", "finish") & {
 export type Iteration = {
     frame: Lowering,
     call: IterationCallFrame,
-    operand: u32
+    operand: u32,
+    value_call: bool
 }

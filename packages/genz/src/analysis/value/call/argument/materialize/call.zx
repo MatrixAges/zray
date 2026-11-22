@@ -1,0 +1,12 @@
+import host from "lowering_host"
+
+import type { BorrowedArgument as Input } from "lowering_host"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const operand = host.borrowedCallOperand(in)
+    const value = host.lowerBorrowedOperand(in, operand)
+
+    return host.emitBorrowedCall(in, value)
+}

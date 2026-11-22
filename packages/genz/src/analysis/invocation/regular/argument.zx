@@ -4,10 +4,11 @@ import lookup from "core/integer/map/lookup"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import scalar from "core/type_table/scalar"
+import { RegularCallArgument as Argument } from "lowering_host"
 
-import { Argument } from "./model"
+import type { Ordinary as Input } from "./model"
 
-import type { Ordinary as Input, Argument as Output } from "./model"
+export type Output = Argument
 
 export default function (in: Input): Output {
     const source = in.source

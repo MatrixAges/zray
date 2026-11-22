@@ -1,0 +1,23 @@
+import type { BorrowedArgument, BorrowedObject, BorrowedTuple } from "lowering_host"
+import type { Input as Routing } from "../route"
+
+export type Input = {
+    frame: BorrowedArgument,
+    route: Routing
+}
+
+export type Output = u32
+
+export type Object = {
+    frame: BorrowedArgument,
+    object: BorrowedObject,
+    evaluation: u32[],
+    fields: u32[],
+    convert: bool
+}
+
+export type Tuple = {
+    frame: BorrowedArgument,
+    tuple: BorrowedTuple,
+    items: u32[]
+}
