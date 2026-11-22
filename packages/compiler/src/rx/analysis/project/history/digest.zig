@@ -5,11 +5,7 @@ const project = @import("frontend").project;
 
 pub fn publishSource(cache: *const project.ParseCache, paths: []const []const u8, sources: []const project.Source, retained: ?*const History.Retained, target: History.SourceDigests) void {
     if (comptime @import("rx_options").generated_graph) {
-        if (retained) |previous| {
-            copyUnchanged(cache, paths, sources, previous, target);
-
-            return;
-        }
+        return writeSource(cache, paths, sources, retained, target);
     }
 
     for (paths, sources, 0..) |path, source, index| {
@@ -25,35 +21,43 @@ pub fn publishSource(cache: *const project.ParseCache, paths: []const []const u8
     }
 }
 
-fn copyUnchanged(cache: *const project.ParseCache, paths: []const []const u8, sources: []const project.Source, previous: *const History.Retained, target: History.SourceDigests) void {
-    const rule = @import("generated_rx_history_digest_retain");
-    const earlier = memory.borrowTextColumn("source", previous.sources);
-    const current = memory.borrowTextColumn("source", sources);
+fn writeSource(cache: *const project.ParseCache, paths: []const []const u8, sources: []const project.Source, retained: ?*const History.Retained, target: History.SourceDigests) void {
+    const rule = @import("generated_rx_history_digest_source");
+    const Input = std.meta.Child(rule.Input);
+    const Retained = std.meta.Child(@typeInfo(@FieldType(Input, "retained")).optional.child);
+    const entries = &cache.entries;
+    const digests = memory.borrowReferenceColumn("digest", entries.values.items);
     const data = std.mem.sliceAsBytes(target.words);
     const present = std.mem.sliceAsBytes(target.present);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const current = memory.borrowTextColumn("source", sources);
+    const earlier = if (retained) |previous| memory.borrowTextColumn("source", previous.sources) else undefined;
 
-    var input: std.meta.Child(rule.Input) = .{
+    const borrowed: Retained = if (retained) |previous| .{
         .earlier = @ptrCast(&earlier),
         .current = @ptrCast(&current),
-        .previous_data = std.mem.sliceAsBytes(previous.digests.words),
-        .previous_present = std.mem.sliceAsBytes(previous.digests.present),
-        .data = @ptrCast(&data),
-        .present = @ptrCast(&present),
-        .width = @sizeOf(std.meta.Elem(@TypeOf(target.words))),
-        .start = 0,
-        .end = paths.len,
+        .data = std.mem.sliceAsBytes(previous.digests.words),
+        .present = std.mem.sliceAsBytes(previous.digests.present),
+    } else undefined;
+
+    const input: Input = .{
+        .cache = &.{
+            .keys = entries.keys.items,
+            .buckets = @ptrCast(&entries.buckets),
+            .capacity = entries.buckets.len,
+            .digests = @ptrCast(&digests),
+        },
+        .target = &.{
+            .data = @ptrCast(&data),
+            .present = @ptrCast(&present),
+            .width = @sizeOf(std.meta.Elem(@TypeOf(target.words))),
+        },
+        .paths = paths,
+        .retained = if (retained != null) &borrowed else null,
     };
 
-    while (input.start < input.end) {
-        const next: usize = @intCast(rule.executeValue(scratch.allocator(), &input) catch unreachable);
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-        if (next == paths.len) return;
-
-        setFromCache(cache, paths[next], target, next);
-
-        input.start = next + 1;
-    }
+    rule.executeValue(scratch.allocator(), &input) catch unreachable;
 }
 
 fn setFromCache(cache: *const project.ParseCache, path: []const u8, target: History.SourceDigests, index: usize) void {

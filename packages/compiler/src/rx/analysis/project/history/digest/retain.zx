@@ -1,33 +1,28 @@
 import memory from "memory"
 
-import type { TextColumn, U8Buffer } from "memory"
+import type { Retained, Target } from "./model"
 
 export type Input = {
-    earlier: TextColumn,
-    current: TextColumn,
-    previous_data: u8[],
-    previous_present: u8[],
-    data: U8Buffer,
-    present: U8Buffer,
-    width: u64,
-    start: u64,
+    retained: Retained,
+    target: Target,
+    first: u64,
     end: u64
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { earlier, current, start, end } = in
+    const { retained, target, first, end } = in
 
     const next = loop({
-        row: start,
+        row: first,
         changed: false
     }, {
         while: state => !state.changed && state.row < end,
         next: state => {
             const row = state.row
-            const previous = memory.readTextColumn(earlier, row)
-            const incoming = memory.readTextColumn(current, row)
+            const previous = memory.readTextColumn(retained.earlier, row)
+            const incoming = memory.readTextColumn(retained.current, row)
 
             if (previous == incoming) {
                 state.row += 1
@@ -38,21 +33,21 @@ export default function (in: Input): Output {
         return: state => state.row
     })
 
-    if (next != start) {
-        const first_byte = start * in.width
-        const end_byte = next * in.width
+    if (next != first) {
+        const first_byte = first * target.width
+        const end_byte = next * target.width
 
         const data =
             memory.copyBytes(
-                in.data,
+                target.data,
                 first_byte,
-                in.previous_data,
+                retained.data,
                 first_byte,
                 end_byte
             )
 
         const present =
-            memory.copyBytes(in.present, start, in.previous_present, start, next)
+            memory.copyBytes(target.present, first, retained.present, first, next)
     }
 
     return next

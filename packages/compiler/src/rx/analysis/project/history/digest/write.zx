@@ -1,0 +1,44 @@
+import bytes from "std:bytes"
+import locate from "core/bytes/index/slot"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Cache, Target } from "./model"
+
+export type Input = {
+    cache: Cache,
+    target: Target,
+    path: string,
+    row: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { cache, target, path, row } = in
+
+    const entry = match {
+        cache.capacity == 0 => 0,
+        _ => locate({
+            ...cache.pick([
+                "keys",
+                "buckets",
+                "capacity"
+            ]),
+            key: bytes.fromText(path)
+        }).entry
+    }
+
+    if (entry == 0) {
+        memory.writeU8(target.present, row, 0)
+
+        return
+    }
+
+    const digest = columns.readReferencedBytes(cache.digests, entry - 1)
+
+    const copied =
+        memory.copyBytes(target.data, row * target.width, digest, 0, digest.length)
+
+    memory.writeU8(target.present, row, 1)
+}

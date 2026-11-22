@@ -1,3 +1,7 @@
+export type ParseReplacement = opaque
+
+export type ParseRetirement = opaque
+
 export type ProjectWalk = opaque
 
 export type ProjectState = opaque
@@ -314,3 +318,18 @@ export declare function bindArtifactWindow(frame: ArtifactLink, first: u64, coun
     MissingNominalOrigin,
     ConflictingInterface
 }
+
+export declare function discardParseReplacement(replacement: ParseReplacement): void
+
+export declare function keepParseReplacement(replacement: ParseReplacement): void
+    throws { OutOfMemory }
+
+export declare function queueParseReplacement(
+    replacement: ParseReplacement,
+    keep_on_publish: bool,
+    keep_on_abort: bool
+): void throws { OutOfMemory }
+
+export declare function retainPendingParse(cache: ParseRetirement, row: u64): u64
+
+export declare function discardPendingParse(cache: ParseRetirement, row: u64): void

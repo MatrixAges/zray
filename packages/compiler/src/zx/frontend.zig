@@ -1,5 +1,11 @@
 pub const ir = @import("zx").ir;
 pub const grammar = @import("frontend/combinators.zig");
+const parse_cache = @import("modules/parse_cache.zig");
+pub const discardParseReplacement = parse_cache.discardParseReplacement;
+pub const keepParseReplacement = parse_cache.keepParseReplacement;
+pub const queueParseReplacement = parse_cache.queueParseReplacement;
+pub const retainPendingParse = parse_cache.retainPendingParse;
+pub const discardPendingParse = parse_cache.discardPendingParse;
 pub const Parser = @import("frontend/parser.zig");
 pub const parse = @import("frontend/parse.zig").parse;
 pub const parseModule = @import("frontend/parse.zig").parseModule;

@@ -1,0 +1,42 @@
+import host from "project_host"
+
+import classify from "../cache_retention/classify"
+
+import type { ParseReplacement } from "project_host"
+
+export type Input = {
+    replacement: ParseReplacement,
+    keeps_replaced: bool,
+    transactional: bool,
+    mark: u64,
+    published: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { replacement } = in
+
+    if (!in.keeps_replaced) {
+        host.discardParseReplacement(replacement)
+
+        return
+    }
+
+    if (!in.transactional) {
+        host.keepParseReplacement(replacement)
+
+        return
+    }
+
+    const retention = classify({
+        mark: in.mark,
+        published: in.published
+    })
+
+    host.queueParseReplacement(
+        replacement,
+        retention.keep_on_publish,
+        retention.keep_on_abort
+    )
+}

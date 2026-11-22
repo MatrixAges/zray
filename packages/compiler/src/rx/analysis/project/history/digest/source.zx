@@ -1,0 +1,40 @@
+import retain from "./retain"
+import write from "./write"
+
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { cache, target, paths, retained } = in
+
+    const end = paths.length
+
+    const published = loop(0, {
+        while: first => first < end,
+        next: first => {
+            const row = match {
+                retained == null => first,
+                _ => retain({
+                    retained,
+                    target,
+                    first,
+                    end
+                })
+            }
+
+            if (row == end) {
+                first = end
+            } else {
+                write({
+                    cache,
+                    target,
+                    path: paths[row],
+                    row
+                })
+
+                first = row + 1
+            }
+        }
+    })
+}

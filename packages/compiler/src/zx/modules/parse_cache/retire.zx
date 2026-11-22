@@ -1,0 +1,40 @@
+import memory from "memory"
+import host from "project_host"
+
+import type { ReadColumn, WriteColumn } from "memory"
+import type { ParseRetirement } from "project_host"
+
+export type Input = {
+    cache: ParseRetirement,
+    marks: ReadColumn,
+    count: u64,
+    capacity: u64,
+    target: WriteColumn
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { cache, marks, count } = in
+
+    const retained = loop({
+        row: 0,
+        capacity: in.capacity
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const row = state.row
+
+            if (memory.readColumnBool(marks, row)) {
+                state.capacity += host.retainPendingParse(cache, row)
+            } else {
+                host.discardPendingParse(cache, row)
+            }
+
+            state.row += 1
+        },
+        return: state => state.capacity
+    })
+
+    memory.writeColumnIndex(in.target, 0, retained)
+}

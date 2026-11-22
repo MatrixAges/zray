@@ -7,6 +7,7 @@ const Index = @import("source_index/growing.zig").Map(*Entry);
 const Self = @This();
 pub const ModuleResult = parser.ModuleResult;
 pub const indexed_enabled = @import("../frontend/module_result.zig").indexed_enabled;
+const generated = @import("parser_options").generated_parser;
 const Digest = [zx.Sha256.digest_length]u8;
 
 const Entry = struct {
@@ -100,6 +101,40 @@ pub fn endRequest(self: *Self) void {
 }
 
 fn retire(self: *Self, published: bool) void {
+    if (self.transient.items.len == 0) return;
+
+    if (comptime generated) {
+        const rule = @import("generated_parse_cache_retire");
+        const memory = zx.memory;
+
+        const marks = if (published)
+            memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_publish" }, self.transient.items)
+        else
+            memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, self.transient.items);
+
+        const target: memory.WriteColumn = .{
+            .items = @ptrCast(&self.retained_capacity),
+            .count = 1,
+            .stride = @sizeOf(usize),
+            .width = @sizeOf(usize),
+        };
+
+        const input: std.meta.Child(rule.Input) = .{
+            .cache = @ptrCast(self),
+            .marks = @ptrCast(&marks),
+            .count = self.transient.items.len,
+            .capacity = self.retained_capacity,
+            .target = @ptrCast(&target),
+        };
+
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+        zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+        self.transient.clearRetainingCapacity();
+
+        return;
+    }
+
     for (self.transient.items) |*version| {
         if (version.retention.keep(published)) {
             self.replaced.appendAssumeCapacity(version.result);
@@ -361,25 +396,83 @@ fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) 
     return entry;
 }
 
+const Replacement = struct {
+    cache: *Self,
+    entry: *const Entry,
+    fn discard(self: *const Replacement) void {
+        var owned = self.entry.result;
+
+        owned.deinit();
+    }
+    fn keep(self: *const Replacement) std.mem.Allocator.Error!void {
+        try self.cache.replaced.append(self.cache.allocator, self.entry.result);
+
+        self.cache.retained_capacity += self.entry.result.queryCapacity();
+    }
+    fn queue(self: *const Replacement, plan: retention.Retention) std.mem.Allocator.Error!void {
+        const cache = self.cache;
+
+        if (plan.keep_on_abort) try cache.replaced.ensureUnusedCapacity(cache.allocator, cache.transient.items.len + 1);
+        try cache.transient.append(cache.allocator, .{ .result = self.entry.result, .retention = plan });
+    }
+    fn borrow(handle: *const anyopaque) *const Replacement {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
 fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
-    if (!self.keeps_replaced) {
-        var owned = entry.result;
+    const replacement: Replacement = .{ .cache = self, .entry = entry };
 
-        return owned.deinit();
+    if (comptime generated) {
+        const rule = @import("generated_parse_cache_replacement");
+
+        const input: std.meta.Child(rule.Input) = .{
+            .replacement = @ptrCast(&replacement),
+            .keeps_replaced = self.keeps_replaced,
+            .transactional = self.transactional,
+            .mark = entry.mark,
+            .published = self.clock.published,
+        };
+
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+        return rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => error.OutOfMemory,
+            else => unreachable,
+        };
     }
 
-    if (!self.transactional) {
-        try self.replaced.append(self.allocator, entry.result);
+    if (!self.keeps_replaced) return replacement.discard();
+    if (!self.transactional) return replacement.keep();
 
-        self.retained_capacity += entry.result.queryCapacity();
+    return replacement.queue(self.clock.classify(entry.mark));
+}
 
-        return;
-    }
+pub fn discardParseReplacement(handle: *const anyopaque) void {
+    Replacement.borrow(handle).discard();
+}
 
-    const plan = self.clock.classify(entry.mark);
+pub fn keepParseReplacement(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    return Replacement.borrow(handle).keep();
+}
 
-    if (plan.keep_on_abort) try self.replaced.ensureUnusedCapacity(self.allocator, self.transient.items.len + 1);
-    try self.transient.append(self.allocator, .{ .result = entry.result, .retention = plan });
+pub fn queueParseReplacement(handle: *const anyopaque, keep_on_publish: bool, keep_on_abort: bool) std.mem.Allocator.Error!void {
+    return Replacement.borrow(handle).queue(.{ .keep_on_publish = keep_on_publish, .keep_on_abort = keep_on_abort });
+}
+
+pub fn retainPendingParse(handle: *const anyopaque, row: u64) u64 {
+    const self: *Self = @ptrCast(@alignCast(@constCast(handle)));
+    const result = &self.transient.items[@intCast(row)].result;
+
+    self.replaced.appendAssumeCapacity(result.*);
+
+    return result.queryCapacity();
+}
+
+pub fn discardPendingParse(handle: *const anyopaque, row: u64) void {
+    const self: *Self = @ptrCast(@alignCast(@constCast(handle)));
+
+    self.transient.items[@intCast(row)].result.deinit();
 }
 
 fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []const u8) std.mem.Allocator.Error!*Entry {
