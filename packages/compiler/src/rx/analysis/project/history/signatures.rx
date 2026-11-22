@@ -11,5 +11,17 @@
 
     <Call fn="signature_order" in={$in.entries} />
 
-    <Return value={$ctx.signature_order} />
+    <If on={!$ctx.signature_order}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="source"
+        in={{
+            sources: $in.sources,
+            first: 0
+        }}
+    />
+
+    <Return value={$ctx.source == $in.sources.current_count} />
 </Module>

@@ -1,6 +1,5 @@
 <Module>
     <Type from="model" as="Lineage" />
-    <Type from="../model" as="History" />
 
     <Args in={Lineage.Request} out={Lineage.Selection} />
 
@@ -28,9 +27,15 @@
         />
     </If>
 
-    <Call fn="../source" in={$in.sources} />
+    <Call
+        fn="../source"
+        in={{
+            sources: $in.sources,
+            first: 0
+        }}
+    />
 
-    <If on={$ctx.source.kind != History.SourceChange.Unchanged}>
+    <If on={$ctx.source != $in.sources.current_count}>
         <Return
             value={{
                 parent_count: $in.epochs.count,

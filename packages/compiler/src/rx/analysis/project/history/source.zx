@@ -1,22 +1,26 @@
 import bytes from "std:bytes"
 import memory from "memory"
 
-import { SourceChange } from "./model"
-
-import type { Changed, Scan } from "./model"
+import type { Scan } from "./model"
 
 export type Input = Scan
 
-export type Output = Changed
+export type Output = u64?
 
+    // Null rejects a changed path or source count. The end row means no text changed.
 export default function (in: Input): Output {
-    const { earlier, current } = in
+    const { earlier, current, earlier_count, current_count } = in.sources
+
+    if (earlier_count != current_count) {
+        return null
+    }
 
     return loop({
         row: in.first,
-        kind: SourceChange.Unchanged
+        same_path: true,
+        same_text: true
     }, {
-        while: state => state.row < in.end && state.kind == SourceChange.Unchanged,
+        while: state => state.row < current_count && state.same_text,
         next: state => {
             const row = state.row
             const before_path =
@@ -25,7 +29,8 @@ export default function (in: Input): Output {
                 bytes.fromText(memory.readTextColumn(current.paths, row))
 
             if (!bytes.equals(before_path, after_path)) {
-                state.kind = SourceChange.DifferentPath
+                state.same_path = false
+                state.same_text = false
             } else {
                 const before =
                     bytes.fromText(memory.readTextColumn(earlier.texts, row))
@@ -35,9 +40,10 @@ export default function (in: Input): Output {
                 if (bytes.equals(before, after)) {
                     state.row += 1
                 } else {
-                    state.kind = SourceChange.Edited
+                    state.same_text = false
                 }
             }
-        }
+        },
+        return: state => state.same_path ? state.row : null
     })
 }

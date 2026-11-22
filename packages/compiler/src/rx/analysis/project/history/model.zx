@@ -1,26 +1,20 @@
 import type { TextColumn } from "memory"
 
-export enum SourceChange {
-    DifferentPath,
-    Unchanged,
-    Edited
-}
-
 export type Sources = {
     paths: TextColumn,
     texts: TextColumn
 }
 
-export type Scan = {
+export type SourcePair = {
     earlier: Sources,
     current: Sources,
-    first: u64,
-    end: u64
+    earlier_count: u64,
+    current_count: u64
 }
 
-export type Changed = {
-    row: u64,
-    kind: SourceChange
+export type Scan = {
+    sources: SourcePair,
+    first: u64
 }
 
 export type Inputs = {
@@ -32,7 +26,8 @@ export type Inputs = {
 
 export type Signatures = {
     inputs: Inputs,
-    entries: Entries
+    entries: Entries,
+    sources: SourcePair
 }
 
 export type Entries = {

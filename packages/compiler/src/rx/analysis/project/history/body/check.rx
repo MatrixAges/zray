@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Edit" />
+
+    <Args in={Edit.Admission} out={bool} />
+
+    <Call fn="../inputs" in={$in.identity} />
+
+    <If on={!$ctx.inputs}>
+        <Return value={false} />
+    </If>
+
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                context: $in.context,
+                first: 0,
+                matched: true,
+                running: $in.context.sources.current_count != 0
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.advance.matched} />
+</Module>

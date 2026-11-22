@@ -43,7 +43,7 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
     try state.modules();
     try state.graph();
     try state.orderSignatures();
-    try state.signatures(check_signatures);
+    if (!check_signatures or !state.restoreSignatures()) try state.analyzeSignatures();
     try state.index();
     try state.stores();
     try state.prepare();
@@ -144,18 +144,16 @@ pub const State = struct {
         self.dependencies = result.value.graph;
     }
 
-    fn signatures(self: *State, check_history: bool) Error!void {
-        if (check_history) {
-            const record = self.options.history.?;
+    fn restoreSignatures(self: *State) bool {
+        const record = self.options.history.?;
+        const earlier = record.signatures(self.options.sources, &self.dependencies.?, self.entries) orelse return false;
 
-            if (record.signatures(self.options.sources, &self.dependencies.?, self.entries)) |earlier| {
-                record.signatures_reused = true;
-                self.signatures_data = earlier;
+        record.signatures_reused = true;
+        self.signatures_data = earlier;
 
-                return;
-            }
-        }
-
+        return true;
+    }
+    fn analyzeSignatures(self: *State) Error!void {
         const result = try frontend.project.analyzePrefetchedSignatures(self.allocator, self.prefetched, self.entries, self.project_options, &self.paths);
 
         if (result.value == .diagnostic) {
@@ -267,8 +265,12 @@ pub fn orderDerivedSignatures(handle: *const anyopaque) std.mem.Allocator.Error!
     return borrow(handle).orderSignatures();
 }
 
-pub fn readDerivedSignatures(handle: *const anyopaque, retained: bool) Error!void {
-    return borrow(handle).signatures(retained);
+pub fn restoreDerivedSignatures(handle: *const anyopaque) bool {
+    return borrow(handle).restoreSignatures();
+}
+
+pub fn analyzeDerivedSignatures(handle: *const anyopaque) Error!void {
+    return borrow(handle).analyzeSignatures();
 }
 
 pub fn indexDerivedSignatures(handle: *const anyopaque) Error!void {

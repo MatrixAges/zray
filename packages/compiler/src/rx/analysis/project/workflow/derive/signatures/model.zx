@@ -1,0 +1,6 @@
+import type { Derivation } from "rx_project_host"
+
+export type Input = {
+    state: Derivation,
+    retained: bool
+}

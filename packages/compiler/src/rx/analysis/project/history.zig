@@ -148,29 +148,10 @@ pub const History = struct {
     pub fn bodiesOnly(self: *const History, sources: []const frontend.project.Source, cache: *frontend.project.ParseCache) std.mem.Allocator.Error!bool {
         const earlier = if (self.previous) |*value| value else return false;
 
+        if (comptime generated) return admission.bodies(self, earlier, sources, cache);
         if (!admission.sameInputs(&earlier.frame, &self.frame, earlier.sources.len, sources.len)) return false;
 
         const paths = earlier.derived.dependencies.modules.items(.path)[0..sources.len];
-
-        if (comptime generated) {
-            const scan = admission.SourceScan.init(earlier.sources, sources);
-            var first: usize = 0;
-
-            while (first < sources.len) {
-                const next = scan.next(first);
-                const row: usize = @intCast(next.row);
-
-                switch (next.kind) {
-                    .DifferentPath => return false,
-                    .Unchanged => return true,
-                    .Edited => if (!try sameBodyHeader(cache, paths[row], earlier.sources[row].source, sources[row].source)) return false,
-                }
-
-                first = row + 1;
-            }
-
-            return true;
-        }
 
         for (earlier.sources, sources, paths) |*before, *after, path| {
             if (!zx.bytes.equal(before.path, after.path)) return false;
@@ -185,19 +166,7 @@ pub const History = struct {
     pub fn signatures(self: *const History, sources: []const frontend.project.Source, graph: *const Graph, entries: []const u64) ?frontend.project.signature_project.Data {
         const earlier = if (self.previous) |*value| value else return null;
 
-        if (!admission.signed(&earlier.shape, &self.shape, &earlier.derived.dependencies, graph, entries)) return null;
-
-        if (comptime generated) {
-            const scan = admission.SourceScan.init(earlier.sources, sources);
-
-            return if (scan.next(0).kind == .Unchanged) earlier.derived.signatures else null;
-        }
-
-        for (earlier.sources, sources) |*before, *after| {
-            if (!zx.bytes.equal(before.path, after.path) or !zx.bytes.equal(before.source, after.source)) return null;
-        }
-
-        return earlier.derived.signatures;
+        return if (admission.signed(self, earlier, sources, graph, entries)) earlier.derived.signatures else null;
     }
     /// The digest of the RX source at `path`.
     pub fn rxDigest(self: *const History, path: []const u8) ?[32]u8 {
@@ -213,6 +182,7 @@ pub const History = struct {
 fn sameBodyHeader(cache: *frontend.project.ParseCache, path: []const u8, earlier: []const u8, current: []const u8) std.mem.Allocator.Error!bool {
     const parsed = try cache.getModule(current, path);
     const body = parsed.bodyStart() orelse return false;
+    const shared = std.mem.indexOfDiff(u8, earlier, current) orelse return false;
 
-    return admission.sameHeader(earlier, current, body);
+    return shared > body;
 }

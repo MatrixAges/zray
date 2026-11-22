@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="Signatures" />
+
+    <Args in={Signatures.Input} out={void} />
+
+    <Call fn="index.orderDerivedSignatures" in={$in.state} />
+    <Call fn="restore" in={$in} />
+
+    <If on={!$ctx.restore}>
+        <Call fn="index.analyzeDerivedSignatures" in={$in.state} />
+    </If>
+
+    <Call fn="index.indexDerivedSignatures" in={$in.state} />
+</Module>

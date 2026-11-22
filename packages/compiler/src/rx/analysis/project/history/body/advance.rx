@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Edit" />
+
+    <Args in={Edit.Cursor} out={Edit.Cursor} />
+
+    <Call
+        fn="../source"
+        in={{
+            sources: $in.context.sources,
+            first: $in.first
+        }}
+    />
+
+    <If on={$ctx.source != null && $ctx.source != $in.context.sources.current_count}>
+        <Call
+            fn="header"
+            in={{
+                context: $in.context,
+                row: $ctx.source
+            }}
+        />
+
+        <Return
+            value={{
+                context: $in.context,
+                first: $ctx.source + 1,
+                matched: $ctx.header,
+                running:
+                    $ctx.header &&
+                    $ctx.source + 1 < $in.context.sources.current_count
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            matched: $ctx.source != null,
+            running: false
+        }}
+    />
+</Module>

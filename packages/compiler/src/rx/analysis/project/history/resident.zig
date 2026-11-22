@@ -4,6 +4,7 @@ const memory = zx.memory;
 const columns = zx.columns;
 const Digest = @import("../history.zig").Digest;
 const Source = @import("frontend").project.Source;
+const SourceColumns = @import("admission.zig").SourceColumns;
 const generated = @import("rx_options").generated_graph;
 const Error = std.mem.Allocator.Error;
 pub const Selection = struct { parent_count: usize = 0, rx_only: bool = false, same_input: bool = false };
@@ -48,12 +49,12 @@ pub fn select(epochs: anytype, frame: *const [32]u8, shape: *const [32]u8, diges
 
     const rule = @import("generated_rx_history_parent");
     const Input = std.meta.Child(rule.Input);
+    const Pair = std.meta.Child(@FieldType(Input, "sources"));
+    const View = std.meta.Child(@FieldType(Pair, "earlier"));
     const latest = &epochs[epochs.len - 1];
     const earlier = latest.snapshot.sources;
-    const earlier_paths = memory.borrowTextColumn("path", earlier);
-    const earlier_texts = memory.borrowTextColumn("source", earlier);
-    const current_paths = memory.borrowTextColumn("path", sources);
-    const current_texts = memory.borrowTextColumn("source", sources);
+    const before = SourceColumns.init(earlier);
+    const after = SourceColumns.init(sources);
     const old_rx_paths = memory.borrowTextColumn("path", latest.rx_digests);
     const new_rx_paths = memory.borrowTextColumn("path", digests);
     const earlier_digests = memory.borrowReadColumn(@FieldType(Digest, "digest"), "digest", latest.rx_digests);
@@ -65,10 +66,10 @@ pub fn select(epochs: anytype, frame: *const [32]u8, shape: *const [32]u8, diges
         .shape = &.{ .earlier = &latest.snapshot.shape, .current = shape, .earlier_count = earlier.len, .current_count = sources.len },
         .paths = &.{ .earlier = @ptrCast(&old_rx_paths), .current = @ptrCast(&new_rx_paths), .earlier_count = latest.rx_digests.len, .current_count = digests.len },
         .sources = &.{
-            .earlier = &.{ .paths = @ptrCast(&earlier_paths), .texts = @ptrCast(&earlier_texts) },
-            .current = &.{ .paths = @ptrCast(&current_paths), .texts = @ptrCast(&current_texts) },
-            .first = 0,
-            .end = sources.len,
+            .earlier = &before.view(View),
+            .current = &after.view(View),
+            .earlier_count = before.count,
+            .current_count = after.count,
         },
         .epochs = &.{ .frames = @ptrCast(&frames), .edits = @ptrCast(&edits), .count = epochs.len },
         .digests = &.{ .earlier = @ptrCast(&earlier_digests), .current = @ptrCast(&current_digests), .width = @sizeOf(@FieldType(Digest, "digest")) },

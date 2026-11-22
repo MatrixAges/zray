@@ -4,39 +4,66 @@ const Source = @import("frontend").project.Source;
 const Graph = @import("../source_graph/model.zig").Graph;
 const generated = @import("rx_options").generated_graph;
 const memory = @import("zx").memory;
+const ParseCache = @import("frontend").project.ParseCache;
+const History = @import("../history.zig");
 
-pub const SourceScan = struct {
-    earlier_paths: memory.TextColumn,
-    earlier_texts: memory.TextColumn,
-    current_paths: memory.TextColumn,
-    current_texts: memory.TextColumn,
+pub const SourceColumns = struct {
+    paths: memory.TextColumn,
+    texts: memory.TextColumn,
     count: usize,
-    const rule = @import("generated_rx_history_source");
-
-    const Result = @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload;
-
-    pub fn init(earlier: []const Source, current: []const Source) SourceScan {
-        std.debug.assert(earlier.len == current.len);
-
+    pub fn init(sources: []const Source) SourceColumns {
         return .{
-            .earlier_paths = memory.borrowTextColumn("path", earlier),
-            .earlier_texts = memory.borrowTextColumn("source", earlier),
-            .current_paths = memory.borrowTextColumn("path", current),
-            .current_texts = memory.borrowTextColumn("source", current),
-            .count = current.len,
+            .paths = memory.borrowTextColumn("path", sources),
+            .texts = memory.borrowTextColumn("source", sources),
+            .count = sources.len,
         };
     }
-    pub fn next(self: *const SourceScan, first: usize) Result {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        return rule.executeValue(empty.allocator(), &.{
-            .earlier = &.{ .paths = @ptrCast(&self.earlier_paths), .texts = @ptrCast(&self.earlier_texts) },
-            .current = &.{ .paths = @ptrCast(&self.current_paths), .texts = @ptrCast(&self.current_texts) },
-            .first = first,
-            .end = self.count,
-        }) catch unreachable;
+    pub fn view(self: *const SourceColumns, comptime View: type) View {
+        return .{ .paths = @ptrCast(&self.paths), .texts = @ptrCast(&self.texts) };
     }
 };
+
+pub fn bodies(history: *const History.History, earlier: *const History.Retained, current: []const Source, cache: *ParseCache) std.mem.Allocator.Error!bool {
+    const rule = @import("generated_rx_history_body_edits");
+    const Input = std.meta.Child(rule.Input);
+    const Context = std.meta.Child(@FieldType(Input, "context"));
+    const Pair = std.meta.Child(@FieldType(Context, "sources"));
+    const View = std.meta.Child(@FieldType(Pair, "earlier"));
+    const before = SourceColumns.init(earlier.sources);
+    const after = SourceColumns.init(current);
+    const paths = earlier.derived.dependencies.modules.items(.path)[0..earlier.sources.len];
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return rule.executeIn(empty.allocator(), &.{
+        .identity = &.{
+            .earlier = &earlier.frame,
+            .current = &history.frame,
+            .earlier_count = earlier.sources.len,
+            .current_count = current.len,
+        },
+        .context = &.{
+            .cache = @ptrCast(cache),
+            .paths = paths,
+            .sources = &.{
+                .earlier = &before.view(View),
+                .current = &after.view(View),
+                .earlier_count = earlier.sources.len,
+                .current_count = current.len,
+            },
+        },
+    }) catch |err| switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        else => unreachable,
+    };
+}
+
+pub fn historyBodyOpening(handle: *const anyopaque, path: []const u8, text: []const u8) std.mem.Allocator.Error!?u64 {
+    const cache: *ParseCache = @ptrCast(@alignCast(@constCast(handle)));
+    const parsed = try cache.getModule(text, path);
+
+    return parsed.bodyStart();
+}
 
 pub fn sameInputs(earlier: *const [32]u8, current: *const [32]u8, earlier_count: usize, current_count: usize) bool {
     if (comptime generated) {
@@ -53,33 +80,24 @@ pub fn sameInputs(earlier: *const [32]u8, current: *const [32]u8, earlier_count:
     return earlier_count == current_count and std.mem.eql(u8, earlier, current);
 }
 
-pub fn sameHeader(earlier: []const u8, current: []const u8, body: usize) bool {
-    if (comptime generated) {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return @import("generated_rx_history_header").executeValue(empty.allocator(), &.{
-            .earlier = earlier,
-            .current = current,
-            .body = body,
-        }) catch unreachable;
-    }
-
-    const shared = std.mem.indexOfDiff(u8, earlier, current) orelse return false;
-
-    return shared > body;
-}
-
-pub fn signed(earlier: *const [32]u8, current: *const [32]u8, before: *const Graph, after: *const Graph, rows: []const u64) bool {
+pub fn signed(history: *const History.History, earlier: *const History.Retained, sources: []const Source, after: *const Graph, rows: []const u64) bool {
+    const before = &earlier.derived.dependencies;
     const earlier_paths = before.modules.items(.path)[0..before.sources.zx_count];
     const current_paths = after.modules.items(.path)[0..after.sources.zx_count];
 
     if (comptime generated and @sizeOf(usize) == @sizeOf(u64) and @alignOf(usize) >= @alignOf(u64)) {
+        const rule = @import("generated_rx_history_signatures");
+        const Input = std.meta.Child(rule.Input);
+        const Pair = std.meta.Child(@FieldType(Input, "sources"));
+        const View = std.meta.Child(@FieldType(Pair, "earlier"));
+        const old_sources = SourceColumns.init(earlier.sources);
+        const new_sources = SourceColumns.init(sources);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        return @import("generated_rx_history_signatures").executeValue(empty.allocator(), &.{
+        return rule.executeValue(empty.allocator(), &.{
             .inputs = &.{
-                .earlier = earlier,
-                .current = current,
+                .earlier = &earlier.shape,
+                .current = &history.shape,
                 .earlier_count = earlier_paths.len,
                 .current_count = current_paths.len,
             },
@@ -89,10 +107,16 @@ pub fn signed(earlier: *const [32]u8, current: *const [32]u8, before: *const Gra
                 .current_paths = current_paths,
                 .current_rows = rows,
             },
+            .sources = &.{
+                .earlier = &old_sources.view(View),
+                .current = &new_sources.view(View),
+                .earlier_count = earlier.sources.len,
+                .current_count = sources.len,
+            },
         }) catch unreachable;
     }
 
-    if (!sameInputs(earlier, current, earlier_paths.len, current_paths.len)) return false;
+    if (!sameInputs(&earlier.shape, &history.shape, earlier_paths.len, current_paths.len)) return false;
 
     var selected: usize = 0;
 
@@ -103,5 +127,11 @@ pub fn signed(earlier: *const [32]u8, current: *const [32]u8, before: *const Gra
         selected += 1;
     }
 
-    return selected == rows.len;
+    if (selected != rows.len or earlier.sources.len != sources.len) return false;
+
+    for (earlier.sources, sources) |*old, *new| {
+        if (!bytes.equal(old.path, new.path) or !bytes.equal(old.source, new.source)) return false;
+    }
+
+    return true;
 }

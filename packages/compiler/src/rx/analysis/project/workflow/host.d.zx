@@ -10,6 +10,8 @@ export type MixedPreparation = opaque
 
 export type HistoryStores = opaque
 
+export type HistoryParseCache = opaque
+
 export type HistoryXmlNode = opaque
 
 export type HistoryXmlRows = opaque
@@ -55,7 +57,9 @@ export declare function collectDerivedGraph(state: Derivation): void
 export declare function orderDerivedSignatures(state: Derivation): void
     throws { OutOfMemory }
 
-export declare function readDerivedSignatures(state: Derivation, retained: bool): void
+export declare function restoreDerivedSignatures(state: Derivation): bool
+
+export declare function analyzeDerivedSignatures(state: Derivation): void
     throws { OutOfMemory, InvalidSource }
 
 export declare function indexDerivedSignatures(state: Derivation): void
@@ -126,6 +130,12 @@ export declare function prepareMixedPosition(
 ): bool throws { OutOfMemory }
 
 export declare function preparedMixedPositions(state: MixedPreparation): u64[]
+
+export declare function historyBodyOpening(
+    cache: HistoryParseCache,
+    path: string,
+    text: string
+): u64? throws { OutOfMemory }
 
 export declare function historyStoreNode(
     stores: HistoryStores,

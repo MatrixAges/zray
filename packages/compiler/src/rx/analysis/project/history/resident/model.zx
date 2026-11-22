@@ -1,5 +1,5 @@
 import type { ReadColumn, TextColumn } from "memory"
-import type { Inputs, Scan } from "../model"
+import type { Inputs, SourcePair } from "../model"
 
 export type Digests = {
     earlier: ReadColumn,
@@ -29,7 +29,7 @@ export type Ancestors = {
 export type Request = Ancestors & {
     shape: Inputs,
     paths: Paths,
-    sources: Scan
+    sources: SourcePair
 }
 
 export type Selection = {

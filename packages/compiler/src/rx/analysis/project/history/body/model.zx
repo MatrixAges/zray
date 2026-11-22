@@ -1,0 +1,25 @@
+import type { HistoryParseCache } from "rx_project_host"
+import type { Inputs, SourcePair } from "../model"
+
+export type Context = {
+    cache: HistoryParseCache,
+    paths: string[],
+    sources: SourcePair
+}
+
+export type Admission = {
+    identity: Inputs,
+    context: Context
+}
+
+export type Cursor = {
+    context: Context,
+    first: u64,
+    matched: bool,
+    running: bool
+}
+
+export type Edit = {
+    context: Context,
+    row: u64
+}
