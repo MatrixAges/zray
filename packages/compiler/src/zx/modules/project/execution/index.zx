@@ -5,3 +5,4 @@ export {
     forwardProjectRecursiveEntry,
     validateProjectEntry
 } from "project_host"
+export { publishInterfaceTypes } from "project_host"

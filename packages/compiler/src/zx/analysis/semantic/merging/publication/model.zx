@@ -48,6 +48,7 @@ export type Target = {
     offsets?: Offsets,
     base_labels: StringBuffer,
     text_mode: TextMode,
+    native_owner?: string,
     progress: U64Buffer,
     destination: Destination,
     payload: Allocator
@@ -64,6 +65,7 @@ export type Text = Input.Pick(
     "target",
     "nominal",
     "text_mode",
+    "native_owner",
     "progress",
     "payload"
 )

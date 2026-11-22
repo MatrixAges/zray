@@ -2,7 +2,6 @@
     <Type from="../../frontend/lexer/token_model" as="Token" />
     <Type from="../../frontend/parser/native/model" as="Model" />
     <Type from="signatures/check" as="Check" />
-    <Type from="../../analysis/semantic/resolving/model" as="ResolvingModel" />
     <Type from="../../analysis/semantic/constructing/delta" as="Delta" />
     <Type from="../../frontend/lexer/model" as="LexerModel" />
     <Type from="interface/exports" as="Exports" />
@@ -17,7 +16,6 @@
             resolution: Check.Output
         }}
         out={{
-            cache: ResolvingModel.Cache,
             delta: Delta.Output,
             diagnostic: LexerModel.Diagnostic,
             exports: Exports.Export[],
@@ -63,7 +61,6 @@
                 <Return
                     value={{
                         delta: $ctx.functions.resolution.delta,
-                        cache: $ctx.functions.resolution.cache,
                         diagnostic: $ctx.functions.resolution.diagnostic,
                         exports: $ctx.exports.exports,
                         members: $ctx.members
@@ -74,7 +71,6 @@
                     <Return
                         value={{
                             delta: $ctx.functions.resolution.delta,
-                            cache: $ctx.functions.resolution.cache,
                             diagnostic: $ctx.functions.resolution.diagnostic,
                             exports: $ctx.exports.exports,
                             members: []
@@ -87,7 +83,6 @@
                 <Return
                     value={{
                         delta: $in.resolution.delta,
-                        cache: $in.resolution.cache,
                         diagnostic: $ctx.exports.diagnostic,
                         exports: $ctx.exports.exports,
                         members: []
@@ -100,7 +95,6 @@
             <Return
                 value={{
                     delta: $in.resolution.delta,
-                    cache: $in.resolution.cache,
                     diagnostic: {
                         code: "module",
                         message: "native namespaces require nonempty UTF-8 member names",

@@ -1,0 +1,66 @@
+import encoding from "std:encoding"
+import strings from "std:string"
+import { Ownership } from "core/symbol_table/model"
+import memory from "memory"
+
+import type { Allocator } from "memory"
+import type { Output } from "../../link/signature/publication/prepare"
+import type { Record } from "./model"
+
+export type { Output } from "../../link/signature/publication/prepare"
+
+export type Input = Record & {
+    resource: Allocator
+}
+
+export default function (in: Input): Output {
+    const { implementation } = in
+    const { member, errors, export_name } = implementation
+    const { resource } = in
+
+    const spans = in.members
+
+    const members = memory.requireTextSlots(
+        memory.allocateTextSlots(resource, spans.length)
+    )
+
+    const filled = loop(0, {
+        while: row => row < spans.length,
+        next: row => {
+            const part = spans[row]
+            const text = encoding.sliceBytes(member, part.start, part.end)
+            const owned = memory.copyColumnText(resource, text)
+
+            memory.writeTextSlot(members, row, owned)
+
+            row += 1
+        }
+    })
+
+    return {
+        function: {
+            file: strings.copy(implementation.specifier),
+            ports: {
+                input: in.input_type,
+                output: in.output_type,
+                native_module: implementation.module
+            },
+            external: {
+                members,
+                errors: errors == null ? null : strings.copyList(errors),
+                export_name: export_name == null ? null : strings.copy(export_name),
+                parameters: null
+            }
+        },
+        flags: {
+            ...implementation.omit([
+                "specifier",
+                "member",
+                "module",
+                "export_name",
+                "errors"
+            ]),
+            ownership: Ownership.Borrowed
+        }
+    }
+}

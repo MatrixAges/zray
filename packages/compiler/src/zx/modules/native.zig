@@ -19,11 +19,21 @@ pub const Result = struct {
     namespace: ?[]const []const u8 = null,
 };
 
-pub fn load(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, existing: *ir.TypeStorage, origins: ?*@import("nominal_origins.zig"), functions: ?*ir.FunctionStorage, reporter: *zx.Reporter, span: zx.Span) zx.Error!Result {
+pub const Target = struct {
+    types: *ir.TypeStorage,
+    origins: ?*@import("nominal_origins.zig") = null,
+    functions: ?*ir.FunctionStorage = null,
+    owner: ?[]const u8 = null,
+};
+
+pub fn load(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, target: Target, reporter: *zx.Reporter, span: zx.Span) zx.Error!Result {
     const allocator = arena.allocator();
     var local: zx.Reporter = .{};
 
-    return analyze(arena, entry, module, existing, origins, functions, &local) catch |err| {
+    const analyzed = (if (comptime @import("parser_options").generated_parser)
+        @import("native/interface.zig").analyze(allocator, entry, module, target, &local)
+    else
+        analyzeSeed(arena, entry, module, target, &local)) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         const issue = local.diagnostic.?;
@@ -32,20 +42,16 @@ pub fn load(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeMod
 
         return reporter.fail(issue.code, span, message);
     };
+
+    return .{ .types = target.types.view(), .exports = analyzed.exports, .members = analyzed.members, .namespace = analyzed.namespace };
 }
 
-fn analyze(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, existing: *ir.TypeStorage, origins: ?*@import("nominal_origins.zig"), functions: ?*ir.FunctionStorage, reporter: *zx.Reporter) zx.Error!Result {
-    const allocator = arena.allocator();
-    var types = Types{ .native_interface = true, .allocator = allocator, .reporter = reporter, .declarations = &.{}, .shared = if (origins) |items| Types.Shared{ .origins = items, .origin = .{ .native = entry.key() } } else null };
+fn analyzeSeed(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, target: Target, reporter: *zx.Reporter) zx.Error!@import("native/interface.zig").Result {
+    var types = Types{ .native_interface = true, .allocator = arena.allocator(), .reporter = reporter, .declarations = &.{}, .shared = if (target.origins) |items| Types.Shared{ .origins = items, .origin = .{ .native = entry.key() } } else null };
 
-    types.items = existing.*;
-    existing.* = .{};
-    defer existing.* = types.items;
+    types.items = target.types.*;
+    target.types.* = .{};
+    defer target.types.* = types.items;
 
-    const analyzed = if (@import("parser_options").generated_parser)
-        try @import("native/interface.zig").analyze(&types, entry, module, functions.?)
-    else
-        try @import("native/seed.zig").analyze(arena, &types, entry, module);
-
-    return .{ .types = types.items.view(), .exports = analyzed.exports, .members = analyzed.members, .namespace = analyzed.namespace };
+    return @import("native/seed.zig").analyze(arena, &types, entry, module);
 }

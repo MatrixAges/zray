@@ -139,6 +139,7 @@ const project_legacy = @import("modules/project/execution/legacy.zig");
 pub const appendProjectNativeModule = project_native.appendProjectNativeModule;
 pub const materializeProjectExternal = project_legacy.materializeProjectExternal;
 pub const appendProjectExternal = project_legacy.appendProjectExternal;
+pub const publishInterfaceTypes = @import("analysis/semantic/merging/commit.zig").publishInterfaceTypes;
 pub const loadFreshProjectNative = project_native.loadFreshProjectNative;
 pub const loadCachedProjectNative = project_native.loadCachedProjectNative;
 pub const restoreNativeCacheHit = native_cache.restoreNativeCacheHit;

@@ -3,11 +3,16 @@ const zx = @import("zx");
 const Types = @import("../../analysis/types.zig");
 const Origins = @import("../nominal_origins.zig");
 const External = @import("../interface.zig").External;
-const Result = @import("../external.zig").Result;
+const FunctionImport = @import("../function_import.zig");
 const generated = @import("generated_external");
+const delivery = @import("generated_external_interface_delivery");
+const destination = @import("../link/signature/publication/destination.zig");
+const publication = @import("../../analysis/semantic/merging/commit.zig");
 const Input = std.meta.Child(generated.Input);
+const Delivery = std.meta.Child(delivery.Input);
+const Record = std.meta.Child(@FieldType(Delivery, "record"));
 
-pub fn load(allocator: std.mem.Allocator, entry: External, module: zx.ir.NativeModuleId, span: zx.Span, existing: *zx.ir.TypeStorage, shared: Types.Shared, reporter: *zx.Reporter) zx.Error!Result {
+pub fn load(allocator: std.mem.Allocator, entry: External, module: zx.ir.NativeModuleId, span: zx.Span, existing: *zx.ir.TypeStorage, shared: Types.Shared, functions: *zx.ir.FunctionStorage, reporter: *zx.Reporter) zx.Error!FunctionImport {
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
@@ -48,7 +53,42 @@ pub fn load(allocator: std.mem.Allocator, entry: External, module: zx.ir.NativeM
         else => return reporter.fail(.contract, span, try std.fmt.allocPrint(allocator, "internal compiler error: generated external loading failed with {s}", .{@errorName(err)})),
     };
 
-    if (output.publish) try @import("../../analysis/semantic/merging/commit.zig").append(allocator, existing, &shared.origins.items, output.type_delta.*, output.nominal_delta.*);
+    const id: zx.ir.FunctionId = @fromBackingInt(@as(u32, @intCast(functions.count())));
+    const target = publication.Interface.init(allocator, existing, &shared.origins.items, output.type_delta, output.nominal_delta);
+    var view: destination.View(std.meta.Child(@FieldType(Delivery, "destination"))) = undefined;
+
+    view.init(&allocator, functions);
+
+    const request: Delivery = .{
+        .types = @ptrCast(&target),
+        .publish_types = output.publish,
+        .valid = output.diagnostic.message.len == 0,
+        .destination = &view.input,
+        .empty = &destination.empty(std.meta.Child(@FieldType(Delivery, "empty"))),
+        .record = &Record{
+            .members = zx.columns.slice(@FieldType(Record, "members"), output.members),
+            .input_type = output.input_type,
+            .output_type = output.output_type,
+            .implementation = &.{
+                .specifier = entry.specifier,
+                .module = @backingInt(module),
+                .member = implementation.member,
+                .export_name = entry.export_name,
+                .allocator_argument = implementation.allocator_argument,
+                .io_argument = implementation.io_argument,
+                .process_argument = implementation.process_argument,
+                .expand_tuple = implementation.expand_tuple,
+                .fallible = implementation.fallible,
+                .errors = implementation.errors,
+                .concurrent = implementation.concurrent,
+            },
+        },
+    };
+
+    delivery.executeIn(allocator, &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return reporter.fail(.contract, span, try std.fmt.allocPrint(allocator, "internal compiler error: generated external delivery failed with {s}", .{@errorName(err)})),
+    };
 
     if (output.diagnostic.message.len != 0) return reporter.fail(
         std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), output.diagnostic.code) orelse unreachable,
@@ -56,36 +96,10 @@ pub fn load(allocator: std.mem.Allocator, entry: External, module: zx.ir.NativeM
         try allocator.dupe(u8, output.diagnostic.message),
     );
 
-    const errors = if (implementation.errors) |names| copied: {
-        const owned = try allocator.alloc([]const u8, names.len);
-
-        for (names, owned) |name, *value| value.* = try allocator.dupe(u8, name);
-
-        break :copied owned;
-    } else null;
-
-    const members = try allocator.alloc([]const u8, output.members.len);
-
-    for (output.members, members) |part, *member| member.* = try allocator.dupe(u8, implementation.member[@intCast(part.start)..@intCast(part.end)]);
-
-    return .{ .types = existing.view(), .function = .{
-        .file_name = try allocator.dupe(u8, entry.specifier),
+    return .{
+        .name = "",
+        .id = id,
         .input_type = @fromBackingInt(output.input_type),
         .output_type = @fromBackingInt(output.output_type),
-        .symbols = .{},
-        .expressions = .{},
-        .body = .{},
-        .external = .{
-            .module = module,
-            .member = members,
-            .export_name = if (entry.export_name) |name| try allocator.dupe(u8, name) else null,
-            .allocator_argument = implementation.allocator_argument,
-            .io_argument = implementation.io_argument,
-            .process_argument = implementation.process_argument,
-            .expand_tuple = implementation.expand_tuple,
-            .fallible = implementation.fallible,
-            .errors = errors,
-            .concurrent = implementation.concurrent,
-        },
-    } };
+    };
 }

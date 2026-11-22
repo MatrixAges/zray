@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Input} out={void} />
+
+    <If on={$in.publish_types}>
+        <Call fn="../../project/execution/index.publishInterfaceTypes" in={$in.types} />
+    </If>
+
+    <If on={$in.valid}>
+        <Call
+            fn="prepare"
+            in={{
+                ...$in.record,
+                resource: $in.destination.text_allocator
+            }}
+        />
+
+        <Call fn="../../link/signature/publication/reserve" in={$in.destination} />
+
+        <Call
+            fn="../../link/signature/publication/append"
+            in={{
+                ...$in.pick([
+                    "destination",
+                    "empty"
+                ]),
+                prepared: $ctx.prepare
+            }}
+        />
+    </If>
+</Module>

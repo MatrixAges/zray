@@ -470,6 +470,8 @@ pub const Project = struct {
             .member = entry.exportName(),
         } } };
 
+        if (comptime @import("parser_options").generated_parser) return @import("external/host.zig").load(self.allocator, entry, module, span, &self.types, shared, &self.functions, self.reporter);
+
         const imported = try @import("external.zig").load(self.allocator, entry, module, span, &self.types, shared, self.reporter);
         const id: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
 

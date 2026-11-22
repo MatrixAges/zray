@@ -44,6 +44,21 @@ export default function (in: Input): Output {
 
         memory.writeU64(progress, 0, completed_names)
 
+        const owner = in.native_owner
+
+        if (owner != null) {
+            const written = loop(0, {
+                while: row => row < origins.ids.length,
+                next: row => {
+                    memory.writeString(nominal.owners, row, owner)
+                    memory.writeString(nominal.members, row, "")
+                    row += 1
+                }
+            })
+
+            return
+        }
+
         into({
             allocator: payload,
             target: nominal.owners,

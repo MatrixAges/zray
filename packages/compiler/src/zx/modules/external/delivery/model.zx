@@ -1,0 +1,28 @@
+import type { InterfaceTypes } from "project_host"
+import type { Span } from "../../../frontend/lexer/token_model"
+import type { Flags } from "../../artifact/materializing/publication/model"
+import type { BodyColumns, Destination } from "../../link/signature/publication/model"
+
+export type Implementation = Flags.Omit("ownership") & {
+    specifier: string,
+    member: string,
+    module: u32,
+    export_name?: string,
+    errors?: string[]
+}
+
+export type Record = {
+    implementation: Implementation,
+    members: Span[],
+    input_type: u32,
+    output_type: u32
+}
+
+export type Input = {
+    types: InterfaceTypes,
+    publish_types: bool,
+    valid: bool,
+    destination: Destination,
+    empty: BodyColumns,
+    record: Record
+}

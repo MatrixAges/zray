@@ -21,7 +21,6 @@
             shared: bool
         }}
         out={{
-            cache: Model.Cache,
             delta: Delta.Output,
             diagnostic: LexerModel.Diagnostic,
             exports: Exports.Export[],
@@ -63,7 +62,6 @@
             <Return
                 value={{
                     delta: $ctx.prepare.resolution.delta,
-                    cache: $ctx.prepare.resolution.cache,
                     diagnostic: $ctx.prepare.resolution.diagnostic,
                     exports: [],
                     members: [],

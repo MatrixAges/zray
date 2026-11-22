@@ -107,7 +107,15 @@ pub fn loadCachedProjectNative(handle: *const anyopaque) zx.Error!void {
 pub fn loadFreshProjectNative(handle: *const anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
     const project = frame.project;
-    const loaded = try Loaded.load(project.arena, frame.native.*, frame.module, &project.types, &project.nominal_origins, &project.functions, project.reporter, frame.span);
+
+    const target: Loaded.Target = .{
+        .types = &project.types,
+        .origins = &project.nominal_origins,
+        .functions = &project.functions,
+        .owner = if (comptime generated) project.native_modules.view().at(@backingInt(frame.module)).key() else null,
+    };
+
+    const loaded = try Loaded.load(project.arena, frame.native.*, frame.module, target, project.reporter, frame.span);
 
     if (comptime generated) try @import("../../link/signature/publication/host.zig").finalizeNative(project.allocator, &project.native_modules, &project.functions, frame.module, loaded, frame.native.namespace);
 

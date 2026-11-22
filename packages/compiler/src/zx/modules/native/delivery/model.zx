@@ -1,0 +1,17 @@
+import type { NamedRowBuffer } from "memory"
+import type { InterfaceTypes } from "project_host"
+import type { Export } from "../interface/exports"
+import type { Input as Members } from "../publication/model"
+
+export type Exports = {
+    source: Export[],
+    target: NamedRowBuffer
+}
+
+export type Input = {
+    types: InterfaceTypes,
+    exports: Exports,
+    members: Members
+}
+
+export type Output = string[]?

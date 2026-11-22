@@ -53,6 +53,7 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const
         .offsets = zx.columns.pointer(@typeInfo(@FieldType(Types, "offsets")).optional.child, options.offsets.?),
         .base_labels = type_tail.target.base_labels,
         .text_mode = @fromBackingInt(@backingInt(type_tail.target.text_mode)),
+        .native_owner = type_tail.target.native_owner,
         .progress = type_tail.target.progress,
         .destination = zx.columns.pointer(@FieldType(Types, "destination"), type_tail.target.destination),
         .payload = type_tail.target.payload,

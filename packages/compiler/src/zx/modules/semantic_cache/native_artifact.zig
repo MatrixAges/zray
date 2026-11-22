@@ -18,7 +18,7 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
     var local: zx.Reporter = .{};
     var types: ir.TypeStorage = .{};
 
-    const loaded = @import("../native.zig").load(&arena, entry, @fromBackingInt(@intCast(0)), &types, null, null, &local, span) catch |err| {
+    const loaded = @import("../native.zig").load(&arena, entry, @fromBackingInt(@intCast(0)), .{ .types = &types }, &local, span) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         var issue = local.diagnostic.?;

@@ -16,6 +16,7 @@ pub const Options = struct {
     offsets: ?*const Offsets = null,
     base_labels: ?*const []const []const u8 = null,
     text_mode: TextMode = .Own,
+    native_owner: ?[]const u8 = null,
     precise: bool = false,
 };
 
@@ -87,6 +88,7 @@ pub fn init(self: *Self, options: *const Options, table: ir.TypeTable, bindings:
         .offsets = options.offsets,
         .base_labels = @ptrCast(options.base_labels orelse @as(*const []const []const u8, @ptrCast(&options.types.labels.items))),
         .text_mode = options.text_mode,
+        .native_owner = options.native_owner,
         .progress = @ptrCast(&self.progress),
         .payload = @ptrCast(&options.payload),
         .destination = &self.destination,
@@ -109,6 +111,7 @@ pub fn request(self: *const Self, comptime Input: type, delta: @FieldType(Input,
         .offsets = self.target.offsets,
         .base_labels = self.target.base_labels,
         .text_mode = self.target.text_mode,
+        .native_owner = self.target.native_owner,
         .progress = self.target.progress,
         .destination = self.target.destination,
         .payload = self.target.payload,

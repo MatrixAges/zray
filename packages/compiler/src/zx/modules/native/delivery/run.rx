@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Input} out={Delivery.Output} />
+
+    <Call fn="../../project/execution/index.publishInterfaceTypes" in={$in.types} />
+    <Call fn="exports" in={$in.exports} />
+
+    <If on={$in.members.rows.count != 0}>
+        <Call module="../publication/publish" in={$in.members} />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return value={null} />
+</Module>
