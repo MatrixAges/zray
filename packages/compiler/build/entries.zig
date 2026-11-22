@@ -576,6 +576,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/store_initializers/selection/build.rx", .name = "store_initializer_selection", .owner = .compiler },
     .{ .path = "backends/zig/state/available.rx", .name = "state_available", .owner = .compiler },
     .{ .path = "backends/zig/state/build.rx", .name = "state_bindings", .owner = .compiler },
+    .{ .path = "backends/zig/state/const.zx", .name = "state_constants", .owner = .compiler },
     .{ .path = "backends/zig/state/objects.zx", .name = "state_objects", .owner = .compiler },
     .{ .path = "lint/naming/check.rx", .name = "naming", .owner = .lint },
     .{ .path = "lint/length/check.rx", .name = "length", .owner = .lint },
@@ -994,6 +995,7 @@ pub const collections = [_]Entry{
 
 pub const execution = [_]Entry{
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
+    .{ .path = "backends/zig/state/publication/build.rx", .name = "publish_state", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/workflow/run.rx", .name = "run_function_sources", .owner = .compiler },
     .{ .path = "verification/graph/selection/select.zx", .name = "select_symbolic_value", .owner = .compiler },
     .{ .path = "verification/contracts/apply.zx", .name = "apply_symbolic_contracts", .owner = .compiler },

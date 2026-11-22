@@ -71,7 +71,11 @@ pub const appendGatewayFacade = gateway_bundle.appendGatewayFacade;
 pub const publishGatewayContract = gateway_bundle.publishGatewayContract;
 pub const publishGatewayState = gateway_bundle.publishGatewayState;
 pub const publishGatewayApplication = gateway_bundle.publishGatewayApplication;
-
+const state_publication = @import("backends/zig/state/publication.zig");
+pub const lookupStateSource = state_publication.lookupStateSource;
+pub const renderStateSource = state_publication.renderStateSource;
+pub const cacheStateSource = state_publication.cacheStateSource;
+pub const appendStateFile = state_publication.appendStateFile;
 const generation_cache = @import("backends/zig/cache.zig");
 pub const finishCacheWriting = generation_cache.finishCacheWriting;
 pub const startCacheWriting = generation_cache.startCacheWriting;

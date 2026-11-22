@@ -15,3 +15,13 @@ export declare function takeText(
     source: StreamReader,
     count: u32
 ): string throws { EndOfStream, ReadFailed, OutOfMemory }
+
+export declare function writeStreamText(
+    target: StreamWriter,
+    value: string
+): void throws { WriteFailed }
+
+export declare function writeStreamJsonBytes(
+    target: StreamWriter,
+    value: u8[]
+): void throws { WriteFailed }

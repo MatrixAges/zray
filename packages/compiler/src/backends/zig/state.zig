@@ -1,11 +1,11 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
-const generating = @import("genz").zx.state;
 const modules = @import("modules.zig");
 const names = @import("names.zig");
 const Cache = @import("cache.zig");
 const InitializerView = @import("store_initializers/view.zig");
+const Publication = @import("state/publication.zig");
 pub const Options = struct { analysis: *const frontend.AnalysisResult, cache: ?*Cache = null };
 pub const Error = names.Error || error{ InvalidAnalysis, MissingInitializer, InvalidInitializer, DuplicateState };
 
@@ -48,23 +48,17 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
         else => unreachable,
     }
 
-    const imports = plan.imports;
-    const requirements = bundle.requirements.?;
-
-    const source = try emit(allocator, temporary, .{
-        .names = imports[1..],
+    var publication = Publication{
+        .bundle = bundle,
+        .temporary = temporary,
+        .imports = plan.imports,
         .writable = program.stores.writable,
         .independent = independent,
-        .requirements = requirements,
-    }, options.cache);
+        .requirements = bundle.requirements.?,
+        .cache = options.cache,
+    };
 
-    const files = try allocator.alloc(modules.File, bundle.modules.len + 1);
-
-    @memcpy(files[0..bundle.modules.len], bundle.modules);
-
-    files[bundle.modules.len] = .{ .name = "zxc_state", .source = source, .imports = imports };
-    bundle.modules = files;
-    bundle.state_module = "zxc_state";
+    try publication.run();
 }
 
 fn available(allocator: std.mem.Allocator, bundle: *const modules.Bundle, analysis: *const frontend.AnalysisResult) Error!bool {
@@ -96,46 +90,4 @@ fn failure(err: anyerror) std.mem.Allocator.Error {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         else => unreachable,
     };
-}
-
-const Storage = struct {
-    names: []const []const u8,
-    writable: []const bool,
-    independent: bool,
-    requirements: generating.Requirements,
-};
-
-fn emit(allocator: std.mem.Allocator, temporary: std.mem.Allocator, storage: Storage, cache: ?*Cache) std.mem.Allocator.Error![]const u8 {
-    const objects = if (!generating.generated or cache != null)
-        try @import("state/objects.zig").create(temporary, storage.names, storage.writable, storage.independent)
-    else
-        &.{};
-
-    const key = if (cache) |store| fingerprint: {
-        const metadata = try std.json.Stringify.valueAlloc(temporary, .{ .objects = objects, .requirements = storage.requirements }, .{});
-        var hash = zx.Sha256.init(.{});
-
-        hash.update("zxc.zig.state.memory.v5");
-        hash.update(metadata);
-
-        const key = hash.finalResult();
-
-        if (try store.get("zxc_state", key)) |source| return allocator.dupe(u8, source);
-
-        break :fingerprint key;
-    } else null;
-
-    const source = if (comptime generating.generated) render: {
-        const columns = generating.ObjectColumns.fromBindings(storage.names, storage.writable, storage.independent);
-
-        break :render try generating.renderColumns(allocator, columns, storage.requirements, true);
-    } else try generating.renderWithCapabilities(allocator, objects, storage.requirements);
-
-    if (cache) |store| {
-        store.generated += 1;
-
-        try store.put("zxc_state", key.?, source);
-    }
-
-    return source;
 }

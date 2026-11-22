@@ -1,0 +1,23 @@
+export const fingerprint_prefix: string = "zxc.zig.state.memory.v5{\"objects\":["
+
+export const independent_object: string = "{\"independent\":true,\"module_name\":"
+
+export const shared_object: string = "{\"independent\":false,\"module_name\":"
+
+export const writable_object_end: string = ",\"writable\":true}"
+
+export const readonly_object_end: string = ",\"writable\":false}"
+
+export const requirements_open: string = "],\"requirements\":{\"io\":"
+
+export const process_field: string = ",\"process\":"
+
+export const fingerprint_close: string = "}}"
+
+export const object_separator: string = ","
+
+export const true_value: string = "true"
+
+export const false_value: string = "false"
+
+export const first_initializer: u64 = 1

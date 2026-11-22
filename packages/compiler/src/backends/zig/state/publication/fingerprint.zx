@@ -1,0 +1,57 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import {
+    false_value,
+    fingerprint_close,
+    fingerprint_prefix,
+    first_initializer,
+    independent_object,
+    object_separator,
+    process_field,
+    readonly_object_end,
+    requirements_open,
+    shared_object,
+    true_value,
+    writable_object_end
+} from "./const"
+
+import type { Key as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, imports, writable } = in
+
+    const object = in.independent ? independent_object : shared_object
+
+    memory.writeStreamText(writer, fingerprint_prefix)
+
+    const written = loop(first_initializer, {
+        while: row => row < imports.length,
+        next: row => {
+            if (row != first_initializer) {
+                memory.writeStreamText(writer, object_separator)
+            }
+
+            memory.writeStreamText(writer, object)
+            memory.writeStreamJsonBytes(
+                writer,
+                bytes.fromText(imports[row])
+            )
+
+            const can_write = writable[row - first_initializer]
+            const end = can_write ? writable_object_end : readonly_object_end
+
+            memory.writeStreamText(writer, end)
+
+            row += 1
+        }
+    })
+
+    memory.writeStreamText(writer, requirements_open)
+    memory.writeStreamText(writer, in.io ? true_value : false_value)
+    memory.writeStreamText(writer, process_field)
+    memory.writeStreamText(writer, in.process ? true_value : false_value)
+    memory.writeStreamText(writer, fingerprint_close)
+}

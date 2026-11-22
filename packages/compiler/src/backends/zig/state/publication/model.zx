@@ -1,0 +1,18 @@
+import type { StreamWriter } from "memory"
+import type { StatePublication } from "state_publication_host"
+
+export type Key = {
+    writer: StreamWriter,
+    imports: string[],
+    writable: bool[],
+    independent: bool,
+    io: bool,
+    process: bool
+}
+
+export type Input = {
+    frame: StatePublication,
+    name: string,
+    key: Key,
+    cached: bool
+}

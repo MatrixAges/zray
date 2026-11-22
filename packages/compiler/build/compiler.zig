@@ -125,6 +125,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         module.addImport("output_execution_abi", generated.execution.import_table.get("zxc_abi").?);
         generated.execution.addImport("output_host", module);
         generated.execution.addImport("gateway_bundle_host", module);
+        generated.execution.addImport("state_publication_host", module);
         generated.execution.addImport("verification_host", module);
         generated.execution.addImport("verification_program_host", module);
         generated.execution.addImport("verification_publication_host", module);
