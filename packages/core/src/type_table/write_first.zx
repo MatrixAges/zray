@@ -1,9 +1,10 @@
 import memory from "memory"
 
-import rebase from "../rebase"
+import rebase from "./rebase"
 
-import type { Input as Rebase } from "../rebase"
-import type { Offsets } from "./model"
+import type { Input as Rebase } from "./rebase"
+
+export type Offsets = Rebase.Pick("children", "fields", "names")
 
 export type Input = Rebase.Omit("children", "fields", "names") & {
     offsets?: Offsets

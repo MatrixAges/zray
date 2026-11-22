@@ -120,7 +120,7 @@ pub const Statement = union(enum) {
 
 pub const ParallelCall = struct { symbol: ?SymbolId, value: ExprId };
 pub const SwitchCase = struct { value: ?ExprId, body: BlockId };
-pub const StoreMode = enum { transaction, orchestration };
+pub const StoreMode = @import("ir/schema.zig").StoreMode;
 pub const StoreTable = @import("store_table/root.zig");
 pub const StoreStorage = @import("store_table/storage.zig");
 pub const StoreSlot = struct { path: []const u8, type_id: TypeId, handle: []const u8 = "", readable: bool = true, writable: bool = true };

@@ -23,7 +23,7 @@
         />
 
         <Call
-            fn="first"
+            fn="../../../../../core/type_table/write_first"
             in={{
                 kinds: $in.delta.kinds,
                 first: $in.delta.first,

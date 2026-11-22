@@ -126,6 +126,20 @@ pub fn append(target: *const anyopaque, row: anytype) void {
     }
 }
 
+pub fn appendProjection(target: *const anyopaque, source: anytype, shape: anytype) void {
+    const columns: *const ColumnSet = @ptrCast(@alignCast(target));
+    const Layout = std.meta.Child(std.meta.Child(@TypeOf(shape)));
+    const optional = @typeInfo(@TypeOf(source)) == .optional;
+    const Row = std.meta.Child(if (optional) std.meta.Child(@TypeOf(source)) else @TypeOf(source));
+    const row: *const Row = if (optional) source orelse &std.mem.zeroes(Row) else source;
+
+    inline for (@typeInfo(Row).@"struct".field_names) |name| {
+        const index = comptime std.meta.fieldIndex(Layout, name).?;
+
+        list(@FieldType(Layout, name), columns.*[index]).appendAssumeCapacity(@field(row, name));
+    }
+}
+
 pub fn writeTail(target: *const anyopaque, row: anytype, index: u64) void {
     const columns: *const ColumnSet = @ptrCast(@alignCast(target));
     const View = std.meta.Child(@TypeOf(row));

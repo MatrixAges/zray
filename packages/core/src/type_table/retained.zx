@@ -1,12 +1,13 @@
 import integers from "std:integer"
+
 import {
     kind_enumeration,
     kind_error_set,
     kind_object,
     kind_tuple
-} from "core/type_table/const"
+} from "./const"
 
-import type { Table } from "core/type_table/model"
+import type { Table } from "./model"
 
 export type Input = Table.Pick("kinds", "first", "second") & {
     count: u64

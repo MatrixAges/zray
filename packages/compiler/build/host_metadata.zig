@@ -14,7 +14,7 @@ pub fn create(b: *std.Build, source: std.Build.LazyPath) *std.Build.Step.Compile
         .target = target,
         .optimize = optimize,
         .imports = &.{
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize, .seed = true }).module("core") },
             .{ .name = "genz_options", .module = options.createModule() },
         },
     });
@@ -46,6 +46,12 @@ const NativeImports = struct { standard: *std.Build.Module, string: *std.Build.M
 pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, strip: ?bool, shared: ?NativeImports) *std.Build.Module {
     const abi = b.createModule(.{ .root_source_file = source.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
 
+    const core = if (shared == null)
+        b.dependency("core", .{ .target = target, .optimize = optimize, .seed = true })
+
+    else
+        b.dependency("core", .{ .target = target, .optimize = optimize });
+
     const natives = shared orelse NativeImports{
         .standard = standardModule(b, target, optimize, abi),
         .string = b.createModule(.{ .root_source_file = b.dependency("zxc_std", .{}).path("src/string.zig"), .target = target, .optimize = optimize, .strip = strip }),
@@ -60,7 +66,7 @@ pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.Re
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = natives.standard },
             .{ .name = "zxc_string", .module = natives.string },
-            .{ .name = "memory", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory") },
+            .{ .name = "memory", .module = core.module("memory") },
         },
     });
 }

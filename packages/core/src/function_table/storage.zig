@@ -1,30 +1,31 @@
 const std = @import("std");
 const ir = @import("../ir.zig");
+const schema = @import("../ir/schema.zig");
 const Self = @This();
 const Table = @import("root.zig");
 
-files: std.ArrayList([]const u8) = .empty,
-input_types: std.ArrayList(u32) = .empty,
-output_types: std.ArrayList(u32) = .empty,
-ownership: std.ArrayList(ir.SymbolTable.Ownership) = .empty,
-store_modes: std.ArrayList(ir.StoreMode) = .empty,
-contracts: std.ArrayList(*const ir.ContractTable) = .empty,
-native_inputs: std.ArrayList(?[]const ?[]const u8) = .empty,
-native_modules: std.ArrayList(?u32) = .empty,
-native_members: std.ArrayList([]const []const u8) = .empty,
-native_exports: std.ArrayList(?[]const u8) = .empty,
-native_allocators: std.ArrayList(bool) = .empty,
-native_io: std.ArrayList(bool) = .empty,
-native_process: std.ArrayList(bool) = .empty,
-native_tuples: std.ArrayList(bool) = .empty,
-native_fallible: std.ArrayList(bool) = .empty,
-native_errors: std.ArrayList(?[]const []const u8) = .empty,
-native_concurrent: std.ArrayList(bool) = .empty,
-symbols: std.ArrayList(*const ir.SymbolTable) = .empty,
-expressions: std.ArrayList(*const ir.ExpressionTable) = .empty,
-control: std.ArrayList(*const ir.ControlTable) = .empty,
-roots: std.ArrayList(?u32) = .empty,
-stores: std.ArrayList(*const ir.StoreTable) = .empty,
+files: schema.storage(Table, "files") = .empty,
+input_types: schema.storage(Table, "input_types") = .empty,
+output_types: schema.storage(Table, "output_types") = .empty,
+ownership: schema.storage(Table, "ownership") = .empty,
+store_modes: schema.storage(Table, "store_modes") = .empty,
+contracts: schema.storage(Table, "contracts") = .empty,
+native_inputs: schema.storage(Table, "native_inputs") = .empty,
+native_modules: schema.storage(Table, "native_modules") = .empty,
+native_members: schema.storage(Table, "native_members") = .empty,
+native_exports: schema.storage(Table, "native_exports") = .empty,
+native_allocators: schema.storage(Table, "native_allocators") = .empty,
+native_io: schema.storage(Table, "native_io") = .empty,
+native_process: schema.storage(Table, "native_process") = .empty,
+native_tuples: schema.storage(Table, "native_tuples") = .empty,
+native_fallible: schema.storage(Table, "native_fallible") = .empty,
+native_errors: schema.storage(Table, "native_errors") = .empty,
+native_concurrent: schema.storage(Table, "native_concurrent") = .empty,
+symbols: schema.storage(Table, "symbols") = .empty,
+expressions: schema.storage(Table, "expressions") = .empty,
+control: schema.storage(Table, "control") = .empty,
+roots: schema.storage(Table, "roots") = .empty,
+stores: schema.storage(Table, "stores") = .empty,
 pub fn count(self: *const Self) usize {
     return self.files.items.len;
 }
@@ -77,6 +78,8 @@ pub fn appendOwnedAssumeCapacity(self: *Self, value: ir.Function, owned: Descrip
 }
 
 pub fn appendBodyAssumeCapacity(self: *Self, signature: ir.Signature, store_mode: ir.StoreMode, body: ir.ControlBody, owned: Descriptors) void {
+    if (comptime schema.generated) return @import("publication/host.zig").append(self, signature, store_mode, body, owned);
+
     self.appendPorts(signature);
     self.store_modes.appendAssumeCapacity(store_mode);
     self.contracts.appendAssumeCapacity(owned.contracts);

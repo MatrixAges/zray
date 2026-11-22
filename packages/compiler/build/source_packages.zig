@@ -150,6 +150,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "core/function_table/complete", .entry = "core/function_table/complete.zx" },
     .{ .specifier = "core/function_table/empty", .entry = "core/function_table/empty.zx" },
     .{ .specifier = "core/function_table/model", .entry = "core/function_table/model.zx" },
+    .{ .specifier = "core/type_table/write_first", .entry = "core/type_table/write_first.zx" },
     .{ .specifier = "core/native_module_table/model", .entry = "core/native_module_table/model.zx" },
     .{ .specifier = "core/native_module_table/binding", .entry = "core/native_module_table/binding.zx" },
     .{ .specifier = "core/native_module_table/find", .entry = "core/native_module_table/find.zx" },

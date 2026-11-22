@@ -40,6 +40,11 @@ pub fn build(b: *std.Build) void {
     }
 
     const parser_modules = parser.modules(b, target, optimize, parser_source, natives, generated_strip);
+
+    for (parser_modules.bindings) |binding| {
+        if (binding.metadata.entry.owner == .core) core.addImport(binding.metadata.import_name, binding.module);
+    }
+
     const modules = @import("build/compiler.zig").create(b, target, optimize, core, lexer.module(b, target, optimize, parser_modules.get("lexer")), parser_modules, lint);
 
     b.addNamedLazyPath("host_metadata_tool", parser_modules.host_metadata.getEmittedBin());

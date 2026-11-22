@@ -17,10 +17,11 @@
     />
 
     <Call
-        fn="append"
+        fn="../../../../../core/function_table/publication/publish"
         in={{
             storage: $in.destination.storage,
-            row: $ctx.row
+            body: $ctx.row,
+            native: null
         }}
     />
 </Module>

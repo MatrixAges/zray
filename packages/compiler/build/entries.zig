@@ -5,7 +5,7 @@ const std = @import("std");
 pub const Entry = struct {
     path: []const u8,
     name: []const u8,
-    owner: enum { frontend, compiler, rx, rx_analysis, lint, genz } = .frontend,
+    owner: enum { core, frontend, compiler, rx, rx_analysis, lint, genz } = .frontend,
     import_name: ?[]const u8 = null,
     pub fn importName(comptime self: Entry) []const u8 {
         return self.import_name orelse "generated_" ++ self.name;
@@ -329,7 +329,9 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/semantic/produce.rx", .name = "origin_production" },
     .{ .path = "zx/analysis/semantic/merging/register.rx", .name = "type_merge" },
     .{ .path = "zx/analysis/semantic/merging/publication/write.rx", .name = "type_merge_publication" },
-    .{ .path = "zx/analysis/semantic/merging/preflight/retained.zx", .name = "type_retained_payload" },
+    .{ .path = "core/type_table/retained.zx", .name = "type_retained_payload", .owner = .core },
+    .{ .path = "core/type_table/write_first.zx", .name = "type_delta_first", .owner = .core },
+    .{ .path = "core/function_table/publication/publish.zx", .name = "function_table_publish", .owner = .core },
     .{ .path = "zx/analysis/semantic/validate_types.rx", .name = "type_validation" },
     .{ .path = "zx/analysis/semantic/resolve.rx", .name = "type_resolution" },
     .{ .path = "zx/analysis/semantic/construct_type.rx", .name = "type_construction" },

@@ -1,29 +1,35 @@
 const std = @import("std");
 const ir = @import("../ir.zig");
+const schema = @import("../ir/schema.zig");
+const Layout = schema.Functions;
 const Self = @This();
 
-files: []const []const u8 = &.{},
-input_types: []const u32 = &.{},
-output_types: []const u32 = &.{},
-ownership: []const ir.SymbolTable.Ownership = &.{},
-store_modes: []const ir.StoreMode = &.{},
+files: schema.column(Layout, "files", []const []const u8) = &.{},
+input_types: schema.column(Layout, "input_types", []const u32) = &.{},
+output_types: schema.column(Layout, "output_types", []const u32) = &.{},
+ownership: schema.column(Layout, "ownership", []const ir.SymbolTable.Ownership) = &.{},
+store_modes: schema.column(Layout, "store_modes", []const ir.StoreMode) = &.{},
 contracts: []const *const ir.ContractTable = &.{},
-native_inputs: []const ?[]const ?[]const u8 = &.{},
-native_modules: []const ?u32 = &.{},
-native_members: []const []const []const u8 = &.{},
-native_exports: []const ?[]const u8 = &.{},
-native_allocators: []const bool = &.{},
-native_io: []const bool = &.{},
-native_process: []const bool = &.{},
-native_tuples: []const bool = &.{},
-native_fallible: []const bool = &.{},
-native_errors: []const ?[]const []const u8 = &.{},
-native_concurrent: []const bool = &.{},
+native_inputs: schema.column(Layout, "native_inputs", []const ?[]const ?[]const u8) = &.{},
+native_modules: schema.column(Layout, "native_modules", []const ?u32) = &.{},
+native_members: schema.column(Layout, "native_members", []const []const []const u8) = &.{},
+native_exports: schema.column(Layout, "native_exports", []const ?[]const u8) = &.{},
+native_allocators: schema.column(Layout, "native_allocators", []const bool) = &.{},
+native_io: schema.column(Layout, "native_io", []const bool) = &.{},
+native_process: schema.column(Layout, "native_process", []const bool) = &.{},
+native_tuples: schema.column(Layout, "native_tuples", []const bool) = &.{},
+native_fallible: schema.column(Layout, "native_fallible", []const bool) = &.{},
+native_errors: schema.column(Layout, "native_errors", []const ?[]const []const u8) = &.{},
+native_concurrent: schema.column(Layout, "native_concurrent", []const bool) = &.{},
 symbols: []const *const ir.SymbolTable = &.{},
 expressions: []const *const ir.ExpressionTable = &.{},
 control: []const *const ir.ControlTable = &.{},
-roots: []const ?u32 = &.{},
+roots: schema.column(Layout, "roots", []const ?u32) = &.{},
 stores: []const *const ir.StoreTable = &.{},
+comptime {
+    schema.checkFields(Layout, Self);
+}
+
 pub fn count(self: Self) usize {
     return self.files.len;
 }

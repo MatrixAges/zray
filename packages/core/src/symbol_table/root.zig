@@ -1,7 +1,8 @@
 const std = @import("std");
 const ir = @import("../ir.zig");
+const schema = @import("../ir/schema.zig");
 const Self = @This();
-pub const Ownership = enum { Copy, Borrowed, Owned };
+pub const Ownership = if (schema.generated) schema.Columns.Ownership else enum { Copy, Borrowed, Owned };
 
 names: []const []const u8 = &.{},
 ownership: []const Ownership = &.{},

@@ -4,7 +4,7 @@ import { ColumnStoreMode } from "memory/columns"
 import ownership from "../../signature/ownership"
 
 import type { Stores } from "core/store_table/model"
-import type { FunctionRow as Output } from "memory/columns"
+import type { FunctionBodyRow as Output } from "memory/columns"
 import type { BodyColumns } from "../../signature/publication/model"
 import type { Entry } from "./model"
 
@@ -29,17 +29,6 @@ export default function (in: Input): Output {
         ownership: ownership(ports.ownership),
         store_modes: mode,
         contracts: body.contracts,
-        native_inputs: null,
-        native_modules: null,
-        native_members: [],
-        native_exports: null,
-        native_allocators: false,
-        native_io: false,
-        native_process: false,
-        native_tuples: false,
-        native_fallible: false,
-        native_errors: null,
-        native_concurrent: false,
         symbols: body.symbols,
         expressions: body.expressions,
         control: body.control ?? empty.control,

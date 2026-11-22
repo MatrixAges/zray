@@ -30,7 +30,7 @@ pub fn appendTemporary(self: *Self, mapping_allocator: std.mem.Allocator, tempor
 pub fn compact(self: *Self, temporary: std.mem.Allocator, first: usize, origin_count: usize) Error![]const ir.TypeId {
     const source = self.items.view();
     const origins = self.origins.items.view();
-    const prefix = retainedPrefix(source, first);
+    const prefix = source.prefix(first);
 
     self.items.retainColumns(prefix);
     self.origins.items.retainPrefix(origin_count);
@@ -51,27 +51,6 @@ pub fn compact(self: *Self, temporary: std.mem.Allocator, first: usize, origin_c
     }
 
     return mapping;
-}
-
-fn retainedPrefix(source: ir.TypeTable, count: usize) ir.TypeTable {
-    if (comptime !@import("parser_options").generated_parser) return source.prefix(count);
-
-    const rule = @import("generated_type_retained_payload");
-    const Input = std.meta.Child(rule.Input);
-    const input: Input = .{ .kinds = source.kinds, .first = source.first, .second = source.second, .count = count };
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const ends = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-
-    return .{
-        .kinds = source.kinds[0..count],
-        .first = source.first[0..count],
-        .second = source.second[0..count],
-        .labels = source.labels[0..count],
-        .children = source.children[0..@intCast(ends.children)],
-        .field_types = source.field_types[0..@intCast(ends.fields)],
-        .field_names = source.field_names[0..@intCast(ends.fields)],
-        .names = source.names[0..@intCast(ends.names)],
-    };
 }
 
 pub fn appendFrom(self: *Self, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, first: usize) Error![]const ir.TypeId {

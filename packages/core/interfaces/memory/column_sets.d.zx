@@ -93,6 +93,34 @@ export type SignatureRow = {
     native_concurrent: bool,
 }
 
+export type FunctionBodyRow = {
+    files: string,
+    input_types: u32,
+    output_types: u32,
+    ownership: ColumnOwnership,
+    store_modes: ColumnStoreMode,
+    contracts: Contracts,
+    symbols: Symbols,
+    expressions: Expressions,
+    control: Control,
+    roots?: u32,
+    stores: Stores
+}
+
+export type FunctionNativeRow = {
+    native_inputs?: ColumnNames,
+    native_modules?: u32,
+    native_members: string[],
+    native_exports?: string,
+    native_allocators: bool,
+    native_io: bool,
+    native_process: bool,
+    native_tuples: bool,
+    native_fallible: bool,
+    native_errors: ColumnErrors,
+    native_concurrent: bool
+}
+
 export type NativeModuleRow = {
     identities?: string,
     import_names: string,

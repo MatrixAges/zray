@@ -1,16 +1,17 @@
 const std = @import("std");
 const Table = @import("root.zig");
 const model = @import("model.zig");
+const schema = @import("../ir/schema.zig");
 const Self = @This();
 
-kinds: std.ArrayList(u8) = .empty,
-first: std.ArrayList(u32) = .empty,
-second: std.ArrayList(u32) = .empty,
-labels: std.ArrayList([]const u8) = .empty,
-children: std.ArrayList(u32) = .empty,
-field_types: std.ArrayList(u32) = .empty,
-field_names: std.ArrayList([]const u8) = .empty,
-names: std.ArrayList([]const u8) = .empty,
+kinds: schema.storage(Table, "kinds") = .empty,
+first: schema.storage(Table, "first") = .empty,
+second: schema.storage(Table, "second") = .empty,
+labels: schema.storage(Table, "labels") = .empty,
+children: schema.storage(Table, "children") = .empty,
+field_types: schema.storage(Table, "field_types") = .empty,
+field_names: schema.storage(Table, "field_names") = .empty,
+names: schema.storage(Table, "names") = .empty,
 pub const Error = std.mem.Allocator.Error;
 
 pub fn count(self: *const Self) usize {
@@ -126,15 +127,19 @@ pub fn appendDelta(self: *Self, allocator: std.mem.Allocator, delta: Table) Erro
     const field_offset: u32 = @intCast(self.field_types.items.len);
     const name_offset: u32 = @intCast(self.names.items.len);
 
-    for (delta.kinds, delta.first, firsts) |code, first, *destination| {
-        const kind: model.Kind = @fromBackingInt(@intCast(code));
+    if (comptime schema.generated) {
+        @import("publication.zig").writeFirst(&delta, firsts, child_offset, field_offset, name_offset);
+    } else {
+        for (delta.kinds, delta.first, firsts) |code, first, *destination| {
+            const kind: model.Kind = @fromBackingInt(@intCast(code));
 
-        destination.* = first + switch (kind) {
-            .object => field_offset,
-            .tuple => child_offset,
-            .error_set, .enumeration => name_offset,
-            else => @as(u32, 0),
-        };
+            destination.* = first + switch (kind) {
+                .object => field_offset,
+                .tuple => child_offset,
+                .error_set, .enumeration => name_offset,
+                else => @as(u32, 0),
+            };
+        }
     }
 
     self.publishDelta(delta);

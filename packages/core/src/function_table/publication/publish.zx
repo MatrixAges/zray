@@ -1,0 +1,18 @@
+import memory from "memory/columns"
+
+import type { ColumnSet, FunctionBodyRow, FunctionNativeRow } from "memory/columns"
+
+export type Input = {
+    storage: ColumnSet,
+    body: FunctionBodyRow,
+    native?: FunctionNativeRow
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, body, native } = in
+
+    memory.appendFunctionBodyColumns(storage, body, null)
+    memory.appendFunctionNativeColumns(storage, native, null)
+}

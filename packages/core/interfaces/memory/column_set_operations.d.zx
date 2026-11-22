@@ -61,6 +61,18 @@ export declare function appendColumnSet(
     row: FunctionRow
 ): void
 
+export declare function appendFunctionBodyColumns(
+    target: ColumnSet,
+    row: FunctionBodyRow,
+    shape: FunctionRow?
+): void
+
+export declare function appendFunctionNativeColumns(
+    target: ColumnSet,
+    row: FunctionNativeRow?,
+    shape: FunctionRow?
+): void
+
 export declare function appendSignatureColumnSet(
     target: ColumnSet,
     row: SignatureRow
