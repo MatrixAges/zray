@@ -4,3 +4,9 @@ export const missing_reference: string = "source dependency requires an explicit
 
 export const invalid_reference: string =
     "source dependency escapes the project root or is not a valid module path"
+
+export const target_module: u8 = 0
+
+export const target_function: u8 = 1
+
+export const tree_reference_site: u64 = 0

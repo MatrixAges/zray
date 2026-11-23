@@ -1,0 +1,66 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import next from "./next"
+
+import type { StringBuffer, U8Buffer } from "memory"
+import type { Cursor } from "./model"
+
+export type Input = {
+    cursor: Cursor,
+    references: StringBuffer,
+    packages: U8Buffer,
+    attribute_value: u64,
+    capacity: u64
+}
+
+export type Output = {
+    pending: u8[],
+    count: u64
+}
+
+export default function (in: Input): Output {
+    const { cursor } = in
+
+    return loop({
+        pending: cursor.pending,
+        count: 0,
+        done: false
+    }, {
+        while: state => !state.done && state.count < in.capacity,
+        next: state => {
+            const step = next({
+                cursor: {
+                    ...cursor,
+                    pending: state.pending
+                },
+                graph_only: true,
+                skip: 0
+            })
+
+            state.pending = step.pending
+            const item = step.reference
+
+            if (item == null) {
+                state.done = true
+            } else {
+                const value = columns.readBorrowedRowText(
+                    item.attribute ?? [],
+                    in.attribute_value
+                )
+
+                memory.writeString(in.references, state.count, value)
+                memory.writeU8(
+                    in.packages,
+                    state.count,
+                    item.package_allowed ? 1 : 0
+                )
+                state.count += 1
+            }
+        },
+        return: state => state.pick([
+            "pending",
+            "count"
+        ])
+    })
+}

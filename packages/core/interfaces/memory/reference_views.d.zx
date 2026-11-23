@@ -60,3 +60,22 @@ export declare function readOptionalIndirectTextColumn(
     source: IndirectTextColumn,
     index: u64
 ): string? throws { IndexOutOfBounds }
+
+export declare function readBorrowedRowText(
+    row: u8[],
+    offset: u64
+): string throws { IndexOutOfBounds }
+
+export declare function readBorrowedRowList(
+    row: u8[],
+    offset: u64,
+    width: u64
+): u8[] throws { IndexOutOfBounds }
+
+export declare function appendByteView(
+    resource: ColumnAllocator,
+    storage: ByteViewStorage,
+    bytes: u8[]
+): void throws { OutOfMemory }
+
+export declare function popByteView(storage: ByteViewStorage): u8[]?

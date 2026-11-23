@@ -1,0 +1,62 @@
+import nextNode from "./node"
+import select from "./select"
+
+import type { Cursor, Reference } from "./model"
+
+export type Input = {
+    cursor: Cursor,
+    graph_only: bool,
+    skip: u64
+}
+
+export type Output = {
+    pending: u8[],
+    reference?: Reference
+}
+
+export default function (in: Input): Output {
+    const { cursor, graph_only } = in
+    const { layout } = cursor
+
+    const absent: Reference? = null
+
+    return loop({
+        pending: cursor.pending,
+        reference: absent,
+        remaining: in.skip,
+        done: false
+    }, {
+        while: state => !state.done && state.reference == null,
+        next: state => {
+            const step = nextNode({
+                ...cursor,
+                pending: state.pending
+            })
+
+            state.pending = step.pending
+            const node = step.node
+
+            if (node == null) {
+                state.done = true
+            } else {
+                const reference = select({
+                    node,
+                    layout,
+                    graph_only
+                })
+
+                if (reference != null) {
+                    if (state.remaining != 0) {
+                        state.remaining -= 1
+                    } else {
+                        state.reference = reference
+                    }
+                }
+            }
+        },
+        return: state => state.pick([
+            "pending",
+            "reference"
+        ])
+    })
+}

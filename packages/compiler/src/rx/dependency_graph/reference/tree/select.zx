@@ -1,0 +1,77 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import classify from "../../../schema/execution/tag"
+import target from "../target"
+
+import type { Layout, Reference } from "./model"
+
+export type Input = {
+    node: u8[],
+    layout: Layout,
+    graph_only: bool
+}
+
+export type Output = Reference?
+
+export default function (in: Input): Output {
+    const { node, layout, graph_only } = in
+
+    const width = layout.attribute_width
+    const attributes = columns.readBorrowedRowList(node, layout.node_attributes, width)
+
+    if (graph_only && attributes.length == 0) {
+        return null
+    }
+
+    const name = columns.readBorrowedRowText(node, layout.node_name)
+    const tag = classify(name)
+
+    const rule = target({
+        tag,
+        graph_only
+    })
+
+    if (rule.primary.length == 0) {
+        return null
+    }
+
+    const absent: u8[]? = null
+
+    const found = loop({
+        offset: 0,
+        primary: absent,
+        fallback: absent
+    }, {
+        while: state => state.offset < attributes.length && state.primary == null,
+        next: state => {
+            const row = memory.borrowU8Range(attributes, state.offset, width)
+            const name = columns.readBorrowedRowText(row, layout.attribute_name)
+            const fallback = rule.fallback.length != 0 && state.fallback == null
+
+            if (name == rule.primary) {
+                state.primary = row
+            } else if (fallback && name == rule.fallback) {
+                state.fallback = row
+            }
+
+            state.offset += width
+        }
+    })
+
+    const primary = found.primary != null
+    const attribute = primary ? found.primary : found.fallback
+
+    if (attribute == null && !rule.required) {
+        return null
+    }
+
+    return {
+        node,
+        attribute,
+        target: primary ? rule.target : rule.fallback_target,
+        role: rule.role,
+        package_allowed: primary && rule.package_allowed,
+        graph: primary && rule.graph
+    }
+}

@@ -1,0 +1,108 @@
+import memory from "memory"
+import host from "rx_graph_host"
+
+import classify from "../../../../../zx/modules/project/target/classify"
+import { Route as ImportRoute } from "../../../../../zx/modules/project/target/model"
+import { invalid_reference, missing_reference } from "./const"
+import publishImport from "./import"
+import { Kind } from "./route/model"
+import resolve from "./route/resolve"
+
+import type { Allocator } from "memory"
+import type { GraphEdgeScan } from "rx_graph_host"
+import type { Input as Route } from "./route/model"
+
+export type Input = Route.Omit("reference") & {
+    scan: GraphEdgeScan,
+    allocator: Allocator,
+    intrinsic?: string,
+    delegate_import: bool,
+    reference?: string,
+    site: u64
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const { scan, reference, site, workspace } = in
+
+    if (reference == null) {
+        host.rejectSourceGraphReference(scan, site, missing_reference)
+
+        return workspace.bytes
+    }
+
+    const request = {
+        ...in.pick([
+            "directory",
+            "target",
+            "package_allowed",
+            "packages",
+            "workspace"
+        ]),
+        reference
+    }
+
+    const first = resolve(request)
+
+    const bytes = match first.kind {
+        Kind.NeedSpace => memory.allocateU8Buffer(
+            in.allocator,
+            workspace.target,
+            first.length
+        ),
+        _ => workspace.bytes
+    }
+
+    const route = match first.kind {
+        Kind.NeedSpace => resolve({
+            ...request,
+            workspace: {
+                ...workspace,
+                bytes
+            }
+        }),
+        _ => first
+    }
+
+    switch (route.kind) {
+        case Kind.Package:
+            if (in.delegate_import) {
+                host.resolveSourceGraphImport(
+                    scan,
+                    site,
+                    reference,
+                    true,
+                    route.first,
+                    route.duplicate
+                )
+            } else {
+                const intrinsic = in.intrinsic
+
+                const import_route = match {
+                    intrinsic == null => ImportRoute.Package,
+                    _ => classify({
+                        path: reference,
+                        intrinsic
+                    })
+                }
+
+                publishImport({
+                    target: scan,
+                    reference,
+                    site,
+                    route: import_route,
+                    first: route.first,
+                    duplicate: route.duplicate
+                })
+            }
+        case Kind.Source:
+            host.resolveSourceGraphReference(scan, site, route.length, false)
+        case Kind.Store:
+            host.resolveSourceGraphReference(scan, site, route.length, true)
+        default:
+            host.rejectSourceGraphReference(scan, site, invalid_reference)
+    }
+
+    return bytes
+}

@@ -1,6 +1,7 @@
 export type ReferenceColumn = opaque
 export type ReferenceRows = opaque
 export type ReferenceRow = opaque
+export type ByteViewStorage = opaque
 export type IndirectTextColumn = opaque
 export type ReadColumn = opaque
 export type WriteColumn = opaque

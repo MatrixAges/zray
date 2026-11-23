@@ -2,12 +2,13 @@ const std = @import("std");
 const ast = @import("dsl").ast;
 const generated = @import("rx_options").generated_graph;
 pub const Cursor = @import("cursor.zig");
+pub const Tree = @import("reference/tree.zig");
 const model = @import("frontend").xml_references;
 pub const Entry = model.Entry;
 const Target = model.Target;
 const Role = model.Role;
 
-const SeedRule = struct {
+const Rule = struct {
     primary: []const u8 = "",
     fallback: []const u8 = "",
     target: Target = .Module,
@@ -17,12 +18,6 @@ const SeedRule = struct {
     package_allowed: bool = false,
     graph: bool = false,
 };
-
-const Rule = if (generated)
-    @typeInfo(@TypeOf(@import("generated_rx_reference_rule").executeValue(undefined, undefined))).error_union.payload
-
-else
-    SeedRule;
 
 const Selection = struct {
     attribute: *const ast.Attribute,
@@ -36,7 +31,7 @@ const Result = union(enum) { skip, missing, selected: Selection };
 
 pub const Iterator = struct {
     indexed: ?[]const Entry = null,
-    fallback: Cursor = .{},
+    fallback: if (generated) Tree.Cursor else Cursor = .{},
     pub fn reset(self: *Iterator, node: *const ast.Node, indexed: ?*const model.Index) void {
         self.indexed = if (indexed) |index| model.forNode(index, node) else null;
 
@@ -66,15 +61,17 @@ pub const Iterator = struct {
             return null;
         }
 
+        if (comptime generated) return self.fallback.seek(allocator, graph_only, 0);
+
         while (try self.fallback.next(allocator)) |node| {
-            switch (find(node, graph_only)) {
+            switch (findSeed(node, graph_only)) {
                 .skip => continue,
                 .missing => return .{ .node = node },
                 .selected => |selection| return .{
                     .node = node,
                     .attribute = selection.attribute,
-                    .target = @fromBackingInt(@intCast(@backingInt(selection.target))),
-                    .role = @fromBackingInt(@intCast(@backingInt(selection.role))),
+                    .target = selection.target,
+                    .role = selection.role,
                     .package_allowed = selection.package_allowed,
                     .graph = selection.graph,
                 },
@@ -86,6 +83,21 @@ pub const Iterator = struct {
 };
 
 pub fn find(node: *const ast.Node, comptime graph_only: bool) Result {
+    if (comptime !generated) return findSeed(node, graph_only);
+
+    const entry = Tree.select(node, graph_only) orelse return .skip;
+    const selected = entry.attribute orelse return .missing;
+
+    return .{ .selected = .{
+        .attribute = selected,
+        .target = entry.target,
+        .role = entry.role,
+        .package_allowed = entry.package_allowed,
+        .graph = entry.graph,
+    } };
+}
+
+fn findSeed(node: *const ast.Node, comptime graph_only: bool) Result {
     if (node.attributes.len == 0 and graph_only) return .skip;
 
     const rule = select(node.name, graph_only);
@@ -122,21 +134,6 @@ fn attribute(node: *const ast.Node, name: []const u8) ?*const ast.Attribute {
 }
 
 fn select(tag: []const u8, comptime graph_only: bool) Rule {
-    if (comptime generated) {
-        const execute = @import("generated_rx_reference_rule").executeValue;
-        const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const input: if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter = .{
-            .source = tag,
-            .start = 0,
-            .end = tag.len,
-            .graph_only = graph_only,
-        };
-
-        return execute(empty.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch unreachable;
-    }
-
     if (std.mem.eql(u8, tag, "Import")) return .{ .primary = "from", .required = true, .graph = true };
 
     if (std.mem.eql(u8, tag, "Call")) return .{

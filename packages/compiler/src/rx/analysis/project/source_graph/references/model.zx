@@ -1,0 +1,18 @@
+import type { Allocator, ReadColumn } from "memory"
+import type { IndirectTextColumn } from "memory/columns"
+import type { GraphEdgeScan } from "rx_graph_host"
+import type { Input as Route } from "./route/model"
+
+export type References = {
+    values: IndirectTextColumn,
+    package_allowed: ReadColumn,
+    target_codes: u8[],
+    stride: u64,
+    count: u64
+}
+
+export type Scan = Route.Pick("directory", "packages", "workspace") & {
+    target: GraphEdgeScan,
+    allocator: Allocator,
+    delegate_import: bool
+}

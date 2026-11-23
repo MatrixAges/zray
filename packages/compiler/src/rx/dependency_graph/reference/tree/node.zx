@@ -1,0 +1,39 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Cursor as Input } from "./model"
+
+export type Output = {
+    pending: u8[],
+    node?: u8[]
+}
+
+export default function (in: Input): Output {
+    const { layout, ancestors } = in
+
+    const available = match in.pending.length {
+        0 => columns.popByteView(ancestors),
+        _ => in.pending
+    }
+
+    if (available == null) {
+        return {
+            pending: [],
+            node: null
+        }
+    }
+
+    const width = layout.node_width
+    const node = memory.borrowU8Range(available, 0, width)
+    const siblings = memory.borrowU8Range(available, width, available.length - width)
+    const children = columns.readBorrowedRowList(node, layout.node_children, width)
+
+    if (children.length != 0 && siblings.length != 0) {
+        columns.appendByteView(in.allocator, ancestors, siblings)
+    }
+
+    return {
+        node,
+        pending: children.length != 0 ? children : siblings
+    }
+}

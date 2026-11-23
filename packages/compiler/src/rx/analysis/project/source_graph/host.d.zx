@@ -96,8 +96,14 @@ export declare function rejectSourceGraphEdge(
     message: string
 ): void throws { OutOfMemory, InvalidGraph }
 
-export declare function growSourceGraphPath(target: GraphEdgeScan, count: u64): u8[]
-    throws { OutOfMemory }
+export declare function bindSourceGraphTreeReference(
+    target: GraphEdgeScan,
+    node: u8[],
+    attribute: u8[]?,
+    function_target: bool,
+    call: bool,
+    type_import: bool
+): void
 
 export declare function rejectSourceGraphReference(
     target: GraphEdgeScan,

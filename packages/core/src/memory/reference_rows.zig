@@ -49,6 +49,31 @@ pub inline fn text(source: *const anyopaque, offset: u64) IndexError![]const []c
     return (try field([]const []const u8, @ptrCast(source), offset)).*;
 }
 
+pub inline fn borrowedText(row: []const u8, offset: u64) IndexError![]const u8 {
+    if (offset > row.len or row.len - offset < @sizeOf([]const u8)) return error.IndexOutOfBounds;
+
+    return (try field([]const u8, row.ptr, offset)).*;
+}
+
+pub inline fn borrowedList(row: []const u8, offset: u64, width: u64) IndexError![]const u8 {
+    const slice = try borrowedText(row, offset);
+    const length = std.math.mul(usize, slice.len, std.math.cast(usize, width) orelse return error.IndexOutOfBounds) catch return error.IndexOutOfBounds;
+
+    return slice.ptr[0..length];
+}
+
+pub inline fn appendByteView(resource: *const anyopaque, storage: *const anyopaque, bytes_view: []const u8) std.mem.Allocator.Error!void {
+    const target: *std.ArrayList([]const u8) = @ptrCast(@alignCast(@constCast(storage)));
+
+    try target.append(@import("column_set.zig").borrowAllocator(resource), bytes_view);
+}
+
+pub inline fn popByteView(storage: *const anyopaque) ?[]const u8 {
+    const target: *std.ArrayList([]const u8) = @ptrCast(@alignCast(@constCast(storage)));
+
+    return target.pop();
+}
+
 inline fn rows(source: *const anyopaque) Rows {
     return @as(*const Rows, @ptrCast(@alignCast(source))).*;
 }

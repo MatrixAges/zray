@@ -2,7 +2,7 @@ const std = @import("std");
 const dsl = @import("dsl");
 const generated = @import("generated_graph");
 const publish = @import("generated_graph_edges");
-const dependency = @import("reference.zig");
+const Tree = @import("reference/tree.zig");
 const modules = @import("../modules.zig");
 const memory = @import("zx").memory;
 const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
@@ -23,7 +23,7 @@ comptime {
 
 pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, sources: []const modules.Source, entries: []const []const u8) std.mem.Allocator.Error!Result {
     var graph: Graph = .{ .offsets = try allocator.alloc(u64, sources.len + 1) };
-    var iterator: dependency.Iterator = .{};
+    var cursor: Tree.Cursor = .{};
     var inline_path: [inline_path_bytes]u8 = undefined;
     var path: []u8 = &inline_path;
     var references: [batch_size][]const u8 = undefined;
@@ -35,7 +35,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
         .capacity = registered.buckets.len,
     };
 
-    defer iterator.deinit(allocator);
+    defer cursor.deinit(allocator);
 
     for (sources, 0..) |*source, owner| {
         if (source.indexedGraphReferences()) |indexed| {
@@ -69,28 +69,13 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
             continue;
         }
 
-        iterator.reset(&source.node, source.references);
-
-        var next = try iterator.next(allocator, true);
-
-        if (next == null) continue;
+        cursor.reset(&source.node);
 
         const directory = std.fs.path.dirname(entries[owner]) orelse ".";
         const packages = memory.borrowTextColumn("specifier", source.packages);
         var first: usize = 0;
 
-        while (next != null) {
-            var count: usize = 0;
-
-            while (next) |selection| {
-                references[count] = selection.attribute.?.value;
-                package_allowed[count] = @intFromBool(selection.package_allowed);
-                count += 1;
-                next = try iterator.next(allocator, true);
-
-                if (count == batch_size) break;
-            }
-
+        while (try cursor.batch(allocator, &references, &package_allowed)) |count| {
             try graph.append(allocator, owner, &path, count, .{
                 .directory = directory,
                 .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
@@ -132,19 +117,14 @@ pub fn link(allocator: std.mem.Allocator, source: *const modules.Source, row: u6
         return .{ .node = selection.node, .attribute = selection.attribute.? };
     }
 
-    var iterator: dependency.Iterator = .{};
-    var remaining = row;
+    var cursor: Tree.Cursor = .{};
 
-    defer iterator.deinit(allocator);
-    iterator.reset(&source.node, source.references);
+    defer cursor.deinit(allocator);
+    cursor.reset(&source.node);
 
-    while (try iterator.next(allocator, true)) |selection| {
-        if (remaining == 0) return .{ .node = selection.node, .attribute = selection.attribute.? };
+    const selection = (try cursor.seek(allocator, true, row)).?;
 
-        remaining -= 1;
-    }
-
-    unreachable;
+    return .{ .node = selection.node, .attribute = selection.attribute.? };
 }
 
 const Graph = struct {
