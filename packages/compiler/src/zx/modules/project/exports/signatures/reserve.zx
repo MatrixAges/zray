@@ -1,0 +1,22 @@
+import { reserveAppend } from "core/row_buffer"
+import memory from "memory"
+
+import type { RowsTarget } from "../../../binding/publication/model"
+
+export type Input = RowsTarget & {
+    count: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const first = memory.readU64(in.used, 0)
+
+    const capacity = reserveAppend([
+        in.storage,
+        first,
+        in.count
+    ])
+
+    return first
+}

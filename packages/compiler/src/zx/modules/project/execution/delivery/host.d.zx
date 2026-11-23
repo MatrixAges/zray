@@ -41,9 +41,6 @@ export declare function bindProjectImport(
     exported: bool
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function publishProjectReexports(frame: ProjectImport): void
-    throws { OutOfMemory }
-
 export declare function prepareDeferredProjectSignature(frame: ProjectImport): void
     throws { OutOfMemory }
 

@@ -1,6 +1,7 @@
 import type { Stores } from "core/store_table/model"
-import type { TextColumn, U8Buffer, WriteColumn } from "memory"
-import type { Members } from "../../../binding/publication/model"
+import type { Allocator, ArenaScope, TextColumn, U8Buffer, WriteColumn } from "memory"
+import type { Bindings as Selected } from "../../../binding/model"
+import type { Members, RowsTarget } from "../../../binding/publication/model"
 
 export type Target = {
     name: WriteColumn,
@@ -47,15 +48,25 @@ export type Bindings = {
     count: u64
 }
 
-export type Reexports = {
+export type ReexportRows = RowsTarget & {
     target: Target,
     buffer: U8Buffer,
     signatures: u8[],
     stride: u64,
-    names: string[],
-    indices: u64[],
     facts: BindingFacts,
-    kinds: Kinds
+    kinds: Kinds,
+    backing: Allocator
+}
+
+export type Reexports = Selected & {
+    rows: ReexportRows,
+    first: u64
+}
+
+export type ReexportDelivery = Selected & {
+    rows: ReexportRows,
+    scope: ArenaScope,
+    owner: Allocator
 }
 
 export type Input = {

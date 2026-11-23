@@ -1,18 +1,20 @@
 import bytes from "std:bytes"
 import strings from "std:string"
 import memory from "memory"
+import columns from "memory/columns"
 
 import fromBinding from "./from_binding"
 import write from "./write"
 
 import type { Reexports as Input } from "./model"
 
-export type Output = bool
+export type Output = void
 
 export default function (in: Input): Output {
-    const { names, indices, signatures, stride, buffer, target, kinds, facts } = in
+    const { names, indices, rows, first } = in
+    const { signatures, stride, buffer, target, kinds, facts } = rows
 
-    return loop({
+    const valid = loop({
         row: 0,
         valid: true
     }, {
@@ -20,19 +22,24 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.row
             const index = indices[row]
+            const destination = first + row
 
             if (signatures.length != 0) {
                 const name = strings.copy(names[row])
                 const start = stride * index
                 const copied = memory.copyBytes(
                     buffer,
-                    stride * row,
+                    stride * destination,
                     signatures,
                     start,
                     start + stride
                 )
 
-                memory.writeColumnBytes(target.name, row, bytes.fromText(name))
+                memory.writeColumnBytes(
+                    target.name,
+                    destination,
+                    bytes.fromText(name)
+                )
             } else {
                 const signature = fromBinding({
                     kinds,
@@ -47,7 +54,7 @@ export default function (in: Input): Output {
                         ...signature,
                         name: strings.copy(names[row]),
                         target,
-                        row
+                        row: destination
                     })
                 }
             }
@@ -56,4 +63,7 @@ export default function (in: Input): Output {
         },
         return: state => state.valid
     })
+
+    columns.requireColumnBounds(valid)
+    memory.writeU64(rows.used, 0, first + names.length)
 }

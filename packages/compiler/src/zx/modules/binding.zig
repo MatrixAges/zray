@@ -7,10 +7,16 @@ const Context = @import("binding/context.zig");
 const FunctionImport = @import("function_import.zig");
 const Request = @import("binding/input.zig");
 const Publisher = @import("binding/publication/host.zig");
+const Reexports = @import("binding/publication/reexports.zig");
 pub const Members = @import("binding/members.zig");
 pub const Symbols = @import("binding/symbols.zig").Symbols;
 pub const Selection = @import("binding/symbols.zig").Selection;
-pub const TypeLists = Publisher.TypeLists;
+
+pub const Lists = struct {
+    types: Publisher.TypeLists,
+    functions: ?Publisher.FunctionList = null,
+    reexports: ?Reexports.List = null,
+};
 
 /// A caller that immediately copies the diagnostic can borrow it from the selection scope.
 pub fn select(allocator: std.mem.Allocator, diagnostics: ?std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter) zx.Error!Selection {
@@ -25,19 +31,24 @@ pub fn select(allocator: std.mem.Allocator, diagnostics: ?std.mem.Allocator, ite
     return readSelection(output, diagnostics, reporter);
 }
 
-pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter, types: Publisher.TypeLists, functions: ?Publisher.FunctionList) zx.Error!Selection {
+pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter, lists: Lists) zx.Error!void {
     const rule = @import("generated_project_binding_delivery");
     const Input = std.meta.Child(rule.Input);
     var storage: Request.Storage = undefined;
     var publisher: Publisher.Publication = undefined;
+    var reexports: Reexports = undefined;
     var scope: memory.ArenaScope = .{ .active = temporary };
 
-    publisher.init(types, functions);
+    publisher.init(lists.types, lists.functions);
     defer publisher.commit();
+    if (lists.reexports) |list| reexports.init(list);
+
+    defer if (lists.reexports != null) reexports.commit();
 
     const input: Input = .{
         .request = storage.init(item, symbols),
         .destinations = &publisher.destinations,
+        .reexports = if (lists.reexports != null) &reexports.input else null,
         .scope = @ptrCast(&scope),
         .owner = @ptrCast(&allocator),
     };
@@ -45,7 +56,7 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
     const result = zx.columns.invoke(rule.executeValue, scope.allocator(), &input) catch |err|
         return bindingFailure(allocator, item.span, reporter, err);
 
-    return readSelection(result, allocator, reporter);
+    return reportOutcome(result, allocator, reporter);
 }
 
 fn bindingFailure(allocator: std.mem.Allocator, span: zx.Span, reporter: *zx.Reporter, err: anyerror) zx.Error {
@@ -57,11 +68,7 @@ fn bindingFailure(allocator: std.mem.Allocator, span: zx.Span, reporter: *zx.Rep
 }
 
 fn readSelection(output: anytype, diagnostics: ?std.mem.Allocator, reporter: *zx.Reporter) zx.Error!Selection {
-    if (output.message.len != 0) return reporter.fail(
-        .module,
-        .{ .start = @intCast(output.start), .end = @intCast(output.end) },
-        if (diagnostics) |owner| try owner.dupe(u8, output.message) else output.message,
-    );
+    try reportOutcome(output, diagnostics, reporter);
 
     return .{
         .aliases = .{ .names = output.alias_names, .indices = output.alias_indices },
@@ -71,15 +78,24 @@ fn readSelection(output: anytype, diagnostics: ?std.mem.Allocator, reporter: *zx
     };
 }
 
+fn reportOutcome(output: anytype, diagnostics: ?std.mem.Allocator, reporter: *zx.Reporter) zx.Error!void {
+    if (output.message.len != 0) return reporter.fail(
+        .module,
+        .{ .start = @intCast(output.start), .end = @intCast(output.end) },
+        if (diagnostics) |owner| try owner.dupe(u8, output.message) else output.message,
+    );
+}
+
 pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, context: Context, reporter: *zx.Reporter, aliases: *std.ArrayList(zx.ir.Export), imports: *std.ArrayList(FunctionImport), constants: *std.ArrayList(zx.ir.Constant)) zx.Error!void {
     const members: Members = .{ .default = if (context.default_member) |*member| member else null, .named = context.members };
     const functions = if (comptime generated) members.names() else if (item.kind == .type_only) Members.Names{} else members.names();
     const symbols = Symbols{ .target = context.target, .types = context.types, .exports = context.exports, .constants = context.constant_exports, .functions = functions };
 
     if (comptime generated) {
-        _ = try deliver(allocator, temporary, item, &symbols, reporter, .{ .exports = context.exports, .values = context.constant_exports, .aliases = aliases, .constants = constants }, .{ .members = members, .imports = imports });
-
-        return;
+        return deliver(allocator, temporary, item, &symbols, reporter, .{
+            .types = .{ .exports = context.exports, .values = context.constant_exports, .aliases = aliases, .constants = constants },
+            .functions = .{ .members = members, .imports = imports },
+        });
     }
 
     const selected = try select(temporary, allocator, item, &symbols, reporter);

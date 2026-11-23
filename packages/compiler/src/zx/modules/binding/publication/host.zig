@@ -4,6 +4,7 @@ const ir = zx.ir;
 const memory = zx.memory;
 const Binding = @import("../../function_import.zig");
 const Members = @import("../members.zig");
+const Tail = @import("tail.zig").Tail;
 const generated = @import("generated_project_binding_delivery");
 const Input = std.meta.Child(generated.Input);
 const Destinations = std.meta.Child(@FieldType(Input, "destinations"));
@@ -101,30 +102,3 @@ pub const Publication = struct {
         if (self.destinations.functions != null) self.functions.commit();
     }
 };
-
-fn Tail(comptime Row: type, comptime Destination: type, comptime fields: anytype) type {
-    const Columns = std.meta.Child(@FieldType(Destination, "target"));
-
-    return struct {
-        const Self = @This();
-        list: *std.ArrayList(Row),
-        output: memory.RowOutput(Row, Columns, fields),
-        length: u64,
-        used: []u64,
-        fn init(self: *Self, list: *std.ArrayList(Row)) void {
-            self.list = list;
-
-            self.output.init();
-            self.output.bind(list.allocatedSlice());
-
-            self.length = list.items.len;
-            self.used = @as(*[1]u64, @ptrCast(&self.length));
-        }
-        fn commit(self: *Self) void {
-            const rows = self.output.rows();
-
-            self.list.items = rows[0..@intCast(self.length)];
-            self.list.capacity = rows.len;
-        }
-    };
-}

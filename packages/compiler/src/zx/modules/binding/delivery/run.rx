@@ -1,8 +1,7 @@
 <Module>
     <Type from="model" as="Delivery" />
-    <Type from="../model" as="Bindings" />
 
-    <Args in={Delivery.Input} out={Bindings.Result} />
+    <Args in={Delivery.Input} out={Delivery.Outcome} />
 
     <Call module="../bind" in={$in.request} />
 
@@ -22,7 +21,28 @@
                 destinations: $in.destinations
             }}
         />
+
+        <If on={$in.reexports != null && $ctx.bind.function_names.length != 0}>
+            <Call
+                module="../../project/exports/signatures/publish_reexports"
+                in={{
+                    ...$in.pick([
+                        "scope",
+                        "owner"
+                    ]),
+                    rows: $in.reexports,
+                    names: $ctx.bind.function_names,
+                    indices: $ctx.bind.function_indices
+                }}
+            />
+        </If>
     </If>
 
-    <Return value={$ctx.bind} />
+    <Return
+        value={$ctx.bind.pick([
+            "message",
+            "start",
+            "end"
+        ])}
+    />
 </Module>

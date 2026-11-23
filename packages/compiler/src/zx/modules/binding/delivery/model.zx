@@ -1,10 +1,14 @@
 import type { Allocator, ArenaScope } from "memory"
-import type { Request } from "../model"
+import type { ReexportRows } from "../../project/exports/signatures/model"
+import type { Request, Result } from "../model"
 import type { Destinations } from "../publication/model"
 
 export type Input = {
     request: Request,
     destinations: Destinations,
+    reexports?: ReexportRows,
     scope: ArenaScope,
     owner: Allocator
 }
+
+export type Outcome = Result.Pick("message", "start", "end")

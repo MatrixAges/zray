@@ -2,7 +2,6 @@ const zx = @import("zx");
 const Frame = @import("frame.zig");
 const Binding = @import("../../../binding.zig");
 const Native = @import("../native.zig");
-const Signature = @import("../../../source_signature.zig");
 
 pub fn reuseProjectNativeUnit(handle: *const anyopaque) bool {
     const frame = Frame.borrow(handle);
@@ -108,32 +107,29 @@ pub fn bindProjectImport(handle: *const anyopaque, signature: bool, exported: bo
 
     const temporary = project.bindingAllocator();
 
-    const types: Binding.TypeLists = .{
-        .exports = imported.exports,
-        .values = imported.constant_exports,
-        .aliases = if (exported) &active.export_aliases else &active.aliases,
-        .constants = if (exported) &active.export_constants else &active.constant_imports,
+    const lists: Binding.Lists = .{
+        .types = .{
+            .exports = imported.exports,
+            .values = imported.constant_exports,
+            .aliases = if (exported) &active.export_aliases else &active.aliases,
+            .constants = if (exported) &active.export_constants else &active.constant_imports,
+        },
+        .functions = if (signature) null else .{
+            .members = functions,
+            .imports = if (exported) &active.export_functions else &active.imports,
+        },
+        .reexports = if (signature and exported) .{
+            .signatures = imported.signatures,
+            .bindings = functions,
+            .stores = project.functions.stores.items,
+            .rows = &active.signature_members,
+            .backing = project.arena.child_allocator,
+        } else null,
     };
 
-    const imports = if (exported) &active.export_functions else &active.imports;
-
-    const selected = switch (frame.item) {
-        inline else => |item| try Binding.deliver(project.allocator, temporary, item, &symbols, project.reporter, types, if (signature) null else .{ .members = functions, .imports = imports }),
+    return switch (frame.item) {
+        inline else => |item| Binding.deliver(project.allocator, temporary, item, &symbols, project.reporter, lists),
     };
-
-    if (signature and exported) frame.reexports = selected.functions;
-}
-
-pub fn publishProjectReexports(handle: *const anyopaque) error{OutOfMemory}!void {
-    const frame = Frame.borrow(handle);
-    const project = frame.walk.project;
-
-    try Signature.publishReexports(project.allocator, project.arena.child_allocator, .{
-        .signatures = frame.imported.signatures,
-        .bindings = members(frame),
-        .stores = project.functions.stores.items,
-        .selected = frame.reexports,
-    }, &frame.active.signature_members);
 }
 
 fn members(frame: *const Frame) Binding.Members {

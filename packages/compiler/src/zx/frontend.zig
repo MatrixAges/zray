@@ -110,7 +110,6 @@ pub const bindProjectLegacy = import_bind.bindProjectLegacy;
 pub const prepareProjectIntrinsic = import_bind.prepareProjectIntrinsic;
 pub const loadProjectLibrary = import_bind.loadProjectLibrary;
 pub const bindProjectImport = import_bind.bindProjectImport;
-pub const publishProjectReexports = import_bind.publishProjectReexports;
 pub const recordProjectImport = import_bind.recordProjectImport;
 pub const finishProjectFrame = project_walk.finishProjectFrame;
 pub const closeProjectFrame = project_walk.closeProjectFrame;

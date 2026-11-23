@@ -12,10 +12,6 @@
         ]}
     />
 
-    <If on={$in.signature && $in.exported}>
-        <Call fn="index.publishProjectReexports" in={$in.frame} />
-    </If>
-
     <If on={!$in.signature}>
         <Call fn="index.recordProjectImport" in={$in.frame} />
     </If>

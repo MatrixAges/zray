@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Types = @import("../analysis/types.zig");
 const FunctionImport = @import("function_import.zig");
-const DynamicMembers = @import("binding/members.zig");
 
 pub const Ports = struct {
     input_type: ir.TypeId,
@@ -92,54 +91,11 @@ pub fn publishMembers(allocator: std.mem.Allocator, signature: *const Result, st
     try writeMembers(rule, allocator, &input);
 }
 
-pub const Reexports = struct {
-    signatures: []const Member,
-    bindings: DynamicMembers,
-    stores: []const *const ir.StoreTable,
-    selected: @import("binding/symbols.zig").Bindings,
-};
-
-pub fn publishReexports(allocator: std.mem.Allocator, backing: std.mem.Allocator, imports: Reexports, members: *std.ArrayList(Member)) std.mem.Allocator.Error!void {
-    const count = imports.selected.names.len;
-
-    if (count == 0) return;
-    try members.ensureUnusedCapacity(backing, count);
-
-    const rule = @import("generated_project_signature_reexports");
-    const Input = std.meta.Child(rule.Input);
-    const Facts = std.meta.Child(@FieldType(Input, "facts"));
-    const Source = std.meta.Child(@FieldType(Facts, "members"));
-    const Fallback = std.meta.Child(@typeInfo(@FieldType(Source, "fallback")).optional.child);
-    const fallback = if (imports.bindings.default) |member| member.borrow(Fallback) else null;
-    const rows = members.unusedCapacitySlice()[0..count];
-    const target = Target.borrow(rows);
-    const buffer = std.mem.sliceAsBytes(rows);
-    const readable = FunctionImport.Readable.borrowRows(imports.bindings.named);
-
-    const input: Input = .{
-        .target = &target.view(std.meta.Child(@FieldType(Input, "target"))),
-        .buffer = @ptrCast(&buffer),
-        .signatures = std.mem.sliceAsBytes(imports.signatures),
-        .stride = @sizeOf(Member),
-        .names = imports.selected.names,
-        .indices = imports.selected.indices,
-        .facts = &bindingFacts(Facts, &.{
-            .named = &readable.view(std.meta.Child(@FieldType(Source, "named"))),
-            .fallback = if (fallback) |*value| value else null,
-        }, imports.stores),
-        .kinds = &kinds(std.meta.Child(@FieldType(Input, "kinds"))),
-    };
-
-    try writeMembers(rule, allocator, &input);
-
-    members.items.len += count;
-}
-
-fn kinds(comptime Kinds: type) Kinds {
+pub fn kinds(comptime Kinds: type) Kinds {
     return .{ .callable = @backingInt(Member.Kind.callable), .intrinsic = @backingInt(Member.Kind.intrinsic) };
 }
 
-fn bindingFacts(comptime Facts: type, source: @FieldType(Facts, "members"), stores: []const *const ir.StoreTable) Facts {
+pub fn bindingFacts(comptime Facts: type, source: @FieldType(Facts, "members"), stores: []const *const ir.StoreTable) Facts {
     return .{ .members = source, .stores = zx.columns.slice(@FieldType(Facts, "stores"), stores), .void_type = @backingInt(Types.scalarId(.void)) };
 }
 
