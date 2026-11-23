@@ -108,57 +108,7 @@ fn lookup(self: Self, index: usize) ?Graph.Id {
 pub fn propagate(self: Self, graph: *Graph) zx.Error!void {
     if (!@import("rx_options").generated_graph) return self.seedPropagate(graph);
 
-    const generated = @import("generated_assignment_next_merge");
-    const Input = std.meta.Child(generated.Input);
-    const Known = std.meta.Child(@FieldType(Input, "known"));
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var start: usize = 0;
-    var other: ?u32 = null;
-    var value: u32 = 0;
-    var remaining: u64 = 0;
-
-    while (start < self.parents.len) {
-        const nodes = graph.nodes.slice();
-        const parents = graph.parents();
-        const types = &graph.types.items;
-
-        const input: Input = .{
-            .graph = &.{ .kinds = nodes.items(.kind), .arguments = nodes.items(.argument), .types = &.{ .kinds = types.kinds.items, .children = types.first.items } },
-            .allowed = nodes.items(.allowed),
-            .classes = &.{ .groups = self.parents, .representatives = self.representatives },
-            .parents = @ptrCast(&parents),
-            .known = &graph.pending.known_types.borrow(Known),
-            .next = start,
-            .other = other,
-            .value = value,
-            .remaining = remaining,
-            .root = 0,
-            .action = .Scan,
-        };
-
-        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-
-        start = @intCast(result.next);
-
-        switch (result.action) {
-            .Scan => return,
-            .Register => {
-                const registered = try @import("../known.zig").registerPayload(graph, result.value, result.remaining, nodes.items(.span)[result.root]);
-
-                value = @backingInt(registered.node);
-                other = result.other;
-                remaining = registered.remaining;
-            },
-            .Depth => return graph.reporter.fail(.unsupported, nodes.items(.span)[result.root], "type inference nesting exceeds 256 levels"),
-            .Merge => {
-                const index = start - 1;
-
-                try graph.unify(@fromBackingInt(@intCast(index)), @fromBackingInt(result.other.?), nodes.items(.span)[index]);
-
-                other = null;
-            },
-        }
-    }
+    return @import("application/host.zig").propagate(graph, self);
 }
 
 fn seedPropagate(self: Self, graph: *Graph) zx.Error!void {

@@ -1,0 +1,18 @@
+<Module>
+    <Type from="workflow" as="Assignment" />
+
+    <Args in={Assignment.Request} out={void} />
+
+    <Loop on={$in.next < $in.request.classes.groups.length}>
+        <Call
+            module="merge_next"
+            in={{
+                request: $in,
+                next: 0,
+                other: null,
+                value: 0,
+                remaining: 0
+            }}
+        />
+    </Loop>
+</Module>

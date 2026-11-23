@@ -5,9 +5,8 @@ import memory from "memory"
 import payload from "../../optional/payload"
 import { Action as PayloadAction } from "../../optional/payload"
 
-import type { State as Known } from "core/integer/map/model"
 import type { U32Buffer } from "memory"
-import type { Graph } from "../../optional/model"
+import type { View } from "../application/merge"
 
 export enum Action {
     Scan,
@@ -15,34 +14,54 @@ export enum Action {
     Depth
 }
 
-export type Input = {
-    graph: Graph,
-    known: Known,
-    parents: U32Buffer,
-    payloads: U32Buffer,
+export type Range = {
     start: u64,
-    limit: u64,
+    limit: u64
+}
+
+export type Cursor = {
     next: u64,
+    source?: u32,
+    remaining?: u64
+}
+
+export type Input = Cursor & {
+    view: View,
+    payloads: U32Buffer,
+    range: Range
+}
+
+export type Output = Cursor.Omit("source") & {
     source: u32,
     origin: u32,
-    remaining?: u64,
     action: Action
 }
 
-export type Output =
-    Input.Omit("graph", "known", "payloads", "start", "limit", "parents")
-
 export default function (in: Input): Output {
-    return loop(in, {
+    const { graph, known, parents } = in.view
+    const { start, limit } = in.range
+
+    const payloads = in.payloads
+    const source = in.source ?? integers.narrow(in.next)
+
+    const initial: Output = {
+        next: in.next,
+        source,
+        remaining: in.remaining,
+        origin: source,
+        action: Action.Scan
+    }
+
+    return loop(initial, {
         while: state =>
             state.action == Action.Scan &&
-            state.next < state.limit,
+            state.next < limit,
         next: state => {
             const source = state.source
             const result = payload({
-                graph: state.graph,
-                known: state.known,
-                parents: state.parents,
+                graph,
+                known,
+                parents,
                 value: source,
                 remaining: state.remaining ?? max_nesting_depth
             })
@@ -57,25 +76,19 @@ export default function (in: Input): Output {
                 state.action = Action.Depth
             } else {
                 memory.writeU32(
-                    state.payloads,
-                    state.next - state.start,
+                    payloads,
+                    state.next - start,
                     result.root
                 )
 
                 state.next += 1
                 state.remaining = null
 
-                if (state.next < state.limit) {
+                if (state.next < limit) {
                     state.source = integers.narrow(state.next)
                 }
             }
         },
-        return: state => ({
-            next: state.next,
-            source: state.source,
-            origin: state.origin,
-            remaining: state.remaining,
-            action: state.action
-        })
+        return: state => state
     })
 }

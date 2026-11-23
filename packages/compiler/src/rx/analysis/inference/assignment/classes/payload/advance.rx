@@ -1,0 +1,63 @@
+<Module>
+    <Type from="model" as="Payload" />
+    <Type from="../payloads" as="Scan" />
+
+    <Args in={Payload.Iteration} out={Payload.Iteration} />
+
+    <Call
+        fn="../payloads"
+        in={{
+            view: $in.range.request.view,
+            payloads: $in.range.request.payloads,
+            range: {
+                start: $in.range.start,
+                limit: $in.range.limit
+            },
+            next: $in.next,
+            source: $in.source,
+            remaining: $in.remaining
+        }}
+    />
+
+    <If on={$ctx.payloads.action == Scan.Action.Depth}>
+        <Call
+            fn="host.rejectAssignmentDepth"
+            in={[
+                $in.range.request.frame,
+                $ctx.payloads.origin
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.payloads.action == Scan.Action.Register}>
+        <Call
+            fn="host.registerAssignmentPayload"
+            in={[
+                $in.range.request.frame,
+                $ctx.payloads.origin,
+                $ctx.payloads.source,
+                $ctx.payloads.remaining ?? 0
+            ]}
+        />
+
+        <Call fn="host.remainingAssignmentDepth" in={$in.range.request.frame} />
+
+        <Return
+            value={{
+                range: $in.range,
+                next: $ctx.payloads.next,
+                source: $ctx.registerAssignmentPayload,
+                remaining: $ctx.remainingAssignmentDepth
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            range: $in.range,
+            next: $ctx.payloads.next,
+            source: $ctx.payloads.source,
+            remaining: $ctx.payloads.remaining
+        }}
+    />
+</Module>

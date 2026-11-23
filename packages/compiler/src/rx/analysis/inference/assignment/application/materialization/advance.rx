@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Materialization" />
+
+    <Args in={Materialization.Iteration} out={Materialization.Iteration} />
+
+    <Call
+        fn="../materialize"
+        in={{
+            ...$in.request.views,
+            next: $in.next
+        }}
+    />
+
+    <If on={$ctx.materialize.payload != null}>
+        <Call
+            fn="host.materializeAssignment"
+            in={[
+                $in.request.frame,
+                $ctx.materialize.node,
+                $ctx.materialize.payload,
+                $ctx.materialize.layers
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            next: $ctx.materialize.next
+        }}
+    />
+</Module>

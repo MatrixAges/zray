@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Payload" />
+
+    <Args in={Payload.Request} out={void} />
+
+    <Call fn="host.beginInitialAssignmentPayloads" in={$in.frame} />
+
+    <Call
+        module="range"
+        in={{
+            request: $in,
+            start: 0,
+            limit: $ctx.beginInitialAssignmentPayloads
+        }}
+    />
+
+    <Call
+        fn="host.beginRegisteredAssignmentPayloads"
+        in={[
+            $in.frame,
+            $ctx.beginInitialAssignmentPayloads
+        ]}
+    />
+
+    <Call
+        module="range"
+        in={{
+            request: $in,
+            start: $ctx.beginInitialAssignmentPayloads,
+            limit: $ctx.beginRegisteredAssignmentPayloads
+        }}
+    />
+</Module>

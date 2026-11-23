@@ -1,0 +1,73 @@
+<Module>
+    <Type from="workflow" as="Assignment" />
+    <Type from="merge" as="Merge" />
+
+    <Args in={Assignment.Iteration} out={Assignment.Iteration} />
+
+    <Call
+        fn="merge"
+        in={{
+            view: $in.request.view,
+            classes: $in.request.classes,
+            next: $in.next,
+            other: $in.other,
+            value: $in.value,
+            remaining: $in.remaining
+        }}
+    />
+
+    <If on={$ctx.merge.action == Merge.Action.Depth}>
+        <Call
+            fn="host.rejectAssignmentDepth"
+            in={[
+                $in.request.frame,
+                $ctx.merge.root
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.merge.action == Merge.Action.Register}>
+        <Call
+            fn="host.registerAssignmentPayload"
+            in={[
+                $in.request.frame,
+                $ctx.merge.root,
+                $ctx.merge.value,
+                $ctx.merge.remaining
+            ]}
+        />
+
+        <Call fn="host.remainingAssignmentDepth" in={$in.request.frame} />
+
+        <Return
+            value={{
+                request: $in.request,
+                next: $ctx.merge.next,
+                other: $ctx.merge.other,
+                value: $ctx.registerAssignmentPayload,
+                remaining: $ctx.remainingAssignmentDepth
+            }}
+        />
+    </If>
+
+    <If on={$ctx.merge.action == Merge.Action.Merge}>
+        <Call
+            fn="host.mergeAssignmentClass"
+            in={[
+                $in.request.frame,
+                $ctx.merge.next - 1,
+                $ctx.merge.other ?? 0
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            next: $ctx.merge.next,
+            other: null,
+            value: 0,
+            remaining: 0
+        }}
+    />
+</Module>

@@ -12,6 +12,10 @@ export type TypeResolver = opaque
 
 export type AssignmentValidation = opaque
 
+export type AssignmentApplication = opaque
+
+export type AssignmentMaterialization = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -555,3 +559,33 @@ export declare function resolveAssignmentEndpoint(frame: AssignmentValidation, n
 
 export declare function rejectAssignmentEdge(frame: AssignmentValidation, row: u64): void
     throws { OutOfMemory, InvalidSource }
+
+export declare function beginInitialAssignmentPayloads(frame: AssignmentApplication): u64
+    throws { OutOfMemory }
+
+export declare function beginRegisteredAssignmentPayloads(
+    frame: AssignmentApplication,
+    first: u64
+): u64 throws { OutOfMemory }
+
+export declare function registerAssignmentPayload(
+    frame: AssignmentApplication,
+    node: u32,
+    value: u32,
+    remaining: u64
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function remainingAssignmentDepth(frame: AssignmentApplication): u64
+
+export declare function rejectAssignmentDepth(frame: AssignmentApplication, node: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function mergeAssignmentClass(frame: AssignmentApplication, row: u64, other: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function materializeAssignment(
+    frame: AssignmentMaterialization,
+    node: u32,
+    payload: u32,
+    layers: u64
+): void throws { OutOfMemory, InvalidSource }

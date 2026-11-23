@@ -17,40 +17,44 @@ export enum Action {
     Depth
 }
 
-export type Input = {
+export type View = {
     graph: Graph,
     allowed: u16?[],
-    classes: ClassLookup,
     parents: U32Buffer,
-    known: Known,
+    known: Known
+}
+
+export type Cursor = {
     next: u64,
     other?: u32,
     value: u32,
-    root: u32,
-    remaining: u64,
-    action: Action
+    remaining: u64
 }
 
-export type Output = Input.Pick(
-    "action",
-    "next",
-    "other",
-    "value",
-    "root",
-    "remaining"
-)
+export type Input = Cursor & {
+    view: View,
+    classes: ClassLookup
+}
+
+export type Output = Cursor & {
+    action: Action,
+    root: u32
+}
 
 export default function (in: Input): Output {
-    const { graph, allowed, classes, parents, known } = in
+    const { view, classes } = in
+    const { graph, allowed, parents, known } = view
 
-    return loop({
+    const initial: Output = {
         action: Action.Scan,
         next: in.next,
         other: in.other,
         value: in.value,
-        root: in.root,
+        root: 0,
         remaining: in.remaining
-    }, {
+    }
+
+    return loop(initial, {
         while: state => state.action == Action.Scan && state.next < classes.groups.length,
         next: state => {
             const continuing = state.other != null
