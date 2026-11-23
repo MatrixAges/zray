@@ -3,11 +3,10 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Nodes = @import("../nodes.zig");
 const Target = @import("../sequences/target.zig");
-const solver = @import("generated_rx_run_constraint_solver");
-const Input = std.meta.Child(solver.Input);
-const Sequences = std.meta.Child(@FieldType(Input, "sequences"));
-const Lengths = std.meta.Child(@FieldType(Input, "lengths"));
-const Indexes = std.meta.Child(@FieldType(Input, "indexes"));
+const Solve = @import("../../project/workflow/solve/abi.zig").Solve;
+const Sequences = std.meta.Child(@FieldType(Solve, "sequences"));
+const Lengths = std.meta.Child(@FieldType(Solve, "lengths"));
+const Indexes = std.meta.Child(@FieldType(Solve, "indexes"));
 const Known = std.meta.Child(@FieldType(Lengths, "known"));
 const Self = @This();
 

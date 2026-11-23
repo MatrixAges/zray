@@ -3,7 +3,24 @@
 
     <Args in={Solver.Request} out={void} />
 
-    <Call fn="host.collectFlowConstraints" in={$in} />
-    <Call fn="host.finishFlowConstraints" in={$in} />
-    <Call fn="host.resolveFlowConstraints" in={$in} />
+    <Call fn="host.openFlowPorts" in={$in.frame} />
+
+    <Call module="../../constraints/ports/run" in={$in.ports} />
+
+    <Call fn="host.releaseFlowDeclarations" in={$in.frame} />
+    <Call fn="host.openFlowCollection" in={$in.frame} />
+
+    <Call module="../../constraints/collection/run" in={$in.collection} />
+
+    <Call fn="host.releaseFlowCollection" in={$in.frame} />
+    <Call fn="host.openFlowSolver" in={$in.frame} />
+
+    <Call module="../../../inference/solve/run" in={$in.solve} />
+
+    <Call fn="host.releaseFlowPending" in={$in.frame} />
+    <Call fn="host.bindFlowSignatures" in={$in.frame} />
+
+    <Call module="../../signatures/run" in={$in.signatures} />
+
+    <Call fn="host.publishFlowSignatures" in={$in.frame} />
 </Module>

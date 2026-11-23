@@ -17,8 +17,8 @@ const PortStorage = @import("constraints/ports.zig");
 const Collection = @import("constraints/collection.zig");
 pub const Ports = PortStorage.Slice;
 
-pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap, arguments: *const Inputs, requests: *Requests) zx.Error!Ports {
-    const states = try PortStorage.initialize(graph, modules, source_map);
+pub fn collectSeed(graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap, arguments: *const Inputs, requests: *Requests) zx.Error!Ports {
+    const states = try PortStorage.initializeSeed(graph, modules, source_map);
 
     var collection: Collection = .{
         .graph = graph,
@@ -32,11 +32,7 @@ pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: Sour
 
     defer collection.scope.deinit();
 
-    if (comptime @import("rx_options").generated_graph) {
-        try @import("constraints/collection/host.zig").run(&collection);
-    } else {
-        try collection.seed();
-    }
+    try collection.seed();
 
     return states;
 }

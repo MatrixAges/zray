@@ -2,57 +2,46 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../../inference/types.zig");
 const Kind = @import("../../inference/nodes.zig").Kind;
-const Resolve = @import("../../inference/resolve/host.zig");
+const Table = @import("../signatures.zig").Table;
+const Input = @import("../workflow/solve/abi.zig").Signatures;
+const Columns = std.meta.Child(@FieldType(Input, "columns"));
+const Nodes = std.meta.Child(@FieldType(Columns, "nodes"));
 
-pub const Columns = struct {
-    inputs: []u32,
-    outputs: []u32,
-    binding_ends: []const u64,
-    task_ends: []const u64,
-    bindings: []u32,
-    tasks: []u32,
-};
+pub const Frame = struct {
+    table: Table = .{},
+    input: Input = undefined,
+    columns: Columns = undefined,
+    nodes: Nodes = undefined,
+    ports: std.meta.Child(@FieldType(Columns, "ports")) = undefined,
+    target: std.meta.Child(@FieldType(Columns, "target")) = undefined,
+    parents: []u32 = undefined,
+    pub fn bind(self: *Frame, graph: *const Graph, table: Table, resolver: @FieldType(Input, "resolver")) void {
+        const rows = graph.nodes.slice();
+        const kinds: []const Kind = rows.items(.kind);
+        self.table = table;
+        self.parents = graph.parents();
 
-pub fn run(graph: *Graph, resolver: *Graph.Resolver, columns: Columns) zx.Error!void {
-    const rule = @import("generated_rx_publish_signatures");
-    const Input = std.meta.Child(rule.Input);
-    const Request = std.meta.Child(@FieldType(Input, "columns"));
-    const Nodes = std.meta.Child(@FieldType(Request, "nodes"));
-    const nodes = graph.nodes.slice();
-    const parents = graph.parents();
-    const kinds: []const Kind = nodes.items(.kind);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var scope: zx.memory.ArenaScope = .{ .active = empty.allocator() };
-    var resolution: Resolve.Frame = .{};
-
-    resolution.bind(graph, resolver, &scope);
-    defer resolution.close();
-
-    const request: Request = .{
-        .nodes = &.{
-            .parents = @ptrCast(&parents),
+        self.nodes = .{
+            .parents = @ptrCast(&self.parents),
             .kinds = zx.columns.slice(@FieldType(Nodes, "kinds"), kinds),
-            .arguments = nodes.items(.argument),
-        },
-        .ports = &.{
-            .inputs = columns.inputs,
-            .outputs = columns.outputs,
-            .binding_ends = columns.binding_ends,
-            .task_ends = columns.task_ends,
-        },
-        .target = &.{
-            .bindings = @ptrCast(&columns.bindings),
-            .tasks = @ptrCast(&columns.tasks),
-            .inputs = @ptrCast(&columns.inputs),
-            .outputs = @ptrCast(&columns.outputs),
-        },
-    };
+            .arguments = rows.items(.argument),
+        };
 
-    const input: Input = .{ .resolver = &resolution.view, .columns = &request };
-    const workflow = @import("../workflow/errors.zig");
+        self.ports = .{
+            .inputs = table.inputs,
+            .outputs = table.outputs,
+            .binding_ends = table.binding_ends,
+            .task_ends = table.task_ends,
+        };
 
-    rule.executeIn(scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => return workflow.errorSet(err),
-    };
-}
+        self.target = .{
+            .bindings = @ptrCast(&self.table.binding_types),
+            .tasks = @ptrCast(&self.table.task_types),
+            .inputs = @ptrCast(&self.table.inputs),
+            .outputs = @ptrCast(&self.table.outputs),
+        };
+
+        self.columns = .{ .nodes = &self.nodes, .ports = &self.ports, .target = &self.target };
+        self.input = .{ .resolver = resolver, .columns = &self.columns };
+    }
+};

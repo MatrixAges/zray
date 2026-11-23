@@ -1,5 +1,10 @@
 export {
-    collectFlowConstraints,
-    finishFlowConstraints,
-    resolveFlowConstraints
+    openFlowPorts,
+    releaseFlowDeclarations,
+    openFlowCollection,
+    releaseFlowCollection,
+    openFlowSolver,
+    releaseFlowPending,
+    bindFlowSignatures,
+    publishFlowSignatures
 } from "rx_project_host"

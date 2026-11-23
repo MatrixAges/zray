@@ -3,7 +3,6 @@ const Module = @import("../module.zig");
 const Graph = @import("../inference/types.zig");
 const Ports = @import("constraints.zig").Ports;
 const Requests = @import("signatures/requests.zig");
-const generated = @import("rx_options").generated_graph;
 
 pub const Signature = struct {
     input_type: zx.ir.TypeId,
@@ -35,53 +34,46 @@ pub const Table = struct {
     }
 };
 
-pub fn resolve(graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests: Requests) zx.Error!Table {
+pub fn borrow(ports: Ports, requests: Requests) Table {
     if (ports.len == 0) return .{};
 
-    const task_types = requests.tasks.items;
     const bindings = requests.bindings.slice();
-    const names = bindings.items(.name);
-    const binding_types: []u32 = @ptrCast(bindings.items(.value));
-    const inputs: []u32 = @ptrCast(ports.items(.input));
-    const outputs: []u32 = @ptrCast(ports.items(.output));
-    const binding_ends = ports.items(.binding_end);
-    const task_ends = ports.items(.task_end);
-
-    if (comptime generated) {
-        try @import("signatures/host.zig").run(graph, resolver, .{
-            .inputs = inputs,
-            .outputs = outputs,
-            .binding_ends = binding_ends,
-            .task_ends = task_ends,
-            .bindings = binding_types,
-            .tasks = task_types,
-        });
-    } else {
-        const resolveSeed = @import("../inference/resolve/seed.zig").resolve;
-        var binding_start: usize = 0;
-        var task_start: usize = 0;
-
-        for (inputs, outputs, binding_ends, task_ends) |*input, *output, raw_binding_end, raw_task_end| {
-            const binding_end: usize = @intCast(raw_binding_end);
-            const task_end: usize = @intCast(raw_task_end);
-
-            for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try resolveSeed(graph, @fromBackingInt(binding.*), 0));
-            for (task_types[task_start..task_end]) |*task| task.* = binding_types[binding_start + task.*];
-
-            input.* = @backingInt(try resolveSeed(graph, @fromBackingInt(input.*), 0));
-            output.* = @backingInt(try resolveSeed(graph, @fromBackingInt(output.*), 0));
-            binding_start = binding_end;
-            task_start = task_end;
-        }
-    }
 
     return .{
-        .inputs = inputs,
-        .outputs = outputs,
-        .binding_ends = binding_ends,
-        .task_ends = task_ends,
-        .names = names,
-        .binding_types = binding_types,
-        .task_types = task_types,
+        .inputs = @ptrCast(ports.items(.input)),
+        .outputs = @ptrCast(ports.items(.output)),
+        .binding_ends = ports.items(.binding_end),
+        .task_ends = ports.items(.task_end),
+        .names = bindings.items(.name),
+        .binding_types = @ptrCast(bindings.items(.value)),
+        .task_types = requests.tasks.items,
     };
+}
+
+pub fn resolveSeed(graph: *Graph, ports: Ports, requests: Requests) zx.Error!Table {
+    const table = borrow(ports, requests);
+    const inputs = @constCast(table.inputs);
+    const outputs = @constCast(table.outputs);
+    const binding_ends = table.binding_ends;
+    const task_ends = table.task_ends;
+    const binding_types = @constCast(table.binding_types);
+    const task_types = @constCast(table.task_types);
+    const resolveNode = @import("../inference/resolve/seed.zig").resolve;
+    var binding_start: usize = 0;
+    var task_start: usize = 0;
+
+    for (inputs, outputs, binding_ends, task_ends) |*input, *output, raw_binding_end, raw_task_end| {
+        const binding_end: usize = @intCast(raw_binding_end);
+        const task_end: usize = @intCast(raw_task_end);
+
+        for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try resolveNode(graph, @fromBackingInt(binding.*), 0));
+        for (task_types[task_start..task_end]) |*task| task.* = binding_types[binding_start + task.*];
+
+        input.* = @backingInt(try resolveNode(graph, @fromBackingInt(input.*), 0));
+        output.* = @backingInt(try resolveNode(graph, @fromBackingInt(output.*), 0));
+        binding_start = binding_end;
+        task_start = task_end;
+    }
+
+    return table;
 }

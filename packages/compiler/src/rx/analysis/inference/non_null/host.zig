@@ -3,9 +3,8 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Nodes = @import("../nodes.zig");
 const Topology = @import("../optional/topology.zig").borrowType;
-const solver = @import("generated_rx_run_constraint_solver");
-const Input = std.meta.Child(solver.Input);
-const Replay = std.meta.Child(@FieldType(Input, "non_null"));
+const Solve = @import("../../project/workflow/solve/abi.zig").Solve;
+const Replay = std.meta.Child(@FieldType(Solve, "non_null"));
 const Node = std.meta.Child(@FieldType(Replay, "node"));
 
 pub const Frame = struct {

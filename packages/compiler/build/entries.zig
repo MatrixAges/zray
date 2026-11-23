@@ -929,8 +929,6 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
-    .{ .path = "rx/analysis/project/constraints/ports/run.rx", .name = "rx_port_registration", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/constraints/collection/run.rx", .name = "rx_collect_module_constraints", .owner = .rx_analysis },
     .{ .path = "genz/analysis/node_headers/direct.zx", .name = "direct_ast_range", .owner = .genz },
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
     .{ .path = "backends/zig/state/publication/build.rx", .name = "publish_state", .owner = .compiler },
@@ -988,8 +986,6 @@ pub const execution = [_]Entry{
     .{ .path = "rx/analysis/project/workflow/infer/run.rx", .name = "rx_execute_inference", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/workflow/derive/run.rx", .name = "rx_execute_derivation", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/workflow/solve/constraints.rx", .name = "rx_execute_constraints", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/inference/solve/run.rx", .name = "rx_run_constraint_solver", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/signatures/run.rx", .name = "rx_publish_signatures", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/known/run.rx", .name = "rx_register_known_types", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/assignment/registration/single.rx", .name = "rx_register_assignment", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/assignment/registration/batch.rx", .name = "rx_register_assignment_series", .owner = .rx_analysis },

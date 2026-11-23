@@ -136,5 +136,5 @@ pub fn payload(self: *Self, id: Id, kind: Containers.Kind, span: zx.Span) zx.Err
     return child;
 }
 
-pub const finish = @import("solve.zig").finish;
+pub const finishSeed = @import("solve.zig").finishSeed;
 pub const Resolver = @import("resolve.zig").Workspace;

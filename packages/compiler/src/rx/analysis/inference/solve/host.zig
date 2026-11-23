@@ -7,12 +7,14 @@ const NonNull = @import("../non_null/host.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Projections = @import("../projections/frame.zig");
 const Objects = @import("../object_closure/replay.zig");
+const Input = @import("../../project/workflow/solve/abi.zig").Solve;
 const Resolve = @import("../resolve/host.zig");
 const Assignments = @import("../assignment/application/host.zig");
 
 pub const Frame = struct {
-    graph: *Graph,
-    resolver: *Graph.Resolver,
+    graph: *Graph = undefined,
+    resolver: *Graph.Resolver = undefined,
+    input: if (generated) Input else void = undefined,
     resolution: if (generated) Resolve.Frame else void = if (generated) .{} else {},
     workspace: std.heap.ArenaAllocator,
     closure: ObjectClosure,
@@ -22,6 +24,39 @@ pub const Frame = struct {
     bindings: if (generated) Bindings.Frame else void = undefined,
     non_null: if (generated) NonNull.Frame else void = undefined,
     projections: if (generated) Projections else void = undefined,
+    pub fn bind(self: *Frame, graph: *Graph, resolver: *Graph.Resolver, scope: *zx.memory.ArenaScope) void {
+        self.graph = graph;
+        self.resolver = resolver;
+        self.scope = scope;
+        scope.active = self.workspace.allocator();
+
+        self.input = .{
+            .frame = @ptrCast(self),
+            .bindings = &self.bindings.view,
+            .non_null = &self.non_null.view,
+            .lengths = &self.projections.lengths,
+            .indexes = &self.projections.indexes,
+            .assignments = &self.assignments.view,
+            .objects = &self.objects.view,
+            .sequences = &self.projections.sequences,
+            .validation = &self.assignments.validation,
+        };
+    }
+
+    pub fn release(self: *Frame) void {
+        _ = self.workspace.reset(.free_all);
+        _ = self.closure.arena.reset(.free_all);
+    }
+    pub fn deinit(self: *Frame, scope: *zx.memory.ArenaScope) void {
+        if (comptime generated) {
+            self.resolution.close();
+            self.objects.memory.close(scope);
+        }
+
+        self.workspace.deinit();
+        self.closure.deinit();
+    }
+
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }

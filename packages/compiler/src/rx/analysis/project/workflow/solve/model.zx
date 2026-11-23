@@ -1,3 +1,13 @@
 import type { Solver } from "rx_project_host"
+import type { Request as SolverInput } from "../../../inference/solve/model"
+import type { Request as Collection } from "../../constraints/collection/model"
+import type { Request as Ports } from "../../constraints/ports/model"
+import type { Request as Signatures } from "../../signatures/model"
 
-export type Request = Solver
+export type Request = {
+    frame: Solver,
+    ports: Ports,
+    collection: Collection,
+    solve: SolverInput,
+    signatures: Signatures
+}

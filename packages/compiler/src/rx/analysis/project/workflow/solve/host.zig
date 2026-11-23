@@ -4,7 +4,16 @@ const Derivation = @import("../derive/host.zig").State;
 const Graph = @import("../../../inference/types.zig");
 const SourceMap = @import("../../../source_map.zig");
 const Constraints = @import("../../constraints.zig");
+const Contracts = @import("../../contracts.zig");
+const Ports = @import("../../constraints/ports.zig");
+const PortHost = @import("../../constraints/ports/host.zig");
+const Collection = @import("../../constraints/collection.zig");
+const CollectionHost = @import("../../constraints/collection/host.zig");
+const Inference = @import("../../../inference/solve/host.zig").Frame;
+const Signatures = @import("../../signatures.zig");
+const SignatureHost = @import("../../signatures/host.zig");
 const Requests = @import("../../signatures/requests.zig");
+const abi = @import("abi.zig");
 const workflow = @import("../errors.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
@@ -37,16 +46,63 @@ pub fn run(derivation: *Derivation) Error!void {
     defer state.resolver.deinit(backing);
 
     if (comptime generated) {
-        const entry = @import("generated_rx_execute_constraints");
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        return entry.executeIn(empty.allocator(), @ptrCast(&state)) catch |err| workflow.errorSet(err);
+        var stages: Stages = .{
+            .empty = empty.allocator(),
+            .scope = .{ .active = empty.allocator() },
+            .declarations = .init(backing),
+            .collection_scratch = .init(backing),
+            .body = .{
+                .graph = undefined,
+                .modules = undefined,
+                .source_map = source_map,
+                .states = undefined,
+                .arguments = derivation.inputs,
+                .requests = &state.requests,
+                .scope = .init(backing),
+            },
+            .inference = .{ .workspace = .init(backing), .closure = .init(backing) },
+        };
+
+        defer stages.deinit();
+
+        state.stages = &stages;
+
+        const input: abi.Input = .{
+            .frame = @ptrCast(&state),
+            .ports = &stages.ports.input,
+            .collection = &stages.collection.input,
+            .solve = &stages.inference.input,
+            .signatures = &stages.signatures.input,
+        };
+
+        return abi.entry.executeIn(stages.scope.allocator(), &input) catch |err| state.report(switch (@as(anyerror, err)) {
+            error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+            else => workflow.errorSet(err),
+        });
     }
 
-    try state.collect();
-    try state.finish();
-    try state.resolve();
+    state.seed() catch |err| return state.report(err);
 }
+
+const Stages = struct {
+    empty: std.mem.Allocator,
+    scope: zx.memory.ArenaScope,
+    declarations: zx.Arena,
+    ports: PortHost.Frame = .{},
+    body: Collection,
+    collection: CollectionHost.Frame = .{},
+    collection_scratch: std.heap.ArenaAllocator,
+    inference: Inference,
+    signatures: SignatureHost.Frame = .{},
+    fn deinit(self: *Stages) void {
+        self.inference.deinit(&self.scope);
+        self.collection_scratch.deinit();
+        self.body.scope.deinit();
+        self.declarations.deinit();
+    }
+};
 
 const State = struct {
     derivation: *Derivation,
@@ -58,33 +114,44 @@ const State = struct {
     resolver: Graph.Resolver = .{},
     requests: Requests = .{},
     ports: Constraints.Ports = undefined,
-    fn collect(self: *State) Error!void {
+    stages: if (generated) *Stages else void = undefined,
+    fn openGraph(self: *State) Error!void {
         const derivation = self.derivation;
         const loaded = &derivation.prepared.?;
 
-        self.graph = Graph.init(.{
+        self.graph = try Graph.init(.{
             .graph = self.workspace.allocator(),
             .pending = self.pending.allocator(),
             .result = derivation.allocator,
             .backing = derivation.backing,
-        }, &self.reporter, loaded.project.context.types) catch |err| return self.report(err);
-
-        self.ports = Constraints.collect(&self.graph, loaded.modules, self.source_map, derivation.inputs, &self.requests) catch |err| return self.report(err);
+        }, &self.reporter, loaded.project.context.types);
     }
-    fn finish(self: *State) Error!void {
-        self.graph.finish(&self.resolver) catch |err| return self.report(err);
-
+    fn releasePending(self: *State) void {
         self.graph.pending = undefined;
 
         self.pending.reset(0);
     }
 
-    fn resolve(self: *State) Error!void {
+    fn publish(self: *State, table: Signatures.Table) void {
         const derivation = self.derivation;
-        const signatures = @import("../../signatures.zig");
-        derivation.frame.resolved = signatures.resolve(&self.graph, &self.resolver, self.ports, self.requests) catch |err| return self.report(err);
+
+        derivation.frame.resolved = table;
         derivation.frame.types = self.graph.types.items.view();
     }
+    fn seed(self: *State) Error!void {
+        const derivation = self.derivation;
+        const loaded = &derivation.prepared.?;
+
+        try self.openGraph();
+
+        self.ports = try Constraints.collectSeed(&self.graph, loaded.modules, self.source_map, derivation.inputs, &self.requests);
+
+        try self.graph.finishSeed(&self.resolver);
+
+        self.releasePending();
+        self.publish(try Signatures.resolveSeed(&self.graph, self.ports, self.requests));
+    }
+
     fn report(self: *State, err: Error) Error {
         const project = @import("../../../project.zig");
         const value = try project.report(self.derivation.allocator, self.source_map, self.reporter, err);
@@ -99,14 +166,71 @@ fn borrow(handle: *const anyopaque) *State {
     return @ptrCast(@alignCast(@constCast(handle)));
 }
 
-pub fn collectFlowConstraints(handle: *const anyopaque) Error!void {
-    return borrow(handle).collect();
+pub fn openFlowPorts(handle: *const anyopaque) Error!void {
+    const state = borrow(handle);
+    const stages = state.stages;
+    const modules = state.derivation.prepared.?.modules;
+
+    try state.openGraph();
+
+    state.ports = try Ports.reserve(state.graph.types.allocator, modules.len);
+
+    const declared = try Contracts.resolve(stages.declarations.allocator(), &state.graph, modules, state.source_map);
+
+    stages.ports.bind(&state.graph, state.ports, modules, state.source_map, declared);
 }
 
-pub fn finishFlowConstraints(handle: *const anyopaque) Error!void {
-    return borrow(handle).finish();
+pub fn releaseFlowDeclarations(handle: *const anyopaque) void {
+    borrow(handle).stages.declarations.reset(0);
 }
 
-pub fn resolveFlowConstraints(handle: *const anyopaque) Error!void {
-    return borrow(handle).resolve();
+pub fn openFlowCollection(handle: *const anyopaque) void {
+    const state = borrow(handle);
+    const stages = state.stages;
+
+    stages.body.graph = &state.graph;
+    stages.body.modules = state.derivation.prepared.?.modules;
+    stages.body.states = state.ports;
+    stages.scope.active = stages.collection_scratch.allocator();
+
+    stages.collection.bind(&stages.body, &stages.ports.port_columns);
+}
+
+pub fn releaseFlowCollection(handle: *const anyopaque) void {
+    const stages = borrow(handle).stages;
+
+    stages.scope.active = stages.empty;
+    _ = stages.collection_scratch.reset(.free_all);
+}
+
+pub fn openFlowSolver(handle: *const anyopaque) void {
+    const state = borrow(handle);
+
+    state.stages.inference.bind(&state.graph, &state.resolver, &state.stages.scope);
+}
+
+pub fn releaseFlowPending(handle: *const anyopaque) void {
+    const state = borrow(handle);
+    const stages = state.stages;
+
+    stages.scope.active = stages.empty;
+
+    stages.inference.release();
+    state.releasePending();
+}
+
+pub fn bindFlowSignatures(handle: *const anyopaque) void {
+    const state = borrow(handle);
+    const stages = state.stages;
+    const resolution = &stages.inference.resolution;
+    const table = Signatures.borrow(state.ports, state.requests);
+
+    resolution.bind(&state.graph, &state.resolver, &stages.scope);
+    stages.signatures.bind(&state.graph, table, &resolution.view);
+}
+
+pub fn publishFlowSignatures(handle: *const anyopaque) void {
+    const state = borrow(handle);
+
+    state.publish(state.stages.signatures.table);
 }

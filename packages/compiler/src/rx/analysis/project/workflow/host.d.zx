@@ -172,14 +172,22 @@ export declare function completeDerivedShortcuts(state: Derivation): void
 
 export declare function publishDerivedFrame(state: Derivation): void
 
-export declare function collectFlowConstraints(state: Solver): void
+export declare function openFlowPorts(state: Solver): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function finishFlowConstraints(state: Solver): void
-    throws { OutOfMemory, InvalidSource }
+export declare function releaseFlowDeclarations(state: Solver): void
 
-export declare function resolveFlowConstraints(state: Solver): void
-    throws { OutOfMemory, InvalidSource }
+export declare function openFlowCollection(state: Solver): void
+
+export declare function releaseFlowCollection(state: Solver): void
+
+export declare function openFlowSolver(state: Solver): void
+
+export declare function releaseFlowPending(state: Solver): void
+
+export declare function bindFlowSignatures(state: Solver): void
+
+export declare function publishFlowSignatures(state: Solver): void
 
 export declare function mixedBatchEnd(state: Mixed, batch: u64): u64
 

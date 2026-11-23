@@ -4,7 +4,6 @@ const Graph = @import("../../inference/types.zig");
 const SourceMap = @import("../../source_map.zig");
 const Prepared = @import("../prepare.zig");
 const Contracts = @import("../contracts.zig");
-const generated = @import("rx_options").generated_graph;
 
 const Row = struct {
     input: Graph.Id,
@@ -17,25 +16,25 @@ const Row = struct {
 const Storage = std.MultiArrayList(Row);
 pub const Slice = Storage.Slice;
 
-pub fn initialize(graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap) zx.Error!Slice {
+pub fn reserve(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Slice {
     var storage: Storage = .empty;
 
-    try storage.setCapacity(graph.types.allocator, modules.len);
+    try storage.setCapacity(allocator, count);
 
-    storage.len = modules.len;
+    storage.len = count;
 
+    return storage.slice();
+}
+
+pub fn initializeSeed(graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap) zx.Error!Slice {
+    const rows = try reserve(graph.types.allocator, modules.len);
     var declarations = zx.Arena.init(graph.scratch);
 
     defer declarations.deinit();
 
     const declared = try Contracts.resolve(declarations.allocator(), graph, modules, source_map);
-    const rows = storage.slice();
 
-    if (comptime generated) {
-        try @import("ports/host.zig").run(graph, rows, modules, source_map, declared);
-    } else {
-        try seed(graph, rows, modules, source_map, declared);
-    }
+    try seed(graph, rows, modules, source_map, declared);
 
     return rows;
 }

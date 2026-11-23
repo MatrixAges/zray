@@ -2,53 +2,44 @@ const std = @import("std");
 const zx = @import("zx");
 const Collection = @import("../collection.zig");
 const Defaults = @import("../../input_defaults.zig");
-const rule = @import("generated_rx_collect_module_constraints");
-const Input = std.meta.Child(rule.Input);
+const Input = @import("../../workflow/solve/abi.zig").Collection;
 const Columns = std.meta.Child(@FieldType(Input, "default_columns"));
 
-const Frame = struct {
-    state: *Collection,
+pub const Frame = struct {
+    state: *Collection = undefined,
+    input: Input = undefined,
+    ports: std.meta.Child(@FieldType(Input, "ports")) = undefined,
+    unused: [1]u64 = .{0},
+    count: []u64 = undefined,
     parents: []u32 = undefined,
     marked: []bool = &.{},
     edges: std.meta.Child(@FieldType(Columns, "edges")) = undefined,
     columns: Columns = undefined,
+    pub fn bind(self: *Frame, state: *Collection, port_columns: anytype) void {
+        self.state = state;
+        self.count = &self.unused;
+
+        self.ports = .{
+            .fixed = port_columns.fixed,
+            .binding_ends = port_columns.binding_ends,
+            .task_ends = port_columns.task_ends,
+        };
+
+        self.input = .{
+            .frame = @ptrCast(self),
+            .modules = state.modules.len,
+            .parents = @ptrCast(&self.parents),
+            .unused = @ptrCast(&self.count),
+            .marked = @ptrCast(&self.marked),
+            .default_columns = &self.columns,
+            .ports = &self.ports,
+        };
+    }
+
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
 };
-
-pub fn run(state: *Collection) zx.Error!void {
-    var frame: Frame = .{ .state = state };
-    var unused: [1]u64 = .{0};
-    const count: []u64 = &unused;
-    const fixed = state.states.items(.input_fixed);
-    const binding_ends = state.states.items(.binding_end);
-    const task_ends = state.states.items(.task_end);
-
-    const input: Input = .{
-        .frame = @ptrCast(&frame),
-        .modules = state.modules.len,
-        .parents = @ptrCast(&frame.parents),
-        .unused = @ptrCast(&count),
-        .marked = @ptrCast(&frame.marked),
-        .default_columns = &frame.columns,
-        .ports = &.{
-            .fixed = @ptrCast(&fixed),
-            .binding_ends = @ptrCast(&binding_ends),
-            .task_ends = @ptrCast(&task_ends),
-        },
-    };
-
-    var scratch = std.heap.ArenaAllocator.init(state.graph.scratch);
-
-    defer scratch.deinit();
-
-    rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        error.InvalidSource => return error.InvalidSource,
-        else => unreachable,
-    };
-}
 
 pub fn openConstraintModule(handle: *const anyopaque, row: u64) bool {
     return Frame.borrow(handle).state.open(@intCast(row));

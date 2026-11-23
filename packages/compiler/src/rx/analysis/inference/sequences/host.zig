@@ -2,9 +2,8 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Registration = @import("../assignment/registration.zig");
-const solver = @import("generated_rx_run_constraint_solver");
-const Input = std.meta.Child(solver.Input);
-const View = std.meta.Child(@FieldType(Input, "sequences"));
+const Solve = @import("../../project/workflow/solve/abi.zig").Solve;
+const View = std.meta.Child(@FieldType(Solve, "sequences"));
 const Spans = @FieldType(View, "spans");
 
 pub fn borrowSequenceElementSpans(handle: *const anyopaque, row: u64) Spans {
