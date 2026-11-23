@@ -14,21 +14,14 @@ export type Position = {
 }
 
 export type Publication = {
-    queue: U64Buffer,
-    cursor: u64,
+    owner: u64,
     starts: U64Buffer,
     ends: U64Buffer,
     edge_start: u64,
     edge_end: u64
 }
 
-export type Input = Queue & Publication.Omit("queue")
-
 export type Selection = {
     cursor: u64,
     owner?: u64
-}
-
-export type Output = Selection & {
-    end: u64
 }

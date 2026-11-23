@@ -7,12 +7,6 @@ export type Input = Publication
 export type Output = void
 
 export default function (in: Input): Output {
-    if (in.cursor == 0) {
-        return
-    }
-
-    const owner = memory.readU64(in.queue, in.cursor - 1)
-
-    memory.writeU64(in.starts, owner, in.edge_start)
-    memory.writeU64(in.ends, owner, in.edge_end)
+    memory.writeU64(in.starts, in.owner, in.edge_start)
+    memory.writeU64(in.ends, in.owner, in.edge_end)
 }

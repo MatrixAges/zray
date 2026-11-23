@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Visit" />
+
+    <Args in={Visit.Input} out={u64} />
+
+    <Call
+        fn="../enqueue"
+        in={{
+            ...$in.pick([
+                "seen",
+                "queue"
+            ]),
+            end: 0,
+            targets: $in.roots
+        }}
+    />
+
+    <Call
+        fn="../frontier/select"
+        in={{
+            queue: $in.queue,
+            cursor: 0,
+            end: $ctx.enqueue
+        }}
+    />
+
+    <Loop on={$in.owner != null}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                ...$ctx.select,
+                end: $ctx.enqueue,
+                edge_end: 0
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.advance.end} />
+</Module>

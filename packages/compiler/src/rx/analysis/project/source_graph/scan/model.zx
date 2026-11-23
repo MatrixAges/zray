@@ -1,0 +1,19 @@
+import type { U32Buffer, U64Buffer } from "memory"
+import type { GraphVisit } from "rx_graph_host"
+import type { Selection } from "../frontier/model"
+import type { Ranges } from "../source"
+
+export type Input = Ranges & {
+    target: GraphVisit,
+    roots: u64[],
+    seen: U32Buffer,
+    queue: U64Buffer,
+    starts: U64Buffer,
+    ends: U64Buffer
+}
+
+export type State = Selection & {
+    request: Input,
+    end: u64,
+    edge_end: u64
+}

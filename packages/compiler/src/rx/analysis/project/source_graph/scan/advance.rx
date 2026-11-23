@@ -1,0 +1,91 @@
+<Module>
+    <Type from="model" as="Visit" />
+    <Type from="../source" as="Source" />
+
+    <Args in={Visit.State} out={Visit.State} />
+
+    <Call
+        fn="../source"
+        in={{
+            owner: $in.owner ?? 0,
+            sources: $in.request.pick([
+                "zx_count",
+                "rx_end"
+            ])
+        }}
+    />
+
+    <If on={$ctx.source.kind == Source.Kind.ZX}>
+        <Call
+            fn="host.readSourceGraphZX"
+            in={[
+                $in.request.target,
+                $ctx.source.owner
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="host.readSourceGraphRX"
+                in={[
+                    $in.request.target,
+                    $ctx.source.owner,
+                    $ctx.source.row,
+                    $ctx.source.kind == Source.Kind.Store
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Call
+        fn="host.publishSourceGraphDependencies"
+        in={[
+            $in.request.target,
+            $ctx.source.owner,
+            $in.edge_end
+        ]}
+    />
+
+    <Call
+        fn="../frontier/publish"
+        in={{
+            ...$in.request.pick([
+                "starts",
+                "ends"
+            ]),
+            owner: $ctx.source.owner,
+            edge_start: $in.edge_end,
+            edge_end: $in.edge_end + $ctx.publishSourceGraphDependencies.length
+        }}
+    />
+
+    <Call
+        fn="../enqueue"
+        in={{
+            ...$in.request.pick([
+                "seen",
+                "queue"
+            ]),
+            end: $in.end,
+            targets: $ctx.publishSourceGraphDependencies
+        }}
+    />
+
+    <Call
+        fn="../frontier/select"
+        in={{
+            queue: $in.request.queue,
+            cursor: $in.cursor,
+            end: $ctx.enqueue
+        }}
+    />
+
+    <Return
+        value={{
+            request: $in.request,
+            ...$ctx.select,
+            end: $ctx.enqueue,
+            edge_end: $in.edge_end + $ctx.publishSourceGraphDependencies.length
+        }}
+    />
+</Module>

@@ -27,36 +27,39 @@ pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u6
 
     var scan: Scan = .{
         .collector = collector,
-        .adjacency = adjacency,
-        .roots = roots,
         .sources = sources,
         .modules = modules,
         .stores = stores,
         .parsed = &parsed,
-        .frontier = &frontier,
     };
 
     defer cache.reused += scan.reused;
 
-    if (comptime enabled) {
+    const reached = if (comptime enabled) source: {
         const rule = @import("generated_rx_visit_source_graph");
 
         const input: std.meta.Child(rule.Input) = .{
             .target = @ptrCast(&scan),
             .zx_count = collector.sources.zx_count,
             .rx_end = collector.sources.rx_end,
-            .end = collector.modules.len,
+            .roots = roots,
+            .seen = @ptrCast(&frontier.seen),
+            .queue = @ptrCast(&frontier.queue),
+            .starts = @ptrCast(&adjacency.starts),
+            .ends = @ptrCast(&adjacency.ends),
         };
 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        const count = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             error.InvalidGraph => return error.InvalidGraph,
             else => unreachable,
         };
-    } else {
-        var next = scan.first();
+
+        break :source @as(usize, @intCast(count));
+    } else seed: {
+        var next = frontier.advance(adjacency, .{ .targets = roots, .end = 0 });
 
         while (next) |owner| {
             switch (collector.sources.at(owner)) {
@@ -65,9 +68,13 @@ pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u6
                 .store => |row| try scan.collectRX(owner, stores[row]),
             }
 
-            next = try scan.finish(owner);
+            const targets = try scan.publish(owner, frontier.edge_end);
+
+            next = frontier.advance(adjacency, .{ .targets = targets, .end = collector.targets.items.len });
         }
-    }
+
+        break :seed frontier.end;
+    };
 
     adjacency.targets = collector.targets.items;
 
@@ -76,24 +83,18 @@ pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u6
         parsed = .{};
     }
 
-    return frontier.end;
+    return reached;
 }
 
 const Scan = struct {
     collector: *Collector,
-    adjacency: *model.Adjacency,
-    roots: []const u64,
     sources: []const project.Source,
     modules: []const rx.ModuleSource,
     stores: []const rx.ModuleSource,
     parsed: *project.ParseCache.Prefetched,
-    frontier: *Frontier,
     reused: usize = 0,
     fn borrow(handle: *const anyopaque) *Scan {
         return @ptrCast(@alignCast(@constCast(handle)));
-    }
-    fn first(self: *Scan) ?usize {
-        return self.frontier.advance(self.adjacency, .{ .targets = self.roots, .end = 0 });
     }
     fn collectZX(self: *Scan, owner: usize) Collector.Error!void {
         const source = self.sources[owner];
@@ -132,25 +133,16 @@ const Scan = struct {
         self.collector.begin(owner, "");
         try rx_edges.collect(self.collector, module);
     }
-    fn finish(self: *Scan, owner: usize) Collector.Error!?usize {
+    fn publish(self: *Scan, owner: usize, start: usize) std.mem.Allocator.Error![]const u64 {
         const collector = self.collector;
 
         collector.modules.items(.dependencies)[owner] = try collector.edges.toOwnedSlice(collector.allocator);
 
-        const targets = collector.targets.items;
-        const next = self.frontier.advance(self.adjacency, .{ .targets = targets[self.frontier.edge_end..], .end = targets.len });
-
         _ = collector.temporary.reset(.retain_capacity);
 
-        return next;
+        return collector.targets.items[start..];
     }
 };
-
-pub fn firstSourceGraphVisit(handle: *const anyopaque) u64 {
-    const scan = Scan.borrow(handle);
-
-    return scan.first() orelse scan.collector.modules.len;
-}
 
 pub fn readSourceGraphZX(handle: *const anyopaque, owner: u64) Collector.Error!void {
     try Scan.borrow(handle).collectZX(@intCast(owner));
@@ -163,8 +155,6 @@ pub fn readSourceGraphRX(handle: *const anyopaque, owner: u64, row: u64, store: 
     try scan.collectRX(@intCast(owner), if (store) scan.stores[index] else scan.modules[index]);
 }
 
-pub fn finishSourceGraphVisit(handle: *const anyopaque, owner: u64) Collector.Error!u64 {
-    const scan = Scan.borrow(handle);
-
-    return (try scan.finish(@intCast(owner))) orelse scan.collector.modules.len;
+pub fn publishSourceGraphDependencies(handle: *const anyopaque, owner: u64, start: u64) std.mem.Allocator.Error![]const u64 {
+    return Scan.borrow(handle).publish(@intCast(owner), @intCast(start));
 }
