@@ -4,19 +4,11 @@
     <Args in={Delivery.Binding} out={void} />
 
     <Call
-        fn="index.selectProjectBindings"
+        fn="index.bindProjectImport"
         in={[
             $in.frame,
-            $in.signature
-        ]}
-    />
-
-    <Call
-        fn="index.publishProjectBindings"
-        in={[
-            $in.frame,
-            $in.exported,
-            !$in.signature
+            $in.signature,
+            $in.exported
         ]}
     />
 

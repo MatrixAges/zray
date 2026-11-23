@@ -1,21 +1,26 @@
 import type { Rows } from "core/constant/rows"
-import type { NamedRowBuffer, NamedRows, U64Buffer } from "memory"
+import type { NamedRows, U64Buffer, WriteColumn } from "memory"
+import type { RowBuffer } from "memory/columns"
 import type { Source, Target } from "../../artifact/surface/bindings"
 import type { Target as ConstantTarget } from "../../artifact/surface/constants"
-import type { PortShape } from "../model"
+import type { Bindings, PortShape, Result } from "../model"
 
-export type Selected = {
-    names: string[],
-    indices: u64[],
-    written: U64Buffer
+export type RowsTarget = {
+    storage: RowBuffer,
+    used: U64Buffer
 }
 
-export type Aliases = Selected & {
+export type AliasColumns = {
+    name: WriteColumn,
+    id: WriteColumn
+}
+
+export type Aliases = RowsTarget & {
     source: NamedRows,
-    target: NamedRowBuffer
+    target: AliasColumns
 }
 
-export type Constants = Selected & {
+export type Constants = RowsTarget & {
     source: Rows.Pick("types", "values"),
     target: ConstantTarget
 }
@@ -30,13 +35,21 @@ export type Members = {
     fallback?: Binding
 }
 
-export type Functions = Selected & Members & {
-    target: Target,
-    namespace?: string
+export type Functions = RowsTarget & Members & {
+    target: Target
+}
+
+export type Destinations = {
+    aliases: Aliases,
+    constants: Constants,
+    functions?: Functions
 }
 
 export type Input = {
-    aliases?: Aliases,
-    constants?: Constants,
-    functions?: Functions
+    selected: Result,
+    destinations: Destinations
+}
+
+export type Selected = Bindings & {
+    used: U64Buffer
 }

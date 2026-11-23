@@ -35,14 +35,11 @@ export declare function prepareProjectSource(frame: ProjectImport, row: u64): vo
 export declare function loadProjectLibrary(frame: ProjectImport): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function selectProjectBindings(frame: ProjectImport, signature: bool): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function publishProjectBindings(
+export declare function bindProjectImport(
     frame: ProjectImport,
-    exported: bool,
-    callable: bool
-): void throws { OutOfMemory }
+    signature: bool,
+    exported: bool
+): void throws { OutOfMemory, InvalidSource }
 
 export declare function publishProjectReexports(frame: ProjectImport): void
     throws { OutOfMemory }

@@ -3,31 +3,49 @@ import strings from "std:string"
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { Constants as Input } from "./model"
+import type { Constants, Selected } from "./model"
+
+export type Input = Selected & Constants.Pick("source", "target")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { names, indices, source, target, written } = in
+    const { names, indices, source, target, used } = in
+
+    const first = memory.readU64(used, 0)
 
     const published = loop(0, {
         while: row => row < names.length,
         next: row => {
             const index = indices[row]
+            const destination = first + row
             const name = strings.copy(names[row])
             const type_id = columns.readColumnU32(source.types, index)
             const text = columns.readScalarText(source.values, index)
 
             if (text != null) {
-                columns.writeScalarText(target.values, row, strings.copy(text))
+                columns.writeScalarText(
+                    target.values,
+                    destination,
+                    strings.copy(text)
+                )
             } else {
-                columns.copyScalarAt(source.values, index, target.values, row)
+                columns.copyScalarAt(
+                    source.values,
+                    index,
+                    target.values,
+                    destination
+                )
             }
 
-            memory.writeColumnBytes(target.names, row, bytes.fromText(name))
-            memory.writeColumnU32(target.types, row, type_id)
+            memory.writeColumnBytes(
+                target.names,
+                destination,
+                bytes.fromText(name)
+            )
+            memory.writeColumnU32(target.types, destination, type_id)
             row += 1
-            memory.writeU64(written, 0, row)
+            memory.writeU64(used, 0, first + row)
         }
     })
 }

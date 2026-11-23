@@ -3,15 +3,41 @@
 
     <Args in={Bindings.Input} out={void} />
 
-    <If on={$in.aliases != null}>
-        <Call fn="aliases" in={$in.aliases} />
+    <Call fn="reserve" in={$in} />
+
+    <If on={$in.selected.alias_names.length != 0}>
+        <Call
+            fn="aliases"
+            in={{
+                ...$in.destinations.aliases.omit(["storage"]),
+                names: $in.selected.alias_names,
+                indices: $in.selected.alias_indices
+            }}
+        />
     </If>
 
-    <If on={$in.constants != null}>
-        <Call fn="constants" in={$in.constants} />
+    <If on={$in.selected.constant_names.length != 0}>
+        <Call
+            fn="constants"
+            in={{
+                ...$in.destinations.constants.omit(["storage"]),
+                names: $in.selected.constant_names,
+                indices: $in.selected.constant_indices
+            }}
+        />
     </If>
 
-    <If on={$in.functions != null}>
-        <Call fn="functions" in={$in.functions} />
+    <If
+        on={$in.destinations.functions != null && $in.selected.function_names.length != 0}
+    >
+        <Call
+            fn="functions"
+            in={{
+                ...$in.destinations.functions.omit(["storage"]),
+                names: $in.selected.function_names,
+                indices: $in.selected.function_indices,
+                namespace: $in.selected.namespace
+            }}
+        />
     </If>
 </Module>

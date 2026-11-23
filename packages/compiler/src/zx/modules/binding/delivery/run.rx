@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Delivery" />
+    <Type from="../model" as="Bindings" />
+
+    <Args in={Delivery.Input} out={Bindings.Result} />
+
+    <Call module="../bind" in={$in.request} />
+
+    <If on={$ctx.bind.message == ""}>
+        <Call
+            fn="allocation.selectAllocator"
+            in={[
+                $in.scope,
+                $in.owner
+            ]}
+        />
+
+        <Call
+            module="../publication/publish"
+            in={{
+                selected: $ctx.bind,
+                destinations: $in.destinations
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.bind} />
+</Module>

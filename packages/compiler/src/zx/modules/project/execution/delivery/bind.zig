@@ -85,10 +85,12 @@ pub fn loadProjectLibrary(handle: *const anyopaque) zx.Error!void {
     frame.dependency = .{ .compiled = target };
 }
 
-pub fn selectProjectBindings(handle: *const anyopaque, signature: bool) zx.Error!void {
+pub fn bindProjectImport(handle: *const anyopaque, signature: bool, exported: bool) zx.Error!void {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
     const imported = &frame.imported;
+    const active = frame.active;
+    const functions = members(frame);
 
     const symbols: Binding.Symbols = .{
         .target = if (signature) .source else switch (frame.dependency) {
@@ -100,35 +102,26 @@ pub fn selectProjectBindings(handle: *const anyopaque, signature: bool) zx.Error
         .types = project.types.view(),
         .exports = imported.exports,
         .constants = imported.constant_exports,
-        .functions = members(frame).names(),
+        .functions = functions.names(),
         .signatures = if (signature) imported.signatures else &.{},
     };
 
     const temporary = project.bindingAllocator();
 
-    frame.bindings = switch (frame.item) {
-        inline else => |item| try Binding.select(temporary, project.allocator, item, &symbols, project.reporter),
+    const types: Binding.TypeLists = .{
+        .exports = imported.exports,
+        .values = imported.constant_exports,
+        .aliases = if (exported) &active.export_aliases else &active.aliases,
+        .constants = if (exported) &active.export_constants else &active.constant_imports,
     };
-}
 
-pub fn publishProjectBindings(handle: *const anyopaque, exported: bool, callable: bool) error{OutOfMemory}!void {
-    const frame = Frame.borrow(handle);
-    const active = frame.active;
+    const imports = if (exported) &active.export_functions else &active.imports;
 
-    try Binding.publish(
-        frame.walk.project.allocator,
-        frame.bindings,
-        .{
-            .exports = frame.imported.exports,
-            .values = frame.imported.constant_exports,
-            .aliases = if (exported) &active.export_aliases else &active.aliases,
-            .constants = if (exported) &active.export_constants else &active.constant_imports,
-        },
-        if (callable) .{
-            .members = members(frame),
-            .imports = if (exported) &active.export_functions else &active.imports,
-        } else null,
-    );
+    const selected = switch (frame.item) {
+        inline else => |item| try Binding.deliver(project.allocator, temporary, item, &symbols, project.reporter, types, if (signature) null else .{ .members = functions, .imports = imports }),
+    };
+
+    if (signature and exported) frame.reexports = selected.functions;
 }
 
 pub fn publishProjectReexports(handle: *const anyopaque) error{OutOfMemory}!void {
@@ -139,7 +132,7 @@ pub fn publishProjectReexports(handle: *const anyopaque) error{OutOfMemory}!void
         .signatures = frame.imported.signatures,
         .bindings = members(frame),
         .stores = project.functions.stores.items,
-        .selected = frame.bindings.functions,
+        .selected = frame.reexports,
     }, &frame.active.signature_members);
 }
 

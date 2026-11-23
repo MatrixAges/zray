@@ -15,6 +15,7 @@ pub const Storage = struct {
     input: Record,
     names: valueType(Names),
     exports: valueType(Exports),
+    export_rows: []const memory.NamedId,
     constants: valueType(Constants),
     members: valueType(Members),
     signatures: valueType(Members),
@@ -26,12 +27,13 @@ pub const Storage = struct {
     native_originals: memory.TextColumn,
     native_starts: memory.ReadColumn,
     native_ends: memory.ReadColumn,
-    pub fn init(self: *Storage, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) Input {
+    pub fn init(self: *Storage, item: anytype, symbols: *const Symbols) Input {
         self.names = self.importNames(item);
+        self.export_rows = memory.borrowNamedRows("type_id", symbols.exports);
 
         self.exports = record(Exports, .{
-            .rows = @as(field(Exports, "rows"), @ptrCast(rows)),
-            .length = @as(u64, rows.len),
+            .rows = @as(field(Exports, "rows"), @ptrCast(&self.export_rows)),
+            .length = @as(u64, self.export_rows.len),
         });
 
         self.constant_names = memory.borrowTextColumn("name", symbols.constants);

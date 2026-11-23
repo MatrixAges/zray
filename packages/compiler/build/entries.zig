@@ -219,7 +219,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/cache_retention/classify.zx", .name = "cache_retention_classify" },
     .{ .path = "zx/modules/cache_retention/publish.zx", .name = "cache_retention_publish" },
     .{ .path = "zx/modules/binding/bind.rx", .name = "project_binding" },
-    .{ .path = "zx/modules/binding/publication/publish.rx", .name = "project_binding_publication" },
+    .{ .path = "zx/modules/binding/delivery/run.rx", .name = "project_binding_delivery" },
     .{ .path = "zx/modules/project/exports/plan.rx", .name = "project_public_exports" },
     .{ .path = "zx/modules/project/exports/signatures/publish.rx", .name = "project_signature_members" },
     .{ .path = "zx/modules/project/exports/signatures/reexports.zx", .name = "project_signature_reexports" },

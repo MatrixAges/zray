@@ -1,12 +1,17 @@
+import bytes from "std:bytes"
 import strings from "std:string"
 import memory from "memory"
 
-import type { Aliases as Input } from "./model"
+import type { Aliases, Selected } from "./model"
+
+export type Input = Selected & Aliases.Pick("source", "target")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { names, indices, source, target, written } = in
+    const { names, indices, source, target, used } = in
+
+    const first = memory.readU64(used, 0)
 
     const published = loop(0, {
         while: row => row < names.length,
@@ -14,9 +19,16 @@ export default function (in: Input): Output {
             const name = strings.copy(names[row])
             const id = memory.readRowId(source, indices[row])
 
-            memory.writeNamedRow(target, row, name, id)
+            const destination = first + row
+
+            memory.writeColumnBytes(
+                target.name,
+                destination,
+                bytes.fromText(name)
+            )
+            memory.writeColumnU32(target.id, destination, id)
             row += 1
-            memory.writeU64(written, 0, row)
+            memory.writeU64(used, 0, first + row)
         }
     })
 }

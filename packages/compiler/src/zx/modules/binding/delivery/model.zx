@@ -1,0 +1,10 @@
+import type { Allocator, ArenaScope } from "memory"
+import type { Request } from "../model"
+import type { Destinations } from "../publication/model"
+
+export type Input = {
+    request: Request,
+    destinations: Destinations,
+    scope: ArenaScope,
+    owner: Allocator
+}

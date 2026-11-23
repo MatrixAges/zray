@@ -25,5 +25,12 @@
         />
     </If>
 
-    <Call module="bind_native" in={$in} />
+    <Call
+        fn="index.bindProjectImport"
+        in={[
+            $in.frame,
+            false,
+            $in.exported
+        ]}
+    />
 </Module>

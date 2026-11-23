@@ -38,7 +38,14 @@
         <Case value={Host.ProjectImportRoute.Intrinsic}>
             <Call fn="index.prepareProjectIntrinsic" in={$in.frame} />
 
-            <Call module="bind_native" in={$in.omit(["completed"])} />
+            <Call
+                fn="index.bindProjectImport"
+                in={[
+                    $in.frame,
+                    false,
+                    $in.exported
+                ]}
+            />
         </Case>
 
         <Default>
