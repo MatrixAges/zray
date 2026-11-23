@@ -6,7 +6,7 @@ const Bindings = @import("../bindings/host.zig");
 const generated = @import("rx_options").generated_graph;
 const Construction = @import("../construction.zig");
 const Index = @import("../index.zig");
-const NonNull = @import("../non_null.zig");
+const NonNull = @import("../non_null/host.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Projections = @import("../projections.zig");
 const Selection = @import("../selection.zig");
@@ -21,6 +21,7 @@ pub const Frame = struct {
     closure: ObjectClosure,
     classes: Assignment.Base = undefined,
     bindings: if (generated) Bindings.Frame else void = undefined,
+    non_null: if (generated) NonNull.Frame else void = undefined,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -36,13 +37,10 @@ pub fn refreshSolverBindings(handle: *const anyopaque) void {
     frame.bindings.bind(frame.graph);
 }
 
-pub fn solveNonNull(handle: *const anyopaque, final: bool) Error!bool {
-    const graph = Frame.borrow(handle).graph;
-    const revision = graph.revision;
+pub fn refreshSolverNonNull(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
 
-    try NonNull.propagate(graph, final);
-
-    return final and graph.revision != revision;
+    frame.non_null.bind(frame.graph);
 }
 
 pub fn solveSequences(handle: *const anyopaque) Error!void {

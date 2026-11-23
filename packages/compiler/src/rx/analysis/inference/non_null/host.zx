@@ -1,1 +1,10 @@
-export { unifyNonNullReplay, inferNonNullReplay } from "rx_project_host"
+export { readU64 } from "memory"
+export {
+    mergeNonNullProjection,
+    refreshNonNullTopology,
+    registerGuardedPayload,
+    registerNonNullPayload,
+    reserveNonNullNode,
+    reserveNonNullProjection,
+    reserveNonNullSource
+} from "rx_project_host"

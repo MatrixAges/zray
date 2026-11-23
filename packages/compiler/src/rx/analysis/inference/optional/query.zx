@@ -4,7 +4,6 @@ import type { Graph } from "./model"
 import type { Action } from "./payload"
 
 export enum Mode {
-    Guard,
     Hint,
     Payload
 }

@@ -16,12 +16,14 @@
         }}
     />
 
+    <Call fn="host.refreshSolverNonNull" in={$in.frame} />
+
     <Call
-        fn="host.solveNonNull"
-        in={[
-            $in.frame,
-            false
-        ]}
+        module="../non_null/replay"
+        in={{
+            view: $in.non_null,
+            infer_source: false
+        }}
     />
 
     <Call fn="host.solveSequences" in={$in.frame} />

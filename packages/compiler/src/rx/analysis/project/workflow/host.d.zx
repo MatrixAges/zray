@@ -52,6 +52,8 @@ export type BindingSpans = opaque
 
 export type NonNullReplay = opaque
 
+export type NonNullRead = opaque
+
 export type SequenceReplay = opaque
 
 export type LengthReplay = opaque
@@ -532,8 +534,7 @@ export declare function solveRevision(state: ConstraintRound): u64
 
 export declare function refreshSolverBindings(state: ConstraintRound): void
 
-export declare function solveNonNull(state: ConstraintRound, final: bool): bool
-    throws { OutOfMemory, InvalidSource }
+export declare function refreshSolverNonNull(state: ConstraintRound): void
 
 export declare function solveSequences(state: ConstraintRound): void
     throws { OutOfMemory, InvalidSource }
@@ -783,15 +784,27 @@ export declare function reportBindingName(
     message: string
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function unifyNonNullReplay(
+export declare function mergeNonNullProjection(
     frame: NonNullReplay,
     row: u64,
-    value: u32,
-    register: bool
+    left: u32,
+    right: u32
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function inferNonNullReplay(frame: NonNullReplay, row: u64): void
+export declare function refreshNonNullTopology(frame: NonNullReplay): void
+
+export declare function registerNonNullPayload(frame: NonNullReplay, row: u64, value: u32): u32
     throws { OutOfMemory, InvalidSource }
+
+export declare function reserveNonNullSource(frame: NonNullReplay, row: u64, payload: u32): u32
+    throws { OutOfMemory }
+
+export declare function registerGuardedPayload(frame: NonNullRead, value: u32, remaining: u64): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveNonNullNode(frame: NonNullRead): void throws { OutOfMemory }
+
+export declare function reserveNonNullProjection(frame: NonNullRead): void throws { OutOfMemory }
 
 export declare function expectSequenceList(
     frame: SequenceReplay,

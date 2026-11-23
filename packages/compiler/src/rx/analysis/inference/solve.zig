@@ -22,6 +22,7 @@ pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
         const input: std.meta.Child(rule.Input) = .{
             .frame = @ptrCast(&frame),
             .bindings = &frame.bindings.view,
+            .non_null = &frame.non_null.view,
         };
 
         return rule.executeIn(scratch.allocator(), &input) catch |err| workflow.errorSet(err);

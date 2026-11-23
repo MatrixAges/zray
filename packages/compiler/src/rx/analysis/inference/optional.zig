@@ -5,19 +5,15 @@ const seed = @import("optional/seed.zig");
 const enabled = @import("rx_options").generated_graph;
 const rule = if (enabled) @import("generated_rx_optional_query") else void;
 
-pub fn guarded(graph: *Graph, source: Graph.Id, span: zx.Span) zx.Error!?Graph.Id {
-    return if (enabled) query(.Guard, graph, source, span) else seed.guarded(graph, source, span);
-}
-
 pub fn hint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
-    return if (enabled) query(.Hint, graph, source, null) else seed.hint(graph, source);
+    return if (enabled) query(.Hint, graph, source) else seed.hint(graph, source);
 }
 
 pub fn payload(graph: *Graph, source: Graph.Id) zx.Error!Graph.Id {
-    return if (enabled) (try query(.Payload, graph, source, null)).? else seed.payload(graph, source);
+    return if (enabled) (try query(.Payload, graph, source)).? else seed.payload(graph, source);
 }
 
-fn query(comptime mode: @FieldType(std.meta.Child(rule.Input), "mode"), graph: *Graph, source: Graph.Id, guard_span: ?zx.Span) zx.Error!?Graph.Id {
+fn query(comptime mode: @FieldType(std.meta.Child(rule.Input), "mode"), graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
     const Input = std.meta.Child(rule.Input);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     var value = source;
@@ -43,10 +39,8 @@ fn query(comptime mode: @FieldType(std.meta.Child(rule.Input), "mode"), graph: *
         switch (result.action) {
             .Ready => return if (result.value) |id| @fromBackingInt(id) else null,
             .Register => {
-                const span = guard_span orelse rows.items(.span)[result.root];
+                const span = rows.items(.span)[result.root];
                 const registered = try @import("known.zig").registerPayload(graph, result.value.?, result.remaining, span);
-
-                if (mode == .Guard) return registered.node;
 
                 value = registered.node;
                 remaining = registered.remaining;

@@ -1,0 +1,10 @@
+import type { NonNullRead } from "rx_project_host"
+import type { Input as Append } from "../nodes/append"
+import type { Guard } from "../optional/query"
+import type { ProjectionRows } from "./model"
+
+export type Read = Guard & {
+    frame: NonNullRead,
+    node: Append,
+    rows: ProjectionRows
+}

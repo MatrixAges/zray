@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="NonNull" />
+
+    <Args in={NonNull.Replay} out={u64} />
+
+    <Loop on={$in.next < $in.request.view.sources.length}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                next: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        fn="host.readU64"
+        in={[
+            $in.view.revision,
+            0
+        ]}
+    />
+
+    <Return value={$ctx.readU64} />
+</Module>

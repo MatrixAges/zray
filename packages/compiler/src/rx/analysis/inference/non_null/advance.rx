@@ -7,7 +7,14 @@
     <Call
         fn="scan"
         in={{
-            ...$in.request.omit(["frame"]),
+            ...$in.request.view.pick([
+                "graph",
+                "parents",
+                "sources",
+                "values",
+                "known"
+            ]),
+            infer_source: $in.request.infer_source,
             next: $in.next
         }}
     />
@@ -15,10 +22,44 @@
     <Switch on={$ctx.scan.action}>
         <Case value={Scan.Action.Infer}>
             <Call
-                fn="host.inferNonNullReplay"
+                fn="host.reserveNonNullSource"
                 in={[
-                    $in.request.frame,
-                    $ctx.scan.next - 1
+                    $in.request.view.frame,
+                    $ctx.scan.next - 1,
+                    $in.request.view.values[$ctx.scan.next - 1]
+                ]}
+            />
+
+            <Call module="../nodes/append" in={$in.request.view.node} />
+
+            <Call
+                fn="host.mergeNonNullProjection"
+                in={[
+                    $in.request.view.frame,
+                    $ctx.scan.next - 1,
+                    $in.request.view.sources[$ctx.scan.next - 1],
+                    $ctx.reserveNonNullSource
+                ]}
+            />
+        </Case>
+
+        <Case value={Scan.Action.Register}>
+            <Call
+                fn="host.registerNonNullPayload"
+                in={[
+                    $in.request.view.frame,
+                    $ctx.scan.next - 1,
+                    $ctx.scan.value
+                ]}
+            />
+
+            <Call
+                fn="host.mergeNonNullProjection"
+                in={[
+                    $in.request.view.frame,
+                    $ctx.scan.next - 1,
+                    $in.request.view.values[$ctx.scan.next - 1],
+                    $ctx.registerNonNullPayload
                 ]}
             />
         </Case>
@@ -27,23 +68,25 @@
             <Return
                 value={{
                     ...$in,
-                    next: $in.request.sources.length
+                    next: $in.request.view.sources.length
                 }}
             />
         </Case>
 
         <Default>
             <Call
-                fn="host.unifyNonNullReplay"
+                fn="host.mergeNonNullProjection"
                 in={[
-                    $in.request.frame,
+                    $in.request.view.frame,
                     $ctx.scan.next - 1,
-                    $ctx.scan.value,
-                    $ctx.scan.action == Scan.Action.Register
+                    $in.request.view.values[$ctx.scan.next - 1],
+                    $ctx.scan.value
                 ]}
             />
         </Default>
     </Switch>
+
+    <Call fn="host.refreshNonNullTopology" in={$in.request.view.frame} />
 
     <Return
         value={{

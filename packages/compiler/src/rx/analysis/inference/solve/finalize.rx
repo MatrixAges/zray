@@ -3,15 +3,18 @@
 
     <Args in={Solve.Request} out={bool} />
 
+    <Call fn="host.solveRevision" in={$in.frame} />
+    <Call fn="host.refreshSolverNonNull" in={$in.frame} />
+
     <Call
-        fn="host.solveNonNull"
-        in={[
-            $in.frame,
-            true
-        ]}
+        module="../non_null/replay"
+        in={{
+            view: $in.non_null,
+            infer_source: true
+        }}
     />
 
-    <If on={$ctx.solveNonNull}>
+    <If on={$ctx.replay != $ctx.solveRevision}>
         <Return value={true} />
     </If>
 
