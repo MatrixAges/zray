@@ -113,7 +113,6 @@ pub const recordProjectCacheUse = project_body.recordProjectCacheUse;
 pub const analyzeProjectBody = project_body.analyzeProjectBody;
 pub const installProjectFunction = project_body.installProjectFunction;
 pub const checkProjectOwnership = project_body.checkProjectOwnership;
-pub const publishProjectExports = project_body.publishProjectExports;
 pub const projectBodyCacheable = project_body.projectBodyCacheable;
 pub const registerProjectArtifact = project_body.registerProjectArtifact;
 pub const commitProjectModule = project_body.commitProjectModule;

@@ -6,3 +6,8 @@ export {
     validateProjectEntry
 } from "project_host"
 export { publishInterfaceTypes } from "project_host"
+export {
+    projectBodyCacheable,
+    registerProjectArtifact,
+    commitProjectModule
+} from "project_host"

@@ -1,9 +1,33 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Body} out={void} />
+    <Args in={Execution.Body} out={string?} />
 
     <Call fn="body_input" in={$in} />
     <Call fn="body_function" in={$in.body} />
-    <Call fn="body_record" in={$in.body} />
+
+    <Call module="body_exports/publish" in={$in.exports} />
+
+    <If on={$ctx.publish.duplicate != null}>
+        <Return value={$ctx.publish.duplicate} />
+    </If>
+
+    <Call fn="index.projectBodyCacheable" in={$in.body} />
+
+    <If on={$ctx.projectBodyCacheable}>
+        <Call fn="index.registerProjectArtifact" in={$in.body} />
+    </If>
+
+    <Call
+        fn="index.commitProjectModule"
+        in={[
+            $in.body,
+            $ctx.publish.exports,
+            $ctx.publish.constant_exports,
+            $ctx.publish.members,
+            $ctx.publish.entry
+        ]}
+    />
+
+    <Return value={null} />
 </Module>

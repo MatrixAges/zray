@@ -35,7 +35,6 @@ const Plan = struct {
     ports: ?Signature.Ports = null,
     has_store: bool = false,
     deferred: ?[]const u8 = null,
-    invalid: bool = false,
 };
 
 pub fn bodyEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, own: ?ir.FunctionId, types: []const ir.Export, constants: []const ir.Constant, functions: []const FunctionImport, reporter: *zx.Reporter) zx.Error!?ir.FunctionId {
@@ -44,8 +43,6 @@ pub fn bodyEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, own: 
 
 pub fn signatureEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, signature: *Signature.Result, reporter: *zx.Reporter) zx.Error!void {
     const selected = try plan(allocator, backing, signature.exports, signature.constant_exports, signature.members, null, reporter);
-
-    if (selected.invalid) return reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source");
 
     if (selected.deferred) |source| {
         signature.has_deferred_source = true;
@@ -64,7 +61,7 @@ fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const
 
     defer arena.deinit();
 
-    const selected = try select(arena.allocator(), types, constants, functions, false, own);
+    const selected = try seedSelect(arena.allocator(), types, constants, functions, false, own);
 
     if (selected.duplicate) |name| {
         return reportDuplicate(allocator, reporter, name);
@@ -80,54 +77,39 @@ pub fn reportDuplicate(allocator: std.mem.Allocator, reporter: *zx.Reporter, nam
 }
 
 pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.Allocator.Error!?usize {
-    return (try select(allocator, roots, @as([]const ir.Constant, &.{}), @as([]const FunctionImport, &.{}), true, null)).invalid_name;
-}
+    if (roots.len == 0) return null;
 
-fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, own: ?ir.FunctionId) std.mem.Allocator.Error!Plan {
-    const first_function = first.len + second.len;
-    const count = first_function + functions.len;
+    const empty: []const FunctionImport = &.{};
 
-    if (count == 0) return .{ .entry = own };
-    if (comptime !generated_mode) return seedSelect(allocator, first, second, functions, roots, own);
+    if (comptime !generated_mode) return (try seedSelect(allocator, roots, @as([]const ir.Constant, &.{}), empty, true, null)).invalid_name;
 
-    const memory = @import("zx").memory;
+    const memory = zx.memory;
     const generated = @import("generated_project_public_exports");
     const Input = std.meta.Child(generated.Input);
-    const Facts = std.meta.Child(@typeInfo(@FieldType(Input, "signature")).optional.child);
-    const names = memory.borrowTextColumn("name", first);
-    const constants = memory.borrowTextColumn("name", second);
-    const members = memory.borrowTextColumn("name", functions);
-    const buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, count);
+    const names = memory.borrowTextColumn("name", roots);
+    const unused_names = memory.borrowTextColumn("name", empty);
+    const ids = memory.borrowOptionalU32Column("id", empty);
+    const buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, roots.len);
 
     defer allocator.free(buckets);
 
-    const signature = comptime std.meta.Elem(@TypeOf(functions)) == Signature.Member;
-    const empty: []const FunctionImport = &.{};
+    const keys: std.meta.Child(@FieldType(Input, "keys")) = .{
+        .first = @ptrCast(&names),
+        .second = @ptrCast(&unused_names),
+        .third = @ptrCast(&unused_names),
+        .second_start = roots.len,
+        .third_start = roots.len,
+        .count = roots.len,
+    };
 
     const input: Input = .{
-        .keys = &.{
-            .first = @ptrCast(&names),
-            .second = @ptrCast(&constants),
-            .third = @ptrCast(&members),
-            .second_start = first.len,
-            .third_start = first_function,
-            .count = count,
-        },
+        .keys = &keys,
         .buckets = @ptrCast(&buckets),
         .capacity = buckets.len,
-        .roots = roots,
-        .own = if (own) |id| @backingInt(id) else null,
-        .ids = @ptrCast(&memory.borrowOptionalU32Column("id", if (signature) empty else functions)),
-        .signature = if (signature) @as(*const Facts, &.{
-            .kinds = @ptrCast(&memory.borrowReadColumn(Signature.Member.Kind, "kind", functions)),
-            .inputs = @ptrCast(&memory.borrowNestedColumn(ir.TypeId, &.{ "ports", "input_type" }, functions)),
-            .outputs = @ptrCast(&memory.borrowNestedColumn(ir.TypeId, &.{ "ports", "output_type" }, functions)),
-            .stores = @ptrCast(&memory.borrowReadColumn(bool, "has_store", functions)),
-            .sources = @ptrCast(&memory.borrowTextColumn("source", functions)),
-            .callable = @backingInt(Signature.Member.Kind.callable),
-            .deferred = @backingInt(Signature.Member.Kind.deferred),
-            .intrinsic = @backingInt(Signature.Member.Kind.intrinsic),
-        }) else null,
+        .roots = true,
+        .own = null,
+        .ids = @ptrCast(&ids),
+        .signature = null,
     };
 
     const output = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
@@ -135,15 +117,7 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
         error.IndexOutOfBounds => unreachable,
     };
 
-    return .{
-        .invalid_name = if (output.invalid_name) |index| @intCast(index) else null,
-        .duplicate = output.duplicate,
-        .entry = if (output.entry) |id| @fromBackingInt(id) else null,
-        .ports = if (output.ports) |ports| .{ .input_type = @fromBackingInt(ports.input_type), .output_type = @fromBackingInt(ports.output_type) } else null,
-        .has_store = output.has_store,
-        .deferred = output.deferred,
-        .invalid = output.invalid,
-    };
+    return if (output.invalid_name) |index| @intCast(index) else null;
 }
 
 fn seedSelect(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, own: ?ir.FunctionId) std.mem.Allocator.Error!Plan {

@@ -87,16 +87,18 @@ export declare function installProjectFunction(body: ProjectBody): u64?
 export declare function checkProjectOwnership(body: ProjectBody, count: u64): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function publishProjectExports(body: ProjectBody): void
-    throws { OutOfMemory, InvalidSource }
-
 export declare function projectBodyCacheable(body: ProjectBody): bool
 
 export declare function registerProjectArtifact(body: ProjectBody): void
     throws { OutOfMemory }
 
-export declare function commitProjectModule(body: ProjectBody): void
-    throws { OutOfMemory }
+export declare function commitProjectModule(
+    body: ProjectBody,
+    types: u8[],
+    constants: u8[],
+    members: u8[],
+    entry: u32?
+): void throws { OutOfMemory }
 
 export declare function installProjectEntryBody(entry: ProjectEntry, row: u32): void
 

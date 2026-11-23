@@ -5,7 +5,7 @@
 
     <Call module="../../exports/signatures/publish" in={$in.members} />
 
-    <Call fn="merge_exports" in={$in.exports} />
+    <Call fn="../../exports/publication/merge_exports" in={$in.exports} />
 
     <Call
         fn="prepare_validation"

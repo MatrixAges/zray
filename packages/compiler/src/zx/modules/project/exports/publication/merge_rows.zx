@@ -13,7 +13,7 @@ export default function (in: Input): Output {
         return forwarded
     }
 
-    if (forwarded.length == 0) {
+    if (forwarded.length == 0 && !in.copy_own) {
         return own
     }
 

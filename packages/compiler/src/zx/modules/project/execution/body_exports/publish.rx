@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={Publication.Output} />
+
+    <Call fn="../../exports/publication/merge_exports" in={$in.exports} />
+    <Call fn="../../exports/publication/merge_rows" in={$in.members} />
+
+    <Call
+        fn="prepare_validation"
+        in={{
+            source: $in,
+            merged: $ctx.merge_exports,
+            members: $ctx.merge_rows
+        }}
+    />
+
+    <If on={$ctx.prepare_validation != null}>
+        <Call module="../../exports/plan" in={$ctx.prepare_validation} />
+
+        <Return
+            value={{
+                ...$ctx.merge_exports,
+                members: $ctx.merge_rows,
+                entry: $ctx.plan.entry,
+                duplicate: $ctx.plan.duplicate
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$ctx.merge_exports,
+            members: $ctx.merge_rows,
+            entry: $in.entry,
+            duplicate: null
+        }}
+    />
+</Module>

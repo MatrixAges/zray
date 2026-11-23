@@ -1,6 +1,6 @@
-import capacityFor from "core/bytes/index/fixed_capacity"
 import { refreshRowReads } from "core/row_buffer"
-import memory from "memory"
+
+import prepareIndex from "../../exports/publication/prepare_index"
 
 import type { Input as Plan } from "../../exports/model"
 import type { Validate as Input } from "./model"
@@ -11,7 +11,6 @@ export default function (in: Input): Output {
     const { publication, merged, member_count } = in
     const { types, constants } = publication.exports
     const { members, validation } = publication
-    const { buckets, scratch, no_ids } = validation
 
     const own = members.declared ? 1 : 0
 
@@ -22,32 +21,17 @@ export default function (in: Input): Output {
         return null
     }
 
-    const type_count = merged.exports.length / types.stride
-    const constant_count = merged.constant_exports.length / constants.stride
-    const third_start = type_count + constant_count
-    const count = third_start + member_count
-    const capacity = capacityFor(count)
-
     if (member_count != 0) {
         refreshRowReads(members.reads)
     }
 
-    memory.allocateU64Buffer(scratch, buckets, capacity)
-    memory.clearU64Buffer(buckets)
-
-    return {
-        keys: {
-            first: types.names,
-            second: constants.names,
-            third: members.names,
-            second_start: type_count,
-            third_start,
-            count
-        },
-        buckets,
-        capacity,
-        roots: false,
-        ids: no_ids,
+    return prepareIndex({
+        workspace: validation.workspace,
+        exports: publication.exports,
+        merged,
+        members: members.names,
+        member_count,
+        ids: validation.no_ids,
         signature: members.signature
-    }
+    })
 }

@@ -2,6 +2,7 @@ import type { U8Buffer } from "memory"
 import type { ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
 import type { Frame } from "../load/model"
 import type { Entry as Publication } from "../publication/model"
+import type { Input as BodyExports } from "./body_exports/model"
 
 export type Load = {
     walk: ProjectWalk,
@@ -22,7 +23,8 @@ export type Imports = {
 
 export type Body = {
     body: ProjectBody,
-    cached: bool
+    cached: bool,
+    exports: BodyExports
 }
 
 export type Entry = {

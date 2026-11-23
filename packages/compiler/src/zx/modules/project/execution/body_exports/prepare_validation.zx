@@ -1,0 +1,29 @@
+import prepareIndex from "../../exports/publication/prepare_index"
+
+import type { Input as Plan } from "../../exports/model"
+import type { Validate as Input } from "./model"
+
+export type Output = Plan?
+
+export default function (in: Input): Output {
+    const { source, merged } = in
+    const { types, constants } = source.exports
+    const { members, workspace, ids, entry } = source
+
+    const reexport_bytes = types.forwarded.length + constants.forwarded.length +
+        members.forwarded.length
+
+    if (reexport_bytes == 0) {
+        return null
+    }
+
+    return prepareIndex({
+        workspace,
+        exports: source.exports,
+        merged,
+        members: members.names,
+        member_count: in.members.length / members.stride,
+        ids,
+        entry
+    })
+}

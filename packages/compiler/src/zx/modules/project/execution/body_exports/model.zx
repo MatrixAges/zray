@@ -1,0 +1,22 @@
+import type { ReadColumn } from "memory"
+import type { Exports, Merge, Merged, Workspace } from "../../exports/publication/model"
+
+export type Input = {
+    exports: Exports,
+    members: Merge,
+    workspace: Workspace,
+    ids: ReadColumn,
+    entry?: u32
+}
+
+export type Validate = {
+    source: Input,
+    merged: Merged,
+    members: u8[]
+}
+
+export type Output = Merged & {
+    members: u8[],
+    entry?: u32,
+    duplicate?: string
+}

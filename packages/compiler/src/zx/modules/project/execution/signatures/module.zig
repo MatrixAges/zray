@@ -7,32 +7,7 @@ const FunctionImport = @import("../../../function_import.zig");
 const generated = @import("generated_project_signature_publish");
 const Input = std.meta.Child(generated.Input);
 const Exports = std.meta.Child(@FieldType(Input, "exports"));
-
-fn Rows(comptime Row: type, comptime Shape: type) type {
-    return struct {
-        const Self = @This();
-        const Storage = memory.RowOutput(Row, struct { name: *const anyopaque }, .{});
-        storage: Storage,
-        name: memory.TextColumn,
-        reads: memory.RowGrowth,
-        fn borrow(self: *Self, own: []const Row, forwarded: []const Row) Shape {
-            self.storage.init();
-
-            self.name = memory.borrowTextColumn("name", if (own.len == 0) forwarded else own);
-            self.reads = .{ .target = &self.storage.buffer, .reads = @as(*[1]memory.ReadColumn, @ptrCast(&self.name)) };
-
-            return .{
-                .own = std.mem.sliceAsBytes(own),
-                .forwarded = std.mem.sliceAsBytes(forwarded),
-                .stride = @sizeOf(Row),
-                .storage = @ptrCast(&self.storage.buffer),
-                .buffer = @ptrCast(&self.storage.buffer.bytes),
-                .reads = @ptrCast(&self.reads),
-                .names = @ptrCast(&self.name),
-            };
-        }
-    };
-}
+const rows = @import("../../exports/publication/rows.zig");
 
 const Members = struct {
     const Shape = std.meta.Child(@FieldType(Input, "members"));
@@ -79,8 +54,8 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     const allocator = state.allocator;
     const ir = zx.ir;
     var members: Members = undefined;
-    var types: Rows(ir.Export, std.meta.Child(@FieldType(Exports, "types"))) = undefined;
-    var constants: Rows(ir.Constant, std.meta.Child(@FieldType(Exports, "constants"))) = undefined;
+    var types: rows.Rows(ir.Export, std.meta.Child(@FieldType(Exports, "types")), rows.Names) = undefined;
+    var constants: rows.Rows(ir.Constant, std.meta.Child(@FieldType(Exports, "constants")), rows.Names) = undefined;
     var scratch = std.heap.ArenaAllocator.init(state.arena.child_allocator);
 
     defer scratch.deinit();
@@ -123,15 +98,17 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     };
 
     const target = members.request(signature, frame.signature_members.items, &binding_rows, &declaration, &selection);
-    const type_rows = types.borrow(signature.exports, frame.export_aliases.items);
-    const constant_rows = constants.borrow(signature.constant_exports, frame.export_constants.items);
+    const type_rows = types.borrow(signature.exports, frame.export_aliases.items, false);
+    const constant_rows = constants.borrow(signature.constant_exports, frame.export_constants.items, false);
     const exports: Exports = .{ .types = &type_rows, .constants = &constant_rows };
+    const Validation = std.meta.Child(@FieldType(Input, "validation"));
 
-    const validation: std.meta.Child(@FieldType(Input, "validation")) = .{
+    const workspace: std.meta.Child(@FieldType(Validation, "workspace")) = .{
         .scratch = @ptrCast(&temporary),
         .buckets = @ptrCast(&buckets),
-        .no_ids = @ptrCast(&no_ids),
     };
+
+    const validation: Validation = .{ .workspace = &workspace, .no_ids = @ptrCast(&no_ids) };
 
     const input: Input = .{
         .members = &target,
@@ -148,8 +125,8 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     if (effective.invalid) return state.reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source");
 
     signature.members = members.storage.rows();
-    signature.exports = typedRows(ir.Export, result.exports);
-    signature.constant_exports = typedRows(ir.Constant, result.constant_exports);
+    signature.exports = rows.typedRows(ir.Export, result.exports);
+    signature.constant_exports = rows.typedRows(ir.Constant, result.constant_exports);
     signature.ports = .{ .input_type = @fromBackingInt(effective.input_type), .output_type = @fromBackingInt(effective.output_type) };
     signature.has_store = effective.has_store;
     signature.type_only = effective.type_only;
@@ -157,12 +134,6 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     signature.deferred_source = effective.deferred orelse &.{};
 
     publishBindings(unit, frame);
-}
-
-fn typedRows(comptime Row: type, bytes: []const u8) []const Row {
-    if (bytes.len == 0) return &.{};
-
-    return @alignCast(std.mem.bytesAsSlice(Row, bytes));
 }
 
 pub fn publishBindings(unit: *project.Unit, frame: *const project.LoadFrame) void {
