@@ -22,6 +22,7 @@ pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
         frame.scope = &scope;
 
         defer frame.objects.memory.close(&scope);
+        defer frame.resolution.close();
 
         const input: std.meta.Child(rule.Input) = .{
             .frame = @ptrCast(&frame),

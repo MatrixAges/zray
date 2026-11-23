@@ -1,1 +1,1 @@
-export { resolveAssignmentEndpoint } from "rx_project_host"
+export { refreshAssignmentTypes } from "rx_project_host"

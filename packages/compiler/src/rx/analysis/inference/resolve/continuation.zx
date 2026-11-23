@@ -1,19 +1,4 @@
-import type { Tables } from "core/type_table/model"
-import type {
-    Publication as TypePublication
-} from "../../../../zx/analysis/semantic/constructing/model"
-import type { Kind } from "../unification/model"
-
-export type Pending = {
-    kind: Kind,
-    child: u32,
+export type Payload = {
     members: u32[],
     names: string[]
 }
-
-export type Continuation = {
-    tables: Tables,
-    pending: Pending
-}
-
-export type Continued = TypePublication

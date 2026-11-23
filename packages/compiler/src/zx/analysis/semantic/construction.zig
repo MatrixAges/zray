@@ -33,11 +33,7 @@ pub fn create(types: *Types, value: zx.ir.TypeValue) zx.Error!zx.ir.TypeId {
 }
 
 pub fn commit(types: *Types, result: anytype, span: zx.Span, owns_names: bool) zx.Error!zx.ir.TypeId {
-    if (result.diagnostic.message.len != 0) return types.reporter.fail(
-        std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable,
-        span,
-        if (types.scratch != null) try types.allocator.dupe(u8, result.diagnostic.message) else result.diagnostic.message,
-    );
+    if (result.diagnostic.message.len != 0) return report(types, span, result.diagnostic.code, result.diagnostic.message);
 
     const row = result.row orelse return @fromBackingInt(result.id);
 
@@ -55,4 +51,12 @@ pub fn commit(types: *Types, result: anytype, span: zx.Span, owns_names: bool) z
     try @import("merging/commit.zig").appendConstructed(types.allocator, &types.items, delta, owns_names);
 
     return @fromBackingInt(result.id);
+}
+
+pub fn report(types: *Types, span: zx.Span, code: []const u8, message: []const u8) zx.Error {
+    return types.reporter.fail(
+        std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), code) orelse unreachable,
+        span,
+        if (types.scratch != null) try types.allocator.dupe(u8, message) else message,
+    );
 }

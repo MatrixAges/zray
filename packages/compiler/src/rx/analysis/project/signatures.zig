@@ -57,6 +57,7 @@ pub fn resolve(graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests:
             .tasks = task_types,
         });
     } else {
+        const resolveSeed = @import("../inference/resolve/seed.zig").resolve;
         var binding_start: usize = 0;
         var task_start: usize = 0;
 
@@ -64,11 +65,11 @@ pub fn resolve(graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests:
             const binding_end: usize = @intCast(raw_binding_end);
             const task_end: usize = @intCast(raw_task_end);
 
-            for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try graph.resolve(@fromBackingInt(binding.*), resolver));
+            for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try resolveSeed(graph, @fromBackingInt(binding.*), 0));
             for (task_types[task_start..task_end]) |*task| task.* = binding_types[binding_start + task.*];
 
-            input.* = @backingInt(try graph.resolve(@fromBackingInt(input.*), resolver));
-            output.* = @backingInt(try graph.resolve(@fromBackingInt(output.*), resolver));
+            input.* = @backingInt(try resolveSeed(graph, @fromBackingInt(input.*), 0));
+            output.* = @backingInt(try resolveSeed(graph, @fromBackingInt(output.*), 0));
             binding_start = binding_end;
             task_start = task_end;
         }

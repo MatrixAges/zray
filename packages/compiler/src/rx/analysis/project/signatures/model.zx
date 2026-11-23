@@ -1,5 +1,5 @@
 import type { U32Buffer } from "memory"
-import type { SignatureResolver } from "rx_project_host"
+import type { Session as Resolver } from "../../inference/resolve/model"
 import type { Kind } from "../../inference/unification/model"
 
 export enum Stage {
@@ -49,7 +49,7 @@ export type Output = Cursor & {
 }
 
 export type Request = {
-    frame: SignatureResolver,
+    resolver: Resolver,
     columns: Columns
 }
 

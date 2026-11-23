@@ -2,5 +2,8 @@ export {
     reserveResolveFrames,
     reserveResolveValues,
     reportResolveFailure,
-    constructResolvedType
+    prepareResolveConstruction,
+    reportResolveConstruction,
+    bindResolvedType,
+    finishResolveConstruction
 } from "rx_project_host"

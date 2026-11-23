@@ -17,11 +17,11 @@
 
     <If on={$ctx.publish.unresolved != null}>
         <Call
-            fn="host.resolveSignatureNode"
-            in={[
-                $in.request.frame,
-                $ctx.publish.unresolved
-            ]}
+            module="../../inference/resolve/run"
+            in={{
+                resolver: $in.request.resolver,
+                node: $ctx.publish.unresolved ?? 0
+            }}
         />
     </If>
 

@@ -9,7 +9,7 @@
         <Call
             fn="host.reportResolveFailure"
             in={[
-                $in.frame,
+                $in.resolver.frame,
                 $in.node,
                 $ctx.diagnostic.code,
                 $ctx.diagnostic.message
@@ -18,15 +18,67 @@
     </If>
 
     <Call
-        fn="host.constructResolvedType"
+        fn="host.prepareResolveConstruction"
         in={[
-            $in.frame,
+            $in.resolver.frame,
             $in.node,
-            $in.completed ?? 0,
             $in.used,
-            $in.count
+            $in.count,
+            $in.route == Resolve.Route.Object
         ]}
     />
 
-    <Return value={$ctx.constructResolvedType} />
+    <Call
+        fn="candidate"
+        in={{
+            route: $in.route,
+            child: $in.completed ?? 0,
+            payload: $in.resolver.payload
+        }}
+    />
+
+    <Call
+        module="../../../../zx/analysis/semantic/construct_type"
+        in={{
+            tables: $in.resolver.tables,
+            candidate: $ctx.candidate
+        }}
+    />
+
+    <If on={$ctx.construct_type.diagnostic.message != ""}>
+        <Call
+            fn="host.reportResolveConstruction"
+            in={[
+                $in.resolver.frame,
+                $ctx.construct_type.diagnostic.code,
+                $ctx.construct_type.diagnostic.message
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.construct_type.row != null}>
+        <Call
+            fn="host.bindResolvedType"
+            in={[
+                $in.resolver.frame,
+                $ctx.construct_type.row.layout.kind,
+                $ctx.construct_type.row.layout.first,
+                $ctx.construct_type.row.layout.second,
+                $ctx.construct_type.row.label,
+                $ctx.construct_type.row.children,
+                $ctx.construct_type.row.fields.names,
+                $ctx.construct_type.row.fields.types,
+                $ctx.construct_type.row.names
+            ]}
+        />
+
+        <Call
+            module="../../../../zx/analysis/semantic/merging/publication/write"
+            in={$in.resolver.write}
+        />
+    </If>
+
+    <Call fn="host.finishResolveConstruction" in={$in.resolver.frame} />
+
+    <Return value={$ctx.construct_type.id} />
 </Module>

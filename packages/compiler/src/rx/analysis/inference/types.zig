@@ -138,7 +138,3 @@ pub fn payload(self: *Self, id: Id, kind: Containers.Kind, span: zx.Span) zx.Err
 
 pub const finish = @import("solve.zig").finish;
 pub const Resolver = @import("resolve.zig").Workspace;
-
-pub fn resolve(self: *Self, id: Id, workspace: *Resolver) zx.Error!zx.ir.TypeId {
-    return @import("resolve.zig").resolve(self, id, workspace);
-}

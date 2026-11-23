@@ -1,0 +1,40 @@
+import integers from "std:integer"
+
+import representative from "../forest/borrowed_root"
+import { Kind } from "../unification/model"
+import { Route } from "./model"
+
+import type { Input as Resolve, Request } from "./model"
+
+export type Input = Resolve
+
+export type Output = Request
+
+export default function (in: Input): Output {
+    const { resolver } = in
+
+    const node = representative({
+        parents: resolver.parents,
+        value: in.node
+    })
+
+    const index = integers.widen(node)
+    const known = resolver.graph.kinds[index] == Kind.Known
+
+    const completed: u32? = match {
+        known => resolver.graph.arguments[index],
+        _ => null
+    }
+
+    return {
+        resolver,
+        frame_capacity: resolver.frame_capacity,
+        value_capacity: resolver.value_capacity,
+        depth: 0,
+        used: 0,
+        count: 0,
+        node,
+        completed,
+        route: known ? Route.Complete : Route.Search
+    }
+}

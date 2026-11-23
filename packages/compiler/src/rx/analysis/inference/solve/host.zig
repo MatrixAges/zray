@@ -7,12 +7,13 @@ const NonNull = @import("../non_null/host.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Projections = @import("../projections/frame.zig");
 const Objects = @import("../object_closure/replay.zig");
+const Resolve = @import("../resolve/host.zig");
 const Assignments = @import("../assignment/application/host.zig");
-const Error = zx.Error;
 
 pub const Frame = struct {
     graph: *Graph,
     resolver: *Graph.Resolver,
+    resolution: if (generated) Resolve.Frame else void = if (generated) .{} else {},
     workspace: std.heap.ArenaAllocator,
     closure: ObjectClosure,
     scope: *zx.memory.ArenaScope = undefined,
@@ -75,14 +76,12 @@ pub fn refreshSolverAssignments(handle: *const anyopaque) void {
 pub fn refreshSolverValidation(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
 
-    frame.assignments.bindValidation(frame.graph, handle);
+    frame.resolution.bind(frame.graph, frame.resolver, frame.scope);
+    frame.assignments.bindValidation(frame.graph, handle, &frame.resolution.view);
 }
 
-pub fn resolveAssignmentEndpoint(handle: *const anyopaque, node: u32) Error!u32 {
+pub fn refreshAssignmentTypes(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
-    const resolved = try frame.graph.resolve(@fromBackingInt(node), frame.resolver);
 
     frame.assignments.topology.bindTypes(frame.graph);
-
-    return @backingInt(resolved);
 }

@@ -12,7 +12,9 @@ export type Output = Request
 export default function (in: Input): Output {
     if (in.route == Route.GrowFrames) {
         const used = in.depth * frame_width
-        const frame_capacity = reserveResolveFrames(in.frame, used, frame_width)
+
+        const frame_capacity =
+            reserveResolveFrames(in.resolver.frame, used, frame_width)
 
         return {
             ...in,
@@ -21,7 +23,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const value_capacity = reserveResolveValues(in.frame, in.used, 1)
+    const value_capacity = reserveResolveValues(in.resolver.frame, in.used, 1)
 
     return {
         ...in,

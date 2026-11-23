@@ -1,23 +1,28 @@
 import { Kind } from "core/type_table/model"
 
-import { Kind as NodeKind } from "../unification/model"
+import { Route } from "./model"
 
 import type { Candidate } from "../../../../zx/analysis/semantic/types/model"
-import type { Pending } from "./continuation"
+import type { Payload } from "./continuation"
+import type { Route as Construction } from "./model"
 
-export type Input = Pending
+export type Input = {
+    route: Construction,
+    child: u32,
+    payload: Payload
+}
 
 export type Output = Candidate
 
 export default function (in: Input): Output {
-    const kind = match in.kind {
-        NodeKind.List => Kind.List,
-        NodeKind.Optional => Kind.Optional,
-        NodeKind.Tuple => Kind.Tuple,
+    const kind = match in.route {
+        Route.List => Kind.List,
+        Route.Optional => Kind.Optional,
+        Route.Tuple => Kind.Tuple,
         _ => Kind.Object
     }
 
-    const members = in.members
+    const members = in.payload.members
     const empty: u32[] = []
 
     return {
@@ -27,7 +32,7 @@ export default function (in: Input): Output {
         label: "",
         children: kind == Kind.Tuple ? members : empty,
         fields: {
-            names: in.names,
+            names: in.payload.names,
             types: kind == Kind.Object ? members : empty
         },
         names: []

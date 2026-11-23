@@ -2,11 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../../inference/types.zig");
 const Kind = @import("../../inference/nodes.zig").Kind;
-
-const Frame = struct {
-    graph: *Graph,
-    resolver: *Graph.Resolver,
-};
+const Resolve = @import("../../inference/resolve/host.zig");
 
 pub const Columns = struct {
     inputs: []u32,
@@ -25,7 +21,12 @@ pub fn run(graph: *Graph, resolver: *Graph.Resolver, columns: Columns) zx.Error!
     const nodes = graph.nodes.slice();
     const parents = graph.parents();
     const kinds: []const Kind = nodes.items(.kind);
-    const frame: Frame = .{ .graph = graph, .resolver = resolver };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scope: zx.memory.ArenaScope = .{ .active = empty.allocator() };
+    var resolution: Resolve.Frame = .{};
+
+    resolution.bind(graph, resolver, &scope);
+    defer resolution.close();
 
     const request: Request = .{
         .nodes = &.{
@@ -47,15 +48,11 @@ pub fn run(graph: *Graph, resolver: *Graph.Resolver, columns: Columns) zx.Error!
         },
     };
 
-    const input: Input = .{ .frame = @ptrCast(&frame), .columns = &request };
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const input: Input = .{ .resolver = &resolution.view, .columns = &request };
     const workflow = @import("../workflow/errors.zig");
 
-    rule.executeIn(scratch.allocator(), &input) catch |err| return workflow.errorSet(err);
-}
-
-pub fn resolveSignatureNode(handle: *const anyopaque, node: u32) zx.Error!void {
-    const frame: *const Frame = @ptrCast(@alignCast(handle));
-
-    _ = try frame.graph.resolve(@fromBackingInt(node), frame.resolver);
+    rule.executeIn(scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => return workflow.errorSet(err),
+    };
 }

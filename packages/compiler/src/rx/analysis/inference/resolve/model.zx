@@ -1,6 +1,11 @@
+import type { Tables } from "core/type_table/model"
 import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type { TypeResolver } from "rx_project_host"
+import type {
+    Input as TypeWrite
+} from "../../../../zx/analysis/semantic/merging/publication/model"
 import type { Kind } from "../unification/model"
+import type { Payload } from "./continuation"
 
 export enum Route {
     Search,
@@ -32,13 +37,27 @@ export type Publication = {
     known_kind: u8
 }
 
-export type Request = {
+export type Session = {
     frame: TypeResolver,
     graph: View,
     publication: Publication,
     parents: U32Buffer,
     frames: U64Buffer,
     values: U32Buffer,
+    frame_capacity: u64,
+    value_capacity: u64,
+    tables: Tables,
+    payload: Payload,
+    write: TypeWrite
+}
+
+export type Input = {
+    resolver: Session,
+    node: u32
+}
+
+export type Request = {
+    resolver: Session,
     frame_capacity: u64,
     value_capacity: u64,
     depth: u64,

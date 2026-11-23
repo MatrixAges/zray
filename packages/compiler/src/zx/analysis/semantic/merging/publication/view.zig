@@ -103,7 +103,7 @@ pub fn release(self: *const Self) void {
 }
 
 pub fn request(self: *const Self, comptime Input: type, delta: @FieldType(Input, "delta"), origins: @FieldType(Input, "origins")) Input {
-    return .{
+    return zx.columns.view(Input, .{
         .delta = delta,
         .origins = origins,
         .target = self.target.target,
@@ -115,7 +115,7 @@ pub fn request(self: *const Self, comptime Input: type, delta: @FieldType(Input,
         .progress = self.target.progress,
         .destination = self.target.destination,
         .payload = self.target.payload,
-    };
+    });
 }
 
 pub fn offsets(target: *const ir.TypeStorage) Offsets {

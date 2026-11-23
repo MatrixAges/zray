@@ -22,7 +22,7 @@ export default function (in: Input): Output {
     return loop(initial, {
         while: state => state.route == Route.Search,
         next: state => {
-            const graph = state.graph
+            const graph = state.resolver.graph
             const completed = state.completed
 
             if (completed != null) {
@@ -30,7 +30,11 @@ export default function (in: Input): Output {
                     state.route = Route.Complete
                 } else {
                     const frame = (state.depth - 1) * frame_width
-                    const node = integers.narrow(memory.readU64(state.frames, frame))
+                    const node =
+                        integers.narrow(memory.readU64(
+                            state.resolver.frames,
+                            frame
+                        ))
                     const index = integers.widen(node)
                     const kind = graph.kinds[index]
 
@@ -44,9 +48,10 @@ export default function (in: Input): Output {
                         if (used == state.value_capacity) {
                             state.route = Route.GrowValues
                         } else {
-                            memory.writeU32(state.values, used, completed)
+                            memory.writeU32(state.resolver.values, used, completed)
 
-                            const start = memory.readU64(state.frames, frame + 1)
+                            const start =
+                                memory.readU64(state.resolver.frames, frame + 1)
                             const members = graph.members[index]
                             const count = used + 1 - start
 
@@ -68,7 +73,7 @@ export default function (in: Input): Output {
                 }
             } else {
                 const found = representative({
-                    parents: state.parents,
+                    parents: state.resolver.parents,
                     value: state.node
                 })
                 const index = integers.widen(found)
@@ -105,7 +110,7 @@ export default function (in: Input): Output {
                                 state.route = Route.NumericMismatch
                             } else {
                                 record({
-                                    publication: state.publication,
+                                    publication: state.resolver.publication,
                                     node: state.node,
                                     type_id: id
                                 })
@@ -126,8 +131,16 @@ export default function (in: Input): Output {
                             if (frame + frame_width > state.frame_capacity) {
                                 state.route = Route.GrowFrames
                             } else {
-                                memory.writeU64(state.frames, frame, index)
-                                memory.writeU64(state.frames, frame + 1, start)
+                                memory.writeU64(
+                                    state.resolver.frames,
+                                    frame,
+                                    index
+                                )
+                                memory.writeU64(
+                                    state.resolver.frames,
+                                    frame + 1,
+                                    start
+                                )
 
                                 state.depth += 1
                                 state.node = unary ? graph.arguments[index] : members[0]

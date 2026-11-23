@@ -6,8 +6,6 @@ export type Solver = opaque
 
 export type ConstraintRound = opaque
 
-export type SignatureResolver = opaque
-
 export type TypeResolver = opaque
 
 export type AssignmentApplication = opaque
@@ -540,9 +538,6 @@ export declare function refreshSolverObjects(state: ConstraintRound): void
 
 export declare function refreshSolverAssignments(frame: ConstraintRound): void
 
-export declare function resolveSignatureNode(state: SignatureResolver, node: u32): void
-    throws { OutOfMemory, InvalidSource }
-
 export declare function reserveResolveFrames(frame: TypeResolver, used: u64, added: u64): u64
     throws { OutOfMemory }
 
@@ -556,16 +551,35 @@ export declare function reportResolveFailure(
     message: string
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function constructResolvedType(
+export declare function prepareResolveConstruction(
     frame: TypeResolver,
     node: u32,
-    child: u32,
     first: u64,
-    count: u64
-): u32 throws { OutOfMemory, InvalidSource }
+    count: u64,
+    object: bool
+): void
 
-export declare function resolveAssignmentEndpoint(frame: ConstraintRound, node: u32): u32
-    throws { OutOfMemory, InvalidSource }
+export declare function reportResolveConstruction(
+    frame: TypeResolver,
+    code: string,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function bindResolvedType(
+    frame: TypeResolver,
+    kind: u8,
+    first: u32,
+    second: u32,
+    label: string,
+    children: u32[],
+    field_names: string[],
+    field_types: u32[],
+    names: string[]
+): void
+
+export declare function finishResolveConstruction(frame: TypeResolver): void
+
+export declare function refreshAssignmentTypes(frame: ConstraintRound): void
 
 export declare function assignmentRevision(frame: AssignmentApplication): u64
 

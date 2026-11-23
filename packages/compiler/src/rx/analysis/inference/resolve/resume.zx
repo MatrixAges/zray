@@ -15,7 +15,7 @@ export default function (in: Input): Output {
     }
 
     record({
-        publication: in.publication,
+        publication: in.resolver.publication,
         node: in.node,
         type_id
     })

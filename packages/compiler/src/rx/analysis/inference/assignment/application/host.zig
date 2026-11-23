@@ -91,7 +91,7 @@ pub const Frame = struct {
         };
     }
 
-    pub fn bindValidation(self: *Frame, graph: *Graph, handle: *const anyopaque) void {
+    pub fn bindValidation(self: *Frame, graph: *Graph, handle: *const anyopaque, resolver: @FieldType(Validation, "resolver")) void {
         const edges = graph.pending.assignments.slice();
 
         self.spans = edges.items(.span);
@@ -107,6 +107,7 @@ pub const Frame = struct {
 
         self.validation = .{
             .frame = @ptrCast(handle),
+            .resolver = resolver,
             .owner = @ptrCast(graph),
             .spans = @ptrCast(&self.spans),
             .columns = &self.validation_columns,
