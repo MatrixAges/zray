@@ -1,0 +1,16 @@
+import type { Keys } from "./model"
+
+export type Input = void
+
+export type Output = Keys
+
+export default function (in: Input): Output {
+    return {
+        first: null,
+        second: null,
+        first_row: 0,
+        second_row: 0,
+        text: [],
+        capacity: 0
+    }
+}

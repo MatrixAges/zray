@@ -146,6 +146,10 @@ pub const Node = struct {
         };
     }
 
+    pub fn schemaNode(self: Node, index: usize) Node {
+        return .{ .document = self.document, .index = index };
+    }
+
     pub fn childCount(self: Node) usize {
         return @intCast(self.row().child_count);
     }

@@ -15,14 +15,9 @@ names: []const []const u8,
 ends: []const u64,
 text: []const u8,
 pub fn build(allocator: std.mem.Allocator, store: rx.ast.Node, groups: ?rx.store.Groups) std.mem.Allocator.Error!Self {
-    const grouping = groups orelse try @import("layout/seed.zig").group(allocator, store.children);
+    const grouping = groups orelse try rx.store.groupSeed(allocator, store);
     const fragments = store.children[grouping.first..];
-
-    const offsets = grouping.offsets orelse if (comptime generated)
-        try allocator.dupe(u64, &.{ 0, fragments[0].children.len })
-    else
-        try @import("layout/seed.zig").offsets(allocator, fragments);
-
+    const offsets = grouping.offsets orelse try allocator.dupe(u64, &.{ 0, fragments[0].children.len });
     const count: usize = @intCast(offsets[fragments.len]);
     const fields = try allocator.alloc(*const rx.ast.Node, count);
     const expressions = try allocator.alloc([]const u8, count);

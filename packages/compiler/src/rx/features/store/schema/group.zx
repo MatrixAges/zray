@@ -1,76 +1,101 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
-import claim from "core/bytes/index/claim"
+import memory from "memory"
 
-import type { Index } from "core/bytes/index/model"
-import type { Groups } from "./model"
+import { name_attribute } from "../../../schema/attribute/const"
+import claim from "../../../schema/keys/claim"
+import emptyKeys from "../../../schema/keys/empty"
+import attribute from "../../../schema/tree/attribute"
+import next from "../../../schema/tree/next"
+import fieldCount from "./field_count"
 
-export type Input = string[]
+import type { Fragments as Input } from "./model"
 
-export type Output = Groups
+export type Output = u64
 
 export default function (in: Input): Output {
-    if (in.length == 0) {
-        return {
-            starts: [],
-            next: []
-        }
+    const { request, objects } = in
+    const { output, tree, workspace, rows, positions } = request
+
+    const temporary = workspace.allocator
+
+    memory.allocateU32Buffer(output.allocator, output.starts, objects)
+
+    memory.allocateOptionalU32WithAllocator(
+        output.allocator,
+        output.next,
+        objects,
+        true
+    )
+
+    memory.allocateU64Buffer(output.allocator, output.offsets, objects + 1)
+    memory.allocateU32Buffer(temporary, rows, objects)
+
+    if (tree.layout == null) {
+        memory.allocateU64Buffer(temporary, positions, objects)
     }
 
-    const first: u32 = 0
-    const missing: u32? = null
-
-    if (in.length == 1) {
-        return {
-            starts: [first],
-            next: [missing]
-        }
-    }
-
-    const names: Index = {
-        keys: [],
-        values: [],
-        buckets: []
-    }
-
-    const starts: u32[] = []
-    const tails: u32[] = []
-
-    return loop({
-        names,
-        starts,
-        tails,
-        next: in.map(name => missing)[0],
-        index: 0
+    const grouped = loop({
+        node: in.first,
+        row: 0,
+        field: 0,
+        count: 0,
+        keys: emptyKeys()
     }, {
-        while: state => state.index < in.length,
+        while: state => state.row < objects,
         next: state => {
-            const position = integers.narrow(state.index)
-            const group = claim({
-                index: state.names,
-                key: bytes.fromText(in[state.index]),
-                value: integers.narrow(state.starts.length)
-            })
-
-            state.names = group.index
-            const previous = group.previous
-
-            if (previous == null) {
-                state.starts = state.starts.push(position)[0]
-                state.tails = state.tails.push(position)[0]
-            } else {
-                const index = integers.widen(previous)
-                const tail = integers.widen(state.tails[index])
-
-                state.next[tail] = position
-                state.tails[index] = position
+            const node = state.node
+            const row = state.row
+            const visit = {
+                tree,
+                node
             }
 
-            state.index += 1
-        },
-        return: state => ({
-            starts: state.starts,
-            next: state.next
-        })
+            if (tree.layout == null) {
+                memory.writeU64(positions, row, node.head)
+            }
+
+            memory.writeU64(output.offsets, row, state.field)
+            state.field += fieldCount(visit)
+
+            const name = attribute({
+                ...visit,
+                key: name_attribute
+            })
+
+            if (name != null) {
+                const entered = claim({
+                    seen: state.keys,
+                    workspace,
+                    key: name.value,
+                    secondary: false,
+                    row,
+                    count: objects
+                })
+
+                const first = entered.previous
+                const position = integers.narrow(row)
+
+                state.keys = entered.seen
+
+                if (first == null) {
+                    memory.writeU32(output.starts, state.count, position)
+                    memory.writeU32(rows, row, position)
+                    state.count += 1
+                } else {
+                    const tail = integers.widen(memory.readU32(rows, first))
+
+                    memory.writeOptionalU32(output.next, tail, position)
+                    memory.writeU32(rows, first, position)
+                }
+            }
+
+            state.node = next(visit)
+            state.row += 1
+        }
     })
+
+    memory.writeU64(output.offsets, objects, grouped.field)
+    memory.releaseU32Buffer(temporary, rows)
+
+    return grouped.count
 }

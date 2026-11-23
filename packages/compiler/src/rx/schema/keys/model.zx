@@ -3,6 +3,8 @@ import type { Allocator, U64Buffer } from "memory"
 export type Keys = {
     first?: string,
     second?: string,
+    first_row: u64,
+    second_row: u64,
     text: string[],
     capacity: u64
 }

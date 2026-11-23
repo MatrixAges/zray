@@ -1,0 +1,32 @@
+import memory from "memory"
+
+import type { Cursor } from "../../../schema/tree/model"
+import type { Fragments } from "./model"
+
+export type Input = {
+    fragments: Fragments,
+    row: u64
+}
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { fragments, row } = in
+
+    const layout = fragments.request.tree.layout
+
+    if (layout == null) {
+        return {
+            head: memory.readU64(fragments.request.positions, row),
+            rows: []
+        }
+    }
+
+    const rows = fragments.first.rows
+    const offset = row * layout.node_width
+
+    return {
+        head: 0,
+        rows: memory.borrowU8Range(rows, offset, rows.length - offset)
+    }
+}

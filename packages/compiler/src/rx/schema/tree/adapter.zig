@@ -27,7 +27,7 @@ fn layout(comptime Layout: type) Layout {
     };
 }
 
-pub fn run(comptime Rule: type, allocator: std.mem.Allocator, node: anytype) std.mem.Allocator.Error!?Finding(Rule) {
+pub fn invoke(comptime Rule: type, allocator: std.mem.Allocator, node: anytype, input: *std.meta.Child(Rule.Input)) std.mem.Allocator.Error!Result(Rule) {
     const Input = std.meta.Child(Rule.Input);
     const Tree = std.meta.Child(@FieldType(Input, "tree"));
     const raw = @TypeOf(node) == ast.View;
@@ -51,6 +51,25 @@ pub fn run(comptime Rule: type, allocator: std.mem.Allocator, node: anytype) std
         .next = view.next,
     };
 
+    input.tree = &tree;
+
+    input.first = &.{
+        .rows = if (comptime raw) std.mem.sliceAsBytes(node.node.children) else &.{},
+        .head = if (comptime raw) 0 else view.head,
+    };
+
+    input.count = node.childCount();
+
+    const request: *const Input = input;
+
+    return zx.columns.invoke(Rule.executeValue, allocator, request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+}
+
+pub fn run(comptime Rule: type, allocator: std.mem.Allocator, node: anytype) std.mem.Allocator.Error!?Finding(Rule) {
+    const Input = std.meta.Child(Rule.Input);
     var buffer: [1024]u8 align(@alignOf(u64)) = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
     var arena = std.heap.ArenaAllocator.init(scratch.allocator());
@@ -63,42 +82,33 @@ pub fn run(comptime Rule: type, allocator: std.mem.Allocator, node: anytype) std
     const workspace: Workspace = if (Workspace == void) {} else .{ .allocator = @ptrCast(&temporary), .buckets = @ptrCast(&buckets) };
     var input: Input = undefined;
 
-    input.tree = &tree;
-
-    input.first = &.{
-        .rows = if (comptime raw) std.mem.sliceAsBytes(node.node.children) else &.{},
-        .head = if (comptime raw) 0 else view.head,
-    };
-
-    input.count = node.childCount();
-
     if (comptime Workspace != void) input.workspace = &workspace;
 
-    const request: *const Input = &input;
-
-    const result = zx.columns.invoke(Rule.executeValue, temporary, request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    } orelse return null;
+    const result = (try invoke(Rule, temporary, node, &input)) orelse return null;
 
     return if (@typeInfo(@TypeOf(result)) == .pointer) result.* else result;
 }
 
 fn Finding(comptime Rule: type) type {
-    const result = @typeInfo(@TypeOf(Rule.executeValue(undefined, undefined))).error_union.payload;
-    const Present = @typeInfo(result).optional.child;
+    const Present = @typeInfo(Result(Rule)).optional.child;
 
     return if (@typeInfo(Present) == .pointer) std.meta.Child(Present) else Present;
 }
 
-pub fn location(node: anytype, found: anytype) ast.Location {
+fn Result(comptime Rule: type) type {
+    return @typeInfo(@TypeOf(Rule.executeValue(undefined, undefined))).error_union.payload;
+}
+
+pub fn at(node: anytype, found: anytype) @TypeOf(node) {
     if (comptime @TypeOf(node) == ast.View) {
         const row: *const ast.Node = @ptrCast(@alignCast(found.rows.ptr));
 
-        return row.location;
+        return ast.view(row.*);
     }
 
-    const row = node.schemaChildren().nodes[@intCast(found.head - 1)].location;
+    return node.schemaNode(@intCast(found.head - 1));
+}
 
-    return .{ .offset = @intCast(row.offset), .line = @intCast(row.line), .column = @intCast(row.column) };
+pub fn location(node: anytype, found: anytype) ast.Location {
+    return at(node, found).location();
 }

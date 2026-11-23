@@ -1,41 +1,96 @@
+import { alias_attribute } from "../../../schema/attribute/const"
+import { type_tag } from "../../../schema/execution/const"
+import claim from "../../../schema/keys/claim"
+import emptyKeys from "../../../schema/keys/empty"
+import attribute from "../../../schema/tree/attribute"
+import name from "../../../schema/tree/name"
+import next from "../../../schema/tree/next"
 import { Issue } from "./model"
 
-export type Input = bool[]
-
-export type Output = {
-    issue: Issue,
-    index: u64
-}
+import type { Cursor } from "../../../schema/tree/model"
+import type { Declaration as Output, Input } from "./model"
 
 export default function (in: Input): Output {
-    const first = loop({
-        index: 0,
-        has_object: false,
-        late: false
+    const { tree, workspace, count } = in
+
+    const missing: Cursor? = null
+
+    const planned = loop({
+        node: in.first,
+        first: in.first,
+        row: 0,
+        aliases: 0,
+        objects: 0,
+        duplicate: missing,
+        late: missing,
+        keys: emptyKeys()
     }, {
-        while: state => !state.late && state.index < in.length,
+        while: state => state.duplicate == null && state.row < count,
         next: state => {
-            if (in[state.index]) {
-                state.late = state.has_object
-            } else {
-                state.has_object = true
+            const node = state.node
+            const visit = {
+                tree,
+                node
             }
 
-            if (!state.late) {
-                state.index += 1
+            if (name(visit) == type_tag) {
+                if (state.objects != 0 && state.late == null) {
+                    state.late = node
+                }
+
+                const alias = attribute({
+                    ...visit,
+                    key: alias_attribute
+                })
+
+                if (alias != null) {
+                    const entered = claim({
+                        seen: state.keys,
+                        workspace,
+                        key: alias.value,
+                        secondary: false,
+                        row: state.row,
+                        count
+                    })
+
+                    state.keys = entered.seen
+
+                    if (entered.previous != null) {
+                        state.duplicate = node
+                    }
+                }
+
+                state.aliases += 1
+            } else {
+                if (state.objects == 0) {
+                    state.first = node
+                }
+
+                state.objects += 1
             }
+
+            state.node = next(visit)
+            state.row += 1
         }
     })
 
-    if (first.late) {
-        return {
-            issue: Issue.LateType,
-            index: first.index
-        }
+    const issue = match {
+        planned.duplicate != null => Issue.DuplicateType,
+        planned.late != null => Issue.LateType,
+        planned.objects == 0 => Issue.MissingObject,
+        _ => Issue.None
     }
 
     return {
-        issue: first.has_object ? Issue.None : Issue.MissingObject,
-        index: 0
+        issue,
+        where: match {
+            planned.duplicate != null => planned.duplicate,
+            _ => planned.late
+        },
+        ...planned.pick([
+            "first",
+            "aliases",
+            "objects"
+        ])
     }
 }

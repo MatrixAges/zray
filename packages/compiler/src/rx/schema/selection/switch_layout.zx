@@ -1,12 +1,13 @@
 import { value_attribute } from "../attribute/const"
 import { default_tag } from "../execution/const"
 import claim from "../keys/claim"
+import emptyKeys from "../keys/empty"
 import attribute from "../tree/attribute"
 import name from "../tree/name"
 import next from "../tree/next"
 import { Issue } from "./model"
 
-import type { Keys, Workspace } from "../keys/model"
+import type { Workspace } from "../keys/model"
 import type { Input as Children } from "../tree/model"
 import type { Finding, Output } from "./model"
 
@@ -17,19 +18,12 @@ export type Input = Children & {
 export default function (in: Input): Output {
     const { tree, count } = in
 
-    const empty: Keys = {
-        first: null,
-        second: null,
-        text: [],
-        capacity: 0
-    }
-
     const finding: Finding? = null
 
     return loop({
         node: in.first,
         index: 0,
-        keys: empty,
+        keys: emptyKeys(),
         repeated_case: finding,
         repeated_default: finding,
         seen_default: false
@@ -68,7 +62,7 @@ export default function (in: Input): Output {
 
                     state.keys = entered.seen
 
-                    if (entered.repeated) {
+                    if (entered.previous != null) {
                         state.repeated_case = {
                             issue: Issue.DuplicateCase,
                             index: state.index

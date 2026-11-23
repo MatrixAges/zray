@@ -99,7 +99,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/schema/structure/child_count.zx", .name = "rx_schema_child_count", .owner = .rx },
     .{ .path = "rx/schema/content/text/native.zx", .name = "rx_schema_native_text", .owner = .rx },
     .{ .path = "rx/schema/module/check.zx", .name = "rx_module_schema", .owner = .rx },
-    .{ .path = "rx/schema/unique.zx", .name = "rx_store_unique", .owner = .rx },
+    .{ .path = "rx/features/store/schema/unique_field.zx", .name = "rx_store_unique", .owner = .rx },
     .{ .path = "rx/analysis/gateway/routes/layout.rx", .name = "rx_gateway_layout", .owner = .rx_analysis },
     .{ .path = "rx/analysis/gateway/routes/write.zx", .name = "rx_gateway_write_routes", .owner = .rx_analysis },
     .{ .path = "rx/analysis/gateway/routes/conflicts.zx", .name = "rx_gateway_conflicts", .owner = .rx_analysis },

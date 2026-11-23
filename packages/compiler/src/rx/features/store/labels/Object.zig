@@ -7,7 +7,10 @@ const ObjectBase = schema.element("Object", struct { name: []const u8 }, schema.
 pub const Object = dsl.refineAlloc(ObjectBase, checkObject);
 
 fn checkObject(allocator: std.mem.Allocator, data: ObjectBase.Data, node: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    try checks.validate(.Common, data.attributes, node, reporter);
-    if (comptime @import("rx_options").generated_rules) return @import("../schema/adapter.zig").uniqueFields(allocator, data.children, node, reporter);
+    const view = dsl.ast.view(node);
+    const adapter = @import("../schema/adapter.zig");
+
+    try checks.validate(.Common, data.attributes, view, reporter);
+    if (comptime @import("rx_options").generated_rules and adapter.supports(@TypeOf(view))) return adapter.uniqueFields(allocator, view, reporter);
     try checks.uniqueChildren(node, "Field", "name", reporter);
 }

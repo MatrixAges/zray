@@ -1,6 +1,17 @@
-export type Groups = {
-    starts: u32[],
-    next: u32?[]
+import type {
+    Allocator,
+    OptionalU32Buffer,
+    U32Buffer,
+    U64Buffer
+} from "memory"
+import type { Workspace } from "../../../schema/keys/model"
+import type { Cursor, Input as Children } from "../../../schema/tree/model"
+
+export type Columns = {
+    allocator: Allocator,
+    starts: U32Buffer,
+    next: OptionalU32Buffer,
+    offsets: U64Buffer
 }
 
 export enum Issue {
@@ -11,16 +22,36 @@ export enum Issue {
     DuplicateField
 }
 
-export type Input = {
-    tags: bool[],
-    aliases: string[],
-    objects: string[],
-    fields: string[],
-    offsets: u64[]
+export type Input = Children & {
+    workspace: Workspace,
+    rows: U32Buffer,
+    positions: U64Buffer,
+    output: Columns
+}
+
+export type Declaration = {
+    issue: Issue,
+    where?: Cursor,
+    first: Cursor,
+    aliases: u64,
+    objects: u64
 }
 
 export type Output = {
     issue: Issue,
-    index: u64,
-    groups: Groups
+    where?: Cursor,
+    first: u64,
+    groups: u64,
+    objects: u64
+}
+
+export type Fragments = {
+    request: Input,
+    first: Cursor,
+    objects: u64
+}
+
+export type Collision = {
+    fragment: u64,
+    where: Cursor
 }

@@ -18,7 +18,7 @@ export type Input = {
 
 export type Output = {
     seen: Keys,
-    repeated: bool
+    previous?: u64
 }
 
 export default function (in: Input): Output {
@@ -30,24 +30,26 @@ export default function (in: Input): Output {
         const recorded: Keys = match {
             secondary => ({
                 ...seen,
-                second: key
+                second: key,
+                second_row: row
             }),
             _ => ({
                 ...seen,
-                first: key
+                first: key,
+                first_row: row
             })
         }
 
         return {
             seen: recorded,
-            repeated: false
+            previous: null
         }
     }
 
     if (first == key) {
         return {
             seen,
-            repeated: true
+            previous: secondary ? seen.second_row : seen.first_row
         }
     }
 
@@ -65,10 +67,12 @@ export default function (in: Input): Output {
     const mask = table.capacity - 1
     const buckets = workspace.buckets
 
-    const repeated = loop({
+    const absent: u64? = null
+
+    const previous = loop({
         slot: integers.andBits(hash, mask),
         done: false,
-        repeated: false
+        previous: absent
     }, {
         while: state => !state.done,
         next: state => {
@@ -88,17 +92,17 @@ export default function (in: Input): Output {
 
                 if (same_family && table.text[entry / key_families] == key) {
                     state.done = true
-                    state.repeated = true
+                    state.previous = entry / key_families
                 } else {
                     state.slot = integers.andBits(state.slot + 1, mask)
                 }
             }
         },
-        return: state => state.repeated
+        return: state => state.previous
     })
 
     return {
         seen: table,
-        repeated
+        previous
     }
 }

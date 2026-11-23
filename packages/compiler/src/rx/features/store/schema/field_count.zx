@@ -1,0 +1,15 @@
+import children from "../../../schema/tree/children"
+
+import type { Visit as Input } from "../../../schema/tree/model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const layout = in.tree.layout
+
+    if (layout != null) {
+        return children(in).rows.length / layout.node_width
+    }
+
+    return in.tree.nodes[in.node.head - 1].child_count
+}

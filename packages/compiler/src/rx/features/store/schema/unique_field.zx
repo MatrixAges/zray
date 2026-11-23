@@ -1,0 +1,61 @@
+import { name_attribute } from "../../../schema/attribute/const"
+import claim from "../../../schema/keys/claim"
+import emptyKeys from "../../../schema/keys/empty"
+import attribute from "../../../schema/tree/attribute"
+import next from "../../../schema/tree/next"
+
+import type { Workspace } from "../../../schema/keys/model"
+import type { Cursor, Input as Children } from "../../../schema/tree/model"
+
+export type Input = Children & {
+    workspace: Workspace
+}
+
+export type Output = Cursor?
+
+export default function (in: Input): Output {
+    const { tree, count, workspace } = in
+
+    const finding: Output = null
+
+    return loop({
+        node: in.first,
+        row: 0,
+        keys: emptyKeys(),
+        finding
+    }, {
+        while: state => state.finding == null && state.row < count,
+        next: state => {
+            const node = state.node
+            const visit = {
+                tree,
+                node
+            }
+            const name = attribute({
+                ...visit,
+                key: name_attribute
+            })
+
+            if (name != null) {
+                const entered = claim({
+                    seen: state.keys,
+                    workspace,
+                    key: name.value,
+                    secondary: false,
+                    row: state.row,
+                    count
+                })
+
+                state.keys = entered.seen
+
+                if (entered.previous != null) {
+                    state.finding = node
+                }
+            }
+
+            state.node = next(visit)
+            state.row += 1
+        },
+        return: state => state.finding
+    })
+}
