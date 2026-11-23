@@ -6,6 +6,7 @@ const Topology = @import("../../optional/topology.zig").borrowType;
 const solver = @import("generated_rx_run_constraint_solver");
 const Request = child(std.meta.Child(solver.Input), "assignments");
 const View = child(Request, "view");
+const Validation = child(std.meta.Child(solver.Input), "validation");
 const Classes = child(Request, "classes");
 const Rows = child(Request, "rows");
 const Sequences = child(Request, "sequences");
@@ -14,6 +15,8 @@ pub const Frame = struct {
     graph: *Graph,
     workspace: *std.heap.ArenaAllocator,
     view: Request,
+    validation: Validation,
+    validation_columns: child(Validation, "columns"),
     topology: Topology(View),
     merge_view: View,
     nodes: child(Request, "nodes"),
@@ -85,6 +88,28 @@ pub const Frame = struct {
             .bounds = &self.bounds,
             .node_spans = @ptrCast(&self.node_spans),
             .revision = @ptrCast(&self.revision),
+        };
+    }
+
+    pub fn bindValidation(self: *Frame, graph: *Graph, handle: *const anyopaque) void {
+        const edges = graph.pending.assignments.slice();
+
+        self.spans = edges.items(.span);
+
+        self.topology.bind(graph);
+
+        self.validation_columns = .{
+            .graph = &self.topology.graph,
+            .left = @ptrCast(edges.items(.value)),
+            .right = @ptrCast(edges.items(.expected)),
+            .parents = @ptrCast(&self.topology.parents),
+        };
+
+        self.validation = .{
+            .frame = @ptrCast(handle),
+            .owner = @ptrCast(graph),
+            .spans = @ptrCast(&self.spans),
+            .columns = &self.validation_columns,
         };
     }
     fn refresh(self: *Frame) void {

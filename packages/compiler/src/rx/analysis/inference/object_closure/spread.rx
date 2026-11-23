@@ -1,0 +1,17 @@
+<Module>
+    <Type from="workflow" as="Readiness" />
+
+    <Args in={Readiness.Spread} out={bool} />
+
+    <Call fn="spread_query" in={$in} />
+
+    <Call
+        module="run"
+        in={{
+            context: $in.context,
+            query: $ctx.spread_query
+        }}
+    />
+
+    <Return value={$ctx.run} />
+</Module>

@@ -1,5 +1,1 @@
-export {
-    expectSequenceList,
-    expectSequenceTuple,
-    rejectSequenceReplay
-} from "rx_project_host"
+export { borrowSequenceElementSpans, expectSequenceMembers } from "rx_project_host"

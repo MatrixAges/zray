@@ -1,0 +1,25 @@
+<Module>
+    <Type from="../object_closure/replay" as="Objects" />
+
+    <Args in={Objects.Input} out={u64} />
+
+    <Loop on={$in.start < $in.request.view.selections.sources.length}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                start: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        fn="../object_closure/host.readU64"
+        in={[
+            $in.view.revision,
+            0
+        ]}
+    />
+
+    <Return value={$ctx.readU64} />
+</Module>

@@ -1,0 +1,3 @@
+export const invalid_sequence: string = "a sequence requires a list or tuple type"
+
+export const tuple_length: string = "tuple element count does not match the required type"

@@ -1,19 +1,23 @@
 <Module>
-    <Type from="workflow" as="Selection" />
+    <Type from="../object_closure/replay" as="Objects" />
     <Type from="../object_closure/query" as="Query" />
 
-    <Args in={Selection.Cursor} out={Selection.Cursor} />
+    <Args in={Objects.SelectionCursor} out={Objects.SelectionCursor} />
 
     <Call
         fn="../object_closure/selection"
         in={{
-            ...$in.request.views,
-            cache: $in.request.readiness.cache,
+            ...$in.request.view.selections.omit([
+                "owner",
+                "spans"
+            ]),
+            final: $in.request.final,
+            cache: $in.request.view.readiness.cache,
             start: $in.start
         }}
     />
 
-    <If on={$ctx.selection.row == $in.request.views.sources.length}>
+    <If on={$ctx.selection.row == $in.request.view.selections.sources.length}>
         <Return
             value={{
                 request: $in.request,
@@ -26,7 +30,7 @@
         <Call
             fn="host.updateObjectReadiness"
             in={[
-                $in.request.readiness.frame,
+                $in.request.view.readiness.frame,
                 true,
                 $ctx.selection.plan.position,
                 false,
@@ -44,11 +48,12 @@
 
     <If on={$ctx.selection.plan.action == Query.Action.Reject}>
         <Call
-            fn="host.rejectObjectSelection"
-            in={[
-                $in.request.frame,
-                $ctx.selection.row
-            ]}
+            fn="reject_incomplete"
+            in={{
+                graph: $in.request.view.selections.owner,
+                spans: $in.request.view.selections.spans,
+                row: $ctx.selection.row
+            }}
         />
     </If>
 
@@ -56,7 +61,7 @@
         <Call
             fn="host.updateObjectReadiness"
             in={[
-                $in.request.readiness.frame,
+                $in.request.view.readiness.frame,
                 false,
                 $ctx.selection.plan.position,
                 false,
@@ -65,13 +70,14 @@
         />
 
         <If on={!$ctx.updateObjectReadiness}>
-            <If on={$in.request.views.final}>
+            <If on={$in.request.final}>
                 <Call
-                    fn="host.rejectObjectSelection"
-                    in={[
-                        $in.request.frame,
-                        $ctx.selection.row
-                    ]}
+                    fn="reject_incomplete"
+                    in={{
+                        graph: $in.request.view.selections.owner,
+                        spans: $in.request.view.selections.spans,
+                        row: $ctx.selection.row
+                    }}
                 />
             </If>
 
@@ -85,13 +91,23 @@
     </If>
 
     <Call
-        fn="host.replayObjectSelection"
+        fn="host.openSelectionRow"
         in={[
-            $in.request.frame,
+            $in.request.view.frame,
             $ctx.selection.row,
             $ctx.selection.root
         ]}
     />
+
+    <Call
+        module="apply"
+        in={{
+            ...$in.request.view.selection,
+            final: $in.request.final
+        }}
+    />
+
+    <Call fn="../object_closure/host.finishObjectRow" in={$in.request.view.frame} />
 
     <Return
         value={{

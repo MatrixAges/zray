@@ -7,7 +7,11 @@
     <Call
         fn="replay"
         in={{
-            ...$in.request.omit(["frame"]),
+            ...$in.request.omit([
+                "frame",
+                "owner",
+                "spans"
+            ]),
             start: $in.row
         }}
     />
@@ -24,23 +28,35 @@
 
         <Case value={Sequences.SequenceRoute.List}>
             <Call
-                fn="host.expectSequenceList"
+                module="list"
+                in={{
+                    owner: $in.request.owner,
+                    row: $ctx.replay.row,
+                    argument: $ctx.replay.plan.argument,
+                    declared: $ctx.replay.plan.declared
+                }}
+            />
+
+            <Call
+                fn="host.expectSequenceMembers"
                 in={[
-                    $in.request.frame,
+                    $in.request.owner,
                     $ctx.replay.row,
-                    $ctx.replay.plan.argument,
-                    $ctx.replay.plan.declared
+                    $ctx.replay.targets,
+                    $ctx.list,
+                    false
                 ]}
             />
         </Case>
 
         <Case value={Sequences.SequenceRoute.Tuple}>
             <Call
-                fn="host.expectSequenceTuple"
+                fn="host.expectSequenceMembers"
                 in={[
-                    $in.request.frame,
+                    $in.request.owner,
                     $ctx.replay.row,
                     $ctx.replay.targets,
+                    null,
                     $ctx.replay.plan.declared
                 ]}
             />
@@ -48,15 +64,18 @@
 
         <Default>
             <Call
-                fn="host.rejectSequenceReplay"
-                in={[
-                    $in.request.frame,
-                    $ctx.replay.row,
-                    $ctx.replay.plan.route == Sequences.SequenceRoute.Length
-                ]}
+                fn="reject"
+                in={{
+                    owner: $in.request.owner,
+                    spans: $in.request.spans,
+                    row: $ctx.replay.row,
+                    length: $ctx.replay.plan.route == Sequences.SequenceRoute.Length
+                }}
             />
         </Default>
     </Switch>
+
+    <Call fn="../solve/host.refreshSolverSequences" in={$in.request.frame} />
 
     <Return
         value={{

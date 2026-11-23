@@ -1,0 +1,29 @@
+<Module>
+    <Type from="workflow" as="Sequences" />
+
+    <Args in={Sequences.List} out={u32} />
+
+    <If on={$in.declared}>
+        <Call
+            fn="host.borrowSequenceElementSpans"
+            in={[
+                $in.owner,
+                $in.row
+            ]}
+        />
+
+        <Call
+            fn="../projections/host.registerProjectionType"
+            in={[
+                $in.owner,
+                $ctx.borrowSequenceElementSpans,
+                0,
+                $in.argument
+            ]}
+        />
+
+        <Return value={$ctx.registerProjectionType} />
+    </If>
+
+    <Return value={$in.argument} />
+</Module>

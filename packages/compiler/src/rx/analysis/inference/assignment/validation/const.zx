@@ -1,0 +1,2 @@
+export const incompatible_assignment: string =
+    "inferred value cannot be passed to the required type"

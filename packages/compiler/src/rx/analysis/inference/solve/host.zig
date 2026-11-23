@@ -1,15 +1,12 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
-const Assignment = @import("../assignment.zig");
 const Bindings = @import("../bindings/host.zig");
 const generated = @import("rx_options").generated_graph;
-const Construction = @import("../construction.zig");
 const NonNull = @import("../non_null/host.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Projections = @import("../projections/frame.zig");
-const Selection = @import("../selection.zig");
-const Sequences = @import("../sequences.zig");
+const Objects = @import("../object_closure/replay.zig");
 const Assignments = @import("../assignment/application/host.zig");
 const Error = zx.Error;
 
@@ -18,6 +15,8 @@ pub const Frame = struct {
     resolver: *Graph.Resolver,
     workspace: std.heap.ArenaAllocator,
     closure: ObjectClosure,
+    scope: *zx.memory.ArenaScope = undefined,
+    objects: if (generated) Objects else void = if (generated) .{} else {},
     assignments: if (generated) Assignments.Frame else void = undefined,
     bindings: if (generated) Bindings.Frame else void = undefined,
     non_null: if (generated) NonNull.Frame else void = undefined,
@@ -55,26 +54,16 @@ pub fn refreshSolverIndexes(handle: *const anyopaque) void {
     frame.projections.bindIndexes(frame.graph, handle);
 }
 
-pub fn solveSequences(handle: *const anyopaque) Error!void {
-    try Sequences.replay(Frame.borrow(handle).graph);
+pub fn refreshSolverSequences(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    frame.projections.bindSequences(frame.graph, handle);
 }
 
-pub fn solveConstructions(handle: *const anyopaque, final: bool) Error!bool {
+pub fn refreshSolverObjects(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
-    const revision = frame.graph.revision;
 
-    try Construction.replay(frame.graph, &frame.closure, final);
-
-    return final and frame.graph.revision != revision;
-}
-
-pub fn solveSelections(handle: *const anyopaque, final: bool) Error!bool {
-    const frame = Frame.borrow(handle);
-    const revision = frame.graph.revision;
-
-    try Selection.replay(frame.graph, &frame.closure, final);
-
-    return final and frame.graph.revision != revision;
+    frame.objects.bind(frame.graph, &frame.closure, frame.scope);
 }
 
 pub fn refreshSolverAssignments(handle: *const anyopaque) void {
@@ -83,8 +72,17 @@ pub fn refreshSolverAssignments(handle: *const anyopaque) void {
     frame.assignments.bind(frame.graph, &frame.workspace);
 }
 
-pub fn solveValidateAssignments(handle: *const anyopaque) Error!void {
+pub fn refreshSolverValidation(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
 
-    try Assignment.validate(frame.graph, frame.resolver);
+    frame.assignments.bindValidation(frame.graph, handle);
+}
+
+pub fn resolveAssignmentEndpoint(handle: *const anyopaque, node: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
+    const resolved = try frame.graph.resolve(@fromBackingInt(node), frame.resolver);
+
+    frame.assignments.topology.bindTypes(frame.graph);
+
+    return @backingInt(resolved);
 }

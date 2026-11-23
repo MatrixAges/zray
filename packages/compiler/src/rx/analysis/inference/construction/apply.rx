@@ -1,9 +1,9 @@
 <Module>
-    <Type from="object" as="Construction" />
+    <Type from="workflow" as="Construction" />
     <Type from="../fields/view" as="Fields" />
     <Type from="diagnostic" as="Diagnostic" />
 
-    <Args in={Construction.Request} out={void} />
+    <Args in={Construction.Row} out={void} />
 
     <Switch on={$in.mode}>
         <Case value={Fields.Mode.Invalid}>

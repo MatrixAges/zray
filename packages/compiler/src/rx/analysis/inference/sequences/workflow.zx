@@ -1,11 +1,27 @@
-import type { SequenceReplay } from "rx_project_host"
+import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
 import type { ReplayInput } from "./model"
 
 export type Replay = ReplayInput.Omit("start") & {
-    frame: SequenceReplay
+    frame: ConstraintRound,
+    owner: ProjectionGraph,
+    spans: ProjectionSpans
 }
 
 export type Cursor = {
     request: Replay,
     row: u64
+}
+
+export type List = {
+    owner: ProjectionGraph,
+    row: u64,
+    argument: u32,
+    declared: bool
+}
+
+export type Failure = {
+    owner: ProjectionGraph,
+    spans: ProjectionSpans,
+    row: u64,
+    length: bool
 }

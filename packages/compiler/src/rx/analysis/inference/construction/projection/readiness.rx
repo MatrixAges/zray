@@ -55,16 +55,16 @@
     </Switch>
 
     <Call
-        fn="host.proveObjectSpreadReady"
-        in={[
-            $in.frame,
-            $in.root
-        ]}
+        module="../../object_closure/spread"
+        in={{
+            context: $in.readiness,
+            root: $in.root
+        }}
     />
 
     <If
         on={$in.action == Spread.Action.ProveRequired &&
-            !$ctx.proveObjectSpreadReady}
+            !$ctx.spread}
     >
         <Call
             module="../report"
@@ -76,5 +76,5 @@
         />
     </If>
 
-    <Return value={$ctx.proveObjectSpreadReady} />
+    <Return value={$ctx.spread} />
 </Module>

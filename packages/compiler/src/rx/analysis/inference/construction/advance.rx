@@ -1,17 +1,17 @@
 <Module>
-    <Type from="workflow" as="Construction" />
+    <Type from="../object_closure/replay" as="Objects" />
 
-    <Args in={Construction.Cursor} out={Construction.Cursor} />
+    <Args in={Objects.ConstructionCursor} out={Objects.ConstructionCursor} />
 
     <Call
         fn="queue"
         in={{
-            ...$in.request.views,
+            ...$in.request.view.constructions,
             first: $in.first
         }}
     />
 
-    <If on={$ctx.queue.position == $in.request.views.results.length}>
+    <If on={$ctx.queue.position == $in.request.view.constructions.results.length}>
         <Return
             value={{
                 request: $in.request,
@@ -21,13 +21,18 @@
     </If>
 
     <Call
-        fn="host.replayObjectConstruction"
+        fn="host.openConstructionRow"
         in={[
-            $in.request.frame,
+            $in.request.view.frame,
             $ctx.queue.position,
-            $ctx.queue.root
+            $ctx.queue.root,
+            $in.request.final
         ]}
     />
+
+    <Call module="apply" in={$in.request.view.construction} />
+
+    <Call fn="../object_closure/host.finishObjectRow" in={$in.request.view.frame} />
 
     <Return
         value={{

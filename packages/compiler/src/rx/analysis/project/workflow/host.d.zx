@@ -10,8 +10,6 @@ export type SignatureResolver = opaque
 
 export type TypeResolver = opaque
 
-export type AssignmentValidation = opaque
-
 export type AssignmentApplication = opaque
 
 export type AssignmentRegistration = opaque
@@ -26,9 +24,7 @@ export type UnificationTarget = opaque
 
 export type ObjectReadiness = opaque
 
-export type ObjectConstruction = opaque
-
-export type ObjectSelection = opaque
+export type ObjectReplay = opaque
 
 export type ObjectFieldReplay = opaque
 
@@ -53,8 +49,6 @@ export type NonNullReplay = opaque
 export type NonNullRead = opaque
 
 export type OptionalQuery = opaque
-
-export type SequenceReplay = opaque
 
 export type ProjectionGraph = opaque
 
@@ -538,19 +532,13 @@ export declare function refreshSolverLengths(state: ConstraintRound): void
 
 export declare function refreshSolverIndexes(state: ConstraintRound): void
 
-export declare function solveSequences(state: ConstraintRound): void
-    throws { OutOfMemory, InvalidSource }
+export declare function refreshSolverSequences(state: ConstraintRound): void
 
-export declare function solveConstructions(state: ConstraintRound, final: bool): bool
-    throws { OutOfMemory, InvalidSource }
+export declare function refreshSolverValidation(state: ConstraintRound): void
 
-export declare function solveSelections(state: ConstraintRound, final: bool): bool
-    throws { OutOfMemory, InvalidSource }
+export declare function refreshSolverObjects(state: ConstraintRound): void
 
 export declare function refreshSolverAssignments(frame: ConstraintRound): void
-
-export declare function solveValidateAssignments(state: ConstraintRound): void
-    throws { OutOfMemory, InvalidSource }
 
 export declare function resolveSignatureNode(state: SignatureResolver, node: u32): void
     throws { OutOfMemory, InvalidSource }
@@ -576,10 +564,7 @@ export declare function constructResolvedType(
     count: u64
 ): u32 throws { OutOfMemory, InvalidSource }
 
-export declare function resolveAssignmentEndpoint(frame: AssignmentValidation, node: u32): u32
-    throws { OutOfMemory, InvalidSource }
-
-export declare function rejectAssignmentEdge(frame: AssignmentValidation, row: u64): void
+export declare function resolveAssignmentEndpoint(frame: ConstraintRound, node: u32): u32
     throws { OutOfMemory, InvalidSource }
 
 export declare function assignmentRevision(frame: AssignmentApplication): u64
@@ -694,20 +679,11 @@ export declare function updateObjectReadiness(
     shared: bool
 ): bool throws { OutOfMemory }
 
-export declare function replayObjectConstruction(
-    frame: ObjectConstruction,
-    row: u64,
-    root: u32
-): void throws { OutOfMemory, InvalidSource }
+export declare function openConstructionRow(frame: ObjectReplay, row: u64, root: u32, final: bool): void
 
-export declare function replayObjectSelection(
-    frame: ObjectSelection,
-    row: u64,
-    root: u32
-): void throws { OutOfMemory, InvalidSource }
+export declare function openSelectionRow(frame: ObjectReplay, row: u64, root: u32): void
 
-export declare function rejectObjectSelection(frame: ObjectSelection, row: u64): void
-    throws { OutOfMemory, InvalidSource }
+export declare function finishObjectRow(frame: ObjectReplay): void
 
 export declare function refreshObjectReplayFields(frame: ObjectFieldReplay): void
 
@@ -741,11 +717,6 @@ export declare function bindObjectSpreadFields(
     declared: bool,
     inferred: bool
 ): void
-
-export declare function proveObjectSpreadReady(
-    frame: ObjectConstructionRow,
-    root: u32
-): bool throws { OutOfMemory }
 
 export declare function registerConstructedSource(
     frame: ObjectConstructionRow,
@@ -818,24 +789,14 @@ export declare function remainingOptionalDepth(frame: OptionalQuery): u64
 export declare function reportOptionalDepth(frame: OptionalQuery, root: u32, message: string): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function expectSequenceList(
-    frame: SequenceReplay,
-    row: u64,
-    child: u32,
-    declared: bool
-): void throws { OutOfMemory, InvalidSource }
+export declare function borrowSequenceElementSpans(owner: ProjectionGraph, row: u64): ProjectionSpans
 
-export declare function expectSequenceTuple(
-    frame: SequenceReplay,
+export declare function expectSequenceMembers(
+    owner: ProjectionGraph,
     row: u64,
     members: u32[],
+    repeated: u32?,
     declared: bool
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function rejectSequenceReplay(
-    frame: SequenceReplay,
-    row: u64,
-    length: bool
 ): void throws { OutOfMemory, InvalidSource }
 
 export declare function registerProjectionType(

@@ -1,1 +1,1 @@
-export { resolveAssignmentEndpoint, rejectAssignmentEdge } from "rx_project_host"
+export { resolveAssignmentEndpoint } from "rx_project_host"

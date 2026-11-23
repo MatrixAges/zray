@@ -1,12 +1,18 @@
-import type { ObjectConstruction } from "rx_project_host"
-import type { Input as Scan } from "./queue"
+import type { ObjectFieldReplay } from "rx_project_host"
+import type { Mode } from "../fields/view"
+import type { View } from "../fields/workflow"
+import type { Input as Activation } from "./activate"
+import type { Parts } from "./model"
+import type { Request as Projection } from "./projection/model"
+import type { Input as Queue } from "./queue"
 
-export type Request = {
-    frame: ObjectConstruction,
-    views: Scan.Omit("first")
-}
+export type Scan = Queue.Omit("first")
 
-export type Cursor = {
-    request: Request,
-    first: u64
+export type Row = {
+    mode: Mode,
+    parts: Parts,
+    fields: ObjectFieldReplay,
+    field_view: View,
+    shape: Activation.Omit("route"),
+    projection: Projection
 }

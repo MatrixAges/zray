@@ -1,5 +1,5 @@
 const Graph = @import("../types.zig");
-const Query = @import("../object_closure.zig").Query;
+const Query = enum { spread, selection };
 
 pub fn prove(graph: *const Graph, value: Graph.Id, query: Query, depth: usize) bool {
     if (graph.shape(value) == .known) return true;

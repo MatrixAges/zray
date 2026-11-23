@@ -1,103 +1,23 @@
-const std = @import("std");
 const zx = @import("zx");
-const Graph = @import("../types.zig");
-const Fields = @import("../fields/replay.zig");
+const Replay = @import("../object_closure/replay.zig");
 const View = @import("../fields/view.zig");
-const errors = @import("../../project/workflow/errors.zig");
-const Selection = @import("../selection.zig");
-const Kind = @import("../nodes.zig").Kind;
-const Closure = @import("../object_closure.zig");
-const Readiness = @import("../object_closure/host.zig");
-const rule = @import("generated_rx_replay_object_selection");
-const Input = std.meta.Child(rule.Input);
-const Views = std.meta.Child(@FieldType(Input, "views"));
-const Selections = std.MultiArrayList(Selection.Selection).Slice;
 
-const Frame = struct {
-    graph: *Graph,
-    readiness: Readiness.Session,
-    pending: Selections,
-    views: Views = undefined,
-    parents: []u32 = undefined,
-    fn bind(self: *Frame) void {
-        const kinds: []const Kind = self.graph.nodes.items(.kind);
+pub fn openSelectionRow(handle: *const anyopaque, row: u64, root: u32) void {
+    const frame = Replay.from(handle);
+    const graph = frame.graph;
+    const selection = graph.pending.selections.get(@intCast(row));
+    const source = View.read(graph, @fromBackingInt(root));
 
-        self.views.kinds = zx.columns.slice(@FieldType(Views, "kinds"), kinds);
-        self.parents = self.graph.parents();
-        self.views.revision = self.graph.object_revision;
-    }
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
-    }
-};
+    _ = frame.memory.open(frame.scope, graph.scratch);
+    frame.fields = .{ .graph = graph, .result = selection.result, .span = selection.span };
+    frame.source = .{ .names = source.names, .values = source.values };
 
-pub fn run(graph: *Graph, closure: *Closure, pending: Selections, final: bool) zx.Error!void {
-    if (pending.len == 0) return;
-
-    var frame: Frame = .{
-        .graph = graph,
-        .readiness = .{ .graph = graph, .closure = closure },
-        .pending = pending,
+    frame.selection = .{
+        .frame = @ptrCast(&frame.fields),
+        .field_view = &frame.fields.view,
+        .source = &frame.source,
+        .mode = zx.columns.view(@FieldType(Replay.SelectionRow, "mode"), source.mode),
+        .keys = selection.keys,
+        .omit = selection.omit,
     };
-
-    frame.views = .{
-        .parents = @ptrCast(&frame.parents),
-        .kinds = undefined,
-        .sources = @ptrCast(pending.items(.source)),
-        .constructions = graph.pending.constructions.len,
-        .revision = undefined,
-        .final = final,
-    };
-
-    frame.bind();
-    frame.readiness.bind();
-
-    const input: Input = .{
-        .frame = @ptrCast(&frame),
-        .readiness = &frame.readiness.context(),
-        .views = &frame.views,
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
-}
-
-pub fn replayObjectSelection(handle: *const anyopaque, row: u64, root: u32) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const value = frame.pending.get(@intCast(row));
-    const apply = @import("generated_rx_apply_object_selection");
-    const Apply = std.meta.Child(apply.Input);
-    const source = View.read(frame.graph, @fromBackingInt(root));
-    var arena = std.heap.ArenaAllocator.init(frame.graph.scratch);
-
-    defer arena.deinit();
-
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    var fields: Fields.Frame = .{ .graph = frame.graph, .result = value.result, .span = value.span };
-
-    const input: Apply = .{
-        .frame = @ptrCast(&fields),
-        .field_view = &fields.view,
-        .source = &.{ .names = source.names, .values = source.values },
-        .mode = zx.columns.view(@FieldType(Apply, "mode"), source.mode),
-        .keys = value.keys,
-        .omit = value.omit,
-        .final = frame.views.final,
-    };
-
-    apply.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return errors.errorSet(err),
-    };
-
-    frame.bind();
-}
-
-pub fn rejectObjectSelection(handle: *const anyopaque, row: u64) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const span = frame.pending.items(.span)[@intCast(row)];
-
-    return frame.graph.reporter.fail(.type_mismatch, span, Selection.incomplete_source);
 }

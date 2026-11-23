@@ -18,27 +18,29 @@
         <Return value={true} />
     </If>
 
+    <Call fn="host.refreshSolverObjects" in={$in.frame} />
+
     <Call
-        fn="host.solveSelections"
-        in={[
-            $in.frame,
-            true
-        ]}
+        module="../selection/select"
+        in={{
+            view: $in.objects,
+            final: true
+        }}
     />
 
-    <If on={$ctx.solveSelections}>
+    <If on={$ctx.select != $ctx.solveRevision}>
         <Return value={true} />
     </If>
 
     <Call
-        fn="host.solveConstructions"
-        in={[
-            $in.frame,
-            true
-        ]}
+        module="../construction/construct"
+        in={{
+            view: $in.objects,
+            final: true
+        }}
     />
 
-    <If on={$ctx.solveConstructions}>
+    <If on={$ctx.construct != $ctx.solveRevision}>
         <Return value={true} />
     </If>
 
@@ -56,7 +58,9 @@
         }}
     />
 
-    <Call fn="host.solveValidateAssignments" in={$in.frame} />
+    <Call fn="host.refreshSolverValidation" in={$in.frame} />
+
+    <Call module="../assignment/validation/run" in={$in.validation} />
 
     <Return value={false} />
 </Module>

@@ -2,6 +2,9 @@ const zx = @import("zx");
 const Assignment = @import("../assignment.zig");
 const defaults = @import("../sequences/defaults/seed.zig");
 const host = @import("host.zig");
+const Construction = @import("../construction.zig");
+const Selection = @import("../selection.zig");
+const Sequences = @import("../sequences.zig");
 const bindings = @import("../bindings.zig");
 const non_null = @import("../non_null.zig");
 const lengths = @import("../projections/seed.zig");
@@ -14,11 +17,9 @@ pub fn run(frame: *host.Frame) zx.Error!void {
         try bindings.validateUsesSeed(frame.graph);
         try bindings.propagateSeed(frame.graph, false);
         try non_null.propagateSeed(frame.graph, false);
-        try host.solveSequences(frame);
-
-        _ = try host.solveConstructions(frame, false);
-        _ = try host.solveSelections(frame, false);
-
+        try Sequences.replaySeed(frame.graph);
+        try Construction.replaySeed(frame.graph, false);
+        try Selection.replaySeed(frame.graph, false);
         try lengths.replay(frame.graph);
         try indexes.replay(frame.graph);
         if (frame.graph.revision != revision) continue;
@@ -38,11 +39,13 @@ pub fn run(frame: *host.Frame) zx.Error!void {
 
         try non_null.propagateSeed(frame.graph, true);
         if (frame.graph.revision != final_revision) continue;
-        if (try host.solveSelections(frame, true)) continue;
-        if (try host.solveConstructions(frame, true)) continue;
+        try Selection.replaySeed(frame.graph, true);
+        if (frame.graph.revision != final_revision) continue;
+        try Construction.replaySeed(frame.graph, true);
+        if (frame.graph.revision != final_revision) continue;
         try lengths.validate(frame.graph);
         try bindings.propagateSeed(frame.graph, true);
-        try host.solveValidateAssignments(frame);
+        try Assignment.validateSeed(frame.graph);
 
         return;
     }

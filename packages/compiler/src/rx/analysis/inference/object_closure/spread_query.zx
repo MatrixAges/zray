@@ -1,0 +1,21 @@
+import integers from "std:integer"
+
+import type { Input as Query } from "./query"
+import type { Spread } from "./workflow"
+
+export type Input = Spread
+
+export type Output = Query.Omit("cache")
+
+export default function (in: Input): Output {
+    const { context, root } = in
+
+    return {
+        root,
+        kind: context.kinds[integers.widen(root)],
+        revision: context.revision,
+        constructions: context.constructions,
+        selections: context.selections,
+        spread: true
+    }
+}

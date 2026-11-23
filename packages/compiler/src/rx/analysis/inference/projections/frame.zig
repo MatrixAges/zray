@@ -5,21 +5,42 @@ const Nodes = @import("../nodes.zig");
 const Target = @import("../sequences/target.zig");
 const solver = @import("generated_rx_run_constraint_solver");
 const Input = std.meta.Child(solver.Input);
+const Sequences = std.meta.Child(@FieldType(Input, "sequences"));
 const Lengths = std.meta.Child(@FieldType(Input, "lengths"));
 const Indexes = std.meta.Child(@FieldType(Input, "indexes"));
 const Known = std.meta.Child(@FieldType(Lengths, "known"));
 const Self = @This();
 
+sequences: Sequences,
 lengths: Lengths,
 indexes: Indexes,
 parents: []u32,
 known: Known,
 length_types: std.meta.Child(@FieldType(Lengths, "types")),
 sequence_view: std.meta.Child(@FieldType(Indexes, "graph")),
+sequence_spans: []const zx.Span,
 length_spans: []const zx.Span,
 index_spans: []const zx.Span,
 position_spans: []const zx.Span,
 resolution: []bool,
+pub fn bindSequences(self: *Self, graph: *Graph, handle: *const anyopaque) void {
+    const rows = graph.pending.sequences.slice();
+
+    self.parents = graph.parents();
+    self.sequence_view = Target.borrow(@TypeOf(self.sequence_view), graph);
+    self.sequence_spans = rows.items(.span);
+
+    self.sequences = .{
+        .frame = @ptrCast(handle),
+        .owner = @ptrCast(graph),
+        .spans = @ptrCast(&self.sequence_spans),
+        .graph = &self.sequence_view,
+        .parents = @ptrCast(&self.parents),
+        .values = @ptrCast(rows.items(.value)),
+        .elements = @ptrCast(rows.items(.elements)),
+    };
+}
+
 pub fn bindLengths(self: *Self, graph: *Graph, handle: *const anyopaque) void {
     const rows = graph.pending.lengths.slice();
     const nodes = graph.nodes.slice();

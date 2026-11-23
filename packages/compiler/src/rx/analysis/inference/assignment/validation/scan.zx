@@ -9,7 +9,7 @@ export type Input = Scan
 export type Output = Result
 
 export default function (in: Input): Output {
-    const { graph, edges, parents } = in
+    const { graph, left, right, parents } = in
 
     const source: u32? = in.source_type == null ? in.resolved : in.source_type
     const target: u32? = in.source_type == null ? null : in.resolved
@@ -22,13 +22,13 @@ export default function (in: Input): Output {
         node: no_node,
         action: Action.Scan
     }, {
-        while: state => state.action == Action.Scan && state.index < edges.left.length,
+        while: state => state.action == Action.Scan && state.index < left.length,
         next: state => {
             if (state.source_type == null) {
                 const source = endpoint({
                     graph,
                     parents,
-                    value: edges.left[state.index]
+                    value: left[state.index]
                 })
 
                 state.source_type = source.known
@@ -43,7 +43,7 @@ export default function (in: Input): Output {
                 const expected = endpoint({
                     graph,
                     parents,
-                    value: edges.right[state.index]
+                    value: right[state.index]
                 })
 
                 state.target_type = expected.known

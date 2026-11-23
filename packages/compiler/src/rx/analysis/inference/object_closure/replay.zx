@@ -1,0 +1,30 @@
+import type { U64Buffer } from "memory"
+import type { ObjectReplay } from "rx_project_host"
+import type { Scan as Construction, Row as Constructed } from "../construction/workflow"
+import type { Scan as Selection, Row as Selected } from "../selection/workflow"
+import type { Context } from "./workflow"
+
+export type View = {
+    frame: ObjectReplay,
+    constructions: Construction,
+    construction: Constructed,
+    selections: Selection,
+    selection: Selected,
+    readiness: Context,
+    revision: U64Buffer
+}
+
+export type Input = {
+    view: View,
+    final: bool
+}
+
+export type ConstructionCursor = {
+    request: Input,
+    first: u64
+}
+
+export type SelectionCursor = {
+    request: Input,
+    start: u64
+}

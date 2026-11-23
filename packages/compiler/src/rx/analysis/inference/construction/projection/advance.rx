@@ -18,6 +18,7 @@
         module="readiness"
         in={{
             frame: $in.request.frame,
+            readiness: $in.request.readiness,
             ...$in.pick([
                 "row",
                 "root",

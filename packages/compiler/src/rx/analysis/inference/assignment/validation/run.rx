@@ -3,7 +3,7 @@
 
     <Args in={Validation.Request} out={void} />
 
-    <Loop on={$in.index < $in.request.columns.edges.left.length}>
+    <Loop on={$in.index < $in.request.columns.left.length}>
         <Call
             module="advance"
             in={{

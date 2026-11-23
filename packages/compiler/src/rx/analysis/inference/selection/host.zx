@@ -1,5 +1,1 @@
-export {
-    updateObjectReadiness,
-    replayObjectSelection,
-    rejectObjectSelection
-} from "rx_project_host"
+export { openSelectionRow, updateObjectReadiness } from "rx_project_host"

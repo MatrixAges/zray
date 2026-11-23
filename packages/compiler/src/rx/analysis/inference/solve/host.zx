@@ -4,9 +4,8 @@ export {
     refreshSolverNonNull,
     refreshSolverLengths,
     refreshSolverIndexes,
-    solveSequences,
-    solveConstructions,
-    solveSelections,
+    refreshSolverSequences,
+    refreshSolverObjects,
     refreshSolverAssignments,
-    solveValidateAssignments
+    refreshSolverValidation
 } from "rx_project_host"

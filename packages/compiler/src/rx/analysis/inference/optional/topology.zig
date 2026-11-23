@@ -15,7 +15,8 @@ pub fn borrowType(comptime Request: type) type {
         pub fn bind(self: *@This(), graph: *const Graph) void {
             const rows = graph.nodes.slice();
             const kinds: []const Nodes.Kind = rows.items(.kind);
-            self.types = .{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items };
+
+            self.bindTypes(graph);
 
             self.graph = .{
                 .kinds = zx.columns.slice(@FieldType(View, "kinds"), kinds),
@@ -25,6 +26,10 @@ pub fn borrowType(comptime Request: type) type {
 
             self.known = graph.pending.known_types.borrow(@TypeOf(self.known));
             self.parents = graph.parents();
+        }
+
+        pub fn bindTypes(self: *@This(), graph: *const Graph) void {
+            self.types = .{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items };
         }
     };
 }

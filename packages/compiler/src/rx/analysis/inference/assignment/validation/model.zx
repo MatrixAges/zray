@@ -1,5 +1,5 @@
 import type { U32Buffer } from "memory"
-import type { AssignmentValidation } from "rx_project_host"
+import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
 import type { Graph } from "../../optional/model"
 import type { Edges } from "../model"
 
@@ -9,9 +9,8 @@ export enum Action {
     Mismatch
 }
 
-export type Columns = {
+export type Columns = Edges & {
     graph: Graph,
-    edges: Edges,
     parents: U32Buffer
 }
 
@@ -29,7 +28,9 @@ export type Result = Cursor.Pick("index", "source_type") & {
 }
 
 export type Request = {
-    frame: AssignmentValidation,
+    frame: ConstraintRound,
+    owner: ProjectionGraph,
+    spans: ProjectionSpans,
     columns: Columns
 }
 

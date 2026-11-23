@@ -5,8 +5,6 @@ const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
 const Schedule = @import("expression/schedule.zig");
 const Target = @import("sequences/target.zig");
-const Registration = @import("assignment/registration.zig");
-const generated = @import("rx_options").generated_graph;
 
 pub const Sequence = struct { value: Graph.Id, elements: []const Graph.Id, spans: []const zx.Span, span: zx.Span };
 
@@ -56,16 +54,10 @@ fn inferElements(self: *Expression, items: anytype) zx.Error!Elements.Slice {
     return rows;
 }
 
-pub fn replay(graph: *Graph) zx.Error!void {
+pub fn replaySeed(graph: *Graph) zx.Error!void {
     const sequences = graph.pending.sequences.slice();
 
-    if (comptime !generated) {
-        for (0..sequences.len) |row| try seedPropagate(graph, sequences.get(row));
-
-        return;
-    }
-
-    try @import("sequences/host.zig").run(graph, sequences);
+    for (0..sequences.len) |row| try seedPropagate(graph, sequences.get(row));
 }
 
 fn seedPropagate(graph: *Graph, sequence: Sequence) zx.Error!void {
@@ -88,19 +80,18 @@ fn seedPropagate(graph: *Graph, sequence: Sequence) zx.Error!void {
     }
 }
 
-pub fn expectList(graph: *Graph, sequence: Sequence, child: u32, declared: bool) zx.Error!void {
+fn expectList(graph: *Graph, sequence: Sequence, child: u32, declared: bool) zx.Error!void {
     if (sequence.elements.len == 0) return;
 
     const member = try Target.child(graph, child, declared, sequence.spans[0]);
 
-    if (generated) return Registration.expectMany(graph, sequence.elements, sequence.spans, .{ .repeated = member });
     for (sequence.elements, sequence.spans) |element, span| try graph.expect(element, member, span);
 }
 
-pub fn lengthMismatch(graph: *const Graph, span: zx.Span) zx.Error {
+fn lengthMismatch(graph: *const Graph, span: zx.Span) zx.Error {
     return graph.reporter.fail(.type_mismatch, span, "tuple element count does not match the required type");
 }
 
-pub fn invalidSequence(graph: *const Graph, span: zx.Span) zx.Error {
+fn invalidSequence(graph: *const Graph, span: zx.Span) zx.Error {
     return graph.reporter.fail(.type_mismatch, span, "a sequence requires a list or tuple type");
 }

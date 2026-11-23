@@ -1,11 +1,11 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
-const ObjectClosure = @import("../object_closure.zig");
+const ObjectReadiness = @import("../object_closure/seed.zig");
 const Object = @import("../construction.zig").Object;
 const Provider = struct { value: Graph.Id, field: bool };
 
-pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: bool) zx.Error!void {
+pub fn propagate(graph: *Graph, object: Object, final: bool) zx.Error!void {
     var names: std.StringHashMapUnmanaged(void) = .empty;
 
     defer names.deinit(graph.allocator);
@@ -20,7 +20,7 @@ pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: 
         } else {
             const source_shape = graph.shape(part.value);
 
-            if (final and (source_shape == .unknown or (source_shape == .object and source_shape.object.len == 0 and !try closure.prove(graph, part.value, .spread)))) return graph.reporter.fail(.type_mismatch, part.span, "object spread source cannot be inferred from the available constraints");
+            if (final and (source_shape == .unknown or (source_shape == .object and source_shape.object.len == 0 and !ObjectReadiness.prove(graph, part.value, .spread, 0)))) return graph.reporter.fail(.type_mismatch, part.span, "object spread source cannot be inferred from the available constraints");
             try collect(graph, part.value, &names, part.span);
         }
     }
@@ -53,7 +53,7 @@ pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: 
                 break;
             }
 
-            if (try closure.prove(graph, part.value, .spread)) continue;
+            if (ObjectReadiness.prove(graph, part.value, .spread, 0)) continue;
 
             if (provider) |existing| {
                 if (existing.field and graph.root(existing.value) == graph.root(part.value)) continue;

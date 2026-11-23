@@ -1,19 +1,10 @@
 const std = @import("std");
 const zx = @import("zx");
-const Graph = @import("../types.zig");
-pub const Edges = std.MultiArrayList(@import("../assignment.zig").Edge).Slice;
+const Graph = @import("../../types.zig");
 
-pub fn validate(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
+pub fn validate(graph: *Graph) zx.Error!void {
     const edges = graph.pending.assignments.slice();
-
-    if (!@import("rx_options").generated_graph) return seed(graph, edges);
-    if (edges.len == 0) return;
-
-    return @import("validation/host.zig").run(graph, resolver, edges);
-}
-
-fn seed(graph: *Graph, edges: Edges) zx.Error!void {
-    const resolve = @import("../resolve/seed.zig").resolve;
+    const resolve = @import("../../resolve/seed.zig").resolve;
 
     for (edges.items(.value), edges.items(.expected), edges.items(.span)) |source, target, span| {
         const actual = try resolve(graph, source, 0);

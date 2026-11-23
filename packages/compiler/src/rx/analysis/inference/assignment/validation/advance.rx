@@ -15,11 +15,12 @@
 
     <If on={$ctx.scan.action == Validation.Action.Mismatch}>
         <Call
-            fn="host.rejectAssignmentEdge"
-            in={[
-                $in.request.frame,
-                $ctx.scan.index
-            ]}
+            fn="reject"
+            in={{
+                graph: $in.request.owner,
+                spans: $in.request.spans,
+                row: $ctx.scan.index
+            }}
         />
     </If>
 

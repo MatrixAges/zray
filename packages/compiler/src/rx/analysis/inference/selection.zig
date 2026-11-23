@@ -3,7 +3,7 @@ const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const selection = @import("frontend").object_selection;
 const Graph = @import("types.zig");
-const ObjectClosure = @import("object_closure.zig");
+const ObjectReadiness = @import("object_closure/seed.zig");
 const Expression = @import("expression.zig");
 const Schedule = @import("expression/schedule.zig");
 
@@ -57,20 +57,14 @@ fn readKeys(self: *Expression, expression: anytype, span: zx.Span) zx.Error![]co
     };
 }
 
-pub fn replay(graph: *Graph, closure: *ObjectClosure, final: bool) zx.Error!void {
+pub fn replaySeed(graph: *Graph, final: bool) zx.Error!void {
     const pending = graph.pending.selections.slice();
 
-    if (comptime !@import("rx_options").generated_graph) {
-        for (0..pending.len) |index| {
-            const value = pending.get(index);
+    for (0..pending.len) |index| {
+        const value = pending.get(index);
 
-            if (try closure.prove(graph, value.source, .selection)) {
-                try @import("selection/seed.zig").apply(graph, value, final);
-            } else if (final) return graph.reporter.fail(.type_mismatch, value.span, incomplete_source);
-        }
-
-        return;
+        if (ObjectReadiness.prove(graph, value.source, .selection, 0)) {
+            try @import("selection/seed.zig").apply(graph, value, final);
+        } else if (final) return graph.reporter.fail(.type_mismatch, value.span, incomplete_source);
     }
-
-    return @import("selection/host.zig").run(graph, closure, pending, final);
 }

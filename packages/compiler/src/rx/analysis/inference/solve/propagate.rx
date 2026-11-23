@@ -26,22 +26,26 @@
         }}
     />
 
-    <Call fn="host.solveSequences" in={$in.frame} />
+    <Call fn="host.refreshSolverSequences" in={$in.frame} />
+
+    <Call module="../sequences/replay_sequences" in={$in.sequences} />
+
+    <Call fn="host.refreshSolverObjects" in={$in.frame} />
 
     <Call
-        fn="host.solveConstructions"
-        in={[
-            $in.frame,
-            false
-        ]}
+        module="../construction/construct"
+        in={{
+            view: $in.objects,
+            final: false
+        }}
     />
 
     <Call
-        fn="host.solveSelections"
-        in={[
-            $in.frame,
-            false
-        ]}
+        module="../selection/select"
+        in={{
+            view: $in.objects,
+            final: false
+        }}
     />
 
     <Call fn="host.refreshSolverLengths" in={$in.frame} />

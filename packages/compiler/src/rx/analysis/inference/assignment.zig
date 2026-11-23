@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
 pub const Base = @import("assignment/seed/base.zig");
-pub const validate = @import("assignment/validation.zig").validate;
+pub const validateSeed = @import("assignment/validation/seed.zig").validate;
 pub const Edge = struct { value: Graph.Id, expected: Graph.Id, span: zx.Span, key: u64 = 0 };
 
 pub fn materializeSeed(graph: *Graph, base: Base, scratch: std.mem.Allocator) zx.Error!void {

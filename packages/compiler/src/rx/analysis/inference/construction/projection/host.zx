@@ -1,5 +1,4 @@
 export {
     reserveObjectSpreadColumns,
-    bindObjectSpreadFields,
-    proveObjectSpreadReady
+    bindObjectSpreadFields
 } from "rx_project_host"
