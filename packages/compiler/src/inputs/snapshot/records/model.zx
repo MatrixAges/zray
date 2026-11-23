@@ -1,4 +1,3 @@
-import type { Writer } from "std:bytes"
 import type { ReadColumn, TextColumn } from "memory"
 import type { Time } from "../age"
 
@@ -34,19 +33,4 @@ export type Check = {
     observed: Observations,
     index: u64,
     now: Time
-}
-
-export type WriteHeader = {
-    writer: Writer,
-    context: string,
-    digest: u8[],
-    count: u64
-}
-
-export type WriteRows = {
-    writer: Writer,
-    rows: Observations & {
-        read_high: ReadColumn,
-        read_low: ReadColumn
-    }
 }

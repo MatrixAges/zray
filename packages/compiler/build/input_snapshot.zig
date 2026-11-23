@@ -111,26 +111,53 @@ fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const Fact
     const size = records.measure(facts) orelse return null;
     const payload = try allocator.alloc(u8, size);
     var writer = std.Io.Writer.fixed(payload);
+    const rule = @import("generated_input_records_write");
+    const memory = @import("zx").memory;
+    const paths = memory.borrowTextColumn("path", facts);
+    const keys = memory.borrowTextColumn("key", facts);
+    var versions = SnapshotVersions{ .files = files };
 
-    try records.header(&writer, context, fingerprint, facts.len);
+    const complete = try rule.executeIn(allocator, &.{
+        .writer = @ptrCast(&writer),
+        .context = context,
+        .digest = fingerprint,
+        .count = facts.len,
+        .paths = @ptrCast(&paths),
+        .keys = @ptrCast(&keys),
+        .versions = @ptrCast(&versions),
+    });
 
-    var batch: [records.batch_size]records.Stored = undefined;
-    var cursor: usize = 0;
-
-    while (cursor < facts.len) {
-        const count = @min(batch.len, facts.len - cursor);
-
-        for (facts[cursor..][0..count], batch[0..count]) |*fact, *target| {
-            const version = files.version(fact.key) orelse return null;
-            target.* = records.Stored.init(fact.path, version.metadata, version.read);
-        }
-
-        try records.writeRows(&writer, batch[0..count]);
-
-        cursor += count;
-    }
+    if (!complete) return null;
 
     std.debug.assert(writer.buffered().len == size);
 
     return payload;
+}
+
+const Version = if (source.binary_records) @import("generation_execution_abi").layouts.@"zig:generation_host".SnapshotVersion else void;
+
+const SnapshotVersions = struct {
+    files: *const Files,
+    row: Version = undefined,
+};
+
+pub fn readSnapshotVersion(cache: *const anyopaque, key: []const u8) ?*const Version {
+    const self: *SnapshotVersions = @ptrCast(@alignCast(@constCast(cache)));
+    const version = self.files.version(key) orelse return null;
+    const modified = source.timestamp(version.metadata.mtime);
+    const changed = source.timestamp(version.metadata.ctime);
+    const read = source.timestamp(version.read);
+
+    self.row = .{
+        .inode = version.metadata.inode,
+        .size = version.metadata.size,
+        .mtime_low = modified.low,
+        .ctime_low = changed.low,
+        .read_low = read.low,
+        .mtime_high = modified.high,
+        .ctime_high = changed.high,
+        .read_high = read.high,
+    };
+
+    return &self.row;
 }

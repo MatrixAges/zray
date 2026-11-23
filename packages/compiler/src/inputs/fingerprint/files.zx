@@ -1,38 +1,31 @@
 import bytes from "std:bytes"
 import field from "core/ir/fingerprint/text"
+import { readGenerationFileDigest } from "generation_host"
 import memory from "memory"
 
-import { digest_width } from "./const"
+import type { OutputFingerprint, SourceRows } from "./output_shape"
 
-import type { Writer } from "std:bytes"
-import type { Records } from "./model"
-
-export type Input = {
-    out: Writer,
-    rows: Records
+export type Input = OutputFingerprint.Pick("out", "cache") & {
+    rows: SourceRows
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { out, rows } = in
-
-    const include_digest = rows.digests.length != 0
+    const { out, cache, rows } = in
 
     const written = loop(0, {
         while: position => position < rows.count,
         next: position => {
+            const path = memory.readTextColumn(rows.paths, position)
+            const source = memory.readTextColumn(rows.sources, position)
+
             field({
                 out,
-                text: memory.readTextColumn(rows.paths, position)
+                text: path
             })
 
-            if (include_digest) {
-                const start = rows.offset + position * rows.stride
-                const digest = memory.borrowU8Range(rows.digests, start, digest_width)
-
-                bytes.write(out, digest)
-            }
+            bytes.write(out, readGenerationFileDigest(cache, path, source))
 
             position += 1
         }

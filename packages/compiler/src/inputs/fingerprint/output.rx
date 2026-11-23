@@ -1,0 +1,32 @@
+<Module>
+    <Type from="output_shape" as="Fingerprint" />
+
+    <Args in={Fingerprint.OutputFingerprint} out={void} />
+
+    <Call
+        fn="output_header"
+        in={{
+            out: $in.out,
+            frame: $in.frame,
+            partitions: $in.partitions
+        }}
+    />
+
+    <Call
+        fn="files"
+        in={{
+            out: $in.out,
+            cache: $in.cache,
+            rows: $in.sources
+        }}
+    />
+
+    <Call
+        fn="files"
+        in={{
+            out: $in.out,
+            cache: $in.cache,
+            rows: $in.templates
+        }}
+    />
+</Module>

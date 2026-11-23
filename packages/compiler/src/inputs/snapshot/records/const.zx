@@ -31,5 +31,3 @@ export const read_high_at: u64 = 48
 export const path_length_at: u64 = 52
 
 export const row_width: u64 = 56
-
-export const batch_size: u64 = 64

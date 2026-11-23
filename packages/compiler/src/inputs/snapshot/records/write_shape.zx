@@ -1,0 +1,18 @@
+import type { Writer } from "std:bytes"
+import type { SnapshotVersions } from "generation_host"
+import type { TextColumn } from "memory"
+
+export type WriteHeader = {
+    writer: Writer,
+    context: string,
+    digest: u8[],
+    count: u64
+}
+
+export type WriteRows = WriteHeader.Pick("writer", "count") & {
+    paths: TextColumn,
+    keys: TextColumn,
+    versions: SnapshotVersions
+}
+
+export type Write = WriteHeader & WriteRows

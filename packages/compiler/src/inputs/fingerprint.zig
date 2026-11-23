@@ -3,7 +3,6 @@ const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
 const memory = if (generated) @import("zx").memory else void;
 pub const Digest = [zx.Sha256.digest_length]u8;
-pub const batch_size = 64;
 
 pub const Hash = struct {
     state: std.Io.Writer.Hashing(zx.Sha256),
@@ -77,37 +76,6 @@ fn frameSeed(hash: *Hash, generator: *const Digest, manifest: []const u8, texts:
     for (interfaces) |interface| field(&hash.state.hasher, interface.source);
 }
 
-pub fn files(hash: *Hash, records: anytype, digests: []const Digest) void {
-    std.debug.assert(records.len == digests.len);
-
-    if (comptime generated) {
-        const rule = @import("generated_input_file_fingerprint");
-        const paths = memory.borrowTextColumn("path", records);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
-
-        const input: Input = .{
-            .out = @ptrCast(hash.out()),
-            .rows = &.{
-                .paths = @ptrCast(&paths),
-                .count = records.len,
-                .digests = std.mem.sliceAsBytes(digests),
-                .offset = 0,
-                .stride = @sizeOf(Digest),
-            },
-        };
-
-        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return;
-    }
-
-    for (records, digests) |record, *digest| {
-        field(&hash.state.hasher, record.path);
-        hash.state.hasher.update(digest);
-    }
-}
-
 pub fn packages(records: anytype) Digest {
     var buffer: [1024]u8 = undefined;
     var hash = Hash.init(&buffer);
@@ -135,19 +103,23 @@ pub fn packages(records: anytype) Digest {
     return hash.finish();
 }
 
-pub fn output(hash: *Hash, digest: *const Digest, partitions: u32) void {
-    if (comptime generated) {
-        const rule = @import("generated_input_output_fingerprint");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+pub fn seedOutput(digest: *const Digest, partitions: u32, sources: anytype, templates: anytype, cache: anytype) Digest {
+    var buffer: [1024]u8 = undefined;
+    var hash = Hash.init(&buffer);
+    const out = &hash.state.hasher;
 
-        rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(hash.out()), .frame = digest, .partitions = partitions }) catch unreachable;
+    field(out, "zxc.bootstrap.inputs.v2");
+    out.update(digest);
+    integer(u32, out, partitions);
 
-        return;
+    inline for (.{ sources, templates }) |rows| {
+        for (rows) |row| {
+            field(out, row.path);
+            out.update(&cache.digest(row.path, row.source));
+        }
     }
 
-    field(&hash.state.hasher, "zxc.bootstrap.inputs.v2");
-    hash.state.hasher.update(digest);
-    integer(u32, &hash.state.hasher, partitions);
+    return hash.finish();
 }
 
 pub fn snapshot(generator: *const Digest, partitions: u32, directory: []const u8, manifest: []const u8) Digest {

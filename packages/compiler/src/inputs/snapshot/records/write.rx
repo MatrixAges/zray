@@ -1,0 +1,28 @@
+<Module>
+    <Type from="write_shape" as="Records" />
+
+    <Args in={Records.Write} out={bool} />
+
+    <Call
+        fn="write_header"
+        in={{
+            writer: $in.writer,
+            context: $in.context,
+            digest: $in.digest,
+            count: $in.count
+        }}
+    />
+
+    <Call
+        fn="write_rows"
+        in={{
+            writer: $in.writer,
+            count: $in.count,
+            paths: $in.paths,
+            keys: $in.keys,
+            versions: $in.versions
+        }}
+    />
+
+    <Return value={$ctx.write_rows} />
+</Module>

@@ -356,11 +356,8 @@ pub const main = [_]Entry{
     .{ .path = "zx/ir/compare/referenced/bodies.zx", .name = "ir_compare_bodies" },
     .{ .path = "zx/ir/compare/header.rx", .name = "ir_compare_header" },
     input_snapshot,
-    .{ .path = "inputs/snapshot/records/const.zx", .name = "input_records_constants", .owner = .compiler },
     .{ .path = "inputs/snapshot/records/read.rx", .name = "input_records_read", .owner = .compiler },
     .{ .path = "inputs/snapshot/records/measure.zx", .name = "input_records_measure", .owner = .compiler },
-    .{ .path = "inputs/snapshot/records/write_header.zx", .name = "input_records_write_header", .owner = .compiler },
-    .{ .path = "inputs/snapshot/records/write_rows.zx", .name = "input_records_write_rows", .owner = .compiler },
     .{ .path = "inputs/snapshot/const.zx", .name = "input_snapshot_constants", .owner = .compiler },
     .{ .path = "inputs/snapshot/envelope/split.zx", .name = "input_snapshot_split", .owner = .compiler },
     .{ .path = "inputs/snapshot/envelope/accept.zx", .name = "input_snapshot_accept", .owner = .compiler },
@@ -387,9 +384,7 @@ pub const main = [_]Entry{
     .{ .path = "inputs/collection/interface/location.zx", .name = "input_interface_location", .owner = .compiler },
     .{ .path = "inputs/collection/interface/register.rx", .name = "input_interface_registration", .owner = .compiler },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .compiler },
-    .{ .path = "inputs/fingerprint/files.zx", .name = "input_file_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/text.zx", .name = "input_text_fingerprint", .owner = .compiler },
-    .{ .path = "inputs/fingerprint/output_header.zx", .name = "input_output_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/snapshot.zx", .name = "input_snapshot_fingerprint", .owner = .compiler },
     .{ .path = "inputs/generation/const.zx", .name = "generation_constants", .owner = .compiler },
     .{ .path = "inputs/generation/stamp.zx", .name = "generation_stamp", .owner = .compiler },
@@ -888,6 +883,8 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "inputs/fingerprint/output.rx", .name = "input_output_fingerprint", .owner = .bootstrap },
+    .{ .path = "inputs/snapshot/records/write.rx", .name = "input_records_write", .owner = .bootstrap },
     .{ .path = "inputs/generation/request/run.rx", .name = "generation_request", .owner = .bootstrap },
     .{ .path = "genz/analysis/node_headers/direct.zx", .name = "direct_ast_range", .owner = .genz },
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },

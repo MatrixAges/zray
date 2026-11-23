@@ -3,36 +3,6 @@ const zx = @import("zx");
 const snapshot = @import("../snapshot.zig");
 const memory = zx.memory;
 const Digest = @import("../fingerprint.zig").Digest;
-pub const batch_size = @import("generated_input_records_constants").@"zx.constants".batch_size;
-
-pub const Stored = struct {
-    path: []const u8,
-    inode: u64,
-    size: u64,
-    mtime_high: i32,
-    mtime_low: u64,
-    ctime_high: i32,
-    ctime_low: u64,
-    read_high: i32,
-    read_low: u64,
-    pub fn init(path: []const u8, metadata: snapshot.Metadata, read: i96) Stored {
-        const modified = snapshot.timestamp(metadata.mtime);
-        const changed = snapshot.timestamp(metadata.ctime);
-        const last_read = snapshot.timestamp(read);
-
-        return .{
-            .path = path,
-            .inode = metadata.inode,
-            .size = metadata.size,
-            .mtime_high = modified.high,
-            .mtime_low = modified.low,
-            .ctime_high = changed.high,
-            .ctime_low = changed.low,
-            .read_high = last_read.high,
-            .read_low = last_read.low,
-        };
-    }
-};
 
 pub fn measure(facts: []const snapshot.Observation) ?usize {
     const rule = @import("generated_input_records_measure");
@@ -60,33 +30,6 @@ pub fn reuse(payload: []const u8, context: []const u8, facts: []const snapshot.O
     }) catch return null;
 
     return (digest orelse return null)[0..@sizeOf(Digest)].*;
-}
-
-pub fn header(writer: *std.Io.Writer, context: []const u8, digest: *const Digest, count: usize) !void {
-    const rule = @import("generated_input_records_write_header");
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    try rule.executeValue(empty.allocator(), &.{
-        .writer = @ptrCast(writer),
-        .context = context,
-        .digest = digest,
-        .count = count,
-    });
-}
-
-pub fn writeRows(writer: *std.Io.Writer, rows: []const Stored) !void {
-    const rule = @import("generated_input_records_write_rows");
-    const Input = std.meta.Child(rule.Input);
-    const Shape = std.meta.Child(@FieldType(Input, "rows"));
-    const views = Views.init(rows);
-    const read_high = memory.borrowReadColumn(i32, "read_high", rows);
-    const read_low = memory.borrowReadColumn(u64, "read_low", rows);
-    var input = views.input(Shape, rows.len);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    input.read_high = @ptrCast(&read_high);
-    input.read_low = @ptrCast(&read_low);
-    _ = try rule.executeValue(empty.allocator(), &.{ .writer = @ptrCast(writer), .rows = &input });
 }
 
 const Views = struct {

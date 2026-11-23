@@ -117,7 +117,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("build/generate_parser.zig"),
         .target = target,
         .optimize = if (optimize == .debug or optimize == .safe) .small else optimize,
-        .imports = &.{ .{ .name = "compiler", .module = module }, .{ .name = "rx", .module = rx }, .{ .name = "rx_analysis", .module = rx_analysis } },
+        .imports = &.{
+            .{ .name = "compiler", .module = module },
+            .{ .name = "rx", .module = rx },
+            .{ .name = "rx_analysis", .module = rx_analysis },
+            .{ .name = "zx", .module = core },
+        },
     }) });
 
     const root = bootstrap_tool.root_module;

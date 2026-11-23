@@ -12,7 +12,7 @@ const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
 const generated = publication.generated;
 const Prepared = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".PreparedGeneration else void;
-pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation }).resolve;
+pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, InputSnapshot }).resolve;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -147,7 +147,36 @@ const Generation = struct {
 
         self.rx_digests = digests;
         self.fingerprints = fingerprint.frame(&resident.digest, self.manifest_source, digests, self.interfaces.bindings);
-        self.digest = outputDigest(&self.fingerprints.content, self.request.partitions, self.inputs.sources, self.inputs.templates, &resident.files);
+        self.digest = self.outputDigest();
+    }
+
+    fn outputDigest(self: *const Generation) fingerprint.Digest {
+        const frame = &self.fingerprints.content;
+        const partitions = self.request.partitions;
+        const files = &self.resident.files;
+
+        if (comptime !generated) return fingerprint.seedOutput(frame, partitions, self.inputs.sources, self.inputs.templates, files);
+
+        const rule = @import("generated_input_output_fingerprint");
+        const Input = std.meta.Child(rule.Input);
+        const Rows = std.meta.Child(@FieldType(Input, "sources"));
+        const sources = FileColumns(Rows).init(self.inputs.sources);
+        const templates = FileColumns(Rows).init(self.inputs.templates);
+        var cache = FileDigest{ .files = files };
+        var buffer: [1024]u8 = undefined;
+        var hash = fingerprint.Hash.init(&buffer);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        rule.executeValue(empty.allocator(), &.{
+            .out = @ptrCast(&hash.state.writer),
+            .frame = frame,
+            .partitions = partitions,
+            .cache = @ptrCast(&cache),
+            .sources = &sources.view(),
+            .templates = &templates.view(),
+        }) catch unreachable;
+
+        return hash.finish();
     }
 
     fn readStamp(self: *Generation) !?[]const u8 {
@@ -338,31 +367,36 @@ const Generation = struct {
     }
 };
 
-/// The frame and raw ZX/template inputs; a matching output needs no template expansion or RX parsing.
-fn outputDigest(frame: *const fingerprint.Digest, partitions: u32, sources: []const compiler.project.Source, templates: []const compiler.project.Resource, files: *Files) fingerprint.Digest {
-    var buffer: [1024]u8 = undefined;
-    var hash = fingerprint.Hash.init(&buffer);
+const FileDigest = struct {
+    files: *Files,
+    digest: fingerprint.Digest = undefined,
+};
 
-    fingerprint.output(&hash, frame, partitions);
-    writeDigests(&hash, files, sources);
-    writeDigests(&hash, files, templates);
+pub fn readGenerationFileDigest(cache: *const anyopaque, key: []const u8, source: []const u8) []const u8 {
+    const self: *FileDigest = @ptrCast(@alignCast(@constCast(cache)));
+    self.digest = self.files.digest(key, source);
 
-    return hash.finish();
+    return &self.digest;
 }
 
-fn writeDigests(hash: *fingerprint.Hash, files: *Files, inputs: anytype) void {
-    const batch_size = fingerprint.batch_size;
-    var digests: [batch_size]fingerprint.Digest = undefined;
-    var remaining = inputs;
+fn FileColumns(comptime Rows: type) type {
+    const memory = @import("zx").memory;
 
-    while (remaining.len != 0) {
-        const count = @min(batch_size, remaining.len);
+    return struct {
+        const Self = @This();
 
-        for (remaining[0..count], digests[0..count]) |*input, *digest|
-            digest.* = files.digest(input.path, input.source);
-
-        fingerprint.files(hash, remaining[0..count], digests[0..count]);
-
-        remaining = remaining[count..];
-    }
+        paths: memory.TextColumn,
+        sources: memory.TextColumn,
+        count: usize,
+        fn init(items: anytype) Self {
+            return .{
+                .paths = memory.borrowTextColumn("path", items),
+                .sources = memory.borrowTextColumn("source", items),
+                .count = items.len,
+            };
+        }
+        fn view(self: *const Self) Rows {
+            return .{ .paths = @ptrCast(&self.paths), .sources = @ptrCast(&self.sources), .count = self.count };
+        }
+    };
 }

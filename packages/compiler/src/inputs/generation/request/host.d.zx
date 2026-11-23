@@ -5,6 +5,21 @@ export type PreparedGeneration = {
     interfaces_loaded: bool
 }
 
+export type GenerationFileCache = opaque
+
+export type SnapshotVersions = opaque
+
+export type SnapshotVersion = {
+    inode: u64,
+    size: u64,
+    mtime_low: u64,
+    ctime_low: u64,
+    read_low: u64,
+    mtime_high: i32,
+    ctime_high: i32,
+    read_high: i32
+}
+
 export declare function observeGenerationInputs(request: GenerationRequest): u8[]?
     throws { GenerationRequestFailed }
 
@@ -47,3 +62,14 @@ export declare function writeGenerationStamp(request: GenerationRequest): void
 
 export declare function saveGenerationSnapshot(request: GenerationRequest): void
     throws { GenerationRequestFailed }
+
+export declare function readGenerationFileDigest(
+    cache: GenerationFileCache,
+    key: string,
+    source: string
+): u8[]
+
+export declare function readSnapshotVersion(
+    cache: SnapshotVersions,
+    key: string
+): SnapshotVersion?

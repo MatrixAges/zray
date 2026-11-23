@@ -183,6 +183,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "rx/path_segments");
                 addSubtree(run, tracked[0], "inputs/generation");
                 addSubtree(run, tracked[0], "inputs/fingerprint");
+                addSubtree(run, tracked[0], "inputs/snapshot");
                 addSubtree(run, tracked[0], "backends/zig");
                 addSubtree(run, tracked[0], "backends/hardware");
                 addSubtree(run, tracked[0], "backends/verilog");
