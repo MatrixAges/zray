@@ -1,52 +1,57 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import representative from "../../inference/forest/borrowed_root"
 
-import type { U32Buffer } from "memory"
+import type { BoolBuffer, U32Buffer } from "memory"
 import type { Edges } from "../../inference/assignment/model"
-import type { Kind } from "../../inference/unification/model"
 
 export type Input = {
     edges: Edges,
     parents: U32Buffer,
-    kinds: Kind[],
-    marked: bool[],
-    index: u64,
-    left: bool
+    marked: BoolBuffer,
+    count: u64
 }
 
-export type Output = {
-    marked: bool[]
-}
+export type Output = bool[]
 
 export default function (in: Input): Output {
-    return loop(in, {
-        while: state => state.index < state.edges.left.length,
+    const { edges, marked, parents, count } = in
+
+    memory.allocateBoolViews(marked, count)
+
+    const first = loop({
+        remaining: count
+    }, {
+        while: state => state.remaining != 0,
         next: state => {
-            if (state.marked.length == 0) {
-                state.marked = state.kinds.map(kind => false)[0]
-            } else {
-                const index = state.index
-                const endpoint = match {
-                    state.left => state.edges.left[index],
-                    _ => state.edges.right[index]
-                }
-                const root = representative({
-                    parents: state.parents,
-                    value: endpoint
-                })
+            state.remaining -= 1
 
-                state.marked[integers.widen(root)] = true
-
-                if (!state.left) {
-                    state.index += 1
-                }
-
-                state.left = !state.left
-            }
+            memory.writeBool(marked, state.remaining, false)
         },
-        return: state => ({
-            marked: state.marked
-        })
+        return: state => state.remaining
+    })
+
+    return loop({
+        row: first
+    }, {
+        while: state => state.row < edges.left.length,
+        next: state => {
+            const row = state.row
+            const left = representative({
+                parents,
+                value: edges.left[row]
+            })
+            const right = representative({
+                parents,
+                value: edges.right[row]
+            })
+
+            memory.writeBool(marked, integers.widen(left), true)
+            memory.writeBool(marked, integers.widen(right), true)
+
+            state.row += 1
+        },
+        return: state => memory.boolViews(marked)
     })
 }

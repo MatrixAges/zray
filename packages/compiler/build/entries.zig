@@ -102,8 +102,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/gateway/routes/conflicts.zx", .name = "rx_gateway_conflicts", .owner = .rx_analysis },
     .{ .path = "rx/analysis/gateway/limits.zx", .name = "rx_gateway_limits", .owner = .rx_analysis },
     .{ .path = "rx/analysis/store/initializer/object/publish.rx", .name = "rx_store_initializer_object", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/input_defaults/mark.zx", .name = "rx_input_default_marks", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/input_defaults/next.zx", .name = "rx_next_input_default", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/assemble.rx", .name = "rx_args_source", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/render.zx", .name = "rx_args_render", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/location.zx", .name = "rx_args_location", .owner = .rx_analysis },
@@ -983,6 +981,7 @@ pub const collections = [_]Entry{
 
 pub const execution = [_]Entry{
     .{ .path = "rx/analysis/project/constraints/ports/run.rx", .name = "rx_port_registration", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/constraints/collection/run.rx", .name = "rx_collect_module_constraints", .owner = .rx_analysis },
     .{ .path = "genz/analysis/node_headers/direct.zx", .name = "direct_ast_range", .owner = .genz },
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
     .{ .path = "backends/zig/state/publication/build.rx", .name = "publish_state", .owner = .compiler },

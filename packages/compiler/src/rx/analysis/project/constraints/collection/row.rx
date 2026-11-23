@@ -1,0 +1,48 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Cursor} out={Collection.Cursor} />
+
+    <Call
+        fn="host.openConstraintModule"
+        in={[
+            $in.request.frame,
+            $in.row
+        ]}
+    />
+
+    <If on={$ctx.openConstraintModule}>
+        <Call fn="host.forwardConstraintShortcut" in={$in.request.frame} />
+
+        <Else>
+            <Call fn="host.inferConstraintBody" in={$in.request.frame} />
+
+            <If on={!$ctx.inferConstraintBody}>
+                <Call fn="host.defaultConstraintOutput" in={$in.request.frame} />
+            </If>
+        </Else>
+    </If>
+
+    <Call fn="host.constraintInputUsed" in={$in.request.frame} />
+    <Call fn="host.constraintBindingEnd" in={$in.request.frame} />
+    <Call fn="host.constraintTaskEnd" in={$in.request.frame} />
+
+    <Call
+        fn="publish"
+        in={{
+            ports: $in.request.ports,
+            unused: $in.request.unused,
+            row: $in.row,
+            used: $ctx.constraintInputUsed,
+            binding_end: $ctx.constraintBindingEnd,
+            task_end: $ctx.constraintTaskEnd
+        }}
+    />
+
+    <Return
+        value={{
+            request: $in.request,
+            row: $in.row + 1
+        }}
+    />
+</Module>

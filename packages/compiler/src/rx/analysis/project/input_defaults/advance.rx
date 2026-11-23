@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Defaults" />
+
+    <Args in={Defaults.Cursor} out={Defaults.Cursor} />
+
+    <Call fn="next" in={$in} />
+
+    <If on={$ctx.next.input != null}>
+        <Call
+            fn="host.defaultConstraintInput"
+            in={[
+                $in.frame,
+                $ctx.next.input
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            frame: $in.frame,
+            parents: $in.parents,
+            columns: $in.columns,
+            marked: $in.marked,
+            protected: $in.protected,
+            next: $ctx.next.next
+        }}
+    />
+</Module>

@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Request} out={void} />
+
+    <Loop on={$in.row < $in.request.modules}>
+        <Call
+            module="row"
+            in={{
+                request: $in,
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call fn="host.releaseConstraintScope" in={$in.frame} />
+
+    <Call
+        fn="host.readU64"
+        in={[
+            $in.unused,
+            0
+        ]}
+    />
+
+    <If on={$ctx.readU64 != 0}>
+        <Call module="../../input_defaults/apply" in={$in} />
+    </If>
+</Module>

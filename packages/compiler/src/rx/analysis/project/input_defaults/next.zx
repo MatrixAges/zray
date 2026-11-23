@@ -1,67 +1,71 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import representative from "../../inference/forest/borrowed_root"
 import referenced from "./referenced"
 
-import type { U32Buffer } from "memory"
-import type { Edges } from "../../inference/assignment/model"
+import type { Cursor } from "./model"
 
-export type Input = {
-    inputs: u32[],
-    fixed: bool[],
-    edges: Edges,
-    parents: U32Buffer,
-    marked: bool[],
-    protected?: u32,
+export type Input = Cursor
+
+export type Output = {
     next: u64,
-    found: bool
+    input?: u32
 }
 
-export type Output = Input.Pick("next", "found")
-
 export default function (in: Input): Output {
-    return loop(in, {
-        while: state => !state.found && state.next < state.inputs.length,
+    const { columns, parents, marked, protected } = in
+    const { edges, fixed, inputs } = columns
+
+    const marks = memory.boolViews(marked)
+
+    const initial: Output = {
+        next: in.next,
+        input: null
+    }
+
+    return loop(initial, {
+        while: state => state.input == null && state.next < inputs.length,
         next: state => {
             const index = state.next
 
-            if (!state.fixed[index]) {
-                const input = representative({
-                    parents: state.parents,
-                    value: state.inputs[index]
+            state.next += 1
+
+            if (!fixed[index]) {
+                const value = inputs[index]
+                const root = representative({
+                    parents,
+                    value
                 })
 
-                if (state.marked.length == 0) {
+                if (marks.length == 0) {
                     const result = referenced({
-                        edges: state.edges,
-                        parents: state.parents,
-                        root: input,
+                        edges,
+                        parents,
+                        root,
                         index: 0,
                         found: false
                     })
 
-                    state.found = !result.found
-                } else if (!state.marked[integers.widen(input)]) {
-                    const protected = state.protected
-
+                    if (!result.found) {
+                        state.input = value
+                    }
+                } else if (!marks[integers.widen(root)]) {
                     if (protected == null) {
-                        state.found = true
+                        state.input = value
                     } else {
                         const active = representative({
-                            parents: state.parents,
+                            parents,
                             value: protected
                         })
 
-                        state.found = active != input
+                        if (active != root) {
+                            state.input = value
+                        }
                     }
                 }
             }
-
-            state.next += 1
         },
-        return: state => ({
-            next: state.next,
-            found: state.found
-        })
+        return: state => state
     })
 }

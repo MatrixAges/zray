@@ -6,6 +6,8 @@ export type Solver = opaque
 
 export type PortGraph = opaque
 
+export type ConstraintCollection = opaque
+
 export type Mixed = opaque
 
 export type MixedState = opaque
@@ -443,4 +445,31 @@ export declare function reservePortNodes(target: PortGraph, count: u64): void
 export declare function commitPortNodes(target: PortGraph): void
 
 export declare function internPortType(target: PortGraph, type_id: u32, offset: u64): u32
+    throws { OutOfMemory, InvalidSource }
+
+
+export declare function openConstraintModule(state: ConstraintCollection, row: u64): bool
+
+export declare function releaseConstraintScope(state: ConstraintCollection): void
+
+export declare function forwardConstraintShortcut(state: ConstraintCollection): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function inferConstraintBody(state: ConstraintCollection): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function defaultConstraintOutput(state: ConstraintCollection): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function constraintInputUsed(state: ConstraintCollection): bool
+
+export declare function constraintBindingEnd(state: ConstraintCollection): u64
+
+export declare function constraintTaskEnd(state: ConstraintCollection): u64
+
+export declare function openConstraintDefaults(state: ConstraintCollection): void
+
+export declare function constraintVoidNode(state: ConstraintCollection): u32?
+
+export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): void
     throws { OutOfMemory, InvalidSource }

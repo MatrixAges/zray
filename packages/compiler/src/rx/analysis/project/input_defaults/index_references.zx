@@ -1,0 +1,45 @@
+import integers from "std:integer"
+import memory from "memory"
+import { constraintVoidNode } from "rx_project_host"
+
+import representative from "../../inference/forest/borrowed_root"
+import mark from "./mark"
+
+import type { Index } from "./model"
+
+export type Input = Index
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { columns, parents, marked } = in
+
+    const count = memory.u32Views(parents).length
+    const unused = memory.readU64(in.unused, 0)
+
+    if (unused <= 1 || columns.edges.left.length <= count / (unused - 1)) {
+        return null
+    }
+
+    const marks = mark({
+        edges: columns.edges,
+        parents,
+        marked,
+        count
+    })
+
+    const candidate = constraintVoidNode(in.frame)
+
+    if (candidate != null) {
+        const root = representative({
+            parents,
+            value: candidate
+        })
+
+        if (marks[integers.widen(root)]) {
+            return candidate
+        }
+    }
+
+    return null
+}

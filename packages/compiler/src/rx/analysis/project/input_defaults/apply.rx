@@ -1,0 +1,32 @@
+<Module>
+    <Type from="../constraints/collection/model" as="Collection" />
+
+    <Args in={Collection.Request} out={void} />
+
+    <Call fn="host.openConstraintDefaults" in={$in.frame} />
+
+    <Call
+        fn="index_references"
+        in={{
+            frame: $in.frame,
+            parents: $in.parents,
+            unused: $in.unused,
+            marked: $in.marked,
+            columns: $in.default_columns
+        }}
+    />
+
+    <Loop on={$in.next < $in.columns.inputs.length}>
+        <Call
+            module="advance"
+            in={{
+                frame: $in.frame,
+                parents: $in.parents,
+                columns: $in.default_columns,
+                marked: $in.marked,
+                protected: $ctx.index_references,
+                next: 0
+            }}
+        />
+    </Loop>
+</Module>

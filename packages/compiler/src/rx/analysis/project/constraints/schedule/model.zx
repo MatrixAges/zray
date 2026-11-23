@@ -1,6 +1,4 @@
 export enum Form {
-    ModuleShortcut,
-    ModuleBody,
     CallWithArgument,
     CallWithoutArgument,
     Task,
@@ -15,10 +13,6 @@ export enum Form {
 
 export enum Step {
     Done,
-    ForwardPorts,
-    PublishShortcut,
-    DefaultModuleOutput,
-    MarkInput,
     CallInput,
     PublishGetters,
     InferArgument,

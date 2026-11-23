@@ -14,61 +14,36 @@ const Requests = @import("signatures/requests.zig");
 const Schedule = @import("constraints/schedule.zig");
 const condition = @import("../condition.zig");
 const PortStorage = @import("constraints/ports.zig");
+const Collection = @import("constraints/collection.zig");
 pub const Ports = PortStorage.Slice;
 
 pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap, arguments: *const Inputs, requests: *Requests) zx.Error!Ports {
     const states = try PortStorage.initialize(graph, modules, source_map);
-    const inputs = states.items(.input);
-    const outputs = states.items(.output);
-    const fixed = states.items(.input_fixed);
-    const binding_ends = states.items(.binding_end);
-    const task_ends = states.items(.task_end);
-    var unused: usize = 0;
-    var scope = zx.Arena.init(graph.scratch);
 
-    defer scope.deinit();
+    var collection: Collection = .{
+        .graph = graph,
+        .modules = modules,
+        .source_map = source_map,
+        .states = states,
+        .arguments = arguments,
+        .requests = requests,
+        .scope = zx.Arena.init(graph.scratch),
+    };
 
-    for (modules, 0..) |module, index| {
-        scope.reset(std.heap.page_size_min);
+    defer collection.scope.deinit();
 
-        const location = module.source.node.location;
-        const input = inputs[index];
-        const output = outputs[index];
-
-        var expression = Expression{
-            .graph = graph,
-            .scope = scope.allocator(),
-            .aliases = module.value_imports,
-            .input = input,
-            .attribute = .{ .name = "", .value = "", .location = location, .value_location = location },
-            .span_offset = source_map.base(index),
-        };
-
-        var walker = Walker{ .expression = &expression, .module = module, .states = states, .output = output, .arguments = arguments.module(index), .requests = requests, .binding_first = requests.bindings.len, .task_first = requests.tasks.items.len };
-
-        if (module.deferred_shortcut) {
-            const call = module.calls.get(@import("shorthand.zig").call_index);
-
-            try walker.inferModule(.ModuleShortcut, &fixed[index], &call);
-        } else {
-            try walker.inferModule(.ModuleBody, &fixed[index], null);
-        }
-
-        unused += @intFromBool(!fixed[index]);
-        binding_ends[index] = requests.bindings.len;
-        task_ends[index] = requests.tasks.items.len;
+    if (comptime @import("rx_options").generated_graph) {
+        try @import("constraints/collection/host.zig").run(&collection);
+    } else {
+        try collection.seed();
     }
-
-    scope.reset(0);
-
-    try @import("input_defaults.zig").apply(graph, inputs, fixed, unused);
 
     return states;
 }
 
 pub const Walker = struct {
     expression: *Expression,
-    module: Prepared.Module,
+    module: *const Prepared.Module,
     states: Ports,
     arguments: Inputs.Module,
     output: Graph.Id,
@@ -76,35 +51,21 @@ pub const Walker = struct {
     binding_first: usize,
     task_first: usize,
     returned: bool = false,
-    fn inferModule(self: *Walker, comptime form: Schedule.Form, fixed: *bool, shortcut: if (form == .ModuleShortcut) *const Prepared.Call else @TypeOf(null)) zx.Error!void {
+    pub fn forwardShortcut(self: *Walker) zx.Error!void {
         const expression = self.expression;
         const graph = expression.graph;
+        const shortcut = self.module.calls.get(@import("shorthand.zig").call_index);
+        const target = shortcut.callee.module;
+        const span = graph.nodes.items(.span)[@backingInt(expression.input)];
 
-        inline for (comptime Schedule.steps(form)) |step| {
-            switch (step) {
-                .Done => {},
-                .ForwardPorts => {
-                    const target = shortcut.callee.module;
-                    const span = graph.nodes.items(.span)[@backingInt(expression.input)];
+        try graph.unify(expression.input, self.states.items(.input)[target], span);
+        try graph.unify(self.output, self.states.items(.output)[target], span);
+        try self.bindResult(names.resolveCall(shortcut.name_source.*), self.output, .call, &expression.bindings);
 
-                    try graph.unify(expression.input, self.states.items(.input)[target], span);
-                    try graph.unify(self.output, self.states.items(.output)[target], span);
-                },
-                .PublishShortcut => {
-                    try self.bindResult(names.resolveCall(shortcut.name_source.*), self.output, .call, &expression.bindings);
-
-                    fixed.* = true;
-                },
-                .InferBody => try @import("constraints/traversal.zig").run(self, self.module.plan.root),
-                .DefaultModuleOutput => if (!self.returned) {
-                    const span = graph.nodes.items(.span)[@backingInt(self.output)];
-
-                    try graph.unify(self.output, try graph.scalar(.void, span), span);
-                },
-                .MarkInput => fixed.* = fixed.* or expression.input_used,
-                else => unreachable,
-            }
-        }
+        expression.input_used = true;
+    }
+    pub fn inferBody(self: *Walker) zx.Error!void {
+        try @import("constraints/traversal.zig").run(self, self.module.plan.root);
     }
 
     pub fn inferReturn(self: *Walker, attribute: rx.ast.Attribute) zx.Error!void {

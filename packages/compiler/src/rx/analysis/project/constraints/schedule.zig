@@ -3,8 +3,6 @@ const generated = @import("rx_options").generated_graph;
 const entry = if (generated) @import("generated_rx_module_constraints") else void;
 
 pub const Form = if (generated) entry.Input else enum {
-    ModuleShortcut,
-    ModuleBody,
     CallWithArgument,
     CallWithoutArgument,
     Task,
@@ -19,10 +17,6 @@ pub const Form = if (generated) entry.Input else enum {
 
 const Step = if (generated) std.meta.Child(entry.Output) else enum {
     Done,
-    ForwardPorts,
-    PublishShortcut,
-    DefaultModuleOutput,
-    MarkInput,
     CallInput,
     PublishGetters,
     InferArgument,
@@ -70,8 +64,6 @@ pub fn steps(comptime form: Form) [capacity]Step {
 
 fn seed(form: Form) []const Step {
     return switch (form) {
-        .ModuleShortcut => &.{ .ForwardPorts, .PublishShortcut },
-        .ModuleBody => &.{ .InferBody, .DefaultModuleOutput, .MarkInput },
         .CallWithArgument => &.{ .CallInput, .PublishGetters, .InferArgument, .RestoreBindings, .CallOutput, .PublishCall },
         .CallWithoutArgument => &.{ .CallInput, .VoidInput, .CallOutput, .PublishCall },
         .Task => &.{ .InferBody, .InferTaskOutput, .RestoreBindings, .PublishTask },

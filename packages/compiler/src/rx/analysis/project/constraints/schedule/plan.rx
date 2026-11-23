@@ -4,25 +4,6 @@
     <Args in={Schedule.Input} out={Schedule.Output} />
 
     <Switch on={$in}>
-        <Case value={Schedule.Form.ModuleShortcut}>
-            <Return
-                value={[
-                    Schedule.Step.ForwardPorts,
-                    Schedule.Step.PublishShortcut
-                ]}
-            />
-        </Case>
-
-        <Case value={Schedule.Form.ModuleBody}>
-            <Return
-                value={[
-                    Schedule.Step.InferBody,
-                    Schedule.Step.DefaultModuleOutput,
-                    Schedule.Step.MarkInput
-                ]}
-            />
-        </Case>
-
         <Case value={Schedule.Form.CallWithArgument}>
             <Return
                 value={[

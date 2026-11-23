@@ -1,0 +1,33 @@
+import memory from "memory"
+
+import type { U64Buffer } from "memory"
+import type { Publication } from "./model"
+
+export type Input = {
+    ports: Publication,
+    row: u64,
+    unused: U64Buffer,
+    used: bool,
+    binding_end: u64,
+    task_end: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { ports, row } = in
+    const { fixed, binding_ends, task_ends } = ports
+
+    const inputs = memory.boolViews(fixed)
+    const used = inputs[row] || in.used
+
+    memory.writeBool(fixed, row, used)
+    memory.writeU64(binding_ends, row, in.binding_end)
+    memory.writeU64(task_ends, row, in.task_end)
+
+    if (!used) {
+        const count = memory.readU64(in.unused, 0)
+
+        memory.writeU64(in.unused, 0, count + 1)
+    }
+}
