@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Construction" />
+    <Type from="../activate" as="Activation" />
+
+    <Args in={Construction.Required} out={void} />
+
+    <Call
+        fn="host.describeConstructedTarget"
+        in={[
+            $in.frame,
+            $in.target
+        ]}
+    />
+
+    <Call
+        fn="../activate"
+        in={{
+            ...$in.shape,
+            route: $in.route
+        }}
+    />
+
+    <Switch on={$ctx.activate}>
+        <Case value={Activation.Effect.Infer}>
+            <Call
+                fn="host.inferConstructedField"
+                in={[
+                    $in.frame,
+                    $in.part,
+                    $in.name,
+                    $in.target
+                ]}
+            />
+        </Case>
+
+        <Case value={Activation.Effect.Missing}>
+            <Call fn="host.rejectMissingConstructedField" in={$in.frame} />
+        </Case>
+    </Switch>
+</Module>

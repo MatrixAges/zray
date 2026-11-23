@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import strings from "zig:string"
 import memory from "memory"
 
@@ -23,7 +24,7 @@ export type Input = {
     values: u32[],
     columns: Columns,
     row: u64,
-    root: u64,
+    root: u32,
     open: bool,
     aliases: bool
 }
@@ -35,7 +36,7 @@ export default function (in: Input): Output {
 
     strings.setAddAll(keys, names)
 
-    memory.writeU64(columns.roots, row, root)
+    memory.writeU64(columns.roots, row, integers.widen(root))
     memory.writeU8(columns.open, row, open ? 1 : 0)
     memory.writeU8(columns.aliases, row, aliases ? 1 : 0)
 

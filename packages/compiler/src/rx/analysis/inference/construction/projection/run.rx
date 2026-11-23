@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Projection" />
+
+    <Args in={Projection.Request} out={void} />
+
+    <Call module="begin" in={$in} />
+
+    <Loop on={$in.row < $in.request.scan.names.length}>
+        <Call module="advance" />
+    </Loop>
+</Module>

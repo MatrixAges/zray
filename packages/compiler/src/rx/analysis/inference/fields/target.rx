@@ -1,0 +1,48 @@
+<Module>
+    <Type from="existing" as="Fields" />
+    <Type from="workflow" as="Replay" />
+
+    <Args in={Replay.Target} out={u32} />
+
+    <Switch on={$in.choice.action}>
+        <Case value={Fields.Action.Field}>
+            <Call
+                fn="host.readObjectReplayField"
+                in={[
+                    $in.frame,
+                    $in.name
+                ]}
+            />
+
+            <Return value={$ctx.readObjectReplayField} />
+        </Case>
+
+        <Case value={Fields.Action.Append}>
+            <Call
+                fn="host.appendObjectReplayField"
+                in={[
+                    $in.frame,
+                    $in.name
+                ]}
+            />
+
+            <Return value={$ctx.appendObjectReplayField} />
+        </Case>
+
+        <Case value={Fields.Action.Register}>
+            <Call
+                fn="host.registerObjectReplayType"
+                in={[
+                    $in.frame,
+                    $in.choice.value
+                ]}
+            />
+
+            <Return value={$ctx.registerObjectReplayType} />
+        </Case>
+
+        <Default>
+            <Return value={$in.choice.value} />
+        </Default>
+    </Switch>
+</Module>

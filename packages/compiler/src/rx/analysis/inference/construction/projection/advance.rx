@@ -1,0 +1,66 @@
+<Module>
+    <Type from="model" as="Projection" />
+    <Type from="../../fields/view" as="Fields" />
+
+    <Args in={Projection.Cursor} out={Projection.Cursor} />
+
+    <Call
+        fn="host.bindObjectSpreadFields"
+        in={[
+            $in.request.frame,
+            $in.root,
+            $in.mode == Fields.Mode.Declared,
+            $in.mode == Fields.Mode.Inferred
+        ]}
+    />
+
+    <Call
+        module="readiness"
+        in={{
+            frame: $in.request.frame,
+            ...$in.pick([
+                "row",
+                "root",
+                "action"
+            ])
+        }}
+    />
+
+    <Call
+        fn="../publish"
+        in={{
+            keys: $in.request.scan.keys,
+            names: $in.request.members.names,
+            values: $in.request.members.values,
+            columns: $in.request.columns,
+            row: $in.row,
+            root: $in.root,
+            open: !$ctx.readiness,
+            aliases: $in.root == $in.request.scan.result
+        }}
+    />
+
+    <If on={$in.row + 1 == $in.request.scan.names.length}>
+        <Return
+            value={{
+                ...$in,
+                row: $in.row + 1
+            }}
+        />
+    </If>
+
+    <Call
+        module="../sources"
+        in={{
+            ...$in.request.scan,
+            first: $in.row + 1
+        }}
+    />
+
+    <Return
+        value={{
+            request: $in.request,
+            ...$ctx.sources
+        }}
+    />
+</Module>

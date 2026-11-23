@@ -26,6 +26,12 @@ export type ObjectConstruction = opaque
 
 export type ObjectSelection = opaque
 
+export type ObjectFieldReplay = opaque
+
+export type ObjectConstructionProjection = opaque
+
+export type ObjectConstructionFields = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -649,4 +655,79 @@ export declare function replayObjectSelection(
 ): void throws { OutOfMemory, InvalidSource }
 
 export declare function rejectObjectSelection(frame: ObjectSelection, row: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function readObjectReplayField(frame: ObjectFieldReplay, name: string): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function appendObjectReplayField(frame: ObjectFieldReplay, name: string): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function registerObjectReplayType(frame: ObjectFieldReplay, value: u32): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function refreshObjectReplayFields(frame: ObjectFieldReplay): void
+
+export declare function expectObjectReplayField(
+    frame: ObjectFieldReplay,
+    source: u32,
+    target: u32
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function unifySelectedObjectField(
+    frame: ObjectFieldReplay,
+    target: u32,
+    source: u32?
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectSelectedObjectResult(
+    frame: ObjectFieldReplay,
+    invalid_type: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function reserveObjectSpreadColumns(frame: ObjectConstructionProjection): void
+    throws { OutOfMemory }
+
+export declare function bindObjectSpreadFields(
+    frame: ObjectConstructionProjection,
+    root: u32,
+    declared: bool,
+    inferred: bool
+): void
+
+export declare function proveObjectSpreadReady(
+    frame: ObjectConstructionProjection,
+    root: u32
+): bool throws { OutOfMemory }
+
+export declare function rejectUnknownObjectSpread(
+    frame: ObjectConstructionProjection,
+    row: u64
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectInvalidObjectSpread(
+    frame: ObjectConstructionProjection,
+    row: u64,
+    declared: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function registerConstructedSource(
+    frame: ObjectConstructionFields,
+    index: u64,
+    type_id: u32?
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function describeConstructedTarget(frame: ObjectConstructionFields, target: u32): void
+
+export declare function inferConstructedField(
+    frame: ObjectConstructionFields,
+    index: u64,
+    name: string,
+    target: u32
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectMissingConstructedField(frame: ObjectConstructionFields): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rejectAmbiguousConstructedField(frame: ObjectConstructionFields): void
     throws { OutOfMemory, InvalidSource }

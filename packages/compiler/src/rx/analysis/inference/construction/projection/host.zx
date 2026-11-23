@@ -1,0 +1,7 @@
+export {
+    reserveObjectSpreadColumns,
+    bindObjectSpreadFields,
+    proveObjectSpreadReady,
+    rejectUnknownObjectSpread,
+    rejectInvalidObjectSpread
+} from "rx_project_host"

@@ -1,0 +1,77 @@
+<Module>
+    <Type from="model" as="Projection" />
+    <Type from="../spread" as="Spread" />
+
+    <Args in={Projection.Readiness} out={bool} />
+
+    <Switch on={$in.action}>
+        <Case value={Spread.Action.Closed}>
+            <Return value={true} />
+        </Case>
+
+        <Case value={Spread.Action.Open}>
+            <Return value={false} />
+        </Case>
+
+        <Case value={Spread.Action.Unknown}>
+            <Call
+                fn="host.rejectUnknownObjectSpread"
+                in={[
+                    $in.frame,
+                    $in.row
+                ]}
+            />
+
+            <Return value={false} />
+        </Case>
+
+        <Case value={Spread.Action.Invalid}>
+            <Call
+                fn="host.rejectInvalidObjectSpread"
+                in={[
+                    $in.frame,
+                    $in.row,
+                    false
+                ]}
+            />
+
+            <Return value={false} />
+        </Case>
+
+        <Case value={Spread.Action.InvalidDeclared}>
+            <Call
+                fn="host.rejectInvalidObjectSpread"
+                in={[
+                    $in.frame,
+                    $in.row,
+                    true
+                ]}
+            />
+
+            <Return value={false} />
+        </Case>
+    </Switch>
+
+    <Call
+        fn="host.proveObjectSpreadReady"
+        in={[
+            $in.frame,
+            $in.root
+        ]}
+    />
+
+    <If
+        on={$in.action == Spread.Action.ProveRequired &&
+            !$ctx.proveObjectSpreadReady}
+    >
+        <Call
+            fn="host.rejectUnknownObjectSpread"
+            in={[
+                $in.frame,
+                $in.row
+            ]}
+        />
+    </If>
+
+    <Return value={$ctx.proveObjectSpreadReady} />
+</Module>

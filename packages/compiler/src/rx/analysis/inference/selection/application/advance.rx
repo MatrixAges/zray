@@ -1,0 +1,50 @@
+<Module>
+    <Type from="model" as="Selection" />
+
+    <Args in={Selection.Cursor} out={Selection.Cursor} />
+
+    <Call
+        fn="../replay"
+        in={{
+            ...$in.request.source,
+            target: $in.request.field_view.object,
+            parents: $in.request.field_view.parents,
+            known: $in.request.field_view.known,
+            first: $in.position
+        }}
+    />
+
+    <If on={$ctx.replay.position == $in.request.count}>
+        <Return
+            value={{
+                request: $in.request,
+                position: $ctx.replay.position
+            }}
+        />
+    </If>
+
+    <Call
+        module="../../fields/target"
+        in={{
+            frame: $in.request.frame,
+            name: $in.request.source.names[$ctx.replay.index],
+            choice: $ctx.replay.target
+        }}
+    />
+
+    <Call
+        fn="host.unifySelectedObjectField"
+        in={[
+            $in.request.frame,
+            $ctx.target,
+            $ctx.replay.source
+        ]}
+    />
+
+    <Return
+        value={{
+            request: $in.request,
+            position: $ctx.replay.position + 1
+        }}
+    />
+</Module>

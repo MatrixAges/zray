@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Projection" />
+
+    <Args in={Projection.Request} out={Projection.Cursor} />
+
+    <Call
+        module="../sources"
+        in={{
+            ...$in.scan,
+            first: 0
+        }}
+    />
+
+    <If on={$ctx.sources.row < $in.scan.names.length}>
+        <Call fn="host.reserveObjectSpreadColumns" in={$in.frame} />
+    </If>
+
+    <Return
+        value={{
+            request: $in,
+            ...$ctx.sources
+        }}
+    />
+</Module>

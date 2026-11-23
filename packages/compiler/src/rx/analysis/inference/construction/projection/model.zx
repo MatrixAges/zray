@@ -1,0 +1,23 @@
+import type { ObjectConstructionProjection } from "rx_project_host"
+import type { Columns } from "../publish"
+import type { Request as Sources, Output as Spread } from "../sources"
+
+export type Request = {
+    frame: ObjectConstructionProjection,
+    scan: Sources.Omit("first"),
+    columns: Columns,
+    members: Members
+}
+
+export type Members = {
+    names: string[],
+    values: u32[]
+}
+
+export type Cursor = Spread & {
+    request: Request
+}
+
+export type Readiness = Spread.Pick("row", "root", "action") & {
+    frame: ObjectConstructionProjection
+}

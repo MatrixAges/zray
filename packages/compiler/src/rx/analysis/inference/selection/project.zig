@@ -2,10 +2,8 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const View = @import("../fields/view.zig");
-const Fields = @import("../fields/replay.zig");
 const Selection = @import("../selection.zig").Selection;
 const generated = @import("generated_object_selection_project");
-const result_rule = @import("generated_object_selection_result");
 
 pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, final: bool) zx.Error!void {
     const source = View.read(graph, root);
@@ -36,65 +34,7 @@ pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, final: bool) zx.Er
         .Ready => {},
     }
 
-    try unifyFields(graph, value, source, plan.indices, plan.all);
-
-    if (!final) return;
-
-    const result = View.read(graph, graph.root(value.result));
-
-    const input: std.meta.Child(result_rule.Input) = .{
-        .source = names,
-        .result = result.names,
-        .indices = plan.indices,
-        .all = plan.all,
-        .mode = @fromBackingInt(@backingInt(result.mode)),
-    };
-
-    const checked = zx.columns.invoke(result_rule.executeValue, allocator, &input) catch |err| return failure(err);
-
-    return switch (checked) {
-        .Valid => {},
-        .InvalidType => graph.reporter.fail(.type_mismatch, value.span, "object selection requires an object result"),
-        .UnexpectedField => graph.reporter.fail(.name, value.span, "field is outside the object selection result"),
-    };
-}
-
-fn unifyFields(graph: *Graph, value: Selection, source: View, indices: []const u32, all: bool) zx.Error!void {
-    const rule = @import("generated_object_selection_replay");
-    const Input = std.meta.Child(rule.Input);
-    const count = if (all) source.names.len else indices.len;
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var position: usize = 0;
-
-    while (position < count) {
-        const root = graph.root(value.result);
-        const target = Fields.borrow(std.meta.Child(@FieldType(Input, "target")), graph, root);
-        const known = graph.pending.known_types.borrow(std.meta.Child(@FieldType(Input, "known")));
-        const parents = graph.parents();
-
-        const input: Input = .{
-            .names = source.names,
-            .values = source.values,
-            .declared = source.mode == .Declared,
-            .indices = indices,
-            .all = all,
-            .target = &target,
-            .parents = @ptrCast(&parents),
-            .known = &known,
-            .first = position,
-        };
-
-        const next = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-        if (next.position == count) return;
-
-        const name = source.names[@intCast(next.index)];
-        const field = try Fields.field(graph, value.result, root, name, next.target, value.span);
-
-        try graph.unify(field, @fromBackingInt(next.source.?), value.span);
-
-        position = @intCast(next.position + 1);
-    }
+    return @import("application/host.zig").run(graph, value, source, plan.indices, plan.all, final, allocator);
 }
 
 fn failure(err: anyerror) zx.Error {

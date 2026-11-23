@@ -1,0 +1,85 @@
+<Module>
+    <Type from="model" as="Construction" />
+    <Type from="../application" as="Application" />
+
+    <Args in={Construction.Cursor} out={Construction.Cursor} />
+
+    <Call
+        fn="../replay"
+        in={{
+            names: $in.request.names,
+            plan: $in.request.plan,
+            ...$in.request.field_view,
+            start: $in.row
+        }}
+    />
+
+    <If on={$ctx.replay.row == $in.request.names.length}>
+        <Return
+            value={{
+                request: $in.request,
+                row: $ctx.replay.row
+            }}
+        />
+    </If>
+
+    <Call
+        module="../../fields/target"
+        in={{
+            frame: $in.request.fields,
+            name: $in.request.names[$ctx.replay.row],
+            choice: $ctx.replay.target
+        }}
+    />
+
+    <Call
+        module="source"
+        in={{
+            frame: $in.request.frame,
+            part: $in.request.plan.parts[$ctx.replay.row],
+            target: $ctx.target,
+            source: $ctx.replay.source,
+            register_type: $ctx.replay.register_type
+        }}
+    />
+
+    <Switch on={$ctx.replay.effect}>
+        <Case value={Application.Effect.Bind}>
+            <Call
+                fn="host.expectObjectReplayField"
+                in={[
+                    $in.request.fields,
+                    $ctx.source,
+                    $ctx.target
+                ]}
+            />
+        </Case>
+
+        <Case value={Application.Effect.Ambiguous}>
+            <Call fn="host.rejectAmbiguousConstructedField" in={$in.request.frame} />
+        </Case>
+
+        <Case value={Application.Effect.Require}>
+            <Call
+                module="required"
+                in={{
+                    frame: $in.request.frame,
+                    part: $in.request.plan.parts[$ctx.replay.row],
+                    name: $in.request.names[$ctx.replay.row],
+                    target: $ctx.target,
+                    route: $in.request.plan.routes[$ctx.replay.row],
+                    shape: $in.request.shape
+                }}
+            />
+        </Case>
+    </Switch>
+
+    <Call fn="host.refreshObjectReplayFields" in={$in.request.fields} />
+
+    <Return
+        value={{
+            request: $in.request,
+            row: $ctx.replay.row + 1
+        }}
+    />
+</Module>

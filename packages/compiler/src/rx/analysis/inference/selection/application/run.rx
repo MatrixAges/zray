@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Selection" />
+    <Type from="../model" as="Projection" />
+
+    <Args in={Selection.Request} out={void} />
+
+    <Loop on={$in.position < $in.request.count}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                position: 0
+            }}
+        />
+    </Loop>
+
+    <If on={$in.final}>
+        <Call
+            module="../result"
+            in={{
+                source: $in.source.names,
+                result: $in.field_view.object.names,
+                indices: $in.source.indices,
+                all: $in.source.all,
+                mode: $in.field_view.object.mode
+            }}
+        />
+
+        <If on={$ctx.result != Projection.CoverageResult.Valid}>
+            <Call
+                fn="host.rejectSelectedObjectResult"
+                in={[
+                    $in.frame,
+                    $ctx.result == Projection.CoverageResult.InvalidType
+                ]}
+            />
+        </If>
+    </If>
+</Module>
