@@ -5,6 +5,7 @@ import memory from "memory"
 import representative from "../forest/borrowed_root"
 import numericDefault from "../scalar/default"
 import { Kind } from "../unification/model"
+import { frame_width } from "./const"
 import { Route } from "./model"
 import record from "./record"
 import resume from "./resume"
@@ -28,7 +29,7 @@ export default function (in: Input): Output {
                 if (state.depth == 0) {
                     state.route = Route.Complete
                 } else {
-                    const frame = (state.depth - 1) * 2
+                    const frame = (state.depth - 1) * frame_width
                     const node = integers.narrow(memory.readU64(state.frames, frame))
                     const index = integers.widen(node)
                     const kind = graph.kinds[index]
@@ -119,10 +120,10 @@ export default function (in: Input): Output {
                         if (!unary && members.length == 0) {
                             state.route = kind == Kind.Object ? Route.Object : Route.Tuple
                         } else {
-                            const frame = state.depth * 2
+                            const frame = state.depth * frame_width
                             const start = state.used
 
-                            if (frame + 2 > state.frame_capacity) {
+                            if (frame + frame_width > state.frame_capacity) {
                                 state.route = Route.GrowFrames
                             } else {
                                 memory.writeU64(state.frames, frame, index)

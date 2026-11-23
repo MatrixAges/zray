@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Resolve" />
+
+    <Args in={Resolve.Request} out={u32} />
+
+    <Call fn="diagnostic" in={$in.route} />
+
+    <If on={$ctx.diagnostic != null}>
+        <Call
+            fn="host.reportResolveFailure"
+            in={[
+                $in.frame,
+                $in.node,
+                $ctx.diagnostic.code,
+                $ctx.diagnostic.message
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="host.constructResolvedType"
+        in={[
+            $in.frame,
+            $in.node,
+            $in.completed ?? 0,
+            $in.used,
+            $in.count
+        ]}
+    />
+
+    <Return value={$ctx.constructResolvedType} />
+</Module>

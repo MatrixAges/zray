@@ -1,20 +1,7 @@
 <Module>
-    <Type from="model" as="Resolve" />
+    <Type from="continuation" as="Resolve" />
 
     <Args in={Resolve.Continuation} out={Resolve.Continued} />
-
-    <Call fn="diagnostic" in={$in.pending.route} />
-
-    <If on={$ctx.diagnostic != null}>
-        <Return
-            value={{
-                row: null,
-                id: 0,
-                graph_issue: true,
-                diagnostic: $ctx.diagnostic
-            }}
-        />
-    </If>
 
     <Call fn="candidate" in={$in.pending} />
 
@@ -26,10 +13,5 @@
         }}
     />
 
-    <Return
-        value={{
-            ...$ctx.construct_type,
-            graph_issue: false
-        }}
-    />
+    <Return value={$ctx.construct_type} />
 </Module>

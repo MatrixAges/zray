@@ -1,8 +1,5 @@
-import type { Tables } from "core/type_table/model"
 import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
-import type {
-    Publication as TypePublication
-} from "../../../../zx/analysis/semantic/constructing/model"
+import type { TypeResolver } from "rx_project_host"
 import type { Kind } from "../unification/model"
 
 export enum Route {
@@ -36,6 +33,7 @@ export type Publication = {
 }
 
 export type Request = {
+    frame: TypeResolver,
     graph: View,
     publication: Publication,
     parents: U32Buffer,
@@ -49,20 +47,4 @@ export type Request = {
     node: u32,
     completed?: u32,
     route: Route
-}
-
-export type Pending = {
-    route: Route,
-    child: u32,
-    members: u32[],
-    names: string[]
-}
-
-export type Continuation = {
-    tables: Tables,
-    pending: Pending
-}
-
-export type Continued = TypePublication & {
-    graph_issue: bool
 }

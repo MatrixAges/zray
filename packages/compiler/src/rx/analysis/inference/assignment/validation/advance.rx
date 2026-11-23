@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Validation" />
+
+    <Args in={Validation.Iteration} out={Validation.Iteration} />
+
+    <Call
+        fn="scan"
+        in={{
+            ...$in.request.columns,
+            index: $in.index,
+            source_type: $in.source_type,
+            resolved: $in.resolved
+        }}
+    />
+
+    <If on={$ctx.scan.action == Validation.Action.Mismatch}>
+        <Call
+            fn="host.rejectAssignmentEdge"
+            in={[
+                $in.request.frame,
+                $ctx.scan.index
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.scan.action == Validation.Action.Resolve}>
+        <Call
+            fn="host.resolveAssignmentEndpoint"
+            in={[
+                $in.request.frame,
+                $ctx.scan.node
+            ]}
+        />
+
+        <Return
+            value={{
+                request: $in.request,
+                index: $ctx.scan.index,
+                source_type: $ctx.scan.source_type,
+                resolved: $ctx.resolveAssignmentEndpoint
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            index: $ctx.scan.index,
+            source_type: null,
+            resolved: null
+        }}
+    />
+</Module>

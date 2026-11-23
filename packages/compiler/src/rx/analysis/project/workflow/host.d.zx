@@ -8,6 +8,10 @@ export type ConstraintRound = opaque
 
 export type SignatureResolver = opaque
 
+export type TypeResolver = opaque
+
+export type AssignmentValidation = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -523,4 +527,31 @@ export declare function solveValidateAssignments(state: ConstraintRound): void
     throws { OutOfMemory, InvalidSource }
 
 export declare function resolveSignatureNode(state: SignatureResolver, node: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveResolveFrames(frame: TypeResolver, used: u64, added: u64): u64
+    throws { OutOfMemory }
+
+export declare function reserveResolveValues(frame: TypeResolver, used: u64, added: u64): u64
+    throws { OutOfMemory }
+
+export declare function reportResolveFailure(
+    frame: TypeResolver,
+    node: u32,
+    code: string,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function constructResolvedType(
+    frame: TypeResolver,
+    node: u32,
+    child: u32,
+    first: u64,
+    count: u64
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function resolveAssignmentEndpoint(frame: AssignmentValidation, node: u32): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rejectAssignmentEdge(frame: AssignmentValidation, row: u64): void
     throws { OutOfMemory, InvalidSource }

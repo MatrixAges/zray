@@ -14,3 +14,5 @@ export const unsupported_code: string = "unsupported"
 export const contract_code: string = "contract"
 
 export const type_mismatch_code: string = "type_mismatch"
+
+export const frame_width: u64 = 2

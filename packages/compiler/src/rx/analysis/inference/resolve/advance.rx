@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Resolve" />
+
+    <Args in={Resolve.Request} out={Resolve.Request} />
+
+    <Call fn="walk" in={$in} />
+
+    <If on={$ctx.walk.route == Resolve.Route.Complete}>
+        <Return value={$ctx.walk} />
+    </If>
+
+    <If
+        on={$ctx.walk.route == Resolve.Route.GrowFrames ||
+            $ctx.walk.route == Resolve.Route.GrowValues}
+    >
+        <Call fn="grow" in={$ctx.walk} />
+
+        <Return value={$ctx.grow} />
+    </If>
+
+    <Call module="construct" in={$ctx.walk} />
+
+    <Return
+        value={{
+            ...$ctx.walk,
+            completed: $ctx.construct
+        }}
+    />
+</Module>

@@ -1,0 +1,38 @@
+import type { U32Buffer } from "memory"
+import type { AssignmentValidation } from "rx_project_host"
+import type { Graph } from "../../optional/model"
+import type { Edges } from "../model"
+
+export enum Action {
+    Scan,
+    Resolve,
+    Mismatch
+}
+
+export type Columns = {
+    graph: Graph,
+    edges: Edges,
+    parents: U32Buffer
+}
+
+export type Cursor = {
+    index: u64,
+    source_type?: u32,
+    resolved?: u32
+}
+
+export type Scan = Columns & Cursor
+
+export type Result = Cursor.Pick("index", "source_type") & {
+    node: u32,
+    action: Action
+}
+
+export type Request = {
+    frame: AssignmentValidation,
+    columns: Columns
+}
+
+export type Iteration = Cursor & {
+    request: Request
+}

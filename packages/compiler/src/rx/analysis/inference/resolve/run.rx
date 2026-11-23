@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Resolve" />
+
+    <Args in={Resolve.Request} out={u32?} />
+
+    <Loop on={$in.route != Resolve.Route.Complete}>
+        <Call module="advance" in={$in} />
+    </Loop>
+
+    <Return value={$ctx.advance.completed} />
+</Module>

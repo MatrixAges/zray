@@ -1,19 +1,19 @@
 import { Kind } from "core/type_table/model"
 
-import { Route } from "./model"
+import { Kind as NodeKind } from "../unification/model"
 
 import type { Candidate } from "../../../../zx/analysis/semantic/types/model"
-import type { Pending } from "./model"
+import type { Pending } from "./continuation"
 
 export type Input = Pending
 
 export type Output = Candidate
 
 export default function (in: Input): Output {
-    const kind = match in.route {
-        Route.List => Kind.List,
-        Route.Optional => Kind.Optional,
-        Route.Tuple => Kind.Tuple,
+    const kind = match in.kind {
+        NodeKind.List => Kind.List,
+        NodeKind.Optional => Kind.Optional,
+        NodeKind.Tuple => Kind.Tuple,
         _ => Kind.Object
     }
 

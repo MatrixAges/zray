@@ -1,29 +1,12 @@
 import accepts from "../../optional/known"
 import endpoint from "./endpoint"
+import { Action } from "./model"
 
-import type { U32Buffer } from "memory"
-import type { Graph } from "../../optional/model"
-import type { Edges } from "../model"
+import type { Result, Scan } from "./model"
 
-export enum Action {
-    Scan,
-    Resolve,
-    Mismatch
-}
+export type Input = Scan
 
-export type Input = {
-    graph: Graph,
-    edges: Edges,
-    parents: U32Buffer,
-    index: u64,
-    source_type?: u32,
-    resolved?: u32
-}
-
-export type Output = Input.Pick("index", "source_type") & {
-    node: u32,
-    action: Action
-}
+export type Output = Result
 
 export default function (in: Input): Output {
     const { graph, edges, parents } = in
