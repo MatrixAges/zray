@@ -35,9 +35,7 @@ export enum Issue {
 
 export type Attributes = {
     element: string,
-    names: string[],
-    values: string[],
-    expressions: bool[],
+    rows: Rows,
     store_field: bool
 }
 
@@ -61,3 +59,5 @@ export type Finding = {
 }
 
 export type Output = Finding
+
+import type { Rows } from "./rows/model"

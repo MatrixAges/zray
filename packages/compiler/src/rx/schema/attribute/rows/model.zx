@@ -1,0 +1,17 @@
+import type { ReadColumn, TextColumn } from "memory"
+import type { Attribute } from "../../../syntax/document/model"
+
+export type Rows = {
+    names?: TextColumn,
+    values?: TextColumn,
+    kinds?: ReadColumn,
+    source: string,
+    decoded: string,
+    indexed: Attribute[],
+    count: u64
+}
+
+export type Input = {
+    rows: Rows,
+    row: u64
+}

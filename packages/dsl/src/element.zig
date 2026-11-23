@@ -4,6 +4,10 @@ const attributes = @import("attributes.zig");
 const diagnostic = @import("diagnostic.zig");
 
 pub fn element(comptime name: []const u8, comptime Attributes: type, comptime Children: type) type {
+    return elementWith(void, name, Attributes, Children);
+}
+
+pub fn elementWith(comptime Rules: type, comptime name: []const u8, comptime Attributes: type, comptime Children: type) type {
     if (name.len == 0) @compileError("DSL element name cannot be empty");
     if (@typeInfo(Attributes) != .@"struct") @compileError("DSL attributes must be a struct");
 
@@ -36,9 +40,10 @@ pub fn element(comptime name: []const u8, comptime Attributes: type, comptime Ch
                 .message = "Element is not allowed at this position",
             });
 
-            const values = try attributes.decode(Attributes, input, reporter);
+            const values = try attributes.decode(Rules, Attributes, input, reporter);
+            const text = if (comptime Rules == void) node.unexpectedText() else Rules.unexpectedText(node);
 
-            if (node.unexpectedText()) |location| return reporter.fail(.{
+            if (text) |location| return reporter.fail(.{
                 .code = .unexpected_text,
                 .location = location,
                 .element = node.name(),

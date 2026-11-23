@@ -1,5 +1,6 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const schema = @import("../schema.zig").builders;
 const checks = @import("../checks.zig");
 const Import = @import("Import.zig").Import;
 const Type = @import("Type.zig").Type;
@@ -14,9 +15,9 @@ const Emit = @import("Emit.zig").Emit;
 const Return = @import("Return.zig").Return;
 const StoreReference = @import("../features/store/root.zig").StoreReference;
 
-const ModuleBase = dsl.element("Module", struct {
+const ModuleBase = schema.element("Module", struct {
     @"fn": ?[]const u8 = null,
-}, dsl.list(dsl.choice(.{
+}, schema.list(schema.choice(.{
     .type = Type,
     .args = Args,
     .store = StoreReference,

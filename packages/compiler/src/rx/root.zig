@@ -1,5 +1,6 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const schema = @import("schema.zig").builders;
 pub const ast = dsl.ast;
 pub const parseXml = @import("frontend").parseExpressionXml;
 pub const document = @import("frontend").xml_document;
@@ -35,7 +36,7 @@ pub const Step = @import("steps.zig").Step;
 pub const Module = flow.Module;
 pub const Gateway = gateway.Gateway;
 pub const Store = store.Store;
-pub const Document = dsl.choice(.{ .module = Module, .gateway = Gateway, .store = Store });
+pub const Document = schema.choice(.{ .module = Module, .gateway = Gateway, .store = Store });
 pub const Result = dsl.Result(File);
 pub const ModuleResult = @import("modules.zig").Result;
 pub const ModuleSource = @import("modules.zig").Source;

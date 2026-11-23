@@ -1,0 +1,27 @@
+import encoding from "std:encoding"
+import memory from "memory"
+
+import selectValue from "../../../syntax/document/publication/value"
+
+import type { Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const values = in.rows.values
+
+    if (values != null) {
+        return memory.readTextColumn(values, in.row)
+    }
+
+    const value = in.rows.indexed[in.row].value
+
+    return selectValue({
+        original: encoding.sliceBytes(in.rows.source, value.span.start, value.span.end),
+        decoded: in.rows.decoded,
+        ...value.pick([
+            "decoded_start",
+            "decoded_end"
+        ])
+    })
+}

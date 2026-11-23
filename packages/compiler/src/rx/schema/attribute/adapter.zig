@@ -1,6 +1,7 @@
 const std = @import("std");
 const dsl = @import("dsl");
 const checks = @import("../../checks.zig");
+const rows = @import("rows.zig");
 const generated = @import("rx_options").generated_rules;
 const rule = if (generated) @import("generated_rx_attribute_schema") else void;
 pub const Policy = enum { Common, Module, Call, Import, Type, Field, StoreField, Route };
@@ -31,7 +32,7 @@ pub fn check(comptime policy: Policy, attributes: anytype, input: anytype, repor
 
     if (count == 0 and (policy == .Common or policy == .Module)) return;
 
-    const result = if (generated) source(policy, attributes, node, count) else @import("seed.zig").inspect(policy, attributes, node);
+    const result = if (generated and rows.supports(@TypeOf(node))) source(policy, attributes, node) else @import("seed.zig").inspect(policy, attributes, node);
 
     switch (result.issue) {
         .None => {},
@@ -65,29 +66,19 @@ pub fn check(comptime policy: Policy, attributes: anytype, input: anytype, repor
     }
 }
 
-fn source(comptime policy: Policy, attributes: anytype, node: anytype, count: usize) Finding {
-    const Reference = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "reference"));
-    const capacity = @typeInfo(@TypeOf(attributes)).@"struct".field_names.len;
-    var names: [capacity][]const u8 = undefined;
-    var values: [capacity][]const u8 = undefined;
-    var expressions: [capacity]bool = undefined;
-
-    for (0..count) |index| {
-        const attribute = node.schemaAttribute(index);
-
-        names[index] = attribute.name;
-        values[index] = attribute.value;
-        expressions[index] = attribute.kind == .expression;
-    }
-
+fn source(comptime policy: Policy, attributes: anytype, node: anytype) Finding {
+    const Input = std.meta.Child(rule.Input);
+    const Reference = std.meta.Child(@FieldType(Input, "reference"));
+    const Attributes = std.meta.Child(@FieldType(Input, "attributes"));
+    const Borrowed = std.meta.Child(@FieldType(Attributes, "rows"));
+    const borrowed = rows.bind(node);
+    const view = borrowed.wire(Borrowed, node);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const result = rule.executeValue(empty.allocator(), &.{
         .attributes = &.{
             .element = node.name(),
-            .names = names[0..count],
-            .values = values[0..count],
-            .expressions = expressions[0..count],
+            .rows = &view,
             .store_field = policy == .StoreField,
         },
         .reference = &.{

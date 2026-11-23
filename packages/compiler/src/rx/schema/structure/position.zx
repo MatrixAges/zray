@@ -1,0 +1,25 @@
+export type Input = {
+    name: string,
+    names: string[]
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { name, names } = in
+
+    return loop({
+        row: 0,
+        found: false
+    }, {
+        while: state => !state.found && state.row < names.length,
+        next: state => {
+            if (names[state.row] == name) {
+                state.found = true
+            } else {
+                state.row += 1
+            }
+        },
+        return: state => state.found ? state.row : null
+    })
+}

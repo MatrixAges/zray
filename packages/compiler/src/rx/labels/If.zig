@@ -1,10 +1,11 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const schema = @import("../schema.zig").builders;
 const checks = @import("../checks.zig");
 const steps = @import("../steps.zig");
 const Else = @import("Else.zig").Else;
 
-const IfBase = dsl.element("If", struct { on: []const u8 }, dsl.list(struct {
+const IfBase = schema.element("If", struct { on: []const u8 }, schema.list(struct {
     pub const Data = union(enum) { step: steps.Step, @"else": Else.Data };
 
     pub fn decode(allocator: std.mem.Allocator, input: anytype, reporter: *dsl.Reporter, context: anytype) dsl.Error!Data {

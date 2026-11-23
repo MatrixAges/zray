@@ -1,15 +1,16 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const structure = @import("../../../schema.zig").builders;
 const checks = @import("../../../checks.zig");
 const Object = @import("Object.zig").Object;
 const Type = @import("../../../labels/Type.zig").Type;
 const schema = @import("../schema/adapter.zig");
 pub const Groups = schema.Groups;
 
-const StoreBase = dsl.element("Store", struct {
+const StoreBase = structure.element("Store", struct {
     name: []const u8,
     version: u32,
-}, dsl.list(dsl.choice(.{ .type = Type, .object = Object }), .{ .min = 1 }));
+}, structure.list(structure.choice(.{ .type = Type, .object = Object }), .{ .min = 1 }));
 
 pub const Store = dsl.refineAlloc(StoreBase, checkStore);
 

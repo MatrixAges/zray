@@ -1,7 +1,7 @@
-const dsl = @import("dsl");
+const schema = @import("../../../schema.zig").builders;
 const checks = @import("../../../checks.zig");
 
-pub const StoreReference = checks.attributeSchema(dsl.element("Store", struct {
+pub const StoreReference = checks.attributeSchema(schema.element("Store", struct {
     from: []const u8,
     as: ?[]const u8 = null,
-}, dsl.empty), .Common);
+}, schema.empty), .Common);

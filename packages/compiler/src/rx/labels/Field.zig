@@ -1,9 +1,9 @@
-const dsl = @import("dsl");
+const schema = @import("../schema.zig").builders;
 const checks = @import("../checks.zig");
 
-const FieldBase = dsl.element("Field", struct {
+const FieldBase = schema.element("Field", struct {
     name: []const u8,
     type: []const u8,
-}, dsl.empty);
+}, schema.empty);
 
 pub const Field = checks.attributeSchema(FieldBase, .Field);

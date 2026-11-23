@@ -1,0 +1,81 @@
+import memory from "memory"
+
+import position from "../structure/position"
+import name from "./rows/name"
+
+import type { U64Buffer } from "memory"
+import type { Rows } from "./rows/model"
+
+export enum Issue {
+    None,
+    Unknown,
+    Duplicate,
+    Missing
+}
+
+export type Input = {
+    rows: Rows,
+    fields: string[],
+    required: u64[],
+    slots: U64Buffer
+}
+
+export type Output = {
+    issue: Issue,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { rows, fields, required, slots } = in
+
+    const bound = loop({
+        row: 0,
+        issue: Issue.None
+    }, {
+        while: state => state.issue == Issue.None && state.row < rows.count,
+        next: state => {
+            const slot = position({
+                name: name({
+                    rows,
+                    row: state.row
+                }),
+                names: fields
+            })
+
+            if (slot == null) {
+                state.issue = Issue.Unknown
+            } else if (memory.readU64(slots, slot) != 0) {
+                state.issue = Issue.Duplicate
+            } else {
+                memory.writeU64(slots, slot, state.row + 1)
+                state.row += 1
+            }
+        }
+    })
+
+    if (bound.issue != Issue.None) {
+        return bound
+    }
+
+    return loop({
+        next: 0,
+        row: 0,
+        issue: Issue.None
+    }, {
+        while: state => state.issue == Issue.None && state.next < required.length,
+        next: state => {
+            const field = required[state.next]
+
+            if (memory.readU64(slots, field) == 0) {
+                state.row = field
+                state.issue = Issue.Missing
+            }
+
+            state.next += 1
+        },
+        return: state => state.pick([
+            "issue",
+            "row"
+        ])
+    })
+}

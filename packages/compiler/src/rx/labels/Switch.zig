@@ -1,10 +1,11 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const schema = @import("../schema.zig").builders;
 const checks = @import("../checks.zig");
 const Case = @import("Case.zig").Case;
 const Default = @import("Default.zig").Default;
 
-const SwitchBase = dsl.element("Switch", struct { on: []const u8 }, dsl.list(dsl.choice(.{
+const SwitchBase = schema.element("Switch", struct { on: []const u8 }, schema.list(schema.choice(.{
     .case = Case,
     .default = Default,
 }), .{ .min = 1 }));

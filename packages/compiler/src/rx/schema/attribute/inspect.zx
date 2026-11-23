@@ -7,6 +7,9 @@ import {
 } from "./const"
 import { Issue, Role } from "./model"
 import classify from "./role"
+import expression from "./rows/expression"
+import name from "./rows/name"
+import value from "./rows/value"
 
 import type { Attributes as Input, Finding as Output } from "./model"
 
@@ -19,31 +22,35 @@ export default function (in: Input): Output {
         index: 0,
         invalid_kind: false
     }, {
-        while: state => !state.invalid_kind && state.row < in.names.length,
+        while: state => !state.invalid_kind && state.row < in.rows.count,
         next: state => {
             const row = state.row
-            const name = in.names[row]
-            const expression = in.expressions[row]
+            const item = {
+                rows: in.rows,
+                row
+            }
+            const key = name(item)
+            const braced_value = expression(item)
             const role = classify({
                 element: in.element,
-                attribute: name
+                attribute: key
             })
 
             const braced = role == Role.Type || role == Role.Expression
-            if (role != Role.Value && expression != braced) {
+            if (role != Role.Value && braced_value != braced) {
                 state.issue = braced ? Issue.Expression : Issue.Static
                 state.index = row
                 state.invalid_kind = true
             } else {
                 const check_empty = match {
-                    store_field && name == value_attribute => false,
-                    store_field && name == name_attribute => true,
+                    store_field && key == value_attribute => false,
+                    store_field && key == name_attribute => true,
                     state.issue != Issue.None => false,
-                    _ => expression || role != Role.Value
+                    _ => braced_value || role != Role.Value
                 }
 
                 if (
-                    check_empty && !hasContent(bytes.fromText(in.values[row]))
+                    check_empty && !hasContent(bytes.fromText(value(item)))
                 ) {
                     state.issue = store_field ? Issue.EmptyField : Issue.Empty
                     state.index = row

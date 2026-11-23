@@ -109,6 +109,16 @@ pub const Node = struct {
     pub fn attributeCount(self: Node) usize {
         return @intCast(self.row().attribute_count);
     }
+    pub fn schemaRows(self: Node) struct { source: []const u8, decoded: []const u8, rows: @FieldType(Tree, "attributes") } {
+        const item = self.row();
+        const start: usize = @intCast(item.attribute_start);
+
+        return .{
+            .source = self.document.source,
+            .decoded = self.document.decoded,
+            .rows = self.document.syntax.tree.attributes[start..][0..@intCast(item.attribute_count)],
+        };
+    }
 
     pub fn attribute(self: Node, index: usize) Attribute {
         const source = self.document.source;
@@ -157,24 +167,24 @@ pub const Node = struct {
     }
     fn findText(self: Node, comptime any: bool) ?ast.Location {
         const document = self.document;
-        var head = self.row().text;
-        var first: ?ast.Location = null;
+        const head = self.row().text;
 
-        while (head != 0) {
-            const item = document.syntax.tree.text[@intCast(head - 1)];
-            const raw = adapter.values.raw(document.source, item.value);
-            const text = adapter.values.select(raw, document.decoded, item.value);
+        if (head == 0) return null;
 
-            if (std.mem.trim(u8, text, " \t\r\n").len != 0) {
-                first = adapter.location(item.location);
+        const rule = @import("generated_xml_schema_text");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-                if (any) return first;
-            }
+        const input: std.meta.Child(rule.Input) = .{
+            .source = document.source,
+            .decoded = document.decoded,
+            .text = document.syntax.tree.text,
+            .head = head,
+            .any = any,
+        };
 
-            head = item.previous;
-        }
+        const row_index = @import("zx").columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable orelse return null;
 
-        return first;
+        return adapter.location(document.syntax.tree.text[@intCast(row_index)].location);
     }
 };
 

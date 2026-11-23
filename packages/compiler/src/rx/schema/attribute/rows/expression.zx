@@ -1,0 +1,15 @@
+import memory from "memory"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const kinds = in.rows.kinds
+
+    if (kinds != null) {
+        return memory.readColumnBool(kinds, in.row)
+    }
+
+    return in.rows.indexed[in.row].expression
+}

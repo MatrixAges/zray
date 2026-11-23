@@ -1,0 +1,15 @@
+export type Input = {
+    count: u64,
+    min: u64,
+    max: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    return match {
+        in.count < in.min => in.count,
+        in.count > in.max => in.max,
+        _ => null
+    }
+}

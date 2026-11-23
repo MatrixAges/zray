@@ -1,0 +1,51 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+
+import selectValue from "../../../syntax/document/publication/value"
+import hasContent from "../check"
+
+import type { Text } from "../../../syntax/document/model"
+
+export type Input = {
+    source: string,
+    decoded: string,
+    text: Text[],
+    head: u64,
+    any: bool
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { source, decoded, text, any } = in
+
+    const found: u64? = null
+
+    return loop({
+        head: in.head,
+        found
+    }, {
+        while: state => state.head != 0 && !(any && state.found != null),
+        next: state => {
+            const row = state.head - 1
+            const item = text[row]
+            const value = item.value
+
+            const content = selectValue({
+                original: encoding.sliceBytes(source, value.span.start, value.span.end),
+                decoded,
+                ...value.pick([
+                    "decoded_start",
+                    "decoded_end"
+                ])
+            })
+
+            if (hasContent(bytes.fromText(content))) {
+                state.found = row
+            }
+
+            state.head = item.previous
+        },
+        return: state => state.found
+    })
+}

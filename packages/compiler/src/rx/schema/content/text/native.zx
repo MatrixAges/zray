@@ -1,0 +1,41 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import hasContent from "../check"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    text: TextColumn,
+    count: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { text, count } = in
+
+    return loop({
+        row: 0,
+        found: false
+    }, {
+        while: state => !state.found && state.row < count,
+        next: state => {
+            if (
+                hasContent(
+                    bytes.fromText(
+                        memory.readTextColumn(
+                            text,
+                            state.row
+                        )
+                    )
+                )
+            ) {
+                state.found = true
+            } else {
+                state.row += 1
+            }
+        },
+        return: state => state.found ? state.row : null
+    })
+}

@@ -1,4 +1,4 @@
-const dsl = @import("dsl");
+const schema = @import("../schema.zig").builders;
 const checks = @import("../checks.zig");
 
-pub const Return = checks.attributeSchema(dsl.element("Return", struct { value: []const u8 }, dsl.empty), .Common);
+pub const Return = checks.attributeSchema(schema.element("Return", struct { value: []const u8 }, schema.empty), .Common);

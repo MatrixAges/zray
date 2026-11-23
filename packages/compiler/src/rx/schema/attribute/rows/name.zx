@@ -1,0 +1,18 @@
+import encoding from "std:encoding"
+import memory from "memory"
+
+import type { Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const names = in.rows.names
+
+    if (names != null) {
+        return memory.readTextColumn(names, in.row)
+    }
+
+    const span = in.rows.indexed[in.row].name
+
+    return encoding.sliceBytes(in.rows.source, span.start, span.end)
+}

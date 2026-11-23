@@ -1,6 +1,7 @@
 const std = @import("std");
 const diagnostic = @import("diagnostic.zig");
 const children = @import("children.zig");
+const elements = @import("element.zig");
 pub const ast = @import("ast.zig");
 pub const grammar = @import("grammar.zig").grammar;
 pub const parseXml = @import("xml/root.zig").parse;
@@ -13,11 +14,31 @@ pub const attributeByteOffset = @import("xml/attribute_location.zig").byteOffset
 pub const Diagnostic = diagnostic.Diagnostic;
 pub const Reporter = diagnostic.Reporter;
 pub const Error = diagnostic.Error;
-pub const element = @import("element.zig").element;
+pub const element = elements.element;
 pub const empty = children.empty;
 pub const list = children.list;
 pub const sequence = children.sequence;
 pub const choice = children.choice;
+
+pub fn schemaWith(comptime Rules: type) type {
+    return struct {
+        pub const empty = children.sequenceWith(Rules, .{});
+
+        pub fn element(comptime name: []const u8, comptime Attributes: type, comptime Children: type) type {
+            return elements.elementWith(Rules, name, Attributes, Children);
+        }
+        pub fn list(comptime Child: type, comptime bounds: children.Bounds) type {
+            return children.listWith(Rules, Child, bounds);
+        }
+        pub fn sequence(comptime schemas: anytype) type {
+            return children.sequenceWith(Rules, schemas);
+        }
+
+        pub fn choice(comptime schemas: anytype) type {
+            return children.choiceWith(Rules, schemas);
+        }
+    };
+}
 
 pub fn Result(comptime Schema: type) type {
     return struct {

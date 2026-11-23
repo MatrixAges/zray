@@ -1,5 +1,6 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const schema = @import("schema.zig").builders;
 const flow = @import("flow.zig");
 const execution = @import("schema/execution/adapter.zig");
 
@@ -17,7 +18,7 @@ pub const Step = union(enum) {
 const Scope = execution.Scope;
 
 pub fn children(comptime scope: Scope) type {
-    return dsl.list(child(scope), .{ .min = 1 });
+    return schema.list(child(scope), .{ .min = 1 });
 }
 
 pub fn child(comptime scope: Scope) type {
