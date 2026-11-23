@@ -54,6 +54,8 @@ export type NonNullReplay = opaque
 
 export type NonNullRead = opaque
 
+export type OptionalQuery = opaque
+
 export type SequenceReplay = opaque
 
 export type LengthReplay = opaque
@@ -805,6 +807,20 @@ export declare function registerGuardedPayload(frame: NonNullRead, value: u32, r
 export declare function reserveNonNullNode(frame: NonNullRead): void throws { OutOfMemory }
 
 export declare function reserveNonNullProjection(frame: NonNullRead): void throws { OutOfMemory }
+
+export declare function registerOptionalPayload(
+    frame: OptionalQuery,
+    root: u32,
+    value: u32,
+    remaining: u64
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function refreshOptionalQuery(frame: OptionalQuery): void
+
+export declare function remainingOptionalDepth(frame: OptionalQuery): u64
+
+export declare function reportOptionalDepth(frame: OptionalQuery, root: u32, message: string): void
+    throws { OutOfMemory, InvalidSource }
 
 export declare function expectSequenceList(
     frame: SequenceReplay,

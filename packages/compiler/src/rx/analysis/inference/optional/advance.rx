@@ -1,0 +1,58 @@
+<Module>
+    <Type from="request" as="Optional" />
+    <Type from="lookup" as="Lookup" />
+
+    <Args in={Optional.Cursor} out={Optional.Cursor} />
+
+    <Call
+        fn="lookup"
+        in={{
+            ...$in.request.view,
+            mode: $in.request.mode,
+            value: $in.value,
+            remaining: $in.remaining
+        }}
+    />
+
+    <If on={$ctx.lookup.action == Lookup.Action.Depth}>
+        <Call
+            fn="reject_depth"
+            in={{
+                frame: $in.request.frame,
+                root: $ctx.lookup.root
+            }}
+        />
+    </If>
+
+    <If on={$ctx.lookup.action == Lookup.Action.Register}>
+        <Call
+            fn="host.registerOptionalPayload"
+            in={[
+                $in.request.frame,
+                $ctx.lookup.root,
+                $ctx.lookup.value,
+                $ctx.lookup.remaining
+            ]}
+        />
+
+        <Call fn="host.refreshOptionalQuery" in={$in.request.frame} />
+        <Call fn="host.remainingOptionalDepth" in={$in.request.frame} />
+
+        <Return
+            value={{
+                request: $in.request,
+                value: $ctx.registerOptionalPayload,
+                remaining: $ctx.remainingOptionalDepth,
+                action: Lookup.Action.Continue
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            value: $ctx.lookup.value,
+            action: $ctx.lookup.action
+        }}
+    />
+</Module>

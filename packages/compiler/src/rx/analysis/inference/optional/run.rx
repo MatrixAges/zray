@@ -1,0 +1,24 @@
+<Module>
+    <Type from="request" as="Optional" />
+    <Type from="lookup" as="Lookup" />
+
+    <Args in={Optional.Request} out={u32?} />
+
+    <Loop on={$in.action == Lookup.Action.Continue}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                value: $in.value,
+                remaining: null,
+                action: Lookup.Action.Continue
+            }}
+        />
+    </Loop>
+
+    <If on={$ctx.advance.action == Lookup.Action.Missing}>
+        <Return value={null} />
+    </If>
+
+    <Return value={$ctx.advance.value} />
+</Module>

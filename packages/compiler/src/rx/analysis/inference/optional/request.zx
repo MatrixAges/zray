@@ -1,0 +1,17 @@
+import type { OptionalQuery } from "rx_project_host"
+import type { Action } from "./lookup"
+import type { Input } from "./query"
+
+export type View = Input.Pick("graph", "known", "parents", "allowed")
+
+export type Request = Input.Pick("mode", "value") & {
+    frame: OptionalQuery,
+    view: View
+}
+
+export type Cursor = {
+    request: Request,
+    value: u32,
+    remaining?: u64,
+    action: Action
+}

@@ -2,10 +2,23 @@ import integers from "std:integer"
 import { max_nesting_depth, max_u64 } from "core/const"
 
 import payload from "./payload"
-import { Action } from "./payload"
+import { Action as PayloadAction } from "./payload"
 import { Mode } from "./query"
 
-import type { Input, Output } from "./query"
+import type { Output as Payload } from "./payload"
+import type { Input } from "./query"
+
+export enum Action {
+    Continue,
+    Ready,
+    Missing,
+    Register,
+    Depth
+}
+
+export type Output = Payload.Omit("open", "action") & {
+    action: Action
+}
 
 export default function (in: Input): Output {
     const hint = in.mode == Mode.Hint
@@ -21,20 +34,28 @@ export default function (in: Input): Output {
         remaining: in.remaining ?? limit
     })
 
-    const { action, root, remaining } = result
+    const { root, remaining } = result
 
-    const value: u32? = match {
-        action != Action.Ready => result.value,
-        !hint => root,
-        !result.open => result.value,
-        in.allowed[integers.widen(root)] != null => result.value,
-        _ => null
+    const action = match result.action {
+        PayloadAction.Register => Action.Register,
+        PayloadAction.Depth => Action.Depth,
+        _ => match {
+            !hint => Action.Ready,
+            !result.open => Action.Ready,
+            in.allowed[integers.widen(root)] != null => Action.Ready,
+            _ => Action.Missing
+        }
+    }
+
+    const value = match {
+        action == Action.Ready && !hint => root,
+        _ => result.value
     }
 
     return {
         action,
-        root,
         remaining,
+        root,
         value
     }
 }

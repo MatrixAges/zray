@@ -2,36 +2,11 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Nodes = @import("../nodes.zig");
+const Topology = @import("../optional/topology.zig").borrowType;
 const solver = @import("generated_rx_run_constraint_solver");
 const Input = std.meta.Child(solver.Input);
 const Replay = std.meta.Child(@FieldType(Input, "non_null"));
 const Node = std.meta.Child(@FieldType(Replay, "node"));
-
-pub fn Topology(comptime Request: type) type {
-    const View = std.meta.Child(@FieldType(Request, "graph"));
-    const Types = std.meta.Child(@FieldType(View, "types"));
-
-    return struct {
-        graph: View,
-        types: Types,
-        known: std.meta.Child(@FieldType(Request, "known")),
-        parents: []u32,
-        pub fn bind(self: *@This(), graph: *const Graph) void {
-            const rows = graph.nodes.slice();
-            const kinds: []const Nodes.Kind = rows.items(.kind);
-            self.types = .{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items };
-
-            self.graph = .{
-                .kinds = zx.columns.slice(@FieldType(View, "kinds"), kinds),
-                .arguments = rows.items(.argument),
-                .types = &self.types,
-            };
-
-            self.known = graph.pending.known_types.borrow(@TypeOf(self.known));
-            self.parents = graph.parents();
-        }
-    };
-}
 
 pub const Frame = struct {
     graph: *Graph,
