@@ -45,7 +45,7 @@ RX 使用 Loop 串联模块读取、依赖发布和队列推进。已有 ZX 规�
 正式路径退出 `firstSourceGraphVisit`、`finishSourceGraphVisit` 及
 `generated_source_graph_frontier`。已知模块行直接用于发布起止位置，
 省去在队列中回读旧行。生成的原生绑定直接返回目标尾部切片。
-本批非 seed 包源码净减 39 行，全仓 Zig 净减 40 行。
+本批非 seed 包源码净减 38 行，全仓 Zig 净减 39 行。
 
 ### 验证
 
