@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Input} out={bool} />
+
+    <Call fn="../state/lookup" in={$in.lookup} />
+
+    <If on={$ctx.lookup != null}>
+        <Call
+            fn="index.restoreCachedNative"
+            in={[
+                $in.frame,
+                $ctx.lookup
+            ]}
+        />
+
+        <If on={$ctx.restoreCachedNative}>
+            <Call fn="index.admitCachedNative" in={$ctx.lookup} />
+
+            <Return value={true} />
+        </If>
+    </If>
+
+    <Return value={false} />
+</Module>

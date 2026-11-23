@@ -27,7 +27,6 @@ const Request = struct {
     span: zx.Span,
     fingerprint: [32]u8,
     slot: entries.Pending,
-    hit: ?*entries.Entry = null,
     result: Loaded.Result = undefined,
     fn borrow(handle: *const anyopaque) *Request {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -51,7 +50,20 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
 
     if (comptime @import("parser_options").generated_parser) {
         const generated = @import("generated_semantic_cache_load_native");
-        const input: std.meta.Child(generated.Input) = .{ .frame = @ptrCast(&request), .slot = @ptrCast(&request.slot) };
+        const usage: zx.memory.ColumnLengths = &.{ &self.analyzed, &self.reused };
+
+        const input: std.meta.Child(generated.Input) = .{
+            .frame = @ptrCast(&request),
+            .slot = @ptrCast(&request.slot),
+            .lookup = &.{
+                .entries = @ptrCast(&self.items),
+                .path = entry.key(),
+                .source = &request.fingerprint,
+                .context = &empty_context,
+            },
+            .usage = @ptrCast(&usage),
+        };
+
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         generated.executeIn(empty.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
@@ -63,11 +75,17 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
 }
 
 fn seed(request: *Request) zx.Error!void {
-    if (try restoreNativeCacheHit(request)) {
-        acceptNativeCacheHit(request);
+    if (entries.find(&request.cache.items, request.native.key(), &request.fingerprint, &empty_context)) |cached| {
+        if (try restoreCachedNative(request, cached)) {
+            admitCachedNative(cached);
 
-        return;
+            request.cache.reused += 1;
+
+            return;
+        }
     }
+
+    request.cache.analyzed += 1;
 
     try buildNativeCacheEntry(request);
 
@@ -78,32 +96,26 @@ fn seed(request: *Request) zx.Error!void {
     entries.commitSeed(&request.slot, position);
 }
 
-pub fn restoreNativeCacheHit(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn restoreCachedNative(handle: *const anyopaque, candidate: *const anyopaque) std.mem.Allocator.Error!bool {
     const request = Request.borrow(handle);
     const entry = request.native.*;
-    const cached = entries.find(&request.cache.items, entry.key(), &request.fingerprint, &empty_context) orelse return false;
+    const cached: *const entries.Entry = @ptrCast(@alignCast(candidate));
 
     request.result = restoring.restore(request.allocator, &cached.result.value, entry, request.current, cached.native_admitted) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return false,
     };
 
-    request.hit = cached;
-
     return true;
 }
 
-pub fn acceptNativeCacheHit(handle: *const anyopaque) void {
-    const request = Request.borrow(handle);
-
-    request.hit.?.native_admitted = true;
-    request.cache.reused += 1;
+pub fn admitCachedNative(candidate: *const anyopaque) void {
+    const cached: *entries.Entry = @ptrCast(@alignCast(@constCast(candidate)));
+    cached.native_admitted = true;
 }
 
 pub fn buildNativeCacheEntry(handle: *const anyopaque) zx.Error!void {
     const request = Request.borrow(handle);
-    request.cache.analyzed += 1;
-
     const artifact = try @import("native_artifact.zig").create(request.cache.allocator, request.native.*, request.fingerprint, request.allocator, request.reporter, request.span);
 
     request.slot.value = .{

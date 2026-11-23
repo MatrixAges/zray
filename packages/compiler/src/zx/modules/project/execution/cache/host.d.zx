@@ -1,7 +1,13 @@
-export declare function restoreNativeCacheHit(frame: NativeCacheLoad): bool
+export declare function openCachedEntry(entries: CacheEntries, path: string): CacheEntry?
+
+export declare function cachedSourceDigest(entry: CacheEntry): u8[]
+
+export declare function cachedContextDigest(entry: CacheEntry): u8[]
+
+export declare function restoreCachedNative(frame: NativeCacheLoad, entry: CacheEntry): bool
     throws { OutOfMemory }
 
-export declare function acceptNativeCacheHit(frame: NativeCacheLoad): void
+export declare function admitCachedNative(entry: CacheEntry): void
 
 export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
     throws { OutOfMemory, InvalidSource }

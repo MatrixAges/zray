@@ -1,10 +1,10 @@
+import type { ColumnLengths } from "memory"
 import type { CacheSlot, NativeCacheLoad } from "project_host"
+import type { Input as Lookup } from "../state/lookup"
 
 export type Input = {
     frame: NativeCacheLoad,
-    slot: CacheSlot
-}
-
-export type Publication = Input & {
-    bucket: u64
+    slot: CacheSlot,
+    lookup: Lookup,
+    usage: ColumnLengths
 }

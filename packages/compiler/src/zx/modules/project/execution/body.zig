@@ -11,6 +11,7 @@ const indexed = @import("../../parse_cache.zig").indexed_enabled;
 const publication = @import("../publication/host.zig");
 const exports = @import("../../public_exports.zig");
 const restore = @import("../../semantic_cache/restore.zig");
+const cache_entries = @import("../../semantic_cache/entries.zig");
 const errorSet = @import("invoke.zig").errorSet;
 const generated = @import("parser_options").generated_parser;
 
@@ -55,9 +56,23 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
         body.installation.bind(project);
         defer body.installation.commit();
 
+        const cache = project.semantic_cache;
+        const usage: zx.memory.ColumnLengths = if (cache) |store| &.{ &store.analyzed, &store.reused } else &.{};
+
         const request: std.meta.Child(entry.Input) = .{
             .body = @ptrCast(&body),
-            .cached = project.semantic_cache != null,
+            .cache = if (cache) |store| &.{
+                .body = @ptrCast(&body),
+                .root = body.entry,
+                .dependency_ready = project.cache_context.dependency_ready,
+                .lookup = &.{
+                    .entries = @ptrCast(&store.entries),
+                    .path = unit.path,
+                    .source = &frame.parsed.digest,
+                    .context = if (body.entry) &project.cache_context.root else &project.cache_context.dependency,
+                },
+                .usage = @ptrCast(&usage),
+            } else null,
             .exports = &body.exports.input,
             .installation = &body.installation.input,
         };
@@ -80,17 +95,26 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
 }
 
 fn seed(body: *Body, input: anytype) zx.Error!void {
+    const project = body.project;
     var restored = false;
 
-    if (body.project.semantic_cache != null) {
-        restored = try restoreProjectBody(body);
+    if (project.semantic_cache) |cache| {
+        const context = &project.cache_context;
 
-        recordProjectCacheUse(body, restored);
+        const digest = if (!body.entry and context.dependency_ready)
+            &context.dependency
+
+        else
+            try context.compute(project.allocator, if (body.entry) project.options.context else null);
+
+        if (cache_entries.find(&cache.entries, body.unit.path, &body.frame.parsed.digest, digest)) |candidate| {
+            restored = try restoreCachedProjectBody(body, candidate);
+        }
+
+        if (restored) cache.reused += 1 else cache.analyzed += 1;
     }
 
     if (!restored) try analyze(body, input);
-
-    const project = body.project;
 
     const plan = try publication.module(&body.program, .{
         .entry = body.entry,
@@ -118,14 +142,17 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
     if (body.entry) moveProjectEntryBody(body);
 }
 
-pub fn restoreProjectBody(handle: *const anyopaque) zx.Error!bool {
+pub fn hashProjectCacheContext(handle: *const anyopaque, root: bool) std.mem.Allocator.Error!void {
+    const project = Body.borrow(handle).project;
+    _ = try project.cache_context.compute(project.allocator, if (root) project.options.context else null);
+}
+
+pub fn restoreCachedProjectBody(handle: *const anyopaque, entry: *const anyopaque) std.mem.Allocator.Error!bool {
     const self = Body.borrow(handle);
     const project = self.project;
     const frame = self.frame;
-    const cache = project.semantic_cache.?;
     const path = self.unit.path;
-    const digest = try project.cache_context.get(project.allocator, self.entry, project.options.context);
-    const cached = @TypeOf(cache.*).entry_store.find(&cache.entries, path, &frame.parsed.digest, digest) orelse return false;
+    const cached: *const cache_entries.Entry = @ptrCast(@alignCast(entry));
 
     self.restored = try restore.restore(cached, .{
         .allocator = project.allocator,
@@ -153,16 +180,6 @@ pub fn restoreProjectBody(handle: *const anyopaque) zx.Error!bool {
     }
 
     return false;
-}
-
-pub fn recordProjectCacheUse(handle: *const anyopaque, restored: bool) void {
-    const cache = Body.borrow(handle).project.semantic_cache.?;
-
-    if (restored) {
-        cache.reused += 1;
-    } else {
-        cache.analyzed += 1;
-    }
 }
 
 pub fn analyzeProjectBody(handle: *const anyopaque) zx.Error!void {

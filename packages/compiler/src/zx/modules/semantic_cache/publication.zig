@@ -6,17 +6,19 @@ const extract = @import("../artifact/extract.zig").validated;
 
 pub const Context = struct {
     root: [32]u8 = undefined,
-    dependency: ?[32]u8 = null,
-    pub fn get(self: *Context, allocator: std.mem.Allocator, entry: bool, context: Analysis.Context) std.mem.Allocator.Error!*const [32]u8 {
-        if (entry) {
+    dependency: [32]u8 = undefined,
+    dependency_ready: bool = false,
+    pub fn compute(self: *Context, allocator: std.mem.Allocator, root: ?Analysis.Context) std.mem.Allocator.Error!*const [32]u8 {
+        if (root) |context| {
             self.root = try Cache.contextDigest(allocator, context);
 
             return &self.root;
         }
 
-        if (self.dependency == null) self.dependency = try Cache.contextDigest(allocator, .{});
+        self.dependency = try Cache.contextDigest(allocator, .{});
+        self.dependency_ready = true;
 
-        return &self.dependency.?;
+        return &self.dependency;
     }
 };
 
@@ -39,7 +41,7 @@ pub fn storeSeed(cache: *Cache, scratch: *zx.Arena, result: *const Analysis.Resu
 
     errdefer artifact.deinit();
 
-    const digest = if (root) &context.root else &context.dependency.?;
+    const digest = if (root) &context.root else &context.dependency;
 
     try cache.put(artifact, digest.*);
 

@@ -6,6 +6,7 @@ import type { FunctionColumns } from "../../entry_body/model"
 import type { Frame } from "../load/model"
 import type { Input as BodyExports } from "./body_exports/model"
 import type { Installation } from "./body_install/model"
+import type { Request as BodyCache } from "./cache/model"
 
 export type Load = {
     walk: ProjectWalk,
@@ -26,7 +27,7 @@ export type Imports = {
 
 export type Body = {
     body: ProjectBody,
-    cached: bool,
+    cache?: BodyCache,
     exports: BodyExports,
     installation: Installation
 }

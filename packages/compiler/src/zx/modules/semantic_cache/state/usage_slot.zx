@@ -1,0 +1,9 @@
+import { analyzed_slot, reused_slot } from "./const"
+
+export type Input = bool
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return in ? reused_slot : analyzed_slot
+}

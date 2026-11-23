@@ -86,7 +86,7 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
                 .uncacheable = @ptrCast(&uncacheable),
                 .root = if (project.cache_root) |cache_row| cache_row else null,
                 .root_digest = &project.cache_context.root,
-                .dependency_digest = if (project.cache_context.dependency) |*digest| digest else &.{},
+                .dependency_digest = &project.cache_context.dependency,
             },
         };
 

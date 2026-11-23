@@ -1,0 +1,7 @@
+export { advanceLengthSlot } from "memory"
+export {
+    restoreCachedNative,
+    admitCachedNative,
+    buildNativeCacheEntry,
+    validateNativeCacheEntry
+} from "project_host"

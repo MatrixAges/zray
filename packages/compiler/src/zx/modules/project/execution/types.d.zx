@@ -81,3 +81,7 @@ export type ParseWorker = opaque
 export type NativeCacheLoad = opaque
 
 export type CacheSlot = opaque
+
+export type CacheEntries = opaque
+
+export type CacheEntry = opaque

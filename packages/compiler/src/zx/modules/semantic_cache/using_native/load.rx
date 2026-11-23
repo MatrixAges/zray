@@ -3,16 +3,29 @@
 
     <Args in={Native.Input} out={void} />
 
-    <Call fn="restore" in={$in.frame} />
+    <Call module="restore" in={$in} />
+
+    <Call fn="../state/usage_slot" />
+
+    <Call
+        fn="index.advanceLengthSlot"
+        in={[
+            $in.usage,
+            $ctx.usage_slot,
+            1
+        ]}
+    />
 
     <If on={!$ctx.restore}>
-        <Call fn="stage" in={$in} />
+        <Call fn="index.buildNativeCacheEntry" in={$in.frame} />
+        <Call fn="../slot/prepare" in={$in.slot} />
+        <Call fn="index.validateNativeCacheEntry" in={$in.frame} />
 
         <Call
-            fn="publish"
+            fn="../slot/commit"
             in={{
-                ...$in,
-                bucket: $ctx.stage
+                slot: $in.slot,
+                bucket: $ctx.prepare
             }}
         />
     </If>

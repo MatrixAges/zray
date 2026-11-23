@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Request} out={bool} />
+
+    <If on={$in.root || !$in.dependency_ready}>
+        <Call
+            fn="index.hashProjectCacheContext"
+            in={[
+                $in.body,
+                $in.root
+            ]}
+        />
+    </If>
+
+    <Call fn="../../../semantic_cache/state/lookup" in={$in.lookup} />
+
+    <If on={$ctx.lookup != null}>
+        <Call
+            fn="index.restoreCachedProjectBody"
+            in={[
+                $in.body,
+                $ctx.lookup
+            ]}
+        />
+
+        <Return value={$ctx.restoreCachedProjectBody} />
+    </If>
+
+    <Return value={false} />
+</Module>

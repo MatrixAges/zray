@@ -70,10 +70,11 @@ export declare function finishProjectFrame(walk: ProjectWalk): void
 
 export declare function closeProjectFrame(walk: ProjectWalk): u64
 
-export declare function restoreProjectBody(body: ProjectBody): bool
-    throws { OutOfMemory, InvalidSource }
+export declare function hashProjectCacheContext(body: ProjectBody, root: bool): void
+    throws { OutOfMemory }
 
-export declare function recordProjectCacheUse(body: ProjectBody, restored: bool): void
+export declare function restoreCachedProjectBody(body: ProjectBody, entry: CacheEntry): bool
+    throws { OutOfMemory }
 
 export declare function analyzeProjectBody(body: ProjectBody): void
     throws { OutOfMemory, InvalidSource }

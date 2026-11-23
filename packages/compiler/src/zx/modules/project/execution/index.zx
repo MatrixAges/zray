@@ -1,4 +1,10 @@
-export { readU64, writeU64, readLengthSlot, shrinkLengthSlot } from "memory"
+export {
+    readU64,
+    writeU64,
+    readLengthSlot,
+    shrinkLengthSlot,
+    advanceLengthSlot
+} from "memory"
 export {
     borrowFunctionBodyBytes,
     borrowForwardedBodyBytes,
@@ -11,6 +17,7 @@ export {
 } from "project_host"
 export { publishInterfaceTypes } from "project_host"
 export {
+    analyzeProjectBody,
     materializeProjectFunction,
     bindProjectBodyExports,
     checkProjectOwnership,

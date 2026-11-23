@@ -4,7 +4,28 @@
 
     <Args in={Execution.Body} out={string?} />
 
-    <Call fn="body_input" in={$in} />
+    <If on={$in.cache != null}>
+        <Call module="cache/restore" in={$in.cache} />
+
+        <Call fn="../../semantic_cache/state/usage_slot" />
+
+        <Call
+            fn="index.advanceLengthSlot"
+            in={[
+                $in.cache.usage,
+                $ctx.usage_slot,
+                1
+            ]}
+        />
+
+        <If on={!$ctx.restore}>
+            <Call fn="index.analyzeProjectBody" in={$in.body} />
+        </If>
+
+        <Else>
+            <Call fn="index.analyzeProjectBody" in={$in.body} />
+        </Else>
+    </If>
 
     <Call module="../publication/plan" in={$in.installation.request} />
 
