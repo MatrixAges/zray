@@ -3,7 +3,13 @@
 
     <Args in={Calls.Batch} out={Calls.Batch} />
 
-    <Call fn="../host.flowBindingCount" in={$in.frame} />
+    <Call
+        fn="../host.readLengthSlot"
+        in={[
+            $in.lengths,
+            0
+        ]}
+    />
 
     <Call
         fn="../host.prepareFlowCall"
@@ -24,10 +30,11 @@
     </If>
 
     <Call
-        fn="../host.restoreFlowBindings"
+        fn="../host.shrinkLengthSlot"
         in={[
-            $in.frame,
-            $ctx.flowBindingCount
+            $in.lengths,
+            0,
+            $ctx.readLengthSlot
         ]}
     />
 

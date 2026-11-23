@@ -131,7 +131,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/syntax/attribute_position/offset.zx", .name = "rx_attribute_offset", .owner = .rx },
     .{ .path = "rx/analysis/project/shorthand/lower.rx", .name = "rx_shortcut_lower", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/shorthand/deferred.zx", .name = "rx_shortcut_deferred", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/condition/plan.zx", .name = "rx_condition_plan", .owner = .rx_analysis },
     .{ .path = "rx/analysis/result_name/bind.zx", .name = "rx_result_binding", .owner = .rx_analysis },
     .{ .path = "rx/schema/identifier.zx", .name = "rx_result_identifier", .owner = .rx_analysis },
     .{ .path = "rx/analysis/condition/coverage.zx", .name = "rx_condition_coverage", .owner = .rx_analysis },
@@ -878,6 +877,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "rx/analysis/condition/walk.zx", .name = "rx_condition_walk", .owner = .rx_analysis },
     .{ .path = "inputs/generation/request/packages.zx", .name = "generation_packages", .owner = .bootstrap },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .bootstrap },
     .{ .path = "inputs/collection/interface/observe.zx", .name = "observe_input_interfaces", .owner = .bootstrap },

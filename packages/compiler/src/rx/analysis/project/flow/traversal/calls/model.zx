@@ -1,7 +1,9 @@
+import type { ColumnLengths } from "memory"
 import type { FlowTraversal } from "rx_project_host"
 
 export type Batch = {
     frame: FlowTraversal,
+    lengths: ColumnLengths,
     items: u32[],
     row: u64,
     end: u64

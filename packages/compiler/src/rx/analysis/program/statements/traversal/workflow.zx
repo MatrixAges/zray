@@ -1,26 +1,34 @@
+import type { ColumnLengths, OptionalU32Buffer, U64Buffer } from "memory"
 import type { BodyStatements } from "rx_project_host"
 import type { Control } from "../../control/write/publication"
 import type { Config, Event } from "./model"
 
+export type Scopes = {
+    active: ColumnLengths,
+    bindings: U64Buffer,
+    values: OptionalU32Buffer
+}
+
 export type Request = Config & {
     frame: BodyStatements,
     control: Control,
+    scopes: Scopes,
     root: u32,
     expected: u32[],
     implicit_return: bool
 }
 
-export type Scan = Request.Pick("frame", "control") & {
+export type Scan = Request.Pick("frame", "control", "scopes") & {
     events: Event[],
     call_ids: u32[],
     row: u64
 }
 
-export type Write = Scan.Pick("frame", "control", "call_ids") & {
+export type Write = Scan.Pick("frame", "control", "scopes", "call_ids") & {
     event: Event
 }
 
-export type Task = Write.Pick("frame", "control", "event")
+export type Task = Write.Pick("frame", "control", "scopes", "event")
 
 export type CallResult = Write.Pick("frame", "control") & {
     value: u32

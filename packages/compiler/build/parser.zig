@@ -175,6 +175,9 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "zx/analysis/publication");
                 addSubtree(run, tracked[0], "zx/frontend/retention");
                 addSubtree(run, tracked[0], "rx/analysis/inference");
+                addSubtree(run, tracked[0], "rx/analysis/condition");
+                addSubtree(run, tracked[0], "rx/analysis/project/flow");
+                addSubtree(run, tracked[0], "rx/analysis/program/statements");
                 addSubtree(run, tracked[0], "rx/analysis/project/workflow");
                 addSubtree(run, tracked[0], "rx/analysis/project/mixed");
                 addSubtree(run, tracked[0], "rx/analysis/project/source_graph");

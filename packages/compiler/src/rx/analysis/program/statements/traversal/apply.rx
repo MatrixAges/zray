@@ -11,6 +11,7 @@
                 in={{
                     frame: $in.frame,
                     control: $in.control,
+                    bindings: $in.scopes.active,
                     indices: $in.call_ids,
                     first: $in.event.first,
                     count: $in.event.count,
@@ -28,6 +29,7 @@
                 in={{
                     frame: $in.frame,
                     control: $in.control,
+                    bindings: $in.scopes.active,
                     indices: $in.call_ids,
                     first: $in.event.first,
                     count: $in.event.count,
@@ -90,12 +92,12 @@
 
         <Case value={Plan.Action.OpenTask}>
             <Call
-                fn="host.saveBodyScope"
-                in={[
-                    $in.frame,
-                    $in.event.slot,
-                    null
-                ]}
+                fn="scope_save"
+                in={{
+                    scopes: $in.scopes,
+                    slot: $in.event.slot,
+                    value: null
+                }}
             />
         </Case>
 
@@ -110,12 +112,12 @@
             />
 
             <Call
-                fn="host.saveBodyScope"
-                in={[
-                    $in.frame,
-                    $in.event.slot,
-                    $ctx.evaluateBodyValue
-                ]}
+                fn="scope_save"
+                in={{
+                    scopes: $in.scopes,
+                    slot: $in.event.slot,
+                    value: $ctx.evaluateBodyValue
+                }}
             />
         </Case>
 
@@ -129,12 +131,12 @@
             />
 
             <Call
-                fn="host.saveBodyScope"
-                in={[
-                    $in.frame,
-                    $in.event.slot,
-                    $ctx.evaluateBodyCaseLabel
-                ]}
+                fn="scope_save"
+                in={{
+                    scopes: $in.scopes,
+                    slot: $in.event.slot,
+                    value: $ctx.evaluateBodyCaseLabel
+                }}
             />
 
             <Call fn="host.initializeBodyCase" in={$in.frame} />
@@ -142,11 +144,11 @@
 
         <Case value={Plan.Action.CloseTask}>
             <Call
-                fn="host.restoreBodyScope"
-                in={[
-                    $in.frame,
-                    $in.event.slot
-                ]}
+                fn="scope_restore"
+                in={{
+                    scopes: $in.scopes,
+                    slot: $in.event.slot
+                }}
             />
         </Case>
 
@@ -156,6 +158,7 @@
                 in={$in.pick([
                     "frame",
                     "control",
+                    "scopes",
                     "event"
                 ])}
             />
@@ -167,6 +170,7 @@
                 in={$in.pick([
                     "frame",
                     "control",
+                    "scopes",
                     "event"
                 ])}
             />
@@ -174,31 +178,37 @@
 
         <Case value={Plan.Action.CloseSelection}>
             <Call
-                fn="host.bodySelectionSubject"
-                in={[
-                    $in.frame,
-                    $in.event.slot
-                ]}
-            />
-
-            <Call
-                fn="../../control/write/selection"
+                fn="scope_value"
                 in={{
-                    writer: $in.control.writer,
-                    subject: $ctx.bodySelectionSubject,
-                    count: $in.event.count,
-                    exhaustive: $in.event.exhaustive
+                    values: $in.scopes.values,
+                    slot: $in.event.slot
                 }}
             />
+
+            <If on={$ctx.scope_value != null}>
+                <Call
+                    fn="../../control/write/selection"
+                    in={{
+                        writer: $in.control.writer,
+                        subject: $ctx.scope_value,
+                        count: $in.event.count,
+                        exhaustive: $in.event.exhaustive
+                    }}
+                />
+
+                <Else>
+                    <Call fn="host.requireBodyBlock" in={false} />
+                </Else>
+            </If>
         </Case>
 
         <Case value={Plan.Action.CloseCase}>
             <Call
-                fn="host.bodyScopeValue"
-                in={[
-                    $in.frame,
-                    $in.event.slot
-                ]}
+                fn="scope_value"
+                in={{
+                    values: $in.scopes.values,
+                    slot: $in.event.slot
+                }}
             />
 
             <Call
@@ -208,16 +218,16 @@
                     unit: $in.event.block,
                     end: $in.event.count,
                     position: $in.event.first,
-                    label: $ctx.bodyScopeValue
+                    label: $ctx.scope_value
                 }}
             />
 
             <Call
-                fn="host.restoreBodyScope"
-                in={[
-                    $in.frame,
-                    $in.event.slot
-                ]}
+                fn="scope_restore"
+                in={{
+                    scopes: $in.scopes,
+                    slot: $in.event.slot
+                }}
             />
         </Case>
     </Switch>

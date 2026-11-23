@@ -33,8 +33,15 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     state.initControl(layout);
 
+    const binding_slots: zx.memory.ColumnLengths = &.{&self.builder.bindings.items.len};
+
     const input: Input = .{
         .control = &state.control,
+        .scopes = &.{
+            .active = @ptrCast(&binding_slots),
+            .bindings = @ptrCast(&state.scope_counts),
+            .values = @ptrCast(&state.scope_values),
+        },
         .root = root,
         .expected = std.mem.bytesAsSlice(u32, std.mem.asBytes(&self.plan.size)),
         .implicit_return = self.plan.implicit_return,

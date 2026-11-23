@@ -1,9 +1,11 @@
+import type { ColumnLengths } from "memory"
 import type { BodyStatements } from "rx_project_host"
 import type { Control } from "../../../control/write/publication"
 
 export type Batch = {
     control: Control,
     frame: BodyStatements,
+    bindings: ColumnLengths,
     indices: u32[],
     first: u32,
     count: u32,
@@ -14,5 +16,6 @@ export type Batch = {
 
 export type Invocation = {
     frame: BodyStatements,
+    bindings: ColumnLengths,
     item: u32
 }

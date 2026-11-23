@@ -9,6 +9,7 @@
         module="invoke"
         in={{
             frame: $in.frame,
+            bindings: $in.bindings,
             item: $ctx.target
         }}
     />

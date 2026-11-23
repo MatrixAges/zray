@@ -16,6 +16,7 @@
         in={{
             frame: $in.frame,
             control: $in.control,
+            scopes: $in.scopes,
             event: $in.events[$in.row],
             call_ids: $in.call_ids
         }}

@@ -3,17 +3,24 @@
 
     <Args in={Effect.Row} out={void} />
 
-    <Call fn="../host.flowBindingCount" in={$in.frame} />
-
     <Call
-        fn="../host.flowCaseIsDefault"
+        fn="../host.readLengthSlot"
         in={[
-            $in.frame,
-            $in.position
+            $in.lengths,
+            0
         ]}
     />
 
-    <If on={$ctx.flowCaseIsDefault}>
+    <Call
+        fn="is_default"
+        in={{
+            labels: $in.labels,
+            position: $in.position,
+            fallback: $in.fallback
+        }}
+    />
+
+    <If on={$ctx.is_default}>
         <Call
             fn="../host.evaluateFlowDefaultCase"
             in={[
@@ -46,7 +53,7 @@
         in={[
             $in.frame,
             $in.position,
-            $ctx.flowBindingCount,
+            $ctx.readLengthSlot,
             $ctx.refineFlowCase
         ]}
     />

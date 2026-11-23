@@ -3,7 +3,13 @@
 
     <Args in={Calls.Invocation} out={u32} />
 
-    <Call fn="../host.bodyBindingCount" in={$in.frame} />
+    <Call
+        fn="../host.readLengthSlot"
+        in={[
+            $in.bindings,
+            0
+        ]}
+    />
 
     <Call
         fn="../host.prepareBodyCall"
@@ -24,10 +30,11 @@
     </If>
 
     <Call
-        fn="../host.restoreBodyBindings"
+        fn="../host.shrinkLengthSlot"
         in={[
-            $in.frame,
-            $ctx.bodyBindingCount
+            $in.bindings,
+            0,
+            $ctx.readLengthSlot
         ]}
     />
 

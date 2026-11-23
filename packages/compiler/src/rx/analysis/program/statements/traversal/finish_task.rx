@@ -33,11 +33,11 @@
         />
 
         <Call
-            fn="host.restoreBodyScope"
-            in={[
-                $in.frame,
-                $in.event.slot
-            ]}
+            fn="scope_restore"
+            in={{
+                scopes: $in.scopes,
+                slot: $in.event.slot
+            }}
         />
 
         <Call
@@ -58,11 +58,11 @@
             />
 
             <Call
-                fn="host.restoreBodyScope"
-                in={[
-                    $in.frame,
-                    $in.event.slot
-                ]}
+                fn="scope_restore"
+                in={{
+                    scopes: $in.scopes,
+                    slot: $in.event.slot
+                }}
             />
         </Else>
     </If>

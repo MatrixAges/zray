@@ -74,7 +74,10 @@
                 module="cases/open"
                 in={$in.pick([
                     "frame",
-                    "position"
+                    "position",
+                    "lengths",
+                    "labels",
+                    "fallback"
                 ])}
             />
         </Case>
@@ -84,6 +87,8 @@
                 module="tasks/close"
                 in={{
                     frame: $in.frame,
+                    lengths: $in.lengths,
+                    saved_bindings: $in.saved_bindings,
                     parallel: false
                 }}
             />
@@ -94,6 +99,8 @@
                 module="tasks/close"
                 in={{
                     frame: $in.frame,
+                    lengths: $in.lengths,
+                    saved_bindings: $in.saved_bindings,
                     parallel: true
                 }}
             />

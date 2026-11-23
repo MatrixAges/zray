@@ -26,6 +26,7 @@
             in={{
                 frame: $in.frame,
                 control: $in.control,
+                scopes: $in.scopes,
                 events: $ctx.walk.events,
                 call_ids: $in.shape.steps.firsts,
                 row: 0

@@ -1,12 +1,17 @@
+import type { ColumnLengths, ReadColumn } from "memory"
 import type { FlowTraversal } from "rx_project_host"
 import type { Batch } from "./model"
 
 export type Input = Batch.Pick("action", "item", "position") & {
-    frame: FlowTraversal
+    frame: FlowTraversal,
+    lengths: ColumnLengths,
+    labels: ReadColumn,
+    fallback: u8,
+    saved_bindings: u64
 }
 
-export type Row = Input.Pick("frame", "position")
+export type Row = Input.Pick("frame", "position", "lengths", "labels", "fallback")
 
-export type TaskClose = Input.Pick("frame") & {
+export type TaskClose = Input.Pick("frame", "lengths", "saved_bindings") & {
     parallel: bool
 }

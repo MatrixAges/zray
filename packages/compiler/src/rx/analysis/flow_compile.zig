@@ -42,18 +42,6 @@ pub fn root(self: *Self, sequence: Prepared.Unit) Error!u32 {
     return @import("flow_compile/traversal.zig").run(self, sequence);
 }
 
-pub fn finishTask(self: *Self, work: *const Prepared.Task, body: u32, count: usize) Error!Flow.Step {
-    var output = TaskOutput.init(body);
-
-    try output.evaluate(self, work);
-
-    self.bindings.len = count;
-
-    try output.publish(self);
-
-    return output.step;
-}
-
 pub const TaskOutput = struct {
     step: Flow.Step,
     result: ?Result = null,
@@ -75,13 +63,6 @@ pub const TaskOutput = struct {
 };
 
 pub const CaseScope = struct { facts: usize, label: ?*const zx.ir.Program };
-
-pub fn enterCase(self: *Self, case: *const Prepared.Case, subject: *const frontend.ExpressionInput.Result, subject_type: zx.ir.TypeId) Error!CaseScope {
-    const label = if (case.label.attribute()) |attribute| try self.keep(try self.value(attribute, subject_type, false)) else null;
-    const facts = try self.refineCase(case, subject);
-
-    return .{ .facts = facts, .label = label };
-}
 
 pub fn refineCase(self: *Self, case: *const Prepared.Case, subject: *const frontend.ExpressionInput.Result) Error!usize {
     const facts = self.nonnull.items.len;

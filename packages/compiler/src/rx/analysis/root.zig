@@ -47,6 +47,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/constraints/collection/host.zig"),
     @import("project/constraints/ports/host.zig"),
     @import("project/flow/traversal/host.zig"),
+    @import("condition.zig"),
     @import("project/history/admission.zig"),
     @import("project/mixed.zig"),
     @import("project/mixed/ahead.zig"),

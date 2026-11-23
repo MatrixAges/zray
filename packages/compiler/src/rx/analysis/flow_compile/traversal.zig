@@ -75,22 +75,12 @@ pub const Host = struct {
     }
 
     pub fn calls(self: *Host, current: *Frame, first: usize, items: []const u32) Compiler.Error!void {
-        const compiler = self.compiler;
+        const outputs = self.callOutputs(current);
 
-        if (current.payload == .Parallel) {
-            for (items) |item| {
-                const id = try compiler.call(item, &current.payload.Parallel.outputs);
+        for (items, first..) |item, row| {
+            const id = try self.compiler.call(item, outputs);
 
-                try compiler.checkParallelCall(item, id);
-            }
-
-            return;
-        }
-
-        for (items, current.row(first)..) |item, row| {
-            const id = try compiler.call(item, &compiler.bindings);
-
-            compiler.compiled.steps.set(row, .{ .kind = .Call, .first = id });
+            try self.writeCall(current, row, item, id);
         }
     }
 
@@ -177,13 +167,24 @@ pub const Host = struct {
     }
 
     pub fn openCase(self: *Host, current: *Frame, first: usize) Compiler.Error!void {
-        const compiler = self.compiler;
-        const selected = &current.payload.Selection;
-        const case = &compiler.plan.selections[selected.item].cases[first];
-        const bindings = compiler.bindings.len;
-        const scope = try compiler.enterCase(case, &selected.parsed, selected.subject.output_type);
+        const bindings = self.compiler.bindings.len;
+        const label = try self.labelCase(current, first);
+        const facts = try self.refineCase(current, first);
 
-        try self.pushCase(current, first, bindings, scope);
+        try self.pushCase(current, first, bindings, .{ .facts = facts, .label = label });
+    }
+    pub fn labelCase(self: *Host, current: *Frame, row: usize) Compiler.Error!?*const zx.ir.Program {
+        const selected = &current.payload.Selection;
+        const case = &self.compiler.plan.selections[selected.item].cases[row];
+        const attribute = case.label.attribute() orelse return null;
+
+        return try self.compiler.keep(try self.compiler.value(attribute, selected.subject.output_type, false));
+    }
+    pub fn refineCase(self: *Host, current: *Frame, row: usize) Compiler.Error!usize {
+        const selected = &current.payload.Selection;
+        const case = &self.compiler.plan.selections[selected.item].cases[row];
+
+        return self.compiler.refineCase(case, &selected.parsed);
     }
 
     pub fn pushCase(self: *Host, current: *Frame, first: usize, bindings: usize, scope: Compiler.CaseScope) Compiler.Error!void {
@@ -202,13 +203,14 @@ pub const Host = struct {
     pub fn closeTask(self: *Host, parallel_task: bool) Compiler.Error!void {
         if (parallel_task) unreachable;
 
-        const current = self.frame();
-        const compiler = self.compiler;
-        const saved = current.payload.Task;
-        const body = try current.body.close(compiler, false);
-        const compiled = try compiler.finishTask(&compiler.plan.tasks[saved.item], body, saved.bindings);
+        var output: Compiler.TaskOutput = undefined;
+        const bindings = self.frame().payload.Task.bindings;
 
-        compiler.compiled.steps.set(current.destination, compiled);
+        if (try self.prepareTaskOutput(&output)) try self.evaluateTaskOutput(&output);
+
+        self.compiler.bindings.len = bindings;
+
+        try self.publishTaskOutput(&output);
     }
 
     pub fn prepareTaskOutput(self: *Host, output: *Compiler.TaskOutput) Compiler.Error!bool {

@@ -16,10 +16,11 @@
     />
 
     <Call
-        fn="host.saveFlowCursor"
+        fn="host.advanceLengthSlot"
         in={[
-            $in.request.frame,
-            $ctx.advance.next
+            $in.request.cursor_length,
+            0,
+            $ctx.advance.next - $in.request.cursor.first
         ]}
     />
 
@@ -29,6 +30,7 @@
             in={{
                 frame: $in.request.frame,
                 items: $in.request.items,
+                lengths: $in.request.lengths,
                 row: $in.request.cursor.first,
                 end: $ctx.advance.position
             }}
@@ -39,6 +41,10 @@
         module="apply"
         in={{
             frame: $in.request.frame,
+            lengths: $in.request.lengths,
+            labels: $in.request.labels,
+            fallback: $in.request.fallback,
+            saved_bindings: $in.request.cursor.saved_bindings,
             action: $ctx.advance.action,
             item: $ctx.advance.item,
             position: $ctx.advance.position

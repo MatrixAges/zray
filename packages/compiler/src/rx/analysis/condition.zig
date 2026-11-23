@@ -73,45 +73,46 @@ fn assumeIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: fronte
 
     defer if (limit > inline_stack.len) allocator.free(pending);
 
-    const rule = @import("generated_rx_condition_plan");
+    const rule = @import("generated_rx_condition_walk");
+    var facts: FactWriter = .{ .scope = scope, .source = source, .nodes = nodes, .tail = scope.facts.unusedCapacitySlice() };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var current = index;
-    var truth = present;
-    var depth: u64 = 0;
 
-    while (true) {
-        const tail = scope.facts.unusedCapacitySlice();
+    return rule.executeIn(empty.allocator(), &.{
+        .source = source,
+        .nodes = zx.columns.slice(@FieldType(std.meta.Child(rule.Input), "nodes"), nodes),
+        .names = scope.bindings,
+        .implicit_input = scope.implicit_input,
+        .target = @ptrCast(&facts.tail),
+        .facts = @ptrCast(&facts),
+        .pending = @ptrCast(&pending),
+        .condition = index,
+        .truth = present,
+    }) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.InvalidSource => @errorCast(err),
+        else => unreachable,
+    };
+}
 
-        const input: std.meta.Child(rule.Input) = .{
-            .source = source,
-            .nodes = nodes,
-            .names = scope.bindings,
-            .implicit_input = scope.implicit_input,
-            .target = @ptrCast(&tail),
-            .capacity = tail.len,
-            .pending = @ptrCast(&pending),
-            .condition = current,
-            .truth = truth,
-            .depth = depth,
-            .active = true,
-        };
+const FactWriter = struct {
+    scope: Scope,
+    source: []const u8,
+    nodes: frontend.binding_path.IndexedNodes,
+    tail: [][]const u8,
+};
 
-        const step = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+pub fn publishConditionFacts(handle: *const anyopaque, written: u64, node: ?u64, start: ?u64, length: u64) zx.Error!void {
+    const facts: *FactWriter = @ptrCast(@alignCast(@constCast(handle)));
+    const scope = facts.scope;
 
-        scope.facts.items.len += @intCast(step.written);
+    scope.facts.items.len += @intCast(written);
 
-        switch (step.action) {
-            .Scan => return,
-            .Borrow => try scope.facts.append(scope.allocator, source[@intCast(step.start)..][0..@intCast(step.length)]),
-            .Render => try scope.publish(try frontend.binding_path.renderIndexed(scope.allocator, source, nodes, step.node, step.length)),
-        }
-
-        if (!step.active) return;
-
-        current = step.condition;
-        truth = step.truth;
-        depth = step.depth;
+    if (node) |index| {
+        try scope.publish(try frontend.binding_path.renderIndexed(scope.allocator, facts.source, facts.nodes, index, length));
+    } else if (start) |offset| {
+        try scope.facts.append(scope.allocator, facts.source[@intCast(offset)..][0..@intCast(length)]);
     }
+
+    facts.tail = scope.facts.unusedCapacitySlice();
 }
 
 fn assumeNative(expression: anytype, present: bool, scope: Scope) zx.Error!void {

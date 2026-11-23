@@ -13,8 +13,8 @@ const Cursor = std.meta.Child(@FieldType(Control, "writer"));
 const Columns = std.meta.Child(@FieldType(Cursor, "columns"));
 
 const Scope = struct {
-    bindings: usize,
-    value: ?ir.ExprId,
+    bindings: u64,
+    value: ?u32,
 };
 
 pub const State = struct {
@@ -22,7 +22,8 @@ pub const State = struct {
     allocator: std.mem.Allocator,
     root: u32,
     root_writer: *Writer.Cursor,
-    scopes: []Scope = undefined,
+    scope_counts: []u64 = &.{},
+    scope_values: []?u32 = &.{},
     writers: []Writer.Cursor = undefined,
     row: *const Plan.Row = undefined,
     writer: *Writer.Cursor = undefined,
@@ -57,8 +58,13 @@ pub const State = struct {
 
 pub fn reserveBodyStatements(handle: *const anyopaque, slots: u64) Error!void {
     const state = State.borrow(handle);
+    var scopes: std.MultiArrayList(Scope) = .empty;
 
-    state.scopes = try state.allocator.alloc(Scope, @intCast(slots));
+    try scopes.setCapacity(state.allocator, @intCast(slots));
+
+    scopes.len = @intCast(slots);
+    state.scope_counts = scopes.items(.bindings);
+    state.scope_values = scopes.items(.value);
     state.writers = try state.allocator.alloc(Writer.Cursor, state.statements.plan.rows[state.root].tag);
 }
 
@@ -68,29 +74,6 @@ pub fn selectBodyWriter(handle: *const anyopaque, block: u32) void {
     state.row = &state.statements.plan.rows[block];
     state.writer = if (block == state.root) state.root_writer else &state.writers[state.row.tag];
     state.cells = state.writer.cells();
-}
-
-pub fn bodyBindingCount(handle: *const anyopaque) u64 {
-    return State.borrow(handle).statements.builder.bindings.items.len;
-}
-
-pub fn restoreBodyBindings(handle: *const anyopaque, len: u64) void {
-    State.borrow(handle).statements.restoreBindings(@intCast(len));
-}
-
-pub fn saveBodyScope(handle: *const anyopaque, slot: u32, value: ?u32) void {
-    const state = State.borrow(handle);
-
-    state.scopes[slot] = .{
-        .bindings = state.statements.builder.bindings.items.len,
-        .value = if (value) |id| @fromBackingInt(id) else null,
-    };
-}
-
-pub fn restoreBodyScope(handle: *const anyopaque, slot: u32) void {
-    const state = State.borrow(handle);
-
-    state.statements.restoreBindings(state.scopes[slot].bindings);
 }
 
 pub fn evaluateBodyValue(handle: *const anyopaque, row: u32, borrowed: bool) Error!u32 {
@@ -118,16 +101,6 @@ pub fn initializeBodyCase(handle: *const anyopaque) void {
     const state = State.borrow(handle);
 
     state.writer.* = Writer.Cursor.init(state.row.first);
-}
-
-pub fn bodyScopeValue(handle: *const anyopaque, slot: u32) ?u32 {
-    const value = State.borrow(handle).scopes[slot].value;
-
-    return if (value) |id| @backingInt(id) else null;
-}
-
-pub fn bodySelectionSubject(handle: *const anyopaque, slot: u32) u32 {
-    return @backingInt(State.borrow(handle).scopes[slot].value.?);
 }
 
 pub fn requireBodyBlock(valid: bool) error{InvalidModule}!void {

@@ -34,7 +34,8 @@ export enum Action {
 export type Cursor = {
     region: Region,
     first: u64,
-    end: u64
+    end: u64,
+    saved_bindings: u64
 }
 
 export type Plan = {

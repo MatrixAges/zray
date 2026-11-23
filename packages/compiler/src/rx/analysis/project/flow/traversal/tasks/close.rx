@@ -18,18 +18,11 @@
     </If>
 
     <Call
-        fn="../host.savedTaskBindings"
+        fn="../host.shrinkLengthSlot"
         in={[
-            $in.frame,
-            $in.parallel
-        ]}
-    />
-
-    <Call
-        fn="../host.restoreFlowBindings"
-        in={[
-            $in.frame,
-            $ctx.savedTaskBindings
+            $in.lengths,
+            0,
+            $in.saved_bindings
         ]}
     />
 

@@ -1,9 +1,14 @@
+import type { ColumnLengths, ReadColumn } from "memory"
 import type { FlowTraversal } from "rx_project_host"
 import type { Cursor, Plan } from "./model"
 
 export type Request = Plan & {
     frame: FlowTraversal,
-    cursor: Cursor
+    cursor: Cursor,
+    lengths: ColumnLengths,
+    cursor_length: ColumnLengths,
+    labels: ReadColumn,
+    fallback: u8
 }
 
 export type Iteration = {

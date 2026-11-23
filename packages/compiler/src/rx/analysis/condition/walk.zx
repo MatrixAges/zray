@@ -1,0 +1,51 @@
+import memory from "memory"
+import { publishConditionFacts } from "rx_project_host"
+
+import { Action } from "./model"
+import plan from "./plan"
+
+import type { U64Buffer } from "memory"
+import type { ConditionFacts } from "rx_project_host"
+import type { Scope, Walk } from "./model"
+
+export type Input = Scope.Omit("capacity") & Walk.Pick("condition", "truth") & {
+    facts: ConditionFacts,
+    pending: U64Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { facts, source, nodes, names, implicit_input, target, pending } = in
+
+    const published = loop({
+        condition: in.condition,
+        truth: in.truth,
+        depth: 0,
+        active: true
+    }, {
+        while: state => state.active,
+        next: state => {
+            const step = plan({
+                ...state,
+                source,
+                nodes,
+                names,
+                implicit_input,
+                target,
+                capacity: memory.u8ListViews(target).length,
+                pending
+            })
+
+            const node: u64? = step.action == Action.Render ? step.node : null
+            const start: u64? = step.action == Action.Borrow ? step.start : null
+
+            publishConditionFacts(facts, step.written, node, start, step.length)
+
+            state.condition = step.condition
+            state.truth = step.truth
+            state.depth = step.depth
+            state.active = step.active
+        }
+    })
+}

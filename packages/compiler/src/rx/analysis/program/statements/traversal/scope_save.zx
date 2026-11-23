@@ -1,0 +1,21 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Scopes } from "./workflow"
+
+export type Input = {
+    scopes: Scopes,
+    slot: u32,
+    value?: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { scopes, slot, value } = in
+
+    const index = integers.widen(slot)
+
+    memory.writeU64(scopes.bindings, index, memory.readLengthSlot(scopes.active, 0))
+    memory.writeOptionalU32(scopes.values, index, value)
+}
