@@ -11,6 +11,8 @@ pub fn isVoid(graph: *const Graph, id: Graph.Id) bool {
 }
 
 pub fn requireValue(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
+    if (comptime @import("rx_options").generated_graph) return @import("bindings/require.zig").run(graph, value, span);
+
     switch (rules.status(graph, value)) {
         .Void => return graph.reporter.fail(.name, span, missing_message),
         .Value => {},
@@ -18,7 +20,7 @@ pub fn requireValue(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void
     }
 }
 
-pub fn validateUses(graph: *const Graph) zx.Error!void {
+pub fn validateUsesSeed(graph: *const Graph) zx.Error!void {
     const uses = graph.pending.value_uses.slice();
     const index = rules.missing(graph, uses.items(.value)) orelse return;
 
@@ -33,12 +35,7 @@ pub fn distinct(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, m
     }
 }
 
-pub fn propagate(graph: *Graph, final: bool) zx.Error!void {
-    if (!@import("rx_options").generated_graph) return seed(graph, final);
-    try @import("bindings/host.zig").run(graph, final);
-}
-
-fn seed(graph: *Graph, final: bool) zx.Error!void {
+pub fn propagateSeed(graph: *Graph, final: bool) zx.Error!void {
     const collisions = graph.pending.binding_collisions.slice();
 
     for (0..collisions.len) |index| {

@@ -1,33 +1,35 @@
 <Module>
     <Type from="model" as="Solve" />
 
-    <Args in={Solve.Frame} out={bool} />
+    <Args in={Solve.Request} out={bool} />
 
-    <Call fn="host.solveRevision" in={$in} />
-    <Call fn="host.solveValidateUses" in={$in} />
+    <Call fn="host.solveRevision" in={$in.frame} />
+    <Call fn="host.refreshSolverBindings" in={$in.frame} />
+
+    <Call module="../bindings/validate" in={$in.bindings} />
 
     <Call
-        fn="host.solveBindings"
-        in={[
-            $in,
-            false
-        ]}
+        module="../bindings/run"
+        in={{
+            view: $in.bindings,
+            final: false
+        }}
     />
 
     <Call
         fn="host.solveNonNull"
         in={[
-            $in,
+            $in.frame,
             false
         ]}
     />
 
-    <Call fn="host.solveSequences" in={$in} />
+    <Call fn="host.solveSequences" in={$in.frame} />
 
     <Call
         fn="host.solveConstructions"
         in={[
-            $in,
+            $in.frame,
             false
         ]}
     />
@@ -35,17 +37,17 @@
     <Call
         fn="host.solveSelections"
         in={[
-            $in,
+            $in.frame,
             false
         ]}
     />
 
-    <Call fn="host.solveLengths" in={$in} />
+    <Call fn="host.solveLengths" in={$in.frame} />
 
     <Call
         fn="host.solveIndexes"
         in={[
-            $in,
+            $in.frame,
             $ctx.solveRevision
         ]}
     />

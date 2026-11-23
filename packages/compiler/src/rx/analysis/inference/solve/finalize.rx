@@ -1,12 +1,12 @@
 <Module>
     <Type from="model" as="Solve" />
 
-    <Args in={Solve.Frame} out={bool} />
+    <Args in={Solve.Request} out={bool} />
 
     <Call
         fn="host.solveNonNull"
         in={[
-            $in,
+            $in.frame,
             true
         ]}
     />
@@ -18,7 +18,7 @@
     <Call
         fn="host.solveSelections"
         in={[
-            $in,
+            $in.frame,
             true
         ]}
     />
@@ -30,7 +30,7 @@
     <Call
         fn="host.solveConstructions"
         in={[
-            $in,
+            $in.frame,
             true
         ]}
     />
@@ -39,17 +39,18 @@
         <Return value={true} />
     </If>
 
-    <Call fn="host.solveValidateLengths" in={$in} />
+    <Call fn="host.solveValidateLengths" in={$in.frame} />
+    <Call fn="host.refreshSolverBindings" in={$in.frame} />
 
     <Call
-        fn="host.solveBindings"
-        in={[
-            $in,
-            true
-        ]}
+        module="../bindings/run"
+        in={{
+            view: $in.bindings,
+            final: true
+        }}
     />
 
-    <Call fn="host.solveValidateAssignments" in={$in} />
+    <Call fn="host.solveValidateAssignments" in={$in.frame} />
 
     <Return value={false} />
 </Module>

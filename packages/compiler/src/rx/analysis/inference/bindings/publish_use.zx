@@ -1,0 +1,18 @@
+import memory from "memory"
+
+import type { Use } from "./use_model"
+
+export type Input = Use.Pick("rows", "value", "span")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, value, span } = in
+    const { first } = rows
+
+    const end = first + 1
+
+    memory.writeU32(rows.values, first, value)
+    memory.fillSourceSpanRange(rows.spans, first, end, span.start, span.end)
+    memory.writeIndex(rows.length, 0, end)
+}

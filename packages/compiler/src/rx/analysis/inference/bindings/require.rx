@@ -1,0 +1,40 @@
+<Module>
+    <Type from="use_model" as="Requirement" />
+    <Type from="model" as="Bindings" />
+
+    <Args in={Requirement.Use} out={void} />
+
+    <Call
+        fn="node"
+        in={$in.pick([
+            "topology",
+            "value"
+        ])}
+    />
+
+    <Switch on={$ctx.node}>
+        <Case value={Bindings.Status.Void}>
+            <Call
+                fn="reject_missing"
+                in={{
+                    reporter: $in.reporter,
+                    spans: $in.source,
+                    row: 0
+                }}
+            />
+        </Case>
+
+        <Case value={Bindings.Status.Pending}>
+            <Call fn="host.reserveBindingUse" in={$in.frame} />
+
+            <Call
+                fn="publish_use"
+                in={$in.pick([
+                    "rows",
+                    "value",
+                    "span"
+                ])}
+            />
+        </Case>
+    </Switch>
+</Module>

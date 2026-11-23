@@ -1,0 +1,26 @@
+<Module>
+    <Type from="workflow" as="Bindings" />
+
+    <Args in={Bindings.View} out={void} />
+
+    <If on={$in.uses.values.length != 0}>
+        <Call
+            fn="uses"
+            in={{
+                topology: $in.topology,
+                values: $in.uses.values
+            }}
+        />
+
+        <If on={$ctx.uses != null}>
+            <Call
+                fn="reject_missing"
+                in={{
+                    reporter: $in.reporter,
+                    spans: $in.uses.spans,
+                    row: $ctx.uses
+                }}
+            />
+        </If>
+    </If>
+</Module>

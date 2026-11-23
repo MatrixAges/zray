@@ -9,7 +9,8 @@
             in={{
                 request: $in,
                 start: 0,
-                running: true
+                running:
+                    $in.view.values.length != 0 || $in.view.collisions.left.length != 0
             }}
         />
     </Loop>

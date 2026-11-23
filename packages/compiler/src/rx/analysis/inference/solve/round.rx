@@ -3,23 +3,23 @@
 
     <Args in={Solve.Round} out={Solve.Round} />
 
-    <Call module="propagate" in={$in.frame} />
+    <Call module="propagate" in={$in.request} />
 
     <If on={$ctx.propagate}>
         <Return value={$in} />
     </If>
 
-    <Call module="defaults" in={$in.frame} />
+    <Call module="defaults" in={$in.request.frame} />
 
     <If on={$ctx.defaults}>
         <Return value={$in} />
     </If>
 
-    <Call module="finalize" in={$in.frame} />
+    <Call module="finalize" in={$in.request} />
 
     <Return
         value={{
-            frame: $in.frame,
+            request: $in.request,
             restart: $ctx.finalize
         }}
     />

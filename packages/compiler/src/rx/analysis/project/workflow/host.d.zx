@@ -44,6 +44,12 @@ export type ObjectConstructionRow = opaque
 
 export type BindingReplay = opaque
 
+export type BindingUse = opaque
+
+export type BindingReporter = opaque
+
+export type BindingSpans = opaque
+
 export type NonNullReplay = opaque
 
 export type SequenceReplay = opaque
@@ -524,11 +530,7 @@ export declare function defaultConstraintInput(state: ConstraintCollection, inpu
 
 export declare function solveRevision(state: ConstraintRound): u64
 
-export declare function solveValidateUses(state: ConstraintRound): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveBindings(state: ConstraintRound, final: bool): void
-    throws { OutOfMemory, InvalidSource }
+export declare function refreshSolverBindings(state: ConstraintRound): void
 
 export declare function solveNonNull(state: ConstraintRound, final: bool): bool
     throws { OutOfMemory, InvalidSource }
@@ -770,10 +772,15 @@ export declare function reportObjectConstruction(
 export declare function unifyBindingReplay(frame: BindingReplay, row: u64, value: u32): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function rejectBindingReplay(
-    frame: BindingReplay,
+export declare function refreshBindingTopology(frame: BindingReplay): void
+
+export declare function reserveBindingUse(frame: BindingUse): void throws { OutOfMemory }
+
+export declare function reportBindingName(
+    reporter: BindingReporter,
+    spans: BindingSpans,
     row: u64,
-    collision: bool
+    message: string
 ): void throws { OutOfMemory, InvalidSource }
 
 export declare function unifyNonNullReplay(

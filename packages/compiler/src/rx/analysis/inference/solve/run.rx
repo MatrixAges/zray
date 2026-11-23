@@ -1,13 +1,13 @@
 <Module>
     <Type from="model" as="Solve" />
 
-    <Args in={Solve.Frame} out={void} />
+    <Args in={Solve.Request} out={void} />
 
     <Loop on={$in.restart}>
         <Call
             module="round"
             in={{
-                frame: $in,
+                request: $in,
                 restart: true
             }}
         />

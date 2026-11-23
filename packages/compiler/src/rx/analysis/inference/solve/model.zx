@@ -1,8 +1,14 @@
 import type { ConstraintRound } from "rx_project_host"
+import type { View } from "../bindings/workflow"
 
 export type Frame = ConstraintRound
 
-export type Round = {
+export type Request = {
     frame: Frame,
+    bindings: View
+}
+
+export type Round = {
+    request: Request,
     restart: bool
 }

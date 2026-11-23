@@ -1,1 +1,6 @@
-export { unifyBindingReplay, rejectBindingReplay } from "rx_project_host"
+export {
+    refreshBindingTopology,
+    reportBindingName,
+    reserveBindingUse,
+    unifyBindingReplay
+} from "rx_project_host"

@@ -1,8 +1,27 @@
-import type { BindingReplay } from "rx_project_host"
-import type { Input } from "./model"
+import type { BindingReplay, BindingReporter, BindingSpans } from "rx_project_host"
+import type { Input, Pairs } from "./model"
 
-export type Replay = Input.Omit("start") & {
-    frame: BindingReplay
+export type Uses = {
+    values: u32[],
+    spans: BindingSpans
+}
+
+export type View = Input.Omit("start", "collisions") & {
+    frame: BindingReplay,
+    reporter: BindingReporter,
+    collisions: CollisionRows,
+    lookup_spans: BindingSpans,
+    uses: Uses
+}
+
+export type CollisionRows = Pairs.Omit("final") & {
+    spans: BindingSpans,
+    messages: string[]
+}
+
+export type Replay = {
+    view: View,
+    final: bool
 }
 
 export type Cursor = {

@@ -2,7 +2,8 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Assignment = @import("../assignment.zig");
-const Bindings = @import("../bindings.zig");
+const Bindings = @import("../bindings/host.zig");
+const generated = @import("rx_options").generated_graph;
 const Construction = @import("../construction.zig");
 const Index = @import("../index.zig");
 const NonNull = @import("../non_null.zig");
@@ -19,6 +20,7 @@ pub const Frame = struct {
     workspace: std.heap.ArenaAllocator,
     closure: ObjectClosure,
     classes: Assignment.Base = undefined,
+    bindings: if (generated) Bindings.Frame else void = undefined,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -28,12 +30,10 @@ pub fn solveRevision(handle: *const anyopaque) u64 {
     return Frame.borrow(handle).graph.revision;
 }
 
-pub fn solveValidateUses(handle: *const anyopaque) Error!void {
-    try Bindings.validateUses(Frame.borrow(handle).graph);
-}
+pub fn refreshSolverBindings(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
 
-pub fn solveBindings(handle: *const anyopaque, final: bool) Error!void {
-    try Bindings.propagate(Frame.borrow(handle).graph, final);
+    frame.bindings.bind(frame.graph);
 }
 
 pub fn solveNonNull(handle: *const anyopaque, final: bool) Error!bool {

@@ -1,12 +1,13 @@
 const zx = @import("zx");
 const host = @import("host.zig");
+const bindings = @import("../bindings.zig");
 
 pub fn run(frame: *host.Frame) zx.Error!void {
     while (true) {
         const revision = host.solveRevision(frame);
 
-        try host.solveValidateUses(frame);
-        try host.solveBindings(frame, false);
+        try bindings.validateUsesSeed(frame.graph);
+        try bindings.propagateSeed(frame.graph, false);
 
         _ = try host.solveNonNull(frame, false);
 
@@ -25,7 +26,7 @@ pub fn run(frame: *host.Frame) zx.Error!void {
         if (try host.solveSelections(frame, true)) continue;
         if (try host.solveConstructions(frame, true)) continue;
         try host.solveValidateLengths(frame);
-        try host.solveBindings(frame, true);
+        try bindings.propagateSeed(frame.graph, true);
         try host.solveValidateAssignments(frame);
 
         return;

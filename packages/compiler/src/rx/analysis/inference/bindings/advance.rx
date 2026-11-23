@@ -7,7 +7,18 @@
     <Call
         module="propagate"
         in={{
-            ...$in.request.omit(["frame"]),
+            ...$in.request.view.pick([
+                "topology",
+                "candidates",
+                "values"
+            ]),
+            collisions: {
+                ...$in.request.view.collisions.pick([
+                    "left",
+                    "right"
+                ]),
+                final: $in.request.final
+            },
             start: $in.start
         }}
     />
@@ -16,31 +27,47 @@
         <Call
             fn="host.unifyBindingReplay"
             in={[
-                $in.request.frame,
+                $in.request.view.frame,
                 $ctx.propagate.row,
                 $ctx.propagate.value
             ]}
         />
 
+        <Call fn="host.refreshBindingTopology" in={$in.request.view.frame} />
+
         <Return
             value={{
                 request: $in.request,
                 start: $ctx.propagate.row + 1,
-                running: $ctx.propagate.row + 1 < $in.request.values.length
+                running: $ctx.propagate.row + 1 < $in.request.view.values.length
             }}
         />
     </If>
 
-    <If on={$ctx.propagate.action != Bindings.Action.Done}>
-        <Call
-            fn="host.rejectBindingReplay"
-            in={[
-                $in.request.frame,
-                $ctx.propagate.row,
-                $ctx.propagate.action == Bindings.Action.Conflict
-            ]}
-        />
-    </If>
+    <Switch on={$ctx.propagate.action}>
+        <Case value={Bindings.Action.Conflict}>
+            <Call
+                fn="host.reportBindingName"
+                in={[
+                    $in.request.view.reporter,
+                    $in.request.view.collisions.spans,
+                    $ctx.propagate.row,
+                    $in.request.view.collisions.messages[$ctx.propagate.row]
+                ]}
+            />
+        </Case>
+
+        <Case value={Bindings.Action.Missing}>
+            <Call
+                fn="reject_missing"
+                in={{
+                    reporter: $in.request.view.reporter,
+                    spans: $in.request.view.lookup_spans,
+                    row: $ctx.propagate.row
+                }}
+            />
+        </Case>
+    </Switch>
 
     <Return
         value={{

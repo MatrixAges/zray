@@ -19,7 +19,12 @@ pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
         const rule = @import("generated_rx_run_constraint_solver");
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-        return rule.executeIn(scratch.allocator(), @ptrCast(&frame)) catch |err| workflow.errorSet(err);
+        const input: std.meta.Child(rule.Input) = .{
+            .frame = @ptrCast(&frame),
+            .bindings = &frame.bindings.view,
+        };
+
+        return rule.executeIn(scratch.allocator(), &input) catch |err| workflow.errorSet(err);
     }
 
     return @import("solve/seed.zig").run(&frame);

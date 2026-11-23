@@ -1,7 +1,6 @@
 export {
     solveRevision,
-    solveValidateUses,
-    solveBindings,
+    refreshSolverBindings,
     solveNonNull,
     solveSequences,
     solveConstructions,

@@ -7,6 +7,7 @@ const errors = @import("../../project/workflow/errors.zig");
 const rules = @import("../bindings/rules.zig");
 const entry = @import("generated_rx_scope_lookup");
 const Input = std.meta.Child(entry.Input);
+const Topology = std.meta.Child(@FieldType(Input, "topology"));
 const Deferred = std.meta.Child(@FieldType(Input, "deferred"));
 const Node = std.meta.Child(@FieldType(Deferred, "node"));
 const Rows = std.meta.Child(@FieldType(Deferred, "rows"));
@@ -36,7 +37,7 @@ pub fn run(graph: *Graph, rows: Scope.Storage.Slice, facts: []const []const u8, 
     const lengths: zx.memory.ColumnLengths = &.{&candidates.backing.items.len};
 
     const query: Input = .{
-        .topology = &.{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) },
+        .topology = &.{ .graph = &rules.view(Topology, graph), .parents = @ptrCast(&parents) },
         .active = &.{ .names = rows.items(.name), .values = @ptrCast(rows.items(.value)) },
         .name = name,
         .start = 0,

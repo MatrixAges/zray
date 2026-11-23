@@ -6,6 +6,7 @@ const rules = @import("../bindings/rules.zig");
 const errors = @import("../../project/workflow/errors.zig");
 const entry = @import("generated_rx_scope_register");
 const Input = std.meta.Child(entry.Input);
+const Topology = std.meta.Child(@FieldType(Input, "topology"));
 const Active = std.meta.Child(@FieldType(Input, "active"));
 const Columns = std.meta.Child(@FieldType(Input, "storage"));
 const Spans = std.meta.Child(@FieldType(Columns, "spans"));
@@ -66,7 +67,7 @@ pub fn parallel(graph: *Graph, scope: *Scope.Storage, allocator: std.mem.Allocat
 fn register(graph: *Graph, active: Active, incoming: Active, spans: []const zx.Span, message: []const u8, batch: ?Parallel) zx.Error!void {
     const pairs = &graph.pending.binding_collisions;
     const parents = graph.parents();
-    const topology: std.meta.Child(@FieldType(Input, "topology")) = .{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) };
+    const topology: Topology = .{ .graph = &rules.view(Topology, graph), .parents = @ptrCast(&parents) };
     var frame: Frame = .{ .graph = graph, .spans = spans, .message = message, .batch = batch };
     frame.pair_length = (&pairs.len)[0..1];
     frame.source = .{ .source = std.mem.sliceAsBytes(spans), .target = @ptrCast(&frame.pair_spans), .width = @sizeOf(zx.Span) };
