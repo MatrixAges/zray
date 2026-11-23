@@ -1,0 +1,48 @@
+<Module>
+    <Type from="workflow" as="Payload" />
+
+    <Args in={Payload.Pending} out={Payload.Pending} />
+
+    <Call
+        fn="../host.readU32"
+        in={[
+            $in.columns.pending_rows,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="../host.readU8"
+        in={[
+            $in.columns.pending_kinds,
+            $in.row
+        ]}
+    />
+
+    <Call fn="route" />
+
+    <Call
+        module="apply"
+        in={{
+            frame: $in.frame,
+            row: $ctx.readU32,
+            route: $ctx.route
+        }}
+    />
+
+    <Call
+        fn="store"
+        in={{
+            columns: $in.columns,
+            row: $ctx.readU32,
+            value: $ctx.apply
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

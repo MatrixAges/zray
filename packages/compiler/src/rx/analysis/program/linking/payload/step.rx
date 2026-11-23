@@ -1,0 +1,32 @@
+<Module>
+    <Type from="workflow" as="Payload" />
+
+    <Args in={Payload.Cursor} out={Payload.Cursor} />
+
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "columns",
+            "first"
+        ])}
+    />
+
+    <Loop on={$in.row < $in.end}>
+        <Call
+            module="pending"
+            in={{
+                frame: $in.frame,
+                columns: $in.columns,
+                row: 0,
+                end: $ctx.publish.pending
+            }}
+        />
+    </Loop>
+
+    <Return
+        value={{
+            ...$in,
+            first: $ctx.publish.next
+        }}
+    />
+</Module>

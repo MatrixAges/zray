@@ -1,59 +1,73 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const Builder = @import("../builder.zig");
-const rule = @import("generated_rx_link_fresh_symbols");
-const Input = std.meta.Child(rule.Input);
+const Request = @import("abi.zig").Request;
+const Input = std.meta.Child(@FieldType(Request, "symbols"));
 const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "columns")));
 const Text = std.meta.Child(@typeInfo(@FieldType(Input, "owned_text")).optional.child);
+const fields = @typeInfo(ir.SymbolStorage).@"struct".field_names;
+const metadata = .{ "types", "span_start", "span_end" };
 
-pub fn publish(builder: *Builder, source: ir.SymbolTable, first: usize, borrow_names: bool) Builder.Error!void {
-    const length = source.count() - first;
-    const storage = &builder.symbols;
+pub const Frame = struct {
+    input: Input = undefined,
+    views: [metadata.len + 1][]u8 = undefined,
+    columns: [metadata.len + 1]Column = undefined,
+    pointers: [metadata.len + 1]*const Column = undefined,
+    names: [][]const u8 = undefined,
+    ownership: []u8 = undefined,
+    text: Text = undefined,
+    ownership_view: std.meta.Child(@FieldType(Input, "ownership")) = undefined,
+    pub fn prepare(self: *Frame, builder: *Builder, source: *const ir.SymbolTable, first: usize, borrow_names: bool) Builder.Error!bool {
+        const length = source.count() - first;
+        const storage = &builder.symbols;
 
-    if (length == 0) return;
-    if (length > std.math.maxInt(u32) - storage.count()) return error.OutOfMemory;
+        if (length == 0) return false;
+        if (length > std.math.maxInt(u32) - storage.count()) return error.OutOfMemory;
 
-    const fields = @typeInfo(ir.SymbolStorage).@"struct".field_names;
+        inline for (fields) |name| {
+            try @field(storage, name).ensureUnusedCapacity(builder.allocator, length);
+        }
 
-    inline for (fields) |name| {
-        try @field(storage, name).ensureUnusedCapacity(builder.allocator, length);
+        self.names = storage.names.unusedCapacitySlice()[0..length];
+
+        const source_names = source.names[first..];
+        const name_index = metadata.len;
+
+        if (borrow_names) {
+            self.views[name_index] = std.mem.sliceAsBytes(self.names);
+            self.columns[name_index] = .{ .source = std.mem.sliceAsBytes(source_names), .target = @ptrCast(&self.views[name_index]) };
+            self.pointers[name_index] = &self.columns[name_index];
+        } else {
+            self.text = .{ .allocator = @ptrCast(&builder.allocator), .source = source_names, .target = @ptrCast(&self.names) };
+        }
+
+        inline for (metadata, 0..) |name, index| {
+            self.views[index] = std.mem.sliceAsBytes(@field(storage, name).unusedCapacitySlice()[0..length]);
+            self.columns[index] = .{ .source = std.mem.sliceAsBytes(@field(source, name)[first..]), .target = @ptrCast(&self.views[index]) };
+            self.pointers[index] = &self.columns[index];
+        }
+
+        comptime {
+            if (@sizeOf(ir.SymbolTable.Ownership) != 1) @compileError("symbol ownership must occupy one byte");
+        }
+
+        self.ownership = std.mem.sliceAsBytes(storage.ownership.unusedCapacitySlice()[0..length]);
+
+        self.input = .{
+            .columns = self.pointers[0 .. metadata.len + @intFromBool(borrow_names)],
+            .owned_text = if (borrow_names) null else &self.text,
+            .ownership = &self.ownership_view,
+        };
+
+        self.ownership_view = .{
+            .rows = @ptrCast(&self.ownership),
+            .count = length,
+            .copy_tag = @backingInt(ir.SymbolTable.Ownership.Copy),
+        };
+
+        return true;
     }
-
-    const names = storage.names.unusedCapacitySlice()[0..length];
-    const source_names = source.names[first..];
-    const name_bytes = std.mem.sliceAsBytes(names);
-    const borrowed: Column = .{ .source = std.mem.sliceAsBytes(source_names), .target = @ptrCast(&name_bytes) };
-    const owned: Text = .{ .allocator = @ptrCast(&builder.allocator), .source = source_names, .target = @ptrCast(&names) };
-    const metadata = .{ "types", "span_start", "span_end" };
-    var views: [metadata.len][]u8 = undefined;
-    var columns: [metadata.len]Column = undefined;
-    var pointers: [metadata.len + 1]*const Column = undefined;
-
-    inline for (metadata, 0..) |name, index| {
-        views[index] = std.mem.sliceAsBytes(@field(storage, name).unusedCapacitySlice()[0..length]);
-        columns[index] = .{ .source = std.mem.sliceAsBytes(@field(source, name)[first..]), .target = @ptrCast(&views[index]) };
-        pointers[index] = &columns[index];
+    pub fn commit(self: *const Frame, storage: *ir.SymbolStorage) void {
+        inline for (fields) |name| @field(storage, name).items.len += self.names.len;
     }
-
-    pointers[metadata.len] = &borrowed;
-
-    comptime {
-        if (@sizeOf(ir.SymbolTable.Ownership) != 1) @compileError("symbol ownership must occupy one byte");
-    }
-
-    const ownership = std.mem.sliceAsBytes(storage.ownership.unusedCapacitySlice()[0..length]);
-
-    const input: Input = .{
-        .columns = pointers[0 .. metadata.len + @intFromBool(borrow_names)],
-        .owned_text = if (borrow_names) null else &owned,
-        .ownership = &.{ .rows = @ptrCast(&ownership), .count = length, .copy_tag = @backingInt(ir.SymbolTable.Ownership.Copy) },
-    };
-
-    zx.columns.invoke(rule.executeValue, builder.allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    inline for (fields) |name| @field(storage, name).items.len += length;
-}
+};

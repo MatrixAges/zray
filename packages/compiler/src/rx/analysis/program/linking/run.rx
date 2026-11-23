@@ -1,0 +1,50 @@
+<Module>
+    <Type from="workflow" as="Linking" />
+
+    <Args in={Linking.Request} out={u32} />
+
+    <Call module="plan" in={$in.plan} />
+
+    <Call
+        fn="host.reserveExpressionLink"
+        in={[
+            $in.frame,
+            $ctx.plan.returned,
+            $ctx.plan.rows,
+            $ctx.plan.bindings,
+            $ctx.plan.count
+        ]}
+    />
+
+    <Call fn="host.prepareLinkSymbols" in={$in.frame} />
+
+    <If on={$ctx.prepareLinkSymbols}>
+        <Call module="symbols/publish" in={$in.symbols} />
+
+        <Call fn="host.commitLinkSymbols" in={$in.frame} />
+    </If>
+
+    <Call fn="host.prepareLinkLiterals" in={$in.frame} />
+
+    <If on={$ctx.prepareLinkLiterals}>
+        <Call module="literals/write" in={$in.literals} />
+
+        <Call fn="host.commitLinkLiterals" in={$in.frame} />
+    </If>
+
+    <Loop on={$in.first < $in.columns.rows.length}>
+        <Call
+            module="payload/step"
+            in={{
+                frame: $in.frame,
+                columns: $in.payload,
+                first: 0
+            }}
+        />
+    </Loop>
+
+    <Call fn="headers" in={$in.headers} />
+    <Call fn="host.commitExpressionLink" in={$in.frame} />
+
+    <Return value={$ctx.reserveExpressionLink} />
+</Module>

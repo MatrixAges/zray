@@ -11,17 +11,21 @@ export type LiteralBases = {
     errors: u64
 }
 
-export type Input = {
+export type Columns = {
     kinds: ExpressionKind[],
     payloads: u32[],
     rows: u32[],
     literals: LiteralBases,
     base: u64,
-    first: u64,
     limit: u64,
     target: U32Buffer,
     pending_rows: U32Buffer,
     pending_kinds: U8Buffer
+}
+
+export type Input = {
+    columns: Columns,
+    first: u64
 }
 
 export type Output = {

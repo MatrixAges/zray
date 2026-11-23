@@ -1,0 +1,34 @@
+import {
+    collection,
+    object,
+    scope,
+    selection,
+    sequence,
+    transform
+} from "./const"
+
+export enum Kind {
+    Fixed,
+    Sequence,
+    Collection,
+    Transform,
+    Scope,
+    Selection,
+    Object
+}
+
+export type Input = u8
+
+export type Output = Kind
+
+export default function (in: Input): Output {
+    return match in {
+        sequence => Kind.Sequence,
+        collection => Kind.Collection,
+        transform => Kind.Transform,
+        scope => Kind.Scope,
+        selection => Kind.Selection,
+        object => Kind.Object,
+        _ => Kind.Fixed
+    }
+}

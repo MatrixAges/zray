@@ -21,21 +21,23 @@ export type Input = Request
 export type Output = Progress
 
 export default function (in: Input): Output {
+    const columns = in.columns
+
     return loop({
         next: in.first,
         pending: 0
     }, {
-        while: state => state.next < in.rows.length && state.pending < in.limit,
+        while: state => state.next < columns.rows.length && state.pending < columns.limit,
         next: state => {
             const row = state.next
-            const target = in.rows[row]
+            const target = columns.rows[row]
 
             if (target != max_u32) {
-                const kind = in.kinds[row]
+                const kind = columns.kinds[row]
                 const ready = literal({
-                    bases: in.literals,
+                    bases: columns.literals,
                     kind,
-                    payload: in.payloads[row]
+                    payload: columns.payloads[row]
                 })
 
                 if (ready == null) {
@@ -51,17 +53,17 @@ export default function (in: Input): Output {
                         _ => fixed
                     }
 
-                    memory.writeU8(in.pending_kinds, state.pending, route)
+                    memory.writeU8(columns.pending_kinds, state.pending, route)
                     memory.writeU32(
-                        in.pending_rows,
+                        columns.pending_rows,
                         state.pending,
                         integers.narrow(row)
                     )
                     state.pending += 1
                 } else {
                     memory.writeU32(
-                        in.target,
-                        integers.widen(target) - in.base,
+                        columns.target,
+                        integers.widen(target) - columns.base,
                         integers.narrow(ready)
                     )
                 }

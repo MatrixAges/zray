@@ -62,6 +62,8 @@ export type ParallelTaskWork = opaque
 
 export type BodyStatements = opaque
 
+export type ExpressionLink = opaque
+
 export type Mixed = opaque
 
 export type MixedState = opaque
@@ -718,6 +720,42 @@ export declare function emitBodyParallelBranch(frame: BodyStatements, position: 
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
 export declare function publishBodyParallel(frame: BodyStatements, count: u32, published: u32): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function reserveExpressionLink(frame: ExpressionLink, returned: u32?, rows: u32[], bindings: u32[], count: u64): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function prepareLinkSymbols(frame: ExpressionLink): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function commitLinkSymbols(frame: ExpressionLink): void
+
+export declare function prepareLinkLiterals(frame: ExpressionLink): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function commitLinkLiterals(frame: ExpressionLink): void
+
+export declare function commitExpressionLink(frame: ExpressionLink): void
+
+export declare function linkFixedPayload(frame: ExpressionLink, row: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function linkSequencePayload(frame: ExpressionLink, row: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function linkCollectionPayload(frame: ExpressionLink, row: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function linkTransformPayload(frame: ExpressionLink, row: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function linkScopePayload(frame: ExpressionLink, row: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function linkSelectionPayload(frame: ExpressionLink, row: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function linkObjectPayload(frame: ExpressionLink, row: u32): u32
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
 export declare function solveRevision(state: ConstraintRound): u64

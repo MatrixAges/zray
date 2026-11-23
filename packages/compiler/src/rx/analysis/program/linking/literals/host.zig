@@ -1,68 +1,57 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const Builder = @import("../../builder.zig");
-const generated = @import("generated_rx_link_literals");
+const abi = @import("../abi.zig");
+const Input = std.meta.Child(@FieldType(abi.Request, "literals"));
+const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "columns")));
+const Text = std.meta.Child(@typeInfo(@FieldType(Input, "owned_text")).optional.child);
+const Bases = std.meta.Child(@FieldType(abi.Payload, "literals"));
+const names = @typeInfo(Bases).@"struct".field_names;
 
-pub const Bases = struct {
-    integers: usize,
-    negative_integers: usize,
-    floats: usize,
-    strings: usize,
-    booleans: usize,
-    enumerations: usize,
-    errors: usize,
-};
+pub const Frame = struct {
+    input: Input = undefined,
+    bases: Bases = undefined,
+    views: [names.len][]u8 = undefined,
+    columns: [names.len]Column = undefined,
+    pointers: [names.len]*const Column = undefined,
+    strings: [][]const u8 = undefined,
+    text: Text = undefined,
+    /// Inlining removes binding references. Literal payloads keep their source order.
+    pub fn prepare(self: *Frame, builder: *Builder, source: *const ir.ExpressionTable, borrow_text: bool) Builder.Error!bool {
+        const storage = &builder.expressions;
+        var count: usize = 0;
+        var owned: ?*const Text = null;
 
-/// Inlining removes input binding references and projections. Literal rows keep their payload order.
-pub fn publish(builder: *Builder, source: *const ir.ExpressionTable, borrow_text: bool) Builder.Error!Bases {
-    const Input = std.meta.Child(generated.Input);
-    const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "columns")));
-    const Text = std.meta.Child(@typeInfo(@FieldType(Input, "owned_text")).optional.child);
-    const names = @typeInfo(Bases).@"struct".field_names;
-    const storage = &builder.expressions;
-    var bases: Bases = undefined;
-    var views: [names.len][]u8 = undefined;
-    var columns: [names.len]Column = undefined;
-    var pointers: [names.len]*const Column = undefined;
-    var strings: [][]const u8 = undefined;
-    var text: ?Text = null;
-    var count: usize = 0;
+        inline for (names) |name| {
+            const values = @field(source, name);
+            const target = &@field(storage, name);
 
-    inline for (names) |name| {
-        const values = @field(source, name);
-        const target = &@field(storage, name);
+            @field(self.bases, name) = target.items.len;
 
-        @field(bases, name) = target.items.len;
+            if (values.len != 0) {
+                try storage.reserveColumns(builder.allocator, &.{name}, values.len);
 
-        if (values.len != 0) {
-            try storage.reserveColumns(builder.allocator, &.{name}, values.len);
+                const tail = target.unusedCapacitySlice()[0..values.len];
+                const own_text = comptime std.mem.eql(u8, name, "strings");
 
-            const tail = target.unusedCapacitySlice()[0..values.len];
-            const own_text = comptime std.mem.eql(u8, name, "strings");
-
-            if (own_text and !borrow_text) {
-                strings = tail;
-                text = .{ .allocator = @ptrCast(&builder.allocator), .source = values, .target = @ptrCast(&strings) };
-            } else {
-                views[count] = std.mem.sliceAsBytes(tail);
-                columns[count] = .{ .source = std.mem.sliceAsBytes(values), .target = @ptrCast(&views[count]) };
-                pointers[count] = &columns[count];
-                count += 1;
+                if (own_text and !borrow_text) {
+                    self.strings = tail;
+                    self.text = .{ .allocator = @ptrCast(&builder.allocator), .source = values, .target = @ptrCast(&self.strings) };
+                    owned = &self.text;
+                } else {
+                    self.views[count] = std.mem.sliceAsBytes(tail);
+                    self.columns[count] = .{ .source = std.mem.sliceAsBytes(values), .target = @ptrCast(&self.views[count]) };
+                    self.pointers[count] = &self.columns[count];
+                    count += 1;
+                }
             }
         }
+
+        self.input = .{ .columns = self.pointers[0..count], .owned_text = owned };
+
+        return count != 0 or owned != null;
     }
-
-    if (count == 0 and text == null) return bases;
-
-    const input: Input = .{ .columns = pointers[0..count], .owned_text = if (text) |*owned| owned else null };
-
-    zx.columns.invoke(generated.executeValue, builder.allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    inline for (names) |name| @field(storage, name).items.len += @field(source, name).len;
-
-    return bases;
-}
+    pub fn commit(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable) void {
+        inline for (names) |name| @field(storage, name).items.len += @field(source, name).len;
+    }
+};

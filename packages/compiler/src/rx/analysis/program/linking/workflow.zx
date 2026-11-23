@@ -1,0 +1,15 @@
+import type { ExpressionLink } from "rx_project_host"
+import type { Input as Headers } from "./headers"
+import type { Input as Literals } from "./literals/model"
+import type { Input as Plan } from "./model"
+import type { Columns } from "./payload/model"
+import type { Input as Symbols } from "./symbols/model"
+
+export type Request = {
+    frame: ExpressionLink,
+    plan: Plan,
+    symbols: Symbols,
+    literals: Literals,
+    payload: Columns,
+    headers: Headers
+}
