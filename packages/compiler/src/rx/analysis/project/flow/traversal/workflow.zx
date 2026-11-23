@@ -8,7 +8,8 @@ export type Request = Plan & {
     lengths: ColumnLengths,
     cursor_length: ColumnLengths,
     labels: ReadColumn,
-    fallback: u8
+    fallback: u8,
+    inference: bool
 }
 
 export type Iteration = {

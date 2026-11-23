@@ -35,7 +35,10 @@ export type Cursor = {
     region: Region,
     first: u64,
     end: u64,
-    saved_bindings: u64
+    saved_bindings: u64,
+    saved_facts: u64,
+    case_remaining?: bool,
+    case_stopped: bool
 }
 
 export type Plan = {

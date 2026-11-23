@@ -15,7 +15,7 @@ pub const Cursor = struct {
     }
 };
 
-pub fn run(state: anytype, plan: *const Flow.Plan) @TypeOf(state.closeCase()) {
+pub fn run(state: anytype, plan: *const Flow.Plan) @TypeOf(state.closeCase(true)) {
     if (comptime generated) return host.run(state, plan);
 
     return seed.run(state, plan);

@@ -7,7 +7,6 @@ const Prepared = @import("project/flow.zig");
 const Flow = @import("program/flow.zig");
 const expression = @import("expression.zig");
 const Captures = @import("task_captures.zig");
-const condition = @import("condition.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
 const Call = @import("flow_compile/call.zig");
@@ -61,27 +60,6 @@ pub const TaskOutput = struct {
         if (self.result) |result| try result.publish(compiler.binding_allocator, &compiler.bindings);
     }
 };
-
-pub const CaseScope = struct { facts: usize, label: ?*const zx.ir.Program };
-
-pub fn refineCase(self: *Self, case: *const Prepared.Case, subject: *const frontend.ExpressionInput.Result) Error!usize {
-    const facts = self.nonnull.items.len;
-
-    if (case.truth) |present| {
-        const bindings: condition.Scope = .{
-            .allocator = self.allocator,
-            .bindings = self.bindings.items(.name),
-            .facts = &self.nonnull,
-        };
-
-        condition.assumeParsed(self.allocator, subject, present, bindings) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => return error.InvalidFlow,
-        };
-    }
-
-    return facts;
-}
 
 pub fn checkSelection(self: *Self, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, alternatives: []const Prepared.Case, first: u32, count: u32) Error!bool {
     const labels = self.compiled.cases.items(.value)[first..][0..count];

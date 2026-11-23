@@ -5,9 +5,7 @@ const Case = @import("../project/flow.zig").Case;
 const condition = @import("../condition.zig");
 const Result = frontend.ExpressionInput.Result;
 const boolean_domain_size = 2;
-const enabled = @import("rx_options").generated_graph;
-const rule = if (enabled) @import("generated_rx_condition_coverage") else void;
-const Coverage = if (enabled) std.meta.Child(rule.Output) else struct { stopped: bool, remaining: ?bool };
+const Coverage = struct { stopped: bool, remaining: ?bool };
 const Self = @This();
 
 allocator: std.mem.Allocator,
@@ -34,7 +32,10 @@ pub fn label(self: *Self, attribute: rx.ast.Attribute) std.mem.Allocator.Error!R
 pub fn observe(self: *Self, truth: ?bool) void {
     if (self.coverage.stopped) return;
 
-    self.coverage = record(self.coverage, truth);
+    const next = if (truth) |value| !value else null;
+    const stopped = next == null or (self.coverage.remaining != null and self.coverage.remaining != next);
+
+    self.coverage = .{ .stopped = stopped, .remaining = if (stopped) null else next };
 }
 
 /// Look ahead only while every explicit label may exclude the same boolean value.
@@ -45,41 +46,28 @@ pub fn remaining(self: *Self, rest: []const Case) std.mem.Allocator.Error!?bool 
         if (self.coverage.stopped) break;
 
         const attribute = case.label.attribute() orelse continue;
-        const retain = self.pending.items.len < boolean_domain_size;
 
-        if (retain) try self.pending.ensureTotalCapacityPrecise(self.allocator, boolean_domain_size);
-
-        var parsed = try @import("../attribute.zig").parseBorrowed(self.allocator, attribute, self.owner);
-
-        self.observe(condition.boolean(&parsed));
-
-        if (retain) {
-            self.pending.appendAssumeCapacity(parsed);
-        } else {
-            parsed.deinit();
-        }
+        self.observe(try self.lookAhead(attribute));
     }
-
-    const truth = self.coverage.remaining;
 
     self.coverage.stopped = true;
 
-    return truth;
+    return self.coverage.remaining;
 }
 
-fn record(coverage: Coverage, truth: ?bool) Coverage {
-    if (comptime !enabled) {
-        const next = !(truth orelse return .{ .stopped = true, .remaining = null });
+pub fn lookAhead(self: *Self, attribute: rx.ast.Attribute) std.mem.Allocator.Error!?bool {
+    const retain = self.pending.items.len < boolean_domain_size;
 
-        if (coverage.remaining) |previous| {
-            if (previous != next) return .{ .stopped = true, .remaining = null };
-        }
+    if (retain) try self.pending.ensureTotalCapacityPrecise(self.allocator, boolean_domain_size);
 
-        return .{ .stopped = false, .remaining = next };
+    var parsed = try @import("../attribute.zig").parseBorrowed(self.allocator, attribute, self.owner);
+    const truth = condition.boolean(&parsed);
+
+    if (retain) {
+        self.pending.appendAssumeCapacity(parsed);
+    } else {
+        parsed.deinit();
     }
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = rule.executeValue(empty.allocator(), &.{ .remaining = coverage.remaining, .label = truth }) catch unreachable;
-
-    return .{ .stopped = result.stopped, .remaining = result.remaining };
+    return truth;
 }

@@ -1,0 +1,48 @@
+import { publishFlowCaseCoverage } from "rx_project_host"
+
+import record from "../../../../condition/coverage"
+import remaining from "../../../../condition/remaining"
+import isDefault from "./is_default"
+
+import type { CaseCoverage } from "../effect"
+
+export type Input = CaseCoverage & {
+    truth?: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (isDefault(in.pick([
+        "labels",
+        "position",
+        "fallback"
+    ]))) {
+        const truth = remaining({
+            ...in.pick([
+                "frame",
+                "labels",
+                "fallback",
+                "end"
+            ]),
+            first: in.position + 1,
+            stopped: in.case_stopped,
+            remaining: in.case_remaining
+        })
+
+        publishFlowCaseCoverage(in.frame, in.position, true, true, truth)
+    } else if (!in.case_stopped) {
+        const next = record({
+            remaining: in.case_remaining,
+            label: in.truth
+        })
+
+        publishFlowCaseCoverage(
+            in.frame,
+            in.position,
+            false,
+            next.stopped,
+            next.remaining
+        )
+    }
+}

@@ -133,7 +133,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/shorthand/deferred.zx", .name = "rx_shortcut_deferred", .owner = .rx_analysis },
     .{ .path = "rx/analysis/result_name/bind.zx", .name = "rx_result_binding", .owner = .rx_analysis },
     .{ .path = "rx/schema/identifier.zx", .name = "rx_result_identifier", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/condition/coverage.zx", .name = "rx_condition_coverage", .owner = .rx_analysis },
     .{ .path = "rx/analysis/expression_scope/select.rx", .name = "rx_expression_scope", .owner = .rx_analysis },
     .{ .path = "rx/analysis/selection/check.rx", .name = "rx_selection_check", .owner = .rx_analysis },
     .{ .path = "rx/analysis/task_captures/initialize.zx", .name = "rx_task_capture_init", .owner = .rx_analysis },

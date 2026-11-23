@@ -77,7 +77,11 @@
                     "position",
                     "lengths",
                     "labels",
-                    "fallback"
+                    "fallback",
+                    "inference",
+                    "end",
+                    "case_remaining",
+                    "case_stopped"
                 ])}
             />
         </Case>
@@ -111,11 +115,25 @@
         </Case>
 
         <Case value={Model.Action.CloseSelection}>
-            <Call fn="host.closeFlowSelection" in={$in.frame} />
+            <Call
+                fn="host.completeFlowBranch"
+                in={[
+                    $in.frame,
+                    true
+                ]}
+            />
         </Case>
 
         <Case value={Model.Action.CloseCase}>
-            <Call fn="host.closeFlowCase" in={$in.frame} />
+            <Call
+                module="cases/close"
+                in={$in.pick([
+                    "frame",
+                    "lengths",
+                    "saved_bindings",
+                    "saved_facts"
+                ])}
+            />
         </Case>
     </Switch>
 </Module>

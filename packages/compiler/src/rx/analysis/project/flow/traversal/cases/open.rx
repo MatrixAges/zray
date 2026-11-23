@@ -12,40 +12,33 @@
     />
 
     <Call
-        fn="is_default"
-        in={{
-            labels: $in.labels,
-            position: $in.position,
-            fallback: $in.fallback
-        }}
-    />
-
-    <If on={$ctx.is_default}>
-        <Call
-            fn="../host.evaluateFlowDefaultCase"
-            in={[
-                $in.frame,
-                $in.position
-            ]}
-        />
-
-        <Else>
-            <Call
-                fn="../host.evaluateFlowCaseLabel"
-                in={[
-                    $in.frame,
-                    $in.position
-                ]}
-            />
-        </Else>
-    </If>
-
-    <Call
-        fn="../host.refineFlowCase"
+        fn="../host.evaluateFlowCaseLabel"
         in={[
             $in.frame,
             $in.position
         ]}
+    />
+
+    <If on={$in.inference}>
+        <Call
+            fn="coverage"
+            in={{
+                ...$in.omit([
+                    "inference",
+                    "lengths"
+                ]),
+                truth: $ctx.evaluateFlowCaseLabel
+            }}
+        />
+    </If>
+
+    <Call
+        fn="refine"
+        in={$in.pick([
+            "frame",
+            "position",
+            "lengths"
+        ])}
     />
 
     <Call
@@ -54,7 +47,7 @@
             $in.frame,
             $in.position,
             $ctx.readLengthSlot,
-            $ctx.refineFlowCase
+            $ctx.refine
         ]}
     />
 </Module>

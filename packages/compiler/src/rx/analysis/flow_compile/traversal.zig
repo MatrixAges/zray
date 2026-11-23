@@ -4,6 +4,7 @@ const zx = @import("zx");
 const Compiler = @import("../flow_compile.zig");
 const Flow = @import("../program/flow.zig");
 const Prepared = @import("../project/flow.zig");
+const condition = @import("../condition.zig");
 const traversal = @import("../project/flow/traversal.zig");
 const Cursor = traversal.Cursor;
 const Region = traversal.Region;
@@ -34,7 +35,7 @@ const Payload = union(Region) {
     ParallelTask: void,
     Parallel: struct { first: u32, count: u32, outputs: frontend.expressions.BindingStorage = .empty },
     Selection: Selection,
-    Case: struct { bindings: usize, scope: Compiler.CaseScope },
+    Case: struct { bindings: usize, facts: usize, label: ?*const zx.ir.Program },
 };
 
 const Frame = struct {
@@ -169,9 +170,10 @@ pub const Host = struct {
     pub fn openCase(self: *Host, current: *Frame, first: usize) Compiler.Error!void {
         const bindings = self.compiler.bindings.len;
         const label = try self.labelCase(current, first);
-        const facts = try self.refineCase(current, first);
+        const facts = self.compiler.nonnull.items.len;
 
-        try self.pushCase(current, first, bindings, .{ .facts = facts, .label = label });
+        try self.refineCase(current, first);
+        try self.pushCase(current, first, bindings, facts, label);
     }
     pub fn labelCase(self: *Host, current: *Frame, row: usize) Compiler.Error!?*const zx.ir.Program {
         const selected = &current.payload.Selection;
@@ -180,14 +182,23 @@ pub const Host = struct {
 
         return try self.compiler.keep(try self.compiler.value(attribute, selected.subject.output_type, false));
     }
-    pub fn refineCase(self: *Host, current: *Frame, row: usize) Compiler.Error!usize {
+    pub fn refineCase(self: *Host, current: *Frame, row: usize) Compiler.Error!void {
+        const compiler = self.compiler;
         const selected = &current.payload.Selection;
-        const case = &self.compiler.plan.selections[selected.item].cases[row];
+        const present = compiler.plan.selections[selected.item].cases[row].truth orelse return;
 
-        return self.compiler.refineCase(case, &selected.parsed);
+        const scope: condition.Scope = .{
+            .allocator = compiler.allocator,
+            .bindings = compiler.bindings.items(.name),
+            .facts = &compiler.nonnull,
+        };
+
+        condition.assumeParsed(compiler.allocator, &selected.parsed, present, scope) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.InvalidFlow,
+        };
     }
-
-    pub fn pushCase(self: *Host, current: *Frame, first: usize, bindings: usize, scope: Compiler.CaseScope) Compiler.Error!void {
+    pub fn pushCase(self: *Host, current: *Frame, first: usize, bindings: usize, facts: usize, label: ?*const zx.ir.Program) Compiler.Error!void {
         const compiler = self.compiler;
         const selected = &current.payload.Selection;
         const case = &compiler.plan.selections[selected.item].cases[first];
@@ -196,7 +207,7 @@ pub const Host = struct {
         const child = try self.stack.addOne(self.memory);
 
         child.* = .{ .cursor = Cursor.body(case.body), .destination = destination, .body = range, .payload = .{
-            .Case = .{ .bindings = bindings, .scope = scope },
+            .Case = .{ .bindings = bindings, .facts = facts, .label = label },
         } };
     }
 
@@ -261,16 +272,19 @@ pub const Host = struct {
         });
     }
 
-    pub fn closeCase(self: *Host) Compiler.Error!void {
+    pub fn closeCase(self: *Host, comptime restore: bool) Compiler.Error!void {
         const compiler = self.compiler;
         const current = self.frame();
-        const case = current.payload.Case;
+        const saved = current.payload.Case;
         const unit = try current.body.close(compiler, true);
 
-        compiler.nonnull.shrinkRetainingCapacity(case.scope.facts);
+        if (restore) {
+            compiler.nonnull.shrinkRetainingCapacity(saved.facts);
 
-        compiler.bindings.len = case.bindings;
-        compiler.compiled.cases.set(current.destination, .{ .value = case.scope.label, .body = unit });
+            compiler.bindings.len = saved.bindings;
+        }
+
+        compiler.compiled.cases.set(current.destination, .{ .value = saved.label, .body = unit });
     }
 };
 

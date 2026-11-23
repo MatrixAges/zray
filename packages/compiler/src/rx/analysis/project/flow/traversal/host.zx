@@ -12,8 +12,7 @@ export {
     openFlowParallel,
     openFlowSelection,
     evaluateFlowCaseLabel,
-    evaluateFlowDefaultCase,
-    refineFlowCase,
+    publishFlowCaseCoverage,
     pushFlowCase,
     prepareFlowTaskOutput,
     evaluateFlowTaskOutput,
@@ -22,7 +21,6 @@ export {
     restoreParallelTaskReturn,
     publishFlowTaskOutput,
     closeFlowParallel,
-    closeFlowSelection,
-    closeFlowCase,
+    completeFlowBranch,
     popFlowFrame
 } from "rx_project_host"

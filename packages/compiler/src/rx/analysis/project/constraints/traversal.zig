@@ -128,21 +128,23 @@ pub const Host = struct {
     pub fn openCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
         const walker = self.walker;
         const bindings = walker.expression.bindings.len;
+        const selected = &current.payload.Selection;
 
-        if (current.payload.Selection.cases[first].label.kind == .Default) {
-            try self.defaultCase(current, first);
+        if (selected.cases[first].label.kind == .Default) {
+            selected.cases[first].truth = try selected.labels.remaining(selected.cases[first + 1 ..]);
         } else {
-            try self.labelCase(current, first);
+            selected.labels.observe(try self.labelCase(current, first));
         }
 
-        const facts = try self.refineCase(current, first);
+        const facts = walker.expression.nonnull.items.len;
 
+        try self.refineCase(current, first);
         try self.pushCase(current, first, bindings, facts);
     }
-    pub fn labelCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
+    pub fn labelCase(self: *Host, current: *Frame, first: usize) zx.Error!?bool {
         const selected = &current.payload.Selection;
         const case = &selected.cases[first];
-        const attribute = case.label.attribute().?;
+        const attribute = case.label.attribute() orelse return null;
         var label = try selected.labels.label(attribute);
 
         defer label.deinit();
@@ -150,22 +152,15 @@ pub const Host = struct {
         _ = try self.walker.inferParsed(&label, attribute, selected.subject);
         case.truth = condition.boolean(&label);
 
-        selected.labels.observe(case.truth);
+        return case.truth;
     }
-    pub fn defaultCase(_: *Host, current: *Frame, first: usize) zx.Error!void {
-        const selected = &current.payload.Selection;
-        selected.cases[first].truth = try selected.labels.remaining(selected.cases[first + 1 ..]);
-    }
-    pub fn refineCase(self: *Host, current: *Frame, first: usize) zx.Error!usize {
+    pub fn refineCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
         const selected = &current.payload.Selection;
         const expression = self.walker.expression;
-        const facts = expression.nonnull.items.len;
 
         if (selected.cases[first].truth) |present| {
             try condition.assumeParsed(expression.graph.scratch, &selected.parsed, present, expression.conditionScope());
         }
-
-        return facts;
     }
     pub fn pushCase(self: *Host, current: *Frame, first: usize, bindings: usize, facts: usize) zx.Error!void {
         const unit = current.payload.Selection.cases[first].body;
@@ -190,7 +185,9 @@ pub const Host = struct {
 
     pub fn closeSelection(_: *Host) zx.Error!void {}
 
-    pub fn closeCase(self: *Host) zx.Error!void {
+    pub fn closeCase(self: *Host, comptime restore: bool) zx.Error!void {
+        if (!restore) return;
+
         const expression = self.walker.expression;
         const saved = self.frame().payload.Case;
 

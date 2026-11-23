@@ -1,0 +1,31 @@
+<Module>
+    <Type from="../effect" as="Effect" />
+
+    <Args in={Effect.CaseClose} out={void} />
+
+    <Call
+        fn="../host.completeFlowBranch"
+        in={[
+            $in.frame,
+            false
+        ]}
+    />
+
+    <Call
+        fn="../host.shrinkLengthSlot"
+        in={[
+            $in.lengths,
+            1,
+            $in.saved_facts
+        ]}
+    />
+
+    <Call
+        fn="../host.shrinkLengthSlot"
+        in={[
+            $in.lengths,
+            0,
+            $in.saved_bindings
+        ]}
+    />
+</Module>

@@ -44,7 +44,12 @@
             lengths: $in.request.lengths,
             labels: $in.request.labels,
             fallback: $in.request.fallback,
+            inference: $in.request.inference,
             saved_bindings: $in.request.cursor.saved_bindings,
+            saved_facts: $in.request.cursor.saved_facts,
+            case_remaining: $in.request.cursor.case_remaining,
+            case_stopped: $in.request.cursor.case_stopped,
+            end: $in.request.cursor.end,
             action: $ctx.advance.action,
             item: $ctx.advance.item,
             position: $ctx.advance.position

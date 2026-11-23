@@ -650,13 +650,21 @@ export declare function openFlowParallel(state: FlowTraversal, row: u64, item: u
 export declare function openFlowSelection(state: FlowTraversal, row: u64, item: u32): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function evaluateFlowCaseLabel(state: FlowTraversal, row: u64): void
+export declare function evaluateFlowCaseLabel(state: FlowTraversal, row: u64): bool?
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function evaluateFlowDefaultCase(state: FlowTraversal, row: u64): void
-    throws { OutOfMemory, InvalidSource, InvalidFlow }
+export declare function readFlowConditionLabel(state: FlowTraversal, row: u64): bool?
+    throws { OutOfMemory }
 
-export declare function refineFlowCase(state: FlowTraversal, row: u64): u64
+export declare function publishFlowCaseCoverage(
+    state: FlowTraversal,
+    row: u64,
+    fallback: bool,
+    stopped: bool,
+    remaining: bool?
+): void
+
+export declare function refineFlowCase(state: FlowTraversal, row: u64): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function pushFlowCase(state: FlowTraversal, row: u64, bindings: u64, facts: u64): void
@@ -682,10 +690,7 @@ export declare function publishFlowTaskOutput(state: FlowTraversal, parallel: bo
 export declare function closeFlowParallel(state: FlowTraversal): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function closeFlowSelection(state: FlowTraversal): void
-    throws { OutOfMemory, InvalidSource, InvalidFlow }
-
-export declare function closeFlowCase(state: FlowTraversal): void
+export declare function completeFlowBranch(state: FlowTraversal, selection: bool): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function popFlowFrame(state: FlowTraversal): void

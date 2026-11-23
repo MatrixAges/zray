@@ -22,25 +22,28 @@ const State = struct {
     return_value: *const zx.ir.Program = undefined,
     case_label: ?*const zx.ir.Program = null,
     cursor: View = undefined,
-    slots: [2]*usize,
+    slots: [3]*usize,
     labels: memory.ReadColumn = undefined,
     fn borrow(handle: *const anyopaque) *State {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
 };
 
-pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) {
+pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase(true)) {
     const inference = @TypeOf(target) == *Inference;
 
     var state: State = .{
         .target = if (inference) .{ .inference = target } else .{ .lowering = target },
         .call = if (inference) .{ .inference = undefined } else .{ .lowering = undefined },
         .task = if (inference) .{ .inference = null } else .{ .lowering = undefined },
-        .slots = .{ undefined, if (inference) &target.walker.expression.bindings.len else &target.compiler.bindings.len },
+        .slots = if (inference)
+            .{ undefined, &target.walker.expression.bindings.len, &target.walker.expression.nonnull.items.len }
+        else
+            .{ undefined, &target.compiler.bindings.len, &target.compiler.nonnull.items.len },
     };
 
     const cursor_length: memory.ColumnLengths = state.slots[0..1];
-    const lengths: memory.ColumnLengths = state.slots[1..2];
+    const lengths: memory.ColumnLengths = state.slots[1..];
 
     const input: Input = .{
         .frame = @ptrCast(&state),
@@ -49,6 +52,7 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
         .cursor_length = @ptrCast(&cursor_length),
         .labels = @ptrCast(&state.labels),
         .fallback = @backingInt(Label.Default),
+        .inference = inference,
         .kinds = plan.kinds,
         .items = plan.items,
     };
@@ -78,14 +82,24 @@ pub fn refreshFlowCursor(handle: *const anyopaque) void {
                 .saved_bindings = switch (current.payload) {
                     .Task => |task| task.bindings,
                     .ParallelTask => |task| if (inference) task.bindings else 0,
+                    .Case => |case| case.bindings,
                     else => 0,
                 },
+                .saved_facts = if (current.payload == .Case) current.payload.Case.facts else 0,
+                .case_remaining = null,
+                .case_stopped = false,
             };
 
             if (current.payload == .Selection) {
                 const selection = &current.payload.Selection;
                 const cases = if (inference) selection.cases else target.compiler.plan.selections[selection.item].cases;
+
                 state.labels = memory.borrowNestedColumn(Label, &.{ "label", "kind" }, cases);
+
+                if (inference) {
+                    state.cursor.case_remaining = selection.labels.coverage.remaining;
+                    state.cursor.case_stopped = selection.labels.coverage.stopped;
+                }
             }
         },
     }
@@ -176,31 +190,35 @@ fn openRegion(comptime method: []const u8) fn (*const anyopaque, u64, u32) Error
 pub const openFlowParallel = openRegion("parallel");
 pub const openFlowSelection = openRegion("selection");
 
-pub fn evaluateFlowCaseLabel(handle: *const anyopaque, row: u64) Error!void {
+pub fn evaluateFlowCaseLabel(handle: *const anyopaque, row: u64) Error!?bool {
     const state = State.borrow(handle);
 
     switch (state.target) {
-        .inference => |target| try target.labelCase(target.frame(), @intCast(row)),
+        .inference => |target| return target.labelCase(target.frame(), @intCast(row)),
         .lowering => |target| state.case_label = try target.labelCase(target.frame(), @intCast(row)),
     }
+
+    return null;
 }
 
-pub fn evaluateFlowDefaultCase(handle: *const anyopaque, row: u64) Error!void {
-    const state = State.borrow(handle);
+pub fn readFlowConditionLabel(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!?bool {
+    const selected = &State.borrow(handle).target.inference.frame().payload.Selection;
 
-    switch (state.target) {
-        .inference => |target| try target.defaultCase(target.frame(), @intCast(row)),
-        .lowering => state.case_label = null,
+    return selected.labels.lookAhead(selected.cases[@intCast(row)].label.attribute().?);
+}
+
+pub fn publishFlowCaseCoverage(handle: *const anyopaque, row: u64, fallback: bool, stopped: bool, remaining: ?bool) void {
+    const selected = &State.borrow(handle).target.inference.frame().payload.Selection;
+
+    selected.labels.coverage = .{ .stopped = stopped, .remaining = remaining };
+
+    if (fallback) selected.cases[@intCast(row)].truth = remaining;
+}
+
+pub fn refineFlowCase(handle: *const anyopaque, row: u64) Error!void {
+    switch (State.borrow(handle).target) {
+        inline else => |target| try target.refineCase(target.frame(), @intCast(row)),
     }
-}
-
-pub fn refineFlowCase(handle: *const anyopaque, row: u64) Error!u64 {
-    const state = State.borrow(handle);
-
-    return switch (state.target) {
-        .inference => |target| try target.refineCase(target.frame(), @intCast(row)),
-        .lowering => |target| try target.refineCase(target.frame(), @intCast(row)),
-    };
 }
 
 pub fn pushFlowCase(handle: *const anyopaque, row: u64, bindings: u64, facts: u64) Error!void {
@@ -208,7 +226,7 @@ pub fn pushFlowCase(handle: *const anyopaque, row: u64, bindings: u64, facts: u6
 
     switch (state.target) {
         .inference => |target| try target.pushCase(target.frame(), @intCast(row), @intCast(bindings), @intCast(facts)),
-        .lowering => |target| try target.pushCase(target.frame(), @intCast(row), @intCast(bindings), .{ .facts = @intCast(facts), .label = state.case_label }),
+        .lowering => |target| try target.pushCase(target.frame(), @intCast(row), @intCast(bindings), @intCast(facts), state.case_label),
     }
 }
 
@@ -279,19 +297,19 @@ pub fn publishFlowTaskOutput(handle: *const anyopaque, parallel: bool) Error!voi
     }
 }
 
-fn closeRegion(comptime method: []const u8) fn (*const anyopaque) Error!void {
-    return struct {
-        fn apply(handle: *const anyopaque) Error!void {
-            switch (State.borrow(handle).target) {
-                inline else => |target| try @field(@TypeOf(target.*), method)(target),
-            }
-        }
-    }.apply;
+pub fn closeFlowParallel(handle: *const anyopaque) Error!void {
+    switch (State.borrow(handle).target) {
+        inline else => |target| try target.closeParallel(),
+    }
 }
 
-pub const closeFlowParallel = closeRegion("closeParallel");
-pub const closeFlowSelection = closeRegion("closeSelection");
-pub const closeFlowCase = closeRegion("closeCase");
+pub fn completeFlowBranch(handle: *const anyopaque, selection: bool) Error!void {
+    const target = State.borrow(handle).target;
+
+    if (target != .lowering) return;
+
+    return if (selection) target.lowering.closeSelection() else target.lowering.closeCase(false);
+}
 
 pub fn popFlowFrame(handle: *const anyopaque) void {
     switch (State.borrow(handle).target) {

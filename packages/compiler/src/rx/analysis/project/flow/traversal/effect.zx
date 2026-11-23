@@ -1,17 +1,35 @@
 import type { ColumnLengths, ReadColumn } from "memory"
 import type { FlowTraversal } from "rx_project_host"
-import type { Batch } from "./model"
+import type { Batch, Cursor } from "./model"
 
-export type Input = Batch.Pick("action", "item", "position") & {
+export type Input = Batch.Pick("action", "item", "position") & Cursor.Pick(
+    "end",
+    "saved_bindings",
+    "saved_facts",
+    "case_remaining",
+    "case_stopped"
+) & {
     frame: FlowTraversal,
     lengths: ColumnLengths,
     labels: ReadColumn,
     fallback: u8,
-    saved_bindings: u64
+    inference: bool
 }
 
-export type Row = Input.Pick("frame", "position", "lengths", "labels", "fallback")
+export type CaseCoverage = Input.Pick(
+    "frame",
+    "position",
+    "labels",
+    "fallback",
+    "end",
+    "case_remaining",
+    "case_stopped"
+)
 
-export type TaskClose = Input.Pick("frame", "lengths", "saved_bindings") & {
+export type Row = CaseCoverage & Input.Pick("lengths", "inference")
+
+export type CaseClose = Input.Pick("frame", "lengths", "saved_bindings", "saved_facts")
+
+export type TaskClose = CaseClose.Omit("saved_facts") & {
     parallel: bool
 }
