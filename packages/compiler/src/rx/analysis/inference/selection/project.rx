@@ -11,7 +11,8 @@
             value={{
                 indices: $ctx.plan.indices,
                 all: $ctx.plan.all,
-                status: Projection.Status.Ready
+                status: Projection.Status.Ready,
+                count: $ctx.plan.all ? $in.fields.count : $ctx.plan.indices.length
             }}
         />
     </If>
@@ -21,7 +22,8 @@
             value={{
                 indices: [],
                 all: false,
-                status: Projection.Status.Missing
+                status: Projection.Status.Missing,
+                count: 0
             }}
         />
     </If>
@@ -30,7 +32,8 @@
         value={{
             indices: [],
             all: false,
-            status: Projection.Status.Wait
+            status: Projection.Status.Wait,
+            count: 0
         }}
     />
 </Module>

@@ -1,6 +1,7 @@
 <Module>
     <Type from="model" as="Selection" />
     <Type from="../model" as="Projection" />
+    <Type from="../diagnostic" as="Diagnostic" />
 
     <Args in={Selection.Request} out={void} />
 
@@ -18,22 +19,34 @@
         <Call
             module="../result"
             in={{
-                source: $in.source.names,
+                source: $in.names,
                 result: $in.field_view.object.names,
-                indices: $in.source.indices,
-                all: $in.source.all,
+                indices: $in.indices,
+                all: $in.all,
                 mode: $in.field_view.object.mode
             }}
         />
 
-        <If on={$ctx.result != Projection.CoverageResult.Valid}>
-            <Call
-                fn="host.rejectSelectedObjectResult"
-                in={[
-                    $in.frame,
-                    $ctx.result == Projection.CoverageResult.InvalidType
-                ]}
-            />
-        </If>
+        <Switch on={$ctx.result}>
+            <Case value={Projection.CoverageResult.InvalidType}>
+                <Call
+                    module="../report"
+                    in={{
+                        frame: $in.frame,
+                        issue: Diagnostic.Issue.Result
+                    }}
+                />
+            </Case>
+
+            <Case value={Projection.CoverageResult.UnexpectedField}>
+                <Call
+                    module="../report"
+                    in={{
+                        frame: $in.frame,
+                        issue: Diagnostic.Issue.Outside
+                    }}
+                />
+            </Case>
+        </Switch>
     </If>
 </Module>

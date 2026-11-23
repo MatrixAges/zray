@@ -1,0 +1,36 @@
+import { invalid_source, missing_field, invalid_result, outside_result } from "./const"
+
+import type { ObjectFieldReplay } from "rx_project_host"
+
+export enum Issue {
+    Source,
+    Missing,
+    Result,
+    Outside
+}
+
+export type Report = {
+    frame: ObjectFieldReplay,
+    issue: Issue
+}
+
+export type Input = Issue
+
+export type Output = {
+    name_error: bool,
+    message: string
+}
+
+export default function (in: Input): Output {
+    const message = match in {
+        Issue.Source => invalid_source,
+        Issue.Missing => missing_field,
+        Issue.Result => invalid_result,
+        _ => outside_result
+    }
+
+    return {
+        name_error: in == Issue.Missing || in == Issue.Outside,
+        message
+    }
+}

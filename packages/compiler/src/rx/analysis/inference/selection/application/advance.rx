@@ -6,7 +6,13 @@
     <Call
         fn="../replay"
         in={{
-            ...$in.request.source,
+            ...$in.request.pick([
+                "names",
+                "values",
+                "declared",
+                "indices",
+                "all"
+            ]),
             target: $in.request.field_view.object,
             parents: $in.request.field_view.parents,
             known: $in.request.field_view.known,
@@ -27,19 +33,21 @@
         module="../../fields/target"
         in={{
             site: $in.request.field_view.site,
-            name: $in.request.source.names[$ctx.replay.index],
+            name: $in.request.names[$ctx.replay.index],
             choice: $ctx.replay.target
         }}
     />
 
     <Call
-        fn="host.unifySelectedObjectField"
+        fn="../../fields/host.unifyReplayFields"
         in={[
             $in.request.frame,
             $ctx.target,
             $ctx.replay.source
         ]}
     />
+
+    <Call fn="../../fields/host.refreshObjectReplayFields" in={$in.request.frame} />
 
     <Return
         value={{

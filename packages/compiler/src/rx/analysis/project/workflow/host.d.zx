@@ -685,15 +685,19 @@ export declare function expectObjectReplayField(
     target: u32
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function unifySelectedObjectField(
+export declare function registerDeclaredReplayFields(frame: ObjectFieldReplay, members: u32[]): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function unifyReplayFields(
     frame: ObjectFieldReplay,
     target: u32,
     source: u32?
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function rejectSelectedObjectResult(
+export declare function reportReplayFieldError(
     frame: ObjectFieldReplay,
-    invalid_type: bool
+    name_error: bool,
+    message: string
 ): void throws { OutOfMemory, InvalidSource }
 
 export declare function reserveObjectSpreadColumns(frame: ObjectConstructionProjection): void

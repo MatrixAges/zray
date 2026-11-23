@@ -3,7 +3,7 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const View = @import("view.zig");
 const Access = @import("host.zig");
-const entry = @import("generated_rx_apply_selected_fields");
+const entry = @import("generated_rx_apply_object_selection");
 const Input = std.meta.Child(entry.Input);
 const Binding = std.meta.Child(@FieldType(Input, "field_view"));
 const FieldView = std.meta.Child(@FieldType(Binding, "object"));
@@ -53,4 +53,22 @@ pub fn expectObjectReplayField(handle: *const anyopaque, source: u32, target: u3
     const frame = Frame.from(handle);
 
     try frame.graph.expect(@fromBackingInt(source), @fromBackingInt(target), frame.span);
+}
+
+pub fn registerDeclaredReplayFields(handle: *const anyopaque, members: []const u32) zx.Error!void {
+    const frame = Frame.from(handle);
+
+    try @import("../known.zig").registerMembers(frame.graph, members, frame.span);
+}
+
+pub fn unifyReplayFields(handle: *const anyopaque, target: u32, source: ?u32) zx.Error!void {
+    const frame = Frame.from(handle);
+
+    try frame.graph.unify(@fromBackingInt(target), @fromBackingInt(source.?), frame.span);
+}
+
+pub fn reportReplayFieldError(handle: *const anyopaque, name_error: bool, message: []const u8) zx.Error!void {
+    const frame = Frame.from(handle);
+
+    return frame.graph.reporter.fail(if (name_error) .name else .type_mismatch, frame.span, message);
 }

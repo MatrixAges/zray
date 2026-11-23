@@ -4,5 +4,9 @@ export {
     registerFieldType,
     deferFieldLength,
     requireFieldList,
-    rejectFieldAccess
+    rejectFieldAccess,
+    refreshObjectReplayFields,
+    registerDeclaredReplayFields,
+    unifyReplayFields,
+    reportReplayFieldError
 } from "rx_project_host"

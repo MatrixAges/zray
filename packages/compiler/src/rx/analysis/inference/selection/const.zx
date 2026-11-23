@@ -1,0 +1,7 @@
+export const invalid_source: string = "object selection requires an object source"
+
+export const missing_field: string = "unknown object selection field"
+
+export const invalid_result: string = "object selection requires an object result"
+
+export const outside_result: string = "field is outside the object selection result"
