@@ -9,7 +9,7 @@ export type Input = {
     counts: Counts
 }
 
-export type Output = u64
+export type Output = void
 
 export default function (in: Input): Output {
     const { level, next } = in.target
@@ -49,6 +49,4 @@ export default function (in: Input): Output {
             state.group += 1
         }
     })
-
-    return in.counts.files
 }

@@ -61,67 +61,7 @@ pub fn file(allocator: std.mem.Allocator, base: []const u8, name: []const u8, pr
     return storage[0];
 }
 
-pub fn schedule(allocator: std.mem.Allocator, parents: []const []const u8, listings: anytype) !Schedule {
-    if (comptime !generated) return seedSchedule(allocator, parents, listings);
-
-    const rule = @import("generated_input_directory_schedule");
-    const directories = memory.borrowReadColumn([]const []const u8, "directories", listings);
-    const files = memory.borrowListColumn([]const u8, "files", "path", listings);
-    var next: []const []const u8 = &.{};
-
-    const request: std.meta.Child(rule.Input) = .{
-        .level = &.{ .parents = parents, .directories = @ptrCast(&directories), .files = @ptrCast(&files) },
-        .next = @ptrCast(&next),
-    };
-
-    const count = try zx.columns.invoke(rule.executeValue, allocator, &request);
-
-    return .{ .next = next, .files = @intCast(count) };
-}
-
-pub fn flatten(allocator: std.mem.Allocator, listings: anytype, entries: anytype, prefix_length: usize, copy_paths: bool) !void {
-    if (comptime !generated) {
-        var next: usize = 0;
-
-        for (listings) |listing| {
-            const output = entries[next..][0..listing.files.len];
-
-            @memcpy(output, listing.files);
-
-            if (copy_paths) for (output) |*item| {
-                item.path = try allocator.dupe(u8, item.path);
-                item.relative = item.path[prefix_length..];
-            };
-
-            next += output.len;
-        }
-
-        return;
-    }
-
-    const rule = @import("generated_input_directory_flatten");
-    const files = memory.borrowSliceColumn(&.{"files"}, listings);
-    const paths = memory.borrowListColumn([]const u8, "files", "path", listings);
-    const target_paths = memory.borrowWriteColumn([]const u8, "path", entries);
-    const target_relatives = memory.borrowWriteColumn([]const u8, "relative", entries);
-    const records = std.mem.sliceAsBytes(entries);
-
-    const request: std.meta.Child(rule.Input) = .{
-        .files = @ptrCast(&files),
-        .paths = @ptrCast(&paths),
-        .entries = @ptrCast(&records),
-        .target_paths = @ptrCast(&target_paths),
-        .target_relatives = @ptrCast(&target_relatives),
-        .groups = listings.len,
-        .width = @sizeOf(std.meta.Child(@TypeOf(entries))),
-        .prefix_length = prefix_length,
-        .copy_paths = copy_paths,
-    };
-
-    try zx.columns.invoke(rule.executeValue, allocator, &request);
-}
-
-fn seedSchedule(allocator: std.mem.Allocator, parents: []const []const u8, listings: anytype) !Schedule {
+pub fn seedSchedule(allocator: std.mem.Allocator, parents: []const []const u8, listings: anytype) !Schedule {
     var next: std.ArrayList([]const u8) = .empty;
     var files: usize = 0;
 
@@ -132,4 +72,21 @@ fn seedSchedule(allocator: std.mem.Allocator, parents: []const []const u8, listi
     }
 
     return .{ .next = next.items, .files = files };
+}
+
+pub fn seedFlatten(allocator: std.mem.Allocator, listings: anytype, entries: anytype, prefix_length: usize, copy_paths: bool) !void {
+    var next: usize = 0;
+
+    for (listings) |listing| {
+        const output = entries[next..][0..listing.files.len];
+
+        @memcpy(output, listing.files);
+
+        if (copy_paths) for (output) |*item| {
+            item.path = try allocator.dupe(u8, item.path);
+            item.relative = item.path[prefix_length..];
+        };
+
+        next += output.len;
+    }
 }

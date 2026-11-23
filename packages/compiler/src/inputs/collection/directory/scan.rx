@@ -1,0 +1,17 @@
+<Module>
+    <Type from="scan_shape" as="Directory" />
+
+    <Args in={Directory.Input} out={void} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="scan_level"
+            in={{
+                scan: $in,
+                parents: $in.initial,
+                frontier: 0,
+                running: true
+            }}
+        />
+    </Loop>
+</Module>

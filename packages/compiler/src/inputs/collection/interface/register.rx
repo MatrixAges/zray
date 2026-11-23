@@ -1,22 +1,14 @@
 <Module>
-    <Type from="location" as="Lookup" />
-    <Type from="model" as="Interface" />
+    <Type from="publish_shape" as="Interfaces" />
 
-    <Args
-        in={{
-            location: Lookup.Input,
-            target: Interface.Destination
-        }}
-        out={u64}
-    />
+    <Args in={Interfaces.Registration} out={u64} />
 
-    <Call fn="location" in={$in.location} />
-    <Call fn="count" in={$in.target.aliases} />
+    <Call fn="count" in={$in.aliases} />
 
     <Call
-        fn="assign"
+        fn="publish"
         in={{
-            target: $in.target,
+            request: $in,
             first_internal: $ctx.count
         }}
     />

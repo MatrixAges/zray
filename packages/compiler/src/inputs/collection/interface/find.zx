@@ -1,0 +1,32 @@
+import sortedText from "core/bytes/index/sorted_text"
+
+import discovered from "../discovered"
+import kind from "../kind"
+import { Kind } from "../kind"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    path: string,
+    paths: TextColumn,
+    count: u64,
+    sorted: bool
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { path, paths, count, sorted } = in
+
+    const query = {
+        path,
+        paths,
+        count
+    }
+
+    return match {
+        sorted => sortedText(query),
+        kind(path) == Kind.ZX => discovered(query),
+        _ => null
+    }
+}

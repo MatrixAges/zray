@@ -5,22 +5,19 @@ const Files = @import("resident/files.zig");
 const listing = @import("directory_listing.zig");
 const Reader = listing.Reader;
 const inputs = compiler.source_inputs;
+const generated = compiler.input_generation.generated;
+const memory = if (generated) @import("zx").memory else void;
+const Error = error{GenerationRequestFailed};
 pub const Document = inputs.catalog.Document;
+pub const Entry = struct { relative: []const u8, path: []const u8, metadata: ?Files.Metadata, text: ?[]const u8, kind: u8, retain: bool };
 
-/// Appends the sources and resources under `root`, named with `prefix`; `files`, when given, owns their texts. The tree is
-/// listed one depth at a time, every directory of a depth on its own core, and a listed file whose metadata vouches for
-/// the text `files` kept takes that text there; the calling thread reads the others afterwards.
 pub fn collect(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, documents: *std.ArrayList(Document)) !void {
-    const entries = try scan(io, scratch, allocator, files, root, prefix, false);
-
-    try load(io, scratch, allocator, files, root, entries, documents);
+    try load(io, scratch, allocator, files, root, try scan(io, scratch, allocator, files, root, prefix, false), documents);
 }
-
-pub const Entry = struct { relative: []const u8, path: []const u8, metadata: ?Files.Metadata, text: ?[]const u8, kind: inputs.Kind, retain: bool };
 
 /// Lists the input files without reading their contents; `stat` also fills metadata on platforms without bulk stat.
 pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, stat: bool) ![]const Entry {
-    var directory = try std.Io.Dir.cwd().openDir(io, root, .{});
+    const directory = try std.Io.Dir.cwd().openDir(io, root, .{});
 
     defer directory.close(io);
 
@@ -31,67 +28,241 @@ pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, 
 
     defer for (arenas) |*arena| arena.deinit();
 
-    var frontier: [2]std.heap.ArenaAllocator = @splat(.init(std.heap.smp_allocator));
-    var results = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
-    var generation: usize = 0;
-    var level: []const []const u8 = &.{""};
-    var entries: std.ArrayList(Entry) = .empty;
+    var self: Scan = .{
+        .io = io,
+        .root = directory,
+        .owned = allocator,
+        .paths = paths,
+        .files = files,
+        .prefix = prefix,
+        .stat = stat,
+        .arenas = arenas,
+    };
 
-    defer for (&frontier) |*arena| arena.deinit();
-    defer results.deinit();
+    defer {
+        for (&self.frontier) |*arena| arena.deinit();
 
-    while (level.len != 0) {
-        const participants = @min(arenas.len, level.len);
-        const shared_paths = if (participants == 1) paths else null;
-        const listings = try results.allocator().alloc(Listing, level.len);
+        self.results.deinit();
+    }
 
-        var work = List{
-            .io = io,
-            .root = directory,
-            .prefix = prefix,
-            .files = files,
+    if (comptime generated) try self.run() else try self.seed();
+
+    return self.entries.items;
+}
+
+const DirectoryViews = if (generated) struct {
+    names: memory.ReadColumn = undefined,
+    files: memory.ListColumn = undefined,
+    paths: memory.ListColumn = undefined,
+    bytes: []u8 = undefined,
+    output_paths: memory.WriteColumn = undefined,
+    relatives: memory.WriteColumn = undefined,
+} else void;
+
+const Scan = struct {
+    io: std.Io,
+    root: std.Io.Dir,
+    owned: std.mem.Allocator,
+    paths: std.mem.Allocator,
+    files: ?*Files,
+    prefix: []const u8,
+    stat: bool,
+    arenas: []std.heap.ArenaAllocator,
+    frontier: [2]std.heap.ArenaAllocator = @splat(.init(std.heap.smp_allocator)),
+    results: std.heap.ArenaAllocator = .init(std.heap.smp_allocator),
+    entries: std.ArrayList(Entry) = .empty,
+    views: DirectoryViews = undefined,
+    scope: if (generated) memory.ArenaScope else void = undefined,
+    failure: ?anyerror = null,
+    fn prepareLevel(self: *Scan, level: []const []const u8) ![]Listing {
+        const participants = @min(self.arenas.len, level.len);
+        const listings = try self.results.allocator().alloc(Listing, level.len);
+
+        var work: List = .{
+            .io = self.io,
+            .root = self.root,
+            .prefix = self.prefix,
+            .files = self.files,
             .directories = level,
             .listings = listings,
-            .arenas = arenas,
-            .paths = shared_paths,
-            .stat = stat,
+            .arenas = self.arenas,
+            .paths = if (participants == 1) self.paths else null,
+            .stat = self.stat,
         };
 
         compiler.parallel.spread(List, &work, List.run, participants);
 
         for (listings) |found| if (found.failure) |err| return err;
 
-        const next_generation = 1 - generation;
-        const schedule = try inputs.directory.schedule(frontier[next_generation].allocator(), level, listings);
-        const first = entries.items.len;
-
-        try entries.resize(allocator, first + schedule.files);
-        try inputs.directory.flatten(paths, listings, entries.items[first..], prefix.len, shared_paths == null);
-
-        _ = frontier[generation].reset(.retain_capacity);
-        _ = results.reset(.retain_capacity);
-
-        for (arenas) |*arena| _ = arena.reset(.retain_capacity);
-
-        generation = next_generation;
-        level = schedule.next;
+        return listings;
     }
+    fn copyPaths(self: *const Scan, level: usize) bool {
+        return @min(self.arenas.len, level) != 1;
+    }
+    fn extend(self: *Scan, count: usize) ![]Entry {
+        const first = self.entries.items.len;
 
-    return entries.items;
+        try self.entries.resize(self.owned, first + count);
+
+        return self.entries.items[first..];
+    }
+    fn retire(self: *Scan, old: usize) void {
+        _ = self.frontier[old].reset(.retain_capacity);
+        _ = self.results.reset(.retain_capacity);
+
+        for (self.arenas) |*arena| _ = arena.reset(.retain_capacity);
+    }
+    fn run(self: *Scan) !void {
+        const rule = @import("generated_scan_input_directory");
+        self.scope = .{ .active = self.paths };
+
+        var next: []const []const u8 = &.{};
+        const views = &self.views;
+
+        rule.executeIn(self.scope.allocator(), &.{
+            .scan = @ptrCast(self),
+            .directories = @ptrCast(&views.names),
+            .files = @ptrCast(&views.files),
+            .paths = @ptrCast(&views.paths),
+            .target = &.{
+                .records = @ptrCast(&views.bytes),
+                .paths = @ptrCast(&views.output_paths),
+                .relatives = @ptrCast(&views.relatives),
+                .width = @sizeOf(Entry),
+                .prefix_length = self.prefix.len,
+            },
+            .next = @ptrCast(&next),
+            .initial = &.{""},
+        }) catch |err| return self.failure orelse err;
+    }
+    fn seed(self: *Scan) !void {
+        const directory = inputs.directory;
+        var frontier: usize = 0;
+        var level: []const []const u8 = &.{""};
+
+        while (level.len != 0) {
+            const listings = try self.prepareLevel(level);
+            const next = 1 - frontier;
+            const scheduled = try directory.seedSchedule(self.frontier[next].allocator(), level, listings);
+            const target = try self.extend(scheduled.files);
+
+            try directory.seedFlatten(self.paths, listings, target, self.prefix.len, self.copyPaths(level.len));
+
+            self.retire(frontier);
+
+            frontier = next;
+            level = scheduled.next;
+        }
+    }
+};
+
+pub fn listGenerationLevel(handle: *const anyopaque, level: []const []const u8) Error!bool {
+    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+
+    const listings = self.prepareLevel(level) catch |err| {
+        self.failure = err;
+
+        return error.GenerationRequestFailed;
+    };
+
+    self.views.names = memory.borrowReadColumn([]const []const u8, "directories", listings);
+    self.views.files = memory.borrowSliceColumn(&.{"files"}, listings);
+    self.views.paths = memory.borrowListColumn([]const u8, "files", "path", listings);
+
+    return self.copyPaths(level.len);
+}
+
+pub fn reserveGenerationFiles(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+    const rows = try self.extend(@intCast(count));
+
+    self.views.bytes = std.mem.sliceAsBytes(rows);
+    self.views.output_paths = memory.borrowWriteColumn([]const u8, "path", rows);
+    self.views.relatives = memory.borrowWriteColumn([]const u8, "relative", rows);
+}
+
+pub fn selectGenerationAllocator(handle: *const anyopaque, frontier: ?u8) void {
+    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+
+    self.scope.active = if (frontier) |index| self.frontier[index].allocator() else self.paths;
+}
+
+pub fn retireGenerationLevel(handle: *const anyopaque, frontier: u8) void {
+    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+
+    self.retire(frontier);
+}
+
+const DocumentReader = struct {
+    io: std.Io,
+    directory: std.Io.Dir,
+    allocator: std.mem.Allocator,
+    files: ?*Files,
+    failure: ?anyerror = null,
+    fn read(self: *DocumentReader, relative: []const u8, path: []const u8, retain: bool) ![]const u8 {
+        return if (self.files) |kept|
+            kept.read(self.io, self.directory, relative, path, retain)
+        else
+            self.directory.readFileAlloc(self.io, relative, self.allocator, .unlimited);
+    }
+    fn publish(self: *DocumentReader, entries: []const Entry, target: []Document) !void {
+        const rule = @import("generated_load_input_documents");
+        const paths = memory.borrowTextColumn("path", entries);
+        const relatives = memory.borrowTextColumn("relative", entries);
+        const texts = memory.borrowReadColumn(?[]const u8, "text", entries);
+        const kinds = memory.borrowReadColumn(u8, "kind", entries);
+        const retained = memory.borrowReadColumn(bool, "retain", entries);
+        const out_paths = memory.borrowWriteColumn([]const u8, "path", target);
+        const out_texts = memory.borrowWriteColumn([]const u8, "text", target);
+        const out_kinds = memory.borrowWriteColumn(u8, "kind", target);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        rule.executeIn(empty.allocator(), &.{
+            .reader = @ptrCast(self),
+            .entries = &.{
+                .paths = @ptrCast(&paths),
+                .relatives = @ptrCast(&relatives),
+                .texts = @ptrCast(&texts),
+                .kinds = @ptrCast(&kinds),
+                .retained = @ptrCast(&retained),
+                .count = entries.len,
+            },
+            .output = &.{ .paths = @ptrCast(&out_paths), .texts = @ptrCast(&out_texts), .kinds = @ptrCast(&out_kinds) },
+        }) catch |err| return self.failure orelse err;
+    }
+};
+
+pub fn readGenerationDocument(handle: *const anyopaque, relative: []const u8, path: []const u8, retain: bool) Error![]const u8 {
+    const self: *DocumentReader = @ptrCast(@alignCast(@constCast(handle)));
+
+    return self.read(relative, path, retain) catch |err| {
+        self.failure = err;
+
+        return error.GenerationRequestFailed;
+    };
 }
 
 pub fn load(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, entries: []const Entry, documents: *std.ArrayList(Document)) !void {
-    var directory = try std.Io.Dir.cwd().openDir(io, root, .{});
+    const directory = try std.Io.Dir.cwd().openDir(io, root, .{});
 
     defer directory.close(io);
 
     try documents.ensureUnusedCapacity(scratch, entries.len);
 
-    for (entries) |file| {
-        const source = file.text orelse if (files) |kept| try kept.read(io, directory, file.relative, file.path, file.retain) else try directory.readFileAlloc(io, file.relative, allocator, .unlimited);
+    var reader: DocumentReader = .{ .io = io, .directory = directory, .allocator = allocator, .files = files };
+    const target = documents.unusedCapacitySlice()[0..entries.len];
 
-        documents.appendAssumeCapacity(.{ .path = file.path, .text = source, .kind = @backingInt(file.kind) });
+    if (comptime generated) {
+        try reader.publish(entries, target);
+    } else {
+        for (entries, target) |file, *out| {
+            const text = file.text orelse try reader.read(file.relative, file.path, file.retain);
+
+            out.* = .{ .path = file.path, .text = text, .kind = file.kind };
+        }
     }
+
+    documents.items.len += target.len;
 }
 
 pub const Catalog = struct {
@@ -157,7 +328,7 @@ const List = struct {
                 const text = if (kept) |cache| try cache.unchanged(work.io, directory, entry.name, route.path, entry.metadata) else null;
                 const metadata = entry.metadata orelse if (work.stat) Files.metadata(try directory.statFile(work.io, entry.name, .{})) else null;
 
-                try files.append(arena, .{ .path = route.path, .relative = route.relative, .kind = route.kind, .text = text, .metadata = metadata, .retain = route.retain });
+                try files.append(arena, .{ .path = route.path, .relative = route.relative, .kind = @backingInt(route.kind), .text = text, .metadata = metadata, .retain = route.retain });
             },
             else => {},
         };

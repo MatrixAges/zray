@@ -1,0 +1,57 @@
+import bytes from "std:bytes"
+import { readGenerationDocument } from "generation_host"
+import memory from "memory"
+
+import type { DocumentReader } from "generation_host"
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+
+export type Entries = {
+    paths: TextColumn,
+    relatives: TextColumn,
+    texts: ReadColumn,
+    kinds: ReadColumn,
+    retained: ReadColumn,
+    count: u64
+}
+
+export type Documents = {
+    paths: WriteColumn,
+    texts: WriteColumn,
+    kinds: WriteColumn
+}
+
+export type Input = {
+    reader: DocumentReader,
+    entries: Entries,
+    output: Documents
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { reader, entries, output } = in
+
+    const loaded = loop(0, {
+        while: row => row < entries.count,
+        next: row => {
+            const path = memory.readTextColumn(entries.paths, row)
+            const cached = memory.readOptionalTextColumn(entries.texts, row)
+            const text = cached ?? readGenerationDocument(
+                reader,
+                memory.readTextColumn(entries.relatives, row),
+                path,
+                memory.readColumnBool(entries.retained, row)
+            )
+
+            memory.writeColumnBytes(output.paths, row, bytes.fromText(path))
+            memory.writeColumnBytes(output.texts, row, bytes.fromText(text))
+            memory.writeColumnU8(
+                output.kinds,
+                row,
+                memory.readColumnU8(entries.kinds, row)
+            )
+
+            row += 1
+        }
+    })
+}

@@ -1,0 +1,33 @@
+import type { DirectoryScan } from "generation_host"
+import type {
+    ListColumn,
+    ReadColumn,
+    StringBuffer,
+    U8Buffer,
+    WriteColumn
+} from "memory"
+
+export type Files = {
+    records: U8Buffer,
+    paths: WriteColumn,
+    relatives: WriteColumn,
+    width: u64,
+    prefix_length: u64
+}
+
+export type Input = {
+    scan: DirectoryScan,
+    directories: ReadColumn,
+    files: ListColumn,
+    paths: ListColumn,
+    target: Files,
+    next: StringBuffer,
+    initial: string[]
+}
+
+export type Step = {
+    scan: Input,
+    parents: string[],
+    frontier: u8,
+    running: bool
+}

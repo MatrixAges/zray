@@ -1,0 +1,18 @@
+import type { InterfaceLoader } from "generation_host"
+import type { ReadColumn, TextColumn } from "memory"
+import type { Aliases } from "./model"
+
+export type Sources = {
+    paths: TextColumn,
+    bodies: TextColumn,
+    count: u64
+}
+
+export type Registration = {
+    loader: InterfaceLoader,
+    aliases: Aliases,
+    paths: TextColumn,
+    modules: TextColumn,
+    namespaces: ReadColumn,
+    sources: Sources
+}

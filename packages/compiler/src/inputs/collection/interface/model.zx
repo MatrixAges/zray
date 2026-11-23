@@ -1,13 +1,6 @@
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { ReadColumn } from "memory"
 
 export type Aliases = {
     specifiers: ReadColumn,
     count: u64
-}
-
-export type Destination = {
-    aliases: Aliases,
-    modules: TextColumn,
-    bindings: WriteColumn,
-    names: WriteColumn
 }

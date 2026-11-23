@@ -1,0 +1,41 @@
+import { recordInputInterface } from "generation_host"
+import memory from "memory"
+
+import find from "./find"
+
+import type { InterfaceObservations } from "generation_host"
+import type { TextColumn } from "memory"
+
+export type Input = {
+    target: InterfaceObservations,
+    paths: TextColumn,
+    count: u64,
+    keys: TextColumn,
+    existing: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { target, paths, count, keys, existing } = in
+
+    return loop({
+        row: 0,
+        complete: true
+    }, {
+        while: state => state.complete && state.row < count,
+        next: state => {
+            const path = memory.readTextColumn(paths, state.row)
+            const matching = find({
+                path,
+                paths: keys,
+                count: existing,
+                sorted: false
+            })
+
+            state.complete = recordInputInterface(target, path, matching)
+            state.row += 1
+        },
+        return: state => state.complete
+    })
+}

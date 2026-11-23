@@ -372,8 +372,6 @@ pub const main = [_]Entry{
     .{ .path = "inputs/collection/kind.zx", .name = "input_file_kind", .owner = .compiler },
     .{ .path = "inputs/collection/qualify.zx", .name = "input_logical_path", .owner = .compiler },
     .{ .path = "inputs/collection/directory/file.zx", .name = "input_directory_file", .owner = .compiler },
-    .{ .path = "inputs/collection/directory/flatten.zx", .name = "input_directory_flatten", .owner = .compiler },
-    .{ .path = "inputs/collection/directory/schedule.rx", .name = "input_directory_schedule", .owner = .compiler },
     .{ .path = "inputs/collection/darwin/const.zx", .name = "input_darwin_constants", .owner = .compiler },
     .{ .path = "inputs/collection/darwin/decode.zx", .name = "input_darwin_decode", .owner = .compiler },
     .{ .path = "inputs/collection/order.zx", .name = "input_path_order", .owner = .compiler },
@@ -381,8 +379,6 @@ pub const main = [_]Entry{
     .{ .path = "inputs/collection/selection.zx", .name = "input_row_selection", .owner = .compiler },
     .{ .path = "inputs/collection/catalog/plan.rx", .name = "input_catalog_plan", .owner = .compiler },
     .{ .path = "inputs/collection/catalog/publish.zx", .name = "input_catalog_publish", .owner = .compiler },
-    .{ .path = "inputs/collection/interface/location.zx", .name = "input_interface_location", .owner = .compiler },
-    .{ .path = "inputs/collection/interface/register.rx", .name = "input_interface_registration", .owner = .compiler },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/text.zx", .name = "input_text_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/snapshot.zx", .name = "input_snapshot_fingerprint", .owner = .compiler },
@@ -883,6 +879,10 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "inputs/collection/interface/observe.zx", .name = "observe_input_interfaces", .owner = .bootstrap },
+    .{ .path = "inputs/collection/directory/scan.rx", .name = "scan_input_directory", .owner = .bootstrap },
+    .{ .path = "inputs/collection/load/load.zx", .name = "load_input_documents", .owner = .bootstrap },
+    .{ .path = "inputs/collection/interface/register.rx", .name = "input_interface_registration", .owner = .bootstrap },
     .{ .path = "inputs/fingerprint/output.rx", .name = "input_output_fingerprint", .owner = .bootstrap },
     .{ .path = "inputs/snapshot/records/write.rx", .name = "input_records_write", .owner = .bootstrap },
     .{ .path = "inputs/generation/request/run.rx", .name = "generation_request", .owner = .bootstrap },

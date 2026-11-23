@@ -20,6 +20,23 @@ export type SnapshotVersion = {
     read_high: i32
 }
 
+export type InterfaceLoader = opaque
+
+export type NativeBinding = {
+    index: u64,
+    name: string,
+    path: string,
+    module: string,
+    source: string,
+    resolve_members: bool
+}
+
+export type DirectoryScan = opaque
+
+export type DocumentReader = opaque
+
+export type InterfaceObservations = opaque
+
 export declare function observeGenerationInputs(request: GenerationRequest): u8[]?
     throws { GenerationRequestFailed }
 
@@ -73,3 +90,34 @@ export declare function readSnapshotVersion(
     cache: SnapshotVersions,
     key: string
 ): SnapshotVersion?
+
+export declare function loadNativeText(loader: InterfaceLoader, path: string): string
+    throws { OutOfMemory }
+
+export declare function writeNativeBinding(loader: InterfaceLoader, input: NativeBinding): void
+    throws { OutOfMemory }
+
+export declare function listGenerationLevel(
+    scan: DirectoryScan,
+    directories: string[]
+): bool throws { GenerationRequestFailed }
+
+export declare function reserveGenerationFiles(scan: DirectoryScan, count: u64): void
+    throws { OutOfMemory }
+
+export declare function retireGenerationLevel(scan: DirectoryScan, frontier: u8): void
+
+export declare function readGenerationDocument(
+    reader: DocumentReader,
+    relative: string,
+    path: string,
+    retain: bool
+): string throws { GenerationRequestFailed }
+
+export declare function recordInputInterface(
+    target: InterfaceObservations,
+    path: string,
+    matching: u64?
+): bool throws { OutOfMemory }
+
+export declare function selectGenerationAllocator(scan: DirectoryScan, frontier: u8?): void

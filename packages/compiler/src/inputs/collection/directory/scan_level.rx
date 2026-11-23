@@ -1,0 +1,88 @@
+<Module>
+    <Type from="scan_shape" as="Directory" />
+
+    <Args in={Directory.Step} out={Directory.Step} />
+
+    <Call
+        fn="host.listGenerationLevel"
+        in={[
+            $in.scan.scan,
+            $in.parents
+        ]}
+    />
+
+    <Call
+        fn="count"
+        in={{
+            parents: $in.parents,
+            directories: $in.scan.directories,
+            files: $in.scan.files
+        }}
+    />
+
+    <Call
+        fn="host.selectGenerationAllocator"
+        in={[
+            $in.scan.scan,
+            1 - $in.frontier
+        ]}
+    />
+
+    <Call
+        fn="children"
+        in={{
+            target: {
+                level: {
+                    parents: $in.parents,
+                    directories: $in.scan.directories,
+                    files: $in.scan.files
+                },
+                next: $in.scan.next
+            },
+            counts: $ctx.count
+        }}
+    />
+
+    <Call
+        fn="host.reserveGenerationFiles"
+        in={[
+            $in.scan.scan,
+            $ctx.count.files
+        ]}
+    />
+
+    <Call
+        fn="host.selectGenerationAllocator"
+        in={[
+            $in.scan.scan,
+            null
+        ]}
+    />
+
+    <Call
+        fn="flatten"
+        in={{
+            files: $in.scan.files,
+            paths: $in.scan.paths,
+            entries: $in.scan.target.records,
+            target_paths: $in.scan.target.paths,
+            target_relatives: $in.scan.target.relatives,
+            groups: $in.parents.length,
+            width: $in.scan.target.width,
+            prefix_length: $in.scan.target.prefix_length,
+            copy_paths: $ctx.listGenerationLevel
+        }}
+    />
+
+    <Call
+        fn="host.retireGenerationLevel"
+        in={[
+            $in.scan.scan,
+            $in.frontier
+        ]}
+    />
+
+    <Call fn="next_level" in={$in} />
+
+    <Return value={$ctx.next_level} />
+</Module>

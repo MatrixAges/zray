@@ -12,7 +12,7 @@ const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
 const generated = publication.generated;
 const Prepared = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".PreparedGeneration else void;
-pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, InputSnapshot }).resolve;
+pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, InputSnapshot, interface_inputs, collection }).resolve;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();

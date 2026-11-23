@@ -1,0 +1,66 @@
+import { loadNativeText, writeNativeBinding } from "generation_host"
+import memory from "memory"
+
+import { internal_prefix } from "../const"
+import find from "./find"
+
+import type { Registration } from "./publish_shape"
+
+export type Input = {
+    request: Registration,
+    first_internal: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { aliases, paths, modules, namespaces, sources, loader } = in.request
+
+    const published = loop({
+        row: 0,
+        external: 0,
+        internal: in.first_internal
+    }, {
+        while: state => state.row < aliases.count,
+        next: state => {
+            const { row } = state
+            const path = memory.readTextColumn(paths, row)
+            const module = memory.readTextColumn(modules, row)
+            const alias = memory.readOptionalTextColumn(aliases.specifiers, row)
+            const source_row = find({
+                path,
+                paths: sources.paths,
+                count: sources.count,
+                sorted: true
+            })
+
+            const source = match {
+                source_row != null =>
+                    memory.readTextColumn(sources.bodies, source_row),
+                _ => loadNativeText(loader, path)
+            }
+
+            const name = alias ?? `${internal_prefix}${module}`
+            const index = alias != null ? state.external : state.internal
+            const resolve_members =
+                memory.readColumnOptionalBool(namespaces, row) ?? false
+
+            writeNativeBinding(loader, {
+                index,
+                name,
+                path,
+                module,
+                source,
+                resolve_members
+            })
+
+            if (alias != null) {
+                state.external += 1
+            } else {
+                state.internal += 1
+            }
+
+            state.row += 1
+        }
+    })
+}
