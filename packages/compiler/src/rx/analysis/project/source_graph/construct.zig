@@ -63,6 +63,9 @@ pub fn build(allocator: Allocator, backing: Allocator, opts: model.Options, expl
             },
             .explicit = @ptrCast(&roots),
             .explicit_count = entries.len,
+            .entry = opts.entry,
+            .roots = @ptrCast(&state.roots),
+            .allocator = @ptrCast(&allocator),
             .include_rx = opts.include_rx_modules,
             .retain_parses = opts.prefetched != null,
         };
@@ -94,7 +97,6 @@ const Build = struct {
     sources: model.Sources,
     roots: []u64 = &.{},
     additional_roots: []const usize = &.{},
-    entry: usize = 0,
     adjacency: model.Adjacency = .{ .starts = &.{}, .ends = &.{} },
     targets: std.ArrayList(u64) = .empty,
     prefetched: Prefetched = .{},
@@ -152,21 +154,6 @@ const Build = struct {
         defer allocator.free(resolved);
 
         return self.paths.get(resolved) orelse self.reject(resolved, root_location, message);
-    }
-    fn rootRange(self: *Build, start: usize, first: usize, count: usize) void {
-        if (count == 0) return;
-
-        const target = self.roots[start..][0..count];
-
-        if (comptime @import("rx_options").generated_graph) {
-            const rule = @import("generated_source_graph_root_rows");
-            const input: std.meta.Child(rule.Input) = .{ .roots = @ptrCast(&target), .first = first, .count = count };
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-        }
-
-        for (target, first..) |*row, index| row.* = index;
     }
     fn finishRoots(self: *Build, additional_count: usize) Allocator.Error!void {
         const roots = self.roots[1..][0..additional_count];
@@ -257,7 +244,7 @@ const Build = struct {
             .sources = self.sources,
             .order = self.schedule.order,
             .batch_ends = self.schedule.batch_ends,
-            .entry = self.entry,
+            .entry = @intCast(self.roots[0]),
             .additional_roots = self.additional_roots,
             .source_dependencies = if (self.opts.retain_source_dependencies) .{
                 .starts = self.adjacency.starts,
@@ -287,15 +274,14 @@ const Build = struct {
             }
         }
 
-        self.entry = try self.resolve(self.backing, self.opts.entry, "entry module is missing from the registered source set");
-
+        const entry = try self.resolve(self.backing, self.opts.entry, "entry module is missing from the registered source set");
         const rx_roots = if (self.opts.include_rx_modules) self.opts.modules.len else 0;
         const additional_count = rx_roots + explicit.len;
         self.roots = try self.allocator.alloc(u64, 1 + additional_count + self.opts.stores.len);
-        self.roots[0] = self.entry;
+        self.roots[0] = entry;
 
-        self.rootRange(1, self.sources.zx_count, rx_roots);
-        self.rootRange(1 + additional_count, self.sources.rx_end, self.opts.stores.len);
+        for (self.roots[1..][0..rx_roots], self.sources.zx_count..) |*row, index| row.* = index;
+        for (self.roots[1 + additional_count ..], self.sources.rx_end..) |*row, index| row.* = index;
 
         for (explicit, self.roots[1 + rx_roots ..][0..explicit.len]) |item, *root| {
             const source_path = if (@TypeOf(item) == []const u8) item else item.path;
@@ -323,37 +309,18 @@ pub fn rejectSourceGraphPath(handle: *const anyopaque, row: u64, normalized: boo
     return Build.borrow(handle).rejectRegistration(@intCast(row), normalized, message);
 }
 
-pub fn resolveSourceGraphEntry(handle: *const anyopaque, message: []const u8) Error!u64 {
-    const state = Build.borrow(handle);
-    const entry = try state.resolve(state.backing, state.opts.entry, message);
-
-    state.entry = entry;
-
-    return entry;
-}
-
-pub fn allocateSourceGraphRoots(handle: *const anyopaque, count: u64, entry: u64) Allocator.Error!void {
-    const state = Build.borrow(handle);
-    state.roots = try state.allocator.alloc(u64, @intCast(count));
-    state.roots[0] = entry;
-}
-
-pub fn writeSourceGraphRootRange(handle: *const anyopaque, start: u64, first: u64, count: u64) void {
-    Build.borrow(handle).rootRange(@intCast(start), @intCast(first), @intCast(count));
-}
-
-pub fn writeSourceGraphRoot(handle: *const anyopaque, row: u64, raw: []const u8, missing: []const u8) Error!void {
+pub fn resolveSourceGraphRoot(handle: *const anyopaque, raw: []const u8, missing: []const u8) Error!u64 {
     const state = Build.borrow(handle);
 
-    state.roots[@intCast(row)] = try state.resolve(state.scratch, raw, missing);
+    return try state.resolve(state.scratch, raw, missing);
 }
 
-pub fn finishSourceGraphRoots(handle: *const anyopaque, count: u64) Allocator.Error!void {
-    try Build.borrow(handle).finishRoots(@intCast(count));
-}
+pub fn scanSourceGraph(handle: *const anyopaque, additional: u64) Error!u64 {
+    const state = Build.borrow(handle);
 
-pub fn scanSourceGraph(handle: *const anyopaque) Error!u64 {
-    return try Build.borrow(handle).scan();
+    try state.finishRoots(@intCast(additional));
+
+    return try state.scan();
 }
 
 pub fn orderSourceGraph(handle: *const anyopaque, reached: u64) Error!void {

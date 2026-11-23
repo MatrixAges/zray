@@ -60,7 +60,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/dependency_graph/reference/tree/select.zx", .name = "rx_ast_reference_select", .owner = .rx },
     .{ .path = "rx/analysis/project/source_graph/schedule.rx", .name = "source_schedule", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/source_graph/frontier/advance.rx", .name = "source_graph_frontier", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/source_graph/root_rows.zx", .name = "source_graph_root_rows", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/source_graph/ordered_rows.zx", .name = "source_graph_ordered_rows", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/references/call_signature.zx", .name = "rx_call_signature", .owner = .rx_analysis },
     .{ .path = "rx/analysis/call/attributes/scan.zx", .name = "rx_call_attributes", .owner = .rx_analysis },

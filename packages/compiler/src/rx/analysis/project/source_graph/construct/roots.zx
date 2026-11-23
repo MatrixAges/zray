@@ -1,34 +1,50 @@
 import memory from "memory"
 import host from "rx_graph_host"
 
+import writeRows from "../root_rows"
 import { missing_entry, missing_root } from "./const"
 
 import type { RootPaths as Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { target, ranges } = in
+    const { target, ranges, roots } = in
 
-    const entry = host.resolveSourceGraphEntry(target, missing_entry)
+    const entry = host.resolveSourceGraphRoot(target, in.entry, missing_entry)
     const rx_count = in.include_rx ? ranges.rx_end - ranges.zx_count : 0
     const additional = rx_count + in.explicit_count
     const start = 1 + rx_count
     const store_start = 1 + additional
     const store_count = ranges.end - ranges.rx_end
 
-    host.allocateSourceGraphRoots(target, store_start + store_count, entry)
-    host.writeSourceGraphRootRange(target, 1, ranges.zx_count, rx_count)
-    host.writeSourceGraphRootRange(target, store_start, ranges.rx_end, store_count)
+    memory.allocateU64Buffer(in.allocator, roots, store_start + store_count)
+    memory.writeU64(roots, 0, entry)
+
+    writeRows({
+        roots,
+        start: 1,
+        first: ranges.zx_count,
+        count: rx_count
+    })
+
+    writeRows({
+        roots,
+        start: store_start,
+        first: ranges.rx_end,
+        count: store_count
+    })
 
     const written = loop(0, {
         while: row => row < in.explicit_count,
         next: row => {
             const path = memory.readTextColumn(in.explicit, row)
-            host.writeSourceGraphRoot(target, start + row, path, missing_root)
+            const root = host.resolveSourceGraphRoot(target, path, missing_root)
+
+            memory.writeU64(roots, start + row, root)
             row += 1
         }
     })
 
-    host.finishSourceGraphRoots(target, additional)
+    return additional
 }

@@ -12,7 +12,14 @@
     />
 
     <Call fn="roots" in={$in.omit(["retain_parses"])} />
-    <Call fn="host.scanSourceGraph" in={$in.target} />
+
+    <Call
+        fn="host.scanSourceGraph"
+        in={[
+            $in.target,
+            $ctx.roots
+        ]}
+    />
 
     <Call
         fn="host.orderSourceGraph"

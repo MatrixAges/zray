@@ -35,33 +35,13 @@ export declare function rejectSourceGraphPath(
     message: string
 ): void throws { OutOfMemory, InvalidGraph }
 
-export declare function resolveSourceGraphEntry(target: GraphConstruction, missing: string): u64
-    throws { OutOfMemory, InvalidGraph }
-
-export declare function allocateSourceGraphRoots(
+export declare function resolveSourceGraphRoot(
     target: GraphConstruction,
-    count: u64,
-    entry: u64
-): void throws { OutOfMemory }
-
-export declare function writeSourceGraphRootRange(
-    target: GraphConstruction,
-    start: u64,
-    first: u64,
-    count: u64
-): void
-
-export declare function writeSourceGraphRoot(
-    target: GraphConstruction,
-    row: u64,
     path: string,
     missing: string
-): void throws { OutOfMemory, InvalidGraph }
+): u64 throws { OutOfMemory, InvalidGraph }
 
-export declare function finishSourceGraphRoots(target: GraphConstruction, count: u64): void
-    throws { OutOfMemory }
-
-export declare function scanSourceGraph(target: GraphConstruction): u64
+export declare function scanSourceGraph(target: GraphConstruction, additional: u64): u64
     throws { OutOfMemory, InvalidGraph }
 
 export declare function orderSourceGraph(target: GraphConstruction, reached: u64): void

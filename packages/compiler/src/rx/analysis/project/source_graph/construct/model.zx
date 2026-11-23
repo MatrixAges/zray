@@ -1,4 +1,4 @@
-import type { TextColumn } from "memory"
+import type { Allocator, TextColumn, U64Buffer } from "memory"
 import type { GraphConstruction } from "rx_graph_host"
 import type { Ranges as SourceRanges } from "../source"
 
@@ -14,6 +14,9 @@ export type Registration = {
 export type RootPaths = Registration & {
     explicit: TextColumn,
     explicit_count: u64,
+    entry: string,
+    roots: U64Buffer,
+    allocator: Allocator,
     include_rx: bool
 }
 
