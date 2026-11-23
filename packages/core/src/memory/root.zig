@@ -68,6 +68,7 @@ pub const columnRangeCount = column_range.count;
 pub const setColumnRangeCount = column_range.setCount;
 pub const reserveColumnRange = column_range.reserveOne;
 pub const publishColumnRange = column_range.publishOne;
+pub const bindRangeWriteColumn = column_range.bindWriteColumn;
 pub const columnSetSlotCount = column_set.slotCount;
 pub const columnSetFirstLength = column_set.firstLength;
 pub const functionColumnGrowth = column_set.growth;

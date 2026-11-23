@@ -1,0 +1,54 @@
+import memory from "memory"
+
+import { failure_slot, written_slot } from "./const"
+
+import type { Allocator, ColumnLengths, ReadColumn, TextColumn } from "memory"
+
+export type Retired = {
+    flags: ReadColumn,
+    sources: TextColumn,
+    owners: ReadColumn,
+    count: u64,
+    local: Allocator,
+    shared: Allocator,
+    shared_owner: u8
+}
+
+export type Input = {
+    counters: ColumnLengths,
+    written: u64,
+    failures: u64,
+    retired?: Retired
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.advanceLengthSlot(in.counters, written_slot, in.written)
+    memory.advanceLengthSlot(in.counters, failure_slot, in.failures)
+
+    const { retired } = in
+
+    if (retired == null) {
+        return
+    }
+
+    const { count, flags, sources, owners, local, shared, shared_owner } = retired
+
+    const released = loop(0, {
+        while: row => row < count,
+        next: row => {
+            if (memory.readColumnBool(flags, row)) {
+                const owner = memory.readColumnU8(owners, row)
+                const allocator = owner == shared_owner ? shared : local
+
+                memory.freeOwnedText(
+                    allocator,
+                    memory.readTextColumn(sources, row)
+                )
+            }
+
+            row += 1
+        }
+    })
+}

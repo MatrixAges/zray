@@ -1,11 +1,12 @@
 import strings from "std:string"
 import memory from "memory"
 
-import type { TextColumn } from "memory"
+import type { Allocator, TextColumn } from "memory"
 
 export type Previous = {
-    pending: u64,
-    source: string
+    pending?: u64,
+    source: string,
+    owner: Allocator
 }
 
 export type Input = {
@@ -27,18 +28,27 @@ export default function (in: Input): Output {
     const append: u64? = persistent && needs_write ? count : null
     const none: u64? = null
 
-    if (previous == null || previous.pending >= count) {
+    if (previous == null) {
         return {
             append,
             retire: none
         }
     }
 
-    const pending = memory.readTextColumn(queue, previous.pending)
+    const row = previous.pending
+
+    if (row == null || row >= count) {
+        return {
+            append,
+            retire: none
+        }
+    }
+
+    const pending = memory.readTextColumn(queue, row)
     const same = strings.sameStorage(previous.source, pending)
 
     return {
         append,
-        retire: same ? previous.pending : null
+        retire: same ? row : null
     }
 }

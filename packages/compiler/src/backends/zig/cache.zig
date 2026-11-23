@@ -2,8 +2,10 @@ const std = @import("std");
 const Storage = @import("cache/storage.zig");
 const policy = @import("cache/policy.zig");
 const generated_parser = @import("parser_options").generated_parser;
+const zx = @import("zx");
+const memory = zx.memory;
 const Self = @This();
-const Owner = enum { cache, shared };
+const Owner = enum(u8) { cache, shared };
 const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null, owner: Owner = .cache };
 const Memo = @import("genz").zx.function_analysis.Uniqueness.Memo;
 const Index = @import("frontend").SourceIndex(Entry);
@@ -240,25 +242,65 @@ fn completeWrites(self: *Self, action: policy.Action) void {
         .Spawn => unreachable,
     }
 
-    self.written += self.writing.written;
-    self.io_errors += self.writing.io_errors;
-
     if (self.writing.last_io_error) |err| self.last_io_error = err;
 
-    if (self.writing.queue.has_retired) {
-        const records = self.writing.queue.records.items;
-        var row = policy.nextRetired(records, 0);
+    if (comptime generated_parser) {
+        self.publishWrites();
+    } else {
+        self.written += self.writing.written;
+        self.io_errors += self.writing.io_errors;
 
-        while (row < records.len) : (row = policy.nextRetired(records, row + 1)) {
-            const item = records[row];
-
-            self.sourceAllocator(item.owner).free(item.source);
+        if (self.writing.queue.has_retired) {
+            for (self.writing.queue.records.items) |item| {
+                if (item.retired) self.sourceAllocator(item.owner).free(item.source);
+            }
         }
     }
 
     self.writing.queue.records.deinit(self.allocator);
 
     self.writing = .{};
+}
+
+fn publishWrites(self: *Self) void {
+    const rule = @import("generated_generation_cache_write_publication");
+    const Input = std.meta.Child(rule.Input);
+    const Retired = std.meta.Child(@typeInfo(@FieldType(Input, "retired")).optional.child);
+    const counters: memory.ColumnLengths = &.{ &self.written, &self.io_errors };
+    const shared = self.sourceAllocator(.shared);
+    var retired: Retired = undefined;
+    var flags: memory.ReadColumn = undefined;
+    var sources: memory.TextColumn = undefined;
+    var owners: memory.ReadColumn = undefined;
+
+    if (self.writing.queue.has_retired) {
+        const records = self.writing.queue.records.items;
+
+        flags = memory.borrowReadColumn(bool, "retired", records);
+        sources = memory.borrowReadColumn([]u8, "source", records);
+        owners = memory.borrowReadColumn(Owner, "owner", records);
+
+        retired = .{
+            .flags = @ptrCast(&flags),
+            .sources = @ptrCast(&sources),
+            .owners = @ptrCast(&owners),
+            .count = records.len,
+            .local = @ptrCast(&self.allocator),
+            .shared = @ptrCast(&shared),
+            .shared_owner = @backingInt(Owner.shared),
+        };
+    }
+
+    const input: Input = .{
+        .counters = @ptrCast(&counters),
+        .written = self.writing.written,
+        .failures = self.writing.io_errors,
+        .retired = if (self.writing.queue.has_retired) &retired else null,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    rule.executeIn(fixed.allocator(), &input) catch unreachable;
 }
 
 /// Writes every record on a few of the shared workers; records are separate files, which the file system creates
@@ -347,19 +389,87 @@ pub fn flushMemo(self: *Self) std.mem.Allocator.Error!void {
     if (self.memo) |*memo| try @import("uniqueness_memo.zig").save(self.allocator, self, memo);
 }
 
-fn store(self: *Self, name: []const u8, input: Entry, enqueue: bool) std.mem.Allocator.Error!void {
+const Record = struct {
+    cache: *Self,
+    name: []const u8,
+    found: Index.Position,
+    value: Entry,
+    fn write(self: *const Record, pending: ?usize) std.mem.Allocator.Error!void {
+        const cache = self.cache;
+        var value = self.value;
+
+        value.pending = pending;
+
+        if (self.found.row) |row| {
+            cache.entries.values.items[row] = value;
+        } else {
+            const slot = try cache.entries.prepare(cache.allocator, self.name, self.found.slot);
+            const owned_name = try cache.allocator.dupe(u8, self.name);
+
+            cache.entries.append(slot, owned_name, value);
+        }
+    }
+};
+
+pub fn writeGenerationCacheRecord(target: *const anyopaque, pending: ?u64) std.mem.Allocator.Error!void {
+    const binding: *const Record = @ptrCast(@alignCast(target));
+
+    return binding.write(if (pending) |row| @intCast(row) else null);
+}
+
+fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.Allocator.Error!void {
     const found = self.entries.position(name);
     const previous = if (found.row) |row| &self.entries.values.items[row] else null;
-    const queued: ?policy.Previous = if (previous) |entry| if (entry.pending) |row| .{ .pending = row, .source = entry.source } else null else null;
-    const plan = policy.replace(queued, self.unwritten.records.items, self.storage != null, enqueue);
+    const binding: Record = .{ .cache = self, .name = name, .found = found, .value = value };
+    const queued: Unwritten = .{ .key = value.key, .source = value.source, .owner = value.owner };
+
+    if (comptime generated_parser) {
+        const rule = @import("generated_store_generation_cache_record");
+        const Input = std.meta.Child(rule.Input);
+        const Prior = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
+        const owner = if (previous) |entry| self.sourceAllocator(entry.owner) else undefined;
+        const prior: Prior = if (previous) |entry| .{ .pending = entry.pending, .source = entry.source, .owner = @ptrCast(&owner) } else undefined;
+        const sources = memory.borrowReadColumn([]u8, "source", self.unwritten.records.items);
+        var retired = memory.borrowWriteColumn(bool, "retired", self.unwritten.records.items);
+        const has_retired: []bool = @as(*[1]bool, @ptrCast(&self.unwritten.has_retired));
+        var ranges: memory.ColumnRangeGroup(1) = .{};
+        const tail = ranges.bind(&self.unwritten.records, 1, true);
+
+        const input: Input = .{
+            .target = @ptrCast(&binding),
+            .cache = @ptrCast(self),
+            .active = self.writing.queue.records.items.len != 0,
+            .threaded = self.writer != null,
+            .resource = @ptrCast(&self.allocator),
+            .previous = if (previous != null) &prior else null,
+            .queue = @ptrCast(&sources),
+            .count = self.unwritten.records.items.len,
+            .persistent = self.storage != null,
+            .needs_write = enqueue,
+            .destination = &.{
+                .ranges = @ptrCast(ranges.freeze().?),
+                .tail = @ptrCast(tail),
+                .bytes = std.mem.asBytes(&queued),
+                .retired = @ptrCast(&retired),
+                .retired_offset = @offsetOf(Unwritten, "retired"),
+                .has_retired = @ptrCast(&has_retired),
+            },
+        };
+
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        return rule.executeIn(fixed.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => error.OutOfMemory,
+            else => unreachable,
+        };
+    }
+
+    const prior: ?policy.Previous = if (previous) |entry| if (entry.pending) |row| .{ .pending = row, .source = entry.source } else null else null;
+    const plan = policy.replaceSeed(prior, self.unwritten.records.items, self.storage != null, enqueue);
 
     if (plan.append != null) try self.unwritten.records.ensureUnusedCapacity(self.allocator, 1);
 
     self.finishWriting();
-
-    var value = input;
-
-    value.pending = plan.append;
 
     if (previous) |entry| {
         if (plan.retire) |row| {
@@ -368,16 +478,10 @@ fn store(self: *Self, name: []const u8, input: Entry, enqueue: bool) std.mem.All
         } else {
             self.sourceAllocator(entry.owner).free(entry.source);
         }
-
-        entry.* = value;
-    } else {
-        const slot = try self.entries.prepare(self.allocator, name, found.slot);
-        const owned_name = try self.allocator.dupe(u8, name);
-
-        self.entries.append(slot, owned_name, value);
     }
 
-    if (plan.append != null) self.unwritten.records.appendAssumeCapacity(.{ .key = value.key, .source = value.source, .owner = value.owner });
+    try binding.write(plan.append);
+    if (plan.append != null) self.unwritten.records.appendAssumeCapacity(queued);
 }
 
 pub const residentPlan = policy.resident;
