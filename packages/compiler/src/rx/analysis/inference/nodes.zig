@@ -79,25 +79,48 @@ pub fn reserve(graph: *Graph, count: usize) std.mem.Allocator.Error!Reservation 
     return .{ .rows = rows, .first = first };
 }
 
+pub fn Append(comptime Input: type) type {
+    return struct {
+        parents: []u32,
+        view: Writable,
+        publication: Publication,
+        columns: std.meta.Child(@FieldType(Input, "columns")),
+        storage: std.meta.Child(@FieldType(Input, "storage")),
+        source: std.meta.Child(@FieldType(Input, "span")),
+        shape: std.meta.Child(@FieldType(Input, "shape")),
+        pub fn bind(self: *@This(), input: *Input, graph: *Graph, reservation: Reservation, value: Graph.Shape, span: zx.Span) void {
+            const topology = encode(value);
+
+            self.parents = reservation.rows.items(.parent);
+            self.view = writable(reservation.rows);
+            self.publication = Publication.init(graph, reservation.rows);
+            self.columns = self.view.borrow(@TypeOf(self.columns));
+            self.storage = self.publication.storage(@TypeOf(self.storage));
+            self.source = self.publication.span(@TypeOf(self.source), span);
+            self.shape = .{ .kind = @backingInt(topology.kind), .argument = topology.argument, .members = topology.members };
+
+            input.* = .{
+                .parents = @ptrCast(&self.parents),
+                .columns = &self.columns,
+                .shape = &self.shape,
+                .first = reservation.first,
+                .end = reservation.rows.len,
+                .storage = &self.storage,
+                .span = &self.source,
+            };
+        }
+    };
+}
+
 pub fn append(graph: *Graph, value: Graph.Shape, span: zx.Span) zx.Error!Graph.Id {
     if (comptime enabled) {
         const reservation = try reserve(graph, 1);
-        const topology = encode(value);
         const rule = @import("generated_rx_inference_nodes");
         const Input = std.meta.Child(rule.Input);
-        const view = writable(reservation.rows);
-        const parents = reservation.rows.items(.parent);
-        const publication = Publication.init(graph, reservation.rows);
+        var frame: Append(Input) = undefined;
+        var input: Input = undefined;
 
-        const input: Input = .{
-            .parents = @ptrCast(&parents),
-            .columns = &view.borrow(std.meta.Child(@FieldType(Input, "columns"))),
-            .shape = &.{ .kind = @backingInt(topology.kind), .argument = topology.argument, .members = topology.members },
-            .first = reservation.first,
-            .end = reservation.rows.len,
-            .storage = &publication.storage(std.meta.Child(@FieldType(Input, "storage"))),
-            .span = &publication.span(std.meta.Child(@FieldType(Input, "span")), span),
-        };
+        frame.bind(&input, graph, reservation, value, span);
 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 

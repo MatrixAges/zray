@@ -2,6 +2,7 @@ import contains from "../../../../zx/analysis/semantic/resolving/contains"
 import candidate from "./candidate"
 import { implicit_input_name } from "./const"
 
+import type { Destination } from "./deferred"
 import type { Candidates, Query } from "./model"
 
 export type Input = Query & {
@@ -10,7 +11,8 @@ export type Input = Query & {
 }
 
 export type Request = Input & {
-    candidates: Candidates
+    candidates: Candidates,
+    deferred: Destination
 }
 
 export type Output = {

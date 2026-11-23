@@ -33,17 +33,6 @@ pub fn distinct(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, m
     }
 }
 
-/// The caller transfers the candidate buffer on success.
-pub fn lookup(graph: *Graph, candidates: []const Graph.Id, span: zx.Span) zx.Error!Graph.Id {
-    const value = try graph.add(.unknown, span);
-
-    errdefer graph.nodes.len -= 1;
-
-    try graph.pending.binding_lookups.append(graph.pending.allocator, .{ .candidates = candidates, .value = value, .span = span });
-
-    return value;
-}
-
 pub fn propagate(graph: *Graph, final: bool) zx.Error!void {
     if (!@import("rx_options").generated_graph) return seed(graph, final);
     try @import("bindings/host.zig").run(graph, final);

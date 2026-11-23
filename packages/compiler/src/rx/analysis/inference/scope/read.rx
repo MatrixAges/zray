@@ -4,7 +4,13 @@
 
     <Args in={Lookup.Request} out={Scope.Reference} />
 
-    <Call fn="lookup" in={$in.omit(["candidates"])} />
+    <Call
+        fn="lookup"
+        in={$in.omit([
+            "candidates",
+            "deferred"
+        ])}
+    />
 
     <If on={$ctx.lookup.second != null}>
         <Call
@@ -19,6 +25,25 @@
                 first: $ctx.lookup.first ?? 0,
                 second: $ctx.lookup.second ?? 0,
                 start: $ctx.lookup.next
+            }}
+        />
+
+        <Call
+            module="defer_lookup"
+            in={{
+                destination: $in.deferred,
+                candidates: $in.candidates.values,
+                count: $ctx.candidates
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.lookup.pick([
+                    "implicit_input",
+                    "refined"
+                ]),
+                value: $ctx.defer_lookup
             }}
         />
     </If>

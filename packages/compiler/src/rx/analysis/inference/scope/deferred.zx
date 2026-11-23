@@ -1,0 +1,23 @@
+import type { IndexBuffer, SourceSpanBuffer, U32Buffer, U32ListBuffer } from "memory"
+import type { ScopeLookup } from "rx_project_host"
+import type { Input as Append } from "../nodes/append"
+
+export type Lookups = {
+    candidates: U32ListBuffer,
+    values: U32Buffer,
+    spans: SourceSpanBuffer,
+    length: IndexBuffer,
+    position: u64
+}
+
+export type Destination = {
+    frame: ScopeLookup,
+    node: Append,
+    rows: Lookups
+}
+
+export type NewLookup = {
+    destination: Destination,
+    candidates: U32Buffer,
+    count: u64
+}

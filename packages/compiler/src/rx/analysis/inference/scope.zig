@@ -40,40 +40,7 @@ pub fn read(graph: *Graph, rows: Storage.Slice, facts: []const []const u8, name:
         } else false,
     };
 
-    const entry = @import("generated_rx_scope_lookup");
-    const Input = std.meta.Child(entry.Input);
-    const parents: []u32 = graph.parents();
-    const topology: std.meta.Child(@FieldType(Input, "topology")) = .{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) };
-    const active: std.meta.Child(@FieldType(Input, "active")) = .{ .names = rows.items(.name), .values = @ptrCast(rows.items(.value)) };
-    var candidates: zx.memory.U32Scratch = .{ .allocator = graph.pending.allocator };
-
-    errdefer candidates.deinit();
-
-    const lengths: zx.memory.ColumnLengths = &.{&candidates.backing.items.len};
-
-    const query: Input = .{
-        .topology = &topology,
-        .active = &active,
-        .name = name,
-        .start = 0,
-        .facts = facts,
-        .identifier = identifier,
-        .candidates = &.{ .scratch = @ptrCast(&candidates), .values = @ptrCast(&candidates.items), .lengths = @ptrCast(&lengths) },
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &query) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    const value: ?Graph.Id = if (candidates.backing.items.len != 0)
-        try bindings.lookup(graph, @ptrCast(candidates.backing.items), span)
-
-    else if (result.value) |id| @fromBackingInt(id) else null;
-
-    return .{ .value = value, .implicit_input = result.implicit_input, .refined = result.refined };
+    return @import("scope/read.zig").run(graph, rows, facts, name, identifier, span);
 }
 
 pub fn check(graph: *Graph, rows: Storage.Slice, end: usize, binding: Binding, message: []const u8) zx.Error!void {
@@ -131,5 +98,11 @@ fn lookupSeed(graph: *Graph, rows: Storage.Slice, name: []const u8, span: zx.Spa
 
     if (candidates.items.len == 0) return selected;
 
-    return try bindings.lookup(graph, candidates.items, span);
+    const value = try graph.add(.unknown, span);
+
+    errdefer graph.nodes.len -= 1;
+
+    try graph.pending.binding_lookups.append(allocator, .{ .candidates = candidates.items, .value = value, .span = span });
+
+    return value;
 }

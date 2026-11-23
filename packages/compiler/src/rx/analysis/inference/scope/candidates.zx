@@ -12,7 +12,7 @@ export type Input = Query & {
     second: u32
 }
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
     const { scratch, values, lengths } = in.candidates
@@ -33,7 +33,7 @@ export default function (in: Input): Output {
         count: 2
     })
 
-    const collected = loop({
+    return loop({
         next: in.start,
         count: 2
     }, {
@@ -60,6 +60,7 @@ export default function (in: Input): Output {
             }
 
             state.next += 1
-        }
+        },
+        return: state => state.count
     })
 }
