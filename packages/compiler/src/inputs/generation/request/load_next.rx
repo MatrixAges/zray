@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.LoadStep} out={Request.LoadStep} />
+
+    <Call
+        fn="host.loadGenerationRoot"
+        in={[
+            $in.load.request,
+            $in.row,
+            $in.load.observed
+        ]}
+    />
+
+    <Return
+        value={{
+            load: $in.load,
+            row: $in.row + 1
+        }}
+    />
+</Module>

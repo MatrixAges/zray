@@ -67,8 +67,10 @@ fn reuseSaved(io: std.Io, workspace: std.mem.Allocator, path: []const u8, contex
     return seed.reuse(allocator, payload, context, facts, now);
 }
 
-pub fn load(self: Self, io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: *Files, documents: *std.ArrayList(collection.Document)) !void {
-    for (self.roots) |root| try collection.load(io, scratch, allocator, files, root.path, root.entries, documents);
+pub fn loadRoot(self: Self, io: std.Io, scratch: std.mem.Allocator, files: *Files, row: usize, documents: *std.ArrayList(collection.Document)) !void {
+    const root = self.roots[row];
+
+    try collection.load(io, scratch, files, root.path, root.entries, documents);
 }
 
 pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !void {

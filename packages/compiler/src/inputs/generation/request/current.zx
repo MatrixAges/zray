@@ -1,7 +1,10 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
+import { hexadecimal_radix } from "core/const"
 import host from "generation_host"
+import { hexadecimal_digits } from "genz/const"
 
-import { stamp_width } from "../const"
+import { stamp_digits_per_byte, stamp_width } from "../const"
 
 import type { GenerationRequest } from "generation_host"
 
@@ -21,12 +24,26 @@ export default function (in: Input): Output {
 
     const stamp = host.readGenerationStamp(request)
 
-    if (stamp == null) {
+    if (stamp == null || stamp.length != stamp_width) {
         return false
     }
 
-    return stamp.length == stamp_width && bytes.equals(
-        stamp,
-        host.formatGenerationStamp(request, digest)
-    )
+    const digits = bytes.fromText(hexadecimal_digits)
+
+    return loop({
+        row: 0,
+        matches: true
+    }, {
+        while: state => state.matches && state.row < digest.length,
+        next: state => {
+            const value = integers.widenByte(digest[state.row])
+            const offset = state.row * stamp_digits_per_byte
+            const high = digits[value / hexadecimal_radix]
+            const low = digits[value % hexadecimal_radix]
+
+            state.matches = stamp[offset] == high && stamp[offset + 1] == low
+            state.row += 1
+        },
+        return: state => state.matches
+    })
 }

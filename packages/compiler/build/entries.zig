@@ -379,7 +379,6 @@ pub const main = [_]Entry{
     .{ .path = "inputs/collection/selection.zx", .name = "input_row_selection", .owner = .compiler },
     .{ .path = "inputs/collection/catalog/plan.rx", .name = "input_catalog_plan", .owner = .compiler },
     .{ .path = "inputs/collection/catalog/publish.zx", .name = "input_catalog_publish", .owner = .compiler },
-    .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/text.zx", .name = "input_text_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/snapshot.zx", .name = "input_snapshot_fingerprint", .owner = .compiler },
     .{ .path = "inputs/generation/const.zx", .name = "generation_constants", .owner = .compiler },
@@ -879,6 +878,8 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "inputs/generation/request/packages.zx", .name = "generation_packages", .owner = .bootstrap },
+    .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .bootstrap },
     .{ .path = "inputs/collection/interface/observe.zx", .name = "observe_input_interfaces", .owner = .bootstrap },
     .{ .path = "inputs/collection/directory/scan.rx", .name = "scan_input_directory", .owner = .bootstrap },
     .{ .path = "inputs/collection/load/load.zx", .name = "load_input_documents", .owner = .bootstrap },

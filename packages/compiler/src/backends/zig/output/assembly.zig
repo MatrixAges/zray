@@ -43,12 +43,9 @@ pub fn prepare(allocator: std.mem.Allocator, bundle: *const Bundle, groups: Grou
 
     const entry = @import("generated_output_assembly");
     const Input = std.meta.Child(entry.Input);
-    const paths = memory.borrowWriteColumn([]const u8, "path", files);
-    const sources = memory.borrowWriteColumn([]const u8, "source", files);
-    const names = memory.borrowWriteColumn([]const u8, "name", modules);
-    const module_files = memory.borrowWriteColumn([]const u8, "file", modules);
-    const support_paths = memory.borrowTextColumn("path", groups.support);
-    const support_bodies = memory.borrowTextColumn("source", groups.support);
+    const files_view = memory.borrowWriteFields(.{ .paths = "path", .bodies = "source" }, files);
+    const modules_view = memory.borrowWriteFields(.{ .names = "name", .files = "file" }, modules);
+    const support = memory.borrowReadFields(.{ .paths = "path", .bodies = "source" }, groups.support);
     const public_paths = memory.borrowNestedColumn([]const u8, &.{ "file", "name" }, bundle.public_modules);
     const public_bodies = memory.borrowNestedColumn([]const u8, &.{ "file", "source" }, bundle.public_modules);
     const public_names = memory.borrowTextColumn("name", bundle.public_modules);
@@ -63,9 +60,9 @@ pub fn prepare(allocator: std.mem.Allocator, bundle: *const Bundle, groups: Grou
             .count = counts.public_count,
             .names = @ptrCast(&public_names),
         },
-        .support = &.{ .paths = @ptrCast(&support_paths), .bodies = @ptrCast(&support_bodies), .count = counts.support_count },
-        .files = &.{ .paths = @ptrCast(&paths), .bodies = @ptrCast(&sources) },
-        .modules = &.{ .names = @ptrCast(&names), .files = @ptrCast(&module_files) },
+        .support = &support.bind(std.meta.Child(@FieldType(Input, "support"))),
+        .files = &files_view.bind(std.meta.Child(@FieldType(Input, "files"))),
+        .modules = &modules_view.bind(std.meta.Child(@FieldType(Input, "modules"))),
         .types = bundle.types,
         .signatures = bundle.signatures orelse "",
     };

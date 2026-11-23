@@ -2,7 +2,9 @@ import { digest_width } from "../fingerprint/const"
 
 export const stamp_name: string = ".zxc-inputs"
 
-export const stamp_width: u64 = digest_width * 2
+export const stamp_digits_per_byte: u64 = 2
+
+export const stamp_width: u64 = digest_width * stamp_digits_per_byte
 
 export const summary_capacity: u64 = 384
 

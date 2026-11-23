@@ -1,11 +1,23 @@
-import type { GenerationRequest } from "generation_host"
+import type { GenerationRequest, PreparedGeneration } from "generation_host"
 
 export type Input = {
     request: GenerationRequest,
-    write: bool
+    write: bool,
+    roots: u64
 }
 
 export type Analyze = {
     request: GenerationRequest,
     interfaces_loaded: bool
 }
+
+export type Load = Input.Pick("request", "roots") & {
+    observed: bool
+}
+
+export type LoadStep = {
+    load: Load,
+    row: u64
+}
+
+export type Prepared = PreparedGeneration

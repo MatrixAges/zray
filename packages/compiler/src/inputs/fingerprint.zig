@@ -26,39 +26,14 @@ pub const Hash = struct {
 
 pub const Frame = struct { content: Digest, shape: Digest };
 
-pub fn frame(generator: *const Digest, manifest: []const u8, modules: anytype, interfaces: anytype) Frame {
+pub fn seedFrame(generator: *const Digest, manifest: []const u8, modules: anytype, interfaces: anytype) Frame {
     var content_buffer: [1024]u8 = undefined;
     var shape_buffer: [1024]u8 = undefined;
     var content = Hash.init(&content_buffer);
     var shape = Hash.init(&shape_buffer);
 
-    if (comptime generated) {
-        const rule = @import("generated_input_frame_fingerprint");
-        const Module = std.meta.Child(@TypeOf(modules));
-        const paths = memory.borrowTextColumn("path", modules);
-        const sources = memory.borrowTextColumn("source", interfaces);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        comptime std.debug.assert(@FieldType(Module, "digest") == Digest);
-
-        rule.executeValue(empty.allocator(), &.{
-            .writers = &.{ .frame = @ptrCast(content.out()), .shape = @ptrCast(shape.out()) },
-            .generator = generator,
-            .manifest = manifest,
-            .modules = &.{
-                .paths = @ptrCast(&paths),
-                .count = modules.len,
-                .digests = std.mem.sliceAsBytes(modules),
-                .offset = @offsetOf(Module, "digest"),
-                .stride = @sizeOf(Module),
-            },
-            .interfaces = @ptrCast(&sources),
-            .interface_count = interfaces.len,
-        }) catch unreachable;
-    } else {
-        frameSeed(&content, generator, manifest, true, modules, interfaces);
-        frameSeed(&shape, generator, manifest, false, modules, interfaces);
-    }
+    frameSeed(&content, generator, manifest, true, modules, interfaces);
+    frameSeed(&shape, generator, manifest, false, modules, interfaces);
 
     return .{ .content = content.finish(), .shape = shape.finish() };
 }
@@ -82,14 +57,13 @@ pub fn packages(records: anytype) Digest {
 
     if (comptime generated) {
         const rule = @import("generated_input_text_fingerprint");
-        const specifiers = memory.borrowTextColumn("specifier", records);
-        const entries = memory.borrowTextColumn("entry", records);
+        const source = memory.borrowReadFields(.{ .first = "specifier", .second = "entry" }, records);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
 
         const input: Input = .{
             .out = @ptrCast(hash.out()),
-            .rows = &.{ .first = @ptrCast(&specifiers), .second = @ptrCast(&entries), .count = records.len },
+            .rows = &source.bind(std.meta.Child(@FieldType(Input, "rows"))),
         };
 
         zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;

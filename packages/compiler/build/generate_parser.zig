@@ -11,6 +11,7 @@ const fingerprint = compiler.input_fingerprint;
 const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
 const generated = publication.generated;
+const source_fields = .{ .paths = "path", .sources = "source" };
 const Prepared = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".PreparedGeneration else void;
 pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, InputSnapshot, interface_inputs, collection }).resolve;
 
@@ -64,7 +65,13 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     if (comptime !generated) return frame.seed();
 
     const workflow = @import("generated_generation_request");
-    const input: std.meta.Child(workflow.Input) = .{ .request = @ptrCast(&frame), .write = request.write };
+
+    const input: std.meta.Child(workflow.Input) = .{
+        .request = @ptrCast(&frame),
+        .write = request.write,
+        .roots = project.roots.len,
+    };
+
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return workflow.executeIn(empty.allocator(), &input) catch |err| return frame.failure orelse err;
@@ -83,7 +90,6 @@ const Generation = struct {
     snapshot: InputSnapshot = undefined,
     stamp_path: []const u8 = undefined,
     stamp_buffer: [publication.stamp_width + 1]u8 = undefined,
-    encoded_stamp: publication.Stamp = undefined,
     packages: []const compiler.project.Package = undefined,
     inputs: collection.Catalog = undefined,
     interfaces: interface_inputs.Result = undefined,
@@ -120,36 +126,98 @@ const Generation = struct {
 
         return if (self.snapshot.fingerprint) |*digest| digest else null;
     }
-    fn load(self: *Generation, comptime observed: bool) !void {
-        if (observed) {
-            return self.snapshot.load(self.io, self.allocator, self.owned, &self.resident.files, &self.documents);
-        }
+    fn loadRoot(self: *Generation, row: usize, observed: bool) !void {
+        const files = &self.resident.files;
 
-        for (self.project.roots) |root| {
-            try collection.collect(self.io, self.allocator, self.owned, &self.resident.files, root.path, root.prefix, &self.documents);
-        }
+        if (observed) return self.snapshot.loadRoot(self.io, self.allocator, files, row, &self.documents);
+
+        const root = self.project.roots[row];
+
+        try collection.collect(self.io, self.allocator, self.owned, files, root.path, root.prefix, &self.documents);
     }
-    fn prepare(self: *Generation) !void {
-        const resident = self.resident;
+    fn preparePackages(self: *Generation) !void {
         const packages = try self.owned.alloc(compiler.project.Package, self.project.packages.len);
 
-        for (self.project.packages, packages) |package, *slot| {
-            slot.* = .{ .specifier = try resident.retainText(self.owned, package.specifier), .entry = try resident.retainText(self.owned, package.entry) };
+        if (comptime generated) {
+            const rule = @import("generated_generation_packages");
+            const memory = @import("zx").memory;
+            const Input = std.meta.Child(rule.Input);
+            const fields = .{ .specifiers = "specifier", .entries = "entry" };
+            const source = memory.borrowReadFields(fields, self.project.packages);
+            const destination = memory.borrowWriteFields(fields, packages);
+
+            try rule.executeIn(self.owned, &.{
+                .fields = &source.bind(std.meta.Child(@FieldType(Input, "fields"))),
+                .target = &destination.bind(std.meta.Child(@FieldType(Input, "target"))),
+                .retain = self.resident.request != null,
+            });
+        } else {
+            for (self.project.packages, packages) |package, *slot| {
+                slot.* = .{
+                    .specifier = try self.resident.retainText(self.owned, package.specifier),
+                    .entry = try self.resident.retainText(self.owned, package.entry),
+                };
+            }
         }
 
         self.packages = packages;
-        self.inputs = try collection.publish(self.allocator, self.owned, self.documents.items, packages, true);
-        self.interfaces = try interface_inputs.load(self.io, self.allocator, self.owned, resident, self.project.interfaces, self.inputs.sources);
+    }
 
+    fn classify(self: *Generation) !void {
+        self.inputs = try collection.publish(self.allocator, self.owned, self.documents.items, self.packages, true);
+    }
+
+    fn registerInterfaces(self: *Generation) !void {
+        self.interfaces = try interface_inputs.load(self.io, self.allocator, self.owned, self.resident, self.project.interfaces, self.inputs.sources);
+    }
+
+    fn prepareFingerprints(self: *Generation) !void {
+        const resident = self.resident;
         const digests = try self.owned.alloc(analysis.project.ModuleDigest, self.inputs.modules.len);
 
-        for (self.inputs.modules, digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
-
         self.rx_digests = digests;
-        self.fingerprints = fingerprint.frame(&resident.digest, self.manifest_source, digests, self.interfaces.bindings);
+
+        self.fingerprints = if (comptime generated) try self.hashFrame(digests) else seed: {
+            for (self.inputs.modules, digests) |module, *item| {
+                item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
+            }
+
+            break :seed fingerprint.seedFrame(&resident.digest, self.manifest_source, digests, self.interfaces.bindings);
+        };
+
         self.digest = self.outputDigest();
     }
 
+    fn hashFrame(self: *const Generation, digests: []analysis.project.ModuleDigest) !fingerprint.Frame {
+        const rule = @import("generated_input_frame_fingerprint");
+        const memory = @import("zx").memory;
+        const Input = std.meta.Child(rule.Input);
+        const Modules = std.meta.Child(@FieldType(Input, "modules"));
+        const rows = memory.borrowReadFields(source_fields, self.inputs.modules);
+        const destination = memory.borrowWriteFields(.{ .paths = "path", .digests = "digest" }, digests);
+        const interfaces = memory.borrowTextColumn("source", self.interfaces.bindings);
+        var cache = FileDigest{ .files = &self.resident.files };
+        var content_buffer: [1024]u8 = undefined;
+        var shape_buffer: [1024]u8 = undefined;
+        var content = fingerprint.Hash.init(&content_buffer);
+        var shape = fingerprint.Hash.init(&shape_buffer);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        try rule.executeIn(empty.allocator(), &.{
+            .writers = &.{ .frame = @ptrCast(&content.state.writer), .shape = @ptrCast(&shape.state.writer) },
+            .generator = &self.resident.digest,
+            .manifest = self.manifest_source,
+            .modules = &.{
+                .cache = @ptrCast(&cache),
+                .rows = &rows.bind(std.meta.Child(@FieldType(Modules, "rows"))),
+                .target = &destination.bind(std.meta.Child(@FieldType(Modules, "target"))),
+            },
+            .interfaces = @ptrCast(&interfaces),
+            .interface_count = self.interfaces.bindings.len,
+        });
+
+        return .{ .content = content.finish(), .shape = shape.finish() };
+    }
     fn outputDigest(self: *const Generation) fingerprint.Digest {
         const frame = &self.fingerprints.content;
         const partitions = self.request.partitions;
@@ -160,8 +228,9 @@ const Generation = struct {
         const rule = @import("generated_input_output_fingerprint");
         const Input = std.meta.Child(rule.Input);
         const Rows = std.meta.Child(@FieldType(Input, "sources"));
-        const sources = FileColumns(Rows).init(self.inputs.sources);
-        const templates = FileColumns(Rows).init(self.inputs.templates);
+        const memory = @import("zx").memory;
+        const sources = memory.borrowReadFields(source_fields, self.inputs.sources);
+        const templates = memory.borrowReadFields(source_fields, self.inputs.templates);
         var cache = FileDigest{ .files = files };
         var buffer: [1024]u8 = undefined;
         var hash = fingerprint.Hash.init(&buffer);
@@ -172,13 +241,12 @@ const Generation = struct {
             .frame = frame,
             .partitions = partitions,
             .cache = @ptrCast(&cache),
-            .sources = &sources.view(),
-            .templates = &templates.view(),
+            .sources = &sources.bind(Rows),
+            .templates = &templates.bind(Rows),
         }) catch unreachable;
 
         return hash.finish();
     }
-
     fn readStamp(self: *Generation) !?[]const u8 {
         return std.Io.Dir.cwd().readFile(self.io, self.stamp_path, &self.stamp_buffer) catch |err| switch (err) {
             error.FileNotFound => null,
@@ -241,13 +309,13 @@ const Generation = struct {
             if (try self.observe()) |digest| {
                 if (try self.seedStampMatches(digest[0..@sizeOf(fingerprint.Digest)])) return "";
             }
-
-            try self.load(true);
-        } else {
-            try self.load(false);
         }
 
-        try self.prepare();
+        for (self.project.roots, 0..) |_, row| try self.loadRoot(row, self.request.write);
+        try self.preparePackages();
+        try self.classify();
+        try self.registerInterfaces();
+        try self.prepareFingerprints();
 
         if (self.request.write) {
             if (self.interfaces.failure == null and try self.seedStampMatches(&self.digest)) {
@@ -276,48 +344,46 @@ const Generation = struct {
 
         return summary;
     }
-    pub fn observeGenerationInputs(handle: *const anyopaque) Error!?[]const u8 {
-        const self = borrow(handle);
 
-        return self.observe() catch |err| self.fail(err);
-    }
-    pub fn loadObservedSources(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
+    fn effect(comptime method: anytype) type {
+        const Return = @typeInfo(@TypeOf(method)).@"fn".return_type.?;
+        const Output = @typeInfo(Return).error_union.payload;
 
-        self.load(true) catch |err| return self.fail(err);
-    }
+        return struct {
+            fn invoke(handle: *const anyopaque) Error!Output {
+                const self = borrow(handle);
 
-    pub fn collectGenerationSources(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
-
-        self.load(false) catch |err| return self.fail(err);
+                return method(self) catch |err| self.fail(err);
+            }
+        };
     }
 
-    pub fn prepareGenerationInputs(handle: *const anyopaque) Error!*const Prepared {
+    pub const observeGenerationInputs = effect(observe).invoke;
+    pub const retainGenerationPackages = effect(preparePackages).invoke;
+    pub const classifyGenerationDocuments = effect(classify).invoke;
+    pub const registerGenerationInterfaces = effect(registerInterfaces).invoke;
+    pub const readGenerationStamp = effect(readStamp).invoke;
+    pub const invalidateGenerationStamp = effect(invalidateStamp).invoke;
+    pub const prepareGenerationTemplates = effect(prepareTemplates).invoke;
+    pub const prepareGenerationModules = effect(prepareModules).invoke;
+    pub const generateFromPreparedInputs = effect(emit).invoke;
+    pub const writeGenerationStamp = effect(writeStamp).invoke;
+    pub const saveGenerationSnapshot = effect(saveSnapshot).invoke;
+
+    pub fn loadGenerationRoot(handle: *const anyopaque, row: u64, observed: bool) Error!void {
         const self = borrow(handle);
 
-        self.prepare() catch |err| return self.fail(err);
+        self.loadRoot(@intCast(row), observed) catch |err| return self.fail(err);
+    }
+
+    pub fn fingerprintGenerationInputs(handle: *const anyopaque) Error!*const Prepared {
+        const self = borrow(handle);
+
+        self.prepareFingerprints() catch |err| return self.fail(err);
 
         self.prepared = .{ .digest = &self.digest, .interfaces_loaded = self.interfaces.failure == null };
 
         return &self.prepared;
-    }
-    pub fn readGenerationStamp(handle: *const anyopaque) Error!?[]const u8 {
-        const self = borrow(handle);
-
-        return self.readStamp() catch |err| self.fail(err);
-    }
-    pub fn formatGenerationStamp(handle: *const anyopaque, digest: []const u8) []const u8 {
-        const self = borrow(handle);
-
-        self.encoded_stamp = publication.stamp(digest[0..@sizeOf(fingerprint.Digest)]);
-
-        return &self.encoded_stamp;
-    }
-    pub fn invalidateGenerationStamp(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
-
-        self.invalidateStamp() catch |err| return self.fail(err);
     }
 
     pub fn lookupGenerationAnalysis(handle: *const anyopaque) bool {
@@ -332,38 +398,10 @@ const Generation = struct {
 
         return generation.restore(self.target(), self.previous.?, self.project.entries.len) catch |err| self.fail(err);
     }
-    pub fn prepareGenerationTemplates(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
-
-        self.prepareTemplates() catch |err| return self.fail(err);
-    }
-
-    pub fn prepareGenerationModules(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
-
-        self.prepareModules() catch |err| return self.fail(err);
-    }
-
     pub fn checkGenerationInterfaces(handle: *const anyopaque) Error!void {
         const self = borrow(handle);
 
         if (self.interfaces.failure) |err| return self.fail(err);
-    }
-    pub fn generateFromPreparedInputs(handle: *const anyopaque) Error![]const u8 {
-        const self = borrow(handle);
-
-        return self.emit() catch |err| self.fail(err);
-    }
-    pub fn writeGenerationStamp(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
-
-        self.writeStamp() catch |err| return self.fail(err);
-    }
-
-    pub fn saveGenerationSnapshot(handle: *const anyopaque) Error!void {
-        const self = borrow(handle);
-
-        self.saveSnapshot() catch |err| return self.fail(err);
     }
 };
 
@@ -374,29 +412,8 @@ const FileDigest = struct {
 
 pub fn readGenerationFileDigest(cache: *const anyopaque, key: []const u8, source: []const u8) []const u8 {
     const self: *FileDigest = @ptrCast(@alignCast(@constCast(cache)));
+
     self.digest = self.files.digest(key, source);
 
     return &self.digest;
-}
-
-fn FileColumns(comptime Rows: type) type {
-    const memory = @import("zx").memory;
-
-    return struct {
-        const Self = @This();
-
-        paths: memory.TextColumn,
-        sources: memory.TextColumn,
-        count: usize,
-        fn init(items: anytype) Self {
-            return .{
-                .paths = memory.borrowTextColumn("path", items),
-                .sources = memory.borrowTextColumn("source", items),
-                .count = items.len,
-            };
-        }
-        fn view(self: *const Self) Rows {
-            return .{ .paths = @ptrCast(&self.paths), .sources = @ptrCast(&self.sources), .count = self.count };
-        }
-    };
 }

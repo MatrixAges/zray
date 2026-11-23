@@ -63,23 +63,25 @@ const Loader = struct {
     fn publish(self: *Loader, declarations: []const Interface, sources: []const compiler.project.Source) !usize {
         const rule = @import("generated_input_interface_registration");
         const memory = @import("zx").memory;
-        const paths = memory.borrowTextColumn("path", declarations);
-        const modules = memory.borrowTextColumn("module", declarations);
-        const specifiers = memory.borrowReadColumn(?[]const u8, "specifier", declarations);
-        const namespaces = memory.borrowReadColumn(?bool, "resolve_members", declarations);
-        const source_paths = memory.borrowTextColumn("path", sources);
-        const bodies = memory.borrowTextColumn("source", sources);
+        const Input = std.meta.Child(rule.Input);
+        const declared = memory.borrowReadFields(.{ .paths = "path", .modules = "module", .namespaces = "resolve_members" }, declarations);
+        const aliases = memory.borrowReadFields(.{ .specifiers = "specifier" }, declarations);
+        const views = memory.borrowReadFields(.{ .paths = "path", .bodies = "source" }, sources);
 
-        return @intCast(try rule.executeIn(self.scratch, &.{
-            .loader = @ptrCast(self),
-            .aliases = &.{ .specifiers = @ptrCast(&specifiers), .count = declarations.len },
-            .paths = @ptrCast(&paths),
-            .modules = @ptrCast(&modules),
-            .namespaces = @ptrCast(&namespaces),
-            .sources = &.{ .paths = @ptrCast(&source_paths), .bodies = @ptrCast(&bodies), .count = sources.len },
-        }));
+        var input: Input = undefined;
+
+        declared.fill(&input);
+
+        input.loader = @ptrCast(self);
+
+        const specifiers = aliases.bind(std.meta.Child(@FieldType(Input, "aliases")));
+        const files = views.bind(std.meta.Child(@FieldType(Input, "sources")));
+
+        input.aliases = &specifiers;
+        input.sources = &files;
+
+        return @intCast(try rule.executeIn(self.scratch, &input));
     }
-
     fn seed(self: *Loader, declarations: []const Interface, sources: []const compiler.project.Source) !usize {
         const Job = struct { source: ?usize, binding: usize, name: []const u8 };
         const jobs = try self.scratch.alloc(Job, declarations.len);

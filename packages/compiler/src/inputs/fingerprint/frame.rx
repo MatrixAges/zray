@@ -1,5 +1,5 @@
 <Module>
-    <Type from="model" as="Fingerprint" />
+    <Type from="output_shape" as="Fingerprint" />
 
     <Args in={Fingerprint.Frame} out={void} />
 

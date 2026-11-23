@@ -1,33 +1,38 @@
 import bytes from "std:bytes"
+import { readGenerationFileDigest } from "generation_host"
 import memory from "memory"
 
-import { digest_width } from "./const"
 import writeText from "./text_pair"
 
-import type { Records, Writers } from "./model"
+import type { Writers } from "./model"
+import type { ModuleRows } from "./output_shape"
 
 export type Input = {
     writers: Writers,
-    rows: Records
+    rows: ModuleRows
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { rows, writers } = in
+    const { writers } = in
+    const { cache, rows, target } = in.rows
 
     const written = loop(0, {
         while: position => position < rows.count,
         next: position => {
+            const path = memory.readTextColumn(rows.paths, position)
+            const source = memory.readTextColumn(rows.sources, position)
+            const digest = readGenerationFileDigest(cache, path, source)
+
             writeText({
                 writers,
-                text: memory.readTextColumn(rows.paths, position)
+                text: path
             })
 
-            const start = rows.offset + position * rows.stride
-            const digest = memory.borrowU8Range(rows.digests, start, digest_width)
-
             bytes.write(writers.frame, digest)
+            memory.writeColumnBytes(target.paths, position, bytes.fromText(path))
+            memory.copyColumnValue(target.digests, position, digest)
 
             position += 1
         }

@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Input} out={Request.Prepared} />
+
+    <Call fn="host.retainGenerationPackages" in={$in.request} />
+    <Call fn="host.classifyGenerationDocuments" in={$in.request} />
+    <Call fn="host.registerGenerationInterfaces" in={$in.request} />
+    <Call fn="host.fingerprintGenerationInputs" in={$in.request} />
+
+    <Return value={$ctx.fingerprintGenerationInputs} />
+</Module>

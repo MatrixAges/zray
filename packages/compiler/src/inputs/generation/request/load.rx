@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Load} out={void} />
+
+    <Loop on={$in.row < $in.load.roots}>
+        <Call
+            module="load_next"
+            in={{
+                load: $in,
+                row: 0
+            }}
+        />
+    </Loop>
+</Module>

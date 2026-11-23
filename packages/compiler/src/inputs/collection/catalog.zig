@@ -69,16 +69,16 @@ pub fn publish(files: []const Document, plan: Plan, output: anytype, packages: a
     const paths = memory.borrowTextColumn("path", files);
     const bodies = memory.borrowTextColumn("text", files);
     const kinds = memory.borrowReadColumn(u8, "kind", files);
-    const source_paths = memory.borrowWriteColumn([]const u8, "path", output.sources);
-    const source_bodies = memory.borrowWriteColumn([]const u8, "source", output.sources);
+    const Input = std.meta.Child(rule.Input);
+    const Text = std.meta.Child(@FieldType(Input, "templates"));
+    const text = .{ .paths = "path", .bodies = "source" };
+    const source_text = memory.borrowWriteFields(text, output.sources);
+    const module_text = memory.borrowWriteFields(text, output.modules);
+    const resource_text = memory.borrowWriteFields(text, output.templates);
     const source_templates = memory.borrowWriteColumn(@TypeOf(templates), "templates", output.sources);
     const source_original = memory.borrowWriteColumn(?[]const u8, "original", output.sources);
     const source_origins = memory.borrowWriteColumn(@TypeOf(origins), "template_origins", output.sources);
-    const module_paths = memory.borrowWriteColumn([]const u8, "path", output.modules);
-    const module_bodies = memory.borrowWriteColumn([]const u8, "source", output.modules);
     const module_packages = memory.borrowWriteColumn(@FieldType(Module, "packages"), "packages", output.modules);
-    const template_paths = memory.borrowWriteColumn([]const u8, "path", output.templates);
-    const template_bodies = memory.borrowWriteColumn([]const u8, "source", output.templates);
     const attached_packages: @FieldType(Module, "packages") = packages;
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
@@ -88,16 +88,16 @@ pub fn publish(files: []const Document, plan: Plan, output: anytype, packages: a
         .kinds = &.{ .rows = @ptrCast(&kinds), .zx = @backingInt(Kind.ZX), .rx = @backingInt(Kind.RX) },
         .ordered = plan.ordered,
         .sources = &.{
-            .text = &.{ .paths = @ptrCast(&source_paths), .bodies = @ptrCast(&source_bodies) },
+            .text = &source_text.bind(Text),
             .templates = @ptrCast(&source_templates),
             .original = @ptrCast(&source_original),
             .origins = @ptrCast(&source_origins),
         },
         .modules = &.{
-            .text = &.{ .paths = @ptrCast(&module_paths), .bodies = @ptrCast(&module_bodies) },
+            .text = &module_text.bind(Text),
             .packages = @ptrCast(&module_packages),
         },
-        .templates = &.{ .paths = @ptrCast(&template_paths), .bodies = @ptrCast(&template_bodies) },
+        .templates = &resource_text.bind(Text),
         .shared = &.{
             .templates = std.mem.asBytes(&templates),
             .packages = std.mem.asBytes(&attached_packages),

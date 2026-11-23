@@ -69,23 +69,16 @@ fn publish(rows: anytype, routes: []Route) void {
         break :block result;
     };
 
-    const paths = memory.borrowTextColumn("path", rows);
+    const source = memory.borrowReadFields(.{ .paths = "path", .services = "service_index" }, rows);
+    const target = memory.borrowWriteFields(.{ .output_paths = "path", .output_methods = "method", .output_services = "service" }, routes);
     const methods = memory.borrowOptionalU8Column("method", rows);
-    const services = memory.borrowReadColumn(u32, "service_index", rows);
-    const output_paths = memory.borrowWriteColumn([]const u8, "path", routes);
-    const output_methods = memory.borrowWriteColumn(?[]const u8, "method", routes);
-    const output_services = memory.borrowWriteColumn(u64, "service", routes);
+    var input: std.meta.Child(rule.Input) = undefined;
 
-    const input: std.meta.Child(rule.Input) = .{
-        .count = rows.len,
-        .paths = @ptrCast(&paths),
-        .methods = @ptrCast(&methods),
-        .services = @ptrCast(&services),
-        .method_names = &names,
-        .output_paths = @ptrCast(&output_paths),
-        .output_methods = @ptrCast(&output_methods),
-        .output_services = @ptrCast(&output_services),
-    };
+    source.fill(&input);
+    target.fill(&input);
+
+    input.methods = @ptrCast(&methods);
+    input.method_names = &names;
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 

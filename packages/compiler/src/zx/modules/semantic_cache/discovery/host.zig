@@ -31,9 +31,9 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
     const native = if (!indexed_header) zx.memory.borrowTextColumn("path", header.program.imports) else undefined;
     const indexed: Indexed = if (indexed_header) .{ .source = header.source, .imports = zx.columns.slice(@FieldType(Indexed, "imports"), header.storage.imports) } else undefined;
     const paths: Paths = .{ .indexed = if (indexed_header) &indexed else null, .native = if (indexed_header) null else @ptrCast(&native) };
-    const standard = Columns.borrow("specifier", &interface.standard);
-    const internal = Columns.borrow("module", project.internal_modules);
-    var scope: Columns = undefined;
+    const standard = columns("specifier", &interface.standard);
+    const internal = columns("module", project.internal_modules);
+    var scope: @TypeOf(standard) = undefined;
     var scope_view: Registry = undefined;
     var keys: [2 * batch_size][]const u8 = undefined;
     const output: [][]const u8 = &keys;
@@ -42,9 +42,9 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
     var request: Input = .{
         .batch = &batch,
         .eligible = null,
-        .standard = &standard.view(Registry),
+        .standard = &registryView(Registry, &standard),
         .scoped = null,
-        .internal = &internal.view(Registry),
+        .internal = &registryView(Registry, &internal),
         .output = @ptrCast(&output),
     };
 
@@ -57,8 +57,8 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
         const count = if (scanned.needs_scope) |mask| resolved: {
             const interfaces = scopes.nativeInterfaces(project.package_scopes, path, project.native_interfaces);
 
-            scope = .borrow("specifier", interfaces);
-            scope_view = scope.view(Registry);
+            scope = columns("specifier", interfaces);
+            scope_view = registryView(Registry, &scope);
             request.scoped = &scope_view;
             request.eligible = mask;
 
@@ -127,26 +127,16 @@ fn eligible(paths: []const []const u8) u64 {
     return mask;
 }
 
-const Columns = struct {
-    names: zx.memory.TextColumn,
-    specifiers: zx.memory.TextColumn,
-    identities: zx.memory.ReadColumn,
-    fn borrow(comptime field: []const u8, rows: []const interface.Native) Columns {
-        const memory = zx.memory;
-        const specifiers = memory.borrowTextColumn("specifier", rows);
+inline fn columns(comptime field: []const u8, rows: []const interface.Native) @TypeOf(zx.memory.borrowReadFields(.{ .names = field, .specifiers = "specifier", .identities = "identity" }, rows)) {
+    return zx.memory.borrowReadFields(.{ .names = field, .specifiers = "specifier", .identities = "identity" }, rows);
+}
 
-        return .{
-            .names = if (comptime std.mem.eql(u8, field, "specifier")) specifiers else memory.borrowTextColumn(field, rows),
-            .specifiers = specifiers,
-            .identities = memory.borrowReadColumn(?[]const u8, "identity", rows),
-        };
-    }
-    fn view(self: *const Columns, comptime View: type) View {
-        return .{
-            .names = @ptrCast(&self.names),
-            .length = self.names.count,
-            .specifiers = @ptrCast(&self.specifiers),
-            .identities = @ptrCast(&self.identities),
-        };
-    }
-};
+inline fn registryView(comptime Registry: type, views: anytype) Registry {
+    var result: Registry = undefined;
+
+    views.fill(&result);
+
+    result.length = views.count;
+
+    return result;
+}

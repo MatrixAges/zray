@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { TextColumn, WriteColumn } from "memory"
+
+export type Fields = {
+    specifiers: TextColumn,
+    entries: TextColumn,
+    count: u64
+}
+
+export type Destination = {
+    specifiers: WriteColumn,
+    entries: WriteColumn
+}
+
+export type Input = {
+    fields: Fields,
+    target: Destination,
+    retain: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { fields, target, retain } = in
+
+    const copied = loop(0, {
+        while: row => row < fields.count,
+        next: row => {
+            const name = memory.readTextColumn(fields.specifiers, row)
+            const entry = memory.readTextColumn(fields.entries, row)
+            const specifier = retain ? memory.copyText(name) : name
+            const path = retain ? memory.copyText(entry) : entry
+
+            memory.writeColumnBytes(
+                target.specifiers,
+                row,
+                bytes.fromText(specifier)
+            )
+            memory.writeColumnBytes(target.entries, row, bytes.fromText(path))
+
+            row += 1
+        }
+    })
+}

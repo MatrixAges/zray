@@ -20,20 +20,17 @@ pub fn group(allocator: std.mem.Allocator, modules: []const ModuleFile) !Groups 
 
 fn split(allocator: std.mem.Allocator, modules: []const ModuleFile, files: []File) !usize {
     const entry = @import("generated_output_inventory");
-    const names = memory.borrowTextColumn("name", modules);
-    const bodies = memory.borrowTextColumn("source", modules);
-    const paths = memory.borrowWriteColumn([]const u8, "path", files);
-    const sources = memory.borrowWriteColumn([]const u8, "source", files);
+    const source = memory.borrowReadFields(.{ .names = "name", .bodies = "source" }, modules);
+    const target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
+    const Input = std.meta.Child(entry.Input);
+    var input: Input = undefined;
 
-    const input: std.meta.Child(entry.Input) = .{
-        .names = @ptrCast(&names),
-        .bodies = @ptrCast(&bodies),
-        .paths = @ptrCast(&paths),
-        .sources = @ptrCast(&sources),
-        .length = modules.len,
-    };
+    source.fill(&input);
+    target.fill(&input);
 
-    return @intCast(try zx.columns.invoke(entry.executeValue, allocator, &input));
+    input.length = modules.len;
+
+    return @intCast(try zx.columns.invoke(entry.executeValue, allocator, @as(*const Input, &input)));
 }
 
 fn seedSplit(modules: []const ModuleFile, files: []File) usize {
@@ -79,24 +76,21 @@ pub fn originals(allocator: std.mem.Allocator, workspace: std.mem.Allocator, fun
     }
 
     const entry = @import("generated_output_originals");
-    const names = memory.borrowTextColumn("path", functions);
-    const bodies = memory.borrowTextColumn("source", functions);
-    const paths = memory.borrowWriteColumn([]const u8, "path", files);
-    const sources = memory.borrowWriteColumn([]const u8, "source", files);
+    const source = memory.borrowReadFields(.{ .names = "path", .bodies = "source" }, functions);
+    const target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
+    const Input = std.meta.Child(entry.Input);
+    var input: Input = undefined;
 
-    const input: std.meta.Child(entry.Input) = .{
-        .names = @ptrCast(&names),
-        .bodies = @ptrCast(&bodies),
-        .paths = @ptrCast(&paths),
-        .sources = @ptrCast(&sources),
-        .length = functions.len,
-        .separator = std.fs.path.sep_str,
-        .function_paths = @ptrCast(&function_paths),
-        .function_names = @ptrCast(&function_names),
-        .function_sizes = @ptrCast(&function_sizes),
-    };
+    source.fill(&input);
+    target.fill(&input);
 
-    try zx.columns.invoke(entry.executeValue, allocator, &input);
+    input.length = functions.len;
+    input.separator = std.fs.path.sep_str;
+    input.function_paths = @ptrCast(&function_paths);
+    input.function_names = @ptrCast(&function_names);
+    input.function_sizes = @ptrCast(&function_sizes);
+
+    try zx.columns.invoke(entry.executeValue, allocator, @as(*const Input, &input));
 
     return inventory;
 }

@@ -360,25 +360,17 @@ const FileColumns = struct {
     const Hash = if (ledger.available) std.meta.Child(@typeInfo(@FieldType(parallel.Request, "hash")).optional.child) else void;
     const View = if (ledger.available) std.meta.Child(@FieldType(Hash, "sections")) else void;
     const Source = if (ledger.available) std.meta.Child(@FieldType(View, "head")) else void;
-
-    head_paths: memory.TextColumn,
-    head_bodies: memory.TextColumn,
-    function_paths: memory.TextColumn,
-    function_bodies: memory.TextColumn,
+    const fields = .{ .paths = "path", .bodies = "source" };
+    const Columns = @TypeOf(memory.borrowReadFields(fields, @as([]const File, &.{})));
+    head_columns: Columns,
+    function_columns: Columns,
     head: Source,
     functions: Source,
     fn bind(self: *FileColumns, files: Files) View {
-        self.* = .{
-            .head_paths = memory.borrowTextColumn("path", files.head),
-            .head_bodies = memory.borrowTextColumn("source", files.head),
-            .function_paths = memory.borrowTextColumn("path", files.functions),
-            .function_bodies = memory.borrowTextColumn("source", files.functions),
-            .head = undefined,
-            .functions = undefined,
-        };
-
-        self.head = .{ .paths = @ptrCast(&self.head_paths), .bodies = @ptrCast(&self.head_bodies), .count = files.head.len };
-        self.functions = .{ .paths = @ptrCast(&self.function_paths), .bodies = @ptrCast(&self.function_bodies), .count = files.functions.len };
+        self.head_columns = memory.borrowReadFields(fields, files.head);
+        self.function_columns = memory.borrowReadFields(fields, files.functions);
+        self.head = self.head_columns.bind(Source);
+        self.functions = self.function_columns.bind(Source);
 
         return .{ .head = &self.head, .functions = &self.functions };
     }

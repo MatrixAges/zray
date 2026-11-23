@@ -26,20 +26,22 @@ pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, funct
     errdefer temporary.free(jobs);
 
     const bodies = memory.borrowTextColumn("source", functions);
-    const destinations = memory.borrowWriteColumn([]const u8, "path", files);
-    const sources = memory.borrowWriteColumn([]const u8, "source", files);
-    const job_destinations = memory.borrowWriteColumn(u64, "destination", jobs);
-    const indices = memory.borrowWriteColumn(u32, "index", jobs);
-    const roots = memory.borrowWriteColumn(bool, "root", jobs);
-    const variants = memory.borrowWriteColumn([]const []const u8, "variants", jobs);
-    const comptime_entries = memory.borrowWriteColumn(bool, "comptime_entry", jobs);
+    const target = memory.borrowWriteFields(.{ .target_paths = "path", .target_sources = "source" }, files);
 
-    const state: State = .{
-        .paths = paths,
-        .bodies = @ptrCast(&bodies),
-        .target_paths = @ptrCast(&destinations),
-        .target_sources = @ptrCast(&sources),
-    };
+    const publications = memory.borrowWriteFields(.{
+        .destinations = "destination",
+        .indices = "index",
+        .roots = "root",
+        .variants = "variants",
+        .comptime_entries = "comptime_entry",
+    }, jobs);
+
+    var state: State = undefined;
+
+    target.fill(&state);
+
+    state.paths = paths;
+    state.bodies = @ptrCast(&bodies);
 
     const counts: std.meta.Child(@FieldType(Input, "placement")) = .{
         .first_stub = plan.placement.first_stub,
@@ -53,13 +55,7 @@ pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, funct
         .members = plan.members,
         .scopes = plan.scopes,
         .placement = &counts,
-        .jobs = &.{
-            .destinations = @ptrCast(&job_destinations),
-            .indices = @ptrCast(&indices),
-            .roots = @ptrCast(&roots),
-            .variants = @ptrCast(&variants),
-            .comptime_entries = @ptrCast(&comptime_entries),
-        },
+        .jobs = &publications.bind(std.meta.Child(@FieldType(Input, "jobs"))),
     };
 
     generated.executeValue(allocator, &input) catch |err| switch (err) {

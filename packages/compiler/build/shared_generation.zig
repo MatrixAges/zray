@@ -151,9 +151,8 @@ fn emit(target: Target, library: *const compiler.library.Result, counts: Counts,
 
     const written = std.Io.Timestamp.now(io, .awake);
 
-    // The generated sources reach the cache directory while Zig compiles the output; written beside the output, the
-    // two sets of files would contend for the file system.
-    cache.startWriting();
+    // One-shot requests flush the cache after releasing the emission arena.
+    if (resident.request != null) cache.startWriting();
 
     return publication.report(target.allocator, .{
         .entries = counts.entries,

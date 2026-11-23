@@ -1,6 +1,7 @@
 import type { Writer } from "std:bytes"
 import type { GenerationFileCache } from "generation_host"
-import type { TextColumn } from "memory"
+import type { TextColumn, WriteColumn } from "memory"
+import type { Writers } from "./model"
 
 export type SourceRows = {
     paths: TextColumn,
@@ -15,4 +16,24 @@ export type OutputFingerprint = {
     cache: GenerationFileCache,
     sources: SourceRows,
     templates: SourceRows
+}
+
+export type DigestOutput = {
+    paths: WriteColumn,
+    digests: WriteColumn
+}
+
+export type ModuleRows = {
+    cache: GenerationFileCache,
+    rows: SourceRows,
+    target: DigestOutput
+}
+
+export type Frame = {
+    writers: Writers,
+    generator: u8[],
+    manifest: string,
+    modules: ModuleRows,
+    interfaces: TextColumn,
+    interface_count: u64
 }

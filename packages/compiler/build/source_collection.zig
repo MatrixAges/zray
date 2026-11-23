@@ -11,12 +11,12 @@ const Error = error{GenerationRequestFailed};
 pub const Document = inputs.catalog.Document;
 pub const Entry = struct { relative: []const u8, path: []const u8, metadata: ?Files.Metadata, text: ?[]const u8, kind: u8, retain: bool };
 
-pub fn collect(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, documents: *std.ArrayList(Document)) !void {
-    try load(io, scratch, allocator, files, root, try scan(io, scratch, allocator, files, root, prefix, false), documents);
+pub fn collect(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: *Files, root: []const u8, prefix: []const u8, documents: *std.ArrayList(Document)) !void {
+    try load(io, scratch, files, root, try scan(io, scratch, allocator, files, root, prefix, false), documents);
 }
 
 /// Lists the input files without reading their contents; `stat` also fills metadata on platforms without bulk stat.
-pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, stat: bool) ![]const Entry {
+pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, files: *Files, root: []const u8, prefix: []const u8, stat: bool) ![]const Entry {
     const directory = try std.Io.Dir.cwd().openDir(io, root, .{});
 
     defer directory.close(io);
@@ -64,7 +64,7 @@ const Scan = struct {
     root: std.Io.Dir,
     owned: std.mem.Allocator,
     paths: std.mem.Allocator,
-    files: ?*Files,
+    files: *Files,
     prefix: []const u8,
     stat: bool,
     arenas: []std.heap.ArenaAllocator,
@@ -196,38 +196,30 @@ pub fn retireGenerationLevel(handle: *const anyopaque, frontier: u8) void {
 const DocumentReader = struct {
     io: std.Io,
     directory: std.Io.Dir,
-    allocator: std.mem.Allocator,
-    files: ?*Files,
+    files: *Files,
     failure: ?anyerror = null,
     fn read(self: *DocumentReader, relative: []const u8, path: []const u8, retain: bool) ![]const u8 {
-        return if (self.files) |kept|
-            kept.read(self.io, self.directory, relative, path, retain)
-        else
-            self.directory.readFileAlloc(self.io, relative, self.allocator, .unlimited);
+        return self.files.read(self.io, self.directory, relative, path, retain);
     }
     fn publish(self: *DocumentReader, entries: []const Entry, target: []Document) !void {
         const rule = @import("generated_load_input_documents");
-        const paths = memory.borrowTextColumn("path", entries);
-        const relatives = memory.borrowTextColumn("relative", entries);
-        const texts = memory.borrowReadColumn(?[]const u8, "text", entries);
-        const kinds = memory.borrowReadColumn(u8, "kind", entries);
-        const retained = memory.borrowReadColumn(bool, "retain", entries);
-        const out_paths = memory.borrowWriteColumn([]const u8, "path", target);
-        const out_texts = memory.borrowWriteColumn([]const u8, "text", target);
-        const out_kinds = memory.borrowWriteColumn(u8, "kind", target);
+        const Input = std.meta.Child(rule.Input);
+
+        const source = memory.borrowReadFields(.{
+            .paths = "path",
+            .relatives = "relative",
+            .texts = "text",
+            .kinds = "kind",
+            .retained = "retain",
+        }, entries);
+
+        const output = memory.borrowWriteFields(.{ .paths = "path", .texts = "text", .kinds = "kind" }, target);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         rule.executeIn(empty.allocator(), &.{
             .reader = @ptrCast(self),
-            .entries = &.{
-                .paths = @ptrCast(&paths),
-                .relatives = @ptrCast(&relatives),
-                .texts = @ptrCast(&texts),
-                .kinds = @ptrCast(&kinds),
-                .retained = @ptrCast(&retained),
-                .count = entries.len,
-            },
-            .output = &.{ .paths = @ptrCast(&out_paths), .texts = @ptrCast(&out_texts), .kinds = @ptrCast(&out_kinds) },
+            .entries = &source.bind(std.meta.Child(@FieldType(Input, "entries"))),
+            .output = &output.bind(std.meta.Child(@FieldType(Input, "output"))),
         }) catch |err| return self.failure orelse err;
     }
 };
@@ -242,14 +234,14 @@ pub fn readGenerationDocument(handle: *const anyopaque, relative: []const u8, pa
     };
 }
 
-pub fn load(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, entries: []const Entry, documents: *std.ArrayList(Document)) !void {
+pub fn load(io: std.Io, scratch: std.mem.Allocator, files: *Files, root: []const u8, entries: []const Entry, documents: *std.ArrayList(Document)) !void {
     const directory = try std.Io.Dir.cwd().openDir(io, root, .{});
 
     defer directory.close(io);
 
     try documents.ensureUnusedCapacity(scratch, entries.len);
 
-    var reader: DocumentReader = .{ .io = io, .directory = directory, .allocator = allocator, .files = files };
+    var reader: DocumentReader = .{ .io = io, .directory = directory, .files = files };
     const target = documents.unusedCapacitySlice()[0..entries.len];
 
     if (comptime generated) {
@@ -291,7 +283,7 @@ const List = struct {
     io: std.Io,
     root: std.Io.Dir,
     prefix: []const u8,
-    files: ?*const Files,
+    files: *const Files,
     directories: []const []const u8,
     listings: []Listing,
     arenas: []std.heap.ArenaAllocator,

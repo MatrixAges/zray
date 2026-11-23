@@ -1,8 +1,10 @@
 export {
     observeGenerationInputs,
-    loadObservedSources,
-    collectGenerationSources,
-    prepareGenerationInputs,
+    loadGenerationRoot,
+    retainGenerationPackages,
+    classifyGenerationDocuments,
+    registerGenerationInterfaces,
+    fingerprintGenerationInputs,
     invalidateGenerationStamp,
     lookupGenerationAnalysis,
     restoreGenerationAnalysis,

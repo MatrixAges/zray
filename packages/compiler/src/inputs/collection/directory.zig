@@ -34,22 +34,21 @@ pub fn file(allocator: std.mem.Allocator, base: []const u8, name: []const u8, pr
     const rule = @import("generated_input_directory_file");
     var storage: [1]File = undefined;
     const output: []File = &storage;
-    const paths = memory.borrowWriteColumn([]const u8, "path", output);
-    const relatives = memory.borrowWriteColumn([]const u8, "relative", output);
-    const lookup = memory.borrowWriteColumn(bool, "lookup", output);
-    const retain = memory.borrowWriteColumn(bool, "retain", output);
+    const Input = std.meta.Child(rule.Input);
+
+    const columns = memory.borrowWriteFields(.{
+        .paths = "path",
+        .relatives = "relative",
+        .lookup = "lookup",
+        .retain = "retain",
+    }, output);
 
     const request: std.meta.Child(rule.Input) = .{
         .prefix = base,
         .name = name,
         .prefix_length = prefix_length,
         .lookup_limit = lookup_limit,
-        .output = &.{
-            .paths = @ptrCast(&paths),
-            .relatives = @ptrCast(&relatives),
-            .lookup = @ptrCast(&lookup),
-            .retain = @ptrCast(&retain),
-        },
+        .output = &columns.bind(std.meta.Child(@FieldType(Input, "output"))),
     };
 
     const selected = try zx.columns.invoke(rule.executeValue, allocator, &request);

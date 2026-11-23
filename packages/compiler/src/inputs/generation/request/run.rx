@@ -17,23 +17,26 @@
         <If on={$ctx.current}>
             <Return value={""} />
         </If>
-
-        <Call fn="host.loadObservedSources" in={$in.request} />
     </If>
 
-    <If on={!$in.write}>
-        <Call fn="host.collectGenerationSources" in={$in.request} />
-    </If>
+    <Call
+        module="load"
+        in={{
+            request: $in.request,
+            roots: $in.roots,
+            observed: $in.write
+        }}
+    />
 
-    <Call fn="host.prepareGenerationInputs" in={$in.request} />
+    <Call module="prepare" in={$in} />
 
     <If on={$in.write}>
-        <If on={$ctx.prepareGenerationInputs.interfaces_loaded}>
+        <If on={$ctx.prepare.interfaces_loaded}>
             <Call
                 fn="current"
                 in={{
                     request: $in.request,
-                    digest: $ctx.prepareGenerationInputs.digest
+                    digest: $ctx.prepare.digest
                 }}
             />
 
@@ -51,7 +54,7 @@
         module="analyze"
         in={{
             request: $in.request,
-            interfaces_loaded: $ctx.prepareGenerationInputs.interfaces_loaded
+            interfaces_loaded: $ctx.prepare.interfaces_loaded
         }}
     />
 
