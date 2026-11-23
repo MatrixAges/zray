@@ -1,6 +1,6 @@
 const zx = @import("zx");
 const Graph = @import("../../types.zig");
-const Base = @import("../../assignment/base.zig");
+const Base = @import("../../assignment/seed/base.zig");
 const Sequence = @import("../../sequences.zig").Sequence;
 
 pub fn apply(graph: *Graph, base: Base) zx.Error!bool {

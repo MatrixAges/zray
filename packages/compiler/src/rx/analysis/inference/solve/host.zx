@@ -7,8 +7,6 @@ export {
     solveSequences,
     solveConstructions,
     solveSelections,
-    solveAssignmentClasses,
-    solveSequenceDefaults,
-    solveMaterializeAssignments,
+    refreshSolverAssignments,
     solveValidateAssignments
 } from "rx_project_host"

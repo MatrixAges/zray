@@ -1,0 +1,88 @@
+<Module>
+    <Type from="../round" as="Assignments" />
+    <Type from="../../depth/model" as="Depth" />
+
+    <Args in={Assignments.Request} out={bool} />
+
+    <Call fn="../host.assignmentRevision" in={$in.frame} />
+    <Call fn="../host.reserveAssignmentDepths" in={$in.frame} />
+
+    <Call
+        module="../../depth/solve"
+        in={{
+            graph: {
+                nodes: $in.nodes,
+                arguments: $in.view.graph.arguments,
+                types: $in.view.graph.types
+            },
+            assignments: $in.rows.edges,
+            write: $in.rows.write,
+            parents: $in.view.parents,
+            lower: {
+                values: $ctx.reserveAssignmentDepths,
+                output: $in.bounds.depths
+            }
+        }}
+    />
+
+    <If on={$ctx.solve.issue != Depth.Issue.None}>
+        <Call
+            fn="reject"
+            in={{
+                owner: $in.owner,
+                node_spans: $in.node_spans,
+                spans: $in.rows.spans,
+                edges: $in.rows.edges.left.length,
+                issue: $ctx.solve
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../deferred_plan"
+        in={{
+            resolved: $in.indexes.resolved,
+            nodes: $in.nodes.kinds.length
+        }}
+    />
+
+    <Call
+        fn="../host.reserveDeferredAssignments"
+        in={[
+            $in.frame,
+            $ctx.deferred_plan.words
+        ]}
+    />
+
+    <Call
+        module="run"
+        in={{
+            frame: $in.frame,
+            views: {
+                nodes: $in.nodes,
+                depths: $ctx.reserveAssignmentDepths,
+                deferred: $ctx.reserveDeferredAssignments,
+                classes: $in.classes.pick([
+                    "groups",
+                    "representatives"
+                ]),
+                parents: $in.view.parents
+            },
+            indexes: {
+                ...$in.indexes,
+                words: $in.bounds.deferred,
+                first: $ctx.deferred_plan.first
+            }
+        }}
+    />
+
+    <Call
+        fn="../host.readU64"
+        in={[
+            $in.revision,
+            0
+        ]}
+    />
+
+    <Return value={$ctx.readU64 != $ctx.assignmentRevision} />
+</Module>

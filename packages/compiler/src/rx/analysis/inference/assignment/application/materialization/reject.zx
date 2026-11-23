@@ -1,0 +1,40 @@
+import integers from "std:integer"
+
+import { rejectProjection } from "../../../projections/host"
+import { Issue } from "../../depth/model"
+import {
+    incompatible_optional,
+    optional_to_required,
+    recursive_optional
+} from "../const"
+
+import type { ProjectionGraph, ProjectionSpans } from "rx_project_host"
+import type { Output as IssueSite } from "../../depth/model"
+
+export type Input = {
+    owner: ProjectionGraph,
+    node_spans: ProjectionSpans,
+    spans: ProjectionSpans,
+    edges: u64,
+    issue: IssueSite
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { owner, node_spans, spans, edges, issue } = in
+
+    const message = match issue.issue {
+        Issue.Bounds => incompatible_optional,
+        Issue.OptionalToRequired => optional_to_required,
+        _ => recursive_optional
+    }
+
+    if (issue.node != null) {
+        rejectProjection(owner, node_spans, integers.widen(issue.node), message)
+    } else if (edges == 0) {
+        rejectProjection(owner, node_spans, 0, message)
+    } else {
+        rejectProjection(owner, spans, issue.position, message)
+    }
+}

@@ -24,6 +24,10 @@ pub fn rejectProjection(handle: *const anyopaque, spans: *const anyopaque, row: 
     return graph(handle).reporter.fail(.type_mismatch, span(spans, row), message);
 }
 
+pub fn rejectUnsupportedProjection(handle: *const anyopaque, spans: *const anyopaque, row: u64, message: []const u8) zx.Error!void {
+    return graph(handle).reporter.fail(.unsupported, span(spans, row), message);
+}
+
 pub fn requireProjectionList(handle: *const anyopaque, spans: *const anyopaque, row: u64, target: u32) zx.Error!u32 {
     return @backingInt(try graph(handle).payload(@fromBackingInt(target), .list, span(spans, row)));
 }

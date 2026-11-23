@@ -1,0 +1,26 @@
+import { rejectProjection, rejectUnsupportedProjection } from "../../projections/host"
+import { depth_error, recursive_sequence } from "./const"
+import { Route } from "./model"
+
+import type { Request } from "../../assignment/application/round"
+import type { Output as Plan } from "./model"
+
+export type Input = {
+    request: Request,
+    plan: Plan
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { request, plan } = in
+
+    const owner = request.owner
+    const spans = request.sequences.spans
+
+    if (plan.route == Route.Depth) {
+        rejectUnsupportedProjection(owner, spans, plan.position, depth_error)
+    } else {
+        rejectProjection(owner, spans, plan.position, recursive_sequence)
+    }
+}

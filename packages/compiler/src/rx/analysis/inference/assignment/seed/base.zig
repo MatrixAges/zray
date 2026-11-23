@@ -1,49 +1,11 @@
 const std = @import("std");
 const zx = @import("zx");
-const Graph = @import("../types.zig");
-const Payloads = @import("classes/payloads.zig");
+const Graph = @import("../../types.zig");
 const Self = @This();
 
 parents: []const u32,
 representatives: []const ?u32,
-
-payloads: Payloads.Columns = .{},
 pub fn init(graph: *Graph, allocator: std.mem.Allocator) zx.Error!Self {
-    return if (@import("rx_options").generated_graph)
-        build(graph, allocator)
-    else
-        seed(graph, allocator);
-}
-
-fn build(graph: *Graph, allocator: std.mem.Allocator) zx.Error!Self {
-    const generated = @import("generated_assignment_classes");
-    const payloads = try Payloads.collect(graph, allocator);
-    const rows = graph.nodes.slice();
-    const edges = graph.pending.assignments.slice();
-    const parents = try allocator.alloc(u32, rows.len);
-    const representatives = try allocator.alloc(?u32, rows.len);
-    const ranks = try allocator.alloc(u8, rows.len);
-
-    defer allocator.free(ranks);
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    generated.executeValue(empty.allocator(), &.{
-        .payloads = &.{ .initial = payloads.initial, .registered = payloads.registered },
-        .nodes = &.{ .kinds = rows.items(.kind), .allowed = rows.items(.allowed) },
-        .edges = &.{ .left = @ptrCast(edges.items(.value)), .right = @ptrCast(edges.items(.expected)) },
-        .storage = &.{ .parents = @ptrCast(&parents), .ranks = @ptrCast(&ranks), .representatives = @ptrCast(&representatives) },
-        .parents = parents,
-        .ranks = ranks,
-    }) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    return .{ .parents = parents, .representatives = representatives, .payloads = payloads };
-}
-
-fn seed(graph: *Graph, allocator: std.mem.Allocator) zx.Error!Self {
     var index: usize = 0;
 
     while (index < graph.nodes.len) : (index += 1) _ = try payload(graph, @fromBackingInt(@intCast(index)));
@@ -106,12 +68,6 @@ fn lookup(self: Self, index: usize) ?Graph.Id {
 /// Unifies every root with its class representative in one pass instead of one pair per rebuilt base. A
 /// representative whose payload changed during the pass waits for the next round's fresh base.
 pub fn propagate(self: Self, graph: *Graph) zx.Error!void {
-    if (!@import("rx_options").generated_graph) return self.seedPropagate(graph);
-
-    return @import("application/host.zig").propagate(graph, self);
-}
-
-fn seedPropagate(self: Self, graph: *Graph) zx.Error!void {
     for (0..self.parents.len) |index| {
         const id: Graph.Id = @fromBackingInt(@intCast(index));
 
@@ -130,4 +86,4 @@ fn seedPropagate(self: Self, graph: *Graph) zx.Error!void {
     }
 }
 
-pub const payload = @import("../optional.zig").payload;
+pub const payload = @import("../../optional.zig").payload;

@@ -1,18 +1,14 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
-pub const Base = @import("assignment/base.zig");
+pub const Base = @import("assignment/seed/base.zig");
 pub const validate = @import("assignment/validation.zig").validate;
 pub const Edge = struct { value: Graph.Id, expected: Graph.Id, span: zx.Span, key: u64 = 0 };
 
-pub fn materialize(graph: *Graph, base: Base, scratch: std.mem.Allocator) zx.Error!void {
-    if (!@import("rx_options").generated_graph) {
-        const depths = try @import("assignment/depth/seed.zig").solve(graph, scratch);
+pub fn materializeSeed(graph: *Graph, base: Base, scratch: std.mem.Allocator) zx.Error!void {
+    const depths = try @import("assignment/depth/seed.zig").solve(graph, scratch);
 
-        return seedMaterialize(graph, base, depths);
-    }
-
-    return @import("assignment/application/materialization/host.zig").run(graph, base, scratch);
+    return seedMaterialize(graph, base, depths);
 }
 
 fn seedMaterialize(graph: *Graph, base: Base, depths: []const u64) zx.Error!void {
@@ -32,7 +28,7 @@ fn seedMaterialize(graph: *Graph, base: Base, depths: []const u64) zx.Error!void
     }
 }
 
-pub fn apply(graph: *Graph, index: usize, payload: Graph.Id, depth: u64) zx.Error!void {
+fn apply(graph: *Graph, index: usize, payload: Graph.Id, depth: u64) zx.Error!void {
     const span = graph.nodes.items(.span)[index];
     const count = std.math.cast(usize, depth) orelse return error.OutOfMemory;
     const value = try graph.addContainers(payload, .optional, count, span);

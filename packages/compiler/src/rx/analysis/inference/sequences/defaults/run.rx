@@ -1,0 +1,65 @@
+<Module>
+    <Type from="../../assignment/application/round" as="Assignments" />
+    <Type from="model" as="Sequences" />
+
+    <Args in={Assignments.Request} out={bool} />
+
+    <If on={$in.sequences.sequence.values.length == 0}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="../../assignment/classes/payload_columns"
+        in={$in.payloads.omit(["active"])}
+    />
+
+    <Call
+        module="choose"
+        in={{
+            graph: {
+                parents: $in.view.parents,
+                kinds: $in.view.graph.kinds,
+                arguments: $in.view.graph.arguments,
+                members: $in.sequences.members
+            },
+            classes: {
+                ...$ctx.payload_columns,
+                ...$in.classes.pick([
+                    "groups",
+                    "representatives"
+                ])
+            },
+            sequences: $in.sequences.sequence
+        }}
+    />
+
+    <Switch on={$ctx.choose.route}>
+        <Case value={Sequences.Route.Empty}>
+            <Return value={false} />
+        </Case>
+
+        <Case value={Sequences.Route.Select}>
+            <Call
+                fn="../../projections/host.requireProjectionList"
+                in={[
+                    $in.owner,
+                    $in.sequences.spans,
+                    $ctx.choose.position,
+                    $in.sequences.sequence.values[$ctx.choose.position]
+                ]}
+            />
+        </Case>
+
+        <Default>
+            <Call
+                fn="reject"
+                in={{
+                    request: $in,
+                    plan: $ctx.choose
+                }}
+            />
+        </Default>
+    </Switch>
+
+    <Return value={true} />
+</Module>

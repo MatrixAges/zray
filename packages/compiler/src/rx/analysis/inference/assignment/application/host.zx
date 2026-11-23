@@ -1,4 +1,11 @@
+export { resetArenaRetainingCapacity, readU64 } from "memory"
 export {
+    assignmentRevision,
+    reserveAssignmentClasses,
+    releaseAssignmentRanks,
+    reserveAssignmentDepths,
+    reserveDeferredAssignments,
+    reserveAssignmentOptional,
     registerAssignmentPayload,
     remainingAssignmentDepth,
     rejectAssignmentDepth,

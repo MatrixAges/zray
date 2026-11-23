@@ -17,7 +17,6 @@ pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
     if (comptime @import("rx_options").generated_graph) {
         const workflow = @import("../project/workflow/errors.zig");
         const rule = @import("generated_rx_run_constraint_solver");
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
         const input: std.meta.Child(rule.Input) = .{
             .frame = @ptrCast(&frame),
@@ -25,9 +24,13 @@ pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
             .non_null = &frame.non_null.view,
             .lengths = &frame.projections.lengths,
             .indexes = &frame.projections.indexes,
+            .assignments = &frame.assignments.view,
         };
 
-        return rule.executeIn(scratch.allocator(), &input) catch |err| workflow.errorSet(err);
+        return rule.executeIn(frame.workspace.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+            else => workflow.errorSet(err),
+        };
     }
 
     return @import("solve/seed.zig").run(&frame);

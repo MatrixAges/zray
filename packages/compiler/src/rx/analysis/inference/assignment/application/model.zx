@@ -1,20 +1,9 @@
 import type { U32Buffer } from "memory"
-import type { Input as DepthInput, Output as DepthResult } from "../depth/model"
 import type { ClassLookup, Nodes } from "../model"
-
-export type Preparation = {
-    depth: DepthInput,
-    resolved_indexes: bool[]
-}
 
 export type Deferred = {
     first: u64,
     words: u64
-}
-
-export type Prepared = {
-    depth: DepthResult,
-    deferred: Deferred
 }
 
 export type Materialization = {

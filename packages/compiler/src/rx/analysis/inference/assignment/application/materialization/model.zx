@@ -1,5 +1,5 @@
 import type { U64Buffer } from "memory"
-import type { AssignmentMaterialization } from "rx_project_host"
+import type { AssignmentApplication } from "rx_project_host"
 import type { Materialization } from "../model"
 
 export type Indexes = {
@@ -10,7 +10,7 @@ export type Indexes = {
 }
 
 export type Request = {
-    frame: AssignmentMaterialization,
+    frame: AssignmentApplication,
     views: Materialization.Omit("next"),
     indexes: Indexes
 }

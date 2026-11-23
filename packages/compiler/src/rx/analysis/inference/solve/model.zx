@@ -1,4 +1,5 @@
 import type { ConstraintRound } from "rx_project_host"
+import type { Request as Assignments } from "../assignment/application/round"
 import type { View } from "../bindings/workflow"
 import type { Replay as Indexes } from "../index/workflow"
 import type { View as NonNull } from "../non_null/model"
@@ -11,7 +12,8 @@ export type Request = {
     bindings: View,
     non_null: NonNull,
     lengths: Lengths,
-    indexes: Indexes
+    indexes: Indexes,
+    assignments: Assignments
 }
 
 export type Round = {

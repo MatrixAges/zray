@@ -13,12 +13,21 @@
 
     <If on={$ctx.materialize.payload != null}>
         <Call
-            fn="host.materializeAssignment"
+            fn="../host.reserveAssignmentOptional"
             in={[
                 $in.request.frame,
                 $ctx.materialize.node,
                 $ctx.materialize.payload,
                 $ctx.materialize.layers
+            ]}
+        />
+
+        <Call
+            fn="../host.mergeAssignmentClass"
+            in={[
+                $in.request.frame,
+                $ctx.materialize.next - 1,
+                $ctx.reserveAssignmentOptional
             ]}
         />
     </If>

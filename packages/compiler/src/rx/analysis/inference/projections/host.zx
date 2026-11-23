@@ -3,6 +3,7 @@ export {
     registerProjectionType,
     mergeProjection,
     rejectProjection,
+    rejectUnsupportedProjection,
     requireProjectionList,
     readOpenLength
 } from "rx_project_host"

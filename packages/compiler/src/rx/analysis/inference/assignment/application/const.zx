@@ -1,1 +1,9 @@
 export const unsigned_word_bits: u64 = 64
+
+export const incompatible_optional: string = "incompatible optional input requirements"
+
+export const optional_to_required: string =
+    "optional input cannot satisfy a non-optional requirement"
+
+export const recursive_optional: string =
+    "inference would require a recursive optional type"

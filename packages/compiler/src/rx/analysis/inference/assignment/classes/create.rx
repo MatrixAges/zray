@@ -1,0 +1,38 @@
+<Module>
+    <Type from="request" as="Classes" />
+
+    <Args in={Classes.Input} out={void} />
+
+    <Call
+        module="payload/run"
+        in={{
+            frame: $in.frame,
+            view: $in.view,
+            payloads: $in.payloads.active
+        }}
+    />
+
+    <Call fn="../application/host.reserveAssignmentClasses" in={$in.frame} />
+
+    <Call
+        fn="payload_columns"
+        in={{
+            initial: $in.payloads.initial,
+            registered: $in.payloads.registered
+        }}
+    />
+
+    <Call
+        module="build"
+        in={{
+            payloads: $ctx.payload_columns,
+            nodes: $in.nodes,
+            edges: $in.rows.edges,
+            storage: $in.classes.storage,
+            parents: $in.classes.groups,
+            ranks: $in.classes.ranks
+        }}
+    />
+
+    <Call fn="../application/host.releaseAssignmentRanks" in={$in.frame} />
+</Module>

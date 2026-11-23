@@ -1,0 +1,15 @@
+import memory from "memory"
+
+import type { PayloadStorage } from "../application/round"
+import type { Payloads } from "../model"
+
+export type Input = PayloadStorage.Omit("active")
+
+export type Output = Payloads
+
+export default function (in: Input): Output {
+    return {
+        initial: memory.u32Views(in.initial),
+        registered: memory.u32Views(in.registered)
+    }
+}

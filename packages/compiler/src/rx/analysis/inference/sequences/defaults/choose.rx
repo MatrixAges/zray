@@ -36,7 +36,12 @@
             }}
         />
 
-        <Return value={$ctx.flat} />
+        <Return
+            value={{
+                route: $ctx.flat.route,
+                position: $ctx.flat.position
+            }}
+        />
     </If>
 
     <Call

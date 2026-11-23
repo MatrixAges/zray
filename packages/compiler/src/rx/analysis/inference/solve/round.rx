@@ -9,9 +9,9 @@
         <Return value={$in} />
     </If>
 
-    <Call module="defaults" in={$in.request} />
+    <Call module="infer_defaults" in={$in.request} />
 
-    <If on={$ctx.defaults}>
+    <If on={$ctx.infer_defaults}>
         <Return value={$in} />
     </If>
 

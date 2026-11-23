@@ -14,8 +14,6 @@ export type AssignmentValidation = opaque
 
 export type AssignmentApplication = opaque
 
-export type AssignmentMaterialization = opaque
-
 export type AssignmentRegistration = opaque
 
 export type ScopeRegistration = opaque
@@ -549,14 +547,7 @@ export declare function solveConstructions(state: ConstraintRound, final: bool):
 export declare function solveSelections(state: ConstraintRound, final: bool): bool
     throws { OutOfMemory, InvalidSource }
 
-export declare function solveAssignmentClasses(state: ConstraintRound): bool
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveSequenceDefaults(state: ConstraintRound): bool
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveMaterializeAssignments(state: ConstraintRound): bool
-    throws { OutOfMemory, InvalidSource }
+export declare function refreshSolverAssignments(frame: ConstraintRound): void
 
 export declare function solveValidateAssignments(state: ConstraintRound): void
     throws { OutOfMemory, InvalidSource }
@@ -591,6 +582,28 @@ export declare function resolveAssignmentEndpoint(frame: AssignmentValidation, n
 export declare function rejectAssignmentEdge(frame: AssignmentValidation, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
+export declare function assignmentRevision(frame: AssignmentApplication): u64
+
+export declare function reserveAssignmentClasses(frame: AssignmentApplication): void
+    throws { OutOfMemory }
+
+export declare function releaseAssignmentRanks(frame: AssignmentApplication): void
+
+export declare function reserveAssignmentDepths(frame: AssignmentApplication): u64[]
+    throws { OutOfMemory }
+
+export declare function reserveDeferredAssignments(
+    frame: AssignmentApplication,
+    words: u64
+): u64[] throws { OutOfMemory }
+
+export declare function reserveAssignmentOptional(
+    frame: AssignmentApplication,
+    node: u32,
+    payload: u32,
+    layers: u64
+): u32 throws { OutOfMemory, InvalidSource }
+
 export declare function beginInitialAssignmentPayloads(frame: AssignmentApplication): u64
     throws { OutOfMemory }
 
@@ -613,13 +626,6 @@ export declare function rejectAssignmentDepth(frame: AssignmentApplication, node
 
 export declare function mergeAssignmentClass(frame: AssignmentApplication, row: u64, other: u32): void
     throws { OutOfMemory, InvalidSource }
-
-export declare function materializeAssignment(
-    frame: AssignmentMaterialization,
-    node: u32,
-    payload: u32,
-    layers: u64
-): void throws { OutOfMemory, InvalidSource }
 
 export declare function reserveKnownNodes(frame: KnownRegistration): void throws { OutOfMemory }
 
@@ -862,6 +868,13 @@ export declare function readOpenLength(
 ): u32 throws { OutOfMemory, InvalidSource }
 
 export declare function rejectProjection(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
+    row: u64,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectUnsupportedProjection(
     graph: ProjectionGraph,
     spans: ProjectionSpans,
     row: u64,

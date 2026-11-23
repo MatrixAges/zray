@@ -1,0 +1,60 @@
+import type { Arena, U32Buffer, U64Buffer } from "memory"
+import type {
+    AssignmentApplication,
+    ProjectionGraph,
+    ProjectionSpans
+} from "rx_project_host"
+import type { Sequences } from "../../sequences/defaults/model"
+import type { Storage } from "../classes/model"
+import type { AssignmentRows } from "../depth/model"
+import type { ClassLookup, Edges, Nodes } from "../model"
+import type { View } from "./merge"
+
+export type ClassStorage = ClassLookup & {
+    storage: Storage,
+    ranks: u8[]
+}
+
+export type PayloadStorage = {
+    active: U32Buffer,
+    initial: U32Buffer,
+    registered: U32Buffer
+}
+
+export type Rows = {
+    edges: Edges,
+    write: AssignmentRows,
+    spans: ProjectionSpans
+}
+
+export type SequencesView = {
+    sequence: Sequences,
+    members: u32[][],
+    spans: ProjectionSpans
+}
+
+export type Indexes = {
+    values: u32[],
+    resolved: bool[]
+}
+
+export type Bounds = {
+    depths: U64Buffer,
+    deferred: U64Buffer
+}
+
+export type Request = {
+    frame: AssignmentApplication,
+    owner: ProjectionGraph,
+    arena: Arena,
+    view: View,
+    nodes: Nodes,
+    classes: ClassStorage,
+    rows: Rows,
+    payloads: PayloadStorage,
+    sequences: SequencesView,
+    indexes: Indexes,
+    bounds: Bounds,
+    node_spans: ProjectionSpans,
+    revision: U64Buffer
+}

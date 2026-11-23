@@ -1,4 +1,6 @@
 const zx = @import("zx");
+const Assignment = @import("../assignment.zig");
+const defaults = @import("../sequences/defaults/seed.zig");
 const host = @import("host.zig");
 const bindings = @import("../bindings.zig");
 const non_null = @import("../non_null.zig");
@@ -20,9 +22,16 @@ pub fn run(frame: *host.Frame) zx.Error!void {
         try lengths.replay(frame.graph);
         try indexes.replay(frame.graph);
         if (frame.graph.revision != revision) continue;
-        if (try host.solveAssignmentClasses(frame)) continue;
-        if (try host.solveSequenceDefaults(frame)) continue;
-        if (try host.solveMaterializeAssignments(frame)) continue;
+
+        _ = frame.workspace.reset(.retain_capacity);
+        const allocator = frame.workspace.allocator();
+        const classes = try Assignment.Base.init(frame.graph, allocator);
+
+        try classes.propagate(frame.graph);
+        if (frame.graph.revision != revision) continue;
+        if (try defaults.apply(frame.graph, classes)) continue;
+        try Assignment.materializeSeed(frame.graph, classes, allocator);
+        if (frame.graph.revision != revision) continue;
         if (try indexes.defaultLists(frame.graph)) continue;
 
         const final_revision = frame.graph.revision;

@@ -1,0 +1,54 @@
+<Module>
+    <Type from="round" as="Assignments" />
+
+    <Args in={Assignments.Request} out={bool} />
+
+    <Call fn="host.resetArenaRetainingCapacity" in={$in.arena} />
+    <Call fn="host.assignmentRevision" in={$in.frame} />
+
+    <Call
+        module="../classes/create"
+        in={$in.pick([
+            "frame",
+            "view",
+            "nodes",
+            "classes",
+            "rows",
+            "payloads"
+        ])}
+    />
+
+    <Call
+        module="propagate"
+        in={{
+            frame: $in.frame,
+            view: $in.view,
+            classes: $in.classes.pick([
+                "groups",
+                "representatives"
+            ])
+        }}
+    />
+
+    <Call
+        fn="host.readU64"
+        in={[
+            $in.revision,
+            0
+        ]}
+    />
+
+    <If on={$ctx.readU64 != $ctx.assignmentRevision}>
+        <Return value={true} />
+    </If>
+
+    <Call module="../../sequences/defaults/run" in={$in} />
+
+    <If on={$ctx.run}>
+        <Return value={true} />
+    </If>
+
+    <Call module="materialization/materialize" in={$in} />
+
+    <Return value={$ctx.materialize} />
+</Module>
