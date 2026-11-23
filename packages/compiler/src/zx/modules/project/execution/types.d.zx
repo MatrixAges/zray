@@ -18,6 +18,8 @@ export type ProjectExternalBindings = opaque
 
 export type InterfaceTypes = opaque
 
+export type ResolvedNames = opaque
+
 export type CompiledImport = opaque
 
 export type CompiledUnit = opaque

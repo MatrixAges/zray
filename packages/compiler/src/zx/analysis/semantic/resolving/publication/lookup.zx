@@ -1,0 +1,42 @@
+import probe from "core/bytes/index/borrowed/probe"
+import memory from "memory"
+
+import type { Index } from "./model"
+
+export type Input = {
+    names: string[],
+    index: Index,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { names, index, name } = in
+
+    const capacity = memory.u32Views(index.buckets).length
+
+    if (capacity == 0) {
+        return loop({
+            row: 0,
+            found: false
+        }, {
+            while: state => !state.found && state.row < names.length,
+            next: state => {
+                state.found = names[state.row] == name
+                state.row += 1
+            },
+            return: state => state.found ? state.row - 1 : null
+        })
+    }
+
+    const result = probe({
+        ...index,
+        text: name,
+        capacity
+    })
+
+    const entry = result.entry
+
+    return entry == 0 ? null : entry - 1
+}

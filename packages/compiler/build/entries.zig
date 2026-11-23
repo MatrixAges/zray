@@ -1062,6 +1062,8 @@ pub const execution = [_]Entry{
     .{ .path = "zx/modules/project/execution/legacy/publish.zx", .name = "project_publish_external" },
     .{ .path = "zx/modules/project/execution/native/register.rx", .name = "project_register_native" },
     .{ .path = "zx/modules/native/delivery/run.rx", .name = "native_interface_delivery" },
+    .{ .path = "zx/analysis/semantic/resolving/publication/run.rx", .name = "type_resolution_publication" },
+    .{ .path = "zx/analysis/semantic/resolving/publication/lookup.zx", .name = "resolved_name_lookup" },
     .{ .path = "zx/modules/external/delivery/run.rx", .name = "external_interface_delivery" },
     .{ .path = "zx/modules/semantic_cache/using_native/load.rx", .name = "semantic_cache_load_native" },
     .{ .path = "zx/modules/semantic_cache/slot/install.rx", .name = "semantic_cache_install_entry" },

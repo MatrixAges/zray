@@ -22,6 +22,7 @@ pub const Interface = struct {
     delta: *const Table,
     bindings: *const Bindings,
     native_owner: ?[]const u8 = null,
+    shared_origin: bool = false,
     pub fn init(allocator: std.mem.Allocator, types: *ir.TypeStorage, origins: ?*Origins.Storage, delta: anytype, bindings: anytype) Interface {
         return .{
             .allocator = allocator,
@@ -44,6 +45,7 @@ pub fn publishInterfaceTypes(handle: *const anyopaque) std.mem.Allocator.Error!v
         .origins = interface.origins,
         .offsets = &base,
         .native_owner = interface.native_owner,
+        .text_mode = if (interface.shared_origin) .OwnSharedOrigin else .Own,
     }, zx.columns.view(ir.TypeTable, interface.delta), interface.bindings.*, {});
 }
 

@@ -9,6 +9,7 @@ import {
     completed_owners
 } from "./const"
 import { TextMode } from "./model"
+import repeat from "./repeat_origin"
 
 import type { Text } from "./model"
 
@@ -19,7 +20,7 @@ export type Output = void
 export default function (in: Input): Output {
     const { delta, origins, target, nominal, text_mode, progress, payload } = in
 
-    if (text_mode == TextMode.Own) {
+    if (text_mode == TextMode.Own || text_mode == TextMode.OwnSharedOrigin) {
         into({
             allocator: payload,
             target: target.labels,
@@ -45,16 +46,42 @@ export default function (in: Input): Output {
         memory.writeU64(progress, 0, completed_names)
 
         const owner = in.native_owner
+        const count = origins.ids.length
 
         if (owner != null) {
-            const written = loop(0, {
-                while: row => row < origins.ids.length,
-                next: row => {
-                    memory.writeString(nominal.owners, row, owner)
-                    memory.writeString(nominal.members, row, "")
-                    row += 1
-                }
+            repeat({
+                target: nominal.owners,
+                count,
+                text: owner
             })
+
+            repeat({
+                target: nominal.members,
+                count,
+                text: ""
+            })
+
+            return
+        }
+
+        if (text_mode == TextMode.OwnSharedOrigin) {
+            if (count != 0) {
+                repeat({
+                    target: nominal.owners,
+                    count,
+                    text: memory.copyColumnText(payload, origins.owners[0])
+                })
+
+                memory.writeU64(progress, 0, completed_owners)
+
+                repeat({
+                    target: nominal.members,
+                    count,
+                    text: memory.copyColumnText(payload, origins.members[0])
+                })
+
+                memory.writeU64(progress, 0, completed_members)
+            }
 
             return
         }

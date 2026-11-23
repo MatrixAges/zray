@@ -56,6 +56,18 @@ export default function (in: Input): Output {
         })
     }
 
+    if (text_mode == TextMode.OwnSharedOrigin) {
+        if (completed >= completed_owners) {
+            memory.freeOwnedText(payload, memory.stringViews(nominal.owners)[0])
+        }
+
+        if (completed >= completed_members) {
+            memory.freeOwnedText(payload, memory.stringViews(nominal.members)[0])
+        }
+
+        return
+    }
+
     if (completed >= completed_owners) {
         releaseSlots({
             allocator: payload,

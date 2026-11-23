@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <If on={$in.cache.names.length != 0}>
+        <Call fn="prepare" in={$in.omit(["types"])} />
+    </If>
+
+    <If on={$in.types != null}>
+        <Call
+            fn="../../../../modules/project/execution/index.publishInterfaceTypes"
+            in={$in.types}
+        />
+    </If>
+
+    <If on={$in.cache.names.length != 0}>
+        <Call fn="names" in={$in.omit(["types"])} />
+        <Call fn="host.refreshResolvedNames" in={$in.destination.handle} />
+        <Call fn="index_suffix" in={$in.omit(["types"])} />
+    </If>
+</Module>

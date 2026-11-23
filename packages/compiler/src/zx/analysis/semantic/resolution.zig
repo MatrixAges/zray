@@ -5,6 +5,8 @@ const generated = @import("generated_type_resolution");
 const model = @import("resolving/host/model.zig");
 const Source = @import("resolving/host/source.zig");
 const Origins = @import("../../modules/nominal_origins.zig");
+const publication = @import("merging/commit.zig");
+const Names = @import("resolving/host/names.zig");
 
 pub fn Request(comptime View: type) type {
     return struct {
@@ -28,11 +30,7 @@ pub fn execute(types: *Types, view: anytype, request: Request(@TypeOf(view))) zx
     const Aliases = std.meta.Child(@FieldType(model.Context, "aliases"));
     const aliases = @import("resolving/host/aliases.zig").borrow(types.aliases);
     const alias_view = aliases.view(Aliases);
-
-    const resolved: model.Cache = .{
-        .names = types.resolved.keys(),
-        .ids = @ptrCast(types.resolved.values()),
-    };
+    const resolved = types.resolved.view(model.Cache);
 
     const context: model.Context = .{
         .source = &source.value,
@@ -70,7 +68,14 @@ pub fn execute(types: *Types, view: anytype, request: Request(@TypeOf(view))) zx
         else => unreachable,
     };
 
-    const id: ?zx.ir.TypeId = if (result.publish) try @import("resolving/host/commit.zig").apply(types, result) else null;
+    if (result.publish) {
+        const target = if (types.shared != null and result.origins.ids.len != 0) &types.shared.?.origins.items else null;
+        var transaction = publication.Interface.init(types.allocator, &types.items, target, result.delta, result.origins);
+
+        transaction.shared_origin = target != null;
+
+        try types.resolved.publish(types.allocator, zx.columns.pointer(*const Names.Cache, result.cache), &transaction);
+    }
 
     if (result.diagnostic.message.len != 0) return types.reporter.fail(
         std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable,
@@ -78,5 +83,5 @@ pub fn execute(types: *Types, view: anytype, request: Request(@TypeOf(view))) zx
         try types.allocator.dupe(u8, result.diagnostic.message),
     );
 
-    return id orelse unreachable;
+    return @fromBackingInt(result.id);
 }

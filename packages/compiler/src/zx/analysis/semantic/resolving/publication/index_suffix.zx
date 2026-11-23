@@ -1,0 +1,26 @@
+import refresh from "core/bytes/index/borrowed/refresh"
+import memory from "memory"
+
+import type { Names as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { destination, cache } = in
+    const { index, first, scratch } = destination
+
+    const capacity = memory.u32Views(index.buckets).length
+
+    if (capacity != 0) {
+        const count = first + cache.names.length
+
+        const indexed = refresh({
+            ...index,
+            scratch,
+            count,
+            indexed: first,
+            required: count,
+            capacity
+        })
+    }
+}

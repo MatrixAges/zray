@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import type { StringBuffer } from "memory"
+
+export type Input = {
+    target: StringBuffer,
+    count: u64,
+    text: string
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, count, text } = in
+
+    const repeated = loop(0, {
+        while: row => row < count,
+        next: row => {
+            memory.writeString(target, row, text)
+            row += 1
+        }
+    })
+}

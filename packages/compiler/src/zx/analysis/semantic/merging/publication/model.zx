@@ -13,7 +13,8 @@ import type {
 export enum TextMode {
     Own,
     Borrow,
-    OwnNames
+    OwnNames,
+    OwnSharedOrigin
 }
 
 export type TypeTail = {

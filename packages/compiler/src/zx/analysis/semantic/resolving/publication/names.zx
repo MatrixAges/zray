@@ -1,0 +1,15 @@
+import { publish } from "core/column_ranges"
+import memory from "memory"
+
+import type { Names as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { destination, cache } = in
+
+    memory.copyStringViews(destination.names, cache.names)
+    memory.copyU32s(destination.ids, cache.ids)
+
+    publish(destination.ranges)
+}

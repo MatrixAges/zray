@@ -202,3 +202,5 @@ export declare function appendProjectExternal(
 
 export declare function publishInterfaceTypes(target: InterfaceTypes): void
     throws { OutOfMemory }
+
+export declare function refreshResolvedNames(target: ResolvedNames): void

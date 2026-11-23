@@ -1,0 +1,35 @@
+import type {
+    Allocator,
+    ColumnRanges,
+    StringBuffer,
+    TextColumn,
+    U32Buffer,
+    U32Scratch
+} from "memory"
+import type { InterfaceTypes, ResolvedNames } from "project_host"
+import type { Cache } from "../model"
+
+export type Index = {
+    keys: TextColumn,
+    buckets: U32Buffer
+}
+
+export type Destination = {
+    handle: ResolvedNames,
+    names: StringBuffer,
+    ids: U32Buffer,
+    ranges: ColumnRanges,
+    index: Index,
+    scratch: U32Scratch,
+    resource: Allocator,
+    first: u64
+}
+
+export type Names = {
+    cache: Cache,
+    destination: Destination
+}
+
+export type Input = Names & {
+    types?: InterfaceTypes
+}

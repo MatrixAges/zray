@@ -140,6 +140,7 @@ pub const appendProjectNativeModule = project_native.appendProjectNativeModule;
 pub const materializeProjectExternal = project_legacy.materializeProjectExternal;
 pub const appendProjectExternal = project_legacy.appendProjectExternal;
 pub const publishInterfaceTypes = @import("analysis/semantic/merging/commit.zig").publishInterfaceTypes;
+pub const refreshResolvedNames = @import("analysis/semantic/resolving/host/names.zig").refreshResolvedNames;
 pub const loadFreshProjectNative = project_native.loadFreshProjectNative;
 pub const loadCachedProjectNative = project_native.loadCachedProjectNative;
 pub const restoreNativeCacheHit = native_cache.restoreNativeCacheHit;
