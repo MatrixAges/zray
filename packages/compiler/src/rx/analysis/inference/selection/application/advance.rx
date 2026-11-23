@@ -33,15 +33,13 @@
     />
 
     <Call
-        fn="../../fields/host.unifyReplayFields"
+        fn="host.unifySelectedObjectField"
         in={[
             $in.request.frame,
             $ctx.target,
             $ctx.replay.source
         ]}
     />
-
-    <Call fn="../../fields/host.refreshObjectReplayFields" in={$in.request.frame} />
 
     <Return
         value={{

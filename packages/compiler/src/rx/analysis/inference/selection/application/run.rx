@@ -1,7 +1,6 @@
 <Module>
     <Type from="model" as="Selection" />
     <Type from="../model" as="Projection" />
-    <Type from="../diagnostic" as="Diagnostic" />
 
     <Args in={Selection.Request} out={void} />
 
@@ -27,26 +26,14 @@
             }}
         />
 
-        <Switch on={$ctx.result}>
-            <Case value={Projection.CoverageResult.InvalidType}>
-                <Call
-                    module="../report"
-                    in={{
-                        frame: $in.frame,
-                        issue: Diagnostic.Issue.InvalidResult
-                    }}
-                />
-            </Case>
-
-            <Case value={Projection.CoverageResult.UnexpectedField}>
-                <Call
-                    module="../report"
-                    in={{
-                        frame: $in.frame,
-                        issue: Diagnostic.Issue.OutsideResult
-                    }}
-                />
-            </Case>
-        </Switch>
+        <If on={$ctx.result != Projection.CoverageResult.Valid}>
+            <Call
+                fn="host.rejectSelectedObjectResult"
+                in={[
+                    $in.frame,
+                    $ctx.result == Projection.CoverageResult.InvalidType
+                ]}
+            />
+        </If>
     </If>
 </Module>
