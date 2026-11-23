@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { ascii_dot } from "core/ascii/const"
+
+import { external_origin } from "./const"
+
+import type { Origin } from "core/type_table/nominal"
+import type { Implementation } from "./model"
+
+export type Input = Implementation.Pick("member", "export_name") & {
+    owner: string
+}
+
+export type Output = Origin
+
+export default function (in: Input): Output {
+    const raw = bytes.fromText(in.member)
+    const dot = bytes.lastIndexOfScalar(raw, ascii_dot)
+    const first: u64 = dot == null ? 0 : dot + 1
+
+    return {
+        kind: external_origin,
+        owner: in.owner,
+        member: in.export_name ?? encoding.sliceBytes(in.member, first, raw.length)
+    }
+}

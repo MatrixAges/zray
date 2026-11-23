@@ -15,7 +15,6 @@ export {
     writeFunctionBody,
     writeForwardedBody
 } from "project_host"
-export { publishInterfaceTypes } from "project_host"
 export {
     analyzeProjectBody,
     materializeProjectFunction,

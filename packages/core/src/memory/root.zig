@@ -272,6 +272,13 @@ pub const ListColumn = rows.ListColumn;
 pub const borrowProjectedText = rows.borrowProjectedText;
 pub const borrowTextColumn = rows.borrowText;
 pub const borrowTextSlice = rows.borrowTextSlice;
+
+pub fn bindTextView(target: *const anyopaque, source: *const anyopaque) void {
+    const view: *TextColumn = @ptrCast(@alignCast(@constCast(target)));
+
+    view.* = borrowTextSlice(stringViews(source));
+}
+
 pub const borrowIndirectTextColumn = rows.borrowIndirectText;
 pub const borrowReadColumn = rows.borrowColumn;
 pub const borrowNestedColumn = rows.borrowNested;

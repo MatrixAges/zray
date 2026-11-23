@@ -9,14 +9,13 @@
 
     <If on={$in.types != null}>
         <Call
-            fn="../../../../modules/project/execution/index.publishInterfaceTypes"
+            module="../../merging/publication/append"
             in={$in.types}
         />
     </If>
 
     <If on={$in.cache.names.length != 0}>
         <Call fn="names" in={$in.omit(["types"])} />
-        <Call fn="host.refreshResolvedNames" in={$in.destination.handle} />
         <Call fn="index_suffix" in={$in.omit(["types"])} />
     </If>
 </Module>

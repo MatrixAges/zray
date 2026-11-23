@@ -1,17 +1,55 @@
 <Module>
     <Type from="model" as="Delivery" />
 
-    <Args in={Delivery.Input} out={void} />
+    <Args in={Delivery.Input} out={Delivery.Output} />
 
-    <If on={$in.publish_types}>
-        <Call fn="../../project/execution/index.publishInterfaceTypes" in={$in.types} />
+    <Call
+        fn="origin"
+        in={{
+            owner: $in.identity ?? $in.implementation.specifier,
+            member: $in.implementation.member,
+            export_name: $in.implementation.export_name
+        }}
+    />
+
+    <Call
+        module="../load"
+        in={{
+            ...$in.analysis,
+            nominal_origin: $ctx.origin,
+            expand_tuple: $in.implementation.expand_tuple,
+            fallible: $in.implementation.fallible,
+            errors: $in.implementation.errors
+        }}
+    />
+
+    <Call
+        fn="index.selectAllocator"
+        in={[
+            $in.scope,
+            $in.payload
+        ]}
+    />
+
+    <If on={$ctx.load.publish}>
+        <Call
+            module="../../../analysis/semantic/merging/publication/append"
+            in={{
+                ...$in.types,
+                delta: $ctx.load.type_delta,
+                origins: $ctx.load.nominal_delta
+            }}
+        />
     </If>
 
-    <If on={$in.valid}>
+    <If on={$ctx.load.diagnostic.message == ""}>
         <Call
             fn="prepare"
             in={{
-                ...$in.record,
+                implementation: $in.implementation,
+                members: $ctx.load.members,
+                input_type: $ctx.load.input_type,
+                output_type: $ctx.load.output_type,
                 resource: $in.destination.text_allocator
             }}
         />
@@ -29,4 +67,12 @@
             }}
         />
     </If>
+
+    <Return
+        value={$ctx.load.pick([
+            "diagnostic",
+            "input_type",
+            "output_type"
+        ])}
+    />
 </Module>

@@ -16,9 +16,7 @@ export type ProjectNativeRegistry = opaque
 
 export type ProjectExternalBindings = opaque
 
-export type InterfaceTypes = opaque
 
-export type ResolvedNames = opaque
 
 export type CompiledImport = opaque
 

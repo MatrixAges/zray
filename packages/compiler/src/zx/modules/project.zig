@@ -453,7 +453,7 @@ pub const Project = struct {
     }
     fn appendExternal(self: *Project, entry: External, span: zx.Span, binding: Interface.Binding, namespace: *?[]const u8, imports: *std.ArrayList(FunctionImport)) zx.Error!void {
         const id = try self.nativeModuleSeed(entry.specifier, entry.identity, entry.implementation.module, span);
-        var imported = try self.loadExternal(entry, id, span);
+        var imported = try self.loadExternalSeed(entry, id, span);
 
         if (namespace.* == null) {
             if (binding.namespace) |name| namespace.* = try self.allocator.dupe(u8, name);
@@ -464,13 +464,11 @@ pub const Project = struct {
 
         try imports.append(self.allocator, imported);
     }
-    pub fn loadExternal(self: *Project, entry: External, module: ir.NativeModuleId, span: zx.Span) zx.Error!FunctionImport {
+    fn loadExternalSeed(self: *Project, entry: External, module: ir.NativeModuleId, span: zx.Span) zx.Error!FunctionImport {
         const shared = @import("../analysis/types.zig").Shared{ .origins = &self.nominal_origins, .origin = .{ .external = .{
             .module = entry.key(),
             .member = entry.exportName(),
         } } };
-
-        if (comptime @import("parser_options").generated_parser) return @import("external/host.zig").load(self.allocator, entry, module, span, &self.types, shared, &self.functions, self.reporter);
 
         const imported = try @import("external.zig").load(self.allocator, entry, module, span, &self.types, shared, self.reporter);
         const id: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));

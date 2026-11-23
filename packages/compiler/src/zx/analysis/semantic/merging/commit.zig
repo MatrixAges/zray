@@ -15,40 +15,6 @@ pub const Error = std.mem.Allocator.Error || error{InvalidModule};
 const Operation = enum { register, publish };
 const Registration = struct { temporary: std.mem.Allocator, preparation: *const Preparation };
 
-pub const Interface = struct {
-    allocator: std.mem.Allocator,
-    types: *ir.TypeStorage,
-    origins: ?*Origins.Storage,
-    delta: *const Table,
-    bindings: *const Bindings,
-    native_owner: ?[]const u8 = null,
-    shared_origin: bool = false,
-    pub fn init(allocator: std.mem.Allocator, types: *ir.TypeStorage, origins: ?*Origins.Storage, delta: anytype, bindings: anytype) Interface {
-        return .{
-            .allocator = allocator,
-            .types = types,
-            .origins = origins,
-            .delta = zx.columns.pointer(*const Table, delta),
-            .bindings = zx.columns.pointer(*const Bindings, bindings),
-        };
-    }
-};
-
-pub fn publishInterfaceTypes(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    const interface: *const Interface = @ptrCast(@alignCast(handle));
-    const base = View.offsets(interface.types);
-
-    try write(.publish, .{
-        .allocator = interface.allocator,
-        .payload = interface.allocator,
-        .types = interface.types,
-        .origins = interface.origins,
-        .offsets = &base,
-        .native_owner = interface.native_owner,
-        .text_mode = if (interface.shared_origin) .OwnSharedOrigin else .Own,
-    }, zx.columns.view(ir.TypeTable, interface.delta), interface.bindings.*, {});
-}
-
 pub fn appendTypes(allocator: std.mem.Allocator, target: *ir.TypeStorage, delta: anytype) std.mem.Allocator.Error!void {
     try append(allocator, target, null, delta, @as(Origins.Table, .{}));
 }

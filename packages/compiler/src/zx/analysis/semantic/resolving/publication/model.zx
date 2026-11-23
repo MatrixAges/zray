@@ -6,7 +6,7 @@ import type {
     U32Buffer,
     U32Scratch
 } from "memory"
-import type { InterfaceTypes, ResolvedNames } from "project_host"
+import type { Input as TypePublication } from "../../merging/publication/model"
 import type { Cache } from "../model"
 
 export type Index = {
@@ -15,7 +15,7 @@ export type Index = {
 }
 
 export type Destination = {
-    handle: ResolvedNames,
+    committed: StringBuffer,
     names: StringBuffer,
     ids: U32Buffer,
     ranges: ColumnRanges,
@@ -31,5 +31,5 @@ export type Names = {
 }
 
 export type Input = Names & {
-    types?: InterfaceTypes
+    types?: TypePublication
 }

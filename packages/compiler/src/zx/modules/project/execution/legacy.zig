@@ -45,10 +45,9 @@ pub fn bind(project: *Project, registry: []const External, first: usize, item: a
 
 pub fn materializeProjectExternal(handle: *const anyopaque, row: u64) zx.Error!void {
     const frame = Frame.borrow(handle);
-    const entry = frame.registry[@intCast(row)];
+    const entry = &frame.registry[@intCast(row)];
     const id = try Native.register(frame.project, entry.specifier, entry.identity, entry.implementation.module, frame.span);
-
-    frame.function = try frame.project.loadExternal(entry, id, frame.span);
+    frame.function = try @import("../../external/host.zig").load(frame.project, entry, id, frame.span);
 }
 
 pub fn appendProjectExternal(handle: *const anyopaque, name: []const u8, namespace: ?[]const u8) std.mem.Allocator.Error!void {

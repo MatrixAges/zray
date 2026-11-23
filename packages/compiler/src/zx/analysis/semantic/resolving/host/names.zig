@@ -7,7 +7,7 @@ const Input = std.meta.Child(publication.Input);
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Index = std.meta.Child(@FieldType(Destination, "index"));
 pub const Cache = std.meta.Child(@FieldType(Input, "cache"));
-const TypePublication = @import("../../merging/commit.zig").Interface;
+pub const TypePublication = std.meta.Child(@typeInfo(@FieldType(Input, "types")).optional.child);
 const Self = @This();
 
 const Columns = struct {
@@ -55,28 +55,17 @@ pub fn put(self: *Self, allocator: std.mem.Allocator, name: []const u8, id: zx.i
     try self.publish(allocator, &.{ .names = &.{name}, .ids = &.{@backingInt(id)} }, null);
 }
 
-const View = struct {
-    names: *Self,
-    keys: memory.TextColumn,
-};
-
-pub fn refreshResolvedNames(handle: *const anyopaque) void {
-    const frame: *View = @ptrCast(@alignCast(@constCast(handle)));
-
-    frame.keys = memory.borrowTextSlice(frame.names.columns.names.items);
-}
-
 pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, types: ?*const TypePublication) std.mem.Allocator.Error!void {
     self.buckets.allocator = allocator;
 
-    var frame: View = .{ .names = self, .keys = memory.borrowTextSlice(self.columns.names.items) };
+    var keys = memory.borrowTextSlice(self.columns.names.items);
     var tails: Cache = .{ .names = &.{}, .ids = &.{} };
     const slots = memory.bindColumnRanges(&self.columns, cache.*, &tails);
     const ranges: memory.ColumnRanges = &slots;
-    const index: Index = .{ .keys = @ptrCast(&frame.keys), .buckets = @ptrCast(&self.buckets.items) };
+    const index: Index = .{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets.items) };
 
     const target: Destination = .{
-        .handle = @ptrCast(&frame),
+        .committed = @ptrCast(&self.columns.names.items),
         .names = @ptrCast(&tails.names),
         .ids = @ptrCast(&tails.ids),
         .ranges = @ptrCast(&ranges),
@@ -86,10 +75,11 @@ pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, t
         .first = self.columns.names.items.len,
     };
 
-    const input: Input = .{ .cache = cache, .destination = &target, .types = if (types) |value| @ptrCast(value) else null };
+    const input: Input = .{ .cache = cache, .destination = &target, .types = types };
 
     publication.executeIn(allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-        error.IndexOutOfBounds => unreachable,
+        error.OutOfMemory => return error.OutOfMemory,
+        error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
     };
 }

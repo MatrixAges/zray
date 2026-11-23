@@ -13,6 +13,8 @@ export declare function readTextColumn(
     index: u64
 ): string throws { IndexOutOfBounds }
 
+export declare function bindTextView(target: TextColumn, source: StringBuffer): void
+
 export declare function readOptionalTextColumn(
     source: ReadColumn,
     index: u64

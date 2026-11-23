@@ -5,7 +5,7 @@ const generated = @import("generated_type_resolution");
 const model = @import("resolving/host/model.zig");
 const Source = @import("resolving/host/source.zig");
 const Origins = @import("../../modules/nominal_origins.zig");
-const publication = @import("merging/commit.zig");
+const TypeTail = @import("merging/publication/view.zig");
 const Names = @import("resolving/host/names.zig");
 
 pub fn Request(comptime View: type) type {
@@ -70,11 +70,31 @@ pub fn execute(types: *Types, view: anytype, request: Request(@TypeOf(view))) zx
 
     if (result.publish) {
         const target = if (types.shared != null and result.origins.ids.len != 0) &types.shared.?.origins.items else null;
-        var transaction = publication.Interface.init(types.allocator, &types.items, target, result.delta, result.origins);
+        const offsets = TypeTail.offsets(&types.items);
 
-        transaction.shared_origin = target != null;
+        const options: TypeTail.Options = .{
+            .allocator = types.allocator,
+            .payload = types.allocator,
+            .types = &types.items,
+            .origins = target,
+            .offsets = &offsets,
+            .text_mode = if (target != null) .OwnSharedOrigin else .Own,
+        };
 
-        try types.resolved.publish(types.allocator, zx.columns.pointer(*const Names.Cache, result.cache), &transaction);
+        var transaction: TypeTail = undefined;
+
+        transaction.init(&options, .{}, Origins.Table{});
+        errdefer transaction.release();
+
+        const Publication = Names.TypePublication;
+
+        const request_view = transaction.request(
+            Publication,
+            zx.columns.pointer(@FieldType(Publication, "delta"), result.delta),
+            zx.columns.pointer(@FieldType(Publication, "origins"), result.origins),
+        );
+
+        try types.resolved.publish(types.allocator, zx.columns.pointer(*const Names.Cache, result.cache), &request_view);
     }
 
     if (result.diagnostic.message.len != 0) return types.reporter.fail(

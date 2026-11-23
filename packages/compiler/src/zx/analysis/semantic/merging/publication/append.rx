@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <Call
+        fn="size"
+        in={$in.pick([
+            "delta",
+            "origins",
+            "destination"
+        ])}
+    />
+
+    <Call module="write" in={$in} />
+</Module>

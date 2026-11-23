@@ -12,6 +12,8 @@ export default function (in: Input): Output {
     const capacity = memory.u32Views(index.buckets).length
 
     if (capacity != 0) {
+        memory.bindTextView(index.keys, destination.committed)
+
         const count = first + cache.names.length
 
         const indexed = refresh({
