@@ -1,0 +1,11 @@
+import type { GenerationRequest } from "generation_host"
+
+export type Input = {
+    request: GenerationRequest,
+    write: bool
+}
+
+export type Analyze = {
+    request: GenerationRequest,
+    interfaces_loaded: bool
+}

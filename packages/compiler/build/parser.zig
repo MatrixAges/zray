@@ -101,6 +101,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host", .resolve_members = true },
         hardware_graph_interface,
         .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/inputs/generation/request/host.d.zx", .{directories[0]}), .module = "generation_host", .resolve_members = true },
     };
 
     const host_interfaces = interfaces ++ [_]manifest.Interface{
@@ -180,6 +181,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "rx/dependency_graph");
                 addSubtree(run, tracked[0], "rx/path_kind");
                 addSubtree(run, tracked[0], "rx/path_segments");
+                addSubtree(run, tracked[0], "inputs/generation");
+                addSubtree(run, tracked[0], "inputs/fingerprint");
                 addSubtree(run, tracked[0], "backends/zig");
                 addSubtree(run, tracked[0], "backends/hardware");
                 addSubtree(run, tracked[0], "backends/verilog");

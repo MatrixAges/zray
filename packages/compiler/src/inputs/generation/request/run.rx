@@ -1,0 +1,64 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Input} out={string} />
+
+    <If on={$in.write}>
+        <Call fn="host.observeGenerationInputs" in={$in.request} />
+
+        <Call
+            fn="current"
+            in={{
+                request: $in.request,
+                digest: $ctx.observeGenerationInputs
+            }}
+        />
+
+        <If on={$ctx.current}>
+            <Return value={""} />
+        </If>
+
+        <Call fn="host.loadObservedSources" in={$in.request} />
+    </If>
+
+    <If on={!$in.write}>
+        <Call fn="host.collectGenerationSources" in={$in.request} />
+    </If>
+
+    <Call fn="host.prepareGenerationInputs" in={$in.request} />
+
+    <If on={$in.write}>
+        <If on={$ctx.prepareGenerationInputs.interfaces_loaded}>
+            <Call
+                fn="current"
+                in={{
+                    request: $in.request,
+                    digest: $ctx.prepareGenerationInputs.digest
+                }}
+            />
+
+            <If on={$ctx.current}>
+                <Call fn="host.saveGenerationSnapshot" in={$in.request} />
+
+                <Return value={""} />
+            </If>
+        </If>
+
+        <Call fn="host.invalidateGenerationStamp" in={$in.request} />
+    </If>
+
+    <Call
+        module="analyze"
+        in={{
+            request: $in.request,
+            interfaces_loaded: $ctx.prepareGenerationInputs.interfaces_loaded
+        }}
+    />
+
+    <If on={$in.write}>
+        <Call fn="host.writeGenerationStamp" in={$in.request} />
+        <Call fn="host.saveGenerationSnapshot" in={$in.request} />
+    </If>
+
+    <Return value={$ctx.analyze} />
+</Module>

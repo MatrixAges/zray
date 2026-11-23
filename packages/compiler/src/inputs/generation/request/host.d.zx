@@ -1,0 +1,49 @@
+export type GenerationRequest = opaque
+
+export type PreparedGeneration = {
+    digest: u8[],
+    interfaces_loaded: bool
+}
+
+export declare function observeGenerationInputs(request: GenerationRequest): u8[]?
+    throws { GenerationRequestFailed }
+
+export declare function loadObservedSources(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function collectGenerationSources(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function prepareGenerationInputs(request: GenerationRequest): PreparedGeneration
+    throws { GenerationRequestFailed }
+
+export declare function readGenerationStamp(request: GenerationRequest): u8[]?
+    throws { GenerationRequestFailed }
+
+export declare function formatGenerationStamp(request: GenerationRequest, digest: u8[]): u8[]
+
+export declare function invalidateGenerationStamp(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function lookupGenerationAnalysis(request: GenerationRequest): bool
+
+export declare function restoreGenerationAnalysis(request: GenerationRequest): string
+    throws { GenerationRequestFailed }
+
+export declare function prepareGenerationTemplates(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function prepareGenerationModules(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function checkGenerationInterfaces(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function generateFromPreparedInputs(request: GenerationRequest): string
+    throws { GenerationRequestFailed }
+
+export declare function writeGenerationStamp(request: GenerationRequest): void
+    throws { GenerationRequestFailed }
+
+export declare function saveGenerationSnapshot(request: GenerationRequest): void
+    throws { GenerationRequestFailed }

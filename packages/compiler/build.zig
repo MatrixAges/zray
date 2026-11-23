@@ -120,6 +120,14 @@ pub fn build(b: *std.Build) void {
         .imports = &.{ .{ .name = "compiler", .module = module }, .{ .name = "rx", .module = rx }, .{ .name = "rx_analysis", .module = rx_analysis } },
     }) });
 
+    const root = bootstrap_tool.root_module;
+
+    for (parser_modules.bindings) |binding| {
+        if (binding.metadata.entry.owner == .bootstrap) root.addImport(binding.metadata.import_name, binding.module);
+    }
+
+    root.addImport("generation_execution_abi", parser_modules.execution.import_table.get("zxc_abi").?);
+    parser_modules.execution.addImport("generation_host", root);
     b.addNamedLazyPath("bootstrap_generator", bootstrap_tool.getEmittedBin());
     @import("build/compiler_rt.zig").configure(b, bootstrap_tool);
 

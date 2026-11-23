@@ -3,12 +3,16 @@ const compiler = @import("compiler");
 const analysis = @import("rx_analysis");
 const collection = @import("source_collection.zig");
 const manifest = @import("generation_manifest.zig");
+const interface_inputs = @import("interface_inputs.zig");
 const Resident = @import("resident/state.zig");
 const Files = @import("resident/files.zig");
 const InputSnapshot = @import("input_snapshot.zig");
 const fingerprint = compiler.input_fingerprint;
 const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
+const generated = publication.generated;
+const Prepared = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".PreparedGeneration else void;
+pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation }).resolve;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -44,105 +48,295 @@ pub const Request = compiler.resident_protocol.Request;
 pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, request: Request) ![]const u8 {
     const manifest_source = try std.Io.Dir.cwd().readFileAlloc(io, request.manifest, allocator, .unlimited);
     const project = try std.json.parseFromSliceLeaky(manifest.Project, allocator, manifest_source, .{});
-    const output = request.output;
-    const partitions = request.partitions;
 
     if (project.entries.len == 0) return error.EmptyEntrySet;
 
-    const owned = resident.inputAllocator(allocator);
-    const snapshot = if (request.write) try InputSnapshot.prepare(io, allocator, owned, &resident.files, resident.digest, project, manifest_source, partitions, request.cache) else null;
-    const recorded = if (request.write) try std.fs.path.join(allocator, &.{ output, publication.stamp_name }) else null;
-
-    if (snapshot) |prepared| if (prepared.fingerprint) |digest| {
-        if (try current(io, recorded.?, &digest)) return "";
+    var frame: Generation = .{
+        .io = io,
+        .allocator = allocator,
+        .owned = resident.inputAllocator(allocator),
+        .resident = resident,
+        .request = request,
+        .manifest_source = manifest_source,
+        .project = project,
     };
 
-    var documents: std.ArrayList(collection.Document) = .empty;
+    if (comptime !generated) return frame.seed();
 
-    if (snapshot) |prepared| {
-        try prepared.load(io, allocator, owned, &resident.files, &documents);
-    } else for (project.roots) |root| try collection.collect(io, allocator, owned, &resident.files, root.path, root.prefix, &documents);
+    const workflow = @import("generated_generation_request");
+    const input: std.meta.Child(workflow.Input) = .{ .request = @ptrCast(&frame), .write = request.write };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const packages = try owned.alloc(compiler.project.Package, project.packages.len);
+    return workflow.executeIn(empty.allocator(), &input) catch |err| return frame.failure orelse err;
+}
 
-    for (project.packages, packages) |package, *target| {
-        target.* = .{ .specifier = try resident.retainText(owned, package.specifier), .entry = try resident.retainText(owned, package.entry) };
+const Generation = struct {
+    const Error = error{GenerationRequestFailed};
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    owned: std.mem.Allocator,
+    resident: *Resident,
+    request: Request,
+    manifest_source: []const u8,
+    project: manifest.Project,
+    documents: std.ArrayList(collection.Document) = .empty,
+    snapshot: InputSnapshot = undefined,
+    stamp_path: []const u8 = undefined,
+    stamp_buffer: [publication.stamp_width + 1]u8 = undefined,
+    encoded_stamp: publication.Stamp = undefined,
+    packages: []const compiler.project.Package = undefined,
+    inputs: collection.Catalog = undefined,
+    interfaces: interface_inputs.Result = undefined,
+    rx_digests: []const analysis.project.ModuleDigest = undefined,
+    fingerprints: fingerprint.Frame = undefined,
+    digest: fingerprint.Digest = undefined,
+    prepared: Prepared = undefined,
+    previous: ?Resident.Restored = null,
+    sources: []const compiler.project.Source = undefined,
+    modules: []const @import("rx").ModuleSource = undefined,
+    failure: ?anyerror = null,
+    fn borrow(handle: *const anyopaque) *Generation {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn fail(self: *Generation, err: anyerror) Error {
+        self.failure = err;
+
+        return error.GenerationRequestFailed;
     }
 
-    const inputs = try collection.publish(allocator, owned, documents.items, packages, true);
-    const interfaces = try @import("interface_inputs.zig").load(io, allocator, owned, resident, project.interfaces, inputs.sources);
-    const rx_digests = try owned.alloc(analysis.project.ModuleDigest, inputs.modules.len);
+    fn target(self: *const Generation) generation.Target {
+        return .{
+            .io = self.io,
+            .allocator = self.allocator,
+            .resident = self.resident,
+            .output = if (self.request.write) self.request.output else null,
+            .cache_path = self.request.cache,
+            .partitions = self.request.partitions,
+        };
+    }
+    fn observe(self: *Generation) !?[]const u8 {
+        self.snapshot = try InputSnapshot.prepare(self.io, self.allocator, self.owned, &self.resident.files, self.resident.digest, self.project, self.manifest_source, self.request.partitions, self.request.cache);
+        self.stamp_path = try std.fs.path.join(self.allocator, &.{ self.request.output, publication.stamp_name });
 
-    for (inputs.modules, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
-
-    const frame = fingerprint.frame(&resident.digest, manifest_source, rx_digests, interfaces.bindings);
-    const inputs_digest = outputDigest(&frame.content, partitions, inputs.sources, inputs.templates, &resident.files);
-
-    if (recorded) |path| {
-        if (interfaces.failure == null and try current(io, path, &inputs_digest)) {
-            try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest);
-
-            return "";
+        return if (self.snapshot.fingerprint) |*digest| digest else null;
+    }
+    fn load(self: *Generation, comptime observed: bool) !void {
+        if (observed) {
+            return self.snapshot.load(self.io, self.allocator, self.owned, &self.resident.files, &self.documents);
         }
 
-        std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
+        for (self.project.roots) |root| {
+            try collection.collect(self.io, self.allocator, self.owned, &self.resident.files, root.path, root.prefix, &self.documents);
+        }
+    }
+    fn prepare(self: *Generation) !void {
+        const resident = self.resident;
+        const packages = try self.owned.alloc(compiler.project.Package, self.project.packages.len);
+
+        for (self.project.packages, packages) |package, *slot| {
+            slot.* = .{ .specifier = try resident.retainText(self.owned, package.specifier), .entry = try resident.retainText(self.owned, package.entry) };
+        }
+
+        self.packages = packages;
+        self.inputs = try collection.publish(self.allocator, self.owned, self.documents.items, packages, true);
+        self.interfaces = try interface_inputs.load(self.io, self.allocator, self.owned, resident, self.project.interfaces, self.inputs.sources);
+
+        const digests = try self.owned.alloc(analysis.project.ModuleDigest, self.inputs.modules.len);
+
+        for (self.inputs.modules, digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
+
+        self.rx_digests = digests;
+        self.fingerprints = fingerprint.frame(&resident.digest, self.manifest_source, digests, self.interfaces.bindings);
+        self.digest = outputDigest(&self.fingerprints.content, self.request.partitions, self.inputs.sources, self.inputs.templates, &resident.files);
+    }
+
+    fn readStamp(self: *Generation) !?[]const u8 {
+        return std.Io.Dir.cwd().readFile(self.io, self.stamp_path, &self.stamp_buffer) catch |err| switch (err) {
+            error.FileNotFound => null,
+            else => err,
+        };
+    }
+
+    fn invalidateStamp(self: *const Generation) !void {
+        std.Io.Dir.cwd().deleteFile(self.io, self.stamp_path) catch |err| switch (err) {
             error.FileNotFound => {},
             else => return err,
         };
     }
 
-    const target: generation.Target = .{
-        .io = io,
-        .allocator = allocator,
-        .resident = resident,
-        .output = if (request.write) output else null,
-        .cache_path = request.cache,
-        .partitions = partitions,
-    };
-
-    const previous = if (interfaces.failure == null) resident.exactAnalysis(&inputs_digest) else null;
-
-    const summary = if (previous) |saved| try generation.restore(target, saved, project.entries.len) else fresh: {
-        const prepared_sources = switch (try compiler.project.prepareSources(owned, inputs.sources, .{ .entry = "" })) {
+    fn prepareTemplates(self: *Generation) !void {
+        self.sources = switch (try compiler.project.prepareSources(self.owned, self.inputs.sources, .{ .entry = "" })) {
             .sources => |items| items,
             .diagnostic => |issue| {
-                std.debug.print("{s}: {s}\n", .{ inputs.sources[issue.source_index.?].path, issue.message });
+                std.debug.print("{s}: {s}\n", .{ self.inputs.sources[issue.source_index.?].path, issue.message });
 
                 return error.InvalidTemplateResource;
             },
         };
-
-        const modules = try resident.modules.prepare(owned, inputs.modules, fingerprint.packages(packages));
-
-        if (interfaces.failure) |err| return err;
-
-        break :fresh try generation.run(target, owned, project.entries, .{
-            .modules = modules,
-            .sources = prepared_sources,
-            .interfaces = interfaces.bindings[0..interfaces.external],
-            .internal_modules = interfaces.bindings[interfaces.external..],
-            .packages = packages,
-            .frame = frame.content,
-            .shape = frame.shape,
-            .rx_digests = rx_digests,
-            .fingerprint = inputs_digest,
-        });
-    };
-
-    if (recorded) |path| {
-        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = &publication.stamp(&inputs_digest) });
-        try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest);
     }
 
-    return summary;
-}
+    fn prepareModules(self: *Generation) !void {
+        self.modules = try self.resident.modules.prepare(self.owned, self.inputs.modules, fingerprint.packages(self.packages));
+    }
 
-fn saveSnapshot(snapshot: InputSnapshot, io: std.Io, files: *Files, digest: fingerprint.Digest) !void {
-    snapshot.save(io, files, digest) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => {},
-    };
-}
+    fn emit(self: *Generation) ![]const u8 {
+        return generation.run(self.target(), self.owned, self.project.entries, .{
+            .modules = self.modules,
+            .sources = self.sources,
+            .interfaces = self.interfaces.bindings[0..self.interfaces.external],
+            .internal_modules = self.interfaces.bindings[self.interfaces.external..],
+            .packages = self.packages,
+            .frame = self.fingerprints.content,
+            .shape = self.fingerprints.shape,
+            .rx_digests = self.rx_digests,
+            .fingerprint = self.digest,
+        });
+    }
+    fn writeStamp(self: *const Generation) !void {
+        try std.Io.Dir.cwd().writeFile(self.io, .{ .sub_path = self.stamp_path, .data = &publication.stamp(&self.digest) });
+    }
+    fn saveSnapshot(self: *const Generation) !void {
+        self.snapshot.save(self.io, &self.resident.files, self.digest) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => {},
+        };
+    }
+
+    fn seedStampMatches(self: *Generation, digest: *const fingerprint.Digest) !bool {
+        const recorded = try self.readStamp() orelse return false;
+
+        return recorded.len == publication.stamp_width and std.mem.eql(u8, recorded, &publication.stamp(digest));
+    }
+    fn seed(self: *Generation) ![]const u8 {
+        if (self.request.write) {
+            if (try self.observe()) |digest| {
+                if (try self.seedStampMatches(digest[0..@sizeOf(fingerprint.Digest)])) return "";
+            }
+
+            try self.load(true);
+        } else {
+            try self.load(false);
+        }
+
+        try self.prepare();
+
+        if (self.request.write) {
+            if (self.interfaces.failure == null and try self.seedStampMatches(&self.digest)) {
+                try self.saveSnapshot();
+
+                return "";
+            }
+
+            try self.invalidateStamp();
+        }
+
+        const previous = if (self.interfaces.failure == null) self.resident.exactAnalysis(&self.digest) else null;
+
+        const summary = if (previous) |saved| try generation.restore(self.target(), saved, self.project.entries.len) else fresh: {
+            try self.prepareTemplates();
+            try self.prepareModules();
+            if (self.interfaces.failure) |err| return err;
+
+            break :fresh try self.emit();
+        };
+
+        if (self.request.write) {
+            try self.writeStamp();
+            try self.saveSnapshot();
+        }
+
+        return summary;
+    }
+    pub fn observeGenerationInputs(handle: *const anyopaque) Error!?[]const u8 {
+        const self = borrow(handle);
+
+        return self.observe() catch |err| self.fail(err);
+    }
+    pub fn loadObservedSources(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.load(true) catch |err| return self.fail(err);
+    }
+
+    pub fn collectGenerationSources(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.load(false) catch |err| return self.fail(err);
+    }
+
+    pub fn prepareGenerationInputs(handle: *const anyopaque) Error!*const Prepared {
+        const self = borrow(handle);
+
+        self.prepare() catch |err| return self.fail(err);
+
+        self.prepared = .{ .digest = &self.digest, .interfaces_loaded = self.interfaces.failure == null };
+
+        return &self.prepared;
+    }
+    pub fn readGenerationStamp(handle: *const anyopaque) Error!?[]const u8 {
+        const self = borrow(handle);
+
+        return self.readStamp() catch |err| self.fail(err);
+    }
+    pub fn formatGenerationStamp(handle: *const anyopaque, digest: []const u8) []const u8 {
+        const self = borrow(handle);
+
+        self.encoded_stamp = publication.stamp(digest[0..@sizeOf(fingerprint.Digest)]);
+
+        return &self.encoded_stamp;
+    }
+    pub fn invalidateGenerationStamp(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.invalidateStamp() catch |err| return self.fail(err);
+    }
+
+    pub fn lookupGenerationAnalysis(handle: *const anyopaque) bool {
+        const self = borrow(handle);
+
+        self.previous = self.resident.exactAnalysis(&self.digest);
+
+        return self.previous != null;
+    }
+    pub fn restoreGenerationAnalysis(handle: *const anyopaque) Error![]const u8 {
+        const self = borrow(handle);
+
+        return generation.restore(self.target(), self.previous.?, self.project.entries.len) catch |err| self.fail(err);
+    }
+    pub fn prepareGenerationTemplates(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.prepareTemplates() catch |err| return self.fail(err);
+    }
+
+    pub fn prepareGenerationModules(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.prepareModules() catch |err| return self.fail(err);
+    }
+
+    pub fn checkGenerationInterfaces(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        if (self.interfaces.failure) |err| return self.fail(err);
+    }
+    pub fn generateFromPreparedInputs(handle: *const anyopaque) Error![]const u8 {
+        const self = borrow(handle);
+
+        return self.emit() catch |err| self.fail(err);
+    }
+    pub fn writeGenerationStamp(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.writeStamp() catch |err| return self.fail(err);
+    }
+
+    pub fn saveGenerationSnapshot(handle: *const anyopaque) Error!void {
+        const self = borrow(handle);
+
+        self.saveSnapshot() catch |err| return self.fail(err);
+    }
+};
 
 /// The frame and raw ZX/template inputs; a matching output needs no template expansion or RX parsing.
 fn outputDigest(frame: *const fingerprint.Digest, partitions: u32, sources: []const compiler.project.Source, templates: []const compiler.project.Resource, files: *Files) fingerprint.Digest {
@@ -171,15 +365,4 @@ fn writeDigests(hash: *fingerprint.Hash, files: *Files, inputs: anytype) void {
 
         remaining = remaining[count..];
     }
-}
-
-fn current(io: std.Io, path: []const u8, digest: *const fingerprint.Digest) !bool {
-    var buffer: [publication.stamp_width + 1]u8 = undefined;
-
-    const recorded = std.Io.Dir.cwd().readFile(io, path, &buffer) catch |err| switch (err) {
-        error.FileNotFound => return false,
-        else => return err,
-    };
-
-    return recorded.len == publication.stamp_width and std.mem.eql(u8, recorded, &publication.stamp(digest));
 }

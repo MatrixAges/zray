@@ -5,7 +5,7 @@ const std = @import("std");
 pub const Entry = struct {
     path: []const u8,
     name: []const u8,
-    owner: enum { core, frontend, compiler, rx, rx_analysis, lint, genz } = .frontend,
+    owner: enum { core, frontend, compiler, rx, rx_analysis, lint, genz, bootstrap } = .frontend,
     import_name: ?[]const u8 = null,
     pub fn importName(comptime self: Entry) []const u8 {
         return self.import_name orelse "generated_" ++ self.name;
@@ -888,6 +888,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "inputs/generation/request/run.rx", .name = "generation_request", .owner = .bootstrap },
     .{ .path = "genz/analysis/node_headers/direct.zx", .name = "direct_ast_range", .owner = .genz },
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
     .{ .path = "backends/zig/state/publication/build.rx", .name = "publish_state", .owner = .compiler },

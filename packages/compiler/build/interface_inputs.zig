@@ -4,7 +4,7 @@ const plan = compiler.source_inputs.interfaces;
 const Resident = @import("resident/state.zig");
 const Interface = @import("generation_manifest.zig").Interface;
 
-const Result = struct {
+pub const Result = struct {
     bindings: []const compiler.project.NativeInterface,
     external: usize,
     failure: ?anyerror,

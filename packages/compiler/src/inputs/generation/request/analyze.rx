@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Analyze} out={string} />
+
+    <If on={$in.interfaces_loaded}>
+        <Call fn="host.lookupGenerationAnalysis" in={$in.request} />
+
+        <If on={$ctx.lookupGenerationAnalysis}>
+            <Call fn="host.restoreGenerationAnalysis" in={$in.request} />
+
+            <Return value={$ctx.restoreGenerationAnalysis} />
+        </If>
+    </If>
+
+    <Call fn="host.prepareGenerationTemplates" in={$in.request} />
+    <Call fn="host.prepareGenerationModules" in={$in.request} />
+    <Call fn="host.checkGenerationInterfaces" in={$in.request} />
+    <Call fn="host.generateFromPreparedInputs" in={$in.request} />
+
+    <Return value={$ctx.generateFromPreparedInputs} />
+</Module>

@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const Digest = @import("fingerprint.zig").Digest;
-const generated = @import("parser_options").generated_parser;
+pub const generated = @import("parser_options").generated_parser;
 
 const settings = if (generated) @import("generated_generation_constants").@"zx.constants" else struct {
     pub const stamp_name = ".zxc-inputs";
