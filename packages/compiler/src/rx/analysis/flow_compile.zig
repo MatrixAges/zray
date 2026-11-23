@@ -7,10 +7,10 @@ const Prepared = @import("project/flow.zig");
 const Flow = @import("program/flow.zig");
 const expression = @import("expression.zig");
 const Captures = @import("task_captures.zig");
-const Schedule = @import("flow_compile/schedule.zig");
 const condition = @import("condition.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
+const Call = @import("flow_compile/call.zig");
 
 allocator: std.mem.Allocator,
 scratch: std.mem.Allocator,
@@ -43,60 +43,63 @@ pub fn root(self: *Self, sequence: Prepared.Unit) Error!u32 {
 }
 
 pub fn finishTask(self: *Self, work: *const Prepared.Task, body: u32, count: usize) Error!Flow.Step {
-    var step: Flow.Step = .{ .kind = .Task, .first = body };
-    var published: ?Result = null;
+    var output = TaskOutput.init(body);
 
-    inline for (comptime Schedule.steps(.Task)) |action| {
-        switch (action) {
-            .Done, .CompileTaskBody => {},
-            .CompileTaskOutput => if (work.output) |attribute| {
-                const result = self.takeResult();
-                step.value = try self.keep(try self.value(attribute, result.type_id, false));
-                step.output = if (result.name != null) .Constant else .Evaluate;
-                step.name = result.name;
-                published = result;
-            },
-            .RestoreBindings => self.bindings.len = count,
-            .PublishTask => if (published) |result| try result.publish(self.binding_allocator, &self.bindings),
-            else => unreachable,
-        }
+    try output.evaluate(self, work);
+
+    self.bindings.len = count;
+
+    try output.publish(self);
+
+    return output.step;
+}
+
+pub const TaskOutput = struct {
+    step: Flow.Step,
+    result: ?Result = null,
+    pub fn init(body: u32) TaskOutput {
+        return .{ .step = .{ .kind = .Task, .first = body } };
+    }
+    pub fn evaluate(self: *TaskOutput, compiler: *Self, work: *const Prepared.Task) Error!void {
+        const attribute = work.output orelse return;
+        const result = compiler.takeResult();
+        self.step.value = try compiler.keep(try compiler.value(attribute, result.type_id, false));
+        self.step.output = if (result.name != null) .Constant else .Evaluate;
+        self.step.name = result.name;
+        self.result = result;
     }
 
-    return step;
-}
+    pub fn publish(self: *const TaskOutput, compiler: *Self) Error!void {
+        if (self.result) |result| try result.publish(compiler.binding_allocator, &compiler.bindings);
+    }
+};
 
 pub const CaseScope = struct { facts: usize, label: ?*const zx.ir.Program };
 
 pub fn enterCase(self: *Self, case: *const Prepared.Case, subject: *const frontend.ExpressionInput.Result, subject_type: zx.ir.TypeId) Error!CaseScope {
-    var scope: CaseScope = .{ .label = null, .facts = undefined };
+    const label = if (case.label.attribute()) |attribute| try self.keep(try self.value(attribute, subject_type, false)) else null;
+    const facts = try self.refineCase(case, subject);
 
-    inline for (comptime Schedule.steps(.Case)) |action| {
-        switch (action) {
-            .Done, .CompileCaseBody, .RestoreCaseScope, .WriteCase => {},
-            .CompileLabel => if (case.label.attribute()) |attribute| {
-                scope.label = try self.keep(try self.value(attribute, subject_type, false));
-            },
-            .RefineSubject => {
-                scope.facts = self.nonnull.items.len;
+    return .{ .facts = facts, .label = label };
+}
 
-                if (case.truth) |present| {
-                    const bindings: condition.Scope = .{
-                        .allocator = self.allocator,
-                        .bindings = self.bindings.items(.name),
-                        .facts = &self.nonnull,
-                    };
+pub fn refineCase(self: *Self, case: *const Prepared.Case, subject: *const frontend.ExpressionInput.Result) Error!usize {
+    const facts = self.nonnull.items.len;
 
-                    condition.assumeParsed(self.allocator, subject, present, bindings) catch |err| switch (err) {
-                        error.OutOfMemory => return error.OutOfMemory,
-                        else => return error.InvalidFlow,
-                    };
-                }
-            },
-            else => unreachable,
-        }
+    if (case.truth) |present| {
+        const bindings: condition.Scope = .{
+            .allocator = self.allocator,
+            .bindings = self.bindings.items(.name),
+            .facts = &self.nonnull,
+        };
+
+        condition.assumeParsed(self.allocator, subject, present, bindings) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.InvalidFlow,
+        };
     }
 
-    return scope;
+    return facts;
 }
 
 pub fn checkSelection(self: *Self, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, alternatives: []const Prepared.Case, first: u32, count: u32) Error!bool {
@@ -233,34 +236,20 @@ fn viewed(storage: zx.ir.TypeStorage, types: zx.ir.TypeTable) bool {
 
 pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage) Error!u32 {
     const count = self.bindings.len;
-    const options = self.inputs;
-    const id = options.ids[row];
-    const base = options.shared_functions;
-    const callee = try @import("project/mixed/function.zig").programView(self.metadataAllocator(), base.at(@backingInt(id)), id, base, options.types, options.native_modules);
-    const loop = try @import("flow_compile/loop.zig").compile(self, row, callee);
-    const input = options.calls.items(.input)[row];
-    const getters = options.calls.items(.getters)[row];
-    var argument: zx.ir.Program = undefined;
-    var out: ?[]const u8 = undefined;
+    var work: Call = undefined;
 
-    inline for (comptime Schedule.steps(.Call)) |action| {
-        switch (action) {
-            .Done => {},
-            .BindGetters => try @import("store/bindings.zig").typed(&self.bindings, self.binding_allocator, getters),
-            .CompileArgument => argument = if (input) |attribute| value: {
-                const expected = callee.input_type;
+    try Call.prepare(self, row, &work);
+    try work.bindGetters(self);
 
-                if (@import("project/call_inputs.zig").input(options.arguments, row)) |parsed| break :value try self.valueParsed(parsed, attribute.*, expected, self.retain_metadata);
-
-                break :value try self.value(attribute.*, expected, self.retain_metadata);
-            } else try @import("call/unit.zig").create(self.metadataAllocator(), self.owner, self.types, options.calls.items(.node)[row].location),
-            .RestoreBindings => self.bindings.len = count,
-            .PublishCall => out = try self.publishResult(outputs),
-            else => unreachable,
-        }
+    if (work.input != null) {
+        try work.argument(self);
+    } else {
+        try work.unit(self);
     }
 
-    return self.appendCall(.{ .function_id = id, .callee = callee, .store_initializers = options.store_initializers, .argument = argument, .input_omitted = input == null, .loop = loop, .out = out, .getters = getters });
+    self.bindings.len = count;
+
+    return work.publish(self, outputs);
 }
 
 const Result = struct {

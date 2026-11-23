@@ -4,3 +4,9 @@ import type { Batch } from "./model"
 export type Input = Batch.Pick("action", "item", "position") & {
     frame: FlowTraversal
 }
+
+export type Row = Input.Pick("frame", "position")
+
+export type TaskClose = Input.Pick("frame") & {
+    parallel: bool
+}

@@ -1,0 +1,43 @@
+<Module>
+    <Type from="../effect" as="Effect" />
+
+    <Args in={Effect.TaskClose} out={void} />
+
+    <If on={$in.parallel}>
+        <Call fn="../host.inferParallelTaskOutput" in={$in.frame} />
+        <Call fn="../host.requestParallelTaskOutput" in={$in.frame} />
+        <Call fn="../host.restoreParallelTaskReturn" in={$in.frame} />
+
+        <Else>
+            <Call fn="../host.prepareFlowTaskOutput" in={$in.frame} />
+
+            <If on={$ctx.prepareFlowTaskOutput}>
+                <Call fn="../host.evaluateFlowTaskOutput" in={$in.frame} />
+            </If>
+        </Else>
+    </If>
+
+    <Call
+        fn="../host.savedTaskBindings"
+        in={[
+            $in.frame,
+            $in.parallel
+        ]}
+    />
+
+    <Call
+        fn="../host.restoreFlowBindings"
+        in={[
+            $in.frame,
+            $ctx.savedTaskBindings
+        ]}
+    />
+
+    <Call
+        fn="../host.publishFlowTaskOutput"
+        in={[
+            $in.frame,
+            $in.parallel
+        ]}
+    />
+</Module>

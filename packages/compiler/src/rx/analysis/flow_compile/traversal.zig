@@ -94,15 +94,34 @@ pub const Host = struct {
         }
     }
 
-    pub fn result(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
+    pub fn callOutputs(self: *Host, current: *Frame) *frontend.expressions.BindingStorage {
+        return if (current.payload == .Parallel) &current.payload.Parallel.outputs else &self.compiler.bindings;
+    }
+
+    pub fn writeCall(self: *Host, current: *Frame, row: usize, item: u32, id: u32) Compiler.Error!void {
         const compiler = self.compiler;
-        const plan = compiler.plan;
+
+        if (current.payload == .Parallel) return compiler.checkParallelCall(item, id);
+
+        compiler.compiled.steps.set(current.row(row), .{ .kind = .Call, .first = id });
+    }
+
+    pub fn result(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
+        self.writeReturn(current, first, try self.evaluateReturn(current, item));
+    }
+
+    pub fn evaluateReturn(self: *Host, current: *Frame, item: u32) Compiler.Error!*const zx.ir.Program {
+        const compiler = self.compiler;
         const publish = current.payload == .Root and compiler.retain_metadata;
-        const value = try compiler.keep(try compiler.value(plan.results[item], compiler.output_type, publish));
+
+        return compiler.keep(try compiler.value(compiler.plan.results[item], compiler.output_type, publish));
+    }
+    pub fn writeReturn(self: *Host, current: *Frame, first: usize, value: *const zx.ir.Program) void {
+        const compiler = self.compiler;
 
         compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = value });
 
-        if (publish) compiler.root_return = value;
+        if (current.payload == .Root and compiler.retain_metadata) compiler.root_return = value;
     }
 
     pub fn task(self: *Host, current: *Frame, first: usize, item: u32, parallel_task: bool) Compiler.Error!void {
@@ -163,6 +182,14 @@ pub const Host = struct {
         const case = &compiler.plan.selections[selected.item].cases[first];
         const bindings = compiler.bindings.len;
         const scope = try compiler.enterCase(case, &selected.parsed, selected.subject.output_type);
+
+        try self.pushCase(current, first, bindings, scope);
+    }
+
+    pub fn pushCase(self: *Host, current: *Frame, first: usize, bindings: usize, scope: Compiler.CaseScope) Compiler.Error!void {
+        const compiler = self.compiler;
+        const selected = &current.payload.Selection;
+        const case = &compiler.plan.selections[selected.item].cases[first];
         const destination = selected.first + @as(u32, @intCast(first));
         const range = try Body.reserve(compiler, case.body);
         const child = try self.stack.addOne(self.memory);
@@ -182,6 +209,28 @@ pub const Host = struct {
         const compiled = try compiler.finishTask(&compiler.plan.tasks[saved.item], body, saved.bindings);
 
         compiler.compiled.steps.set(current.destination, compiled);
+    }
+
+    pub fn prepareTaskOutput(self: *Host, output: *Compiler.TaskOutput) Compiler.Error!bool {
+        const frame_ = self.frame();
+        const compiler = self.compiler;
+        const body = try frame_.body.close(compiler, false);
+
+        output.* = Compiler.TaskOutput.init(body);
+
+        return compiler.plan.tasks[frame_.payload.Task.item].output != null;
+    }
+
+    pub fn evaluateTaskOutput(self: *Host, output: *Compiler.TaskOutput) Compiler.Error!void {
+        const compiler = self.compiler;
+
+        try output.evaluate(compiler, &compiler.plan.tasks[self.frame().payload.Task.item]);
+    }
+
+    pub fn publishTaskOutput(self: *Host, output: *const Compiler.TaskOutput) Compiler.Error!void {
+        try output.publish(self.compiler);
+
+        self.compiler.compiled.steps.set(self.frame().destination, output.step);
     }
 
     pub fn closeParallel(self: *Host) Compiler.Error!void {

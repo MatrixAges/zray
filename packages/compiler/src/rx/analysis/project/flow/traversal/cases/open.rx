@@ -1,0 +1,53 @@
+<Module>
+    <Type from="../effect" as="Effect" />
+
+    <Args in={Effect.Row} out={void} />
+
+    <Call fn="../host.flowBindingCount" in={$in.frame} />
+
+    <Call
+        fn="../host.flowCaseIsDefault"
+        in={[
+            $in.frame,
+            $in.position
+        ]}
+    />
+
+    <If on={$ctx.flowCaseIsDefault}>
+        <Call
+            fn="../host.evaluateFlowDefaultCase"
+            in={[
+                $in.frame,
+                $in.position
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="../host.evaluateFlowCaseLabel"
+                in={[
+                    $in.frame,
+                    $in.position
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Call
+        fn="../host.refineFlowCase"
+        in={[
+            $in.frame,
+            $in.position
+        ]}
+    />
+
+    <Call
+        fn="../host.pushFlowCase"
+        in={[
+            $in.frame,
+            $in.position,
+            $ctx.flowBindingCount,
+            $ctx.refineFlowCase
+        ]}
+    />
+</Module>

@@ -1,0 +1,8 @@
+import type { FlowTraversal } from "rx_project_host"
+
+export type Batch = {
+    frame: FlowTraversal,
+    items: u32[],
+    row: u64,
+    end: u64
+}

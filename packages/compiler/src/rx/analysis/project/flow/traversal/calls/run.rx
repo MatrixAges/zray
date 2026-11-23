@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Calls" />
+
+    <Args in={Calls.Batch} out={void} />
+
+    <Loop on={$in.row < $in.end}>
+        <Call module="step" in={$in} />
+    </Loop>
+</Module>

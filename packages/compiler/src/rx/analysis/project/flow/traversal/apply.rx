@@ -7,11 +7,18 @@
     <Switch on={$in.action}>
         <Case value={Model.Action.Return}>
             <Call
-                fn="host.returnFlowValue"
+                fn="host.evaluateFlowReturn"
                 in={[
                     $in.frame,
-                    $in.position,
                     $in.item
+                ]}
+            />
+
+            <Call
+                fn="host.publishFlowReturn"
+                in={[
+                    $in.frame,
+                    $in.position
                 ]}
             />
         </Case>
@@ -64,31 +71,31 @@
 
         <Case value={Model.Action.OpenCase}>
             <Call
-                fn="host.openFlowCase"
-                in={[
-                    $in.frame,
-                    $in.position
-                ]}
+                module="cases/open"
+                in={$in.pick([
+                    "frame",
+                    "position"
+                ])}
             />
         </Case>
 
         <Case value={Model.Action.CloseTask}>
             <Call
-                fn="host.closeFlowTask"
-                in={[
-                    $in.frame,
-                    false
-                ]}
+                module="tasks/close"
+                in={{
+                    frame: $in.frame,
+                    parallel: false
+                }}
             />
         </Case>
 
         <Case value={Model.Action.CloseParallelTask}>
             <Call
-                fn="host.closeFlowTask"
-                in={[
-                    $in.frame,
-                    true
-                ]}
+                module="tasks/close"
+                in={{
+                    frame: $in.frame,
+                    parallel: true
+                }}
             />
         </Case>
 

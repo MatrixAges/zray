@@ -69,17 +69,23 @@ pub const Host = struct {
     }
 
     pub fn calls(self: *Host, current: *Frame, _: usize, items: []const u32) zx.Error!void {
-        const walker = self.walker;
-        const outputs = if (current.payload == .Parallel) &current.payload.Parallel else &walker.expression.bindings;
+        const outputs = self.callOutputs(current);
 
-        for (items) |item| try walker.call(item, outputs);
+        for (items) |item| try self.walker.call(item, outputs);
+    }
+
+    pub fn callOutputs(self: *Host, current: *Frame) *Scope.Storage {
+        return if (current.payload == .Parallel) &current.payload.Parallel else &self.walker.expression.bindings;
     }
     pub fn result(self: *Host, _: *Frame, _: usize, item: u32) zx.Error!void {
         const walker = self.walker;
         const plan = &walker.module.plan;
 
         try walker.inferReturn(plan.results[item]);
+
+        walker.returned = true;
     }
+
     pub fn task(self: *Host, _: *Frame, _: usize, item: u32, parallel_task: bool) zx.Error!void {
         const walker = self.walker;
         const plan = &walker.module.plan;
@@ -121,10 +127,48 @@ pub const Host = struct {
     }
     pub fn openCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
         const walker = self.walker;
-        const selected = &current.payload.Selection;
         const bindings = walker.expression.bindings.len;
-        const facts = try walker.enterCase(&selected.parsed, selected.subject, &selected.labels, selected.cases, first);
-        const unit = selected.cases[first].body;
+
+        if (current.payload.Selection.cases[first].label.kind == .Default) {
+            try self.defaultCase(current, first);
+        } else {
+            try self.labelCase(current, first);
+        }
+
+        const facts = try self.refineCase(current, first);
+
+        try self.pushCase(current, first, bindings, facts);
+    }
+    pub fn labelCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
+        const selected = &current.payload.Selection;
+        const case = &selected.cases[first];
+        const attribute = case.label.attribute().?;
+        var label = try selected.labels.label(attribute);
+
+        defer label.deinit();
+
+        _ = try self.walker.inferParsed(&label, attribute, selected.subject);
+        case.truth = condition.boolean(&label);
+
+        selected.labels.observe(case.truth);
+    }
+    pub fn defaultCase(_: *Host, current: *Frame, first: usize) zx.Error!void {
+        const selected = &current.payload.Selection;
+        selected.cases[first].truth = try selected.labels.remaining(selected.cases[first + 1 ..]);
+    }
+    pub fn refineCase(self: *Host, current: *Frame, first: usize) zx.Error!usize {
+        const selected = &current.payload.Selection;
+        const expression = self.walker.expression;
+        const facts = expression.nonnull.items.len;
+
+        if (selected.cases[first].truth) |present| {
+            try condition.assumeParsed(expression.graph.scratch, &selected.parsed, present, expression.conditionScope());
+        }
+
+        return facts;
+    }
+    pub fn pushCase(self: *Host, current: *Frame, first: usize, bindings: usize, facts: usize) zx.Error!void {
+        const unit = current.payload.Selection.cases[first].body;
         const child = try self.stack.addOne(self.memory);
 
         child.* = .{ .cursor = Cursor.body(unit), .payload = .{ .Case = .{ .bindings = bindings, .facts = facts } } };

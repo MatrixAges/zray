@@ -1,0 +1,15 @@
+<Module>
+    <Type from="host" as="Task" />
+
+    <Args in={Task.ParallelTaskWork} out={void} />
+
+    <Call fn="host.compileParallelTaskBody" in={$in} />
+    <Call fn="host.checkParallelTaskCalls" in={$in} />
+    <Call fn="host.resolveParallelTaskCaptures" in={$in} />
+    <Call fn="host.lowerParallelTaskProgram" in={$in} />
+    <Call fn="host.checkParallelTaskProgram" in={$in} />
+    <Call fn="host.analyzeParallelTaskOwnership" in={$in} />
+    <Call fn="host.validateParallelTaskProgram" in={$in} />
+    <Call fn="host.buildParallelTaskArgument" in={$in} />
+    <Call fn="host.publishParallelTask" in={$in} />
+</Module>

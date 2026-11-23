@@ -1,0 +1,48 @@
+<Module>
+    <Type from="model" as="Calls" />
+
+    <Args in={Calls.Batch} out={Calls.Batch} />
+
+    <Call fn="../host.flowBindingCount" in={$in.frame} />
+
+    <Call
+        fn="../host.prepareFlowCall"
+        in={[
+            $in.frame,
+            $in.items[$in.row]
+        ]}
+    />
+
+    <Call fn="../host.bindFlowGetters" in={$in.frame} />
+
+    <If on={$ctx.prepareFlowCall}>
+        <Call fn="../host.evaluateFlowArgument" in={$in.frame} />
+
+        <Else>
+            <Call fn="../host.createFlowUnitArgument" in={$in.frame} />
+        </Else>
+    </If>
+
+    <Call
+        fn="../host.restoreFlowBindings"
+        in={[
+            $in.frame,
+            $ctx.flowBindingCount
+        ]}
+    />
+
+    <Call
+        fn="../host.publishFlowCall"
+        in={[
+            $in.frame,
+            $in.row
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

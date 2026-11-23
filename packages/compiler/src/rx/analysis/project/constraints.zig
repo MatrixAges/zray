@@ -11,8 +11,7 @@ const Prepared = @import("prepare.zig");
 const Inputs = @import("call_inputs.zig");
 const names = @import("../result_name.zig");
 const Requests = @import("signatures/requests.zig");
-const Schedule = @import("constraints/schedule.zig");
-const condition = @import("../condition.zig");
+const Call = @import("constraints/call.zig");
 const PortStorage = @import("constraints/ports.zig");
 const Collection = @import("constraints/collection.zig");
 pub const Ports = PortStorage.Slice;
@@ -65,56 +64,7 @@ pub const Walker = struct {
     }
 
     pub fn inferReturn(self: *Walker, attribute: rx.ast.Attribute) zx.Error!void {
-        inline for (comptime Schedule.steps(.Return)) |step| {
-            switch (step) {
-                .Done => {},
-                .InferReturn => _ = try inferAttribute(self.expression, self.module.source.path, attribute, self.output),
-                .MarkReturned => self.returned = true,
-                else => unreachable,
-            }
-        }
-    }
-
-    pub fn enterCase(self: *Walker, parsed: *const frontend.ExpressionInput.Result, subject: Graph.Id, labels: *condition.Cases, cases: []Flow.Case, index: usize) zx.Error!usize {
-        if (cases[index].label.kind == .Default) {
-            return self.prepareCase(.Default, parsed, subject, labels, cases, index);
-        }
-
-        return self.prepareCase(.Case, parsed, subject, labels, cases, index);
-    }
-
-    fn prepareCase(self: *Walker, comptime form: Schedule.Form, parsed: *const frontend.ExpressionInput.Result, subject: Graph.Id, labels: *condition.Cases, cases: []Flow.Case, index: usize) zx.Error!usize {
-        const expression = self.expression;
-        const case = &cases[index];
-        var facts: usize = undefined;
-
-        inline for (comptime Schedule.steps(form)) |step| {
-            switch (step) {
-                .Done, .InferBody, .RestoreFacts, .RestoreBindings => {},
-                .InferCaseLabel => {
-                    const attribute = case.label.attribute().?;
-                    var label = try labels.label(attribute);
-
-                    defer label.deinit();
-
-                    _ = try inferParsedAttribute(expression, &label, attribute, subject);
-                    case.truth = condition.boolean(&label);
-
-                    labels.observe(case.truth);
-                },
-                .InferDefaultLabel => case.truth = try labels.remaining(cases[index + 1 ..]),
-                .RefineSubject => {
-                    facts = expression.nonnull.items.len;
-
-                    if (case.truth) |present| {
-                        try condition.assumeParsed(expression.graph.scratch, parsed, present, expression.conditionScope());
-                    }
-                },
-                else => unreachable,
-            }
-        }
-
-        return facts;
+        _ = try inferAttribute(self.expression, self.module.source.path, attribute, self.output);
     }
     pub fn enterParallelTask(self: *Walker, entry: *const Flow.Task) zx.Error!void {
         self.output = try self.expression.graph.add(.unknown, self.taskSpan(entry));
@@ -122,36 +72,40 @@ pub const Walker = struct {
     }
 
     pub fn finishTask(self: *Walker, entry: *const Flow.Task, parallel_task: bool, bindings: usize, parent_output: Graph.Id, parent_returned: bool, outputs: *Scope.Storage) zx.Error!void {
+        const output = if (parallel_task) try self.parallelTaskOutput(entry) else try self.taskOutput(entry);
+
         if (parallel_task) {
-            return self.publishTask(.ParallelTask, entry, bindings, parent_output, parent_returned, outputs);
+            try self.requestTaskOutput(entry);
+
+            self.output = parent_output;
+            self.returned = parent_returned;
         }
 
-        return self.publishTask(.Task, entry, bindings, parent_output, parent_returned, outputs);
+        self.expression.bindings.shrinkRetainingCapacity(bindings);
+
+        if (output) |value| try self.bindTaskOutput(entry, value, outputs);
     }
-    fn publishTask(self: *Walker, comptime form: Schedule.Form, entry: *const Flow.Task, bindings: usize, parent_output: Graph.Id, parent_returned: bool, outputs: *Scope.Storage) zx.Error!void {
-        const expression = self.expression;
-        const graph = expression.graph;
-        const span = self.taskSpan(entry);
 
-        var output: ?Graph.Id = if (form == .ParallelTask) self.output else null;
+    pub fn taskOutput(self: *Walker, entry: *const Flow.Task) zx.Error!?Graph.Id {
+        const attribute = entry.output orelse return null;
 
-        inline for (comptime Schedule.steps(form)) |step| {
-            switch (step) {
-                .Done, .EnterTask, .InferBody => {},
-                .InferTaskOutput => if (entry.output) |attribute| {
-                    output = try inferAttribute(expression, self.module.source.path, attribute, null);
-                },
-                .DefaultTaskOutput => if (!self.returned) try graph.unify(output.?, try graph.scalar(.void, span), span),
-                .RequestTaskOutput => try self.requests.recordTask(graph.types.allocator, self.task_first, entry.id.?, self.requests.bindings.len - self.binding_first),
-                .RestoreReturn => {
-                    self.output = parent_output;
-                    self.returned = parent_returned;
-                },
-                .RestoreBindings => expression.bindings.shrinkRetainingCapacity(bindings),
-                .PublishTask => if (output) |value| try self.bindResult(names.resolve(entry.node.*), value, .task, outputs),
-                else => unreachable,
-            }
+        return try inferAttribute(self.expression, self.module.source.path, attribute, null);
+    }
+    pub fn parallelTaskOutput(self: *Walker, entry: *const Flow.Task) zx.Error!Graph.Id {
+        if (!self.returned) {
+            const graph = self.expression.graph;
+            const span = self.taskSpan(entry);
+
+            try graph.unify(self.output, try graph.scalar(.void, span), span);
         }
+
+        return self.output;
+    }
+    pub fn requestTaskOutput(self: *Walker, entry: *const Flow.Task) zx.Error!void {
+        try self.requests.recordTask(self.expression.graph.types.allocator, self.task_first, entry.id.?, self.requests.bindings.len - self.binding_first);
+    }
+    pub fn bindTaskOutput(self: *Walker, entry: *const Flow.Task, value: Graph.Id, outputs: *Scope.Storage) zx.Error!void {
+        try self.bindResult(names.resolve(entry.node.*), value, .task, outputs);
     }
     fn taskSpan(self: *const Walker, entry: *const Flow.Task) zx.Span {
         const offset = self.expression.span_offset + entry.node.location.offset;
@@ -161,81 +115,45 @@ pub const Walker = struct {
     pub fn inferParsed(self: *Walker, parsed: *const frontend.ExpressionInput.Result, attribute: rx.ast.Attribute, expected: ?Graph.Id) zx.Error!Graph.Id {
         return inferParsedAttribute(self.expression, parsed, attribute, expected);
     }
-    pub fn call(self: *Walker, index: usize, outputs: *Scope.Storage) zx.Error!void {
-        const invocation = self.module.calls.get(index);
+    pub fn call(self: *Walker, row: usize, outputs: *Scope.Storage) zx.Error!void {
+        const count = self.expression.bindings.len;
+        var work: Call = undefined;
 
-        if (invocation.input != null) return self.inferCall(.CallWithArgument, index, &invocation, outputs);
+        try Call.prepare(self, row, &work);
 
-        return self.inferCall(.CallWithoutArgument, index, &invocation, outputs);
-    }
-    fn inferCall(self: *Walker, comptime form: Schedule.Form, index: usize, invocation: *const Prepared.Call, outputs: *Scope.Storage) zx.Error!void {
-        const expression = self.expression;
-        const graph = expression.graph;
-        const attribute = invocation.input;
-        const offset = if (attribute) |value| value.value_location.offset else invocation.node.location.offset;
-        const span = zx.Span{ .start = expression.span_offset + offset, .end = expression.span_offset + offset };
-        const count = expression.bindings.len;
-        var input: Graph.Id = undefined;
-        var output: Graph.Id = undefined;
+        if (work.invocation.input != null) {
+            try work.bindGetters(self);
+            try work.argument(self);
 
-        inline for (comptime Schedule.steps(form)) |step| {
-            switch (step) {
-                .Done => {},
-                .CallInput => input = switch (invocation.callee) {
-                    .module => |module_index| self.states.items(.input)[module_index],
-                    .signature => |signature| try graph.known(signature.input_type, span),
-                },
-                .PublishGetters => {
-                    expression.attribute = attribute.?.*;
-
-                    try @import("../store/bindings.zig").infer(graph, &expression.bindings, expression.scope, invocation.getters, span);
-                },
-                .InferArgument => _ = if (Inputs.input(self.arguments, index)) |parsed|
-                    try inferParsedAttribute(expression, parsed, attribute.?.*, input)
-                else
-                    try inferAttribute(expression, self.module.source.path, attribute.?.*, input),
-                .RestoreBindings => expression.bindings.shrinkRetainingCapacity(count),
-                .VoidInput => try graph.unify(input, try graph.scalar(.void, span), span),
-                .CallOutput => output = switch (invocation.callee) {
-                    .module => |module_index| self.states.items(.output)[module_index],
-                    .signature => |signature| try graph.known(signature.output_type, span),
-                },
-                .PublishCall => try self.bindResult(names.resolveCall(invocation.name_source.*), output, .call, outputs),
-                else => unreachable,
-            }
+            self.expression.bindings.shrinkRetainingCapacity(count);
+        } else {
+            try work.unit(self);
         }
-    }
 
-    fn bindResult(self: *Walker, result: names.Result, output: Graph.Id, kind: enum { call, task }, outputs: *Scope.Storage) zx.Error!void {
+        try work.publish(self, outputs);
+    }
+    pub fn bindResult(self: *Walker, result: names.Result, output: Graph.Id, kind: enum { call, task }, outputs: *Scope.Storage) zx.Error!void {
         const expression = self.expression;
         const graph = expression.graph;
         expression.attribute = result.attribute;
         const span = expression.sourceSpan(.{ .start = 0, .end = result.attribute.value.len });
-        var binding: Scope.Binding = undefined;
 
-        inline for (comptime Schedule.steps(.ResultBinding)) |step| {
-            switch (step) {
-                .Done => {},
-                .BindResultName => {
-                    const name = switch (try names.bind(graph.types.allocator, result.name, kind == .task)) {
-                        .name => |name| name,
-                        .invalid => return graph.reporter.fail(.name, span, "result name must be one identifier; Call targets must have a valid filename"),
-                        .reserved => return graph.reporter.fail(.name, span, "Call target name task is reserved for Task results"),
-                    };
+        const name = switch (try names.bind(graph.types.allocator, result.name, kind == .task)) {
+            .name => |name| name,
+            .invalid => return graph.reporter.fail(.name, span, "result name must be one identifier; Call targets must have a valid filename"),
+            .reserved => return graph.reporter.fail(.name, span, "Call target name task is reserved for Task results"),
+        };
 
-                    binding = .{ .name = name, .value = output, .span = span };
-                },
-                .RequestBindingType => try self.requests.bindings.append(graph.types.allocator, .{ .name = binding.name, .value = output }),
-                .CheckBindingValue => if (@import("../inference/bindings.zig").isVoid(graph, output)) return,
-                .ValidateBindingPath => try Scope.check(graph, expression.bindings.slice(), expression.bindings.len, binding, "flow result paths must not overlap; each visible Call target name must be unique"),
-                .PublishBinding => try outputs.append(expression.scope, binding),
-                else => unreachable,
-            }
-        }
+        const binding: Scope.Binding = .{ .name = name, .value = output, .span = span };
+
+        try self.requests.bindings.append(graph.types.allocator, .{ .name = name, .value = output });
+        if (@import("../inference/bindings.zig").isVoid(graph, output)) return;
+        try Scope.check(graph, expression.bindings.slice(), expression.bindings.len, binding, "flow result paths must not overlap; each visible Call target name must be unique");
+        try outputs.append(expression.scope, binding);
     }
 };
 
-fn inferAttribute(expression: *Expression, owner: []const u8, attribute: rx.ast.Attribute, expected: ?Graph.Id) zx.Error!Graph.Id {
+pub fn inferAttribute(expression: *Expression, owner: []const u8, attribute: rx.ast.Attribute, expected: ?Graph.Id) zx.Error!Graph.Id {
     var parsed = try @import("../attribute.zig").parseBorrowed(expression.graph.scratch, attribute, owner);
 
     defer parsed.deinit();
