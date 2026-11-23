@@ -8,7 +8,7 @@
         fn="../object_closure/selection"
         in={{
             ...$in.request.views,
-            snapshot: $in.request.readiness.cache.snapshot,
+            cache: $in.request.readiness.cache,
             start: $in.start
         }}
     />
@@ -23,7 +23,16 @@
     </If>
 
     <If on={$ctx.selection.plan.action == Query.Action.Rebuild}>
-        <Call fn="host.rebuildObjectReadiness" in={$in.request.readiness.frame} />
+        <Call
+            fn="host.updateObjectReadiness"
+            in={[
+                $in.request.readiness.frame,
+                true,
+                $ctx.selection.plan.position,
+                false,
+                $ctx.selection.plan.shared
+            ]}
+        />
 
         <Return
             value={{
@@ -45,16 +54,17 @@
 
     <If on={$ctx.selection.plan.action == Query.Action.Propagate}>
         <Call
-            fn="host.propagateObjectReadiness"
+            fn="host.updateObjectReadiness"
             in={[
                 $in.request.readiness.frame,
+                false,
                 $ctx.selection.plan.position,
                 false,
                 $ctx.selection.plan.shared
             ]}
         />
 
-        <If on={!$ctx.propagateObjectReadiness}>
+        <If on={!$ctx.updateObjectReadiness}>
             <If on={$in.request.views.final}>
                 <Call
                     fn="host.rejectObjectSelection"

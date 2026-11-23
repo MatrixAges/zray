@@ -650,11 +650,9 @@ export declare function enterUnificationChild(
 export declare function rejectUnificationChild(frame: UnificationWalk, deep: bool): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function rebuildObjectReadiness(frame: ObjectReadiness): void
-    throws { OutOfMemory }
-
-export declare function propagateObjectReadiness(
+export declare function updateObjectReadiness(
     frame: ObjectReadiness,
+    rebuild: bool,
     position: u64,
     spread: bool,
     shared: bool

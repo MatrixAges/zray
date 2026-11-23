@@ -89,6 +89,12 @@ export declare function allocateFilledU32Buffer(
     value: u32
 ): void throws { OutOfMemory }
 
+export declare function allocateU64Buffer(
+    resource: Allocator,
+    target: U64Buffer,
+    count: u64
+): void throws { OutOfMemory }
+
 export declare function writeU64(
     target: U64Buffer,
     index: u64,
@@ -162,10 +168,22 @@ export declare function writeU8List(
     value: u8[]
 ): void throws { IndexOutOfBounds }
 
+export declare function writeBoolList(
+    target: BoolListBuffer,
+    index: u64,
+    value: bool[]
+): void throws { IndexOutOfBounds }
+
 export declare function writeU32List(
     target: U32ListBuffer,
     index: u64,
     value: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function writeU64List(
+    target: U64ListBuffer,
+    index: u64,
+    value: u64[]
 ): void throws { IndexOutOfBounds }
 
 export declare function writeStringList(
@@ -187,6 +205,11 @@ export declare function copyBools(
 export declare function copyU32s(
     target: U32Buffer,
     source: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function copyU64s(
+    target: U64Buffer,
+    source: u64[]
 ): void throws { IndexOutOfBounds }
 
 export declare function copyU32sAt(

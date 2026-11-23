@@ -12,6 +12,8 @@ export type Output = void
 export default function (in: Input): Output {
     const { rules, work, initial } = in
 
+    const ready = memory.boolViews(work.ready)
+
     const propagated = loop({
         count: initial.count,
         position: 0,
@@ -31,13 +33,13 @@ export default function (in: Input): Output {
                 const rule = rules.dependents[state.edge]
                 const result = rules.results[rule]
 
-                if (!work.ready[result]) {
+                if (!ready[result]) {
                     const pending = memory.readU64(work.pending, rule) - 1
 
                     memory.writeU64(work.pending, rule, pending)
 
                     if (pending == 0) {
-                        memory.writeU8(work.ready_output, result, 1)
+                        memory.writeBool(work.ready, result, true)
                         memory.writeU64(work.queue, state.count, result)
 
                         state.count += 1

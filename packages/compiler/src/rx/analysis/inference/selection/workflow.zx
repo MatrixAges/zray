@@ -5,7 +5,7 @@ import type { Context } from "../object_closure/workflow"
 export type Request = {
     frame: ObjectSelection,
     readiness: Context,
-    views: Scan.Omit("start", "snapshot")
+    views: Scan.Omit("start", "cache")
 }
 
 export type Cursor = {

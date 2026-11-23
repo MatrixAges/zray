@@ -8,21 +8,19 @@
         fn="query"
         in={{
             ...$in.request.query,
-            snapshot: $in.request.context.cache.snapshot
+            cache: $in.request.context.cache
         }}
     />
 
-    <If on={$ctx.query.action == Query.Action.Rebuild}>
-        <Call fn="host.rebuildObjectReadiness" in={$in.request.context.frame} />
-
-        <Return value={$in} />
-    </If>
-
-    <If on={$ctx.query.action == Query.Action.Propagate}>
+    <If
+        on={$ctx.query.action == Query.Action.Rebuild ||
+            $ctx.query.action == Query.Action.Propagate}
+    >
         <Call
-            fn="host.propagateObjectReadiness"
+            fn="host.updateObjectReadiness"
             in={[
                 $in.request.context.frame,
+                $ctx.query.action == Query.Action.Rebuild,
                 $ctx.query.position,
                 $in.request.query.spread,
                 $ctx.query.shared
@@ -32,8 +30,8 @@
         <Return
             value={{
                 request: $in.request,
-                running: false,
-                ready: $ctx.propagateObjectReadiness
+                running: $ctx.query.action == Query.Action.Rebuild,
+                ready: $ctx.updateObjectReadiness
             }}
         />
     </If>

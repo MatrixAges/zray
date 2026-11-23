@@ -9,6 +9,8 @@ export type Output = Initial
 export default function (in: Input): Output {
     const { rules, work } = in
 
+    const ready = memory.boolViews(work.ready)
+
     return loop({
         count: 0,
         known: 0,
@@ -22,7 +24,7 @@ export default function (in: Input): Output {
                 const node = state.node
                 const known = rules.known[node]
 
-                memory.writeU8(work.ready_output, node, known ? 1 : 0)
+                memory.writeBool(work.ready, node, known)
 
                 if (known) {
                     memory.writeU64(work.queue, state.count, node)
@@ -38,9 +40,9 @@ export default function (in: Input): Output {
                 const shortcut = rules.spread && state.rule >= rules.constructions
                 const admissible = empty || shortcut
 
-                if (admissible && !work.ready[result]) {
+                if (admissible && !ready[result]) {
                     memory.writeU64(work.queue, state.count, result)
-                    memory.writeU8(work.ready_output, result, 1)
+                    memory.writeBool(work.ready, result, true)
 
                     state.count += 1
                 }

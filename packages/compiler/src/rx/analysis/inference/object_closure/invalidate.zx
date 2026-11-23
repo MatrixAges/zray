@@ -1,0 +1,15 @@
+import memory from "memory"
+
+import { keys_slot } from "./const"
+
+import type { Update } from "./model"
+
+export type Input = Update.Pick("arena", "slots")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU32List(in.slots.index, keys_slot, [])
+
+    const retained = memory.resetArenaRetainingCapacity(in.arena)
+}

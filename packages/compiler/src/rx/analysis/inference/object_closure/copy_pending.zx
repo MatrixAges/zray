@@ -1,11 +1,14 @@
 import memory from "memory"
 
-import type { Counters } from "./model"
+import type { U64Buffer } from "memory"
 
-export type Input = Counters
+export type Input = {
+    sizes: u64[],
+    pending: U64Buffer
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const copied = memory.copyBytes(in.pending, 0, in.sizes, 0, in.sizes.length)
+    memory.copyU64s(in.pending, in.sizes)
 }

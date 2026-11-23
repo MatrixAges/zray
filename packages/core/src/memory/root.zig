@@ -182,6 +182,10 @@ pub fn allocateU64Views(allocator: std.mem.Allocator, target: *const anyopaque, 
     try allocateViews(u64, allocator, target, count);
 }
 
+pub inline fn allocateU64Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    try allocateU64Views(column_set.borrowAllocator(resource), target, count);
+}
+
 fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
     output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
@@ -453,6 +457,10 @@ pub inline fn copyU32s(target: *const anyopaque, source: []const u32) error{Inde
     return copySlice(u32, target, source);
 }
 
+pub inline fn copyU64s(target: *const anyopaque, source: []const u64) error{IndexOutOfBounds}!void {
+    return copySlice(u64, target, source);
+}
+
 pub inline fn copyU32sAt(target: *const anyopaque, offset: u64, source: []const u32) error{IndexOutOfBounds}!void {
     const buffer: *const []u32 = @ptrCast(@alignCast(target));
 
@@ -637,8 +645,16 @@ pub inline fn writeU8List(target: *const anyopaque, index: u64, value: []const u
     return write([]const u8, target, index, value);
 }
 
+pub inline fn writeBoolList(target: *const anyopaque, index: u64, value: []const bool) error{IndexOutOfBounds}!void {
+    return write([]const bool, target, index, value);
+}
+
 pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {
     return write([]const u32, target, index, value);
+}
+
+pub inline fn writeU64List(target: *const anyopaque, index: u64, value: []const u64) error{IndexOutOfBounds}!void {
+    return write([]const u64, target, index, value);
 }
 
 pub inline fn writeStringList(target: *const anyopaque, index: u64, value: []const []const u8) error{IndexOutOfBounds}!void {

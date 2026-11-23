@@ -1,18 +1,25 @@
-import type { Publication, Result } from "./model"
+import memory from "memory"
 
-export type Input = Publication & {
-    ready: bool[],
-    spread: bool
-}
+import { selection_slot, spread_slot } from "./const"
 
-export type Output = Result
+import type { Publication, Work } from "./model"
+
+export type Input = Publication & Work.Pick("ready")
+
+export type Output = bool
 
 export default function (in: Input): Output {
-    const { ready, position, spread, shared } = in
+    const { marks, position, spread, shared } = in
 
-    return {
-        ready: ready[position],
-        spread: spread || shared,
-        selection: !spread || shared
+    const ready = memory.boolViews(in.ready)
+
+    if (spread || shared) {
+        memory.writeBoolList(marks, spread_slot, ready)
     }
+
+    if (!spread || shared) {
+        memory.writeBoolList(marks, selection_slot, ready)
+    }
+
+    return ready[position]
 }

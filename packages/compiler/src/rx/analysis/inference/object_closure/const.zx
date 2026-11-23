@@ -1,0 +1,19 @@
+export const revision_slot: u64 = 0
+
+export const keys_slot: u64 = 0
+
+export const buckets_slot: u64 = 1
+
+export const sizes_slot: u64 = 0
+
+export const results_slot: u64 = 1
+
+export const offsets_slot: u64 = 2
+
+export const dependents_slot: u64 = 3
+
+export const known_slot: u64 = 0
+
+export const spread_slot: u64 = 1
+
+export const selection_slot: u64 = 2

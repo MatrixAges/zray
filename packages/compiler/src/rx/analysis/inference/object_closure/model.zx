@@ -1,4 +1,6 @@
-import type { U8Buffer, U64Buffer } from "memory"
+import type { Allocator, Arena, BoolBuffer, U64Buffer } from "memory"
+import type { Cache, Slots } from "./cache"
+import type { SnapshotInput } from "./layout/model"
 
 export type Input = {
     known: bool[],
@@ -11,8 +13,7 @@ export type Input = {
 }
 
 export type Work = {
-    ready: bool[],
-    ready_output: U8Buffer,
+    ready: BoolBuffer,
     queue: U64Buffer,
     pending: U64Buffer
 }
@@ -27,23 +28,26 @@ export type Initial = {
     known: u64
 }
 
-export type Counters = {
-    sizes: u8[],
-    pending: U8Buffer
-}
-
-export type Publication = {
+export type Publication = Slots.Pick("marks") & {
     position: u64,
-    shared: bool
+    shared: bool,
+    spread: bool
 }
 
 export type Proof = Request & {
-    counters: Counters,
     publication: Publication
 }
 
-export type Result = {
-    ready: bool,
+export type Update = {
+    cache: Cache,
+    slots: Slots,
+    layout: SnapshotInput,
+    work: Work,
+    arena: Arena,
+    scratch: Allocator,
+    revision: u64,
+    rebuild: bool,
+    position: u64,
     spread: bool,
-    selection: bool
+    shared: bool
 }

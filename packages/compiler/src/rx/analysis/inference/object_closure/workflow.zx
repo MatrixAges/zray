@@ -1,9 +1,6 @@
 import type { ObjectReadiness } from "rx_project_host"
-import type { Input, Snapshot } from "./query"
-
-export type Cache = {
-    snapshot?: Snapshot
-}
+import type { Cache } from "./cache"
+import type { Input } from "./query"
 
 export type Context = {
     frame: ObjectReadiness,
@@ -12,7 +9,7 @@ export type Context = {
 
 export type Request = {
     context: Context,
-    query: Input.Omit("snapshot")
+    query: Input.Omit("cache")
 }
 
 export type Cursor = {

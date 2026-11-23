@@ -6,7 +6,8 @@ import { Action } from "./query"
 
 import type { U32Buffer } from "memory"
 import type { Kind } from "../unification/model"
-import type { Output as Plan, Snapshot } from "./query"
+import type { Cache } from "./cache"
+import type { Output as Plan } from "./query"
 
 export type Input = {
     parents: U32Buffer,
@@ -14,7 +15,7 @@ export type Input = {
     sources: u32[],
     revision: u64,
     constructions: u64,
-    snapshot?: Snapshot,
+    cache: Cache,
     start: u64,
     final: bool
 }
@@ -52,7 +53,7 @@ export default function (in: Input): Output {
                 revision: in.revision,
                 constructions: in.constructions,
                 selections: in.sources.length,
-                snapshot: in.snapshot,
+                cache: in.cache,
                 spread: false
             })
 

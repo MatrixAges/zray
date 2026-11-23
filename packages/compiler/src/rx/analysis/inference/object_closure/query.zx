@@ -1,16 +1,16 @@
 import position from "core/integer/index/lookup"
 
 import { Kind } from "../unification/model"
+import {
+    buckets_slot,
+    keys_slot,
+    revision_slot,
+    selection_slot,
+    spread_slot
+} from "./const"
 
 import type { Kind as Shape } from "../unification/model"
-
-export type Snapshot = {
-    revision: u64,
-    keys: u32[],
-    buckets: u32[],
-    spread?: bool[],
-    selection?: bool[]
-}
+import type { Cache } from "./cache"
 
 export type Input = {
     root: u32,
@@ -18,7 +18,7 @@ export type Input = {
     revision: u64,
     constructions: u64,
     selections: u64,
-    snapshot?: Snapshot,
+    cache: Cache,
     spread: bool
 }
 
@@ -53,9 +53,10 @@ export default function (in: Input): Output {
         return rejected
     }
 
-    const snapshot = in.snapshot
+    const cache = in.cache
+    const keys = cache.index[keys_slot]
 
-    if (snapshot == null || snapshot.revision != in.revision) {
+    if (keys.length == 0 || cache.revision[revision_slot] != in.revision) {
         return {
             ...rejected,
             action: Action.Rebuild
@@ -63,8 +64,8 @@ export default function (in: Input): Output {
     }
 
     const entry = position({
-        keys: snapshot.keys,
-        buckets: snapshot.buckets,
+        keys,
+        buckets: cache.index[buckets_slot],
         key: in.root
     })
 
@@ -72,9 +73,10 @@ export default function (in: Input): Output {
         return rejected
     }
 
-    const cached = in.spread ? snapshot.spread : snapshot.selection
+    const slot = in.spread ? spread_slot : selection_slot
+    const cached = cache.marks[slot]
 
-    if (cached == null) {
+    if (cached.length == 0) {
         return {
             action: Action.Propagate,
             position: entry,

@@ -25,8 +25,6 @@ const Frame = struct {
         self.views.kinds = zx.columns.slice(@FieldType(Views, "kinds"), kinds);
         self.parents = self.graph.parents();
         self.views.revision = self.graph.object_revision;
-
-        self.readiness.bind();
     }
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -52,6 +50,7 @@ pub fn run(graph: *Graph, closure: *Closure, pending: Selections, final: bool) z
     };
 
     frame.bind();
+    frame.readiness.bind();
 
     const input: Input = .{
         .frame = @ptrCast(&frame),

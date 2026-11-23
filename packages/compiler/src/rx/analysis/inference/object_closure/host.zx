@@ -1,1 +1,1 @@
-export { rebuildObjectReadiness, propagateObjectReadiness } from "rx_project_host"
+export { updateObjectReadiness } from "rx_project_host"

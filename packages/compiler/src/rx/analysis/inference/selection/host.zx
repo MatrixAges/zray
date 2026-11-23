@@ -1,6 +1,5 @@
 export {
-    rebuildObjectReadiness,
-    propagateObjectReadiness,
+    updateObjectReadiness,
     replayObjectSelection,
     rejectObjectSelection
 } from "rx_project_host"

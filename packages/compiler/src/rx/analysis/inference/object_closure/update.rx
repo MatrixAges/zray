@@ -1,0 +1,61 @@
+<Module>
+    <Type from="model" as="Readiness" />
+
+    <Args in={Readiness.Update} out={bool} />
+
+    <If on={$in.rebuild}>
+        <Call
+            fn="invalidate"
+            in={$in.pick([
+                "arena",
+                "slots"
+            ])}
+        />
+
+        <Call module="layout/snapshot" in={$in.layout} />
+
+        <Call
+            fn="publish_snapshot"
+            in={{
+                layout: $ctx.snapshot,
+                ...$in.pick([
+                    "revision",
+                    "slots"
+                ])
+            }}
+        />
+
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="prepare"
+        in={{
+            ...$in.pick([
+                "cache",
+                "scratch",
+                "work",
+                "spread"
+            ]),
+            constructions: $in.layout.columns.construction_results.length
+        }}
+    />
+
+    <Call
+        module="prove"
+        in={{
+            rules: $ctx.prepare,
+            work: $in.work,
+            publication: {
+                marks: $in.slots.marks,
+                ...$in.pick([
+                    "position",
+                    "spread",
+                    "shared"
+                ])
+            }
+        }}
+    />
+
+    <Return value={$ctx.prove} />
+</Module>
