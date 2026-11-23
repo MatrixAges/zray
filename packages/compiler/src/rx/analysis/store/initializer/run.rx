@@ -1,0 +1,57 @@
+<Module>
+    <Type from="workflow" as="Initializer" />
+
+    <Args in={Initializer.Request} out={void} />
+
+    <Call
+        module="fields/plan"
+        in={{
+            layout: $in.layout,
+            first: $in.first
+        }}
+    />
+
+    <Call
+        fn="host.prepareStoreInitializer"
+        in={[
+            $in.frame,
+            $ctx.plan.count
+        ]}
+    />
+
+    <Loop on={$in.valid && ($in.row < $in.end || $in.next != null)}>
+        <Call
+            module="fields/step"
+            in={{
+                frame: $in.frame,
+                layout: $in.layout,
+                row: $ctx.plan.first,
+                end: $ctx.plan.end,
+                next: $ctx.plan.next,
+                position: 0,
+                invalid_link: false,
+                valid: true
+            }}
+        />
+    </Loop>
+
+    <If on={$ctx.step.valid}>
+        <Call
+            fn="host.resolveStoreInitializer"
+            in={[
+                $in.frame,
+                $ctx.step.invalid_link
+            ]}
+        />
+
+        <Call module="object/build" in={$in.object} />
+
+        <Call
+            fn="host.finishStoreInitializer"
+            in={[
+                $in.frame,
+                $ctx.build
+            ]}
+        />
+    </If>
+</Module>

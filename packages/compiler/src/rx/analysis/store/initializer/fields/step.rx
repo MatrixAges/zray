@@ -1,0 +1,64 @@
+<Module>
+    <Type from="../workflow" as="Initializer" />
+
+    <Args in={Initializer.Scan} out={Initializer.Scan} />
+
+    <If on={$in.row == $in.end}>
+        <Call
+            fn="run"
+            in={{
+                layout: $in.layout,
+                first: $in.next
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                row: $ctx.run.first,
+                end: $ctx.run.end,
+                next: $ctx.run.next
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../host.evaluateStoreField"
+        in={[
+            $in.frame,
+            $in.row
+        ]}
+    />
+
+    <If on={!$ctx.evaluateStoreField}>
+        <Call fn="../host.releaseStoreField" in={$in.frame} />
+
+        <Return
+            value={{
+                ...$in,
+                valid: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../host.recordStoreField"
+        in={[
+            $in.frame,
+            $in.position
+        ]}
+    />
+
+    <Call module="link" in={$in} />
+
+    <Call fn="../host.releaseStoreField" in={$in.frame} />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            position: $in.position + 1,
+            invalid_link: $ctx.link
+        }}
+    />
+</Module>

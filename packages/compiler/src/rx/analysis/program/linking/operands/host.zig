@@ -27,38 +27,12 @@ const Writer = union(Route) {
     Object: std.meta.Child(@FieldType(Work, "object")),
 };
 
-fn Group(comptime capacity: usize) type {
-    return struct {
-        const Self = @This();
-
-        descriptors: [capacity]memory.ColumnRange = undefined,
-        tails: [capacity][]const u8 = undefined,
-        active: memory.ColumnRanges = undefined,
-        len: usize = 0,
-        fn bind(self: *Self, column: anytype, count: usize, comptime bytes: bool) *anyopaque {
-            const index = self.len;
-            const tail = &self.tails[index];
-            self.descriptors[index] = memory.bindColumnRange(column, count, @ptrCast(tail), bytes);
-            self.len = index + 1;
-
-            return @ptrCast(tail);
-        }
-        fn freeze(self: *Self) ?*const memory.ColumnRanges {
-            if (self.len == 0) return null;
-
-            self.active = self.descriptors[0..self.len];
-
-            return &self.active;
-        }
-    };
-}
-
 pub const Frame = struct {
     input: Work = undefined,
     allocation: Allocation = undefined,
-    header: Group(7) = .{},
-    members: Group(3) = .{},
-    evaluation: Group(1) = .{},
+    header: memory.ColumnRangeGroup(7) = .{},
+    members: memory.ColumnRangeGroup(3) = .{},
+    evaluation: memory.ColumnRangeGroup(1) = .{},
     writer: Writer = undefined,
     symbols: Symbols = undefined,
     ranges: [2]Range = undefined,

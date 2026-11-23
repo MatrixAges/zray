@@ -88,3 +88,30 @@ pub inline fn publishOne(target: *const anyopaque, index: u64) void {
 
     storage.items.len += range.count;
 }
+
+pub fn Group(comptime capacity: usize) type {
+    return struct {
+        const Self = @This();
+
+        descriptors: [capacity]Range = undefined,
+        tails: [capacity][]const u8 = undefined,
+        active: Ranges = undefined,
+        len: usize = 0,
+        pub fn bind(self: *Self, column: anytype, additional: usize, comptime bytes: bool) *anyopaque {
+            const index = self.len;
+            const tail = &self.tails[index];
+            self.descriptors[index] = bindOne(column, additional, @ptrCast(tail), bytes);
+            self.len = index + 1;
+
+            return @ptrCast(tail);
+        }
+
+        pub fn freeze(self: *Self) ?*const Ranges {
+            if (self.len == 0) return null;
+
+            self.active = self.descriptors[0..self.len];
+
+            return &self.active;
+        }
+    };
+}

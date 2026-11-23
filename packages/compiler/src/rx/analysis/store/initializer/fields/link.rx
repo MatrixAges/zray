@@ -1,0 +1,19 @@
+<Module>
+    <Type from="../workflow" as="Initializer" />
+
+    <Args in={Initializer.Scan} out={bool} />
+
+    <If on={$in.invalid_link}>
+        <Return value={true} />
+    </If>
+
+    <Call
+        fn="../host.linkStoreField"
+        in={[
+            $in.frame,
+            $in.position
+        ]}
+    />
+
+    <Return value={!$ctx.linkStoreField} />
+</Module>

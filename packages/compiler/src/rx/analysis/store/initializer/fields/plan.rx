@@ -8,8 +8,8 @@
     <If on={$ctx.run.next == null}>
         <Return
             value={{
-                count: $ctx.run.end - $ctx.run.first,
-                range: $ctx.run
+                ...$ctx.run,
+                count: $ctx.run.end - $ctx.run.first
             }}
         />
     </If>
@@ -24,8 +24,8 @@
 
     <Return
         value={{
-            count: $ctx.run.end - $ctx.run.first + $ctx.count,
-            range: $ctx.run
+            ...$ctx.run,
+            count: $ctx.run.end - $ctx.run.first + $ctx.count
         }}
     />
 </Module>

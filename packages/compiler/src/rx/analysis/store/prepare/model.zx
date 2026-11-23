@@ -1,7 +1,5 @@
 export enum Form {
     Definition,
-    Field,
-    Program,
     TypeContext
 }
 
@@ -12,16 +10,6 @@ export enum Step {
     PrepareValues,
     CompileObjects,
     PublishDefinition,
-    ReadFieldAttributes,
-    ParseField,
-    CompileField,
-    RecordField,
-    LinkField,
-    ResolveObjectType,
-    CheckLinks,
-    BuildProgram,
-    AnalyzeOwnership,
-    VerifyProgram,
     CheckTypes,
     CheckNativeTypes,
     CheckNominalTypes,

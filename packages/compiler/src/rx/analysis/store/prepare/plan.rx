@@ -16,30 +16,6 @@
             />
         </Case>
 
-        <Case value={StorePlan.Form.Field}>
-            <Return
-                value={[
-                    StorePlan.Step.ReadFieldAttributes,
-                    StorePlan.Step.ParseField,
-                    StorePlan.Step.CompileField,
-                    StorePlan.Step.RecordField,
-                    StorePlan.Step.LinkField
-                ]}
-            />
-        </Case>
-
-        <Case value={StorePlan.Form.Program}>
-            <Return
-                value={[
-                    StorePlan.Step.ResolveObjectType,
-                    StorePlan.Step.CheckLinks,
-                    StorePlan.Step.BuildProgram,
-                    StorePlan.Step.AnalyzeOwnership,
-                    StorePlan.Step.VerifyProgram
-                ]}
-            />
-        </Case>
-
         <Case value={StorePlan.Form.TypeContext}>
             <Return
                 value={[

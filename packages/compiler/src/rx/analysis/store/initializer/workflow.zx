@@ -1,0 +1,19 @@
+import type { StoreInitializer } from "rx_project_host"
+import type { Layout } from "./fields/model"
+import type { Work } from "./object/model"
+
+export type Request = {
+    frame: StoreInitializer,
+    layout: Layout,
+    first: u32,
+    object: Work
+}
+
+export type Scan = Request.Pick("frame", "layout") & {
+    row: u64,
+    end: u64,
+    next?: u32,
+    position: u64,
+    invalid_link: bool,
+    valid: bool
+}
