@@ -303,52 +303,84 @@ fn publishWrites(self: *Self) void {
     rule.executeIn(fixed.allocator(), &input) catch unreachable;
 }
 
-/// Writes every record on a few of the shared workers; records are separate files, which the file system creates
-/// side by side, though beyond a few threads they wait on its locks.
-fn writeAllInto(storage: Storage, writing: *Writing) void {
-    const Records = struct {
-        storage: Storage,
-        items: []const Unwritten,
-        next: std.atomic.Value(usize) = .init(0),
-        written: [writers]u64 = @splat(0),
-        failures: [writers]u64 = @splat(0),
-        last_io_error: std.atomic.Value(u16) = .init(0),
-        fn run(records: *@This(), participant: usize) void {
-            var written_count: u64 = 0;
-            var failed_count: u64 = 0;
+const WriteBatch = struct {
+    storage: Storage,
+    items: []const Unwritten,
+    next: std.atomic.Value(usize) = .init(0),
+    written: [writers]u64 = @splat(0),
+    failures: [writers]u64 = @splat(0),
+    last_io_error: [1]u32 = .{0},
+    fn write(self: *const WriteBatch, index: usize) ?u32 {
+        const item = self.items[index];
+        const written = self.storage.write(std.heap.smp_allocator, item.key, item.source) catch |err| return @intFromError(err);
 
-            while (true) {
-                const index = records.next.fetchAdd(1, .monotonic);
+        return if (written) 0 else null;
+    }
+    fn run(self: *WriteBatch, participant: usize) void {
+        if (comptime !generated_parser) return self.runSeed(participant);
 
-                if (index >= records.items.len) break;
+        const rule = @import("generated_generation_cache_writer_worker");
+        const written: []u64 = &self.written;
+        const failures: []u64 = &self.failures;
+        const error_word: []u32 = &self.last_io_error;
 
-                const item = records.items[index];
+        const input: std.meta.Child(rule.Input) = .{
+            .files = @ptrCast(self),
+            .cursor = @ptrCast(&self.next),
+            .count = self.items.len,
+            .participant = participant,
+            .written = @ptrCast(&written),
+            .failures = @ptrCast(&failures),
+            .last_error = @ptrCast(&error_word),
+        };
 
-                const written = records.storage.write(std.heap.smp_allocator, item.key, item.source) catch |err| {
-                    failed_count += 1;
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-                    records.last_io_error.store(@intFromError(err), .monotonic);
+        rule.executeIn(fixed.allocator(), &input) catch unreachable;
+    }
+    fn runSeed(self: *WriteBatch, participant: usize) void {
+        var written: u64 = 0;
+        var failures: u64 = 0;
 
-                    continue;
-                };
+        while (true) {
+            const index = self.next.fetchAdd(1, .monotonic);
 
-                if (written) written_count += 1;
+            if (index >= self.items.len) break;
+
+            const code = self.write(index) orelse continue;
+
+            if (code == 0) {
+                written += 1;
+            } else {
+                failures += 1;
+
+                @atomicStore(u32, &self.last_io_error[0], code, .monotonic);
             }
-
-            records.written[participant] = written_count;
-            records.failures[participant] = failed_count;
         }
-    };
 
+        self.written[participant] = written;
+        self.failures[participant] = failures;
+    }
+};
+
+pub fn writeGenerationCacheFile(handle: *const anyopaque, row: u64) ?u32 {
+    const batch: *const WriteBatch = @ptrCast(@alignCast(handle));
+
+    return batch.write(@intCast(row));
+}
+
+/// Writes separate cache files concurrently using the shared worker pool.
+fn writeAllInto(storage: Storage, writing: *Writing) void {
     const items = writing.queue.records.items;
-    var records = Records{ .storage = storage, .items = items };
+    var batch = WriteBatch{ .storage = storage, .items = items };
     const participants = @min(writers, items.len);
 
-    @import("zx").parallel.spread(Records, &records, Records.run, participants);
+    zx.parallel.spread(WriteBatch, &batch, WriteBatch.run, participants);
+    collectWrites(writing, batch.written[0..participants], batch.failures[0..participants]);
 
-    collectWrites(writing, records.written[0..participants], records.failures[0..participants]);
+    const code = batch.last_io_error[0];
 
-    if (records.last_io_error.load(.monotonic) != 0) writing.last_io_error = @errorFromInt(records.last_io_error.load(.monotonic));
+    if (code != 0) writing.last_io_error = @errorFromInt(@as(u16, @intCast(code)));
 }
 
 fn collectWrites(writing: *Writing, written: []const u64, failures: []const u64) void {
@@ -362,11 +394,11 @@ fn collectWrites(writing: *Writing, written: []const u64, failures: []const u64)
     }
 
     const summary = @import("generated_generation_cache_write_results");
-    const input: std.meta.Child(summary.Input) = .{ .written = written, .failures = failures };
+    const counters: memory.ColumnLengths = &.{ &writing.written, &writing.io_errors };
+    const input: std.meta.Child(summary.Input) = .{ .written = written, .failures = failures, .counters = @ptrCast(&counters) };
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const totals = @import("zx").columns.invoke(summary.executeValue, fixed.allocator(), &input) catch unreachable;
-    writing.written += @intCast(totals.written);
-    writing.io_errors += @intCast(totals.failures);
+
+    summary.executeIn(fixed.allocator(), &input) catch unreachable;
 }
 
 const writers = 8;

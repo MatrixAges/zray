@@ -1,15 +1,19 @@
+import memory from "memory"
+
+import { failure_slot, written_slot } from "./writes/const"
+
+import type { ColumnLengths } from "memory"
+
 export type Input = {
     written: u64[],
-    failures: u64[]
+    failures: u64[],
+    counters: ColumnLengths
 }
 
-export type Output = {
-    written: u64,
-    failures: u64
-}
+export type Output = void
 
 export default function (in: Input): Output {
-    return loop({
+    const totals = loop({
         index: 0,
         written: 0,
         failures: 0
@@ -21,10 +25,9 @@ export default function (in: Input): Output {
             state.written += in.written[index]
             state.failures += in.failures[index]
             state.index += 1
-        },
-        return: state => ({
-            written: state.written,
-            failures: state.failures
-        })
+        }
     })
+
+    memory.advanceLengthSlot(in.counters, written_slot, totals.written)
+    memory.advanceLengthSlot(in.counters, failure_slot, totals.failures)
 }

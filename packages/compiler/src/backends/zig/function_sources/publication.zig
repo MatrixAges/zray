@@ -3,7 +3,7 @@ const zx = @import("zx");
 const Cache = @import("../cache.zig");
 const planning = @import("../function_sources_plan.zig");
 const Plan = planning.Plan;
-const copying = @import("generated_function_sources_copy");
+const copying = @import("generated_function_sources_copy_worker");
 const Copy = std.meta.Child(copying.Input);
 const chunk_size = 16;
 pub const Result = struct { source: ?[]const u8 };
@@ -48,7 +48,9 @@ fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target: [][]
 
     errdefer owned.free(data);
 
-    var workers = Workers{ .input = .{
+    var workers: Workers = undefined;
+
+    workers = .{ .input = .{
         .items = sources.items,
         .contiguous = sources.contiguous,
         .positions = sources.positions,
@@ -56,46 +58,37 @@ fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target: [][]
         .data = data,
         .target = @ptrCast(&target),
         .buffer = @ptrCast(&data),
-        .first = 0,
-        .end = 0,
+        .cursor = @ptrCast(&workers.next),
+        .width = chunk_size,
+        .failure = @ptrCast(&workers.error_view),
     } };
+
+    workers.error_view = &workers.error_code;
 
     const chunks = std.math.divCeil(usize, sources.offsets.len, chunk_size) catch unreachable;
 
     zx.parallel.spread(Workers, &workers, Workers.run, @min(zx.parallel.width(), chunks));
 
-    const code = workers.error_code.load(.monotonic);
+    const code = workers.error_code[0];
 
-    if (code != 0) return @errorCast(@errorFromInt(code));
+    if (code != 0) return @errorCast(@errorFromInt(@as(u16, @intCast(code))));
 }
 
 const Workers = struct {
     input: Copy,
     next: std.atomic.Value(usize) = .init(0),
-    error_code: std.atomic.Value(u16) = .init(0),
+    error_code: [1]u32 = .{0},
+    error_view: []u32 = undefined,
     fn run(self: *Workers, _: usize) void {
-        var input = self.input;
-        const count = input.offsets.len;
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        while (self.error_code.load(.monotonic) == 0) {
-            const first = self.next.fetchAdd(chunk_size, .monotonic);
+        const valid = copying.executeIn(empty.allocator(), &self.input) catch |err| {
+            @atomicStore(u32, &self.error_code[0], @intFromError(failure(err)), .monotonic);
 
-            if (first >= count) return;
+            return;
+        };
 
-            input.first = first;
-            input.end = first + @min(chunk_size, count - first);
-
-            const request: *const Copy = &input;
-
-            const valid = zx.columns.invoke(copying.executeValue, empty.allocator(), request) catch |err| {
-                self.error_code.store(@intFromError(failure(err)), .monotonic);
-
-                return;
-            };
-
-            if (!valid) unreachable;
-        }
+        if (!valid) unreachable;
     }
 };
 

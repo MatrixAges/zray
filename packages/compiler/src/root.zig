@@ -97,6 +97,7 @@ pub const appendStateFile = state_publication.appendStateFile;
 const generation_cache = @import("backends/zig/cache.zig");
 pub const finishCacheWriting = generation_cache.finishCacheWriting;
 pub const startCacheWriting = generation_cache.startCacheWriting;
+pub const writeGenerationCacheFile = generation_cache.writeGenerationCacheFile;
 pub const writeGenerationCacheRecord = generation_cache.writeGenerationCacheRecord;
 pub const Diagnostic = zx.Diagnostic;
 pub const formatRx = frontend.formatXml;
