@@ -1,13 +1,20 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import type { OwnedOrigins, Publish } from "./model"
+import type { StringBuffer } from "memory"
+import type { OwnedOrigins, Artifact } from "./model"
 
-export type Input = Publish.Pick("origins", "key", "labels")
+export type Input = Artifact.Pick("origins") & {
+    key: string,
+    labels: StringBuffer
+}
 
 export type Output = OwnedOrigins
 
 export default function (in: Input): Output {
-    const { origins, key, labels } = in
+    const { origins, key } = in
+
+    const labels = memory.stringViews(in.labels)
 
     return {
         ids: origins.ids.map(id => id)[0],

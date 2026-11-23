@@ -5,10 +5,15 @@ import bind from "../../native/publication/binding"
 import declaration from "../../native/publication/declaration"
 import own from "../../native/publication/record"
 
+import type { ColumnSet } from "memory/columns"
+import type { Target as MemberRows } from "../../artifact/surface/bindings"
+import type { Member } from "../../native/interface/members"
 import type { Owner } from "../../native/publication/model"
-import type { Publish } from "./model"
 
-export type Input = Publish.Pick("members", "signature_target", "binding_target") & {
+export type Input = {
+    members: Member[],
+    signature_target: ColumnSet,
+    binding_target: MemberRows,
     owner: Owner
 }
 

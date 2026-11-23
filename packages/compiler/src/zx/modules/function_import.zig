@@ -29,32 +29,16 @@ pub fn borrow(self: *const @This(), comptime Row: type) Row {
     return row;
 }
 
-pub const Writable = struct {
-    name: zx.memory.WriteColumn,
-    namespace: zx.memory.WriteColumn,
-    id: zx.memory.WriteColumn,
-    input_type: zx.memory.WriteColumn,
-    output_type: zx.memory.WriteColumn,
-    intrinsic: zx.memory.WriteColumn,
-    pub fn borrowRows(rows: []Self) Writable {
-        var columns: Writable = undefined;
-
-        inline for (@typeInfo(Writable).@"struct".field_names) |name| {
-            @field(columns, name) = zx.memory.borrowWriteColumn(@FieldType(Self, name), name, rows);
-        }
-
-        return columns;
-    }
-    pub fn view(self: *const Writable, comptime Target: type) Target {
-        var result: Target = undefined;
-
-        inline for (@typeInfo(Writable).@"struct".field_names) |name| {
-            @field(result, name) = @ptrCast(&@field(self, name));
-        }
-
-        return result;
-    }
-};
+pub fn Output(comptime Target: type) type {
+    return zx.memory.RowOutput(Self, Target, .{
+        .name = &.{"name"},
+        .namespace = &.{"namespace"},
+        .id = &.{"id"},
+        .input_type = &.{"input_type"},
+        .output_type = &.{"output_type"},
+        .intrinsic = &.{"intrinsic"},
+    });
+}
 
 pub const Readable = struct {
     id: zx.memory.ReadColumn,

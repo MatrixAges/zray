@@ -36,15 +36,23 @@
         }}
     />
 
+    <Call
+        module="publish"
+        in={{
+            declaration: $in.declaration,
+            key: $in.key,
+            types: $ctx.load.delta,
+            origins: $ctx.produce,
+            exports: $ctx.load.exports,
+            members: $ctx.load.members,
+            targets: $in.targets
+        }}
+    />
+
     <Return
         value={{
             diagnostic: $ctx.load.diagnostic,
-            artifact: {
-                types: $ctx.load.delta,
-                origins: $ctx.produce,
-                exports: $ctx.load.exports,
-                members: $ctx.load.members
-            }
+            artifact: $ctx.publish
         }}
     />
 </Module>

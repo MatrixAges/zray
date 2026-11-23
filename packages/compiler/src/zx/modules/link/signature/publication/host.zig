@@ -15,14 +15,7 @@ pub fn Stage(comptime Input: type) type {
         const Self = @This();
 
         functions: function_target.View(Destination),
-        output: zx.memory.RowOutput(FunctionImport, MemberTarget, .{
-            .name = &.{"name"},
-            .namespace = &.{"namespace"},
-            .id = &.{"id"},
-            .input_type = &.{"input_type"},
-            .output_type = &.{"output_type"},
-            .intrinsic = &.{"intrinsic"},
-        }),
+        output: FunctionImport.Output(MemberTarget),
         pub fn init(self: *Self, resource: *const std.mem.Allocator, functions: *ir.FunctionStorage) void {
             self.functions.init(resource, functions);
             self.output.init();

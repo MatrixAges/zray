@@ -1,8 +1,11 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
-import type { NamedRowBuffer } from "memory"
-import type { ColumnSet, SignatureRow } from "memory/columns"
+import type { Allocator, ArenaScope, ColumnRanges, NamedRowBuffer } from "memory"
+import type { ColumnSet, RowBuffer } from "memory/columns"
+import type {
+    Target as TypeTail
+} from "../../../analysis/semantic/merging/publication/model"
 import type { Diagnostic } from "../../../frontend/lexer/model"
 import type { Target as MemberRows } from "../../artifact/surface/bindings"
 import type { Export } from "../../native/interface/exports"
@@ -11,10 +14,12 @@ import type { Declaration } from "../restoring/native/model"
 
 export type Request = {
     declaration: Declaration
+    key: string
     source: u8[]
     namespace_bytes: u8[][]
     base: Types
     origins: Origins
+    targets: Targets
 }
 
 export type Surface = {
@@ -31,24 +36,28 @@ export type Artifact = {
 
 export type Outcome = {
     diagnostic: Diagnostic
-    artifact?: Artifact
+    artifact?: Published
 }
 
 export type OwnedOrigins = Origins & {
     names: string[]
 }
 
-export type Publish = {
+export type Targets = {
+    scope: ArenaScope,
+    payload: Allocator,
+    types: TypeTail,
+    signature_target: ColumnSet,
+    signature_ranges: ColumnRanges,
+    binding_target: MemberRows,
+    binding_storage: RowBuffer,
+    export_target: NamedRowBuffer
+}
+
+export type Publish = Artifact & {
     declaration: Declaration,
     key: string,
-    labels: string[],
-    origins: Origins,
-    exports: Export[],
-    members: Member[],
-    signature_target: ColumnSet,
-    signature_shape?: SignatureRow,
-    binding_target: MemberRows,
-    export_target: NamedRowBuffer
+    targets: Targets
 }
 
 export type Published = {

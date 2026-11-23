@@ -4,6 +4,64 @@
     <Args in={Artifact.Publish} out={Artifact.Published} />
 
     <Call
+        fn="index.selectAllocator"
+        in={[
+            $in.targets.scope,
+            $in.targets.payload
+        ]}
+    />
+
+    <If on={$in.types.kinds.length != 0}>
+        <Call
+            fn="../../../analysis/semantic/merging/publication/size"
+            in={{
+                delta: $in.types,
+                origins: $in.origins,
+                destination: $in.targets.types.destination
+            }}
+        />
+
+        <Call
+            module="../../../analysis/semantic/merging/publication/write"
+            in={{
+                ...$in.targets.types,
+                delta: $in.types,
+                origins: {
+                    ids: [],
+                    kinds: [],
+                    owners: [],
+                    members: []
+                }
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../artifact/surface/allocate_exports"
+        in={{
+            target: $in.targets.export_target,
+            count: $in.exports.length
+        }}
+    />
+
+    <Call
+        fn="index.allocateRows"
+        in={{
+            target: $in.targets.binding_storage,
+            count: $in.members.length
+        }}
+    />
+
+    <Call
+        fn="reserve_signatures"
+        in={{
+            resource: $in.targets.payload,
+            ranges: $in.targets.signature_ranges,
+            count: $in.members.length
+        }}
+    />
+
+    <Call
         fn="header"
         in={{
             key: $in.key,
@@ -14,10 +72,10 @@
 
     <Call
         fn="surface"
-        in={$in.pick([
-            "exports",
-            "export_target"
-        ])}
+        in={{
+            exports: $in.exports,
+            export_target: $in.targets.export_target
+        }}
     />
 
     <Call
@@ -34,8 +92,8 @@
         fn="publish_members"
         in={{
             members: $in.members,
-            signature_target: $in.signature_target,
-            binding_target: $in.binding_target,
+            signature_target: $in.targets.signature_target,
+            binding_target: $in.targets.binding_target,
             owner: $ctx.header.owner
         }}
     />
@@ -44,7 +102,7 @@
         fn="origins"
         in={{
             origins: $in.origins,
-            labels: $in.labels,
+            labels: $in.targets.types.target.labels,
             key: $ctx.header.key
         }}
     />

@@ -1,9 +1,14 @@
 import strings from "std:string"
 import memory from "memory"
 
-import type { Publish, Surface } from "./model"
+import type { NamedRowBuffer } from "memory"
+import type { Export } from "../../native/interface/exports"
+import type { Surface } from "./model"
 
-export type Input = Publish.Pick("exports", "export_target")
+export type Input = {
+    exports: Export[],
+    export_target: NamedRowBuffer
+}
 
 export type Output = Surface
 
