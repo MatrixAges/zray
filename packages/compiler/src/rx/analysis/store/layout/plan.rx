@@ -3,20 +3,24 @@
 
     <Args in={Layout.Input} out={Layout.Output} />
 
-    <Call fn="names" in={$in.expressions} />
+    <Call fn="capture" in={$in} />
+
+    <Call fn="names" />
 
     <Call
-        fn="../../project/contracts/plan"
+        module="../../project/contracts/publish"
         in={{
             names: $ctx.names,
-            expressions: $in.expressions
+            expressions: $ctx.capture,
+            resource: $in.resource
         }}
     />
 
     <Return
         value={{
             names: $ctx.names,
-            ends: $ctx.plan
+            expressions: $ctx.capture,
+            ...$ctx.publish
         }}
     />
 </Module>

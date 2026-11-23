@@ -1,0 +1,77 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import { type_attribute } from "../../../schema/attribute/const"
+import attributeRow from "../../../schema/tree/attribute_row"
+
+import type { Input } from "./model"
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const { fragments, offsets, layout, resource, fields } = in
+
+    const objects = offsets.length - 1
+    const width = layout.node_width
+
+    const expressions = memory.requireTextSlots(
+        memory.allocateTextSlots(
+            resource,
+            offsets[objects]
+        )
+    )
+
+    const written = loop(0, {
+        while: object => object < objects,
+        next: object => {
+            const fragment = memory.borrowU8Range(fragments, object * width, width)
+            const members = columns.readBorrowedRowList(
+                fragment,
+                layout.node_children,
+                width
+            )
+
+            const start = offsets[object]
+            const count = offsets[object + 1] - start
+
+            const consumed = loop(0, {
+                while: row => row < count,
+                next: row => {
+                    const field = memory.borrowU8Range(members, row * width, width)
+
+                    const selected = attributeRow({
+                        layout,
+                        node: field,
+                        key: type_attribute
+                    })
+
+                    if (selected != null) {
+                        const expression = columns.readBorrowedRowText(
+                            selected,
+                            layout.attribute_value
+                        )
+
+                        const position = start + row
+
+                        memory.writeTextSlot(expressions, position, expression)
+                        columns.writeColumnRowReference(
+                            fields,
+                            position,
+                            members,
+                            width,
+                            row
+                        )
+                    } else {
+                        columns.requireColumnBounds(false)
+                    }
+
+                    row += 1
+                }
+            })
+
+            object += 1
+        }
+    })
+
+    return expressions
+}

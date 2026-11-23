@@ -1,8 +1,8 @@
 import encoding from "std:encoding"
-import memory from "memory"
 import columns from "memory/columns"
 
 import value from "../../syntax/document/publication/value"
+import attributeRow from "./attribute_row"
 
 import type { Visit } from "./model"
 
@@ -21,35 +21,20 @@ export default function (in: Input): Output {
     const layout = tree.layout
 
     if (layout != null) {
-        const rows = columns.readBorrowedRowList(
-            node.rows,
-            layout.node_attributes,
-            layout.attribute_width
-        )
-
-        const found: Output = null
-
-        return loop({
-            offset: 0,
-            found
-        }, {
-            while: state => state.found == null && state.offset < rows.length,
-            next: state => {
-                const row =
-                    memory.borrowU8Range(rows, state.offset, layout.attribute_width)
-                const name = columns.readBorrowedRowText(row, layout.attribute_name)
-
-                if (name == key) {
-                    state.found = {
-                        value: columns.readBorrowedRowText(row, layout.attribute_value),
-                        expression: row[layout.attribute_kind] != 0
-                    }
-                }
-
-                state.offset += layout.attribute_width
-            },
-            return: state => state.found
+        const row = attributeRow({
+            layout,
+            node: node.rows,
+            key
         })
+
+        if (row == null) {
+            return null
+        }
+
+        return {
+            value: columns.readBorrowedRowText(row, layout.attribute_value),
+            expression: row[layout.attribute_kind] != 0
+        }
     }
 
     const parent = tree.nodes[node.head - 1]

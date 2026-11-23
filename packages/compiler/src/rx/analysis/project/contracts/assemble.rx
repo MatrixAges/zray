@@ -6,17 +6,17 @@
     <Call fn="names" in={$in.owners} />
 
     <Call
-        fn="plan"
+        module="publish"
         in={{
             names: $ctx.names,
-            expressions: $in.expressions
+            ...$in.omit(["owners"])
         }}
     />
 
     <Return
         value={{
             names: $ctx.names,
-            ends: $ctx.plan
+            ...$ctx.publish
         }}
     />
 </Module>

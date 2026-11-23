@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Contracts" />
+
+    <Args in={Contracts.Fields} out={Contracts.Bytes} />
+
+    <Call fn="plan" in={$in.omit(["resource"])} />
+
+    <Call
+        fn="render"
+        in={{
+            ...$in,
+            ends: $ctx.plan
+        }}
+    />
+
+    <Return
+        value={{
+            ends: $ctx.plan,
+            text: $ctx.render
+        }}
+    />
+</Module>

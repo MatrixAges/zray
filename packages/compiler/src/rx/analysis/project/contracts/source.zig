@@ -27,30 +27,18 @@ pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.
     const generated = @import("generated_rx_args_source");
     const expressions = entries.items(.expression);
 
-    const result = generated.executeValue(self.allocator, &.{
+    const input: std.meta.Child(generated.Input) = .{
         .owners = entries.items(.module),
         .expressions = expressions,
-    }) catch |err| switch (@as(anyerror, err)) {
+        .resource = @ptrCast(&self.allocator),
+    };
+
+    const result = zx.columns.invoke(generated.executeValue, self.allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const text = try self.allocator.alloc(u8, @intCast(result.ends[entries.len - 1]));
-    var writer: std.Io.Writer = .fixed(text);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    @import("generated_rx_args_render").executeValue(empty.allocator(), &.{
-        .writer = @ptrCast(&writer),
-        .names = result.names,
-        .expressions = expressions,
-    }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    std.debug.assert(writer.end == text.len);
-
-    self.text = text;
+    self.text = result.text;
     self.names = result.names;
     self.ends = result.ends;
 }

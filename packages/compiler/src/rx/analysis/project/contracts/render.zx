@@ -1,30 +1,56 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import { assignment, declaration, newline } from "./const"
 
-import type { Writer } from "std:bytes"
+import type { Fields } from "./model"
 
-export type Input = {
-    writer: Writer,
-    names: string[],
-    expressions: string[]
+export type Input = Fields & {
+    ends: u64[]
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const result = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.names.length,
-        next: state => {
-            bytes.write(in.writer, bytes.fromText(declaration))
-            bytes.write(in.writer, bytes.fromText(in.names[state.index]))
-            bytes.write(in.writer, bytes.fromText(assignment))
-            bytes.write(in.writer, bytes.fromText(in.expressions[state.index]))
-            bytes.write(in.writer, bytes.fromText(newline))
+    const { names, expressions, ends, resource } = in
 
-            state.index += 1
+    const count = ends.length
+
+    if (count == 0) {
+        return []
+    }
+
+    const target = memory.createU8Buffer(resource, ends[count - 1], null)
+    const prefix = bytes.fromText(declaration)
+    const equal = bytes.fromText(assignment)
+    const line = bytes.fromText(newline)
+
+    const rendered = loop({
+        row: 0,
+        offset: 0
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const name = bytes.fromText(names[state.row])
+            const expression = bytes.fromText(expressions[state.row])
+            const start = state.offset
+            const after_prefix = start + prefix.length
+            const after_name = after_prefix + name.length
+            const after_equal = after_name + equal.length
+            const after_expression = after_equal + expression.length
+
+            const header = memory.copyBytes(target, start, prefix, 0, prefix.length)
+            const label = memory.copyBytes(target, after_prefix, name, 0, name.length)
+            const assign = memory.copyBytes(target, after_name, equal, 0, equal.length)
+            const value =
+                memory.copyBytes(target, after_equal, expression, 0, expression.length)
+            const end =
+                memory.copyBytes(target, after_expression, line, 0, line.length)
+
+            state.offset = ends[state.row]
+            state.row += 1
         }
     })
+
+    return memory.u8Views(target)
 }

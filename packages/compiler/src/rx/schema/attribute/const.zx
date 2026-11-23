@@ -17,3 +17,5 @@ export const name_attribute: string = "name"
 export const value_attribute: string = "value"
 
 export const alias_attribute: string = "as"
+
+export const type_attribute: string = "type"

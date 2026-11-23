@@ -1,7 +1,6 @@
 const std = @import("std");
 const rx = @import("rx");
 const zx = @import("zx");
-const target = @import("../call/target.zig");
 const generated = @import("rx_options").generated_graph;
 const Self = @This();
 
@@ -20,25 +19,17 @@ pub fn build(allocator: std.mem.Allocator, store: rx.ast.Node, groups: ?rx.store
     const offsets = grouping.offsets orelse try allocator.dupe(u64, &.{ 0, fragments[0].children.len });
     const count: usize = @intCast(offsets[fragments.len]);
     const fields = try allocator.alloc(*const rx.ast.Node, count);
-    const expressions = try allocator.alloc([]const u8, count);
-
-    for (fragments, offsets[0..fragments.len]) |fragment, offset| {
-        for (fragment.children, @as(usize, @intCast(offset))..) |*field, index| {
-            fields[index] = field;
-            expressions[index] = target.attribute(field.*, "type").value;
-        }
-    }
 
     const columns: Columns = if (comptime generated)
-        try source(allocator, expressions)
+        try source(allocator, fragments, offsets, fields)
     else
-        try @import("layout/seed.zig").plan(allocator, expressions);
+        try @import("layout/seed.zig").plan(allocator, fragments, offsets, fields);
 
     return .{
         .fragments = fragments,
         .offsets = offsets,
         .fields = fields,
-        .expressions = expressions,
+        .expressions = columns.expressions,
         .starts = grouping.starts,
         .next = grouping.next,
         .names = columns.names,
@@ -48,37 +39,32 @@ pub fn build(allocator: std.mem.Allocator, store: rx.ast.Node, groups: ?rx.store
 }
 
 pub const Columns = struct {
+    expressions: []const []const u8,
     names: []const []const u8,
     ends: []const u64,
     text: []const u8,
 };
 
-fn source(allocator: std.mem.Allocator, expressions: []const []const u8) std.mem.Allocator.Error!Columns {
+fn source(allocator: std.mem.Allocator, fragments: []const rx.ast.Node, offsets: []const u64, fields: []*const rx.ast.Node) std.mem.Allocator.Error!Columns {
     const rule = @import("generated_rx_store_layout");
-    const input: std.meta.Child(rule.Input) = .{ .expressions = expressions };
+    const Input = std.meta.Child(rule.Input);
+    const layout = comptime rx.astLayout(std.meta.Child(@FieldType(Input, "layout")));
+    const references = zx.memory.borrowNestedWriteColumn(?[*]const u8, &.{}, fields);
+
+    const input: Input = .{
+        .fragments = std.mem.sliceAsBytes(fragments),
+        .offsets = offsets,
+        .layout = &layout,
+        .resource = @ptrCast(&allocator),
+        .fields = @ptrCast(&references),
+    };
 
     const planned = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const length = std.math.cast(usize, planned.ends[expressions.len - 1]) orelse return error.OutOfMemory;
-    const text = try allocator.alloc(u8, length);
-    var writer: std.Io.Writer = .fixed(text);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    @import("generated_rx_args_render").executeValue(empty.allocator(), &.{
-        .writer = @ptrCast(&writer),
-        .names = planned.names,
-        .expressions = expressions,
-    }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    std.debug.assert(writer.end == text.len);
-
-    return .{ .names = planned.names, .ends = planned.ends, .text = text };
+    return .{ .expressions = planned.expressions, .names = planned.names, .ends = planned.ends, .text = planned.text };
 }
 
 pub fn typeStart(self: Self, index: usize) usize {

@@ -6,7 +6,7 @@ pub fn supports(comptime Node: type) bool {
     return Node == ast.View or @hasDecl(Node, "schemaChildren");
 }
 
-fn layout(comptime Layout: type) Layout {
+pub fn layout(comptime Layout: type) Layout {
     const Attribute = ast.Attribute;
     const Kind = @FieldType(Attribute, "kind");
 

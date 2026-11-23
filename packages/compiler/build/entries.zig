@@ -105,7 +105,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/gateway/routes/conflicts.zx", .name = "rx_gateway_conflicts", .owner = .rx_analysis },
     .{ .path = "rx/analysis/gateway/limits.zx", .name = "rx_gateway_limits", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/assemble.rx", .name = "rx_args_source", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/contracts/render.zx", .name = "rx_args_render", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/location.zx", .name = "rx_args_location", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/validate.rx", .name = "rx_args_validate", .owner = .rx_analysis },
     .{ .path = "rx/analysis/flow_compile/result.zx", .name = "rx_flow_result", .owner = .rx_analysis },

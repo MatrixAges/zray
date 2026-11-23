@@ -1,8 +1,17 @@
+import type { Allocator } from "memory"
+import type { WriteColumn } from "memory/columns"
+import type { Layout } from "../../../schema/tree/model"
+import type { Bytes } from "../../project/contracts/model"
+
 export type Input = {
-    expressions: string[]
+    fragments: u8[],
+    offsets: u64[],
+    layout: Layout,
+    resource: Allocator,
+    fields: WriteColumn
 }
 
-export type Output = {
+export type Output = Bytes & {
     names: string[],
-    ends: u64[]
+    expressions: string[]
 }

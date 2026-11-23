@@ -1,7 +1,18 @@
 const std = @import("std");
+const rx = @import("rx");
 const Columns = @import("../layout.zig").Columns;
+const target = @import("../../call/target.zig");
 
-pub fn plan(allocator: std.mem.Allocator, expressions: []const []const u8) std.mem.Allocator.Error!Columns {
+pub fn plan(allocator: std.mem.Allocator, fragments: []const rx.ast.Node, offsets: []const u64, fields: []*const rx.ast.Node) std.mem.Allocator.Error!Columns {
+    const expressions = try allocator.alloc([]const u8, fields.len);
+
+    for (fragments, offsets[0..fragments.len]) |fragment, offset| {
+        for (fragment.children, @as(usize, @intCast(offset))..) |*field, index| {
+            fields[index] = field;
+            expressions[index] = target.attribute(field.*, "type").value;
+        }
+    }
+
     const names = try allocator.alloc([]const u8, expressions.len);
     const ends = try allocator.alloc(u64, expressions.len);
     var text: std.ArrayList(u8) = .empty;
@@ -18,5 +29,5 @@ pub fn plan(allocator: std.mem.Allocator, expressions: []const []const u8) std.m
         end.* = text.items.len;
     }
 
-    return .{ .names = names, .ends = ends, .text = text.items };
+    return .{ .expressions = expressions, .names = names, .ends = ends, .text = text.items };
 }

@@ -1,0 +1,38 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Layout } from "./model"
+
+export type Input = {
+    layout: Layout,
+    node: u8[],
+    key: string
+}
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    const { node, layout, key } = in
+
+    const width = layout.attribute_width
+
+    const attributes = columns.readBorrowedRowList(node, layout.node_attributes, width)
+    const finding: Output = null
+
+    return loop({
+        offset: 0,
+        finding
+    }, {
+        while: state => state.finding == null && state.offset < attributes.length,
+        next: state => {
+            const row = memory.borrowU8Range(attributes, state.offset, width)
+
+            if (columns.readBorrowedRowText(row, layout.attribute_name) == key) {
+                state.finding = row
+            }
+
+            state.offset += width
+        },
+        return: state => state.finding
+    })
+}

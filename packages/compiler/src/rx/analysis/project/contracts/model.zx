@@ -1,9 +1,20 @@
-export type Input = {
-    owners: u64[],
+import type { Allocator } from "memory"
+
+export type Fields = {
+    resource: Allocator,
+    names: string[],
     expressions: string[]
 }
 
-export type Output = {
-    names: string[],
-    ends: u64[]
+export type Input = Fields.Omit("names") & {
+    owners: u64[]
+}
+
+export type Bytes = {
+    ends: u64[],
+    text: u8[]
+}
+
+export type Output = Bytes & {
+    names: string[]
 }
