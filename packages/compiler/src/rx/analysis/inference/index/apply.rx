@@ -1,0 +1,34 @@
+<Module>
+    <Type from="workflow" as="Indexes" />
+    <Type from="../sequences/model" as="Sequences" />
+
+    <Args in={Indexes.Application} out={bool} />
+
+    <If on={$in.route == Sequences.IndexRoute.Wait}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="effect" in={$in.omit(["projection"])} />
+
+    <If on={$ctx.effect.message != null}>
+        <Call
+            fn="host.rejectIndexProjection"
+            in={[
+                $in.projection,
+                $ctx.effect.message,
+                $in.route != Sequences.IndexRoute.Invalid
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="host.unifyIndexProjection"
+        in={[
+            $in.projection,
+            $ctx.effect.value,
+            $ctx.effect.declared
+        ]}
+    />
+
+    <Return value={true} />
+</Module>

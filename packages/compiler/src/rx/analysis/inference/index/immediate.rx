@@ -1,0 +1,11 @@
+<Module>
+    <Type from="workflow" as="Indexes" />
+
+    <Args in={Indexes.Immediate} out={bool} />
+
+    <Call fn="plan" in={$in} />
+
+    <Call module="apply" />
+
+    <Return value={$ctx.apply} />
+</Module>

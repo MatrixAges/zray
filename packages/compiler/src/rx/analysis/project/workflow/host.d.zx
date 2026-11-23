@@ -32,6 +32,18 @@ export type ObjectConstructionProjection = opaque
 
 export type ObjectConstructionFields = opaque
 
+export type BindingReplay = opaque
+
+export type NonNullReplay = opaque
+
+export type SequenceReplay = opaque
+
+export type LengthReplay = opaque
+
+export type IndexReplay = opaque
+
+export type IndexApplication = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -731,3 +743,77 @@ export declare function rejectMissingConstructedField(frame: ObjectConstructionF
 
 export declare function rejectAmbiguousConstructedField(frame: ObjectConstructionFields): void
     throws { OutOfMemory, InvalidSource }
+
+export declare function unifyBindingReplay(frame: BindingReplay, row: u64, value: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rejectBindingReplay(
+    frame: BindingReplay,
+    row: u64,
+    collision: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function unifyNonNullReplay(
+    frame: NonNullReplay,
+    row: u64,
+    value: u32,
+    register: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function inferNonNullReplay(frame: NonNullReplay, row: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function expectSequenceList(
+    frame: SequenceReplay,
+    row: u64,
+    child: u32,
+    declared: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function expectSequenceTuple(
+    frame: SequenceReplay,
+    row: u64,
+    members: u32[],
+    declared: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectSequenceReplay(
+    frame: SequenceReplay,
+    row: u64,
+    length: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function unifyLengthReplay(
+    frame: LengthReplay,
+    row: u64,
+    value: u32,
+    register: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function requireListLength(frame: LengthReplay, row: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function unifyOpenLength(frame: LengthReplay, row: u64, root: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rejectLengthReplay(
+    frame: LengthReplay,
+    row: u64,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function readReplayIndex(frame: IndexReplay, row: u64): IndexApplication
+
+export declare function commitReplayIndex(frame: IndexReplay, row: u64, resolved: bool): void
+
+export declare function unifyIndexProjection(
+    frame: IndexApplication,
+    value: u32,
+    declared: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectIndexProjection(
+    frame: IndexApplication,
+    message: string?,
+    at_index: bool
+): void throws { OutOfMemory, InvalidSource }

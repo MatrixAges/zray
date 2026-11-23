@@ -1,0 +1,83 @@
+<Module>
+    <Type from="model" as="Lengths" />
+    <Type from="../fields/model" as="Fields" />
+
+    <Args in={Lengths.Cursor} out={Lengths.Cursor} />
+
+    <Call
+        fn="length"
+        in={{
+            ...$in.request.omit(["frame"]),
+            start: $in.row
+        }}
+    />
+
+    <If on={$ctx.length.row == $in.request.targets.length}>
+        <Return
+            value={{
+                ...$in,
+                row: $ctx.length.row
+            }}
+        />
+    </If>
+
+    <If
+        on={$ctx.length.plan.route == Fields.Route.Length ||
+            $ctx.length.plan.route == Fields.Route.KnownMember}
+    >
+        <Call
+            fn="host.unifyLengthReplay"
+            in={[
+                $in.request.frame,
+                $ctx.length.row,
+                $ctx.length.node ?? $ctx.length.plan.value,
+                $ctx.length.node == null
+            ]}
+        />
+
+        <Else>
+            <Switch on={$ctx.length.plan.route}>
+                <Case value={Fields.Route.RequireList}>
+                    <Call
+                        fn="host.requireListLength"
+                        in={[
+                            $in.request.frame,
+                            $ctx.length.row
+                        ]}
+                    />
+                </Case>
+
+                <Case value={Fields.Route.Open}>
+                    <Call
+                        fn="host.unifyOpenLength"
+                        in={[
+                            $in.request.frame,
+                            $ctx.length.row,
+                            $ctx.length.root
+                        ]}
+                    />
+                </Case>
+
+                <Default>
+                    <Call fn="../fields/diagnostic" in={$ctx.length.plan.route} />
+
+                    <Call
+                        fn="host.rejectLengthReplay"
+                        in={[
+                            $in.request.frame,
+                            $ctx.length.row,
+                            $ctx.diagnostic
+                        ]}
+                    />
+                </Default>
+            </Switch>
+        </Else>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.length.row + 1
+        }}
+    />
+</Module>

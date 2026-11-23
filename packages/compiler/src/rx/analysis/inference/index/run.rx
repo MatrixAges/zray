@@ -1,0 +1,15 @@
+<Module>
+    <Type from="workflow" as="Indexes" />
+
+    <Args in={Indexes.Replay} out={void} />
+
+    <Loop on={$in.row < $in.request.targets.length}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                row: 0
+            }}
+        />
+    </Loop>
+</Module>

@@ -1,0 +1,12 @@
+import type { BindingReplay } from "rx_project_host"
+import type { Input } from "./model"
+
+export type Replay = Input.Omit("start") & {
+    frame: BindingReplay
+}
+
+export type Cursor = {
+    request: Replay,
+    start: u64,
+    running: bool
+}

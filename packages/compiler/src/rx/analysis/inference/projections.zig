@@ -20,62 +20,7 @@ pub fn applyLengths(graph: *Graph) zx.Error!void {
         return;
     }
 
-    const scan = @import("generated_rx_length_replay");
-    const Input = std.meta.Child(scan.Input);
-    const Known = std.meta.Child(@FieldType(Input, "known"));
-    const values = lengths.items(.value);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var start: usize = 0;
-
-    while (start < targets.len) {
-        const rows = graph.nodes.slice();
-        const types = &graph.types.items;
-        const parents = graph.parents();
-
-        const input: Input = .{
-            .kinds = rows.items(.kind),
-            .arguments = rows.items(.argument),
-            .types = &.{
-                .kinds = types.kinds.items,
-                .first = types.first.items,
-                .second = types.second.items,
-                .field_names = types.field_names.items,
-                .field_types = types.field_types.items,
-            },
-            .allowed = rows.items(.allowed),
-            .parents = @ptrCast(&parents),
-            .known = &graph.pending.known_types.borrow(Known),
-            .targets = @ptrCast(targets),
-            .values = @ptrCast(values),
-            .start = start,
-        };
-
-        const result = zx.columns.invoke(scan.executeValue, empty.allocator(), &input) catch unreachable;
-        const row: usize = @intCast(result.row);
-
-        if (row == targets.len) return;
-
-        const projection = lengths.get(row);
-
-        const value = switch (result.plan.route) {
-            .Length, .KnownMember => if (result.node) |node|
-                @as(Graph.Id, @fromBackingInt(node))
-            else
-                try graph.known(@fromBackingInt(result.plan.value), projection.span),
-            .RequireList => value: {
-                _ = try graph.payload(projection.target, .list, projection.span);
-
-                break :value try graph.scalar(.u64, projection.span);
-            },
-            .Open => try Access.open(graph, @fromBackingInt(result.root), Access.length_name, projection.span),
-            .MissingMember, .InvalidDeclared, .InvalidInferred, .ScalarConflict => return Access.fail(graph, result.plan.route, projection.span),
-            else => unreachable,
-        };
-
-        try graph.unify(value, projection.value, projection.span);
-
-        start = row + 1;
-    }
+    try @import("projections/host.zig").run(graph, lengths);
 }
 
 pub fn validateLengths(graph: *Graph) zx.Error!void {

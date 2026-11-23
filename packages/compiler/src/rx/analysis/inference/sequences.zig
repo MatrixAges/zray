@@ -65,51 +65,7 @@ pub fn replay(graph: *Graph) zx.Error!void {
         return;
     }
 
-    const entry = @import("generated_rx_sequence_replay");
-    const Input = std.meta.Child(entry.Input);
-    const values = sequences.items(.value);
-    const elements = sequences.items(.elements);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    var start: usize = 0;
-
-    while (start < sequences.len) {
-        const view = Target.borrow(entry, graph);
-        const parents: []u32 = graph.parents();
-
-        const input: Input = .{
-            .graph = &view,
-            .parents = @ptrCast(&parents),
-            .values = @ptrCast(values),
-            .elements = @ptrCast(elements),
-            .start = start,
-        };
-
-        const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-
-        if (result.plan.route == .Wait) return;
-
-        const row: usize = @intCast(result.row);
-        const sequence = sequences.get(row);
-        const plan = result.plan;
-
-        switch (plan.route) {
-            .Wait => unreachable,
-            .Length => return lengthMismatch(graph, sequence.span),
-            .Invalid => return invalidSequence(graph, sequence.span),
-            .List => try expectList(graph, sequence, plan.argument, plan.declared),
-            .Tuple => {
-                const targets: Registration.Targets = if (plan.declared)
-                    .{ .declared = result.targets }
-
-                else
-                    .{ .inferred = result.targets };
-
-                try Registration.expectMany(graph, sequence.elements, sequence.spans, targets);
-            },
-        }
-
-        start = row + 1;
-    }
+    try @import("sequences/host.zig").run(graph, sequences);
 }
 
 fn seedPropagate(graph: *Graph, sequence: Sequence) zx.Error!void {
@@ -132,7 +88,7 @@ fn seedPropagate(graph: *Graph, sequence: Sequence) zx.Error!void {
     }
 }
 
-fn expectList(graph: *Graph, sequence: Sequence, child: u32, declared: bool) zx.Error!void {
+pub fn expectList(graph: *Graph, sequence: Sequence, child: u32, declared: bool) zx.Error!void {
     if (sequence.elements.len == 0) return;
 
     const member = try Target.child(graph, child, declared, sequence.spans[0]);
@@ -141,10 +97,10 @@ fn expectList(graph: *Graph, sequence: Sequence, child: u32, declared: bool) zx.
     for (sequence.elements, sequence.spans) |element, span| try graph.expect(element, member, span);
 }
 
-fn lengthMismatch(graph: *const Graph, span: zx.Span) zx.Error {
+pub fn lengthMismatch(graph: *const Graph, span: zx.Span) zx.Error {
     return graph.reporter.fail(.type_mismatch, span, "tuple element count does not match the required type");
 }
 
-fn invalidSequence(graph: *const Graph, span: zx.Span) zx.Error {
+pub fn invalidSequence(graph: *const Graph, span: zx.Span) zx.Error {
     return graph.reporter.fail(.type_mismatch, span, "a sequence requires a list or tuple type");
 }

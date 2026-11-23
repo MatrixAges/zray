@@ -1,0 +1,22 @@
+import {
+    missing_member,
+    scalar_conflict,
+    invalid_declared,
+    invalid_inferred
+} from "./const"
+import { Route } from "./model"
+
+import type { Route as FieldRoute } from "./model"
+
+export type Input = FieldRoute
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match in {
+        Route.MissingMember => missing_member,
+        Route.ScalarConflict => scalar_conflict,
+        Route.InvalidDeclared => invalid_declared,
+        _ => invalid_inferred
+    }
+}

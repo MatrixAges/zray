@@ -1,0 +1,11 @@
+import type { SequenceReplay } from "rx_project_host"
+import type { ReplayInput } from "./model"
+
+export type Replay = ReplayInput.Omit("start") & {
+    frame: SequenceReplay
+}
+
+export type Cursor = {
+    request: Replay,
+    row: u64
+}

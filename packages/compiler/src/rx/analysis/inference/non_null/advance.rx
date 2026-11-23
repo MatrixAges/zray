@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="NonNull" />
+    <Type from="scan" as="Scan" />
+
+    <Args in={NonNull.Cursor} out={NonNull.Cursor} />
+
+    <Call
+        fn="scan"
+        in={{
+            ...$in.request.omit(["frame"]),
+            next: $in.next
+        }}
+    />
+
+    <Switch on={$ctx.scan.action}>
+        <Case value={Scan.Action.Infer}>
+            <Call
+                fn="host.inferNonNullReplay"
+                in={[
+                    $in.request.frame,
+                    $ctx.scan.next - 1
+                ]}
+            />
+        </Case>
+
+        <Case value={Scan.Action.Wait}>
+            <Return
+                value={{
+                    ...$in,
+                    next: $in.request.sources.length
+                }}
+            />
+        </Case>
+
+        <Default>
+            <Call
+                fn="host.unifyNonNullReplay"
+                in={[
+                    $in.request.frame,
+                    $ctx.scan.next - 1,
+                    $ctx.scan.value,
+                    $ctx.scan.action == Scan.Action.Register
+                ]}
+            />
+        </Default>
+    </Switch>
+
+    <Return
+        value={{
+            ...$in,
+            next: $ctx.scan.next
+        }}
+    />
+</Module>

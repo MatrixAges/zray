@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Bindings" />
+    <Type from="workflow" as="Replay" />
+
+    <Args in={Replay.Cursor} out={Replay.Cursor} />
+
+    <Call
+        module="propagate"
+        in={{
+            ...$in.request.omit(["frame"]),
+            start: $in.start
+        }}
+    />
+
+    <If on={$ctx.propagate.action == Bindings.Action.Unify}>
+        <Call
+            fn="host.unifyBindingReplay"
+            in={[
+                $in.request.frame,
+                $ctx.propagate.row,
+                $ctx.propagate.value
+            ]}
+        />
+
+        <Return
+            value={{
+                request: $in.request,
+                start: $ctx.propagate.row + 1,
+                running: $ctx.propagate.row + 1 < $in.request.values.length
+            }}
+        />
+    </If>
+
+    <If on={$ctx.propagate.action != Bindings.Action.Done}>
+        <Call
+            fn="host.rejectBindingReplay"
+            in={[
+                $in.request.frame,
+                $ctx.propagate.row,
+                $ctx.propagate.action == Bindings.Action.Conflict
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            running: false
+        }}
+    />
+</Module>

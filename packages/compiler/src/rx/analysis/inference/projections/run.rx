@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Lengths" />
+
+    <Args in={Lengths.Replay} out={void} />
+
+    <Loop on={$in.row < $in.request.targets.length}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                row: 0
+            }}
+        />
+    </Loop>
+</Module>

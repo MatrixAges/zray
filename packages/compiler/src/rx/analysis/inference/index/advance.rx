@@ -1,0 +1,57 @@
+<Module>
+    <Type from="workflow" as="Indexes" />
+
+    <Args in={Indexes.Cursor} out={Indexes.Cursor} />
+
+    <Call
+        fn="replay"
+        in={{
+            ...$in.request.omit(["frame"]),
+            start: $in.row
+        }}
+    />
+
+    <If on={!$ctx.replay.found}>
+        <Return
+            value={{
+                ...$in,
+                row: $in.request.targets.length
+            }}
+        />
+    </If>
+
+    <Call
+        fn="host.readReplayIndex"
+        in={[
+            $in.request.frame,
+            $ctx.replay.row
+        ]}
+    />
+
+    <Call
+        module="apply"
+        in={{
+            projection: $ctx.readReplayIndex,
+            route: $ctx.replay.plan.route,
+            child: $ctx.replay.plan.child,
+            declared: $ctx.replay.plan.declared,
+            node: $ctx.replay.node
+        }}
+    />
+
+    <Call
+        fn="host.commitReplayIndex"
+        in={[
+            $in.request.frame,
+            $ctx.replay.row,
+            $ctx.apply
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.replay.row + 1
+        }}
+    />
+</Module>

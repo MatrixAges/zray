@@ -20,3 +20,13 @@ export type Output = {
     plan: IndexPlan,
     node?: u32
 }
+
+export type EffectInput = IndexPlan & {
+    node?: u32
+}
+
+export type Effect = {
+    value: u32,
+    declared: bool,
+    message?: string
+}

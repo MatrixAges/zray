@@ -1,4 +1,3 @@
-const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
@@ -41,20 +40,7 @@ pub fn infer(self: *Expression, item: anytype, span: zx.Span) zx.Error!Graph.Id 
 pub fn propagate(graph: *Graph, projection: Projection) zx.Error!bool {
     if (!@import("rx_options").generated_graph) return seedPropagate(graph, projection);
 
-    const entry = @import("generated_rx_index");
-    const root = graph.root(projection.target);
-    const view = Target.borrow(entry, graph);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    const input: std.meta.Child(entry.Input) = .{
-        .graph = &view,
-        .root = @backingInt(root),
-        .position = projection.position,
-    };
-
-    const plan = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-
-    return apply(graph, projection, plan.route, plan.child, plan.declared, null);
+    return @import("index/host.zig").immediate(graph, projection);
 }
 
 fn seedPropagate(graph: *Graph, projection: Projection) zx.Error!bool {
@@ -67,13 +53,13 @@ fn seedPropagate(graph: *Graph, projection: Projection) zx.Error!bool {
         else => .{ .value = 0, .declared = false },
     };
 
-    return apply(graph, projection, route, child.value, child.declared, null);
+    return applySeed(graph, projection, route, child);
 }
 
-fn apply(graph: *Graph, projection: Projection, route: anytype, child: u32, declared: bool, registered: ?u32) zx.Error!bool {
-    const value = if (registered) |id| @as(Graph.Id, @fromBackingInt(id)) else switch (route) {
+fn applySeed(graph: *Graph, projection: Projection, route: anytype, child: Target.Seed.Child) zx.Error!bool {
+    const value = switch (route) {
         .Wait => return false,
-        .List, .Tuple => try Target.child(graph, child, declared, projection.span),
+        .List, .Tuple => try Target.child(graph, child.value, child.declared, projection.span),
         .String => try graph.scalar(.u8, projection.span),
         .MissingLiteral => return graph.reporter.fail(.type_mismatch, projection.index_span, "tuple indexing requires an integer literal"),
         .OutOfBounds => return graph.reporter.fail(.type_mismatch, projection.index_span, "tuple index is out of bounds"),
@@ -97,38 +83,7 @@ pub fn replay(graph: *Graph) zx.Error!void {
         return;
     }
 
-    const entry = @import("generated_rx_index_replay");
-    const Input = std.meta.Child(entry.Input);
-    const Known = std.meta.Child(@FieldType(Input, "known"));
-    const resolution = std.mem.sliceAsBytes(resolved);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    var start: usize = 0;
-
-    while (start < indexes.len) {
-        const view = Target.borrow(entry, graph);
-        const parents: []u32 = graph.parents();
-
-        const input: Input = .{
-            .graph = &view,
-            .parents = @ptrCast(&parents),
-            .targets = @ptrCast(indexes.items(.target)),
-            .values = @ptrCast(indexes.items(.value)),
-            .resolved = resolved,
-            .resolution = @ptrCast(&resolution),
-            .positions = indexes.items(.position),
-            .known = &graph.pending.known_types.borrow(Known),
-            .start = start,
-        };
-
-        const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-
-        if (!result.found) return;
-
-        const row: usize = @intCast(result.row);
-        const plan = result.plan;
-        resolved[row] = try apply(graph, indexes.get(row), plan.route, plan.child, plan.declared, result.node);
-        start = row + 1;
-    }
+    try @import("index/host.zig").run(graph, indexes);
 }
 
 pub fn isResult(graph: *const Graph, id: Graph.Id) bool {

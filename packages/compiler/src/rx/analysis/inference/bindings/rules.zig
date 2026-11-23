@@ -1,5 +1,7 @@
 const std = @import("std");
+const zx = @import("zx");
 const Graph = @import("../types.zig");
+const Kind = @import("../nodes.zig").Kind;
 const enabled = @import("rx_options").generated_graph;
 const status_rule = if (enabled) @import("generated_rx_binding_status") else void;
 const pair_rule = if (enabled) @import("generated_rx_binding_pair") else void;
@@ -9,9 +11,11 @@ pub const Collision = if (enabled) pair_rule.Output else enum { Ignore, Defer, C
 pub const Selection = struct { value: ?Graph.Id = null, multiple: bool = false };
 
 pub fn view(comptime Entry: type, graph: *const Graph) std.meta.Child(@FieldType(std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "topology")), "graph")) {
+    const View = std.meta.Child(@FieldType(std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "topology")), "graph"));
     const rows = graph.nodes.slice();
+    const kinds: []const Kind = rows.items(.kind);
 
-    return .{ .kinds = rows.items(.kind), .arguments = rows.items(.argument) };
+    return .{ .kinds = zx.columns.slice(@FieldType(View, "kinds"), kinds), .arguments = rows.items(.argument) };
 }
 
 pub fn status(graph: *const Graph, id: Graph.Id) Status {

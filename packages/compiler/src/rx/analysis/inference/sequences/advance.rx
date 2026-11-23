@@ -1,0 +1,67 @@
+<Module>
+    <Type from="model" as="Sequences" />
+    <Type from="workflow" as="Replay" />
+
+    <Args in={Replay.Cursor} out={Replay.Cursor} />
+
+    <Call
+        fn="replay"
+        in={{
+            ...$in.request.omit(["frame"]),
+            start: $in.row
+        }}
+    />
+
+    <Switch on={$ctx.replay.plan.route}>
+        <Case value={Sequences.SequenceRoute.Wait}>
+            <Return
+                value={{
+                    ...$in,
+                    row: $in.request.values.length
+                }}
+            />
+        </Case>
+
+        <Case value={Sequences.SequenceRoute.List}>
+            <Call
+                fn="host.expectSequenceList"
+                in={[
+                    $in.request.frame,
+                    $ctx.replay.row,
+                    $ctx.replay.plan.argument,
+                    $ctx.replay.plan.declared
+                ]}
+            />
+        </Case>
+
+        <Case value={Sequences.SequenceRoute.Tuple}>
+            <Call
+                fn="host.expectSequenceTuple"
+                in={[
+                    $in.request.frame,
+                    $ctx.replay.row,
+                    $ctx.replay.targets,
+                    $ctx.replay.plan.declared
+                ]}
+            />
+        </Case>
+
+        <Default>
+            <Call
+                fn="host.rejectSequenceReplay"
+                in={[
+                    $in.request.frame,
+                    $ctx.replay.row,
+                    $ctx.replay.plan.route == Sequences.SequenceRoute.Length
+                ]}
+            />
+        </Default>
+    </Switch>
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.replay.row + 1
+        }}
+    />
+</Module>

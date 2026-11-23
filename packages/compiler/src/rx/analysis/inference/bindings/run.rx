@@ -1,0 +1,16 @@
+<Module>
+    <Type from="workflow" as="Bindings" />
+
+    <Args in={Bindings.Replay} out={void} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                start: 0,
+                running: true
+            }}
+        />
+    </Loop>
+</Module>

@@ -1,0 +1,11 @@
+import type { NonNullReplay } from "rx_project_host"
+import type { Input as Scan } from "./scan"
+
+export type Replay = Scan.Omit("next") & {
+    frame: NonNullReplay
+}
+
+export type Cursor = {
+    request: Replay,
+    next: u64
+}

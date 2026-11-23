@@ -1,0 +1,11 @@
+import type { LengthReplay } from "rx_project_host"
+import type { Input as Scan } from "./length"
+
+export type Replay = Scan.Omit("start") & {
+    frame: LengthReplay
+}
+
+export type Cursor = {
+    request: Replay,
+    row: u64
+}

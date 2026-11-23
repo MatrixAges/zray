@@ -1,0 +1,5 @@
+export const missing_literal: string = "tuple indexing requires an integer literal"
+
+export const out_of_bounds: string = "tuple index is out of bounds"
+
+export const invalid_target: string = "indexing requires a list, tuple or string"

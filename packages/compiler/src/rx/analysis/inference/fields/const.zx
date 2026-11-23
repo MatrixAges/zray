@@ -1,1 +1,11 @@
 export const length_name: string = "length"
+
+export const missing_member: string =
+    "the complete input type does not contain this field"
+
+export const scalar_conflict: string = "object fields conflict with scalar requirements"
+
+export const invalid_declared: string = "field access requires an object"
+
+export const invalid_inferred: string =
+    "field requirements conflict with the inferred input type"

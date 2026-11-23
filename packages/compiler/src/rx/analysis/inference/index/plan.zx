@@ -1,0 +1,28 @@
+import index from "../sequences/index_plan"
+import target from "../sequences/target"
+
+import type { Application, Immediate } from "./workflow"
+
+export type Input = Immediate
+
+export type Output = Application
+
+export default function (in: Input): Output {
+    const { graph, root, position, projection } = in
+
+    const plan = index({
+        graph,
+        root,
+        position,
+        target: target({
+            graph,
+            root
+        })
+    })
+
+    return {
+        ...plan,
+        projection,
+        node: null
+    }
+}
