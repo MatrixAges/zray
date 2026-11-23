@@ -5,7 +5,7 @@ const Members = @import("members.zig");
 const Member = Members.Member;
 const Native = @import("../interface.zig").Native;
 
-pub fn analyze(arena: *std.heap.ArenaAllocator, types: *Types, entry: Native, module: zx.ir.NativeModuleId) zx.Error!@import("interface.zig").Result {
+pub fn analyze(arena: *std.heap.ArenaAllocator, types: *Types, entry: Native, module: zx.ir.NativeModuleId) zx.Error!@import("../native.zig").Result {
     const allocator = arena.allocator();
     const parsed = try @import("../declarations.zig").parse(allocator, entry.source, types.reporter);
     const view = @import("view.zig").Native{ .value = parsed };
@@ -50,5 +50,5 @@ pub fn analyze(arena: *std.heap.ArenaAllocator, types: *Types, entry: Native, mo
         }
     }
 
-    return .{ .exports = exports, .members = members };
+    return .{ .types = types.items.view(), .exports = exports, .members = members };
 }

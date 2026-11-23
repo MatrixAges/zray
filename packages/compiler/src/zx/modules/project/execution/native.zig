@@ -108,16 +108,9 @@ pub fn loadFreshProjectNative(handle: *const anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
     const project = frame.project;
 
-    const target: Loaded.Target = .{
-        .types = &project.types,
-        .origins = &project.nominal_origins,
-        .functions = &project.functions,
-        .owner = if (comptime generated) project.native_modules.view().at(@backingInt(frame.module)).key() else null,
-    };
+    frame.result = if (comptime generated)
+        try @import("../../native/delivery/host.zig").load(project, frame.native, frame.module, frame.span)
 
-    const loaded = try Loaded.load(project.arena, frame.native.*, frame.module, target, project.reporter, frame.span);
-
-    if (comptime generated) try @import("../../link/signature/publication/host.zig").finalizeNative(project.allocator, &project.native_modules, &project.functions, frame.module, loaded, frame.native.namespace);
-
-    frame.result = loaded;
+    else
+        try Loaded.loadSeed(project.arena, frame.native.*, frame.module, .{ .types = &project.types, .origins = &project.nominal_origins }, project.reporter, frame.span);
 }

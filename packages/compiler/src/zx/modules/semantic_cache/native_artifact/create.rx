@@ -3,7 +3,7 @@
 
     <Args in={Artifact.Request} out={Artifact.Outcome} />
 
-    <Call fn="origin" in={$in.declaration} />
+    <Call fn="../../native/origin" in={$in.key} />
 
     <Call
         module="../../native/load"

@@ -3,14 +3,91 @@
 
     <Args in={Delivery.Input} out={Delivery.Output} />
 
-    <Call fn="../../project/execution/index.publishInterfaceTypes" in={$in.types} />
-    <Call fn="exports" in={$in.exports} />
+    <Call fn="../origin" in={$in.owner_key} />
 
-    <If on={$in.members.rows.count != 0}>
-        <Call module="../publication/publish" in={$in.members} />
+    <Call
+        module="../load"
+        in={{
+            base: $in.base,
+            origins: $in.origins,
+            source: $in.source,
+            namespace: $in.namespace_bytes,
+            origin: $ctx.origin,
+            shared: true
+        }}
+    />
 
-        <Return value={$ctx.publish} />
+    <If on={$ctx.load.diagnostic.message != ""}>
+        <Return value={$ctx.load.diagnostic} />
     </If>
 
-    <Return value={null} />
+    <Call
+        fn="index.selectAllocator"
+        in={[
+            $in.scope,
+            $in.payload
+        ]}
+    />
+
+    <Call
+        fn="../../../analysis/semantic/merging/publication/size"
+        in={{
+            delta: $ctx.load.delta,
+            origins: $ctx.load.origins,
+            destination: $in.types.destination
+        }}
+    />
+
+    <Call
+        module="../../../analysis/semantic/merging/publication/write"
+        in={{
+            ...$in.types,
+            delta: $ctx.load.delta,
+            origins: $ctx.load.origins
+        }}
+    />
+
+    <Call
+        fn="exports"
+        in={{
+            ...$in.bindings,
+            source: $ctx.load.exports,
+            target: $in.exports
+        }}
+    />
+
+    <Call
+        module="members"
+        in={{
+            ...$in.members,
+            rows: {
+                fresh: $ctx.load.members,
+                cached: null,
+                count: $ctx.load.members.length
+            },
+            owner: $in.owner
+        }}
+    />
+
+    <Call
+        fn="../publication/namespace"
+        in={{
+            published: $ctx.members,
+            original: $in.owner.namespace
+        }}
+    />
+
+    <Call
+        fn="../publication/install"
+        in={{
+            destination: {
+                ...$in.native,
+                member_count: $ctx.load.members.length
+            },
+            namespace: $ctx.namespace,
+            exports: $in.bindings
+        }}
+    />
+
+    <Return value={$ctx.load.diagnostic} />
 </Module>

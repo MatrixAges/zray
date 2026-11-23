@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import strings from "std:string"
 import memory from "memory"
 
@@ -6,13 +7,23 @@ import type { Exports as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
+    const { source, target, names, ids } = in
+
+    const count = integers.widen(integers.narrow(source.length))
+
+    memory.allocateNamedRows(target, count)
+    memory.allocateStringViews(names, count)
+    memory.allocateU32Views(ids, count)
+
     const written = loop(0, {
-        while: row => row < in.source.length,
+        while: row => row < count,
         next: row => {
-            const item = in.source[row]
+            const item = source[row]
             const name = strings.copy(item.name)
 
-            memory.writeNamedRow(in.target, row, name, item.type_id)
+            memory.writeNamedRow(target, row, name, item.type_id)
+            memory.writeString(names, row, name)
+            memory.writeU32(ids, row, item.type_id)
 
             row += 1
         }

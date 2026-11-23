@@ -1,0 +1,13 @@
+<Module>
+    <Type from="../publication/model" as="Native" />
+
+    <Args in={Native.Input} out={Native.Output?} />
+
+    <If on={$in.rows.count != 0}>
+        <Call module="../publication/publish" in={$in} />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return value={null} />
+</Module>

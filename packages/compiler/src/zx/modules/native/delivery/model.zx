@@ -1,17 +1,33 @@
-import type { NamedRowBuffer } from "memory"
-import type { InterfaceTypes } from "project_host"
+import type { Table as Types } from "core/type_table/model"
+import type { Bindings as Origins } from "core/type_table/nominal"
+import type { Allocator, ArenaScope, NamedRowBuffer } from "memory"
+import type {
+    Target as Publication
+} from "../../../analysis/semantic/merging/publication/model"
 import type { Export } from "../interface/exports"
-import type { Input as Members } from "../publication/model"
+import type { Bindings, Table } from "../publication/finalize_model"
+import type { Owner, Staging } from "../publication/model"
+import type { Output as Diagnostic } from "../validation/model"
 
-export type Exports = {
+export type Exports = Bindings & {
     source: Export[],
     target: NamedRowBuffer
 }
 
 export type Input = {
-    types: InterfaceTypes,
-    exports: Exports,
-    members: Members
+    base: Types,
+    origins: Origins,
+    source: u8[],
+    namespace_bytes: u8[][],
+    owner: Owner,
+    owner_key: string,
+    scope: ArenaScope,
+    payload: Allocator,
+    types: Publication,
+    exports: NamedRowBuffer,
+    bindings: Bindings,
+    members: Staging,
+    native: Table
 }
 
-export type Output = string[]?
+export type Output = Diagnostic

@@ -395,7 +395,7 @@ pub const Project = struct {
             const native_index = @backingInt(module_id);
 
             const members = seed: {
-                const namespace = loaded.namespace orelse try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
+                const namespace = try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
                 const bindings = try ir.NativeBindings.fromValues(self.allocator, loaded.exports);
 
                 NativeExecution.invalidateSeed(&self.verified);
