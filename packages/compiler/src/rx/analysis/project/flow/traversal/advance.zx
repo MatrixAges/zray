@@ -1,0 +1,42 @@
+import action from "./action"
+import callEnd from "./call_end"
+import finish from "./finish"
+import { Action, Region } from "./model"
+
+import type { Batch, Input as Frame } from "./model"
+
+export type Input = Frame
+
+export type Output = Batch
+
+export default function (in: Input): Output {
+    const position = callEnd(in)
+
+    if (position == in.end) {
+        return {
+            action: finish(in.region),
+            next: in.end,
+            item: 0,
+            position,
+            pop: in.region != Region.Root
+        }
+    }
+
+    if (in.region == Region.Selection) {
+        return {
+            action: Action.OpenCase,
+            next: in.first + 1,
+            item: 0,
+            position,
+            pop: false
+        }
+    }
+
+    return {
+        action: action(in.kinds[position]),
+        next: position + 1,
+        item: in.items[position],
+        position,
+        pop: false
+    }
+}

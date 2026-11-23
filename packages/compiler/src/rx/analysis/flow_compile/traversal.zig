@@ -56,7 +56,7 @@ const Frame = struct {
     }
 };
 
-const Host = struct {
+pub const Host = struct {
     compiler: *Compiler,
     root: Frame,
     stack: std.ArrayList(Frame) = .empty,

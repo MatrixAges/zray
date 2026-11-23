@@ -50,7 +50,7 @@ const Frame = struct {
 
 const Walker = @import("../constraints.zig").Walker;
 
-const Host = struct {
+pub const Host = struct {
     walker: *Walker,
     root: Frame,
     stack: std.ArrayList(Frame) = .empty,

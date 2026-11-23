@@ -1,0 +1,107 @@
+<Module>
+    <Type from="effect" as="Effect" />
+    <Type from="model" as="Model" />
+
+    <Args in={Effect.Input} out={void} />
+
+    <Switch on={$in.action}>
+        <Case value={Model.Action.Return}>
+            <Call
+                fn="host.returnFlowValue"
+                in={[
+                    $in.frame,
+                    $in.position,
+                    $in.item
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.OpenTask}>
+            <Call
+                fn="host.openFlowTask"
+                in={[
+                    $in.frame,
+                    $in.position,
+                    $in.item,
+                    false
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.OpenParallelTask}>
+            <Call
+                fn="host.openFlowTask"
+                in={[
+                    $in.frame,
+                    $in.position,
+                    $in.item,
+                    true
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.OpenParallel}>
+            <Call
+                fn="host.openFlowParallel"
+                in={[
+                    $in.frame,
+                    $in.position,
+                    $in.item
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.OpenSelection}>
+            <Call
+                fn="host.openFlowSelection"
+                in={[
+                    $in.frame,
+                    $in.position,
+                    $in.item
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.OpenCase}>
+            <Call
+                fn="host.openFlowCase"
+                in={[
+                    $in.frame,
+                    $in.position
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.CloseTask}>
+            <Call
+                fn="host.closeFlowTask"
+                in={[
+                    $in.frame,
+                    false
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.CloseParallelTask}>
+            <Call
+                fn="host.closeFlowTask"
+                in={[
+                    $in.frame,
+                    true
+                ]}
+            />
+        </Case>
+
+        <Case value={Model.Action.CloseParallel}>
+            <Call fn="host.closeFlowParallel" in={$in.frame} />
+        </Case>
+
+        <Case value={Model.Action.CloseSelection}>
+            <Call fn="host.closeFlowSelection" in={$in.frame} />
+        </Case>
+
+        <Case value={Model.Action.CloseCase}>
+            <Call fn="host.closeFlowCase" in={$in.frame} />
+        </Case>
+    </Switch>
+</Module>

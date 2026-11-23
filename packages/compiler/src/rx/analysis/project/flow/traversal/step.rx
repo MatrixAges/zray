@@ -1,0 +1,57 @@
+<Module>
+    <Type from="model" as="Model" />
+    <Type from="workflow" as="Traversal" />
+
+    <Args in={Traversal.Iteration} out={Traversal.Iteration} />
+
+    <Call fn="host.refreshFlowCursor" in={$in.request.frame} />
+
+    <Call
+        fn="advance"
+        in={{
+            ...$in.request.cursor,
+            kinds: $in.request.kinds,
+            items: $in.request.items
+        }}
+    />
+
+    <Call
+        fn="host.saveFlowCursor"
+        in={[
+            $in.request.frame,
+            $ctx.advance.next
+        ]}
+    />
+
+    <If on={$in.request.cursor.first < $ctx.advance.position}>
+        <Call
+            fn="host.callFlowBatch"
+            in={[
+                $in.request.frame,
+                $in.request.cursor.first,
+                $ctx.advance.position
+            ]}
+        />
+    </If>
+
+    <Call
+        module="apply"
+        in={{
+            frame: $in.request.frame,
+            action: $ctx.advance.action,
+            item: $ctx.advance.item,
+            position: $ctx.advance.position
+        }}
+    />
+
+    <If on={$ctx.advance.pop}>
+        <Call fn="host.popFlowFrame" in={$in.request.frame} />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            running: $ctx.advance.action != Model.Action.Done
+        }}
+    />
+</Module>

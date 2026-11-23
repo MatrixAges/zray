@@ -31,15 +31,20 @@ export enum Action {
     CloseCase
 }
 
-export type Input = {
+export type Cursor = {
     region: Region,
-    kinds: Kind[],
-    items: u32[],
     first: u64,
     end: u64
 }
 
-export type Output = {
+export type Plan = {
+    kinds: Kind[],
+    items: u32[]
+}
+
+export type Input = Cursor & Plan
+
+export type Batch = {
     action: Action,
     next: u64,
     item: u32,

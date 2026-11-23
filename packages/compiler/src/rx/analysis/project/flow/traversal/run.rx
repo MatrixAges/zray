@@ -1,0 +1,15 @@
+<Module>
+    <Type from="workflow" as="Traversal" />
+
+    <Args in={Traversal.Request} out={void} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="step"
+            in={{
+                request: $in,
+                running: true
+            }}
+        />
+    </Loop>
+</Module>

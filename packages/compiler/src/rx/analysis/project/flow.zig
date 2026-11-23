@@ -1,9 +1,9 @@
 const std = @import("std");
 const rx = @import("rx");
 const generated = @import("rx_options").generated_graph;
-const rule = if (generated) @import("generated_rx_flow_advance") else void;
+const traversal = if (generated) @import("generated_rx_traverse_flow") else void;
 
-pub const Kind = if (generated) std.meta.Elem(@FieldType(std.meta.Child(rule.Input), "kinds")) else enum(u8) {
+pub const Kind = if (generated) std.meta.Elem(@FieldType(std.meta.Child(traversal.Input), "kinds")) else enum(u8) {
     Call,
     Result,
     Task,

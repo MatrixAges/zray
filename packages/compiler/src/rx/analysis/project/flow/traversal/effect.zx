@@ -1,0 +1,6 @@
+import type { FlowTraversal } from "rx_project_host"
+import type { Batch } from "./model"
+
+export type Input = Batch.Pick("action", "item", "position") & {
+    frame: FlowTraversal
+}

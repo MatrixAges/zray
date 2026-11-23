@@ -1,0 +1,12 @@
+import type { FlowTraversal } from "rx_project_host"
+import type { Cursor, Plan } from "./model"
+
+export type Request = Plan & {
+    frame: FlowTraversal,
+    cursor: Cursor
+}
+
+export type Iteration = {
+    request: Request,
+    running: bool
+}
