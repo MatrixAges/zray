@@ -1,4 +1,5 @@
 import type { U32Buffer } from "memory"
+import type { SignatureResolver } from "rx_project_host"
 import type { Kind } from "../../inference/unification/model"
 
 export enum Stage {
@@ -33,14 +34,25 @@ export type Publication = {
     outputs: U32Buffer
 }
 
-export type Input = {
+export type Columns = {
     nodes: Nodes,
     ports: Ports,
-    target: Publication,
+    target: Publication
+}
+
+export type Input = Columns & {
     cursor: Cursor
 }
 
-export type Output = {
-    cursor: Cursor,
+export type Output = Cursor & {
     unresolved?: u32
+}
+
+export type Request = {
+    frame: SignatureResolver,
+    columns: Columns
+}
+
+export type Iteration = Cursor & {
+    request: Request
 }

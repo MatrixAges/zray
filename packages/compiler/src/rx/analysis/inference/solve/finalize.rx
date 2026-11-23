@@ -1,0 +1,55 @@
+<Module>
+    <Type from="model" as="Solve" />
+
+    <Args in={Solve.Frame} out={bool} />
+
+    <Call
+        fn="host.solveNonNull"
+        in={[
+            $in,
+            true
+        ]}
+    />
+
+    <If on={$ctx.solveNonNull}>
+        <Return value={true} />
+    </If>
+
+    <Call
+        fn="host.solveSelections"
+        in={[
+            $in,
+            true
+        ]}
+    />
+
+    <If on={$ctx.solveSelections}>
+        <Return value={true} />
+    </If>
+
+    <Call
+        fn="host.solveConstructions"
+        in={[
+            $in,
+            true
+        ]}
+    />
+
+    <If on={$ctx.solveConstructions}>
+        <Return value={true} />
+    </If>
+
+    <Call fn="host.solveValidateLengths" in={$in} />
+
+    <Call
+        fn="host.solveBindings"
+        in={[
+            $in,
+            true
+        ]}
+    />
+
+    <Call fn="host.solveValidateAssignments" in={$in} />
+
+    <Return value={false} />
+</Module>

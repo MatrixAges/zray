@@ -1,0 +1,3 @@
+import type { Solver } from "rx_project_host"
+
+export type Request = Solver

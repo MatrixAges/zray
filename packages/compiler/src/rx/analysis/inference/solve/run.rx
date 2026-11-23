@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Solve" />
+
+    <Args in={Solve.Frame} out={void} />
+
+    <Loop on={$in.restart}>
+        <Call
+            module="round"
+            in={{
+                frame: $in,
+                restart: true
+            }}
+        />
+    </Loop>
+</Module>

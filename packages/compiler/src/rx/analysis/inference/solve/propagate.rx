@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="Solve" />
+
+    <Args in={Solve.Frame} out={bool} />
+
+    <Call fn="host.solveRevision" in={$in} />
+    <Call fn="host.solveValidateUses" in={$in} />
+
+    <Call
+        fn="host.solveBindings"
+        in={[
+            $in,
+            false
+        ]}
+    />
+
+    <Call
+        fn="host.solveNonNull"
+        in={[
+            $in,
+            false
+        ]}
+    />
+
+    <Call fn="host.solveSequences" in={$in} />
+
+    <Call
+        fn="host.solveConstructions"
+        in={[
+            $in,
+            false
+        ]}
+    />
+
+    <Call
+        fn="host.solveSelections"
+        in={[
+            $in,
+            false
+        ]}
+    />
+
+    <Call fn="host.solveLengths" in={$in} />
+
+    <Call
+        fn="host.solveIndexes"
+        in={[
+            $in,
+            $ctx.solveRevision
+        ]}
+    />
+
+    <Return value={$ctx.solveIndexes} />
+</Module>

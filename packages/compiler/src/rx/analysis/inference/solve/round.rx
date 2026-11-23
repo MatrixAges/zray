@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Solve" />
+
+    <Args in={Solve.Round} out={Solve.Round} />
+
+    <Call module="propagate" in={$in.frame} />
+
+    <If on={$ctx.propagate}>
+        <Return value={$in} />
+    </If>
+
+    <Call module="defaults" in={$in.frame} />
+
+    <If on={$ctx.defaults}>
+        <Return value={$in} />
+    </If>
+
+    <Call module="finalize" in={$in.frame} />
+
+    <Return
+        value={{
+            frame: $in.frame,
+            restart: $ctx.finalize
+        }}
+    />
+</Module>

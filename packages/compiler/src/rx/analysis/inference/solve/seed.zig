@@ -1,45 +1,33 @@
-pub const Stage = enum {
-    ValidateUses,
-    Bindings,
-    NonNull,
-    Sequences,
-    Constructions,
-    Selections,
-    Lengths,
-    Indexes,
-    AssignmentClasses,
-    SequenceDefault,
-    Materialize,
-    IndexDefault,
-    FinalNonNull,
-    FinalSelections,
-    FinalConstructions,
-    ValidateLengths,
-    FinalBindings,
-    ValidateAssignments,
-    Restart,
-    Done,
-};
+const zx = @import("zx");
+const host = @import("host.zig");
 
-pub fn advance(stage: Stage, changed: bool) Stage {
-    return switch (stage) {
-        .ValidateUses => .Bindings,
-        .Bindings => .NonNull,
-        .NonNull => .Sequences,
-        .Sequences => .Constructions,
-        .Constructions => .Selections,
-        .Selections => .Lengths,
-        .Lengths => .Indexes,
-        .Indexes => if (changed) .Restart else .AssignmentClasses,
-        .AssignmentClasses => if (changed) .Restart else .SequenceDefault,
-        .SequenceDefault => if (changed) .Restart else .Materialize,
-        .Materialize => if (changed) .Restart else .IndexDefault,
-        .IndexDefault => if (changed) .Restart else .FinalNonNull,
-        .FinalNonNull => if (changed) .Restart else .FinalSelections,
-        .FinalSelections => if (changed) .Restart else .FinalConstructions,
-        .FinalConstructions => if (changed) .Restart else .ValidateLengths,
-        .ValidateLengths => .FinalBindings,
-        .FinalBindings => .ValidateAssignments,
-        .ValidateAssignments, .Restart, .Done => .Done,
-    };
+pub fn run(frame: *host.Frame) zx.Error!void {
+    while (true) {
+        const revision = host.solveRevision(frame);
+
+        try host.solveValidateUses(frame);
+        try host.solveBindings(frame, false);
+
+        _ = try host.solveNonNull(frame, false);
+
+        try host.solveSequences(frame);
+
+        _ = try host.solveConstructions(frame, false);
+        _ = try host.solveSelections(frame, false);
+
+        try host.solveLengths(frame);
+        if (try host.solveIndexes(frame, revision)) continue;
+        if (try host.solveAssignmentClasses(frame)) continue;
+        if (try host.solveSequenceDefaults(frame)) continue;
+        if (try host.solveMaterializeAssignments(frame)) continue;
+        if (try host.solveIndexDefaults(frame)) continue;
+        if (try host.solveNonNull(frame, true)) continue;
+        if (try host.solveSelections(frame, true)) continue;
+        if (try host.solveConstructions(frame, true)) continue;
+        try host.solveValidateLengths(frame);
+        try host.solveBindings(frame, true);
+        try host.solveValidateAssignments(frame);
+
+        return;
+    }
 }

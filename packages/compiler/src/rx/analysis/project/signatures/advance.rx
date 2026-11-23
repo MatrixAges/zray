@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Signatures" />
+
+    <Args in={Signatures.Iteration} out={Signatures.Iteration} />
+
+    <Call
+        fn="publish"
+        in={{
+            ...$in.request.columns,
+            cursor: {
+                module: $in.module,
+                binding: $in.binding,
+                output: $in.output
+            }
+        }}
+    />
+
+    <If on={$ctx.publish.unresolved != null}>
+        <Call
+            fn="host.resolveSignatureNode"
+            in={[
+                $in.request.frame,
+                $ctx.publish.unresolved
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            module: $ctx.publish.module,
+            binding: $ctx.publish.binding,
+            output: $ctx.publish.output
+        }}
+    />
+</Module>

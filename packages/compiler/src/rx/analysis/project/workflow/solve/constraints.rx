@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Solver" />
+
+    <Args in={Solver.Request} out={void} />
+
+    <Call fn="host.collectFlowConstraints" in={$in} />
+    <Call fn="host.finishFlowConstraints" in={$in} />
+    <Call fn="host.resolveFlowConstraints" in={$in} />
+</Module>

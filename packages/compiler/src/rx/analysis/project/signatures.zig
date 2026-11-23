@@ -1,11 +1,9 @@
-const std = @import("std");
 const zx = @import("zx");
 const Module = @import("../module.zig");
 const Graph = @import("../inference/types.zig");
 const Ports = @import("constraints.zig").Ports;
 const Requests = @import("signatures/requests.zig");
 const generated = @import("rx_options").generated_graph;
-const rule = if (generated) @import("generated_rx_signature_publish") else void;
 
 pub const Signature = struct {
     input_type: zx.ir.TypeId,
@@ -50,40 +48,14 @@ pub fn resolve(graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests:
     const task_ends = ports.items(.task_end);
 
     if (comptime generated) {
-        const Input = std.meta.Child(rule.Input);
-        const rows = graph.nodes.slice();
-        const parents = graph.parents();
-
-        const nodes: std.meta.Child(@FieldType(Input, "nodes")) = .{
-            .parents = @ptrCast(&parents),
-            .kinds = rows.items(.kind),
-            .arguments = rows.items(.argument),
-        };
-
-        const ranges: std.meta.Child(@FieldType(Input, "ports")) = .{
+        try @import("signatures/host.zig").run(graph, resolver, .{
             .inputs = inputs,
             .outputs = outputs,
             .binding_ends = binding_ends,
             .task_ends = task_ends,
-        };
-
-        const target: std.meta.Child(@FieldType(Input, "target")) = .{
-            .bindings = @ptrCast(&binding_types),
-            .tasks = @ptrCast(&task_types),
-            .inputs = @ptrCast(&inputs),
-            .outputs = @ptrCast(&outputs),
-        };
-
-        var cursor: std.meta.Child(@FieldType(Input, "cursor")) = .{ .module = 0, .binding = 0, .output = false };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        while (true) {
-            const input: Input = .{ .nodes = &nodes, .ports = &ranges, .target = &target, .cursor = &cursor };
-            const progress = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-            const unresolved = progress.unresolved orelse break;
-            _ = try graph.resolve(@fromBackingInt(unresolved), resolver);
-            cursor = zx.columns.view(@TypeOf(cursor), progress.cursor);
-        }
+            .bindings = binding_types,
+            .tasks = task_types,
+        });
     } else {
         var binding_start: usize = 0;
         var task_start: usize = 0;

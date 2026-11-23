@@ -16,18 +16,18 @@ export default function (in: Input): Output {
     const { nodes, ports, target } = in
 
     const initial: Output = {
-        cursor: in.cursor,
+        ...in.cursor,
         unresolved: null
     }
 
     return loop(initial, {
         while: state => {
-            const { module } = state.cursor
+            const { module } = state
 
             return module < ports.inputs.length && state.unresolved == null
         },
         next: state => {
-            const { module, binding, output } = state.cursor
+            const { module, binding, output } = state
 
             const stage = match {
                 output => Stage.Output,
@@ -54,10 +54,10 @@ export default function (in: Input): Output {
                 switch (stage) {
                     case Stage.Bindings:
                         memory.writeU32(target.bindings, binding, type_id)
-                        state.cursor.binding += 1
+                        state.binding += 1
                     case Stage.Input:
                         memory.writeU32(target.inputs, module, type_id)
-                        state.cursor.output = true
+                        state.output = true
                     default:
                         const first = module == 0 ? 0 : ports.task_ends[module - 1]
                         const end = ports.task_ends[module]
@@ -76,8 +76,8 @@ export default function (in: Input): Output {
                         }
 
                         memory.writeU32(target.outputs, module, type_id)
-                        state.cursor.module += 1
-                        state.cursor.output = false
+                        state.module += 1
+                        state.output = false
                 }
             }
         },

@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Signatures" />
+
+    <Args in={Signatures.Request} out={void} />
+
+    <Loop on={$in.module < $in.request.columns.ports.inputs.length}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                module: 0,
+                binding: 0,
+                output: false
+            }}
+        />
+    </Loop>
+</Module>

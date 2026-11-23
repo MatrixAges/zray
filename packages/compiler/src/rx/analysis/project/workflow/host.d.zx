@@ -4,6 +4,10 @@ export type Derivation = opaque
 
 export type Solver = opaque
 
+export type ConstraintRound = opaque
+
+export type SignatureResolver = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -472,4 +476,51 @@ export declare function openConstraintDefaults(state: ConstraintCollection): voi
 export declare function constraintVoidNode(state: ConstraintCollection): u32?
 
 export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveRevision(state: ConstraintRound): u64
+
+export declare function solveValidateUses(state: ConstraintRound): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveBindings(state: ConstraintRound, final: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveNonNull(state: ConstraintRound, final: bool): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveSequences(state: ConstraintRound): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveConstructions(state: ConstraintRound, final: bool): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveSelections(state: ConstraintRound, final: bool): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveLengths(state: ConstraintRound): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveIndexes(state: ConstraintRound, revision: u64): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveAssignmentClasses(state: ConstraintRound): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveSequenceDefaults(state: ConstraintRound): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveMaterializeAssignments(state: ConstraintRound): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveIndexDefaults(state: ConstraintRound): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveValidateLengths(state: ConstraintRound): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveValidateAssignments(state: ConstraintRound): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function resolveSignatureNode(state: SignatureResolver, node: u32): void
     throws { OutOfMemory, InvalidSource }
