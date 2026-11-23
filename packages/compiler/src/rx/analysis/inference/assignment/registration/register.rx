@@ -4,12 +4,13 @@
     <Args in={Registration.Input} out={Registration.Output} />
 
     <Call fn="endpoints" in={$in.endpoints} />
+    <Call fn="host.u32Views" in={$in.rows.buckets} />
 
     <If on={$ctx.endpoints.left == $ctx.endpoints.right}>
         <Return
             value={{
                 action: Registration.Action.Skip,
-                capacity: $in.buckets.length
+                capacity: $ctx.u32Views.length
             }}
         />
     </If>
@@ -18,7 +19,7 @@
         fn="admit"
         in={{
             keys: $in.keys,
-            buckets: $in.buckets,
+            buckets: $ctx.u32Views,
             pair: $ctx.endpoints,
             rows: $in.rows
         }}

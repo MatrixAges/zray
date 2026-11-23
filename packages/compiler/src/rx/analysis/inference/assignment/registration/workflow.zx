@@ -1,20 +1,21 @@
-import type { U8Buffer, U32Buffer } from "memory"
+import type { Allocator, IndexBuffer, U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type { AssignmentRegistration } from "rx_project_host"
 import type { Endpoints, Rows, Series, Spans } from "./model"
 
 export type Destination = Rows.Omit("position")
 
-export type Replacement = {
-    buckets: u32[],
-    target: U32Buffer
+export type Visibility = {
+    length: IndexBuffer,
+    revision: U64Buffer
 }
 
 export type Storage = {
     keys: u64[],
-    buckets: u32[],
     rows: Destination,
     spans: U8Buffer,
-    replacement: Replacement
+    allocator: Allocator,
+    replacement: U32Buffer,
+    visibility: Visibility
 }
 
 export type Request = {

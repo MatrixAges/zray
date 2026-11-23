@@ -33,12 +33,12 @@ export type Rows = {
 export type Input = {
     endpoints: Endpoints,
     keys: u64[],
-    buckets: u32[],
     rows: Rows,
     spans: Spans
 }
 
-export type Admission = Input.Omit("endpoints", "spans") & {
+export type Admission = Input.Pick("keys", "rows") & {
+    buckets: u32[],
     pair: Pair
 }
 

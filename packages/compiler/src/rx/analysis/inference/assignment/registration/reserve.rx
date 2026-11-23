@@ -7,24 +7,34 @@
         <Call fn="host.growAssignmentRows" in={$in.frame} />
     </If>
 
-    <If on={$in.capacity > $in.storage.buckets.length}>
+    <Call fn="host.u32BufferLength" in={$in.storage.rows.buckets} />
+
+    <If on={$in.capacity > $ctx.u32BufferLength}>
         <Call
-            fn="host.allocateAssignmentIndex"
+            fn="rebuild"
+            in={{
+                target: $in.storage.replacement,
+                allocator: $in.storage.allocator,
+                keys: $in.storage.keys,
+                count: $in.position,
+                capacity: $in.capacity
+            }}
+        />
+
+        <Call
+            fn="host.swapU32Buffers"
             in={[
-                $in.frame,
-                $in.capacity
+                $in.storage.rows.buckets,
+                $in.storage.replacement
             ]}
         />
 
         <Call
-            fn="rebuild"
-            in={{
-                ...$in.storage.replacement,
-                keys: $in.storage.keys,
-                count: $in.position
-            }}
+            fn="host.releaseU32Buffer"
+            in={[
+                $in.storage.allocator,
+                $in.storage.replacement
+            ]}
         />
-
-        <Call fn="host.publishAssignmentIndex" in={$in.frame} />
     </If>
 </Module>

@@ -568,6 +568,21 @@ pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *const anyopa
     output.* = items;
 }
 
+pub inline fn swapU32Buffers(left: *const anyopaque, right: *const anyopaque) void {
+    const first: *[]u32 = @ptrCast(@alignCast(@constCast(left)));
+    const second: *[]u32 = @ptrCast(@alignCast(@constCast(right)));
+
+    std.mem.swap([]u32, first, second);
+}
+
+pub inline fn releaseU32Buffer(resource: *const anyopaque, target: *const anyopaque) void {
+    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+
+    column_set.borrowAllocator(resource).free(output.*);
+
+    output.* = &.{};
+}
+
 pub inline fn writeU8(target: *const anyopaque, index: u64, value: u8) error{IndexOutOfBounds}!void {
     return write(u8, target, index, value);
 }

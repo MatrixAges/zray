@@ -3,19 +3,22 @@ import { max_u32 } from "core/const"
 import probe from "core/integer/wide_index/probe"
 import memory from "memory"
 
-import type { U32Buffer } from "memory"
+import type { Allocator, U32Buffer } from "memory"
 
 export type Input = {
     keys: u64[],
-    buckets: u32[],
+    allocator: Allocator,
     target: U32Buffer,
-    count: u64
+    count: u64,
+    capacity: u64
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.fillU32Buffer(in.target, in.buckets.length, max_u32)
+    memory.allocateFilledU32Buffer(in.allocator, in.target, in.capacity, max_u32)
+
+    const buckets = memory.u32Views(in.target)
 
     const written = loop({
         position: 0
@@ -24,7 +27,7 @@ export default function (in: Input): Output {
         next: state => {
             const slot = probe({
                 keys: in.keys,
-                buckets: in.buckets,
+                buckets,
                 key: in.keys[state.position]
             })
 

@@ -1,8 +1,11 @@
-export { requireAllocation } from "memory"
 export {
-    publishAssignmentPrefix,
+    releaseU32Buffer,
+    requireAllocation,
+    swapU32Buffers,
+    u32BufferLength,
+    u32Views
+} from "memory"
+export {
     growAssignmentRows,
-    allocateAssignmentIndex,
-    publishAssignmentIndex,
     registerAssignmentTarget
 } from "rx_project_host"

@@ -8,10 +8,7 @@
         module="register"
         in={{
             endpoints: $in.request.endpoints,
-            ...$in.request.storage.pick([
-                "keys",
-                "buckets"
-            ]),
+            keys: $in.request.storage.keys,
             rows: {
                 ...$in.request.storage.rows,
                 position: $in.request.position
@@ -26,11 +23,12 @@
     <Switch on={$ctx.register.action}>
         <Case value={Actions.Action.Added}>
             <Call
-                fn="host.publishAssignmentPrefix"
-                in={[
-                    $in.request.frame,
-                    $in.request.position + 1
-                ]}
+                fn="publish_prefix"
+                in={{
+                    ...$in.request.storage.visibility,
+                    first: $in.request.position,
+                    end: $in.request.position + 1
+                }}
             />
         </Case>
 

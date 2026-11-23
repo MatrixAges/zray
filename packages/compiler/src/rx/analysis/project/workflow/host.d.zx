@@ -837,15 +837,8 @@ export declare function rejectIndexProjection(
     at_index: bool
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function publishAssignmentPrefix(frame: AssignmentRegistration, end: u64): void
-
 export declare function growAssignmentRows(frame: AssignmentRegistration): void
     throws { OutOfMemory }
-
-export declare function allocateAssignmentIndex(frame: AssignmentRegistration, count: u64): void
-    throws { OutOfMemory }
-
-export declare function publishAssignmentIndex(frame: AssignmentRegistration): void
 
 export declare function registerAssignmentTarget(
     frame: AssignmentRegistration,

@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import knownNode from "../../known/find"
 import admit from "./admit"
 import endpoints from "./endpoints"
@@ -8,12 +10,13 @@ import type { Progress as Output, Series as Input } from "./model"
 
 export default function (in: Input): Output {
     const rows = in.rows
+    const buckets = memory.u32Views(rows.buckets)
 
     return loop({
         next: in.next,
         position: rows.position,
         action: Action.Skip,
-        capacity: in.buckets.length
+        capacity: buckets.length
     }, {
         while: state => state.action == Action.Skip && state.next < in.values.length,
         next: state => {
@@ -47,7 +50,7 @@ export default function (in: Input): Output {
                     }
                     const result = admit({
                         keys: in.keys,
-                        buckets: in.buckets,
+                        buckets,
                         pair,
                         rows: destination
                     })

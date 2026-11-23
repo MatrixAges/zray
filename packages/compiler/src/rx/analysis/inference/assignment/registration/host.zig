@@ -9,7 +9,7 @@ const Single = std.meta.Child(single.Input);
 const Batch = std.meta.Child(series.Input);
 const Storage = std.meta.Child(@FieldType(Single, "storage"));
 const Destination = std.meta.Child(@FieldType(Storage, "rows"));
-const Replacement = std.meta.Child(@FieldType(Storage, "replacement"));
+const Visibility = std.meta.Child(@FieldType(Storage, "visibility"));
 const Known = std.meta.Child(@typeInfo(@FieldType(Batch, "known")).optional.child);
 
 const Frame = struct {
@@ -18,32 +18,38 @@ const Frame = struct {
     left: []u32 = undefined,
     right: []u32 = undefined,
     keys: []u64 = undefined,
-    buckets: []u32 = undefined,
     spans: []u8 = undefined,
     parents: []u32 = undefined,
     known: Known = undefined,
     rows: Destination = undefined,
     storage: Storage = undefined,
-    replacement: Replacement = undefined,
     new_buckets: []u32 = &.{},
+    length: []usize = undefined,
+    revision: []u64 = undefined,
+    visibility: Visibility = undefined,
     fn open(self: *Frame) void {
+        const graph = self.graph;
+        const pending = &graph.pending;
         self.parents = self.graph.parents();
-        self.buckets = self.graph.pending.assignment_keys.index;
+        self.length = (&pending.assignments.len)[0..1];
+        self.revision = (&graph.revision)[0..1];
+        self.visibility = .{ .length = @ptrCast(&self.length), .revision = @ptrCast(&self.revision) };
 
         self.rows = .{
             .left = @ptrCast(&self.left),
             .right = @ptrCast(&self.right),
             .keys = @ptrCast(&self.keys),
-            .buckets = @ptrCast(&self.buckets),
+            .buckets = @ptrCast(&pending.assignment_keys.index),
             .capacity = undefined,
         };
 
         self.storage = .{
             .keys = undefined,
-            .buckets = self.buckets,
             .rows = &self.rows,
             .spans = @ptrCast(&self.spans),
-            .replacement = &self.replacement,
+            .allocator = @ptrCast(&pending.allocator),
+            .replacement = @ptrCast(&self.new_buckets),
+            .visibility = &self.visibility,
         };
 
         self.bindRows();
@@ -65,10 +71,6 @@ const Frame = struct {
         self.known = self.graph.pending.known_types.borrow(Known);
     }
 
-    fn discardReplacement(self: *Frame) void {
-        self.graph.pending.allocator.free(self.new_buckets);
-    }
-
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -77,7 +79,7 @@ const Frame = struct {
 pub fn expect(graph: *Graph, value: Graph.Id, expected: Graph.Id, span: zx.Span) zx.Error!void {
     var frame: Frame = .{ .graph = graph, .source_spans = &.{} };
 
-    errdefer frame.discardReplacement();
+    errdefer zx.memory.releaseU32Buffer(@ptrCast(&graph.pending.allocator), @ptrCast(&frame.new_buckets));
     frame.open();
 
     const input: Single = .{
@@ -109,7 +111,7 @@ pub fn expectMany(graph: *Graph, values: []const Graph.Id, spans: []const zx.Spa
 
     var frame: Frame = .{ .graph = graph, .source_spans = spans };
 
-    errdefer frame.discardReplacement();
+    errdefer zx.memory.releaseU32Buffer(@ptrCast(&graph.pending.allocator), @ptrCast(&frame.new_buckets));
     frame.open();
 
     if (targets == .declared) frame.bindKnown();
@@ -131,14 +133,6 @@ pub fn expectMany(graph: *Graph, values: []const Graph.Id, spans: []const zx.Spa
     series.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn publishAssignmentPrefix(handle: *const anyopaque, end: u64) void {
-    const graph = Frame.borrow(handle).graph;
-    const pending = &graph.pending.assignments;
-    const previous = pending.len;
-    pending.len = @intCast(end);
-    graph.revision += pending.len - previous;
-}
-
 pub fn growAssignmentRows(handle: *const anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = &frame.graph.pending;
@@ -146,27 +140,6 @@ pub fn growAssignmentRows(handle: *const anyopaque) std.mem.Allocator.Error!void
     try pending.assignments.ensureUnusedCapacity(pending.allocator, 1);
 
     frame.bindRows();
-}
-
-pub fn allocateAssignmentIndex(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
-
-    frame.new_buckets = try frame.graph.pending.allocator.alloc(u32, capacity);
-    frame.replacement = .{ .buckets = frame.new_buckets, .target = @ptrCast(&frame.new_buckets) };
-}
-
-pub fn publishAssignmentIndex(handle: *const anyopaque) void {
-    const frame = Frame.borrow(handle);
-    const pending = &frame.graph.pending;
-    const registry = &pending.assignment_keys;
-
-    pending.allocator.free(registry.index);
-
-    registry.index = frame.new_buckets;
-    frame.buckets = registry.index;
-    frame.storage.buckets = frame.buckets;
-    frame.new_buckets = &.{};
 }
 
 pub fn registerAssignmentTarget(handle: *const anyopaque, type_id: u32, row: u64) zx.Error!void {
