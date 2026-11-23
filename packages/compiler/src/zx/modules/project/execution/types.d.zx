@@ -26,6 +26,8 @@ export type CompiledUnit = opaque
 
 export type ArtifactLink = opaque
 
+export type ArtifactExtraction = opaque
+
 export type AnalysisPublication = opaque
 
 export type AnalysisEntry = opaque
@@ -33,7 +35,7 @@ export type AnalysisEntry = opaque
 export type SyntaxOrders = opaque
 
 export enum CacheWrite {
-    Stored,
+    Ready,
     MissingOrigin,
     Invalid
 }

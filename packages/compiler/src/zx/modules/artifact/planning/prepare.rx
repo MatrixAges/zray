@@ -1,31 +1,8 @@
 <Module>
-    <Type from="../roots/model" as="Roots" />
-    <Type from="functions/model" as="Functions" />
-    <Type from="../materializing/body" as="Body" />
-    <Type from="core/type_table/nominal" as="Nominal" />
-    <Type from="../../../analysis/constants/validation/model" as="Constants" />
+    <Type from="prepare_model" as="Prepare" />
+    <Type from="../../../analysis/semantic/extracting/planning/model" as="Planning" />
 
-    <Type
-        from="../../../analysis/semantic/extracting/planning/model"
-        as="Planning"
-    />
-
-    <Args
-        in={{
-            source: Roots.Request,
-            body: Body.Input,
-            origins: Nominal.Bindings,
-            origin_names: string[],
-            constants?: Constants.Interface,
-            scalar_count: u64,
-            maximum_count: u64
-        }}
-        out={{
-            status: Planning.Status,
-            plan?: Functions.Plan,
-            body?: Body.Output
-        }}
-    />
+    <Args in={Prepare.Request} out={Prepare.Result} />
 
     <If on={$in.constants != null}>
         <Call module="../../../analysis/constants/validation/pair" in={$in.constants} />
@@ -34,8 +11,7 @@
             <Return
                 value={{
                     status: Planning.Status.Invalid,
-                    plan: null,
-                    body: null
+                    prepared: null
                 }}
             />
         </If>
@@ -53,8 +29,7 @@
         <Return
             value={{
                 status: Planning.Status.Invalid,
-                plan: null,
-                body: null
+                prepared: null
             }}
         />
     </If>
@@ -65,8 +40,7 @@
         <Return
             value={{
                 status: Planning.Status.Invalid,
-                plan: null,
-                body: null
+                prepared: null
             }}
         />
     </If>
@@ -100,8 +74,7 @@
         <Return
             value={{
                 status: $ctx.plan.state.status,
-                plan: null,
-                body: null
+                prepared: null
             }}
         />
     </If>
@@ -111,8 +84,10 @@
     <Return
         value={{
             status: Planning.Status.Ready,
-            plan: $ctx.plan,
-            body: $ctx.body
+            prepared: {
+                plan: $ctx.plan,
+                body: $ctx.body
+            }
         }}
     />
 </Module>

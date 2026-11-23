@@ -30,16 +30,7 @@
         <Return value={false} />
     </If>
 
-    <Call
-        fn="entry_cache"
-        in={$in.pick([
-            "entry",
-            "records",
-            "record_count",
-            "uncacheable",
-            "root"
-        ])}
-    />
+    <Call module="entry_cache/run" in={$in.cache} />
 
-    <Return value={$ctx.entry_cache} />
+    <Return value={$ctx.run} />
 </Module>

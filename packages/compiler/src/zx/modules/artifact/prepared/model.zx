@@ -1,0 +1,18 @@
+import type { Allocator, ArenaScope } from "memory"
+import type { ArtifactExtraction } from "project_host"
+import type { Status } from "../../../analysis/semantic/extracting/planning/model"
+import type { Output, Views } from "../materializing/model"
+import type { Request } from "../planning/prepare_model"
+
+export type Input = {
+    preparation: Request,
+    materialization: Views,
+    frame: ArtifactExtraction,
+    scope: ArenaScope,
+    payload: Allocator
+}
+
+export type Result = {
+    status: Status,
+    artifact?: Output
+}

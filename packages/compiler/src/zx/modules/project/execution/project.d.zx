@@ -108,11 +108,12 @@ export declare function writeForwardedBody(allocator, target: ProgramEntry, body
 export declare function validateProjectEntry(entry: ProjectEntry): bool
     throws { OutOfMemory }
 
-export declare function storeProjectRecord(
-    entry: ProjectEntry,
-    index: u64,
-    root: bool
-): CacheWrite throws { OutOfMemory }
+export declare function extractProjectCacheArtifact(entry: ProjectEntry, row: u64): CacheWrite
+    throws { OutOfMemory }
+
+export declare function projectCacheSlot(entry: ProjectEntry, digest: u8[]): CacheSlot
+
+export declare function rejectProjectCacheArtifact(entry: ProjectEntry): void
 
 export declare function loadFreshProjectNative(frame: ProjectNative): void
     throws { OutOfMemory, InvalidSource }
@@ -143,6 +144,16 @@ export declare function rememberCompiledLibrary(
 ): CompiledUnit
 
 export declare function selectCompiledMember(frame: CompiledImport, library: CompiledUnit): bool
+
+export declare function bindArtifactMaterialization(
+    frame: ArtifactExtraction,
+    row: u32?,
+    use_entry: bool,
+    copy_entry_stores: bool,
+    types: u64[],
+    functions: u64[],
+    natives: u64[]
+): void
 
 export declare function orderArtifactLink(frame: ArtifactLink): void
     throws { OutOfMemory, InvalidModule, MissingModule, CyclicDependency }

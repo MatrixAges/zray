@@ -5,6 +5,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
     @import("analysis/analyzer/host/publish.zig"),
     @import("analysis/publication/entry/host.zig"),
+    @import("modules/artifact/prepared/root.zig"),
     @import("modules/compiled/imports.zig"),
     @import("modules/entry_body/host.zig"),
     @import("modules/link.zig"),

@@ -1,0 +1,78 @@
+<Module>
+    <Type from="../model" as="Execution" />
+    <Type from="index" as="Cache" />
+
+    <Args in={Execution.CacheTraversal} out={Execution.CacheTraversal} />
+
+    <Call
+        fn="index.readColumnIndex"
+        in={[
+            $in.request.records,
+            $in.position
+        ]}
+    />
+
+    <Call
+        fn="index.extractProjectCacheArtifact"
+        in={[
+            $in.request.entry,
+            $ctx.readColumnIndex
+        ]}
+    />
+
+    <Switch on={$ctx.extractProjectCacheArtifact}>
+        <Case value={Cache.CacheWrite.Ready}>
+            <Call
+                fn="digest"
+                in={{
+                    row: $ctx.readColumnIndex,
+                    cache: $in.request
+                }}
+            />
+
+            <Call
+                fn="index.projectCacheSlot"
+                in={[
+                    $in.request.entry,
+                    $ctx.digest
+                ]}
+            />
+
+            <Call
+                module="../../../semantic_cache/slot/install"
+                in={{
+                    slot: $ctx.projectCacheSlot
+                }}
+            />
+        </Case>
+
+        <Case value={Cache.CacheWrite.MissingOrigin}>
+            <Call
+                fn="index.advanceLengthSlot"
+                in={[
+                    $in.request.uncacheable,
+                    0,
+                    1
+                ]}
+            />
+        </Case>
+
+        <Default>
+            <Call fn="index.rejectProjectCacheArtifact" in={$in.request.entry} />
+
+            <Return
+                value={{
+                    ...$in,
+                    valid: false
+                }}
+            />
+        </Default>
+    </Switch>
+
+    <Return
+        value={{
+            ...$in,
+            position: $in.position + 1
+        }}
+    />
+</Module>

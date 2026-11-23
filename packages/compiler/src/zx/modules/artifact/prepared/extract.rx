@@ -1,0 +1,65 @@
+<Module>
+    <Type from="model" as="Extraction" />
+    <Type from="../../../analysis/semantic/extracting/planning/model" as="Planning" />
+
+    <Args in={Extraction.Input} out={Extraction.Result} />
+
+    <Call module="../planning/prepare" in={$in.preparation} />
+
+    <If on={$ctx.prepare.prepared != null}>
+        <Call
+            fn="index.bindArtifactMaterialization"
+            in={[
+                $in.frame,
+                $ctx.prepare.prepared.body.function_id,
+                $ctx.prepare.prepared.body.use_entry,
+                $ctx.prepare.prepared.body.copy_entry_stores,
+                $ctx.prepare.prepared.plan.state.mapping,
+                $ctx.prepare.prepared.plan.functions.mapping,
+                $ctx.prepare.prepared.plan.natives.mapping
+            ]}
+        />
+
+        <Call
+            fn="index.selectAllocator"
+            in={[
+                $in.scope,
+                $in.payload
+            ]}
+        />
+
+        <Call
+            module="../materializing/materialize"
+            in={{
+                views: $in.materialization,
+                table: $in.preparation.source.table,
+                origins: $in.preparation.origins,
+                modules: $in.preparation.source.modules,
+                plan: $ctx.prepare.prepared.plan
+            }}
+        />
+
+        <If on={$ctx.materialize == null}>
+            <Return
+                value={{
+                    status: Planning.Status.Invalid,
+                    artifact: null
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                status: Planning.Status.Ready,
+                artifact: $ctx.materialize
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            status: $ctx.prepare.status,
+            artifact: null
+        }}
+    />
+</Module>

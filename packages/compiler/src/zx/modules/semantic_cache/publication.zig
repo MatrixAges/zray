@@ -28,7 +28,7 @@ pub const invalid: zx.Diagnostic = .{
     .message = "module artifact extraction requires valid project IR and module metadata",
 };
 
-pub fn store(cache: *Cache, scratch: *zx.Arena, result: *const Analysis.Result, index: usize, root: bool, context: *const Context) std.mem.Allocator.Error!Status {
+pub fn storeSeed(cache: *Cache, scratch: *zx.Arena, result: *const Analysis.Result, index: usize, root: bool, context: *const Context) std.mem.Allocator.Error!Status {
     defer scratch.reset(std.math.maxInt(usize));
 
     var artifact = extract(cache.allocator, scratch.allocator(), result, result.modules[index]) catch |err| return switch (err) {

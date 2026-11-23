@@ -1,0 +1,39 @@
+import type { Modules } from "core/native_module_table/model"
+import type { Table as Signatures } from "core/signature_table/model"
+import type { Stores } from "core/store_table/model"
+import type { Table } from "core/type_table/model"
+import type { Bindings } from "core/type_table/nominal"
+import type {
+    Output as Origins
+} from "../../../analysis/semantic/extracting/materializing/nominal"
+import type { Input as Dependencies } from "../dependencies/publish"
+import type { Plan } from "../planning/functions/model"
+import type { Extraction } from "../surface/model"
+import type { Input as Content } from "./content_model"
+import type { Owned } from "./function_model"
+
+export type Views = {
+    declarations: Signatures,
+    content: Content,
+    surface: Extraction,
+    path: string,
+    dependencies: Dependencies
+}
+
+export type Input = {
+    views: Views,
+    table: Table,
+    origins: Bindings,
+    modules: Modules,
+    plan: Plan
+}
+
+export type Output = {
+    table: Table,
+    origins: Origins,
+    natives: Modules,
+    signatures: Signatures,
+    function?: Owned,
+    stores?: Stores,
+    path: string
+}

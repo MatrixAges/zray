@@ -108,6 +108,9 @@ pub fn appendCacheSlot(handle: *const anyopaque, bucket: u64) void {
     added.entry.* = slot.value.?;
 
     slot.entries.append(@intCast(bucket), added.key, added.entry);
+
+    slot.value = null;
+    slot.added = null;
 }
 
 pub fn replaceCacheSlot(handle: *const anyopaque, row: u64) void {
@@ -117,6 +120,7 @@ pub fn replaceCacheSlot(handle: *const anyopaque, row: u64) void {
     entry.result.deinit();
 
     entry.* = slot.value.?;
+    slot.value = null;
 }
 
 pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!u64 {

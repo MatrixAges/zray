@@ -1,0 +1,26 @@
+import type { Bindings } from "core/type_table/nominal"
+import type { Interface } from "../../../analysis/constants/validation/model"
+import type { Status } from "../../../analysis/semantic/extracting/planning/model"
+import type { Input as Body, Output as Selection } from "../materializing/body"
+import type { Request as Roots } from "../roots/model"
+import type { Plan } from "./functions/model"
+
+export type Request = {
+    source: Roots,
+    body: Body,
+    origins: Bindings,
+    origin_names: string[],
+    constants?: Interface,
+    scalar_count: u64,
+    maximum_count: u64
+}
+
+export type Prepared = {
+    plan: Plan,
+    body: Selection
+}
+
+export type Result = {
+    status: Status,
+    prepared?: Prepared
+}

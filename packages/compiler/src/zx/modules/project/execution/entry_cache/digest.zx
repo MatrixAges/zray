@@ -1,0 +1,17 @@
+import type { EntryCache } from "../model"
+
+export type Input = {
+    row: u64,
+    cache: EntryCache
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const { row, cache } = in
+
+    return match cache.root == row {
+        true => cache.root_digest,
+        _ => cache.dependency_digest
+    }
+}

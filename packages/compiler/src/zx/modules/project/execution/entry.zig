@@ -6,13 +6,16 @@ const Validate = @import("../../../ir/validate.zig");
 const publication = @import("../publication/host.zig");
 const cache_publication = @import("../../semantic_cache/publication.zig");
 const generated = @import("parser_options").generated_parser;
-const Status = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".CacheWrite else cache_publication.Status;
+const cache_entries = @import("../../semantic_cache/entries.zig");
+const Artifact = @import("../../artifact/extract.zig");
+const ABI = @import("project_execution_abi").layouts.@"zig:project_host";
 
 const Entry = struct {
     project: *Project,
     root: usize,
     scratch: zx.Arena,
     result: Analysis.Result = undefined,
+    pending: ?cache_entries.Pending = null,
     fn borrow(handle: *const anyopaque) *Entry {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -22,6 +25,12 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
     var state: Entry = .{ .project = project, .root = root, .scratch = .init(project.arena.child_allocator) };
 
     defer state.scratch.deinit();
+
+    errdefer if (state.pending) |*slot| {
+        slot.cancel();
+        if (slot.value) |*value| value.result.deinit();
+    };
+
     prepare(&state);
 
     if (comptime generated) {
@@ -70,10 +79,15 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
                 },
             },
             .verified = @ptrCast(&verified),
-            .records = @ptrCast(&record_column),
-            .record_count = records.len,
-            .uncacheable = @ptrCast(&uncacheable),
-            .root = if (project.cache_root) |cache_row| cache_row else null,
+            .cache = &.{
+                .entry = @ptrCast(&state),
+                .records = @ptrCast(&record_column),
+                .record_count = records.len,
+                .uncacheable = @ptrCast(&uncacheable),
+                .root = if (project.cache_root) |cache_row| cache_row else null,
+                .root_digest = &project.cache_context.root,
+                .dependency_digest = if (project.cache_context.dependency) |*digest| digest else &.{},
+            },
         };
 
         _ = entry.executeIn(project.allocator, &input) catch |err| return switch (err) {
@@ -98,10 +112,17 @@ fn seed(state: *Entry) std.mem.Allocator.Error!void {
     if (!try validateProjectEntry(state)) return;
 
     for (project.cache_records.items) |index| {
-        switch (try storeProjectRecord(state, index, project.cache_root == index)) {
+        const cache = project.semantic_cache.?;
+        const status = try cache_publication.storeSeed(cache, &state.scratch, &state.result, index, project.cache_root == index, &project.cache_context);
+
+        switch (status) {
             .Stored => {},
-            .MissingOrigin => project.semantic_cache.?.uncacheable += 1,
-            .Invalid => return,
+            .MissingOrigin => cache.uncacheable += 1,
+            .Invalid => {
+                rejectProjectCacheArtifact(state);
+
+                return;
+            },
         }
     }
 }
@@ -139,12 +160,37 @@ pub fn validateProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!bo
     return true;
 }
 
-pub fn storeProjectRecord(handle: *const anyopaque, index: u64, root: bool) std.mem.Allocator.Error!Status {
+pub fn extractProjectCacheArtifact(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!ABI.CacheWrite {
     const entry = Entry.borrow(handle);
-    const project = entry.project;
-    const status = try cache_publication.store(project.semantic_cache.?, &entry.scratch, &entry.result, @intCast(index), root, &project.cache_context);
+    const cache = entry.project.semantic_cache.?;
+    const index: usize = @intCast(row);
 
-    if (status == .Invalid) entry.result = .{ .arena = project.arena.*, .value = .{ .diagnostic = cache_publication.invalid } };
+    defer entry.scratch.reset(std.math.maxInt(usize));
 
-    return @fromBackingInt(@intCast(@backingInt(status)));
+    const artifact = Artifact.validated(cache.allocator, entry.scratch.allocator(), &entry.result, entry.result.modules[index]) catch |err| return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.MissingNominalOrigin => .MissingOrigin,
+        error.InvalidAnalysis, error.InvalidModule, error.InvalidIr => .Invalid,
+    };
+
+    entry.pending = .{
+        .allocator = cache.allocator,
+        .entries = &cache.entries,
+        .value = .{ .result = artifact, .context_digest = undefined },
+    };
+
+    return .Ready;
+}
+
+pub fn projectCacheSlot(handle: *const anyopaque, digest: []const u8) *const ABI.CacheSlot {
+    const slot = &Entry.borrow(handle).pending.?;
+    slot.value.?.context_digest = digest[0..slot.value.?.context_digest.len].*;
+
+    return @ptrCast(slot);
+}
+
+pub fn rejectProjectCacheArtifact(handle: *const anyopaque) void {
+    const entry = Entry.borrow(handle);
+
+    entry.result = .{ .arena = entry.project.arena.*, .value = .{ .diagnostic = cache_publication.invalid } };
 }

@@ -5,51 +5,54 @@ const Record = @import("../../module_record.zig");
 const Origins = @import("../../nominal_origins.zig");
 const Error = @import("../model.zig").Error;
 const borrow = @import("../../../ir/canonical/borrow.zig");
-const generated = @import("generated_artifact_prepare");
+const generated = @import("generated_artifact_extract");
 const projection = @import("../roots/record.zig");
 const source_view = @import("../roots/run.zig");
-const Input = std.meta.Child(generated.Input);
+const Input = std.meta.Child(@FieldType(std.meta.Child(generated.Input), "preparation"));
 const Source = std.meta.Child(@FieldType(Input, "source"));
 const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "constants")).optional.child);
-const Output = std.meta.Child(generated.Output);
-const Plan = @typeInfo(@FieldType(Output, "plan")).optional.child;
-const Body = @typeInfo(@FieldType(Output, "body")).optional.child;
+const Projected = std.meta.Child(@FieldType(Source, "record"));
+const Self = @This();
 
-pub const Prepared = struct {
-    plan: Plan,
-    body: Body,
-};
-
-pub fn execute(temporary: std.mem.Allocator, analysis: *const Analysis.Result, record: Record) Error!Prepared {
+view: projection.View(Projected),
+table: std.meta.Child(@FieldType(Source, "table")),
+origins: std.meta.Child(@FieldType(Input, "origins")),
+functions: std.meta.Child(@FieldType(Source, "functions")),
+entry: std.meta.Child(@FieldType(Source, "entry")),
+root_bytes: []u8,
+source: Source,
+body: std.meta.Child(@FieldType(Input, "body")),
+constants: @import("../../../analysis/constants/columns.zig").Pair(Constants),
+input: Input,
+pub fn bind(self: *Self, temporary: std.mem.Allocator, analysis: *const Analysis.Result, record: *const Record) Error!void {
     const program = &analysis.value.ir;
-    const Projected = std.meta.Child(@FieldType(Source, "record"));
-    var view: projection.View(Projected) = undefined;
 
-    view.init(record);
+    self.view.init(record.*);
 
-    const table = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "table")), program.types);
-    const origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), analysis.nominal_types);
-    const functions = source_view.functions(std.meta.Child(@FieldType(Source, "functions")), program);
-    const entry = source_view.body(std.meta.Child(@FieldType(Source, "entry")), program);
+    self.table = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "table")), program.types);
+    self.origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), analysis.nominal_types);
+    self.functions = source_view.functions(std.meta.Child(@FieldType(Source, "functions")), program);
+    self.entry = source_view.body(std.meta.Child(@FieldType(Source, "entry")), program);
+
     const roots = try temporary.alloc(bool, program.types.count());
 
     @memset(roots, false);
 
-    const root_bytes = std.mem.sliceAsBytes(roots);
+    self.root_bytes = std.mem.sliceAsBytes(roots);
 
-    const source: Source = .{
+    self.source = .{
         .roots = roots,
-        .buffer = @ptrCast(&root_bytes),
+        .buffer = @ptrCast(&self.root_bytes),
         .file_name = program.file_name,
         .type_only = program.type_only,
-        .table = &table,
-        .functions = &functions,
+        .table = &self.table,
+        .functions = &self.functions,
         .modules = borrow.pointer(@FieldType(Source, "modules"), &program.native_modules),
-        .entry = &entry,
-        .record = &view.plan,
+        .entry = &self.entry,
+        .record = &self.view.plan,
     };
 
-    const body: std.meta.Child(@FieldType(Input, "body")) = .{
+    self.body = .{
         .kind = switch (record.body) {
             .types => .Types,
             .entry => .Entry,
@@ -59,29 +62,17 @@ pub fn execute(temporary: std.mem.Allocator, analysis: *const Analysis.Result, r
         .own_function = if (record.own_function) |id| @backingInt(id) else null,
     };
 
-    var constants: @import("../../../analysis/constants/columns.zig").Pair(Constants) = undefined;
     const has_constants = record.constant_exports.len != 0 or record.constant_imports.len != 0;
 
-    if (has_constants) constants.init(program.types, record.constant_exports, record.constant_imports);
+    if (has_constants) self.constants.init(program.types, record.constant_exports, record.constant_imports);
 
-    const input: Input = .{
-        .source = &source,
-        .body = &body,
-        .origins = &origins,
+    self.input = .{
+        .source = &self.source,
+        .body = &self.body,
+        .origins = &self.origins,
         .origin_names = analysis.nominal_types.names,
-        .constants = if (has_constants) &constants.input else null,
+        .constants = if (has_constants) &self.constants.input else null,
         .scalar_count = std.enums.values(ir.Scalar).len,
         .maximum_count = std.math.maxInt(u32),
-    };
-
-    const result = generated.executeIn(temporary, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    return switch (result.status) {
-        .Ready => .{ .plan = result.plan.?, .body = result.body.? },
-        .MissingOrigin => error.MissingNominalOrigin,
-        .Invalid => error.InvalidModule,
     };
 }

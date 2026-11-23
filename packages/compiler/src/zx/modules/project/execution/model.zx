@@ -35,10 +35,23 @@ export type Entry = {
     entry: ProjectEntry,
     publication: EntryPublication,
     verified: ColumnLengths,
+    cache: EntryCache
+}
+
+export type EntryCache = {
+    entry: ProjectEntry,
     records: ReadColumn,
     record_count: u64,
     uncacheable: ColumnLengths,
-    root?: u64
+    root?: u64,
+    root_digest: u8[],
+    dependency_digest: u8[]
+}
+
+export type CacheTraversal = {
+    request: EntryCache,
+    position: u64,
+    valid: bool
 }
 
 export type EntryPublication = {
