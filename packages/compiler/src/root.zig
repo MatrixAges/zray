@@ -10,6 +10,18 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @This(),
     @import("backends/hardware/construction/workflow.zig"),
     @import("backends/hardware/graph/view.zig"),
+    @import("backends/verilog/root.zig"),
+    @import("backends/zig/cache.zig"),
+    @import("backends/zig/function_sources.zig"),
+    @import("backends/zig/function_sources/cache_updates.zig"),
+    @import("backends/zig/gateway/workflow.zig"),
+    @import("backends/zig/library_entries.zig"),
+    @import("backends/zig/library_initializers.zig"),
+    @import("backends/zig/output/mirror.zig"),
+    @import("backends/zig/output/tree.zig"),
+    @import("backends/zig/partition/build.zig"),
+    @import("backends/zig/state/publication.zig"),
+    @import("backends/zig/store_initializers.zig"),
     @import("verification/call_cache.zig"),
     @import("verification/execution/block.zig"),
     @import("verification/execution/call.zig"),
@@ -45,60 +57,6 @@ pub const analyzeWithContext = frontend.analyzeWithContext;
 pub const AnalysisResult = frontend.AnalysisResult;
 pub const library = @import("library/root.zig");
 pub const zig = @import("backends/zig.zig");
-const library_entries = @import("backends/zig/library_entries.zig");
-pub const analyzeLibraryExport = library_entries.analyzeLibraryExport;
-pub const publishLibraryExport = library_entries.publishLibraryExport;
-const function_sources = @import("backends/zig/function_sources/cache_updates.zig");
-pub const recordCachedSource = function_sources.recordCachedSource;
-pub const tryRecordCachedSource = function_sources.tryRecordCachedSource;
-pub const accountCachedSources = function_sources.accountCachedSources;
-pub const commitGeneratedSource = function_sources.commitGeneratedSource;
-const source_batches = @import("backends/zig/function_sources.zig");
-pub const readFunctionSources = source_batches.readFunctionSources;
-pub const restoreFunctionSources = source_batches.restoreFunctionSources;
-pub const generateFunctionSources = source_batches.generateFunctionSources;
-pub const publishFunctionSources = source_batches.publishFunctionSources;
-const application_initializers = @import("backends/zig/store_initializers.zig");
-pub const readApplicationInitializer = application_initializers.readApplicationInitializer;
-pub const emitApplicationInitializer = application_initializers.emitApplicationInitializer;
-pub const emitLibraryInitializer = @import("backends/zig/library_initializers.zig").emitLibraryInitializer;
-const bootstrap_tree = @import("backends/zig/output/tree.zig");
-pub const renderBootstrapAdapter = bootstrap_tree.renderBootstrapAdapter;
-pub const renderBootstrapOriginals = bootstrap_tree.renderBootstrapOriginals;
-pub const renderBootstrapRoot = bootstrap_tree.renderBootstrapRoot;
-pub const placeBootstrapPartitions = bootstrap_tree.placeBootstrapPartitions;
-const bootstrap_mirror = @import("backends/zig/output/mirror.zig");
-pub const hashBootstrapFiles = bootstrap_mirror.hashBootstrapFiles;
-pub const compareBootstrapFiles = bootstrap_mirror.compareBootstrapFiles;
-pub const createBootstrapParents = bootstrap_mirror.createBootstrapParents;
-pub const writeBootstrapChanges = bootstrap_mirror.writeBootstrapChanges;
-pub const trimBootstrapFiles = bootstrap_mirror.trimBootstrapFiles;
-pub const commitBootstrapManifest = bootstrap_mirror.commitBootstrapManifest;
-const bootstrap_partition = @import("backends/zig/partition/build.zig");
-pub const scanPartitionBodies = bootstrap_partition.scanPartitionBodies;
-pub const scanPartitionSupport = bootstrap_partition.scanPartitionSupport;
-pub const planPartitionLayout = bootstrap_partition.planPartitionLayout;
-pub const placePartitionFiles = bootstrap_partition.placePartitionFiles;
-pub const emitPartitionJobs = bootstrap_partition.emitPartitionJobs;
-pub const renderPartitionFile = bootstrap_partition.renderPartitionFile;
-const gateway_bundle = @import("backends/zig/gateway/workflow.zig");
-pub const bindGatewayState = gateway_bundle.bindGatewayState;
-pub const reserveGatewayFiles = gateway_bundle.reserveGatewayFiles;
-pub const appendGatewayModules = gateway_bundle.appendGatewayModules;
-pub const appendGatewayFacade = gateway_bundle.appendGatewayFacade;
-pub const publishGatewayContract = gateway_bundle.publishGatewayContract;
-pub const publishGatewayState = gateway_bundle.publishGatewayState;
-pub const publishGatewayApplication = gateway_bundle.publishGatewayApplication;
-const state_publication = @import("backends/zig/state/publication.zig");
-pub const lookupStateSource = state_publication.lookupStateSource;
-pub const renderStateSource = state_publication.renderStateSource;
-pub const cacheStateSource = state_publication.cacheStateSource;
-pub const appendStateFile = state_publication.appendStateFile;
-const generation_cache = @import("backends/zig/cache.zig");
-pub const finishCacheWriting = generation_cache.finishCacheWriting;
-pub const startCacheWriting = generation_cache.startCacheWriting;
-pub const writeGenerationCacheFile = generation_cache.writeGenerationCacheFile;
-pub const writeGenerationCacheRecord = generation_cache.writeGenerationCacheRecord;
 pub const Diagnostic = zx.Diagnostic;
 pub const formatRx = frontend.formatXml;
 pub const validateIr = frontend.validateIr;
@@ -114,7 +72,6 @@ pub const writeEvidenceProgram = evidence_output.field(ir.Program, true);
 pub const finishEvidence = evidence_output.finish;
 pub const hardware = @import("backends/hardware/root.zig");
 pub const verilog = @import("backends/verilog/root.zig");
-pub const reserveVerilogOutput = verilog.reserveVerilogOutput;
 pub const compileProjectVerified = @import("verified_compile.zig").compile;
 pub const emitProgramVerified = @import("verified_compile.zig").emit;
 pub const emitLibraryVerified = @import("verified_compile.zig").emitLibrary;

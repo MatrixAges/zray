@@ -92,15 +92,15 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host", .resolve_members = true },
-        .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
-        .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host" },
-        .{ .path = b.fmt("{s}/backends/zig/state/publication/host.d.zx", .{directories[0]}), .module = "state_publication_host" },
+        .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/backends/zig/state/publication/host.d.zx", .{directories[0]}), .module = "state_publication_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host", .resolve_members = true },
         hardware_graph_interface,
-        .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host" },
+        .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host", .resolve_members = true },
     };
 
     const host_interfaces = interfaces ++ [_]manifest.Interface{
