@@ -36,32 +36,50 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner
 
             if (program.imports.len != 0 or program.constants.len != 0 or program.body != null or program.contracts.len != 0 or program.has_store) break :native invalid(temporary, layout);
 
-            break :native resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Native{ .items = program.declarations }, null);
+            break :native resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Native{ .items = program.declarations });
         },
         .indexed => |indexed| if (comptime @TypeOf(indexed) != void) indexed: {
             const output = indexed.output;
 
-            const mismatch = if (comptime generated) admit: {
+            if (comptime generated) {
                 const admission = @import("../project/contracts/validate.zig").indexed(indexed.source, output, layout.names, layout.ends);
 
                 if (!admission.valid) break :indexed invalid(temporary, layout);
 
-                break :admit admission.mismatch;
-            } else seed: {
-                if (output.imports.len != 0 or output.constants.len != 0 or output.body != null or output.contracts.len != 0 or output.has_store) break :indexed invalid(temporary, layout);
+                break :indexed resolveIndexed(allocator, temporary, layout, context.types, aliases, indexed.source, output, admission.mismatch);
+            }
 
-                break :seed null;
-            };
+            if (output.imports.len != 0 or output.constants.len != 0 or output.body != null or output.contracts.len != 0 or output.has_store) break :indexed invalid(temporary, layout);
 
-            break :indexed resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output }, mismatch);
+            break :indexed resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output });
         } else unreachable,
     };
 }
 
-fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocator, layout: Layout, base: zx.ir.TypeTable, aliases: []const zx.ir.Export, view: anytype, mismatch: ?usize) std.mem.Allocator.Error!Value {
-    const checked = comptime generated and @hasField(@TypeOf(view), "storage");
+fn resolveIndexed(allocator: std.mem.Allocator, temporary: std.mem.Allocator, layout: Layout, base: zx.ir.TypeTable, aliases: []const zx.ir.Export, text: []const u8, output: anytype, mismatch: ?usize) std.mem.Allocator.Error!Value {
+    var types = try frontend.type_table.storage(allocator, base);
+    const fields = try temporary.alloc(zx.ir.TypeId, layout.fields.len);
+    var scratch = std.heap.ArenaAllocator.init(temporary);
 
-    if (!checked and view.declarations().count() != layout.fields.len) return invalid(temporary, layout);
+    defer scratch.deinit();
+
+    const request: frontend.type_batch.Request = .{
+        .allocator = allocator,
+        .target = &types,
+        .ids = fields,
+        .aliases = aliases,
+        .store = .{ .mismatch = mismatch, .ends = layout.ends, .expressions = layout.expressions },
+    };
+
+    if (try frontend.type_batch.resolve(&scratch, request, text, output)) |issue| {
+        return .{ .diagnostic = try mapped(temporary, layout, issue) };
+    }
+
+    return .{ .resolved = .{ .types = types, .fields = fields } };
+}
+
+fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocator, layout: Layout, base: zx.ir.TypeTable, aliases: []const zx.ir.Export, view: anytype) std.mem.Allocator.Error!Value {
+    if (view.declarations().count() != layout.fields.len) return invalid(temporary, layout);
 
     const storage = if (comptime @hasField(@TypeOf(view), "storage")) .{ .types = view.storage.types, .type_order = view.storage.type_order } else .{};
     const resolving = if (comptime @hasField(@TypeOf(view), "storage")) frontend.type_views.Indexed(@TypeOf(storage)){ .source = view.source, .storage = storage } else frontend.type_views.Native{ .items = &.{} };
@@ -79,30 +97,22 @@ fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocato
 
     for (fields, 0..) |*field, index| {
         const declaration = declarations.next().?;
-        var id: zx.ir.TypeId = undefined;
 
-        inline for (comptime Schedule.steps(.FieldType)) |step| {
-            switch (step) {
-                .Done => {},
-                .CheckDeclaration => if (comptime checked) {
-                    if (mismatch == index) return invalid(temporary, layout);
-                } else {
-                    if (declaration.name.span.start != layout.nameStart(index) or !std.mem.eql(u8, declaration.name.text, layout.names[index])) return invalid(temporary, layout);
-                },
-                .ResolveFieldType => id = types.resolveView(resolving, declaration.value) catch |err| {
-                    if (err == error.OutOfMemory) return error.OutOfMemory;
+        if (declaration.name.span.start != layout.nameStart(index) or !std.mem.eql(u8, declaration.name.text, layout.names[index])) return invalid(temporary, layout);
 
-                    return .{ .diagnostic = try mapped(temporary, layout, reporter.diagnostic.?) };
-                },
-                .CheckFieldType => if (id == frontend.types.scalarId(.void)) {
-                    const offset = layout.typeStart(index);
+        const id = types.resolveView(resolving, declaration.value) catch |err| {
+            if (err == error.OutOfMemory) return error.OutOfMemory;
 
-                    return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .type_mismatch, .span = .{ .start = offset, .end = offset }, .message = "Store fields cannot have void type" }) };
-                },
-                .RecordFieldType => field.* = id,
-                else => unreachable,
-            }
+            return .{ .diagnostic = try mapped(temporary, layout, reporter.diagnostic.?) };
+        };
+
+        if (id == frontend.types.scalarId(.void)) {
+            const offset = layout.typeStart(index);
+
+            return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .type_mismatch, .span = .{ .start = offset, .end = offset }, .message = "Store fields cannot have void type" }) };
         }
+
+        field.* = id;
     }
 
     return .{ .resolved = .{ .types = types.items, .fields = fields } };

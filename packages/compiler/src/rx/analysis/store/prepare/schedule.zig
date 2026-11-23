@@ -1,7 +1,7 @@
 const std = @import("std");
 const generated = @import("rx_options").generated_graph;
 const rule = if (generated) @import("generated_rx_store_prepare") else void;
-const Form = if (generated) rule.Input else enum { Definition, Field, Program, TypeContext, FieldType };
+const Form = if (generated) rule.Input else enum { Definition, Field, Program, TypeContext };
 
 const Step = if (generated) std.meta.Child(rule.Output) else enum {
     Done,
@@ -24,10 +24,6 @@ const Step = if (generated) std.meta.Child(rule.Output) else enum {
     CheckNativeTypes,
     CheckNominalTypes,
     CheckAliases,
-    CheckDeclaration,
-    ResolveFieldType,
-    CheckFieldType,
-    RecordFieldType,
 };
 
 const capacity = 5;
@@ -49,6 +45,5 @@ fn seed(comptime form: Form) []const Step {
         .Field => &.{ .ReadFieldAttributes, .ParseField, .CompileField, .RecordField, .LinkField },
         .Program => &.{ .ResolveObjectType, .CheckLinks, .BuildProgram, .AnalyzeOwnership, .VerifyProgram },
         .TypeContext => &.{ .CheckTypes, .CheckNativeTypes, .CheckNominalTypes, .CheckAliases },
-        .FieldType => &.{ .CheckDeclaration, .ResolveFieldType, .CheckFieldType, .RecordFieldType },
     };
 }

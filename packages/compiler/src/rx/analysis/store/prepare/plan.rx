@@ -50,16 +50,5 @@
                 ]}
             />
         </Case>
-
-        <Case value={StorePlan.Form.FieldType}>
-            <Return
-                value={[
-                    StorePlan.Step.CheckDeclaration,
-                    StorePlan.Step.ResolveFieldType,
-                    StorePlan.Step.CheckFieldType,
-                    StorePlan.Step.RecordFieldType
-                ]}
-            />
-        </Case>
     </Switch>
 </Module>

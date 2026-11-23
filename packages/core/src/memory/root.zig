@@ -228,6 +228,7 @@ pub const NamedColumns = rows.NamedColumns;
 pub const readNamedColumnName = rows.readNamedColumnName;
 pub const readNamedColumnId = rows.readNamedColumnId;
 pub const borrowNamedRows = rows.borrow;
+pub const bindNamedRowView = rows.bindNamedRowView;
 pub const TextColumn = rows.TextColumn;
 const references = @import("reference_column.zig");
 pub const borrowReferenceColumn = references.borrow;

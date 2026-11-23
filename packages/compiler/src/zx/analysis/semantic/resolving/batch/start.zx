@@ -1,0 +1,53 @@
+import initial from "../initial"
+
+import type { State } from "../model"
+import type { Input as Batch } from "./model"
+
+export type Input = Batch
+
+export type Output = State
+
+export default function (in: Input): Output {
+    return initial({
+        context: {
+            base: in.base,
+            aliases: in.aliases,
+            resolved: in.resolved,
+            source: {
+                indexed: {
+                    ...in.source,
+                    declarations: [],
+                    members: []
+                },
+                native: null
+            },
+            visiting: [],
+            native_interface: false
+        },
+        delta: {
+            kinds: [],
+            first: [],
+            second: [],
+            labels: [],
+            children: [],
+            field_types: [],
+            field_names: [],
+            names: []
+        },
+        cache: {
+            names: [],
+            ids: []
+        },
+        initialize: true,
+        named: false,
+        name: {
+            text: "",
+            start: 0,
+            end: 0
+        },
+        reference: {
+            enumeration: false,
+            index: 0
+        }
+    })
+}

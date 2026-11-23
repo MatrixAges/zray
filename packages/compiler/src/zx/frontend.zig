@@ -173,6 +173,7 @@ pub const types = @import("analysis/types.zig");
 pub const commitTypeConstruction = @import("analysis/semantic/construction.zig").commit;
 pub const type_views = @import("type_views");
 pub const type_table = @import("analysis/type_table.zig");
+pub const type_batch = @import("analysis/semantic/resolving/batch/host.zig");
 pub const parseInteger = @import("analysis/integer.zig").parse;
 pub const validateTypes = @import("ir/type_rules.zig").validate;
 pub const validateNominalTypes = @import("analysis/semantic/origins.zig").valid;

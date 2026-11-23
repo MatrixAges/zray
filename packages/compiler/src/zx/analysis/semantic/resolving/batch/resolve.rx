@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Batch" />
+
+    <Args in={Batch.Input} out={Batch.Output} />
+
+    <Call fn="start" in={$in} />
+
+    <Call
+        fn="fields"
+        in={{
+            fields: $in,
+            state: $ctx.start
+        }}
+    />
+
+    <Return value={$ctx.fields} />
+</Module>

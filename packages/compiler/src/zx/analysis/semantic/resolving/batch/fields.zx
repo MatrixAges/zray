@@ -1,0 +1,35 @@
+import step from "./step"
+
+import type { State } from "../model"
+import type { Input as Fields, Output as Resolved } from "./model"
+
+export type Input = {
+    fields: Fields,
+    state: State
+}
+
+export type Output = Resolved
+
+export default function (in: Input): Output {
+    const { fields, state } = in
+
+    const count = fields.source.declarations.length
+    const owner: u64? = null
+
+    return loop({
+        input: fields,
+        state,
+        row: 0,
+        owner
+    }, {
+        while: current =>
+            current.row < count && current.state.diagnostic.message == "",
+        next: current => {
+            current = step(current)
+        },
+        return: current => ({
+            delta: current.state.delta,
+            diagnostic: current.state.diagnostic
+        })
+    })
+}

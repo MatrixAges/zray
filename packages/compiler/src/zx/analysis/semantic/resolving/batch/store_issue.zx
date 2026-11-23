@@ -1,0 +1,42 @@
+import { scalar_void } from "core/type_table/const"
+
+import type { Diagnostic } from "../model"
+import type { Store } from "./model"
+
+export type Input = {
+    store: Store,
+    row: u64,
+    result?: u32
+}
+
+export type Output = Diagnostic?
+
+export default function (in: Input): Output {
+    const { row } = in
+
+    const rules = in.store
+
+    if (rules.mismatch == row) {
+        const start = rules.ends[0] - 1 - rules.expressions[0].length
+
+        return {
+            code: "syntax",
+            message: "Field.type must contain exactly one ZX type expression",
+            start,
+            end: start
+        }
+    }
+
+    if (in.result == scalar_void) {
+        const start = rules.ends[row] - 1 - rules.expressions[row].length
+
+        return {
+            code: "type_mismatch",
+            message: "Store fields cannot have void type",
+            start,
+            end: start
+        }
+    }
+
+    return null
+}

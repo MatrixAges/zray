@@ -1,0 +1,113 @@
+import memory from "memory"
+
+import frame from "../frame"
+import { Operation } from "../model"
+import resolve from "../run"
+import issue from "./store_issue"
+
+import type { Update } from "./model"
+
+export type Input = Update
+
+export type Output = Update
+
+export default function (in: Input): Output {
+    const { input, state, row } = in
+    const { grouping } = input
+
+    const rules = input.store
+
+    const declaration = input.source.declarations[row]
+
+    if (rules != null && rules.mismatch == row) {
+        const diagnostic = issue({
+            store: rules,
+            row,
+            result: null
+        })
+
+        if (diagnostic != null) {
+            return {
+                ...in,
+                state: {
+                    ...state,
+                    diagnostic
+                }
+            }
+        }
+    }
+
+    const owner: u64? = grouping == null ? null : grouping.owners[row]
+
+    const context = match {
+        grouping != null && owner != in.owner => {
+            ...state.context,
+            aliases: {
+                rows: grouping.rows,
+                row_count: memory.bindNamedRowView(
+                    grouping.imports,
+                    grouping.owners[row],
+                    grouping.rows
+                ),
+                names: [],
+                ids: []
+            }
+        },
+        _ => state.context
+    }
+
+    const entry = frame({
+        operation: Operation.Node,
+        name: {
+            text: "",
+            start: 0,
+            end: 0
+        },
+        reference: {
+            enumeration: declaration.enumeration,
+            index: declaration.enumeration ? row : declaration.value
+        }
+    })
+
+    const found = resolve({
+        ...state,
+        context,
+        frames: state.frames.push(entry)[0]
+    })
+
+    if (found.diagnostic.message != "") {
+        return {
+            ...in,
+            owner,
+            state: found
+        }
+    }
+
+    if (rules != null) {
+        const diagnostic = issue({
+            store: rules,
+            row,
+            result: found.result
+        })
+
+        if (diagnostic != null) {
+            return {
+                ...in,
+                owner,
+                state: {
+                    ...found,
+                    diagnostic
+                }
+            }
+        }
+    }
+
+    memory.writeU32(input.ids, row, found.result)
+
+    return {
+        input,
+        owner,
+        row: row + 1,
+        state: found
+    }
+}

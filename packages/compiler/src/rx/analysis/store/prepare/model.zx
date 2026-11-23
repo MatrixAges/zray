@@ -2,8 +2,7 @@ export enum Form {
     Definition,
     Field,
     Program,
-    TypeContext,
-    FieldType
+    TypeContext
 }
 
 export enum Step {
@@ -26,9 +25,5 @@ export enum Step {
     CheckTypes,
     CheckNativeTypes,
     CheckNominalTypes,
-    CheckAliases,
-    CheckDeclaration,
-    ResolveFieldType,
-    CheckFieldType,
-    RecordFieldType
+    CheckAliases
 }

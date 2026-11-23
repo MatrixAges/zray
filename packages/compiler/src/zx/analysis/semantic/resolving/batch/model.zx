@@ -1,0 +1,38 @@
+import type { Table } from "core/type_table/model"
+import type { NamedRows, ReadColumn, U32Buffer } from "memory"
+import type { Aliases, Cache, Diagnostic, State } from "../model"
+import type { Indexed } from "../source/model"
+
+export type Grouping = {
+    owners: u64[],
+    imports: ReadColumn,
+    rows: NamedRows
+}
+
+export type Store = {
+    mismatch?: u64,
+    ends: u64[],
+    expressions: string[]
+}
+
+export type Input = {
+    source: Indexed,
+    base: Table,
+    resolved: Cache,
+    aliases: Aliases,
+    grouping?: Grouping,
+    store?: Store,
+    ids: U32Buffer
+}
+
+export type Update = {
+    input: Input,
+    state: State,
+    row: u64,
+    owner?: u64
+}
+
+export type Output = {
+    delta: Table,
+    diagnostic: Diagnostic
+}

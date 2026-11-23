@@ -77,6 +77,14 @@ pub inline fn readId(source: *const anyopaque, index: u64) error{IndexOutOfBound
     return (try read(source, index)).id;
 }
 
+pub fn bindNamedRowView(source: *const anyopaque, index: u64, target: *const anyopaque) error{IndexOutOfBounds}!u64 {
+    const rows: *[]const NamedId = @ptrCast(@alignCast(@constCast(target)));
+
+    rows.* = try readColumn([]const NamedId, source, index);
+
+    return rows.len;
+}
+
 pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn {
     return borrowColumn([]const u8, field, items);
 }

@@ -55,14 +55,16 @@ pub fn resolve(temporary: std.mem.Allocator, graph: *Graph, modules: []const Pre
         },
         .indexed => |indexed| if (comptime @TypeOf(indexed) != void) {
             const output = indexed.output;
+
+            if (comptime generated) {
+                if (!validIndexed(source, indexed.source, output)) return invalid(graph, source, source_map);
+
+                return resolveIndexed(graph, modules, &source, source_map, indexed.source, output);
+            }
+
             const view = frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output };
 
-            const valid = if (@import("rx_options").generated_graph)
-                validIndexed(source, indexed.source, output)
-            else
-                validSeed(source, view, output.imports.len, output.constants.len, output.contracts.len, output.body != null, output.has_store);
-
-            if (!valid) return invalid(graph, source, source_map);
+            if (!validSeed(source, view, output.imports.len, output.constants.len, output.contracts.len, output.body != null, output.has_store)) return invalid(graph, source, source_map);
 
             return resolveDeclarations(graph, modules, source, source_map, view);
         } else unreachable,
@@ -89,6 +91,28 @@ fn validSeed(source: Source, view: anytype, imports: usize, constants: usize, co
     }
 
     return true;
+}
+
+fn resolveIndexed(graph: *Graph, modules: []const Prepared.Module, source: *const Source, source_map: SourceMap, text: []const u8, output: anytype) zx.Error!Ports {
+    const owners = source.entries.items(.module);
+    const types = try source.allocator.alloc(zx.ir.TypeId, owners.len);
+    comptime _ = zx.memory.borrowNamedRows("type_id", @as([]const zx.ir.Export, &.{}));
+    const imports = zx.memory.borrowReadColumn([]const zx.ir.Export, "type_imports", modules);
+    var scratch = std.heap.ArenaAllocator.init(graph.scratch);
+
+    defer scratch.deinit();
+
+    const request: frontend.type_batch.Request = .{
+        .allocator = graph.types.allocator,
+        .target = &graph.types.items,
+        .ids = types,
+        .resolved = &graph.types.resolved,
+        .grouping = .{ .owners = owners, .imports = &imports },
+    };
+
+    if (try frontend.type_batch.resolve(&scratch, request, text, output)) |issue| return fail(graph, source.*, source_map, issue);
+
+    return .{ .owners = owners, .types = types };
 }
 
 fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: Source, source_map: SourceMap, view: anytype) zx.Error!Ports {
@@ -137,15 +161,6 @@ fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: 
 }
 
 fn ownerGroup(owners: []const u64, start: usize) struct { owner: usize, end: usize } {
-    if (comptime generated) {
-        const rule = @import("generated_rx_args_owner_group");
-        const input: std.meta.Child(rule.Input) = .{ .owners = owners, .start = start };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const group = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return .{ .owner = @intCast(group.owner), .end = @intCast(group.end) };
-    }
-
     const owner: usize = @intCast(owners[start]);
     var end = start + 1;
 

@@ -21,6 +21,12 @@ export declare function allocateNamedRows(
     count: u64
 ): void throws { OutOfMemory }
 
+export declare function bindNamedRowView(
+    source: ReadColumn,
+    index: u64,
+    target: NamedRows
+): u64 throws { IndexOutOfBounds }
+
 export declare function readU32(
     target: U32Buffer,
     index: u64
