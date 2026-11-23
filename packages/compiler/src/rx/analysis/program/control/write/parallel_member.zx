@@ -1,0 +1,22 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Cursor } from "./buffers"
+
+export type Input = {
+    writer: Cursor,
+    position: u32,
+    symbol?: u32,
+    value: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { columns } = in.writer
+
+    const position = integers.widen(in.position)
+
+    memory.writeOptionalU32(columns.parallel_symbols, position, in.symbol)
+    memory.writeU32(columns.parallel_values, position, in.value)
+}

@@ -7,6 +7,10 @@ const Writer = @import("../../control/writer.zig");
 const Invocation = @import("../invocation.zig");
 const inlineValue = @import("../../expression.zig").inlineValue;
 const Error = Statements.Error;
+const request = @import("../traversal.zig").Input;
+const Control = std.meta.Child(@FieldType(request, "control"));
+const Cursor = std.meta.Child(@FieldType(Control, "writer"));
+const Columns = std.meta.Child(@FieldType(Cursor, "columns"));
 
 const Scope = struct {
     bindings: usize,
@@ -23,6 +27,29 @@ pub const State = struct {
     row: *const Plan.Row = undefined,
     writer: *Writer.Cursor = undefined,
     call: Invocation = undefined,
+    control: Control = undefined,
+    view: Cursor = undefined,
+    columns: Columns = undefined,
+    cells: []u32 = undefined,
+    binding_ranges: zx.memory.ColumnRangeGroup(1) = .{},
+    pub fn initControl(self: *State, layout: []const u32) void {
+        const statements = self.statements;
+        const table = &statements.writer.columns;
+        const builder = statements.builder;
+        self.columns = @import("../../control/write/buffers.zig").bind(Columns, table);
+        self.view = .{ .columns = &self.columns, .cells = @ptrCast(&self.cells) };
+        _ = self.binding_ranges.bind(&builder.bindings, 0, false);
+
+        self.control = .{
+            .writer = &self.view,
+            .layout = layout,
+            .firsts = table.block_first.items,
+            .lengths = table.block_count.items,
+            .resource = @ptrCast(&builder.allocator),
+            .bindings = @ptrCast(self.binding_ranges.freeze().?),
+        };
+    }
+
     pub fn borrow(handle: *const anyopaque) *State {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -40,6 +67,7 @@ pub fn selectBodyWriter(handle: *const anyopaque, block: u32) void {
 
     state.row = &state.statements.plan.rows[block];
     state.writer = if (block == state.root) state.root_writer else &state.writers[state.row.tag];
+    state.cells = state.writer.cells();
 }
 
 pub fn bodyBindingCount(handle: *const anyopaque) u64 {
@@ -69,22 +97,10 @@ pub fn evaluateBodyValue(handle: *const anyopaque, row: u32, borrowed: bool) Err
     return @backingInt(try State.borrow(handle).statements.evaluateValue(row, borrowed));
 }
 
-pub fn emitBodyReturn(handle: *const anyopaque, value: u32) void {
-    const state = State.borrow(handle);
-
-    state.statements.writer.result(state.writer, @fromBackingInt(value));
-}
-
-pub fn emitBodyEvaluation(handle: *const anyopaque, value: u32) void {
-    const state = State.borrow(handle);
-
-    state.statements.writer.evaluate(state.writer, @fromBackingInt(value));
-}
-
 pub fn defineBodyTaskBinding(handle: *const anyopaque, row: u32, value: u32) Error!u32 {
     const state = State.borrow(handle);
 
-    return @backingInt(try state.statements.defineTaskBinding(state.writer, row, @fromBackingInt(value)));
+    return @backingInt(try state.statements.taskSymbol(row, @fromBackingInt(value)));
 }
 
 pub fn publishBodyBinding(handle: *const anyopaque, symbol: u32) Error!void {
@@ -104,14 +120,16 @@ pub fn initializeBodyCase(handle: *const anyopaque) void {
     state.writer.* = Writer.Cursor.init(state.row.first);
 }
 
-pub fn emitBodyCase(handle: *const anyopaque, slot: u32, row: u32, end: u32) Error!void {
-    const state = State.borrow(handle);
+pub fn bodyScopeValue(handle: *const anyopaque, slot: u32) ?u32 {
+    const value = State.borrow(handle).scopes[slot].value;
 
-    try state.statements.writer.finishCase(state.writer, state.row.tag, &state.statements.plan.rows[end].first, row, state.scopes[slot].value);
+    return if (value) |id| @backingInt(id) else null;
 }
 
-pub fn emitBodySelection(handle: *const anyopaque, slot: u32, count: u32, exhaustive: bool) void {
-    const state = State.borrow(handle);
+pub fn bodySelectionSubject(handle: *const anyopaque, slot: u32) u32 {
+    return @backingInt(State.borrow(handle).scopes[slot].value.?);
+}
 
-    state.statements.writer.selection(state.writer, state.scopes[slot].value.?, count, exhaustive);
+pub fn requireBodyBlock(valid: bool) error{InvalidModule}!void {
+    if (!valid) return error.InvalidModule;
 }

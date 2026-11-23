@@ -1,6 +1,8 @@
 import type { BodyStatements } from "rx_project_host"
+import type { Control } from "../../../control/write/publication"
 
 export type Batch = {
+    control: Control,
     frame: BodyStatements,
     indices: u32[],
     first: u32,

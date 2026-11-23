@@ -1,19 +1,42 @@
 <Module>
-    <Type from="case_model" as="CaseWrite" />
+    <Type from="publication" as="Control" />
 
-    <Args in={CaseWrite.Input} out={bool} />
+    <Args in={Control.Case} out={void} />
 
-    <Call fn="finish_block" in={$in.block} />
+    <Call
+        fn="block_id"
+        in={{
+            layout: $in.control.layout,
+            unit: $in.unit
+        }}
+    />
 
-    <If on={$ctx.finish_block}>
-        <Call
-            fn="member"
-            in={{
-                ...$in.member,
-                required_id: $in.block.block
-            }}
-        />
-    </If>
+    <Call
+        fn="expected"
+        in={{
+            layout: $in.control.layout,
+            unit: $in.end
+        }}
+    />
 
-    <Return value={$ctx.finish_block} />
+    <Call
+        fn="finish_block"
+        in={{
+            control: $in.control,
+            block: $ctx.block_id,
+            expected: $ctx.expected
+        }}
+    />
+
+    <Call fn="../../statements/traversal/host.requireBodyBlock" />
+
+    <Call
+        fn="case_member"
+        in={{
+            writer: $in.control.writer,
+            block: $ctx.block_id,
+            position: $in.position,
+            label: $in.label
+        }}
+    />
 </Module>

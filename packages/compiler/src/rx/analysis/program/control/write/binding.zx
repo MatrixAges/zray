@@ -1,37 +1,49 @@
 import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
 import memory from "memory"
 
 import { constants_lane, evaluations_lane } from "../const"
 import header from "./header"
 
-import type { U32Buffer } from "memory"
-import type { Header } from "./header"
+import type { Cursor } from "./buffers"
 
 export type Input = {
-    header: Header,
-    values: U32Buffer,
-    symbols?: U32Buffer,
-    symbol: u32,
+    writer: Cursor,
+    symbol?: u32,
     value: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const symbols = in.symbols
-    const lane = symbols == null ? evaluations_lane : constants_lane
-    const row = memory.readU32(in.header.cursor, lane)
-    const index = integers.widen(row)
+    const { writer, symbol, value } = in
+    const { columns, cells } = writer
 
-    memory.writeU32(in.values, index, in.value)
+    if (symbol == null) {
+        const row = memory.readU32(cells, evaluations_lane)
 
-    if (symbols != null) {
-        memory.writeU32(symbols, index, in.symbol)
+        memory.writeU32(columns.evaluations, integers.widen(row), value)
+
+        header({
+            writer,
+            kind: StatementKind.Evaluate,
+            row,
+            lane: evaluations_lane
+        })
+
+        return
     }
 
+    const row = memory.readU32(cells, constants_lane)
+    const index = integers.widen(row)
+
+    memory.writeU32(columns.constant_values, index, value)
+    memory.writeU32(columns.constant_symbols, index, symbol)
+
     header({
-        header: in.header,
+        writer,
+        kind: StatementKind.Constant,
         row,
-        lane
+        lane: constants_lane
     })
 }

@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Traversal" />
 
-    <Args in={Traversal.Request} out={void} />
+    <Args in={Traversal.Request} out={u32} />
 
     <Call
         fn="walk"
@@ -25,10 +25,49 @@
             module="step"
             in={{
                 frame: $in.frame,
+                control: $in.control,
                 events: $ctx.walk.events,
                 call_ids: $in.shape.steps.firsts,
                 row: 0
             }}
         />
     </Loop>
+
+    <Call
+        fn="host.selectBodyWriter"
+        in={[
+            $in.frame,
+            $in.root
+        ]}
+    />
+
+    <If on={$in.implicit_return}>
+        <Call
+            fn="../../control/write/result"
+            in={{
+                writer: $in.control.writer
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../control/write/block_id"
+        in={{
+            layout: $in.control.layout,
+            unit: $in.root
+        }}
+    />
+
+    <Call
+        fn="../../control/write/finish_block"
+        in={{
+            control: $in.control,
+            block: $ctx.block_id,
+            expected: $in.expected
+        }}
+    />
+
+    <Call fn="host.requireBodyBlock" />
+
+    <Return value={$ctx.block_id} />
 </Module>

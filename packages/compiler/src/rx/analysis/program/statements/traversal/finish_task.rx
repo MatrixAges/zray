@@ -24,6 +24,15 @@
         />
 
         <Call
+            fn="../../control/write/binding"
+            in={{
+                writer: $in.control.writer,
+                symbol: $ctx.defineBodyTaskBinding,
+                value: $ctx.evaluateBodyValue
+            }}
+        />
+
+        <Call
             fn="host.restoreBodyScope"
             in={[
                 $in.frame,
@@ -41,11 +50,11 @@
 
         <Else>
             <Call
-                fn="host.emitBodyEvaluation"
-                in={[
-                    $in.frame,
-                    $ctx.evaluateBodyValue
-                ]}
+                fn="../../control/write/binding"
+                in={{
+                    writer: $in.control.writer,
+                    value: $ctx.evaluateBodyValue
+                }}
             />
 
             <Call

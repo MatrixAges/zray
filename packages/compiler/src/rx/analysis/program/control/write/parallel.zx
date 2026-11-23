@@ -1,35 +1,36 @@
 import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
 import memory from "memory"
 
 import { invocations_lane, parallels_lane } from "../const"
 import header from "./header"
 
-import type { U32Buffer } from "memory"
-import type { Header } from "./header"
+import type { Cursor } from "./buffers"
 
 export type Input = {
-    header: Header,
-    firsts: U32Buffer,
-    counts: U32Buffer,
+    writer: Cursor,
     count: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const cursor = in.header.cursor
-    const row = memory.readU32(cursor, parallels_lane)
-    const index = integers.widen(row)
-    const first = memory.readU32(cursor, invocations_lane)
+    const { writer } = in
+    const { columns, cells } = writer
 
-    memory.writeU32(in.firsts, index, first)
-    memory.writeU32(in.counts, index, in.count)
+    const row = memory.readU32(cells, parallels_lane)
+    const index = integers.widen(row)
+    const first = memory.readU32(cells, invocations_lane)
+
+    memory.writeU32(columns.parallel_first, index, first)
+    memory.writeU32(columns.parallel_count, index, in.count)
 
     header({
-        header: in.header,
+        writer,
+        kind: StatementKind.Parallel,
         row,
         lane: parallels_lane
     })
 
-    memory.writeU32(cursor, invocations_lane, first + in.count)
+    memory.writeU32(cells, invocations_lane, first + in.count)
 }

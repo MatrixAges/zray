@@ -1,0 +1,26 @@
+<Module>
+    <Type from="../workflow" as="Traversal" />
+
+    <Args in={Traversal.ParallelMember} out={bool} />
+
+    <Call
+        fn="../host.registerBodyCallResult"
+        in={[
+            $in.frame,
+            $in.value,
+            true
+        ]}
+    />
+
+    <Call
+        fn="../../../control/write/parallel_member"
+        in={{
+            writer: $in.control.writer,
+            position: $in.position,
+            symbol: $ctx.registerBodyCallResult,
+            value: $in.value
+        }}
+    />
+
+    <Return value={$ctx.registerBodyCallResult != null} />
+</Module>

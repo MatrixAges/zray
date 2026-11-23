@@ -44,12 +44,17 @@ pub fn evaluateValue(self: *const Self, row: usize, borrow: bool) Error!ir.ExprI
 }
 
 pub fn defineTaskBinding(self: *const Self, cursor: *Writer.Cursor, row: usize, value: ir.ExprId) Error!ir.SymbolId {
-    const builder = self.builder;
-    const symbol = try builder.symbol(self.flow.steps.items(.name)[row].?, builder.expressionType(value), builder.expressionSpan(value));
+    const symbol = try self.taskSymbol(row, value);
 
     self.writer.constant(cursor, symbol, value);
 
     return symbol;
+}
+
+pub fn taskSymbol(self: *const Self, row: usize, value: ir.ExprId) Error!ir.SymbolId {
+    const builder = self.builder;
+
+    return builder.symbol(self.flow.steps.items(.name)[row].?, builder.expressionType(value), builder.expressionSpan(value));
 }
 
 pub fn publishBinding(self: *const Self, symbol: ir.SymbolId) Error!void {

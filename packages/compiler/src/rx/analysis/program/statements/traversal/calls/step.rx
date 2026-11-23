@@ -15,29 +15,31 @@
 
     <If on={$in.parallel_first != null}>
         <Call
-            fn="../host.emitBodyParallelBranch"
-            in={[
-                $in.frame,
-                $in.parallel_first + $in.offset,
-                $ctx.invoke
-            ]}
+            module="parallel_member"
+            in={{
+                frame: $in.frame,
+                control: $in.control,
+                position: $in.parallel_first + $in.offset,
+                value: $ctx.invoke
+            }}
         />
 
         <Return
             value={{
                 ...$in,
                 offset: $in.offset + 1,
-                published: $in.published + ($ctx.emitBodyParallelBranch ? 1 : 0)
+                published: $in.published + ($ctx.parallel_member ? 1 : 0)
             }}
         />
 
         <Else>
             <Call
-                fn="../host.publishBodyCall"
-                in={[
-                    $in.frame,
-                    $ctx.invoke
-                ]}
+                module="publish_call"
+                in={{
+                    frame: $in.frame,
+                    control: $in.control,
+                    value: $ctx.invoke
+                }}
             />
         </Else>
     </If>

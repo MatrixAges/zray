@@ -1,3 +1,5 @@
+export type StatementKindBuffer = opaque
+
 export enum Ownership {
     Copy,
     Borrowed,

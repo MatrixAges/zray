@@ -1,0 +1,16 @@
+import integers from "std:integer"
+
+import { lane_count, tag_lane } from "../const"
+
+export type Input = {
+    layout: u32[],
+    unit: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const row = integers.widen(in.unit) * lane_count
+
+    return in.layout[row + tag_lane]
+}

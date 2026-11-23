@@ -1,18 +1,14 @@
 import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
 import memory from "memory"
 
 import { cases_lane, selections_lane } from "../const"
 import header from "./header"
 
-import type { U8Buffer, U32Buffer } from "memory"
-import type { Header } from "./header"
+import type { Cursor } from "./buffers"
 
 export type Input = {
-    header: Header,
-    subjects: U32Buffer,
-    firsts: U32Buffer,
-    counts: U32Buffer,
-    flags: U8Buffer,
+    writer: Cursor,
     subject: u32,
     count: u32,
     exhaustive: bool
@@ -21,21 +17,24 @@ export type Input = {
 export type Output = void
 
 export default function (in: Input): Output {
-    const cursor = in.header.cursor
-    const row = memory.readU32(cursor, selections_lane)
-    const index = integers.widen(row)
-    const first = memory.readU32(cursor, cases_lane)
+    const { writer } = in
+    const { columns, cells } = writer
 
-    memory.writeU32(in.subjects, index, in.subject)
-    memory.writeU32(in.firsts, index, first)
-    memory.writeU32(in.counts, index, in.count)
-    memory.writeU8(in.flags, index, in.exhaustive ? 1 : 0)
+    const row = memory.readU32(cells, selections_lane)
+    const index = integers.widen(row)
+    const first = memory.readU32(cells, cases_lane)
+
+    memory.writeU32(columns.selection_subjects, index, in.subject)
+    memory.writeU32(columns.selection_first, index, first)
+    memory.writeU32(columns.selection_count, index, in.count)
+    memory.writeU8(columns.selection_exhaustive, index, in.exhaustive ? 1 : 0)
 
     header({
-        header: in.header,
+        writer,
+        kind: StatementKind.Switch,
         row,
         lane: selections_lane
     })
 
-    memory.writeU32(cursor, cases_lane, first + in.count)
+    memory.writeU32(cells, cases_lane, first + in.count)
 }

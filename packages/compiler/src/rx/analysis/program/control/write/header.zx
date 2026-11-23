@@ -1,19 +1,15 @@
 import integers from "std:integer"
 import memory from "memory"
+import { writeStatementKind } from "memory/columns"
 
 import { statement_lane } from "../const"
 
-import type { U8Buffer, U32Buffer } from "memory"
-
-export type Header = {
-    kinds: U8Buffer,
-    payloads: U32Buffer,
-    cursor: U32Buffer,
-    kind: u8
-}
+import type { StatementKind } from "core/control_table/model"
+import type { Cursor } from "./buffers"
 
 export type Input = {
-    header: Header,
+    writer: Cursor,
+    kind: StatementKind,
     row: u32,
     lane: u64
 }
@@ -21,13 +17,13 @@ export type Input = {
 export type Output = void
 
 export default function (in: Input): Output {
-    const { header, row, lane } = in
+    const { writer, row, lane } = in
 
-    const statement = memory.readU32(header.cursor, statement_lane)
+    const statement = memory.readU32(writer.cells, statement_lane)
     const index = integers.widen(statement)
 
-    memory.writeU8(header.kinds, index, header.kind)
-    memory.writeU32(header.payloads, index, row)
-    memory.writeU32(header.cursor, statement_lane, statement + 1)
-    memory.writeU32(header.cursor, lane, row + 1)
+    writeStatementKind(writer.columns.statement_kinds, index, in.kind)
+    memory.writeU32(writer.columns.statement_payloads, index, row)
+    memory.writeU32(writer.cells, statement_lane, statement + 1)
+    memory.writeU32(writer.cells, lane, row + 1)
 }

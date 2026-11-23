@@ -1,4 +1,4 @@
-import type { Input as Bindings } from "./bindings"
-import type { Input as Statement } from "./parallel"
+import type { Input as Publication } from "./publish_bindings"
+import type { Input as Reservation } from "./reserve_bindings"
 
-export type Input = Statement & Bindings
+export type Input = Reservation & Publication

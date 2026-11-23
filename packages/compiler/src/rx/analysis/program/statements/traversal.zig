@@ -4,12 +4,17 @@ const Statements = @import("../statements.zig");
 const Flow = @import("../flow.zig");
 const Writer = @import("../control/writer.zig");
 const generated = @import("rx_options").generated_graph;
+const rule = if (generated) @import("generated_rx_execute_statements") else void;
+pub const Input = if (generated) std.meta.Child(rule.Input) else void;
 
-pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer: *Writer.Cursor) Statements.Error!void {
-    if (comptime !generated) return @import("traversal/seed.zig").lower(self, allocator, root_writer);
+pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer: *Writer.Cursor) Statements.Error!zx.ir.BlockId {
+    if (comptime !generated) {
+        try @import("traversal/seed.zig").lower(self, allocator, root_writer);
+        if (self.plan.implicit_return) self.writer.result(root_writer, null);
 
-    const rule = @import("generated_rx_execute_statements");
-    const Input = std.meta.Child(rule.Input);
+        return self.writer.finishBlock(root_writer, self.plan.rows[self.plan.root()].tag, &self.plan.size);
+    }
+
     const Shape = std.meta.Child(@FieldType(Input, "shape"));
     const Steps = std.meta.Child(@FieldType(Shape, "steps"));
     const flow = self.flow;
@@ -26,7 +31,13 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         .root_writer = root_writer,
     };
 
+    state.initControl(layout);
+
     const input: Input = .{
+        .control = &state.control,
+        .root = root,
+        .expected = std.mem.bytesAsSlice(u32, std.mem.asBytes(&self.plan.size)),
+        .implicit_return = self.plan.implicit_return,
         .frame = @ptrCast(&state),
         .shape = &.{
             .steps = &.{
@@ -51,10 +62,12 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     errdefer self.restoreBindings(bindings);
 
-    return rule.executeValue(allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const block = rule.executeValue(allocator, &input) catch |err| return switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         error.UnreachableFlow => error.UnreachableFlow,
         error.IncompleteFlow => error.IncompleteFlow,
         else => error.InvalidModule,
     };
+
+    return @fromBackingInt(block);
 }

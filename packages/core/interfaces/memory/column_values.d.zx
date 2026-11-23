@@ -1,3 +1,9 @@
+export declare function writeStatementKind(
+    target: StatementKindBuffer,
+    index: u64,
+    value: StatementKind
+): void throws { IndexOutOfBounds }
+
 export declare function rowFieldCount(target: RowBuffer): u64
 
 export declare function rowStorageCount(target: RowBuffer): u64

@@ -5,7 +5,7 @@ import type {
     Span,
     Symbols as SymbolColumns
 } from "../../capture/model"
-import type { Header as Statement } from "../../control/write/header"
+import type { Cursor } from "../../control/write/buffers"
 
 export type Expressions = {
     header: Headers,
@@ -19,9 +19,7 @@ export type Symbols = SymbolColumns & {
 }
 
 export type Constants = {
-    header: Statement,
-    symbols: U32Buffer,
-    values: U32Buffer,
+    writer: Cursor,
     bindings: U32Buffer,
     first_symbol: u32,
     first_expression: u32

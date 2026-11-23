@@ -4,20 +4,27 @@
     <Args in={Parallel.Input} out={void} />
 
     <Call
+        fn="reserve_bindings"
+        in={$in.pick([
+            "resource",
+            "bindings",
+            "published"
+        ])}
+    />
+
+    <Call
         fn="parallel"
         in={$in.pick([
-            "header",
-            "firsts",
-            "counts",
+            "writer",
             "count"
         ])}
     />
 
     <Call
-        fn="bindings"
-        in={$in.pick([
-            "symbols",
-            "bindings"
+        fn="publish_bindings"
+        in={$in.omit([
+            "resource",
+            "published"
         ])}
     />
 </Module>

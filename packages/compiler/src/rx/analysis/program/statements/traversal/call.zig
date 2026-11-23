@@ -71,24 +71,13 @@ pub fn emitBodyCall(handle: *const anyopaque) Error!u32 {
     return @backingInt(try state.call.emit(state.statements.builder));
 }
 
-pub fn publishBodyCall(handle: *const anyopaque, value: u32) Error!void {
+pub fn registerBodyCallResult(handle: *const anyopaque, value: u32, parallel: bool) Error!?u32 {
     const state = State.borrow(handle);
+    const call = state.call.call;
+    const name = call.out orelse return null;
+    const builder = state.statements.builder;
+    const id = @as(@import("zx").ir.ExprId, @fromBackingInt(value));
+    const output = if (parallel) builder.expressionType(id) else call.callee.output_type;
 
-    try state.statements.publishCall(state.writer, state.call.call, @fromBackingInt(value));
-}
-
-pub fn bodyParallelStart(handle: *const anyopaque) u32 {
-    return State.borrow(handle).writer.counts.invocations;
-}
-
-pub fn emitBodyParallelBranch(handle: *const anyopaque, position: u32, value: u32) Error!bool {
-    const state = State.borrow(handle);
-
-    return state.statements.writeParallelBranch(position, state.call.call, @fromBackingInt(value));
-}
-
-pub fn publishBodyParallel(handle: *const anyopaque, count: u32, published: u32) Error!void {
-    const state = State.borrow(handle);
-
-    try state.statements.publishParallel(state.writer, count, published);
+    return @backingInt(try builder.symbol(name, output, builder.expressionSpan(id)));
 }

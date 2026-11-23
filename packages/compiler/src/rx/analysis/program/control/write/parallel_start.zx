@@ -1,0 +1,13 @@
+import memory from "memory"
+
+import { invocations_lane } from "../const"
+
+import type { Cursor } from "./buffers"
+
+export type Input = Cursor
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return memory.readU32(in.cells, invocations_lane)
+}

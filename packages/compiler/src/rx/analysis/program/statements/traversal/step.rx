@@ -15,6 +15,7 @@
         module="apply"
         in={{
             frame: $in.frame,
+            control: $in.control,
             event: $in.events[$in.row],
             call_ids: $in.call_ids
         }}

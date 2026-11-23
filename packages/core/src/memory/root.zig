@@ -587,6 +587,12 @@ pub inline fn releaseU32Buffer(resource: *const anyopaque, target: *const anyopa
     output.* = &.{};
 }
 
+pub inline fn writeStatementKind(target: *const anyopaque, index: u64, kind: anytype) error{IndexOutOfBounds}!void {
+    comptime std.debug.assert(@sizeOf(@TypeOf(kind)) == @sizeOf(u8));
+
+    return writeU8(target, index, @backingInt(kind));
+}
+
 pub inline fn writeU8(target: *const anyopaque, index: u64, value: u8) error{IndexOutOfBounds}!void {
     return write(u8, target, index, value);
 }

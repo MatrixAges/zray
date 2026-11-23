@@ -10,6 +10,7 @@
                 module="calls/run"
                 in={{
                     frame: $in.frame,
+                    control: $in.control,
                     indices: $in.call_ids,
                     first: $in.event.first,
                     count: $in.event.count,
@@ -20,28 +21,32 @@
         </Case>
 
         <Case value={Plan.Action.Parallel}>
-            <Call fn="host.bodyParallelStart" in={$in.frame} />
+            <Call fn="../../control/write/parallel_start" in={$in.control.writer} />
 
             <Call
                 module="calls/run"
                 in={{
                     frame: $in.frame,
+                    control: $in.control,
                     indices: $in.call_ids,
                     first: $in.event.first,
                     count: $in.event.count,
                     offset: 0,
-                    parallel_first: $ctx.bodyParallelStart,
+                    parallel_first: $ctx.parallel_start,
                     published: 0
                 }}
             />
 
             <Call
-                fn="host.publishBodyParallel"
-                in={[
-                    $in.frame,
-                    $in.event.count,
-                    $ctx.run
-                ]}
+                module="../../control/write/publish_parallel"
+                in={{
+                    resource: $in.control.resource,
+                    bindings: $in.control.bindings,
+                    writer: $in.control.writer,
+                    first: $ctx.parallel_start,
+                    count: $in.event.count,
+                    published: $ctx.run
+                }}
             />
         </Case>
 
@@ -56,11 +61,11 @@
             />
 
             <Call
-                fn="host.emitBodyReturn"
-                in={[
-                    $in.frame,
-                    $ctx.evaluateBodyValue
-                ]}
+                fn="../../control/write/result"
+                in={{
+                    writer: $in.control.writer,
+                    value: $ctx.evaluateBodyValue
+                }}
             />
         </Case>
 
@@ -75,11 +80,11 @@
             />
 
             <Call
-                fn="host.emitBodyReturn"
-                in={[
-                    $in.frame,
-                    $ctx.evaluateBodyValue
-                ]}
+                fn="../../control/write/result"
+                in={{
+                    writer: $in.control.writer,
+                    value: $ctx.evaluateBodyValue
+                }}
             />
         </Case>
 
@@ -150,6 +155,7 @@
                 module="finish_task"
                 in={$in.pick([
                     "frame",
+                    "control",
                     "event"
                 ])}
             />
@@ -160,6 +166,7 @@
                 module="finish_task"
                 in={$in.pick([
                     "frame",
+                    "control",
                     "event"
                 ])}
             />
@@ -167,25 +174,42 @@
 
         <Case value={Plan.Action.CloseSelection}>
             <Call
-                fn="host.emitBodySelection"
+                fn="host.bodySelectionSubject"
                 in={[
                     $in.frame,
-                    $in.event.slot,
-                    $in.event.count,
-                    $in.event.exhaustive
+                    $in.event.slot
                 ]}
+            />
+
+            <Call
+                fn="../../control/write/selection"
+                in={{
+                    writer: $in.control.writer,
+                    subject: $ctx.bodySelectionSubject,
+                    count: $in.event.count,
+                    exhaustive: $in.event.exhaustive
+                }}
             />
         </Case>
 
         <Case value={Plan.Action.CloseCase}>
             <Call
-                fn="host.emitBodyCase"
+                fn="host.bodyScopeValue"
                 in={[
                     $in.frame,
-                    $in.event.slot,
-                    $in.event.first,
-                    $in.event.count
+                    $in.event.slot
                 ]}
+            />
+
+            <Call
+                module="../../control/write/publish_case"
+                in={{
+                    control: $in.control,
+                    unit: $in.event.block,
+                    end: $in.event.count,
+                    position: $in.event.first,
+                    label: $ctx.bodyScopeValue
+                }}
             />
 
             <Call

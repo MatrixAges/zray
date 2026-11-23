@@ -6,14 +6,14 @@ export {
     saveBodyScope,
     restoreBodyScope,
     evaluateBodyValue,
-    emitBodyReturn,
-    emitBodyEvaluation,
     defineBodyTaskBinding,
     publishBodyBinding,
     evaluateBodyCaseLabel,
     initializeBodyCase,
-    emitBodyCase,
-    emitBodySelection,
+    bodyScopeValue,
+    bodySelectionSubject,
+    requireBodyBlock,
+    registerBodyCallResult,
     prepareBodyCall,
     bindBodyGetters,
     evaluateBodyArgument,
@@ -24,11 +24,7 @@ export {
     bodyHasInitializers,
     linkBodyInitializers,
     appendBodyFunctionEntry,
-    emitBodyCall,
-    publishBodyCall,
-    bodyParallelStart,
-    emitBodyParallelBranch,
-    publishBodyParallel
+    emitBodyCall
 } from "rx_project_host"
 
 export type { BodyStatements } from "rx_project_host"

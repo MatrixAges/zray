@@ -1,0 +1,17 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { lane_count, statement_lane } from "../const"
+
+export type Input = {
+    layout: u32[],
+    unit: u32
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const first = integers.widen(in.unit) * lane_count
+
+    return memory.borrowU32Range(in.layout, first, statement_lane)
+}

@@ -19,9 +19,7 @@ export default function (in: Input): Output {
             const symbol = in.first_symbol + offset
 
             binding({
-                header: in.header,
-                symbols: in.symbols,
-                values: in.values,
+                writer: in.writer,
                 symbol,
                 value: in.first_expression + offset
             })

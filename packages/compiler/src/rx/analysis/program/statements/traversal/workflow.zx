@@ -1,19 +1,31 @@
 import type { BodyStatements } from "rx_project_host"
+import type { Control } from "../../control/write/publication"
 import type { Config, Event } from "./model"
 
 export type Request = Config & {
-    frame: BodyStatements
+    frame: BodyStatements,
+    control: Control,
+    root: u32,
+    expected: u32[],
+    implicit_return: bool
 }
 
-export type Scan = {
-    frame: BodyStatements,
+export type Scan = Request.Pick("frame", "control") & {
     events: Event[],
     call_ids: u32[],
     row: u64
 }
 
-export type Write = Scan.Pick("frame", "call_ids") & {
+export type Write = Scan.Pick("frame", "control", "call_ids") & {
     event: Event
 }
 
-export type Task = Write.Pick("frame", "event")
+export type Task = Write.Pick("frame", "control", "event")
+
+export type CallResult = Write.Pick("frame", "control") & {
+    value: u32
+}
+
+export type ParallelMember = CallResult & {
+    position: u32
+}

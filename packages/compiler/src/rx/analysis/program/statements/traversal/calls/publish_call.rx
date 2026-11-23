@@ -1,0 +1,33 @@
+<Module>
+    <Type from="../workflow" as="Traversal" />
+
+    <Args in={Traversal.CallResult} out={void} />
+
+    <Call
+        fn="../host.registerBodyCallResult"
+        in={[
+            $in.frame,
+            $in.value,
+            false
+        ]}
+    />
+
+    <Call
+        fn="../../../control/write/binding"
+        in={{
+            writer: $in.control.writer,
+            symbol: $ctx.registerBodyCallResult,
+            value: $in.value
+        }}
+    />
+
+    <If on={$ctx.registerBodyCallResult != null}>
+        <Call
+            fn="../host.publishBodyBinding"
+            in={[
+                $in.frame,
+                $ctx.registerBodyCallResult
+            ]}
+        />
+    </If>
+</Module>

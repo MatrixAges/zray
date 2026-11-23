@@ -1,0 +1,25 @@
+import type { Allocator, ColumnRanges } from "memory"
+import type { Cursor } from "./buffers"
+
+export type Control = {
+    writer: Cursor,
+    layout: u32[],
+    firsts: u32[],
+    lengths: u32[],
+    resource: Allocator,
+    bindings: ColumnRanges
+}
+
+export type Finish = {
+    control: Control,
+    block: u32,
+    expected: u32[]
+}
+
+export type Case = {
+    control: Control,
+    unit: u32,
+    end: u32,
+    position: u32,
+    label?: u32
+}

@@ -1,27 +1,29 @@
 import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
 import memory from "memory"
 
 import { results_lane } from "../const"
 import header from "./header"
 
-import type { OptionalU32Buffer } from "memory"
-import type { Header } from "./header"
+import type { Cursor } from "./buffers"
 
 export type Input = {
-    header: Header,
-    values: OptionalU32Buffer,
+    writer: Cursor,
     value?: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const row = memory.readU32(in.header.cursor, results_lane)
+    const { writer } = in
 
-    memory.writeOptionalU32(in.values, integers.widen(row), in.value)
+    const row = memory.readU32(writer.cells, results_lane)
+
+    memory.writeOptionalU32(writer.columns.results, integers.widen(row), in.value)
 
     header({
-        header: in.header,
+        writer,
+        kind: StatementKind.Result,
         row,
         lane: results_lane
     })

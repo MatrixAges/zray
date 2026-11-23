@@ -38,6 +38,9 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
     const cells = cursor.cells();
     const Expression = std.meta.Child(@FieldType(Input, "expressions"));
     const Constants = std.meta.Child(@FieldType(Input, "constants"));
+    const Cursor = std.meta.Child(@FieldType(Constants, "writer"));
+    const Buffers = std.meta.Child(@FieldType(Cursor, "columns"));
+    const columns = @import("../../control/write/buffers.zig").bind(Buffers, &writer.columns);
     const Kind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
 
     const input: Input = .{
@@ -57,9 +60,7 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
             .copy_tag = @backingInt(ir.SymbolTable.Ownership.Copy),
         },
         .constants = &.{
-            .header = &writer.headerView(std.meta.Child(@FieldType(Constants, "header")), &cells, .Constant),
-            .symbols = @ptrCast(&writer.columns.constant_symbols.items),
-            .values = @ptrCast(&writer.columns.constant_values.items),
+            .writer = &.{ .columns = &columns, .cells = @ptrCast(&cells) },
             .bindings = @ptrCast(&bindings),
             .first_symbol = @intCast(symbols.count()),
             .first_expression = @intCast(expressions.count()),
