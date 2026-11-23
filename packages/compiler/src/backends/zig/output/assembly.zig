@@ -102,29 +102,3 @@ fn sectionFields(comptime Target: type, source: anytype) Target {
 
     return result;
 }
-
-pub fn mark(files: []const File, names: [][]const u8, hashes: []u64) void {
-    if (comptime !available) {
-        for (files, names, hashes) |file, *path, *hash| {
-            path.* = file.path;
-            hash.* = zx.bytes.hash(0, file.source);
-        }
-
-        return;
-    }
-
-    const entry = @import("generated_output_mark");
-    const paths = memory.borrowTextColumn("path", files);
-    const bodies = memory.borrowTextColumn("source", files);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const input: std.meta.Child(entry.Input) = .{
-        .paths = @ptrCast(&paths),
-        .bodies = @ptrCast(&bodies),
-        .names = @ptrCast(&names),
-        .hashes = @ptrCast(&hashes),
-        .count = files.len,
-    };
-
-    zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
-}

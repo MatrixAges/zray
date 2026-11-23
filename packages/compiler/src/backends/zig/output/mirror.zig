@@ -1,4 +1,6 @@
 const std = @import("std");
+const zx = @import("zx");
+const memory = zx.memory;
 const ledger = @import("../output.zig");
 const parallel = @import("parallel.zig");
 const File = @import("../partition/placement.zig").File;
@@ -81,7 +83,15 @@ const Frame = struct {
             .hashes = try self.allocator.alloc(u64, count),
         };
 
-        try parallel.each(arenas, blocks(self.files.head) + blocks(self.files.functions), &self.hashing);
+        const head_blocks = blocks(self.files.head);
+        const batch_count = head_blocks + blocks(self.files.functions);
+
+        if (comptime ledger.available) {
+            try self.hashing.publish(arenas, head_blocks, batch_count);
+        } else {
+            try parallel.eachSeed(arenas, batch_count, &self.hashing);
+        }
+
         try self.manifest.writer.ensureUnusedCapacity(count * 64);
     }
     fn compare(self: *Frame) !void {
@@ -110,8 +120,20 @@ const Frame = struct {
     }
     fn writeChanged(self: *Frame) !void {
         const changed = self.selected.?.value.changed;
+        const output: Writer = .{ .io = self.io, .directory = self.directory };
 
-        try parallel.each(self.arenas.?, changed.len, &Writing{ .io = self.io, .directory = self.directory, .files = self.files, .changed = changed });
+        if (comptime !ledger.available) return parallel.eachSeed(self.arenas.?, changed.len, &SeedWriting{ .output = output, .files = self.files, .changed = changed });
+
+        var columns: FileColumns = undefined;
+        const view = columns.bind(self.files);
+
+        try parallel.each(self.arenas.?, .{
+            .count = changed.len,
+            .hash = null,
+            .render = null,
+            .scan = null,
+            .write = &.{ .target = @ptrCast(&output), .sections = &view, .changed = changed },
+        });
     }
     fn trim(self: *Frame, known_paths: bool) !void {
         var wanted = try ledger.wanted(self.workspace, self.hashing.paths);
@@ -189,16 +211,30 @@ pub fn commitBootstrapManifest(handle: *const anyopaque) Failure.Error!void {
     frame.commit() catch |err| return frame.failure.save(err);
 }
 
-/// Writes the files whose content changed on all cores; their parent directories exist already.
-const Writing = struct {
+const Writer = struct {
     io: std.Io,
     directory: std.Io.Dir,
+    fn write(self: *const Writer, path: []const u8, body: []const u8) !void {
+        try self.directory.writeFile(self.io, .{ .sub_path = path, .data = body });
+    }
+};
+
+pub fn writeBootstrapFile(handle: *const anyopaque, path: []const u8, body: []const u8) u32 {
+    const output: *const Writer = @ptrCast(@alignCast(handle));
+
+    output.write(path, body) catch |err| return @intFromError(err);
+
+    return 0;
+}
+
+const SeedWriting = struct {
+    output: Writer,
     files: Files,
     changed: []const u32,
-    pub fn step(self: *const Writing, _: std.mem.Allocator, index: usize) !void {
+    pub fn step(self: *const SeedWriting, _: std.mem.Allocator, index: usize) !void {
         const file = self.files.at(self.changed[index]);
 
-        try self.directory.writeFile(self.io, .{ .sub_path = file.path, .data = file.source });
+        try self.output.write(file.path, file.source);
     }
 };
 
@@ -223,6 +259,23 @@ const Hashing = struct {
     files: Files,
     paths: [][]const u8,
     hashes: []u64,
+    fn publish(self: *const Hashing, arenas: parallel.Arenas, head_blocks: usize, count: usize) !void {
+        var columns: FileColumns = undefined;
+        const view = columns.bind(self.files);
+
+        try parallel.each(arenas, .{
+            .count = count,
+            .render = null,
+            .scan = null,
+            .write = null,
+            .hash = &.{
+                .sections = &view,
+                .head_blocks = head_blocks,
+                .names = @ptrCast(&self.paths),
+                .hashes = @ptrCast(&self.hashes),
+            },
+        });
+    }
     pub fn step(self: *const Hashing, _: std.mem.Allocator, index: usize) !void {
         const head_blocks = blocks(self.files.head);
 
@@ -232,11 +285,43 @@ const Hashing = struct {
             self.mark(self.files.functions, self.files.head.len, index - head_blocks);
         }
     }
+
     fn mark(self: *const Hashing, files: []const File, output: usize, index: usize) void {
         const start = index * ledger.assembly.hash_batch;
         const end = @min(start + ledger.assembly.hash_batch, files.len);
 
-        ledger.assembly.mark(files[start..end], self.paths[output + start .. output + end], self.hashes[output + start .. output + end]);
+        for (files[start..end], self.paths[output + start .. output + end], self.hashes[output + start .. output + end]) |file, *path, *hash| {
+            path.* = file.path;
+            hash.* = zx.bytes.hash(0, file.source);
+        }
+    }
+};
+
+const FileColumns = struct {
+    const Hash = if (ledger.available) std.meta.Child(@typeInfo(@FieldType(parallel.Request, "hash")).optional.child) else void;
+    const View = if (ledger.available) std.meta.Child(@FieldType(Hash, "sections")) else void;
+    const Source = if (ledger.available) std.meta.Child(@FieldType(View, "head")) else void;
+
+    head_paths: memory.TextColumn,
+    head_bodies: memory.TextColumn,
+    function_paths: memory.TextColumn,
+    function_bodies: memory.TextColumn,
+    head: Source,
+    functions: Source,
+    fn bind(self: *FileColumns, files: Files) View {
+        self.* = .{
+            .head_paths = memory.borrowTextColumn("path", files.head),
+            .head_bodies = memory.borrowTextColumn("source", files.head),
+            .function_paths = memory.borrowTextColumn("path", files.functions),
+            .function_bodies = memory.borrowTextColumn("source", files.functions),
+            .head = undefined,
+            .functions = undefined,
+        };
+
+        self.head = .{ .paths = @ptrCast(&self.head_paths), .bodies = @ptrCast(&self.head_bodies), .count = files.head.len };
+        self.functions = .{ .paths = @ptrCast(&self.function_paths), .bodies = @ptrCast(&self.function_bodies), .count = files.functions.len };
+
+        return .{ .head = &self.head, .functions = &self.functions };
     }
 };
 

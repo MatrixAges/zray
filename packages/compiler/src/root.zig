@@ -20,6 +20,7 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("backends/zig/output/mirror.zig"),
     @import("backends/zig/output/tree.zig"),
     @import("backends/zig/partition/build.zig"),
+    @import("backends/zig/partition/workers.zig"),
     @import("backends/zig/state/publication.zig"),
     @import("backends/zig/store_initializers.zig"),
     @import("verification/call_cache.zig"),

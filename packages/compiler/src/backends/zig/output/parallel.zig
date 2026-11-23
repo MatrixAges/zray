@@ -1,4 +1,8 @@
 const std = @import("std");
+const generated = @import("parser_options").generated_parser;
+const worker = if (generated) @import("generated_bootstrap_output_worker") else void;
+const Input = if (generated) std.meta.Child(worker.Input) else void;
+pub const Request = if (generated) std.meta.Child(@FieldType(Input, "jobs")) else void;
 
 /// One arena per worker, so steps running at once never share an allocator; the workers are `io`'s pooled threads.
 pub const Arenas = struct {
@@ -18,12 +22,35 @@ pub const Arenas = struct {
     }
 };
 
-/// Runs `context.step(allocator, index)` for every index below `count`, spread over one worker per arena; a step
-/// allocates from its worker's arena. Returns the first error a step reports.
-pub fn each(arenas: Arenas, count: usize, context: anytype) !void {
+pub fn each(arenas: Arenas, request: Request) !void {
+    var work: Work = .{ .request = request };
+
+    return spread(arenas, &work, Work.run);
+}
+
+const Work = struct {
+    request: Request,
+    next: std.atomic.Value(usize) = .init(0),
+    failure: std.atomic.Value(u32) = .init(0),
+    fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
+        const allocator = arena.allocator();
+        const failure: []u32 = @as(*[1]u32, @ptrCast(&self.failure.raw));
+
+        const input: Input = .{
+            .jobs = &self.request,
+            .allocator = @ptrCast(&allocator),
+            .cursor = @ptrCast(&self.next),
+            .failure = @ptrCast(&failure),
+        };
+
+        worker.executeIn(allocator, &input) catch unreachable;
+    }
+};
+
+pub fn eachSeed(arenas: Arenas, count: usize, context: anytype) !void {
     const Context = @TypeOf(context);
 
-    const Work = struct {
+    const Seed = struct {
         context: Context,
         count: usize,
         next: std.atomic.Value(usize) = .init(0),
@@ -43,13 +70,20 @@ pub fn each(arenas: Arenas, count: usize, context: anytype) !void {
         }
     };
 
-    var work = Work{ .context = context, .count = count };
+    var work = Seed{ .context = context, .count = count };
+
+    return spread(arenas, &work, Seed.run);
+}
+
+fn spread(arenas: Arenas, work: anytype, comptime run: anytype) !void {
     var group: std.Io.Group = .init;
 
-    for (arenas.items[1..]) |*arena| group.async(arenas.io, Work.run, .{ &work, arena });
+    for (arenas.items[1..]) |*arena| group.async(arenas.io, run, .{ work, arena });
 
-    work.run(&arenas.items[0]);
+    run(work, &arenas.items[0]);
     group.await(arenas.io) catch {};
 
-    if (work.failure.load(.monotonic) != 0) return @errorCast(@errorFromInt(work.failure.load(.monotonic)));
+    const code = work.failure.load(.monotonic);
+
+    if (code != 0) return @errorCast(@errorFromInt(@as(u16, @intCast(code))));
 }

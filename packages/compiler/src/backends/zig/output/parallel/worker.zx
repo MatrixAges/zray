@@ -1,0 +1,34 @@
+import memory from "memory"
+
+import step from "./step"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { jobs, cursor, failure } = in
+
+    const completed = loop(true, {
+        while: running => running && memory.loadU32Relaxed(failure, 0) == 0,
+        next: running => {
+            const row = memory.fetchAddIndexRelaxed(cursor, 1)
+
+            if (row >= jobs.count) {
+                running = false
+            } else {
+                const code = step({
+                    jobs,
+                    allocator: in.allocator,
+                    row
+                })
+
+                if (code != 0) {
+                    const published =
+                        memory.compareExchangeU32Relaxed(failure, 0, 0, code)
+                    running = false
+                }
+            }
+        }
+    })
+}

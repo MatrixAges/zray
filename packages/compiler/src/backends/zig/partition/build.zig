@@ -1,4 +1,5 @@
 const std = @import("std");
+const memory = @import("zx").memory;
 const generation = @import("../partition.zig");
 const Scanning = @import("workers.zig");
 const parallel = @import("../output/parallel.zig");
@@ -132,7 +133,15 @@ pub fn emitPartitionJobs(handle: *const anyopaque) Failure.Error!void {
         .files = frame.publication.files,
     };
 
-    parallel.each(frame.arenas, render.jobs.len, &render) catch |err| return frame.failure.save(err);
+    const roots = memory.borrowReadColumn(bool, "root", render.jobs);
+
+    parallel.each(frame.arenas, .{
+        .count = render.jobs.len,
+        .scan = null,
+        .hash = null,
+        .write = null,
+        .render = &.{ .target = @ptrCast(&render), .roots = @ptrCast(&roots) },
+    }) catch |err| return frame.failure.save(err);
 }
 
 const Rendering = struct {
@@ -142,44 +151,29 @@ const Rendering = struct {
     roots: @FieldType(generation.layout.Plan, "roots"),
     jobs: []const generation.placement.Job,
     files: []File,
-    pub fn step(self: *const Rendering, _: std.mem.Allocator, index: usize) !void {
-        const job = &self.jobs[index];
-        var current: Job = .{ .rendering = self, .job = job };
-        const entry = @import("generated_bootstrap_partition_job");
-        const input: std.meta.Child(entry.Input) = .{ .target = @ptrCast(&current), .root = job.root };
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-        entry.executeValue(fixed.allocator(), &input) catch |err| return current.failure.restore(err);
-    }
-};
-
-const Job = struct {
-    rendering: *const Rendering,
-    job: *const generation.placement.Job,
-    failure: Failure = .{},
-    fn render(self: *const Job, kind: Kind) !void {
-        const rendering = self.rendering;
-        const job = self.job;
+    fn render(self: *const Rendering, job: *const generation.placement.Job, kind: Kind) !void {
         const row: usize = @intCast(job.destination);
 
         switch (kind) {
-            .Stub => rendering.files[row].source = try generation.namedStub(rendering.owner, rendering.workspace, rendering.columns.names[job.index], job.variants, job.comptime_entry),
+            .Stub => self.files[row].source = try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry),
             .Exports => {
-                const selected = rendering.roots[job.index];
+                const selected = self.roots[job.index];
 
-                rendering.files[row].source = try generation.indexedExports(rendering.owner, rendering.workspace, rendering.columns.names, selected.entries, selected.variants);
+                self.files[row].source = try generation.indexedExports(self.owner, self.workspace, self.columns.names, selected.entries, selected.variants);
             },
             .Modules => {
-                const selected = rendering.roots[job.index];
+                const selected = self.roots[job.index];
 
-                rendering.files[row + 1].source = try generation.indexedRoot(rendering.owner, rendering.workspace, rendering.columns, selected.callees);
+                self.files[row + 1].source = try generation.indexedRoot(self.owner, self.workspace, self.columns, selected.callees);
             },
         }
     }
 };
 
-pub fn renderPartitionFile(handle: *const anyopaque, kind: Kind) Failure.Error!void {
-    const frame: *Job = @ptrCast(@alignCast(@constCast(handle)));
+pub fn renderPartitionFile(handle: *const anyopaque, index: u64, kind: Kind) u32 {
+    const rendering: *const Rendering = @ptrCast(@alignCast(handle));
 
-    frame.render(kind) catch |err| return frame.failure.save(err);
+    rendering.render(&rendering.jobs[@intCast(index)], kind) catch |err| return @intFromError(err);
+
+    return 0;
 }

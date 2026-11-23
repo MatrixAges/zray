@@ -54,7 +54,13 @@ export type BootstrapTree = opaque
 
 export type BootstrapMirror = opaque
 
-export type BootstrapPartitionJob = opaque
+export type BootstrapPartitionJobs = opaque
+
+export type BootstrapPartitionScan = opaque
+
+export type BootstrapWorkerAllocator = opaque
+
+export type BootstrapWriter = opaque
 
 export enum PartitionFile {
     Stub,
@@ -222,9 +228,23 @@ export declare function commitBootstrapManifest(target: BootstrapMirror): void
     throws { BootstrapOutput }
 
 export declare function renderPartitionFile(
-    target: BootstrapPartitionJob,
+    target: BootstrapPartitionJobs,
+    row: u64,
     file: PartitionFile
-): void throws { BootstrapOutput }
+): u32
+
+export declare function scanPartitionRange(
+    target: BootstrapPartitionScan,
+    allocator: BootstrapWorkerAllocator,
+    first: u64,
+    end: u64
+): u32
+
+export declare function writeBootstrapFile(
+    target: BootstrapWriter,
+    path: string,
+    body: string
+): u32
 
 export declare function scanPartitionBodies(target: BootstrapPartition): void
     throws { BootstrapOutput }
