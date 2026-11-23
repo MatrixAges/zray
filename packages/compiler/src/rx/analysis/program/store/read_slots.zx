@@ -3,14 +3,10 @@ import memory from "memory"
 import { Status } from "./model"
 import register from "./register"
 
-import type { TextColumn } from "memory"
-import type { Getters } from "../../store/bindings/model"
-import type { Input as Bind, Output as Progress } from "./model"
+import type { GetterRows, Progress, Scan } from "./model"
 
-export type Input = Bind.Omit("source") & {
-    source: Getters.Pick("types", "count") & {
-        paths: TextColumn
-    }
+export type Input = Scan & {
+    source: GetterRows
 }
 
 export type Output = Progress

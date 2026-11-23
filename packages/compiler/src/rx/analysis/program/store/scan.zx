@@ -1,0 +1,34 @@
+import scanStores from "./bind"
+import scanGetters from "./read_slots"
+
+import type { Progress, Scan, Source } from "./model"
+
+export type Input = Scan & {
+    source: Source
+}
+
+export type Output = Progress
+
+export default function (in: Input): Output {
+    const { source, registered, permissions, mapping, first } = in
+
+    const getters = source.getters
+
+    if (getters != null) {
+        return scanGetters({
+            source: getters,
+            registered,
+            permissions,
+            mapping,
+            first
+        })
+    }
+
+    return scanStores({
+        source: source.slots,
+        registered,
+        permissions,
+        mapping,
+        first
+    })
+}

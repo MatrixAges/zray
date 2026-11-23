@@ -1,5 +1,14 @@
 import type { Stores } from "core/store_table/model"
-import type { U8Buffer, U32Buffer } from "memory"
+import type {
+    Allocator,
+    BoolBuffer,
+    ColumnLengths,
+    StringBuffer,
+    TextColumn,
+    U32Buffer
+} from "memory"
+import type { ProgramStoreBinding } from "rx_project_host"
+import type { Getters } from "../../store/bindings/model"
 
 export type Slots = Stores.Omit("handles")
 
@@ -11,8 +20,8 @@ export type Slot = {
 }
 
 export type Permissions = {
-    readable: U8Buffer,
-    writable: U8Buffer
+    readable: BoolBuffer,
+    writable: BoolBuffer
 }
 
 export enum Status {
@@ -21,15 +30,43 @@ export enum Status {
     Conflict
 }
 
-export type Input = {
-    source: Slots,
+export type Scan = {
     registered: Slots,
     permissions: Permissions,
     mapping: U32Buffer,
     first: u64
 }
 
-export type Output = {
+export type Progress = {
     next: u64,
     status: Status
+}
+
+export type GetterRows = Getters.Pick("types", "count") & {
+    paths: TextColumn
+}
+
+export type Source = {
+    slots: Slots,
+    getters?: GetterRows
+}
+
+export type Tail = Permissions & {
+    paths: StringBuffer,
+    types: U32Buffer,
+    handles: StringBuffer,
+    lengths: ColumnLengths
+}
+
+export type Request = Scan.Omit("first") & {
+    frame: ProgramStoreBinding,
+    allocator: Allocator,
+    source: Source,
+    tail: Tail,
+    count: u64
+}
+
+export type Cursor = {
+    request: Request,
+    first: u64
 }

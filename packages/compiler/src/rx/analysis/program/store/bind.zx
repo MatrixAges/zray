@@ -1,9 +1,11 @@
 import { Status } from "./model"
 import register from "./register"
 
-import type { Input as Request, Output as Progress } from "./model"
+import type { Progress, Scan, Slots } from "./model"
 
-export type Input = Request
+export type Input = Scan & {
+    source: Slots
+}
 
 export type Output = Progress
 

@@ -1,0 +1,35 @@
+import integers from "std:integer"
+import { publish as publishLengths } from "core/column_lengths"
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+import type { Slot, Tail } from "./model"
+
+export type Input = {
+    target: Tail,
+    slot: Slot,
+    mapping: U32Buffer,
+    index: u64,
+    id: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, slot } = in
+
+    const id = integers.narrow(in.id)
+
+    memory.writeString(target.paths, 0, slot.path)
+    memory.writeU32(target.types, 0, slot.type_id)
+    memory.writeString(target.handles, 0, "")
+    memory.writeBool(target.readable, 0, slot.readable)
+    memory.writeBool(target.writable, 0, slot.writable)
+
+    publishLengths({
+        target: target.lengths,
+        count: 1
+    })
+
+    memory.writeU32(in.mapping, in.index, id)
+}

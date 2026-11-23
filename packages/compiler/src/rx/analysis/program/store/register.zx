@@ -5,9 +5,9 @@ import merge from "./merge"
 import { Status } from "./model"
 
 import type { Input as Merge } from "./merge"
-import type { Input as Bind } from "./model"
+import type { Scan } from "./model"
 
-export type Input = Merge & Bind.Pick("permissions", "mapping") & {
+export type Input = Merge & Scan.Pick("permissions", "mapping") & {
     index: u64
 }
 
@@ -29,8 +29,8 @@ export default function (in: Input): Output {
         return Status.Conflict
     }
 
-    memory.writeU8(in.permissions.readable, row, resolved.readable ? 1 : 0)
-    memory.writeU8(in.permissions.writable, row, resolved.writable ? 1 : 0)
+    memory.writeBool(in.permissions.readable, row, resolved.readable)
+    memory.writeBool(in.permissions.writable, row, resolved.writable)
     memory.writeU32(in.mapping, in.index, integers.narrow(row))
 
     return Status.Ready

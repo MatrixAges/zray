@@ -1,0 +1,34 @@
+import memory from "memory"
+
+import type { Slot, Source } from "./model"
+
+export type Input = {
+    source: Source,
+    index: u64
+}
+
+export type Output = Slot
+
+export default function (in: Input): Output {
+    const { source, index } = in
+
+    const getters = source.getters
+
+    if (getters != null) {
+        return {
+            path: memory.readTextColumn(getters.paths, index),
+            type_id: memory.readColumnU32(getters.types, index),
+            readable: true,
+            writable: false
+        }
+    }
+
+    const { slots } = source
+
+    return {
+        path: slots.paths[index],
+        type_id: slots.types[index],
+        readable: slots.readable[index],
+        writable: slots.writable[index]
+    }
+}

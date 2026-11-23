@@ -48,14 +48,6 @@ pub fn linkFailure(err: anyerror) Error {
     return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
 }
 
-pub fn appendStore(self: *Self, value: ir.StoreSlot) std.mem.Allocator.Error!u32 {
-    const id: u32 = @intCast(self.stores.count());
-
-    try self.stores.append(self.allocator, .{ .path = try self.allocator.dupe(u8, value.path), .type_id = value.type_id, .readable = value.readable, .writable = value.writable });
-
-    return id;
-}
-
 pub fn seedStore(self: *Self, value: ir.StoreSlot) Error!u32 {
     for (0..self.stores.count()) |index| {
         const slot = self.stores.at(index);
@@ -69,7 +61,11 @@ pub fn seedStore(self: *Self, value: ir.StoreSlot) Error!u32 {
         return @intCast(index);
     }
 
-    return self.appendStore(value);
+    const id: u32 = @intCast(self.stores.count());
+
+    try self.stores.append(self.allocator, .{ .path = try self.allocator.dupe(u8, value.path), .type_id = value.type_id, .readable = value.readable, .writable = value.writable });
+
+    return id;
 }
 
 pub fn mergeInitializers(self: *Self, values: []const StoreInitializer, range: Registry.Range) Error!void {
