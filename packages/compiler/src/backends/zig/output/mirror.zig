@@ -7,7 +7,9 @@ const File = @import("../partition/placement.zig").File;
 const file_manifest = @import("manifest.zig");
 const manifest_name = file_manifest.name;
 const Failure = @import("failure.zig");
-const Plan = if (ledger.available) @import("output_execution_abi").layouts.@"zig:output_host".BootstrapOutputPlan else void;
+const native = if (ledger.available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
+const Plan = if (ledger.available) native.BootstrapOutputPlan else void;
+const DirectoryEntry = if (ledger.available) native.BootstrapDirectoryEntry else void;
 const stamp_name = @import("../../../inputs/generation.zig").stamp_name;
 
 /// Publishes a generated tree while preserving unchanged files and their timestamps.
@@ -36,17 +38,41 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
 
     if (comptime ledger.available) {
         const entry = @import("generated_bootstrap_mirror");
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-        _ = entry.executeIn(fixed.allocator(), @ptrCast(&frame)) catch |err| return frame.failure.restore(err);
+        var scratch = std.heap.ArenaAllocator.init(workspace);
+
+        defer scratch.deinit();
+
+        const resource = scratch.allocator();
+        var values: []u32 = &.{};
+        var buckets: []?u32 = &.{};
+
+        const input: std.meta.Child(entry.Input) = .{
+            .target = @ptrCast(&frame),
+            .cleanup = &.{
+                .allocator = @ptrCast(&resource),
+                .paths = @ptrCast(&frame.hashing.paths),
+                .values = @ptrCast(&values),
+                .buckets = @ptrCast(&buckets),
+            },
+        };
+
+        entry.executeIn(resource, &input) catch |err| {
+            if (frame.failure.original) |original| return original;
+
+            return switch (@as(anyerror, err)) {
+                error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+                else => err,
+            };
+        };
     } else {
         try frame.hash();
         try frame.compare();
 
         const changed = frame.selected.?.value.changed;
 
-        if (changed.len != 0) try frame.parents();
+        if (changed.len != 0) try frame.parentsSeed();
         try frame.writeChanged();
-        if (!frame.selected.?.value.aligned) try frame.trim(frame.previous != null);
+        if (!frame.selected.?.value.aligned) try frame.trimSeed();
         try frame.commit();
     }
 }
@@ -63,11 +89,19 @@ const Frame = struct {
     hashing: Hashing = undefined,
     selected: ?ledger.Changes = null,
     plan: Plan = undefined,
+    walker: ?std.Io.Dir.Walker = null,
+    walk_entry: DirectoryEntry = undefined,
     failure: Failure = .{},
     fn fromHandle(handle: *const anyopaque) *@This() {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
     fn deinit(self: *Frame) void {
+        if (self.walker) |*walker| {
+            while (walker.inner.stack.items.len != 0) walker.leave(self.io);
+
+            walker.deinit();
+        }
+
         if (self.selected) |*selected| selected.deinit();
         if (self.arenas) |arenas| arenas.deinit();
     }
@@ -109,12 +143,12 @@ const Frame = struct {
 
         try file_manifest.write(ledger.manifest_write, &self.manifest.writer, paths, hashes);
     }
-    fn parents(self: *Frame) !void {
+    fn parentsSeed(self: *Frame) !void {
         var temporary = std.heap.ArenaAllocator.init(self.workspace);
 
         defer temporary.deinit();
 
-        const folders = try ledger.parents(temporary.allocator(), self.hashing.paths, self.selected.?.value.changed);
+        const folders = try @import("../output_seed.zig").parents(temporary.allocator(), self.hashing.paths, self.selected.?.value.changed);
 
         for (folders) |folder| try self.directory.createDirPath(self.io, folder);
     }
@@ -135,29 +169,37 @@ const Frame = struct {
             .write = &.{ .target = @ptrCast(&output), .sections = &view, .changed = changed },
         });
     }
-    fn trim(self: *Frame, known_paths: bool) !void {
-        var wanted = try ledger.wanted(self.workspace, self.hashing.paths);
+    fn trimSeed(self: *Frame) !void {
+        var scratch = std.heap.ArenaAllocator.init(self.workspace);
 
-        defer wanted.deinit();
+        defer scratch.deinit();
 
-        if (known_paths) {
-            const known = self.previous.?;
-            const stale = try wanted.staleRows(known.paths);
+        const temporary = scratch.allocator();
+        const wanted = try @import("../output_seed.zig").wanted(temporary, self.hashing.paths);
 
-            for (stale) |row| try remove(self.io, self.directory, known.paths[row]);
-        } else {
-            var walker = try self.directory.walk(self.allocator);
-            var stale: std.ArrayList([]const u8) = .empty;
+        if (self.previous) |known| {
+            var rows: std.ArrayList(u32) = .empty;
 
-            defer walker.deinit();
-
-            while (try walker.next(self.io)) |entry| {
-                if (entry.kind != .file or !wanted.shouldRemove(entry.path, stamp_name, true)) continue;
-                try stale.append(self.allocator, try self.allocator.dupe(u8, entry.path));
+            for (known.paths, 0..) |path, row| {
+                if (!wanted.contains(path)) try rows.append(temporary, @intCast(row));
             }
 
-            for (stale.items) |path| try remove(self.io, self.directory, path);
+            for (rows.items) |row| try remove(self.io, self.directory, known.paths[row]);
+
+            return;
         }
+
+        var walker = try self.directory.walk(self.allocator);
+        var stale: std.ArrayList([]const u8) = .empty;
+
+        defer walker.deinit();
+
+        while (try walker.next(self.io)) |entry| {
+            if (entry.kind != .file or std.mem.eql(u8, entry.path, stamp_name) or wanted.contains(entry.path)) continue;
+            try stale.append(self.allocator, try self.allocator.dupe(u8, entry.path));
+        }
+
+        for (stale.items) |path| try remove(self.io, self.directory, path);
     }
     fn commit(self: *Frame) !void {
         try self.directory.writeFile(self.io, .{ .sub_path = manifest_name, .data = self.manifest.written() });
@@ -179,18 +221,19 @@ pub fn compareBootstrapFiles(handle: *const anyopaque) Failure.Error!*const Plan
 
     frame.plan = .{
         .target = @ptrCast(frame),
-        .changed = selection.changed.len,
+        .paths = frame.hashing.paths,
+        .changed = selection.changed,
         .aligned = selection.aligned,
-        .recorded = frame.previous != null,
+        .previous_paths = if (frame.previous) |previous| previous.paths else null,
     };
 
     return &frame.plan;
 }
 
-pub fn createBootstrapParents(handle: *const anyopaque) Failure.Error!void {
+pub fn createBootstrapFolder(handle: *const anyopaque, folder: []const u8) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
-    frame.parents() catch |err| return frame.failure.save(err);
+    frame.directory.createDirPath(frame.io, folder) catch |err| return frame.failure.save(err);
 }
 
 pub fn writeBootstrapChanges(handle: *const anyopaque) Failure.Error!void {
@@ -199,10 +242,26 @@ pub fn writeBootstrapChanges(handle: *const anyopaque) Failure.Error!void {
     frame.writeChanged() catch |err| return frame.failure.save(err);
 }
 
-pub fn trimBootstrapFiles(handle: *const anyopaque, recorded_paths: bool) Failure.Error!void {
+pub fn openBootstrapWalk(handle: *const anyopaque) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
-    frame.trim(recorded_paths) catch |err| return frame.failure.save(err);
+    frame.walker = frame.directory.walk(frame.allocator) catch |err| return frame.failure.save(err);
+}
+
+pub fn nextBootstrapEntry(handle: *const anyopaque) Failure.Error!?*const DirectoryEntry {
+    const frame = Frame.fromHandle(handle);
+    const walker = &frame.walker.?;
+    const entry = (walker.next(frame.io) catch |err| return frame.failure.save(err)) orelse return null;
+
+    frame.walk_entry = .{ .path = entry.path, .file = entry.kind == .file };
+
+    return &frame.walk_entry;
+}
+
+pub fn deleteBootstrapFile(handle: *const anyopaque, path: []const u8) Failure.Error!void {
+    const frame = Frame.fromHandle(handle);
+
+    remove(frame.io, frame.directory, path) catch |err| return frame.failure.save(err);
 }
 
 pub fn commitBootstrapManifest(handle: *const anyopaque) Failure.Error!void {

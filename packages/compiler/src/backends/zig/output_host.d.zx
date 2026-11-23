@@ -70,9 +70,15 @@ export enum PartitionFile {
 
 export type BootstrapOutputPlan = {
     target: BootstrapMirror,
-    changed: u64,
+    paths: string[],
+    changed: u32[],
     aligned: bool,
-    recorded: bool
+    previous_paths?: string[]
+}
+
+export type BootstrapDirectoryEntry = {
+    path: string,
+    file: bool
 }
 
 export type BootstrapPartition = opaque
@@ -215,13 +221,19 @@ export declare function hashBootstrapFiles(target: BootstrapMirror): void
 export declare function compareBootstrapFiles(target: BootstrapMirror): BootstrapOutputPlan
     throws { BootstrapOutput }
 
-export declare function createBootstrapParents(target: BootstrapMirror): void
+export declare function createBootstrapFolder(target: BootstrapMirror, path: u8[]): void
     throws { BootstrapOutput }
 
 export declare function writeBootstrapChanges(target: BootstrapMirror): void
     throws { BootstrapOutput }
 
-export declare function trimBootstrapFiles(target: BootstrapMirror, recorded: bool): void
+export declare function openBootstrapWalk(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function nextBootstrapEntry(target: BootstrapMirror): BootstrapDirectoryEntry?
+    throws { BootstrapOutput }
+
+export declare function deleteBootstrapFile(target: BootstrapMirror, path: string): void
     throws { BootstrapOutput }
 
 export declare function commitBootstrapManifest(target: BootstrapMirror): void

@@ -1,6 +1,5 @@
 const std = @import("std");
 const zx = @import("zx");
-const path_index = @import("path_index.zig");
 pub const available = @import("parser_options").generated_parser;
 pub const manifest_read = if (available) @import("generated_output_manifest_read") else null;
 pub const manifest_write = if (available) @import("generated_output_manifest_write") else null;
@@ -17,7 +16,6 @@ pub const Input = struct {
 };
 
 pub const Selection = struct { changed: []const u32, aligned: bool };
-pub const Index = if (available) path_index.Index else zx.bytes.Map(void);
 
 pub const Changes = struct {
     arena: std.heap.ArenaAllocator,
@@ -28,57 +26,6 @@ pub const Changes = struct {
         self.* = undefined;
     }
 };
-
-pub const Wanted = struct {
-    arena: std.heap.ArenaAllocator,
-    value: Index,
-    pub fn deinit(self: *@This()) void {
-        self.arena.deinit();
-
-        self.* = undefined;
-    }
-
-    pub fn shouldRemove(self: *const @This(), path: []const u8, fingerprint: []const u8, preserve: bool) bool {
-        if (comptime !available) return !(preserve and std.mem.eql(u8, path, fingerprint)) and !self.value.contains(path);
-
-        const entry = @import("generated_output_stale");
-        const Fields = std.meta.Child(entry.Input);
-        const input: Fields = .{ .index = &self.value, .path = path, .fingerprint = fingerprint, .preserve_fingerprint = preserve };
-        var memory = std.heap.FixedBufferAllocator.init(&.{});
-
-        return entry.executeValue(memory.allocator(), &input) catch |err| switch (err) {
-            else => @panic(@errorName(err)),
-        };
-    }
-
-    pub fn staleRows(self: *Wanted, paths: []const []const u8) std.mem.Allocator.Error![]const u32 {
-        const allocator = self.arena.allocator();
-
-        if (comptime !available) {
-            var rows: std.ArrayList(u32) = .empty;
-
-            for (paths, 0..) |path, index| {
-                if (!self.value.contains(path)) try rows.append(allocator, @intCast(index));
-            }
-
-            return rows.items;
-        }
-
-        const entry = @import("generated_output_stale_rows");
-        const input: std.meta.Child(entry.Input) = .{ .index = &self.value, .paths = paths };
-
-        return zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
-    }
-};
-
-pub fn parents(allocator: std.mem.Allocator, paths: []const []const u8, changed: []const u32) std.mem.Allocator.Error![]const []const u8 {
-    if (comptime !available) return @import("output_seed.zig").parents(allocator, paths, changed);
-
-    const entry = @import("generated_output_parents");
-    const input: std.meta.Child(entry.Input) = .{ .paths = paths, .changed = changed };
-
-    return zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
-}
 
 pub fn changes(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Error!Changes {
     var arena = std.heap.ArenaAllocator.init(workspace);
@@ -107,18 +54,6 @@ pub fn changes(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Err
     const result = zx.columns.invoke(entry.executeValue, allocator, &fields) catch |err| return failure(err);
 
     return .{ .arena = arena, .value = .{ .changed = result.changed, .aligned = result.aligned } };
-}
-
-pub fn wanted(workspace: std.mem.Allocator, paths: []const []const u8) std.mem.Allocator.Error!Wanted {
-    var arena = std.heap.ArenaAllocator.init(workspace);
-
-    errdefer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    if (comptime !available) return .{ .arena = arena, .value = try @import("output_seed.zig").wanted(allocator, paths) };
-
-    return .{ .arena = arena, .value = try path_index.build(allocator, paths) };
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

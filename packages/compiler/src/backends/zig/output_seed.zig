@@ -33,8 +33,8 @@ pub fn changes(allocator: std.mem.Allocator, input: model.Input) std.mem.Allocat
     return .{ .changed = selected.items, .aligned = aligned };
 }
 
-pub fn wanted(allocator: std.mem.Allocator, paths: []const []const u8) std.mem.Allocator.Error!model.Index {
-    var index: model.Index = .empty;
+pub fn wanted(allocator: std.mem.Allocator, paths: []const []const u8) std.mem.Allocator.Error!zx.bytes.Map(void) {
+    var index: zx.bytes.Map(void) = .empty;
 
     try index.ensureTotalCapacity(allocator, @intCast(paths.len));
     for (paths) |path| index.putAssumeCapacity(path, {});

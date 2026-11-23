@@ -1,0 +1,23 @@
+import host from "output_host"
+
+import parents from "../parents"
+
+import type { Plan as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const folders = parents({
+        paths: in.paths,
+        changed: in.changed
+    })
+
+    const completed = loop(0, {
+        while: row => row < folders.length,
+        next: row => {
+            host.createBootstrapFolder(in.target, folders[row])
+
+            row += 1
+        }
+    })
+}
