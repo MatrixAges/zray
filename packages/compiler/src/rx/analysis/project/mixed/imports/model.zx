@@ -1,0 +1,24 @@
+import type { U8Buffer, U64Buffer } from "memory"
+import type { RowBuffer } from "memory/columns"
+import type { MixedImports } from "rx_project_host"
+import type { Import } from "../../../../../zx/frontend/parser/imports/model"
+
+export type Target = {
+    storage: RowBuffer,
+    bytes: U8Buffer,
+    prefix: u8[],
+    used: U64Buffer
+}
+
+export type Layout = {
+    stride: u64,
+    name_offset: u64
+}
+
+export type Request = {
+    binding: MixedImports,
+    imports: Import[],
+    functions: Target,
+    published: Target,
+    layout: Layout
+}

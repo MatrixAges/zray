@@ -1,8 +1,7 @@
-import memory from "memory"
 import columns from "memory/columns"
 
 import refreshReads from "./refresh_reads"
-import reserve from "./reserve"
+import reserveAppend from "./reserve_append"
 
 import type { RowGrowth } from "memory/columns"
 
@@ -17,22 +16,11 @@ export default function (in: Input): Output {
     const [growth, used] = in
 
     const target = columns.rowGrowthBuffer(growth, null)
-    const limit = columns.rowCapacityLimit()
 
-    memory.requireAllocation(used < limit)
-
-    const minimum = used + 1
-    const increment = minimum / 2 + columns.rowGrowthBase(target, used)
-
-    const capacity = match {
-        minimum <= limit - increment => minimum + increment,
-        _ => limit
-    }
-
-    reserve([
+    const capacity = reserveAppend([
         target,
         used,
-        capacity
+        1
     ])
 
     refreshReads(growth)

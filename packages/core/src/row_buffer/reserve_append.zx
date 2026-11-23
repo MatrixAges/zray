@@ -1,0 +1,44 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import reserve from "./reserve"
+
+import type { RowBuffer } from "memory/columns"
+
+export type Input = [
+    RowBuffer,
+    u64,
+    u64
+]
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const [target, used, additional] = in
+
+    const limit = columns.rowCapacityLimit()
+
+    memory.requireAllocation(additional <= limit - used)
+
+    const minimum = used + additional
+    const current = columns.rowStorageCount(target)
+
+    if (minimum <= current) {
+        return current
+    }
+
+    const increment = minimum / 2 + columns.rowGrowthBase(target, current)
+
+    const capacity = match {
+        minimum <= limit - increment => minimum + increment,
+        _ => limit
+    }
+
+    reserve([
+        target,
+        used,
+        capacity
+    ])
+
+    return capacity
+}

@@ -126,8 +126,8 @@ const Preparation = struct {
         const collector = @import("imports.zig");
 
         const bindings = switch (parsed.*) {
-            .native => |result| try collector.collect(self.state, self.allocator, zx.syntax.header.Native{ .program = result.value.parsed.ast }, self.index, self.signature, self.source),
-            .indexed => |*result| if (frontend.project.ParseCache.indexed_enabled) try collector.collect(self.state, self.allocator, result.header(), self.index, self.signature, self.source) else unreachable,
+            .native => |result| try collector.collect(self.state, self.allocator, zx.syntax.header.Native{ .program = result.value.parsed.ast }, self.index, &self.signature, self.source),
+            .indexed => |*result| if (frontend.project.ParseCache.indexed_enabled) try collector.collect(self.state, self.allocator, result.header(), self.index, &self.signature, self.source) else unreachable,
         };
 
         self.result = .{

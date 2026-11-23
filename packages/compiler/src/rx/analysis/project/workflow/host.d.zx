@@ -166,6 +166,13 @@ export type MixedCallees = opaque
 
 export type MixedImports = opaque
 
+export type MixedImportSelection = {
+    names: string[],
+    indices: u64[],
+    named: u8[],
+    fallback: u8[]
+}
+
 export type MixedBodyLink = opaque
 
 export type MixedZXPreparation = opaque
@@ -442,21 +449,11 @@ export declare function rejectMixedCallee(
     message: string
 ): void throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function selectMixedImport(binding: MixedImports, row: u64): u64
-    throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function reserveMixedImportBindings(
+export declare function selectMixedImport(
     binding: MixedImports,
-    exported: bool,
-    count: u64,
-    include_prefix: bool
-): void throws { OutOfMemory }
-
-export declare function appendMixedImportBinding(
-    binding: MixedImports,
-    exported: bool,
     row: u64
-): void throws { OutOfMemory }
+): MixedImportSelection?
+    throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function appendMixedBodyLink(
     body: MixedBodyLink,

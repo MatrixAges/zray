@@ -1,6 +1,7 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
+const memory = zx.memory;
 const State = @import("state.zig");
 const Edge = @import("../source_graph/model.zig").Edge;
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
@@ -9,9 +10,10 @@ const Selection = frontend.project.import_binding;
 const enabled = @import("rx_options").generated_graph and frontend.project.ParseCache.indexed_enabled;
 const Indexed = @FieldType(frontend.project.ParseCache.ModuleResult, "indexed");
 const Header = if (enabled) @typeInfo(@TypeOf(Indexed.header)).@"fn".return_type.? else void;
+const Selected = if (enabled) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedImportSelection else void;
 pub const Result = struct { functions: []const Binding, published: []const Binding };
 
-pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, index: usize, signature: Signature, source_text: []const u8) State.Error!Result {
+pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, index: usize, signature: *const Signature, source_text: []const u8) State.Error!Result {
     const edges = state.graph.modules.items(.dependencies)[index];
 
     if (edges.len != header.importCount()) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source import declarations do not match the dependency graph");
@@ -19,16 +21,18 @@ pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, ind
     var bindings: Bindings = .{
         .state = state,
         .allocator = allocator,
-        .signature = &signature,
+        .signature = signature,
         .edges = edges,
         .source_text = source_text,
     };
 
     if (comptime enabled and @TypeOf(header) == Header) {
-        if (edges.len != 0) try collectIndexed(&bindings, &header);
-    } else {
-        try collectSeed(&bindings, header);
+        if (edges.len == 0) return .{ .functions = signature.function_imports, .published = signature.reexport_functions };
+
+        return collectIndexed(&bindings, &header);
     }
+
+    try collectSeed(&bindings, header);
 
     return .{
         .functions = if (bindings.functions.items.len == 0) signature.function_imports else bindings.functions.items,
@@ -110,36 +114,67 @@ const Bindings = struct {
 const Frame = struct {
     bindings: *Bindings,
     header: *const Header,
-    fn borrow(handle: *const anyopaque) *const Frame {
-        return @ptrCast(@alignCast(handle));
+    selected: Selected = undefined,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
     }
 };
 
-fn collectIndexed(bindings: *Bindings, header: *const Header) State.Error!void {
+fn collectIndexed(bindings: *Bindings, header: *const Header) State.Error!Result {
     const rule = @import("generated_rx_mixed_import_bindings");
     const Input = std.meta.Child(rule.Input);
-    const frame: Frame = .{ .bindings = bindings, .header = header };
+    const signature = bindings.signature;
+    var frame: Frame = .{ .bindings = bindings, .header = header };
+    var functions = memory.RowBuffer.empty(Binding);
+    var published = memory.RowBuffer.empty(Binding);
+    var used = [_]u64{ 0, 0 };
+    const function_used: []u64 = used[0..1];
+    const published_used: []u64 = used[1..2];
 
     const input: Input = .{
         .binding = @ptrCast(&frame),
         .imports = zx.columns.slice(@FieldType(Input, "imports"), header.storage.imports),
+        .functions = &.{
+            .storage = @ptrCast(&functions),
+            .bytes = @ptrCast(&functions.bytes),
+            .prefix = std.mem.sliceAsBytes(signature.function_imports),
+            .used = @ptrCast(&function_used),
+        },
+        .published = &.{
+            .storage = @ptrCast(&published),
+            .bytes = @ptrCast(&published.bytes),
+            .prefix = std.mem.sliceAsBytes(signature.reexport_functions),
+            .used = @ptrCast(&published_used),
+        },
+        .layout = &.{ .stride = @sizeOf(Binding), .name_offset = @offsetOf(Binding, "name") },
     };
 
-    return @import("body.zig").run(rule, &input);
+    rule.executeIn(bindings.allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidSourceGraph => return error.InvalidSourceGraph,
+        else => unreachable,
+    };
+
+    return .{
+        .functions = if (used[0] == 0) signature.function_imports else functions.rows(Binding)[0..@intCast(used[0])],
+        .published = if (used[1] == 0) signature.reexport_functions else published.rows(Binding)[0..@intCast(used[1])],
+    };
 }
 
-pub fn selectMixedImport(handle: *const anyopaque, row: u64) State.Error!u64 {
+pub fn selectMixedImport(handle: *const anyopaque, row: u64) State.Error!?*const Selected {
     const frame = Frame.borrow(handle);
+    const bindings = frame.bindings;
 
-    return try frame.bindings.select(frame.header.*, @intCast(row));
-}
+    if (try bindings.select(frame.header.*, @intCast(row)) == 0) return null;
 
-pub fn reserveMixedImportBindings(handle: *const anyopaque, exported: bool, count: u64, include_prefix: bool) std.mem.Allocator.Error!void {
-    try Frame.borrow(handle).bindings.reserve(exported, @intCast(count), include_prefix);
-}
+    frame.selected = .{
+        .names = bindings.selected.functions.names,
+        .indices = bindings.selected.functions.indices,
+        .named = std.mem.sliceAsBytes(bindings.members.named),
+        .fallback = if (bindings.members.default) |member| std.mem.asBytes(member) else &.{},
+    };
 
-pub fn appendMixedImportBinding(handle: *const anyopaque, exported: bool, row: u64) std.mem.Allocator.Error!void {
-    try Frame.borrow(handle).bindings.append(exported, @intCast(row));
+    return &frame.selected;
 }
 
 fn collectSeed(bindings: *Bindings, header: anytype) State.Error!void {
