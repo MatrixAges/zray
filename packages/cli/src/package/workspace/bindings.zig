@@ -4,47 +4,12 @@ const discovery = host.discovery;
 const source = host.source;
 const project = host.project;
 const scope = project.scope;
-pub const readRoot = collection.readRoot;
-pub const invalidPattern = collection.invalidPattern;
-pub const openDirectory = collection.openDirectory;
-pub const nextDirectory = collection.nextDirectory;
-pub const directoryPath = collection.directoryPath;
-pub const directoryName = collection.directoryName;
-pub const recordDirectory = collection.recordDirectory;
-pub const enterDirectory = collection.enterDirectory;
-pub const orderMembers = collection.orderMembers;
-pub const readMember = collection.readMember;
-pub const registerMember = collection.registerMember;
-pub const duplicateMember = collection.duplicateMember;
-pub const publishMember = collection.publishMember;
-pub const startSearch = discovery.startSearch;
-pub const readCandidate = discovery.readCandidate;
-pub const hasNearest = discovery.hasNearest;
-pub const hasWorkspace = discovery.hasWorkspace;
-pub const rememberCandidate = discovery.rememberCandidate;
-pub const selectCandidate = discovery.selectCandidate;
-pub const loadAncestor = discovery.loadAncestor;
-pub const ancestorContainsMember = discovery.ancestorContainsMember;
-pub const selectAncestor = discovery.selectAncestor;
-pub const moveParent = discovery.moveParent;
-pub const selectNearest = discovery.selectNearest;
-pub const scopeRoot = source.scopeRoot;
-pub const physicalSource = source.physicalSource;
-pub const parentDirectory = source.parentDirectory;
-pub const hasPackageManifest = source.hasPackageManifest;
-pub const projectConfiguration = project.projectConfiguration;
-pub const findProjectConfiguration = project.findProjectConfiguration;
-pub const loadProjectGraph = project.loadProjectGraph;
-pub const bindProjectScopes = project.bindProjectScopes;
-pub const owningProjectScope = project.owningProjectScope;
-pub const reportProjectEntry = project.reportProjectEntry;
-pub const publishProject = project.publishProject;
-pub const prepareSurface = scope.prepareSurface;
-pub const scopeEntry = scope.scopeEntry;
-pub const scopeLibrary = scope.scopeLibrary;
-pub const writeScopeEntry = scope.writeScopeEntry;
-pub const prepareLibrarySurface = scope.prepareLibrarySurface;
-pub const writeCompiledExport = scope.writeCompiledExport;
-pub const writeSourceExport = scope.writeSourceExport;
-pub const borrowScopeColumns = scope.borrowScopeColumns;
-pub const bindScope = scope.bindScope;
+
+pub const resolveNative = @import("cli_host").native_lookup.Resolver(&.{
+    @This(),
+    collection,
+    discovery,
+    source,
+    project,
+    scope,
+}).resolve;

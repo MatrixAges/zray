@@ -1,4 +1,5 @@
 const std = @import("std");
+pub const native_lookup = @import("zx").native_lookup;
 pub const watch = @import("cli/watch.zig");
 pub const package_graph = @import("package/graph/host.zig");
 pub const toolchain = @import("cli/toolchain.zig");

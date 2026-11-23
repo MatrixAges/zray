@@ -1,22 +1,9 @@
 const host = @import("cli_host").source_loader;
 const discovery = host.discovery;
 const templates = host.templates;
-pub const registerRoot = discovery.registerRoot;
-pub const sourceCount = discovery.sourceCount;
-pub const selectSource = discovery.selectSource;
-pub const prepareSource = discovery.prepareSource;
-pub const openHeader = discovery.openHeader;
-pub const closeHeader = discovery.closeHeader;
-pub const resolveImport = discovery.resolveImport;
-pub const admitCompiledImport = discovery.admitCompiledImport;
-pub const importPath = discovery.importPath;
-pub const markRxImport = discovery.markRxImport;
-pub const selectImportFile = discovery.selectImportFile;
-pub const hasSource = discovery.hasSource;
-pub const loadImportText = discovery.loadImportText;
-pub const templateReferenceCount = templates.templateReferenceCount;
-pub const resolveTemplateReference = templates.resolveTemplateReference;
-pub const templateFileCount = templates.templateFileCount;
-pub const templateFilePath = templates.templateFilePath;
-pub const readTemplateFile = templates.readTemplateFile;
-pub const expandSourceTemplate = templates.expandSourceTemplate;
+
+pub const resolveNative = @import("cli_host").native_lookup.Resolver(&.{
+    @This(),
+    discovery,
+    templates,
+}).resolve;

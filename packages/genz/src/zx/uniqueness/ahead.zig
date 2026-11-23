@@ -34,7 +34,13 @@ dirty: []bool,
 /// A round publishes only one kind of result. It drains its workers before the table changes kind.
 results: []Result,
 memo_rows: if (generated) BodyRows else void = if (generated) undefined else {},
-const Result = union { settled: Settled, demanded: Demanded, planned: Function.Plan };
+const result_size = @max(@sizeOf(Settled), @sizeOf(Demanded), @sizeOf(Function.Plan));
+const result_alignment = @max(@alignOf(Settled), @alignOf(Demanded), @alignOf(Function.Plan));
+
+const Result = struct {
+    // Intake binds this address before acquiring the worker's publication.
+    bytes: [result_size]u8 align(result_alignment),
+};
 
 pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, reads: []const Function.Read };
 pub const Demanded = struct { marks: []const Function.Mark, grew: bool, growth: Growth.Rows, reads: []const Function.Read };
@@ -138,7 +144,7 @@ pub fn Found(comptime kind: Memo.Kind) type {
 }
 
 pub fn resultSlot(self: *const Self, comptime kind: Memo.Kind, index: usize) *const Found(kind) {
-    return &@field(self.results[index], @tagName(kind));
+    return @ptrCast(&self.results[index].bytes);
 }
 
 fn Task(comptime kind: Memo.Kind) type {
@@ -172,7 +178,10 @@ fn Task(comptime kind: Memo.Kind) type {
                     input.growth = &growth;
                 },
                 .AnalyzeDeferred, .AnalyzePlan => result = try analyze(step == .AnalyzeDeferred, input),
-                .Publish => self.results[index] = @unionInit(Result, @tagName(kind), result),
+                .Publish => {
+                    const slot: *Found(kind) = @ptrCast(&self.results[index].bytes);
+                    slot.* = result;
+                },
                 .Complete => _ = Schedule.transition(self.states, index, .Complete),
                 else => unreachable,
             };

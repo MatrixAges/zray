@@ -519,11 +519,13 @@
         },
         {
             "path": "library/workflow/host.d.zx",
-            "module": "library_workflow_host"
+            "module": "library_workflow_host",
+            "resolve_members": true
         },
         {
             "path": "library/stage/host.d.zx",
-            "module": "library_stage_host"
+            "module": "library_stage_host",
+            "resolve_members": true
         },
         {
             "path": "publication/host.d.zx",
@@ -535,31 +537,38 @@
         },
         {
             "path": "sources/host.d.zx",
-            "module": "source_loader_host"
+            "module": "source_loader_host",
+            "resolve_members": true
         },
         {
             "path": "workspace/host.d.zx",
-            "module": "package_workspace_host"
+            "module": "package_workspace_host",
+            "resolve_members": true
         },
         {
             "path": "rx/collection/host.d.zx",
-            "module": "rx_collection_host"
+            "module": "rx_collection_host",
+            "resolve_members": true
         },
         {
             "path": "rx/preparation/host.d.zx",
-            "module": "rx_preparation_host"
+            "module": "rx_preparation_host",
+            "resolve_members": true
         },
         {
             "path": "rx/checking/host.d.zx",
-            "module": "rx_checking_host"
+            "module": "rx_checking_host",
+            "resolve_members": true
         },
         {
             "path": "rx/execution/host.d.zx",
-            "module": "rx_execution_host"
+            "module": "rx_execution_host",
+            "resolve_members": true
         },
         {
             "path": "lint/host.d.zx",
-            "module": "lint_workflow_host"
+            "module": "lint_workflow_host",
+            "resolve_members": true
         }
     ]
 }

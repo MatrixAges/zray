@@ -1,69 +1,12 @@
 const host = @import("cli_host").lint_workflow;
-pub const lintRequestsWorkspace = host.command.lintRequestsWorkspace;
-pub const lintRequestsSemantics = host.command.lintRequestsSemantics;
-pub const lintIsConfiguration = host.command.lintIsConfiguration;
-pub const lintIsSourceFile = host.command.lintIsSourceFile;
-pub const lintConfiguration = host.command.lintConfiguration;
-pub const lintSemantic = host.command.lintSemantic;
-pub const lintWorkspace = host.command.lintWorkspace;
-pub const reportLintInput = host.command.reportLintInput;
-pub const lintSourceFile = host.command.lintSourceFile;
-pub const lintSourceIsRx = host.source.lintSourceIsRx;
-pub const parseLintRx = host.source.parseLintRx;
-pub const validateLintRx = host.source.validateLintRx;
-pub const checkLintRxValues = host.source.checkLintRxValues;
-pub const formatLintRx = host.source.formatLintRx;
-pub const checkLintZx = host.source.checkLintZx;
-pub const formatLintZx = host.source.formatLintZx;
-pub const checkLintFormatting = host.source.checkLintFormatting;
-pub const checkLintLength = host.source.checkLintLength;
-pub const semanticLintManifest = host.semantic.semanticLintManifest;
-pub const semanticLintSource = host.semantic.semanticLintSource;
-pub const rejectSemanticLintInput = host.semantic.rejectSemanticLintInput;
-pub const checkSemanticManifest = host.semantic.checkSemanticManifest;
-pub const loadSemanticProject = host.semantic.loadSemanticProject;
-pub const clearSemanticLibrary = host.semantic.clearSemanticLibrary;
-pub const semanticEntry = host.semantic.semanticEntry;
-pub const checkSemanticSpecial = host.semantic.checkSemanticSpecial;
-pub const semanticHasExports = host.semantic.semanticHasExports;
-pub const useSemanticEntryExport = host.semantic.useSemanticEntryExport;
-pub const analyzeSemanticLibrary = host.semantic.analyzeSemanticLibrary;
-pub const checkSemanticSources = host.semantic.checkSemanticSources;
-pub const linkSemanticLibrary = host.semantic.linkSemanticLibrary;
-pub const checkSpecialSource = host.special.checkSpecialSource;
-pub const collectLintStore = host.special.collectLintStore;
-pub const collectLintStoreTypes = host.special.collectLintStoreTypes;
-pub const checkLintStoreTypes = host.special.checkLintStoreTypes;
-pub const analyzeLintGateway = host.special.analyzeLintGateway;
-pub const lintGatewayHasServices = host.special.lintGatewayHasServices;
-pub const checkLintServices = host.special.checkLintServices;
-pub const linkLintGateway = host.special.linkLintGateway;
-pub const workspaceLintManifest = host.workspace.workspaceLintManifest;
-pub const discoverLintWorkspace = host.workspace.discoverLintWorkspace;
-pub const resolveLintWorkspace = host.workspace.resolveLintWorkspace;
-pub const locateLintWorkspace = host.workspace.locateLintWorkspace;
-pub const selectLintWorkspaceMember = host.workspace.selectLintWorkspaceMember;
-pub const lintMemberSemantics = host.workspace.lintMemberSemantics;
-pub const lintMemberConfiguration = host.workspace.lintMemberConfiguration;
-pub const releaseLintWorkspaceMember = host.workspace.releaseLintWorkspaceMember;
-pub const reachableLintModuleCount = host.reachable.reachableLintModuleCount;
-pub const selectReachableLintModule = host.reachable.selectReachableLintModule;
-pub const admitReachableLintSource = host.reachable.admitReachableLintSource;
-pub const checkReachableLintSource = host.reachable.checkReachableLintSource;
-pub const reachableLintStoreCount = host.reachable.reachableLintStoreCount;
-pub const admitReachableLintStore = host.reachable.admitReachableLintStore;
-pub const checkReachableLintStore = host.reachable.checkReachableLintStore;
-pub const configurationLayout = host.configuration.configurationLayout;
-pub const reportConfigurationKind = host.configuration.reportConfigurationKind;
-pub const readConfiguration = host.configuration.readConfiguration;
-pub const formatConfigurationManifest = host.configuration.formatConfigurationManifest;
-pub const validateConfigurationIndex = host.configuration.validateConfigurationIndex;
-pub const formatConfigurationIndex = host.configuration.formatConfigurationIndex;
-pub const validateConfigurationLock = host.configuration.validateConfigurationLock;
-pub const configurationLinting = host.configuration.configurationLinting;
-pub const reportManagedLock = host.configuration.reportManagedLock;
-pub const configurationChecking = host.configuration.configurationChecking;
-pub const checkConfigurationFormatting = host.configuration.checkConfigurationFormatting;
-pub const configurationWriting = host.configuration.configurationWriting;
-pub const writeConfiguration = host.configuration.writeConfiguration;
-pub const printConfiguration = host.configuration.printConfiguration;
+
+pub const resolveNative = @import("cli_host").native_lookup.Resolver(&.{
+    @This(),
+    host.command,
+    host.source,
+    host.semantic,
+    host.special,
+    host.workspace,
+    host.reachable,
+    host.configuration,
+}).resolve;
