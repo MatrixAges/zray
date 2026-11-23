@@ -221,7 +221,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/prepare/selection/publish.rx", .name = "rx_prepared_selection", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/prepare/sequence.rx", .name = "rx_prepare_sequence", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/prepare/flow/diagnostic.zx", .name = "rx_prepare_diagnostic", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/inference/scalar/restrict.rx", .name = "rx_scalar_restriction", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/inference/scalar/apply.rx", .name = "rx_scalar_restriction", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/scalar/default.zx", .name = "rx_scalar_default", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/sequences/defaults/choose.rx", .name = "rx_sequence_default", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/fields/view.zx", .name = "rx_object_view", .owner = .rx_analysis },

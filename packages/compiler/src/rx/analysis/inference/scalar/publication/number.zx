@@ -1,0 +1,29 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import advanceRevision from "./advance_revision"
+import writeFallback from "./write_fallback"
+
+import type { Output as Literal } from "../literal"
+import type { Storage } from "./model"
+
+export type Input = Literal & {
+    storage: Storage,
+    row: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, row } = in
+
+    memory.writeOptionalU16(storage.allowed, row, integers.narrowShort(in.allowed))
+
+    writeFallback({
+        target: storage.fallback,
+        row,
+        value: in.fallback
+    })
+
+    advanceRevision(storage.revision)
+}

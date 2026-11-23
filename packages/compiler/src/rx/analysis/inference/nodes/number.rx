@@ -1,11 +1,17 @@
 <Module>
     <Type from="number" as="Number" />
-    <Type from="../scalar/literal" as="Literal" />
 
-    <Args in={Number.Input} out={Literal.Output} />
+    <Args in={Number.Input} out={void} />
 
     <Call fn="../scalar/literal" in={$in.token} />
     <Call fn="initialize" in={$in.rows} />
 
-    <Return value={$ctx.literal} />
+    <Call
+        fn="../scalar/publication/number"
+        in={{
+            ...$ctx.literal,
+            storage: $in.storage,
+            row: $in.rows.first
+        }}
+    />
 </Module>

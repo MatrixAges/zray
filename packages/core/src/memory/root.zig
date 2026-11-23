@@ -596,6 +596,14 @@ pub inline fn writeOptionalU32(target: *const anyopaque, index: u64, value: ?u32
     return write(?u32, target, index, value);
 }
 
+pub inline fn writeOptionalU16(target: *const anyopaque, index: u64, value: ?u16) error{IndexOutOfBounds}!void {
+    return write(?u16, target, index, value);
+}
+
+pub inline fn writeOptionalU8(target: *const anyopaque, index: u64, value: ?u8) error{IndexOutOfBounds}!void {
+    return write(?u8, target, index, value);
+}
+
 pub fn allocateOptionalU32Buffer(allocator: std.mem.Allocator, target: *const anyopaque, count: u64, clear: bool) std.mem.Allocator.Error!void {
     const output: *[]?u32 = @ptrCast(@alignCast(@constCast(target)));
     const size = std.math.cast(usize, count) orelse return error.OutOfMemory;

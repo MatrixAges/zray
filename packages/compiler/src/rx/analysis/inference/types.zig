@@ -26,7 +26,7 @@ reporter: *zx.Reporter,
 types: Types,
 nodes: Nodes.Storage = .empty,
 pending: Constraints,
-revision: usize = 0,
+revision: u64 = 0,
 /// Changes that affect the roots or known types seen by object rules.
 object_revision: u64 = 0,
 const Constraints = struct {

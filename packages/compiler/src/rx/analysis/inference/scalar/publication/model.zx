@@ -1,0 +1,12 @@
+import type { OptionalU8Buffer, OptionalU16Buffer, U64Buffer } from "memory"
+import type { Input as Query } from "../restriction"
+
+export type Storage = {
+    allowed: OptionalU16Buffer,
+    fallback: OptionalU8Buffer,
+    revision: U64Buffer
+}
+
+export type Request = Query & {
+    storage: Storage
+}

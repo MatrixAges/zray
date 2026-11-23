@@ -11,15 +11,20 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
     const parents: []u32 = graph.parents();
     const Input = std.meta.Child(generated.Input);
     const Columns = std.meta.Child(@FieldType(Input, "columns"));
-    const rows = Nodes.writable(graph.nodes.slice());
+    const rows = graph.nodes.slice();
+    const topology = Nodes.writable(rows);
+    const publication = Restriction.Publication.init(graph, rows);
+    const object_revision: []u64 = (&graph.object_revision)[0..1];
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-    const result = generated.executeValue(scratch.allocator(), &.{
+    const message = generated.executeIn(scratch.allocator(), &.{
         .parents = @ptrCast(&parents),
         .graph = &Restriction.borrow(graph, &parents),
         .parent = @backingInt(parent),
         .child = @backingInt(child),
-        .columns = &rows.borrow(Columns),
+        .columns = &topology.borrow(Columns),
+        .storage = &publication.borrow(std.meta.Child(@FieldType(Input, "storage"))),
+        .object_revision = @ptrCast(&object_revision),
         .shape = &.{ .kind = @backingInt(shape.kind), .argument = shape.argument, .members = shape.members },
         .left = &.{
             .allowed = if (first.allowed) |mask| @as(u64, mask) else null,
@@ -31,12 +36,7 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
         },
     }) catch unreachable;
 
-    graph.nodes.items(.fallback)[@backingInt(parent)] = if (result.fallback) |code| @intCast(code) else null;
-
-    graph.revision += 1;
-    graph.object_revision += 1;
-
-    if (result.restriction) |restriction| try Restriction.apply(graph, restriction, span);
+    if (message) |text| return graph.reporter.fail(.type_mismatch, span, text);
 }
 
 pub fn publishSeed(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Graph.Node, second: Graph.Node, shape: Graph.Shape, span: zx.Span) zx.Error!void {

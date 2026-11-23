@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { Issue } from "../model"
+import advanceRevision from "./advance_revision"
+import {
+    incompatible_operator,
+    incompatible_requirements,
+    requires_scalar
+} from "./const"
+
+import type { Output as Decision } from "../restriction"
+import type { Storage } from "./model"
+
+export type Input = Decision & {
+    storage: Storage
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const message: string? = match in.issue {
+        Issue.Empty => incompatible_requirements,
+        Issue.Operator => incompatible_operator,
+        Issue.Structure => requires_scalar,
+        _ => null
+    }
+
+    if (message != null) {
+        return message
+    }
+
+    const row = integers.widen(in.root)
+
+    memory.writeOptionalU16(
+        in.storage.allowed,
+        row,
+        integers.narrowShort(in.allowed)
+    )
+
+    if (in.changed) {
+        advanceRevision(in.storage.revision)
+    }
+
+    return null
+}

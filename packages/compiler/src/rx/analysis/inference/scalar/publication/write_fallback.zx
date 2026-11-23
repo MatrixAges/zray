@@ -1,0 +1,23 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { OptionalU8Buffer } from "memory"
+
+export type Input = {
+    target: OptionalU8Buffer,
+    row: u64,
+    value?: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, row, value } = in
+
+    const code: u8? = match {
+        value == null => null,
+        _ => integers.narrowByte(integers.widen(value))
+    }
+
+    memory.writeOptionalU8(target, row, code)
+}

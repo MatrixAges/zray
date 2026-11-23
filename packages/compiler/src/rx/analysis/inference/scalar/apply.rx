@@ -1,0 +1,17 @@
+<Module>
+    <Type from="publication/model" as="Publication" />
+
+    <Args in={Publication.Request} out={string?} />
+
+    <Call module="restrict" in={$in.omit(["storage"])} />
+
+    <Call
+        fn="publication/restriction"
+        in={{
+            ...$ctx.restrict,
+            storage: $in.storage
+        }}
+    />
+
+    <Return value={$ctx.restriction} />
+</Module>

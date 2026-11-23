@@ -13,14 +13,6 @@
     />
 
     <Call
-        fn="../scalar/combine"
-        in={$in.pick([
-            "left",
-            "right"
-        ])}
-    />
-
-    <Call
         fn="../forest/link"
         in={$in.pick([
             "parents",
@@ -29,30 +21,32 @@
         ])}
     />
 
-    <If on={$ctx.combine.allowed == null}>
-        <Return
-            value={{
-                fallback: $ctx.combine.fallback,
-                restriction: null
+    <Call
+        fn="commit/publish_prefix"
+        in={$in.pick([
+            "parent",
+            "storage",
+            "object_revision",
+            "left",
+            "right"
+        ])}
+    />
+
+    <If on={$ctx.publish_prefix != null}>
+        <Call
+            module="../scalar/apply"
+            in={{
+                target: {
+                    graph: $in.graph,
+                    node: $in.parent
+                },
+                storage: $in.storage,
+                requested: $ctx.publish_prefix ?? 0
             }}
         />
+
+        <Return value={$ctx.apply} />
     </If>
 
-    <Call
-        module="../scalar/restrict"
-        in={{
-            target: {
-                graph: $in.graph,
-                node: $in.parent
-            },
-            requested: $ctx.combine.allowed ?? 0
-        }}
-    />
-
-    <Return
-        value={{
-            fallback: $ctx.combine.fallback,
-            restriction: $ctx.restrict
-        }}
-    />
+    <Return value={null} />
 </Module>

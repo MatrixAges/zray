@@ -1,0 +1,20 @@
+import { scalar_f64, scalar_i64 } from "core/type_table/const"
+
+export type Input = {
+    left?: u32,
+    right?: u32
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return match {
+        left == null => right,
+        right == null => left,
+        left == scalar_f64 || right == scalar_f64 => scalar_f64,
+        left == scalar_i64 || right == scalar_i64 => scalar_i64,
+        _ => left
+    }
+}

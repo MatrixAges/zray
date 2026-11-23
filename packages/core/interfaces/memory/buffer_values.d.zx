@@ -123,6 +123,18 @@ export declare function writeOptionalU32(
     value: u32?
 ): void throws { IndexOutOfBounds }
 
+export declare function writeOptionalU16(
+    target: OptionalU16Buffer,
+    index: u64,
+    value: u16?
+): void throws { IndexOutOfBounds }
+
+export declare function writeOptionalU8(
+    target: OptionalU8Buffer,
+    index: u64,
+    value: u8?
+): void throws { IndexOutOfBounds }
+
 export declare function allocateOptionalU32Buffer(
     allocator,
     target: OptionalU32Buffer,

@@ -1,0 +1,6 @@
+export const incompatible_requirements: string =
+    "incompatible inferred scalar requirements"
+
+export const incompatible_operator: string = "inferred type does not satisfy the operator"
+
+export const requires_scalar: string = "the operator requires a scalar value"

@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Nodes = @import("../nodes.zig");
+const Publication = @import("../scalar/restriction.zig").Publication;
 const rule = @import("generated_rx_inference_number");
 
 pub fn append(graph: *Graph, text: []const u8, negative: bool, span: zx.Span) zx.Error!Graph.Id {
@@ -10,6 +11,7 @@ pub fn append(graph: *Graph, text: []const u8, negative: bool, span: zx.Span) zx
     const Rows = std.meta.Child(@FieldType(Input, "rows"));
     const parents = reservation.rows.items(.parent);
     const topology = Nodes.writable(reservation.rows);
+    const publication = Publication.init(graph, reservation.rows);
 
     const input: Input = .{
         .rows = &.{
@@ -19,18 +21,14 @@ pub fn append(graph: *Graph, text: []const u8, negative: bool, span: zx.Span) zx
             .columns = &topology.borrow(std.meta.Child(@FieldType(Rows, "columns"))),
             .shape = &.{ .kind = @backingInt(Nodes.Kind.Unknown), .argument = 0, .members = &.{} },
         },
+        .storage = &publication.borrow(std.meta.Child(@FieldType(Input, "storage"))),
         .token = &.{ .text = text, .negative = negative },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const restriction = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    const index = reservation.first;
 
-    reservation.publish(graph, span);
-    reservation.rows.items(.allowed)[index] = @intCast(restriction.allowed);
-    reservation.rows.items(.fallback)[index] = @intCast(restriction.fallback);
+    rule.executeIn(empty.allocator(), &input) catch unreachable;
+    reservation.publishPrepared(graph, span);
 
-    graph.revision += 1;
-
-    return @fromBackingInt(@intCast(index));
+    return @fromBackingInt(@intCast(reservation.first));
 }

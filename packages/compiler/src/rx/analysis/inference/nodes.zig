@@ -63,6 +63,12 @@ pub const Reservation = struct {
 
         graph.nodes.len = self.rows.len;
     }
+
+    pub fn publishPrepared(self: Reservation, graph: *Graph, span: zx.Span) void {
+        @memset(self.rows.items(.span)[self.first..], span);
+
+        graph.nodes.len = self.rows.len;
+    }
 };
 
 pub fn reserve(graph: *Graph, count: usize) std.mem.Allocator.Error!Reservation {

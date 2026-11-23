@@ -10,6 +10,26 @@ const Input = if (enabled) std.meta.Child(entry.Input) else void;
 const Target = if (enabled) std.meta.Child(@FieldType(Input, "target")) else void;
 pub const View = if (enabled) std.meta.Child(@FieldType(Target, "graph")) else void;
 
+pub const Publication = struct {
+    allowed: []?u16,
+    fallback: []?u8,
+    revision: []u64,
+    pub fn init(graph: *Graph, rows: Nodes.Storage.Slice) Publication {
+        return .{
+            .allowed = rows.items(.allowed),
+            .fallback = rows.items(.fallback),
+            .revision = (&graph.revision)[0..1],
+        };
+    }
+    pub fn borrow(self: *const Publication, comptime Storage: type) Storage {
+        return .{
+            .allowed = @ptrCast(&self.allowed),
+            .fallback = @ptrCast(&self.fallback),
+            .revision = @ptrCast(&self.revision),
+        };
+    }
+};
+
 pub fn borrow(graph: *const Graph, parents: *const []u32) View {
     const rows = graph.nodes.slice();
     const types = &graph.types.items;
@@ -28,28 +48,18 @@ pub fn restrict(graph: *Graph, id: Graph.Id, allowed: Scalar.Mask, span: zx.Span
     if (!enabled) return restrictSeed(graph, id, allowed, span);
 
     const parents: []u32 = graph.parents();
+    const publication = Publication.init(graph, graph.nodes.slice());
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{
         .target = &.{ .graph = &borrow(graph, &parents), .node = @backingInt(id) },
         .requested = allowed.bits.mask,
+        .storage = &publication.borrow(std.meta.Child(@FieldType(Input, "storage"))),
     };
 
-    const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
+    const message = entry.executeIn(scratch.allocator(), &input) catch unreachable;
 
-    return apply(graph, result, span);
-}
-
-pub fn apply(graph: *Graph, result: anytype, span: zx.Span) zx.Error!void {
-    switch (result.issue) {
-        .None => {},
-        .Empty => return failure(graph, .empty, span),
-        .Operator => return failure(graph, .operator, span),
-        .Structure => return failure(graph, .structure, span),
-    }
-
-    graph.nodes.items(.allowed)[result.root] = @intCast(result.allowed);
-    graph.revision += @intFromBool(result.changed);
+    if (message) |text| return graph.reporter.fail(.type_mismatch, span, text);
 }
 
 fn restrictSeed(graph: *Graph, id: Graph.Id, allowed: Scalar.Mask, span: zx.Span) zx.Error!void {
