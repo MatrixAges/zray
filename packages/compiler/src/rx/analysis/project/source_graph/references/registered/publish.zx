@@ -1,3 +1,4 @@
+import memory from "memory"
 import host from "rx_graph_host"
 
 import {
@@ -11,27 +12,35 @@ import {
     missing_source
 } from "./const"
 import position from "./position"
+import select from "./select"
 
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { target, source } = in
+    const { target, source, resources } = in
 
     if (source == null) {
-        if (in.compiled) {
-            host.markSourceGraphCompiled(target)
+        const compiled = resources.compiled
+
+        if (compiled != null) {
+            memory.writeBool(compiled, 0, true)
         }
 
-        host.appendSourceGraphEdge(target, null)
+        host.appendSourceGraphEdge(target, null, false)
 
         return
     }
 
-    const row = position(source.pick([
-        "path",
-        "index",
-        "matched"
-    ]))
+    const selected = select({
+        source,
+        owned: in.owned
+    })
+
+    const row = position({
+        path: selected.path,
+        index: source.index,
+        matched: selected.matched
+    })
 
     const store_start = source.store_start
 
@@ -48,7 +57,7 @@ export default function (in: Input): Output {
     if (scope != null) {
         const boundary = check({
             ...scope,
-            path: source.path
+            path: selected.path
         })
 
         if (boundary == Boundary.MissingOwner) {
@@ -70,6 +79,6 @@ export default function (in: Input): Output {
         return
     }
 
-    host.linkSourceGraphEdge(target, row)
-    host.appendSourceGraphEdge(target, row)
+    memory.appendU64(resources.allocator, resources.targets, row)
+    host.appendSourceGraphEdge(target, row, selected.named)
 }

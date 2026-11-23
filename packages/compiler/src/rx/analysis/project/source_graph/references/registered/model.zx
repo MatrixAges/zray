@@ -1,4 +1,5 @@
 import type { Table } from "core/bytes/index/fixed"
+import type { Allocator, BoolBuffer, U64Storage } from "memory"
 import type { GraphEdgePublication } from "rx_graph_host"
 import type {
     Input as Scope
@@ -12,13 +13,28 @@ export type Lookup = {
 
 export type Source = Lookup & {
     scope?: Scope.Omit("path"),
-    store_start?: u64
+    store_start?: u64,
+    select: bool,
+    selection_index?: Table,
+    member_width?: u64
+}
+
+export type Resources = {
+    allocator: Allocator,
+    targets: U64Storage,
+    compiled?: BoolBuffer
+}
+
+export type PathStorage = {
+    allocator: Allocator,
+    selected: string[]
 }
 
 export type Input = {
     target: GraphEdgePublication,
     source?: Source,
-    compiled: bool
+    resources: Resources,
+    owned: PathStorage
 }
 
 export type Output = void

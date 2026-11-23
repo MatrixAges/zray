@@ -63,13 +63,11 @@ export declare function publishSourceGraphDependencies(
     start: u64
 ): u64[] throws { OutOfMemory }
 
-export declare function linkSourceGraphEdge(target: GraphEdgePublication, row: u64): void
-    throws { OutOfMemory }
-
-export declare function appendSourceGraphEdge(target: GraphEdgePublication, row: u64?): void
-    throws { OutOfMemory }
-
-export declare function markSourceGraphCompiled(target: GraphEdgePublication): void
+export declare function appendSourceGraphEdge(
+    target: GraphEdgePublication,
+    row: u64?,
+    named: bool
+): void throws { OutOfMemory }
 
 export declare function rejectSourceGraphEdge(
     target: GraphEdgePublication,

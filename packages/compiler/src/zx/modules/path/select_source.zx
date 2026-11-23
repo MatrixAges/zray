@@ -1,0 +1,47 @@
+import memory from "memory"
+
+import alias from "./alias/select"
+import named from "./named/resolve"
+
+import type { Input as Lookup } from "./alias/model"
+
+export type Input = Lookup & {
+    member_width?: u64,
+    output: string[]
+}
+
+export type Output = {
+    row?: u64,
+    named: bool
+}
+
+export default function (in: Input): Output {
+    const { member_width, output } = in
+
+    if (member_width != null) {
+        return named({
+            path: in.path,
+            index: in.index,
+            release: in.release,
+            member_width,
+            output
+        })
+    }
+
+    const selected = alias(in.pick([
+        "path",
+        "index",
+        "release"
+    ]))
+
+    const fallback = selected.fallback
+
+    if (fallback != null) {
+        memory.writeTextSlot(output, 0, fallback)
+    }
+
+    return {
+        row: selected.row,
+        named: false
+    }
+}

@@ -1,0 +1,63 @@
+import bytes from "std:bytes"
+
+import { module_extension } from "../../../../../../zx/modules/path/const"
+import selectSource from "../../../../../../zx/modules/path/select_source"
+
+import type { PathStorage, Source } from "./model"
+
+export type Input = {
+    source: Source,
+    owned: PathStorage
+}
+
+export type Output = {
+    path: string,
+    matched?: u64,
+    named: bool
+}
+
+export default function (in: Input): Output {
+    const { source, owned } = in
+    const { path: absolute, member_width, selection_index } = source
+
+    const index = selection_index ?? source.index
+
+    if (!source.select) {
+        return {
+            path: source.path,
+            matched: source.matched,
+            named: false
+        }
+    }
+
+    const suffix = match {
+        absolute.length < module_extension.length => absolute.length,
+        _ => absolute.length - module_extension.length
+    }
+
+    const indexed = source.store_start == null &&
+        bytes.startsWithText(bytes.fromText(absolute), suffix, module_extension)
+
+    if (member_width == null && !indexed) {
+        return {
+            path: absolute,
+            named: false
+        }
+    }
+
+    const selected = selectSource({
+        path: absolute,
+        index,
+        release: owned.allocator,
+        member_width,
+        output: owned.selected
+    })
+
+    const path = owned.selected[0]
+
+    return {
+        path: path.length == 0 ? absolute : path,
+        matched: selection_index == null ? selected.row : null,
+        named: selected.named
+    }
+}

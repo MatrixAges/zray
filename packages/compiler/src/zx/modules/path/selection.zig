@@ -1,23 +1,24 @@
 const std = @import("std");
 const zx = @import("zx");
-const Known = @import("../source_index.zig").Known;
-const CallSource = @import("../module_path.zig").CallSource;
-const rule = @import("generated_project_named_source");
+const Index = @import("../source_index.zig").Map;
+const rule = @import("generated_project_source_selection");
 
-pub fn select(allocator: std.mem.Allocator, candidate: []const u8, member: []const u8, known: Known) std.mem.Allocator.Error!CallSource {
+pub const Selection = struct { path: []const u8, row: ?usize = null, named: bool = false };
+
+pub fn select(allocator: std.mem.Allocator, candidate: []const u8, index: *const Index, member_width: ?usize) std.mem.Allocator.Error!Selection {
     var output = [_][]const u8{""};
 
     errdefer allocator.free(output[0]);
 
     const input: std.meta.Child(rule.Input) = .{
         .path = candidate,
-        .member_width = member.len,
+        .member_width = member_width,
         .release = @ptrCast(&allocator),
         .output = &output,
         .index = &.{
-            .keys = known.paths.keys,
-            .buckets = @ptrCast(&known.paths.buckets),
-            .capacity = known.paths.buckets.len,
+            .keys = index.keys,
+            .buckets = @ptrCast(&index.buckets),
+            .capacity = index.buckets.len,
         },
     };
 
@@ -26,12 +27,9 @@ pub fn select(allocator: std.mem.Allocator, candidate: []const u8, member: []con
         else => unreachable,
     };
 
-    if (known.matched_row) |row| {
-        row.* = if (result.row) |value| @intCast(value) else null;
-    }
-
     return .{
         .path = if (output[0].len == 0) candidate else output[0],
+        .row = if (result.row) |row| @intCast(row) else null,
         .named = result.named,
     };
 }

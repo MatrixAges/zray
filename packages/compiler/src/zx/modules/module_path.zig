@@ -52,7 +52,11 @@ pub const CallSource = struct { path: []const u8, named: bool };
 /// The candidate is the normalized file path for the complete dotted spelling.
 pub fn selectQualified(allocator: std.mem.Allocator, candidate: []const u8, member: []const u8, known: anytype) !CallSource {
     if (comptime generated and @TypeOf(known) == @import("source_index.zig").Known) {
-        return @import("path/named.zig").select(allocator, candidate, member, known);
+        const selected = try @import("path/selection.zig").select(allocator, candidate, known.paths, member.len);
+
+        if (known.matched_row) |row| row.* = selected.row;
+
+        return .{ .path = selected.path, .named = selected.named };
     }
 
     if (try known.has(candidate)) return .{ .path = candidate, .named = false };

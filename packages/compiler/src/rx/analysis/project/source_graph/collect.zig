@@ -49,14 +49,14 @@ pub fn dependencies(self: *Self) []const project.Package {
 }
 
 pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, owner: []const u8) Error!void {
+    if (comptime generated) {
+        return registered.source(self, location, .store, .{ .path = path }, .{ .boundary = self.scope(), .store_owner = owner, .relative = true });
+    }
+
     const temporary = self.temporary.allocator();
     const absolute = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
 
     defer temporary.free(absolute);
-
-    if (comptime generated) {
-        return registered.source(self, location, .store, .{ .path = absolute }, .{ .boundary = self.scope(), .store_owner = owner });
-    }
 
     const index = self.paths.get(absolute);
 
@@ -92,6 +92,8 @@ fn sourceEdge(self: *Self, index: usize, location: rx.ast.Location, reference: m
 }
 
 pub fn local(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference) Error!void {
+    if (comptime generated) return self.registerLocal(path, location, reference, null);
+
     const temporary = self.temporary.allocator();
     const absolute = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
 
@@ -108,6 +110,8 @@ pub fn local(self: *Self, path: []const u8, location: rx.ast.Location, reference
 }
 
 pub fn qualified(self: *Self, path: []const u8, member: []const u8, location: rx.ast.Location) Error!void {
+    if (comptime generated) return self.registerLocal(path, location, .call, member.len);
+
     const temporary = self.temporary.allocator();
     const absolute = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
 
@@ -122,11 +126,11 @@ pub fn qualified(self: *Self, path: []const u8, member: []const u8, location: rx
     try self.localSelected(.{ .path = selected.path, .row = row }, location, .call, selected.named);
 }
 
-fn localSelected(self: *Self, resolved: project.SourceSelection, location: rx.ast.Location, reference: model.Reference, named: bool) Error!void {
-    if (comptime generated) {
-        return registered.source(self, location, reference, resolved, .{ .boundary = self.scope(), .named = named });
-    }
+fn registerLocal(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference, member_width: ?usize) Error!void {
+    return registered.source(self, location, reference, .{ .path = path }, .{ .boundary = self.scope(), .relative = true, .member_width = member_width });
+}
 
+fn localSelected(self: *Self, resolved: project.SourceSelection, location: rx.ast.Location, reference: model.Reference, named: bool) Error!void {
     try self.checkBoundary(resolved.path, location);
     try self.source(resolved.path, location, reference, resolved.row);
 

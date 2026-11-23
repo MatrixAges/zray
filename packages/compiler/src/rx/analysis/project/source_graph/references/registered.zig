@@ -8,6 +8,7 @@ const Collector = @import("../collect.zig");
 const rule = @import("generated_rx_publish_source_graph_edge");
 const Input = std.meta.Child(rule.Input);
 const Source = std.meta.Child(@typeInfo(@FieldType(Input, "source")).optional.child);
+const Table = std.meta.Child(@FieldType(Source, "index"));
 const Scope = std.meta.Child(@typeInfo(@FieldType(Source, "scope")).optional.child);
 const Location = rx.ast.Location;
 
@@ -15,19 +16,32 @@ const Publication = struct {
     collector: *Collector,
     location: Location,
     role: model.Reference,
-    named: bool = false,
     store_owner: ?[]const u8 = null,
     external: model.Target = undefined,
     fn borrow(handle: *const anyopaque) *const Publication {
         return @ptrCast(@alignCast(handle));
     }
     fn publish(self: *const Publication, selection: ?*const Source, compiled: bool) Collector.Error!void {
-        const input: Input = .{ .target = @ptrCast(self), .source = selection, .compiled = compiled };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const collector = self.collector;
+        const temporary = collector.temporary.allocator();
+        const flag = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
+        var selected = [_][]const u8{""};
 
-        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.IndexOutOfBounds => unreachable,
-            error.OutOfMemory => return error.OutOfMemory,
+        defer temporary.free(selected[0]);
+
+        const input: Input = .{
+            .target = @ptrCast(self),
+            .source = selection,
+            .resources = &.{
+                .allocator = @ptrCast(&collector.target_allocator),
+                .targets = @ptrCast(&collector.targets),
+                .compiled = if (compiled) @ptrCast(&flag) else null,
+            },
+            .owned = &.{ .allocator = @ptrCast(&temporary), .selected = &selected },
+        };
+
+        zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.WriteFailed => return error.OutOfMemory,
             error.InvalidGraph => return error.InvalidGraph,
             else => unreachable,
         };
@@ -35,15 +49,15 @@ const Publication = struct {
 };
 
 pub fn source(collector: *Collector, location: Location, role: model.Reference, selection: project.SourceSelection, details: struct {
-    named: bool = false,
     store_owner: ?[]const u8 = null,
+    relative: bool = false,
+    member_width: ?usize = null,
     boundary: ?project.ImportScope = null,
 }) Collector.Error!void {
     const publication: Publication = .{
         .collector = collector,
         .location = location,
         .role = role,
-        .named = details.named,
         .store_owner = details.store_owner,
     };
 
@@ -55,17 +69,29 @@ pub fn source(collector: *Collector, location: Location, role: model.Reference, 
         .windows = builtin.os.tag == .windows,
     };
 
+    const temporary = collector.temporary.allocator();
+    const absolute = if (details.relative) try std.fs.path.resolve(temporary, &.{ collector.options.root_dir, selection.path }) else selection.path;
+
+    defer if (details.relative) temporary.free(absolute);
+
+    const other = collector.options.source_index;
+    const index = table(collector.paths);
+    const alternate = if (other != collector.paths) table(other.?) else undefined;
+
     try publication.publish(&.{
-        .path = selection.path,
-        .index = &.{
-            .keys = collector.paths.keys,
-            .buckets = @ptrCast(&collector.paths.buckets),
-            .capacity = collector.paths.buckets.len,
-        },
-        .matched = if (collector.options.source_index == collector.paths) selection.row else null,
+        .path = absolute,
+        .index = &index,
+        .matched = if (other == collector.paths) selection.row else null,
         .scope = if (details.boundary != null and roots.count != 0) &boundary else null,
         .store_start = if (details.store_owner != null) collector.sources.rx_end else null,
+        .select = details.relative,
+        .member_width = details.member_width,
+        .selection_index = if (other != collector.paths) &alternate else null,
     }, false);
+}
+
+fn table(index: *const project.source_index.Map) Table {
+    return .{ .keys = index.keys, .buckets = @ptrCast(&index.buckets), .capacity = index.buckets.len };
 }
 
 pub fn external(collector: *Collector, location: Location, role: model.Reference, target: model.Target) Collector.Error!void {
@@ -79,13 +105,7 @@ pub fn external(collector: *Collector, location: Location, role: model.Reference
     try publication.publish(null, target == .compiled);
 }
 
-pub fn linkSourceGraphEdge(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!void {
-    const self = Publication.borrow(handle).collector;
-
-    try self.targets.append(self.target_allocator, row);
-}
-
-pub fn appendSourceGraphEdge(handle: *const anyopaque, row: ?u64) std.mem.Allocator.Error!void {
+pub fn appendSourceGraphEdge(handle: *const anyopaque, row: ?u64, named: bool) std.mem.Allocator.Error!void {
     const self = Publication.borrow(handle);
     const target: model.Target = if (row) |value| .{ .source = @intCast(value) } else self.external;
 
@@ -93,14 +113,8 @@ pub fn appendSourceGraphEdge(handle: *const anyopaque, row: ?u64) std.mem.Alloca
         .target = target,
         .location = self.location,
         .reference = self.role,
-        .named = self.named,
+        .named = named,
     });
-}
-
-pub fn markSourceGraphCompiled(handle: *const anyopaque) void {
-    const self = Publication.borrow(handle).collector;
-
-    self.modules.items(.compiled_dependency)[self.owner] = true;
 }
 
 pub fn rejectSourceGraphEdge(handle: *const anyopaque, store: bool, message: []const u8) Collector.Error!void {
