@@ -21,16 +21,8 @@ export declare function rejectSymbolicDefinition(
     message: string?
 ): string throws { InvalidSource }
 
-export declare function reserveQueryBuffer(query: QueryAssembly, capacity: u64): void
-    throws { OutOfMemory }
-
-export declare function appendQueryText(query: QueryAssembly, text: string): void
-    throws { OutOfMemory }
-
 export declare function appendQueryDefinitions(query: QueryAssembly, first: u64, end: u64): void
     throws { OutOfMemory, InvalidSource }
-
-export declare function queryWrittenLength(query: QueryAssembly): u64
 
 export declare function publishCorrectnessQuery(query: QueryAssembly): void
     throws { OutOfMemory }

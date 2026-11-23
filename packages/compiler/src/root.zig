@@ -5,6 +5,23 @@ const frontend = @import("frontend");
 pub const ir = zx.ir;
 pub const bytes = zx.bytes;
 pub const native_lookup = zx.native_lookup;
+
+pub const resolveNative = native_lookup.Resolver(&.{
+    @This(),
+    @import("backends/hardware/construction/workflow.zig"),
+    @import("backends/hardware/graph/view.zig"),
+    @import("verification/call_cache.zig"),
+    @import("verification/execution/block.zig"),
+    @import("verification/execution/call.zig"),
+    @import("verification/execution/context.zig"),
+    @import("verification/execution/expression.zig"),
+    @import("verification/execution/program.zig"),
+    @import("verification/graph/registration.zig"),
+    @import("verification/graph/selection.zig"),
+    @import("verification/query/assembly.zig"),
+    @import("verification/solver.zig"),
+}).resolve;
+
 pub const parallel = zx.parallel;
 pub const input_snapshot = @import("inputs/snapshot.zig");
 pub const input_fingerprint = @import("inputs/fingerprint.zig");
@@ -84,94 +101,6 @@ pub const Diagnostic = zx.Diagnostic;
 pub const formatRx = frontend.formatXml;
 pub const validateIr = frontend.validateIr;
 pub const verification = @import("verification/root.zig");
-const symbolic_values = @import("verification/graph/selection.zig");
-pub const symbolicText = symbolic_values.symbolicText;
-pub const symbolicFieldCount = symbolic_values.symbolicFieldCount;
-pub const sameSymbolicFields = symbolic_values.sameSymbolicFields;
-pub const symbolicField = symbolic_values.symbolicField;
-pub const targetSymbolicField = symbolic_values.targetSymbolicField;
-pub const reuseSymbolicFields = symbolic_values.reuseSymbolicFields;
-pub const reserveSymbolicFields = symbolic_values.reserveSymbolicFields;
-pub const publishSymbolicText = symbolic_values.publishSymbolicText;
-const symbolic_execution = @import("verification/execution/context.zig");
-pub const evaluateClause = symbolic_execution.evaluateClause;
-pub const bindSymbolicBoolean = symbolic_execution.bindSymbolicBoolean;
-pub const publishClauseViolation = symbolic_execution.publishClauseViolation;
-pub const selectSymbolicReturn = symbolic_execution.selectSymbolicReturn;
-const symbolic_block = @import("verification/execution/block.zig");
-pub const evaluateSymbolicStatement = symbolic_block.evaluateSymbolicStatement;
-pub const symbolicStatementText = symbolic_block.symbolicStatementText;
-pub const bindSymbolicStatement = symbolic_block.bindSymbolicStatement;
-pub const bindSymbolicStatementField = symbolic_block.bindSymbolicStatementField;
-pub const publishSymbolicStatementReturn = symbolic_block.publishSymbolicStatementReturn;
-pub const runSymbolicChild = symbolic_block.runSymbolicChild;
-pub const runSymbolicParallel = symbolic_block.runSymbolicParallel;
-pub const reserveSymbolicParallel = symbolic_block.reserveSymbolicParallel;
-pub const saveSymbolicParallel = symbolic_block.saveSymbolicParallel;
-pub const bindSymbolicParallel = symbolic_block.bindSymbolicParallel;
-pub const rejectSymbolicStatement = symbolic_block.rejectSymbolicStatement;
-const symbolic_expression = @import("verification/execution/expression.zig");
-pub const rejectSymbolicExpression = symbolic_expression.rejectSymbolicExpression;
-pub const loadSymbolicReference = symbolic_expression.loadSymbolicReference;
-pub const symbolicLiteralWidth = symbolic_expression.symbolicLiteralWidth;
-pub const writeSymbolicLiteral = symbolic_expression.writeSymbolicLiteral;
-pub const evaluateSymbolicOperand = symbolic_expression.evaluateSymbolicOperand;
-pub const symbolicOperandText = symbolic_expression.symbolicOperandText;
-pub const symbolicOperandSafety = symbolic_expression.symbolicOperandSafety;
-pub const projectSymbolicOperand = symbolic_expression.projectSymbolicOperand;
-pub const writeSymbolicUnary = symbolic_expression.writeSymbolicUnary;
-pub const writeSymbolicBinary = symbolic_expression.writeSymbolicBinary;
-pub const selectSymbolicExpression = symbolic_expression.selectSymbolicExpression;
-pub const retainSymbolicExpression = symbolic_expression.retainSymbolicExpression;
-pub const bindSymbolicExpressionSafety = symbolic_expression.bindSymbolicExpressionSafety;
-pub const writeSymbolicSafety = symbolic_expression.writeSymbolicSafety;
-pub const reserveSymbolicAggregate = symbolic_expression.reserveSymbolicAggregate;
-pub const writeSymbolicAggregateField = symbolic_expression.writeSymbolicAggregateField;
-const symbolic_call = @import("verification/execution/call.zig");
-pub const runSymbolicExpressionCall = symbolic_call.runSymbolicExpressionCall;
-pub const describeSymbolicCall = symbolic_call.describeSymbolicCall;
-pub const rejectSymbolicCall = symbolic_call.rejectSymbolicCall;
-pub const evaluateSymbolicCallArgument = symbolic_call.evaluateSymbolicCallArgument;
-pub const findSymbolicCallee = symbolic_call.findSymbolicCallee;
-pub const evaluateSymbolicCallee = symbolic_call.evaluateSymbolicCallee;
-pub const publishSymbolicCallee = symbolic_call.publishSymbolicCallee;
-pub const symbolicCalleeSafety = symbolic_call.symbolicCalleeSafety;
-pub const writeSymbolicCallSafety = symbolic_call.writeSymbolicCallSafety;
-const symbolic_program = @import("verification/execution/program.zig");
-pub const ensureSymbolicGraph = symbolic_program.ensureSymbolicGraph;
-pub const beginSymbolicCall = symbolic_program.beginSymbolicCall;
-pub const rejectSymbolicProgram = symbolic_program.rejectSymbolicProgram;
-pub const symbolicProgramPreconditions = symbolic_program.symbolicProgramPreconditions;
-pub const markSymbolicQueryPrefix = symbolic_program.markSymbolicQueryPrefix;
-pub const runSymbolicProgramBody = symbolic_program.runSymbolicProgramBody;
-pub const symbolicProgramReturnsUnit = symbolic_program.symbolicProgramReturnsUnit;
-pub const checkSymbolicUnit = symbolic_program.checkSymbolicUnit;
-pub const appendSymbolicUnit = symbolic_program.appendSymbolicUnit;
-pub const publishSymbolicQuery = symbolic_program.publishSymbolicQuery;
-pub const hasSymbolicReturns = symbolic_program.hasSymbolicReturns;
-pub const rejectSymbolicReturn = symbolic_program.rejectSymbolicReturn;
-pub const publishSymbolicProgramResult = symbolic_program.publishSymbolicProgramResult;
-pub const reserveSymbolicParameter = symbolic_program.reserveSymbolicParameter;
-pub const symbolicParameterField = symbolic_program.symbolicParameterField;
-pub const symbolicEnumWidth = symbolic_program.symbolicEnumWidth;
-pub const symbolicScalarWidth = symbolic_program.symbolicScalarWidth;
-pub const symbolicPortCount = symbolic_program.symbolicPortCount;
-pub const appendSymbolicDeclaration = symbolic_program.appendSymbolicDeclaration;
-pub const publishSymbolicParameter = symbolic_program.publishSymbolicParameter;
-const symbolic_registration = @import("verification/graph/registration.zig");
-pub const reserveSymbolicDefinition = symbolic_registration.reserveSymbolicDefinition;
-pub const allocateSymbolicIndex = symbolic_registration.allocateSymbolicIndex;
-pub const writeSymbolicDefinition = symbolic_registration.writeSymbolicDefinition;
-pub const installSymbolicIndex = symbolic_registration.installSymbolicIndex;
-pub const rejectSymbolicDefinition = symbolic_registration.rejectSymbolicDefinition;
-const symbolic_query = @import("verification/query/assembly.zig");
-pub const reserveQueryBuffer = symbolic_query.reserveQueryBuffer;
-pub const appendQueryText = symbolic_query.appendQueryText;
-pub const appendQueryDefinitions = symbolic_query.appendQueryDefinitions;
-pub const queryWrittenLength = symbolic_query.queryWrittenLength;
-pub const publishCorrectnessQuery = symbolic_query.publishCorrectnessQuery;
-pub const publishFeasibilityQuery = symbolic_query.publishFeasibilityQuery;
-const verification_report = @import("verification/solver.zig");
 const evidence_output = @import("verification/solver/publication/evidence/output.zig");
 pub const beginEvidence = evidence_output.begin;
 pub const writeEvidenceSources = evidence_output.field([]const frontend.project.Source, true);
@@ -181,48 +110,6 @@ pub const writeEvidenceTypes = evidence_output.field(ir.TypeTable, true);
 pub const writeEvidenceInputs = evidence_output.field([]const @import("verification/conditions.zig").Input, true);
 pub const writeEvidenceProgram = evidence_output.field(ir.Program, true);
 pub const finishEvidence = evidence_output.finish;
-pub const finishVerificationDigest = verification_report.finishVerificationDigest;
-pub const verificationPathText = verification_report.verificationPathText;
-pub const writeVerificationOutput = verification_report.writeVerificationOutput;
-const symbolic_call_cache = @import("verification/call_cache.zig");
-pub const appendSymbolicCallKey = symbolic_call_cache.appendSymbolicCallKey;
-pub const symbolicCallKeyTerms = symbolic_call_cache.symbolicCallKeyTerms;
-pub const probeSymbolicCallKey = symbolic_call_cache.probeSymbolicCallKey;
-pub const rewindSymbolicCallKey = symbolic_call_cache.rewindSymbolicCallKey;
-const hardware_build = @import("backends/hardware/construction/workflow.zig");
-pub const reserveHardwareVariables = hardware_build.reserveHardwareVariables;
-pub const reserveHardwareCache = hardware_build.reserveHardwareCache;
-pub const reserveHardwareInputs = hardware_build.reserveHardwareInputs;
-pub const reserveHardwareNodes = hardware_build.reserveHardwareNodes;
-pub const hardwareInputType = hardware_build.hardwareInputType;
-pub const writeHardwareInput = hardware_build.writeHardwareInput;
-pub const bindHardwareInputs = hardware_build.bindHardwareInputs;
-pub const hardwareDefinitionFile = hardware_build.hardwareDefinitionFile;
-pub const hardwareOriginFile = hardware_build.hardwareOriginFile;
-pub const retainHardwareOrigin = hardware_build.retainHardwareOrigin;
-pub const setHardwareOrigin = hardware_build.setHardwareOrigin;
-pub const clearHardwareOrigin = hardware_build.clearHardwareOrigin;
-pub const hardwareTermOffset = hardware_build.hardwareTermOffset;
-pub const setHardwareTermOffset = hardware_build.setHardwareTermOffset;
-pub const hardwareVariable = hardware_build.hardwareVariable;
-pub const hardwareCacheKeys = hardware_build.hardwareCacheKeys;
-pub const hardwareCacheValues = hardware_build.hardwareCacheValues;
-pub const hardwareCacheFull = hardware_build.hardwareCacheFull;
-pub const growHardwareCache = hardware_build.growHardwareCache;
-pub const hardwareNodeCount = hardware_build.hardwareNodeCount;
-pub const appendHardwareTerm = hardware_build.appendHardwareTerm;
-pub const publishHardwareDefinition = hardware_build.publishHardwareDefinition;
-pub const hardwareNodeWidth = hardware_build.hardwareNodeWidth;
-pub const hardwareNodeIsBoolean = hardware_build.hardwareNodeIsBoolean;
-pub const hardwareOutputCount = hardware_build.hardwareOutputCount;
-pub const writeHardwareOutput = hardware_build.writeHardwareOutput;
-pub const rejectHardwareTerm = hardware_build.rejectHardwareTerm;
-const hardware_graph = @import("backends/hardware/graph/view.zig");
-pub const readHardwareGraphNode = hardware_graph.readHardwareGraphNode;
-pub const hardwareTermOperator = hardware_graph.hardwareTermOperator;
-pub const hardwareTermFamily = hardware_graph.hardwareTermFamily;
-pub const hardwareTermRendering = hardware_graph.hardwareTermRendering;
-pub const hardwareTermToken = hardware_graph.hardwareTermToken;
 pub const hardware = @import("backends/hardware/root.zig");
 pub const verilog = @import("backends/verilog/root.zig");
 pub const reserveVerilogOutput = verilog.reserveVerilogOutput;

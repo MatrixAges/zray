@@ -78,6 +78,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const hardware_graph_interface: manifest.Interface = .{
         .path = b.fmt("{s}/backends/hardware/graph/view.d.zx", .{directories[0]}),
         .module = "hardware_graph_host",
+        .resolve_members = true,
     };
 
     const main_interfaces = interfaces ++ [_]manifest.Interface{
@@ -94,10 +95,10 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
         .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host" },
         .{ .path = b.fmt("{s}/backends/zig/state/publication/host.d.zx", .{directories[0]}), .module = "state_publication_host" },
-        .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host" },
-        .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host" },
-        .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host" },
-        .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host" },
+        .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host", .resolve_members = true },
         hardware_graph_interface,
         .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host" },
     };
