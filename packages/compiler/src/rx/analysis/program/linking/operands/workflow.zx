@@ -1,0 +1,28 @@
+import type { Allocator, ColumnRanges } from "memory"
+import type { OperandRoute } from "rx_project_host"
+import type { Input as Fixed } from "../fixed/write"
+import type { Input as Collection } from "./collection"
+import type { Input as Object } from "./object"
+import type { Input as Scope } from "./scope"
+import type { Input as Selection } from "./selection"
+import type { Input as Sequence } from "./sequence"
+import type { Input as Transform } from "./transform"
+
+export type Allocation = {
+    resource: Allocator,
+    header: ColumnRanges,
+    members?: ColumnRanges,
+    evaluation?: ColumnRanges
+}
+
+export type Work = {
+    route: OperandRoute,
+    allocation: Allocation,
+    fixed: Fixed,
+    sequence: Sequence,
+    collection: Collection,
+    transform: Transform,
+    scope: Scope,
+    selection: Selection,
+    object: Object
+}

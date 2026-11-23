@@ -26,7 +26,8 @@
         in={{
             frame: $in.frame,
             row: $ctx.readU32,
-            route: $ctx.route
+            route: $ctx.route,
+            operands: $in.operands
         }}
     />
 

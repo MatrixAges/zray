@@ -1,0 +1,18 @@
+import integers from "std:integer"
+import { reserve } from "core/column_ranges"
+import { max_u32 } from "core/const"
+
+import type { Reservation } from "core/column_ranges"
+
+export type Input = Reservation.Pick("resource", "ranges")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    reserve({
+        ...in,
+        limit: integers.widen(max_u32),
+        precise: false,
+        uniform: false
+    })
+}

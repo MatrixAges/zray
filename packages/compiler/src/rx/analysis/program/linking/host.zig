@@ -7,6 +7,7 @@ const missing = @import("../linking.zig").missing;
 const symbol_link = @import("symbols.zig");
 const literal_link = @import("literals/host.zig");
 const headers = @import("headers.zig");
+const operands = @import("operands/host.zig");
 const abi = @import("abi.zig");
 const Plan = std.meta.Child(@FieldType(abi.Request, "plan"));
 const Header = std.meta.Child(@FieldType(abi.Request, "headers"));
@@ -22,6 +23,7 @@ pub const State = struct {
     mapping: Mapping = undefined,
     symbols: symbol_link.Frame = .{},
     literals: literal_link.Frame = .{},
+    operands: operands.Frame = .{},
     payload: abi.Payload = undefined,
     header: Header = undefined,
     pending_rows: [batch_size]u32 = undefined,
@@ -72,6 +74,7 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
         .symbols = &state.symbols.input,
         .literals = &state.literals.input,
         .payload = &state.payload,
+        .operands = &state.operands.input,
         .headers = &state.header,
     };
 

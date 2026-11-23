@@ -17,6 +17,7 @@
             in={{
                 frame: $in.frame,
                 columns: $in.columns,
+                operands: $in.operands,
                 row: 0,
                 end: $ctx.publish.pending
             }}

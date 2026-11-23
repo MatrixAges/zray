@@ -1,0 +1,33 @@
+<Module>
+    <Type from="workflow" as="Operands" />
+
+    <Args in={Operands.Allocation} out={void} />
+
+    <Call
+        fn="reserve"
+        in={{
+            resource: $in.resource,
+            ranges: $in.header
+        }}
+    />
+
+    <If on={$in.members != null}>
+        <Call
+            fn="reserve"
+            in={{
+                resource: $in.resource,
+                ranges: $in.members
+            }}
+        />
+    </If>
+
+    <If on={$in.evaluation != null}>
+        <Call
+            fn="reserve"
+            in={{
+                resource: $in.resource,
+                ranges: $in.evaluation
+            }}
+        />
+    </If>
+</Module>

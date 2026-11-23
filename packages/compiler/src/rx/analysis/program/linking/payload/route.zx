@@ -1,3 +1,5 @@
+import { OperandRoute as Kind } from "rx_project_host"
+
 import {
     collection,
     object,
@@ -7,15 +9,7 @@ import {
     transform
 } from "./const"
 
-export enum Kind {
-    Fixed,
-    Sequence,
-    Collection,
-    Transform,
-    Scope,
-    Selection,
-    Object
-}
+export { OperandRoute as Kind } from "rx_project_host"
 
 export type Input = u8
 

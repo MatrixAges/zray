@@ -38,6 +38,7 @@
             in={{
                 frame: $in.frame,
                 columns: $in.payload,
+                operands: $in.operands,
                 first: 0
             }}
         />

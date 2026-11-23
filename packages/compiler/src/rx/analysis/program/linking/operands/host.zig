@@ -1,229 +1,348 @@
 const std = @import("std");
-const ir = @import("zx").ir;
-const Builder = @import("../../builder.zig");
-const Mapping = @import("../../mapping.zig");
-const abi = @import("../operands.zig");
+const zx = @import("zx");
+const ir = zx.ir;
+const memory = zx.memory;
+const State = @import("../host.zig").State;
+const Request = @import("../abi.zig").Request;
+const fixed = @import("../fixed.zig");
 const Storage = ir.ExpressionStorage;
+const Work = std.meta.Child(@FieldType(Request, "operands"));
+const Allocation = std.meta.Child(@FieldType(Work, "allocation"));
+pub const Route = @FieldType(Work, "route");
+const Fixed = std.meta.Child(@FieldType(Work, "fixed"));
+const Sequence = std.meta.Child(@FieldType(Work, "sequence"));
+const Range = std.meta.Child(@FieldType(Sequence, "range"));
+const SourceRange = std.meta.Child(@FieldType(Sequence, "source_range"));
+const Symbols = std.meta.Child(@FieldType(Fixed, "symbols"));
+const Column = std.meta.Child(std.meta.Elem(@FieldType(Fixed, "columns")));
+const Metadata = std.meta.Child(@typeInfo(@FieldType(Fixed, "metadata")).optional.child);
 
-pub fn sequence(storage: *Storage, allocator: std.mem.Allocator, mapping: *const Mapping, source: *const ir.ExpressionTable, row: u32) Builder.Error!usize {
-    const rule = @import("generated_rx_link_sequence_operands");
-    const Input = std.meta.Child(rule.Input);
-    const fields = &.{ "sequence_first", "sequence_count" };
-    const selected = sourceRange(std.meta.Child(@FieldType(Input, "source_range")), source, "sequence", row);
+const Writer = union(Route) {
+    Fixed: Fixed,
+    Sequence: Sequence,
+    Collection: std.meta.Child(@FieldType(Work, "collection")),
+    Transform: std.meta.Child(@FieldType(Work, "transform")),
+    Scope: std.meta.Child(@FieldType(Work, "scope")),
+    Selection: std.meta.Child(@FieldType(Work, "selection")),
+    Object: std.meta.Child(@FieldType(Work, "object")),
+};
 
-    try storage.reserveColumns(allocator, fields, 1);
-    try storage.reserveColumns(allocator, &.{"sequence_items"}, selected.count);
+fn Group(comptime capacity: usize) type {
+    return struct {
+        const Self = @This();
 
-    const target = tail(&storage.sequence_items, selected.count);
-    const range = Range.init(storage, "sequence", storage.sequence_items.items.len);
+        descriptors: [capacity]memory.ColumnRange = undefined,
+        tails: [capacity][]const u8 = undefined,
+        active: memory.ColumnRanges = undefined,
+        len: usize = 0,
+        fn bind(self: *Self, column: anytype, count: usize, comptime bytes: bool) *anyopaque {
+            const index = self.len;
+            const tail = &self.tails[index];
+            self.descriptors[index] = memory.bindColumnRange(column, count, @ptrCast(tail), bytes);
+            self.len = index + 1;
 
-    if (!try abi.invoke(rule, .{
-        .source = source.sequence_items,
-        .source_range = &selected,
-        .mapping = mapping.expressions[0..mapping.available],
-        .target = @ptrCast(&target),
-        .range = &range.view(std.meta.Child(@FieldType(Input, "range"))),
-    })) return error.InvalidModule;
+            return @ptrCast(tail);
+        }
+        fn freeze(self: *Self) ?*const memory.ColumnRanges {
+            if (self.len == 0) return null;
 
-    storage.sequence_items.items.len += selected.count;
+            self.active = self.descriptors[0..self.len];
 
-    return publish(storage, fields);
+            return &self.active;
+        }
+    };
 }
 
-pub fn collection(storage: *Storage, allocator: std.mem.Allocator, mapping: *const Mapping, source: *const ir.ExpressionTable, row: u32) Builder.Error!usize {
-    const rule = @import("generated_rx_link_collection_operands");
-    const Input = std.meta.Child(rule.Input);
-    const fields = &.{ "collection_kinds", "collection_targets", "collection_first", "collection_count" };
-    const selected = sourceRange(std.meta.Child(@FieldType(Input, "source_range")), source, "collection", row);
+pub const Frame = struct {
+    input: Work = undefined,
+    allocation: Allocation = undefined,
+    header: Group(7) = .{},
+    members: Group(3) = .{},
+    evaluation: Group(1) = .{},
+    writer: Writer = undefined,
+    symbols: Symbols = undefined,
+    ranges: [2]Range = undefined,
+    source_ranges: [2]SourceRange = undefined,
+    columns: [5]Column = undefined,
+    column_views: [5]*const Column = undefined,
+    metadata: Metadata = undefined,
+};
 
-    try storage.reserveColumns(allocator, fields, 1);
-    try storage.reserveColumns(allocator, &.{"collection_arguments"}, selected.count);
+pub fn prepareExpressionOperand(handle: *const anyopaque, index: u32, route: Route) error{InvalidModule}!bool {
+    const state = State.borrow(handle);
+    const source = &state.program.expressions;
+    const kind = source.kinds[index];
 
-    const target_arguments = tail(&storage.collection_arguments, selected.count);
-    const range = Range.init(storage, "collection", storage.collection_arguments.items.len);
-    const kinds = std.mem.sliceAsBytes(tail(&storage.collection_kinds, 1));
-    const targets = tail(&storage.collection_targets, 1);
+    if (kind == .None or kind == .Unit) return false;
 
-    if (!try abi.invoke(rule, .{
-        .target = source.collection_targets[row],
-        .kind = @backingInt(source.collection_kinds[row]),
-        .mapping = mapping.expressions[0..mapping.available],
-        .arguments = source.collection_arguments,
-        .source_range = &selected,
-        .target_arguments = @ptrCast(&target_arguments),
-        .kinds = @ptrCast(&kinds),
-        .targets = @ptrCast(&targets),
-        .range = &range.view(std.meta.Child(@FieldType(Input, "range"))),
-    })) return error.InvalidModule;
+    const frame = &state.operands;
+    const builder = state.builder;
+    frame.header.len = 0;
+    frame.members.len = 0;
+    frame.evaluation.len = 0;
+    frame.symbols = @import("../operands.zig").symbolView(Symbols, &state.mapping);
 
-    storage.collection_arguments.items.len += selected.count;
+    const binding: Binding = .{
+        .frame = frame,
+        .storage = &builder.expressions,
+        .source = source,
+        .row = source.payloads[index],
+        .mapping = state.mapping.expressions[0..index],
+        .kind = kind,
+    };
 
-    return publish(storage, fields);
+    frame.input.route = route;
+    frame.input.allocation = &frame.allocation;
+
+    switch (route) {
+        .Fixed => try fixed.visit(kind, binding),
+        .Sequence => binding.sequence(),
+        .Collection => binding.collection(),
+        .Transform => binding.transform(),
+        .Scope => binding.scope(),
+        .Selection => binding.selection(),
+        .Object => binding.object(),
+    }
+
+    frame.allocation = .{
+        .resource = @ptrCast(&builder.allocator),
+        .header = @ptrCast(frame.header.freeze().?),
+        .members = if (frame.members.freeze()) |group| @ptrCast(group) else null,
+        .evaluation = if (frame.evaluation.freeze()) |group| @ptrCast(group) else null,
+    };
+
+    return true;
 }
 
-pub fn transform(storage: *Storage, allocator: std.mem.Allocator, mapping: *const Mapping, source: *const ir.ExpressionTable, row: u32) Builder.Error!usize {
-    const rule = @import("generated_rx_link_transform_operands");
-    const Input = std.meta.Child(rule.Input);
-    const fields = &.{ "transform_kinds", "transform_targets", "transform_bodies", "transform_initials", "transform_first", "transform_count" };
-    const selected = sourceRange(std.meta.Child(@FieldType(Input, "source_range")), source, "transform", row);
-
-    try storage.reserveColumns(allocator, fields, 1);
-    try storage.reserveColumns(allocator, &.{"transform_parameters"}, selected.count);
-
-    const target_parameters = tail(&storage.transform_parameters, selected.count);
-    const range = Range.init(storage, "transform", storage.transform_parameters.items.len);
-    const kinds = std.mem.sliceAsBytes(tail(&storage.transform_kinds, 1));
-    const targets = tail(&storage.transform_targets, 1);
-    const bodies = tail(&storage.transform_bodies, 1);
-    const initials = tail(&storage.transform_initials, 1);
-
-    if (!try abi.invoke(rule, .{
-        .target = source.transform_targets[row],
-        .body = source.transform_bodies[row],
-        .initial = source.transform_initials[row],
-        .kind = @backingInt(source.transform_kinds[row]),
-        .mapping = mapping.expressions[0..mapping.available],
-        .symbols = &abi.symbolView(std.meta.Child(@FieldType(Input, "symbols")), mapping),
-        .parameters = source.transform_parameters,
-        .source_range = &selected,
-        .target_parameters = @ptrCast(&target_parameters),
-        .kinds = @ptrCast(&kinds),
-        .targets = @ptrCast(&targets),
-        .bodies = @ptrCast(&bodies),
-        .initials = @ptrCast(&initials),
-        .range = &range.view(std.meta.Child(@FieldType(Input, "range"))),
-    })) return error.InvalidModule;
-
-    storage.transform_parameters.items.len += selected.count;
-
-    return publish(storage, fields);
+pub fn requireExpressionOperand(valid: bool) error{InvalidModule}!void {
+    if (!valid) return error.InvalidModule;
 }
 
-pub fn scope(storage: *Storage, allocator: std.mem.Allocator, mapping: *const Mapping, source: *const ir.ExpressionTable, row: u32) Builder.Error!usize {
-    const rule = @import("generated_rx_link_scope_operands");
-    const Input = std.meta.Child(rule.Input);
-    const fields = &.{ "scope_results", "scope_first", "scope_count" };
-    const bindings = &.{ "scope_symbols", "scope_values", "scope_borrows" };
-    const selected = sourceRange(std.meta.Child(@FieldType(Input, "source_range")), source, "scope", row);
+const Binding = struct {
+    pub const Output = error{InvalidModule}!void;
+    frame: *Frame,
+    storage: *Storage,
+    source: *const ir.ExpressionTable,
+    row: u32,
+    mapping: []const u32,
+    kind: std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds")),
+    pub fn mapped(self: Binding, comptime payload: fixed.Payload) Output {
+        const frame = self.frame;
+        const fields = comptime payload.expressions ++ payload.symbols ++ payload.raw;
 
-    try storage.reserveColumns(allocator, fields, 1);
-    try storage.reserveColumns(allocator, bindings, selected.count);
+        inline for (fields, 0..) |name, slot| {
+            frame.columns[slot] = .{
+                .source = @field(self.source, name),
+                .target = @ptrCast(frame.header.bind(&@field(self.storage, name), 1, false)),
+            };
 
-    const target_symbols = tail(&storage.scope_symbols, selected.count);
-    const target_values = tail(&storage.scope_values, selected.count);
-    const target_borrows = std.mem.sliceAsBytes(tail(&storage.scope_borrows, selected.count));
-    const range = Range.init(storage, "scope", storage.scope_symbols.items.len);
-    const results = tail(&storage.scope_results, 1);
+            frame.column_views[slot] = &frame.columns[slot];
+        }
 
-    if (!try abi.invoke(rule, .{
-        .result = source.scope_results[row],
-        .mapping = mapping.expressions[0..mapping.available],
-        .symbols = &abi.symbolView(std.meta.Child(@FieldType(Input, "symbols")), mapping),
-        .binding_symbols = source.scope_symbols,
-        .binding_values = source.scope_values,
-        .borrows = std.mem.sliceAsBytes(source.scope_borrows),
-        .source_range = &selected,
-        .target_symbols = @ptrCast(&target_symbols),
-        .target_values = @ptrCast(&target_values),
-        .target_borrows = @ptrCast(&target_borrows),
-        .results = @ptrCast(&results),
-        .range = &range.view(std.meta.Child(@FieldType(Input, "range"))),
-    })) return error.InvalidModule;
+        const optional = if (comptime payload.optional) |name| @field(self.source, name)[self.row] else null;
+        const target: ?*anyopaque = if (comptime payload.optional) |name| frame.header.bind(&@field(self.storage, name), 1, false) else null;
 
-    inline for (bindings) |name| @field(storage, name).items.len += selected.count;
+        if (comptime payload.metadata.len != 0) {
+            const name = payload.metadata[0];
+            const values = @field(self.source, name);
 
-    return publish(storage, fields);
-}
+            comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(values))) == 1 and payload.metadata.len == 1);
 
-pub fn match(storage: *Storage, allocator: std.mem.Allocator, mapping: *const Mapping, source: *const ir.ExpressionTable, row: u32) Builder.Error!usize {
-    const rule = @import("generated_rx_link_match_operands");
-    const Input = std.meta.Child(rule.Input);
-    const fields = &.{ "match_subjects", "match_fallbacks", "match_first", "match_count" };
-    const arms = &.{ "match_conditions", "match_results" };
-    const selected = sourceRange(std.meta.Child(@FieldType(Input, "source_range")), source, "match", row);
+            frame.metadata = .{
+                .source = std.mem.sliceAsBytes(values),
+                .target = @ptrCast(frame.header.bind(&@field(self.storage, name), 1, true)),
+            };
+        }
 
-    try storage.reserveColumns(allocator, fields, 1);
-    try storage.reserveColumns(allocator, arms, selected.count);
+        frame.writer = .{ .Fixed = .{
+            .kind = @fromBackingInt(@intCast(@backingInt(self.kind))),
+            .columns = frame.column_views[0..fields.len],
+            .row = self.row,
+            .mapping = self.mapping,
+            .symbols = &frame.symbols,
+            .optional_symbol = optional,
+            .optional_target = if (target) |column| @ptrCast(column) else null,
+            .metadata = if (comptime payload.metadata.len != 0) &frame.metadata else null,
+        } };
 
-    const target_conditions = tail(&storage.match_conditions, selected.count);
-    const target_results = tail(&storage.match_results, selected.count);
-    const range = Range.init(storage, "match", storage.match_conditions.items.len);
-    const subjects = tail(&storage.match_subjects, 1);
-    const fallbacks = tail(&storage.match_fallbacks, 1);
+        frame.input.fixed = &frame.writer.Fixed;
+    }
+    fn sequence(self: Binding) void {
+        const frame = self.frame;
+        const source = self.source;
+        const storage = self.storage;
+        const selected = self.sourceRange("sequence", 0);
+        const range = self.bindRange("sequence", 0, storage.sequence_items.items.len);
 
-    if (!try abi.invoke(rule, .{
-        .subject = source.match_subjects[row],
-        .fallback = source.match_fallbacks[row],
-        .mapping = mapping.expressions[0..mapping.available],
-        .conditions = source.match_conditions,
-        .results = source.match_results,
-        .source_range = &selected,
-        .target_conditions = @ptrCast(&target_conditions),
-        .target_results = @ptrCast(&target_results),
-        .subjects = @ptrCast(&subjects),
-        .fallbacks = @ptrCast(&fallbacks),
-        .range = &range.view(std.meta.Child(@FieldType(Input, "range"))),
-    })) return error.InvalidModule;
+        frame.writer = .{ .Sequence = .{
+            .source = source.sequence_items,
+            .source_range = selected,
+            .mapping = self.mapping,
+            .target = @ptrCast(frame.members.bind(&storage.sequence_items, selected.count, false)),
+            .range = range,
+        } };
 
-    inline for (arms) |name| @field(storage, name).items.len += selected.count;
+        frame.input.sequence = &frame.writer.Sequence;
+    }
+    fn collection(self: Binding) void {
+        const frame = self.frame;
+        const source = self.source;
+        const storage = self.storage;
+        const selected = self.sourceRange("collection", 0);
+        const kinds = frame.header.bind(&storage.collection_kinds, 1, true);
+        const targets = frame.header.bind(&storage.collection_targets, 1, false);
+        const range = self.bindRange("collection", 0, storage.collection_arguments.items.len);
 
-    return publish(storage, fields);
-}
+        frame.writer = .{ .Collection = .{
+            .target = source.collection_targets[self.row],
+            .kind = @backingInt(source.collection_kinds[self.row]),
+            .mapping = self.mapping,
+            .arguments = source.collection_arguments,
+            .source_range = selected,
+            .target_arguments = @ptrCast(frame.members.bind(&storage.collection_arguments, selected.count, false)),
+            .kinds = @ptrCast(kinds),
+            .targets = @ptrCast(targets),
+            .range = range,
+        } };
 
-pub fn object(storage: *Storage, allocator: std.mem.Allocator, mapping: *const Mapping, source: *const ir.ExpressionTable, row: u32) Builder.Error!usize {
-    const rule = @import("generated_rx_link_object_operands");
-    const Input = std.meta.Child(rule.Input);
-    const header = &.{ "object_first", "object_count", "object_evaluation_first", "object_evaluation_count" };
-    const fields = &.{ "object_field_indices", "object_field_values" };
-    const selected = sourceRange(std.meta.Child(@FieldType(Input, "source_fields")), source, "object", row);
-    const evaluation = sourceRange(std.meta.Child(@FieldType(Input, "source_evaluation")), source, "object_evaluation", row);
+        frame.input.collection = &frame.writer.Collection;
+    }
 
-    try storage.reserveColumns(allocator, header, 1);
-    try storage.reserveColumns(allocator, fields, selected.count);
-    try storage.reserveColumns(allocator, &.{"object_evaluation_values"}, evaluation.count);
+    fn transform(self: Binding) void {
+        const frame = self.frame;
+        const source = self.source;
+        const storage = self.storage;
+        const selected = self.sourceRange("transform", 0);
+        const kinds = frame.header.bind(&storage.transform_kinds, 1, true);
+        const targets = frame.header.bind(&storage.transform_targets, 1, false);
+        const bodies = frame.header.bind(&storage.transform_bodies, 1, false);
+        const initials = frame.header.bind(&storage.transform_initials, 1, false);
+        const range = self.bindRange("transform", 0, storage.transform_parameters.items.len);
 
-    const target_fields = tail(&storage.object_field_values, selected.count);
-    const target_evaluation = tail(&storage.object_evaluation_values, evaluation.count);
-    const target_indices = std.mem.sliceAsBytes(tail(&storage.object_field_indices, selected.count));
-    const field_range = Range.init(storage, "object", storage.object_field_indices.items.len);
-    const evaluation_range = Range.init(storage, "object_evaluation", storage.object_evaluation_values.items.len);
+        frame.writer = .{ .Transform = .{
+            .target = source.transform_targets[self.row],
+            .body = source.transform_bodies[self.row],
+            .initial = source.transform_initials[self.row],
+            .kind = @backingInt(source.transform_kinds[self.row]),
+            .mapping = self.mapping,
+            .symbols = &frame.symbols,
+            .parameters = source.transform_parameters,
+            .source_range = selected,
+            .target_parameters = @ptrCast(frame.members.bind(&storage.transform_parameters, selected.count, false)),
+            .kinds = @ptrCast(kinds),
+            .targets = @ptrCast(targets),
+            .bodies = @ptrCast(bodies),
+            .initials = @ptrCast(initials),
+            .range = range,
+        } };
 
-    if (!try abi.invoke(rule, .{
-        .mapping = mapping.expressions[0..mapping.available],
-        .fields = source.object_field_values,
-        .indices = std.mem.sliceAsBytes(source.object_field_indices),
-        .index_width = @sizeOf(u32),
-        .evaluation = source.object_evaluation_values,
-        .source_fields = &selected,
-        .source_evaluation = &evaluation,
-        .target_fields = @ptrCast(&target_fields),
-        .target_evaluation = @ptrCast(&target_evaluation),
-        .target_indices = @ptrCast(&target_indices),
-        .field_range = &field_range.view(std.meta.Child(@FieldType(Input, "field_range"))),
-        .evaluation_range = &evaluation_range.view(std.meta.Child(@FieldType(Input, "evaluation_range"))),
-    })) return error.InvalidModule;
+        frame.input.transform = &frame.writer.Transform;
+    }
 
-    inline for (fields) |name| @field(storage, name).items.len += selected.count;
+    fn scope(self: Binding) void {
+        const frame = self.frame;
+        const source = self.source;
+        const storage = self.storage;
+        const selected = self.sourceRange("scope", 0);
+        const results = frame.header.bind(&storage.scope_results, 1, false);
+        const range = self.bindRange("scope", 0, storage.scope_symbols.items.len);
+        const target_symbols = frame.members.bind(&storage.scope_symbols, selected.count, false);
+        const target_values = frame.members.bind(&storage.scope_values, selected.count, false);
+        const target_borrows = frame.members.bind(&storage.scope_borrows, selected.count, true);
 
-    storage.object_evaluation_values.items.len += evaluation.count;
+        frame.writer = .{ .Scope = .{
+            .result = source.scope_results[self.row],
+            .mapping = self.mapping,
+            .symbols = &frame.symbols,
+            .binding_symbols = source.scope_symbols,
+            .binding_values = source.scope_values,
+            .borrows = std.mem.sliceAsBytes(source.scope_borrows),
+            .source_range = selected,
+            .target_symbols = @ptrCast(target_symbols),
+            .target_values = @ptrCast(target_values),
+            .target_borrows = @ptrCast(target_borrows),
+            .results = @ptrCast(results),
+            .range = range,
+        } };
 
-    return publish(storage, header);
-}
+        frame.input.scope = &frame.writer.Scope;
+    }
+    fn selection(self: Binding) void {
+        const frame = self.frame;
+        const source = self.source;
+        const storage = self.storage;
+        const selected = self.sourceRange("match", 0);
+        const subjects = frame.header.bind(&storage.match_subjects, 1, false);
+        const fallbacks = frame.header.bind(&storage.match_fallbacks, 1, false);
+        const range = self.bindRange("match", 0, storage.match_conditions.items.len);
+        const target_conditions = frame.members.bind(&storage.match_conditions, selected.count, false);
+        const target_results = frame.members.bind(&storage.match_results, selected.count, false);
 
-const Range = @import("range.zig");
+        frame.writer = .{ .Selection = .{
+            .subject = source.match_subjects[self.row],
+            .fallback = source.match_fallbacks[self.row],
+            .mapping = self.mapping,
+            .conditions = source.match_conditions,
+            .results = source.match_results,
+            .source_range = selected,
+            .target_conditions = @ptrCast(target_conditions),
+            .target_results = @ptrCast(target_results),
+            .subjects = @ptrCast(subjects),
+            .fallbacks = @ptrCast(fallbacks),
+            .range = range,
+        } };
 
-fn sourceRange(comptime Target: type, source: *const ir.ExpressionTable, comptime name: []const u8, row: u32) Target {
-    return .{ .first = @field(source, name ++ "_first")[row], .count = @field(source, name ++ "_count")[row] };
-}
+        frame.input.selection = &frame.writer.Selection;
+    }
+    fn object(self: Binding) void {
+        const frame = self.frame;
+        const source = self.source;
+        const storage = self.storage;
+        const fields = self.sourceRange("object", 0);
+        const evaluation = self.sourceRange("object_evaluation", 1);
+        const field_range = self.bindRange("object", 0, storage.object_field_indices.items.len);
+        const evaluation_range = self.bindRange("object_evaluation", 1, storage.object_evaluation_values.items.len);
+        const indices = frame.members.bind(&storage.object_field_indices, fields.count, true);
 
-fn publish(storage: *Storage, comptime fields: []const []const u8) usize {
-    const first = @field(storage, fields[0]).items.len;
+        frame.writer = .{ .Object = .{
+            .mapping = self.mapping,
+            .fields = source.object_field_values,
+            .indices = std.mem.sliceAsBytes(source.object_field_indices),
+            .index_width = @sizeOf(u32),
+            .evaluation = source.object_evaluation_values,
+            .source_fields = fields,
+            .source_evaluation = evaluation,
+            .target_fields = @ptrCast(frame.members.bind(&storage.object_field_values, fields.count, false)),
+            .target_evaluation = @ptrCast(frame.evaluation.bind(&storage.object_evaluation_values, evaluation.count, false)),
+            .target_indices = @ptrCast(indices),
+            .field_range = field_range,
+            .evaluation_range = evaluation_range,
+        } };
 
-    inline for (fields) |name| @field(storage, name).items.len += 1;
+        frame.input.object = &frame.writer.Object;
+    }
+    fn sourceRange(self: Binding, comptime name: []const u8, slot: usize) *const SourceRange {
+        const result = &self.frame.source_ranges[slot];
 
-    return first;
-}
+        result.* = .{
+            .first = @field(self.source, name ++ "_first")[self.row],
+            .count = @field(self.source, name ++ "_count")[self.row],
+        };
 
-fn tail(list: anytype, count: usize) @TypeOf(list.items) {
-    return list.unusedCapacitySlice()[0..count];
-}
+        return result;
+    }
+    fn bindRange(self: Binding, comptime name: []const u8, slot: usize, first: usize) *const Range {
+        const result = &self.frame.ranges[slot];
+        const header = &self.frame.header;
+        const firsts = header.bind(&@field(self.storage, name ++ "_first"), 1, false);
+        const counts = header.bind(&@field(self.storage, name ++ "_count"), 1, false);
+
+        result.* = .{
+            .firsts = @ptrCast(firsts),
+            .counts = @ptrCast(counts),
+            .first = @intCast(first),
+        };
+
+        return result;
+    }
+};

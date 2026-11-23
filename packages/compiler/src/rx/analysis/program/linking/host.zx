@@ -6,11 +6,6 @@ export {
     prepareLinkLiterals,
     commitLinkLiterals,
     commitExpressionLink,
-    linkFixedPayload,
-    linkSequencePayload,
-    linkCollectionPayload,
-    linkTransformPayload,
-    linkScopePayload,
-    linkSelectionPayload,
-    linkObjectPayload
+    prepareExpressionOperand,
+    requireExpressionOperand
 } from "rx_project_host"

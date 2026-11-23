@@ -1,0 +1,27 @@
+import integers from "std:integer"
+import { publish } from "core/column_ranges"
+import memory from "memory"
+
+import type { Allocation } from "./workflow"
+
+export type Input = Allocation.Omit("resource")
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const row = memory.columnRangeLength(in.header, 0)
+
+    const { members, evaluation } = in
+
+    if (members != null) {
+        publish(members)
+    }
+
+    if (evaluation != null) {
+        publish(evaluation)
+    }
+
+    publish(in.header)
+
+    return integers.narrow(row)
+}

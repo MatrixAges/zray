@@ -1,0 +1,50 @@
+<Module>
+    <Type from="../payload/route" as="Route" />
+    <Type from="workflow" as="Operands" />
+
+    <Args in={Operands.Work} out={bool} />
+
+    <Switch on={$in.route}>
+        <Case value={Route.Kind.Fixed}>
+            <Call fn="../fixed/write" in={$in.fixed} />
+
+            <Return value={$ctx.write} />
+        </Case>
+
+        <Case value={Route.Kind.Sequence}>
+            <Call fn="sequence" in={$in.sequence} />
+
+            <Return value={$ctx.sequence} />
+        </Case>
+
+        <Case value={Route.Kind.Collection}>
+            <Call fn="collection" in={$in.collection} />
+
+            <Return value={$ctx.collection} />
+        </Case>
+
+        <Case value={Route.Kind.Transform}>
+            <Call fn="transform" in={$in.transform} />
+
+            <Return value={$ctx.transform} />
+        </Case>
+
+        <Case value={Route.Kind.Scope}>
+            <Call fn="scope" in={$in.scope} />
+
+            <Return value={$ctx.scope} />
+        </Case>
+
+        <Case value={Route.Kind.Selection}>
+            <Call fn="selection" in={$in.selection} />
+
+            <Return value={$ctx.selection} />
+        </Case>
+
+        <Case value={Route.Kind.Object}>
+            <Call fn="object" in={$in.object} />
+
+            <Return value={$ctx.object} />
+        </Case>
+    </Switch>
+</Module>

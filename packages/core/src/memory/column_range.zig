@@ -21,30 +21,34 @@ pub fn bind(storage: anytype, source: anytype, views: anytype) [@typeInfo(std.me
         const tail_view: *[]const Item = &@field(views, name);
         const rows = @field(source, name);
 
-        const Typed = struct {
-            fn reserve(slot: *const Range, allocator: std.mem.Allocator, additional: usize, precise: bool) Error!void {
-                const typed: *std.ArrayList(Item) = @ptrCast(@alignCast(slot.storage));
-                const tail: *[]const Item = @ptrCast(@alignCast(slot.tail));
-
-                if (precise) {
-                    try typed.ensureTotalCapacityPrecise(allocator, typed.items.len + additional);
-                } else {
-                    try typed.ensureUnusedCapacity(allocator, additional);
-                }
-
-                tail.* = typed.unusedCapacitySlice()[0..slot.count];
-            }
-        };
-
-        range.* = .{
-            .storage = column_set.erase(column),
-            .tail = @ptrCast(tail_view),
-            .count = if (@typeInfo(@TypeOf(rows)) == .pointer) rows.len else rows,
-            .reserve = Typed.reserve,
-        };
+        range.* = bindOne(column, if (@typeInfo(@TypeOf(rows)) == .pointer) rows.len else rows, @ptrCast(tail_view), false);
     }
 
     return ranges;
+}
+
+pub fn bindOne(column: anytype, size: usize, tail_view: *anyopaque, comptime bytes: bool) Range {
+    const Item = std.meta.Elem(@TypeOf(column.items));
+    const View = if (bytes) u8 else Item;
+
+    const Typed = struct {
+        fn reserve(slot: *const Range, allocator: std.mem.Allocator, additional: usize, precise: bool) Error!void {
+            const typed: *std.ArrayList(Item) = @ptrCast(@alignCast(slot.storage));
+            const tail: *[]const View = @ptrCast(@alignCast(slot.tail));
+
+            if (precise) {
+                try typed.ensureTotalCapacityPrecise(allocator, typed.items.len + additional);
+            } else {
+                try typed.ensureUnusedCapacity(allocator, additional);
+            }
+
+            const items = typed.unusedCapacitySlice()[0..slot.count];
+
+            tail.* = if (bytes) std.mem.sliceAsBytes(items) else items;
+        }
+    };
+
+    return .{ .storage = column_set.erase(column), .tail = tail_view, .count = size, .reserve = Typed.reserve };
 }
 
 fn view(target: *const anyopaque) Ranges {

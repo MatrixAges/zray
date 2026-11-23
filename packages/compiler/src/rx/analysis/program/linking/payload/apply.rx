@@ -1,92 +1,27 @@
 <Module>
-    <Type from="route" as="Route" />
     <Type from="workflow" as="Payload" />
 
     <Args in={Payload.Effect} out={u32} />
 
-    <Switch on={$in.route}>
-        <Case value={Route.Kind.Fixed}>
-            <Call
-                fn="../host.linkFixedPayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
+    <Call
+        fn="../host.prepareExpressionOperand"
+        in={[
+            $in.frame,
+            $in.row,
+            $in.route
+        ]}
+    />
 
-            <Return value={$ctx.linkFixedPayload} />
-        </Case>
+    <If on={!$ctx.prepareExpressionOperand}>
+        <Return value={0} />
+    </If>
 
-        <Case value={Route.Kind.Sequence}>
-            <Call
-                fn="../host.linkSequencePayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
+    <Call module="../operands/reserve" in={$in.operands.allocation} />
+    <Call module="../operands/write" in={$in.operands} />
 
-            <Return value={$ctx.linkSequencePayload} />
-        </Case>
+    <Call fn="../host.requireExpressionOperand" />
 
-        <Case value={Route.Kind.Collection}>
-            <Call
-                fn="../host.linkCollectionPayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
+    <Call fn="../operands/commit" in={$in.operands.allocation.omit(["resource"])} />
 
-            <Return value={$ctx.linkCollectionPayload} />
-        </Case>
-
-        <Case value={Route.Kind.Transform}>
-            <Call
-                fn="../host.linkTransformPayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
-
-            <Return value={$ctx.linkTransformPayload} />
-        </Case>
-
-        <Case value={Route.Kind.Scope}>
-            <Call
-                fn="../host.linkScopePayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
-
-            <Return value={$ctx.linkScopePayload} />
-        </Case>
-
-        <Case value={Route.Kind.Selection}>
-            <Call
-                fn="../host.linkSelectionPayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
-
-            <Return value={$ctx.linkSelectionPayload} />
-        </Case>
-
-        <Case value={Route.Kind.Object}>
-            <Call
-                fn="../host.linkObjectPayload"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
-            />
-
-            <Return value={$ctx.linkObjectPayload} />
-        </Case>
-    </Switch>
+    <Return value={$ctx.commit} />
 </Module>

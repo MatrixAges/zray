@@ -64,6 +64,16 @@ export type BodyStatements = opaque
 
 export type ExpressionLink = opaque
 
+export enum OperandRoute {
+    Fixed,
+    Sequence,
+    Collection,
+    Transform,
+    Scope,
+    Selection,
+    Object
+}
+
 export type Mixed = opaque
 
 export type MixedState = opaque
@@ -737,26 +747,11 @@ export declare function commitLinkLiterals(frame: ExpressionLink): void
 
 export declare function commitExpressionLink(frame: ExpressionLink): void
 
-export declare function linkFixedPayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+export declare function prepareExpressionOperand(frame: ExpressionLink, row: u32, route: OperandRoute): bool
+    throws { InvalidModule }
 
-export declare function linkSequencePayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function linkCollectionPayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function linkTransformPayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function linkScopePayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function linkSelectionPayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function linkObjectPayload(frame: ExpressionLink, row: u32): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+export declare function requireExpressionOperand(valid: bool): void
+    throws { InvalidModule }
 
 export declare function solveRevision(state: ConstraintRound): u64
 

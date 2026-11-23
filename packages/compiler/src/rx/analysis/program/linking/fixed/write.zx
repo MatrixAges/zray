@@ -5,12 +5,17 @@ import memory from "memory"
 
 import symbol from "../operands/symbol"
 
-import type { OptionalU32Buffer, U32Buffer } from "memory"
+import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "memory"
 import type { Symbols } from "../operands/model"
 
 export type Column = {
     source: u32[],
     target: U32Buffer
+}
+
+export type Metadata = {
+    source: u8[],
+    target: U8Buffer
 }
 
 export type Input = {
@@ -20,7 +25,8 @@ export type Input = {
     mapping: u32[],
     symbols: Symbols,
     optional_symbol?: u32,
-    optional_target?: OptionalU32Buffer
+    optional_target?: OptionalU32Buffer,
+    metadata?: Metadata
 }
 
 export type Output = bool
@@ -79,25 +85,29 @@ export default function (in: Input): Output {
 
     const target = in.optional_target
 
-    if (target == null) {
-        return true
+    if (target != null) {
+        const source = in.optional_symbol
+
+        const id: u32? = match {
+            source == null => null,
+            _ => symbol({
+                symbols: in.symbols,
+                source
+            })
+        }
+
+        if (id == max_u32) {
+            return false
+        }
+
+        memory.writeOptionalU32(target, 0, id)
     }
 
-    const source = in.optional_symbol
+    const metadata = in.metadata
 
-    const id: u32? = match {
-        source == null => null,
-        _ => symbol({
-            symbols: in.symbols,
-            source
-        })
+    if (metadata != null) {
+        memory.writeU8(metadata.target, 0, metadata.source[row])
     }
-
-    if (id == max_u32) {
-        return false
-    }
-
-    memory.writeOptionalU32(target, 0, id)
 
     return true
 }
