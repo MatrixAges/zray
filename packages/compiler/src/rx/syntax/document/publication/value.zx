@@ -1,0 +1,20 @@
+import encoding from "std:encoding"
+
+import type { Value } from "../../model"
+
+export type Input = Value.Pick("decoded_start", "decoded_end") & {
+    original: string,
+    decoded: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { original, decoded, decoded_start, decoded_end } = in
+
+    if (decoded_start == decoded_end) {
+        return original
+    }
+
+    return encoding.sliceBytes(decoded, decoded_start, decoded_end)
+}

@@ -1,0 +1,79 @@
+import memory from "memory/columns"
+
+import { Role, Target } from "../../../dependency_graph/reference/model"
+import {
+    role_call,
+    role_dependency,
+    role_type_import,
+    target_function,
+    target_module,
+    target_store
+} from "./const"
+
+import type { WriteColumn } from "memory/columns"
+import type { Reference } from "../../../dependency_graph/reference/model"
+import type { Rows } from "./model"
+
+export type Destination = {
+    node: WriteColumn,
+    attribute: WriteColumn,
+    target: WriteColumn,
+    role: WriteColumn,
+    package_allowed: WriteColumn,
+    graph: WriteColumn
+}
+
+export type Input = {
+    rows: Reference[],
+    slots: u64[],
+    nodes: Rows,
+    attributes: Rows,
+    destination: Destination
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, nodes, attributes, slots, destination } = in
+
+    const published = loop(0, {
+        while: row => row < rows.length,
+        next: row => {
+            const item = rows[row]
+            const target = match item.target {
+                Target.Function => target_function,
+                Target.Store => target_store,
+                _ => target_module
+            }
+            const role = match item.role {
+                Role.Call => role_call,
+                Role.TypeImport => role_type_import,
+                _ => role_dependency
+            }
+
+            memory.writeColumnRowReference(
+                destination.node,
+                row,
+                nodes.bytes,
+                nodes.width,
+                slots[item.node]
+            )
+            memory.writeColumnRowReference(
+                destination.attribute,
+                row,
+                attributes.bytes,
+                attributes.width,
+                item.attribute
+            )
+            memory.writeColumnU8(destination.target, row, target)
+            memory.writeColumnU8(destination.role, row, role)
+            memory.writeColumnBool(
+                destination.package_allowed,
+                row,
+                item.package_allowed
+            )
+            memory.writeColumnBool(destination.graph, row, item.graph)
+            row += 1
+        }
+    })
+}

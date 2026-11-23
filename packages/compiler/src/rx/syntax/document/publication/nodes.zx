@@ -1,0 +1,64 @@
+import encoding from "std:encoding"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Node } from "../model"
+import type { Input as Publication, Nodes } from "./model"
+
+export type Input = Publication.Pick("source", "node_slots", "storage") & {
+    rows: Node[],
+    target: Nodes
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, rows, target, node_slots, storage } = in
+
+    const published = loop({
+        row: 0,
+        child_start: 1,
+        text_start: 0
+    }, {
+        while: state => state.row < rows.length,
+        next: state => {
+            const item = rows[state.row]
+            const slot = memory.readU64(node_slots, state.row)
+            const { location } = item
+            const name = encoding.sliceBytes(source, item.name.start, item.name.end)
+
+            columns.writeColumnText(target.name, slot, name)
+            columns.writeColumnIndex(target.offset, slot, location.offset)
+            columns.writeColumnIndex(target.line, slot, location.line)
+            columns.writeColumnIndex(target.column, slot, location.column)
+            columns.writeColumnRowRange(
+                target.attributes,
+                slot,
+                storage.attributes.bytes,
+                storage.attributes.width,
+                item.attribute_start,
+                item.attribute_count
+            )
+            columns.writeColumnRowRange(
+                target.children,
+                slot,
+                storage.nodes.bytes,
+                storage.nodes.width,
+                state.child_start,
+                item.child_count
+            )
+            columns.writeColumnRowRange(
+                target.text,
+                slot,
+                storage.text.bytes,
+                storage.text.width,
+                state.text_start,
+                item.text_count
+            )
+
+            state.child_start += item.child_count
+            state.text_start += item.text_count
+            state.row += 1
+        }
+    })
+}

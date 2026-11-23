@@ -1,0 +1,58 @@
+import encoding from "std:encoding"
+import memory from "memory"
+import columns from "memory/columns"
+
+import value from "./value"
+
+import type { Text as Row } from "../model"
+import type { Input as Publication, Text } from "./model"
+
+export type Input = Publication.Pick("source", "decoded", "indexed", "text_slots") & {
+    rows: Row[],
+    target: Text,
+    extent: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { source, decoded, indexed, rows, target, text_slots } = in
+
+    return loop({
+        row: 0,
+        extent: in.extent
+    }, {
+        while: state => state.row < rows.length,
+        next: state => {
+            const item = rows[state.row]
+            const slot = memory.readU64(text_slots, state.row)
+            const span = item.value.span
+            const original = encoding.sliceBytes(source, span.start, span.end)
+            const selected = value({
+                original,
+                decoded,
+                ...item.value.pick([
+                    "decoded_start",
+                    "decoded_end"
+                ])
+            })
+            const { location } = item
+
+            columns.writeColumnText(target.value, slot, selected)
+            columns.writeColumnIndex(target.offset, slot, location.offset)
+            columns.writeColumnIndex(target.line, slot, location.line)
+            columns.writeColumnIndex(target.column, slot, location.column)
+
+            if (indexed) {
+                const end = location.offset + selected.length
+
+                if (end > state.extent) {
+                    state.extent = end
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.extent
+    })
+}

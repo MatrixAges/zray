@@ -48,7 +48,10 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .root_source_file = b.path("src/rx/syntax_adapter/root.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "dsl", .module = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl") }},
+        .imports = &.{
+            .{ .name = "dsl", .module = b.dependency("dsl", .{ .target = target, .optimize = optimize }).module("dsl") },
+            .{ .name = "zx", .module = core },
+        },
     }));
 
     if (parser) |generated| {

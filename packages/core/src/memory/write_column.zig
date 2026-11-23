@@ -61,7 +61,8 @@ pub fn RowOutput(comptime Row: type, comptime View: type, comptime fields: anyty
         var result: [names.len]RowBuffer.Field = undefined;
 
         for (names, &result) |name, *field| {
-            const location = @import("rows.zig").fieldLayout(Row, @field(fields, name));
+            const path: []const []const u8 = if (@hasField(@TypeOf(fields), name)) @field(fields, name) else &.{name};
+            const location = @import("rows.zig").fieldLayout(Row, path);
 
             field.* = .{ .offset = location.offset, .width = @sizeOf(location.type) };
         }
@@ -358,6 +359,27 @@ pub inline fn writeOptionalText(target: *const anyopaque, index: u64, value: ?[]
 
 pub inline fn writeTextList(target: *const anyopaque, index: u64, value: []const []const u8) IndexError!void {
     return write([]const []const u8, target, index, value);
+}
+
+pub inline fn writeRowRange(target: *const anyopaque, index: u64, storage: []const u8, width: u64, first: u64, count: u64) IndexError!void {
+    const rows = storage.len / width;
+
+    if (first > rows or count > rows - first) return error.IndexOutOfBounds;
+
+    const start: usize = @intCast(first * width);
+
+    // The destination's typed slice stores its length in rows.
+    try write([]const u8, target, index, storage[start..][0..@intCast(count)]);
+}
+
+pub inline fn writeRowReference(target: *const anyopaque, index: u64, storage: []const u8, width: u64, row: ?u64) IndexError!void {
+    const address: ?[*]const u8 = if (row) |position| block: {
+        if (position >= storage.len / width) return error.IndexOutOfBounds;
+
+        break :block storage.ptr + @as(usize, @intCast(position * width));
+    } else null;
+
+    try write(?[*]const u8, target, index, address);
 }
 
 pub inline fn writeOptionalTextList(target: *const anyopaque, index: u64, value: ?[]const []const u8) IndexError!void {

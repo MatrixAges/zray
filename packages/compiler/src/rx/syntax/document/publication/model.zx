@@ -1,0 +1,58 @@
+import type { U64Buffer } from "memory"
+import type { WriteColumn } from "memory/columns"
+import type { Tree } from "../model"
+
+export type Nodes = {
+    name: WriteColumn,
+    offset: WriteColumn,
+    line: WriteColumn,
+    column: WriteColumn,
+    attributes: WriteColumn,
+    children: WriteColumn,
+    text: WriteColumn
+}
+
+export type Attributes = {
+    kind: WriteColumn,
+    name: WriteColumn,
+    value: WriteColumn,
+    raw_value: WriteColumn,
+    offset: WriteColumn,
+    line: WriteColumn,
+    column: WriteColumn,
+    value_offset: WriteColumn,
+    value_line: WriteColumn,
+    value_column: WriteColumn
+}
+
+export type Text = {
+    value: WriteColumn,
+    offset: WriteColumn,
+    line: WriteColumn,
+    column: WriteColumn
+}
+
+export type Rows = {
+    bytes: u8[],
+    width: u64
+}
+
+export type Storage = {
+    nodes: Rows,
+    attributes: Rows,
+    text: Rows
+}
+
+export type Input = {
+    source: string,
+    decoded: string,
+    tree: Tree,
+    root: u64,
+    indexed: bool,
+    node_slots: U64Buffer,
+    text_slots: U64Buffer,
+    nodes: Nodes,
+    attributes: Attributes,
+    text: Text,
+    storage: Storage
+}

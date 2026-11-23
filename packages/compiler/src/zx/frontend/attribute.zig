@@ -40,9 +40,12 @@ fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime inde
     const text = if (borrow_source) source else try arena.allocator().dupe(u8, source);
 
     const document = try adapter.convert(
-        @import("generated_xml_slots").executeValue,
-        @import("generated_xml_decode").executeValue,
-        if (indexed) @import("generated_xml_references").executeValue else null,
+        .{
+            .decode = @import("generated_xml_decode").executeValue,
+            .publish = @import("generated_xml_publish_tree").executeValue,
+            .scan = if (indexed) @import("generated_xml_references").executeValue else null,
+            .references = @import("generated_xml_publish_references").executeValue,
+        },
         arena.allocator(),
         parsed.arena.allocator(),
         text,

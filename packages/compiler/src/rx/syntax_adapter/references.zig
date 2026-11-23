@@ -3,6 +3,11 @@ const ast = @import("dsl").ast;
 pub const Target = enum { Module, Function, Store };
 pub const Role = enum { Dependency, Call, TypeImport };
 
+comptime {
+    std.debug.assert(@sizeOf(Target) == 1 and @backingInt(Target.Module) == 0 and @backingInt(Target.Function) == 1 and @backingInt(Target.Store) == 2);
+    std.debug.assert(@sizeOf(Role) == 1 and @backingInt(Role.Dependency) == 0 and @backingInt(Role.Call) == 1 and @backingInt(Role.TypeImport) == 2);
+}
+
 pub const Entry = struct {
     node: *const ast.Node,
     attribute: ?*const ast.Attribute = null,
@@ -175,7 +180,7 @@ pub fn positionsForNode(index: *const Index, node: *const ast.Node) ?Positions {
 // The XML parser admits at most 256 nested elements.
 const xml_nesting_limit = 256;
 
-pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype, slots: []const u64, nodes: []const ast.Node, attributes: []const ast.Attribute, value_extent: usize) std.mem.Allocator.Error!*const Index {
+pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype, slots: []const u64, nodes: []const ast.Node, attributes: []const ast.Attribute, value_extent: usize) std.mem.Allocator.Error!*const Index {
     const Parameter = @typeInfo(@TypeOf(scan)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     var storage: [xml_nesting_limit]u64 = undefined;
@@ -220,17 +225,26 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
 
     _ = allocator.resize(data, column_words + event_count);
 
-    const rows = result.references;
-    const entries = try allocator.alloc(Entry, rows.len);
+    const entries = try allocator.alloc(Entry, result.references.len);
+    const PublishParameter = @typeInfo(@TypeOf(publish)).@"fn".param_types[1].?;
+    const Publication = if (@typeInfo(PublishParameter) == .pointer) std.meta.Child(PublishParameter) else PublishParameter;
+    const zx = @import("zx");
+    var output: zx.memory.RowOutput(Entry, std.meta.Child(@FieldType(Publication, "destination")), .{}) = undefined;
 
-    for (rows, entries) |row, *entry| entry.* = .{
-        .node = &nodes[@intCast(slots[@intCast(row.node)])],
-        .attribute = if (row.attribute) |index| &attributes[@intCast(index)] else null,
-        .target = @fromBackingInt(@intCast(@backingInt(row.target))),
-        .role = @fromBackingInt(@intCast(@backingInt(row.role))),
-        .package_allowed = row.package_allowed,
-        .graph = row.graph,
+    output.init();
+    output.bind(entries);
+
+    const publication: Publication = .{
+        .rows = result.references,
+        .slots = slots,
+        .nodes = &.{ .bytes = std.mem.sliceAsBytes(nodes), .width = @sizeOf(ast.Node) },
+        .attributes = &.{ .bytes = std.mem.sliceAsBytes(attributes), .width = @sizeOf(ast.Attribute) },
+        .destination = &output.view,
     };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(publish, empty.allocator(), &publication) catch unreachable;
 
     const index = try allocator.create(Storage);
 

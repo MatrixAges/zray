@@ -1,0 +1,59 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={u64} />
+
+    <Call
+        fn="../slots"
+        in={{
+            nodes: $in.tree.nodes,
+            text: $in.tree.text,
+            root: $in.root,
+            node_slots: $in.node_slots,
+            text_slots: $in.text_slots
+        }}
+    />
+
+    <Call
+        fn="attributes"
+        in={{
+            ...$in.pick([
+                "source",
+                "decoded",
+                "indexed"
+            ]),
+            rows: $in.tree.attributes,
+            target: $in.attributes
+        }}
+    />
+
+    <Call
+        fn="text"
+        in={{
+            ...$in.pick([
+                "source",
+                "decoded",
+                "indexed",
+                "text_slots"
+            ]),
+            rows: $in.tree.text,
+            target: $in.text,
+            extent: $ctx.attributes
+        }}
+    />
+
+    <Call
+        fn="nodes"
+        in={{
+            ...$in.pick([
+                "source",
+                "node_slots",
+                "storage"
+            ]),
+            rows: $in.tree.nodes,
+            target: $in.nodes
+        }}
+    />
+
+    <Return value={$ctx.text} />
+</Module>

@@ -1,5 +1,7 @@
 const std = @import("std");
 const dsl = @import("dsl");
+const zx = @import("zx");
+const ast = dsl.ast;
 pub const values = @import("value.zig");
 pub const references = @import("references.zig");
 
@@ -9,85 +11,74 @@ pub fn location(input: anytype) dsl.ast.Location {
     return .{ .offset = @intCast(input.offset), .line = @intCast(input.line), .column = @intCast(input.column) };
 }
 
-pub fn convert(comptime layout: anytype, comptime decode: anytype, comptime scan: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype) !Document {
+const coordinates = .{
+    .offset = &.{ "location", "offset" },
+    .line = &.{ "location", "line" },
+    .column = &.{ "location", "column" },
+};
+
+comptime {
+    const Kind = @FieldType(ast.Attribute, "kind");
+
+    std.debug.assert(@sizeOf(Kind) == 1 and @backingInt(Kind.string) == 0 and @backingInt(Kind.expression) == 1);
+}
+
+pub fn convert(comptime rules: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype) !Document {
     const tree = input.tree;
     const slots = try temporary.alloc(u64, tree.nodes.len + tree.text.len);
     const node_slots = slots[0..tree.nodes.len];
     const text_slots = slots[tree.nodes.len..];
-    const Parameter = @typeInfo(@TypeOf(layout)).@"fn".param_types[1].?;
+    const decoded = try values.materialize(rules.decode, allocator, source, tree.parts, input.control.decoded_length);
+    const nodes = try allocator.alloc(ast.Node, tree.nodes.len);
+    const attributes = try allocator.alloc(ast.Attribute, tree.attributes.len);
+    const text = try allocator.alloc(ast.Text, tree.text.len);
+    const Parameter = @typeInfo(@TypeOf(rules.publish)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const memory = zx.memory;
+    var node_output: memory.RowOutput(ast.Node, std.meta.Child(@FieldType(Input, "nodes")), coordinates) = undefined;
+    var text_output: memory.RowOutput(ast.Text, std.meta.Child(@FieldType(Input, "text")), coordinates) = undefined;
 
-    const layout_input: Input = .{
-        .nodes = tree.nodes,
-        .text = tree.text,
+    var attribute_output: memory.RowOutput(ast.Attribute, std.meta.Child(@FieldType(Input, "attributes")), .{
+        .offset = coordinates.offset,
+        .line = coordinates.line,
+        .column = coordinates.column,
+        .value_offset = &.{ "value_location", "offset" },
+        .value_line = &.{ "value_location", "line" },
+        .value_column = &.{ "value_location", "column" },
+    }) = undefined;
+
+    node_output.init();
+    text_output.init();
+    attribute_output.init();
+    node_output.bind(nodes);
+    text_output.bind(text);
+    attribute_output.bind(attributes);
+
+    const indexed = @TypeOf(rules.scan) != @TypeOf(null);
+
+    const publication: Input = .{
+        .source = source,
+        .decoded = decoded,
+        .tree = tree,
         .root = input.control.result,
         .node_slots = @ptrCast(&node_slots),
         .text_slots = @ptrCast(&text_slots),
+        .indexed = indexed,
+        .nodes = &node_output.view,
+        .attributes = &attribute_output.view,
+        .text = &text_output.view,
+        .storage = &.{
+            .nodes = &.{ .bytes = std.mem.sliceAsBytes(nodes), .width = @sizeOf(ast.Node) },
+            .attributes = &.{ .bytes = std.mem.sliceAsBytes(attributes), .width = @sizeOf(ast.Attribute) },
+            .text = &.{ .bytes = std.mem.sliceAsBytes(text), .width = @sizeOf(ast.Text) },
+        },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    layout(empty.allocator(), if (@typeInfo(Parameter) == .pointer) &layout_input else layout_input) catch unreachable;
-
-    const decoded = try values.materialize(decode, allocator, source, tree.parts, input.control.decoded_length);
-    const nodes = try allocator.alloc(dsl.ast.Node, tree.nodes.len);
-    const attributes = try allocator.alloc(dsl.ast.Attribute, tree.attributes.len);
-    const text = try allocator.alloc(dsl.ast.Text, tree.text.len);
-    var value_extent: usize = 0;
-
-    for (tree.attributes, attributes) |item, *output| {
-        const raw = values.raw(source, item.value);
-
-        output.* = .{
-            .kind = if (item.expression) .expression else .string,
-            .name = source[@intCast(item.name.start)..@intCast(item.name.end)],
-            .value = values.select(raw, decoded, item.value),
-            .location = location(item.location),
-            .value_location = location(item.value_location),
-            .raw_value = raw,
-        };
-
-        if (comptime @TypeOf(scan) != @TypeOf(null)) {
-            value_extent = @max(value_extent, output.location.offset + output.name.len, output.value_location.offset + raw.len);
-        }
-    }
-
-    for (tree.text, text_slots) |item, slot| {
-        const output = &text[@intCast(slot)];
-
-        output.* = .{
-            .value = values.select(values.raw(source, item.value), decoded, item.value),
-            .location = location(item.location),
-        };
-
-        if (comptime @TypeOf(scan) != @TypeOf(null)) {
-            value_extent = @max(value_extent, output.location.offset + output.value.len);
-        }
-    }
-
-    var child_start: usize = 1;
-    var text_start: usize = 0;
-
-    for (tree.nodes, node_slots) |node, slot| {
-        const attribute_start: usize = @intCast(node.attribute_start);
-        const attribute_count: usize = @intCast(node.attribute_count);
-        const child_count: usize = @intCast(node.child_count);
-        const text_count: usize = @intCast(node.text_count);
-
-        nodes[@intCast(slot)] = .{
-            .name = source[@intCast(node.name.start)..@intCast(node.name.end)],
-            .location = location(node.location),
-            .attributes = attributes[attribute_start..][0..attribute_count],
-            .children = nodes[child_start..][0..child_count],
-            .text = text[text_start..][0..text_count],
-        };
-
-        child_start += child_count;
-        text_start += text_count;
-    }
+    const extent = zx.columns.invoke(rules.publish, empty.allocator(), &publication) catch unreachable;
 
     return .{
         .node = nodes[0],
-        .references = if (comptime @TypeOf(scan) == @TypeOf(null)) null else try references.build(scan, allocator, temporary, source, input, node_slots, nodes, attributes, value_extent),
+        .references = if (comptime indexed) try references.build(rules.scan, rules.references, allocator, temporary, source, input, node_slots, nodes, attributes, @intCast(extent)) else null,
     };
 }
