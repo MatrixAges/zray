@@ -5,7 +5,7 @@ import { issue_invalid_path, issue_missing, issue_none } from "../const"
 import { Issue } from "../model"
 import resolve from "./resolve"
 
-import type { ReadColumn, U64Buffer, U8Buffer } from "memory"
+import type { Allocator, ReadColumn, U64Buffer, U8Buffer } from "memory"
 import type { IndirectTextColumn } from "memory/columns"
 import type { Input as Edge } from "./model"
 
@@ -30,23 +30,15 @@ export type Columns = {
 }
 
 export type Input = Edge.Omit("reference", "package_allowed") & {
+    allocator: Allocator,
     candidates: Candidates,
     output: Columns
 }
 
-export type Output = {
-    processed: u64,
-    written: u64,
-    required: u64
-}
+export type Output = u64
 
 export default function (in: Input): Output {
-    const context = in.omit([
-        "candidates",
-        "output"
-    ])
-
-    const { candidates, output } = in
+    const { candidates, output, workspace } = in
 
     const indexed = candidates.indexed
 
@@ -58,13 +50,9 @@ export default function (in: Input): Output {
     return loop({
         processed: 0,
         written: 0,
-        required: 0
+        bytes: workspace.bytes
     }, {
-        while: state => {
-            const pending = state.processed < count
-
-            return pending && state.required == 0
-        },
+        while: state => state.processed < count,
         next: state => {
             const position = candidates.first + state.processed
             const row = indexed == null ? state.processed : indexed.count - position - 1
@@ -81,15 +69,40 @@ export default function (in: Input): Output {
                     _ => memory.readColumnBool(indexed.packages, row)
                 }
 
-                const edge = resolve({
-                    ...context,
+                const request = {
+                    directory: in.directory,
+                    packages: in.packages,
+                    registry: in.registry,
+                    workspace: {
+                        ...workspace,
+                        bytes: state.bytes
+                    },
                     reference,
                     package_allowed
-                })
+                }
 
-                state.required = edge.required
+                const first = resolve(request)
 
-                if (edge.required == 0 && edge.included) {
+                if (first.required != 0) {
+                    state.bytes = memory.allocateU8Buffer(
+                        in.allocator,
+                        workspace.target,
+                        workspace.start + first.required
+                    )
+                }
+
+                const edge = match first.required {
+                    0 => first,
+                    _ => resolve({
+                        ...request,
+                        workspace: {
+                            ...request.workspace,
+                            bytes: state.bytes
+                        }
+                    })
+                }
+
+                if (edge.included) {
                     const issue = match edge.issue {
                         Issue.InvalidPath => issue_invalid_path,
                         Issue.Missing => issue_missing,
@@ -106,9 +119,8 @@ export default function (in: Input): Output {
                 }
             }
 
-            if (state.required == 0) {
-                state.processed += 1
-            }
-        }
+            state.processed += 1
+        },
+        return: state => state.written
     })
 }

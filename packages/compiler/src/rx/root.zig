@@ -18,6 +18,7 @@ pub const parseModules = @import("text.zig").parseModules;
 pub const parseReachableModules = @import("text.zig").parseReachableModules;
 pub const module_reference = @import("module_reference.zig");
 pub const dependency_reference = @import("dependency_graph/reference.zig");
+pub const graph_registration = @import("dependency_graph/registration/host.zig");
 pub const resolveModulePath = @import("paths.zig").resolve;
 pub const validateSourcePath = @import("paths.zig").validateSource;
 pub const normalizeModulePath = @import("paths.zig").normalize;

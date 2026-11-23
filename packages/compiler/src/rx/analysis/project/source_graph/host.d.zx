@@ -1,10 +1,24 @@
 export type GraphConstruction = opaque
 
+export type GraphModuleRegistration = opaque
+
 export type GraphVisit = opaque
 
 export type GraphEdgePublication = opaque
 
 export type GraphEdgeScan = opaque
+
+export declare function rejectGraphModuleRegistration(
+    target: GraphModuleRegistration,
+    row: u64,
+    message: string
+): void throws { OutOfMemory, InvalidDsl }
+
+export declare function validateRegisteredGraphModule(
+    target: GraphModuleRegistration,
+    row: u64,
+    path: u8[]
+): void throws { OutOfMemory, InvalidDsl }
 
 export declare function sourceGraphPath(target: GraphConstruction, row: u64): string
 

@@ -190,6 +190,12 @@ pub inline fn allocateU64Buffer(resource: *const anyopaque, target: *const anyop
     try allocateU64Views(column_set.borrowAllocator(resource), target, count);
 }
 
+pub inline fn allocateU8Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error![]const u8 {
+    try allocateViews(u8, column_set.borrowAllocator(resource), target, count);
+
+    return u8Views(target);
+}
+
 fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
     output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);

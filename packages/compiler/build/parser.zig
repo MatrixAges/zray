@@ -175,6 +175,10 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "rx/analysis/inference");
                 addSubtree(run, tracked[0], "rx/analysis/project/workflow");
                 addSubtree(run, tracked[0], "rx/analysis/project/mixed");
+                addSubtree(run, tracked[0], "rx/analysis/project/source_graph");
+                addSubtree(run, tracked[0], "rx/dependency_graph");
+                addSubtree(run, tracked[0], "rx/path_kind");
+                addSubtree(run, tracked[0], "rx/path_segments");
                 addSubtree(run, tracked[0], "backends/zig");
                 addSubtree(run, tracked[0], "backends/hardware");
                 addSubtree(run, tracked[0], "backends/verilog");

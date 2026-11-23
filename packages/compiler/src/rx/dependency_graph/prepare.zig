@@ -10,10 +10,7 @@ pub const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter
 const Issue = @typeInfo(@FieldType(Input, "issues")).pointer.child;
 const Batch = std.meta.Child(publish.Input);
 const Edges = std.meta.Child(@FieldType(Batch, "edges"));
-const Candidates = std.meta.Child(@FieldType(Edges, "candidates"));
 const Registry = std.meta.Child(@FieldType(Edges, "registry"));
-const Resolved = @typeInfo(@TypeOf(publish.executeValue(undefined, undefined))).error_union.payload;
-const Progress = if (@typeInfo(Resolved) == .pointer) std.meta.Child(Resolved) else Resolved;
 const inline_path_bytes = 512;
 const batch_size = 16;
 const Link = struct { node: *const dsl.ast.Node, attribute: *const dsl.ast.Attribute };
@@ -66,6 +63,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
                 },
                 .workspace = undefined,
                 .output = undefined,
+                .allocator = undefined,
             });
 
             continue;
@@ -100,6 +98,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
                 .candidates = &.{ .references = references[0..count], .package_allowed = package_allowed[0..count], .first = first, .indexed = null },
                 .workspace = undefined,
                 .output = undefined,
+                .allocator = undefined,
             });
 
             first += count;
@@ -115,6 +114,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
         .candidates = &.{ .references = &.{}, .package_allowed = &.{}, .first = 0, .indexed = null },
         .workspace = undefined,
         .output = undefined,
+        .allocator = undefined,
     });
 
     return .{
@@ -155,49 +155,31 @@ const Graph = struct {
     next_owner: usize = 0,
     fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, path: *[]u8, capacity: usize, request: Edges) std.mem.Allocator.Error!void {
         var input = request;
-        var candidates: Candidates = input.candidates.*;
-        var remaining = capacity;
 
         try self.targets.ensureUnusedCapacity(allocator, capacity);
         try self.issues.ensureUnusedCapacity(allocator, capacity);
         try self.references.ensureUnusedCapacity(allocator, capacity);
 
-        while (true) {
-            const targets: []u64 = self.targets.unusedCapacitySlice()[0..remaining];
-            const issues: []u8 = self.issues.unusedCapacitySlice()[0..remaining];
-            const references: []u64 = self.references.unusedCapacitySlice()[0..remaining];
-            var storage: [@sizeOf(Progress)]u8 align(@alignOf(Progress)) = undefined;
-            var scratch = std.heap.FixedBufferAllocator.init(&storage);
+        const targets = self.targets.unusedCapacitySlice()[0..capacity];
+        const issues = self.issues.unusedCapacitySlice()[0..capacity];
+        const references = self.references.unusedCapacitySlice()[0..capacity];
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-            input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
-            input.output = &.{ .targets = @ptrCast(&targets), .issues = @ptrCast(&issues), .references = @ptrCast(&references) };
-            input.candidates = &candidates;
+        input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
+        input.output = &.{ .targets = @ptrCast(&targets), .issues = @ptrCast(&issues), .references = @ptrCast(&references) };
+        input.allocator = @ptrCast(&allocator);
 
-            const response = publish.executeValue(scratch.allocator(), &.{
-                .offsets = &.{ .offsets = @ptrCast(&self.offsets), .first = self.next_owner, .end = owner + 1, .edge = self.targets.items.len },
-                .edges = &input,
-            }) catch unreachable;
+        const written: usize = @intCast(publish.executeValue(scratch.allocator(), &.{
+            .offsets = &.{ .offsets = @ptrCast(&self.offsets), .first = self.next_owner, .end = owner + 1, .edge = self.targets.items.len },
+            .edges = &input,
+        }) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        });
 
-            const result = if (comptime @typeInfo(Resolved) == .pointer) response.* else response;
-            const written: usize = @intCast(result.written);
-            self.next_owner = owner + 1;
-            self.targets.items.len += written;
-            self.issues.items.len += written;
-            self.references.items.len += written;
-
-            if (result.required == 0) return;
-
-            const processed: usize = @intCast(result.processed);
-            const required = std.math.cast(usize, result.required) orelse return error.OutOfMemory;
-
-            if (candidates.indexed == null) {
-                candidates.references = candidates.references[processed..];
-                candidates.package_allowed = candidates.package_allowed[processed..];
-            }
-
-            candidates.first += processed;
-            remaining -= written;
-            path.* = try allocator.alloc(u8, required);
-        }
+        self.next_owner = owner + 1;
+        self.targets.items.len += written;
+        self.issues.items.len += written;
+        self.references.items.len += written;
     }
 };

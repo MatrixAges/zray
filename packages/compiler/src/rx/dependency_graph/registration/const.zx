@@ -1,0 +1,4 @@
+export const invalid_path: string =
+    "Module registration requires a project relative .rx file path inside the project root"
+
+export const duplicate_path: string = "Module file path is already registered"

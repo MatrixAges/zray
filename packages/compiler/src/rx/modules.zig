@@ -46,6 +46,13 @@ pub const Source = struct {
 
         return references.positionsForNode(index, &self.node);
     }
+
+    pub fn hasSchema(self: *const Source) bool {
+        const schema = self.schema orelse return false;
+        const node: *const dsl.ast.Node = @ptrCast(@alignCast(schema));
+
+        return dsl.ast.sameStorage(&self.node, node);
+    }
 };
 
 pub fn markIndexedSchema(source: *Source) void {
@@ -57,13 +64,6 @@ pub fn markIndexedSchema(source: *Source) void {
 // The witness borrows the immutable root of a successfully decoded Module.
 pub fn markSchema(source: *Source, node: *const dsl.ast.Node) void {
     if (dsl.ast.sameStorage(&source.node, node)) source.schema = @ptrCast(node);
-}
-
-fn hasSchema(source: *const Source) bool {
-    const schema = source.schema orelse return false;
-    const node: *const dsl.ast.Node = @ptrCast(@alignCast(schema));
-
-    return dsl.ast.sameStorage(&source.node, node);
 }
 
 pub const Module = struct {
@@ -116,12 +116,12 @@ fn validateAs(comptime Item: type, allocator: std.mem.Allocator, sources: []cons
     var source_index: usize = 0;
     var buffer: [512]u8 align(@alignOf(u64)) = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
-    var registry: Registry = if (comptime generated_graph) try Registry.init(scratch.allocator(), sources.len) else {};
+    const owned = arena.allocator();
+    const normalized = try owned.alloc([]const u8, sources.len);
+    var registry: Registry = if (comptime generated_graph) try Registry.borrowKeys(scratch.allocator(), normalized) else {};
 
     defer if (comptime generated_graph) registry.deinit(scratch.allocator());
 
-    const owned = arena.allocator();
-    const normalized = try owned.alloc([]const u8, sources.len);
     const data = if (Item == Module) try owned.alloc(Module, sources.len) else normalized;
     var schemas = std.heap.ArenaAllocator.init(allocator);
 
@@ -137,6 +137,16 @@ fn validateAs(comptime Item: type, allocator: std.mem.Allocator, sources: []cons
 }
 
 fn decode(comptime Item: type, data: []Item, normalized: [][]const u8, allocator: std.mem.Allocator, temporary: std.mem.Allocator, schemas: std.mem.Allocator, registry: *Registry, sources: []const Source, selection: ?*Selection, source_index: *usize, reporter: *dsl.Reporter) dsl.Error![]const usize {
+    if (comptime generated_graph) {
+        try @import("dependency_graph/registration/host.zig").run(allocator, schemas, if (Item == Module) data else null, sources, registry, source_index, reporter);
+    } else {
+        try registerSeed(Item, data, normalized, allocator, schemas, sources, source_index, reporter);
+    }
+
+    return graph.validate(allocator, temporary, registry, sources, normalized, selection, source_index, reporter);
+}
+
+fn registerSeed(comptime Item: type, data: []Item, normalized: [][]const u8, allocator: std.mem.Allocator, schemas: std.mem.Allocator, sources: []const Source, source_index: *usize, reporter: *dsl.Reporter) dsl.Error!void {
     for (sources, 0..) |source, index| {
         source_index.* = index;
 
@@ -146,24 +156,18 @@ fn decode(comptime Item: type, data: []Item, normalized: [][]const u8, allocator
             return fail(source.node, "Module registration requires a project relative .rx file path inside the project root", reporter);
         };
 
-        if (comptime generated_graph) {
-            if (!registry.claim(index, path)) return fail(source.node, "Module file path is already registered", reporter);
-        } else {
-            for (normalized[0..index]) |previous| {
-                if (std.mem.eql(u8, previous, path)) return fail(source.node, "Module file path is already registered", reporter);
-            }
+        for (normalized[0..index]) |previous| {
+            if (std.mem.eql(u8, previous, path)) return fail(source.node, "Module file path is already registered", reporter);
         }
 
         normalized[index] = path;
 
         if (Item == Module) {
             data[index] = .{ .path = path, .data = try flow.Module.decode(allocator, source.node, reporter, source.callSequence()) };
-        } else if (!hasSchema(&source)) {
+        } else if (!source.hasSchema()) {
             _ = try flow.Module.decode(schemas, source.node, reporter, source.callSequence());
         }
     }
-
-    return graph.validate(allocator, temporary, registry, sources, normalized, selection, source_index, reporter);
 }
 
 fn fail(node: dsl.ast.Node, message: []const u8, reporter: *dsl.Reporter) dsl.Error {

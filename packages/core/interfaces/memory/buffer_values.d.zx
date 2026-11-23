@@ -55,6 +55,12 @@ export declare function createU8Buffer(
     shape: U8Buffer?
 ): U8Buffer throws { OutOfMemory }
 
+export declare function allocateU8Buffer(
+    resource: Allocator,
+    target: U8Buffer,
+    count: u64
+): u8[] throws { OutOfMemory }
+
 export declare function boolViews(source: BoolBuffer): bool[]
 
 export declare function writeBool(

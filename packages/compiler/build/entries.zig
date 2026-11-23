@@ -951,6 +951,7 @@ pub const execution = [_]Entry{
     .{ .path = "zx/frontend/retention/order.zx", .name = "parser_publish_orders" },
     .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
     .{ .path = "zx/analysis/publication/entry/finish.rx", .name = "analysis_finish_entry" },
+    .{ .path = "rx/dependency_graph/registration/run.rx", .name = "rx_register_graph_modules", .owner = .rx },
     .{ .path = "rx/analysis/project/source_graph/construct/build.rx", .name = "rx_construct_source_graph", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/source_graph/references/registered/publish.zx", .name = "rx_publish_source_graph_edge", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/source_graph/references/scan.zx", .name = "rx_scan_source_graph_references", .owner = .rx_analysis },

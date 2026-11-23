@@ -13,6 +13,7 @@ const store_view = @import("project/mixed/history/store_view.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
+    @import("rx").graph_registration,
     @import("inference/assignment/application/host.zig"),
     @import("inference/assignment/registration/host.zig"),
     @import("inference/bindings/host.zig"),
