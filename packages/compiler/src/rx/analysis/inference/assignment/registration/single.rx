@@ -1,0 +1,15 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+
+    <Args in={Registration.Single} out={void} />
+
+    <Loop on={$in.retry}>
+        <Call
+            module="advance_single"
+            in={{
+                request: $in,
+                retry: true
+            }}
+        />
+    </Loop>
+</Module>

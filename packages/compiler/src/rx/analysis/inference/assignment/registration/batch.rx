@@ -1,0 +1,16 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+
+    <Args in={Registration.Batch} out={void} />
+
+    <Loop on={$in.next < $in.request.values.length}>
+        <Call
+            module="advance_batch"
+            in={{
+                request: $in,
+                next: 0,
+                position: $in.position
+            }}
+        />
+    </Loop>
+</Module>

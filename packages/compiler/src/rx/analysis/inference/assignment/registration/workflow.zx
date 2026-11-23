@@ -1,0 +1,47 @@
+import type { U8Buffer, U32Buffer } from "memory"
+import type { AssignmentRegistration } from "rx_project_host"
+import type { Endpoints, Rows, Series, Spans } from "./model"
+
+export type Destination = Rows.Omit("position")
+
+export type Replacement = {
+    buckets: u32[],
+    target: U32Buffer
+}
+
+export type Storage = {
+    keys: u64[],
+    buckets: u32[],
+    rows: Destination,
+    spans: U8Buffer,
+    replacement: Replacement
+}
+
+export type Request = {
+    frame: AssignmentRegistration,
+    storage: Storage,
+    position: u64,
+    source: Spans.Pick("source", "width")
+}
+
+export type Single = Request & {
+    endpoints: Endpoints
+}
+
+export type SingleCursor = {
+    request: Single,
+    retry: bool
+}
+
+export type Batch =
+    Request & Series.Pick("parents", "values", "targets", "repeated", "known")
+
+export type BatchCursor = {
+    request: Batch,
+    next: u64,
+    position: u64
+}
+
+export type Reservation = Request.Pick("frame", "storage", "position") & {
+    capacity: u64
+}

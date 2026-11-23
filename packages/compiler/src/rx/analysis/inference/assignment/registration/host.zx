@@ -1,0 +1,8 @@
+export { requireAllocation } from "memory"
+export {
+    publishAssignmentPrefix,
+    growAssignmentRows,
+    allocateAssignmentIndex,
+    publishAssignmentIndex,
+    registerAssignmentTarget
+} from "rx_project_host"

@@ -34,17 +34,20 @@ export type Input = {
     endpoints: Endpoints,
     keys: u64[],
     buckets: u32[],
-    rows: Rows
+    rows: Rows,
+    spans: Spans
 }
 
-export type Admission = Input.Omit("endpoints") & {
+export type Admission = Input.Omit("endpoints", "spans") & {
     pair: Pair
 }
 
 export type Publication = {
     pair: Pair,
     rows: Rows,
-    slot: u64
+    slot: u64,
+    spans: Spans,
+    span_index: u64
 }
 
 export type Output = {
@@ -68,7 +71,6 @@ export type Series = Input.Omit("endpoints") & {
     targets: u32[],
     repeated?: u32,
     known?: KnownTypes,
-    spans: Spans,
     next: u64
 }
 

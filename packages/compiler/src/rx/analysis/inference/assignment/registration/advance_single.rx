@@ -1,0 +1,62 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+    <Type from="model" as="Actions" />
+
+    <Args in={Registration.SingleCursor} out={Registration.SingleCursor} />
+
+    <Call
+        module="register"
+        in={{
+            endpoints: $in.request.endpoints,
+            ...$in.request.storage.pick([
+                "keys",
+                "buckets"
+            ]),
+            rows: {
+                ...$in.request.storage.rows,
+                position: $in.request.position
+            },
+            spans: {
+                ...$in.request.source,
+                target: $in.request.storage.spans
+            }
+        }}
+    />
+
+    <Switch on={$ctx.register.action}>
+        <Case value={Actions.Action.Added}>
+            <Call
+                fn="host.publishAssignmentPrefix"
+                in={[
+                    $in.request.frame,
+                    $in.request.position + 1
+                ]}
+            />
+        </Case>
+
+        <Case value={Actions.Action.Overflow}>
+            <Call fn="host.requireAllocation" in={false} />
+        </Case>
+
+        <Case value={Actions.Action.Reserve}>
+            <Call
+                module="reserve"
+                in={{
+                    ...$in.request.pick([
+                        "frame",
+                        "storage",
+                        "position"
+                    ]),
+                    capacity: $ctx.register.capacity
+                }}
+            />
+        </Case>
+    </Switch>
+
+    <Return
+        value={{
+            ...$in,
+            retry: $ctx.register.action == Actions.Action.Reserve
+        }}
+    />
+</Module>

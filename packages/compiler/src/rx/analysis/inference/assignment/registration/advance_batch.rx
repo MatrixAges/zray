@@ -1,0 +1,80 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+    <Type from="model" as="Actions" />
+
+    <Args in={Registration.BatchCursor} out={Registration.BatchCursor} />
+
+    <Call
+        fn="series"
+        in={{
+            ...$in.request.omit([
+                "frame",
+                "storage",
+                "position",
+                "source"
+            ]),
+            ...$in.request.storage.pick([
+                "keys",
+                "buckets"
+            ]),
+            rows: {
+                ...$in.request.storage.rows,
+                position: $in.position
+            },
+            spans: {
+                ...$in.request.source,
+                target: $in.request.storage.spans
+            },
+            next: $in.next
+        }}
+    />
+
+    <If on={$ctx.series.position != $in.position}>
+        <Call
+            fn="host.publishAssignmentPrefix"
+            in={[
+                $in.request.frame,
+                $ctx.series.position
+            ]}
+        />
+    </If>
+
+    <Switch on={$ctx.series.action}>
+        <Case value={Actions.Action.Overflow}>
+            <Call fn="host.requireAllocation" in={false} />
+        </Case>
+
+        <Case value={Actions.Action.Reserve}>
+            <Call
+                module="reserve"
+                in={{
+                    ...$in.request.pick([
+                        "frame",
+                        "storage"
+                    ]),
+                    position: $ctx.series.position,
+                    capacity: $ctx.series.capacity
+                }}
+            />
+        </Case>
+
+        <Case value={Actions.Action.Register}>
+            <Call
+                fn="host.registerAssignmentTarget"
+                in={[
+                    $in.request.frame,
+                    $in.request.targets[$ctx.series.next],
+                    $ctx.series.next
+                ]}
+            />
+        </Case>
+    </Switch>
+
+    <Return
+        value={{
+            request: $in.request,
+            next: $ctx.series.next,
+            position: $ctx.series.position
+        }}
+    />
+</Module>

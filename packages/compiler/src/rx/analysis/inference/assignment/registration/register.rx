@@ -30,7 +30,9 @@
             in={{
                 pair: $ctx.endpoints,
                 rows: $in.rows,
-                slot: $ctx.admit.slot ?? 0
+                slot: $ctx.admit.slot ?? 0,
+                spans: $in.spans,
+                span_index: 0
             }}
         />
     </If>

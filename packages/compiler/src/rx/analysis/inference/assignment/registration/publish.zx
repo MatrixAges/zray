@@ -14,4 +14,16 @@ export default function (in: Input): Output {
     memory.writeU32(rows.left, rows.position, pair.left)
     memory.writeU32(rows.right, rows.position, pair.right)
     memory.writeU32(rows.buckets, in.slot, row)
+
+    const spans = in.spans
+    const start = in.span_index * spans.width
+    const offset = rows.position * spans.width
+
+    const copied = memory.copyBytes(
+        spans.target,
+        offset,
+        spans.source,
+        start,
+        start + spans.width
+    )
 }

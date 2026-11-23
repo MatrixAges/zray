@@ -1,0 +1,30 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+
+    <Args in={Registration.Reservation} out={void} />
+
+    <If on={$in.position == $in.storage.rows.capacity}>
+        <Call fn="host.growAssignmentRows" in={$in.frame} />
+    </If>
+
+    <If on={$in.capacity > $in.storage.buckets.length}>
+        <Call
+            fn="host.allocateAssignmentIndex"
+            in={[
+                $in.frame,
+                $in.capacity
+            ]}
+        />
+
+        <Call
+            fn="rebuild"
+            in={{
+                ...$in.storage.replacement,
+                keys: $in.storage.keys,
+                count: $in.position
+            }}
+        />
+
+        <Call fn="host.publishAssignmentIndex" in={$in.frame} />
+    </If>
+</Module>

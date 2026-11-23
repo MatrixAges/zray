@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import knownNode from "../../known/find"
 import admit from "./admit"
 import endpoints from "./endpoints"
@@ -10,7 +8,6 @@ import type { Progress as Output, Series as Input } from "./model"
 
 export default function (in: Input): Output {
     const rows = in.rows
-    const spans = in.spans
 
     return loop({
         next: in.next,
@@ -60,18 +57,10 @@ export default function (in: Input): Output {
                         publish({
                             pair,
                             rows: destination,
-                            slot
+                            slot,
+                            spans: in.spans,
+                            span_index: index
                         })
-
-                        const start = index * spans.width
-                        const offset = state.position * spans.width
-                        const copied = memory.copyBytes(
-                            spans.target,
-                            offset,
-                            spans.source,
-                            start,
-                            start + spans.width
-                        )
 
                         state.position += 1
                         state.next += 1

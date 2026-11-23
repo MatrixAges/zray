@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { max_u32 } from "core/const"
 import probe from "core/integer/wide_index/probe"
 import memory from "memory"
 
@@ -7,16 +8,19 @@ import type { U32Buffer } from "memory"
 export type Input = {
     keys: u64[],
     buckets: u32[],
-    target: U32Buffer
+    target: U32Buffer,
+    count: u64
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
+    memory.fillU32Buffer(in.target, in.buckets.length, max_u32)
+
     const written = loop({
         position: 0
     }, {
-        while: state => state.position < in.keys.length,
+        while: state => state.position < in.count,
         next: state => {
             const slot = probe({
                 keys: in.keys,
