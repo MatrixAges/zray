@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import type { OptionalU32Buffer, U32ListBuffer } from "memory"
+import type { MappingBuffers } from "../rebind/model"
+
+export type FunctionTargets = {
+    candidate: OptionalU32Buffer,
+    functions: OptionalU32Buffer,
+    natives: OptionalU32Buffer
+}
+
+export type Targets = {
+    types: U32ListBuffer,
+    body?: FunctionTargets
+}
+
+export type Input = {
+    targets: Targets,
+    buffers: MappingBuffers,
+    candidate?: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { targets, buffers, candidate } = in
+
+    memory.writeU32List(targets.types, 0, memory.u32Views(buffers.types))
+
+    const body = targets.body
+
+    if (body != null) {
+        memory.writeOptionalU32(body.candidate, 0, candidate)
+
+        memory.refreshOptionalU32View(body.functions, buffers.functions)
+        memory.refreshOptionalU32View(body.natives, buffers.modules)
+    }
+}

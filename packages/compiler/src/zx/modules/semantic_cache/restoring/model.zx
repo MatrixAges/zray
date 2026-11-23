@@ -1,0 +1,11 @@
+import type { Committed, Views } from "./publication/model"
+import type { Input as Checkpoint } from "./snapshot"
+import type { Input as Planning } from "./transaction_model"
+
+export type Input = {
+    planning: Planning,
+    checkpoint: Checkpoint,
+    publication: Views
+}
+
+export type Output = Committed

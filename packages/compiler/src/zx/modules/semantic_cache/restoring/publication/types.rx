@@ -9,9 +9,9 @@
             fn="../../../../analysis/semantic/merging/publication/size"
             in={{
                 delta: $in.scalars,
-                origins: $in.origins,
+                origins: $in.plan.origins,
                 destination: {
-                    ...$in.destination,
+                    ...$in.target.destination,
                     nominal_ranges: null
                 }
             }}
@@ -20,7 +20,7 @@
         <Call
             module="../../../../analysis/semantic/merging/publication/write"
             in={{
-                ...$in.omit(["scalars"]),
+                ...$in.target,
                 delta: $in.scalars,
                 origins: {
                     ids: [],
@@ -29,7 +29,7 @@
                     members: []
                 },
                 destination: {
-                    ...$in.destination,
+                    ...$in.target.destination,
                     nominal_ranges: null
                 },
                 text_mode: Tail.TextMode.Borrow
@@ -40,14 +40,16 @@
     <Call
         fn="../../../../analysis/semantic/merging/publication/size"
         in={{
-            delta: $in.delta,
-            origins: $in.origins,
-            destination: $in.destination
+            ...$in.plan,
+            destination: $in.target.destination
         }}
     />
 
     <Call
         module="../../../../analysis/semantic/merging/publication/write"
-        in={$in.omit(["scalars"])}
+        in={{
+            ...$in.target,
+            ...$in.plan
+        }}
     />
 </Module>

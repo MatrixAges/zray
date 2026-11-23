@@ -144,19 +144,20 @@ pub fn FunctionView(comptime T: type) type {
 
 pub fn validFunctionColumns(value: *const ir.Function) bool {
     const rule = @import("generated_ir_function_columns");
-    const Columns = std.meta.Child(rule.Input);
+    const input = functionColumns(std.meta.Child(rule.Input), value);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const input: Columns = .{
+    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch false;
+}
+
+pub fn functionColumns(comptime Columns: type, value: *const ir.Function) Columns {
+    return .{
         .stores = zx.columns.pointer(@FieldType(Columns, "stores"), &value.stores),
         .symbols = zx.columns.pointer(@FieldType(Columns, "symbols"), &value.symbols),
         .expressions = zx.columns.pointer(@FieldType(Columns, "expressions"), &value.expressions),
         .contracts = zx.columns.pointer(@FieldType(Columns, "contracts"), &value.contracts),
         .max_offset = std.math.maxInt(usize),
     };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch false;
 }
 
 pub fn typeMapping(comptime Target: type, mapping: Nodes.TypeMap) Target {

@@ -3,9 +3,24 @@
 
     <Args in={Publication.Input} out={Publication.Committed?} />
 
-    <Call module="types" in={$in.types} />
+    <Call
+        fn="index.selectAllocator"
+        in={[
+            $in.views.verification.scope,
+            $in.views.verification.payload
+        ]}
+    />
 
-    <Call fn="../../../../ir/canonical/stores/validate" in={$in.stores} />
+    <Call
+        module="types"
+        in={{
+            target: $in.views.types,
+            plan: $in.plan,
+            scalars: $in.views.scalars
+        }}
+    />
+
+    <Call fn="../../../../ir/canonical/stores/validate" in={$in.views.stores} />
 
     <If on={!$ctx.validate}>
         <Return value={null} />
@@ -14,29 +29,33 @@
     <Call
         module="../../../artifact/remapping/optional_body"
         in={{
-            source: $in.body
+            source: $in.views.body
         }}
     />
 
     <Call
         module="stores"
         in={{
-            source: $in.stores,
-            mapping: $in.surface.types,
+            source: $in.views.stores,
+            mapping: $in.views.surface.types,
             body: $ctx.optional_body,
-            reuse: $in.reuse_store_types
+            reuse: $in.views.reuse_store_types
         }}
     />
 
-    <Call module="../../../artifact/materializing/optional_control" in={$in.control} />
-    <Call module="../../../artifact/surface/own" in={$in.surface} />
+    <Call
+        module="../../../artifact/materializing/optional_control"
+        in={$in.views.control}
+    />
+
+    <Call module="../../../artifact/surface/own" in={$in.views.surface} />
 
     <Call
         fn="entry"
         in={{
             body: $ctx.optional_body,
             control: $ctx.optional_control,
-            attributes: $in.attributes
+            attributes: $in.views.attributes
         }}
     />
 
@@ -44,14 +63,14 @@
         <Call
             module="../../../link/result/publication/register"
             in={{
-                destination: $in.functions,
+                destination: $in.views.functions,
                 entry: {
                     ports: $ctx.entry.ports,
                     body: $ctx.entry.body
                 },
-                file: $in.path,
+                file: $in.views.path,
                 stores: $ctx.stores,
-                empty: $in.empty
+                empty: $in.views.empty
             }}
         />
     </If>
@@ -59,7 +78,7 @@
     <Call
         module="../../../artifact/validation/verify"
         in={{
-            ...$in.verification,
+            ...$in.views.verification,
             program: {
                 ...$ctx.entry.pick([
                     "ports",
@@ -67,7 +86,7 @@
                 ]),
                 stores: $ctx.stores
             },
-            empty: $in.empty
+            empty: $in.views.empty
         }}
     />
 

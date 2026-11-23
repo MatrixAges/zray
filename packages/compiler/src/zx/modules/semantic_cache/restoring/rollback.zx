@@ -1,9 +1,11 @@
 import { restore, truncate } from "core/column_lengths"
 import memory from "memory"
 
-import type { Columns, Output as Snapshot } from "./snapshot"
+import type { Columns } from "./snapshot"
 
-export type Input = Columns & Snapshot & {
+export type Input = Columns & {
+    function_count: u64,
+    origin_count: u64,
     type_counts: u64[]
 }
 

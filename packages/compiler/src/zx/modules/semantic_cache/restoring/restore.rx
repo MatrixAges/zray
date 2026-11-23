@@ -1,0 +1,87 @@
+<Module>
+    <Type from="model" as="Restore" />
+    <Type from="rebind/model" as="Rebind" />
+
+    <Args in={Restore.Input} out={Restore.Output?} />
+
+    <Call module="preflight/admit" in={$in.planning.preflight} />
+
+    <If on={!$ctx.admit}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="rebind/reserve"
+        in={{
+            ...$in.planning.buffers,
+            type_count: $in.planning.types.merge.source.kinds.length,
+            function_count: $in.planning.rebind.signatures.previous.files.length,
+            module_count: $in.planning.rebind.modules.previous.specifiers.length,
+            has_body: $in.planning.rebind.has_body
+        }}
+    />
+
+    <Call
+        module="types/plan"
+        in={{
+            ...$in.planning.types,
+            type_ids: $ctx.reserve.types
+        }}
+    />
+
+    <If on={$ctx.plan != null}>
+        <Call
+            fn="rebind/input"
+            in={{
+                source: $in.planning.rebind,
+                buffers: $in.planning.buffers,
+                mappings: $ctx.reserve
+            }}
+        />
+
+        <Call module="rebind/check" />
+
+        <If on={$ctx.check.status != Rebind.Status.Ready}>
+            <Call
+                fn="index.requireAllocation"
+                in={$ctx.check.status != Rebind.Status.Full}
+            />
+
+            <Return value={null} />
+        </If>
+
+        <Call fn="snapshot" in={$in.checkpoint} />
+
+        <If on={$in.publication.columns != null}>
+            <Call
+                module="../../../ir/canonical/validation/function_columns"
+                in={$in.publication.columns}
+            />
+
+            <If on={!$ctx.function_columns}>
+                <Return value={null} />
+            </If>
+        </If>
+
+        <Call
+            fn="publication/mapping"
+            in={{
+                targets: $in.publication.mappings,
+                buffers: $in.planning.buffers,
+                candidate: $ctx.check.entry
+            }}
+        />
+
+        <Call
+            module="publication/publish"
+            in={{
+                views: $in.publication,
+                plan: $ctx.plan
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return value={null} />
+</Module>

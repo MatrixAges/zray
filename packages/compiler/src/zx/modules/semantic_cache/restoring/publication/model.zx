@@ -4,14 +4,19 @@ import type { Stores } from "core/store_table/model"
 import type { Ownership } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
 import type {
-    Input as TypeWrite
+    Target as TypeTail
 } from "../../../../analysis/semantic/merging/publication/model"
+import type {
+    Input as FunctionColumns
+} from "../../../../ir/canonical/validation/function_columns"
 import type { Output as Verified } from "../../../../ir/canonical/validation/prefix"
 import type { FunctionInput } from "../../../artifact/remapping/model"
 import type { Input as Surface } from "../../../artifact/surface/model"
 import type { Program, Unit } from "../../../artifact/validation/body"
 import type { Request as Verification } from "../../../artifact/validation/context"
 import type { BodyColumns, Destination } from "../../../link/signature/publication/model"
+import type { Plan as TypePlan } from "../types/model"
+import type { Targets } from "./mapping"
 
 export type Attributes = {
     ownership: Ownership,
@@ -19,22 +24,32 @@ export type Attributes = {
     root?: u32
 }
 
-export type Types = TypeWrite & {
+export type Types = {
+    target: TypeTail,
+    plan: TypePlan,
     scalars?: Table
 }
 
-export type Input = {
+export type Views = {
+    columns?: FunctionColumns,
+    mappings: Targets,
     body?: FunctionInput,
     control?: Control,
     attributes?: Attributes,
     stores: Stores,
-    types: Types,
+    types: TypeTail,
+    scalars?: Table,
     reuse_store_types: bool,
     surface: Surface,
     functions: Destination,
     empty: BodyColumns,
     path: string,
     verification: Verification
+}
+
+export type Input = {
+    views: Views,
+    plan: TypePlan
 }
 
 export type Entry = Unit & {

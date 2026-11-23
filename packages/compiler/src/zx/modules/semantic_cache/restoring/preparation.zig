@@ -1,17 +1,14 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const Artifact = @import("../../../artifact/model.zig");
-const FunctionImport = @import("../../../function_import.zig");
-const Current = @import("../../restore.zig").Current;
-const names = @import("../../../../ir/canonical/validation/names/view.zig");
-const Preflight = @import("../preflight/host.zig");
-const generated = @import("generated_semantic_restore_transaction");
-const Transaction = std.meta.Child(generated.Input);
+const Artifact = @import("../../artifact/model.zig");
+const FunctionImport = @import("../../function_import.zig");
+const names = @import("../../../ir/canonical/validation/names/view.zig");
+const Preflight = @import("preflight/host.zig");
+const generated = @import("generated_semantic_restore");
+const Transaction = std.meta.Child(@FieldType(std.meta.Child(generated.Input), "planning"));
 const Input = std.meta.Child(@FieldType(Transaction, "rebind"));
-const Output = @typeInfo(@TypeOf(generated.executeValue(undefined, undefined))).error_union.payload;
-pub const TypeRequest = std.meta.Child(@FieldType(Transaction, "types"));
-pub const TypePlan = @typeInfo(@FieldType(Output, "plan")).optional.child;
+const TypeRequest = std.meta.Child(@FieldType(Transaction, "types"));
 const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
 const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
 const Columns = FunctionImport.Columns;
@@ -19,6 +16,13 @@ const BindingColumns = std.meta.Child(@FieldType(Bindings, "previous"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
 const Buffers = std.meta.Child(@FieldType(Transaction, "buffers"));
+const Origins = @import("../../nominal_origins.zig");
+const Merge = std.meta.Child(@FieldType(TypeRequest, "merge"));
+const Table = std.meta.Child(@FieldType(Merge, "source"));
+const Nominal = std.meta.Child(@FieldType(Merge, "origins"));
+const Constants = std.meta.Child(@typeInfo(@FieldType(TypeRequest, "current_constants")).optional.child);
+const marshal = @import("../../../analysis/constants/input.zig").marshal;
+const scalar_rows = @import("../../../analysis/type_table.zig").scalar_rows;
 
 pub const Maps = struct {
     allocator: std.mem.Allocator,
@@ -35,9 +39,40 @@ pub const Maps = struct {
     }
 };
 
-pub const Prepared = struct { types: TypePlan, entry: ?ir.FunctionId };
+pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../restore.zig").Restored {
+    const temporary = frame.maps.allocator;
+    const module = frame.module;
+    const current = frame.current;
+    const decoded = frame.decoded;
+    const current_types = current.types.view();
+    const source = ir.TypeTable.borrow(Table, module.types);
+    const destination = ir.TypeTable.borrow(Table, current_types);
+    const base = ir.TypeTable.borrow(Table, if (current_types.count() == 0) scalar_rows else current_types);
+    const empty = ir.TypeTable.borrow(Table, .{});
+    const origins = Origins.Table.borrow(Nominal, module.nominal_types);
+    const base_origins = Origins.Table.borrow(Nominal, current.origins.items.view());
 
-pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, maps: *Maps, types_request: *const TypeRequest) Artifact.Error!Prepared {
+    const merge: Merge = .{
+        .source = &source,
+        .origins = &origins,
+        .names = module.nominal_types.names,
+        .base = &base,
+        .base_origins = &base_origins,
+        .mapping = @ptrCast(&frame.maps.types),
+    };
+
+    const types_request: TypeRequest = .{
+        .merge = &merge,
+        .current_types = &destination,
+        .empty = &empty,
+        .current_constants = try marshal(Constants, temporary, current.constant_imports),
+        .cached_constants = try marshal(Constants, temporary, module.constant_imports),
+        .cached_exports = if (decoded) null else try marshal(Constants, temporary, module.constant_exports),
+        .scalar_count = scalar_rows.count(),
+        .maximum_count = std.math.maxInt(u32),
+        .decoded = decoded,
+    };
+
     const SignatureTable = std.meta.Child(@FieldType(Signatures, "previous"));
     const NativeTable = std.meta.Child(@FieldType(Modules, "previous"));
     const previous_signatures = ir.SignatureTable.borrow(SignatureTable, &module.functions);
@@ -70,27 +105,15 @@ pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, cur
 
     var preflight: Preflight = undefined;
 
-    preflight.init(temporary, module, current, types_request.decoded, &previous_modules, &current_modules, &previous_signatures);
+    preflight.init(temporary, module, current, decoded, &previous_modules, &current_modules, &previous_signatures);
     defer preflight.depths.deinit();
 
     const transaction: Transaction = .{
         .preflight = &preflight.input,
-        .types = types_request,
+        .types = &types_request,
         .rebind = &input,
-        .buffers = &maps.view(),
+        .buffers = &frame.maps.view(),
     };
 
-    const prepared = zx.columns.invoke(generated.executeValue, temporary, &transaction) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    return switch (prepared.status) {
-        .Invalid => error.InvalidModule,
-        .Full => error.OutOfMemory,
-        .Ready => .{
-            .types = prepared.plan.?,
-            .entry = if (prepared.entry) |id| @fromBackingInt(id) else null,
-        },
-    };
+    return frame.execute(&transaction);
 }
