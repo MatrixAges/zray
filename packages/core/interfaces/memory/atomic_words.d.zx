@@ -55,6 +55,13 @@ export declare function storeU32Relaxed(
     value: u32
 ): void throws { IndexOutOfBounds }
 
+export declare function compareExchangeU32Relaxed(
+    target: U32Buffer,
+    index: u64,
+    expected: u32,
+    value: u32
+): bool throws { IndexOutOfBounds }
+
 export declare function compareExchangeU32Sequential(
     target: U32Buffer,
     index: u64,

@@ -29,6 +29,7 @@ pub const loadU32Sequential = atomic.loadU32Sequential;
 pub const loadU32Relaxed = atomic.loadU32Relaxed;
 pub const storeU32Sequential = atomic.storeU32Sequential;
 pub const storeU32Relaxed = atomic.storeU32Relaxed;
+pub const compareExchangeU32Relaxed = atomic.compareExchangeU32Relaxed;
 pub const compareExchangeU32Sequential = atomic.compareExchangeU32Sequential;
 pub const addU32Sequential = atomic.addU32Sequential;
 pub const wakeAllU32 = atomic.wakeAllU32;

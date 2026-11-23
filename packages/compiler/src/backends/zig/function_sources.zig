@@ -37,117 +37,150 @@ pub const Jobs = struct {
     }
 };
 
-const Dispatch = struct {
-    const rule = if (generated) @import("generated_function_sources_job") else void;
-    const Input = if (generated) std.meta.Child(rule.Input) else void;
+const Kind = if (generated) @import("output_execution_abi").layouts.@"zig:output_host".FunctionSourceKind else void;
 
-    jobs: Jobs,
-    ids: if (generated) zx.memory.ReadColumn else void,
-    regular: if (generated) zx.memory.ReadColumn else void,
-    fn init(jobs: Jobs) Dispatch {
-        return .{
-            .jobs = jobs,
-            .ids = if (generated) zx.memory.borrowReadColumn(zx.ir.FunctionId, "id", jobs.functions) else {},
-            .regular = if (generated) zx.memory.borrowReadColumn(bool, "regular", jobs.functions) else {},
-        };
+fn locate(jobs: *const Jobs, kind: Kind, index: usize) Job {
+    return switch (kind) {
+        .Entry => .{ .batch = &jobs.entries[index], .unit = .entry },
+        .Types => .{ .batch = jobs.batch, .unit = .types },
+        .Function => .{ .batch = jobs.batch, .unit = .{ .function = @fromBackingInt(@intCast(index)) } },
+        .Regular => .{ .batch = jobs.batch, .unit = .{ .regular = @fromBackingInt(@intCast(index)) } },
+    };
+}
+
+fn runWorker(task: anytype, context: anytype, count: usize, pending: ?[]const u64, comptime search: bool) void {
+    if (comptime !generated) {
+        while (task.failure.load(.monotonic) == 0) {
+            const row = task.next.fetchAdd(1, .monotonic);
+
+            if (row >= count) return;
+
+            const position = if (pending) |positions| positions[row] else row;
+
+            context.step(row, task.jobs.seedAt(position)) catch |err| {
+                _ = task.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
+
+                return;
+            };
+        }
+
+        return;
     }
-    fn at(self: *const Dispatch, position: usize) Job {
-        const jobs = &self.jobs;
 
-        if (comptime !generated) return jobs.seedAt(position);
+    const worker = @import("generated_function_source_worker");
+    const Input = std.meta.Child(worker.Input);
+    const View = std.meta.Child(@FieldType(Input, "jobs"));
+    const jobs = task.jobs;
+    const ids = zx.memory.borrowReadColumn(zx.ir.FunctionId, "id", jobs.functions);
+    const regular = zx.memory.borrowReadColumn(bool, "regular", jobs.functions);
 
-        const functions: std.meta.Child(@FieldType(Input, "functions")) = .{
-            .ids = @ptrCast(&self.ids),
-            .regular = @ptrCast(&self.regular),
-            .count = jobs.functions.len,
-        };
+    const functions: std.meta.Child(@FieldType(View, "functions")) = .{
+        .ids = @ptrCast(&ids),
+        .regular = @ptrCast(&regular),
+        .count = jobs.functions.len,
+    };
 
-        const input: Input = .{ .entries = jobs.entries.len, .types = jobs.types, .functions = &functions, .selected = jobs.positions, .position = position };
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-        const route = zx.columns.invoke(rule.executeValue, fixed.allocator(), &input) catch unreachable;
+    const view: View = .{
+        .entries = jobs.entries.len,
+        .types = jobs.types,
+        .functions = &functions,
+        .selected = jobs.positions,
+    };
 
-        return switch (route.kind) {
-            .Entry => .{ .batch = &jobs.entries[@intCast(route.index)], .unit = .entry },
-            .Types => .{ .batch = jobs.batch, .unit = .types },
-            .Function => .{ .batch = jobs.batch, .unit = .{ .function = @fromBackingInt(@intCast(route.index)) } },
-            .Regular => .{ .batch = jobs.batch, .unit = .{ .regular = @fromBackingInt(@intCast(route.index)) } },
-        };
-    }
-};
+    const failure: []u32 = @as(*[1]u32, @ptrCast(&task.failure.raw));
+
+    const input: Input = .{
+        .jobs = &view,
+        .count = count,
+        .cursor = @ptrCast(&task.next),
+        .failure = @ptrCast(&failure),
+        .pending = pending,
+        .search = search,
+        .worker = @ptrCast(context),
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    worker.executeIn(empty.allocator(), &input) catch unreachable;
+}
 
 /// Identifies every unit and fetches its cached source.
 const Search = struct {
-    dispatch: *const Dispatch,
+    jobs: *const Jobs,
     lookups: []Batch.Lookup,
     fetched: []Cache.Fetched,
     next: std.atomic.Value(usize) = .init(0),
-    failure: std.atomic.Value(u16) = .init(0),
+    failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Search, arena: *std.heap.ArenaAllocator) void {
-        while (self.failure.load(.monotonic) == 0) {
-            const position = self.next.fetchAdd(1, .monotonic);
+        var context = SearchWorker{ .task = self, .allocator = arena.allocator() };
 
-            if (position >= self.lookups.len) return;
-
-            self.step(arena.allocator(), position) catch |err| {
-                _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
-
-                return;
-            };
-        }
-    }
-    fn step(self: *Search, allocator: std.mem.Allocator, position: usize) generating.Error!void {
-        const job = self.dispatch.at(position);
-        const cache = job.batch.cache orelse return;
-        const found = try job.batch.identify(allocator, job.unit);
-        self.lookups[position] = found;
-        self.fetched[position] = try cache.fetch(found.name, found.key, .shared);
+        runWorker(self, &context, self.lookups.len, null, true);
     }
 };
+
+const SearchWorker = struct {
+    task: *Search,
+    allocator: std.mem.Allocator,
+    fn step(self: *SearchWorker, row: usize, job: Job) generating.Error!void {
+        const cache = job.batch.cache orelse return;
+        const found = try job.batch.identify(self.allocator, job.unit);
+
+        self.task.lookups[row] = found;
+        self.task.fetched[row] = try cache.fetch(found.name, found.key, .shared);
+    }
+};
+
+pub fn findFunctionSource(handle: *const anyopaque, row: u64, kind: Kind, index: u64) u32 {
+    const worker: *SearchWorker = @ptrCast(@alignCast(@constCast(handle)));
+
+    worker.step(@intCast(row), locate(worker.task.jobs, kind, @intCast(index))) catch |err| return @intFromError(err);
+
+    return 0;
+}
 
 /// Generates every unit no cached source covers.
 const Work = struct {
-    dispatch: *const Dispatch,
+    jobs: *const Jobs,
     pending: ?[]const u64,
     results: []publication.Result,
     next: std.atomic.Value(usize) = .init(0),
-    failure: std.atomic.Value(u16) = .init(0),
-    /// Each unit's working memory comes from one scratch arena per worker, reset after the unit with its pages kept, so
-    /// generating unit after unit reuses them instead of mapping and faulting fresh ones.
+    failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
-        var scratch = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        var types: generating.TypeScratch = .init(std.heap.page_allocator);
+        var context = RenderWorker{
+            .task = self,
+            .output = arena.allocator(),
+            .scratch = .init(std.heap.page_allocator),
+            .types = .init(std.heap.page_allocator),
+        };
 
-        defer scratch.deinit();
-        defer types.deinit();
-
-        while (self.failure.load(.monotonic) == 0) {
-            const position = self.next.fetchAdd(1, .monotonic);
-
-            if (position >= self.results.len) return;
-
-            defer _ = scratch.reset(.{ .retain_with_limit = 32 << 20 });
-            const job = self.dispatch.at(if (self.pending) |positions| @intCast(positions[position]) else position);
-
-            self.results[position].source = generate(job, arena.allocator(), scratch.allocator(), &types) catch |err| {
-                _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
-
-                return;
-            };
-        }
-    }
-
-    fn generate(job: Job, output: std.mem.Allocator, scratch: std.mem.Allocator, types: *generating.TypeScratch) generating.Error![]const u8 {
-        const backing = if (generated and job.unit == .types) job.batch.backing else scratch;
-
-        if (generated and job.batch.cache != null) {
-            const source = try job.batch.generate(scratch, backing, job.unit, types);
-
-            return std.heap.smp_allocator.dupe(u8, source);
-        }
-
-        return job.batch.generate(output, backing, job.unit, types);
+        defer context.scratch.deinit();
+        defer context.types.deinit();
+        runWorker(self, &context, self.results.len, self.pending, false);
     }
 };
+
+const RenderWorker = struct {
+    task: *Work,
+    output: std.mem.Allocator,
+    scratch: std.heap.ArenaAllocator,
+    types: generating.TypeScratch,
+    fn step(self: *RenderWorker, row: usize, job: Job) generating.Error!void {
+        const scratch = self.scratch.allocator();
+        const backing = if (generated and job.unit == .types) job.batch.backing else scratch;
+        const cache_owned = generated and job.batch.cache != null;
+        const source = try job.batch.generate(if (cache_owned) scratch else self.output, backing, job.unit, &self.types);
+        self.task.results[row].source = if (cache_owned) try std.heap.smp_allocator.dupe(u8, source) else source;
+        _ = self.scratch.reset(.{ .retain_with_limit = 32 << 20 });
+    }
+};
+
+pub fn renderFunctionSource(handle: *const anyopaque, row: u64, kind: Kind, index: u64) u32 {
+    const worker: *RenderWorker = @ptrCast(@alignCast(@constCast(handle)));
+
+    worker.step(@intCast(row), locate(worker.task.jobs, kind, @intCast(index))) catch |err| return @intFromError(err);
+
+    return 0;
+}
 
 /// Sources of `jobs` in order: cached units are copied into one buffer, the rest are generated; the search, the copies
 /// and the generation run on all cores.
@@ -158,7 +191,6 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
 
     const temporary = scratch.allocator();
     const count = jobs.count();
-    const dispatch = Dispatch.init(jobs);
     const sources = try owned.alloc([]const u8, count);
     const arenas = try temporary.alloc(std.heap.ArenaAllocator, zx.parallel.width());
 
@@ -170,7 +202,7 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
         var frame: Frame = .{
             .owned = owned,
             .temporary = temporary,
-            .dispatch = &dispatch,
+            .jobs = &jobs,
             .arenas = arenas,
             .sources = sources,
         };
@@ -194,12 +226,12 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
     }
 
     const cache = jobs.batch.cache orelse {
-        try produceSeed(owned, temporary, &dispatch, null, null, arenas, sources);
+        try produceSeed(owned, temporary, &jobs, null, null, arenas, sources);
 
         return sources;
     };
 
-    var search = Search{ .dispatch = &dispatch, .lookups = try temporary.alloc(Batch.Lookup, count), .fetched = try temporary.alloc(Cache.Fetched, count) };
+    var search = Search{ .jobs = &jobs, .lookups = try temporary.alloc(Batch.Lookup, count), .fetched = try temporary.alloc(Cache.Fetched, count) };
 
     @memset(search.fetched, .{});
     errdefer for (search.fetched) |fetched| cache.releaseFetched(fetched);
@@ -210,15 +242,15 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
 
     try @import("function_sources_seed.zig").restore(owned, search.fetched, plan, sources, arenas);
     for (search.lookups, search.fetched) |found, *fetched| _ = try cache.record(found.name, found.key, fetched);
-    try produceSeed(owned, temporary, &dispatch, plan.pending, search.lookups, arenas, sources);
+    try produceSeed(owned, temporary, &jobs, plan.pending, search.lookups, arenas, sources);
 
     return sources;
 }
 
-fn produceSeed(owned: std.mem.Allocator, temporary: std.mem.Allocator, dispatch: *const Dispatch, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
+fn produceSeed(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: *const Jobs, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
     const count = if (pending) |positions| positions.len else sources.len;
     const results = try temporary.alloc(publication.Result, count);
-    var work = Work{ .dispatch = dispatch, .pending = pending, .results = results };
+    var work = Work{ .jobs = jobs, .pending = pending, .results = results };
 
     try spread(Work, &work, arenas[0..@min(arenas.len, count)]);
 
@@ -229,7 +261,7 @@ fn produceSeed(owned: std.mem.Allocator, temporary: std.mem.Allocator, dispatch:
     }
 
     if (pending) |positions| {
-        for (positions) |position| try dispatch.jobs.batch.remember(lookups.?[position], sources[position]);
+        for (positions) |position| try jobs.batch.remember(lookups.?[position], sources[position]);
     }
 }
 
@@ -244,7 +276,7 @@ const CacheWork = struct {
 const Frame = struct {
     owned: std.mem.Allocator,
     temporary: std.mem.Allocator,
-    dispatch: *const Dispatch,
+    jobs: *const Jobs,
     arenas: []std.heap.ArenaAllocator,
     sources: [][]const u8,
     cached: ?CacheWork = null,
@@ -266,10 +298,10 @@ const Frame = struct {
 pub fn readFunctionSources(handle: *const anyopaque) generating.Error!*const SourceReuse {
     const frame = Frame.borrow(handle);
     const count = frame.sources.len;
-    const cache = frame.dispatch.jobs.batch.cache.?;
+    const cache = frame.jobs.batch.cache.?;
 
     var search: Search = .{
-        .dispatch = frame.dispatch,
+        .jobs = frame.jobs,
         .lookups = try frame.temporary.alloc(Batch.Lookup, count),
         .fetched = try frame.temporary.alloc(Cache.Fetched, count),
     };
@@ -317,7 +349,7 @@ pub fn generateFunctionSources(handle: *const anyopaque) generating.Error!void {
 
     frame.results = results;
 
-    var work: Work = .{ .dispatch = frame.dispatch, .pending = pending, .results = results };
+    var work: Work = .{ .jobs = frame.jobs, .pending = pending, .results = results };
 
     return spread(Work, &work, frame.arenas[0..@min(frame.arenas.len, count)]);
 }
@@ -358,5 +390,7 @@ pub fn spread(comptime Task: type, task: *Task, arenas: []std.heap.ArenaAllocato
 
     zx.parallel.spread(Shared, &shared, Shared.run, arenas.len);
 
-    if (task.failure.load(.monotonic) != 0) return @errorCast(@errorFromInt(task.failure.load(.monotonic)));
+    const code = task.failure.load(.monotonic);
+
+    if (code != 0) return @errorCast(@errorFromInt(@as(u16, @intCast(code))));
 }

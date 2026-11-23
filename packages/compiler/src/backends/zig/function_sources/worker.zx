@@ -1,0 +1,58 @@
+import memory from "memory"
+import host from "output_host"
+
+import job from "./job"
+
+import type { AtomicIndex, U32Buffer } from "memory"
+import type { FunctionSourceWorker } from "output_host"
+import type { Jobs } from "./job"
+
+export type Input = {
+    jobs: Jobs,
+    count: u64,
+    cursor: AtomicIndex,
+    failure: U32Buffer,
+    pending?: u64[],
+    search: bool,
+    worker: FunctionSourceWorker
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { jobs, count, cursor, failure, pending, search, worker } = in
+
+    const completed = loop(true, {
+        while: running => running && memory.loadU32Relaxed(failure, 0) == 0,
+        next: running => {
+            const row = memory.fetchAddIndexRelaxed(cursor, 1)
+
+            if (row >= count) {
+                running = false
+            } else {
+                const position = pending == null ? row : pending[row]
+                const route = job({
+                    jobs,
+                    position
+                })
+
+                const code = match search {
+                    true =>
+                        host.findFunctionSource(worker, row, route.kind, route.index),
+                    _ => host.renderFunctionSource(
+                        worker,
+                        row,
+                        route.kind,
+                        route.index
+                    )
+                }
+
+                if (code != 0) {
+                    const published =
+                        memory.compareExchangeU32Relaxed(failure, 0, 0, code)
+                    running = false
+                }
+            }
+        }
+    })
+}

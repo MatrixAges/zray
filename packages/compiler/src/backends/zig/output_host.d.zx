@@ -12,6 +12,15 @@ export type GenerationCacheFiles = opaque
 
 export type FunctionSources = opaque
 
+export type FunctionSourceWorker = opaque
+
+export enum FunctionSourceKind {
+    Entry,
+    Types,
+    Function,
+    Regular
+}
+
 export type ApplicationInitializers = opaque
 
 export type LibraryInitializers = opaque
@@ -113,6 +122,20 @@ export declare function writeGenerationCacheRecord(
     target: GenerationCacheRecord,
     pending: u64?
 ): void throws { OutOfMemory }
+
+export declare function findFunctionSource(
+    worker: FunctionSourceWorker,
+    row: u64,
+    kind: FunctionSourceKind,
+    index: u64
+): u32
+
+export declare function renderFunctionSource(
+    worker: FunctionSourceWorker,
+    row: u64,
+    kind: FunctionSourceKind,
+    index: u64
+): u32
 
 export declare function readFunctionSources(batch: FunctionSources): SourceReuse throws {
     OutOfMemory,

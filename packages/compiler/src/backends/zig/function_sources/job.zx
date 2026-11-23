@@ -1,20 +1,18 @@
 import integers from "std:integer"
 import memory from "memory"
+import { FunctionSourceKind as Kind } from "output_host"
 
 import type { View } from "../function_units/model"
 
-export enum Kind {
-    Entry,
-    Types,
-    Function,
-    Regular
-}
-
-export type Input = {
+export type Jobs = {
     entries: u64,
     types: bool,
     functions: View,
-    selected?: u64[],
+    selected?: u64[]
+}
+
+export type Input = {
+    jobs: Jobs,
     position: u64
 }
 
@@ -24,29 +22,31 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    if (in.position < in.entries) {
+    const { jobs, position } = in
+
+    if (position < jobs.entries) {
         return {
             kind: Kind.Entry,
-            index: in.position
+            index: position
         }
     }
 
-    const offset = in.position - in.entries
+    const offset = position - jobs.entries
 
-    if (in.types && offset == 0) {
+    if (jobs.types && offset == 0) {
         return {
             kind: Kind.Types,
             index: 0
         }
     }
 
-    const row = offset - (in.types ? 1 : 0)
+    const row = offset - (jobs.types ? 1 : 0)
 
-    const { selected } = in
+    const { selected } = jobs
 
     const index = selected == null ? row : selected[row]
-    const regular = memory.readColumnBool(in.functions.regular, index)
-    const id = memory.readColumnU32(in.functions.ids, index)
+    const regular = memory.readColumnBool(jobs.functions.regular, index)
+    const id = memory.readColumnU32(jobs.functions.ids, index)
 
     return {
         kind: regular ? Kind.Regular : Kind.Function,

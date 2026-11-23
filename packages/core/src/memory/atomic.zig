@@ -48,6 +48,10 @@ pub inline fn storeU32Relaxed(target: *const anyopaque, index: u64, value: u32) 
     @atomicStore(u32, try word(target, index), value, .monotonic);
 }
 
+pub inline fn compareExchangeU32Relaxed(target: *const anyopaque, index: u64, expected: u32, value: u32) error{IndexOutOfBounds}!bool {
+    return @cmpxchgStrong(u32, try word(target, index), expected, value, .monotonic, .monotonic) == null;
+}
+
 pub inline fn compareExchangeU32Sequential(target: *const anyopaque, index: u64, expected: u32, value: u32) error{IndexOutOfBounds}!bool {
     return @cmpxchgStrong(u32, try word(target, index), expected, value, .seq_cst, .seq_cst) == null;
 }
