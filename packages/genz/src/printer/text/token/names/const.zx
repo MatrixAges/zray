@@ -34,6 +34,8 @@ export const token_float_cast: string = "floatCast"
 
 export const token_float_from_int: string = "floatFromInt"
 
+export const token_has_decl: string = "hasDecl"
+
 export const token_has_field: string = "hasField"
 
 export const token_i32: string = "i32"

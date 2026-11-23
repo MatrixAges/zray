@@ -127,7 +127,8 @@ export enum ExpressionsBuiltinName {
     Vector,
     Splat,
     Field,
-    HasField
+    HasField,
+    HasDecl
 }
 
 export type Expressions = {

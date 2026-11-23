@@ -3,10 +3,10 @@ import { scalar_void } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import field from "../../ast/context/field"
 import identifier from "../../ast/context/identifier"
 import initialize from "../../ast/context/initialize"
 import { allocator_name } from "../construction/const"
+import targetFunction from "./target"
 
 import type { Input, State as Output } from "./model"
 
@@ -16,20 +16,10 @@ export default function (in: Input): Output {
         name: in.native
     })
 
-    const target = loop({
-        node: root,
-        index: 0
-    }, {
-        while: current => current.node.state.valid && current.index < in.member.length,
-        next: current => {
-            current.node = field({
-                state: current.node.state,
-                target: current.node.id,
-                name: in.member[current.index]
-            })
-            current.index += 1
-        },
-        return: current => current.node
+    const target = targetFunction({
+        state: root.state,
+        module: root.id,
+        path: in.member
     })
 
     const allocator = identifier({

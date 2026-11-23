@@ -43,7 +43,8 @@ pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Er
 
     if (!result.valid) return error.OutOfMemory;
 
-    @import("../node/import_rows.zig").append(self.allocator, &self.builder.nodes.expressions, result.expressions) catch |err| return failure(err);
+    const expressions = view.join(result.expressions.*, result.forms.*);
+    @import("../node/import_rows.zig").append(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
 
     const statements = &self.builder.nodes.statements;
     const start: u32 = @intCast(statements.tags.items.len);

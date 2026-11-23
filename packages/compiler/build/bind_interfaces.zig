@@ -32,7 +32,7 @@ pub fn main(init: std.process.Init) !void {
         const template = try input.readFileAlloc(init.io, entry.name, allocator, .unlimited);
         var project = try std.json.parseFromSliceLeaky(manifest.Project, allocator, template, .{});
         project.roots = try std.mem.concat(allocator, manifest.Root, &.{ project.roots, declarations });
-        const content = try std.json.Stringify.valueAlloc(allocator, project, .{});
+        const content = try std.json.Stringify.valueAlloc(allocator, project, .{ .emit_null_optional_fields = false });
 
         try output.writeFile(init.io, .{ .sub_path = entry.name, .data = content });
     }

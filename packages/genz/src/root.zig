@@ -6,489 +6,70 @@ pub const render_module = @import("printer/module.zig");
 pub const zx = @import("zx/render.zig");
 pub const gateway = @import("gateway/root.zig");
 pub const host = @import("host/root.zig");
-const ownership = @import("zx/uniqueness/program/driver.zig");
-pub const prepareOwnershipStorage = ownership.prepareOwnershipStorage;
-pub const prepareOwnershipIdentities = ownership.prepareOwnershipIdentities;
-pub const prepareOwnershipReplay = ownership.prepareOwnershipReplay;
-pub const prepareOwnershipBodies = ownership.prepareOwnershipBodies;
-pub const prepareOwnershipWorkers = ownership.prepareOwnershipWorkers;
-pub const prepareOwnershipQueue = ownership.prepareOwnershipQueue;
-pub const bindOwnershipMemoRows = ownership.bindOwnershipMemoRows;
-pub const releaseOwnership = ownership.releaseOwnership;
-pub const commitOwnership = ownership.commitOwnership;
-pub const beginOwnershipRound = ownership.beginOwnershipRound;
-pub const claimOwnershipBody = ownership.claimOwnershipBody;
-pub const visitOwnershipBody = ownership.visitOwnershipBody;
-pub const ownershipRoundOutcome = ownership.ownershipRoundOutcome;
-pub const finishOwnershipRound = ownership.finishOwnershipRound;
-pub const beginOwnershipReplay = ownership.beginOwnershipReplay;
-pub const scanOwnershipReplay = ownership.scanOwnershipReplay;
-pub const recoverOwnershipVisit = ownership.recoverOwnershipVisit;
-pub const publishOwnershipReplay = ownership.publishOwnershipReplay;
-pub const finishOwnershipReplay = ownership.finishOwnershipReplay;
-const ownership_identity = @import("zx/uniqueness/identity.zig");
-pub const claimOwnershipIdentity = ownership_identity.claimOwnershipIdentity;
-pub const writeOwnershipIdentity = ownership_identity.writeOwnershipIdentity;
 const flow = @import("zx/uniqueness/flow.zig");
-const flow_execution = @import("zx/uniqueness/flow/execution.zig");
-const flow_fixpoint = @import("zx/uniqueness/flow/fixpoint.zig");
-pub const initializeFlow = flow_execution.initializeFlow;
-pub const planFlow = flow_execution.planFlow;
-pub const reserveFlowMemo = flow_execution.reserveFlowMemo;
-pub const flowLayerOrder = flow_execution.flowLayerOrder;
-pub const flowLayerEnds = flow_execution.flowLayerEnds;
-pub const flowMemoHits = flow_execution.flowMemoHits;
-pub const openFlowWorkers = flow_execution.openFlowWorkers;
-pub const solveFlowLayer = flow_execution.solveFlowLayer;
-pub const keepFlowMemo = flow_execution.keepFlowMemo;
-pub const publishFlowMemo = flow_execution.publishFlowMemo;
-pub const solveRecursiveFlow = flow_execution.solveRecursiveFlow;
-pub const claimFlowBody = flow.claimFlowBody;
-pub const adoptFlowMemo = flow.adoptFlowMemo;
-pub const walkFlowBody = flow.walkFlowBody;
-pub const retainFlowFacts = flow_fixpoint.retainFlowFacts;
-pub const visitRecursiveFlow = flow_fixpoint.visitRecursiveFlow;
-const lowering = @import("zx/expressions/evaluate/native.zig");
 const read = @import("zx/expressions/read.zig");
-pub const lowerExpression = lowering.lowerExpression;
-pub const lowerRegular = lowering.lowerRegular;
-pub const lowerValueExpression = lowering.lowerValueExpression;
-pub const lowerType = lowering.lowerType;
-pub const materializeType = lowering.materializeType;
-pub const loweringOrigin = lowering.loweringOrigin;
 const publication = @import("zx/state_value/publication.zig");
-pub const prepareDirectAstRow = @import("node/direct.zig").prepareDirectAstRow;
-pub const appendAstExpressions = publication.appendAstExpressions;
-pub const appendAstStatements = publication.appendAstStatements;
-pub const appendAstStorage = publication.appendAstStorage;
-pub const appendAstHelper = publication.appendAstHelper;
-pub const appendAstBody = publication.appendAstBody;
-pub const appendAstFields = publication.appendAstFields;
-pub const finishAstPublication = publication.finishAstPublication;
-pub const projectLoopField = @import("zx/iteration/fields/ownership.zig").projectLoopField;
-pub const publishLoopFieldOperands = @import("zx/iteration/fields/ownership.zig").publishLoopFieldOperands;
-pub const replaceLoopFields = @import("zx/iteration/fields/ownership.zig").replaceLoopFields;
-pub const resolveLoopFieldLayout = @import("zx/iteration/fields/ownership.zig").resolveLoopFieldLayout;
-pub const rebuildLoopFields = @import("zx/iteration/fields/ownership.zig").rebuildLoopFields;
-pub const lowerLiteral = lowering.lowerLiteral;
-pub const lowerStore = lowering.lowerStore;
-pub const lowerTask = lowering.lowerTask;
-pub const lowerWait = lowering.lowerWait;
-pub const lowerCancel = lowering.lowerCancel;
-pub const lowerParallel = lowering.lowerParallel;
-pub const lowerCapture = lowering.lowerCapture;
-pub const readOperatorOperand = lowering.readOperatorOperand;
-pub const readBinaryOperator = lowering.readBinaryOperator;
-pub const readExpressionType = lowering.readExpressionType;
-pub const writeUnary = lowering.writeUnary;
-pub const writeBinary = lowering.writeBinary;
-pub const readConditionalOperand = lowering.readConditionalOperand;
-pub const writeConditional = lowering.writeConditional;
-pub const lowerMatch = lowering.lowerMatch;
-pub const lowerAggregate = lowering.lowerAggregate;
-pub const lowerCollection = lowering.lowerCollection;
-pub const lowerTransform = lowering.lowerTransform;
-const transform = @import("zx/transform/execution.zig");
-const collect_transform = @import("zx/transform/collect.zig");
-const reduce_transform = @import("zx/transform/reduce.zig");
-const predicate_transform = @import("zx/predicates.zig");
-pub const lowerTransformSort = transform.lowerTransformSort;
-pub const enterTransformParameters = transform.enterTransformParameters;
-pub const tryTransformSimd = transform.tryTransformSimd;
-pub const bindTransformSource = transform.bindTransformSource;
-pub const resolveTransformResultType = transform.resolveTransformResultType;
-pub const lowerTransformCallback = transform.lowerTransformCallback;
-pub const transformContextInitial = transform.transformContextInitial;
-pub const lowerTransformContextInitial = transform.lowerTransformContextInitial;
-pub const publishTransformContext = transform.publishTransformContext;
-pub const bindTransformElement = transform.bindTransformElement;
-pub const transformStateActive = transform.transformStateActive;
-pub const prepareTransformPredicate = predicate_transform.prepareTransformPredicate;
-pub const publishTransformPredicate = predicate_transform.publishTransformPredicate;
-pub const prepareCollectTransform = collect_transform.prepareCollectTransform;
-pub const bindMapTransformResult = collect_transform.bindMapTransformResult;
-pub const storeMapTransformValue = collect_transform.storeMapTransformValue;
-pub const storeFilterTransformValue = collect_transform.storeFilterTransformValue;
-pub const publishCollectTransform = collect_transform.publishCollectTransform;
-pub const lowerReduceInitial = reduce_transform.lowerReduceInitial;
-pub const convertReduceInitial = reduce_transform.convertReduceInitial;
-pub const renewReduceStorage = reduce_transform.renewReduceStorage;
-pub const convertReduceCallback = reduce_transform.convertReduceCallback;
-pub const publishReduceTransform = reduce_transform.publishReduceTransform;
-const transform_publication = @import("zx/transform/publication.zig");
-pub const appendTransformStatements = transform_publication.appendTransformStatements;
-pub const appendTransformSpan = transform_publication.appendTransformSpan;
-const sort = @import("zx/sorting/root.zig");
-pub const reserveSortDeclaration = sort.reserveSortDeclaration;
-pub const prepareSortTypes = sort.prepareSortTypes;
-pub const buildSortComparator = sort.buildSortComparator;
-pub const buildSortHelpers = sort.buildSortHelpers;
-pub const publishSortHelpers = sort.publishSortHelpers;
-pub const publishSortEffects = sort.publishSortEffects;
-pub const evaluateSortTarget = sort.evaluateSortTarget;
-pub const sortSourceSelected = sort.sortSourceSelected;
-pub const clipSortTarget = sort.clipSortTarget;
-pub const bindSortTarget = sort.bindSortTarget;
-pub const sortInputReusable = sort.sortInputReusable;
-pub const sortWritable = sort.sortWritable;
-pub const sortReuseFlag = sort.sortReuseFlag;
-pub const bindSortReuse = sort.bindSortReuse;
-pub const bindSortEnvironment = sort.bindSortEnvironment;
-pub const readSortHeader = sort.readSortHeader;
-pub const emitSort = sort.emitSort;
-const sort_worker = @import("zx/sorting/worker.zig");
-pub const registerSortParameters = sort_worker.registerSortParameters;
-pub const evaluateSortComparator = sort_worker.evaluateSortComparator;
-pub const sortOperandUsed = sort_worker.sortOperandUsed;
-pub const readSortOperand = sort_worker.readSortOperand;
-pub const publishSortWorker = sort_worker.publishSortWorker;
-const simd_emission = @import("zx/simd/emission.zig");
-pub const lowerSimdSource = simd_emission.lowerSimdSource;
-pub const lowerSimdElement = simd_emission.lowerSimdElement;
-pub const reserveSimdLiterals = simd_emission.reserveSimdLiterals;
-pub const simdNodeOperation = simd_emission.simdNodeOperation;
-pub const storeSimdLiteral = simd_emission.storeSimdLiteral;
-pub const emitSimd = simd_emission.emitSimd;
-pub const wrapSimdResult = simd_emission.wrapSimdResult;
-pub const appendSimdExpressions = simd_emission.appendSimdExpressions;
-pub const appendSimdStatement = simd_emission.appendSimdStatement;
-pub const publishSimdEffects = simd_emission.publishSimdEffects;
-pub const lowerScope = lowering.lowerScope;
-pub const lowerIteration = lowering.lowerIteration;
-pub const lowerCall = lowering.lowerCall;
-pub const lowerUpdate = lowering.lowerUpdate;
-pub const lowerMutation = lowering.lowerMutation;
-const iteration_mutation = @import("zx/iteration_value/mutation.zig");
-pub const bindIterationMutationOperand = iteration_mutation.bindIterationMutationOperand;
-pub const publishIterationMutation = iteration_mutation.publishIterationMutation;
-pub const reuseIteration = lowering.reuseIteration;
-pub const lowerUnpack = lowering.lowerUnpack;
-pub const lowerDereference = lowering.lowerDereference;
-pub const invalidLowering = lowering.invalidLowering;
-pub const lowerRead = read.lowerRead;
-pub const readOptional = read.readOptional;
-pub const readReference = read.readReference;
-pub const readTupleResult = read.readTupleResult;
-pub const readRawMember = read.readRawMember;
-pub const readAnchor = read.readAnchor;
-pub const readMember = read.readMember;
-pub const readRawList = read.readRawList;
-pub const readList = read.readList;
-pub const readField = read.readField;
-pub const readIndex = read.readIndex;
-pub const readIndexResult = read.readIndexResult;
-pub const readLength = read.readLength;
-pub const readFieldPath = read.readFieldPath;
-const scope_execution = @import("zx/scope/execute.zig");
-const sequence_execution = @import("zx/aggregate/sequence.zig");
 const object_execution = @import("zx/aggregate/object_execution.zig");
-const iteration_operands = @import("zx/iteration_value/operands.zig");
-const match_execution = @import("zx/match.zig");
-pub const consumeScopeResult = scope_execution.consumeScopeResult;
-pub const beginScopeBindings = scope_execution.beginScopeBindings;
-pub const advanceScopeBinding = scope_execution.advanceScopeBinding;
-pub const scopeBindingOperand = scope_execution.scopeBindingOperand;
-pub const scopeBindingType = scope_execution.scopeBindingType;
-pub const reuseScopeBinding = scope_execution.reuseScopeBinding;
-pub const emitScopeTask = scope_execution.emitScopeTask;
-pub const prepareScopeBinding = scope_execution.prepareScopeBinding;
-pub const discardScopeOperand = scope_execution.discardScopeOperand;
-pub const publishScopeBinding = scope_execution.publishScopeBinding;
-pub const publishIterationBinding = scope_execution.publishIterationBinding;
-pub const finishScopeBindings = scope_execution.finishScopeBindings;
-pub const publishSequenceElement = sequence_execution.publishSequenceElement;
-pub const reserveObjectOperand = object_execution.reserveObjectOperand;
-pub const publishObjectOperand = object_execution.publishObjectOperand;
-pub const publishObjectOperands = object_execution.publishObjectOperands;
-pub const prepareObjectFields = object_execution.prepareObjectFields;
-pub const publishObjectField = object_execution.publishObjectField;
-pub const finishObject = object_execution.finishObject;
-pub const publishIterationOperand = iteration_operands.publishIterationOperand;
-pub const prepareIterationFields = iteration_operands.prepareIterationFields;
-pub const publishIterationField = iteration_operands.publishIterationField;
-pub const lowerMatchEquality = match_execution.lowerMatchEquality;
-pub const lowerMatchLiteral = match_execution.lowerMatchLiteral;
-const call_publication = @import("zx/invocation/publication.zig");
-pub const registerCallReference = call_publication.registerCallReference;
-pub const publishCallExpressions = call_publication.publishCallExpressions;
-pub const publishCallBody = call_publication.publishCallBody;
-pub const finishCallPublication = call_publication.finishCallPublication;
-const regular_call = @import("zx/regular_call/root.zig");
-pub const invokePlannedRegularCall = regular_call.invokePlannedRegularCall;
-pub const invokePlannedValueCall = regular_call.invokePlannedValueCall;
-pub const invokePlannedPointerCall = regular_call.invokePlannedPointerCall;
-const call_execution = @import("zx/invocation/execute.zig");
-pub const lowerCallTuple = call_execution.lowerCallTuple;
-pub const lowerCallBorrow = call_execution.lowerCallBorrow;
-pub const lowerCallStack = call_execution.lowerCallStack;
-pub const adaptCallArgument = call_execution.adaptCallArgument;
-pub const clipCallArgument = call_execution.clipCallArgument;
-pub const lowerCallStore = call_execution.lowerCallStore;
-pub const emitLoweredCall = call_execution.emitLoweredCall;
-pub const convertCallResult = call_execution.convertCallResult;
-pub const finishLoweredCall = call_execution.finishLoweredCall;
-const borrowed_argument = @import("zx/value_call/argument.zig");
-const borrowed_object = @import("zx/value_call/argument_object.zig");
-pub const materializeBorrowedObject = borrowed_object.materializeBorrowedObject;
-pub const materializeBorrowedTuple = borrowed_argument.materializeBorrowedTuple;
-pub const lowerExistingBorrowedArgument = borrowed_argument.lowerExistingBorrowedArgument;
-pub const lowerExistingBorrowedOperand = borrowed_argument.lowerExistingBorrowedOperand;
-pub const lowerBorrowedOperand = borrowed_argument.lowerBorrowedOperand;
-pub const borrowedCallOperand = borrowed_argument.borrowedCallOperand;
-pub const emitBorrowedCall = borrowed_argument.emitBorrowedCall;
-pub const observeBorrowedOperand = borrowed_object.observeBorrowedOperand;
-pub const borrowedOperandCacheValue = borrowed_object.borrowedOperandCacheValue;
-pub const cacheBorrowedOperand = borrowed_object.cacheBorrowedOperand;
-pub const prepareBorrowedFields = borrowed_object.prepareBorrowedFields;
-pub const publishBorrowedField = borrowed_object.publishBorrowedField;
-pub const retireBorrowedOperands = borrowed_object.retireBorrowedOperands;
-pub const finishBorrowedObject = borrowed_object.finishBorrowedObject;
-pub const publishBorrowedTupleElement = borrowed_argument.publishBorrowedTupleElement;
-pub const finishBorrowedTuple = borrowed_argument.finishBorrowedTuple;
-const iteration_call = @import("zx/iteration_value/invocation.zig");
-pub const openIterationCall = iteration_call.openIterationCall;
-pub const invokeIterationValue = iteration_call.invokeIterationValue;
-pub const invokeIterationRegular = iteration_call.invokeIterationRegular;
-pub const convertIterationCall = iteration_call.convertIterationCall;
-const loop_state = @import("zx/iteration/state.zig");
-pub const appendLoopState = loop_state.appendLoopState;
-pub const appendLoopTracker = loop_state.appendLoopTracker;
-const loop_frame_publication = @import("zx/iteration/frame.zig");
-pub const appendLoopGuard = loop_frame_publication.appendLoopGuard;
-pub const appendLoopPrefix = loop_frame_publication.appendLoopPrefix;
-pub const appendLoopBody = loop_frame_publication.appendLoopBody;
-pub const appendLoopEntry = loop_frame_publication.appendLoopEntry;
-const loop_field_publication = @import("zx/iteration/fields/publication.zig");
-pub const ownLoopBindingName = loop_field_publication.ownLoopBindingName;
-pub const ownLoopOriginName = loop_field_publication.ownLoopOriginName;
-pub const appendLoopFieldExpressions = loop_field_publication.appendLoopFieldExpressions;
-pub const appendLoopFields = loop_field_publication.appendLoopFields;
-pub const finishLoopFieldLayout = loop_field_publication.finishLoopFieldLayout;
-const loop_assignment = @import("zx/iteration/assignment.zig");
-pub const ownLoopAssignmentIdentifier = loop_assignment.ownLoopAssignmentIdentifier;
-pub const writeLoopAssignmentField = loop_assignment.writeLoopAssignmentField;
-pub const appendLoopAssignmentExpressions = loop_assignment.appendLoopAssignmentExpressions;
-pub const appendLoopAssignmentStatements = loop_assignment.appendLoopAssignmentStatements;
-pub const finishLoopAssignment = loop_assignment.finishLoopAssignment;
-const iteration_publication = @import("zx/iteration_value/publication.zig");
-pub const ownIterationLabel = iteration_publication.ownIterationLabel;
-pub const appendIterationExpressions = iteration_publication.appendIterationExpressions;
-pub const appendIterationStatements = iteration_publication.appendIterationStatements;
-pub const appendIterationFields = iteration_publication.appendIterationFields;
-pub const appendIterationSequence = iteration_publication.appendIterationSequence;
-pub const cachePublishedIterationTypes = iteration_publication.cachePublishedIterationTypes;
-pub const recordIterationTransfer = iteration_publication.recordIterationTransfer;
-pub const finishIterationPublication = iteration_publication.finishIterationPublication;
-pub const hoistIterationStorage = iteration_publication.hoistIterationStorage;
-pub const reserveIterationProjection = @import("zx/iteration_value/projection_emission.zig").reserveIterationProjection;
-const iteration_resources = @import("zx/iteration_value/resources.zig");
-pub const materializeIterationResource = iteration_resources.materializeIterationResource;
-pub const cacheIterationType = iteration_resources.cacheIterationType;
-const parallel_execution = @import("zx/tasks/parallel.zig");
-pub const startParallelBranch = parallel_execution.startParallelBranch;
-pub const finishParallel = parallel_execution.finishParallel;
-const consumer_execution = @import("zx/iteration_consumer/execute.zig");
-pub const decideLoopConsumer = consumer_execution.decideLoopConsumer;
-pub const nextLoopConsumer = consumer_execution.nextLoopConsumer;
-pub const consumeVectorLoop = consumer_execution.consumeVectorLoop;
-pub const consumeLoop = consumer_execution.consumeLoop;
-const consumer_path = @import("zx/iteration_consumer/read.zig");
-pub const projectLoopPath = consumer_path.projectLoopPath;
-pub const convertLoopPath = consumer_path.convertLoopPath;
-const loop_layout = @import("zx/iteration_layout/select.zig");
-pub const chooseLoopLayout = loop_layout.chooseLoopLayout;
-pub const checkLoopLayout = loop_layout.checkLoopLayout;
-const loop_preparation = @import("zx/iteration/execution/prepare.zig");
-
-pub const loopBindsInitial = loop_preparation.loopBindsInitial;
-pub const bindLoopInitial = loop_preparation.bindLoopInitial;
-pub const storeLoopInitial = loop_preparation.storeLoopInitial;
-pub const loopGuardsInitial = loop_preparation.loopGuardsInitial;
-pub const guardLoopInitial = loop_preparation.guardLoopInitial;
-pub const loopUsesStateScope = loop_preparation.loopUsesStateScope;
-pub const enterLoopRepresentation = loop_preparation.enterLoopRepresentation;
-pub const createLoopSeed = loop_preparation.createLoopSeed;
-pub const loopProjectsFields = loop_preparation.loopProjectsFields;
-pub const prepareLoopFields = loop_preparation.prepareLoopFields;
-pub const loopTracksChange = loop_preparation.loopTracksChange;
-pub const trackLoopChange = loop_preparation.trackLoopChange;
-pub const loopStorage = loop_preparation.loopStorage;
-pub const loopInitialValue = loop_preparation.loopInitialValue;
-pub const dereferenceLoopInitial = loop_preparation.dereferenceLoopInitial;
-pub const deepenLoopInitial = loop_preparation.deepenLoopInitial;
-pub const representLoopInitial = loop_preparation.representLoopInitial;
-pub const clipLoopInitial = loop_preparation.clipLoopInitial;
-pub const planLoopUpdate = loop_preparation.planLoopUpdate;
-pub const beginLoweredLoop = loop_preparation.beginLoweredLoop;
-pub const dereferenceLoweredLoop = loop_preparation.dereferenceLoweredLoop;
-pub const prepareLoopInitial = loop_preparation.prepareLoopInitial;
-pub const setLoopInitialScope = loop_preparation.setLoopInitialScope;
-pub const loopParameterLayout = loop_preparation.loopParameterLayout;
-pub const bindLoopParameters = loop_preparation.bindLoopParameters;
-pub const addLoopParameterMembers = loop_preparation.addLoopParameterMembers;
-pub const openLoopParameterContext = loop_preparation.openLoopParameterContext;
-const loop_frame = @import("zx/iteration/execution/frame.zig");
-pub const loopUpdateScope = loop_frame.loopUpdateScope;
-pub const closeLoopUpdate = loop_frame.closeLoopUpdate;
-pub const restoreLoopParameterContext = loop_frame.restoreLoopParameterContext;
-pub const closeLoopInitial = loop_frame.closeLoopInitial;
-pub const releaseLoopScratch = loop_frame.releaseLoopScratch;
-pub const restoreLoopParameters = loop_frame.restoreLoopParameters;
-pub const closeLoopRepresentation = loop_frame.closeLoopRepresentation;
-pub const releaseLoopStatements = loop_frame.releaseLoopStatements;
-const loop_result = @import("zx/iteration/result.zig");
-pub const consumeDeepLoopResult = loop_result.consumeDeepLoopResult;
-pub const consumeLoopProjection = loop_result.consumeLoopProjection;
-pub const makeLoopResultUnit = loop_result.makeLoopResultUnit;
-pub const reserveLoopResult = loop_result.reserveLoopResult;
-pub const wrapLoopResult = loop_result.wrapLoopResult;
-pub const guardLoopResult = loop_result.guardLoopResult;
-pub const convertLoopResult = loop_result.convertLoopResult;
-pub const publishLoopResult = loop_result.publishLoopResult;
-const loop_emission = @import("zx/iteration/execution/emission.zig");
-pub const emitLoopRenewals = loop_emission.emitLoopRenewals;
-pub const maskLoopBorrowedFields = loop_emission.maskLoopBorrowedFields;
-pub const declareProjectedLoopState = loop_emission.declareProjectedLoopState;
-pub const publishLoopDeclarations = loop_emission.publishLoopDeclarations;
-pub const loopAssignment = loop_emission.loopAssignment;
-pub const loopNextValue = loop_emission.loopNextValue;
-pub const projectLoopAssignment = loop_emission.projectLoopAssignment;
-pub const clipLoopAssignment = loop_emission.clipLoopAssignment;
-pub const commitLoopUpdate = loop_emission.commitLoopUpdate;
-pub const resetLoopResult = loop_emission.resetLoopResult;
-pub const loopRestoresFields = loop_emission.loopRestoresFields;
-pub const restoreLoopFields = loop_emission.restoreLoopFields;
-pub const completeLoopResult = loop_emission.completeLoopResult;
-pub const loopFirstTest = loop_emission.loopFirstTest;
-pub const finishSkippedLoop = loop_emission.finishSkippedLoop;
-pub const finishProjectedLoop = loop_emission.finishProjectedLoop;
-pub const loopHasInitialGuard = loop_emission.loopHasInitialGuard;
-pub const finishGuardedLoop = loop_emission.finishGuardedLoop;
-pub const loopProjects = loop_emission.loopProjects;
-pub const loopFirstCondition = loop_emission.loopFirstCondition;
-pub const nameLoopParameters = loop_emission.nameLoopParameters;
-pub const enterLoopUpdate = loop_emission.enterLoopUpdate;
-pub const saveLoopUpdate = loop_emission.saveLoopUpdate;
-pub const declareLoopState = loop_emission.declareLoopState;
-pub const frameLoweredLoop = loop_emission.frameLoweredLoop;
-pub const publishMatchSubject = match_execution.publishMatchSubject;
-pub const lowerMatchArms = match_execution.lowerMatchArms;
-pub const finishMatchResult = match_execution.finishMatchResult;
-const function_body = @import("zx/functions/body.zig");
-const statement_traversal = @import("zx/statements/traversal/host.zig");
-pub const openStatementScope = statement_traversal.openStatementScope;
-pub const statementRoute = statement_traversal.statementRoute;
-pub const commitStatementSpan = statement_traversal.commitStatementSpan;
-pub const finishStatementScope = statement_traversal.finishStatementScope;
-pub const releaseStatementScope = statement_traversal.releaseStatementScope;
-pub const lowerStatementCondition = statement_traversal.lowerStatementCondition;
-pub const saveStatementBranch = statement_traversal.saveStatementBranch;
-pub const joinStatementBranch = statement_traversal.joinStatementBranch;
-pub const openStatementSelection = statement_traversal.openStatementSelection;
-pub const saveStatementFallback = statement_traversal.saveStatementFallback;
-pub const resolveStatementSelection = statement_traversal.resolveStatementSelection;
-pub const statementSelectionUsesSwitch = statement_traversal.statementSelectionUsesSwitch;
-pub const statementSelectionCaseCount = statement_traversal.statementSelectionCaseCount;
-pub const resetStatementCase = statement_traversal.resetStatementCase;
-pub const saveStatementCase = statement_traversal.saveStatementCase;
-pub const lowerStatementComparison = statement_traversal.lowerStatementComparison;
-pub const lowerStatementCaseLiteral = statement_traversal.lowerStatementCaseLiteral;
-pub const finishStatementSelection = statement_traversal.finishStatementSelection;
-pub const releaseStatementSelection = statement_traversal.releaseStatementSelection;
-const statement_emission = @import("zx/statements/emit.zig");
-pub const beginStatementStore = statement_emission.beginStatementStore;
-pub const joinStatementSpans = statement_emission.joinStatementSpans;
-pub const emitEvaluation = statement_emission.emitEvaluation;
-pub const emitParallelStatement = statement_emission.emitParallelStatement;
-pub const emitTaskStatement = statement_emission.emitTaskStatement;
-pub const statementBinding = statement_emission.statementBinding;
-pub const borrowStatementBinding = statement_emission.borrowStatementBinding;
-pub const statementBindingUsesValue = statement_emission.statementBindingUsesValue;
-pub const borrowedStatementValue = statement_emission.borrowedStatementValue;
-pub const lowerStatementExpression = statement_emission.lowerStatementExpression;
-pub const emitStatementBinding = statement_emission.emitStatementBinding;
-pub const emitDestructureStatement = statement_emission.emitDestructureStatement;
-pub const emitStoreWriteStatement = statement_emission.emitStoreWriteStatement;
-pub const statementResult = statement_emission.statementResult;
-pub const statementResultUsesValue = statement_emission.statementResultUsesValue;
-pub const statementResultMode = statement_emission.statementResultMode;
-pub const fuseStatementResult = statement_emission.fuseStatementResult;
-pub const clipStatementResult = statement_emission.clipStatementResult;
-pub const viewStatementResult = statement_emission.viewStatementResult;
-pub const emitStatementResult = statement_emission.emitStatementResult;
-pub const prepareFunctionBody = function_body.prepareFunctionBody;
-pub const lowerFunctionStatements = function_body.lowerFunctionStatements;
-pub const lowerFunctionContracts = function_body.lowerFunctionContracts;
-pub const lowerFunctionPrelude = function_body.lowerFunctionPrelude;
-pub const lowerFunctionPending = function_body.lowerFunctionPending;
-pub const lowerFunctionReferences = function_body.lowerFunctionReferences;
-pub const lowerFunctionCommit = function_body.lowerFunctionCommit;
-pub const publishFunctionBody = function_body.publishFunctionBody;
-const value_function = @import("zx/functions/value.zig");
-pub const enterFunctionRepresentation = value_function.enterFunctionRepresentation;
-pub const bindFunctionArgument = value_function.bindFunctionArgument;
-pub const setFunctionOutput = value_function.setFunctionOutput;
-pub const emitValuePrototype = value_function.emitValuePrototype;
-pub const emitValueBody = value_function.emitValueBody;
-const represented_cache = @import("zx/state_value/entry.zig");
-pub const convertRepresentedCache = represented_cache.convertRepresentedCache;
-const module_emission = @import("zx/module/execution/emission.zig");
 const contracts = @import("zx/contracts.zig");
-pub const openPreconditionScope = contracts.openPreconditionScope;
-pub const evaluatePrecondition = contracts.evaluatePrecondition;
-pub const emitPrecondition = contracts.emitPrecondition;
-pub const publishPreconditionScope = contracts.publishPreconditionScope;
-const module_frame = @import("zx/module/execution/frame.zig");
-pub const appendModuleAuxiliary = module_frame.appendModuleAuxiliary;
-pub const appendModuleSuffix = module_frame.appendModuleSuffix;
-pub const finishModuleDeclarations = module_frame.finishModuleDeclarations;
-pub const emitModuleStandard = module_emission.emitModuleStandard;
-pub const emitModuleImports = module_emission.emitModuleImports;
-pub const emitModuleTypes = module_emission.emitModuleTypes;
-pub const emitModuleExports = module_emission.emitModuleExports;
-pub const emitModuleConstants = module_emission.emitModuleConstants;
-pub const emitModuleShape = module_emission.emitModuleShape;
-pub const emitModuleAliases = module_emission.emitModuleAliases;
-pub const emitModuleStore = module_emission.emitModuleStore;
-pub const emitModuleEntry = module_emission.emitModuleEntry;
-pub const emitModuleValueEntry = module_emission.emitModuleValueEntry;
-pub const moduleUsesParallel = module_emission.moduleUsesParallel;
-pub const emitModuleParallelAllocator = module_emission.emitModuleParallelAllocator;
-pub const moduleComparisonCount = module_emission.moduleComparisonCount;
-pub const emitModuleComparison = module_emission.emitModuleComparison;
-const function_module = @import("zx/module/execution/function.zig");
-pub const emitFunctionModuleBody = function_module.emitFunctionModuleBody;
-pub const openFunctionModule = function_module.openFunctionModule;
-pub const openNativeFunctionModule = function_module.openNativeFunctionModule;
-const module_requests = @import("zx/module/execution/requests.zig");
-pub const takeModuleFunction = module_requests.takeModuleFunction;
-pub const emitRequestedNative = module_requests.emitRequestedNative;
-pub const openRequestedFunction = module_requests.openRequestedFunction;
-pub const emitRequestedStore = module_requests.emitRequestedStore;
-pub const emitRequestedBody = module_requests.emitRequestedBody;
-pub const publishRequestedFunction = module_requests.publishRequestedFunction;
-const signature_execution = @import("zx/modules/signature/execution.zig");
 
-pub const openSignatureUnit = signature_execution.openSignatureUnit;
-pub const installSignatureBody = signature_execution.installSignatureBody;
-pub const emitNativeSignature = signature_execution.emitNativeSignature;
-pub const emitRegularSignature = signature_execution.emitRegularSignature;
-pub const emitValueSignature = signature_execution.emitValueSignature;
-pub const publishSignatureUnit = signature_execution.publishSignatureUnit;
-const analysis_workflow = @import("zx/function_analysis/workflow.zig");
-pub const startAnalysisBasis = analysis_workflow.startAnalysisBasis;
-pub const buildAnalysisBasis = analysis_workflow.buildAnalysisBasis;
-pub const collectAnalysisFacts = analysis_workflow.collectAnalysisFacts;
-pub const joinAnalysisBasis = analysis_workflow.joinAnalysisBasis;
-pub const checkAnalysisFacts = analysis_workflow.checkAnalysisFacts;
-pub const checkAnalysisBasis = analysis_workflow.checkAnalysisBasis;
-pub const planAnalysis = analysis_workflow.planAnalysis;
-pub const planAnalysisConcurrent = analysis_workflow.planAnalysisConcurrent;
-pub const analyzeEntryFlags = analysis_workflow.analyzeEntryFlags;
-pub const analyzeIndependentEntry = analysis_workflow.analyzeIndependentEntry;
-const basis_workflow = @import("zx/uniqueness/basis.zig");
-pub const buildBasisSlots = basis_workflow.buildBasisSlots;
-pub const hashBasis = basis_workflow.hashBasis;
-pub const buildBasisFlow = basis_workflow.buildBasisFlow;
-pub const buildBasisReturns = basis_workflow.buildBasisReturns;
-pub const buildBasisEffects = basis_workflow.buildBasisEffects;
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    @import("node/direct.zig"),
+    @import("zx/aggregate/object_execution.zig"),
+    @import("zx/aggregate/sequence.zig"),
+    @import("zx/contracts.zig"),
+    @import("zx/expressions/evaluate/native.zig"),
+    @import("zx/expressions/read.zig"),
+    @import("zx/function_analysis/workflow.zig"),
+    @import("zx/functions/body.zig"),
+    @import("zx/functions/value.zig"),
+    @import("zx/invocation/execute.zig"),
+    @import("zx/invocation/publication.zig"),
+    @import("zx/iteration/assignment.zig"),
+    @import("zx/iteration/execution/emission.zig"),
+    @import("zx/iteration/execution/frame.zig"),
+    @import("zx/iteration/execution/prepare.zig"),
+    @import("zx/iteration/fields/ownership.zig"),
+    @import("zx/iteration/fields/publication.zig"),
+    @import("zx/iteration/frame.zig"),
+    @import("zx/iteration/result.zig"),
+    @import("zx/iteration/state.zig"),
+    @import("zx/iteration_consumer/execute.zig"),
+    @import("zx/iteration_consumer/read.zig"),
+    @import("zx/iteration_layout/select.zig"),
+    @import("zx/iteration_value/invocation.zig"),
+    @import("zx/iteration_value/mutation.zig"),
+    @import("zx/iteration_value/operands.zig"),
+    @import("zx/iteration_value/projection_emission.zig"),
+    @import("zx/iteration_value/publication.zig"),
+    @import("zx/iteration_value/resources.zig"),
+    @import("zx/match.zig"),
+    @import("zx/module/execution/emission.zig"),
+    @import("zx/module/execution/frame.zig"),
+    @import("zx/module/execution/function.zig"),
+    @import("zx/module/execution/requests.zig"),
+    @import("zx/modules/signature/execution.zig"),
+    @import("zx/predicates.zig"),
+    @import("zx/regular_call/root.zig"),
+    @import("zx/scope/execute.zig"),
+    @import("zx/simd/emission.zig"),
+    @import("zx/sorting/root.zig"),
+    @import("zx/sorting/worker.zig"),
+    @import("zx/state_value/entry.zig"),
+    @import("zx/state_value/publication.zig"),
+    @import("zx/statements/emit.zig"),
+    @import("zx/statements/traversal/host.zig"),
+    @import("zx/tasks/parallel.zig"),
+    @import("zx/transform/collect.zig"),
+    @import("zx/transform/execution.zig"),
+    @import("zx/transform/publication.zig"),
+    @import("zx/transform/reduce.zig"),
+    @import("zx/uniqueness/basis.zig"),
+    @import("zx/uniqueness/flow.zig"),
+    @import("zx/uniqueness/flow/execution.zig"),
+    @import("zx/uniqueness/flow/fixpoint.zig"),
+    @import("zx/uniqueness/identity.zig"),
+    @import("zx/uniqueness/program/driver.zig"),
+    @import("zx/value_call/argument.zig"),
+    @import("zx/value_call/argument_object.zig"),
+}).resolve;

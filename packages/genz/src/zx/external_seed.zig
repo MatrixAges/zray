@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 
@@ -8,8 +9,21 @@ pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Er
     self.uses_allocator = false;
 
     var callee = try self.builder.identifier(self.native_names[@backingInt(implementation.module)]);
+    const path = implementation.member;
 
-    for (implementation.member) |part| callee = try self.field(callee, part);
+    if (path.len == 2 and std.mem.eql(u8, path[0], zx.native_lookup.marker)) {
+        const name = try self.builder.string(zx.native_lookup.marker);
+        const ordinary = try self.builtin(.hasDecl, &.{ callee, name });
+        const namespace = try self.field(callee, zx.native_lookup.marker);
+        const direct = try self.field(namespace, path[1]);
+        const resolver = try self.field(callee, zx.native_lookup.field);
+        const member = try self.builder.string(path[1]);
+        const resolved = try self.call(resolver, &.{member}, false);
+
+        callee = try self.builder.expression(.{ .conditional = .{ .condition = ordinary, .yes = direct, .no = resolved } });
+    } else {
+        for (path) |part| callee = try self.field(callee, part);
+    }
 
     const allocator = try self.builder.identifier("allocator");
     var arguments: std.ArrayList(node.ExpressionId) = .empty;

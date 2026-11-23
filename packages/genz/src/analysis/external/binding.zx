@@ -1,0 +1,76 @@
+import bytes from "std:bytes"
+
+import builtin from "../../ast/context/builtin"
+import call from "../../ast/context/call"
+import conditional from "../../ast/context/conditional"
+import field from "../../ast/context/field"
+import text from "../../ast/context/text"
+import { ExpressionsBuiltinName, ExpressionsKind } from "../../printer/model/expressions"
+import { binding_marker, resolver_field } from "./const"
+
+import type { State, Node } from "../../ast/context/model"
+
+export type Input = {
+    state: State,
+    module: u32,
+    member: u8[]
+}
+
+export type Output = Node
+
+export default function (in: Input): Output {
+    const marker = bytes.fromText(binding_marker)
+
+    const name = text({
+        state: in.state,
+        kind: ExpressionsKind.String,
+        value: marker
+    })
+
+    const ordinary = builtin({
+        state: name.state,
+        name: ExpressionsBuiltinName.HasDecl,
+        arguments: [
+            in.module,
+            name.id
+        ]
+    })
+
+    const namespace = field({
+        state: ordinary.state,
+        target: in.module,
+        name: marker
+    })
+
+    const direct = field({
+        state: namespace.state,
+        target: namespace.id,
+        name: in.member
+    })
+
+    const resolver = field({
+        state: direct.state,
+        target: in.module,
+        name: bytes.fromText(resolver_field)
+    })
+
+    const member = text({
+        state: resolver.state,
+        kind: ExpressionsKind.String,
+        value: in.member
+    })
+
+    const resolved = call({
+        state: member.state,
+        callee: resolver.id,
+        arguments: [member.id],
+        fallible: false
+    })
+
+    return conditional({
+        state: resolved.state,
+        condition: ordinary.id,
+        yes: direct.id,
+        no: resolved.id
+    })
+}

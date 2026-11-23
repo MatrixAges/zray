@@ -31,6 +31,7 @@ pub fn load(io: std.Io, scratch: std.mem.Allocator, owned: std.mem.Allocator, re
             .specifier = try resident.retainText(owned, job.name),
             .path = try resident.retainText(owned, entry.path),
             .source = source,
+            .namespace = if (entry.resolve_members == true) &.{compiler.native_lookup.marker} else &.{},
             .module = try resident.retainText(owned, entry.module),
         };
     }

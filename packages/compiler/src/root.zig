@@ -4,6 +4,7 @@ const lint = @import("lint");
 const frontend = @import("frontend");
 pub const ir = zx.ir;
 pub const bytes = zx.bytes;
+pub const native_lookup = zx.native_lookup;
 pub const parallel = zx.parallel;
 pub const input_snapshot = @import("inputs/snapshot.zig");
 pub const input_fingerprint = @import("inputs/fingerprint.zig");

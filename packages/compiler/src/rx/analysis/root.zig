@@ -4,389 +4,67 @@ pub const module = @import("module.zig");
 pub const project = @import("project.zig");
 pub const store = @import("store.zig");
 pub const gateway = @import("gateway.zig");
-const infer = @import("project/workflow/infer/host.zig");
-const derive = @import("project/workflow/derive/host.zig");
-const solve = @import("project/workflow/solve/host.zig");
-pub const normalizeProjectSources = infer.normalizeProjectSources;
-pub const restoreDerivedFrame = infer.restoreDerivedFrame;
-pub const deriveProjectFrame = infer.deriveProjectFrame;
-pub const compileProjectBodies = infer.compileProjectBodies;
-pub const publishInferredStores = infer.publishInferredStores;
-pub const prepareDerivedModules = derive.prepareDerivedModules;
-pub const collectDerivedGraph = derive.collectDerivedGraph;
-pub const orderDerivedSignatures = derive.orderDerivedSignatures;
-pub const restoreDerivedSignatures = derive.restoreDerivedSignatures;
-pub const analyzeDerivedSignatures = derive.analyzeDerivedSignatures;
-pub const indexDerivedSignatures = derive.indexDerivedSignatures;
-pub const loadDerivedStores = derive.loadDerivedStores;
-pub const prepareDerivedFlow = derive.prepareDerivedFlow;
-pub const solveDerivedFlow = derive.solveDerivedFlow;
-pub const completeDerivedShortcuts = derive.completeDerivedShortcuts;
-pub const publishDerivedFrame = derive.publishDerivedFrame;
-pub const openFlowPorts = solve.openFlowPorts;
-pub const releaseFlowDeclarations = solve.releaseFlowDeclarations;
-pub const openFlowCollection = solve.openFlowCollection;
-pub const releaseFlowCollection = solve.releaseFlowCollection;
-pub const openFlowSolver = solve.openFlowSolver;
-pub const releaseFlowPending = solve.releaseFlowPending;
-pub const bindFlowSignatures = solve.bindFlowSignatures;
-pub const publishFlowSignatures = solve.publishFlowSignatures;
-const inference_solver = @import("inference/solve/host.zig");
-pub const solveRevision = inference_solver.solveRevision;
-pub const refreshSolverBindings = inference_solver.refreshSolverBindings;
-pub const refreshSolverNonNull = inference_solver.refreshSolverNonNull;
-pub const refreshSolverLengths = inference_solver.refreshSolverLengths;
-pub const refreshSolverIndexes = inference_solver.refreshSolverIndexes;
-pub const refreshSolverSequences = inference_solver.refreshSolverSequences;
-pub const refreshSolverObjects = inference_solver.refreshSolverObjects;
-pub const refreshSolverAssignments = inference_solver.refreshSolverAssignments;
-pub const refreshSolverValidation = inference_solver.refreshSolverValidation;
-const type_resolution = @import("inference/resolve/host.zig");
-pub const reserveResolveFrames = type_resolution.reserveResolveFrames;
-pub const reserveResolveValues = type_resolution.reserveResolveValues;
-pub const reportResolveFailure = type_resolution.reportResolveFailure;
-pub const prepareResolveConstruction = type_resolution.prepareResolveConstruction;
-pub const reportResolveConstruction = type_resolution.reportResolveConstruction;
-pub const bindResolvedType = type_resolution.bindResolvedType;
-pub const finishResolveConstruction = type_resolution.finishResolveConstruction;
-pub const refreshAssignmentTypes = inference_solver.refreshAssignmentTypes;
-const assignment_application = @import("inference/assignment/application/host.zig");
-pub const beginInitialAssignmentPayloads = assignment_application.beginInitialAssignmentPayloads;
-pub const beginRegisteredAssignmentPayloads = assignment_application.beginRegisteredAssignmentPayloads;
-pub const registerAssignmentPayload = assignment_application.registerAssignmentPayload;
-pub const remainingAssignmentDepth = assignment_application.remainingAssignmentDepth;
-pub const rejectAssignmentDepth = assignment_application.rejectAssignmentDepth;
-pub const mergeAssignmentClass = assignment_application.mergeAssignmentClass;
-pub const assignmentRevision = assignment_application.assignmentRevision;
-pub const reserveAssignmentClasses = assignment_application.reserveAssignmentClasses;
-pub const releaseAssignmentRanks = assignment_application.releaseAssignmentRanks;
-pub const reserveAssignmentDepths = assignment_application.reserveAssignmentDepths;
-pub const reserveDeferredAssignments = assignment_application.reserveDeferredAssignments;
-pub const reserveAssignmentOptional = assignment_application.reserveAssignmentOptional;
-const known_registration = @import("inference/known/host.zig");
-pub const reserveKnownNodes = known_registration.reserveKnownNodes;
-pub const reserveKnownIndex = known_registration.reserveKnownIndex;
-pub const refreshKnownRegistry = known_registration.refreshKnownRegistry;
-pub const rejectKnownType = known_registration.rejectKnownType;
-const assignment_registration = @import("inference/assignment/registration/host.zig");
-pub const growAssignmentRows = assignment_registration.growAssignmentRows;
-pub const registerAssignmentTarget = assignment_registration.registerAssignmentTarget;
-const scope_registration = @import("inference/scope/collisions.zig");
-pub const reserveScopeCollisions = scope_registration.reserveScopeCollisions;
-pub const reserveScopeBindings = scope_registration.reserveScopeBindings;
-pub const rejectScopeCollision = scope_registration.rejectScopeCollision;
-const scope_lookup = @import("inference/scope/read.zig");
-pub const reserveScopeLookupNode = scope_lookup.reserveScopeLookupNode;
-pub const reserveScopeLookupRow = scope_lookup.reserveScopeLookupRow;
-const unification_walk = @import("inference/unify/host.zig");
-pub const walkUnificationFrames = unification_walk.walkUnificationFrames;
-pub const prepareUnificationFrame = unification_walk.prepareUnificationFrame;
-pub const appendUnificationFrame = unification_walk.appendUnificationFrame;
-pub const alignUnificationFields = unification_walk.alignUnificationFields;
-pub const popUnificationFrame = unification_walk.popUnificationFrame;
-pub const mergeUnificationFields = unification_walk.mergeUnificationFields;
-pub const commitUnification = unification_walk.commitUnification;
-pub const internUnificationType = unification_walk.internUnificationType;
-pub const reportUnification = unification_walk.reportUnification;
-pub const updateObjectReadiness = @import("inference/object_closure/host.zig").updateObjectReadiness;
-pub const finishObjectRow = @import("inference/object_closure/replay.zig").finishObjectRow;
-pub const openConstructionRow = @import("inference/construction/object.zig").openConstructionRow;
-const object_selection = @import("inference/selection/host.zig");
-pub const openSelectionRow = object_selection.openSelectionRow;
-const object_field_replay = @import("inference/fields/replay.zig");
-pub const refreshObjectReplayFields = object_field_replay.refreshObjectReplayFields;
-pub const expectObjectReplayField = object_field_replay.expectObjectReplayField;
-pub const registerDeclaredReplayFields = object_field_replay.registerDeclaredReplayFields;
-pub const unifyReplayFields = object_field_replay.unifyReplayFields;
-pub const reportReplayFieldError = object_field_replay.reportReplayFieldError;
-const field_access = @import("inference/fields/host.zig");
-pub const addFieldNode = field_access.addFieldNode;
-pub const bindFieldColumns = @import("inference/fields.zig").bindFieldColumns;
-pub const registerFieldType = field_access.registerFieldType;
-pub const appendLengthProjection = field_access.appendLengthProjection;
-pub const requireFieldList = field_access.requireFieldList;
-pub const rejectFieldAccess = field_access.rejectFieldAccess;
-const field_merge = @import("inference/unification/fields.zig");
-pub const reserveFieldAlignmentIndex = field_merge.reserveFieldAlignmentIndex;
-const constructed_object = @import("inference/construction/object.zig");
-pub const reserveObjectSpreadColumns = constructed_object.reserveObjectSpreadColumns;
-pub const bindObjectSpreadFields = constructed_object.bindObjectSpreadFields;
-pub const registerConstructedSource = constructed_object.registerConstructedSource;
-pub const describeConstructedTarget = constructed_object.describeConstructedTarget;
-pub const inferConstructedField = constructed_object.inferConstructedField;
-pub const reportObjectConstruction = constructed_object.reportObjectConstruction;
-const binding_replay = @import("inference/bindings/host.zig");
-pub const unifyBindingReplay = binding_replay.unifyBindingReplay;
-pub const refreshBindingTopology = binding_replay.refreshBindingTopology;
-pub const reportBindingName = binding_replay.reportBindingName;
-pub const reserveBindingUse = @import("inference/bindings/require.zig").reserveBindingUse;
-const non_null_replay = @import("inference/non_null/host.zig");
-pub const mergeNonNullProjection = non_null_replay.mergeNonNullProjection;
-pub const refreshNonNullTopology = non_null_replay.refreshNonNullTopology;
-pub const registerNonNullPayload = non_null_replay.registerNonNullPayload;
-pub const reserveNonNullSource = non_null_replay.reserveNonNullSource;
-const non_null_read = @import("inference/non_null/read.zig");
-pub const registerGuardedPayload = non_null_read.registerGuardedPayload;
-pub const reserveNonNullNode = non_null_read.reserveNonNullNode;
-pub const reserveNonNullProjection = non_null_read.reserveNonNullProjection;
-const optional_query = @import("inference/optional/host.zig");
-pub const registerOptionalPayload = optional_query.registerOptionalPayload;
-pub const refreshOptionalQuery = optional_query.refreshOptionalQuery;
-pub const remainingOptionalDepth = optional_query.remainingOptionalDepth;
-pub const reportOptionalDepth = optional_query.reportOptionalDepth;
-const sequence_replay = @import("inference/sequences/host.zig");
-pub const borrowSequenceElementSpans = sequence_replay.borrowSequenceElementSpans;
-pub const expectSequenceMembers = sequence_replay.expectSequenceMembers;
-const length_replay = @import("inference/projections/host.zig");
-pub const registerProjectionType = length_replay.registerProjectionType;
-pub const mergeProjection = length_replay.mergeProjection;
-pub const requireProjectionList = length_replay.requireProjectionList;
-pub const readOpenLength = length_replay.readOpenLength;
-pub const rejectProjection = length_replay.rejectProjection;
-pub const rejectUnsupportedProjection = length_replay.rejectUnsupportedProjection;
-const index_replay = @import("inference/index/host.zig");
-pub const appendIndexProjection = index_replay.appendIndexProjection;
-const ports = @import("project/constraints/ports/host.zig");
-pub const reservePortNodes = ports.reservePortNodes;
-pub const internPortType = ports.internPortType;
-const collection = @import("project/constraints/collection/host.zig");
-pub const openConstraintModule = collection.openConstraintModule;
-pub const releaseConstraintScope = collection.releaseConstraintScope;
-pub const forwardConstraintShortcut = collection.forwardConstraintShortcut;
-pub const inferConstraintBody = collection.inferConstraintBody;
-pub const defaultConstraintOutput = collection.defaultConstraintOutput;
-pub const constraintInputUsed = collection.constraintInputUsed;
-pub const constraintBindingEnd = collection.constraintBindingEnd;
-pub const constraintTaskEnd = collection.constraintTaskEnd;
-pub const openConstraintDefaults = collection.openConstraintDefaults;
-pub const constraintVoidNode = collection.constraintVoidNode;
-pub const defaultConstraintInput = collection.defaultConstraintInput;
-const flow_traversal = @import("project/flow/traversal/host.zig");
-pub const refreshFlowCursor = flow_traversal.refreshFlowCursor;
-pub const saveFlowCursor = flow_traversal.saveFlowCursor;
-pub const flowBindingCount = flow_traversal.flowBindingCount;
-pub const restoreFlowBindings = flow_traversal.restoreFlowBindings;
-pub const prepareFlowCall = flow_traversal.prepareFlowCall;
-pub const bindFlowGetters = flow_traversal.bindFlowGetters;
-pub const evaluateFlowArgument = flow_traversal.evaluateFlowArgument;
-pub const createFlowUnitArgument = flow_traversal.createFlowUnitArgument;
-pub const publishFlowCall = flow_traversal.publishFlowCall;
-pub const evaluateFlowReturn = flow_traversal.evaluateFlowReturn;
-pub const publishFlowReturn = flow_traversal.publishFlowReturn;
-pub const openFlowTask = flow_traversal.openFlowTask;
-pub const openFlowParallel = flow_traversal.openFlowParallel;
-pub const openFlowSelection = flow_traversal.openFlowSelection;
-pub const flowCaseIsDefault = flow_traversal.flowCaseIsDefault;
-pub const evaluateFlowCaseLabel = flow_traversal.evaluateFlowCaseLabel;
-pub const evaluateFlowDefaultCase = flow_traversal.evaluateFlowDefaultCase;
-pub const refineFlowCase = flow_traversal.refineFlowCase;
-pub const pushFlowCase = flow_traversal.pushFlowCase;
-pub const prepareFlowTaskOutput = flow_traversal.prepareFlowTaskOutput;
-pub const evaluateFlowTaskOutput = flow_traversal.evaluateFlowTaskOutput;
-pub const inferParallelTaskOutput = flow_traversal.inferParallelTaskOutput;
-pub const requestParallelTaskOutput = flow_traversal.requestParallelTaskOutput;
-pub const restoreParallelTaskReturn = flow_traversal.restoreParallelTaskReturn;
-pub const savedTaskBindings = flow_traversal.savedTaskBindings;
-pub const publishFlowTaskOutput = flow_traversal.publishFlowTaskOutput;
-pub const closeFlowParallel = flow_traversal.closeFlowParallel;
-pub const closeFlowSelection = flow_traversal.closeFlowSelection;
-pub const closeFlowCase = flow_traversal.closeFlowCase;
-pub const popFlowFrame = flow_traversal.popFlowFrame;
 const parallel_task = @import("parallel_task.zig");
-pub const compileParallelTaskBody = parallel_task.compileParallelTaskBody;
-pub const checkParallelTaskCalls = parallel_task.checkParallelTaskCalls;
-pub const resolveParallelTaskCaptures = parallel_task.resolveParallelTaskCaptures;
-pub const lowerParallelTaskProgram = parallel_task.lowerParallelTaskProgram;
-pub const checkParallelTaskProgram = parallel_task.checkParallelTaskProgram;
-pub const analyzeParallelTaskOwnership = parallel_task.analyzeParallelTaskOwnership;
-pub const validateParallelTaskProgram = parallel_task.validateParallelTaskProgram;
-pub const buildParallelTaskArgument = parallel_task.buildParallelTaskArgument;
-pub const publishParallelTask = parallel_task.publishParallelTask;
-const body_host = @import("program/statements/traversal/host.zig");
-pub const reserveBodyStatements = body_host.reserveBodyStatements;
-pub const selectBodyWriter = body_host.selectBodyWriter;
-pub const bodyBindingCount = body_host.bodyBindingCount;
-pub const restoreBodyBindings = body_host.restoreBodyBindings;
-pub const saveBodyScope = body_host.saveBodyScope;
-pub const restoreBodyScope = body_host.restoreBodyScope;
-pub const evaluateBodyValue = body_host.evaluateBodyValue;
-pub const defineBodyTaskBinding = body_host.defineBodyTaskBinding;
-pub const publishBodyBinding = body_host.publishBodyBinding;
-pub const evaluateBodyCaseLabel = body_host.evaluateBodyCaseLabel;
-pub const initializeBodyCase = body_host.initializeBodyCase;
-const body_call = @import("program/statements/traversal/call.zig");
-pub const bodyScopeValue = body_host.bodyScopeValue;
-pub const bodySelectionSubject = body_host.bodySelectionSubject;
-pub const requireBodyBlock = body_host.requireBodyBlock;
-pub const registerBodyCallResult = body_call.registerBodyCallResult;
-pub const prepareBodyCall = body_call.prepareBodyCall;
-pub const bindBodyGetters = body_call.bindBodyGetters;
-pub const evaluateBodyArgument = body_call.evaluateBodyArgument;
-pub const createBodyUnitArgument = body_call.createBodyUnitArgument;
-pub const resolveBodyCallStores = body_call.resolveBodyCallStores;
-pub const prepareBodyImport = body_call.prepareBodyImport;
-pub const appendBodyFunctionTail = body_call.appendBodyFunctionTail;
-pub const bodyHasInitializers = body_call.bodyHasInitializers;
-pub const linkBodyInitializers = body_call.linkBodyInitializers;
-pub const appendBodyFunctionEntry = body_call.appendBodyFunctionEntry;
-pub const emitBodyCall = body_call.emitBodyCall;
-const expression_link_host = @import("program/linking/host.zig");
-pub const reserveExpressionLink = expression_link_host.reserveExpressionLink;
-pub const prepareLinkSymbols = expression_link_host.prepareLinkSymbols;
-pub const commitLinkSymbols = expression_link_host.commitLinkSymbols;
-pub const prepareLinkLiterals = expression_link_host.prepareLinkLiterals;
-pub const commitLinkLiterals = expression_link_host.commitLinkLiterals;
-pub const commitExpressionLink = expression_link_host.commitExpressionLink;
-const expression_operands = @import("program/linking/operands/host.zig");
-pub const bindExpressionOperands = expression_operands.bindExpressionOperands;
-pub const expressionOperandWords = expression_operands.expressionOperandWords;
-pub const expressionOperandBytes = expression_operands.expressionOperandBytes;
-pub const requireExpressionOperand = expression_operands.requireExpressionOperand;
 const mixed = @import("project/mixed.zig");
-pub const mixedBatchEnd = mixed.mixedBatchEnd;
-pub const prefetchMixedWindow = mixed.prefetchMixedWindow;
 const ahead = @import("project/mixed/ahead.zig");
-pub const reserveMixedWorkers = ahead.reserveMixedWorkers;
-pub const mixedResultIsZX = ahead.mixedResultIsZX;
-pub const releaseMixedZXResult = ahead.releaseMixedZXResult;
-pub const clearMixedResults = ahead.clearMixedResults;
-pub const resetMixedWorker = ahead.resetMixedWorker;
-pub const resetMixedBindings = ahead.resetMixedBindings;
-pub const openMixedCandidate = ahead.openMixedCandidate;
-pub const prepareMixedZXCandidate = ahead.prepareMixedZXCandidate;
-pub const prepareMixedRXCandidate = ahead.prepareMixedRXCandidate;
-pub const recordMixedCandidate = ahead.recordMixedCandidate;
-pub const restoreMixedCandidateDiagnostic = ahead.restoreMixedCandidateDiagnostic;
-pub const preparedMixedPositions = ahead.preparedMixedPositions;
-pub const executeMixedWorkers = ahead.executeMixedWorkers;
-pub const preparedMixedIsZX = ahead.preparedMixedIsZX;
-pub const runPreparedMixedZX = ahead.runPreparedMixedZX;
-pub const runPreparedMixedRX = ahead.runPreparedMixedRX;
 const callees = @import("project/mixed/callees.zig");
-pub const importMixedCallee = callees.importMixedCallee;
-pub const compileMixedSetter = callees.compileMixedSetter;
-pub const restoreMixedCalleeOwner = callees.restoreMixedCalleeOwner;
-pub const rejectMixedCallee = callees.rejectMixedCallee;
 const imports = @import("project/mixed/imports.zig");
-pub const selectMixedImport = imports.selectMixedImport;
-pub const reserveMixedImportBindings = imports.reserveMixedImportBindings;
-pub const appendMixedImportBinding = imports.appendMixedImportBinding;
-const body_link = @import("project/mixed/body/link.zig");
-pub const appendMixedBodyLink = body_link.appendMixedBodyLink;
-pub const confirmMixedBodyLink = body_link.confirmMixedBodyLink;
-pub const rejectMixedBodyLink = body_link.rejectMixedBodyLink;
-const mixed_zx = @import("project/mixed/zx.zig");
-pub const openMixedZXPreparation = mixed_zx.openMixedZXPreparation;
-pub const checkMixedZXPreparation = mixed_zx.checkMixedZXPreparation;
-pub const bindMixedZXPreparation = mixed_zx.bindMixedZXPreparation;
-pub const analyzeMixedZXBody = mixed_zx.analyzeMixedZXBody;
-pub const reportMixedZXBody = mixed_zx.reportMixedZXBody;
-pub const mixedZXSetterDeclared = mixed_zx.mixedZXSetterDeclared;
-pub const mixedZXSetterSlots = mixed_zx.mixedZXSetterSlots;
-pub const rejectMixedZXSetter = mixed_zx.rejectMixedZXSetter;
-pub const installMixedZXSetter = mixed_zx.installMixedZXSetter;
-pub const linkMixedZXBody = mixed_zx.linkMixedZXBody;
-const mixed_rx = @import("project/mixed/rx.zig");
-pub const bindMixedRXBody = mixed_rx.bindMixedRXBody;
-pub const lowerMixedRXBody = mixed_rx.lowerMixedRXBody;
-pub const reportMixedRXBody = mixed_rx.reportMixedRXBody;
-pub const linkMixedRXBody = mixed_rx.linkMixedRXBody;
-pub const restoreMixedPrefix = mixed.restoreMixedPrefix;
-pub const selectMixedBody = mixed.selectMixedBody;
-pub const rejectMixedBody = mixed.rejectMixedBody;
-pub const preparedMixedZXRow = mixed.preparedMixedZXRow;
-pub const acceptsPreparedMixedZX = mixed.acceptsPreparedMixedZX;
-pub const retirePreparedMixedZX = mixed.retirePreparedMixedZX;
-pub const linkPreparedMixedZX = mixed.linkPreparedMixedZX;
-pub const analyzeMixedZX = mixed.analyzeMixedZX;
-pub const acceptedPreparedMixedRX = mixed.acceptedPreparedMixedRX;
-pub const linkPreparedMixedRX = mixed.linkPreparedMixedRX;
-pub const lowerMixedRX = mixed.lowerMixedRX;
-pub const skipMixedBody = mixed.skipMixedBody;
-pub const recordMixedBody = mixed.recordMixedBody;
-pub const materializeMixedModule = mixed.materializeMixedModule;
-pub const publishMixedObservations = mixed.publishMixedObservations;
-pub const publishMixedExports = mixed.publishMixedExports;
-pub const retainMixedHistory = mixed.retainMixedHistory;
-const mixed_state = @import("project/mixed/state.zig");
-pub const installMixedTypes = mixed_state.installMixedTypes;
-pub const installMixedNatives = mixed_state.installMixedNatives;
-pub const openMixedResults = mixed_state.openMixedResults;
-pub const installMixedOrigins = mixed_state.installMixedOrigins;
-pub const installMixedSignatures = mixed_state.installMixedSignatures;
-pub const installMixedInitializers = mixed_state.installMixedInitializers;
-const mixed_publication = @import("project/mixed/publication.zig");
-pub const installMixedTypeEntry = mixed_publication.installMixedTypeEntry;
-pub const installMixedFunctionEntry = mixed_publication.installMixedFunctionEntry;
-pub const rejectMixedEntry = mixed_publication.rejectMixedEntry;
-const mixed_exports = @import("project/mixed/exports.zig");
-pub const installMixedExport = mixed_exports.installMixedExport;
-pub const rejectMixedExport = mixed_exports.rejectMixedExport;
-const mixed_metadata = @import("project/mixed/metadata.zig");
-pub const capturedMixedCallFunctions = mixed_metadata.capturedMixedCallFunctions;
-pub const detachMixedCall = mixed_metadata.detachMixedCall;
-pub const mixedCallNeedsPrefix = mixed_metadata.mixedCallNeedsPrefix;
-pub const restoreMixedCallPrefix = mixed_metadata.restoreMixedCallPrefix;
-pub const restoreMixedCallContext = mixed_metadata.restoreMixedCallContext;
-pub const restoreMixedReturnContext = mixed_metadata.restoreMixedReturnContext;
-pub const historyBodyOpening = @import("project/history/admission.zig").historyBodyOpening;
-const history_comparison = @import("project/mixed/history/comparison.zig");
-pub const matchHistoryLink = history_comparison.matchHistoryLink;
-pub const matchHistoryHeaders = history_comparison.matchHistoryHeaders;
-pub const matchHistoryBodies = history_comparison.matchHistoryBodies;
 const store_view = @import("project/mixed/history/store_view.zig");
-pub const historyStoreNode = store_view.historyStoreNode;
-pub const historyXmlNodesShare = store_view.historyXmlNodesShare;
-pub const historyNodeName = store_view.historyNodeName;
-pub const historyNodePosition = store_view.historyNodePosition;
-pub const historyNodeRows = store_view.historyNodeRows;
-pub const historyNodeAt = store_view.historyNodeAt;
-pub const historyAttributeAt = store_view.historyAttributeAt;
-pub const historyTextAt = store_view.historyTextAt;
-pub const historyXmlRowCount = store_view.historyXmlRowCount;
-pub const historyXmlRowsShare = store_view.historyXmlRowsShare;
-pub const historyAttributeIsExpression = store_view.historyAttributeIsExpression;
-pub const historyAttributeName = store_view.historyAttributeName;
-pub const historyAttributeValue = store_view.historyAttributeValue;
-pub const historyAttributeRaw = store_view.historyAttributeRaw;
-pub const historyAttributePosition = store_view.historyAttributePosition;
-pub const historyTextValue = store_view.historyTextValue;
-pub const historyTextPosition = store_view.historyTextPosition;
-const graph_construction = @import("project/source_graph/construct.zig");
-pub const sourceGraphPath = graph_construction.sourceGraphPath;
-pub const claimSourceGraphPath = graph_construction.claimSourceGraphPath;
-pub const rejectSourceGraphPath = graph_construction.rejectSourceGraphPath;
-pub const resolveSourceGraphEntry = graph_construction.resolveSourceGraphEntry;
-pub const allocateSourceGraphRoots = graph_construction.allocateSourceGraphRoots;
-pub const writeSourceGraphRootRange = graph_construction.writeSourceGraphRootRange;
-pub const writeSourceGraphRoot = graph_construction.writeSourceGraphRoot;
-pub const finishSourceGraphRoots = graph_construction.finishSourceGraphRoots;
-pub const scanSourceGraph = graph_construction.scanSourceGraph;
-pub const orderSourceGraph = graph_construction.orderSourceGraph;
-pub const publishSourceGraphParses = graph_construction.publishSourceGraphParses;
-pub const publishSourceGraph = graph_construction.publishSourceGraph;
-const graph_visit = @import("project/source_graph/scan.zig");
-pub const firstSourceGraphVisit = graph_visit.firstSourceGraphVisit;
-pub const readSourceGraphZX = graph_visit.readSourceGraphZX;
-pub const readSourceGraphRX = graph_visit.readSourceGraphRX;
-pub const finishSourceGraphVisit = graph_visit.finishSourceGraphVisit;
-const graph_edges = @import("project/source_graph/references/registered.zig");
-pub const linkSourceGraphEdge = graph_edges.linkSourceGraphEdge;
-pub const appendSourceGraphEdge = graph_edges.appendSourceGraphEdge;
-pub const markSourceGraphCompiled = graph_edges.markSourceGraphCompiled;
-pub const rejectSourceGraphEdge = graph_edges.rejectSourceGraphEdge;
-const graph_edge_scan = @import("project/source_graph/references/scan.zig");
-pub const growSourceGraphPath = graph_edge_scan.growSourceGraphPath;
-pub const rejectSourceGraphReference = graph_edge_scan.rejectSourceGraphReference;
-pub const resolveSourceGraphReference = graph_edge_scan.resolveSourceGraphReference;
-pub const sourceGraphInternal = graph_edge_scan.sourceGraphInternal;
-pub const appendSourceGraphNative = graph_edge_scan.appendSourceGraphNative;
-pub const resolveSourceGraphImport = graph_edge_scan.resolveSourceGraphImport;
-const store_initializer = @import("store/initializer/host.zig");
-pub const prepareStoreInitializer = store_initializer.prepareStoreInitializer;
-pub const evaluateStoreField = store_initializer.evaluateStoreField;
-pub const recordStoreField = store_initializer.recordStoreField;
-pub const linkStoreField = store_initializer.linkStoreField;
-pub const releaseStoreField = store_initializer.releaseStoreField;
-pub const resolveStoreInitializer = store_initializer.resolveStoreInitializer;
-pub const finishStoreInitializer = store_initializer.finishStoreInitializer;
+
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    @import("inference/assignment/application/host.zig"),
+    @import("inference/assignment/registration/host.zig"),
+    @import("inference/bindings/host.zig"),
+    @import("inference/bindings/require.zig"),
+    @import("inference/construction/object.zig"),
+    @import("inference/fields.zig"),
+    @import("inference/fields/host.zig"),
+    @import("inference/fields/replay.zig"),
+    @import("inference/index/host.zig"),
+    @import("inference/known/host.zig"),
+    @import("inference/non_null/host.zig"),
+    @import("inference/non_null/read.zig"),
+    @import("inference/object_closure/host.zig"),
+    @import("inference/object_closure/replay.zig"),
+    @import("inference/optional/host.zig"),
+    @import("inference/projections/host.zig"),
+    @import("inference/resolve/host.zig"),
+    @import("inference/scope/collisions.zig"),
+    @import("inference/scope/read.zig"),
+    @import("inference/selection/host.zig"),
+    @import("inference/sequences/host.zig"),
+    @import("inference/solve/host.zig"),
+    @import("inference/unification/fields.zig"),
+    @import("inference/unify/host.zig"),
+    @import("parallel_task.zig"),
+    @import("program/linking/host.zig"),
+    @import("program/linking/operands/host.zig"),
+    @import("program/statements/traversal/call.zig"),
+    @import("program/statements/traversal/host.zig"),
+    @import("project/constraints/collection/host.zig"),
+    @import("project/constraints/ports/host.zig"),
+    @import("project/flow/traversal/host.zig"),
+    @import("project/history/admission.zig"),
+    @import("project/mixed.zig"),
+    @import("project/mixed/ahead.zig"),
+    @import("project/mixed/body/link.zig"),
+    @import("project/mixed/callees.zig"),
+    @import("project/mixed/exports.zig"),
+    @import("project/mixed/history/comparison.zig"),
+    @import("project/mixed/history/store_view.zig"),
+    @import("project/mixed/imports.zig"),
+    @import("project/mixed/metadata.zig"),
+    @import("project/mixed/publication.zig"),
+    @import("project/mixed/rx.zig"),
+    @import("project/mixed/state.zig"),
+    @import("project/mixed/zx.zig"),
+    @import("project/source_graph/construct.zig"),
+    @import("project/source_graph/references/registered.zig"),
+    @import("project/source_graph/references/scan.zig"),
+    @import("project/source_graph/scan.zig"),
+    @import("project/workflow/derive/host.zig"),
+    @import("project/workflow/infer/host.zig"),
+    @import("project/workflow/solve/host.zig"),
+    @import("store/initializer/host.zig"),
+}).resolve;

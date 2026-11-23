@@ -47,6 +47,7 @@ export default function (in: Input): Output {
 
     return {
         expressions: result.state.expressions,
+        forms: result.state.forms,
         statements: {
             tags: final.tags.push(StatementsKind.Result)[0],
             offsets: final.offsets.push(0)[0],

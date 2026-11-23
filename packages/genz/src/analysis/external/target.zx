@@ -1,0 +1,47 @@
+import bytes from "std:bytes"
+
+import field from "../../ast/context/field"
+import binding from "./binding"
+import { binding_marker } from "./const"
+
+import type { State, Node } from "../../ast/context/model"
+
+export type Input = {
+    state: State,
+    module: u32,
+    path: u8[][]
+}
+
+export type Output = Node
+
+export default function (in: Input): Output {
+    if (
+        in.path.length == 2 &&
+            bytes.equals(in.path[0], bytes.fromText(binding_marker))
+    ) {
+        return binding({
+            state: in.state,
+            module: in.module,
+            member: in.path[1]
+        })
+    }
+
+    return loop({
+        node: {
+            state: in.state,
+            id: in.module
+        },
+        index: 0
+    }, {
+        while: current => current.node.state.valid && current.index < in.path.length,
+        next: current => {
+            current.node = field({
+                state: current.node.state,
+                target: current.node.id,
+                name: in.path[current.index]
+            })
+            current.index += 1
+        },
+        return: current => current.node
+    })
+}

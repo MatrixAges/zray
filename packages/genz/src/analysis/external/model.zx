@@ -1,4 +1,5 @@
 import type { Input as Bases, State as Context } from "../../ast/context/model"
+import type { Columns as Forms } from "../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../ast/expressions/model"
 import type { StatementsKind } from "../../printer/model/statements"
 
@@ -45,6 +46,7 @@ export type Statements = {
 
 export type Output = {
     expressions: Expressions,
+    forms: Forms,
     statements: Statements,
     uses_allocator: bool,
     valid: bool

@@ -86,11 +86,11 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     };
 
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
-        .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host" },
-        .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host" },
+        .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host" },
-        .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host" },
-        .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host" },
+        .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
         .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host" },
         .{ .path = b.fmt("{s}/backends/zig/state/publication/host.d.zx", .{directories[0]}), .module = "state_publication_host" },
@@ -139,7 +139,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             },
         };
 
-        const content = std.json.Stringify.valueAlloc(b.allocator, project, .{}) catch @panic("out of memory");
+        const content = std.json.Stringify.valueAlloc(b.allocator, project, .{ .emit_null_optional_fields = false }) catch @panic("out of memory");
 
         run.addArg("--manifest");
 

@@ -5,6 +5,7 @@ pub const ir = @import("ir.zig");
 pub const columns = @import("columns.zig");
 pub const memory = @import("memory");
 pub const error_effects = @import("error_effects.zig");
+pub const native_lookup = @import("native_lookup.zig");
 pub const parallel = @import("parallel.zig");
 pub const Arena = memory.ScratchArena;
 pub const bytes = @import("bytes.zig");
