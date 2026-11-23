@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Builder = @import("../builder.zig");
 const Request = @import("abi.zig").Request;
 const Input = std.meta.Child(@FieldType(Request, "symbols"));
@@ -17,6 +18,8 @@ pub const Frame = struct {
     ownership: []u8 = undefined,
     text: Text = undefined,
     ownership_view: std.meta.Child(@FieldType(Input, "ownership")) = undefined,
+    length_slots: [fields.len]*usize = undefined,
+    lengths: zx.memory.ColumnLengths = undefined,
     pub fn prepare(self: *Frame, builder: *Builder, source: *const ir.SymbolTable, first: usize, borrow_names: bool) Builder.Error!bool {
         const length = source.count() - first;
         const storage = &builder.symbols;
@@ -52,11 +55,14 @@ pub const Frame = struct {
         }
 
         self.ownership = std.mem.sliceAsBytes(storage.ownership.unusedCapacitySlice()[0..length]);
+        self.length_slots = zx.memory.borrowColumnLengths(storage);
+        self.lengths = &self.length_slots;
 
         self.input = .{
             .columns = self.pointers[0 .. metadata.len + @intFromBool(borrow_names)],
             .owned_text = if (borrow_names) null else &self.text,
             .ownership = &self.ownership_view,
+            .lengths = @ptrCast(&self.lengths),
         };
 
         self.ownership_view = .{
@@ -66,8 +72,5 @@ pub const Frame = struct {
         };
 
         return true;
-    }
-    pub fn commit(self: *const Frame, storage: *ir.SymbolStorage) void {
-        inline for (fields) |name| @field(storage, name).items.len += self.names.len;
     }
 };

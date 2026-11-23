@@ -147,7 +147,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/semantic/types/container.zx", .name = "rx_task_capture_admission", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/call/publish.rx", .name = "rx_link_call", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/store_get/publish.rx", .name = "rx_link_store_get", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/program/linking/write_header.zx", .name = "rx_link_expression_row", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/linking/direct.rx", .name = "rx_link_expression_row", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/control/plan.rx", .name = "rx_control_layout", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/store/read_slots.zx", .name = "rx_program_read_slots", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/store/bind.zx", .name = "rx_program_store_bind", .owner = .rx_analysis },

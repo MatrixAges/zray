@@ -20,16 +20,12 @@
 
     <If on={$ctx.prepareLinkSymbols}>
         <Call module="symbols/publish" in={$in.symbols} />
-
-        <Call fn="host.commitLinkSymbols" in={$in.frame} />
     </If>
 
     <Call fn="host.prepareLinkLiterals" in={$in.frame} />
 
     <If on={$ctx.prepareLinkLiterals}>
         <Call module="literals/write" in={$in.literals} />
-
-        <Call fn="host.commitLinkLiterals" in={$in.frame} />
     </If>
 
     <Loop on={$in.first < $in.columns.rows.length}>
@@ -45,7 +41,14 @@
     </Loop>
 
     <Call fn="headers" in={$in.headers} />
-    <Call fn="host.commitExpressionLink" in={$in.frame} />
+
+    <Call
+        fn="../../../../core/column_lengths/publish"
+        in={{
+            target: $in.lengths,
+            count: $ctx.plan.count
+        }}
+    />
 
     <Return value={$ctx.reserveExpressionLink} />
 </Module>

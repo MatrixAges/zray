@@ -29,6 +29,11 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
 
     const getters_view = Columns.init(getters);
     const header = headers.Tail.init(expressions, count);
+
+    const length_slots = zx.memory.borrowColumnLengths(symbols) ++
+        .{ &builder.bindings.items.len, &expressions.stores.items.len } ++ headers.lengthSlots(expressions);
+
+    const lengths: zx.memory.ColumnLengths = &length_slots;
     const names = symbols.names.unusedCapacitySlice()[0..count];
     const types = symbols.types.unusedCapacitySlice()[0..count];
     const starts = symbols.span_start.unusedCapacitySlice()[0..count];
@@ -65,17 +70,11 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
             .first_symbol = @intCast(symbols.count()),
             .first_expression = @intCast(expressions.count()),
         },
+        .lengths = @ptrCast(&lengths),
     };
 
     zx.columns.invoke(rule.executeValue, builder.allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
-
-    inline for (fields) |name| @field(symbols, name).items.len += count;
-
-    builder.bindings.items.len += count;
-    expressions.stores.items.len += count;
-
-    headers.commit(expressions, count);
 }

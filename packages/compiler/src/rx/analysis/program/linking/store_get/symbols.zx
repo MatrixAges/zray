@@ -3,7 +3,7 @@ import memory from "memory"
 
 import type { Input as Publication } from "./model"
 
-export type Input = Publication.Omit("expressions", "constants")
+export type Input = Publication.Pick("getters", "span", "symbols")
 
 export type Output = void
 

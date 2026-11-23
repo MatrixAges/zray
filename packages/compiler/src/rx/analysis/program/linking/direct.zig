@@ -13,21 +13,25 @@ pub fn unit(builder: *Builder, span: zx.Span) Builder.Error!ir.ExprId {
 
     const rule = @import("generated_rx_link_expression_row");
     const Input = std.meta.Child(rule.Input);
+    const Row = std.meta.Child(@FieldType(Input, "row"));
     const storage = &builder.expressions;
     const id: ir.ExprId = @fromBackingInt(@as(u32, @intCast(storage.count())));
 
     try storage.reserveHeaders(builder.allocator, 1);
 
     const columns = headers.Tail.init(storage, 1);
+    const slots = headers.lengthSlots(storage);
+    const lengths: zx.memory.ColumnLengths = &slots;
 
     try operands.invoke(rule, .{
-        .header = &columns.view(std.meta.Child(@FieldType(Input, "header"))),
-        .metadata = &.{ .type_id = @backingInt(type_id), .span_start = span.start, .span_end = span.end },
-        .kind = kindByte(.Unit),
-        .payload = 0,
+        .row = &.{
+            .header = &columns.view(std.meta.Child(@FieldType(Row, "header"))),
+            .metadata = &.{ .type_id = @backingInt(type_id), .span_start = span.start, .span_end = span.end },
+            .kind = kindByte(.Unit),
+            .payload = 0,
+        },
+        .extent = &.{ .target = @ptrCast(&lengths), .count = 1 },
     });
-
-    headers.commit(storage, 1);
 
     return id;
 }

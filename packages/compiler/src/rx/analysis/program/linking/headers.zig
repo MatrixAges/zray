@@ -28,10 +28,14 @@ pub const Tail = struct {
     }
 };
 
-pub fn commit(storage: *ir.ExpressionStorage, count: usize) void {
-    inline for (.{ "kinds", "payloads", "types", "span_start", "span_end" }) |name| {
-        @field(storage, name).items.len += count;
-    }
+const header_columns = .{ "kinds", "payloads", "types", "span_start", "span_end" };
+
+pub fn lengthSlots(storage: *ir.ExpressionStorage) [header_columns.len]*usize {
+    var slots: [header_columns.len]*usize = undefined;
+
+    inline for (header_columns, &slots) |name, *slot| slot.* = &@field(storage, name).items.len;
+
+    return slots;
 }
 
 pub fn publishSeed(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable, rows: []const u32, count: usize) void {
@@ -51,5 +55,5 @@ pub fn publishSeed(storage: *ir.ExpressionStorage, source: *const ir.ExpressionT
         target += 1;
     }
 
-    commit(storage, count);
+    inline for (header_columns) |name| @field(storage, name).items.len += count;
 }

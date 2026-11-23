@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Builder = @import("../../builder.zig");
 const invokeRule = @import("../operands.zig").invoke;
 const headers = @import("../headers.zig");
@@ -39,6 +40,14 @@ pub fn publish(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, 
     const arguments: []u32 = storage.call_arguments.unusedCapacitySlice()[0..1];
     const firsts: []u32 = storage.call_store_first.unusedCapacitySlice()[0..1];
     const counts: []u32 = storage.call_store_count.unusedCapacitySlice()[0..1];
+    var operand_slots: [operands.len]*usize = undefined;
+
+    inline for (operands, &operand_slots) |name, *slot| slot.* = &@field(storage, name).items.len;
+
+    const header_slots = headers.lengthSlots(storage);
+    const operand_lengths: zx.memory.ColumnLengths = &operand_slots;
+    const store_lengths: zx.memory.ColumnLengths = &.{&storage.call_stores.items.len};
+    const header_lengths: zx.memory.ColumnLengths = &header_slots;
 
     const input: Input = .{
         .row = &.{
@@ -61,15 +70,12 @@ pub fn publish(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, 
             },
             .count = store_count,
         },
+        .operands_extent = &.{ .target = @ptrCast(&operand_lengths), .count = 1 },
+        .stores_lengths = @ptrCast(&store_lengths),
+        .header_extent = &.{ .target = @ptrCast(&header_lengths), .count = 1 },
     };
 
     try invokeRule(generated, input);
-
-    inline for (operands) |name| @field(storage, name).items.len += 1;
-
-    storage.call_stores.items.len += store_count;
-
-    headers.commit(storage, 1);
 
     return id;
 }

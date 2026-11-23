@@ -1,5 +1,5 @@
-import type { U8Buffer } from "memory"
-import type { Input as Columns } from "../literals/model"
+import type { ColumnLengths, U8Buffer } from "memory"
+import type { Copy } from "../literals/model"
 
 export type Ownership = {
     rows: U8Buffer,
@@ -7,6 +7,7 @@ export type Ownership = {
     copy_tag: u8
 }
 
-export type Input = Columns & {
-    ownership: Ownership
+export type Input = Copy & {
+    ownership: Ownership,
+    lengths: ColumnLengths
 }

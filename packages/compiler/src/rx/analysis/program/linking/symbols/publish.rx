@@ -9,4 +9,12 @@
     <If on={$in.owned_text != null}>
         <Call fn="../../../../../core/owned_text/into" in={$in.owned_text} />
     </If>
+
+    <Call
+        fn="../../../../../core/column_lengths/publish"
+        in={{
+            target: $in.lengths,
+            count: $in.ownership.count
+        }}
+    />
 </Module>

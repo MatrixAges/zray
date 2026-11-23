@@ -796,14 +796,8 @@ export declare function reserveExpressionLink(frame: ExpressionLink, returned: u
 export declare function prepareLinkSymbols(frame: ExpressionLink): bool
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
-export declare function commitLinkSymbols(frame: ExpressionLink): void
-
 export declare function prepareLinkLiterals(frame: ExpressionLink): bool
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function commitLinkLiterals(frame: ExpressionLink): void
-
-export declare function commitExpressionLink(frame: ExpressionLink): void
 
 export declare function bindExpressionOperands(
     frame: ExpressionLink,

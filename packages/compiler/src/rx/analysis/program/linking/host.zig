@@ -19,7 +19,6 @@ pub const State = struct {
     program: *const ir.Program,
     borrow_text: bool,
     planning: bool = true,
-    count: usize = undefined,
     mapping: Mapping = undefined,
     symbols: symbol_link.Frame = .{},
     literals: literal_link.Frame = .{},
@@ -39,6 +38,8 @@ pub const State = struct {
 
 pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borrow_text: bool, allocator: std.mem.Allocator) Error!ir.ExprId {
     var state: State = .{ .builder = builder, .program = program, .borrow_text = borrow_text };
+    const slots = headers.lengthSlots(&builder.expressions);
+    const lengths: zx.memory.ColumnLengths = &slots;
     const target = builder.symbols.view();
     const table = &program.expressions;
     const control = block.control;
@@ -78,6 +79,7 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
         .payload = &state.payload,
         .operands = &state.operands.input,
         .headers = &state.header,
+        .lengths = @ptrCast(&lengths),
     };
 
     const result = abi.entry.executeValue(allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -104,8 +106,6 @@ pub fn reserveExpressionLink(handle: *const anyopaque, returned: ?u32, rows: []c
     state.planning = false;
 
     try storage.reserveHeaders(builder.allocator, length);
-
-    state.count = length;
 
     state.mapping = .{
         .bindings = bindings,
@@ -162,26 +162,8 @@ pub fn prepareLinkSymbols(handle: *const anyopaque) Error!bool {
     return state.symbols.prepare(state.builder, &state.program.symbols, state.mapping.bindings.len + 1, state.borrow_text);
 }
 
-pub fn commitLinkSymbols(handle: *const anyopaque) void {
-    const state = State.borrow(handle);
-
-    state.symbols.commit(&state.builder.symbols);
-}
-
 pub fn prepareLinkLiterals(handle: *const anyopaque) Error!bool {
     const state = State.borrow(handle);
 
     return state.literals.prepare(state.builder, &state.program.expressions, state.borrow_text);
-}
-
-pub fn commitLinkLiterals(handle: *const anyopaque) void {
-    const state = State.borrow(handle);
-
-    literal_link.Frame.commit(&state.builder.expressions, &state.program.expressions);
-}
-
-pub fn commitExpressionLink(handle: *const anyopaque) void {
-    const state = State.borrow(handle);
-
-    headers.commit(&state.builder.expressions, state.count);
 }

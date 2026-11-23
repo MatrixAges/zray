@@ -1,4 +1,4 @@
-import type { U8Buffer, U32Buffer } from "memory"
+import type { ColumnLengths, U8Buffer, U32Buffer } from "memory"
 import type { Getters } from "../../../store/bindings/model"
 import type {
     Expressions as Headers,
@@ -33,5 +33,6 @@ export type Snapshot = {
 export type Input = Snapshot & {
     expressions: Expressions,
     symbols: Symbols,
-    constants: Constants
+    constants: Constants,
+    lengths: ColumnLengths
 }

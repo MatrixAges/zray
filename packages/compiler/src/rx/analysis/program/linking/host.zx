@@ -2,10 +2,7 @@ export {readU32, readU8} from "memory"
 export {
     reserveExpressionLink,
     prepareLinkSymbols,
-    commitLinkSymbols,
     prepareLinkLiterals,
-    commitLinkLiterals,
-    commitExpressionLink,
     bindExpressionOperands,
     expressionOperandWords,
     expressionOperandBytes,

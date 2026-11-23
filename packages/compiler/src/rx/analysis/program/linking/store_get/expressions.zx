@@ -5,7 +5,7 @@ import write from "../../capture/expression"
 
 import type { Input as Publication } from "./model"
 
-export type Input = Publication.Omit("symbols", "constants")
+export type Input = Publication.Pick("expressions", "getters", "span")
 
 export type Output = void
 

@@ -6,4 +6,15 @@
     <Call fn="operands" in={$in.operands} />
     <Call fn="../operands/range" in={$in.stores} />
     <Call fn="../write_header" in={$in.row} />
+    <Call fn="../../../../../core/column_lengths/publish" in={$in.operands_extent} />
+
+    <Call
+        fn="../../../../../core/column_lengths/publish"
+        in={{
+            target: $in.stores_lengths,
+            count: $in.stores.count
+        }}
+    />
+
+    <Call fn="../../../../../core/column_lengths/publish" in={$in.header_extent} />
 </Module>

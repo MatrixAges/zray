@@ -1,3 +1,4 @@
+import type { ColumnLengths } from "memory"
 import type { ExpressionLink } from "rx_project_host"
 import type { Input as Headers } from "./headers"
 import type { Input as Literals } from "./literals/model"
@@ -13,5 +14,6 @@ export type Request = {
     literals: Literals,
     payload: Columns,
     operands: Operands,
-    headers: Headers
+    headers: Headers,
+    lengths: ColumnLengths
 }

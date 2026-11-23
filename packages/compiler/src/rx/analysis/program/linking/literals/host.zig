@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Builder = @import("../../builder.zig");
 const abi = @import("../abi.zig");
 const Input = std.meta.Child(@FieldType(abi.Request, "literals"));
@@ -16,17 +17,24 @@ pub const Frame = struct {
     pointers: [names.len]*const Column = undefined,
     strings: [][]const u8 = undefined,
     text: Text = undefined,
+    length_slots: [names.len]*usize = undefined,
+    lengths: zx.memory.ColumnLengths = undefined,
+    counts: [names.len]u64 = undefined,
+    publication: std.meta.Child(@FieldType(Input, "publication")) = undefined,
     /// Inlining removes binding references. Literal payloads keep their source order.
     pub fn prepare(self: *Frame, builder: *Builder, source: *const ir.ExpressionTable, borrow_text: bool) Builder.Error!bool {
         const storage = &builder.expressions;
         var count: usize = 0;
         var owned: ?*const Text = null;
 
-        inline for (names) |name| {
+        inline for (names, 0..) |name, index| {
             const values = @field(source, name);
             const target = &@field(storage, name);
 
             @field(self.bases, name) = target.items.len;
+
+            self.length_slots[index] = &target.items.len;
+            self.counts[index] = values.len;
 
             if (values.len != 0) {
                 try storage.reserveColumns(builder.allocator, &.{name}, values.len);
@@ -47,11 +55,15 @@ pub const Frame = struct {
             }
         }
 
-        self.input = .{ .columns = self.pointers[0..count], .owned_text = owned };
+        self.lengths = &self.length_slots;
+        self.publication = .{ .target = @ptrCast(&self.lengths), .counts = &self.counts };
+
+        self.input = .{
+            .columns = self.pointers[0..count],
+            .owned_text = owned,
+            .publication = &self.publication,
+        };
 
         return count != 0 or owned != null;
-    }
-    pub fn commit(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable) void {
-        inline for (names) |name| @field(storage, name).items.len += @field(source, name).len;
     }
 };
