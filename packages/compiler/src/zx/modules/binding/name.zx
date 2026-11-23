@@ -45,20 +45,22 @@ export default function (in: Input): Output {
         }
     }
 
-    const span = request.names.originals[index]
-    const source = request.names.source
+    const names = request.names
+    const native = names.native
 
-    if (source == null) {
+    if (native != null) {
         return {
-            original: request.names.values[index],
-            local: request.names.aliases[index],
-            start: span.start,
-            end: span.end
+            original: memory.readTextColumn(native.originals, index),
+            local: memory.readTextColumn(native.locals, index),
+            start: memory.readColumnIndex(native.starts, index),
+            end: memory.readColumnIndex(native.ends, index)
         }
     }
 
+    const span = names.originals[index]
+    const source = names.source
     const original = encoding.sliceBytes(source, span.start, span.end)
-    const local_span = request.names.locals[index]
+    const local_span = names.locals[index]
 
     const local = match {
         local_span.start == span.start && local_span.end == span.end => original,

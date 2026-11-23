@@ -1,7 +1,8 @@
 import encoding from "std:encoding"
+import memory from "memory"
 
 import { ImportKind } from "../../frontend/parser/imports/model"
-import { executable_required, namespace_required, module_code } from "./const"
+import { executable_required, namespace_required } from "./const"
 import { Target } from "./model"
 import position from "./public_position"
 
@@ -25,13 +26,15 @@ export default function (in: Input): Output {
     }
 
     const invalid = callable && (
-        in.names.originals.length != 1 ||
+        in.names.count != 1 ||
             (native ? members.length == 0 : member == null)
     )
 
+    const names = in.names.native
+
     const namespace: string? = match {
         !callable || !native || invalid => null,
-        in.names.source == null => in.names.aliases[0],
+        names != null => memory.readTextColumn(names.locals, 0),
         _ => encoding.sliceBytes(
             in.names.source,
             in.names.locals[0].start,
@@ -42,24 +45,15 @@ export default function (in: Input): Output {
     const failure = native ? namespace_required : executable_required
 
     return {
-        aliases: {
-            names: [],
-            indices: []
-        },
-        constants: {
-            names: [],
-            indices: []
-        },
-        functions: {
-            names: [],
-            indices: []
-        },
+        alias_names: [],
+        alias_indices: [],
+        constant_names: [],
+        constant_indices: [],
+        function_names: [],
+        function_indices: [],
         namespace,
-        diagnostic: {
-            code: invalid ? module_code : "",
-            message: invalid ? failure : "",
-            start: invalid ? in.start : 0,
-            end: invalid ? in.end : 0
-        }
+        message: invalid ? failure : "",
+        start: invalid ? in.start : 0,
+        end: invalid ? in.end : 0
     }
 }

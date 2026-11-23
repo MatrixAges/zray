@@ -5,7 +5,7 @@
 
     <Call fn="initial" in={$in} />
 
-    <If on={$ctx.initial.diagnostic.message != ""}>
+    <If on={$ctx.initial.message != ""}>
         <Return value={$ctx.initial} />
     </If>
 

@@ -6,6 +6,7 @@ const memory = @import("zx").memory;
 pub const Input = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
 const Record = valueType(Input);
 const Names = @FieldType(Record, "names");
+const NativeNames = @typeInfo(field(Names, "native")).optional.child;
 const Exports = @FieldType(Record, "exports");
 const Constants = @FieldType(Record, "constants");
 const Members = @FieldType(Record, "members");
@@ -20,8 +21,13 @@ pub const Storage = struct {
     constant_names: memory.TextColumn,
     member_names: memory.TextColumn,
     signature_names: memory.TextColumn,
-    pub fn init(self: *Storage, allocator: std.mem.Allocator, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) std.mem.Allocator.Error!Input {
-        self.names = try importNames(allocator, item);
+    native: valueType(NativeNames),
+    native_locals: memory.TextColumn,
+    native_originals: memory.TextColumn,
+    native_starts: memory.ReadColumn,
+    native_ends: memory.ReadColumn,
+    pub fn init(self: *Storage, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) Input {
+        self.names = self.importNames(item);
 
         self.exports = record(Exports, .{
             .rows = @as(field(Exports, "rows"), @ptrCast(rows)),
@@ -78,51 +84,47 @@ pub const Storage = struct {
 
         return reference(Input, &self.input);
     }
-};
+    fn importNames(self: *Storage, item: anytype) valueType(Names) {
+        if (comptime @hasField(@TypeOf(item.header), "storage")) {
+            const storage = item.header.storage;
+            const row = storage.imports[item.index];
+            const first: usize = @intCast(row.first);
+            const count: usize = @intCast(row.count);
 
-fn importNames(allocator: std.mem.Allocator, item: anytype) std.mem.Allocator.Error!valueType(Names) {
-    if (comptime @hasField(@TypeOf(item.header), "storage")) {
-        const storage = item.header.storage;
-        const row = storage.imports[item.index];
-        const first: usize = @intCast(row.first);
-        const count: usize = @intCast(row.count);
+            return record(Names, .{
+                .source = item.header.source,
+                .locals = zx.columns.slice(field(Names, "locals"), storage.import_names[first..][0..count]),
+                .originals = zx.columns.slice(field(Names, "originals"), storage.import_sources[first..][0..count]),
+                .native = @as(?NativeNames, null),
+                .count = @as(u64, count),
+            });
+        }
+
+        const declaration = &item.header.program.imports[item.index];
+        const locals = declaration.names;
+        const originals = if (declaration.source_names.len == 0) locals else declaration.source_names;
+
+        self.native_locals = memory.borrowTextColumn("text", locals);
+        self.native_originals = memory.borrowTextColumn("text", originals);
+        self.native_starts = memory.borrowNestedColumn(usize, &.{ "span", "start" }, originals);
+        self.native_ends = memory.borrowNestedColumn(usize, &.{ "span", "end" }, originals);
+
+        self.native = record(NativeNames, .{
+            .locals = @as(field(NativeNames, "locals"), @ptrCast(&self.native_locals)),
+            .originals = @as(field(NativeNames, "originals"), @ptrCast(&self.native_originals)),
+            .starts = @as(field(NativeNames, "starts"), @ptrCast(&self.native_starts)),
+            .ends = @as(field(NativeNames, "ends"), @ptrCast(&self.native_ends)),
+        });
 
         return record(Names, .{
-            .source = @as(?[]const u8, item.header.source),
-            .locals = zx.columns.slice(field(Names, "locals"), storage.import_names[first..][0..count]),
-            .originals = zx.columns.slice(field(Names, "originals"), storage.import_sources[first..][0..count]),
-            .values = @as([]const []const u8, &.{}),
-            .aliases = @as([]const []const u8, &.{}),
+            .source = @as([]const u8, ""),
+            .locals = @as(field(Names, "locals"), &.{}),
+            .originals = @as(field(Names, "originals"), &.{}),
+            .native = @as(?NativeNames, reference(NativeNames, &self.native)),
+            .count = @as(u64, locals.len),
         });
     }
-
-    const count = item.nameCount();
-    const values = try allocator.alloc([]const u8, count);
-    const aliases = try allocator.alloc([]const u8, count);
-    const Span = std.meta.Child(field(Names, "originals"));
-    const indirect = @typeInfo(Span) == .pointer;
-    const Position = if (indirect) std.meta.Child(Span) else Span;
-    const positions = try allocator.alloc(Position, count);
-    const spans = if (indirect) try allocator.alloc(Span, count) else positions;
-
-    for (values, aliases, positions, 0..) |*value, *alias, *span, index| {
-        const source = item.sourceAt(index);
-
-        value.* = source.text;
-        alias.* = item.nameAt(index).text;
-        span.* = .{ .start = source.span.start, .end = source.span.end };
-
-        if (indirect) spans[index] = span;
-    }
-
-    return record(Names, .{
-        .source = @as(?[]const u8, null),
-        .locals = @as(field(Names, "locals"), &.{}),
-        .originals = @as(field(Names, "originals"), spans),
-        .values = @as([]const []const u8, values),
-        .aliases = @as([]const []const u8, aliases),
-    });
-}
+};
 
 fn valueType(comptime Target: type) type {
     return if (@typeInfo(Target) == .pointer) std.meta.Child(Target) else Target;

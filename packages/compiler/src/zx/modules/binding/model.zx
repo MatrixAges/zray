@@ -1,5 +1,4 @@
 import type { NamedRows, ReadColumn, TextColumn } from "memory"
-import type { Diagnostic } from "../../analysis/semantic/resolving/model"
 import type { Span } from "../../frontend/lexer/token_model"
 import type { ImportKind } from "../../frontend/parser/imports/model"
 
@@ -9,12 +8,19 @@ export enum Target {
     Native
 }
 
+export type NativeNames = {
+    locals: TextColumn,
+    originals: TextColumn,
+    starts: ReadColumn,
+    ends: ReadColumn
+}
+
 export type Names = {
-    source?: string,
+    source: string,
     locals: Span[],
     originals: Span[],
-    values: string[],
-    aliases: string[]
+    native?: NativeNames,
+    count: u64
 }
 
 export type Name = {
@@ -80,9 +86,14 @@ export type BindingColumns = PortRows & {
 }
 
 export type Result = {
-    aliases: Bindings,
-    constants: Bindings,
-    functions: Bindings,
+    alias_names: string[],
+    alias_indices: u64[],
+    constant_names: string[],
+    constant_indices: u64[],
+    function_names: string[],
+    function_indices: u64[],
     namespace?: string,
-    diagnostic: Diagnostic
+    message: string,
+    start: u64,
+    end: u64
 }

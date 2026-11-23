@@ -9,28 +9,29 @@ pub const Members = @import("binding/members.zig");
 pub const Symbols = @import("binding/symbols.zig").Symbols;
 pub const Selection = @import("binding/symbols.zig").Selection;
 
-pub fn select(allocator: std.mem.Allocator, diagnostics: std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter) zx.Error!Selection {
-    if (!@import("parser_options").generated_parser) return @import("binding/seed.zig").select(allocator, item, symbols, reporter);
+/// A caller that immediately copies the diagnostic can borrow it from the selection scope.
+pub fn select(allocator: std.mem.Allocator, diagnostics: ?std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter) zx.Error!Selection {
+    if (comptime !generated) return @import("binding/seed.zig").select(allocator, item, symbols, reporter);
 
-    const rows = @import("zx").memory.borrowNamedRows("type_id", symbols.exports);
+    const rows = memory.borrowNamedRows("type_id", symbols.exports);
     var storage: @import("binding/input.zig").Storage = undefined;
-    const input = try storage.init(allocator, item, symbols, &rows);
+    const input = storage.init(item, symbols, &rows);
 
     const output = @import("generated_project_binding").executeValue(allocator, input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-        else => return reporter.fail(.contract, item.span, try std.fmt.allocPrint(diagnostics, "internal compiler error: generated import binding failed with {s}", .{@errorName(err)})),
+        else => return reporter.fail(.contract, item.span, try std.fmt.allocPrint(diagnostics orelse allocator, "internal compiler error: generated import binding failed with {s}", .{@errorName(err)})),
     };
 
-    if (output.diagnostic.message.len != 0) return reporter.fail(
+    if (output.message.len != 0) return reporter.fail(
         .module,
-        .{ .start = @intCast(output.diagnostic.start), .end = @intCast(output.diagnostic.end) },
-        try diagnostics.dupe(u8, output.diagnostic.message),
+        .{ .start = @intCast(output.start), .end = @intCast(output.end) },
+        if (diagnostics) |owner| try owner.dupe(u8, output.message) else output.message,
     );
 
     return .{
-        .aliases = .{ .names = output.aliases.names, .indices = output.aliases.indices },
-        .constants = .{ .names = output.constants.names, .indices = output.constants.indices },
-        .functions = .{ .names = output.functions.names, .indices = output.functions.indices },
+        .aliases = .{ .names = output.alias_names, .indices = output.alias_indices },
+        .constants = .{ .names = output.constant_names, .indices = output.constant_indices },
+        .functions = .{ .names = output.function_names, .indices = output.function_indices },
         .namespace = output.namespace,
     };
 }

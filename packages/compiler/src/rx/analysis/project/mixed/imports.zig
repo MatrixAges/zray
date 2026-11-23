@@ -81,7 +81,7 @@ const Bindings = struct {
         const view = frontend.project.import_view.get(header, index);
         var reporter: zx.Reporter = .{};
 
-        self.selected = Selection.select(state.scratch.allocator(), state.allocator, view, &symbols, &reporter) catch |err| {
+        self.selected = Selection.select(state.scratch.allocator(), null, view, &symbols, &reporter) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
 
             return state.fail(edge.locate(self.source_text), reporter.diagnostic.?.message);

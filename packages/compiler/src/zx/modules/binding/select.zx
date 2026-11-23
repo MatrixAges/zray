@@ -6,7 +6,6 @@ import memory from "memory"
 import { ImportKind } from "../../frontend/parser/imports/model"
 import {
     default_export,
-    module_code,
     enum_required,
     missing_export,
     missing_native,
@@ -35,18 +34,18 @@ export default function (in: Input): Output {
 
     const count = match {
         namespace => members.length,
-        !request.wildcard => request.names.originals.length,
+        !request.wildcard => request.names.count,
         request.kind == ImportKind.TypeOnly => request.exports.length,
         _ => request.exports.length + request.constants.length +
             members.length
     }
 
     return loop({
-        result,
+        ...result,
         index: 0
     }, {
         while: current =>
-            current.result.diagnostic.message == "" && current.index < count,
+            current.message == "" && current.index < count,
         next: current => {
             const index = current.index
             current.index += 1
@@ -97,24 +96,14 @@ export default function (in: Input): Output {
                 const public_name = forwarding_default ? "" : local
 
                 if (callable != null && request.kind != ImportKind.TypeOnly) {
-                    current.result = {
-                        ...current.result,
-                        functions: {
-                            names:
-                                current.result.functions.names.push(public_name)[0],
-                            indices:
-                                current.result.functions.indices.push(callable)[0]
-                        }
-                    }
+                    current.function_names =
+                        current.function_names.push(public_name)[0]
+                    current.function_indices =
+                        current.function_indices.push(callable)[0]
                 } else if (constant != null && request.kind == ImportKind.Enumeration) {
-                    current.result = {
-                        ...current.result,
-                        constants: {
-                            names: current.result.constants.names.push(local)[0],
-                            indices:
-                                current.result.constants.indices.push(constant)[0]
-                        }
-                    }
+                    current.constant_names = current.constant_names.push(local)[0]
+                    current.constant_indices =
+                        current.constant_indices.push(constant)[0]
                 } else if (alias_index != null) {
                     const type_id = memory.readRowId(request.exports.rows, alias_index)
                     const allowed =
@@ -124,45 +113,27 @@ export default function (in: Input): Output {
                         )]) == Kind.Enumeration
 
                     if (allowed) {
-                        current.result = {
-                            ...current.result,
-                            aliases: {
-                                names: current.result.aliases.names.push(local)[0],
-                                indices:
-                                    current.result.aliases.indices.push(alias_index)[0]
-                            }
-                        }
+                        current.alias_names = current.alias_names.push(local)[0]
+                        current.alias_indices =
+                            current.alias_indices.push(alias_index)[0]
                     } else {
-                        current.result = {
-                            ...current.result,
-                            diagnostic: {
-                                code: module_code,
-                                message: match {
-                                    request.target == Target.Native =>
-                                        native_enum_required,
-                                    _ => enum_required
-                                },
-                                start,
-                                end
-                            }
+                        current.message = match request.target {
+                            Target.Native => native_enum_required,
+                            _ => enum_required
                         }
+                        current.start = start
+                        current.end = end
                     }
                 } else {
-                    current.result = {
-                        ...current.result,
-                        diagnostic: {
-                            code: module_code,
-                            message: match {
-                                request.target == Target.Native => missing_native,
-                                _ => missing_export
-                            },
-                            start,
-                            end
-                        }
+                    current.message = match request.target {
+                        Target.Native => missing_native,
+                        _ => missing_export
                     }
+                    current.start = start
+                    current.end = end
                 }
             }
         },
-        return: state => state.result
+        return: state => state.omit(["index"])
     })
 }
