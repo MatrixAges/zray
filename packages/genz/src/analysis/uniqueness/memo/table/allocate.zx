@@ -15,13 +15,15 @@ export default function (in: Input): Output {
     reserveRows([
         keys,
         current,
-        size.limit
+        size.limit,
+        null
     ])
 
     reserveRows([
         values,
         current,
-        size.limit
+        size.limit,
+        null
     ])
 
     memory.allocateU32Buffer(owner, buckets, size.capacity)

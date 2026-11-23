@@ -1,10 +1,51 @@
 <Module>
     <Type from="model" as="Execution" />
+    <Type from="../publication/model" as="Body" />
 
     <Args in={Execution.Body} out={string?} />
 
     <Call fn="body_input" in={$in} />
-    <Call fn="body_function" in={$in.body} />
+
+    <Call module="../publication/plan" in={$in.installation.request} />
+
+    <If on={$ctx.plan.append}>
+        <Call
+            fn="body_install/reserve_function"
+            in={$in.installation.functions}
+        />
+
+        <Call fn="index.materializeProjectFunction" in={$in.body} />
+
+        <Call
+            fn="../../../../core/function_table/publication/publish_records"
+            in={{
+                storage: $in.installation.functions.storage,
+                body: $in.installation.function,
+                native: $in.installation.functions.empty_native,
+                body_layout: $in.installation.functions.body_layout,
+                native_layout: $in.installation.functions.native_layout
+            }}
+        />
+    </If>
+
+    <If on={$ctx.plan.ownership_count != null}>
+        <Call
+            fn="index.checkProjectOwnership"
+            in={[
+                $in.body,
+                $ctx.plan.ownership_count,
+                $ctx.plan.id
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.bindProjectBodyExports"
+        in={[
+            $in.body,
+            $ctx.plan.id
+        ]}
+    />
 
     <Call module="body_exports/publish" in={$in.exports} />
 
@@ -12,22 +53,71 @@
         <Return value={$ctx.publish.duplicate} />
     </If>
 
-    <Call fn="index.projectBodyCacheable" in={$in.body} />
+    <Call
+        fn="index.readU64"
+        in={[
+            $in.installation.records.used,
+            0
+        ]}
+    />
 
-    <If on={$ctx.projectBodyCacheable}>
-        <Call fn="index.registerProjectArtifact" in={$in.body} />
+    <If on={$ctx.plan.publish_artifact}>
+        <Call
+            fn="body_install/register_cache"
+            in={{
+                target: $in.installation.cache,
+                index: $ctx.readU64,
+                backing: $in.installation.backing
+            }}
+        />
     </If>
 
     <Call
-        fn="index.commitProjectModule"
+        fn="body_install/reserve_record"
+        in={{
+            target: $in.installation.records,
+            index: $ctx.readU64
+        }}
+    />
+
+    <Call
+        fn="index.writeProjectModuleRecord"
         in={[
             $in.body,
+            $ctx.readU64,
             $ctx.publish.exports,
             $ctx.publish.constant_exports,
             $ctx.publish.members,
-            $ctx.publish.entry
+            $ctx.publish.entry,
+            $ctx.plan.publication == Body.Publication.Entry,
+            $ctx.plan.publication == Body.Publication.Dependency ? $ctx.plan.id : null,
+            $ctx.plan.own_function
         ]}
     />
+
+    <Call
+        fn="index.writeU64"
+        in={[
+            $in.installation.records.used,
+            0,
+            $ctx.readU64 + 1
+        ]}
+    />
+
+    <If on={$in.installation.request.entry}>
+        <Call fn="index.moveProjectEntryBody" in={$in.body} />
+
+        <If on={$ctx.plan.publish_artifact}>
+            <Call
+                fn="index.writeU64"
+                in={[
+                    $in.installation.cache_root,
+                    0,
+                    $ctx.readU64
+                ]}
+            />
+        </If>
+    </If>
 
     <Return value={null} />
 </Module>

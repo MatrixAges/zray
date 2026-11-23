@@ -1,5 +1,6 @@
-import { writeCells } from "core/column_set"
 import columns from "memory/columns"
+
+import publishRecords from "./publish_records"
 
 import type { ColumnSet, FunctionBodyRow, FunctionNativeRow } from "memory/columns"
 
@@ -14,20 +15,16 @@ export type Output = void
 export default function (in: Input): Output {
     const { storage, body, native } = in
 
-    writeCells({
-        storage,
-        row: columns.borrowFunctionBodyRecord(body, null),
-        layout: columns.functionBodyLayout(null, null, null)
-    })
-
     const binding = match {
         native != null => columns.borrowFunctionNativeRecord(native, null),
         _ => columns.emptyFunctionNativeRecord(null, null)
     }
 
-    writeCells({
+    publishRecords({
         storage,
-        row: binding,
-        layout: columns.functionNativeLayout(null, null, null)
+        body: columns.borrowFunctionBodyRecord(body, null),
+        native: binding,
+        body_layout: columns.functionBodyLayout(null, null, null),
+        native_layout: columns.functionNativeLayout(null, null, null)
     })
 }

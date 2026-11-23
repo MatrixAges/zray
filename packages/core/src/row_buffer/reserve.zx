@@ -2,20 +2,21 @@ import columns from "memory/columns"
 
 import refreshWrites from "./refresh_writes"
 
-import type { RowBuffer } from "memory/columns"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
 
 export type Input = [
     RowBuffer,
     u64,
-    u64
+    u64,
+    ColumnAllocator?
 ]
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const [target, used, count] = in
+    const [target, used, count, owner] = in
 
-    if (columns.reserveRowStorage(target, used, count)) {
+    if (columns.reserveRowStorage(owner, target, used, count)) {
         refreshWrites([
             target,
             count

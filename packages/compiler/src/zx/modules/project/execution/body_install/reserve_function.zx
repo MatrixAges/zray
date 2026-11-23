@@ -1,0 +1,15 @@
+import { reserve } from "core/column_set"
+
+import type { Functions as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    reserve({
+        resource: in.resource,
+        storage: in.storage,
+        growth: in.growth,
+        count: 1,
+        limit: in.maximum_count
+    })
+}

@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const project_api = @import("../../project.zig");
+const ModuleRecord = @import("../../module_record.zig");
 const Project = project_api.Project;
 const LoadFrame = project_api.LoadFrame;
 const Unit = project_api.Unit;
@@ -23,7 +24,7 @@ const Body = struct {
     check_ownership: bool,
     restored: ?restore.Restored = null,
     program: ir.Program = undefined,
-    plan: publication.Plan = undefined,
+    installation: if (generated) @import("body_install/host.zig") else void = undefined,
     exports: if (generated) @import("body_exports/host.zig") else void = undefined,
     fn borrow(handle: *const anyopaque) *Body {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -51,15 +52,26 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
 
         body.exports.scratch = scratch.allocator();
 
+        body.installation.bind(project);
+        defer body.installation.commit();
+
         const request: std.meta.Child(entry.Input) = .{
             .body = @ptrCast(&body),
             .cached = project.semantic_cache != null,
             .exports = &body.exports.input,
+            .installation = &body.installation.input,
         };
 
-        const duplicate = zx.columns.invoke(entry.executeValue, project.allocator, &request) catch |err| return errorSet(err);
+        const duplicate = zx.columns.invoke(entry.executeValue, project.allocator, &request) catch |err| return switch (@as(anyerror, err)) {
+            error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+            else => errorSet(err),
+        };
 
         if (duplicate) |name| return exports.reportDuplicate(project.allocator, project.reporter, name);
+
+        const root = body.installation.cache_root;
+
+        if (root != @TypeOf(body.installation).no_root) project.cache_root = @intCast(root);
 
         return;
     }
@@ -77,10 +89,33 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
     }
 
     if (!restored) try analyze(body, input);
-    if (try installProjectFunction(body)) |count| try checkProjectOwnership(body, count);
+
+    const project = body.project;
+
+    const plan = try publication.module(&body.program, .{
+        .entry = body.entry,
+        .declared = body.declared,
+        .linked = project.functions.count(),
+        .restored = if (body.restored) |*value| value else null,
+        .check_ownership = body.check_ownership,
+        .cache = project.semantic_cache != null,
+    });
+
+    body.unit.function = plan.id;
+
+    if (plan.append) try project.functions.append(project.allocator, @import("../../function_body.zig").value(body.program));
+    if (plan.ownership_count) |count| try checkProjectOwnership(body, count, if (plan.id) |id| @backingInt(id) else null);
     try publishSeedExports(body);
-    if (projectBodyCacheable(body)) try registerProjectArtifact(body);
-    try commitModule(body);
+
+    if (plan.publish_artifact) {
+        const index = project.modules.items.len;
+
+        try project.cache_records.append(project.arena.child_allocator, index);
+        if (body.entry) project.cache_root = index;
+    }
+
+    try project.modules.append(project.allocator, record(body, plan.body, plan.own_function));
+    if (body.entry) moveProjectEntryBody(body);
 }
 
 pub fn restoreProjectBody(handle: *const anyopaque) zx.Error!bool {
@@ -112,6 +147,8 @@ pub fn restoreProjectBody(handle: *const anyopaque) zx.Error!bool {
     if (self.restored) |*value| {
         self.program = value.program;
 
+        if (comptime generated) preparePlan(self);
+
         return true;
     }
 
@@ -131,10 +168,12 @@ pub fn recordProjectCacheUse(handle: *const anyopaque, restored: bool) void {
 pub fn analyzeProjectBody(handle: *const anyopaque) zx.Error!void {
     const body = Body.borrow(handle);
 
-    return switch (body.frame.parsed.result.*) {
+    try switch (body.frame.parsed.result.*) {
         .native => |result| analyze(body, Inputs.Native{ .value = result.value.parsed }),
         .indexed => |*result| if (indexed) analyze(body, Inputs.Indexed{ .value = result }) else unreachable,
     };
+
+    if (comptime generated) preparePlan(body);
 }
 
 fn analyze(body: *Body, input: anytype) zx.Error!void {
@@ -164,36 +203,43 @@ fn analyze(body: *Body, input: anytype) zx.Error!void {
     body.program = try input.analyze(&analyzer, path);
 }
 
-pub fn installProjectFunction(handle: *const anyopaque) zx.Error!?u64 {
-    const body = Body.borrow(handle);
+fn preparePlan(body: *Body) void {
     const project = body.project;
+    const restored = if (body.restored) |value| value.recursive else null;
 
-    const plan = try publication.module(&body.program, .{
+    body.installation.request = .{
+        .type_only = body.program.type_only,
         .entry = body.entry,
         .declared = body.declared,
-        .linked = project.functions.count(),
-        .restored = if (body.restored) |*value| value else null,
+        .restored = body.restored != null,
+        .restored_function = if (restored) |id| @backingInt(id) else null,
         .check_ownership = body.check_ownership,
         .cache = project.semantic_cache != null,
-    });
-
-    body.plan = plan;
-    body.unit.function = plan.id;
-
-    if (plan.append) try project.functions.append(project.allocator, @import("../../function_body.zig").value(body.program));
-    if (comptime generated) body.exports.bind(&body.program, body.frame, plan.id);
-
-    return if (plan.ownership_count) |count| count else null;
+        .linked_count = project.functions.count(),
+        .calls = body.program.expressions.call_functions,
+    };
 }
 
-pub fn checkProjectOwnership(handle: *const anyopaque, count: u64) zx.Error!void {
+pub fn materializeProjectFunction(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const body = Body.borrow(handle);
+
+    try body.installation.ownFunction(body.project.allocator, &body.program);
+}
+
+pub fn bindProjectBodyExports(handle: *const anyopaque, id: ?u32) void {
+    const body = Body.borrow(handle);
+
+    body.exports.bind(&body.program, body.frame, if (id) |value| @fromBackingInt(value) else null);
+}
+
+pub fn checkProjectOwnership(handle: *const anyopaque, count: u64, id: ?u32) zx.Error!void {
     const body = Body.borrow(handle);
     const project = body.project;
     const program = &body.program;
     program.functions = project.functions.view().prefix(@intCast(count));
     program.output_ownership = try @import("../../../ownership/check.zig").analyze(project.allocator, program.*, project.reporter);
 
-    if (body.unit.function) |id| project.functions.ownership.items[@backingInt(id)] = switch (program.output_ownership) {
+    if (id) |index| project.functions.ownership.items[index] = switch (program.output_ownership) {
         .copy => .Copy,
         .borrowed => .Borrowed,
         .owned => .Owned,
@@ -215,21 +261,7 @@ fn publishSeedExports(body: *Body) zx.Error!void {
     }
 }
 
-pub fn projectBodyCacheable(handle: *const anyopaque) bool {
-    return Body.borrow(handle).plan.publish_artifact;
-}
-
-pub fn registerProjectArtifact(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    const body = Body.borrow(handle);
-    const project = body.project;
-    const index = project.modules.items.len;
-
-    try project.cache_records.append(project.arena.child_allocator, index);
-
-    if (body.entry) project.cache_root = index;
-}
-
-pub fn commitProjectModule(handle: *const anyopaque, types: []const u8, constants: []const u8, members: []const u8, entry: ?u32) std.mem.Allocator.Error!void {
+pub fn writeProjectModuleRecord(handle: *const anyopaque, row: u64, types: []const u8, constants: []const u8, members: []const u8, entry: ?u32, entry_record: bool, function_id: ?u32, recursive: ?u32) void {
     const body = Body.borrow(handle);
     const rows = @import("../exports/publication/rows.zig");
     const unit = body.unit;
@@ -239,15 +271,22 @@ pub fn commitProjectModule(handle: *const anyopaque, types: []const u8, constant
     unit.members = rows.typedRows(project_api.FunctionImport, members);
     unit.function = if (entry) |id| @fromBackingInt(id) else null;
 
-    try commitModule(body);
+    const kind: @FieldType(ModuleRecord, "body") = if (entry_record)
+        .entry
+
+    else if (function_id) |id|
+        .{ .function = @fromBackingInt(id) }
+    else
+        .types;
+
+    body.installation.modules.output.rows()[@intCast(row)] = record(body, kind, if (recursive) |id| @fromBackingInt(id) else null);
 }
 
-fn commitModule(body: *Body) std.mem.Allocator.Error!void {
-    const project = body.project;
+inline fn record(body: *const Body, kind: @FieldType(ModuleRecord, "body"), recursive: ?ir.FunctionId) ModuleRecord {
     const frame = body.frame;
     const program = &body.program;
 
-    try project.modules.append(project.allocator, .{
+    return .{
         .path = body.unit.path,
         .source_digest = frame.parsed.digest,
         .type_range = .{ .start = body.first_type, .end = program.types.count() },
@@ -258,13 +297,15 @@ fn commitModule(body: *Body) std.mem.Allocator.Error!void {
         .imports = frame.dependencies.items,
         .type_imports = frame.aliases.items,
         .function_imports = frame.imports.items,
-        .body = body.plan.body,
-        .own_function = body.plan.own_function,
-    });
+        .body = kind,
+        .own_function = recursive,
+    };
+}
 
-    if (body.entry) {
-        program.types = .{};
-        program.functions = .{};
-        project.entry_program = program.*;
-    }
+pub fn moveProjectEntryBody(handle: *const anyopaque) void {
+    const body = Body.borrow(handle);
+    const program = &body.program;
+    program.types = .{};
+    program.functions = .{};
+    body.project.entry_program = program.*;
 }

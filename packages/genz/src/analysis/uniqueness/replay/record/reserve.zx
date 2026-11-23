@@ -30,6 +30,7 @@ export default function (in: Input): Output {
     reserveRows([
         rows,
         used,
-        capacity
+        capacity,
+        null
     ])
 }

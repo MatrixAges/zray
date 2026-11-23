@@ -214,7 +214,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/module_record/import.zx", .name = "module_record_import" },
     .{ .path = "zx/modules/compiled/resolution/resolve.rx", .name = "compiled_import_resolution" },
     .{ .path = "zx/modules/compiled/imports/find.zx", .name = "compiled_import_find" },
-    .{ .path = "zx/modules/project/publication/plan.rx", .name = "project_body_publish" },
     .{ .path = "zx/modules/parse_cache/probe.rx", .name = "parse_cache_probe" },
     .{ .path = "zx/modules/cache_retention/classify.zx", .name = "cache_retention_classify" },
     .{ .path = "zx/modules/cache_retention/publish.zx", .name = "cache_retention_publish" },

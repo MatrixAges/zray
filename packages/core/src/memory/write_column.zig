@@ -151,7 +151,7 @@ pub inline fn clearRowStorage(target: *const anyopaque) void {
     rowBuffer(target).bytes = &.{};
 }
 
-pub fn reserveRowStorage(allocator: std.mem.Allocator, target: *const anyopaque, used: u64, count: u64) std.mem.Allocator.Error!bool {
+pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *const anyopaque, used: u64, count: u64) std.mem.Allocator.Error!bool {
     const buffer = rowBuffer(target);
     const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
     const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
@@ -162,6 +162,7 @@ pub fn reserveRowStorage(allocator: std.mem.Allocator, target: *const anyopaque,
 
     if (capacity <= previous.len / stride) return false;
 
+    const allocator = if (resource) |value| @import("column_set.zig").borrowAllocator(value) else default_allocator;
     const size = std.math.mul(usize, capacity, stride) catch return error.OutOfMemory;
     const alignment = buffer.alignment;
     const address = @returnAddress();
@@ -266,6 +267,12 @@ pub fn writeRow(target: *const anyopaque, index: u64, source: []const u8) IndexE
 
 pub inline fn writeRowByteView(target: *const anyopaque, index: u64, source: []const u8) IndexError!void {
     try writeRow(target, index, std.mem.asBytes(&source));
+}
+
+pub inline fn writeRowIndex(target: *const anyopaque, index: u64, value: u64) IndexError!void {
+    const converted = std.math.cast(usize, value) orelse return error.IndexOutOfBounds;
+
+    try writeRow(target, index, std.mem.asBytes(&converted));
 }
 
 pub fn writeRowByteField(target: *const anyopaque, index: u64, offset: u64, source: []const u8) IndexError!void {

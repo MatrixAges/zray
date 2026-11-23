@@ -1,0 +1,46 @@
+import type { U64Buffer } from "memory"
+import type {
+    ColumnAllocator,
+    ColumnGrowth,
+    ColumnRecord,
+    ColumnRowLayout,
+    ColumnSet,
+    RowBuffer
+} from "memory/columns"
+import type { Request } from "../../publication/model"
+
+export type Rows = {
+    storage: RowBuffer,
+    used: U64Buffer
+}
+
+export type Functions = {
+    storage: ColumnSet,
+    resource: ColumnAllocator,
+    maximum_count: u64,
+    growth: ColumnGrowth,
+    body_layout: ColumnRowLayout,
+    native_layout: ColumnRowLayout,
+    empty_native: ColumnRecord
+}
+
+export type Installation = {
+    request: Request,
+    functions: Functions,
+    function: ColumnRecord,
+    records: Rows,
+    cache: Rows,
+    backing: ColumnAllocator,
+    cache_root: U64Buffer
+}
+
+export type Reservation = {
+    target: Rows,
+    index: u64
+}
+
+export type Register = {
+    target: Rows,
+    index: u64,
+    backing: ColumnAllocator
+}

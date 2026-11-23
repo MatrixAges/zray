@@ -2,7 +2,7 @@ const std = @import("std");
 const memory = @import("zx").memory;
 
 pub fn Tail(comptime Row: type, comptime Destination: type, comptime fields: anytype) type {
-    const Columns = std.meta.Child(@FieldType(Destination, "target"));
+    const Columns = if (@hasField(Destination, "target")) std.meta.Child(@FieldType(Destination, "target")) else struct {};
 
     return struct {
         const Self = @This();

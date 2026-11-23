@@ -1,3 +1,4 @@
+export { readU64, writeU64 } from "memory"
 export {
     installProjectEntryBody,
     exposeProjectEntryFunctions,
@@ -7,7 +8,9 @@ export {
 } from "project_host"
 export { publishInterfaceTypes } from "project_host"
 export {
-    projectBodyCacheable,
-    registerProjectArtifact,
-    commitProjectModule
+    materializeProjectFunction,
+    bindProjectBodyExports,
+    checkProjectOwnership,
+    writeProjectModuleRecord,
+    moveProjectEntryBody
 } from "project_host"

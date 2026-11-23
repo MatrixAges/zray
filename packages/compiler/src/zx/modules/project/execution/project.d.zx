@@ -81,24 +81,27 @@ export declare function recordProjectCacheUse(body: ProjectBody, restored: bool)
 export declare function analyzeProjectBody(body: ProjectBody): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function installProjectFunction(body: ProjectBody): u64?
-    throws { OutOfMemory, InvalidSource }
-
-export declare function checkProjectOwnership(body: ProjectBody, count: u64): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function projectBodyCacheable(body: ProjectBody): bool
-
-export declare function registerProjectArtifact(body: ProjectBody): void
+export declare function materializeProjectFunction(body: ProjectBody): void
     throws { OutOfMemory }
 
-export declare function commitProjectModule(
+export declare function checkProjectOwnership(body: ProjectBody, count: u64, id: u32?): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindProjectBodyExports(body: ProjectBody, id: u32?): void
+
+export declare function writeProjectModuleRecord(
     body: ProjectBody,
+    row: u64,
     types: u8[],
     constants: u8[],
     members: u8[],
-    entry: u32?
-): void throws { OutOfMemory }
+    entry: u32?,
+    entry_record: bool,
+    function_id: u32?,
+    recursive: u32?
+): void
+
+export declare function moveProjectEntryBody(body: ProjectBody): void
 
 export declare function installProjectEntryBody(entry: ProjectEntry, row: u32): void
 

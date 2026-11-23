@@ -1,0 +1,16 @@
+import { reserveAppend } from "core/row_buffer"
+
+import type { Reservation as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, index } = in
+
+    const capacity = reserveAppend([
+        target.storage,
+        index,
+        1,
+        null
+    ])
+}

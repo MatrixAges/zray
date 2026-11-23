@@ -1,14 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const enabled = @import("parser_options").generated_parser;
 const functions = @import("../../function_body.zig");
-
-const Publication = if (enabled)
-    @FieldType(@typeInfo(@TypeOf(@import("generated_project_body_publish").executeValue(undefined, undefined))).error_union.payload, "publication")
-
-else
-    enum { Types, Dependency, Entry };
+const Publication = enum { Types, Dependency, Entry };
 
 pub const Plan = struct {
     id: ?ir.FunctionId,
@@ -35,41 +29,6 @@ pub fn module(program: *const ir.Program, request: Request) std.mem.Allocator.Er
     const restored = request.restored;
     const check_ownership = request.check_ownership;
     const recovered = if (restored) |value| value.recursive else null;
-
-    if (comptime enabled) {
-        const generated = @import("generated_project_body_publish");
-
-        const input: std.meta.Child(generated.Input) = .{
-            .type_only = program.type_only,
-            .entry = entry,
-            .declared = declared,
-            .restored = restored != null,
-            .restored_function = if (recovered) |id| @backingInt(id) else null,
-            .check_ownership = check_ownership,
-            .cache = request.cache,
-            .linked_count = linked,
-            .calls = program.expressions.call_functions,
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-            else => unreachable,
-        };
-
-        const id: ?ir.FunctionId = if (result.id) |value| @fromBackingInt(value) else null;
-
-        return .{
-            .id = id,
-            .append = result.append,
-            .body = body(result.publication, id),
-            .own_function = if (result.own_function) |value| @fromBackingInt(value) else null,
-            .ownership_count = if (result.ownership_count) |count| @intCast(count) else null,
-            .publish_artifact = result.publish_artifact,
-        };
-    }
-
     const append = recovered == null and !program.type_only;
     const id = recovered orelse if (append) @as(ir.FunctionId, @fromBackingInt(@as(u32, @intCast(linked)))) else null;
     const recursive = !program.type_only and declared and if (restored != null) recovered != null else functions.calls(program.expressions, id.?);

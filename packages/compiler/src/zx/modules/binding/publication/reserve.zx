@@ -13,7 +13,8 @@ export default function (in: Input): Output {
         const capacity = reserveAppend([
             aliases.storage,
             memory.readU64(aliases.used, 0),
-            selected.alias_names.length
+            selected.alias_names.length,
+            null
         ])
     }
 
@@ -21,7 +22,8 @@ export default function (in: Input): Output {
         const capacity = reserveAppend([
             constants.storage,
             memory.readU64(constants.used, 0),
-            selected.constant_names.length
+            selected.constant_names.length,
+            null
         ])
     }
 
@@ -29,7 +31,8 @@ export default function (in: Input): Output {
         const capacity = reserveAppend([
             functions.storage,
             memory.readU64(functions.used, 0),
-            selected.function_names.length
+            selected.function_names.length,
+            null
         ])
     }
 }

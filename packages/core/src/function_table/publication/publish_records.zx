@@ -1,0 +1,29 @@
+import { writeCells } from "core/column_set"
+
+import type { ColumnRecord, ColumnRowLayout, ColumnSet } from "memory/columns"
+
+export type Input = {
+    storage: ColumnSet,
+    body: ColumnRecord,
+    native: ColumnRecord,
+    body_layout: ColumnRowLayout,
+    native_layout: ColumnRowLayout
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, body, native, body_layout, native_layout } = in
+
+    writeCells({
+        storage,
+        row: body,
+        layout: body_layout
+    })
+
+    writeCells({
+        storage,
+        row: native,
+        layout: native_layout
+    })
+}

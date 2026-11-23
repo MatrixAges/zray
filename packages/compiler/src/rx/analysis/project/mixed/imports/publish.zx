@@ -28,7 +28,8 @@ export default function (in: Input): Output {
     const capacity = reserveAppend([
         target.storage,
         used,
-        prefix + names.length
+        prefix + names.length,
+        null
     ])
 
     if (prefix != 0) {

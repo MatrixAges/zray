@@ -15,7 +15,8 @@ export default function (in: Input): Output {
     const capacity = reserveAppend([
         in.storage,
         first,
-        in.count
+        in.count,
+        null
     ])
 
     return first

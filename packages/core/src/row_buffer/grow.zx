@@ -20,7 +20,8 @@ export default function (in: Input): Output {
     const capacity = reserveAppend([
         target,
         used,
-        1
+        1,
+        null
     ])
 
     refreshReads(growth)

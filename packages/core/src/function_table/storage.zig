@@ -37,6 +37,10 @@ pub fn at(self: *const Self, index: usize) ir.Function {
 pub fn append(self: *Self, allocator: std.mem.Allocator, value: ir.Function) std.mem.Allocator.Error!void {
     try self.reserve(allocator, 1);
 
+    self.appendOwnedAssumeCapacity(value, try ownDescriptors(allocator, value));
+}
+
+pub fn ownDescriptors(allocator: std.mem.Allocator, value: ir.Function) std.mem.Allocator.Error!Descriptors {
     const symbols = try descriptor(allocator, value.symbols);
 
     errdefer allocator.destroy(symbols);
@@ -51,12 +55,12 @@ pub fn append(self: *Self, allocator: std.mem.Allocator, value: ir.Function) std
 
     const contracts = try descriptor(allocator, value.contracts);
 
-    self.appendOwnedAssumeCapacity(value, .{
+    return .{
         .symbols = symbols,
         .expressions = expressions,
         .stores = stores,
         .contracts = contracts,
-    });
+    };
 }
 
 pub const Descriptors = struct {
