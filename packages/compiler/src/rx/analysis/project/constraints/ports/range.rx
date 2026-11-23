@@ -1,0 +1,56 @@
+<Module>
+    <Type from="model" as="Ports" />
+
+    <Args in={Ports.State} out={Ports.State} />
+
+    <Call fn="next" in={$in} />
+
+    <If on={$ctx.next.nodes != 0}>
+        <Call
+            fn="host.reservePortNodes"
+            in={[
+                $in.request.graph,
+                $ctx.next.nodes
+            ]}
+        />
+
+        <Call
+            module="initialize"
+            in={{
+                ...$in.request.pick([
+                    "ports",
+                    "origins",
+                    "reserved"
+                ]),
+                first: $in.position,
+                end: $ctx.next.inferred_until
+            }}
+        />
+
+        <Call fn="host.commitPortNodes" in={$in.request.graph} />
+    </If>
+
+    <If on={$ctx.next.declared}>
+        <Call
+            fn="declared"
+            in={{
+                ...$in.request.pick([
+                    "graph",
+                    "ports",
+                    "origins"
+                ]),
+                row: $ctx.next.inferred_until,
+                input: $ctx.next.input,
+                output: $ctx.next.output
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            position: $ctx.next.next_module,
+            start: $ctx.next.next
+        }}
+    />
+</Module>

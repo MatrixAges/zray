@@ -1,0 +1,34 @@
+import { internPortType } from "rx_project_host"
+
+import origin from "./origin"
+import publish from "./publish"
+
+import type { Request } from "./model"
+
+export type Input = Request.Pick("graph", "ports", "origins") & {
+    row: u64,
+    input: u32,
+    output: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { graph, ports, origins, row } = in
+
+    const offset = origin({
+        origins,
+        row
+    })
+
+    const input = internPortType(graph, in.input, offset)
+    const output = internPortType(graph, in.output, offset)
+
+    publish({
+        ports,
+        row,
+        input,
+        output,
+        fixed: true
+    })
+}

@@ -4,6 +4,8 @@ export type Derivation = opaque
 
 export type Solver = opaque
 
+export type PortGraph = opaque
+
 export type Mixed = opaque
 
 export type MixedState = opaque
@@ -434,3 +436,11 @@ export declare function historyAttributePosition(
 export declare function historyTextValue(text: HistoryXmlText): string
 
 export declare function historyTextPosition(text: HistoryXmlText): u8[]
+
+export declare function reservePortNodes(target: PortGraph, count: u64): void
+    throws { OutOfMemory }
+
+export declare function commitPortNodes(target: PortGraph): void
+
+export declare function internPortType(target: PortGraph, type_id: u32, offset: u64): u32
+    throws { OutOfMemory, InvalidSource }

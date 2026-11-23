@@ -1,0 +1,40 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { ports_per_declaration } from "../../contracts/const"
+import origin from "./origin"
+import publish from "./publish"
+
+import type { Inferred as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { reserved, first, end, origins, ports } = in
+
+    const written = loop(first, {
+        while: row => row < end,
+        next: row => {
+            const input = reserved.nodes.first + (row - first) * ports_per_declaration
+            const output = input + 1
+            const offset = origin({
+                origins,
+                row
+            })
+
+            memory.writeColumnIndex(reserved.span_starts, input, offset)
+            memory.writeColumnIndex(reserved.span_ends, input, offset)
+            memory.writeColumnIndex(reserved.span_starts, output, offset)
+            memory.writeColumnIndex(reserved.span_ends, output, offset)
+            publish({
+                ports,
+                row,
+                input: integers.narrow(input),
+                output: integers.narrow(output),
+                fixed: false
+            })
+
+            row += 1
+        }
+    })
+}

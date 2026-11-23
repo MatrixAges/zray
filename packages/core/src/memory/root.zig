@@ -286,6 +286,7 @@ pub const readColumnI32 = rows.readColumnI32;
 pub const readColumnU16 = rows.readColumnU16;
 pub const readColumnU32 = rows.readColumnU32;
 pub const readColumnU64 = rows.readColumnU64;
+pub const readColumnIndex = rows.readColumnIndex;
 pub const readColumnU32List = rows.readColumnU32List;
 pub const readColumnU64List = rows.readColumnU64List;
 pub const readColumnU32Lists = rows.readColumnU32Lists;

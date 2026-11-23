@@ -1,8 +1,8 @@
 <Module>
     <Type from="model" as="Ports" />
 
-    <Args in={Ports.Input} out={Ports.Output} />
+    <Args in={Ports.Inferred} out={void} />
 
-    <Call fn="../../../inference/nodes/initialize" in={$in.nodes} />
-    <Call fn="publish" in={$in.ports} />
+    <Call fn="../../../inference/nodes/initialize" in={$in.reserved.nodes} />
+    <Call fn="inferred" in={$in} />
 </Module>

@@ -239,8 +239,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/inference/nodes/write_containers.zx", .name = "rx_inference_containers", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/nodes/initialize.zx", .name = "rx_inference_nodes", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/nodes/number.rx", .name = "rx_inference_number", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/constraints/ports/initialize.rx", .name = "rx_inferred_ports", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/constraints/ports/next.rx", .name = "rx_port_ranges", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/declarations/next.zx", .name = "rx_declaration_next", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/declarations/attributes.zx", .name = "rx_declaration_attributes", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/forest/borrowed_root.zx", .name = "rx_forest_root", .owner = .rx_analysis },
@@ -984,6 +982,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "rx/analysis/project/constraints/ports/run.rx", .name = "rx_port_registration", .owner = .rx_analysis },
     .{ .path = "genz/analysis/node_headers/direct.zx", .name = "direct_ast_range", .owner = .genz },
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
     .{ .path = "backends/zig/state/publication/build.rx", .name = "publish_state", .owner = .compiler },

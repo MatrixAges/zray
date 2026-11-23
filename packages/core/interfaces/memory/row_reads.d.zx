@@ -60,6 +60,11 @@ export declare function readColumnU64(
     index: u64
 ): u64 throws { IndexOutOfBounds }
 
+export declare function readColumnIndex(
+    source: ReadColumn,
+    index: u64
+): u64 throws { IndexOutOfBounds }
+
 export declare function readColumnU32List(
     source: ReadColumn,
     index: u64

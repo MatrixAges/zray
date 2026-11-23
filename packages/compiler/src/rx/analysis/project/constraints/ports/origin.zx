@@ -1,0 +1,18 @@
+import memory from "memory"
+
+import type { Origins } from "./model"
+
+export type Input = {
+    origins: Origins,
+    row: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { origins, row } = in
+
+    const base = row == 0 ? 0 : origins.ends[row - 1]
+
+    return base + memory.readColumnIndex(origins.locations, row)
+}

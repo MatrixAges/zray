@@ -1,30 +1,52 @@
-import type { U8Buffer, U32Buffer } from "memory"
+import type { BoolBuffer, ReadColumn, U32Buffer, U64Buffer, WriteColumn } from "memory"
+import type { PortGraph } from "rx_project_host"
 import type { Input as Nodes } from "../../../inference/nodes/initialize"
 import type { Input as Declarations } from "../../contracts/ports"
 
 export type Ports = {
     inputs: U32Buffer,
     outputs: U32Buffer,
-    fixed: U8Buffer,
-    first_node: u64,
-    count: u64
+    fixed: BoolBuffer,
+    binding_ends: U64Buffer,
+    task_ends: U64Buffer
 }
 
-export type Input = {
+export type Origins = {
+    ends: u64[],
+    locations: ReadColumn
+}
+
+export type Reservation = {
     nodes: Nodes,
-    ports: Ports
+    span_starts: WriteColumn,
+    span_ends: WriteColumn
 }
 
-export type Output = void
-
-export type Cursor = Declarations & {
+export type Request = Declarations.Omit("start") & {
     modules: u64
+    graph: PortGraph,
+    ports: Ports,
+    origins: Origins,
+    reserved: Reservation
+}
+
+export type State = {
+    request: Request,
+    position: u64,
+    start: u64
 }
 
 export type Range = {
     inferred_until: u64,
+    nodes: u64,
     declared: bool,
     input: u32,
     output: u32,
+    next_module: u64,
     next: u64
+}
+
+export type Inferred = Request.Pick("ports", "origins", "reserved") & {
+    first: u64,
+    end: u64
 }

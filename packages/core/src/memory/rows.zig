@@ -323,6 +323,10 @@ pub inline fn readColumnU64(source: *const anyopaque, index: u64) error{IndexOut
     return readColumn(u64, source, index);
 }
 
+pub inline fn readColumnIndex(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
+    return try readColumn(usize, source, index);
+}
+
 pub inline fn readColumnU32List(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u32 {
     return readColumn([]const u32, source, index);
 }

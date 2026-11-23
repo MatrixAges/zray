@@ -1,0 +1,41 @@
+import { ports_per_declaration } from "../../contracts/const"
+import pickPorts from "../../contracts/ports"
+
+import type { Range, State } from "./model"
+
+export type Input = State
+
+export type Output = Range
+
+export default function (in: Input): Output {
+    const { owners, types, modules } = in.request
+    const { start, position } = in
+
+    if (start == owners.length) {
+        return {
+            inferred_until: modules,
+            nodes: (modules - position) * ports_per_declaration,
+            declared: false,
+            input: 0,
+            output: 0,
+            next_module: modules,
+            next: start
+        }
+    }
+
+    const selected = pickPorts({
+        owners,
+        types,
+        start
+    })
+
+    return {
+        inferred_until: selected.owner,
+        nodes: (selected.owner - position) * ports_per_declaration,
+        declared: true,
+        input: selected.input,
+        output: selected.output,
+        next_module: selected.owner + 1,
+        next: selected.next
+    }
+}
