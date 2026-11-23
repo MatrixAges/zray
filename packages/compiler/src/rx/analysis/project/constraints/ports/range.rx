@@ -26,8 +26,6 @@
                 end: $ctx.next.inferred_until
             }}
         />
-
-        <Call fn="host.commitPortNodes" in={$in.request.graph} />
     </If>
 
     <If on={$ctx.next.declared}>

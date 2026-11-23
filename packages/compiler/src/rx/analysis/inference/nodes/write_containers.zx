@@ -9,7 +9,7 @@ import type { Columns } from "../unification/commit/model"
 export type Input = {
     parents: U32Buffer,
     columns: Columns,
-    start: u64,
+    first: u64,
     end: u64,
     payload?: u32,
     container: u8,
@@ -19,7 +19,7 @@ export type Input = {
 export type Output = void
 
 export default function (in: Input): Output {
-    const start = in.start
+    const start = in.first
     const payload = in.payload ?? integers.narrow(start)
     const parents = in.parents
     const columns = in.columns

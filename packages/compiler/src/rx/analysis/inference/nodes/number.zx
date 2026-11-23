@@ -1,9 +1,13 @@
+import type { IndexBuffer } from "memory"
 import type { Input as Token } from "../scalar/literal"
 import type { Storage } from "../scalar/publication/model"
 import type { Input as Rows } from "./initialize"
+import type { UniformSpan } from "./publication/model"
 
 export type Input = {
     rows: Rows,
     storage: Storage,
+    length: IndexBuffer,
+    span: UniformSpan,
     token: Token
 }

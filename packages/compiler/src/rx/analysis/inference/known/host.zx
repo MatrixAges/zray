@@ -1,6 +1,6 @@
 export { requireAllocation } from "memory"
+export { writeU64 } from "memory"
 export {
-    publishKnownNodes,
     reserveKnownNodes,
     reserveKnownIndex,
     refreshKnownRegistry,

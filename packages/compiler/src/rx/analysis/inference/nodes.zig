@@ -34,40 +34,31 @@ pub const Encoded = struct { kind: Kind, argument: u32, members: []const u32 };
 pub const Reservation = struct {
     rows: Storage.Slice,
     first: usize,
-    pub fn initialize(self: Reservation, shape_value: Encoded) void {
-        const rule = @import("generated_rx_inference_nodes");
-        const Input = std.meta.Child(rule.Input);
-        const view = writable(self.rows);
-        const parents = self.rows.items(.parent);
+};
 
-        const input: Input = .{
-            .parents = @ptrCast(&parents),
-            .columns = &view.borrow(std.meta.Child(@FieldType(Input, "columns"))),
-            .shape = &.{ .kind = @backingInt(shape_value.kind), .argument = shape_value.argument, .members = shape_value.members },
-            .first = self.first,
-            .end = self.rows.len,
+pub const Publication = struct {
+    length: []usize,
+    allowed: []?u16,
+    fallback: []?u8,
+    spans: []zx.Span,
+    pub fn init(graph: *Graph, rows: Storage.Slice) Publication {
+        return .{
+            .length = (&graph.nodes.len)[0..1],
+            .allowed = rows.items(.allowed),
+            .fallback = rows.items(.fallback),
+            .spans = rows.items(.span),
         };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
     }
-    pub fn publish(self: Reservation, graph: *Graph, span: zx.Span) void {
-        @memset(self.rows.items(.span)[self.first..], span);
-        self.finish(graph);
-    }
-
-    pub fn finish(self: Reservation, graph: *Graph) void {
-        @memset(self.rows.items(.allowed)[self.first..], null);
-        @memset(self.rows.items(.fallback)[self.first..], null);
-
-        graph.nodes.len = self.rows.len;
+    pub fn storage(self: *const Publication, comptime View: type) View {
+        return .{
+            .length = @ptrCast(&self.length),
+            .allowed = @ptrCast(&self.allowed),
+            .fallback = @ptrCast(&self.fallback),
+        };
     }
 
-    pub fn publishPrepared(self: Reservation, graph: *Graph, span: zx.Span) void {
-        @memset(self.rows.items(.span)[self.first..], span);
-
-        graph.nodes.len = self.rows.len;
+    pub fn span(self: *const Publication, comptime View: type, source: zx.Span) View {
+        return .{ .rows = @ptrCast(&self.spans), .start = source.start, .end = source.end };
     }
 };
 
@@ -92,9 +83,25 @@ pub fn append(graph: *Graph, value: Graph.Shape, span: zx.Span) zx.Error!Graph.I
     if (comptime enabled) {
         const reservation = try reserve(graph, 1);
         const topology = encode(value);
+        const rule = @import("generated_rx_inference_nodes");
+        const Input = std.meta.Child(rule.Input);
+        const view = writable(reservation.rows);
+        const parents = reservation.rows.items(.parent);
+        const publication = Publication.init(graph, reservation.rows);
 
-        reservation.initialize(topology);
-        reservation.publish(graph, span);
+        const input: Input = .{
+            .parents = @ptrCast(&parents),
+            .columns = &view.borrow(std.meta.Child(@FieldType(Input, "columns"))),
+            .shape = &.{ .kind = @backingInt(topology.kind), .argument = topology.argument, .members = topology.members },
+            .first = reservation.first,
+            .end = reservation.rows.len,
+            .storage = &publication.storage(std.meta.Child(@FieldType(Input, "storage"))),
+            .span = &publication.span(std.meta.Child(@FieldType(Input, "span")), span),
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        rule.executeIn(empty.allocator(), &input) catch unreachable;
 
         return @fromBackingInt(@intCast(reservation.first));
     }

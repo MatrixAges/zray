@@ -586,6 +586,38 @@ pub inline fn writeU64(target: *const anyopaque, index: u64, value: u64) error{I
     return write(u64, target, index, value);
 }
 
+pub inline fn writeIndex(target: *const anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
+    return write(usize, target, index, std.math.cast(usize, value) orelse return error.IndexOutOfBounds);
+}
+
+pub inline fn clearOptionalU8Range(target: *const anyopaque, first: u64, end: u64) error{IndexOutOfBounds}!void {
+    return fillRange(?u8, target, first, end, null);
+}
+
+pub inline fn clearOptionalU16Range(target: *const anyopaque, first: u64, end: u64) error{IndexOutOfBounds}!void {
+    return fillRange(?u16, target, first, end, null);
+}
+
+pub const SourceSpan = struct {
+    start: usize,
+    end: usize,
+};
+
+pub inline fn fillSourceSpanRange(target: *const anyopaque, first: u64, end: u64, start_offset: u64, end_offset: u64) error{IndexOutOfBounds}!void {
+    return fillRange(SourceSpan, target, first, end, .{
+        .start = std.math.cast(usize, start_offset) orelse return error.IndexOutOfBounds,
+        .end = std.math.cast(usize, end_offset) orelse return error.IndexOutOfBounds,
+    });
+}
+
+inline fn fillRange(comptime T: type, target: *const anyopaque, first: u64, end: u64, value: T) error{IndexOutOfBounds}!void {
+    const view: *const []T = @ptrCast(@alignCast(target));
+
+    if (first > end or end > view.len) return error.IndexOutOfBounds;
+
+    @memset(view.*[@intCast(first)..@intCast(end)], value);
+}
+
 pub inline fn clearU64Buffer(target: *const anyopaque) void {
     const output: *const []u64 = @ptrCast(@alignCast(target));
 

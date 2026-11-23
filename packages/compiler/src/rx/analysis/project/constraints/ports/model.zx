@@ -1,6 +1,7 @@
 import type { BoolBuffer, ReadColumn, U32Buffer, U64Buffer, WriteColumn } from "memory"
 import type { PortGraph } from "rx_project_host"
 import type { Input as Nodes } from "../../../inference/nodes/initialize"
+import type { Storage } from "../../../inference/nodes/publication/model"
 import type { Input as Declarations } from "../../contracts/ports"
 
 export type Ports = {
@@ -20,6 +21,7 @@ export type Reservation = {
     nodes: Nodes,
     span_starts: WriteColumn,
     span_ends: WriteColumn
+    storage: Storage
 }
 
 export type Request = Declarations.Omit("start") & {

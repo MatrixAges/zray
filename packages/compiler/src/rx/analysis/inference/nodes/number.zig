@@ -12,6 +12,7 @@ pub fn append(graph: *Graph, text: []const u8, negative: bool, span: zx.Span) zx
     const parents = reservation.rows.items(.parent);
     const topology = Nodes.writable(reservation.rows);
     const publication = Publication.init(graph, reservation.rows);
+    const visibility = Nodes.Publication.init(graph, reservation.rows);
 
     const input: Input = .{
         .rows = &.{
@@ -22,13 +23,14 @@ pub fn append(graph: *Graph, text: []const u8, negative: bool, span: zx.Span) zx
             .shape = &.{ .kind = @backingInt(Nodes.Kind.Unknown), .argument = 0, .members = &.{} },
         },
         .storage = &publication.borrow(std.meta.Child(@FieldType(Input, "storage"))),
+        .length = @ptrCast(&visibility.length),
+        .span = &visibility.span(std.meta.Child(@FieldType(Input, "span")), span),
         .token = &.{ .text = text, .negative = negative },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     rule.executeIn(empty.allocator(), &input) catch unreachable;
-    reservation.publishPrepared(graph, span);
 
     return @fromBackingInt(@intCast(reservation.first));
 }

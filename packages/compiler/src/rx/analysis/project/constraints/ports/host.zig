@@ -11,6 +11,7 @@ const rule = @import("generated_rx_port_registration");
 const Input = std.meta.Child(rule.Input);
 const Reservation = std.meta.Child(@FieldType(Input, "reserved"));
 const Shape = std.meta.Child(@FieldType(Reservation, "nodes"));
+const Storage = std.meta.Child(@FieldType(Reservation, "storage"));
 const Columns = std.meta.Child(@FieldType(Shape, "columns"));
 const unknown: std.meta.Child(@FieldType(Shape, "shape")) = .{ .kind = @backingInt(Nodes.Kind.Unknown), .argument = 0, .members = &.{} };
 
@@ -23,6 +24,8 @@ const Frame = struct {
     starts: memory.WriteColumn = undefined,
     ends: memory.WriteColumn = undefined,
     nodes: Shape = undefined,
+    publication: Nodes.Publication = undefined,
+    storage: Storage = undefined,
     fn bind(self: *Frame) void {
         const rows = self.reservation.rows;
         const spans = rows.items(.span);
@@ -32,6 +35,8 @@ const Frame = struct {
         self.columns = self.view.borrow(Columns);
         self.starts = memory.borrowWriteColumn(usize, "start", spans);
         self.ends = memory.borrowWriteColumn(usize, "end", spans);
+        self.publication = Nodes.Publication.init(self.graph, rows);
+        self.storage = self.publication.storage(Storage);
 
         self.nodes = .{
             .parents = @ptrCast(&self.parents),
@@ -41,6 +46,7 @@ const Frame = struct {
             .end = rows.len,
         };
     }
+
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -73,7 +79,7 @@ pub fn run(graph: *Graph, rows: Ports.Slice, modules: []const Prepared.Module, s
             .binding_ends = @ptrCast(&binding_ends),
             .task_ends = @ptrCast(&task_ends),
         },
-        .reserved = &.{ .nodes = &frame.nodes, .span_starts = @ptrCast(&frame.starts), .span_ends = @ptrCast(&frame.ends) },
+        .reserved = &.{ .nodes = &frame.nodes, .span_starts = @ptrCast(&frame.starts), .span_ends = @ptrCast(&frame.ends), .storage = &frame.storage },
     };
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
@@ -91,12 +97,6 @@ pub fn reservePortNodes(handle: *const anyopaque, count: u64) std.mem.Allocator.
     frame.reservation = try Nodes.reserve(frame.graph, std.math.cast(usize, count) orelse return error.OutOfMemory);
 
     frame.bind();
-}
-
-pub fn commitPortNodes(handle: *const anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.reservation.finish(frame.graph);
 }
 
 pub fn internPortType(handle: *const anyopaque, type_id: u32, offset: u64) zx.Error!u32 {

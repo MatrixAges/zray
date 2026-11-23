@@ -11,6 +11,7 @@ const Table = std.meta.Child(@FieldType(Registry, "table"));
 const Storage = std.meta.Child(@FieldType(Registry, "storage"));
 const NodeView = std.meta.Child(@FieldType(Registry, "nodes"));
 const Columns = std.meta.Child(@FieldType(NodeView, "columns"));
+const Publication = std.meta.Child(@FieldType(Input, "publication"));
 
 const Writable = struct {
     metadata: []u8,
@@ -36,6 +37,10 @@ const Frame = struct {
     shape_columns: Columns = undefined,
     nodes: NodeView = undefined,
     registry: Registry = undefined,
+    count: []u64 = undefined,
+    node_publication: Nodes.Publication = undefined,
+    visibility: std.meta.Child(@FieldType(Publication, "storage")) = undefined,
+    spans: std.meta.Child(@FieldType(Publication, "span")) = undefined,
     fn bind(self: *Frame) void {
         const graph = self.graph;
         const known = &graph.pending.known_types;
@@ -48,6 +53,10 @@ const Frame = struct {
         self.storage = self.writable.borrow(Storage);
         self.shape_columns = self.columns.borrow(Columns);
         self.nodes = .{ .parents = @ptrCast(&self.parents), .columns = &self.shape_columns, .capacity = self.rows.len, .known_kind = @backingInt(Nodes.Kind.Known) };
+        self.count = (&known.state.count)[0..1];
+        self.node_publication = Nodes.Publication.init(graph, self.rows);
+        self.visibility = self.node_publication.storage(@TypeOf(self.visibility));
+        self.spans = self.node_publication.span(@TypeOf(self.spans), self.span);
     }
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -69,6 +78,7 @@ pub fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span
         .type_id = members[0],
         .remaining = budget,
         .end = graph.nodes.len,
+        .publication = &.{ .storage = &frame.visibility, .span = &frame.spans, .count = @ptrCast(&frame.count) },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
@@ -76,22 +86,6 @@ pub fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span
     const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| return workflow.errorSet(err);
 
     return .{ .node = @fromBackingInt(result.value), .remaining = result.remaining orelse 0 };
-}
-
-pub fn publishKnownNodes(handle: *const anyopaque, end: u64) void {
-    const frame = Frame.borrow(handle);
-    const graph = frame.graph;
-    const first = graph.nodes.len;
-    var rows = frame.rows;
-    rows.len = @intCast(end);
-
-    const reservation: Nodes.Reservation = .{ .rows = rows, .first = first };
-
-    reservation.publish(graph, frame.span);
-
-    const table = &graph.pending.known_types;
-    table.state.count += rows.len - first;
-    frame.table.count = table.state.count;
 }
 
 pub fn reserveKnownNodes(handle: *const anyopaque) std.mem.Allocator.Error!void {

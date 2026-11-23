@@ -488,8 +488,6 @@ export declare function historyTextPosition(text: HistoryXmlText): u8[]
 export declare function reservePortNodes(target: PortGraph, count: u64): void
     throws { OutOfMemory }
 
-export declare function commitPortNodes(target: PortGraph): void
-
 export declare function internPortType(target: PortGraph, type_id: u32, offset: u64): u32
     throws { OutOfMemory, InvalidSource }
 
@@ -623,8 +621,6 @@ export declare function materializeAssignment(
     payload: u32,
     layers: u64
 ): void throws { OutOfMemory, InvalidSource }
-
-export declare function publishKnownNodes(frame: KnownRegistration, end: u64): void
 
 export declare function reserveKnownNodes(frame: KnownRegistration): void throws { OutOfMemory }
 

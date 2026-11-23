@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import publishLength from "./length"
+
+import type { Finish as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, first, end } = in
+
+    memory.clearOptionalU16Range(storage.allowed, first, end)
+    memory.clearOptionalU8Range(storage.fallback, first, end)
+
+    publishLength({
+        length: storage.length,
+        end
+    })
+}

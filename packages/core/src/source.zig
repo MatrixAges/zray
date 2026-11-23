@@ -1,7 +1,4 @@
-pub const Span = struct {
-    start: usize,
-    end: usize,
-};
+pub const Span = @import("memory").SourceSpan;
 
 pub const Location = struct {
     line: usize,

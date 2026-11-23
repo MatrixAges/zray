@@ -1,0 +1,4 @@
+import type { Uniform } from "./publication/model"
+import type { Input as Rows } from "./write_containers"
+
+export type Input = Rows & Uniform

@@ -19,10 +19,20 @@
 
     <If on={$ctx.register.end != $in.end}>
         <Call
-            fn="host.publishKnownNodes"
+            module="../nodes/publication/uniform"
+            in={{
+                first: $in.end,
+                end: $ctx.register.end,
+                ...$in.request.publication.omit(["count"])
+            }}
+        />
+
+        <Call
+            fn="host.writeU64"
             in={[
-                $in.request.frame,
-                $ctx.register.end
+                $in.request.publication.count,
+                0,
+                $in.request.view.table.count + ($ctx.register.end - $in.end)
             ]}
         />
     </If>

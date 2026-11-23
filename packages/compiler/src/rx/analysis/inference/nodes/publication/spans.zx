@@ -1,0 +1,13 @@
+import memory from "memory"
+
+import type { Uniform } from "./model"
+
+export type Input = Uniform.Pick("first", "end", "span")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { first, end, span } = in
+
+    memory.fillSourceSpanRange(span.rows, first, end, span.start, span.end)
+}

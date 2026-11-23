@@ -5,4 +5,13 @@
 
     <Call fn="../../../inference/nodes/initialize" in={$in.reserved.nodes} />
     <Call fn="inferred" in={$in} />
+
+    <Call
+        fn="../../../inference/nodes/publication/finish"
+        in={{
+            first: $in.reserved.nodes.first,
+            end: $in.reserved.nodes.end,
+            storage: $in.reserved.storage
+        }}
+    />
 </Module>

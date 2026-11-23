@@ -1,0 +1,14 @@
+import memory from "memory"
+
+import type { IndexBuffer } from "memory"
+
+export type Input = {
+    length: IndexBuffer,
+    end: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeIndex(in.length, 0, in.end)
+}

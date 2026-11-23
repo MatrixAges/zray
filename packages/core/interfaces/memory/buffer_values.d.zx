@@ -103,6 +103,32 @@ export declare function writeU64(
 
 export declare function clearU64Buffer(target: U64Buffer): void
 
+export declare function writeIndex(
+    target: IndexBuffer,
+    index: u64,
+    value: u64
+): void throws { IndexOutOfBounds }
+
+export declare function clearOptionalU8Range(
+    target: OptionalU8Buffer,
+    first: u64,
+    end: u64
+): void throws { IndexOutOfBounds }
+
+export declare function clearOptionalU16Range(
+    target: OptionalU16Buffer,
+    first: u64,
+    end: u64
+): void throws { IndexOutOfBounds }
+
+export declare function fillSourceSpanRange(
+    target: SourceSpanBuffer,
+    first: u64,
+    end: u64,
+    start_offset: u64,
+    end_offset: u64
+): void throws { IndexOutOfBounds }
+
 export declare function copyBytes(
     target: U8Buffer,
     offset: u64,

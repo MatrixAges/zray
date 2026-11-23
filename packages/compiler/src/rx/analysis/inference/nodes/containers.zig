@@ -26,6 +26,7 @@ pub fn append(graph: *Graph, payload: ?Graph.Id, kind: Kind, count: usize, span:
     const Input = std.meta.Child(writer.Input);
     const rows = Nodes.writable(reservation.rows);
     const parents = reservation.rows.items(.parent);
+    const publication = Nodes.Publication.init(graph, reservation.rows);
 
     const container: Nodes.Kind = switch (kind) {
         .list => .List,
@@ -35,17 +36,18 @@ pub fn append(graph: *Graph, payload: ?Graph.Id, kind: Kind, count: usize, span:
     const input: Input = .{
         .parents = @ptrCast(&parents),
         .columns = &rows.borrow(std.meta.Child(@FieldType(Input, "columns"))),
-        .start = reservation.first,
+        .first = reservation.first,
         .end = reservation.rows.len,
         .payload = if (payload) |id| @backingInt(id) else null,
         .container = @backingInt(container),
         .unknown = @backingInt(Nodes.Kind.Unknown),
+        .storage = &publication.storage(std.meta.Child(@FieldType(Input, "storage"))),
+        .span = &publication.span(std.meta.Child(@FieldType(Input, "span")), span),
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    zx.columns.invoke(writer.executeValue, empty.allocator(), &input) catch unreachable;
-    reservation.publish(graph, span);
+    writer.executeIn(empty.allocator(), &input) catch unreachable;
 
     return @fromBackingInt(@intCast(reservation.rows.len - 1));
 }
