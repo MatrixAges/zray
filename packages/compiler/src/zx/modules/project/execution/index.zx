@@ -1,4 +1,4 @@
-export { readU64, writeU64 } from "memory"
+export { readU64, writeU64, readLengthSlot, shrinkLengthSlot } from "memory"
 export {
     installProjectEntryBody,
     exposeProjectEntryFunctions,

@@ -1,14 +1,16 @@
+import memory from "memory"
 import host from "project_host"
 import { CacheWrite } from "project_host"
 
 import type { Entry } from "./model"
 
-export type Input = Entry.Omit("verified", "plan")
+export type Input =
+    Entry.Pick("entry", "records", "record_count", "uncacheable", "root")
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { entry, records, root } = in
+    const { entry, records, record_count, uncacheable, root } = in
 
     const position: u64 = 0
 
@@ -17,18 +19,18 @@ export default function (in: Input): Output {
         status: CacheWrite.Stored
     }, {
         while: state => {
-            const more = state.position < records
+            const more = state.position < record_count
             const valid = state.status != CacheWrite.Invalid
 
             return more && valid
         },
         next: state => {
-            const index = host.projectCacheRecord(entry, state.position)
+            const index = memory.readColumnIndex(records, state.position)
             const is_root = root != null && root == index
             const status = host.storeProjectRecord(entry, index, is_root)
 
             if (status == CacheWrite.MissingOrigin) {
-                host.recordMissingOrigin(entry)
+                memory.advanceLengthSlot(uncacheable, 0, 1)
             }
 
             state.position += 1

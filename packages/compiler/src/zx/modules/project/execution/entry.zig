@@ -33,6 +33,17 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const member = if (program.type_only) unit.function else null;
         const row = if (member) |id| @backingInt(id) else null;
         const expressions = if (row) |index| linked.expressions[index] else &program.expressions;
+        const records = project.cache_records.items;
+
+        const record_column: zx.memory.ReadColumn = .{
+            .bytes = std.mem.sliceAsBytes(records),
+            .count = records.len,
+            .stride = @sizeOf(usize),
+            .offset = 0,
+        };
+
+        const verified: zx.memory.ColumnLengths = &.{&project.verified.functions};
+        const uncacheable: zx.memory.ColumnLengths = if (project.semantic_cache) |cache| &.{&cache.uncacheable} else &.{};
 
         const input: std.meta.Child(entry.Input) = .{
             .entry = @ptrCast(&state),
@@ -43,8 +54,10 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
                 .linked_count = linked.count(),
                 .calls = expressions.call_functions,
             },
-            .verified = project.verified.functions,
-            .records = project.cache_records.items.len,
+            .verified = @ptrCast(&verified),
+            .records = @ptrCast(&record_column),
+            .record_count = records.len,
+            .uncacheable = @ptrCast(&uncacheable),
             .root = if (project.cache_root) |cache_row| cache_row else null,
         };
 
@@ -67,13 +80,14 @@ fn seed(state: *Entry) std.mem.Allocator.Error!void {
     const published = try publication.publishSeedEntry(project.allocator, &state.result.value.ir, unit.function, project.functions.view());
 
     state.result.entry_function = published.recursive;
+    project.verified.functions = @min(published.visible_count, project.verified.functions);
 
-    if (!try validateProjectEntry(state, @min(published.visible_count, project.verified.functions))) return;
+    if (!try validateProjectEntry(state)) return;
 
     for (project.cache_records.items) |index| {
         switch (try storeProjectRecord(state, index, project.cache_root == index)) {
             .Stored => {},
-            .MissingOrigin => recordMissingOrigin(state),
+            .MissingOrigin => project.semantic_cache.?.uncacheable += 1,
             .Invalid => return,
         }
     }
@@ -124,11 +138,11 @@ pub fn forwardProjectRecursiveEntry(handle: *const anyopaque, row: u32) std.mem.
     entry.result.entry_function = id;
 }
 
-pub fn validateProjectEntry(handle: *const anyopaque, prefix: u64) std.mem.Allocator.Error!bool {
+pub fn validateProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!bool {
     const entry = Entry.borrow(handle);
     const project = entry.project;
+
     entry.result.arena = project.arena.*;
-    project.verified.functions = @intCast(prefix);
 
     if (try Validate.validateProjectPrefix(project.arena.child_allocator, entry.result.value.ir, project.verified)) |issue| {
         entry.result = .{ .arena = project.arena.*, .value = .{ .diagnostic = issue } };
@@ -139,10 +153,6 @@ pub fn validateProjectEntry(handle: *const anyopaque, prefix: u64) std.mem.Alloc
     return true;
 }
 
-pub fn projectCacheRecord(handle: *const anyopaque, position: u64) u64 {
-    return Entry.borrow(handle).project.cache_records.items[@intCast(position)];
-}
-
 pub fn storeProjectRecord(handle: *const anyopaque, index: u64, root: bool) std.mem.Allocator.Error!Status {
     const entry = Entry.borrow(handle);
     const project = entry.project;
@@ -151,8 +161,4 @@ pub fn storeProjectRecord(handle: *const anyopaque, index: u64, root: bool) std.
     if (status == .Invalid) entry.result = .{ .arena = project.arena.*, .value = .{ .diagnostic = cache_publication.invalid } };
 
     return @fromBackingInt(@intCast(@backingInt(status)));
-}
-
-pub fn recordMissingOrigin(handle: *const anyopaque) void {
-    Entry.borrow(handle).project.semantic_cache.?.uncacheable += 1;
 }

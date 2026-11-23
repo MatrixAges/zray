@@ -1,21 +1,27 @@
 pub const ir = @import("zx").ir;
 pub const grammar = @import("frontend/combinators.zig");
-const parse_cache = @import("modules/parse_cache.zig");
-pub const discardParseReplacement = parse_cache.discardParseReplacement;
-pub const keepParseReplacement = parse_cache.keepParseReplacement;
-pub const queueParseReplacement = parse_cache.queueParseReplacement;
-pub const retainPendingParse = parse_cache.retainPendingParse;
-pub const discardPendingParse = parse_cache.discardPendingParse;
-pub const preparePrefetchedParse = parse_cache.preparePrefetchedParse;
-pub const existingParseEntry = parse_cache.existingParseEntry;
-pub const insertParseEntry = parse_cache.insertParseEntry;
-pub const replaceParseEntry = parse_cache.replaceParseEntry;
-pub const bindPrefetchedParse = parse_cache.bindPrefetchedParse;
-pub const discardStagedParse = parse_cache.discardStagedParse;
-pub const parseWorkerFailed = parse_cache.parseWorkerFailed;
-pub const failParseWorker = parse_cache.failParseWorker;
-pub const bindParseWorkerHit = parse_cache.bindParseWorkerHit;
-pub const stageParseWorkerResult = parse_cache.stageParseWorkerResult;
+
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    @import("analysis/analyzer/host/publish.zig"),
+    @import("analysis/publication/entry/host.zig"),
+    @import("modules/compiled/imports.zig"),
+    @import("modules/link.zig"),
+    @import("modules/parse_cache.zig"),
+    @import("modules/project/execution/body.zig"),
+    @import("modules/project/execution/delivery/bind.zig"),
+    @import("modules/project/execution/delivery/route.zig"),
+    @import("modules/project/execution/delivery/source.zig"),
+    @import("modules/project/execution/entry.zig"),
+    @import("modules/project/execution/legacy.zig"),
+    @import("modules/project/execution/load.zig"),
+    @import("modules/project/execution/native.zig"),
+    @import("modules/project/execution/signatures/host.zig"),
+    @import("modules/project/state/host.zig"),
+    @import("modules/semantic_cache/entries.zig"),
+    @import("modules/semantic_cache/native.zig"),
+}).resolve;
+
 pub const Parser = @import("frontend/parser.zig");
 pub const parse = @import("frontend/parse.zig").parse;
 pub const parseModule = @import("frontend/parse.zig").parseModule;
@@ -56,109 +62,9 @@ pub const isParallelSafeWithSuffix = @import("ir/parallel.zig").programPureWithS
 pub const analyzeWithContext = @import("analysis/analyze.zig").analyzeWithContext;
 pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
-const analysis_publication = @import("analysis/analyzer/host/publish.zig");
-const analysis_entry = @import("analysis/publication/entry/host.zig");
 pub const publishSyntaxOrder = @import("frontend/retention/order.zig").publishSyntaxOrder;
-const project_walk = @import("modules/project/execution/load.zig");
-const project_state = @import("modules/project/state/host.zig");
-const project_signatures = @import("modules/project/execution/signatures/host.zig");
-const import_route = @import("modules/project/execution/delivery/route.zig");
-const import_source = @import("modules/project/execution/delivery/source.zig");
-const import_bind = @import("modules/project/execution/delivery/bind.zig");
-const project_body = @import("modules/project/execution/body.zig");
-const project_entry = @import("modules/project/execution/entry.zig");
-pub const initializeAnalysisTypes = analysis_publication.initializeAnalysisTypes;
-pub const appendAnalysisTypes = analysis_publication.appendAnalysisTypes;
-pub const publishAnalysisExports = analysis_publication.publishAnalysisExports;
-pub const publishAnalysisConstants = analysis_publication.publishAnalysisConstants;
-pub const registerAnalysisBody = analysis_entry.registerAnalysisBody;
-pub const ownAnalysisNatives = analysis_entry.ownAnalysisNatives;
-pub const validateAnalysisPrefix = analysis_entry.validateAnalysisPrefix;
-pub const rejectAnalysisInitializer = analysis_entry.rejectAnalysisInitializer;
-pub const forwardAnalysisEntry = analysis_entry.forwardAnalysisEntry;
-pub const copyProjectTypes = project_state.copyProjectTypes;
-pub const copyProjectNatives = project_state.copyProjectNatives;
-pub const copyProjectOrigins = project_state.copyProjectOrigins;
-pub const reserveProjectSignatures = project_signatures.reserveProjectSignatures;
-pub const findProjectSignature = project_signatures.findProjectSignature;
-pub const loadProjectSignature = project_signatures.loadProjectSignature;
-pub const writeProjectSignature = project_signatures.writeProjectSignature;
-pub const finishProjectSignatures = project_signatures.finishProjectSignatures;
-pub const openProjectFrame = project_walk.openProjectFrame;
-pub const readProjectFrame = project_walk.readProjectFrame;
-pub const suspendedProjectImport = project_walk.suspendedProjectImport;
-pub const resumeProjectImport = project_walk.resumeProjectImport;
-pub const visitProjectImport = project_walk.visitProjectImport;
-pub const routeProjectImport = import_route.routeProjectImport;
-pub const rejectProjectRoute = import_route.rejectProjectRoute;
-pub const resolveProjectImport = import_route.resolveProjectImport;
-pub const selectProjectSource = import_source.selectProjectSource;
-pub const projectImportSourceRow = import_source.projectImportSourceRow;
-pub const prepareProjectSource = import_source.prepareProjectSource;
-pub const prepareDeferredProjectSignature = import_source.prepareDeferredProjectSignature;
-pub const rejectProjectSource = import_source.rejectProjectSource;
-pub const reuseProjectNativeUnit = import_bind.reuseProjectNativeUnit;
-pub const registerProjectNativeUnit = import_bind.registerProjectNativeUnit;
-pub const loadProjectNativeUnit = import_bind.loadProjectNativeUnit;
-pub const rememberProjectNativeUnit = import_bind.rememberProjectNativeUnit;
-pub const bindProjectLegacy = import_bind.bindProjectLegacy;
-pub const prepareProjectIntrinsic = import_bind.prepareProjectIntrinsic;
-pub const loadProjectLibrary = import_bind.loadProjectLibrary;
-pub const bindProjectImport = import_bind.bindProjectImport;
-pub const recordProjectImport = import_bind.recordProjectImport;
-pub const finishProjectFrame = project_walk.finishProjectFrame;
-pub const closeProjectFrame = project_walk.closeProjectFrame;
-pub const restoreProjectBody = project_body.restoreProjectBody;
-pub const recordProjectCacheUse = project_body.recordProjectCacheUse;
-pub const analyzeProjectBody = project_body.analyzeProjectBody;
-pub const materializeProjectFunction = project_body.materializeProjectFunction;
-pub const bindProjectBodyExports = project_body.bindProjectBodyExports;
-pub const checkProjectOwnership = project_body.checkProjectOwnership;
-pub const writeProjectModuleRecord = project_body.writeProjectModuleRecord;
-pub const moveProjectEntryBody = project_body.moveProjectEntryBody;
-pub const installProjectEntryBody = project_entry.installProjectEntryBody;
-pub const exposeProjectEntryFunctions = project_entry.exposeProjectEntryFunctions;
-pub const forwardProjectNativeEntry = project_entry.forwardProjectNativeEntry;
-pub const forwardProjectRecursiveEntry = project_entry.forwardProjectRecursiveEntry;
-pub const validateProjectEntry = project_entry.validateProjectEntry;
-pub const projectCacheRecord = project_entry.projectCacheRecord;
-pub const storeProjectRecord = project_entry.storeProjectRecord;
-pub const recordMissingOrigin = project_entry.recordMissingOrigin;
-const project_native = @import("modules/project/execution/native.zig");
-const native_cache = @import("modules/semantic_cache/native.zig");
-const cache_slots = @import("modules/semantic_cache/entries.zig");
-const project_legacy = @import("modules/project/execution/legacy.zig");
-pub const appendProjectNativeModule = project_native.appendProjectNativeModule;
-pub const materializeProjectExternal = project_legacy.materializeProjectExternal;
-pub const appendProjectExternal = project_legacy.appendProjectExternal;
 pub const publishInterfaceTypes = @import("analysis/semantic/merging/commit.zig").publishInterfaceTypes;
 pub const refreshResolvedNames = @import("analysis/semantic/resolving/host/names.zig").refreshResolvedNames;
-pub const loadFreshProjectNative = project_native.loadFreshProjectNative;
-pub const loadCachedProjectNative = project_native.loadCachedProjectNative;
-pub const restoreNativeCacheHit = native_cache.restoreNativeCacheHit;
-pub const acceptNativeCacheHit = native_cache.acceptNativeCacheHit;
-pub const buildNativeCacheEntry = native_cache.buildNativeCacheEntry;
-pub const validateNativeCacheEntry = native_cache.validateNativeCacheEntry;
-pub const probeCacheSlot = cache_slots.probeCacheSlot;
-pub const readCacheBucket = cache_slots.readCacheBucket;
-pub const reserveCacheSlot = cache_slots.reserveCacheSlot;
-pub const stageCacheSlot = cache_slots.stageCacheSlot;
-pub const appendCacheSlot = cache_slots.appendCacheSlot;
-pub const replaceCacheSlot = cache_slots.replaceCacheSlot;
-const compiled_imports = @import("modules/compiled/imports.zig");
-const artifact_link = @import("modules/link.zig");
-pub const resolveCompiledImport = compiled_imports.resolveCompiledImport;
-pub const findCompiledLibrary = compiled_imports.findCompiledLibrary;
-pub const reserveCompiledImport = compiled_imports.reserveCompiledImport;
-pub const bindCompiledImport = compiled_imports.bindCompiledImport;
-pub const publishCompiledInitializers = compiled_imports.publishCompiledInitializers;
-pub const rememberCompiledLibrary = compiled_imports.rememberCompiledLibrary;
-pub const selectCompiledMember = compiled_imports.selectCompiledMember;
-pub const orderArtifactLink = artifact_link.orderArtifactLink;
-pub const registerArtifactTypes = artifact_link.registerArtifactTypes;
-pub const openArtifactBinding = artifact_link.openArtifactBinding;
-pub const artifactWindowCapacity = artifact_link.artifactWindowCapacity;
-pub const bindArtifactWindow = artifact_link.bindArtifactWindow;
 pub const SourceIndex = @import("modules/source_index/growing.zig").Map;
 pub const cache_retention = @import("modules/cache_retention.zig");
 pub const types = @import("analysis/types.zig");

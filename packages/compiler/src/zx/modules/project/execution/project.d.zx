@@ -113,18 +113,14 @@ export declare function forwardProjectNativeEntry(entry: ProjectEntry, row: u32)
 export declare function forwardProjectRecursiveEntry(entry: ProjectEntry, row: u32): void
     throws { OutOfMemory }
 
-export declare function validateProjectEntry(entry: ProjectEntry, prefix: u64): bool
+export declare function validateProjectEntry(entry: ProjectEntry): bool
     throws { OutOfMemory }
-
-export declare function projectCacheRecord(entry: ProjectEntry, position: u64): u64
 
 export declare function storeProjectRecord(
     entry: ProjectEntry,
     index: u64,
     root: bool
 ): CacheWrite throws { OutOfMemory }
-
-export declare function recordMissingOrigin(entry: ProjectEntry): void
 
 export declare function loadFreshProjectNative(frame: ProjectNative): void
     throws { OutOfMemory, InvalidSource }

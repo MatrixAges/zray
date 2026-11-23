@@ -12,12 +12,25 @@
     />
 
     <Call
-        fn="index.validateProjectEntry"
+        fn="index.readLengthSlot"
         in={[
-            $in.entry,
-            $ctx.entry_publish < $in.verified ? $ctx.entry_publish : $in.verified
+            $in.verified,
+            0
         ]}
     />
+
+    <If on={$ctx.entry_publish < $ctx.readLengthSlot}>
+        <Call
+            fn="index.shrinkLengthSlot"
+            in={[
+                $in.verified,
+                0,
+                $ctx.entry_publish
+            ]}
+        />
+    </If>
+
+    <Call fn="index.validateProjectEntry" in={$in.entry} />
 
     <If on={!$ctx.validateProjectEntry}>
         <Return value={false} />
@@ -25,9 +38,12 @@
 
     <Call
         fn="entry_cache"
-        in={$in.omit([
-            "verified",
-            "plan"
+        in={$in.pick([
+            "entry",
+            "records",
+            "record_count",
+            "uncacheable",
+            "root"
         ])}
     />
 
