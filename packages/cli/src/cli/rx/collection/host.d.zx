@@ -28,8 +28,7 @@ export declare function reportCollectionFileFailure(collection: Collection): voi
 export declare function reportCollectionEscape(collection: Collection): void throws { SourceLoadFailure }
 export declare function reportCollectionAlias(collection: Collection, previous: string): void throws { SourceLoadFailure }
 
-export declare function openCollectionZxHeader(collection: Collection): u64 throws { SourceLoadFailure }
-export declare function collectZxHeaderImport(collection: Collection, row: u64): void throws { SourceLoadFailure }
+export declare function collectZxReferences(collection: Collection): void throws { SourceLoadFailure }
 export declare function recordCollectionZx(collection: Collection): void throws { SourceLoadFailure }
 
 export declare function parseCollectionXml(collection: Collection): bool throws { SourceLoadFailure }

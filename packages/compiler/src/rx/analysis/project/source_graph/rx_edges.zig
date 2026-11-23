@@ -2,6 +2,7 @@ const rx = @import("rx");
 const project = @import("frontend").project;
 const Reference = @import("model.zig").Reference;
 const dependency = rx.dependency_reference;
+pub const collectZx = @import("zx_edges.zig").collect;
 pub const collect = if (@import("rx_options").generated_graph) @import("references/scan.zig").collect else collectSeed;
 
 pub fn collectSeed(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*).Error!void {

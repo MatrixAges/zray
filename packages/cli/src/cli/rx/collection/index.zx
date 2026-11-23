@@ -10,7 +10,7 @@ export {
     reportCollectionFileFailure,
     reportCollectionEscape,
     reportCollectionAlias,
-    openCollectionZxHeader,
+    collectZxReferences,
     recordCollectionZx,
     parseCollectionXml,
     validateCollectionXml,

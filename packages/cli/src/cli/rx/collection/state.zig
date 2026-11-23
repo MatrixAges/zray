@@ -40,7 +40,6 @@ pub const State = struct {
         text: Text.Read = undefined,
         documents: ?*Text.Cache = null,
         module: rx.ModuleSource = undefined,
-        parsed: *const compiler.project.ParseCache.ModuleResult = undefined,
     };
     pub fn load(result: *collection.Result, backing: std.mem.Allocator, options: *const collection.Options) !?collection.Data {
         const allocator = result.arena.allocator();

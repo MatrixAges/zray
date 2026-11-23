@@ -1,39 +1,20 @@
 const compiler = @import("compiler");
 const rx = @import("rx");
 const analysis = @import("rx_analysis");
-const zx = @import("zx");
 const Text = @import("../../sources/text.zig");
 const state = @import("state.zig");
 const State = state.State;
 const Error = state.effects.Error;
 
-pub fn openCollectionZxHeader(handle: *const anyopaque) Error!u64 {
+pub fn collectZxReferences(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const file = &self.file;
     const parsed = self.cache.getModule(file.text.bytes, file.absolute) catch |err| return self.failure.save(err);
 
-    file.parsed = parsed;
-
-    if (parsed.diagnostic() != null) return 0;
+    if (parsed.diagnostic() != null) return;
 
     self.startCollector(null);
-
-    return switch (parsed.*) {
-        .native => |*result| (zx.syntax.header.Native{ .program = result.value.parsed.ast }).importCount(),
-        .indexed => |*result| if (compiler.project.ParseCache.indexed_enabled) result.header().importCount() else unreachable,
-    };
-}
-
-pub fn collectZxHeaderImport(handle: *const anyopaque, row: u64) Error!void {
-    const self = State.get(handle);
-    const index: usize = @intCast(row);
-
-    const imported = switch (self.file.parsed.*) {
-        .native => |*result| (zx.syntax.header.Native{ .program = result.value.parsed.ast }).importAt(index),
-        .indexed => |*result| if (compiler.project.ParseCache.indexed_enabled) result.header().importAt(index) else unreachable,
-    };
-
-    self.collector.import(imported.path, .{ .offset = imported.span.start, .line = 1, .column = 1 }, .dependency, null) catch |err| return self.failure.save(err);
+    analysis.project.source_graph.references.collectZx(&self.collector, parsed) catch |err| return self.failure.save(err);
 }
 
 pub fn recordCollectionZx(handle: *const anyopaque) Error!void {

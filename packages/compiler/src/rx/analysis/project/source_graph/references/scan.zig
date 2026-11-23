@@ -25,20 +25,20 @@ const Delivery = union(enum) {
 
 const ExternalCollector = struct {
     context: *anyopaque,
-    apply: *const fn (*anyopaque, *const Entry, []const u8, Delivery) anyerror!void,
+    apply: *const fn (*anyopaque, ?*const Entry, Site, []const u8, Delivery) anyerror!void,
     fn bind(collector: anytype) ExternalCollector {
         const Pointer = @TypeOf(collector);
 
         const Adapter = struct {
-            fn apply(context: *anyopaque, entry: *const Entry, owner: []const u8, delivery: Delivery) anyerror!void {
+            fn apply(context: *anyopaque, entry: ?*const Entry, site: Site, owner: []const u8, delivery: Delivery) anyerror!void {
                 const target: Pointer = @ptrCast(@alignCast(context));
-                const location = if (entry.attribute) |attribute| attribute.value_location else entry.node.location;
+                const location = site.location;
 
                 switch (delivery) {
                     .diagnostic => |message| return target.fail(location, message),
-                    .source => |path| try @import("../rx_edges.zig").local(target, path, entry.*),
+                    .source => |path| try @import("../rx_edges.zig").local(target, path, entry.?.*),
                     .store => |path| try target.store(path, location, owner),
-                    .package => |binding| try target.import(binding.specifier, location, Reference.fromXml(entry.role), binding.selected),
+                    .package => |binding| try target.import(binding.specifier, location, site.role, binding.selected),
                 }
             }
         };
@@ -55,11 +55,18 @@ const Scan = struct {
     entries: ?[]const Entry = null,
     tree: ?Entry = null,
     path: []u8 = &.{},
+    fn bind(collector: anytype) Scan {
+        return if (comptime @TypeOf(collector) == *Collector)
+            .{ .collector = collector }
+
+        else
+            .{ .external = ExternalCollector.bind(collector) };
+    }
     fn borrow(handle: *const anyopaque) *Scan {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
     fn site(self: *const Scan, index: u64) Site {
-        const entry = self.reference(index) orelse return .{ .location = position.deferred(@intCast(index)), .role = .dependency };
+        const entry = self.reference(index) orelse return .{ .location = position.imported(@intCast(index), self.external != null), .role = .dependency };
 
         return .{
             .location = if (entry.attribute) |attribute| attribute.value_location else entry.node.location,
@@ -74,7 +81,7 @@ const Scan = struct {
     }
 
     fn send(self: *Scan, external: ExternalCollector, index: u64, delivery: Delivery) Collector.Error!void {
-        external.apply(external.context, self.reference(index).?, self.owner, delivery) catch |err| {
+        external.apply(external.context, self.reference(index), self.site(index), self.owner, delivery) catch |err| {
             self.failure = err;
 
             return error.InvalidGraph;
@@ -88,13 +95,11 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
     if (indexed != null and indexed.?.len == 0) return;
 
     var buffer: [512]u8 = undefined;
-    var scan: Scan = .{ .owner = source.path, .entries = indexed, .path = &buffer };
+    var scan = Scan.bind(collector);
 
-    if (comptime @TypeOf(collector) == *Collector) {
-        scan.collector = collector;
-    } else {
-        scan.external = ExternalCollector.bind(collector);
-    }
+    scan.owner = source.path;
+    scan.entries = indexed;
+    scan.path = &buffer;
 
     const packages = collector.dependencies();
     const allocator = collector.temporary.allocator();
@@ -158,7 +163,7 @@ fn collectTree(scan: *Scan, dependencies: []const project.Package, allocator: st
     try execute(rule, &input);
 }
 
-pub fn collectZx(collector: *Collector, header: anytype) Collector.Error!void {
+pub fn collectZx(collector: anytype, header: anytype) @TypeOf(collector.*).Error!void {
     const imports = header.storage.imports;
 
     if (imports.len == 0) return;
@@ -166,7 +171,7 @@ pub fn collectZx(collector: *Collector, header: anytype) Collector.Error!void {
     const rule = @import("generated_rx_scan_source_graph_imports");
     const Input = std.meta.Child(rule.Input);
     const packages = zx.memory.borrowTextColumn("specifier", collector.dependencies());
-    var scan: Scan = .{ .collector = collector };
+    var scan = Scan.bind(collector);
 
     const input: Input = .{
         .target = @ptrCast(&scan),
@@ -174,9 +179,14 @@ pub fn collectZx(collector: *Collector, header: anytype) Collector.Error!void {
         .intrinsic = project.intrinsic_import,
         .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
         .imports = zx.columns.slice(@FieldType(Input, "imports"), imports),
+        .discover = scan.external != null,
     };
 
-    try execute(rule, &input);
+    execute(rule, &input) catch |err| {
+        if (comptime @TypeOf(collector) == *Collector) return err;
+
+        return @errorCast(scan.failure orelse err);
+    };
 }
 
 fn execute(comptime rule: type, input: *const std.meta.Child(rule.Input)) Collector.Error!void {

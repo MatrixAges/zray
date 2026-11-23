@@ -1,4 +1,5 @@
 import encoding from "std:encoding"
+import host from "rx_graph_host"
 
 import classify from "../../../../../zx/modules/project/target/classify"
 import { Route } from "../../../../../zx/modules/project/target/model"
@@ -14,13 +15,14 @@ export type Input = {
     source: string,
     intrinsic: string,
     packages: Rows,
-    imports: Import[]
+    imports: Import[],
+    discover: bool
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, source, intrinsic, packages, imports } = in
+    const { target, source, intrinsic, packages, imports, discover } = in
 
     const scanned = loop(0, {
         while: index => index < imports.length,
@@ -28,30 +30,41 @@ export default function (in: Input): Output {
             const item = imports[index]
             const span = item.path
             const reference = encoding.sliceBytes(source, span.start + 1, span.end - 1)
-            const route = classify({
-                path: reference,
-                intrinsic
-            })
+            if (discover) {
+                host.resolveSourceGraphImport(
+                    target,
+                    item.span.start,
+                    reference,
+                    false,
+                    null,
+                    false
+                )
+            } else {
+                const route = classify({
+                    path: reference,
+                    intrinsic
+                })
 
-            const selected = match route {
-                Route.Package => select({
-                    specifiers: packages,
-                    name: reference,
-                    check_duplicates: true
-                }),
-                _ => ({
-                    first: null,
-                    duplicate: false
+                const selected = match route {
+                    Route.Package => select({
+                        specifiers: packages,
+                        name: reference,
+                        check_duplicates: true
+                    }),
+                    _ => ({
+                        first: null,
+                        duplicate: false
+                    })
+                }
+
+                publishImport({
+                    target,
+                    reference,
+                    site: item.span.start,
+                    route,
+                    ...selected
                 })
             }
-
-            publishImport({
-                target,
-                reference,
-                site: item.span.start,
-                route,
-                ...selected
-            })
 
             index += 1
         }

@@ -116,18 +116,7 @@ const Scan = struct {
             return error.InvalidGraph;
         }
 
-        switch (parsed.*) {
-            .native => |result| try zx_edges.collect(collector, zx.syntax.header.Native{ .program = result.value.parsed.ast }),
-            .indexed => |*result| if (project.ParseCache.indexed_enabled) {
-                const header = result.header();
-
-                if (comptime enabled) {
-                    try @import("references/scan.zig").collectZx(collector, header);
-                } else {
-                    try zx_edges.collect(collector, header);
-                }
-            } else unreachable,
-        }
+        try zx_edges.collect(collector, parsed);
     }
     fn collectRX(self: *Scan, owner: usize, module: rx.ModuleSource) Collector.Error!void {
         self.collector.begin(owner, "");
