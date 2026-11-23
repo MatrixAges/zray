@@ -50,6 +50,10 @@ export default function (in: Input): Output {
 
     return {
         route,
-        value: route == Route.Length ? scalar_u64 : 0
+        value: match route {
+            Route.Length => scalar_u64,
+            Route.RequireList => scalar_u64,
+            _ => 0
+        }
     }
 }

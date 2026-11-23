@@ -18,13 +18,18 @@ export default function (in: Input): Output {
     const route = in.open ? Route.Open : access(receiver)
 
     if (route == Route.Declared || route == Route.Open) {
-        return member({
+        const field = member({
             ...members,
             first: 0,
             count: members.names.length,
             name: receiver.name,
             declared: route == Route.Declared
         })
+
+        return {
+            route: field.route,
+            value: field.value
+        }
     }
 
     const length = route == Route.Length || route == Route.RequireList

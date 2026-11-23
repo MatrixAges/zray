@@ -75,7 +75,7 @@ export default function (in: Input): Output {
                     })
 
                     if (same) {
-                        memory.writeU8(in.resolution, row, 1)
+                        memory.writeBool(in.resolution, row, true)
                     } else if (plan.route != IndexRoute.Wait) {
                         state.plan = plan
                         state.node = node

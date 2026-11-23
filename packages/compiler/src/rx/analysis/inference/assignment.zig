@@ -24,7 +24,7 @@ fn seedMaterialize(graph: *Graph, base: Base, depths: []const u64) zx.Error!void
         const node = graph.nodeAt(index);
 
         if (node.shape != .unknown or node.allowed != null) continue;
-        if (@import("index.zig").isResult(graph, id)) continue;
+        if (@import("index/seed.zig").isResult(graph, id)) continue;
 
         const value = (try base.representative(graph, id)) orelse continue;
 

@@ -3,8 +3,7 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Kind = @import("../nodes.zig").Kind;
 
-pub fn borrow(comptime Entry: type, graph: *const Graph) std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "graph")) {
-    const View = std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "graph"));
+pub fn borrow(comptime View: type, graph: *const Graph) View {
     const rows = graph.nodes.slice();
     const kinds: []const Kind = rows.items(.kind);
     const types = &graph.types.items;

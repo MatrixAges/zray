@@ -1,0 +1,102 @@
+<Module>
+    <Type from="application" as="Length" />
+    <Type from="../fields/model" as="Fields" />
+
+    <Args in={Length.Input} out={bool} />
+
+    <If on={$in.node != null}>
+        <Call
+            fn="host.mergeProjection"
+            in={[
+                $in.site.graph,
+                $in.site.spans,
+                $in.site.row,
+                $in.node ?? 0,
+                $in.value
+            ]}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <If on={$in.plan.route == Fields.Route.Open}>
+        <Call
+            fn="host.readOpenLength"
+            in={[
+                $in.site.graph,
+                $in.site.spans,
+                $in.site.row,
+                $in.root
+            ]}
+        />
+
+        <Call
+            fn="host.mergeProjection"
+            in={[
+                $in.site.graph,
+                $in.site.spans,
+                $in.site.row,
+                $ctx.readOpenLength,
+                $in.value
+            ]}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <If on={$in.plan.route == Fields.Route.RequireList}>
+        <Call
+            fn="host.requireProjectionList"
+            in={[
+                $in.site.graph,
+                $in.site.spans,
+                $in.site.row,
+                $in.target
+            ]}
+        />
+
+        <Else>
+            <If
+                on={$in.plan.route != Fields.Route.Length &&
+                    $in.plan.route != Fields.Route.KnownMember}
+            >
+                <Call fn="../fields/diagnostic" in={$in.plan.route} />
+
+                <Call
+                    fn="host.rejectProjection"
+                    in={[
+                        $in.site.graph,
+                        $in.site.spans,
+                        $in.site.row,
+                        $ctx.diagnostic
+                    ]}
+                />
+
+                <Return value={true} />
+            </If>
+        </Else>
+    </If>
+
+    <Call
+        fn="host.registerProjectionType"
+        in={[
+            $in.site.graph,
+            $in.site.spans,
+            $in.site.row,
+            $in.plan.value
+        ]}
+    />
+
+    <Call
+        fn="host.mergeProjection"
+        in={[
+            $in.site.graph,
+            $in.site.spans,
+            $in.site.row,
+            $ctx.registerProjectionType,
+            $in.value
+        ]}
+    />
+
+    <Return value={true} />
+</Module>

@@ -1,13 +1,17 @@
 import type { ConstraintRound } from "rx_project_host"
 import type { View } from "../bindings/workflow"
+import type { Replay as Indexes } from "../index/workflow"
 import type { View as NonNull } from "../non_null/model"
+import type { Replay as Lengths } from "../projections/model"
 
 export type Frame = ConstraintRound
 
 export type Request = {
     frame: Frame,
     bindings: View,
-    non_null: NonNull
+    non_null: NonNull,
+    lengths: Lengths,
+    indexes: Indexes
 }
 
 export type Round = {

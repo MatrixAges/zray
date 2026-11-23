@@ -110,14 +110,15 @@ pub fn requireFieldList(handle: *const anyopaque) zx.Error!void {
     _ = try frame.graph.payload(frame.target, .list, frame.span);
 }
 
-pub fn deferFieldLength(handle: *const anyopaque) zx.Error!u32 {
+pub fn appendLengthProjection(handle: *const anyopaque, value: u32) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
-    const graph = frame.graph;
-    const result = try graph.add(.unknown, frame.span);
+    const pending = &frame.graph.pending;
 
-    try graph.pending.lengths.append(graph.pending.allocator, .{ .target = frame.target, .value = result, .span = frame.span });
-
-    return @backingInt(result);
+    try pending.lengths.append(pending.allocator, .{
+        .target = frame.target,
+        .value = @fromBackingInt(value),
+        .span = frame.span,
+    });
 }
 
 pub fn rejectFieldAccess(handle: *const anyopaque, message: []const u8) zx.Error!void {

@@ -44,15 +44,21 @@
         ]}
     />
 
-    <Call fn="host.solveLengths" in={$in.frame} />
+    <Call fn="host.refreshSolverLengths" in={$in.frame} />
+
+    <Call module="../projections/run" in={$in.lengths} />
+
+    <Call fn="host.refreshSolverIndexes" in={$in.frame} />
+
+    <Call module="../index/run" in={$in.indexes} />
 
     <Call
-        fn="host.solveIndexes"
+        fn="../non_null/host.readU64"
         in={[
-            $in.frame,
-            $ctx.solveRevision
+            $in.non_null.revision,
+            0
         ]}
     />
 
-    <Return value={$ctx.solveIndexes} />
+    <Return value={$ctx.readU64 != $ctx.solveRevision} />
 </Module>

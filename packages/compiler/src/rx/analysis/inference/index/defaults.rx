@@ -1,0 +1,41 @@
+<Module>
+    <Type from="workflow" as="Indexes" />
+
+    <Args in={Indexes.Replay} out={bool} />
+
+    <Call
+        fn="../projections/scan"
+        in={{
+            targets: $in.targets,
+            kinds: $in.graph.kinds,
+            parents: $in.parents
+        }}
+    />
+
+    <If on={$ctx.scan == null}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="../projections/host.requireProjectionList"
+        in={[
+            $in.owner,
+            $in.spans,
+            $ctx.scan ?? 0,
+            $in.targets[$ctx.scan ?? 0]
+        ]}
+    />
+
+    <Call
+        fn="../projections/host.mergeProjection"
+        in={[
+            $in.owner,
+            $in.spans,
+            $ctx.scan ?? 0,
+            $ctx.requireProjectionList,
+            $in.values[$ctx.scan ?? 0]
+        ]}
+    />
+
+    <Return value={true} />
+</Module>

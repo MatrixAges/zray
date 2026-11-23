@@ -1,5 +1,6 @@
 import type { State as KnownTypes } from "core/integer/map/model"
-import type { U8Buffer, U32Buffer } from "memory"
+import type { BoolBuffer, U32Buffer } from "memory"
+import type { ProjectionSpans } from "rx_project_host"
 import type { Graph, IndexPlan } from "../sequences/model"
 
 export type Input = {
@@ -8,7 +9,7 @@ export type Input = {
     targets: u32[],
     values: u32[],
     resolved: bool[],
-    resolution: U8Buffer,
+    resolution: BoolBuffer,
     positions: u64?[],
     known: KnownTypes,
     start: u64
@@ -28,5 +29,6 @@ export type EffectInput = IndexPlan & {
 export type Effect = {
     value: u32,
     declared: bool,
+    error_spans: ProjectionSpans,
     message?: string
 }

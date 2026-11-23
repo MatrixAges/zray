@@ -6,7 +6,12 @@
     <Call
         fn="replay"
         in={{
-            ...$in.request.omit(["frame"]),
+            ...$in.request.omit([
+                "frame",
+                "owner",
+                "spans",
+                "index_spans"
+            ]),
             start: $in.row
         }}
     />
@@ -21,17 +26,15 @@
     </If>
 
     <Call
-        fn="host.readReplayIndex"
-        in={[
-            $in.request.frame,
-            $ctx.replay.row
-        ]}
-    />
-
-    <Call
         module="apply"
         in={{
-            projection: $ctx.readReplayIndex,
+            site: {
+                graph: $in.request.owner,
+                spans: $in.request.spans,
+                row: $ctx.replay.row
+            },
+            index_spans: $in.request.index_spans,
+            value: $in.request.values[$ctx.replay.row],
             route: $ctx.replay.plan.route,
             child: $ctx.replay.plan.child,
             declared: $ctx.replay.plan.declared,
@@ -40,13 +43,15 @@
     />
 
     <Call
-        fn="host.commitReplayIndex"
+        fn="../projections/host.writeBool"
         in={[
-            $in.request.frame,
+            $in.request.resolution,
             $ctx.replay.row,
             $ctx.apply
         ]}
     />
+
+    <Call fn="../solve/host.refreshSolverIndexes" in={$in.request.frame} />
 
     <Return
         value={{

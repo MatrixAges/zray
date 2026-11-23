@@ -1,32 +1,57 @@
 <Module>
     <Type from="workflow" as="Indexes" />
-    <Type from="../sequences/model" as="Sequences" />
 
     <Args in={Indexes.Application} out={bool} />
 
-    <If on={$in.route == Sequences.IndexRoute.Wait}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="effect" in={$in.omit(["projection"])} />
+    <Call fn="effect" in={$in} />
 
     <If on={$ctx.effect.message != null}>
         <Call
-            fn="host.rejectIndexProjection"
+            fn="../projections/host.rejectProjection"
             in={[
-                $in.projection,
-                $ctx.effect.message,
-                $in.route != Sequences.IndexRoute.Invalid
+                $in.site.graph,
+                $ctx.effect.error_spans,
+                $in.site.row,
+                $ctx.effect.message ?? ""
             ]}
         />
+
+        <Return value={true} />
+    </If>
+
+    <If on={$ctx.effect.declared}>
+        <Call
+            fn="../projections/host.registerProjectionType"
+            in={[
+                $in.site.graph,
+                $in.site.spans,
+                $in.site.row,
+                $ctx.effect.value
+            ]}
+        />
+
+        <Call
+            fn="../projections/host.mergeProjection"
+            in={[
+                $in.site.graph,
+                $in.site.spans,
+                $in.site.row,
+                $ctx.registerProjectionType,
+                $in.value
+            ]}
+        />
+
+        <Return value={true} />
     </If>
 
     <Call
-        fn="host.unifyIndexProjection"
+        fn="../projections/host.mergeProjection"
         in={[
-            $in.projection,
+            $in.site.graph,
+            $in.site.spans,
+            $in.site.row,
             $ctx.effect.value,
-            $ctx.effect.declared
+            $in.value
         ]}
     />
 

@@ -58,11 +58,9 @@ export type OptionalQuery = opaque
 
 export type SequenceReplay = opaque
 
-export type LengthReplay = opaque
+export type ProjectionGraph = opaque
 
-export type IndexReplay = opaque
-
-export type IndexApplication = opaque
+export type ProjectionSpans = opaque
 
 export type PortGraph = opaque
 
@@ -538,6 +536,10 @@ export declare function refreshSolverBindings(state: ConstraintRound): void
 
 export declare function refreshSolverNonNull(state: ConstraintRound): void
 
+export declare function refreshSolverLengths(state: ConstraintRound): void
+
+export declare function refreshSolverIndexes(state: ConstraintRound): void
+
 export declare function solveSequences(state: ConstraintRound): void
     throws { OutOfMemory, InvalidSource }
 
@@ -547,12 +549,6 @@ export declare function solveConstructions(state: ConstraintRound, final: bool):
 export declare function solveSelections(state: ConstraintRound, final: bool): bool
     throws { OutOfMemory, InvalidSource }
 
-export declare function solveLengths(state: ConstraintRound): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveIndexes(state: ConstraintRound, revision: u64): bool
-    throws { OutOfMemory, InvalidSource }
-
 export declare function solveAssignmentClasses(state: ConstraintRound): bool
     throws { OutOfMemory, InvalidSource }
 
@@ -560,12 +556,6 @@ export declare function solveSequenceDefaults(state: ConstraintRound): bool
     throws { OutOfMemory, InvalidSource }
 
 export declare function solveMaterializeAssignments(state: ConstraintRound): bool
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveIndexDefaults(state: ConstraintRound): bool
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveValidateLengths(state: ConstraintRound): void
     throws { OutOfMemory, InvalidSource }
 
 export declare function solveValidateAssignments(state: ConstraintRound): void
@@ -842,40 +832,50 @@ export declare function rejectSequenceReplay(
     length: bool
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function unifyLengthReplay(
-    frame: LengthReplay,
+export declare function registerProjectionType(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
     row: u64,
-    value: u32,
-    register: bool
+    type_id: u32
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function mergeProjection(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
+    row: u64,
+    left: u32,
+    right: u32
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function requireListLength(frame: LengthReplay, row: u64): void
-    throws { OutOfMemory, InvalidSource }
+export declare function requireProjectionList(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
+    row: u64,
+    target: u32
+): u32 throws { OutOfMemory, InvalidSource }
 
-export declare function unifyOpenLength(frame: LengthReplay, row: u64, root: u32): void
-    throws { OutOfMemory, InvalidSource }
+export declare function readOpenLength(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
+    row: u64,
+    root: u32
+): u32 throws { OutOfMemory, InvalidSource }
 
-export declare function rejectLengthReplay(
-    frame: LengthReplay,
+export declare function rejectProjection(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
     row: u64,
     message: string
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function readReplayIndex(frame: IndexReplay, row: u64): IndexApplication
-
-export declare function commitReplayIndex(frame: IndexReplay, row: u64, resolved: bool): void
-
-export declare function unifyIndexProjection(
-    frame: IndexApplication,
+export declare function appendIndexProjection(
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
+    index_spans: ProjectionSpans,
+    target: u32,
     value: u32,
-    declared: bool
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function rejectIndexProjection(
-    frame: IndexApplication,
-    message: string?,
-    at_index: bool
-): void throws { OutOfMemory, InvalidSource }
+    position: u64?
+): void throws { OutOfMemory }
 
 export declare function growAssignmentRows(frame: AssignmentRegistration): void
     throws { OutOfMemory }
@@ -911,8 +911,8 @@ export declare function bindFieldColumns(
 export declare function registerFieldType(frame: FieldAccess, type_id: u32): u32
     throws { OutOfMemory, InvalidSource }
 
-export declare function deferFieldLength(frame: FieldAccess): u32
-    throws { OutOfMemory, InvalidSource }
+export declare function appendLengthProjection(frame: FieldAccess, value: u32): void
+    throws { OutOfMemory }
 
 export declare function requireFieldList(frame: FieldAccess): void
     throws { OutOfMemory, InvalidSource }

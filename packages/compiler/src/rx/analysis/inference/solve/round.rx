@@ -9,7 +9,7 @@
         <Return value={$in} />
     </If>
 
-    <Call module="defaults" in={$in.request.frame} />
+    <Call module="defaults" in={$in.request} />
 
     <If on={$ctx.defaults}>
         <Return value={$in} />

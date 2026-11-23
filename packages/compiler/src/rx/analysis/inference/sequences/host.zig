@@ -16,7 +16,7 @@ const Frame = struct {
     view: View = undefined,
     parents: []u32 = undefined,
     fn bind(self: *Frame) void {
-        self.view = Target.borrow(entry, self.graph);
+        self.view = Target.borrow(View, self.graph);
         self.parents = self.graph.parents();
     }
     fn borrow(handle: *const anyopaque) *Frame {

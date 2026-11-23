@@ -1,11 +1,28 @@
 <Module>
     <Type from="workflow" as="Indexes" />
+    <Type from="../sequences/model" as="Sequences" />
 
     <Args in={Indexes.Immediate} out={bool} />
 
     <Call fn="plan" in={$in} />
 
-    <Call module="apply" />
+    <If on={$ctx.plan.route != Sequences.IndexRoute.Wait}>
+        <Call module="apply" in={$ctx.plan} />
 
-    <Return value={$ctx.apply} />
+        <Return value={true} />
+    </If>
+
+    <Call
+        fn="host.appendIndexProjection"
+        in={[
+            $in.site.graph,
+            $in.site.spans,
+            $in.index_spans,
+            $in.target,
+            $in.value,
+            $in.position
+        ]}
+    />
+
+    <Return value={false} />
 </Module>

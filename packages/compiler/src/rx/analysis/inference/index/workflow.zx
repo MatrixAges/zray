@@ -1,9 +1,13 @@
-import type { IndexApplication, IndexReplay } from "rx_project_host"
+import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
+import type { Site } from "../projections/site"
 import type { IndexInput } from "../sequences/model"
 import type { EffectInput, Input } from "./model"
 
 export type Replay = Input.Omit("start") & {
-    frame: IndexReplay
+    frame: ConstraintRound,
+    owner: ProjectionGraph,
+    spans: ProjectionSpans,
+    index_spans: ProjectionSpans
 }
 
 export type Cursor = {
@@ -12,9 +16,14 @@ export type Cursor = {
 }
 
 export type Application = EffectInput & {
-    projection: IndexApplication
+    site: Site,
+    index_spans: ProjectionSpans,
+    value: u32
 }
 
 export type Immediate = IndexInput & {
-    projection: IndexApplication
+    site: Site,
+    index_spans: ProjectionSpans,
+    target: u32,
+    value: u32
 }

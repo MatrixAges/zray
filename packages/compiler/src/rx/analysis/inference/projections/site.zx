@@ -1,0 +1,7 @@
+import type { ProjectionGraph, ProjectionSpans } from "rx_project_host"
+
+export type Site = {
+    graph: ProjectionGraph,
+    spans: ProjectionSpans,
+    row: u64
+}

@@ -3,19 +3,25 @@ import { scalar_u8 } from "core/type_table/const"
 import { IndexRoute } from "../sequences/model"
 import { missing_literal, out_of_bounds, invalid_target } from "./const"
 
-import type { Effect, EffectInput } from "./model"
+import type { Effect } from "./model"
+import type { Application } from "./workflow"
 
-export type Input = EffectInput
+export type Input = Application
 
 export type Output = Effect
 
 export default function (in: Input): Output {
     const { route, child, declared, node } = in
 
+    const spans = in.site.spans
+    const index_spans = in.index_spans
+    const error_spans = route == IndexRoute.Invalid ? spans : index_spans
+
     if (node != null) {
         return {
             value: node,
             declared: false,
+            error_spans,
             message: null
         }
     }
@@ -32,6 +38,7 @@ export default function (in: Input): Output {
     return {
         value: reads_byte ? scalar_u8 : child,
         declared: reads_byte || declared,
+        error_spans,
         message
     }
 }

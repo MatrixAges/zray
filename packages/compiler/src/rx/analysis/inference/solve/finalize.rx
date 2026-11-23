@@ -42,7 +42,10 @@
         <Return value={true} />
     </If>
 
-    <Call fn="host.solveValidateLengths" in={$in.frame} />
+    <Call fn="host.refreshSolverLengths" in={$in.frame} />
+
+    <Call module="../projections/validate" in={$in.lengths} />
+
     <Call fn="host.refreshSolverBindings" in={$in.frame} />
 
     <Call

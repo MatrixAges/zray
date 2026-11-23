@@ -1,0 +1,12 @@
+import { unknown_length } from "./const"
+import { rejectProjection } from "./host"
+
+import type { Site } from "./site"
+
+export type Input = Site
+
+export type Output = void
+
+export default function (in: Input): Output {
+    rejectProjection(in.graph, in.spans, in.row, unknown_length)
+}

@@ -1,27 +1,27 @@
 <Module>
     <Type from="model" as="Solve" />
 
-    <Args in={Solve.Frame} out={bool} />
+    <Args in={Solve.Request} out={bool} />
 
-    <Call fn="host.solveAssignmentClasses" in={$in} />
+    <Call fn="host.solveAssignmentClasses" in={$in.frame} />
 
     <If on={$ctx.solveAssignmentClasses}>
         <Return value={true} />
     </If>
 
-    <Call fn="host.solveSequenceDefaults" in={$in} />
+    <Call fn="host.solveSequenceDefaults" in={$in.frame} />
 
     <If on={$ctx.solveSequenceDefaults}>
         <Return value={true} />
     </If>
 
-    <Call fn="host.solveMaterializeAssignments" in={$in} />
+    <Call fn="host.solveMaterializeAssignments" in={$in.frame} />
 
     <If on={$ctx.solveMaterializeAssignments}>
         <Return value={true} />
     </If>
 
-    <Call fn="host.solveIndexDefaults" in={$in} />
+    <Call module="../index/defaults" in={$in.indexes} />
 
-    <Return value={$ctx.solveIndexDefaults} />
+    <Return value={$ctx.defaults} />
 </Module>

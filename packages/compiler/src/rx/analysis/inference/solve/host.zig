@@ -5,10 +5,9 @@ const Assignment = @import("../assignment.zig");
 const Bindings = @import("../bindings/host.zig");
 const generated = @import("rx_options").generated_graph;
 const Construction = @import("../construction.zig");
-const Index = @import("../index.zig");
 const NonNull = @import("../non_null/host.zig");
 const ObjectClosure = @import("../object_closure.zig");
-const Projections = @import("../projections.zig");
+const Projections = @import("../projections/frame.zig");
 const Selection = @import("../selection.zig");
 const Sequences = @import("../sequences.zig");
 const Defaults = @import("../sequences/defaults/apply.zig");
@@ -22,6 +21,7 @@ pub const Frame = struct {
     classes: Assignment.Base = undefined,
     bindings: if (generated) Bindings.Frame else void = undefined,
     non_null: if (generated) NonNull.Frame else void = undefined,
+    projections: if (generated) Projections else void = undefined,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -41,6 +41,18 @@ pub fn refreshSolverNonNull(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.non_null.bind(frame.graph);
+}
+
+pub fn refreshSolverLengths(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    frame.projections.bindLengths(frame.graph, handle);
+}
+
+pub fn refreshSolverIndexes(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    frame.projections.bindIndexes(frame.graph, handle);
 }
 
 pub fn solveSequences(handle: *const anyopaque) Error!void {
@@ -63,18 +75,6 @@ pub fn solveSelections(handle: *const anyopaque, final: bool) Error!bool {
     try Selection.replay(frame.graph, &frame.closure, final);
 
     return final and frame.graph.revision != revision;
-}
-
-pub fn solveLengths(handle: *const anyopaque) Error!void {
-    try Projections.applyLengths(Frame.borrow(handle).graph);
-}
-
-pub fn solveIndexes(handle: *const anyopaque, revision: u64) Error!bool {
-    const graph = Frame.borrow(handle).graph;
-
-    try Index.replay(graph);
-
-    return graph.revision != revision;
 }
 
 pub fn solveAssignmentClasses(handle: *const anyopaque) Error!bool {
@@ -103,14 +103,6 @@ pub fn solveMaterializeAssignments(handle: *const anyopaque) Error!bool {
     try Assignment.materialize(graph, frame.classes, frame.workspace.allocator());
 
     return graph.revision != revision;
-}
-
-pub fn solveIndexDefaults(handle: *const anyopaque) Error!bool {
-    return Index.defaultLists(Frame.borrow(handle).graph);
-}
-
-pub fn solveValidateLengths(handle: *const anyopaque) Error!void {
-    try Projections.validateLengths(Frame.borrow(handle).graph);
 }
 
 pub fn solveValidateAssignments(handle: *const anyopaque) Error!void {

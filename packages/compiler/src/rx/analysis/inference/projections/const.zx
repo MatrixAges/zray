@@ -1,0 +1,2 @@
+export const unknown_length: string =
+    "length alone cannot determine whether the input is a list, string or object"

@@ -23,6 +23,8 @@ pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
             .frame = @ptrCast(&frame),
             .bindings = &frame.bindings.view,
             .non_null = &frame.non_null.view,
+            .lengths = &frame.projections.lengths,
+            .indexes = &frame.projections.indexes,
         };
 
         return rule.executeIn(scratch.allocator(), &input) catch |err| workflow.errorSet(err);

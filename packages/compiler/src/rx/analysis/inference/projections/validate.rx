@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Lengths" />
+
+    <Args in={Lengths.Replay} out={void} />
+
+    <Call
+        fn="scan"
+        in={$in.pick([
+            "targets",
+            "kinds",
+            "parents"
+        ])}
+    />
+
+    <If on={$ctx.scan != null}>
+        <Call
+            fn="reject"
+            in={{
+                graph: $in.owner,
+                spans: $in.spans,
+                row: $ctx.scan ?? 0
+            }}
+        />
+    </If>
+</Module>

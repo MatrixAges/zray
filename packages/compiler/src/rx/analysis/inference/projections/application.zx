@@ -1,0 +1,11 @@
+import type { Output as Field } from "../fields/model"
+import type { Site } from "./site"
+
+export type Input = {
+    site: Site,
+    plan: Field,
+    node?: u32,
+    target: u32,
+    value: u32,
+    root: u32
+}

@@ -8,7 +8,7 @@ export type Input = Immediate
 export type Output = Application
 
 export default function (in: Input): Output {
-    const { graph, root, position, projection } = in
+    const { graph, root, position, site, value, index_spans } = in
 
     const plan = index({
         graph,
@@ -22,7 +22,9 @@ export default function (in: Input): Output {
 
     return {
         ...plan,
-        projection,
+        site,
+        value,
+        index_spans,
         node: null
     }
 }

@@ -2,15 +2,13 @@ export {
     solveRevision,
     refreshSolverBindings,
     refreshSolverNonNull,
+    refreshSolverLengths,
+    refreshSolverIndexes,
     solveSequences,
     solveConstructions,
     solveSelections,
-    solveLengths,
-    solveIndexes,
     solveAssignmentClasses,
     solveSequenceDefaults,
     solveMaterializeAssignments,
-    solveIndexDefaults,
-    solveValidateLengths,
     solveValidateAssignments
 } from "rx_project_host"

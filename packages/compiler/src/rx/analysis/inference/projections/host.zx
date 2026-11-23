@@ -1,6 +1,8 @@
+export { writeBool } from "memory"
 export {
-    unifyLengthReplay,
-    requireListLength,
-    unifyOpenLength,
-    rejectLengthReplay
+    registerProjectionType,
+    mergeProjection,
+    rejectProjection,
+    requireProjectionList,
+    readOpenLength
 } from "rx_project_host"

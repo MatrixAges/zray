@@ -1,13 +1,16 @@
 <Module>
     <Type from="model" as="Lengths" />
-    <Type from="../fields/model" as="Fields" />
 
     <Args in={Lengths.Cursor} out={Lengths.Cursor} />
 
     <Call
         fn="length"
         in={{
-            ...$in.request.omit(["frame"]),
+            ...$in.request.omit([
+                "frame",
+                "owner",
+                "spans"
+            ]),
             start: $in.row
         }}
     />
@@ -21,58 +24,23 @@
         />
     </If>
 
-    <If
-        on={$ctx.length.plan.route == Fields.Route.Length ||
-            $ctx.length.plan.route == Fields.Route.KnownMember}
-    >
-        <Call
-            fn="host.unifyLengthReplay"
-            in={[
-                $in.request.frame,
-                $ctx.length.row,
-                $ctx.length.node ?? $ctx.length.plan.value,
-                $ctx.length.node == null
-            ]}
-        />
+    <Call
+        module="apply"
+        in={{
+            site: {
+                graph: $in.request.owner,
+                spans: $in.request.spans,
+                row: $ctx.length.row
+            },
+            plan: $ctx.length.plan,
+            node: $ctx.length.node,
+            target: $in.request.targets[$ctx.length.row],
+            value: $in.request.values[$ctx.length.row],
+            root: $ctx.length.root
+        }}
+    />
 
-        <Else>
-            <Switch on={$ctx.length.plan.route}>
-                <Case value={Fields.Route.RequireList}>
-                    <Call
-                        fn="host.requireListLength"
-                        in={[
-                            $in.request.frame,
-                            $ctx.length.row
-                        ]}
-                    />
-                </Case>
-
-                <Case value={Fields.Route.Open}>
-                    <Call
-                        fn="host.unifyOpenLength"
-                        in={[
-                            $in.request.frame,
-                            $ctx.length.row,
-                            $ctx.length.root
-                        ]}
-                    />
-                </Case>
-
-                <Default>
-                    <Call fn="../fields/diagnostic" in={$ctx.length.plan.route} />
-
-                    <Call
-                        fn="host.rejectLengthReplay"
-                        in={[
-                            $in.request.frame,
-                            $ctx.length.row,
-                            $ctx.diagnostic
-                        ]}
-                    />
-                </Default>
-            </Switch>
-        </Else>
-    </If>
+    <Call fn="../solve/host.refreshSolverLengths" in={$in.request.frame} />
 
     <Return
         value={{
