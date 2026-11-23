@@ -33,13 +33,15 @@ pub fn describe(graph: *const Graph, root: Graph.Id) Shape {
 }
 
 pub fn read(graph: *const Graph, root: Graph.Id) Self {
-    const shape = describe(graph, root);
+    return readMode(graph, root, classify(describe(graph, root)));
+}
+
+pub fn classify(shape: Shape) Mode {
     const Input = std.meta.Child(entry.Input);
     const input: Input = .{ .kind = shape.kind, .type_kind = shape.type_kind };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const mode = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return readMode(graph, root, mode);
+    return zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
 }
 
 pub fn readMode(graph: *const Graph, root: Graph.Id, mode: Mode) Self {

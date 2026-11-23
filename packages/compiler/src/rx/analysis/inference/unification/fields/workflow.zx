@@ -1,0 +1,14 @@
+import type { FieldAlignment, FieldMerge } from "rx_project_host"
+import type { Input as Alignment } from "./model"
+import type { Input as Publication } from "./publish"
+
+export type Align = {
+    frame: FieldAlignment,
+    scan: Alignment
+}
+
+export type Merge = {
+    frame: FieldMerge,
+    columns: Publication,
+    length: u64
+}

@@ -1,0 +1,30 @@
+<Module>
+    <Type from="workflow" as="Fields" />
+    <Type from="model" as="Alignment" />
+
+    <Args in={Fields.Align} out={Alignment.Output} />
+
+    <Call
+        fn="capacity"
+        in={{
+            existing: $in.scan.existing.names.length,
+            incoming: $in.scan.incoming.length
+        }}
+    />
+
+    <If on={$ctx.capacity != 0}>
+        <Call
+            fn="host.reserveFieldAlignmentIndex"
+            in={[
+                $in.frame,
+                $ctx.capacity
+            ]}
+        />
+
+        <Call fn="host.clearU64Buffer" in={$in.scan.existing.buckets} />
+    </If>
+
+    <Call module="align" in={$in.scan} />
+
+    <Return value={$ctx.align} />
+</Module>

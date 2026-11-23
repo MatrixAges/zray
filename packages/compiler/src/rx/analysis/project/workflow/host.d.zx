@@ -30,6 +30,12 @@ export type ObjectSelection = opaque
 
 export type ObjectFieldReplay = opaque
 
+export type FieldAccess = opaque
+
+export type FieldAlignment = opaque
+
+export type FieldMerge = opaque
+
 export type ObjectConstructionProjection = opaque
 
 export type ObjectConstructionFields = opaque
@@ -671,15 +677,6 @@ export declare function replayObjectSelection(
 export declare function rejectObjectSelection(frame: ObjectSelection, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function readObjectReplayField(frame: ObjectFieldReplay, name: string): u32
-    throws { OutOfMemory, InvalidSource }
-
-export declare function appendObjectReplayField(frame: ObjectFieldReplay, name: string): u32
-    throws { OutOfMemory, InvalidSource }
-
-export declare function registerObjectReplayType(frame: ObjectFieldReplay, value: u32): u32
-    throws { OutOfMemory, InvalidSource }
-
 export declare function refreshObjectReplayFields(frame: ObjectFieldReplay): void
 
 export declare function expectObjectReplayField(
@@ -835,3 +832,26 @@ export declare function registerAssignmentTarget(
     type_id: u32,
     row: u64
 ): void throws { OutOfMemory, InvalidSource }
+
+export declare function reserveFieldAppend(frame: FieldAccess, name: string): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishFieldRevision(frame: FieldAccess): void
+
+export declare function registerFieldType(frame: FieldAccess, type_id: u32): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function deferFieldLength(frame: FieldAccess): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function requireFieldList(frame: FieldAccess): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rejectFieldAccess(frame: FieldAccess, message: string): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveFieldAlignmentIndex(frame: FieldAlignment, minimum: u64): void
+    throws { OutOfMemory }
+
+export declare function reserveMergedFieldColumns(frame: FieldMerge, count: u64): void
+    throws { OutOfMemory }

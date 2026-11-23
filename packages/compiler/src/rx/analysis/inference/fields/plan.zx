@@ -1,0 +1,36 @@
+import { scalar_u64 } from "core/type_table/const"
+
+import access from "./access"
+import member from "./member"
+import { Route } from "./model"
+
+import type { Input as Access, Output as Plan } from "./model"
+
+export type Input = Access & {
+    open: bool
+}
+
+export type Output = Plan
+
+export default function (in: Input): Output {
+    const { receiver, members } = in
+
+    const route = in.open ? Route.Open : access(receiver)
+
+    if (route == Route.Declared || route == Route.Open) {
+        return member({
+            ...members,
+            first: 0,
+            count: members.names.length,
+            name: receiver.name,
+            declared: route == Route.Declared
+        })
+    }
+
+    const length = route == Route.Length || route == Route.RequireList
+
+    return {
+        route,
+        value: length ? scalar_u64 : 0
+    }
+}

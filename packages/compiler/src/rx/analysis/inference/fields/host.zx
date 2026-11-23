@@ -1,5 +1,8 @@
 export {
-    readObjectReplayField,
-    appendObjectReplayField,
-    registerObjectReplayType
+    reserveFieldAppend,
+    publishFieldRevision,
+    registerFieldType,
+    deferFieldLength,
+    requireFieldList,
+    rejectFieldAccess
 } from "rx_project_host"

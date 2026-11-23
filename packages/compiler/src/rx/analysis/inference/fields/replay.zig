@@ -2,27 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const View = @import("view.zig");
-const Access = @import("access.zig");
-
-pub fn borrow(comptime Object: type, graph: *const Graph, root: Graph.Id) Object {
-    const fields = View.read(graph, root);
-
-    return .{
-        .mode = @fromBackingInt(@backingInt(fields.mode)),
-        .restricted = graph.nodes.items(.allowed)[@backingInt(root)] != null,
-        .names = fields.names,
-        .values = fields.values,
-    };
-}
-
-fn append(graph: *Graph, root: Graph.Id, name: []const u8, span: zx.Span) zx.Error!Graph.Id {
-    const index = @backingInt(root);
-    const members = graph.nodes.items(.members)[index];
-    const fields = Graph.Fields.fromValues(@ptrCast(members));
-
-    return Access.append(graph, index, fields, name, span);
-}
-
+const Access = @import("host.zig");
 const entry = @import("generated_rx_apply_selected_fields");
 const Input = std.meta.Child(entry.Input);
 const Binding = std.meta.Child(@FieldType(Input, "field_view"));
@@ -33,41 +13,37 @@ pub const Frame = struct {
     graph: *Graph,
     result: Graph.Id,
     span: zx.Span,
-    root: Graph.Id = undefined,
+    access: Access.Frame = undefined,
     view: Binding = undefined,
     object: FieldView = undefined,
     known: Known = undefined,
     parents: []u32 = undefined,
     pub fn bind(self: *Frame) void {
-        self.root = self.graph.root(self.result);
-        self.object = borrow(FieldView, self.graph, self.root);
+        self.access = .{
+            .graph = self.graph,
+            .target = self.result,
+            .root = self.graph.root(self.result),
+            .span = self.span,
+        };
+
+        const shape = self.access.bind();
+
+        self.object = .{
+            .mode = @fromBackingInt(@backingInt(View.classify(shape))),
+            .restricted = shape.restricted,
+            .names = self.access.members.names,
+            .values = self.access.members.values,
+        };
+
         self.known = self.graph.pending.known_types.borrow(Known);
         self.parents = self.graph.parents();
-        self.view = .{ .object = &self.object, .parents = @ptrCast(&self.parents), .known = &self.known };
+        self.view = .{ .object = &self.object, .parents = @ptrCast(&self.parents), .known = &self.known, .site = &self.access.site };
     }
 
     pub fn from(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
 };
-
-pub fn readObjectReplayField(handle: *const anyopaque, name: []const u8) zx.Error!u32 {
-    const frame = Frame.from(handle);
-
-    return @backingInt(try Access.at(frame.graph, frame.result, frame.root, name, frame.span));
-}
-
-pub fn appendObjectReplayField(handle: *const anyopaque, name: []const u8) zx.Error!u32 {
-    const frame = Frame.from(handle);
-
-    return @backingInt(try append(frame.graph, frame.root, name, frame.span));
-}
-
-pub fn registerObjectReplayType(handle: *const anyopaque, value: u32) zx.Error!u32 {
-    const frame = Frame.from(handle);
-
-    return @backingInt(try frame.graph.known(@fromBackingInt(value), frame.span));
-}
 
 pub fn refreshObjectReplayFields(handle: *const anyopaque) void {
     Frame.from(handle).bind();

@@ -1,16 +1,33 @@
 import type { State as Known } from "core/integer/map/model"
 import type { U32Buffer } from "memory"
-import type { ObjectFieldReplay } from "rx_project_host"
+import type { FieldAccess } from "rx_project_host"
+import type { Input as Append } from "./append"
 import type { Object, Output as Field } from "./existing"
+import type { Members, Receiver } from "./model"
 
 export type View = {
     object: Object,
     parents: U32Buffer,
-    known: Known
+    known: Known,
+    site: Site
 }
 
-export type Target = {
-    frame: ObjectFieldReplay,
-    name: string,
+export type Site = {
+    frame: FieldAccess,
+    receiver: Receiver.Omit("name"),
+    members: Members,
+    append: Append
+}
+
+export type Write = {
+    site: Site,
+    name: string
+}
+
+export type Read = Write & {
+    open: bool
+}
+
+export type Target = Write & {
     choice: Field
 }

@@ -1,0 +1,17 @@
+<Module>
+    <Type from="workflow" as="Fields" />
+
+    <Args in={Fields.Merge} out={void} />
+
+    <If on={$in.length != $in.columns.prefix}>
+        <Call
+            fn="host.reserveMergedFieldColumns"
+            in={[
+                $in.frame,
+                $in.length
+            ]}
+        />
+
+        <Call fn="publish" in={$in.columns} />
+    </If>
+</Module>

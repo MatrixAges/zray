@@ -7,38 +7,33 @@
     <Switch on={$in.choice.action}>
         <Case value={Fields.Action.Field}>
             <Call
-                fn="host.readObjectReplayField"
-                in={[
-                    $in.frame,
-                    $in.name
-                ]}
+                module="read"
+                in={{
+                    site: $in.site,
+                    name: $in.name,
+                    open: false
+                }}
             />
 
-            <Return value={$ctx.readObjectReplayField} />
+            <Return value={$ctx.read} />
         </Case>
 
         <Case value={Fields.Action.Append}>
-            <Call
-                fn="host.appendObjectReplayField"
-                in={[
-                    $in.frame,
-                    $in.name
-                ]}
-            />
+            <Call module="write" in={$in.omit(["choice"])} />
 
-            <Return value={$ctx.appendObjectReplayField} />
+            <Return value={$ctx.write} />
         </Case>
 
         <Case value={Fields.Action.Register}>
             <Call
-                fn="host.registerObjectReplayType"
+                fn="host.registerFieldType"
                 in={[
-                    $in.frame,
+                    $in.site.frame,
                     $in.choice.value
                 ]}
             />
 
-            <Return value={$ctx.registerObjectReplayType} />
+            <Return value={$ctx.registerFieldType} />
         </Case>
 
         <Default>

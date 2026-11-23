@@ -1,0 +1,18 @@
+<Module>
+    <Type from="workflow" as="Fields" />
+
+    <Args in={Fields.Write} out={u32} />
+
+    <Call
+        fn="host.reserveFieldAppend"
+        in={[
+            $in.site.frame,
+            $in.name
+        ]}
+    />
+
+    <Call fn="append" in={$in.site.append} />
+    <Call fn="host.publishFieldRevision" in={$in.site.frame} />
+
+    <Return value={$in.site.append.value} />
+</Module>

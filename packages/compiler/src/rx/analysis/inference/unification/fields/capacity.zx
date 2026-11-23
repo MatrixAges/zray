@@ -1,0 +1,18 @@
+import { minimum_indexed_fields, minimum_indexed_queries, bucket_ratio } from "./const"
+
+export type Input = {
+    existing: u64,
+    incoming: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (
+        in.existing < minimum_indexed_fields || in.incoming < minimum_indexed_queries
+    ) {
+        return 0
+    }
+
+    return in.existing * bucket_ratio
+}

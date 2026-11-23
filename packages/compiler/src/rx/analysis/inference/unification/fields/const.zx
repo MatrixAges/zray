@@ -1,0 +1,5 @@
+export const minimum_indexed_fields: u64 = 16
+
+export const minimum_indexed_queries: u64 = 8
+
+export const bucket_ratio: u64 = 2

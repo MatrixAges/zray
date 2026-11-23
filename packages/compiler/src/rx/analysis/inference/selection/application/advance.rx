@@ -26,7 +26,7 @@
     <Call
         module="../../fields/target"
         in={{
-            frame: $in.request.frame,
+            site: $in.request.field_view.site,
             name: $in.request.source.names[$ctx.replay.index],
             choice: $ctx.replay.target
         }}

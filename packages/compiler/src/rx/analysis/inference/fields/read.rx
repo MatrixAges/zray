@@ -1,0 +1,67 @@
+<Module>
+    <Type from="workflow" as="Access" />
+    <Type from="model" as="Fields" />
+
+    <Args in={Access.Read} out={u32} />
+
+    <Call
+        fn="plan"
+        in={{
+            receiver: {
+                ...$in.site.receiver,
+                name: $in.name
+            },
+            members: $in.site.members,
+            open: $in.open
+        }}
+    />
+
+    <Switch on={$ctx.plan.route}>
+        <Case value={Fields.Route.Member}>
+            <Return value={$ctx.plan.value} />
+        </Case>
+
+        <Case value={Fields.Route.AppendMember}>
+            <Call module="write" in={$in.omit(["open"])} />
+
+            <Return value={$ctx.write} />
+        </Case>
+
+        <Case value={Fields.Route.DeferLength}>
+            <Call fn="host.deferFieldLength" in={$in.site.frame} />
+
+            <Return value={$ctx.deferFieldLength} />
+        </Case>
+
+        <Case value={Fields.Route.RequireList}>
+            <Call fn="host.requireFieldList" in={$in.site.frame} />
+        </Case>
+
+        <Default>
+            <If
+                on={$ctx.plan.route != Fields.Route.Length &&
+                    $ctx.plan.route != Fields.Route.KnownMember}
+            >
+                <Call fn="diagnostic" in={$ctx.plan.route} />
+
+                <Call
+                    fn="host.rejectFieldAccess"
+                    in={[
+                        $in.site.frame,
+                        $ctx.diagnostic
+                    ]}
+                />
+            </If>
+        </Default>
+    </Switch>
+
+    <Call
+        fn="host.registerFieldType"
+        in={[
+            $in.site.frame,
+            $ctx.plan.value
+        ]}
+    />
+
+    <Return value={$ctx.registerFieldType} />
+</Module>

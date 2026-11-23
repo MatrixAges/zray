@@ -1,10 +1,12 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
-const minimum_indexed_fields = 16;
-const minimum_indexed_queries = 8;
-const bucket_ratio = 2;
-
+const align_rule = @import("generated_rx_prepare_field_alignment");
+const Align = std.meta.Child(align_rule.Input);
+const Scan = std.meta.Child(@FieldType(Align, "scan"));
+const Index = std.meta.Child(@FieldType(Scan, "existing"));
+const merge_rule = @import("generated_rx_merge_field_columns");
+const Merge = std.meta.Child(merge_rule.Input);
 pub const missing_message = "the complete input type does not contain a required field";
 
 pub const Alignment = struct {
@@ -13,55 +15,82 @@ pub const Alignment = struct {
     length: usize = 0,
 };
 
-pub fn publish(allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {
-    if (alignment.length == left.len) return left;
+const AlignFrame = struct {
+    allocator: std.mem.Allocator,
+    buckets: []u64 = &.{},
+    index: Index = undefined,
+};
 
-    const result = try left.extend(allocator, alignment.length);
-    const names = result.nameColumn();
-    const values: []u32 = @ptrCast(result.valueColumn());
-    const generated = @import("generated_rx_unification_publish_fields");
-
-    const input: std.meta.Child(generated.Input) = .{
-        .names = right.names(),
-        .values = @ptrCast(right.values()),
-        .positions = alignment.positions,
-        .prefix = left.len,
-        .target_names = @ptrCast(&names),
-        .target_values = @ptrCast(&values),
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-
-    return result;
-}
+const MergeFrame = struct {
+    allocator: std.mem.Allocator,
+    result: Graph.Fields,
+    names: [][]const u8 = undefined,
+    values: []u32 = undefined,
+};
 
 pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, incoming: []const []const u8, closed: bool) std.mem.Allocator.Error!Alignment {
-    const generated = @import("generated_rx_unification_fields");
     const positions = try allocator.alloc(u64, incoming.len);
 
     errdefer allocator.free(positions);
 
-    const capacity = if (existing.len >= minimum_indexed_fields and incoming.len >= minimum_indexed_queries)
-        std.math.ceilPowerOfTwo(usize, std.math.mul(usize, existing.len, bucket_ratio) catch return error.OutOfMemory) catch return error.OutOfMemory
+    var frame: AlignFrame = .{ .allocator = allocator };
 
-    else
-        0;
+    defer allocator.free(frame.buckets);
 
-    const buckets = try allocator.alloc(u64, capacity);
+    frame.index = .{ .names = existing, .keys = existing, .buckets = @ptrCast(&frame.buckets), .capacity = 0 };
 
-    defer allocator.free(buckets);
-    @memset(buckets, 0);
+    const input: Align = .{
+        .frame = @ptrCast(&frame),
+        .scan = &.{ .existing = &frame.index, .incoming = incoming, .positions = @ptrCast(&positions), .closed = closed },
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(align_rule.executeValue, empty.allocator(), &input) catch |err| return allocationError(err);
+
+    return .{ .positions = positions, .scanned = @intCast(result.scanned), .length = @intCast(result.length) };
+}
+
+pub fn publish(allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {
+    var frame: MergeFrame = .{ .allocator = allocator, .result = left };
+
+    const input: Merge = .{
+        .frame = @ptrCast(&frame),
+        .columns = &.{
+            .names = right.names(),
+            .values = @ptrCast(right.values()),
+            .positions = alignment.positions,
+            .prefix = left.len,
+            .target_names = @ptrCast(&frame.names),
+            .target_values = @ptrCast(&frame.values),
+        },
+        .length = alignment.length,
+    };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const result = generated.executeValue(empty.allocator(), .{
-        .existing = .{ .names = existing, .keys = existing, .buckets = @ptrCast(&buckets), .capacity = capacity },
-        .incoming = incoming,
-        .positions = @ptrCast(&positions),
-        .closed = closed,
-    }) catch unreachable;
+    merge_rule.executeIn(empty.allocator(), &input) catch |err| return allocationError(err);
 
-    return .{ .positions = positions, .scanned = @intCast(result.scanned), .length = @intCast(result.length) };
+    return frame.result;
+}
+
+pub fn reserveFieldAlignmentIndex(handle: *const anyopaque, minimum: u64) std.mem.Allocator.Error!void {
+    const frame: *AlignFrame = @ptrCast(@alignCast(@constCast(handle)));
+    const required = std.math.cast(usize, minimum) orelse return error.OutOfMemory;
+    const capacity = std.math.ceilPowerOfTwo(usize, required) catch return error.OutOfMemory;
+    frame.buckets = try frame.allocator.alloc(u64, capacity);
+    frame.index.capacity = capacity;
+}
+
+pub fn reserveMergedFieldColumns(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const frame: *MergeFrame = @ptrCast(@alignCast(@constCast(handle)));
+    frame.result = try frame.result.extend(frame.allocator, @intCast(count));
+    frame.names = frame.result.nameColumn();
+    frame.values = @ptrCast(frame.result.valueColumn());
+}
+
+fn allocationError(err: anyerror) std.mem.Allocator.Error {
+    return switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        else => unreachable,
+    };
 }
