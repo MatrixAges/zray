@@ -20,7 +20,7 @@ export type AssignmentRegistration = opaque
 
 export type KnownRegistration = opaque
 
-export type UnificationWalk = opaque
+export type UnificationTarget = opaque
 
 export type ObjectReadiness = opaque
 
@@ -636,19 +636,54 @@ export declare function refreshKnownRegistry(frame: KnownRegistration): void
 export declare function rejectKnownType(frame: KnownRegistration): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function publishUnificationFrame(frame: UnificationWalk): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function enterUnificationChild(
-    frame: UnificationWalk,
-    position: u64,
+export declare function prepareUnificationFrame(
+    target: UnificationTarget,
     left: u32,
     right: u32,
-    known: bool
+    depth: u64,
+    rooted: bool
+): void throws { OutOfMemory }
+
+export declare function walkUnificationFrames(target: UnificationTarget, depth: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function appendUnificationFrame(target: UnificationTarget): void
+    throws { OutOfMemory }
+
+export declare function alignUnificationFields(
+    target: UnificationTarget,
+    existing_names: string[]?,
+    existing_values: u32[],
+    incoming_values: u32[],
+    closed: bool
+): void throws { OutOfMemory }
+
+export declare function popUnificationFrame(target: UnificationTarget): void
+
+export declare function mergeUnificationFields(target: UnificationTarget): u32[]
+    throws { OutOfMemory }
+
+export declare function commitUnification(
+    target: UnificationTarget,
+    parent: u32,
+    child: u32,
+    first_allowed: u16?,
+    second_allowed: u16?,
+    first_fallback: u8?,
+    second_fallback: u8?,
+    kind: u8,
+    argument: u32,
+    members: u32[]
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function rejectUnificationChild(frame: UnificationWalk, deep: bool): void
+export declare function internUnificationType(target: UnificationTarget, type_id: u32): u32
     throws { OutOfMemory, InvalidSource }
+
+export declare function reportUnification(
+    target: UnificationTarget,
+    message: string,
+    depth: bool
+): void throws { OutOfMemory, InvalidSource }
 
 export declare function updateObjectReadiness(
     frame: ObjectReadiness,

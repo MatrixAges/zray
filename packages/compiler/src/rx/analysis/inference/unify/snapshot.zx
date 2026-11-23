@@ -1,0 +1,38 @@
+import integers from "std:integer"
+
+import type { Output as Admission } from "../unification/admission/model"
+import type { Frame, View } from "./model"
+
+export type Input = {
+    view: View,
+    plan: Admission
+}
+
+export type Output = Frame
+
+export default function (in: Input): Output {
+    const { view, plan } = in
+
+    const parent = integers.widen(plan.left)
+    const child = integers.widen(plan.right)
+    const source = integers.widen(plan.source)
+
+    return {
+        parent: plan.left,
+        child: plan.right,
+        route: plan.route,
+        left_operand: plan.left_operand,
+        right_operand: plan.right_operand,
+        left_members: plan.left_members,
+        right_members: plan.right_members,
+        action: plan.action,
+        first_allowed: view.allowed[parent],
+        second_allowed: view.allowed[child],
+        first_fallback: view.fallback[parent],
+        second_fallback: view.fallback[child],
+        kind: view.kind_bytes[source],
+        argument: view.graph.arguments[source],
+        members: view.graph.members[source],
+        declared: plan.right_names
+    }
+}

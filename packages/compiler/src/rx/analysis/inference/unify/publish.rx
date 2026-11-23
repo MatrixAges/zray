@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Walk" />
+    <Type from="../unification/application/model" as="Application" />
+
+    <Args in={Walk.Request} out={void} />
+
+    <If on={$in.stack.frame.snapshot.action == Application.Action.Object}>
+        <Call fn="host.mergeUnificationFields" in={$in.target} />
+
+        <Call
+            fn="commit"
+            in={{
+                target: $in.target,
+                frame: $in.stack.frame.snapshot,
+                members: $ctx.mergeUnificationFields
+            }}
+        />
+    </If>
+
+    <If on={$in.stack.frame.snapshot.action != Application.Action.Object}>
+        <Call
+            fn="commit"
+            in={{
+                target: $in.target,
+                frame: $in.stack.frame.snapshot,
+                members: $in.stack.frame.snapshot.members
+            }}
+        />
+    </If>
+
+    <Call fn="host.popUnificationFrame" in={$in.target} />
+</Module>

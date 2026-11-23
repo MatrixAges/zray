@@ -1,133 +1,233 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
-const Unification = @import("../unify.zig");
-const Plan = @import("../unification/plan.zig");
-const Occurs = @import("../unification/occurs.zig");
 const Fields = @import("../unification/fields.zig");
-const Frame = @import("frame.zig");
+const Commit = @import("../unification/commit.zig");
+const errors = @import("../../project/workflow/errors.zig");
+const merge_rule = @import("generated_rx_merge_unification");
+const walk_rule = @import("generated_rx_walk_unification");
+const prepare_rule = @import("generated_rx_prepare_unification_frame");
+const plan_rule = @import("generated_rx_plan_unification_frame");
+const Merge = std.meta.Child(merge_rule.Input);
+const Request = std.meta.Child(walk_rule.Input);
+const Plan = std.meta.Child(prepare_rule.Input);
+const View = std.meta.Child(@FieldType(Plan, "view"));
+const Candidate = std.meta.Child(@FieldType(Merge, "candidate"));
+const Stack = std.meta.Child(@FieldType(Request, "stack"));
+const Row = std.meta.Child(@FieldType(Stack, "frame"));
+const Frame = std.meta.Child(@FieldType(Candidate, "frame"));
+const Known = std.meta.Child(@FieldType(Stack, "known"));
 const inline_frames = 8;
 const inline_field_bytes = std.heap.page_size_min / 16;
-const rule = @import("generated_rx_walk_unification");
-const Input = std.meta.Child(rule.Input);
-const View = std.meta.Child(@FieldType(Input, "view"));
-const Advance = std.meta.Child(@FieldType(View, "advance"));
-const Pair = std.meta.Child(@FieldType(Advance, "pair"));
-const Known = std.meta.Child(@FieldType(Advance, "known"));
 
-const Walk = struct {
+const Target = struct {
     graph: *Graph,
     span: zx.Span,
-    depth: usize,
-    frames: std.mem.Allocator,
-    fields: std.mem.Allocator,
-    stack: std.ArrayList(Frame) = .empty,
-    view: View = undefined,
-    advance: Advance = undefined,
-    pair: Pair = undefined,
-    known: Known = undefined,
     parents: []u32 = undefined,
-    fn push(self: *Walk, pending: Unification.Pending) std.mem.Allocator.Error!void {
-        try self.stack.ensureUnusedCapacity(self.frames, 1);
+    view: View = undefined,
+    nodes: std.meta.Child(@FieldType(View, "graph")) = undefined,
+    types: std.meta.Child(@FieldType(View, "types")) = undefined,
+    pending: Frame = undefined,
+    candidate: Candidate = undefined,
+    walk: *Walk = undefined,
+    fn bind(self: *Target) void {
+        const graph = self.graph;
+        const rows = graph.nodes.slice();
+        const types = &graph.types.items;
 
-        const frame = &self.stack.unusedCapacitySlice()[0];
+        self.parents = graph.parents();
 
-        frame.* = pending.frame;
+        const kinds: []const @import("../nodes.zig").Kind = rows.items(.kind);
 
-        try frame.alignFields(pending.declared_names, self.fields);
-
-        self.stack.items.len += 1;
-    }
-    fn bind(self: *Walk) void {
-        self.view.active = self.stack.items.len != 0;
-
-        if (!self.view.active) return;
-
-        const frame = &self.stack.items[self.stack.items.len - 1];
-
-        self.parents = self.graph.parents();
-        self.known = self.graph.pending.known_types.borrow(Known);
-
-        self.pair = .{
-            .action = zx.columns.view(@FieldType(Pair, "action"), frame.action),
-            .position = frame.position,
-            .left_operand = frame.left_operand,
-            .right_operand = frame.right_operand,
-            .left_members = frame.left_members,
-            .right_members = frame.right_members,
-            .positions = frame.fields.positions[0..frame.fields.scanned],
+        self.nodes = .{
+            .kinds = zx.columns.slice(@FieldType(@TypeOf(self.nodes), "kinds"), kinds),
+            .members = rows.items(.members),
+            .arguments = rows.items(.argument),
         };
 
-        self.advance = .{ .pair = &self.pair, .known = &self.known, .parents = @ptrCast(&self.parents), .depth = self.depth + self.stack.items.len };
-    }
+        self.types = .{
+            .kinds = types.kinds.items,
+            .arguments = types.first.items,
+            .sizes = types.second.items,
+            .children = types.children.items,
+            .field_names = types.field_names.items,
+            .field_values = types.field_types.items,
+        };
 
-    fn borrow(handle: *const anyopaque) *Walk {
+        self.view = .{
+            .parents = @ptrCast(&self.parents),
+            .graph = &self.nodes,
+            .types = &self.types,
+            .kind_bytes = std.mem.sliceAsBytes(rows.items(.kind)),
+            .allowed = rows.items(.allowed),
+            .fallback = rows.items(.fallback),
+        };
+    }
+    fn borrow(handle: *const anyopaque) *Target {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
 };
 
-pub noinline fn walk(graph: *Graph, root: Unification.Pending, span: zx.Span, depth: usize) zx.Error!void {
-    var frame_buffer: [inline_frames]Frame = undefined;
-    var field_buffer: [inline_field_bytes]u8 = undefined;
-    var frame_memory = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&frame_buffer), graph.scratch);
-    var field_memory = std.heap.BufferFirstAllocator.init(&field_buffer, graph.scratch);
+const Stored = struct { snapshot: Frame, position: u64 = 0, fields: Fields.Alignment = .{} };
 
-    var state: Walk = .{
-        .graph = graph,
-        .span = span,
+const Walk = struct {
+    frames: std.mem.Allocator,
+    fields: std.mem.Allocator,
+    stack: std.ArrayList(Stored) = .empty,
+    count: [1]u64 = .{0},
+    operands: [2]u32 = undefined,
+    view: Stack = undefined,
+    row: Row = undefined,
+    position: []u64 = undefined,
+    known: Known = undefined,
+    fn current(self: *Walk) *Stored {
+        return &self.stack.items[self.stack.items.len - 1];
+    }
+    fn bind(self: *Walk) void {
+        const item = self.current();
+        self.position = (&item.position)[0..1];
+        self.row = .{ .snapshot = &item.snapshot, .positions = item.fields.positions[0..item.fields.scanned] };
+    }
+};
+
+pub fn merge(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!void {
+    var target: Target = .{ .graph = graph, .span = span };
+
+    target.bind();
+
+    target.candidate = .{ .frame = &target.pending };
+
+    try prepareUnificationFrame(@ptrCast(&target), @backingInt(left), @backingInt(right), depth, false);
+
+    const input: Merge = .{ .target = @ptrCast(&target), .candidate = &target.candidate, .depth = depth };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    merge_rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
+}
+
+pub fn prepareUnificationFrame(handle: *const anyopaque, left: u32, right: u32, depth: u64, rooted: bool) std.mem.Allocator.Error!void {
+    const target = Target.borrow(handle);
+
+    const input: std.meta.Child(plan_rule.Input) = .{
+        .graph = &target.nodes,
+        .types = &target.types,
+        .parents = @ptrCast(&target.parents),
+        .left = left,
+        .right = right,
         .depth = depth,
-        .frames = frame_memory.allocator(),
-        .fields = field_memory.allocator(),
+        .rooted = rooted,
     };
 
-    defer state.stack.deinit(state.frames);
-    defer while (state.stack.pop()) |frame| frame.release(state.fields);
-
-    try state.push(root);
-
-    state.view = .{ .active = true, .advance = &state.advance };
-
-    state.bind();
-
-    const input: Input = .{ .frame = @ptrCast(&state), .view = &state.view };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const workflow = @import("../../project/workflow/errors.zig");
+    const allocator = empty.allocator();
+    const work = zx.columns.invoke(plan_rule.executeValue, allocator, &input) catch unreachable;
+    const projected = zx.columns.view(std.meta.Child(@FieldType(Plan, "plan")), work);
+    const request: Plan = .{ .view = &target.view, .plan = &projected };
+    const captured = zx.columns.invoke(prepare_rule.executeValue, allocator, &request) catch unreachable;
 
-    rule.executeIn(empty.allocator(), &input) catch |err| return workflow.errorSet(err);
+    target.pending = zx.columns.view(Frame, captured);
 }
 
-pub fn publishUnificationFrame(handle: *const anyopaque) zx.Error!void {
-    const state = Walk.borrow(handle);
-    const frame = &state.stack.items[state.stack.items.len - 1];
+pub noinline fn walkUnificationFrames(handle: *const anyopaque, depth: u64) zx.Error!void {
+    const target = Target.borrow(handle);
+    const allocator = target.graph.scratch;
+    var frame_buffer: [inline_frames]Stored = undefined;
+    var field_buffer: [inline_field_bytes]u8 = undefined;
+    var frame_memory = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&frame_buffer), allocator);
+    var field_memory = std.heap.BufferFirstAllocator.init(&field_buffer, allocator);
+    var state: Walk = .{ .frames = frame_memory.allocator(), .fields = field_memory.allocator() };
 
-    try frame.finish(state.graph, state.span);
+    defer state.stack.deinit(state.frames);
+    defer while (state.stack.pop()) |frame| state.fields.free(frame.fields.positions);
 
-    frame.release(state.fields);
+    var count: []u64 = &state.count;
+    var operands: []u32 = &state.operands;
 
-    state.stack.items.len -= 1;
+    state.known = target.graph.pending.known_types.borrow(Known);
+
+    state.view = .{
+        .frame = &state.row,
+        .position = @ptrCast(&state.position),
+        .count = count,
+        .count_slot = @ptrCast(&count),
+        .parents = @ptrCast(&target.parents),
+        .known = &state.known,
+        .operands = operands,
+        .pair_slot = @ptrCast(&operands),
+    };
+
+    target.walk = &state;
+
+    const input: Request = .{ .target = @ptrCast(handle), .candidate = &target.candidate, .stack = &state.view, .depth = depth };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    walk_rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
+}
+
+pub fn appendUnificationFrame(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const target = Target.borrow(handle);
+    const state = target.walk;
+
+    try state.stack.append(state.frames, .{ .snapshot = target.pending });
 
     state.bind();
 }
 
-pub fn enterUnificationChild(handle: *const anyopaque, position: u64, left: u32, right: u32, known: bool) zx.Error!void {
-    const state = Walk.borrow(handle);
-    const graph = state.graph;
-    state.stack.items[state.stack.items.len - 1].position = position;
+pub fn alignUnificationFields(handle: *const anyopaque, existing_names: ?[]const []const u8, existing_values: []const u32, incoming_values: []const u32, closed: bool) std.mem.Allocator.Error!void {
+    const state = Target.borrow(handle).walk;
+    const existing = existing_names orelse Graph.Fields.fromValues(@ptrCast(existing_values)).names();
+    const incoming = Graph.Fields.fromValues(@ptrCast(incoming_values)).names();
 
-    const work = if (known)
-        try Plan.prepare(graph, @fromBackingInt(left), try graph.known(@fromBackingInt(right), state.span), state.span, state.advance.depth)
-    else
-        try Plan.rooted(graph, @fromBackingInt(left), @fromBackingInt(right));
-
-    if (try Unification.prepare(graph, work, state.span)) |pending| try state.push(pending);
-
+    state.current().fields = try Fields.alignFields(state.fields, existing, incoming, closed);
     state.bind();
 }
 
-pub fn rejectUnificationChild(handle: *const anyopaque, deep: bool) zx.Error!void {
-    const state = Walk.borrow(handle);
+pub fn popUnificationFrame(handle: *const anyopaque) void {
+    const state = Target.borrow(handle).walk;
+    const frame = state.stack.pop().?;
 
-    if (deep) return Occurs.depthLimit(state.graph, state.span);
+    state.fields.free(frame.fields.positions);
 
-    return state.graph.reporter.fail(.type_mismatch, state.span, Fields.missing_message);
+    if (state.stack.items.len != 0) state.bind();
+}
+
+pub fn mergeUnificationFields(handle: *const anyopaque) std.mem.Allocator.Error![]const u32 {
+    const target = Target.borrow(handle);
+    const frame = target.walk.current();
+    const left = Graph.Fields.fromValues(@ptrCast(frame.snapshot.left_members));
+    const right = Graph.Fields.fromValues(@ptrCast(frame.snapshot.right_members));
+    const published = try Fields.publish(target.graph.allocator, left, right, frame.fields);
+
+    return @ptrCast(published.values());
+}
+
+pub fn commitUnification(handle: *const anyopaque, parent: u32, child: u32, first_allowed: ?u16, second_allowed: ?u16, first_fallback: ?u8, second_fallback: ?u8, kind: u8, argument: u32, members: []const u32) zx.Error!void {
+    const target = Target.borrow(handle);
+
+    try Commit.publish(
+        target.graph,
+        @fromBackingInt(parent),
+        @fromBackingInt(child),
+        .{ .allowed = first_allowed, .fallback = first_fallback },
+        .{ .allowed = second_allowed, .fallback = second_fallback },
+        .{ .kind = @fromBackingInt(@intCast(kind)), .argument = argument, .members = members },
+        target.span,
+    );
+}
+
+pub fn internUnificationType(handle: *const anyopaque, type_id: u32) zx.Error!u32 {
+    const target = Target.borrow(handle);
+    const result = try target.graph.known(@fromBackingInt(type_id), target.span);
+
+    target.bind();
+
+    target.walk.known = target.graph.pending.known_types.borrow(Known);
+
+    return @backingInt(result);
+}
+
+pub fn reportUnification(handle: *const anyopaque, message: []const u8, depth: bool) zx.Error!void {
+    const target = Target.borrow(handle);
+
+    return target.graph.reporter.fail(if (depth) .unsupported else .type_mismatch, target.span, message);
 }

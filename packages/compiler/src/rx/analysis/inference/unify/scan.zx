@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import { Step } from "../unification/application/model"
+import scan from "../unification/application/scan"
+
+import type { Step as Output } from "../unification/application/model"
+import type { Request } from "./model"
+
+export type Input = Request
+
+export default function (in: Input): Output {
+    const stack = in.stack
+    const row = stack.frame
+    const frame = row.snapshot
+
+    const pair = scan({
+        pair: {
+            action: frame.action,
+            position: memory.readU64(stack.position, 0),
+            left_operand: frame.left_operand,
+            right_operand: frame.right_operand,
+            left_members: frame.left_members,
+            right_members: frame.right_members,
+            positions: row.positions
+        },
+        known: stack.known,
+        parents: stack.parents,
+        depth: in.depth + stack.count[0]
+    })
+
+    if (pair.step == Step.Merge || pair.step == Step.MergeKnown) {
+        memory.writeU64(stack.position, 0, pair.position)
+        memory.writeU32(stack.pair_slot, 0, pair.left)
+        memory.writeU32(stack.pair_slot, 1, pair.right)
+    }
+
+    return pair.step
+}

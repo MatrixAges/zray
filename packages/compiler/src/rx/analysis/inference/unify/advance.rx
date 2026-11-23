@@ -1,38 +1,76 @@
 <Module>
     <Type from="model" as="Walk" />
     <Type from="../unification/application/model" as="Application" />
+    <Type from="../unification/model" as="Admission" />
 
     <Args in={Walk.Request} out={Walk.Request} />
 
-    <Call fn="../unification/application/scan" in={$in.view.advance} />
+    <Call fn="scan" in={$in} />
 
-    <If on={$ctx.scan.step == Application.Step.Publish}>
-        <Call fn="host.publishUnificationFrame" in={$in.frame} />
+    <If on={$ctx.scan == Application.Step.Publish}>
+        <Call module="publish" in={$in} />
+
+        <Call
+            fn="host.writeU64"
+            in={[
+                $in.stack.count_slot,
+                0,
+                $in.stack.count[0] - 1
+            ]}
+        />
 
         <Return value={$in} />
     </If>
 
-    <If
-        on={$ctx.scan.step == Application.Step.MissingField ||
-            $ctx.scan.step == Application.Step.Depth}
-    >
-        <Call
-            fn="host.rejectUnificationChild"
-            in={[
-                $in.frame,
-                $ctx.scan.step == Application.Step.Depth
-            ]}
-        />
+    <Call
+        fn="reject_child"
+        in={{
+            target: $in.target,
+            step: $ctx.scan
+        }}
+    />
+
+    <Call
+        module="child"
+        in={{
+            ...$in,
+            step: $ctx.scan
+        }}
+    />
+
+    <If on={$in.candidate.frame.route == Admission.Route.Same}>
+        <Return value={$in} />
     </If>
 
     <Call
-        fn="host.enterUnificationChild"
+        fn="diagnose"
+        in={{
+            target: $in.target,
+            route: $in.candidate.frame.route
+        }}
+    />
+
+    <If on={$in.candidate.frame.action == Application.Action.Adopt}>
+        <Call
+            fn="commit"
+            in={{
+                target: $in.target,
+                frame: $in.candidate.frame,
+                members: $in.candidate.frame.members
+            }}
+        />
+
+        <Return value={$in} />
+    </If>
+
+    <Call module="push" in={$in.omit(["stack"])} />
+
+    <Call
+        fn="host.writeU64"
         in={[
-            $in.frame,
-            $ctx.scan.position,
-            $ctx.scan.left,
-            $ctx.scan.right,
-            $ctx.scan.step == Application.Step.MergeKnown
+            $in.stack.count_slot,
+            0,
+            $in.stack.count[0] + 1
         ]}
     />
 

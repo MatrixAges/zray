@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Walk" />
+    <Type from="../unification/model" as="Admission" />
+    <Type from="../unification/application/model" as="Application" />
+
+    <Args in={Walk.Merge} out={void} />
+
+    <Call
+        fn="diagnose"
+        in={{
+            target: $in.target,
+            route: $in.candidate.frame.route
+        }}
+    />
+
+    <If on={$in.candidate.frame.route != Admission.Route.Same}>
+        <If on={$in.candidate.frame.action == Application.Action.Adopt}>
+            <Call
+                fn="commit"
+                in={{
+                    target: $in.target,
+                    frame: $in.candidate.frame,
+                    members: $in.candidate.frame.members
+                }}
+            />
+        </If>
+
+        <If on={$in.candidate.frame.action != Application.Action.Adopt}>
+            <Call
+                fn="host.walkUnificationFrames"
+                in={[
+                    $in.target,
+                    $in.depth
+                ]}
+            />
+        </If>
+    </If>
+</Module>

@@ -2,10 +2,9 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
 const enabled = @import("rx_options").generated_graph;
-const generated = if (enabled) @import("generated_rx_unification_prepare") else void;
-const View = if (enabled) std.meta.Child(@FieldType(std.meta.Child(generated.Input), "graph")) else void;
+const generated = if (enabled) @import("generated_rx_object_view") else void;
 
-pub const Kind = if (enabled) std.meta.Elem(@FieldType(View, "kinds")) else enum {
+pub const Kind = if (enabled) @FieldType(std.meta.Child(generated.Input), "kind") else enum {
     Unknown,
     Sequence,
     Known,
@@ -123,14 +122,6 @@ pub fn writable(rows: Storage.Slice) Writable {
         .kinds = std.mem.sliceAsBytes(rows.items(.kind)),
         .arguments = rows.items(.argument),
         .members = rows.items(.members),
-    };
-}
-
-pub fn encoded(rows: Storage.Slice, index: usize) Encoded {
-    return .{
-        .kind = rows.items(.kind)[index],
-        .argument = rows.items(.argument)[index],
-        .members = rows.items(.members)[index],
     };
 }
 

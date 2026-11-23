@@ -1,0 +1,23 @@
+export const recursive_type: string = "inference would require a recursive input type"
+
+export const nesting_limit: string = "type inference nesting exceeds 256 levels"
+
+export const sequence_shape: string = "a sequence requires a list or tuple type"
+
+export const input_shape: string = "incompatible inferred input shapes"
+
+export const tuple_length: string = "incompatible inferred tuple lengths"
+
+export const concrete_types: string = "input uses require different concrete types"
+
+export const object_requirements: string =
+    "input object requirements conflict with its complete type"
+
+export const container_requirements: string =
+    "input container requirements conflict with its complete type"
+
+export const tuple_requirements: string =
+    "input tuple requirements conflict with its complete type"
+
+export const missing_field: string =
+    "the complete input type does not contain a required field"

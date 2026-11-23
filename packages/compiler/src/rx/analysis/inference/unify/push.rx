@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Walk" />
+    <Type from="../unification/application/model" as="Application" />
+
+    <Args in={Walk.Merge} out={void} />
+
+    <Call fn="host.appendUnificationFrame" in={$in.target} />
+
+    <Switch on={$in.candidate.frame.action}>
+        <Case value={Application.Action.Object}>
+            <Call
+                fn="host.alignUnificationFields"
+                in={[
+                    $in.target,
+                    null,
+                    $in.candidate.frame.left_members,
+                    $in.candidate.frame.right_members,
+                    false
+                ]}
+            />
+        </Case>
+
+        <Case value={Application.Action.KnownObject}>
+            <Call
+                fn="host.alignUnificationFields"
+                in={[
+                    $in.target,
+                    $in.candidate.frame.declared,
+                    $in.candidate.frame.right_members,
+                    $in.candidate.frame.left_members,
+                    true
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

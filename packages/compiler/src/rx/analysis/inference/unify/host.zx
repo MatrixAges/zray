@@ -1,5 +1,10 @@
+export { writeU64 } from "memory"
 export {
-    publishUnificationFrame,
-    enterUnificationChild,
-    rejectUnificationChild
+    walkUnificationFrames,
+    appendUnificationFrame,
+    alignUnificationFields,
+    popUnificationFrame,
+    mergeUnificationFields,
+    prepareUnificationFrame,
+    internUnificationType
 } from "rx_project_host"

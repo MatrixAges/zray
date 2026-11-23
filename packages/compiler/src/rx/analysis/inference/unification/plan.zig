@@ -2,11 +2,8 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Occurs = @import("occurs.zig");
-pub const enabled = @import("rx_options").generated_graph;
-const generated = if (enabled) @import("generated_rx_unification_prepare") else void;
-const Output = if (enabled) @typeInfo(@typeInfo(@TypeOf(generated.executeValue)).@"fn".return_type.?).error_union.payload else void;
 
-pub const Route = if (enabled) @FieldType(Output, "route") else enum {
+pub const Route = enum {
     Ready,
     Same,
     Depth,
@@ -26,66 +23,13 @@ pub const Route = if (enabled) @FieldType(Output, "route") else enum {
     ConcreteTupleMismatch,
 };
 
-pub const Action = if (enabled) @FieldType(Output, "action") else void;
-
-pub const Work = if (enabled) Output else struct {
+pub const Work = struct {
     left: u32,
     right: u32,
     route: Route,
 };
 
 pub fn prepare(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {
-    if (!enabled) return prepareSeed(graph, left, right, span, depth);
-
-    return prepareGenerated(generated, graph, left, right, depth);
-}
-
-pub fn rooted(graph: *const Graph, left: Graph.Id, right: Graph.Id) zx.Error!Work {
-    return prepareGenerated(@import("generated_rx_unification_rooted"), graph, left, right, 0);
-}
-
-fn prepareGenerated(comptime rule: type, graph: *const Graph, left: Graph.Id, right: Graph.Id, depth: usize) zx.Error!Work {
-    const rows = graph.nodes.slice();
-    const types = &graph.types.items;
-    const parents: []u32 = graph.parents();
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const Input = std.meta.Child(rule.Input);
-
-    const graph_view: std.meta.Child(@FieldType(Input, "graph")) = .{
-        .kinds = rows.items(.kind),
-        .members = rows.items(.members),
-        .arguments = rows.items(.argument),
-    };
-
-    const type_view: std.meta.Child(@FieldType(Input, "types")) = .{
-        .kinds = types.kinds.items,
-        .arguments = types.first.items,
-        .sizes = types.second.items,
-        .children = types.children.items,
-        .field_values = types.field_types.items,
-        .field_names = types.field_names.items,
-    };
-
-    var input: Input = undefined;
-
-    input.graph = &graph_view;
-    input.types = &type_view;
-    input.parents = @ptrCast(&parents);
-    input.left = @backingInt(left);
-    input.right = @backingInt(right);
-
-    if (comptime @hasField(Input, "depth")) input.depth = depth;
-    if (comptime @hasField(Input, "zx_origin")) input.zx_origin = null;
-
-    const request: *const Input = &input;
-
-    return zx.columns.invoke(rule.executeValue, scratch.allocator(), request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-}
-
-fn prepareSeed(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {
     if (depth >= 256) return .{ .left = @backingInt(left), .right = @backingInt(right), .route = .Depth };
 
     const a = graph.root(left);
@@ -143,17 +87,9 @@ fn seed(left: Graph.Shape, right: Graph.Shape, concrete: ?zx.ir.Type) Route {
 }
 
 pub fn position(names: []const []const u8, key: []const u8) ?usize {
-    if (!enabled) {
-        for (names, 0..) |name, index| {
-            if (std.mem.eql(u8, name, key)) return index;
-        }
-
-        return null;
+    for (names, 0..) |name, index| {
+        if (std.mem.eql(u8, name, key)) return index;
     }
 
-    var bytes: [0]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&bytes);
-    const index = @import("generated_rx_unification_field").executeIn(scratch.allocator(), &.{ .names = names, .name = key }) catch unreachable;
-
-    return if (index) |value| @intCast(value) else null;
+    return null;
 }

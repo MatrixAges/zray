@@ -1,0 +1,45 @@
+import { reportUnification } from "rx_project_host"
+
+import { Route } from "../unification/model"
+import {
+    recursive_type,
+    nesting_limit,
+    sequence_shape,
+    input_shape,
+    tuple_length
+} from "./const"
+import {
+    concrete_types,
+    object_requirements,
+    container_requirements,
+    tuple_requirements
+} from "./const"
+
+import type { UnificationTarget } from "rx_project_host"
+import type { Route as Admission } from "../unification/model"
+
+export type Input = {
+    target: UnificationTarget,
+    route: Admission
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const message: string? = match in.route {
+        Route.Depth => nesting_limit,
+        Route.Recursive => recursive_type,
+        Route.SequenceMismatch => sequence_shape,
+        Route.ShapeMismatch => input_shape,
+        Route.TupleMismatch => tuple_length,
+        Route.ConcreteMismatch => concrete_types,
+        Route.ConcreteObjectMismatch => object_requirements,
+        Route.ConcreteContainerMismatch => container_requirements,
+        Route.ConcreteTupleMismatch => tuple_requirements,
+        _ => null
+    }
+
+    if (message != null) {
+        reportUnification(in.target, message, in.route == Route.Depth)
+    }
+}

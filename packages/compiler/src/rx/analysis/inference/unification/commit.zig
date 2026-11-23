@@ -6,12 +6,6 @@ const Restriction = @import("../scalar/restriction.zig");
 const seed = @import("../scalar/seed.zig");
 pub const Constraints = struct { allowed: ?u16, fallback: ?u8 };
 
-pub fn snapshot(rows: Nodes.Storage.Slice, id: Graph.Id) Constraints {
-    const index = @backingInt(id);
-
-    return .{ .allowed = rows.items(.allowed)[index], .fallback = rows.items(.fallback)[index] };
-}
-
 pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constraints, second: Constraints, shape: Nodes.Encoded, span: zx.Span) zx.Error!void {
     const generated = @import("generated_rx_unification_commit");
     const parents: []u32 = graph.parents();

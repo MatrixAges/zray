@@ -1,0 +1,29 @@
+import { commitUnification } from "rx_project_host"
+
+import type { UnificationTarget } from "rx_project_host"
+import type { Frame } from "./model"
+
+export type Input = {
+    target: UnificationTarget,
+    frame: Frame,
+    members: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, frame, members } = in
+
+    commitUnification(
+        target,
+        frame.parent,
+        frame.child,
+        frame.first_allowed,
+        frame.second_allowed,
+        frame.first_fallback,
+        frame.second_fallback,
+        frame.kind,
+        frame.argument,
+        members
+    )
+}

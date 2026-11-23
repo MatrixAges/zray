@@ -3,7 +3,18 @@
 
     <Args in={Walk.Request} out={void} />
 
-    <Loop on={$in.view.active}>
+    <Call module="push" in={$in.omit(["stack"])} />
+
+    <Call
+        fn="host.writeU64"
+        in={[
+            $in.stack.count_slot,
+            0,
+            1
+        ]}
+    />
+
+    <Loop on={$in.stack.count[0] != 0}>
         <Call module="advance" in={$in} />
     </Loop>
 </Module>

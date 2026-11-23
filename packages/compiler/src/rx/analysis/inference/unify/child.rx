@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Walk" />
+    <Type from="../unification/application/model" as="Application" />
+
+    <Args in={Walk.Child} out={void} />
+
+    <If on={$in.step == Application.Step.MergeKnown}>
+        <Call
+            fn="host.internUnificationType"
+            in={[
+                $in.target,
+                $in.stack.operands[1]
+            ]}
+        />
+
+        <Call
+            fn="host.prepareUnificationFrame"
+            in={[
+                $in.target,
+                $in.stack.operands[0],
+                $ctx.internUnificationType,
+                $in.depth + $in.stack.count[0],
+                false
+            ]}
+        />
+    </If>
+
+    <If on={$in.step == Application.Step.Merge}>
+        <Call
+            fn="host.prepareUnificationFrame"
+            in={[
+                $in.target,
+                $in.stack.operands[0],
+                $in.stack.operands[1],
+                $in.depth + $in.stack.count[0],
+                true
+            ]}
+        />
+    </If>
+</Module>

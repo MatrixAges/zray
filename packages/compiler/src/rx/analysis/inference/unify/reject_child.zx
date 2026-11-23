@@ -1,0 +1,26 @@
+import { reportUnification } from "rx_project_host"
+
+import { Step } from "../unification/application/model"
+import { missing_field, nesting_limit } from "./const"
+
+import type { UnificationTarget } from "rx_project_host"
+import type { Step as State } from "../unification/application/model"
+
+export type Input = {
+    target: UnificationTarget,
+    step: State
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const message: string? = match in.step {
+        Step.MissingField => missing_field,
+        Step.Depth => nesting_limit,
+        _ => null
+    }
+
+    if (message != null) {
+        reportUnification(in.target, message, in.step == Step.Depth)
+    }
+}

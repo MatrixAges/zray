@@ -1,12 +1,61 @@
-import type { UnificationWalk } from "rx_project_host"
-import type { Advance } from "../unification/application/model"
+import type { State as KnownTypes } from "core/integer/map/model"
+import type { U32Buffer, U64Buffer } from "memory"
+import type { UnificationTarget } from "rx_project_host"
+import type { Rooted } from "../unification/admission/model"
+import type { Action, Operands, Step } from "../unification/application/model"
+import type { Route } from "../unification/model"
 
-export type View = {
-    active: bool,
-    advance: Advance
+export type View = Rooted.Omit("left", "right") & {
+    kind_bytes: u8[],
+    allowed: u16?[],
+    fallback: u8?[]
 }
 
-export type Request = {
-    frame: UnificationWalk,
-    view: View
+export type Frame = Operands & {
+    parent: u32,
+    child: u32,
+    route: Route,
+    action: Action,
+    first_allowed?: u16,
+    second_allowed?: u16,
+    first_fallback?: u8,
+    second_fallback?: u8,
+    kind: u8,
+    argument: u32,
+    members: u32[],
+    declared: string[]
+}
+
+export type Row = {
+    snapshot: Frame,
+    positions: u64[]
+}
+
+export type Candidate = {
+    frame: Frame
+}
+
+export type Merge = {
+    target: UnificationTarget,
+    candidate: Candidate,
+    depth: u64
+}
+
+export type Stack = {
+    frame: Row,
+    position: U64Buffer,
+    count: u64[],
+    count_slot: U64Buffer,
+    parents: U32Buffer,
+    known: KnownTypes,
+    operands: u32[],
+    pair_slot: U32Buffer
+}
+
+export type Request = Merge & {
+    stack: Stack
+}
+
+export type Child = Request & {
+    step: Step
 }

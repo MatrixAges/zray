@@ -1,0 +1,79 @@
+import reject from "../unification/admission/reject"
+import roots from "../unification/admission/roots"
+import rows from "../unification/admission/rows"
+import project from "../unification/application/project"
+import known from "../unification/known"
+import { Route } from "../unification/model"
+import check from "../unification/occurs/check"
+import { Reach } from "../unification/occurs/model"
+import shape from "../unification/shape"
+
+import type { Output as Admission, Rooted } from "../unification/admission/model"
+
+export type Input = Rooted & {
+    depth: u64,
+    rooted: bool
+}
+
+export type Output = Admission
+
+export default function (in: Input): Output {
+    const { graph, parents, types } = in
+
+    const entered = roots({
+        parents,
+        left: in.left,
+        right: in.right,
+        depth: in.depth,
+        rooted: in.rooted
+    })
+
+    if (entered.route != Route.Ready) {
+        return entered
+    }
+
+    const { left, right } = entered
+
+    const reach = check({
+        graph,
+        parents,
+        source: left,
+        target: right,
+        depth: 0
+    })
+
+    if (reach != Reach.Absent) {
+        return reject({
+            left,
+            right,
+            reach
+        })
+    }
+
+    const shapes = rows({
+        left,
+        right,
+        graph,
+        types
+    })
+
+    const selected = shape(shapes)
+
+    const route = match selected {
+        Route.Known => known(shapes),
+        _ => selected
+    }
+
+    return {
+        left,
+        right,
+        route,
+        ...project({
+            graph,
+            types,
+            route,
+            left,
+            right
+        })
+    }
+}
