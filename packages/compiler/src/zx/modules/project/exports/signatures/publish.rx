@@ -1,9 +1,11 @@
 <Module>
     <Type from="model" as="Members" />
 
-    <Args in={Members.Input} out={bool} />
+    <Args in={Members.Input} out={u64} />
 
-    <If on={$in.callable != null}>
+    <Call fn="allocate" in={$in} />
+
+    <If on={$in.declared}>
         <Call
             fn="write"
             in={{
@@ -16,24 +18,28 @@
         />
     </If>
 
-    <If on={$in.forwarded.count != 0}>
-        <Call fn="forward" in={$in.forwarded} />
+    <If on={$in.forwarded.length != 0}>
+        <Call
+            fn="forward"
+            in={{
+                target: $in.buffer,
+                rows: $in.forwarded,
+                offset: $in.declared ? $in.stride : 0
+            }}
+        />
     </If>
 
     <If on={$in.bindings.count != 0}>
         <Call
             fn="native"
             in={{
-                ...$in.omit([
-                    "callable",
-                    "forwarded"
-                ]),
-                start: $in.forwarded.count + ($in.callable == null ? 0 : 1)
+                target: $in.target,
+                kinds: $in.kinds,
+                bindings: $in.bindings,
+                start: $ctx.allocate - $in.bindings.count
             }}
         />
-
-        <Return value={$ctx.native} />
     </If>
 
-    <Return value={true} />
+    <Return value={$ctx.allocate} />
 </Module>

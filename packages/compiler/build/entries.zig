@@ -221,7 +221,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/binding/bind.rx", .name = "project_binding" },
     .{ .path = "zx/modules/binding/delivery/run.rx", .name = "project_binding_delivery" },
     .{ .path = "zx/modules/project/exports/plan.rx", .name = "project_public_exports" },
-    .{ .path = "zx/modules/project/exports/signatures/publish.rx", .name = "project_signature_members" },
     .{ .path = "zx/analysis/integer/decode.rx", .name = "integer" },
     constant_fold,
     .{ .path = "zx/analysis/constants/bindings.rx", .name = "constant_bindings" },

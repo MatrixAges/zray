@@ -1,0 +1,22 @@
+import type { Effective as Output, Entry as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { declared, own, selection } = in
+    const { ports, deferred, duplicate, invalid } = selection
+
+    const declaration = match {
+        ports != null => {
+            ...ports,
+            has_store: selection.has_store
+        },
+        _ => own
+    }
+
+    return {
+        ...declaration,
+        type_only: !declared && ports == null,
+        deferred,
+        duplicate,
+        invalid
+    }
+}

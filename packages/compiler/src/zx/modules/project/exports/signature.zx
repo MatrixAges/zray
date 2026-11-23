@@ -17,8 +17,10 @@ export default function (in: Input): Output {
 
     if (kind == signature.callable) {
         return {
-            input_type: columns.readColumnU32(signature.inputs, row),
-            output_type: columns.readColumnU32(signature.outputs, row),
+            ports: {
+                input_type: columns.readColumnU32(signature.inputs, row),
+                output_type: columns.readColumnU32(signature.outputs, row)
+            },
             has_store: memory.readColumnBool(signature.stores, row),
             invalid: false
         }

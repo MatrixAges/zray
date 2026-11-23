@@ -1,0 +1,17 @@
+import { allocateRows } from "core/row_buffer"
+
+import type { Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const own = in.declared ? 1 : 0
+    const count = own + in.forwarded.length / in.stride + in.bindings.count
+
+    allocateRows({
+        target: in.storage,
+        count
+    })
+
+    return count
+}

@@ -67,10 +67,16 @@ fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const
     const selected = try select(arena.allocator(), types, constants, functions, false, own);
 
     if (selected.duplicate) |name| {
-        return reporter.fail(.name, .{ .start = 0, .end = 0 }, try std.fmt.allocPrint(allocator, "duplicate public export: {s}", .{if (name.len == 0) "default" else name}));
+        return reportDuplicate(allocator, reporter, name);
     }
 
     return selected;
+}
+
+pub fn reportDuplicate(allocator: std.mem.Allocator, reporter: *zx.Reporter, name: []const u8) zx.Error {
+    const message = std.fmt.allocPrint(allocator, "duplicate public export: {s}", .{if (name.len == 0) "default" else name}) catch return error.OutOfMemory;
+
+    return reporter.fail(.name, .{ .start = 0, .end = 0 }, message);
 }
 
 pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.Allocator.Error!?usize {
@@ -133,7 +139,7 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
         .invalid_name = if (output.invalid_name) |index| @intCast(index) else null,
         .duplicate = output.duplicate,
         .entry = if (output.entry) |id| @fromBackingInt(id) else null,
-        .ports = if (output.input_type) |id| .{ .input_type = @fromBackingInt(id), .output_type = @fromBackingInt(output.output_type.?) } else null,
+        .ports = if (output.ports) |ports| .{ .input_type = @fromBackingInt(ports.input_type), .output_type = @fromBackingInt(ports.output_type) } else null,
         .has_store = output.has_store,
         .deferred = output.deferred,
         .invalid = output.invalid,

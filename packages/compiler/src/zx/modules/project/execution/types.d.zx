@@ -4,8 +4,6 @@ export type ProjectState = opaque
 
 export type ProjectSignatures = opaque
 
-export type ProjectSignature = opaque
-
 export type ProjectBody = opaque
 
 export type ProjectEntry = opaque

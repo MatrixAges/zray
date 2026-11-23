@@ -1,0 +1,26 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+export type Input = u64
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in == 0) {
+        return 0
+    }
+
+    const half = columns.rowCapacityLimit() / 2
+
+    memory.requireAllocation(in <= half)
+
+    const desired = in * 2
+
+    return loop(1, {
+        while: capacity => capacity < desired,
+        next: capacity => {
+            memory.requireAllocation(capacity <= half)
+            capacity *= 2
+        }
+    })
+}

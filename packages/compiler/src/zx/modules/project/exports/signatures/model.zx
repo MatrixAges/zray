@@ -1,7 +1,9 @@
 import type { Stores } from "core/store_table/model"
 import type { Allocator, ArenaScope, TextColumn, U8Buffer, WriteColumn } from "memory"
+import type { RowBuffer, RowGrowth } from "memory/columns"
 import type { Bindings as Selected } from "../../../binding/model"
 import type { Members, RowsTarget } from "../../../binding/publication/model"
+import type { Ports, Signature } from "../model"
 
 export type Target = {
     name: WriteColumn,
@@ -10,11 +12,6 @@ export type Target = {
     output_type: WriteColumn,
     source: WriteColumn,
     has_store: WriteColumn
-}
-
-export type Ports = {
-    input_type: u32,
-    output_type: u32
 }
 
 export type Declaration = Ports & {
@@ -39,7 +36,7 @@ export type Value = Declaration & {
 export type Forwarded = {
     target: U8Buffer,
     rows: u8[],
-    count: u64
+    offset: u64
 }
 
 export type Bindings = {
@@ -71,8 +68,15 @@ export type ReexportDelivery = Selected & {
 
 export type Input = {
     target: Target,
-    callable: Declaration?,
+    callable: Declaration,
+    declared: bool,
     kinds: Kinds,
-    forwarded: Forwarded,
-    bindings: Bindings
+    forwarded: u8[],
+    bindings: Bindings,
+    storage: RowBuffer,
+    buffer: U8Buffer,
+    reads: RowGrowth,
+    stride: u64,
+    names: TextColumn,
+    signature: Signature
 }

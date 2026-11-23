@@ -29,9 +29,13 @@ export type Signature = {
     intrinsic: u8
 }
 
+export type Ports = {
+    input_type: u32,
+    output_type: u32
+}
+
 export type DefaultSignature = {
-    input_type?: u32,
-    output_type?: u32,
+    ports?: Ports,
     has_store: bool,
     deferred?: string,
     invalid: bool

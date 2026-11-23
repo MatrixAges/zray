@@ -1,4 +1,8 @@
-import type { ProjectSignature, ProjectSignatures } from "project_host"
+import type { Allocator, ReadColumn, TextColumn, U64Buffer, U8Buffer } from "memory"
+import type { RowBuffer, RowGrowth } from "memory/columns"
+import type { ProjectSignatures } from "project_host"
+import type { Output as Selection } from "../../exports/model"
+import type { Declaration, Input as Members } from "../../exports/signatures/model"
 
 export type Batch = {
     batch: ProjectSignatures,
@@ -8,9 +12,57 @@ export type Batch = {
     paths: string[]
 }
 
+export type Merge = {
+    own: u8[],
+    forwarded: u8[],
+    stride: u64,
+    storage: RowBuffer,
+    buffer: U8Buffer,
+    reads: RowGrowth,
+    names: TextColumn
+}
+
+export type Exports = {
+    types: Merge,
+    constants: Merge
+}
+
+export type Merged = {
+    exports: u8[],
+    constant_exports: u8[]
+}
+
+export type Validation = {
+    scratch: Allocator,
+    buckets: U64Buffer,
+    no_ids: ReadColumn
+}
+
 export type Publication = {
-    signature: ProjectSignature,
+    members: Members,
+    exports: Exports,
+    validation: Validation
+}
+
+export type Validate = {
+    publication: Publication,
+    merged: Merged,
+    member_count: u64
+}
+
+export type Entry = {
     declared: bool,
-    members: u64,
-    reexports: u64
+    own: Declaration,
+    selection: Selection
+}
+
+export type Effective = Declaration & {
+    type_only: bool,
+    deferred?: string,
+    duplicate?: string,
+    invalid: bool
+}
+
+export type Output = Merged & {
+    signature: Effective
 }

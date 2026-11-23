@@ -1,21 +1,49 @@
 <Module>
     <Type from="model" as="Signatures" />
 
-    <Args in={Signatures.Publication} out={void} />
+    <Args in={Signatures.Publication} out={Signatures.Output} />
+
+    <Call module="../../exports/signatures/publish" in={$in.members} />
+
+    <Call fn="merge_exports" in={$in.exports} />
 
     <Call
-        fn="index.installProjectSignatureMembers"
-        in={[
-            $in.signature,
-            $in.members + ($in.declared ? 1 : 0)
-        ]}
+        fn="prepare_validation"
+        in={{
+            publication: $in,
+            merged: $ctx.merge_exports,
+            member_count: $ctx.publish
+        }}
     />
 
-    <Call fn="index.mergeProjectSignatureExports" in={$in.signature} />
+    <If on={$ctx.prepare_validation != null}>
+        <Call module="../../exports/plan" in={$ctx.prepare_validation} />
 
-    <If on={$in.reexports != 0 || $in.members != 0}>
-        <Call fn="index.selectProjectSignatureEntry" in={$in.signature} />
+        <Call
+            fn="apply_entry"
+            in={{
+                declared: $in.members.declared,
+                own: $in.members.callable,
+                selection: $ctx.plan
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.merge_exports,
+                signature: $ctx.apply_entry
+            }}
+        />
     </If>
 
-    <Call fn="index.publishProjectSignatureBindings" in={$in.signature} />
+    <Return
+        value={{
+            ...$ctx.merge_exports,
+            signature: {
+                ...$in.members.callable,
+                type_only: !$in.members.declared,
+                invalid: false
+            }
+        }}
+    />
 </Module>

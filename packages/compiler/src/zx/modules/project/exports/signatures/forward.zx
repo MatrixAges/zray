@@ -5,7 +5,7 @@ import type { Forwarded as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, rows } = in
+    const { target, rows, offset } = in
 
-    const copied = memory.copyBytes(target, 0, rows, 0, rows.length)
+    const copied = memory.copyBytes(target, offset, rows, 0, rows.length)
 }

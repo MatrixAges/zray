@@ -2,7 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Types = @import("../analysis/types.zig");
-const FunctionImport = @import("function_import.zig");
 
 pub const Ports = struct {
     input_type: ir.TypeId,
@@ -19,36 +18,6 @@ pub const Member = struct {
     has_store: bool = false,
 };
 
-const Target = struct {
-    name: zx.memory.WriteColumn,
-    kind: zx.memory.WriteColumn,
-    input_type: zx.memory.WriteColumn,
-    output_type: zx.memory.WriteColumn,
-    source: zx.memory.WriteColumn,
-    has_store: zx.memory.WriteColumn,
-    fn borrow(rows: []Member) Target {
-        const memory = zx.memory;
-
-        return .{
-            .name = memory.borrowWriteColumn([]const u8, "name", rows),
-            .kind = memory.borrowWriteColumn(Member.Kind, "kind", rows),
-            .input_type = memory.borrowNestedWriteColumn(ir.TypeId, &.{ "ports", "input_type" }, rows),
-            .output_type = memory.borrowNestedWriteColumn(ir.TypeId, &.{ "ports", "output_type" }, rows),
-            .source = memory.borrowWriteColumn([]const u8, "source", rows),
-            .has_store = memory.borrowWriteColumn(u8, "has_store", rows),
-        };
-    }
-    fn view(self: *const Target, comptime Shape: type) Shape {
-        var result: Shape = undefined;
-
-        inline for (@typeInfo(Shape).@"struct".field_names) |name| {
-            @field(result, name) = @ptrCast(&@field(self, name));
-        }
-
-        return result;
-    }
-};
-
 pub const Result = struct {
     ports: Ports,
     exports: []const ir.Export,
@@ -60,50 +29,12 @@ pub const Result = struct {
     deferred_source: []const u8 = &.{},
 };
 
-pub fn publishMembers(allocator: std.mem.Allocator, signature: *const Result, stores: []const *const ir.StoreTable, forwarded: []const Member, native: []const FunctionImport, members: []Member) std.mem.Allocator.Error!void {
-    if (members.len == 0) return;
-
-    const rule = @import("generated_project_signature_members");
-    const Input = std.meta.Child(rule.Input);
-    const Declaration = std.meta.Child(@typeInfo(@FieldType(Input, "callable")).optional.child);
-    const memory = zx.memory;
-    const own: usize = @intFromBool(!signature.type_only);
-    const declaration: Declaration = .{ .input_type = @backingInt(signature.ports.input_type), .output_type = @backingInt(signature.ports.output_type), .has_store = signature.has_store };
-    const target = std.mem.sliceAsBytes(members[own..][0..forwarded.len]);
-    const output = Target.borrow(members);
-    const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
-    const Facts = std.meta.Child(@FieldType(Bindings, "facts"));
-    const MemberSource = std.meta.Child(@FieldType(Facts, "members"));
-    const readable = FunctionImport.Readable.borrowRows(native);
-
-    const input: Input = .{
-        .target = &output.view(std.meta.Child(@FieldType(Input, "target"))),
-        .callable = if (own != 0) &declaration else null,
-        .kinds = &kinds(std.meta.Child(@FieldType(Input, "kinds"))),
-        .forwarded = &.{ .rows = std.mem.sliceAsBytes(forwarded), .target = @ptrCast(&target), .count = forwarded.len },
-        .bindings = &.{
-            .names = @ptrCast(&memory.borrowTextColumn("name", native)),
-            .facts = &bindingFacts(Facts, &.{ .named = &readable.view(std.meta.Child(@FieldType(MemberSource, "named"))), .fallback = null }, stores),
-            .count = native.len,
-        },
-    };
-
-    try writeMembers(rule, allocator, &input);
-}
-
 pub fn kinds(comptime Kinds: type) Kinds {
     return .{ .callable = @backingInt(Member.Kind.callable), .intrinsic = @backingInt(Member.Kind.intrinsic) };
 }
 
 pub fn bindingFacts(comptime Facts: type, source: @FieldType(Facts, "members"), stores: []const *const ir.StoreTable) Facts {
     return .{ .members = source, .stores = zx.columns.slice(@FieldType(Facts, "stores"), stores), .void_type = @backingInt(Types.scalarId(.void)) };
-}
-
-fn writeMembers(comptime Rule: type, allocator: std.mem.Allocator, input: Rule.Input) std.mem.Allocator.Error!void {
-    if (!(zx.columns.invoke(Rule.executeValue, allocator, input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    })) unreachable;
 }
 
 pub fn ports(types: *Types, program: anytype) zx.Error!Ports {

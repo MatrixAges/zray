@@ -52,17 +52,6 @@ export declare function writeProjectSignature(
 
 export declare function finishProjectSignatures(batch: ProjectSignatures): void
 
-export declare function installProjectSignatureMembers(signature: ProjectSignature, count: u64): void
-    throws { OutOfMemory }
-
-export declare function mergeProjectSignatureExports(signature: ProjectSignature): void
-    throws { OutOfMemory }
-
-export declare function selectProjectSignatureEntry(signature: ProjectSignature): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function publishProjectSignatureBindings(signature: ProjectSignature): void
-
 export declare function openProjectFrame(walk: ProjectWalk, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
