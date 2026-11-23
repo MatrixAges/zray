@@ -21,13 +21,6 @@ const AlignFrame = struct {
     index: Index = undefined,
 };
 
-const MergeFrame = struct {
-    allocator: std.mem.Allocator,
-    result: Graph.Fields,
-    names: [][]const u8 = undefined,
-    values: []u32 = undefined,
-};
-
 pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, incoming: []const []const u8, closed: bool) std.mem.Allocator.Error!Alignment {
     const positions = try allocator.alloc(u64, incoming.len);
 
@@ -51,17 +44,17 @@ pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, i
 }
 
 pub fn publish(allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {
-    var frame: MergeFrame = .{ .allocator = allocator, .result = left };
+    var resize: Graph.Fields.Resize = .{ .allocator = allocator, .fields = left };
 
     const input: Merge = .{
-        .frame = @ptrCast(&frame),
+        .storage = &resize.borrow(std.meta.Child(@FieldType(Merge, "storage"))),
         .columns = &.{
             .names = right.names(),
             .values = @ptrCast(right.values()),
             .positions = alignment.positions,
             .prefix = left.len,
-            .target_names = @ptrCast(&frame.names),
-            .target_values = @ptrCast(&frame.values),
+            .target_names = @ptrCast(&resize.names),
+            .target_values = @ptrCast(&resize.values),
         },
         .length = alignment.length,
     };
@@ -70,7 +63,7 @@ pub fn publish(allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fi
 
     merge_rule.executeIn(empty.allocator(), &input) catch |err| return allocationError(err);
 
-    return frame.result;
+    return resize.fields;
 }
 
 pub fn reserveFieldAlignmentIndex(handle: *const anyopaque, minimum: u64) std.mem.Allocator.Error!void {
@@ -79,13 +72,6 @@ pub fn reserveFieldAlignmentIndex(handle: *const anyopaque, minimum: u64) std.me
     const capacity = std.math.ceilPowerOfTwo(usize, required) catch return error.OutOfMemory;
     frame.buckets = try frame.allocator.alloc(u64, capacity);
     frame.index.capacity = capacity;
-}
-
-pub fn reserveMergedFieldColumns(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const frame: *MergeFrame = @ptrCast(@alignCast(@constCast(handle)));
-    frame.result = try frame.result.extend(frame.allocator, @intCast(count));
-    frame.names = frame.result.nameColumn();
-    frame.values = @ptrCast(frame.result.valueColumn());
 }
 
 fn allocationError(err: anyerror) std.mem.Allocator.Error {

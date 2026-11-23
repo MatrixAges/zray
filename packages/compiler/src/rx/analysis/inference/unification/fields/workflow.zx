@@ -1,4 +1,5 @@
-import type { FieldAlignment, FieldMerge } from "rx_project_host"
+import type { FieldAlignment } from "rx_project_host"
+import type { Storage } from "../../fields/growth/model"
 import type { Input as Alignment } from "./model"
 import type { Input as Publication } from "./publish"
 
@@ -8,7 +9,7 @@ export type Align = {
 }
 
 export type Merge = {
-    frame: FieldMerge,
+    storage: Storage,
     columns: Publication,
     length: u64
 }

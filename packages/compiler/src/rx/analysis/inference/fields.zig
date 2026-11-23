@@ -9,7 +9,11 @@ const row_bytes = @sizeOf(Name) + @sizeOf(Graph.Id);
 bytes: [*]u8 = undefined,
 len: usize = 0,
 pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
-    return allocate(allocator, count, count);
+    const fields = try allocate(allocator, count, count);
+
+    if (count != 0) fields.header().published = @intCast(count);
+
+    return fields;
 }
 
 fn allocate(allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem.Allocator.Error!Self {
@@ -21,34 +25,49 @@ fn allocate(allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem
     const storage = try allocator.alignedAlloc(u8, .of(Name), size);
     const fields: Self = .{ .bytes = storage.ptr + capacity * @sizeOf(Name), .len = count };
 
-    fields.header().* = .{ .capacity = reserved, .published = @intCast(count) };
+    fields.header().capacity = reserved;
 
     return fields;
 }
 
-/// Extending the most recently published prefix cannot modify any earlier view.
-pub fn extend(self: Self, allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
-    std.debug.assert(count >= self.len);
+pub const Resize = struct {
+    allocator: std.mem.Allocator,
+    fields: Self,
+    names: []Name = undefined,
+    values: []u32 = undefined,
+    extent: []u32 = undefined,
+    pub fn borrow(self: *Resize, comptime View: type) View {
+        const fields = self.fields;
+        const layout = if (fields.len == 0) Header{ .capacity = 0, .published = 0 } else fields.header().*;
 
-    if (count == self.len) return self;
+        return .{
+            .frame = @ptrCast(self),
+            .source_names = fields.names(),
+            .source_values = @ptrCast(fields.values()),
+            .capacity = layout.capacity,
+            .published = layout.published,
+            .target_names = @ptrCast(&self.names),
+            .target_values = @ptrCast(&self.values),
+            .extent = @ptrCast(&self.extent),
+        };
+    }
+};
 
-    if (self.len != 0) {
-        const layout = self.header();
+pub fn bindFieldColumns(handle: *const anyopaque, count: u64, capacity: ?u64) std.mem.Allocator.Error!void {
+    const frame: *Resize = @ptrCast(@alignCast(@constCast(handle)));
+    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
 
-        if (layout.published == self.len and count <= layout.capacity) {
-            layout.published = @intCast(count);
+    if (capacity) |size| {
+        const reserved = std.math.cast(usize, size) orelse return error.OutOfMemory;
 
-            return .{ .bytes = self.bytes, .len = count };
-        }
+        frame.fields = try allocate(frame.allocator, length, reserved);
+    } else {
+        frame.fields.len = length;
     }
 
-    const reserve = self.len + self.len / 2;
-    const capacity = @max(count, @min(reserve, std.math.maxInt(u32)));
-    const destination = try allocate(allocator, count, capacity);
-
-    self.copyTo(destination);
-
-    return destination;
+    frame.names = frame.fields.nameColumn();
+    frame.values = @ptrCast(frame.fields.valueColumn());
+    frame.extent = (&frame.fields.header().published)[0..1];
 }
 
 /// Reconstruct the descriptor from the complete value column of this layout.

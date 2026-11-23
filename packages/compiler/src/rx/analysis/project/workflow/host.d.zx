@@ -34,7 +34,7 @@ export type FieldAccess = opaque
 
 export type FieldAlignment = opaque
 
-export type FieldMerge = opaque
+export type FieldColumnStorage = opaque
 
 export type ObjectConstructionRow = opaque
 
@@ -853,10 +853,14 @@ export declare function registerAssignmentTarget(
     row: u64
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function reserveFieldAppend(frame: FieldAccess, name: string): void
+export declare function addFieldNode(frame: FieldAccess): u32
     throws { OutOfMemory, InvalidSource }
 
-export declare function publishFieldRevision(frame: FieldAccess): void
+export declare function bindFieldColumns(
+    frame: FieldColumnStorage,
+    count: u64,
+    capacity: u64?
+): void throws { OutOfMemory }
 
 export declare function registerFieldType(frame: FieldAccess, type_id: u32): u32
     throws { OutOfMemory, InvalidSource }
@@ -871,7 +875,4 @@ export declare function rejectFieldAccess(frame: FieldAccess, message: string): 
     throws { OutOfMemory, InvalidSource }
 
 export declare function reserveFieldAlignmentIndex(frame: FieldAlignment, minimum: u64): void
-    throws { OutOfMemory }
-
-export declare function reserveMergedFieldColumns(frame: FieldMerge, count: u64): void
     throws { OutOfMemory }

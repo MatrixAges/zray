@@ -9,9 +9,8 @@ const Input = std.meta.Child(rule.Input);
 const Site = std.meta.Child(@FieldType(Input, "site"));
 const Receiver = std.meta.Child(@FieldType(Site, "receiver"));
 const Members = std.meta.Child(@FieldType(Site, "members"));
-const Append = std.meta.Child(@FieldType(Site, "append"));
-const Columns = std.meta.Child(@FieldType(Append, "columns"));
-const Shape = std.meta.Child(@FieldType(Append, "shape"));
+const Storage = std.meta.Child(@FieldType(Site, "storage"));
+const Columns = std.meta.Child(@FieldType(Site, "columns"));
 
 pub const Frame = struct {
     graph: *Graph,
@@ -21,13 +20,11 @@ pub const Frame = struct {
     site: Site = undefined,
     receiver: Receiver = undefined,
     members: Members = undefined,
-    inferred: Graph.Fields = undefined,
-    append: Append = undefined,
+    resize: Graph.Fields.Resize = undefined,
+    storage: Storage = undefined,
     writable: Nodes.Writable = undefined,
     columns: Columns = undefined,
-    shape: Shape = undefined,
-    names: [][]const u8 = undefined,
-    values: []u32 = undefined,
+    revision: []u64 = undefined,
     pub fn bind(self: *Frame) View.Shape {
         const graph = self.graph;
         const shape = View.describe(graph, self.root);
@@ -35,11 +32,15 @@ pub const Frame = struct {
         const known = shape.kind == .Known;
         const argument = if (known) types.first.items[shape.argument] else 0;
 
-        self.inferred = if (shape.kind == .Object)
+        const inferred = if (shape.kind == .Object)
             Graph.Fields.fromValues(@ptrCast(graph.nodes.items(.members)[@backingInt(self.root)]))
 
         else
-            .{};
+            Graph.Fields{};
+
+        self.resize = .{ .allocator = graph.allocator, .fields = inferred };
+        self.storage = self.resize.borrow(Storage);
+        self.revision = (&graph.revision)[0..1];
 
         self.members = if (known and shape.type_kind == @backingInt(@as(std.meta.Tag(zx.ir.Type), .object))) members: {
             const count = types.second.items[shape.argument];
@@ -48,7 +49,7 @@ pub const Frame = struct {
                 .names = types.field_names.items[argument..][0..count],
                 .values = types.field_types.items[argument..][0..count],
             };
-        } else .{ .names = self.inferred.names(), .values = @ptrCast(self.inferred.values()) };
+        } else .{ .names = self.storage.source_names, .values = self.storage.source_values };
 
         self.receiver = .{
             .kind = zx.columns.view(@FieldType(Receiver, "kind"), shape.kind),
@@ -61,7 +62,12 @@ pub const Frame = struct {
             .frame = @ptrCast(self),
             .receiver = &self.receiver,
             .members = &self.members,
-            .append = &self.append,
+            .storage = &self.storage,
+            .allocator = @ptrCast(&graph.types.allocator),
+            .columns = &self.columns,
+            .parent = @backingInt(self.root),
+            .object_kind = @backingInt(Nodes.Kind.Object),
+            .revision = @ptrCast(&self.revision),
         };
 
         return shape;
@@ -82,33 +88,14 @@ pub fn read(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, s
     return @fromBackingInt(value);
 }
 
-pub fn reserveFieldAppend(handle: *const anyopaque, name: []const u8) zx.Error!void {
+pub fn addFieldNode(handle: *const anyopaque) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
-    const index = frame.inferred.len;
     const result = try graph.add(.unknown, frame.span);
-    const retained = try graph.types.allocator.dupe(u8, name);
-    const fields = try frame.inferred.extend(graph.allocator, index + 1);
     frame.writable = Nodes.writable(graph.nodes.slice());
-    frame.names = fields.nameColumn();
-    frame.values = @ptrCast(fields.valueColumn());
     frame.columns = frame.writable.borrow(Columns);
-    frame.shape = .{ .kind = @backingInt(Nodes.Kind.Object), .argument = 0, .members = frame.values };
 
-    frame.append = .{
-        .parent = @backingInt(frame.root),
-        .columns = &frame.columns,
-        .shape = &frame.shape,
-        .names = @ptrCast(&frame.names),
-        .values = @ptrCast(&frame.values),
-        .position = index,
-        .name = retained,
-        .value = @backingInt(result),
-    };
-}
-
-pub fn publishFieldRevision(handle: *const anyopaque) void {
-    Frame.borrow(handle).graph.revision += 1;
+    return @backingInt(result);
 }
 
 pub fn registerFieldType(handle: *const anyopaque, type_id: u32) zx.Error!u32 {

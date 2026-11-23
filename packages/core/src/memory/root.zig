@@ -462,7 +462,15 @@ pub inline fn copyU64s(target: *const anyopaque, source: []const u64) error{Inde
 }
 
 pub inline fn copyU32sAt(target: *const anyopaque, offset: u64, source: []const u32) error{IndexOutOfBounds}!void {
-    const buffer: *const []u32 = @ptrCast(@alignCast(target));
+    return copySliceAt(u32, target, offset, source);
+}
+
+pub inline fn copyStringViewsAt(target: *const anyopaque, offset: u64, source: []const []const u8) error{IndexOutOfBounds}!void {
+    return copySliceAt([]const u8, target, offset, source);
+}
+
+inline fn copySliceAt(comptime T: type, target: *const anyopaque, offset: u64, source: []const T) error{IndexOutOfBounds}!void {
+    const buffer: *const []T = @ptrCast(@alignCast(target));
 
     if (offset > buffer.len or source.len > buffer.len - offset) return error.IndexOutOfBounds;
 

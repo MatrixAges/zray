@@ -1,16 +1,19 @@
 import memory from "memory"
 
+import advanceRevision from "../scalar/publication/advance_revision"
 import publish from "../unification/commit/publish_shape"
 
-import type { StringBuffer, U32Buffer } from "memory"
+import type { StringBuffer, U32Buffer, U64Buffer } from "memory"
 import type { Input as ShapePublication } from "../unification/commit/publish_shape"
 
-export type Input = ShapePublication & {
+export type Input = ShapePublication.Omit("shape") & {
     names: StringBuffer,
     values: U32Buffer,
     position: u64,
     name: string,
-    value: u32
+    value: u32,
+    object_kind: u8,
+    revision: U64Buffer
 }
 
 export type Output = void
@@ -19,9 +22,15 @@ export default function (in: Input): Output {
     memory.writeString(in.names, in.position, in.name)
     memory.writeU32(in.values, in.position, in.value)
 
-    publish(in.pick([
-        "parent",
-        "columns",
-        "shape"
-    ]))
+    publish({
+        parent: in.parent,
+        columns: in.columns,
+        shape: {
+            kind: in.object_kind,
+            argument: 0,
+            members: memory.u32Views(in.values)
+        }
+    })
+
+    advanceRevision(in.revision)
 }

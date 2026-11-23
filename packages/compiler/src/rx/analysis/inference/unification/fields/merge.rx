@@ -5,11 +5,11 @@
 
     <If on={$in.length != $in.columns.prefix}>
         <Call
-            fn="host.reserveMergedFieldColumns"
-            in={[
-                $in.frame,
-                $in.length
-            ]}
+            module="../../fields/growth/resize"
+            in={{
+                storage: $in.storage,
+                count: $in.length
+            }}
         />
 
         <Call fn="publish" in={$in.columns} />

@@ -1,6 +1,7 @@
+export { copyColumnText } from "memory"
 export {
-    reserveFieldAppend,
-    publishFieldRevision,
+    addFieldNode,
+    bindFieldColumns,
     registerFieldType,
     deferFieldLength,
     requireFieldList,

@@ -269,6 +269,12 @@ export declare function copyStringViews(
     source: string[]
 ): void throws { IndexOutOfBounds }
 
+export declare function copyStringViewsAt(
+    target: StringBuffer,
+    offset: u64,
+    source: string[]
+): void throws { IndexOutOfBounds }
+
 export declare function appendByte(
     target: ByteWriter,
     byte: u8

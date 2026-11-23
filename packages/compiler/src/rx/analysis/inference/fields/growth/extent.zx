@@ -1,0 +1,15 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+
+export type Input = {
+    extent: U32Buffer,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU32(in.extent, 0, integers.narrow(in.count))
+}
