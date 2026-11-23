@@ -203,7 +203,7 @@ fn repeated(state: *const State, previous: *const history.Retained, index: usize
     const left = previous.functions;
     const right = state.functions.view();
 
-    if (!columns.same(current, earlier)) return false;
+    if (state.finished.functions[index] != previous.finished.functions[index] or !columns.same(current.*, earlier.*)) return false;
 
     inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
         const Element = std.meta.Elem(@FieldType(ir.FunctionTable, name));

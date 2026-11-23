@@ -8,8 +8,7 @@
     <Call
         fn="commit"
         in={{
-            body: $in.body,
-            source: $in.source,
+            ...$in.omit(["boundary"]),
             replace_prefix:
                 $in.boundary.prepared.functions == $in.boundary.body_functions,
             type_prefix: $ctx.types

@@ -1,17 +1,9 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const Loaded = @import("frontend").project.artifact.source_link.Loaded;
+const Source = @import("frontend").project.artifact.source_link;
 const Self = @This();
-
-const Surface = struct {
-    input_type: @FieldType(Loaded, "input_type"),
-    output_type: @FieldType(Loaded, "output_type"),
-    exports: @FieldType(Loaded, "exports"),
-    constant_exports: @FieldType(Loaded, "constant_exports"),
-    store_initializers: @FieldType(Loaded, "store_initializers"),
-    members: @FieldType(Loaded, "members"),
-};
-
+const Surface = Source.Surface;
+pub const Destination = struct { value: Source.Output, present: ?*bool = null };
 const Row = struct { surface: Surface, function: ?u32, present: bool };
 
 surfaces: []Surface = &.{},
@@ -32,21 +24,14 @@ pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!
     return .{ .surfaces = slice.items(.surface), .functions = slice.items(.function), .present = present };
 }
 
-pub fn get(self: Self, index: usize) ?Loaded {
+pub fn get(self: Self, index: usize) ?*const Surface {
     return if (self.present[index]) self.getAssumePresent(index) else null;
 }
 
-pub fn getAssumePresent(self: Self, index: usize) Loaded {
+pub fn getAssumePresent(self: Self, index: usize) *const Surface {
     std.debug.assert(self.present[index]);
 
-    const surface = &self.surfaces[index];
-    var value: Loaded = undefined;
-
-    value.function = self.function(index);
-
-    inline for (@typeInfo(Surface).@"struct".field_names) |field| @field(value, field) = @field(surface, field);
-
-    return value;
+    return &self.surfaces[index];
 }
 
 pub fn function(self: Self, index: usize) ?ir.FunctionId {
@@ -59,13 +44,11 @@ pub fn namedFunction(self: Self, index: usize, name: []const u8) ?ir.FunctionId 
     return @import("../../call/named.zig").memberId(self.surfaces[index].members, name);
 }
 
-pub fn set(self: Self, index: usize, value: Loaded) void {
-    const surface = &self.surfaces[index];
-
-    inline for (@typeInfo(Surface).@"struct".field_names) |field| @field(surface, field) = @field(value, field);
-
-    self.functions[index] = if (value.function) |id| @backingInt(id) else null;
-    self.present[index] = true;
+pub fn destination(self: Self, index: usize) Destination {
+    return .{
+        .value = .{ .surface = &self.surfaces[index], .function = &self.functions[index] },
+        .present = &self.present[index],
+    };
 }
 
 pub fn retain(self: Self, earlier: Self, index: usize) void {

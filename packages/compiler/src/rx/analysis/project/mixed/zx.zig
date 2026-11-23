@@ -2,6 +2,7 @@ const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
 const State = @import("state.zig");
+const Finished = @import("finished.zig");
 const target = @import("../../call/target.zig");
 const Source = frontend.project.artifact.source_link;
 const Body = @import("body.zig");
@@ -40,7 +41,7 @@ pub const Analyzed = struct {
 
 pub const Outcome = union(enum) { analyzed: Analyzed, diagnostic: zx.Diagnostic };
 
-pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, setter: ?target.Setter) State.Error!Source.Loaded {
+pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, setter: ?target.Setter, destination: Finished.Destination) State.Error!void {
     state.owner = index;
     _ = state.scratch.reset(.retain_capacity);
     const temporary = state.scratch.allocator();
@@ -52,6 +53,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
         .preparation = .{ .state = state, .allocator = temporary, .cache = cache, .sources = sources, .index = index },
         .scratch = &scratch,
         .setter = setter,
+        .destination = destination,
     };
 
     if (comptime generated) {
@@ -73,8 +75,6 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 
         try work.finish();
     }
-
-    return work.loaded;
 }
 
 /// Reads the parse of `index` and binds its imports; the shared tables must hold every module it depends on.
@@ -149,8 +149,8 @@ const Serial = struct {
     preparation: Preparation,
     scratch: *zx.Arena,
     setter: ?target.Setter,
+    destination: Finished.Destination,
     outcome: Outcome = undefined,
-    loaded: Source.Loaded = undefined,
     fn borrow(handle: *const anyopaque) *Serial {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -178,9 +178,8 @@ const Serial = struct {
         paths[0] = try temporary.dupe(u8, self.setter.?.path);
         program.stores.paths = paths;
     }
-
     fn finish(self: *Serial) State.Error!void {
-        self.loaded = try link(self.preparation.state, self.outcome.analyzed);
+        try link(self.preparation.state, self.outcome.analyzed, self.destination);
     }
 };
 
@@ -267,7 +266,7 @@ pub fn current(state: *const State, analyzed: Analyzed) bool {
 
 /// Links an analyzed body. The tables may have grown, and moved, since the analysis read them, but the rows it read are
 /// unchanged, so the body refers to them where they are now.
-pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
+pub fn link(state: *State, analyzed: Analyzed, destination: Finished.Destination) State.Error!void {
     var program = analyzed.result.value.ir;
     program.native_modules = state.native_modules.view();
     program.exports = analyzed.exports;
@@ -282,7 +281,7 @@ pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
         .type_suffix = analyzed.result.type_suffix,
     };
 
-    return @import("body/link.zig").publish(state, &body, .{ .functions = analyzed.functions, .types = analyzed.types }, .source);
+    try @import("body/link.zig").publish(state, &body, .{ .functions = analyzed.functions, .types = analyzed.types }, .source, destination);
 }
 
 pub fn diagnostic(state: *State, source: []const u8, issue: zx.Diagnostic) State.Error {

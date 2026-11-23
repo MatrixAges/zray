@@ -20,7 +20,7 @@ const Prefix = std.meta.Child(@typeInfo(@FieldType(Initializers, "prefix")).opti
 const InitTarget = std.meta.Child(@FieldType(Initializers, "target"));
 const MemberTarget = std.meta.Child(@FieldType(Members, "target"));
 
-pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, nodes: *const Nodes, entry: ?ir.FunctionId, type_prefix: usize, result: *Source.Loaded) Error!void {
+pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, nodes: *const Nodes, entry: ?ir.FunctionId, type_prefix: usize, output: Source.Output) Error!void {
     const allocator = nodes.allocator;
     const functions = remap.idMapping(Mapping, nodes.functions);
     const types = remap.typeMapping(Mapping, nodes.types);
@@ -135,10 +135,11 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
     const published = selected orelse return error.InvalidModule;
     const first: usize = @intCast(published.initializer_prefix);
     const owned = initial_output.rows();
+    const result = output.surface;
 
     result.exports = if (declared and surface.exports().len != 0) surface.exports() else program.exports;
     result.constant_exports = if (declared and surface.constants().len != 0) surface.constants() else program.constant_exports;
-    result.function = if (published.entry) |id| @fromBackingInt(id) else null;
+    output.function.* = published.entry;
     result.input_type = @fromBackingInt(published.input_type);
     result.output_type = @fromBackingInt(published.output_type);
     result.store_initializers = if (owned.len != 0) owned else if (first != 0) shared[0..first] else &.{};

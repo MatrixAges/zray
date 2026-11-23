@@ -17,10 +17,8 @@ pub const Link = struct {
 
 pub fn matchHistoryLink(handle: *const anyopaque) bool {
     const link: *const Link = @ptrCast(@alignCast(handle));
-    const earlier = link.earlier.getAssumePresent(link.row);
-    const current = link.current.getAssumePresent(link.row);
 
-    return @import("linked.zig").equal(&current, &earlier);
+    return @import("linked.zig").equal(link.current, link.earlier, link.row);
 }
 
 pub fn matchHistoryHeaders(handle: *const anyopaque) bool {

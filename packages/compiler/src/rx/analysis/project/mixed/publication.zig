@@ -12,7 +12,7 @@ pub fn materialize(state: *State, output: *Module.Contract, exports: bool) State
 
     const table = state.functions.view();
     const frame: Entry = .{ .state = state, .output = output, .table = &table, .loaded = state.finished.get(index) };
-    const function = if (frame.loaded) |loaded| loaded.function else null;
+    const function = if (frame.loaded != null) state.finished.function(index) else null;
     const members = if (frame.loaded) |loaded| loaded.members.len != 0 else false;
     const orchestration = state.graph.sources.at(index) == .rx;
 
@@ -50,7 +50,7 @@ const Entry = struct {
     state: *State,
     output: *Module.Contract,
     table: *const ir.FunctionTable,
-    loaded: ?Source.Loaded,
+    loaded: ?*const Source.Surface,
     fn borrow(handle: *const anyopaque) *const Entry {
         return @ptrCast(@alignCast(handle));
     }
@@ -89,7 +89,7 @@ const Entry = struct {
     }
     fn install(self: *const Entry, program: *ir.Program, entry: ?ir.FunctionId) void {
         const state = self.state;
-        const loaded = &self.loaded.?;
+        const loaded = self.loaded.?;
 
         program.exports = loaded.exports;
         program.constant_exports = loaded.constant_exports;

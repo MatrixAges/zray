@@ -3,6 +3,7 @@ const frontend = @import("frontend");
 const rx = @import("rx");
 const Export = @import("../../project.zig").Export;
 const State = @import("state.zig");
+const Surface = frontend.project.artifact.source_link.Surface;
 const generated = @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const invalid_name = "public module names must be nonempty and unique";
 const missing_root = "public module was not compiled in the shared source graph";
@@ -38,7 +39,7 @@ pub fn collect(state: *State, requested: []const Export, roots: []const usize) S
 
         const loaded = state.finished.get(root) orelse return state.fail(location, missing_root);
 
-        item.* = try materialize(state, exported, loaded);
+        item.* = try materialize(state, exported, state.finished.function(root), loaded);
     }
 
     return result;
@@ -56,19 +57,22 @@ const Publication = struct {
 pub fn installMixedExport(handle: *const anyopaque, row: u64, root: u64) std.mem.Allocator.Error!void {
     const target = Publication.borrow(handle);
     const index: usize = @intCast(row);
+    const module: usize = @intCast(root);
+    const finished = target.state.finished;
+    const loaded = finished.getAssumePresent(module);
 
-    target.result[index] = try materialize(target.state, target.requested[index], target.state.finished.getAssumePresent(@intCast(root)));
+    target.result[index] = try materialize(target.state, target.requested[index], finished.function(module), loaded);
 }
 
 pub fn rejectMixedExport(handle: *const anyopaque, message: []const u8) State.Error!void {
     return Publication.borrow(handle).state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
 }
 
-fn materialize(state: *const State, exported: Export, loaded: frontend.project.artifact.source_link.Loaded) std.mem.Allocator.Error!frontend.project.compiled.Export {
+fn materialize(state: *const State, exported: Export, function: ?@import("zx").ir.FunctionId, loaded: *const Surface) std.mem.Allocator.Error!frontend.project.compiled.Export {
     return .{
         .name = try state.allocator.dupe(u8, exported.name),
         .path = try state.allocator.dupe(u8, exported.path),
-        .function = loaded.function,
+        .function = function,
         .types = loaded.exports,
         .constants = loaded.constant_exports,
         .members = loaded.members,

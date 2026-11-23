@@ -1,24 +1,27 @@
 const std = @import("std");
 const frontend = @import("frontend");
-const Loaded = frontend.project.artifact.source_link.Loaded;
+const Finished = @import("../finished.zig");
+const Surface = frontend.project.artifact.source_link.Surface;
 const memory = @import("zx").memory;
 const little_endian = @import("builtin").target.cpu.arch.endian() == .little;
 
-pub fn equal(left: *const Loaded, right: *const Loaded) bool {
+pub fn equal(current: *const Finished, previous: *const Finished, row: usize) bool {
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const allocator = fixed.allocator();
     const link = @import("generated_rx_mixed_history_link");
     const Input = std.meta.Child(link.Input);
     const Port = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "ports")), "left"));
     const Row = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "exports")), "left"));
-    const Export = std.meta.Elem(@FieldType(Loaded, "exports"));
-    const Initializer = std.meta.Elem(@FieldType(Loaded, "store_initializers"));
+    const Export = std.meta.Elem(@FieldType(Surface, "exports"));
+    const Initializer = std.meta.Elem(@FieldType(Surface, "store_initializers"));
+    const left = current.getAssumePresent(row);
+    const right = previous.getAssumePresent(row);
     const left_names = memory.borrowTextColumn("name", left.exports);
     const right_names = memory.borrowTextColumn("name", right.exports);
     const left_identities = memory.borrowTextColumn("identity", left.store_initializers);
     const right_identities = memory.borrowTextColumn("identity", right.store_initializers);
-    const left_port = port(Port, left);
-    const right_port = port(Port, right);
+    const left_port = port(Port, left, current.functions[row]);
+    const right_port = port(Port, right, previous.functions[row]);
     const left_exports = rows(Row, &left_names, left.exports);
     const right_exports = rows(Row, &right_names, right.exports);
     const left_initializers = rows(Row, &left_identities, left.store_initializers);
@@ -79,9 +82,9 @@ fn offset(comptime Row: type, comptime field: []const u8) usize {
     return @offsetOf(Row, field);
 }
 
-fn port(comptime Port: type, value: *const Loaded) Port {
+fn port(comptime Port: type, value: *const Surface, function: ?u32) Port {
     return .{
-        .function = if (value.function) |id| @backingInt(id) else null,
+        .function = function,
         .input_type = @backingInt(value.input_type),
         .output_type = @backingInt(value.output_type),
     };

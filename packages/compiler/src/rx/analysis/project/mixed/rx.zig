@@ -9,7 +9,6 @@ const Compilation = @import("../../module_compile.zig");
 const Source = frontend.project.artifact.source_link;
 const Body = @import("body.zig");
 const generated = @import("rx_options").generated_graph;
-pub const Result = struct { loaded: Source.Loaded, metadata: ?*Compilation.Metadata };
 
 /// A module ready for lowering: the functions its calls bind, which the shared tables already hold, and the extent of
 /// the tables it is lowered against.
@@ -26,7 +25,7 @@ pub const Prepared = struct {
     initializers: usize,
 };
 
-pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, module: Loading.Module, signature: Signature, arguments: Inputs.Module) State.Error!Result {
+pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, module: Loading.Module, signature: Signature, arguments: Inputs.Module) State.Error!?*Compilation.Metadata {
     state.owner = index;
     var buffer: [std.heap.page_size_min / 8]u8 = undefined;
     var temporary = std.heap.BufferFirstAllocator.init(&buffer, state.scratch.child_allocator);
@@ -55,7 +54,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
         try work.finish();
     }
 
-    return work.linked;
+    return work.metadata;
 }
 
 const Serial = struct {
@@ -70,7 +69,7 @@ const Serial = struct {
     ids: ?[]const ir.FunctionId = null,
     prepared: Prepared = undefined,
     result: Compilation.Value = undefined,
-    linked: Result = undefined,
+    metadata: ?*Compilation.Metadata = null,
     fn borrow(handle: *const anyopaque) *Serial {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -100,7 +99,7 @@ const Serial = struct {
     }
 
     fn finish(self: *Serial) State.Error!void {
-        self.linked = try link(self.state, self.prepared, self.result.body);
+        self.metadata = try link(self.state, self.prepared, self.result.body);
     }
 };
 
@@ -161,7 +160,7 @@ pub fn current(state: *const State, prepared: Prepared, body: Compilation.Body) 
 
 /// Links a lowered module. The tables may have grown, and moved, since it was lowered, but the rows it read are
 /// unchanged, so the module refers to them where they are now.
-pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Error!Result {
+pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Error!?*Compilation.Metadata {
     var input: Source.Input = .{
         .program = body.lowered.program,
         .function_suffix = if (body.lowered.function_suffix.count() != 0) body.lowered.function_suffix else null,
@@ -169,7 +168,13 @@ pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Err
         .store_initializers = body.lowered.store_initializers,
     };
 
-    const loaded = try @import("body/link.zig").publish(state, &input, .{ .functions = prepared.functions, .types = prepared.types }, .{ .flow = prepared.module.source.node.location });
+    try @import("body/link.zig").publish(
+        state,
+        &input,
+        .{ .functions = prepared.functions, .types = prepared.types },
+        .{ .flow = prepared.module.source.node.location },
+        state.finished.destination(prepared.index),
+    );
 
-    return .{ .loaded = loaded, .metadata = body.metadata };
+    return body.metadata;
 }

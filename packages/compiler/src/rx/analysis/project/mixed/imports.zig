@@ -51,25 +51,29 @@ const Bindings = struct {
         const state = self.state;
         const edge = self.edges[index];
 
-        const dependency = switch (edge.target) {
+        const function, const types, const constants, const members = switch (edge.target) {
             .native => return 0,
             .source => |source| source_block: {
                 const loaded = state.finished.get(source) orelse return state.fail(edge.locate(self.source_text), "source function dependency has not been analyzed in its required context");
 
-                break :source_block frontend.project.compiled.Export{ .name = "", .path = "", .function = loaded.function, .types = loaded.exports, .constants = loaded.constant_exports, .members = loaded.members };
+                break :source_block .{ state.finished.function(source), loaded.exports, loaded.constant_exports, loaded.members };
             },
-            .compiled => |target| try @import("library.zig").load(state, target, edge.location, self.source_text),
+            .compiled => |target| compiled_block: {
+                const loaded = try @import("library.zig").load(state, target, edge.location, self.source_text);
+
+                break :compiled_block .{ loaded.function, loaded.types, loaded.constants, loaded.members };
+            },
         };
 
-        self.default_member = if (dependency.function) |id| own: {
+        self.default_member = if (function) |id| own: {
             const row = @backingInt(id);
 
             break :own .{ .name = "", .id = id, .input_type = @fromBackingInt(state.functions.input_types.items[row]), .output_type = @fromBackingInt(state.functions.output_types.items[row]) };
         } else null;
 
-        self.members = .{ .default = if (self.default_member) |*value| value else null, .named = dependency.members };
+        self.members = .{ .default = if (self.default_member) |*value| value else null, .named = members };
 
-        const symbols = Selection.Symbols{ .target = if (edge.target == .source) .source else .compiled, .types = state.types.items.view(), .exports = dependency.types, .constants = dependency.constants, .functions = self.members.names() };
+        const symbols = Selection.Symbols{ .target = if (edge.target == .source) .source else .compiled, .types = state.types.items.view(), .exports = types, .constants = constants, .functions = self.members.names() };
         const view = frontend.project.import_view.get(header, index);
         var reporter: zx.Reporter = .{};
 

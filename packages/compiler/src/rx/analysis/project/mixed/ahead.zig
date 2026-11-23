@@ -422,14 +422,14 @@ pub fn retireZX(self: *Self, row: usize) void {
 }
 
 /// Links an accepted body while its dedicated analysis storage is still alive.
-pub fn linkZX(self: *Self, state: *State, row: usize) State.Error!frontend.project.artifact.source_link.Loaded {
+pub fn linkZX(self: *Self, state: *State, row: usize, index: usize) State.Error!void {
     const item = &self.items.items(.result)[row].zx;
 
     defer item.release();
 
     _ = state.scratch.reset(.retain_capacity);
 
-    return Zx.link(state, item.outcome.?.analyzed);
+    try Zx.link(state, item.outcome.?.analyzed, state.finished.destination(index));
 }
 
 pub fn acceptedRX(self: *const Self, state: *const State, selected: ?usize) ?usize {
@@ -444,7 +444,7 @@ pub fn acceptedRX(self: *const Self, state: *const State, selected: ?usize) ?usi
     return if (value.* == .body and Rx.current(state, lowering.prepared, value.body)) row else null;
 }
 
-pub fn linkRX(self: *Self, state: *State, row: usize) State.Error!Rx.Result {
+pub fn linkRX(self: *Self, state: *State, row: usize) State.Error!?*Compilation.Metadata {
     const item = &self.items.items(.result)[row].rx;
 
     _ = state.scratch.reset(.retain_capacity);

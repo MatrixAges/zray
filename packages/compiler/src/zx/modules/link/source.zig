@@ -27,8 +27,7 @@ pub const Input = struct {
     type_suffix: ?ir.TypeTable = null,
 };
 
-pub const Loaded = struct {
-    function: ?ir.FunctionId,
+pub const Surface = struct {
     input_type: ir.TypeId,
     output_type: ir.TypeId,
     exports: []const ir.Export,
@@ -37,14 +36,30 @@ pub const Loaded = struct {
     members: []const @import("../function_import.zig") = &.{},
 };
 
+pub const Output = struct {
+    surface: *Surface,
+    function: *?u32,
+};
+
+pub const Loaded = struct {
+    surface: Surface,
+    function: ?u32,
+    pub fn destination(self: *Loaded) Output {
+        return .{ .surface = &self.surface, .function = &self.function };
+    }
+};
+
 pub fn append(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
     if (input.function_suffix != null or input.type_suffix != null) return error.InvalidModule;
 
     var nodes = try program_link.append(.{ .program = input.program, .nominal_types = input.nominal_types }, destination);
     const extended = if (input.base_functions) |base| input.program.functions.count() > base.count() else true;
     const tail = if (extended) &input.program.functions else &ir.FunctionTable{};
+    var result: Loaded = undefined;
 
-    return finish(&input, destination, &nodes, tail, 0, 0);
+    try finish(&input, destination, &nodes, tail, 0, 0, result.destination());
+
+    return result;
 }
 
 pub fn appendBody(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
@@ -52,6 +67,14 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
 }
 
 pub fn appendBorrowedBody(input: *const Input, destination: program_link.Destination) program_link.Error!Loaded {
+    var result: Loaded = undefined;
+
+    try appendBodyInto(input, destination, result.destination());
+
+    return result;
+}
+
+pub fn appendBodyInto(input: *const Input, destination: program_link.Destination, output: Output) program_link.Error!void {
     const program = &input.program;
     const base = input.base_functions orelse program.functions;
     var scratch = std.heap.ArenaAllocator.init(destination.temporary);
@@ -88,27 +111,28 @@ pub fn appendBorrowedBody(input: *const Input, destination: program_link.Destina
         .type_suffix = input.type_suffix,
     });
 
-    return finish(input, destination, &nodes, &tail, base.count(), type_prefix);
+    try finish(input, destination, &nodes, &tail, base.count(), type_prefix, output);
 }
 
-fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, tail: *const ir.FunctionTable, first: usize, type_prefix: usize) program_link.Error!Loaded {
+fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, tail: *const ir.FunctionTable, first: usize, type_prefix: usize, output: Output) program_link.Error!void {
     const program = &input.program;
-    var result: Loaded = undefined;
 
     if (comptime generated) {
         const entry = try @import("source/entry/host.zig").publish(program, tail, first, destination.functions, nodes, destination.temporary);
 
-        try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, type_prefix, &result);
+        try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, type_prefix, output);
     } else {
         const own = function_body.ownTail(program.*, tail.*, first);
         const entry = try publishSeedEntry(program, destination.functions, nodes, own);
+        const result = output.surface;
+
         result.exports, result.constant_exports = try publishSeedDeclarations(nodes, program);
         result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
         const surface = try @import("source/members.zig").link(nodes, input.members, entry);
-        result.function = surface.entry;
         result.members = surface.members;
+        output.function.* = if (surface.entry) |id| @backingInt(id) else null;
 
-        if (result.function) |id| {
+        if (surface.entry) |id| {
             const row = @backingInt(id);
 
             result.input_type = @fromBackingInt(destination.functions.input_types.items[row]);
@@ -118,8 +142,6 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
             result.output_type = try nodes.types.include(program.output_type);
         }
     }
-
-    return result;
 }
 
 fn publishSeedEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes: *Nodes, own: ?ir.FunctionId) program_link.Error!?ir.FunctionId {

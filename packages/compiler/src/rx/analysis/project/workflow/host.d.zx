@@ -462,9 +462,7 @@ export declare function appendMixedBodyLink(
     body: MixedBodyLink,
     replace_prefix: bool,
     type_prefix: u64?
-): bool throws { OutOfMemory }
-
-export declare function confirmMixedBodyLink(body: MixedBodyLink): void
+): u64? throws { OutOfMemory }
 
 export declare function rejectMixedBodyLink(body: MixedBodyLink, message: string): void
     throws { OutOfMemory, InvalidSourceGraph }

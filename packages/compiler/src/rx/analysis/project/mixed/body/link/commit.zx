@@ -1,13 +1,17 @@
+import memory from "memory"
 import host from "rx_project_host"
 
 import { invalid_flow_body, invalid_source_body } from "./const"
 
+import type { BoolBuffer, WriteColumn } from "memory"
 import type { MixedBodyLink } from "rx_project_host"
 import type { Body, Plan } from "./model"
 
 export type Link = {
     body: MixedBodyLink,
-    source: bool
+    source: bool,
+    verified: WriteColumn,
+    present?: BoolBuffer
 }
 
 export type Request = Link & {
@@ -21,11 +25,21 @@ export type Output = void
 export default function (in: Input): Output {
     const { body, replace_prefix, type_prefix } = in
 
-    if (host.appendMixedBodyLink(body, replace_prefix, type_prefix)) {
-        host.confirmMixedBodyLink(body)
-    } else {
+    const count = host.appendMixedBodyLink(body, replace_prefix, type_prefix)
+
+    if (count == null) {
         const message = in.source ? invalid_source_body : invalid_flow_body
 
         host.rejectMixedBodyLink(body, message)
+
+        return
+    }
+
+    memory.writeColumnIndex(in.verified, 0, count)
+
+    const { present } = in
+
+    if (present != null) {
+        memory.writeBool(present, 0, true)
     }
 }

@@ -84,9 +84,8 @@ pub fn importMixedCallee(handle: *const anyopaque, row: u64, edge: u64) State.Er
 pub fn compileMixedSetter(handle: *const anyopaque, row: u64, target: u64) State.Error!?u32 {
     const binding = Binding.borrow(handle);
     const setter = binding.calls.items(.setter)[@intCast(row)].?;
-    const loaded = try @import("zx.zig").compile(binding.state, binding.cache, binding.sources, @intCast(target), setter);
 
-    return if (loaded.function) |id| @backingInt(id) else null;
+    return compileAuthorized(binding.state, binding.cache, binding.sources, @intCast(target), setter);
 }
 
 pub fn restoreMixedCalleeOwner(handle: *const anyopaque) void {
@@ -121,11 +120,19 @@ fn loadLibrary(state: *State, owner: usize, edge: usize, location: rx.ast.Locati
 }
 
 fn compileSetter(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, owner: usize, index: usize, setter: @import("../../call/target.zig").Setter, location: rx.ast.Location) State.Error!ir.FunctionId {
-    const loaded = try @import("zx.zig").compile(state, cache, sources, index, setter);
+    const function = try compileAuthorized(state, cache, sources, index, setter);
 
     state.owner = owner;
 
-    return loaded.function orelse state.fail(location, not_executable_zx);
+    return if (function) |id| @fromBackingInt(id) else state.fail(location, not_executable_zx);
+}
+
+fn compileAuthorized(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, setter: @import("../../call/target.zig").Setter) State.Error!?u32 {
+    var loaded: frontend.project.artifact.source_link.Loaded = undefined;
+
+    try @import("zx.zig").compile(state, cache, sources, index, setter, .{ .value = loaded.destination() });
+
+    return loaded.function;
 }
 
 fn loadSeed(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, calls: Prepared.Calls.Slice, ids: []ir.FunctionId) State.Error![]const ir.FunctionId {

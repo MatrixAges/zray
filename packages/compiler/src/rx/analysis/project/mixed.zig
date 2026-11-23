@@ -182,42 +182,29 @@ const Transaction = struct {
             return false;
         }
 
-        try self.installPreparedZX(next, row);
+        try self.ahead.linkZX(self.state, row, next.index);
 
         return true;
     }
-    fn installPreparedZX(self: *Transaction, next: Dispatch, row: usize) Error!void {
-        const loaded = try self.ahead.linkZX(self.state, row);
-
-        self.state.finished.set(next.index, loaded);
-    }
-
     fn analyzeAtTurn(self: *Transaction, next: Dispatch) Error!void {
         const state = self.state;
-        const loaded = try Zx.compile(state, self.cache, self.sources, next.index, null);
 
-        state.finished.set(next.index, loaded);
+        try Zx.compile(state, self.cache, self.sources, next.index, null, state.finished.destination(next.index));
     }
 
     fn linkPreparedRX(self: *Transaction, next: Dispatch) Error!bool {
         const row = self.ahead.acceptedRX(self.state, next.prepared_row) orelse return false;
 
-        self.installLowered(next.index, try self.ahead.linkRX(self.state, row));
+        if (try self.ahead.linkRX(self.state, row)) |metadata| self.entry = metadata;
 
         return true;
     }
     fn lowerAtTurn(self: *Transaction, next: Dispatch) Error!void {
         const derived = self.derived;
         const source = derived.dependencies.sources.at(next.index).rx;
-        const linked = try Rx.compile(self.state, self.cache, self.sources, next.index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
+        const metadata = try Rx.compile(self.state, self.cache, self.sources, next.index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
 
-        self.installLowered(next.index, linked);
-    }
-
-    fn installLowered(self: *Transaction, index: usize, linked: Rx.Result) void {
-        self.state.finished.set(index, linked.loaded);
-
-        if (linked.metadata) |metadata| self.entry = metadata;
+        if (metadata) |entry| self.entry = entry;
     }
 };
 
@@ -295,7 +282,7 @@ pub fn retirePreparedMixedZX(handle: *const anyopaque, row: u64) void {
 pub fn linkPreparedMixedZX(handle: *const anyopaque, row: u64) State.Error!u64 {
     const self = borrow(handle);
 
-    try self.installPreparedZX(self.pending, @intCast(row));
+    try self.ahead.linkZX(self.state, @intCast(row), self.pending.index);
 
     return self.pending.following;
 }
@@ -309,7 +296,7 @@ pub fn acceptedPreparedMixedRX(handle: *const anyopaque) ?u64 {
 pub fn linkPreparedMixedRX(handle: *const anyopaque, row: u64) State.Error!u64 {
     const self = borrow(handle);
 
-    self.installLowered(self.pending.index, try self.ahead.linkRX(self.state, @intCast(row)));
+    if (try self.ahead.linkRX(self.state, @intCast(row))) |metadata| self.entry = metadata;
 
     return self.pending.following;
 }
