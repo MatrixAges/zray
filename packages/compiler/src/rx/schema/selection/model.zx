@@ -1,32 +1,7 @@
-import type { U64Buffer } from "memory"
-
-export enum Kind {
-    If,
-    Switch
-}
-
-export enum Branch {
-    Step,
-    Else,
-    Default,
-    TextCase,
-    ExpressionCase
-}
-
 export enum Issue {
     DuplicateCase,
     DuplicateDefault,
     MisplacedElse
-}
-
-export type Input = {
-    kind: Kind,
-    branches: Branch[],
-    keys: u8[][],
-    string_buckets: U64Buffer,
-    expression_buckets: U64Buffer,
-    string_capacity: u64,
-    expression_capacity: u64
 }
 
 export type Finding = {

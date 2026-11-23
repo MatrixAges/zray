@@ -1,6 +1,7 @@
 import memory from "memory"
 
-import { arguments_tag, field_tag, store_tag, type_tag } from "./const"
+import { arguments_tag, store_tag, type_tag } from "../../../schema/execution/const"
+import { field_tag } from "./const"
 import { Kind } from "./model"
 
 import type { Rows as Input } from "./model"

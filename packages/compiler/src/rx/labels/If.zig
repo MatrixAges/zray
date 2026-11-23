@@ -23,21 +23,6 @@ fn checkIf(allocator: std.mem.Allocator, data: IfBase.Data, input: anytype, _: a
     const node = dsl.ast.view(input);
 
     try checks.validate(.Common, data.attributes, node, reporter);
-    if (comptime @import("rx_options").generated_rules) return @import("../schema/selection/adapter.zig").checkIf(allocator, data.children, node, reporter);
 
-    var children = node.children();
-    var index: usize = 0;
-
-    while (children.next()) |item| : (index += 1) {
-        const child = dsl.ast.view(item);
-
-        if (!std.mem.eql(u8, child.name(), "Else")) continue;
-
-        if (index == 0 or index != node.childCount() - 1) return reporter.fail(.{
-            .code = .context,
-            .location = child.location(),
-            .element = child.name(),
-            .message = "Else must follow the If body and appear once at the end",
-        });
-    }
+    return @import("../schema/selection/adapter.zig").checkIf(allocator, node, reporter);
 }

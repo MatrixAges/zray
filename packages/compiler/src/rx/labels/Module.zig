@@ -40,45 +40,7 @@ fn checkModule(allocator: std.mem.Allocator, data: ModuleBase.Data, input: anyty
     try checks.validate(.Module, data.attributes, node, reporter);
 
     if (data.attributes.@"fn" != null) return;
-    try @import("../schema/call/sequence.zig").check(node, context, reporter);
-    if (comptime @import("rx_options").generated_rules) return @import("../schema/module/adapter.zig").check(allocator, data.children, node, reporter);
+    try @import("../schema/call/sequence.zig").check(allocator, node, context, reporter);
 
-    return checkSeed(input, reporter);
-}
-
-fn checkSeed(node: dsl.ast.Node, reporter: *dsl.Reporter) dsl.Error!void {
-    try checks.uniqueChildren(node, "Type", "as", reporter);
-
-    var has_args = false;
-    var has_steps = false;
-
-    for (node.children, 0..) |child, index| {
-        if (std.mem.eql(u8, child.name, "Type")) {
-            if (has_args or has_steps) return checks.fail(child, "from", "Type declarations must precede Args and module steps", reporter);
-
-            continue;
-        }
-
-        if (std.mem.eql(u8, child.name, "Args")) {
-            if (has_args or has_steps) return checks.fail(child, "in", "Args must appear once after Type declarations and before module steps", reporter);
-
-            has_args = true;
-
-            continue;
-        }
-
-        has_steps = true;
-
-        if (!std.mem.eql(u8, child.name, "Store")) continue;
-
-        const alias = checks.attribute(child, "as") orelse checks.attribute(child, "from").?;
-
-        for (node.children[0..index]) |previous| {
-            if (!std.mem.eql(u8, previous.name, "Store")) continue;
-
-            const previous_alias = checks.attribute(previous, "as") orelse checks.attribute(previous, "from").?;
-
-            if (std.mem.eql(u8, alias, previous_alias)) return checks.fail(child, if (checks.attribute(child, "as") != null) "as" else "from", "Store reference alias is already registered", reporter);
-        }
-    }
+    return @import("../schema/module/adapter.zig").check(allocator, node, reporter);
 }

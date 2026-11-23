@@ -1,0 +1,112 @@
+import {
+    argument_attribute,
+    function_attribute,
+    output_attribute
+} from "../../attribute/const"
+import {
+    call_tag,
+    loop_tag,
+    parallel_tag,
+    task_tag
+} from "../../execution/const"
+import attribute from "../../tree/attribute"
+import children from "../../tree/children"
+import name from "../../tree/name"
+import next from "../../tree/next"
+
+import type { Cursor, Input } from "../../tree/model"
+
+export type Frame = {
+    next: Cursor,
+    sequential: bool,
+    available: bool
+}
+
+export type Output = Cursor?
+
+export default function (in: Input): Output {
+    const { tree } = in
+
+    const parents: Frame[] = []
+    const finding: Output = null
+
+    return loop({
+        frame: {
+            next: in.first,
+            sequential: true,
+            available: false
+        },
+        parents,
+        finding,
+        done: false
+    }, {
+        while: state => !state.done && state.finding == null,
+        next: state => {
+            const node = state.frame.next
+
+            if (node.rows.length == 0 && node.head == 0) {
+                if (state.parents.length == 0) {
+                    state.done = true
+                } else {
+                    state.frame = state.parents[state.parents.length - 1]
+                    state.parents = state.parents.pop()[0]
+                }
+            } else {
+                const visit = {
+                    tree,
+                    node
+                }
+
+                const tag = name(visit)
+                const is_loop = tag == loop_tag
+
+                state.frame.next = next(visit)
+
+                if (tag == call_tag || is_loop) {
+                    const call = is_loop ? children(visit) : node
+
+                    if (!state.frame.available) {
+                        const has_input = attribute({
+                            tree,
+                            node: call,
+                            key: argument_attribute
+                        }) != null
+
+                        if (!has_input && attribute({
+                            tree,
+                            node: call,
+                            key: function_attribute
+                        }) != null) {
+                            state.finding = call
+                        }
+                    }
+
+                    state.frame.available = state.frame.sequential
+                } else {
+                    state.frame.available = state.frame.sequential && tag == task_tag &&
+                        attribute({
+                            ...visit,
+                            key: output_attribute
+                        }) != null
+
+                    const nested = children(visit)
+
+                    if (nested.rows.length != 0 || nested.head != 0) {
+                        const remaining = state.frame.next
+
+                        if (remaining.rows.length != 0 || remaining.head != 0) {
+                            state.parents = state.parents.push(state.frame)[0]
+                        }
+
+                        state.frame = {
+                            next: nested,
+                            sequential: tag != parallel_tag,
+                            available: false
+                        }
+                    }
+                }
+            }
+        },
+        return: state => state.finding
+    })
+}

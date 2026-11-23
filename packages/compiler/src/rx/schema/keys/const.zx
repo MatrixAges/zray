@@ -1,0 +1,5 @@
+export const key_families: u64 = 2
+
+export const first_family: u64 = 0
+
+export const second_family: u64 = 1

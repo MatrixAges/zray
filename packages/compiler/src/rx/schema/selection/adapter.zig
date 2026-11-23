@@ -1,39 +1,28 @@
 const std = @import("std");
 const dsl = @import("dsl");
 const checks = @import("../../checks.zig");
-const rule = @import("generated_rx_selection_schema");
-const Input = std.meta.Child(rule.Input);
-const Branch = std.meta.Child(@FieldType(Input, "branches"));
-const RuleResult = std.meta.Child(rule.Output);
-const RuleFinding = if (@typeInfo(RuleResult) == .pointer) std.meta.Child(RuleResult) else RuleResult;
-const Finding = struct { issue: @FieldType(RuleFinding, "issue"), index: usize };
-const table_load_ratio = 2;
+const tree = @import("../tree/adapter.zig");
+const generated = @import("rx_options").generated_rules;
 
-pub fn checkIf(allocator: std.mem.Allocator, children: anytype, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    var buffer: [256]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
-    const branches = try scratch.allocator().alloc(Branch, children.len);
+pub fn checkIf(allocator: std.mem.Allocator, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+    if (comptime generated and tree.supports(@TypeOf(node))) {
+        const finding = try tree.run(@import("generated_rx_if_schema"), allocator, node) orelse return;
 
-    defer scratch.allocator().free(branches);
+        return misplacedElse(dsl.ast.childAt(node, @intCast(finding.index)), reporter);
+    }
 
-    for (children, branches) |child, *branch| branch.* = if (child == .@"else") .Else else .Step;
+    var children = node.children();
+    var index: usize = 0;
 
-    var empty: []u64 = &.{};
+    while (children.next()) |input| : (index += 1) {
+        const child = dsl.ast.view(input);
 
-    const finding = try run(allocator, &.{
-        .kind = .If,
-        .branches = branches,
-        .keys = &.{},
-        .string_buckets = @ptrCast(&empty),
-        .expression_buckets = @ptrCast(&empty),
-        .string_capacity = 0,
-        .expression_capacity = 0,
-    }) orelse return;
-
-    return misplacedElse(dsl.ast.childAt(node, finding.index), reporter);
+        if (!std.mem.eql(u8, child.name(), "Else")) continue;
+        if (index == 0 or index + 1 != node.childCount()) return misplacedElse(child, reporter);
+    }
 }
 
-pub fn misplacedElse(input: anytype, reporter: *dsl.Reporter) dsl.Error {
+fn misplacedElse(input: anytype, reporter: *dsl.Reporter) dsl.Error {
     const child = dsl.ast.view(input);
 
     return reporter.fail(.{
@@ -44,18 +33,36 @@ pub fn misplacedElse(input: anytype, reporter: *dsl.Reporter) dsl.Error {
     });
 }
 
-pub fn checkSwitch(allocator: std.mem.Allocator, children: anytype, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    const finding = try findSwitch(allocator, children, node) orelse return;
-    const child = dsl.ast.childAt(node, finding.index);
+pub fn checkSwitch(allocator: std.mem.Allocator, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+    if (node.childCount() < 2) return;
 
-    return switch (finding.issue) {
-        .DuplicateCase => checks.fail(child, "value", "Duplicate RX declaration", reporter),
-        .DuplicateDefault => repeatedDefault(child, reporter),
-        .MisplacedElse => unreachable,
-    };
+    if (comptime generated and tree.supports(@TypeOf(node))) {
+        const finding = try tree.run(@import("generated_rx_switch_schema"), allocator, node) orelse return;
+        const child = dsl.ast.childAt(node, @intCast(finding.index));
+
+        return switch (finding.issue) {
+            .DuplicateCase => checks.fail(child, "value", "Duplicate RX declaration", reporter),
+            .DuplicateDefault => repeatedDefault(child, reporter),
+            .MisplacedElse => unreachable,
+        };
+    }
+
+    try checks.uniqueChildren(node, "Case", "value", reporter);
+
+    var default_seen = false;
+    var children = node.children();
+
+    while (children.next()) |input| {
+        const child = dsl.ast.view(input);
+
+        if (!std.mem.eql(u8, child.name(), "Default")) continue;
+        if (default_seen) return repeatedDefault(child, reporter);
+
+        default_seen = true;
+    }
 }
 
-pub fn repeatedDefault(input: anytype, reporter: *dsl.Reporter) dsl.Error {
+fn repeatedDefault(input: anytype, reporter: *dsl.Reporter) dsl.Error {
     const child = dsl.ast.view(input);
 
     return reporter.fail(.{
@@ -64,78 +71,4 @@ pub fn repeatedDefault(input: anytype, reporter: *dsl.Reporter) dsl.Error {
         .element = child.name(),
         .message = "Switch allows at most one Default",
     });
-}
-
-fn findSwitch(allocator: std.mem.Allocator, children: anytype, input: anytype) std.mem.Allocator.Error!?Finding {
-    if (children.len < 2) return null;
-
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    var buffer: [512]u8 align(@alignOf(u64)) = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-
-    defer arena.deinit();
-
-    const temporary = scratch.allocator();
-    const keys = try temporary.alloc([]const u8, children.len);
-    const branches = try temporary.alloc(Branch, children.len);
-    var nodes = dsl.ast.view(input).children();
-    var strings_count: usize = 0;
-    var expressions_count: usize = 0;
-
-    for (children, branches, keys) |child, *branch, *key| {
-        const element = nodes.next().?;
-
-        if (child == .default) {
-            branch.* = .Default;
-            key.* = "";
-
-            continue;
-        }
-
-        const attribute = dsl.ast.view(element).schemaAttribute(0);
-
-        key.* = attribute.value;
-
-        if (attribute.kind == .expression) {
-            branch.* = .ExpressionCase;
-            expressions_count += 1;
-        } else {
-            branch.* = .TextCase;
-            strings_count += 1;
-        }
-    }
-
-    const strings = try buckets(temporary, strings_count);
-    const expressions = try buckets(temporary, expressions_count);
-
-    return run(temporary, &.{
-        .kind = .Switch,
-        .branches = branches,
-        .keys = keys,
-        .string_buckets = @ptrCast(&strings),
-        .expression_buckets = @ptrCast(&expressions),
-        .string_capacity = strings.len,
-        .expression_capacity = expressions.len,
-    });
-}
-
-fn buckets(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]u64 {
-    if (count < 2) return &.{};
-
-    const required = std.math.mul(usize, count, table_load_ratio) catch return error.OutOfMemory;
-    const capacity = std.math.ceilPowerOfTwo(usize, required) catch return error.OutOfMemory;
-    const storage = try allocator.alloc(u64, capacity);
-
-    @memset(storage, 0);
-
-    return storage;
-}
-
-fn run(allocator: std.mem.Allocator, input: *const Input) std.mem.Allocator.Error!?Finding {
-    const finding = rule.executeValue(allocator, input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    } orelse return null;
-
-    return .{ .issue = finding.issue, .index = @intCast(finding.index) };
 }

@@ -1,8 +1,9 @@
 const std = @import("std");
 const dsl = @import("dsl");
 const checks = @import("../../checks.zig");
+const tree = @import("../tree/adapter.zig");
 
-pub fn check(parent: anytype, context: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+pub fn check(allocator: std.mem.Allocator, parent: anytype, context: anytype, reporter: *dsl.Reporter) dsl.Error!void {
     if (comptime @hasDecl(@TypeOf(parent), "missingCall")) {
         if (parent.missingCall()) |location| return fail(location, reporter);
 
@@ -15,6 +16,14 @@ pub fn check(parent: anytype, context: anytype, reporter: *dsl.Reporter) dsl.Err
 
             return;
         }
+    }
+
+    if (comptime @import("rx_options").generated_rules and tree.supports(@TypeOf(parent))) {
+        if (parent.childCount() == 0) return;
+
+        const found = try tree.run(@import("generated_rx_call_input_tree"), allocator, parent) orelse return;
+
+        return fail(tree.location(parent, found), reporter);
     }
 
     return checkTree(parent, reporter);

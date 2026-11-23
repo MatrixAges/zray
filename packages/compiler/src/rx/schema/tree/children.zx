@@ -1,0 +1,27 @@
+import columns from "memory/columns"
+
+import type { Cursor, Visit as Input } from "./model"
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { node, tree } = in
+
+    const layout = tree.layout
+
+    if (layout != null) {
+        return {
+            rows: columns.readBorrowedRowList(
+                node.rows,
+                layout.node_children,
+                layout.node_width
+            ),
+            head: 0
+        }
+    }
+
+    return {
+        rows: [],
+        head: tree.first[node.head - 1]
+    }
+}

@@ -5,3 +5,13 @@ export const loop_tag: string = "Loop"
 export const task_tag: string = "Task"
 
 export const parallel_tag: string = "Parallel"
+
+export const arguments_tag: string = "Args"
+
+export const type_tag: string = "Type"
+
+export const store_tag: string = "Store"
+
+export const else_tag: string = "Else"
+
+export const default_tag: string = "Default"

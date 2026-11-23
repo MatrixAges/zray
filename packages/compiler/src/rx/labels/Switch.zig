@@ -16,24 +16,6 @@ fn checkSwitch(allocator: std.mem.Allocator, data: SwitchBase.Data, input: anyty
     const node = dsl.ast.view(input);
 
     try checks.validate(.Common, data.attributes, node, reporter);
-    if (comptime @import("rx_options").generated_rules) return @import("../schema/selection/adapter.zig").checkSwitch(allocator, data.children, node, reporter);
-    try checks.uniqueChildren(node, "Case", "value", reporter);
 
-    var default_seen = false;
-    var children = node.children();
-
-    while (children.next()) |item| {
-        const child = dsl.ast.view(item);
-
-        if (!std.mem.eql(u8, child.name(), "Default")) continue;
-
-        if (default_seen) return reporter.fail(.{
-            .code = .context,
-            .location = child.location(),
-            .element = child.name(),
-            .message = "Switch allows at most one Default",
-        });
-
-        default_seen = true;
-    }
+    return @import("../schema/selection/adapter.zig").checkSwitch(allocator, node, reporter);
 }

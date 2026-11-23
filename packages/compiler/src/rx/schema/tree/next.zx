@@ -1,0 +1,25 @@
+import memory from "memory"
+
+import type { Cursor, Visit as Input } from "./model"
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { node, tree } = in
+
+    const layout = tree.layout
+
+    if (layout != null) {
+        const width = layout.node_width
+
+        return {
+            rows: memory.borrowU8Range(node.rows, width, node.rows.length - width),
+            head: 0
+        }
+    }
+
+    return {
+        rows: [],
+        head: tree.next[node.head - 1]
+    }
+}

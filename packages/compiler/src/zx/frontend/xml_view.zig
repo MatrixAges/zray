@@ -69,32 +69,6 @@ pub const Node = struct {
     index: usize,
     pub const Child = Node;
 
-    pub fn missingCall(self: Node) ?ast.Location {
-        const document = self.document;
-        const tree = document.syntax.tree;
-        var first: usize = 0;
-
-        if (self.index != document.syntax.control.result) {
-            first = self.index;
-
-            while (document.first[first] != 0) first = @intCast(document.first[first] - 1);
-        }
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const rule = @import("generated_xml_call_sequence");
-
-        const input: std.meta.Child(rule.Input) = .{
-            .source = document.source,
-            .nodes = tree.nodes,
-            .attributes = tree.attributes,
-            .start = first,
-            .end = self.index + 1,
-        };
-
-        const index = (rule.executeValue(empty.allocator(), &input) catch unreachable) orelse return null;
-
-        return adapter.location(tree.nodes[@intCast(index)].location);
-    }
     fn row(self: Node) Row {
         return self.document.syntax.tree.nodes[self.index];
     }
@@ -147,6 +121,28 @@ pub const Node = struct {
             .location = adapter.location(item.location),
             .value_location = adapter.location(item.value_location),
             .raw_value = raw,
+        };
+    }
+
+    pub fn schemaChildren(self: Node) struct {
+        source: []const u8,
+        decoded: []const u8,
+        nodes: @FieldType(Tree, "nodes"),
+        attributes: @FieldType(Tree, "attributes"),
+        first: []const u64,
+        next: []const u64,
+        head: u64,
+    } {
+        const document = self.document;
+
+        return .{
+            .source = document.source,
+            .decoded = document.decoded,
+            .nodes = document.syntax.tree.nodes,
+            .attributes = document.syntax.tree.attributes,
+            .first = document.first,
+            .next = document.next,
+            .head = document.first[self.index],
         };
     }
 

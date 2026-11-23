@@ -1,0 +1,104 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import { first_family, key_families, second_family } from "./const"
+import reserve from "./reserve"
+
+import type { Keys, Workspace } from "./model"
+
+export type Input = {
+    seen: Keys,
+    workspace: Workspace,
+    key: string,
+    secondary: bool,
+    row: u64,
+    count: u64
+}
+
+export type Output = {
+    seen: Keys,
+    repeated: bool
+}
+
+export default function (in: Input): Output {
+    const { seen, key, secondary, row, workspace } = in
+
+    const first = secondary ? seen.second : seen.first
+
+    if (first == null) {
+        const recorded: Keys = match {
+            secondary => ({
+                ...seen,
+                second: key
+            }),
+            _ => ({
+                ...seen,
+                first: key
+            })
+        }
+
+        return {
+            seen: recorded,
+            repeated: false
+        }
+    }
+
+    if (first == key) {
+        return {
+            seen,
+            repeated: true
+        }
+    }
+
+    const table = match seen.capacity {
+        0 => reserve({
+            seen,
+            workspace,
+            count: in.count
+        }),
+        _ => seen
+    }
+
+    const family = secondary ? second_family : first_family
+    const hash = bytes.hashSeeded(family, bytes.fromText(key))
+    const mask = table.capacity - 1
+    const buckets = workspace.buckets
+
+    const repeated = loop({
+        slot: integers.andBits(hash, mask),
+        done: false,
+        repeated: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const stored = memory.readU64(buckets, state.slot)
+
+            if (stored == 0) {
+                memory.writeTextSlot(table.text, row, key)
+                memory.writeU64(
+                    buckets,
+                    state.slot,
+                    row * key_families + family + 1
+                )
+                state.done = true
+            } else {
+                const entry = stored - 1
+                const same_family = entry % key_families == family
+
+                if (same_family && table.text[entry / key_families] == key) {
+                    state.done = true
+                    state.repeated = true
+                } else {
+                    state.slot = integers.andBits(state.slot + 1, mask)
+                }
+            }
+        },
+        return: state => state.repeated
+    })
+
+    return {
+        seen: table,
+        repeated
+    }
+}

@@ -1,0 +1,140 @@
+import { alias_attribute, from_attribute } from "../attribute/const"
+import { arguments_tag, store_tag, type_tag } from "../execution/const"
+import claim from "../keys/claim"
+import attribute from "../tree/attribute"
+import name from "../tree/name"
+import next from "../tree/next"
+import { Issue } from "./model"
+
+import type { Keys, Workspace } from "../keys/model"
+import type { Input as Children } from "../tree/model"
+import type { Output, Finding } from "./model"
+
+export type Input = Children & {
+    workspace: Workspace
+}
+
+export default function (in: Input): Output {
+    const { tree, count } = in
+
+    const empty: Keys = {
+        first: null,
+        second: null,
+        text: [],
+        capacity: 0
+    }
+
+    const finding: Finding? = null
+
+    return loop({
+        node: in.first,
+        index: 0,
+        keys: empty,
+        finding,
+        repeated_type: finding,
+        args: false,
+        steps: false
+    }, {
+        while: state => state.repeated_type == null && state.index < count,
+        next: state => {
+            const node = state.node
+            const visit = {
+                tree,
+                node
+            }
+
+            switch (name(visit)) {
+                case type_tag:
+                    const alias = attribute({
+                        ...visit,
+                        key: alias_attribute
+                    })
+
+                    if (alias != null) {
+                        const entry = claim({
+                            seen: state.keys,
+                            workspace: in.workspace,
+                            key: alias.value,
+                            secondary: false,
+                            row: state.index,
+                            count
+                        })
+
+                        state.keys = entry.seen
+
+                        if (entry.repeated) {
+                            state.repeated_type = {
+                                issue: Issue.DuplicateType,
+                                index: state.index
+                            }
+                        }
+                    }
+
+                    const late = state.args || state.steps
+
+                    if (late && state.finding == null) {
+                        state.finding = {
+                            issue: Issue.LateType,
+                            index: state.index
+                        }
+                    }
+                case arguments_tag:
+                    const late = state.args || state.steps
+
+                    if (late && state.finding == null) {
+                        state.finding = {
+                            issue: Issue.MisplacedArgs,
+                            index: state.index
+                        }
+                    }
+
+                    state.args = true
+                case store_tag:
+                    state.steps = true
+
+                    if (state.finding == null) {
+                        const explicit = attribute({
+                            ...visit,
+                            key: alias_attribute
+                        })
+                        const alias = match {
+                            explicit != null => explicit,
+                            _ => attribute({
+                                ...visit,
+                                key: from_attribute
+                            })
+                        }
+
+                        if (alias != null) {
+                            const entry = claim({
+                                seen: state.keys,
+                                workspace: in.workspace,
+                                key: alias.value,
+                                secondary: true,
+                                row: state.index,
+                                count
+                            })
+
+                            state.keys = entry.seen
+
+                            if (entry.repeated) {
+                                state.finding = {
+                                    issue: Issue.DuplicateStore,
+                                    index: state.index
+                                }
+                            }
+                        }
+                    }
+                default:
+                    state.steps = true
+            }
+
+            state.node = next(visit)
+            state.index += 1
+        },
+        return: state => match {
+            state.repeated_type != null => state.repeated_type,
+            _ => state.finding
+        }
+    })
+}

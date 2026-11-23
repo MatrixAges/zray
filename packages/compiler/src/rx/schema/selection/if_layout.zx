@@ -1,0 +1,40 @@
+import { else_tag } from "../execution/const"
+import name from "../tree/name"
+import next from "../tree/next"
+import { Issue } from "./model"
+
+import type { Input } from "../tree/model"
+import type { Finding, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { tree, count } = in
+
+    const finding: Finding? = null
+
+    return loop({
+        node: in.first,
+        index: 0,
+        finding
+    }, {
+        while: state => state.finding == null && state.index < count,
+        next: state => {
+            const visit = {
+                tree,
+                node: state.node
+            }
+
+            const misplaced = state.index == 0 || state.index + 1 != count
+
+            if (misplaced && name(visit) == else_tag) {
+                state.finding = {
+                    issue: Issue.MisplacedElse,
+                    index: state.index
+                }
+            }
+
+            state.node = next(visit)
+            state.index += 1
+        },
+        return: state => state.finding
+    })
+}

@@ -1,60 +1,70 @@
 const std = @import("std");
 const dsl = @import("dsl");
 const checks = @import("../../checks.zig");
-const rule = @import("generated_rx_module_schema");
-const Input = std.meta.Child(rule.Input);
-const Declaration = struct { tag: std.meta.Child(@FieldType(Input, "tags")), name: []const u8, child: u64 };
-const RuleResult = std.meta.Child(rule.Output);
-const RuleFinding = if (@typeInfo(RuleResult) == .pointer) std.meta.Child(RuleResult) else RuleResult;
-const Finding = struct { issue: @FieldType(RuleFinding, "issue"), index: usize };
+const tree = @import("../tree/adapter.zig");
 
-pub fn check(allocator: std.mem.Allocator, children: anytype, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    const finding = try find(allocator, children) orelse return;
-    const child = dsl.ast.childAt(node, finding.index);
+pub fn check(allocator: std.mem.Allocator, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+    if (node.childCount() < 2) return;
 
-    return switch (finding.issue) {
-        .DuplicateType => checks.fail(child, "as", "Duplicate RX declaration", reporter),
-        .LateType => checks.fail(child, "from", "Type declarations must precede Args and module steps", reporter),
-        .MisplacedArgs => checks.fail(child, "in", "Args must appear once after Type declarations and before module steps", reporter),
-        .DuplicateStore => checks.fail(child, if (children[finding.index].store.attributes.as != null) "as" else "from", "Store reference alias is already registered", reporter),
-    };
-}
+    if (comptime @import("rx_options").generated_rules and tree.supports(@TypeOf(node))) {
+        const finding = try tree.run(@import("generated_rx_module_schema"), allocator, node) orelse return;
+        const child = dsl.ast.childAt(node, @intCast(finding.index));
 
-fn find(allocator: std.mem.Allocator, children: anytype) std.mem.Allocator.Error!?Finding {
-    if (children.len < 2) return null;
-
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    var buffer: [512]u8 align(@alignOf(Declaration)) = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-
-    defer arena.deinit();
-
-    const temporary = scratch.allocator();
-    var declarations: std.MultiArrayList(Declaration) = .empty;
-
-    for (children, 0..) |child, index| {
-        const declaration: Declaration = switch (child) {
-            .type => |item| .{ .tag = .Type, .name = item.attributes.as, .child = index },
-            .store => |item| .{ .tag = .Store, .name = item.attributes.as orelse item.attributes.from, .child = index },
-            .args => .{ .tag = .Args, .name = "", .child = index },
-            else => continue,
+        return switch (finding.issue) {
+            .DuplicateType => checks.fail(child, "as", "Duplicate RX declaration", reporter),
+            .LateType => checks.fail(child, "from", "Type declarations must precede Args and module steps", reporter),
+            .MisplacedArgs => checks.fail(child, "in", "Args must appear once after Type declarations and before module steps", reporter),
+            .DuplicateStore => duplicateStore(child, reporter),
         };
-
-        try declarations.append(temporary, declaration);
     }
 
-    if (declarations.len == 0) return null;
+    return checkSeed(node, reporter);
+}
 
-    const rows = declarations.slice();
+fn duplicateStore(child: anytype, reporter: *dsl.Reporter) dsl.Error {
+    return checks.fail(child, if (checks.attribute(child, "as") != null) "as" else "from", "Store reference alias is already registered", reporter);
+}
 
-    const finding = rule.executeValue(temporary, &.{
-        .tags = rows.items(.tag),
-        .names = rows.items(.name),
-        .children = rows.items(.child),
-    }) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    } orelse return null;
+fn checkSeed(node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+    try checks.uniqueChildren(node, "Type", "as", reporter);
 
-    return .{ .issue = finding.issue, .index = @intCast(finding.index) };
+    var has_args = false;
+    var has_steps = false;
+    var children = node.children();
+    var index: usize = 0;
+
+    while (children.next()) |input| : (index += 1) {
+        const child = dsl.ast.view(input);
+
+        if (std.mem.eql(u8, child.name(), "Type")) {
+            if (has_args or has_steps) return checks.fail(child, "from", "Type declarations must precede Args and module steps", reporter);
+
+            continue;
+        }
+
+        if (std.mem.eql(u8, child.name(), "Args")) {
+            if (has_args or has_steps) return checks.fail(child, "in", "Args must appear once after Type declarations and before module steps", reporter);
+
+            has_args = true;
+
+            continue;
+        }
+
+        has_steps = true;
+
+        if (!std.mem.eql(u8, child.name(), "Store")) continue;
+
+        const alias = checks.attribute(child, "as") orelse checks.attribute(child, "from").?;
+        var earlier = node.children();
+
+        for (0..index) |_| {
+            const previous = dsl.ast.view(earlier.next().?);
+
+            if (!std.mem.eql(u8, previous.name(), "Store")) continue;
+
+            const prior = checks.attribute(previous, "as") orelse checks.attribute(previous, "from").?;
+
+            if (std.mem.eql(u8, alias, prior)) return duplicateStore(child, reporter);
+        }
+    }
 }

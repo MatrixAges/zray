@@ -1,0 +1,18 @@
+import encoding from "std:encoding"
+import columns from "memory/columns"
+
+import type { Visit as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const layout = in.tree.layout
+
+    if (layout != null) {
+        return columns.readBorrowedRowText(in.node.rows, layout.node_name)
+    }
+
+    const span = in.tree.nodes[in.node.head - 1].name
+
+    return encoding.sliceBytes(in.tree.source, span.start, span.end)
+}

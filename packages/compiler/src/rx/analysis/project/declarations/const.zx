@@ -1,9 +1,3 @@
-export const arguments_tag: string = "Args"
-
-export const type_tag: string = "Type"
-
-export const store_tag: string = "Store"
-
 export const field_tag: string = "Field"
 
 export const input_attribute: string = "in"
@@ -11,5 +5,3 @@ export const input_attribute: string = "in"
 export const output_attribute: string = "out"
 
 export const source_attribute: string = "from"
-
-export const alias_attribute: string = "as"

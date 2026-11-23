@@ -1,8 +1,11 @@
 import memory from "memory"
 
-import { name_attribute, value_attribute } from "../../../schema/attribute/const"
 import {
     alias_attribute,
+    name_attribute,
+    value_attribute
+} from "../../../schema/attribute/const"
+import {
     input_attribute,
     output_attribute,
     source_attribute

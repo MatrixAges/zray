@@ -1,0 +1,39 @@
+import { bucket_ratio, capacity_growth } from "core/bytes/index/const"
+import memory from "memory"
+
+import type { Keys, Workspace } from "./model"
+
+export type Input = {
+    seen: Keys,
+    workspace: Workspace,
+    count: u64
+}
+
+export type Output = Keys
+
+export default function (in: Input): Output {
+    const minimum = in.count * bucket_ratio
+
+    const capacity = loop(1, {
+        while: size => size < minimum,
+        next: size => {
+            size *= capacity_growth
+        }
+    })
+
+    const { allocator, buckets } = in.workspace
+
+    memory.allocateU64Buffer(allocator, buckets, capacity)
+    memory.clearU64Buffer(buckets)
+
+    return {
+        ...in.seen,
+        capacity,
+        text: memory.requireTextSlots(
+            memory.allocateTextSlots(
+                allocator,
+                in.count
+            )
+        )
+    }
+}

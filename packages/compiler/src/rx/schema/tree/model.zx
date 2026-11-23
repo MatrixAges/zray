@@ -1,0 +1,38 @@
+import type { Attribute, Node } from "../../syntax/document/model"
+
+export type Layout = {
+    node_width: u64,
+    node_name: u64,
+    node_children: u64,
+    node_attributes: u64,
+    attribute_width: u64,
+    attribute_name: u64,
+    attribute_value: u64,
+    attribute_kind: u64
+}
+
+export type Tree = {
+    layout?: Layout,
+    source: string,
+    decoded: string,
+    nodes: Node[],
+    attributes: Attribute[],
+    first: u64[],
+    next: u64[]
+}
+
+export type Cursor = {
+    rows: u8[],
+    head: u64
+}
+
+export type Input = {
+    tree: Tree,
+    first: Cursor,
+    count: u64
+}
+
+export type Visit = {
+    tree: Tree,
+    node: Cursor
+}

@@ -1,0 +1,89 @@
+import encoding from "std:encoding"
+import memory from "memory"
+import columns from "memory/columns"
+
+import value from "../../syntax/document/publication/value"
+
+import type { Visit } from "./model"
+
+export type Input = Visit & {
+    key: string
+}
+
+export type Output = {
+    value: string,
+    expression: bool
+}?
+
+export default function (in: Input): Output {
+    const { node, tree, key } = in
+
+    const layout = tree.layout
+
+    if (layout != null) {
+        const rows = columns.readBorrowedRowList(
+            node.rows,
+            layout.node_attributes,
+            layout.attribute_width
+        )
+
+        const found: Output = null
+
+        return loop({
+            offset: 0,
+            found
+        }, {
+            while: state => state.found == null && state.offset < rows.length,
+            next: state => {
+                const row =
+                    memory.borrowU8Range(rows, state.offset, layout.attribute_width)
+                const name = columns.readBorrowedRowText(row, layout.attribute_name)
+
+                if (name == key) {
+                    state.found = {
+                        value: columns.readBorrowedRowText(row, layout.attribute_value),
+                        expression: row[layout.attribute_kind] != 0
+                    }
+                }
+
+                state.offset += layout.attribute_width
+            },
+            return: state => state.found
+        })
+    }
+
+    const parent = tree.nodes[node.head - 1]
+    const end = parent.attribute_start + parent.attribute_count
+    const found: Output = null
+
+    return loop({
+        row: parent.attribute_start,
+        found
+    }, {
+        while: state => state.found == null && state.row < end,
+        next: state => {
+            const row = tree.attributes[state.row]
+            const name = encoding.sliceBytes(tree.source, row.name.start, row.name.end)
+
+            if (name == key) {
+                const span = row.value.span
+
+                state.found = {
+                    value: value({
+                        original:
+                            encoding.sliceBytes(tree.source, span.start, span.end),
+                        decoded: tree.decoded,
+                        ...row.value.pick([
+                            "decoded_start",
+                            "decoded_end"
+                        ])
+                    }),
+                    expression: row.expression
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.found
+    })
+}
