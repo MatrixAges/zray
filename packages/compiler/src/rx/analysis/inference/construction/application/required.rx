@@ -1,6 +1,7 @@
 <Module>
     <Type from="model" as="Construction" />
     <Type from="../activate" as="Activation" />
+    <Type from="../diagnostic" as="Diagnostic" />
 
     <Args in={Construction.Required} out={void} />
 
@@ -34,7 +35,14 @@
         </Case>
 
         <Case value={Activation.Effect.Missing}>
-            <Call fn="host.rejectMissingConstructedField" in={$in.frame} />
+            <Call
+                module="../report"
+                in={{
+                    frame: $in.frame,
+                    row: null,
+                    issue: Diagnostic.Issue.MissingField
+                }}
+            />
         </Case>
     </Switch>
 </Module>

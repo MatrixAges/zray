@@ -1,0 +1,57 @@
+<Module>
+    <Type from="object" as="Construction" />
+    <Type from="../fields/view" as="Fields" />
+    <Type from="diagnostic" as="Diagnostic" />
+
+    <Args in={Construction.Request} out={void} />
+
+    <Switch on={$in.mode}>
+        <Case value={Fields.Mode.Invalid}>
+            <Call
+                module="report"
+                in={{
+                    frame: $in.projection.frame,
+                    row: null,
+                    issue: Diagnostic.Issue.InvalidSpread
+                }}
+            />
+        </Case>
+
+        <Case value={Fields.Mode.InvalidDeclared}>
+            <Call
+                module="report"
+                in={{
+                    frame: $in.projection.frame,
+                    row: null,
+                    issue: Diagnostic.Issue.InvalidDeclared
+                }}
+            />
+        </Case>
+    </Switch>
+
+    <Call module="projection/run" in={$in.projection} />
+
+    <Call
+        module="resolve"
+        in={{
+            parts: $in.parts,
+            keys: $in.projection.scan.keys,
+            final: $in.projection.scan.final
+        }}
+    />
+
+    <If on={$ctx.resolve.names.length != 0}>
+        <Call fn="../fields/host.refreshObjectReplayFields" in={$in.fields} />
+
+        <Call
+            module="application/run"
+            in={{
+                frame: $in.projection.frame,
+                fields: $in.fields,
+                field_view: $in.field_view,
+                shape: $in.shape,
+                ...$ctx.resolve
+            }}
+        />
+    </If>
+</Module>

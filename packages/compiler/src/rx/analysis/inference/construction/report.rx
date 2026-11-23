@@ -1,0 +1,16 @@
+<Module>
+    <Type from="diagnostic" as="Diagnostic" />
+
+    <Args in={Diagnostic.Report} out={void} />
+
+    <Call fn="diagnostic" in={$in.issue} />
+
+    <Call
+        fn="host.reportObjectConstruction"
+        in={[
+            $in.frame,
+            $in.row,
+            $ctx.diagnostic
+        ]}
+    />
+</Module>

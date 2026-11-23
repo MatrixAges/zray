@@ -3,7 +3,5 @@ export {
     expectObjectReplayField,
     registerConstructedSource,
     describeConstructedTarget,
-    inferConstructedField,
-    rejectMissingConstructedField,
-    rejectAmbiguousConstructedField
+    inferConstructedField
 } from "rx_project_host"

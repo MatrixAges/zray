@@ -1,0 +1,13 @@
+
+export const invalid_declared: string =
+    "object construction requires an object source and result"
+
+export const invalid_spread: string = "object spread requires an object source"
+
+export const unknown_spread: string =
+    "object spread source cannot be inferred from the available constraints"
+
+export const missing_field: string = "constructed object is missing a required field"
+
+export const ambiguous_field: string =
+    "multiple spread sources may provide a required field; their input types cannot be inferred uniquely"

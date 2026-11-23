@@ -1,6 +1,7 @@
 <Module>
     <Type from="model" as="Construction" />
     <Type from="../application" as="Application" />
+    <Type from="../diagnostic" as="Diagnostic" />
 
     <Args in={Construction.Cursor} out={Construction.Cursor} />
 
@@ -8,7 +9,12 @@
         fn="../replay"
         in={{
             names: $in.request.names,
-            plan: $in.request.plan,
+            plan: $in.request.pick([
+                "parts",
+                "values",
+                "routes",
+                "receivers"
+            ]),
             ...$in.request.field_view.omit(["site"]),
             start: $in.row
         }}
@@ -36,7 +42,7 @@
         module="source"
         in={{
             frame: $in.request.frame,
-            part: $in.request.plan.parts[$ctx.replay.row],
+            part: $in.request.parts[$ctx.replay.row],
             target: $ctx.target,
             source: $ctx.replay.source,
             register_type: $ctx.replay.register_type
@@ -56,7 +62,14 @@
         </Case>
 
         <Case value={Application.Effect.Ambiguous}>
-            <Call fn="host.rejectAmbiguousConstructedField" in={$in.request.frame} />
+            <Call
+                module="../report"
+                in={{
+                    frame: $in.request.frame,
+                    row: null,
+                    issue: Diagnostic.Issue.AmbiguousField
+                }}
+            />
         </Case>
 
         <Case value={Application.Effect.Require}>
@@ -64,10 +77,10 @@
                 module="required"
                 in={{
                     frame: $in.request.frame,
-                    part: $in.request.plan.parts[$ctx.replay.row],
+                    part: $in.request.parts[$ctx.replay.row],
                     name: $in.request.names[$ctx.replay.row],
                     target: $ctx.target,
-                    route: $in.request.plan.routes[$ctx.replay.row],
+                    route: $in.request.routes[$ctx.replay.row],
                     shape: $in.request.shape
                 }}
             />

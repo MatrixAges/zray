@@ -1,6 +1,7 @@
 <Module>
     <Type from="model" as="Projection" />
     <Type from="../spread" as="Spread" />
+    <Type from="../diagnostic" as="Diagnostic" />
 
     <Args in={Projection.Readiness} out={bool} />
 
@@ -15,11 +16,12 @@
 
         <Case value={Spread.Action.Unknown}>
             <Call
-                fn="host.rejectUnknownObjectSpread"
-                in={[
-                    $in.frame,
-                    $in.row
-                ]}
+                module="../report"
+                in={{
+                    frame: $in.frame,
+                    row: $in.row,
+                    issue: Diagnostic.Issue.UnknownSpread
+                }}
             />
 
             <Return value={false} />
@@ -27,12 +29,12 @@
 
         <Case value={Spread.Action.Invalid}>
             <Call
-                fn="host.rejectInvalidObjectSpread"
-                in={[
-                    $in.frame,
-                    $in.row,
-                    false
-                ]}
+                module="../report"
+                in={{
+                    frame: $in.frame,
+                    row: $in.row,
+                    issue: Diagnostic.Issue.InvalidSpread
+                }}
             />
 
             <Return value={false} />
@@ -40,12 +42,12 @@
 
         <Case value={Spread.Action.InvalidDeclared}>
             <Call
-                fn="host.rejectInvalidObjectSpread"
-                in={[
-                    $in.frame,
-                    $in.row,
-                    true
-                ]}
+                module="../report"
+                in={{
+                    frame: $in.frame,
+                    row: $in.row,
+                    issue: Diagnostic.Issue.InvalidDeclared
+                }}
             />
 
             <Return value={false} />
@@ -65,11 +67,12 @@
             !$ctx.proveObjectSpreadReady}
     >
         <Call
-            fn="host.rejectUnknownObjectSpread"
-            in={[
-                $in.frame,
-                $in.row
-            ]}
+            module="../report"
+            in={{
+                frame: $in.frame,
+                row: $in.row,
+                issue: Diagnostic.Issue.UnknownSpread
+            }}
         />
     </If>
 

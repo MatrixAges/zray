@@ -50,7 +50,7 @@ pub fn replayObjectConstruction(handle: *const anyopaque, row: u64, root: u32) z
     const frame: *Frame = @ptrCast(@alignCast(@constCast(handle)));
     const object = frame.objects.get(@intCast(row));
 
-    try @import("project.zig").propagate(frame.graph, frame.closure, object, @fromBackingInt(root), frame.final);
+    try @import("object.zig").run(frame.graph, frame.closure, object, @fromBackingInt(root), frame.final);
 
     frame.bind();
 }

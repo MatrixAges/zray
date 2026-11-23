@@ -1,14 +1,13 @@
-import type { ObjectConstructionFields, ObjectFieldReplay } from "rx_project_host"
+import type { ObjectConstructionRow, ObjectFieldReplay } from "rx_project_host"
 import type { View } from "../../fields/workflow"
 import type { Input as Activation } from "../activate"
 import type { Candidates, Route } from "../model"
 
-export type Request = {
-    frame: ObjectConstructionFields,
+export type Request = Candidates & {
+    frame: ObjectConstructionRow,
     fields: ObjectFieldReplay,
     field_view: View,
     names: string[],
-    plan: Candidates,
     shape: Activation.Omit("route")
 }
 
@@ -18,7 +17,7 @@ export type Cursor = {
 }
 
 export type Source = {
-    frame: ObjectConstructionFields,
+    frame: ObjectConstructionRow,
     part: u64,
     target: u32,
     source?: u32,
@@ -26,7 +25,7 @@ export type Source = {
 }
 
 export type Required = {
-    frame: ObjectConstructionFields,
+    frame: ObjectConstructionRow,
     part: u64,
     name: string,
     target: u32,

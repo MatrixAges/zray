@@ -1,9 +1,9 @@
-import type { ObjectConstructionProjection } from "rx_project_host"
+import type { ObjectConstructionRow } from "rx_project_host"
 import type { Columns } from "../publish"
 import type { Request as Sources, Output as Spread } from "../sources"
 
 export type Request = {
-    frame: ObjectConstructionProjection,
+    frame: ObjectConstructionRow,
     scan: Sources.Omit("first"),
     columns: Columns,
     members: Members
@@ -19,5 +19,5 @@ export type Cursor = Spread & {
 }
 
 export type Readiness = Spread.Pick("row", "root", "action") & {
-    frame: ObjectConstructionProjection
+    frame: ObjectConstructionRow
 }

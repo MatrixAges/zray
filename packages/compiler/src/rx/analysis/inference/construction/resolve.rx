@@ -4,6 +4,19 @@
     <Args in={Construction.Input} out={Construction.Output} />
 
     <Call fn="keys" in={$in.keys} />
+
+    <If on={$ctx.keys.length == 0}>
+        <Return
+            value={{
+                parts: [],
+                values: [],
+                receivers: [],
+                routes: [],
+                names: $ctx.keys
+            }}
+        />
+    </If>
+
     <Call fn="admit" in={$in.final} />
 
     <Call

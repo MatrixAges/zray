@@ -1,0 +1,15 @@
+import type { ObjectFieldReplay } from "rx_project_host"
+import type { Mode } from "../fields/view"
+import type { View } from "../fields/workflow"
+import type { Input as Activation } from "./activate"
+import type { Parts } from "./model"
+import type { Request as Projection } from "./projection/model"
+
+export type Request = {
+    mode: Mode,
+    parts: Parts,
+    fields: ObjectFieldReplay,
+    field_view: View,
+    shape: Activation.Omit("route"),
+    projection: Projection
+}

@@ -1,1 +1,1 @@
-export { replayObjectConstruction } from "rx_project_host"
+export { replayObjectConstruction, reportObjectConstruction } from "rx_project_host"

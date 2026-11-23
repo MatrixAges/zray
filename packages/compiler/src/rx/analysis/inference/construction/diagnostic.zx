@@ -1,0 +1,37 @@
+import {
+    invalid_declared,
+    invalid_spread,
+    unknown_spread,
+    missing_field,
+    ambiguous_field
+} from "./const"
+
+import type { ObjectConstructionRow } from "rx_project_host"
+
+export enum Issue {
+    InvalidDeclared,
+    InvalidSpread,
+    UnknownSpread,
+    MissingField,
+    AmbiguousField
+}
+
+export type Report = {
+    frame: ObjectConstructionRow,
+    row?: u64,
+    issue: Issue
+}
+
+export type Input = Issue
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match in {
+        Issue.InvalidDeclared => invalid_declared,
+        Issue.InvalidSpread => invalid_spread,
+        Issue.UnknownSpread => unknown_spread,
+        Issue.MissingField => missing_field,
+        _ => ambiguous_field
+    }
+}

@@ -36,9 +36,7 @@ export type FieldAlignment = opaque
 
 export type FieldMerge = opaque
 
-export type ObjectConstructionProjection = opaque
-
-export type ObjectConstructionFields = opaque
+export type ObjectConstructionRow = opaque
 
 export type BindingReplay = opaque
 
@@ -700,52 +698,41 @@ export declare function reportReplayFieldError(
     message: string
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function reserveObjectSpreadColumns(frame: ObjectConstructionProjection): void
+export declare function reserveObjectSpreadColumns(frame: ObjectConstructionRow): void
     throws { OutOfMemory }
 
 export declare function bindObjectSpreadFields(
-    frame: ObjectConstructionProjection,
+    frame: ObjectConstructionRow,
     root: u32,
     declared: bool,
     inferred: bool
 ): void
 
 export declare function proveObjectSpreadReady(
-    frame: ObjectConstructionProjection,
+    frame: ObjectConstructionRow,
     root: u32
 ): bool throws { OutOfMemory }
 
-export declare function rejectUnknownObjectSpread(
-    frame: ObjectConstructionProjection,
-    row: u64
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function rejectInvalidObjectSpread(
-    frame: ObjectConstructionProjection,
-    row: u64,
-    declared: bool
-): void throws { OutOfMemory, InvalidSource }
-
 export declare function registerConstructedSource(
-    frame: ObjectConstructionFields,
+    frame: ObjectConstructionRow,
     index: u64,
     type_id: u32?
 ): u32 throws { OutOfMemory, InvalidSource }
 
-export declare function describeConstructedTarget(frame: ObjectConstructionFields, target: u32): void
+export declare function describeConstructedTarget(frame: ObjectConstructionRow, target: u32): void
 
 export declare function inferConstructedField(
-    frame: ObjectConstructionFields,
+    frame: ObjectConstructionRow,
     index: u64,
     name: string,
     target: u32
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function rejectMissingConstructedField(frame: ObjectConstructionFields): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function rejectAmbiguousConstructedField(frame: ObjectConstructionFields): void
-    throws { OutOfMemory, InvalidSource }
+export declare function reportObjectConstruction(
+    frame: ObjectConstructionRow,
+    row: u64?,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
 
 export declare function unifyBindingReplay(frame: BindingReplay, row: u64, value: u32): void
     throws { OutOfMemory, InvalidSource }
