@@ -7,8 +7,8 @@ const Selection = @import("../selection.zig").Selection;
 const generated = @import("generated_object_selection_project");
 const result_rule = @import("generated_object_selection_result");
 
-pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, mode: View.Mode, final: bool) zx.Error!void {
-    const source = View.readMode(graph, root, mode);
+pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, final: bool) zx.Error!void {
+    const source = View.read(graph, root);
     const declared = source.mode == .Declared;
 
     if (!declared and source.mode != .Inferred) return graph.reporter.fail(.type_mismatch, value.span, "object selection requires an object source");
@@ -26,7 +26,7 @@ pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, mode: View.Mode, f
 
     const plan = generated.executeValue(allocator, &.{
         .fields = &.{ .names = names, .first = 0, .count = names.len, .keys = value.keys, .omit = value.omit },
-        .mode = @fromBackingInt(@backingInt(mode)),
+        .mode = @fromBackingInt(@backingInt(source.mode)),
         .final = final,
     }) catch |err| return failure(err);
 

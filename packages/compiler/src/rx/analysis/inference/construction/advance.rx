@@ -1,0 +1,38 @@
+<Module>
+    <Type from="workflow" as="Construction" />
+
+    <Args in={Construction.Cursor} out={Construction.Cursor} />
+
+    <Call
+        fn="queue"
+        in={{
+            ...$in.request.views,
+            first: $in.first
+        }}
+    />
+
+    <If on={$ctx.queue.position == $in.request.views.results.length}>
+        <Return
+            value={{
+                request: $in.request,
+                first: $ctx.queue.position
+            }}
+        />
+    </If>
+
+    <Call
+        fn="host.replayObjectConstruction"
+        in={[
+            $in.request.frame,
+            $ctx.queue.position,
+            $ctx.queue.root
+        ]}
+    />
+
+    <Return
+        value={{
+            request: $in.request,
+            first: $ctx.queue.position + 1
+        }}
+    />
+</Module>

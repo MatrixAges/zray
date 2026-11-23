@@ -1,0 +1,92 @@
+<Module>
+    <Type from="workflow" as="Selection" />
+    <Type from="../object_closure/query" as="Query" />
+
+    <Args in={Selection.Cursor} out={Selection.Cursor} />
+
+    <Call
+        fn="../object_closure/selection"
+        in={{
+            ...$in.request.views,
+            snapshot: $in.request.readiness.cache.snapshot,
+            start: $in.start
+        }}
+    />
+
+    <If on={$ctx.selection.row == $in.request.views.sources.length}>
+        <Return
+            value={{
+                request: $in.request,
+                start: $ctx.selection.row
+            }}
+        />
+    </If>
+
+    <If on={$ctx.selection.plan.action == Query.Action.Rebuild}>
+        <Call fn="host.rebuildObjectReadiness" in={$in.request.readiness.frame} />
+
+        <Return
+            value={{
+                request: $in.request,
+                start: $ctx.selection.row
+            }}
+        />
+    </If>
+
+    <If on={$ctx.selection.plan.action == Query.Action.Reject}>
+        <Call
+            fn="host.rejectObjectSelection"
+            in={[
+                $in.request.frame,
+                $ctx.selection.row
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.selection.plan.action == Query.Action.Propagate}>
+        <Call
+            fn="host.propagateObjectReadiness"
+            in={[
+                $in.request.readiness.frame,
+                $ctx.selection.plan.position,
+                false,
+                $ctx.selection.plan.shared
+            ]}
+        />
+
+        <If on={!$ctx.propagateObjectReadiness}>
+            <If on={$in.request.views.final}>
+                <Call
+                    fn="host.rejectObjectSelection"
+                    in={[
+                        $in.request.frame,
+                        $ctx.selection.row
+                    ]}
+                />
+            </If>
+
+            <Return
+                value={{
+                    request: $in.request,
+                    start: $ctx.selection.row + 1
+                }}
+            />
+        </If>
+    </If>
+
+    <Call
+        fn="host.replayObjectSelection"
+        in={[
+            $in.request.frame,
+            $ctx.selection.row,
+            $ctx.selection.root
+        ]}
+    />
+
+    <Return
+        value={{
+            request: $in.request,
+            start: $ctx.selection.row + 1
+        }}
+    />
+</Module>

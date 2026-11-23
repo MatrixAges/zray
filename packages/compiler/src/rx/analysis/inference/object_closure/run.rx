@@ -1,0 +1,18 @@
+<Module>
+    <Type from="workflow" as="Readiness" />
+
+    <Args in={Readiness.Request} out={bool} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                running: true,
+                ready: false
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.advance.ready} />
+</Module>

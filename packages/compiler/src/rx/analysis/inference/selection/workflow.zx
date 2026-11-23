@@ -1,0 +1,14 @@
+import type { ObjectSelection } from "rx_project_host"
+import type { Input as Scan } from "../object_closure/selection"
+import type { Context } from "../object_closure/workflow"
+
+export type Request = {
+    frame: ObjectSelection,
+    readiness: Context,
+    views: Scan.Omit("start", "snapshot")
+}
+
+export type Cursor = {
+    request: Request,
+    start: u64
+}

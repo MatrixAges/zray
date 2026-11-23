@@ -1,10 +1,8 @@
-import shape from "../fields/shape"
-import { Mode } from "../fields/view"
 import representative from "../forest/borrowed_root"
+import requiresReplay from "./requires_replay"
 
 import type { U32Buffer } from "memory"
 import type { Columns } from "../fields/shape"
-import type { Mode as ObjectMode } from "../fields/view"
 
 export type Input = {
     columns: Columns,
@@ -16,8 +14,7 @@ export type Input = {
 
 export type Output = {
     position: u64,
-    root: u32,
-    mode: ObjectMode
+    root: u32
 }
 
 export default function (in: Input): Output {
@@ -28,7 +25,6 @@ export default function (in: Input): Output {
     return loop({
         position: in.first,
         root: initial_root,
-        mode: Mode.Unknown,
         found: false
     }, {
         while: state => state.position < results.length && !state.found,
@@ -38,20 +34,13 @@ export default function (in: Input): Output {
                 parents,
                 value: results[row]
             })
-            const view = shape({
+            const needs_replay = parts[row] != 0 || requiresReplay({
                 columns,
                 root
             })
-            const invalid = view.mode == Mode.Invalid || view.mode == Mode.InvalidDeclared
-            const needs_replay = (
-                - invalid
-                - or parts[row] != 0
-                - or !view.empty
-            )
 
             if (needs_replay) {
                 state.root = root
-                state.mode = view.mode
                 state.found = true
             } else {
                 state.position += 1
@@ -59,8 +48,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             position: state.position,
-            root: state.root,
-            mode: state.mode
+            root: state.root
         })
     })
 }

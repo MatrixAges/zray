@@ -8,8 +8,7 @@ const Expression = @import("expression.zig");
 const Schedule = @import("expression/schedule.zig");
 
 pub const Selection = struct { source: Graph.Id, result: Graph.Id, keys: []const []const u8, omit: bool, span: zx.Span };
-
-const incomplete_source = "object selection requires a complete source type; declare Args or Input";
+pub const incomplete_source = "object selection requires a complete source type; declare Args or Input";
 
 pub fn infer(self: *Expression, expression: anytype, call: anytype, span: zx.Span) zx.Error!Graph.Id {
     var keys: []const []const u8 = undefined;
@@ -73,15 +72,5 @@ pub fn replay(graph: *Graph, closure: *ObjectClosure, final: bool) zx.Error!void
         return;
     }
 
-    const sources = pending.items(.source);
-    var start: usize = 0;
-
-    while (try closure.nextSelection(graph, sources, start, final)) |next| {
-        const value = pending.get(next.row);
-
-        if (!next.ready) return graph.reporter.fail(.type_mismatch, value.span, incomplete_source);
-        try @import("selection/project.zig").apply(graph, value, next.root, next.mode, final);
-
-        start = next.row + 1;
-    }
+    return @import("selection/host.zig").run(graph, closure, pending, final);
 }

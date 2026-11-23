@@ -1,9 +1,7 @@
 const std = @import("std");
 const Graph = @import("../types.zig");
 const enabled = @import("rx_options").generated_graph;
-pub const query = if (enabled) @import("generated_object_closure_query") else void;
-pub const QueryInput = if (enabled) std.meta.Child(query.Input) else void;
-pub const QuerySnapshot = if (enabled) std.meta.Child(std.meta.Child(@FieldType(QueryInput, "snapshot"))) else void;
+pub const QuerySnapshot = if (enabled) @import("host.zig").Snapshot else void;
 
 pub const Snapshot = struct {
     query: QuerySnapshot,

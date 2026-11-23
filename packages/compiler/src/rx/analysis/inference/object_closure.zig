@@ -1,13 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
-const Fields = @import("fields/view.zig");
-const Columns = @import("fields/columns.zig");
 const project = @import("object_closure/project.zig");
 const Self = @This();
 pub const Query = enum { spread, selection };
-
-const Selection = struct { row: usize, root: Graph.Id, mode: Fields.Mode, ready: bool };
 
 arena: std.heap.ArenaAllocator,
 snapshot: ?project.Snapshot = null,
@@ -35,95 +31,16 @@ pub fn proveRoot(self: *Self, graph: *const Graph, root: Graph.Id, query: Query)
         return @import("object_closure/seed.zig").prove(graph, root, query, 0);
     }
 
-    const spread = query == .spread;
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    while (true) {
-        const input: project.QueryInput = .{
-            .root = @backingInt(root),
-            .kind = kind,
-            .revision = graph.object_revision,
-            .constructions = constructions,
-            .selections = selections,
-            .snapshot = self.cached(),
-            .spread = spread,
-        };
-
-        const plan = zx.columns.invoke(project.query.executeValue, empty.allocator(), &input) catch unreachable;
-
-        switch (plan.action) {
-            .Accept => return true,
-            .Reject => return false,
-            .Rebuild => try self.rebuild(graph),
-            .Propagate => return self.propagate(constructions, plan.position, spread, plan.shared),
-        }
-    }
+    return @import("object_closure/host.zig").prove(self, graph, root, kind, constructions, selections, query == .spread);
 }
 
-pub fn nextSelection(self: *Self, graph: *const Graph, sources: []const Graph.Id, first: usize, final: bool) std.mem.Allocator.Error!?Selection {
-    const rule = @import("generated_rx_selection_ready");
-    const Input = std.meta.Child(rule.Input);
-    const columns = Columns.borrow(std.meta.Child(@FieldType(Input, "columns")), graph);
-    const parents = graph.parents();
-    const constructions = graph.pending.constructions.len;
-    var start = first;
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    while (start < sources.len) {
-        const snapshot = self.cached();
-
-        const input: Input = .{
-            .parents = @ptrCast(&parents),
-            .columns = &columns,
-            .sources = @ptrCast(sources),
-            .revision = graph.object_revision,
-            .constructions = constructions,
-            .snapshot = if (snapshot) |value| zx.columns.pointer(@typeInfo(@FieldType(Input, "snapshot")).optional.child, value) else null,
-            .start = start,
-            .final = final,
-        };
-
-        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-        const row: usize = @intCast(result.row);
-
-        if (row == sources.len) return null;
-
-        const plan = result.plan;
-        const root: Graph.Id = @fromBackingInt(result.root);
-        const mode: Fields.Mode = @fromBackingInt(@backingInt(result.mode));
-
-        switch (plan.action) {
-            .Accept => return .{ .row = row, .root = root, .mode = mode, .ready = true },
-            .Reject => return .{ .row = row, .root = root, .mode = mode, .ready = false },
-            .Rebuild => {
-                try self.rebuild(graph);
-
-                start = row;
-            },
-            .Propagate => {
-                const ready = try self.propagate(constructions, plan.position, false, plan.shared);
-
-                if (ready or final) return .{ .row = row, .root = root, .mode = mode, .ready = ready };
-
-                start = row + 1;
-            },
-        }
-    }
-
-    return null;
-}
-
-fn cached(self: *const Self) ?*const project.QuerySnapshot {
-    return if (self.snapshot) |*data| &data.query else null;
-}
-
-fn rebuild(self: *Self, graph: *const Graph) std.mem.Allocator.Error!void {
+pub fn rebuild(self: *Self, graph: *const Graph) std.mem.Allocator.Error!void {
     self.snapshot = null;
     _ = self.arena.reset(.retain_capacity);
     self.snapshot = try project.build(graph, self.arena.allocator());
 }
 
-fn propagate(self: *Self, constructions: usize, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
+pub fn propagate(self: *Self, constructions: usize, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
     const data = &self.snapshot.?;
     const rule = @import("generated_object_closure");
     const allocator = self.arena.allocator();

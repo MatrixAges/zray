@@ -1,0 +1,12 @@
+import type { ObjectConstruction } from "rx_project_host"
+import type { Input as Scan } from "./queue"
+
+export type Request = {
+    frame: ObjectConstruction,
+    views: Scan.Omit("first")
+}
+
+export type Cursor = {
+    request: Request,
+    first: u64
+}

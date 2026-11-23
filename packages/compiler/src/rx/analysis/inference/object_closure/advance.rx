@@ -1,0 +1,48 @@
+<Module>
+    <Type from="workflow" as="Readiness" />
+    <Type from="query" as="Query" />
+
+    <Args in={Readiness.Cursor} out={Readiness.Cursor} />
+
+    <Call
+        fn="query"
+        in={{
+            ...$in.request.query,
+            snapshot: $in.request.context.cache.snapshot
+        }}
+    />
+
+    <If on={$ctx.query.action == Query.Action.Rebuild}>
+        <Call fn="host.rebuildObjectReadiness" in={$in.request.context.frame} />
+
+        <Return value={$in} />
+    </If>
+
+    <If on={$ctx.query.action == Query.Action.Propagate}>
+        <Call
+            fn="host.propagateObjectReadiness"
+            in={[
+                $in.request.context.frame,
+                $ctx.query.position,
+                $in.request.query.spread,
+                $ctx.query.shared
+            ]}
+        />
+
+        <Return
+            value={{
+                request: $in.request,
+                running: false,
+                ready: $ctx.propagateObjectReadiness
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            running: false,
+            ready: $ctx.query.action == Query.Action.Accept
+        }}
+    />
+</Module>

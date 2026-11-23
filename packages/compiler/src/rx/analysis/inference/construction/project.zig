@@ -16,7 +16,7 @@ const NameSet = std.StringHashMapUnmanaged(void);
 const Spread = struct { fields: []const []const u8, values: []const u32, root: u64, open: bool, aliases: bool };
 const unknown_spread = "object spread source cannot be inferred from the available constraints";
 
-pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, root: Graph.Id, mode: View.Mode, final: bool) zx.Error!void {
+pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, root: Graph.Id, final: bool) zx.Error!void {
     var arena = std.heap.ArenaAllocator.init(graph.scratch);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
@@ -25,7 +25,7 @@ pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, root: G
 
     const allocator = scratch.allocator();
     var names: NameSet = .empty;
-    const parts = try project(graph, closure, allocator, object, root, mode, final, &names);
+    const parts = try project(graph, closure, allocator, object, root, final, &names);
 
     if (names.count() == 0) return;
 
@@ -113,14 +113,15 @@ fn apply(graph: *Graph, object: Object, keys: []const []const u8, plan: anytype)
     }
 }
 
-fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator, object: Object, result: Graph.Id, mode: View.Mode, final: bool, names: *NameSet) zx.Error!Parts {
-    switch (mode) {
+fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator, object: Object, result: Graph.Id, final: bool, names: *NameSet) zx.Error!Parts {
+    const result_fields = View.read(graph, result);
+
+    switch (result_fields.mode) {
         .Invalid => return invalidObject(graph, object.span, false),
         .InvalidDeclared => return invalidObject(graph, object.span, true),
         else => {},
     }
 
-    const result_fields = View.readMode(graph, result, mode);
     const count: usize = @intCast(object.count);
     const first: usize = @intCast(object.first);
     const part_columns = graph.pending.construction_parts.slice();

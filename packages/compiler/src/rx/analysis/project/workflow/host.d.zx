@@ -20,6 +20,12 @@ export type KnownRegistration = opaque
 
 export type UnificationWalk = opaque
 
+export type ObjectReadiness = opaque
+
+export type ObjectConstruction = opaque
+
+export type ObjectSelection = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -618,4 +624,29 @@ export declare function enterUnificationChild(
 ): void throws { OutOfMemory, InvalidSource }
 
 export declare function rejectUnificationChild(frame: UnificationWalk, deep: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rebuildObjectReadiness(frame: ObjectReadiness): void
+    throws { OutOfMemory }
+
+export declare function propagateObjectReadiness(
+    frame: ObjectReadiness,
+    position: u64,
+    spread: bool,
+    shared: bool
+): bool throws { OutOfMemory }
+
+export declare function replayObjectConstruction(
+    frame: ObjectConstruction,
+    row: u64,
+    root: u32
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function replayObjectSelection(
+    frame: ObjectSelection,
+    row: u64,
+    root: u32
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectObjectSelection(frame: ObjectSelection, row: u64): void
     throws { OutOfMemory, InvalidSource }
