@@ -1,0 +1,18 @@
+import type { Allocator, ColumnRanges, U8ListBuffer, U64Buffer } from "memory"
+
+export type Input = {
+    resource: Allocator,
+    columns: ColumnRanges,
+    keys: U8ListBuffer,
+    key: u8[],
+    buckets: U64Buffer,
+    pending: U64Buffer,
+    capacity: u64,
+    length: u64,
+    maximum: u64,
+    slot: u64
+}
+
+export type Buckets = Input.Pick("resource", "buckets", "pending", "capacity") & {
+    keys: u8[][]
+}

@@ -210,6 +210,12 @@ pub inline fn u8Views(source: *const anyopaque) []const u8 {
     return view.*;
 }
 
+pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {
+    const view: *const []const []const u8 = @ptrCast(@alignCast(source));
+
+    return view.*;
+}
+
 pub inline fn reserveU8Tail(resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
     try column_set.reserveTail(u8, resource, storage, source, tail, count, limit);
 }
@@ -596,14 +602,30 @@ pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *const anyopa
 }
 
 pub inline fn swapU32Buffers(left: *const anyopaque, right: *const anyopaque) void {
-    const first: *[]u32 = @ptrCast(@alignCast(@constCast(left)));
-    const second: *[]u32 = @ptrCast(@alignCast(@constCast(right)));
+    swapBuffers(u32, left, right);
+}
 
-    std.mem.swap([]u32, first, second);
+pub inline fn swapU64Buffers(left: *const anyopaque, right: *const anyopaque) void {
+    swapBuffers(u64, left, right);
 }
 
 pub inline fn releaseU32Buffer(resource: *const anyopaque, target: *const anyopaque) void {
-    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+    releaseBuffer(u32, resource, target);
+}
+
+pub inline fn releaseU64Buffer(resource: *const anyopaque, target: *const anyopaque) void {
+    releaseBuffer(u64, resource, target);
+}
+
+inline fn swapBuffers(comptime T: type, left: *const anyopaque, right: *const anyopaque) void {
+    const first: *[]T = @ptrCast(@alignCast(@constCast(left)));
+    const second: *[]T = @ptrCast(@alignCast(@constCast(right)));
+
+    std.mem.swap([]T, first, second);
+}
+
+inline fn releaseBuffer(comptime T: type, resource: *const anyopaque, target: *const anyopaque) void {
+    const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
 
     column_set.borrowAllocator(resource).free(output.*);
 

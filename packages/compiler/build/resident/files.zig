@@ -103,7 +103,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
 
         entry.* = observed;
     } else {
-        const slot = if (try self.entries.reserve(self.gpa)) self.entries.position(key).slot else found.slot;
+        const slot = try self.entries.prepare(self.gpa, key, found.slot);
         const owned_key = try self.gpa.dupe(u8, key);
 
         self.entries.append(slot, owned_key, observed);

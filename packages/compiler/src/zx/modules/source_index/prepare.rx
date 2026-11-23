@@ -1,0 +1,61 @@
+<Module>
+    <Type from="prepare_model" as="Index" />
+
+    <Args in={Index.Input} out={u64?} />
+
+    <Call
+        fn="index.reserveColumns"
+        in={{
+            resource: $in.resource,
+            ranges: $in.columns,
+            precise: false,
+            uniform: true,
+            limit: null
+        }}
+    />
+
+    <Call
+        fn="next_capacity"
+        in={{
+            entries: $in.length + 1,
+            capacity: $in.capacity,
+            maximum: $in.maximum
+        }}
+    />
+
+    <If on={$ctx.next_capacity != null}>
+        <If on={$ctx.next_capacity == 0}>
+            <Return value={$in.slot} />
+        </If>
+
+        <Call fn="index.u8ListViews" in={$in.keys} />
+
+        <Call
+            module="relocate"
+            in={{
+                ...$in.pick([
+                    "resource",
+                    "buckets",
+                    "pending"
+                ]),
+                capacity: $ctx.next_capacity,
+                keys: $ctx.u8ListViews
+            }}
+        />
+
+        <Call
+            fn="index.probe"
+            in={{
+                keys: $ctx.u8ListViews,
+                buckets: $in.buckets,
+                capacity: $ctx.next_capacity,
+                key: $in.key,
+                rows: null
+            }}
+        />
+
+        <Return value={$ctx.probe.slot} />
+    </If>
+
+    <Return value={null} />
+</Module>

@@ -188,7 +188,7 @@ fn runWriter(self: *Self, mode: policy.Mode) void {
 
         const input: Input = .{
             .cache = @ptrCast(self),
-            .mode = @enumFromInt(@intFromEnum(mode)),
+            .mode = @fromBackingInt(@intCast(@backingInt(mode))),
             .active = active,
             .threaded = self.writer != null,
             .waiting = waiting,
@@ -371,7 +371,7 @@ fn store(self: *Self, name: []const u8, input: Entry, enqueue: bool) std.mem.All
 
         entry.* = value;
     } else {
-        const slot = if (try self.entries.reserve(self.allocator)) self.entries.position(name).slot else found.slot;
+        const slot = try self.entries.prepare(self.allocator, name, found.slot);
         const owned_name = try self.allocator.dupe(u8, name);
 
         self.entries.append(slot, owned_name, value);

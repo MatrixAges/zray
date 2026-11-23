@@ -11,12 +11,7 @@ export default function (in: Input): Output {
         return found
     }
 
-    const reserved = host.reserveCacheSlot(in)
-
-    const position = match reserved {
-        true => host.probeCacheSlot(in),
-        _ => found
-    }
+    const position = host.reserveCacheSlot(in, found)
 
     host.stageCacheSlot(in)
 

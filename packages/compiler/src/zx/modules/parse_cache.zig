@@ -533,13 +533,7 @@ const Adoption = struct {
 
     fn insert(self: *const Adoption, value: *const Entry) std.mem.Allocator.Error!*Entry {
         const cache = self.cache;
-
-        const slot = if (try cache.entries.reserve(cache.allocator))
-            cache.entries.probe(self.path).position
-
-        else
-            self.found.position;
-
+        const slot = try cache.entries.prepare(cache.allocator, self.path, self.found.position);
         const key = try cache.allocator.dupe(u8, self.path);
 
         errdefer cache.allocator.free(key);

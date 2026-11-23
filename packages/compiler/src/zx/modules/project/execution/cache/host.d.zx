@@ -19,7 +19,7 @@ export declare function probeCacheSlot(slot: CacheSlot): u64
 
 export declare function readCacheBucket(slot: CacheSlot, bucket: u64): u64
 
-export declare function reserveCacheSlot(slot: CacheSlot): bool
+export declare function reserveCacheSlot(slot: CacheSlot, previous: u64): u64
     throws { OutOfMemory }
 
 export declare function stageCacheSlot(slot: CacheSlot): void

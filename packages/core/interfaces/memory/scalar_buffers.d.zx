@@ -1,0 +1,173 @@
+export declare function readU32(
+    target: U32Buffer,
+    index: u64
+): u32 throws { IndexOutOfBounds }
+
+export declare function readU64(
+    target: U64Buffer,
+    index: u64
+): u64 throws { IndexOutOfBounds }
+
+export declare function writeU8(
+    target: U8Buffer,
+    index: u64,
+    value: u8
+): void throws { IndexOutOfBounds }
+
+export declare function createBoolBuffer(
+    resource: Allocator,
+    count: u64,
+    shape: BoolBuffer?
+): BoolBuffer throws { OutOfMemory }
+
+export declare function createU8Buffer(
+    resource: Allocator,
+    count: u64,
+    shape: U8Buffer?
+): U8Buffer throws { OutOfMemory }
+
+export declare function allocateU8Buffer(
+    resource: Allocator,
+    target: U8Buffer,
+    count: u64
+): u8[] throws { OutOfMemory }
+
+export declare function boolViews(source: BoolBuffer): bool[]
+
+export declare function writeBool(
+    target: BoolBuffer,
+    index: u64,
+    value: bool
+): void throws { IndexOutOfBounds }
+
+export declare function fillByteRange(
+    target: U8Buffer,
+    first: u64,
+    count: u64,
+    value: u8
+): void throws { IndexOutOfBounds }
+
+export declare function writeU32(
+    target: U32Buffer,
+    index: u64,
+    value: u32
+): void throws { IndexOutOfBounds }
+
+export declare function allocateU32Buffer(
+    resource: Allocator,
+    target: U32Buffer,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function allocateFilledU32Buffer(
+    resource: Allocator,
+    target: U32Buffer,
+    count: u64,
+    value: u32
+): void throws { OutOfMemory }
+
+export declare function swapU32Buffers(left: U32Buffer, right: U32Buffer): void
+
+export declare function releaseU32Buffer(resource: Allocator, target: U32Buffer): void
+
+export declare function allocateU64Buffer(
+    resource: Allocator,
+    target: U64Buffer,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function writeU64(
+    target: U64Buffer,
+    index: u64,
+    value: u64
+): void throws { IndexOutOfBounds }
+
+export declare function clearU64Buffer(target: U64Buffer): void
+
+export declare function swapU64Buffers(left: U64Buffer, right: U64Buffer): void
+
+export declare function releaseU64Buffer(resource: Allocator, target: U64Buffer): void
+
+export declare function writeIndex(
+    target: IndexBuffer,
+    index: u64,
+    value: u64
+): void throws { IndexOutOfBounds }
+
+export declare function clearOptionalU8Range(
+    target: OptionalU8Buffer,
+    first: u64,
+    end: u64
+): void throws { IndexOutOfBounds }
+
+export declare function clearOptionalU16Range(
+    target: OptionalU16Buffer,
+    first: u64,
+    end: u64
+): void throws { IndexOutOfBounds }
+
+export declare function fillSourceSpanRange(
+    target: SourceSpanBuffer,
+    first: u64,
+    end: u64,
+    start_offset: u64,
+    end_offset: u64
+): void throws { IndexOutOfBounds }
+
+export declare function copyBytes(
+    target: U8Buffer,
+    offset: u64,
+    source: u8[],
+    start: u64,
+    end: u64
+): u64 throws { IndexOutOfBounds }
+
+export declare function writeUtf8Scalar(
+    target: U8Buffer,
+    offset: u64,
+    codepoint: u64
+): u64 throws { IndexOutOfBounds, InvalidUnicodeScalar }
+
+export declare function writeOptionalU32(
+    target: OptionalU32Buffer,
+    index: u64,
+    value: u32?
+): void throws { IndexOutOfBounds }
+
+export declare function writeOptionalU16(
+    target: OptionalU16Buffer,
+    index: u64,
+    value: u16?
+): void throws { IndexOutOfBounds }
+
+export declare function writeOptionalU8(
+    target: OptionalU8Buffer,
+    index: u64,
+    value: u8?
+): void throws { IndexOutOfBounds }
+
+export declare function allocateOptionalU32Buffer(
+    allocator,
+    target: OptionalU32Buffer,
+    count: u64,
+    clear: bool
+): void throws { OutOfMemory }
+
+export declare function allocateOptionalU32WithAllocator(
+    resource: Allocator,
+    target: OptionalU32Buffer,
+    count: u64,
+    clear: bool
+): void throws { OutOfMemory }
+
+export declare function bindU32Range(
+    source: U32Buffer,
+    target: U32Buffer,
+    first: u64,
+    count: u64
+): void throws { IndexOutOfBounds }
+
+export declare function readU8(
+    target: U8Buffer,
+    index: u64
+): u8 throws { IndexOutOfBounds }

@@ -104,10 +104,11 @@ pub fn readCacheBucket(handle: *const anyopaque, bucket: u64) u64 {
     return if (entries.buckets.len == 0) 0 else entries.buckets[@intCast(bucket)];
 }
 
-pub fn reserveCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn reserveCacheSlot(handle: *const anyopaque, previous: u64) std.mem.Allocator.Error!u64 {
     const slot = Pending.borrow(handle);
+    const path = slot.value.?.result.value.path;
 
-    return slot.entries.reserve(slot.allocator);
+    return try slot.entries.prepare(slot.allocator, path, @intCast(previous));
 }
 
 pub fn stageCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!void {
@@ -147,7 +148,7 @@ pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!u64 {
 
     if (readCacheBucket(slot, found) != 0) return found;
 
-    const position = if (try reserveCacheSlot(slot)) probeCacheSlot(slot) else found;
+    const position = try reserveCacheSlot(slot, found);
 
     try stageCacheSlot(slot);
 

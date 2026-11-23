@@ -1,0 +1,41 @@
+<Module>
+    <Type from="prepare_model" as="Index" />
+
+    <Args in={Index.Buckets} out={void} />
+
+    <Call
+        fn="index.allocateU64Buffer"
+        in={[
+            $in.resource,
+            $in.pending,
+            $in.capacity
+        ]}
+    />
+
+    <Call fn="index.clearU64Buffer" in={$in.pending} />
+
+    <Call
+        fn="index.rebuild"
+        in={{
+            keys: $in.keys,
+            buckets: $in.pending,
+            capacity: $in.capacity
+        }}
+    />
+
+    <Call
+        fn="index.swapU64Buffers"
+        in={[
+            $in.buckets,
+            $in.pending
+        ]}
+    />
+
+    <Call
+        fn="index.releaseU64Buffer"
+        in={[
+            $in.resource,
+            $in.pending
+        ]}
+    />
+</Module>
