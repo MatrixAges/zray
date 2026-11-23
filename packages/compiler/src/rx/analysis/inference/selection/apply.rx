@@ -1,0 +1,67 @@
+<Module>
+    <Type from="application/model" as="Selection" />
+    <Type from="model" as="Projection" />
+    <Type from="../fields/view" as="Fields" />
+    <Type from="diagnostic" as="Diagnostic" />
+
+    <Args in={Selection.Input} out={void} />
+
+    <If on={$in.mode != Fields.Mode.Declared && $in.mode != Fields.Mode.Inferred}>
+        <Call
+            module="report"
+            in={{
+                frame: $in.frame,
+                issue: Diagnostic.Issue.InvalidSource
+            }}
+        />
+    </If>
+
+    <If on={$in.mode == Fields.Mode.Declared}>
+        <Call
+            fn="../fields/host.registerDeclaredFields"
+            in={[
+                $in.frame,
+                $in.source.values
+            ]}
+        />
+    </If>
+
+    <Call
+        module="project"
+        in={{
+            fields: {
+                names: $in.source.names,
+                first: 0,
+                count: $in.source.names.length,
+                keys: $in.keys,
+                omit: $in.omit
+            },
+            mode: $in.mode,
+            final: $in.final
+        }}
+    />
+
+    <If on={$ctx.project.status == Projection.Status.Missing}>
+        <Call
+            module="report"
+            in={{
+                frame: $in.frame,
+                issue: Diagnostic.Issue.MissingName
+            }}
+        />
+    </If>
+
+    <If on={$ctx.project.status == Projection.Status.Ready}>
+        <Call fn="../fields/host.refreshObjectReplayFields" in={$in.frame} />
+
+        <Call
+            fn="application/prepare"
+            in={{
+                input: $in,
+                plan: $ctx.project
+            }}
+        />
+
+        <Call module="application/run" />
+    </If>
+</Module>

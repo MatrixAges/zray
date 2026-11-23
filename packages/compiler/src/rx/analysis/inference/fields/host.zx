@@ -1,5 +1,9 @@
 export {
     readObjectReplayField,
     appendObjectReplayField,
-    registerObjectReplayType
+    registerObjectReplayType,
+    registerDeclaredFields,
+    unifyReplayFields,
+    refreshObjectReplayFields,
+    reportFieldError
 } from "rx_project_host"

@@ -1,6 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
+const Fields = @import("../fields/replay.zig");
+const View = @import("../fields/view.zig");
+const errors = @import("../../project/workflow/errors.zig");
 const Selection = @import("../selection.zig");
 const Kind = @import("../nodes.zig").Kind;
 const Closure = @import("../object_closure.zig");
@@ -57,16 +60,38 @@ pub fn run(graph: *Graph, closure: *Closure, pending: Selections, final: bool) z
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const workflow = @import("../../project/workflow/errors.zig");
 
-    rule.executeIn(empty.allocator(), &input) catch |err| return workflow.errorSet(err);
+    rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
 pub fn replayObjectSelection(handle: *const anyopaque, row: u64, root: u32) zx.Error!void {
     const frame = Frame.borrow(handle);
     const value = frame.pending.get(@intCast(row));
 
-    try @import("project.zig").apply(frame.graph, value, @fromBackingInt(root), frame.views.final);
+    const apply = @import("generated_rx_apply_object_selection");
+    const source = View.read(frame.graph, @fromBackingInt(root));
+
+    var arena = std.heap.ArenaAllocator.init(frame.graph.scratch);
+    defer arena.deinit();
+
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    var fields: Fields.Frame = .{ .graph = frame.graph, .result = value.result, .span = value.span };
+
+    const input: std.meta.Child(apply.Input) = .{
+        .frame = @ptrCast(&fields),
+        .field_view = &fields.view,
+        .source = &.{ .names = source.names, .values = source.values },
+        .mode = zx.columns.view(@FieldType(std.meta.Child(apply.Input), "mode"), source.mode),
+        .keys = value.keys,
+        .omit = value.omit,
+        .final = frame.views.final,
+    };
+
+    apply.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return errors.errorSet(err),
+    };
 
     frame.bind();
 }
