@@ -1,0 +1,27 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+
+    <Args in={Registration.Request} out={Registration.Result} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                request: $in,
+                next: 0,
+                end: $in.end,
+                type_id: $in.type_id,
+                remaining: $in.remaining,
+                value: 0,
+                running: true
+            }}
+        />
+    </Loop>
+
+    <Return
+        value={{
+            value: $ctx.advance.value,
+            remaining: $ctx.advance.remaining
+        }}
+    />
+</Module>

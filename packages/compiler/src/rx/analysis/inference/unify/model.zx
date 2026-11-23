@@ -1,0 +1,12 @@
+import type { UnificationWalk } from "rx_project_host"
+import type { Advance } from "../unification/application/model"
+
+export type View = {
+    active: bool,
+    advance: Advance
+}
+
+export type Request = {
+    frame: UnificationWalk,
+    view: View
+}

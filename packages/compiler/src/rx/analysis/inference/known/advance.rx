@@ -1,0 +1,61 @@
+<Module>
+    <Type from="workflow" as="Registration" />
+    <Type from="model" as="Registry" />
+
+    <Args in={Registration.Cursor} out={Registration.Cursor} />
+
+    <Call
+        fn="register"
+        in={{
+            ...$in.request.view,
+            members: $in.request.members,
+            types: $in.request.types,
+            next: $in.next,
+            end: $in.end,
+            type_id: $in.type_id,
+            remaining: $in.remaining
+        }}
+    />
+
+    <If on={$ctx.register.end != $in.end}>
+        <Call
+            fn="host.publishKnownNodes"
+            in={[
+                $in.request.frame,
+                $ctx.register.end
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.register.action == Registry.Action.Invalid}>
+        <Call fn="host.rejectKnownType" in={$in.request.frame} />
+    </If>
+
+    <If on={$ctx.register.action == Registry.Action.Overflow}>
+        <Call fn="host.requireAllocation" in={false} />
+    </If>
+
+    <If on={$ctx.register.action == Registry.Action.Reserve}>
+        <Call
+            module="reserve"
+            in={{
+                frame: $in.request.frame,
+                view: $in.request.view,
+                end: $ctx.register.end,
+                capacity: $ctx.register.capacity
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            request: $in.request,
+            next: $ctx.register.next,
+            end: $ctx.register.end,
+            type_id: $ctx.register.type_id,
+            remaining: $ctx.register.remaining,
+            value: $ctx.register.value,
+            running: $ctx.register.action == Registry.Action.Reserve
+        }}
+    />
+</Module>

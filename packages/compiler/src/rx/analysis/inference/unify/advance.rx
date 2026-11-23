@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Walk" />
+    <Type from="../unification/application/model" as="Application" />
+
+    <Args in={Walk.Request} out={Walk.Request} />
+
+    <Call fn="../unification/application/scan" in={$in.view.advance} />
+
+    <If on={$ctx.scan.step == Application.Step.Publish}>
+        <Call fn="host.publishUnificationFrame" in={$in.frame} />
+
+        <Return value={$in} />
+    </If>
+
+    <If
+        on={$ctx.scan.step == Application.Step.MissingField ||
+            $ctx.scan.step == Application.Step.Depth}
+    >
+        <Call
+            fn="host.rejectUnificationChild"
+            in={[
+                $in.frame,
+                $ctx.scan.step == Application.Step.Depth
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="host.enterUnificationChild"
+        in={[
+            $in.frame,
+            $ctx.scan.position,
+            $ctx.scan.left,
+            $ctx.scan.right,
+            $ctx.scan.step == Application.Step.MergeKnown
+        ]}
+    />
+
+    <Return value={$in} />
+</Module>

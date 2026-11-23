@@ -6,9 +6,6 @@ const Plan = @import("../unification/plan.zig");
 const Fields = @import("../unification/fields.zig");
 const Commit = @import("../unification/commit.zig");
 const Self = @This();
-const advance = @import("generated_rx_unification_advance");
-const Input = std.meta.Child(advance.Input);
-const Transition = @typeInfo(@typeInfo(@TypeOf(advance.executeValue)).@"fn".return_type.?).error_union.payload;
 
 parent: Graph.Id,
 child: Graph.Id,
@@ -42,34 +39,6 @@ pub fn alignFields(self: *Self, declared_names: []const []const u8, allocator: s
 
 pub fn release(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.fields.positions);
-}
-
-pub fn next(self: *Self, graph: *const Graph, depth: usize) Transition {
-    const KnownTypes = std.meta.Child(@FieldType(Input, "known"));
-    const known = graph.pending.known_types.borrow(KnownTypes);
-    const parents = graph.parents();
-
-    const input: Input = .{
-        .pair = &.{
-            .action = self.action,
-            .position = self.position,
-            .left_operand = self.left_operand,
-            .right_operand = self.right_operand,
-            .left_members = self.left_members,
-            .right_members = self.right_members,
-            .positions = self.fields.positions[0..self.fields.scanned],
-        },
-        .known = &known,
-        .parents = @ptrCast(&parents),
-        .depth = depth,
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const transition = zx.columns.invoke(advance.executeValue, empty.allocator(), &input) catch unreachable;
-
-    self.position = transition.position;
-
-    return transition;
 }
 
 pub fn finish(self: *Self, graph: *Graph, span: zx.Span) zx.Error!void {

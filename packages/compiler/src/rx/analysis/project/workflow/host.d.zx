@@ -16,6 +16,10 @@ export type AssignmentApplication = opaque
 
 export type AssignmentMaterialization = opaque
 
+export type KnownRegistration = opaque
+
+export type UnificationWalk = opaque
+
 export type PortGraph = opaque
 
 export type ConstraintCollection = opaque
@@ -589,3 +593,29 @@ export declare function materializeAssignment(
     payload: u32,
     layers: u64
 ): void throws { OutOfMemory, InvalidSource }
+
+export declare function publishKnownNodes(frame: KnownRegistration, end: u64): void
+
+export declare function reserveKnownNodes(frame: KnownRegistration): void throws { OutOfMemory }
+
+export declare function reserveKnownIndex(frame: KnownRegistration, capacity: u64): void
+    throws { OutOfMemory }
+
+export declare function refreshKnownRegistry(frame: KnownRegistration): void
+
+export declare function rejectKnownType(frame: KnownRegistration): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishUnificationFrame(frame: UnificationWalk): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function enterUnificationChild(
+    frame: UnificationWalk,
+    position: u64,
+    left: u32,
+    right: u32,
+    known: bool
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function rejectUnificationChild(frame: UnificationWalk, deep: bool): void
+    throws { OutOfMemory, InvalidSource }

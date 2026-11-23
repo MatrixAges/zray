@@ -1,0 +1,8 @@
+export { requireAllocation } from "memory"
+export {
+    publishKnownNodes,
+    reserveKnownNodes,
+    reserveKnownIndex,
+    refreshKnownRegistry,
+    rejectKnownType
+} from "rx_project_host"

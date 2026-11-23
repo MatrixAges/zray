@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Walk" />
+
+    <Args in={Walk.Request} out={void} />
+
+    <Loop on={$in.view.active}>
+        <Call module="advance" in={$in} />
+    </Loop>
+</Module>
