@@ -1,0 +1,17 @@
+import integers from "std:integer"
+
+import type { Batch } from "./model"
+
+export type Input = Batch
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const row = in.first + in.offset
+
+    if (in.parallel_first != null) {
+        return row
+    }
+
+    return in.indices[integers.widen(row)]
+}

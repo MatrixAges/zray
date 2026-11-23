@@ -1,10 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const function_link = @import("functions.zig");
-const Schedule = @import("statements/schedule.zig");
 const Self = @This();
 const Registry = @import("frontend").project.compiled.InitializerRegistry;
+pub const InitializerRange = Registry.Range;
 const StoreInitializer = @import("frontend").project.compiled.StoreInitializer;
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, UnreachableFlow, IncompleteFlow };
 
@@ -45,61 +44,7 @@ pub fn expressionType(self: *const Self, id: ir.ExprId) ir.TypeId {
     return @fromBackingInt(self.expressions.types.items[@backingInt(id)]);
 }
 
-pub fn importFunction(self: *Self, program: ir.Program, suffix: ?*const ir.FunctionTable, initializers: []const StoreInitializer, existing: ?ir.FunctionId) Error!ir.FunctionId {
-    if (existing) |id| {
-        if (suffix != null) return error.InvalidModule;
-
-        const checked = initializers.len == 0 or (initializers.len <= self.checked_initializers.len and initializers.ptr == self.checked_initializers.ptr);
-
-        switch (function_link.shared(&self.base_functions, @backingInt(id), &program, checked)) {
-            .Invalid => return error.InvalidModule,
-            .Checked => {},
-            .CheckInitializers => try self.mergeInitializers(initializers, .{ .count = self.base_functions.count() + self.functions.count() }),
-        }
-
-        return id;
-    }
-
-    if (initializers.len == 0) return self.appendFunction(.ImportFunctions, program, suffix, initializers);
-
-    return self.appendFunction(.ImportFunctionsAndInitializers, program, suffix, initializers);
-}
-
-fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program, suffix: ?*const ir.FunctionTable, initializers: []const StoreInitializer) Error!ir.FunctionId {
-    const prefix = self.base_functions;
-    const base_count = prefix.count();
-    const table = @import("frontend").project.artifact.function_table;
-    const extension = try table.extend(program.functions, prefix, suffix, null);
-    const Nodes = @import("frontend").ArtifactNodes;
-    const first = std.math.add(usize, base_count, self.functions.count()) catch return error.OutOfMemory;
-    const count = std.math.cast(usize, extension.total) orelse return error.OutOfMemory;
-    const range = try table.range(first, count, base_count, self.types.count(), self.native_modules.count());
-
-    var nodes = Nodes{
-        .allocator = self.allocator,
-        .types = .{ .identity = range.types },
-        .functions = .{ .range = .{
-            .first = range.first,
-            .count = range.count,
-            .prefix = range.prefix,
-        } },
-        .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
-    };
-
-    inline for (comptime Schedule.steps(form)) |step| {
-        switch (step) {
-            .Done => {},
-            .AppendFunctionTail => nodes.appendFunctions(&self.functions, extension.tail, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
-            .LinkInitializers => try self.mergeInitializers(initializers, .{ .first = range.first, .count = range.count, .prefix = range.prefix }),
-            .AppendFunctionEntry => nodes.appendProgram(&self.functions, &program, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
-            else => unreachable,
-        }
-    }
-
-    return @fromBackingInt(range.root);
-}
-
-fn linkFailure(err: anyerror) Error {
+pub fn linkFailure(err: anyerror) Error {
     return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
 }
 

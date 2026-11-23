@@ -1,0 +1,60 @@
+<Module>
+    <Type from="model" as="Plan" />
+    <Type from="workflow" as="Traversal" />
+
+    <Args in={Traversal.Task} out={void} />
+
+    <Call
+        fn="host.evaluateBodyValue"
+        in={[
+            $in.frame,
+            $in.event.first,
+            false
+        ]}
+    />
+
+    <If on={$in.event.action == Plan.Action.BindTask}>
+        <Call
+            fn="host.defineBodyTaskBinding"
+            in={[
+                $in.frame,
+                $in.event.first,
+                $ctx.evaluateBodyValue
+            ]}
+        />
+
+        <Call
+            fn="host.restoreBodyScope"
+            in={[
+                $in.frame,
+                $in.event.slot
+            ]}
+        />
+
+        <Call
+            fn="host.publishBodyBinding"
+            in={[
+                $in.frame,
+                $ctx.defineBodyTaskBinding
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="host.emitBodyEvaluation"
+                in={[
+                    $in.frame,
+                    $ctx.evaluateBodyValue
+                ]}
+            />
+
+            <Call
+                fn="host.restoreBodyScope"
+                in={[
+                    $in.frame,
+                    $in.event.slot
+                ]}
+            />
+        </Else>
+    </If>
+</Module>

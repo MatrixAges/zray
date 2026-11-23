@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Calls" />
+
+    <Args in={Calls.Batch} out={Calls.Batch} />
+
+    <Call fn="target" in={$in} />
+
+    <Call
+        module="invoke"
+        in={{
+            frame: $in.frame,
+            item: $ctx.target
+        }}
+    />
+
+    <If on={$in.parallel_first != null}>
+        <Call
+            fn="../host.emitBodyParallelBranch"
+            in={[
+                $in.frame,
+                $in.parallel_first + $in.offset,
+                $ctx.invoke
+            ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                offset: $in.offset + 1,
+                published: $in.published + ($ctx.emitBodyParallelBranch ? 1 : 0)
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="../host.publishBodyCall"
+                in={[
+                    $in.frame,
+                    $ctx.invoke
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            offset: $in.offset + 1
+        }}
+    />
+</Module>

@@ -201,9 +201,9 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
                     } },
                 });
             },
-            .CloseTask => try self.finishTask(.Task, writer, frame.step, frame.scope.Task),
-            .EvaluateTask => try self.finishTask(.TaskWithEvaluation, writer, frame.step, frame.scope.Task),
-            .BindTask => try self.finishTask(.TaskWithBinding, writer, frame.step, frame.scope.Task),
+            .CloseTask => try self.finishTask(.None, writer, frame.step, frame.scope.Task),
+            .EvaluateTask => try self.finishTask(.Evaluate, writer, frame.step, frame.scope.Task),
+            .BindTask => try self.finishTask(.Bind, writer, frame.step, frame.scope.Task),
             .CloseSelection => {
                 self.writer.selection(writer, frame.scope.Selection, event.count.?, event.exhaustive.?);
             },

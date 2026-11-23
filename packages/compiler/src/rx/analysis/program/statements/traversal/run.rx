@@ -1,0 +1,34 @@
+<Module>
+    <Type from="workflow" as="Traversal" />
+
+    <Args in={Traversal.Request} out={void} />
+
+    <Call
+        fn="walk"
+        in={$in.pick([
+            "shape",
+            "layout",
+            "borrow_root"
+        ])}
+    />
+
+    <Call
+        fn="host.reserveBodyStatements"
+        in={[
+            $in.frame,
+            $ctx.walk.slots
+        ]}
+    />
+
+    <Loop on={$in.row < $in.events.length}>
+        <Call
+            module="step"
+            in={{
+                frame: $in.frame,
+                events: $ctx.walk.events,
+                call_ids: $in.shape.steps.firsts,
+                row: 0
+            }}
+        />
+    </Loop>
+</Module>

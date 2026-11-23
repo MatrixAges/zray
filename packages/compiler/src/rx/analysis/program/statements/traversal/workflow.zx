@@ -1,0 +1,19 @@
+import type { BodyStatements } from "rx_project_host"
+import type { Config, Event } from "./model"
+
+export type Request = Config & {
+    frame: BodyStatements
+}
+
+export type Scan = {
+    frame: BodyStatements,
+    events: Event[],
+    call_ids: u32[],
+    row: u64
+}
+
+export type Write = Scan.Pick("frame", "call_ids") & {
+    event: Event
+}
+
+export type Task = Write.Pick("frame", "event")

@@ -1,0 +1,29 @@
+<Module>
+    <Type from="workflow" as="Traversal" />
+
+    <Args in={Traversal.Scan} out={Traversal.Scan} />
+
+    <Call
+        fn="host.selectBodyWriter"
+        in={[
+            $in.frame,
+            $in.events[$in.row].block
+        ]}
+    />
+
+    <Call
+        module="apply"
+        in={{
+            frame: $in.frame,
+            event: $in.events[$in.row],
+            call_ids: $in.call_ids
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

@@ -1,0 +1,16 @@
+import type { BodyStatements } from "rx_project_host"
+
+export type Batch = {
+    frame: BodyStatements,
+    indices: u32[],
+    first: u32,
+    count: u32,
+    offset: u32,
+    parallel_first?: u32,
+    published: u32
+}
+
+export type Invocation = {
+    frame: BodyStatements,
+    item: u32
+}

@@ -60,6 +60,8 @@ export type FlowTraversal = opaque
 
 export type ParallelTaskWork = opaque
 
+export type BodyStatements = opaque
+
 export type Mixed = opaque
 
 export type MixedState = opaque
@@ -639,6 +641,84 @@ export declare function buildParallelTaskArgument(work: ParallelTaskWork): void
 
 export declare function publishParallelTask(work: ParallelTaskWork): void
     throws { OutOfMemory, InvalidFlow }
+
+export declare function reserveBodyStatements(frame: BodyStatements, slots: u64): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function selectBodyWriter(frame: BodyStatements, block: u32): void
+
+export declare function bodyBindingCount(frame: BodyStatements): u64
+
+export declare function restoreBodyBindings(frame: BodyStatements, len: u64): void
+
+export declare function saveBodyScope(frame: BodyStatements, slot: u32, value: u32?): void
+
+export declare function restoreBodyScope(frame: BodyStatements, slot: u32): void
+
+export declare function evaluateBodyValue(frame: BodyStatements, row: u32, borrowed: bool): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function emitBodyReturn(frame: BodyStatements, value: u32): void
+
+export declare function emitBodyEvaluation(frame: BodyStatements, value: u32): void
+
+export declare function defineBodyTaskBinding(frame: BodyStatements, row: u32, value: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function publishBodyBinding(frame: BodyStatements, symbol: u32): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function evaluateBodyCaseLabel(frame: BodyStatements, row: u32): u32?
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function initializeBodyCase(frame: BodyStatements): void
+
+export declare function emitBodyCase(frame: BodyStatements, slot: u32, row: u32, end: u32): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function emitBodySelection(frame: BodyStatements, slot: u32, count: u32, exhaustive: bool): void
+
+export declare function prepareBodyCall(frame: BodyStatements, item: u32): bool
+
+export declare function bindBodyGetters(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function evaluateBodyArgument(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function createBodyUnitArgument(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function resolveBodyCallStores(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function prepareBodyImport(frame: BodyStatements): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function appendBodyFunctionTail(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function bodyHasInitializers(frame: BodyStatements): bool
+
+export declare function linkBodyInitializers(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function appendBodyFunctionEntry(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function emitBodyCall(frame: BodyStatements): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function publishBodyCall(frame: BodyStatements, value: u32): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function bodyParallelStart(frame: BodyStatements): u32
+
+export declare function emitBodyParallelBranch(frame: BodyStatements, position: u32, value: u32): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function publishBodyParallel(frame: BodyStatements, count: u32, published: u32): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
 export declare function solveRevision(state: ConstraintRound): u64
 

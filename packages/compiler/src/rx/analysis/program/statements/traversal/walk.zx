@@ -2,12 +2,12 @@ import integers from "std:integer"
 
 import callEnd from "./call_end"
 import enter from "./enter"
+import initial from "./initial"
 import { Action, Region } from "./model"
 import record from "./record"
 import step from "./step"
 
-import type { Output as Input } from "./initial"
-import type { Event, Frame, Schedule as Output } from "./model"
+import type { Config as Input, Event, Frame, Schedule as Output } from "./model"
 
 export default function (in: Input): Output {
     const parents: Frame[] = []
@@ -17,7 +17,7 @@ export default function (in: Input): Output {
     const borrow_root = in.borrow_root
 
     return loop({
-        frame: in.frame,
+        frame: initial(in),
         parents,
         events,
         slots: 0,

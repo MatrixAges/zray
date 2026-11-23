@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Calls" />
+
+    <Args in={Calls.Invocation} out={u32} />
+
+    <Call fn="../host.bodyBindingCount" in={$in.frame} />
+
+    <Call
+        fn="../host.prepareBodyCall"
+        in={[
+            $in.frame,
+            $in.item
+        ]}
+    />
+
+    <Call fn="../host.bindBodyGetters" in={$in.frame} />
+
+    <If on={$ctx.prepareBodyCall}>
+        <Call fn="../host.evaluateBodyArgument" in={$in.frame} />
+
+        <Else>
+            <Call fn="../host.createBodyUnitArgument" in={$in.frame} />
+        </Else>
+    </If>
+
+    <Call
+        fn="../host.restoreBodyBindings"
+        in={[
+            $in.frame,
+            $ctx.bodyBindingCount
+        ]}
+    />
+
+    <Call fn="../host.resolveBodyCallStores" in={$in.frame} />
+
+    <Call module="import_function" in={$in.frame} />
+
+    <Call fn="../host.emitBodyCall" in={$in.frame} />
+
+    <Return value={$ctx.emitBodyCall} />
+</Module>
