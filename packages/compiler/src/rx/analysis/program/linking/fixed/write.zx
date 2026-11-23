@@ -2,63 +2,58 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
 import memory from "memory"
+import { expressionOperandBytes, expressionOperandWords } from "rx_project_host"
 
 import symbol from "../operands/symbol"
 
-import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "memory"
-import type { Symbols } from "../operands/model"
+import type { Work } from "../operands/workflow"
 
-export type Column = {
-    source: u32[],
-    target: U32Buffer
-}
-
-export type Metadata = {
-    source: u8[],
-    target: U8Buffer
-}
-
-export type Input = {
-    kind: ExpressionKind,
-    columns: Column[],
-    row: u64,
-    mapping: u32[],
-    symbols: Symbols,
-    optional_symbol?: u32,
-    optional_target?: OptionalU32Buffer,
-    metadata?: Metadata
-}
+export type Input = Work
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { columns, row } = in
+    const { data, row, slots, frame } = in
 
-    const width = columns.length
+    const header = in.allocation.header
+    const kind = data.kinds[in.index]
+    const width = slots.length
 
-    const expressions = match in.kind {
+    const has_metadata = match kind {
+        ExpressionKind.Unary => true,
+        ExpressionKind.Binary => true,
+        ExpressionKind.Iteration => true,
+        _ => false
+    }
+
+    const words = match kind {
+        ExpressionKind.Iteration => width - 2,
+        _ => has_metadata ? width - 1 : width
+    }
+
+    const expressions = match kind {
         ExpressionKind.Reference => 0,
         ExpressionKind.Field => 1,
         ExpressionKind.TupleField => 1,
         ExpressionKind.Iteration => 3,
-        _ => width
+        _ => words
     }
 
-    const mapped = match in.kind {
+    const mapped = match kind {
         ExpressionKind.Field => expressions,
         ExpressionKind.TupleField => expressions,
-        _ => width
+        _ => words
     }
 
     const written = loop({
         position: 0,
         valid: true
     }, {
-        while: state => state.valid && state.position < width,
+        while: state => state.valid && state.position < words,
         next: state => {
             const position = state.position
-            const column = columns[position]
-            const source = column.source[row]
+            const column = expressionOperandWords(frame, slots[position])
+            const source = column[row]
             const value = match {
                 position < expressions => in.mapping[integers.widen(source)],
                 position < mapped => symbol({
@@ -71,7 +66,15 @@ export default function (in: Input): Output {
             state.valid = position >= mapped || value != max_u32
 
             if (state.valid) {
-                memory.writeU32(column.target, 0, value)
+                memory.writeU32(
+                    memory.columnRangeU32Tail(
+                        header,
+                        position,
+                        null
+                    ),
+                    0,
+                    value
+                )
             }
 
             state.position += 1
@@ -83,10 +86,8 @@ export default function (in: Input): Output {
         return false
     }
 
-    const target = in.optional_target
-
-    if (target != null) {
-        const source = in.optional_symbol
+    if (kind == ExpressionKind.Iteration) {
+        const source = data.iteration_environment_symbols[row]
 
         const id: u32? = match {
             source == null => null,
@@ -100,13 +101,26 @@ export default function (in: Input): Output {
             return false
         }
 
-        memory.writeOptionalU32(target, 0, id)
+        memory.writeOptionalU32(
+            memory.columnRangeOptionalU32Tail(
+                header,
+                words,
+                null
+            ),
+            0,
+            id
+        )
     }
 
-    const metadata = in.metadata
+    if (has_metadata) {
+        const position = width - 1
+        const bytes = expressionOperandBytes(frame, slots[position])
 
-    if (metadata != null) {
-        memory.writeU8(metadata.target, 0, metadata.source[row])
+        memory.writeU8(
+            memory.columnRangeU8Tail(header, position, null),
+            0,
+            bytes[row]
+        )
     }
 
     return true

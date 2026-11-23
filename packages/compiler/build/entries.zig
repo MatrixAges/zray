@@ -969,6 +969,7 @@ pub const execution = [_]Entry{
     .{ .path = "rx/analysis/project/flow/traversal/run.rx", .name = "rx_traverse_flow", .owner = .rx_analysis },
     .{ .path = "rx/analysis/parallel_task/run.rx", .name = "rx_compile_parallel_task", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/statements/traversal/run.rx", .name = "rx_execute_statements", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/linking/operands/layout.zx", .name = "rx_operand_layout", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/run.rx", .name = "rx_inline_expression", .owner = .rx_analysis },
     .{ .path = "rx/analysis/store/initializer/run.rx", .name = "rx_compile_store_initializer", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/known/run.rx", .name = "rx_register_known_types", .owner = .rx_analysis },

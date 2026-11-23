@@ -13,14 +13,8 @@ export default function (in: Input): Output {
 
     const { members, evaluation } = in
 
-    if (members != null) {
-        publish(members)
-    }
-
-    if (evaluation != null) {
-        publish(evaluation)
-    }
-
+    publish(members)
+    publish(evaluation)
     publish(in.header)
 
     return integers.narrow(row)

@@ -6,6 +6,8 @@ export {
     prepareLinkLiterals,
     commitLinkLiterals,
     commitExpressionLink,
-    prepareExpressionOperand,
+    bindExpressionOperands,
+    expressionOperandWords,
+    expressionOperandBytes,
     requireExpressionOperand
 } from "rx_project_host"

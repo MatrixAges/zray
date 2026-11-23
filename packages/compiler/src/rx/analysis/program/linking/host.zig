@@ -45,6 +45,8 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
     const Body = std.meta.Child(@FieldType(Plan, "body"));
     const Expressions = std.meta.Child(@FieldType(Plan, "expressions"));
 
+    state.operands.initialize(&state);
+
     const input: abi.Request = .{
         .frame = @ptrCast(&state),
         .plan = &.{

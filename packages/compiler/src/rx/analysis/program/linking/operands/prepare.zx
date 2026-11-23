@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import { bindExpressionOperands, OperandRoute } from "rx_project_host"
+
+import type { Prepare } from "./workflow"
+
+export type Input = Prepare
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { work, route } = in
+
+    const index = integers.widen(in.index)
+
+    const kind = work.data.kinds[index]
+
+    if (kind == ExpressionKind.None || kind == ExpressionKind.Unit) {
+        return false
+    }
+
+    const data = work.data
+    const row = integers.widen(data.payloads[index])
+
+    const count = match route {
+        OperandRoute.Sequence => data.sequence_count[row],
+        OperandRoute.Collection => data.collection_count[row],
+        OperandRoute.Transform => data.transform_count[row],
+        OperandRoute.Scope => data.scope_count[row],
+        OperandRoute.Selection => data.match_count[row],
+        OperandRoute.Object => data.object_count[row],
+        _ => 0
+    }
+
+    const evaluation = match route {
+        OperandRoute.Object => data.object_evaluation_count[row],
+        _ => 0
+    }
+
+    bindExpressionOperands(work.frame, in.index, route, count, evaluation)
+
+    return true
+}

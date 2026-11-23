@@ -5,11 +5,12 @@ import memory from "memory"
 import symbol from "./symbol"
 
 import type { OptionalU32Buffer } from "memory"
-import type { SourceRange, Symbols } from "./model"
+import type { Symbols } from "./model"
 
 export type Input = {
     source: u32?[],
-    source_range: SourceRange,
+    first: u32,
+    count: u32,
     symbols: Symbols,
     target: OptionalU32Buffer
 }
@@ -19,8 +20,8 @@ export type Output = bool
 export default function (in: Input): Output {
     const empty: u32? = null
 
-    const first = integers.widen(in.source_range.first)
-    const count = integers.widen(in.source_range.count)
+    const first = integers.widen(in.first)
+    const count = integers.widen(in.count)
 
     return loop({
         position: 0,

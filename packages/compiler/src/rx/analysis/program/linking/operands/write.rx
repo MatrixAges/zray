@@ -6,43 +6,43 @@
 
     <Switch on={$in.route}>
         <Case value={Route.Kind.Fixed}>
-            <Call fn="../fixed/write" in={$in.fixed} />
+            <Call fn="../fixed/write" in={$in} />
 
             <Return value={$ctx.write} />
         </Case>
 
         <Case value={Route.Kind.Sequence}>
-            <Call fn="sequence" in={$in.sequence} />
+            <Call fn="sequence" in={$in} />
 
             <Return value={$ctx.sequence} />
         </Case>
 
         <Case value={Route.Kind.Collection}>
-            <Call fn="collection" in={$in.collection} />
+            <Call fn="collection" in={$in} />
 
             <Return value={$ctx.collection} />
         </Case>
 
         <Case value={Route.Kind.Transform}>
-            <Call fn="transform" in={$in.transform} />
+            <Call fn="transform" in={$in} />
 
             <Return value={$ctx.transform} />
         </Case>
 
         <Case value={Route.Kind.Scope}>
-            <Call fn="scope" in={$in.scope} />
+            <Call fn="scope" in={$in} />
 
             <Return value={$ctx.scope} />
         </Case>
 
         <Case value={Route.Kind.Selection}>
-            <Call fn="selection" in={$in.selection} />
+            <Call fn="selection" in={$in} />
 
             <Return value={$ctx.selection} />
         </Case>
 
         <Case value={Route.Kind.Object}>
-            <Call fn="object" in={$in.object} />
+            <Call fn="object" in={$in} />
 
             <Return value={$ctx.object} />
         </Case>

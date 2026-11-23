@@ -66,6 +66,70 @@ export type BodyStatements = opaque
 
 export type ExpressionLink = opaque
 
+export enum OperandColumn {
+    binary_left,
+    binary_operators,
+    binary_right,
+    captures,
+    collection_arguments,
+    collection_count,
+    collection_first,
+    collection_kinds,
+    collection_targets,
+    conditional_conditions,
+    conditional_no,
+    conditional_yes,
+    index_targets,
+    index_values,
+    iteration_bodies,
+    iteration_condition_parameters,
+    iteration_conditions,
+    iteration_environment_symbols,
+    iteration_initials,
+    iteration_parameters,
+    iteration_postconditions,
+    lengths,
+    match_conditions,
+    match_count,
+    match_fallbacks,
+    match_first,
+    match_results,
+    match_subjects,
+    object_count,
+    object_evaluation_count,
+    object_evaluation_first,
+    object_evaluation_values,
+    object_field_indices,
+    object_field_values,
+    object_first,
+    optional_values,
+    projection_indices,
+    projection_targets,
+    references,
+    scope_borrows,
+    scope_count,
+    scope_first,
+    scope_results,
+    scope_symbols,
+    scope_values,
+    sequence_count,
+    sequence_first,
+    sequence_items,
+    some,
+    transform_bodies,
+    transform_count,
+    transform_first,
+    transform_initials,
+    transform_kinds,
+    transform_parameters,
+    transform_targets,
+    unary_operands,
+    unary_operators,
+    update_indices,
+    update_targets,
+    update_values
+}
+
 export enum OperandRoute {
     Fixed,
     Sequence,
@@ -749,8 +813,23 @@ export declare function commitLinkLiterals(frame: ExpressionLink): void
 
 export declare function commitExpressionLink(frame: ExpressionLink): void
 
-export declare function prepareExpressionOperand(frame: ExpressionLink, row: u32, route: OperandRoute): bool
-    throws { InvalidModule }
+export declare function bindExpressionOperands(
+    frame: ExpressionLink,
+    index: u32,
+    route: OperandRoute,
+    count: u32,
+    evaluation_count: u32
+): void throws { InvalidModule }
+
+export declare function expressionOperandWords(
+    frame: ExpressionLink,
+    column: OperandColumn
+): u32[]
+
+export declare function expressionOperandBytes(
+    frame: ExpressionLink,
+    column: OperandColumn
+): u8[]
 
 export declare function requireExpressionOperand(valid: bool): void
     throws { InvalidModule }

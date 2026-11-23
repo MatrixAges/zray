@@ -1,32 +1,40 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import operands from "./expressions"
-import writeRange from "./range"
+import writeRange from "./destination_window"
+import expressions from "./expressions"
 
-import type { Input as Operands } from "./expressions"
-import type { Range } from "./range"
+import type { Work } from "./workflow"
 
-export type Input = Operands & {
-    range: Range
-}
+export type Input = Work
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const valid = operands(in.pick([
-        "source",
-        "source_range",
-        "mapping",
-        "target"
-    ]))
+    const { data, row } = in
+
+    const first = data.sequence_first[row]
+    const count = data.sequence_count[row]
+
+    const { header, members } = in.allocation
+
+    const valid = expressions({
+        source: data.sequence_items,
+        first,
+        count,
+        mapping: in.mapping,
+        target: memory.columnRangeU32Tail(members, 0, null)
+    })
 
     if (!valid) {
         return false
     }
 
     writeRange({
-        range: in.range,
-        count: integers.widen(in.source_range.count)
+        header,
+        slot: 0,
+        members: members,
+        count: integers.widen(count)
     })
 
     return true

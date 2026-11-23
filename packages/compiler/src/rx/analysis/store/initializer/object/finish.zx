@@ -17,13 +17,8 @@ export default function (in: Input): Output {
 
     publish(header)
 
-    if (members != null) {
-        publish(members)
-    }
-
-    if (evaluation != null) {
-        publish(evaluation)
-    }
+    publish(members)
+    publish(evaluation)
 
     const ranges = in.expression
     const root = integers.narrow(memory.columnRangeLength(ranges, 0))

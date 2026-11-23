@@ -1,52 +1,56 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
+import { expressionOperandBytes, OperandColumn } from "rx_project_host"
 
+import writeRange from "./destination_window"
 import expressions from "./expressions"
-import writeRange from "./range"
 
-import type { U8Buffer, U32Buffer } from "memory"
-import type { SourceRange } from "./model"
-import type { Range } from "./range"
+import type { Work } from "./workflow"
 
-export type Input = {
-    target: u32,
-    kind: u8,
-    mapping: u32[],
-    arguments: u32[],
-    source_range: SourceRange,
-    target_arguments: U32Buffer,
-    kinds: U8Buffer,
-    targets: U32Buffer,
-    range: Range
-}
+export type Input = Work
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const target = in.mapping[integers.widen(in.target)]
+    const { data, row } = in
+
+    const first = data.collection_first[row]
+    const count = data.collection_count[row]
+
+    const { header, members } = in.allocation
+
+    const target = in.mapping[integers.widen(data.collection_targets[row])]
 
     if (target == max_u32) {
         return false
     }
 
     const valid = expressions({
-        source: in.arguments,
-        source_range: in.source_range,
+        source: data.collection_arguments,
+        first,
+        count,
         mapping: in.mapping,
-        target: in.target_arguments
+        target: memory.columnRangeU32Tail(members, 0, null)
     })
 
     if (!valid) {
         return false
     }
 
-    memory.writeU8(in.kinds, 0, in.kind)
-    memory.writeU32(in.targets, 0, target)
+    memory.writeU8(
+        memory.columnRangeU8Tail(header, 0, null),
+        0,
+        expressionOperandBytes(in.frame, OperandColumn.collection_kinds)[row]
+    )
+
+    memory.writeU32(memory.columnRangeU32Tail(header, 1, null), 0, target)
 
     writeRange({
-        range: in.range,
-        count: integers.widen(in.source_range.count)
+        header,
+        slot: 2,
+        members: members,
+        count: integers.widen(count)
     })
 
     return true

@@ -1,28 +1,29 @@
+import type { Expressions } from "core/expression_table/model"
 import type { Allocator, ColumnRanges } from "memory"
-import type { OperandRoute } from "rx_project_host"
-import type { Input as Fixed } from "../fixed/write"
-import type { Input as Collection } from "./collection"
-import type { Input as Object } from "./object"
-import type { Input as Scope } from "./scope"
-import type { Input as Selection } from "./selection"
-import type { Input as Sequence } from "./sequence"
-import type { Input as Transform } from "./transform"
+import type { ExpressionLink, OperandColumn, OperandRoute } from "rx_project_host"
+import type { Symbols } from "./model"
 
 export type Allocation = {
     resource: Allocator,
     header: ColumnRanges,
-    members?: ColumnRanges,
-    evaluation?: ColumnRanges
+    members: ColumnRanges,
+    evaluation: ColumnRanges
 }
 
 export type Work = {
-    route: OperandRoute,
+    frame: ExpressionLink,
+    data: Expressions,
+    symbols: Symbols,
     allocation: Allocation,
-    fixed: Fixed,
-    sequence: Sequence,
-    collection: Collection,
-    transform: Transform,
-    scope: Scope,
-    selection: Selection,
-    object: Object
+    mapping: u32[],
+    index: u64,
+    slots: OperandColumn[],
+    row: u64,
+    route: OperandRoute
+}
+
+export type Prepare = {
+    work: Work,
+    index: u32,
+    route: OperandRoute
 }

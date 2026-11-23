@@ -4,15 +4,15 @@
     <Args in={Payload.Effect} out={u32} />
 
     <Call
-        fn="../host.prepareExpressionOperand"
-        in={[
-            $in.frame,
-            $in.row,
-            $in.route
-        ]}
+        fn="../operands/prepare"
+        in={{
+            work: $in.operands,
+            index: $in.row,
+            route: $in.route
+        }}
     />
 
-    <If on={!$ctx.prepareExpressionOperand}>
+    <If on={!$ctx.prepare}>
         <Return value={0} />
     </If>
 

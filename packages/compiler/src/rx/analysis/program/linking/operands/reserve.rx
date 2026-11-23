@@ -11,23 +11,19 @@
         }}
     />
 
-    <If on={$in.members != null}>
-        <Call
-            fn="reserve"
-            in={{
-                resource: $in.resource,
-                ranges: $in.members
-            }}
-        />
-    </If>
+    <Call
+        fn="reserve"
+        in={{
+            resource: $in.resource,
+            ranges: $in.members
+        }}
+    />
 
-    <If on={$in.evaluation != null}>
-        <Call
-            fn="reserve"
-            in={{
-                resource: $in.resource,
-                ranges: $in.evaluation
-            }}
-        />
-    </If>
+    <Call
+        fn="reserve"
+        in={{
+            resource: $in.resource,
+            ranges: $in.evaluation
+        }}
+    />
 </Module>

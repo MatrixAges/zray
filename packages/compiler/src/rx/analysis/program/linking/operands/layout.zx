@@ -1,0 +1,179 @@
+import { ExpressionKind } from "core/expression_table/kinds"
+import { OperandColumn } from "rx_project_host"
+
+export type Input = ExpressionKind
+
+export type Output = {
+    header: OperandColumn[],
+    members: OperandColumn[]
+}
+
+export default function (in: Input): Output {
+    return match in {
+        ExpressionKind.Reference => {
+            header: [OperandColumn.references],
+            members: []
+        },
+        ExpressionKind.Some => {
+            header: [OperandColumn.some],
+            members: []
+        },
+        ExpressionKind.Capture => {
+            header: [OperandColumn.captures],
+            members: []
+        },
+        ExpressionKind.OptionalValue => {
+            header: [OperandColumn.optional_values],
+            members: []
+        },
+        ExpressionKind.Length => {
+            header: [OperandColumn.lengths],
+            members: []
+        },
+        ExpressionKind.Field => {
+            header: [
+                OperandColumn.projection_targets,
+                OperandColumn.projection_indices
+            ],
+            members: []
+        },
+        ExpressionKind.TupleField => {
+            header: [
+                OperandColumn.projection_targets,
+                OperandColumn.projection_indices
+            ],
+            members: []
+        },
+        ExpressionKind.Index => {
+            header: [
+                OperandColumn.index_targets,
+                OperandColumn.index_values
+            ],
+            members: []
+        },
+        ExpressionKind.Unary => {
+            header: [
+                OperandColumn.unary_operands,
+                OperandColumn.unary_operators
+            ],
+            members: []
+        },
+        ExpressionKind.Binary => {
+            header: [
+                OperandColumn.binary_left,
+                OperandColumn.binary_right,
+                OperandColumn.binary_operators
+            ],
+            members: []
+        },
+        ExpressionKind.Conditional => {
+            header: [
+                OperandColumn.conditional_conditions,
+                OperandColumn.conditional_yes,
+                OperandColumn.conditional_no
+            ],
+            members: []
+        },
+        ExpressionKind.ListUpdate => {
+            header: [
+                OperandColumn.update_targets,
+                OperandColumn.update_indices,
+                OperandColumn.update_values
+            ],
+            members: []
+        },
+        ExpressionKind.Iteration => {
+            header: [
+                OperandColumn.iteration_initials,
+                OperandColumn.iteration_conditions,
+                OperandColumn.iteration_bodies,
+                OperandColumn.iteration_condition_parameters,
+                OperandColumn.iteration_parameters,
+                OperandColumn.iteration_environment_symbols,
+                OperandColumn.iteration_postconditions
+            ],
+            members: []
+        },
+        ExpressionKind.List => {
+            header: [
+                OperandColumn.sequence_first,
+                OperandColumn.sequence_count
+            ],
+            members: [OperandColumn.sequence_items]
+        },
+        ExpressionKind.Tuple => {
+            header: [
+                OperandColumn.sequence_first,
+                OperandColumn.sequence_count
+            ],
+            members: [OperandColumn.sequence_items]
+        },
+        ExpressionKind.Template => {
+            header: [
+                OperandColumn.sequence_first,
+                OperandColumn.sequence_count
+            ],
+            members: [OperandColumn.sequence_items]
+        },
+        ExpressionKind.ListOperation => {
+            header: [
+                OperandColumn.collection_kinds,
+                OperandColumn.collection_targets,
+                OperandColumn.collection_first,
+                OperandColumn.collection_count
+            ],
+            members: [OperandColumn.collection_arguments]
+        },
+        ExpressionKind.Transform => {
+            header: [
+                OperandColumn.transform_kinds,
+                OperandColumn.transform_targets,
+                OperandColumn.transform_bodies,
+                OperandColumn.transform_initials,
+                OperandColumn.transform_first,
+                OperandColumn.transform_count
+            ],
+            members: [OperandColumn.transform_parameters]
+        },
+        ExpressionKind.Scope => {
+            header: [
+                OperandColumn.scope_results,
+                OperandColumn.scope_first,
+                OperandColumn.scope_count
+            ],
+            members: [
+                OperandColumn.scope_symbols,
+                OperandColumn.scope_values,
+                OperandColumn.scope_borrows
+            ]
+        },
+        ExpressionKind.Match => {
+            header: [
+                OperandColumn.match_subjects,
+                OperandColumn.match_fallbacks,
+                OperandColumn.match_first,
+                OperandColumn.match_count
+            ],
+            members: [
+                OperandColumn.match_conditions,
+                OperandColumn.match_results
+            ]
+        },
+        ExpressionKind.Object => {
+            header: [
+                OperandColumn.object_first,
+                OperandColumn.object_count,
+                OperandColumn.object_evaluation_first,
+                OperandColumn.object_evaluation_count
+            ],
+            members: [
+                OperandColumn.object_field_indices,
+                OperandColumn.object_field_values
+            ]
+        },
+        _ => {
+            header: [],
+            members: []
+        }
+    }
+}

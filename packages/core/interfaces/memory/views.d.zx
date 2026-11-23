@@ -111,6 +111,24 @@ export declare function columnRangeSlotCount(source: ColumnRanges): u64
 
 export declare function columnRangeLength(source: ColumnRanges, slot: u64): u64
 
+export declare function columnRangeU8Tail(
+    source: ColumnRanges,
+    slot: u64,
+    shape: U8Buffer?
+): U8Buffer
+
+export declare function columnRangeU32Tail(
+    source: ColumnRanges,
+    slot: u64,
+    shape: U32Buffer?
+): U32Buffer
+
+export declare function columnRangeOptionalU32Tail(
+    source: ColumnRanges,
+    slot: u64,
+    shape: OptionalU32Buffer?
+): OptionalU32Buffer
+
 export declare function columnRangeCount(source: ColumnRanges, slot: u64): u64
 
 export declare function reserveColumnRange(

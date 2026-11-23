@@ -2,48 +2,46 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
 
+import writeRange from "./destination_window"
 import expressions from "./expressions"
-import writeRange from "./range"
 
-import type { OptionalU32Buffer, U32Buffer } from "memory"
-import type { SourceRange } from "./model"
-import type { Range } from "./range"
+import type { Work } from "./workflow"
 
-export type Input = {
-    subject?: u32,
-    fallback: u32,
-    mapping: u32[],
-    conditions: u32[],
-    results: u32[],
-    source_range: SourceRange,
-    target_conditions: U32Buffer,
-    target_results: U32Buffer,
-    subjects: OptionalU32Buffer,
-    fallbacks: U32Buffer,
-    range: Range
-}
+export type Input = Work
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const source = in.subject
-    const subject: u32? = source == null ? null : in.mapping[integers.widen(source)]
+    const { data, row } = in
+
+    const first = data.match_first[row]
+    const count = data.match_count[row]
+
+    const { header, members } = in.allocation
+
+    const source = data.match_subjects[row]
+
+    const subject: u32? = match {
+        source == null => null,
+        _ => in.mapping[integers.widen(source)]
+    }
 
     if (subject == max_u32) {
         return false
     }
 
-    const fallback = in.mapping[integers.widen(in.fallback)]
+    const fallback = in.mapping[integers.widen(data.match_fallbacks[row])]
 
     if (fallback == max_u32) {
         return false
     }
 
     const conditions = expressions({
-        source: in.conditions,
-        source_range: in.source_range,
+        source: data.match_conditions,
+        first,
+        count,
         mapping: in.mapping,
-        target: in.target_conditions
+        target: memory.columnRangeU32Tail(members, 0, null)
     })
 
     if (!conditions) {
@@ -51,22 +49,30 @@ export default function (in: Input): Output {
     }
 
     const results = expressions({
-        source: in.results,
-        source_range: in.source_range,
+        source: data.match_results,
+        first,
+        count,
         mapping: in.mapping,
-        target: in.target_results
+        target: memory.columnRangeU32Tail(members, 1, null)
     })
 
     if (!results) {
         return false
     }
 
-    memory.writeOptionalU32(in.subjects, 0, subject)
-    memory.writeU32(in.fallbacks, 0, fallback)
+    memory.writeOptionalU32(
+        memory.columnRangeOptionalU32Tail(header, 0, null),
+        0,
+        subject
+    )
+
+    memory.writeU32(memory.columnRangeU32Tail(header, 1, null), 0, fallback)
 
     writeRange({
-        range: in.range,
-        count: integers.widen(in.source_range.count)
+        header,
+        slot: 2,
+        members: members,
+        count: integers.widen(count)
     })
 
     return true

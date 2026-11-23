@@ -1,44 +1,38 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
+import { expressionOperandBytes, OperandColumn } from "rx_project_host"
 
+import writeRange from "./destination_window"
 import expressions from "./expressions"
 import optionalSymbols from "./optional_symbols"
-import writeRange from "./range"
 
-import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "memory"
-import type { SourceRange, Symbols } from "./model"
-import type { Range } from "./range"
+import type { Work } from "./workflow"
 
-export type Input = {
-    result: u32,
-    mapping: u32[],
-    symbols: Symbols,
-    binding_symbols: u32?[],
-    binding_values: u32[],
-    borrows: u8[],
-    source_range: SourceRange,
-    target_symbols: OptionalU32Buffer,
-    target_values: U32Buffer,
-    target_borrows: U8Buffer,
-    results: U32Buffer,
-    range: Range
-}
+export type Input = Work
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const result = in.mapping[integers.widen(in.result)]
+    const { data, row } = in
+
+    const first = data.scope_first[row]
+    const count = data.scope_count[row]
+
+    const { header, members } = in.allocation
+
+    const result = in.mapping[integers.widen(data.scope_results[row])]
 
     if (result == max_u32) {
         return false
     }
 
     const symbols = optionalSymbols({
-        source: in.binding_symbols,
-        source_range: in.source_range,
+        source: data.scope_symbols,
+        first,
+        count,
         symbols: in.symbols,
-        target: in.target_symbols
+        target: memory.columnRangeOptionalU32Tail(members, 0, null)
     })
 
     if (!symbols) {
@@ -46,34 +40,37 @@ export default function (in: Input): Output {
     }
 
     const values = expressions({
-        source: in.binding_values,
-        source_range: in.source_range,
+        source: data.scope_values,
+        first,
+        count,
         mapping: in.mapping,
-        target: in.target_values
+        target: memory.columnRangeU32Tail(members, 1, null)
     })
 
     if (!values) {
         return false
     }
 
-    const length = integers.widen(in.source_range.count)
+    const length = integers.widen(count)
 
     if (length != 0) {
-        const first = integers.widen(in.source_range.first)
+        const start = integers.widen(first)
 
         const copied = memory.copyBytes(
-            in.target_borrows,
+            memory.columnRangeU8Tail(members, 2, null),
             0,
-            in.borrows,
-            first,
-            first + length
+            expressionOperandBytes(in.frame, OperandColumn.scope_borrows),
+            start,
+            start + length
         )
     }
 
-    memory.writeU32(in.results, 0, result)
+    memory.writeU32(memory.columnRangeU32Tail(header, 0, null), 0, result)
 
     writeRange({
-        range: in.range,
+        header,
+        slot: 1,
+        members: members,
         count: length
     })
 
