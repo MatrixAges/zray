@@ -2,10 +2,18 @@ const std = @import("std");
 const pkgs = @import("pkgs");
 pub const archive = @import("archive.zig");
 pub const receipt = @import("store/receipt.zig");
-pub const cache = @import("store/cache/storage.zig");
+const cache = @import("store/cache/storage.zig");
 pub const transfer = @import("store/download.zig");
-pub const paths = @import("archive/path.zig");
 pub const constants = @import("package_cache").constants.@"zx.constants";
+
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    @import("archive/extract/storage.zig"),
+    @import("archive/path.zig"),
+    @import("store/cache/storage.zig"),
+    @import("store/download.zig"),
+    @import("store/receipt/storage.zig"),
+}).resolve;
 
 pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Release, source_base: []const u8, cache_root: []const u8, offline: bool) ![]u8 {
     if (!std.fs.path.isAbsolute(cache_root)) return error.InvalidPackageCacheDirectory;

@@ -63,7 +63,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     });
 }
 
-pub fn packages(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, effects: *std.Build.Module) *std.Build.Module {
+pub fn packages(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/package/install"), "package_install", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/package/graph"), "package_graph", .{ .include_extensions = &.{ ".rx", ".zx" } });
@@ -76,8 +76,8 @@ pub fn packages(b: *std.Build, compiler: *std.Build.Dependency, target: std.Buil
         .optimize = optimize,
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
-            .{ .name = "installation_host", .module = effects },
-            .{ .name = "package_graph_host", .module = effects },
+            .{ .name = "installation_host", .module = host },
+            .{ .name = "package_graph_host", .module = host },
         },
     });
 }
@@ -95,15 +95,9 @@ pub fn store(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
         .optimize = optimize,
         .imports = &.{
             .{ .name = "pkgs", .module = pkgs },
+            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
             .{ .name = "cli_source", .module = cli_source },
         },
-    });
-
-    const effects = b.createModule(.{
-        .root_source_file = b.path("src/package/store/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "package_store", .module = host }},
     });
 
     host.addAnonymousImport("package_cache", .{
@@ -112,10 +106,10 @@ pub fn store(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
         .optimize = optimize,
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
-            .{ .name = "package_cache_host", .module = effects },
-            .{ .name = "package_extract_host", .module = effects },
-            .{ .name = "package_receipt_host", .module = effects },
-            .{ .name = "package_download_host", .module = effects },
+            .{ .name = "package_cache_host", .module = host },
+            .{ .name = "package_extract_host", .module = host },
+            .{ .name = "package_receipt_host", .module = host },
+            .{ .name = "package_download_host", .module = host },
         },
     });
 

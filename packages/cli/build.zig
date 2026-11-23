@@ -29,14 +29,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const installation_host = b.createModule(.{
-        .root_source_file = b.path("src/package/install/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    host.addImport("cli_packages", @import("build/source.zig").packages(b, compiler, target, optimize, installation_host));
+    host.addImport("cli_packages", @import("build/source.zig").packages(b, compiler, target, optimize, host));
     host.addImport("package_store", @import("build/source.zig").store(b, compiler, target, optimize, pkgs.module("pkgs"), host.import_table.get("cli_source").?));
     host.addImport("cli_toolchain", @import("build/source.zig").toolchain(b, compiler, target, optimize, host));
     host.addImport("backend_protocol", @import("build/source.zig").backend(b, compiler, target, optimize));

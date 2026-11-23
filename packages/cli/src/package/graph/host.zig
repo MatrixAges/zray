@@ -5,8 +5,9 @@ const workspace = @import("../workspace.zig");
 const files = @import("../install/files.zig");
 const Manifest = @import("../manifest/model.zig").Manifest;
 const Inputs = @import("watch_inputs").Inputs;
-pub const installed = @import("installed/storage.zig");
-pub const local = @import("workspace/storage.zig");
+pub const isAbsolute = std.fs.path.isAbsolute;
+pub const parent = std.fs.path.dirname;
+pub const basename = std.fs.path.basename;
 pub const Error = error{PackageGraphHostFailure};
 
 pub const State = struct {

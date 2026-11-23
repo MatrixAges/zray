@@ -35,19 +35,23 @@
     "interfaces": [
         {
             "path": "store/cache/host.d.zx",
-            "module": "package_cache_host"
+            "module": "package_cache_host",
+            "resolve_members": true
         },
         {
             "path": "store/receipt/host.d.zx",
-            "module": "package_receipt_host"
+            "module": "package_receipt_host",
+            "resolve_members": true
         },
         {
             "path": "extract/host.d.zx",
-            "module": "package_extract_host"
+            "module": "package_extract_host",
+            "resolve_members": true
         },
         {
             "path": "store/download/host.d.zx",
-            "module": "package_download_host"
+            "module": "package_download_host",
+            "resolve_members": true
         }
     ]
 }

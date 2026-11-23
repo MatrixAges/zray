@@ -85,7 +85,7 @@ pub fn verifyReceipt(handle: *const anyopaque, parent: []const u8, digest: []con
     store.receipt.verify(io, allocator, directory, digest) catch |err| return self.fail(err);
 }
 
-pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!void {
+pub fn readInstalledArchive(handle: *const anyopaque, path: []const u8) host.Error!void {
     const self = host.State.get(handle);
 
     self.archive = model.read(self.io, self.allocator, path, self.inputs, self.manifests) catch |err| return self.fail(err);
@@ -97,13 +97,13 @@ pub fn archiveMatches(handle: *const anyopaque, index: u64) bool {
     return model.matches(self.archive, self.locked.lock.packages[@intCast(index)]);
 }
 
-pub fn recordArchive(handle: *const anyopaque, index: u64, path: []const u8) void {
+pub fn recordInstalledArchive(handle: *const anyopaque, index: u64, path: []const u8) void {
     const self = host.State.get(handle);
 
     self.installed_packages[@intCast(index)] = .{ .path = path, .manifest = self.archive };
 }
 
-pub fn workspacePath(handle: *const anyopaque, index: u64) host.Error![]const u8 {
+pub fn installedWorkspacePath(handle: *const anyopaque, index: u64) host.Error![]const u8 {
     const self = host.State.get(handle);
     const relative = self.locked.lock.packages[@intCast(index)].source.workspace;
     const path = std.fs.path.resolve(self.allocator, &.{ self.result.root, relative }) catch |err| return self.fail(err);

@@ -1,9 +1,19 @@
 const std = @import("std");
 pub const native_lookup = @import("zx").native_lookup;
+
+pub const resolveNative = native_lookup.Resolver(&.{
+    @This(),
+    @import("package/graph/host.zig"),
+    @import("package/graph/installed/storage.zig"),
+    @import("package/graph/workspace/storage.zig"),
+    @import("package/install/fresh/archive_io.zig"),
+    @import("package/install/fresh/storage.zig"),
+    @import("package/install/host.zig"),
+    @import("package/install/locked/storage.zig"),
+}).resolve;
+
 pub const watch = @import("cli/watch.zig");
-pub const package_graph = @import("package/graph/host.zig");
 pub const toolchain = @import("cli/toolchain.zig");
-pub const installation = @import("package/install/host.zig");
 pub const library_stage = @import("cli/library/publish.zig");
 
 pub const package_workspace = struct {
