@@ -1,10 +1,13 @@
 export { readU64, writeU64, readLengthSlot, shrinkLengthSlot } from "memory"
 export {
-    installProjectEntryBody,
-    exposeProjectEntryFunctions,
-    forwardProjectNativeEntry,
-    forwardProjectRecursiveEntry,
-    validateProjectEntry
+    borrowFunctionBodyBytes,
+    borrowForwardedBodyBytes,
+    writeColumnOptionalU32
+} from "memory/columns"
+export {
+    validateProjectEntry,
+    writeFunctionBody,
+    writeForwardedBody
 } from "project_host"
 export { publishInterfaceTypes } from "project_host"
 export {

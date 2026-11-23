@@ -1,7 +1,9 @@
+import type { Symbols } from "core/symbol_table/model"
 import type { ColumnLengths, ReadColumn, U8Buffer } from "memory"
-import type { ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
+import type { FunctionBodyRow, WriteColumn } from "memory/columns"
+import type { ProgramEntry, ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
+import type { FunctionColumns } from "../../entry_body/model"
 import type { Frame } from "../load/model"
-import type { Entry as Publication } from "../publication/model"
 import type { Input as BodyExports } from "./body_exports/model"
 import type { Installation } from "./body_install/model"
 
@@ -31,7 +33,7 @@ export type Body = {
 
 export type Entry = {
     entry: ProjectEntry,
-    plan: Publication,
+    publication: EntryPublication,
     verified: ColumnLengths,
     records: ReadColumn,
     record_count: u64,
@@ -39,4 +41,32 @@ export type Entry = {
     root?: u64
 }
 
-export type EntryPublication = Entry.Pick("entry", "plan")
+export type EntryPublication = {
+    program: ProgramEntry,
+    functions: LinkedFunctions,
+    lengths: ColumnLengths,
+    linked_count: u64,
+    recursive: WriteColumn,
+    original: EntryBody
+}
+
+export type LinkedFunctions = FunctionColumns & {
+    native_modules: u32?[]
+}
+
+export type EntryBody = {
+    file: string,
+    type_only: bool,
+    own?: u32,
+    input_type: u32,
+    output_type: u32,
+    symbols: Symbols,
+    calls: u32[]
+}
+
+export type EntryForwarding = {
+    publication: EntryPublication,
+    body?: FunctionBodyRow,
+    native: bool,
+    function_id: u32
+}

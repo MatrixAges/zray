@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.EntryForwarding} out={void} />
+
+    <Call
+        fn="entry_forward"
+        in={{
+            original: $in.publication.original,
+            body: $in.body,
+            native: $in.native,
+            function_id: $in.function_id
+        }}
+    />
+
+    <Call module="../../forward_entry/build" />
+
+    <Call fn="index.borrowForwardedBodyBytes" />
+
+    <Call
+        fn="index.writeForwardedBody"
+        in={[
+            $in.publication.program,
+            $ctx.borrowForwardedBodyBytes
+        ]}
+    />
+
+    <If on={!$in.native}>
+        <Call
+            fn="index.writeColumnOptionalU32"
+            in={[
+                $in.publication.recursive,
+                0,
+                $in.function_id
+            ]}
+        />
+    </If>
+</Module>

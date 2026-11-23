@@ -1,11 +1,12 @@
 <Module>
     <Type from="model" as="Entry" />
+    <Type from="../../zx/modules/entry_body/model" as="Body" />
 
-    <Args in={Entry.Input} out={Entry.Body?} />
+    <Args in={Entry.Input} out={Body.Body?} />
 
     <If on={$in.function_id != null}>
         <Call
-            fn="function_body"
+            fn="../../zx/modules/entry_body/read"
             in={{
                 functions: $in.functions,
                 id: $in.function_id
@@ -15,7 +16,7 @@
         <If on={$in.initializer != null}>
             <Return
                 value={{
-                    ...$ctx.function_body,
+                    ...$ctx.read,
                     file: $in.initializer.file,
                     store_mode: $in.initializer.store_mode,
                     stores: $in.initializer.empty_stores
@@ -23,7 +24,7 @@
             />
         </If>
 
-        <Return value={$ctx.function_body} />
+        <Return value={$ctx.read} />
     </If>
 
     <Return value={null} />

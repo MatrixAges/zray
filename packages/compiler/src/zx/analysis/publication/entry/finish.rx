@@ -10,14 +10,31 @@
         <Return value={null} />
     </If>
 
-    <Call
-        fn="forward"
-        in={{
-            entry: $in.entry,
-            recursive: $ctx.register,
-            forward: !$in.resolved
-        }}
-    />
+    <If on={!$in.resolved && $ctx.register != null}>
+        <Call
+            fn="../../../modules/forward_entry/recursive_request"
+            in={{
+                symbols: $in.symbols,
+                input_type: $in.input_type,
+                output_type: $in.output_type,
+                function_id: $ctx.register
+            }}
+        />
 
-    <Return value={$ctx.forward} />
+        <Call module="../../../modules/forward_entry/build" />
+
+        <Call fn="index.borrowForwardedBodyBytes" />
+
+        <Call
+            fn="index.writeForwardedBody"
+            in={[
+                $in.program,
+                $ctx.borrowForwardedBodyBytes
+            ]}
+        />
+
+        <Return value={$ctx.register} />
+    </If>
+
+    <Return value={null} />
 </Module>

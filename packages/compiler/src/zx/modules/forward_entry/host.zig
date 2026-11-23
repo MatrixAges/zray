@@ -44,20 +44,7 @@ pub fn write(allocator: std.mem.Allocator, program: *ir.Program, call: Call) std
         else => unreachable,
     };
 
-    try installBody(allocator, program, &wrapper);
-}
+    const body = if (@typeInfo(@TypeOf(wrapper)) == .pointer) wrapper else &wrapper;
 
-pub fn install(allocator: std.mem.Allocator, program: *ir.Program, wrapper: anytype) std.mem.Allocator.Error!void {
-    try installBody(allocator, program, wrapper);
-
-    program.contracts = zx.columns.borrow(ir.ContractTable, &wrapper.contracts);
-}
-
-fn installBody(allocator: std.mem.Allocator, program: *ir.Program, wrapper: anytype) std.mem.Allocator.Error!void {
-    const control = try allocator.create(ir.ControlTable);
-
-    control.* = zx.columns.borrow(ir.ControlTable, &wrapper.control);
-    program.symbols = zx.columns.borrow(ir.SymbolTable, &wrapper.symbols);
-    program.expressions = zx.columns.borrow(ir.ExpressionTable, &wrapper.expressions);
-    program.body = .{ .control = control, .root = @fromBackingInt(wrapper.root) };
+    try @import("../entry_body/host.zig").applyForward(allocator, @ptrCast(program), body);
 }

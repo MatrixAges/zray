@@ -3,47 +3,74 @@
 
     <Args in={Execution.EntryPublication} out={u64} />
 
-    <Call module="../publication/finalize" in={$in.plan} />
-
-    <If on={$ctx.finalize.body != null}>
+    <If on={$in.original.type_only && $in.original.own != null}>
         <Call
-            fn="index.installProjectEntryBody"
+            fn="entry_selection"
+            in={{
+                file: $in.original.file,
+                row: $in.original.own,
+                functions: $in.functions
+            }}
+        />
+
+        <Call fn="index.borrowFunctionBodyBytes" in={$ctx.entry_selection.body} />
+
+        <Call
+            fn="index.writeFunctionBody"
             in={[
-                $in.entry,
-                $ctx.finalize.body
+                $in.program,
+                $ctx.borrowFunctionBodyBytes
             ]}
         />
+
+        <If on={$ctx.entry_selection.forward != null}>
+            <Call
+                module="entry_wrap"
+                in={{
+                    publication: $in,
+                    body: $ctx.entry_selection.body,
+                    native: $ctx.entry_selection.native,
+                    function_id: $ctx.entry_selection.forward
+                }}
+            />
+        </If>
+
+        <Return value={$in.linked_count} />
     </If>
 
     <Call
-        fn="index.exposeProjectEntryFunctions"
-        in={[
-            $in.entry,
-            $ctx.finalize.visible_count
-        ]}
+        fn="../../forward_entry/recursive"
+        in={{
+            calls: $in.original.calls,
+            candidate: $in.original.own
+        }}
     />
 
-    <If on={$ctx.finalize.forward != null}>
-        <If on={$ctx.finalize.native}>
-            <Call
-                fn="index.forwardProjectNativeEntry"
-                in={[
-                    $in.entry,
-                    $ctx.finalize.forward
-                ]}
-            />
+    <If on={$ctx.recursive != null}>
+        <Call
+            module="entry_wrap"
+            in={{
+                publication: $in,
+                body: null,
+                native: false,
+                function_id: $ctx.recursive
+            }}
+        />
 
-            <Else>
-                <Call
-                    fn="index.forwardProjectRecursiveEntry"
-                    in={[
-                        $in.entry,
-                        $ctx.finalize.forward
-                    ]}
-                />
-            </Else>
-        </If>
+        <Return value={$in.linked_count} />
     </If>
 
-    <Return value={$ctx.finalize.visible_count} />
+    <If on={!$in.original.type_only}>
+        <Call
+            fn="../../../../core/column_lengths/truncate"
+            in={{
+                target: $in.lengths,
+                count: $in.linked_count - 1
+            }}
+        />
+
+        <Return value={$in.linked_count - 1} />
+    </If>
+
+    <Return value={$in.linked_count} />
 </Module>

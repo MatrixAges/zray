@@ -4,7 +4,6 @@ const Project = @import("../../project.zig").Project;
 const Analysis = @import("../../../analysis/analyze.zig");
 const Validate = @import("../../../ir/validate.zig");
 const publication = @import("../publication/host.zig");
-const functions = @import("../../function_body.zig");
 const cache_publication = @import("../../semantic_cache/publication.zig");
 const generated = @import("parser_options").generated_parser;
 const Status = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".CacheWrite else cache_publication.Status;
@@ -29,10 +28,17 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const entry = @import("generated_project_execute_entry");
         const unit = &project.units[root];
         const program = &state.result.value.ir;
-        const linked = project.functions.view();
-        const member = if (program.type_only) unit.function else null;
-        const row = if (member) |id| @backingInt(id) else null;
-        const expressions = if (row) |index| linked.expressions[index] else &program.expressions;
+        program.functions = project.functions.view();
+
+        const Input = std.meta.Child(entry.Input);
+        const Publication = std.meta.Child(@FieldType(Input, "publication"));
+        const Original = std.meta.Child(@FieldType(Publication, "original"));
+        const functions = zx.columns.view(std.meta.Child(@FieldType(Publication, "functions")), &program.functions);
+        const symbols = zx.columns.pointer(@FieldType(Original, "symbols"), @as(*const zx.ir.SymbolTable, &program.symbols));
+        const length_slots = zx.memory.borrowSliceLengths(&program.functions);
+        const lengths: zx.memory.ColumnLengths = &length_slots;
+        const result_row: []Analysis.Result = @as(*[1]Analysis.Result, @ptrCast(&state.result));
+        const recursive = zx.memory.borrowWriteColumn(?u32, "entry_function", result_row);
         const records = project.cache_records.items;
 
         const record_column: zx.memory.ReadColumn = .{
@@ -45,14 +51,23 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const verified: zx.memory.ColumnLengths = &.{&project.verified.functions};
         const uncacheable: zx.memory.ColumnLengths = if (project.semantic_cache) |cache| &.{&cache.uncacheable} else &.{};
 
-        const input: std.meta.Child(entry.Input) = .{
+        const input: Input = .{
             .entry = @ptrCast(&state),
-            .plan = &.{
-                .type_only = program.type_only,
-                .own = if (unit.function) |id| @backingInt(id) else null,
-                .native = if (row) |index| linked.native_modules[index] != null else false,
-                .linked_count = linked.count(),
-                .calls = expressions.call_functions,
+            .publication = &.{
+                .program = @ptrCast(program),
+                .functions = &functions,
+                .lengths = @ptrCast(&lengths),
+                .linked_count = program.functions.count(),
+                .recursive = @ptrCast(&recursive),
+                .original = &.{
+                    .file = program.file_name,
+                    .type_only = program.type_only,
+                    .own = if (unit.function) |id| @backingInt(id) else null,
+                    .input_type = @backingInt(program.input_type),
+                    .output_type = @backingInt(program.output_type),
+                    .symbols = symbols,
+                    .calls = program.expressions.call_functions,
+                },
             },
             .verified = @ptrCast(&verified),
             .records = @ptrCast(&record_column),
@@ -61,10 +76,8 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
             .root = if (project.cache_root) |cache_row| cache_row else null,
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        _ = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch |err| return switch (err) {
-            error.OutOfMemory => error.OutOfMemory,
+        _ = entry.executeIn(project.allocator, &input) catch |err| return switch (err) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => unreachable,
         };
     } else {
@@ -109,33 +122,6 @@ fn prepare(entry: *Entry) void {
         .modules = project.modules.items,
         .store_initializers = project.store_initializers.items,
     };
-}
-
-pub fn installProjectEntryBody(handle: *const anyopaque, row: u32) void {
-    const entry = Entry.borrow(handle);
-    const body = entry.project.functions.view().at(row);
-
-    publication.installBody(&entry.result.value.ir, body);
-}
-
-pub fn exposeProjectEntryFunctions(handle: *const anyopaque, count: u64) void {
-    const entry = Entry.borrow(handle);
-    entry.result.value.ir.functions = entry.project.functions.view().prefix(@intCast(count));
-}
-
-pub fn forwardProjectNativeEntry(handle: *const anyopaque, row: u32) std.mem.Allocator.Error!void {
-    const entry = Entry.borrow(handle);
-
-    try functions.externalEntry(entry.project.allocator, &entry.result.value.ir, @fromBackingInt(row));
-}
-
-pub fn forwardProjectRecursiveEntry(handle: *const anyopaque, row: u32) std.mem.Allocator.Error!void {
-    const entry = Entry.borrow(handle);
-    const id: zx.ir.FunctionId = @fromBackingInt(row);
-
-    try functions.entry(entry.project.allocator, &entry.result.value.ir, id);
-
-    entry.result.entry_function = id;
 }
 
 pub fn validateProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!bool {

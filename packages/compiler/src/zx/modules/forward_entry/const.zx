@@ -1,3 +1,5 @@
+export const input_name: string = "$in"
+
 export const parameter_id: u32 = 0
 
 export const reference_id: u32 = 0

@@ -77,7 +77,7 @@ pub fn publishSeedEntry(allocator: std.mem.Allocator, program: *ir.Program, own:
     return .{ .visible_count = publication.visible_count, .recursive = if (publication.native) null else publication.forward };
 }
 
-pub fn installBody(program: *ir.Program, function: ir.Function) void {
+fn installBody(program: *ir.Program, function: ir.Function) void {
     program.type_only = false;
     program.input_type = function.input_type;
     program.output_type = function.output_type;

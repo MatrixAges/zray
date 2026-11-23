@@ -9,7 +9,7 @@
 
     <If on={$in.retained != null && $in.retained.recursive != null}>
         <Call
-            fn="forward"
+            fn="../../../forward_entry/recursive_request"
             in={{
                 symbols: $in.retained.body.symbols,
                 input_type: $in.retained.ports.input_type,

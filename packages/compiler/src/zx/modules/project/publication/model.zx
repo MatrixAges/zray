@@ -34,18 +34,3 @@ export type Plan = {
     ownership_count?: u64,
     publish_artifact: bool
 }
-
-export type Entry = {
-    type_only: bool,
-    own?: u32,
-    native: bool,
-    calls: u32[],
-    linked_count: u64
-}
-
-export type Final = {
-    body?: u32,
-    forward?: u32,
-    native: bool,
-    visible_count: u64
-}

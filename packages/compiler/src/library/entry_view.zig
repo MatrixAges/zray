@@ -65,19 +65,17 @@ pub fn apply(program: *ir.Program, function: ?ir.FunctionId, initializer: bool) 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const body = (columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable) orelse return;
 
-    program.file_name = body.file;
-    program.type_only = false;
-    program.input_type = @fromBackingInt(body.input_type);
-    program.output_type = @fromBackingInt(body.output_type);
-    program.output_ownership = @fromBackingInt(@backingInt(body.ownership));
-    program.store_mode = @fromBackingInt(@backingInt(body.store_mode));
-    program.symbols = columns.borrow(ir.SymbolTable, body.symbols);
-    program.expressions = columns.borrow(ir.ExpressionTable, body.expressions);
-    program.contracts = columns.borrow(ir.ContractTable, body.contracts);
-    program.stores = columns.borrow(ir.StoreTable, body.stores);
-
-    program.body = .{
-        .control = columns.pointer(*const ir.ControlTable, body.control),
-        .root = if (body.root) |id| @fromBackingInt(id) else null,
-    };
+    @import("frontend").applyFunctionBody(@ptrCast(program), &.{
+        .files = body.file,
+        .input_types = body.input_type,
+        .output_types = body.output_type,
+        .ownership = body.ownership,
+        .store_modes = body.store_mode,
+        .contracts = body.contracts,
+        .symbols = body.symbols,
+        .expressions = body.expressions,
+        .control = body.control,
+        .roots = body.root,
+        .stores = body.stores,
+    });
 }

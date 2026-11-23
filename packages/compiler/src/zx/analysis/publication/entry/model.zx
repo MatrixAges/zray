@@ -1,8 +1,13 @@
+import type { Symbols } from "core/symbol_table/model"
 import type { ReadColumn } from "memory"
-import type { AnalysisEntry } from "project_host"
+import type { AnalysisEntry, ProgramEntry } from "project_host"
 
 export type Input = {
     entry: AnalysisEntry,
+    program: ProgramEntry,
+    symbols: Symbols,
+    input_type: u32,
+    output_type: u32,
     calls: u32[],
     base_count: u64,
     declared: bool,

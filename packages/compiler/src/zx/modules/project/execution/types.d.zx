@@ -8,6 +8,8 @@ export type ProjectBody = opaque
 
 export type ProjectEntry = opaque
 
+export type ProgramEntry = opaque
+
 export type ProjectNative = opaque
 
 export type ProjectNativeRegistry = opaque

@@ -1,7 +1,5 @@
-import type { Contracts } from "core/contract_table/model"
-import type { Control } from "core/control_table/model"
-import type { Expressions } from "core/expression_table/model"
-import type { Ownership, Symbols } from "core/symbol_table/model"
+import type { Ownership } from "core/symbol_table/model"
+import type { ForwardedBody } from "memory/columns"
 
 export type Parameter = {
     name: string,
@@ -20,10 +18,4 @@ export type Input = {
     store_types: u32[]
 }
 
-export type Output = {
-    symbols: Symbols,
-    expressions: Expressions,
-    control: Control,
-    root: u32,
-    contracts: Contracts
-}
+export type Output = ForwardedBody

@@ -34,8 +34,15 @@ pub fn finish(allocator: std.mem.Allocator, program: *ir.Program, resolved: ?*co
         .verified = if (resolved) |bindings| &bindings.verified_functions else null,
     };
 
-    const input: std.meta.Child(rule.Input) = .{
+    const Input = std.meta.Child(rule.Input);
+    const symbols = zx.columns.borrow(std.meta.Child(@FieldType(Input, "symbols")), @as(*const ir.SymbolTable, &program.symbols));
+
+    const input: Input = .{
         .entry = @ptrCast(&frame),
+        .program = @ptrCast(program),
+        .symbols = &symbols,
+        .input_type = @backingInt(program.input_type),
+        .output_type = @backingInt(program.output_type),
         .calls = program.expressions.call_functions,
         .base_count = program.functions.count(),
         .declared = declared,
@@ -47,9 +54,7 @@ pub fn finish(allocator: std.mem.Allocator, program: *ir.Program, resolved: ?*co
         .initializer_count = initializers.len,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const entry = rule.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const entry = rule.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -98,10 +103,4 @@ pub fn validateAnalysisPrefix(handle: *const anyopaque) std.mem.Allocator.Error!
 
 pub fn rejectAnalysisInitializer(handle: *const anyopaque, message: []const u8) void {
     Frame.borrow(handle).issue = .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message };
-}
-
-pub fn forwardAnalysisEntry(handle: *const anyopaque, function: u32) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-
-    try function_body.entry(frame.allocator, frame.program, @fromBackingInt(function));
 }

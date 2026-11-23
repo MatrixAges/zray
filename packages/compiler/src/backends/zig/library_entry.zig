@@ -24,7 +24,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, index: usiz
 
     const wrapper = result orelse return program;
 
-    try @import("frontend").installForwardEntry(allocator, &program, &wrapper);
+    try @import("frontend").applyForwardedBody(allocator, @ptrCast(&program), wrapper);
 
     return program;
 }

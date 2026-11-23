@@ -3,13 +3,7 @@
 
     <Args in={Execution.Entry} out={bool} />
 
-    <Call
-        module="entry_publish"
-        in={$in.pick([
-            "entry",
-            "plan"
-        ])}
-    />
+    <Call module="entry_publish" in={$in.publication} />
 
     <Call
         fn="index.readLengthSlot"

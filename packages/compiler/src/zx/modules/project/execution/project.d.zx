@@ -26,9 +26,6 @@ export declare function validateAnalysisPrefix(entry: AnalysisEntry): bool
 
 export declare function rejectAnalysisInitializer(entry: AnalysisEntry, message: string): void
 
-export declare function forwardAnalysisEntry(entry: AnalysisEntry, id: u32): void
-    throws { OutOfMemory }
-
 export declare function copyProjectTypes(state: ProjectState): void throws { OutOfMemory }
 
 export declare function copyProjectNatives(state: ProjectState): void throws { OutOfMemory }
@@ -103,14 +100,9 @@ export declare function writeProjectModuleRecord(
 
 export declare function moveProjectEntryBody(body: ProjectBody): void
 
-export declare function installProjectEntryBody(entry: ProjectEntry, row: u32): void
+export declare function writeFunctionBody(target: ProgramEntry, body: u8[]): void
 
-export declare function exposeProjectEntryFunctions(entry: ProjectEntry, count: u64): void
-
-export declare function forwardProjectNativeEntry(entry: ProjectEntry, row: u32): void
-    throws { OutOfMemory }
-
-export declare function forwardProjectRecursiveEntry(entry: ProjectEntry, row: u32): void
+export declare function writeForwardedBody(allocator, target: ProgramEntry, body: u8[]): void
     throws { OutOfMemory }
 
 export declare function validateProjectEntry(entry: ProjectEntry): bool

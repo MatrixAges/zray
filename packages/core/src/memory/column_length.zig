@@ -13,6 +13,15 @@ pub fn borrow(storage: anytype) [@typeInfo(std.meta.Child(@TypeOf(storage))).@"s
     return lengths;
 }
 
+pub fn borrowSlices(table: anytype) [@typeInfo(std.meta.Child(@TypeOf(table))).@"struct".field_names.len]*usize {
+    const fields = @typeInfo(std.meta.Child(@TypeOf(table))).@"struct".field_names;
+    var lengths: [fields.len]*usize = undefined;
+
+    inline for (fields, &lengths) |name, *length| length.* = &@field(table, name).len;
+
+    return lengths;
+}
+
 fn view(target: *const anyopaque) Lengths {
     const lengths: *const Lengths = @ptrCast(@alignCast(target));
 

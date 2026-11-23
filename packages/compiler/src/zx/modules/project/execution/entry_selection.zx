@@ -1,0 +1,56 @@
+import integers from "std:integer"
+
+import read from "../../entry_body/read"
+import recursive from "../../forward_entry/recursive"
+
+import type { FunctionBodyRow } from "memory/columns"
+import type { LinkedFunctions } from "./model"
+
+export type Input = {
+    file: string,
+    row: u32,
+    functions: LinkedFunctions
+}
+
+export type Output = {
+    body: FunctionBodyRow,
+    native: bool,
+    forward?: u32
+}
+
+export default function (in: Input): Output {
+    const { file, row, functions } = in
+
+    const body = read({
+        functions: functions.omit(["native_modules"]),
+        id: row
+    })
+
+    const native = functions.native_modules[integers.widen(row)] != null
+
+    const forward: u32? = match {
+        native => row,
+        _ => recursive({
+            calls: body.expressions.call_functions,
+            candidate: row
+        })
+    }
+
+    return {
+        body: {
+            files: file,
+            input_types: body.input_type,
+            output_types: body.output_type,
+            ownership: body.ownership,
+            store_modes: body.store_mode,
+            contracts: body.contracts,
+            symbols: body.symbols,
+            expressions: body.expressions,
+            control: body.control,
+            roots: body.root,
+            stores: body.stores
+        },
+        native,
+        forward
+    }
+}

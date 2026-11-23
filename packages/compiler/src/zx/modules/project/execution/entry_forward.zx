@@ -1,0 +1,48 @@
+import { Ownership } from "core/symbol_table/model"
+
+import { input_name } from "../../forward_entry/const"
+import recursive from "../../forward_entry/recursive_request"
+
+import type { FunctionBodyRow } from "memory/columns"
+import type { Input as Forward } from "../../forward_entry/model"
+import type { EntryBody } from "./model"
+
+export type Input = {
+    original: EntryBody,
+    body?: FunctionBodyRow,
+    native: bool,
+    function_id: u32
+}
+
+export type Output = Forward
+
+export default function (in: Input): Output {
+    const { original, body, function_id } = in
+
+    const input_type = body == null ? original.input_type : body.input_types
+    const output_type = body == null ? original.output_type : body.output_types
+
+    if (in.native) {
+        return {
+            parameter: {
+                name: input_name,
+                type_id: input_type,
+                ownership: Ownership.Copy,
+                span_start: 0,
+                span_end: 0
+            },
+            input_type,
+            output_type,
+            function_id,
+            unit: false,
+            store_types: []
+        }
+    }
+
+    return recursive({
+        symbols: body == null ? original.symbols : body.symbols,
+        input_type,
+        output_type,
+        function_id
+    })
+}

@@ -6,6 +6,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("analysis/analyzer/host/publish.zig"),
     @import("analysis/publication/entry/host.zig"),
     @import("modules/compiled/imports.zig"),
+    @import("modules/entry_body/host.zig"),
     @import("modules/link.zig"),
     @import("modules/parse_cache.zig"),
     @import("modules/project/execution/body.zig"),
@@ -80,7 +81,8 @@ pub const binding_path = @import("analysis/binding_path.zig");
 pub const native_context = @import("modules/native_context.zig");
 pub const native_link = @import("modules/link/native.zig");
 pub const ArtifactNodes = @import("modules/artifact/nodes.zig");
-pub const installForwardEntry = @import("modules/forward_entry/host.zig").install;
+pub const applyFunctionBody = @import("modules/entry_body/host.zig").applyBody;
+pub const applyForwardedBody = @import("modules/entry_body/host.zig").applyForward;
 pub const writeForwardEntry = @import("modules/forward_entry/host.zig").write;
 pub const writeExternalEntry = @import("modules/function_body.zig").externalEntry;
 pub const functionImportColumns = @import("analysis/analyzer/host/bindings.zig").imports;

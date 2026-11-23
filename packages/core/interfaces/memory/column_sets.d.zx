@@ -98,6 +98,14 @@ export type SignatureRow = {
     native_concurrent: bool,
 }
 
+export type ForwardedBody = {
+    symbols: Symbols,
+    expressions: Expressions,
+    control: Control,
+    root: u32,
+    contracts: Contracts
+}
+
 export type FunctionBodyRow = {
     files: string,
     input_types: u32,

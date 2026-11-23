@@ -1,7 +1,7 @@
 import { Ownership } from "core/symbol_table/model"
 import { scalar_void } from "core/type_table/const"
 
-import { input_name } from "./const"
+import { input_name } from "../../../zx/modules/forward_entry/const"
 
 import type { Parameter } from "../../../zx/modules/forward_entry/model"
 
