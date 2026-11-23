@@ -1,0 +1,74 @@
+<Module>
+    <Type from="registration" as="Scope" />
+
+    <Args in={Scope.Progress} out={Scope.Progress} />
+
+    <Call
+        fn="register"
+        in={{
+            ...$in.request.pick([
+                "topology",
+                "active",
+                "incoming",
+                "storage"
+            ]),
+            ...$in.pick([
+                "row",
+                "next",
+                "count",
+                "published"
+            ]),
+            parallel: $in.request.batch != null
+        }}
+    />
+
+    <Call
+        fn="registration_host.writeIndex"
+        in={[
+            $in.request.length,
+            0,
+            $ctx.register.count
+        ]}
+    />
+
+    <If on={$in.request.batch != null && $ctx.register.row > $in.published}>
+        <Call
+            module="publish_bindings"
+            in={{
+                frame: $in.request.frame,
+                target: $in.request.batch,
+                incoming: $in.request.incoming,
+                spans: $in.request.storage.spans.omit(["target"]),
+                first: $in.published,
+                end: $ctx.register.row
+            }}
+        />
+    </If>
+
+    <Switch on={$ctx.register.action}>
+        <Case value={Scope.Action.Reserve}>
+            <Call fn="registration_host.reserveScopeCollisions" in={$in.request.frame} />
+        </Case>
+
+        <Case value={Scope.Action.Conflict}>
+            <Call
+                fn="registration_host.rejectScopeCollision"
+                in={[
+                    $in.request.frame,
+                    $ctx.register.row
+                ]}
+            />
+        </Case>
+    </Switch>
+
+    <Return
+        value={{
+            request: $in.request,
+            row: $ctx.register.row,
+            next: $ctx.register.next,
+            count: $ctx.register.count,
+            published: $in.request.batch != null ? $ctx.register.row : $in.published,
+            running: $ctx.register.action != Scope.Action.Scan
+        }}
+    />
+</Module>

@@ -18,6 +18,8 @@ export type AssignmentMaterialization = opaque
 
 export type AssignmentRegistration = opaque
 
+export type ScopeRegistration = opaque
+
 export type KnownRegistration = opaque
 
 export type UnificationTarget = opaque
@@ -839,6 +841,15 @@ export declare function rejectIndexProjection(
 
 export declare function growAssignmentRows(frame: AssignmentRegistration): void
     throws { OutOfMemory }
+
+export declare function reserveScopeCollisions(frame: ScopeRegistration): void
+    throws { OutOfMemory }
+
+export declare function reserveScopeBindings(frame: ScopeRegistration, count: u64): u64
+    throws { OutOfMemory }
+
+export declare function rejectScopeCollision(frame: ScopeRegistration, row: u64): void
+    throws { OutOfMemory, InvalidSource }
 
 export declare function registerAssignmentTarget(
     frame: AssignmentRegistration,

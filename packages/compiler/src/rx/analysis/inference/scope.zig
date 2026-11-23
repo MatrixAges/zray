@@ -8,7 +8,6 @@ const generated = @import("rx_options").generated_graph;
 const collisions = @import("scope/collisions.zig");
 pub const Binding = struct { name: []const u8, value: Graph.Id, span: zx.Span = .{ .start = 0, .end = 0 } };
 pub const Storage = std.MultiArrayList(Binding);
-pub const appendFrom = zx.columns.appendRows;
 
 pub const Reference = struct {
     value: ?Graph.Id = null,
@@ -104,7 +103,6 @@ pub fn publishParallel(graph: *Graph, active_scope: *Storage, allocator: std.mem
         return;
     }
 
-    if (saved.len < 2) return appendFrom(active_scope, allocator, saved, 0);
     try collisions.parallel(graph, active_scope, allocator, saved, message);
 }
 

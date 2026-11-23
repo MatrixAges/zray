@@ -1,0 +1,21 @@
+<Module>
+    <Type from="registration" as="Scope" />
+
+    <Args in={Scope.Publication} out={void} />
+
+    <Call
+        fn="registration_host.reserveScopeBindings"
+        in={[
+            $in.frame,
+            $in.end - $in.first
+        ]}
+    />
+
+    <Call
+        fn="copy_bindings"
+        in={{
+            ...$in.omit(["frame"]),
+            offset: $ctx.reserveScopeBindings
+        }}
+    />
+</Module>

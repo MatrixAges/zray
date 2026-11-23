@@ -172,6 +172,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "zx/modules");
                 addSubtree(run, tracked[0], "zx/analysis/publication");
                 addSubtree(run, tracked[0], "zx/frontend/retention");
+                addSubtree(run, tracked[0], "rx/analysis/inference/scope");
                 addSubtree(run, tracked[0], "rx/analysis/project/workflow");
                 addSubtree(run, tracked[0], "rx/analysis/project/mixed");
                 addSubtree(run, tracked[0], "backends/zig");

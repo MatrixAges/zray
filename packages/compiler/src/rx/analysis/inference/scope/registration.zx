@@ -1,4 +1,5 @@
-import type { StringBuffer, U32Buffer } from "memory"
+import type { IndexBuffer, StringBuffer, U8Buffer, U32Buffer } from "memory"
+import type { ScopeRegistration } from "rx_project_host"
 import type { Spans } from "../assignment/registration/model"
 import type { Topology } from "../bindings/model"
 import type { Active } from "./model"
@@ -36,4 +37,33 @@ export type Input = Cursor & {
 
 export type Output = Cursor & {
     action: Action
+}
+
+export type Bindings = {
+    names: StringBuffer,
+    values: U32Buffer,
+    spans: U8Buffer,
+    length: IndexBuffer
+}
+
+export type Request =
+    Input.Pick("topology", "active", "incoming", "storage", "count") & {
+        frame: ScopeRegistration,
+        length: IndexBuffer,
+        batch?: Bindings
+    }
+
+export type Progress = Cursor & {
+    request: Request,
+    published: u64,
+    running: bool
+}
+
+export type Publication = {
+    frame: ScopeRegistration,
+    target: Bindings,
+    incoming: Active,
+    spans: Spans.Pick("source", "width"),
+    first: u64,
+    end: u64
 }
