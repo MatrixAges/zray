@@ -24,7 +24,7 @@ const Publication = struct {
     fn publish(self: *const Publication, selection: ?*const Source, compiled: bool) Collector.Error!void {
         const collector = self.collector;
         const temporary = collector.temporary.allocator();
-        const flag = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
+        const flag: []bool = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
         var selected = [_][]const u8{""};
 
         defer temporary.free(selected[0]);

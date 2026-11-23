@@ -35,10 +35,10 @@ pub fn publish(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, 
     const Row = std.meta.Child(@FieldType(Input, "row"));
     const Header = std.meta.Child(@FieldType(Row, "header"));
     const header = headers.Tail.init(storage, 1);
-    const functions = storage.call_functions.unusedCapacitySlice()[0..1];
-    const arguments = storage.call_arguments.unusedCapacitySlice()[0..1];
-    const firsts = storage.call_store_first.unusedCapacitySlice()[0..1];
-    const counts = storage.call_store_count.unusedCapacitySlice()[0..1];
+    const functions: []u32 = storage.call_functions.unusedCapacitySlice()[0..1];
+    const arguments: []u32 = storage.call_arguments.unusedCapacitySlice()[0..1];
+    const firsts: []u32 = storage.call_store_first.unusedCapacitySlice()[0..1];
+    const counts: []u32 = storage.call_store_count.unusedCapacitySlice()[0..1];
 
     const input: Input = .{
         .row = &.{
