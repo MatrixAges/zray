@@ -1,6 +1,5 @@
 <Module>
     <Type from="batch_model" as="Batch" />
-    <Type from="../../../artifact/materializing/publication/model" as="Publication" />
 
     <Args in={Batch.Input} out={Batch.Output} />
 
@@ -14,6 +13,4 @@
             }}
         />
     </Loop>
-
-    <Return value={Publication.PublicationStatus.Complete} />
 </Module>

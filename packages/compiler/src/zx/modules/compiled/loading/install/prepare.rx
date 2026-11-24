@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Install" />
 
-    <Args in={Install.Request} out={void} />
+    <Args in={Install.Preparation} out={void} />
 
     <Call
         module="../../../../analysis/semantic/merging/publication/write"
@@ -11,10 +11,7 @@
     <If on={$in.natives.source.specifiers.length != 0}>
         <Call
             module="../../../link/native/publication/publish"
-            in={{
-                ...$in.natives,
-                rows: null
-            }}
+            in={$in.natives}
         />
     </If>
 
@@ -24,4 +21,21 @@
             in={$in.functions}
         />
     </If>
+
+    <Call
+        fn="memory.writeBool"
+        in={[
+            $in.prepared,
+            0,
+            true
+        ]}
+    />
+
+    <Call
+        fn="memory.selectAllocator"
+        in={[
+            $in.resources,
+            $in.owner
+        ]}
+    />
 </Module>

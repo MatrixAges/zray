@@ -3,18 +3,9 @@
 
     <Args in={Publication.Input} out={void} />
 
-    <Call
-        fn="reserve"
-        in={$in.omit(["mapping"])}
-    />
+    <Call fn="reserve" in={$in} />
 
     <If on={$ctx.reserve != 0}>
-        <Call
-            module="batch"
-            in={{
-                ...$in,
-                count: $ctx.reserve
-            }}
-        />
+        <Call fn="batch" in={$in} />
     </If>
 </Module>

@@ -6,7 +6,7 @@
     <Args
         in={{
             plan?: Plan.Input,
-            publication: Publication.Input.Omit("rows")
+            publication: Publication.Input
         }}
         out={Link.Status?}
     />

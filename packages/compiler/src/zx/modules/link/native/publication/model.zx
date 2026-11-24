@@ -1,4 +1,4 @@
-import type { Binding, Modules } from "core/native_module_table/model"
+import type { Modules } from "core/native_module_table/model"
 import type { Allocator } from "memory"
 import type {
     ColumnAllocator,
@@ -15,24 +15,9 @@ export type Destination = {
     ids: ColumnU32s
 }
 
-export type Row = {
-    destination: Destination,
-    source: Binding,
-    mapping: u32[]
-}
-
 export type Input = {
     source: Modules,
     mapping: u32[],
     rows?: u64[],
     destination: Destination
-}
-
-export type Batch = Input & {
-    count: u64
-}
-
-export type Traversal = Batch & {
-    index: u64,
-    running: bool
 }

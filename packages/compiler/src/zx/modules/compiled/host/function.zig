@@ -2,11 +2,9 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const strings = @import("native.zig").strings;
-const Error = std.mem.Allocator.Error || error{InvalidModule};
 const columns = @import("../../artifact/materializing/publication/columns.zig");
 const publish = @import("generated_compiled_publish");
 pub const Request = std.meta.Child(publish.Input);
-const Result = publish.Output;
 const Input = std.meta.Child(@FieldType(Request, "functions"));
 const Target = std.meta.Child(@FieldType(Input, "target"));
 const Source = std.meta.Child(@FieldType(Input, "source"));
@@ -55,16 +53,6 @@ pub const View = struct {
             .instance = context.instance,
             .progress = @ptrCast(&self.progress),
         };
-    }
-
-    pub fn check(self: *const View, output: Result) Error!void {
-        switch (output) {
-            .Exhausted => return error.OutOfMemory,
-            .Invalid => return error.InvalidModule,
-            .Complete => {},
-        }
-
-        std.debug.assert(self.completed[0] == self.source.files.len);
     }
 };
 

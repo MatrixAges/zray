@@ -9,24 +9,19 @@ const function = @import("function.zig");
 const interface = @import("interface.zig");
 const native = @import("../../link/native/host.zig");
 const TypeView = @import("../../../analysis/semantic/merging/publication/view.zig");
-const prepare = @import("generated_compiled_prepare_publication");
 const publish = @import("generated_compiled_publish");
-const Request = std.meta.Child(prepare.Input);
-const Types = std.meta.Child(@FieldType(Request, "types"));
+const Preparation = std.meta.Child(@FieldType(function.Request, "preparation"));
+const Types = std.meta.Child(@FieldType(Preparation, "types"));
 const Delta = std.meta.Child(@FieldType(Types, "delta"));
 const Origins = std.meta.Child(@FieldType(Types, "origins"));
-const Functions = std.meta.Child(@FieldType(Request, "functions"));
-const Row = std.meta.Child(std.meta.Child(@FieldType(Functions, "shape")));
 
 pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, input: *const Input, library: *const model.Library, output: *const Output, destination: load.Destination, call_scratch: ?load.CallScratch) (std.mem.Allocator.Error || error{InvalidModule})!model.Loaded {
     const function_allocator = if (call_scratch) |scratch| scratch.functions else allocator;
     const first_function = destination.functions.count();
-
-    try prepareStorage(allocator, function_allocator, temporary, output, destination, library.program.functions.count());
-
+    const source = library.program.functions;
     var functions: function.View = undefined;
 
-    functions.init(destination.functions, library.program.functions, .{
+    functions.init(destination.functions, source, .{
         .types = output.functions.types,
         .natives = output.functions.natives,
         .first = first_function,
@@ -35,27 +30,6 @@ pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, input: 
 
     defer @import("../../column_lengths.zig").publish(&functions.lengths, functions.completed[0]);
 
-    var public: interface.View = undefined;
-    const needs_interface = call_scratch == null;
-
-    if (needs_interface) public.init(input, output, first_function);
-
-    const result = publish.executeIn(function_allocator, &.{
-        .functions = &functions.input,
-        .interface = if (needs_interface) &public.request else null,
-    }) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    try functions.check(result);
-
-    const exports = if (needs_interface) public.result() else interface.Interface{};
-
-    return .{ .types = destination.types.view(), .nominal_types = destination.origins.items.view(), .exports = exports.exports, .store_initializers = exports.initializers };
-}
-
-fn prepareStorage(allocator: std.mem.Allocator, function_allocator: std.mem.Allocator, temporary: std.mem.Allocator, output: *const Output, destination: load.Destination, count: usize) std.mem.Allocator.Error!void {
     const offsets = TypeView.offsets(destination.types);
 
     const options: TypeView.Options = .{
@@ -77,16 +51,40 @@ fn prepareStorage(allocator: std.mem.Allocator, function_allocator: std.mem.Allo
 
     natives.init(&allocator, destination.native_modules, pending, output.functions.types, null);
 
-    const slots = zx.memory.bindColumnSet(Row, true, destination.functions);
-    const storage: zx.memory.ColumnSet = &slots;
     const rows = ir.TypeTable.borrow(Delta, delta);
     const origins = zx.columns.view(Origins, output.origins.*);
+    var prepared = [1]bool{false};
+    const prepared_view: []bool = &prepared;
+    var scope: zx.memory.ArenaScope = .{ .active = temporary };
+    var public: interface.View = undefined;
+    const needs_interface = call_scratch == null;
 
-    const request: Request = .{
-        .types = &types.request(Types, &rows, &origins),
-        .natives = &natives.publication,
-        .functions = &.{ .storage = @ptrCast(&storage), .resource = @ptrCast(&function_allocator), .shape = null, .count = count },
+    if (needs_interface) public.init(input, output, first_function);
+
+    publish.executeIn(scope.allocator(), &.{
+        .preparation = &.{
+            .types = &types.request(Types, &rows, &origins),
+            .natives = &natives.publication,
+            .functions = &.{ .storage = functions.target.storage, .resource = @ptrCast(&function_allocator), .shape = null, .count = source.count() },
+            .prepared = @ptrCast(&prepared_view),
+            .resources = @ptrCast(&scope),
+            .owner = @ptrCast(&function_allocator),
+        },
+        .functions = &functions.input,
+        .interface = if (needs_interface) &public.request else null,
+        .commit = &.{ .lengths = @ptrCast(&functions.lengths), .progress = functions.input.progress },
+    }) catch |err| {
+        if (!prepared[0]) return error.OutOfMemory;
+
+        return switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+            else => error.InvalidModule,
+        };
     };
 
-    prepare.executeIn(temporary, &request) catch return error.OutOfMemory;
+    std.debug.assert(destination.functions.count() - first_function == source.count());
+
+    const exports = if (needs_interface) public.result() else interface.Interface{};
+
+    return .{ .types = destination.types.view(), .nominal_types = destination.origins.items.view(), .exports = exports.exports, .store_initializers = exports.initializers };
 }

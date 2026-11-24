@@ -3,9 +3,7 @@ import { reserve } from "core/column_set"
 import { max_u32 } from "core/const"
 import memory from "memory/columns"
 
-import type { Input as Publication } from "./model"
-
-export type Input = Publication.Omit("mapping")
+import type { Input } from "./model"
 
 export type Output = u64
 

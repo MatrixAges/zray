@@ -1,7 +1,6 @@
 import type { U64Buffer } from "memory"
 import type {
     Columns,
-    Publication,
     Target
 } from "../../../artifact/materializing/publication/model"
 import type { Mapped, Mapping } from "./model"
@@ -15,7 +14,7 @@ export type Input = {
     progress: U64Buffer
 }
 
-export type Output = Publication
+export type Output = void
 
 export type Traversal = {
     input: Input,

@@ -17,7 +17,7 @@ export enum Status {
 export type Native = {
     plan: NativePlan,
     snapshot: ColumnView,
-    publication: NativePublication.Omit("rows")
+    publication: NativePublication
 }
 
 export type Input = {

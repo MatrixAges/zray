@@ -39,7 +39,7 @@ pub const View = struct {
             .ids = @ptrCast(&self.ids),
         };
 
-        self.publication = .{ .source = &self.rows, .mapping = types, .destination = &self.destination };
+        self.publication = .{ .source = &self.rows, .mapping = types, .rows = null, .destination = &self.destination };
         self.input = .{ .plan = if (mapping != null) &self.plan else null, .publication = &self.publication };
     }
 };

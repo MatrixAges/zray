@@ -1,3 +1,4 @@
+import type { Allocator, ArenaScope, BoolBuffer } from "memory"
 import type {
     Input as TypeWrite
 } from "../../../../analysis/semantic/merging/publication/model"
@@ -5,9 +6,22 @@ import type {
     Input as FunctionStorage
 } from "../../../artifact/materializing/publication/reserve"
 import type { Input as NativeWrite } from "../../../link/native/publication/model"
+import type { Commit } from "../../../link/source/workflow/model"
+import type { Input as Functions } from "../functions/batch_model"
+import type { Request as Interface } from "../interface/model"
+
+export type Preparation = {
+    types: TypeWrite,
+    natives: NativeWrite,
+    functions: FunctionStorage,
+    prepared: BoolBuffer,
+    resources: ArenaScope,
+    owner: Allocator
+}
 
 export type Request = {
-    types: TypeWrite,
-    natives: NativeWrite.Omit("rows"),
-    functions: FunctionStorage
+    preparation: Preparation,
+    functions: Functions,
+    interface?: Interface,
+    commit: Commit
 }

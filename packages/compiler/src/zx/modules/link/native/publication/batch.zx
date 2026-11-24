@@ -1,0 +1,40 @@
+import binding from "core/native_module_table/binding"
+
+import append from "./append"
+import remap from "./ids"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { destination, mapping, rows, source } = in
+
+    const count = rows == null ? source.specifiers.length : rows.length
+
+    const written = loop(0, {
+        while: index => index < count,
+        next: index => {
+            const row = rows == null ? index : rows[index]
+            const selected = binding({
+                source,
+                row
+            })
+
+            const ids = remap({
+                values: selected.ids,
+                mapping,
+                target: destination.ids,
+                resource: destination.resource
+            })
+
+            append({
+                destination,
+                source: selected,
+                ids
+            })
+
+            index += 1
+        }
+    })
+}

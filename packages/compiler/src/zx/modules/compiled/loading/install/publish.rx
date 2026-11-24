@@ -1,21 +1,10 @@
 <Module>
-    <Type from="../functions/batch_model" as="Batch" />
-    <Type from="../interface/model" as="Interface" />
-    <Type from="../../../artifact/materializing/publication/model" as="Publication" />
+    <Type from="model" as="Install" />
 
-    <Args
-        in={{
-            functions: Batch.Input,
-            interface?: Interface.Request
-        }}
-        out={Batch.Output}
-    />
+    <Args in={Install.Request} out={void} />
 
+    <Call module="prepare" in={$in.preparation} />
     <Call module="../functions/batch" in={$in.functions} />
-
-    <If on={$ctx.batch != Publication.PublicationStatus.Complete}>
-        <Return value={$ctx.batch} />
-    </If>
 
     <If on={$in.interface != null}>
         <If
@@ -25,5 +14,5 @@
         </If>
     </If>
 
-    <Return value={$ctx.batch} />
+    <Call fn="../../../link/source/workflow/settle" in={$in.commit} />
 </Module>
