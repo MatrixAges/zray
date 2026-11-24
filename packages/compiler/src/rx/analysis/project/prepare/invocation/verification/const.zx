@@ -1,0 +1,5 @@
+export const word_bits: u64 = 64
+
+export const prefix_bit: u64 = 1
+
+export const first_member_bit: u64 = 1

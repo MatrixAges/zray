@@ -10,6 +10,7 @@ const Input = std.meta.Child(generated.Input);
 const Graph = std.meta.Child(@FieldType(Input, "graph"));
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Selection = std.meta.Child(@typeInfo(@FieldType(Input, "selection")).optional.child);
+const selection_fields = .{ .names = "name", .modules = "module" };
 const Self = @This();
 
 graph: @import("graph.zig").View(Graph),
@@ -18,8 +19,7 @@ base_origins: std.meta.Child(@FieldType(Destination, "origins")),
 natives: std.meta.Child(@FieldType(Destination, "natives")),
 destination: Destination,
 selection: Selection,
-selection_names: memory.TextColumn,
-selection_modules: memory.TextColumn,
+selection_rows: memory.ReadFields(selection_fields),
 type_ids: []u32,
 input: Input,
 pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: load.Destination, seed: bool, selected: ?[]const model.PublicReference) std.mem.Allocator.Error!void {
@@ -33,14 +33,8 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
     self.destination = .{ .types = &self.types, .origins = &self.base_origins, .origin_names = origins.names, .natives = &self.natives, .function_count = destination.functions.count() };
 
     if (selected) |values| {
-        self.selection_names = memory.borrowTextColumn("name", values);
-        self.selection_modules = memory.borrowTextColumn("module", values);
-
-        self.selection = .{
-            .names = @ptrCast(&self.selection_names),
-            .modules = @ptrCast(&self.selection_modules),
-            .count = values.len,
-        };
+        self.selection_rows = memory.borrowReadFields(selection_fields, values);
+        self.selection = self.selection_rows.bind(Selection);
     }
 
     self.type_ids = try allocator.alloc(u32, graph.program.types.count());

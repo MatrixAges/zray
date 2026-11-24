@@ -1,11 +1,12 @@
 <Module>
     <Type from="model" as="Invocation" />
     <Type from="host" as="Host" />
+    <Type from="verification/check" as="Check" />
 
     <Args in={Invocation.Compiled} out={void} />
 
     <Call
-        fn="host.selectPreparedLibrary"
+        fn="host.resolvePreparedLibrary"
         in={[
             $in.state,
             $in.edge
@@ -13,26 +14,79 @@
     />
 
     <Call
-        fn="compiled_status"
-        in={{
-            status: $ctx.selectPreparedLibrary,
-            state: $in.state
-        }}
+        fn="host.findPreparedLibrary"
+        in={[
+            $in.state,
+            $ctx.resolvePreparedLibrary
+        ]}
     />
 
-    <If on={$ctx.compiled_status == Host.CompiledCallStatus.Ready}>
-        <Call fn="host.validatePreparedLibrary" in={$in.state} />
+    <If on={!$ctx.findPreparedLibrary}>
+        <Call
+            fn="host.linkPreparedLibrary"
+            in={[
+                $in.state,
+                $ctx.resolvePreparedLibrary
+            ]}
+        />
+    </If>
 
-        <Else>
-            <If on={$ctx.compiled_status != Host.CompiledCallStatus.Checked}>
-                <Call
-                    fn="host.rejectPreparedLibrary"
-                    in={[
-                        $in.state,
-                        $ctx.compiled_status
-                    ]}
-                />
-            </If>
-        </Else>
+    <Call
+        fn="host.readPreparedLibraryMembers"
+        in={[
+            $in.state,
+            $ctx.resolvePreparedLibrary,
+            $in.edge
+        ]}
+    />
+
+    <Call
+        fn="../../../../../zx/modules/compiled/imports/find"
+        in={$in.compiled.members}
+    />
+
+    <If on={$ctx.find == null}>
+        <Call
+            fn="host.rejectPreparedLibrary"
+            in={[
+                $in.state,
+                Host.CompiledCallStatus.MissingExport
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="host.selectPreparedLibraryMember"
+        in={[
+            $in.state,
+            $ctx.resolvePreparedLibrary,
+            $ctx.find
+        ]}
+    />
+
+    <Call fn="compiled_status" in={$in.compiled.admission} />
+
+    <If on={$ctx.compiled_status != Host.CompiledCallStatus.Ready}>
+        <Call
+            fn="host.rejectPreparedLibrary"
+            in={[
+                $in.state,
+                $ctx.compiled_status
+            ]}
+        />
+    </If>
+
+    <Call fn="verification/check" in={$in.compiled.check} />
+
+    <If on={$ctx.check != Check.State.Checked}>
+        <Call
+            fn="host.validatePreparedLibrary"
+            in={[
+                $in.state,
+                $ctx.check == Check.State.VerifyExtension
+            ]}
+        />
+
+        <Call fn="verification/remember" in={$in.compiled.check} />
     </If>
 </Module>

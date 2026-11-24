@@ -30,21 +30,17 @@ pub fn finish(self: *Self, exports: []const Export) error{InvalidLibrary}!void {
     }
 }
 
+pub fn borrow(self: *const Self, comptime Input: type, names: *const zx.memory.TextColumn, name: []const u8) Input {
+    const storage = &self.storage;
+
+    return .{ .names = @ptrCast(names), .buckets = @ptrCast(storage), .capacity = storage.len, .count = names.count, .name = name };
+}
+
 pub fn find(self: *const Self, exports: []const Export, name: []const u8) ?usize {
     if (comptime generated) {
         const rule = @import("generated_compiled_import_find");
-        const Input = std.meta.Child(rule.Input);
         const names = zx.memory.borrowTextColumn("name", exports);
-        const values: []u64 = self.storage;
-
-        const input: Input = .{
-            .names = @ptrCast(&names),
-            .buckets = @ptrCast(&values),
-            .capacity = values.len,
-            .count = exports.len,
-            .name = name,
-        };
-
+        const input = self.borrow(std.meta.Child(rule.Input), &names, name);
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
         const row = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
 

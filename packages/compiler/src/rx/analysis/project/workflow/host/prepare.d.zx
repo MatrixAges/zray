@@ -83,20 +83,37 @@ export declare function readPreparedCallTarget(
     edge: u64?
 ): void
 
-export declare function selectPreparedLibrary(
+export declare function resolvePreparedLibrary(
     state: InvocationPreparation,
     edge: u64?
-): CompiledCallStatus throws { OutOfMemory, InvalidFlow }
+): u64 throws { OutOfMemory, InvalidFlow }
 
-export declare function readPreparedLibraryFlags(state: InvocationPreparation): u64
+export declare function findPreparedLibrary(state: InvocationPreparation, index: u64): bool
+
+export declare function linkPreparedLibrary(state: InvocationPreparation, index: u64): void
+    throws { OutOfMemory, InvalidFlow }
+
+export declare function readPreparedLibraryMembers(
+    state: InvocationPreparation,
+    index: u64,
+    edge: u64?
+): void
+
+export declare function selectPreparedLibraryMember(
+    state: InvocationPreparation,
+    index: u64,
+    row: u64?
+): void
 
 export declare function rejectPreparedLibrary(
     state: InvocationPreparation,
     status: CompiledCallStatus
 ): void throws { OutOfMemory, InvalidFlow }
 
-export declare function validatePreparedLibrary(state: InvocationPreparation): void
-    throws { OutOfMemory, InvalidFlow }
+export declare function validatePreparedLibrary(
+    state: InvocationPreparation,
+    verified_prefix: bool
+): void throws { OutOfMemory, InvalidFlow }
 
 export declare function publishPreparedCall(
     state: InvocationPreparation,

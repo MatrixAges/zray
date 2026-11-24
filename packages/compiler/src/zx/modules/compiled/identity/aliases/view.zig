@@ -11,15 +11,15 @@ const Output = std.meta.Child(@FieldType(Input, "output"));
 const Destination = std.meta.Child(@FieldType(Output, "rows"));
 const Fields = std.meta.Child(@FieldType(Destination, "fields"));
 const Published = std.meta.Child(@FieldType(Destination, "published"));
+const declared_fields = .{ .names = "specifier", .identities = "identity" };
+const configured_fields = .{ .names = "name", .requests = "specifier" };
 
 pub const Rows = struct {
-    names: memory.TextColumn,
-    identities: memory.ReadColumn,
+    columns: memory.ReadFields(declared_fields),
     view: std.meta.Child(@FieldType(Declarations, "interfaces")),
     pub fn init(self: *Rows, rows: anytype) void {
-        self.names = memory.borrowTextColumn("specifier", rows);
-        self.identities = memory.borrowReadColumn(?[]const u8, "identity", rows);
-        self.view = .{ .names = @ptrCast(&self.names), .identities = @ptrCast(&self.identities), .count = rows.len };
+        self.columns = memory.borrowReadFields(declared_fields, rows);
+        self.view = self.columns.bind(@TypeOf(self.view));
     }
 };
 
@@ -35,8 +35,7 @@ pub fn View(comptime Alias: type) type {
         pending: []?[]const u8,
         destination: Destination,
         output: Output,
-        names: memory.TextColumn,
-        requests: memory.TextColumn,
+        configured_columns: memory.ReadFields(configured_fields),
         configured: Configured,
         pub fn init(self: *@This(), configured: ?[]const Alias) void {
             self.rows.init();
@@ -63,9 +62,8 @@ pub fn View(comptime Alias: type) type {
             self.output = .{ .rows = &self.destination, .pending = @ptrCast(&self.pending) };
 
             if (configured) |entries| {
-                self.names = memory.borrowTextColumn("name", entries);
-                self.requests = memory.borrowTextColumn("specifier", entries);
-                self.configured = .{ .names = @ptrCast(&self.names), .requests = @ptrCast(&self.requests), .count = entries.len };
+                self.configured_columns = memory.borrowReadFields(configured_fields, entries);
+                self.configured = self.configured_columns.bind(Configured);
             }
         }
         pub fn release(self: *const @This(), allocator: std.mem.Allocator, own_targets: bool, own_names: bool) void {

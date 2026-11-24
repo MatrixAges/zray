@@ -7,23 +7,15 @@ const compiled = frontend.project.compiled;
 const Self = @This();
 const Error = std.mem.Allocator.Error;
 
-const Bound = struct {
+pub const Bound = struct {
     functions: ir.FunctionStorage = .{},
     exports: compiled.ExportIndex,
-    checked: std.DynamicBitSetUnmanaged,
-    validated: bool = false,
+    checked: []u64 = &.{},
 };
-
-pub const Selection = union(enum) { Ready: Target, Missing, Conflict, Unlinked, MissingExport };
 
 pub const Target = struct {
     binding: *Bound,
     export_row: *const compiled.Export,
-    pub fn checked(self: Target) bool {
-        const id = self.export_row.function orelse return false;
-
-        return self.binding.checked.isSet(@backingInt(id));
-    }
     pub fn ports(self: Target) frontend.project.signature_project.Ports {
         const function = @backingInt(self.export_row.function.?);
 
@@ -32,7 +24,7 @@ pub const Target = struct {
             .output_type = @fromBackingInt(self.binding.functions.output_types.items[function]),
         };
     }
-    pub fn validate(self: Target, backing: std.mem.Allocator, context: *const frontend.Context, offset: usize) Error!?zx.Diagnostic {
+    pub fn validate(self: Target, backing: std.mem.Allocator, context: *const frontend.Context, offset: usize, verified_prefix: bool) Error!?zx.Diagnostic {
         var temporary = std.heap.ArenaAllocator.init(backing);
 
         defer temporary.deinit();
@@ -50,13 +42,7 @@ pub const Target = struct {
             .native_modules = context.native_modules,
         });
 
-        if (try frontend.validateIrExtending(backing, program, if (binding.validated) functions else .{})) |issue| return issue;
-
-        binding.validated = true;
-
-        binding.checked.set(@backingInt(id));
-
-        return null;
+        return frontend.validateIrExtending(backing, program, if (verified_prefix) functions else .{});
     }
 };
 
@@ -64,38 +50,11 @@ allocator: std.mem.Allocator,
 scratch: std.heap.ArenaAllocator,
 bound: std.AutoHashMapUnmanaged(usize, *Bound) = .empty,
 workspace: ?*compiled.CallWorkspace = null,
-pub fn select(self: *Self, project: *frontend.project.Options, selected: compiled.Target) Error!Selection {
-    const libraries = project.compiled_libraries;
-
-    const index = switch (try compiled.resolve.library(self.scratch.child_allocator, libraries, project.root_dir, selected)) {
-        .found => |value| value,
-        .conflict => return .Conflict,
-        .missing => return .Missing,
-    };
-
-    const library = &libraries[index];
-
-    const binding = self.bound.get(index) orelse block: {
-        const loaded = self.load(project, library) catch |err| {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
-
-            return .Unlinked;
-        };
-
-        try self.bound.put(self.scratch.allocator(), index, loaded);
-
-        break :block loaded;
-    };
-
-    const row = binding.exports.find(library.exports, selected.name) orelse return .MissingExport;
-
-    return .{ .Ready = .{ .binding = binding, .export_row = &library.exports[row] } };
-}
-
-fn load(self: *Self, project: *frontend.project.Options, library: *const compiled.Library) !*Bound {
+pub fn link(self: *Self, project: *frontend.project.Options, index: usize) !*Bound {
+    const library = &project.compiled_libraries[index];
     const temporary = self.scratch.allocator();
     const binding = try temporary.create(Bound);
-    binding.* = .{ .exports = .{}, .checked = .{} };
+    binding.* = .{ .exports = .{} };
     const context = &project.context;
 
     const workspace = self.workspace orelse new: {
@@ -114,11 +73,19 @@ fn load(self: *Self, project: *frontend.project.Options, library: *const compile
         .export_buckets = binding.exports.buckets(),
     });
 
-    binding.checked = try std.DynamicBitSetUnmanaged.initEmpty(temporary, binding.functions.count());
+    const count = binding.functions.count();
+
+    if (count != 0) {
+        binding.checked = try temporary.alloc(u64, count / @bitSizeOf(u64) + 1);
+
+        @memset(binding.checked, 0);
+    }
 
     try binding.exports.finish(library.exports);
 
     workspace.publish(context);
+
+    try self.bound.put(temporary, index, binding);
 
     return binding;
 }

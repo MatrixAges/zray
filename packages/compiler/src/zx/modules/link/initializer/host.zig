@@ -90,7 +90,7 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
     errdefer view.output.release();
 
     const rows = Registry.readRows(registry.rows.items);
-    const keys = rows.view(std.meta.Child(@FieldType(Lookup, "source")));
+    const keys = rows.bind(std.meta.Child(@FieldType(Lookup, "source")));
     var started: [1]u8 = .{0};
     const marker: []u8 = &started;
 

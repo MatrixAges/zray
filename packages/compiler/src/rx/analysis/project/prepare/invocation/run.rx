@@ -33,7 +33,8 @@
             module="compiled"
             in={{
                 state: $in.state,
-                edge: $ctx.edges
+                edge: $ctx.edges,
+                compiled: $in.compiled
             }}
         />
     </If>
@@ -56,6 +57,7 @@
                 "attributes",
                 "edges",
                 "admission",
+                "compiled",
                 "signatures"
             ])}
         />

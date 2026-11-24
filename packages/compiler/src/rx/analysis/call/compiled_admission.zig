@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const generated = @import("rx_options").generated_graph;
-const Flags = packed struct(u8) { executable: bool, setter: bool, has_stores: bool, orchestration: bool, reserved: u4 = 0 };
 
 const Result = if (generated)
     @typeInfo(@TypeOf(@import("generated_rx_compiled_admission").executeValue(undefined, undefined))).error_union.payload
@@ -25,11 +24,7 @@ pub fn check(function: ?zx.ir.FunctionId, functions: *const zx.ir.FunctionStorag
     return .Executable;
 }
 
-pub fn readFlags(function: ?zx.ir.FunctionId, functions: *const zx.ir.FunctionStorage, setter: bool) u64 {
-    return @as(u8, @bitCast(facts(Flags, function, functions, setter)));
-}
-
-fn facts(comptime Input: type, function: ?zx.ir.FunctionId, functions: *const zx.ir.FunctionStorage, setter: bool) Input {
+pub fn facts(comptime Input: type, function: ?zx.ir.FunctionId, functions: *const zx.ir.FunctionStorage, setter: bool) Input {
     const row = if (function) |id| @backingInt(id) else null;
 
     return .{

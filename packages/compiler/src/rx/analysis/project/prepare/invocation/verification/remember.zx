@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { first_member_bit, prefix_bit, word_bits } from "./const"
+
+import type { CompiledCheck as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const bit = in.function + first_member_bit
+    const index = bit / word_bits
+    const mask = integers.bitMask(bit % word_bits)
+    const previous = memory.readU64(in.words, index)
+    const updated = integers.orBits(previous, mask)
+
+    if (index == 0) {
+        memory.writeU64(in.words, 0, integers.orBits(updated, prefix_bit))
+
+        return
+    }
+
+    memory.writeU64(in.words, index, updated)
+
+    const first = memory.readU64(in.words, 0)
+
+    memory.writeU64(in.words, 0, integers.orBits(first, prefix_bit))
+}

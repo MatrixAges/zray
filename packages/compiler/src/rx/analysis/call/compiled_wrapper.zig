@@ -45,7 +45,7 @@ pub fn build(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Error
 }
 
 pub const Rejection = struct { code: []const u8, message: []const u8 };
-pub const Status = enum { Ready, Checked, Missing, Conflict, Unlinked, MissingExport, MissingFunction, Setter, Transaction };
+pub const Status = enum { Ready, Missing, Conflict, Unlinked, MissingExport, MissingFunction, Setter, Transaction };
 
 pub fn reject(function: ?ir.FunctionId, functions: *const ir.FunctionStorage, setter: bool) ?Rejection {
     const result = @import("compiled_admission.zig").check(function, functions, setter);
@@ -65,6 +65,6 @@ pub fn rejection(kind: Status) Rejection {
         .MissingFunction => .{ .code = "module", .message = "Call.module requires an executable public module" },
         .Setter => .{ .code = "capability", .message = "Call.module cannot grant a setter; Store authorization belongs inside the published RX module" },
         .Transaction => .{ .code = "capability", .message = "compiled Store transactions require an explicit authorized RX module" },
-        .Ready, .Checked => unreachable,
+        .Ready => unreachable,
     };
 }

@@ -6,6 +6,7 @@ const equality = @import("../../ir/compare/initializer.zig");
 const Entry = @import("../compiled.zig").StoreInitializer;
 const generated = @import("parser_options").generated_parser;
 const Self = @This();
+const fields = .{ .identity = "identity", .schema_version = "schema_version", .function = "function" };
 
 rows: std.ArrayList(Entry) = .empty,
 buckets: memory.U32Scratch = .{ .allocator = std.heap.page_allocator },
@@ -94,7 +95,7 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
     const rule = @import("generated_initializer_registry");
     const Input = std.meta.Child(rule.Input);
     const source_columns = readRows(values);
-    const source = source_columns.view(std.meta.Child(@FieldType(Input, "source")));
+    const source = source_columns.bind(std.meta.Child(@FieldType(Input, "source")));
     var writer: Writer(std.meta.Child(@FieldType(Input, "registry"))) = undefined;
 
     writer.init(self, own);
@@ -131,11 +132,7 @@ pub fn Writer(comptime Storage: type) type {
     const Published = std.meta.Child(@FieldType(Storage, "published"));
 
     return struct {
-        target: memory.RowOutput(Entry, Target, .{
-            .identity = &.{"identity"},
-            .function = &.{"function"},
-            .schema_version = &.{"schema_version"},
-        }),
+        target: memory.RowOutput(Entry, Target, .{}),
         reads: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn,
         growth: memory.RowGrowth,
         published: Published,
@@ -181,23 +178,6 @@ pub fn Writer(comptime Storage: type) type {
     };
 }
 
-pub const Reader = struct {
-    identity: memory.ReadColumn,
-    schema_version: memory.ReadColumn,
-    function: memory.ReadColumn,
-    pub fn view(self: *const @This(), comptime T: type) T {
-        return .{ .identity = @ptrCast(&self.identity), .schema_version = @ptrCast(&self.schema_version), .function = @ptrCast(&self.function) };
-    }
-};
-
-pub fn readRows(values: []const Entry) Reader {
-    var result: Reader = undefined;
-
-    inline for (@typeInfo(Entry).@"struct".field_names) |name| {
-        const T = @FieldType(Entry, name);
-
-        @field(result, name) = memory.borrowReadColumn(T, name, values);
-    }
-
-    return result;
+pub fn readRows(values: []const Entry) memory.ReadFields(fields) {
+    return memory.borrowReadFields(fields, values);
 }

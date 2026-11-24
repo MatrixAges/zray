@@ -1,42 +1,17 @@
-import integers from "std:integer"
-import { CompiledCallStatus, readPreparedLibraryFlags } from "rx_project_host"
+import { CompiledCallStatus } from "rx_project_host"
 
 import admit from "../../../call/compiled_admission"
 import { Output as Admission } from "../../../call/compiled_admission"
-import {
-    executable_flag,
-    has_stores_flag,
-    orchestration_flag,
-    setter_flag
-} from "../../../call/const"
 
-import type { Compiled } from "./model"
-
-export type Input = Compiled.Pick("state") & {
-    status: CompiledCallStatus
-}
+import type { Input } from "../../../call/compiled_admission"
 
 export type Output = CompiledCallStatus
 
 export default function (in: Input): Output {
-    if (
-        in.status != CompiledCallStatus.Ready &&
-            in.status != CompiledCallStatus.Checked
-    ) {
-        return in.status
-    }
-
-    const flags = readPreparedLibraryFlags(in.state)
-
-    const status = admit({
-        executable: integers.andBits(flags, executable_flag) != 0,
-        setter: integers.andBits(flags, setter_flag) != 0,
-        has_stores: integers.andBits(flags, has_stores_flag) != 0,
-        orchestration: integers.andBits(flags, orchestration_flag) != 0
-    })
+    const status = admit(in)
 
     return match status {
-        Admission.Executable => in.status,
+        Admission.Executable => CompiledCallStatus.Ready,
         Admission.MissingFunction => CompiledCallStatus.MissingFunction,
         Admission.Setter => CompiledCallStatus.Setter,
         _ => CompiledCallStatus.Transaction

@@ -25,6 +25,10 @@ const Admission = if (generated) Abi.CallAdmission else availability.Input;
 const Route = if (generated) Abi.CallRoute else availability.Route;
 const Callee = if (generated) Abi.CallCallee else availability.Callee;
 const CompiledStatus = if (generated) Abi.CompiledCallStatus else wrapper.Status;
+const CompiledView = if (generated) std.meta.Child(@FieldType(Input, "compiled")) else void;
+const CompiledMembers = if (generated) std.meta.Child(@FieldType(CompiledView, "members")) else void;
+const CompiledAdmission = if (generated) std.meta.Child(@FieldType(CompiledView, "admission")) else void;
+const CompiledCheck = if (generated) std.meta.Child(@FieldType(CompiledView, "check")) else void;
 const SignatureView = if (generated) std.meta.Child(@FieldType(Input, "signatures")) else void;
 const SourceRanges = if (generated) std.meta.Child(@FieldType(SignatureView, "sources")) else void;
 const MembersView = if (generated) std.meta.Child(@FieldType(SignatureView, "members")) else void;
@@ -46,6 +50,11 @@ pub const Invocation = struct {
     names: if (generated) memory.TextColumn else void = undefined,
     admission: Admission = undefined,
     compiled: Libraries.Target = undefined,
+    compiled_view: CompiledView = undefined,
+    compiled_members: CompiledMembers = undefined,
+    compiled_admission: CompiledAdmission = undefined,
+    compiled_check: CompiledCheck = undefined,
+    compiled_names: if (generated) memory.TextColumn else void = undefined,
     signature_view: SignatureView = undefined,
     sources: SourceRanges = undefined,
     type_only: if (generated) memory.ReadColumn else void = undefined,
@@ -86,11 +95,14 @@ pub const Invocation = struct {
             .members = &self.members,
         };
 
+        self.compiled_view = .{ .members = &self.compiled_members, .admission = &self.compiled_admission, .check = &self.compiled_check };
+
         self.input = .{
             .state = @ptrCast(self),
             .attributes = &self.attribute_view,
             .edges = &self.edges,
             .admission = &self.admission,
+            .compiled = &self.compiled_view,
             .signatures = &self.signature_view,
             .previous_end = 0,
             .previous_kind = null,
@@ -137,21 +149,7 @@ pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Err
         const facts = admission(&state, &loader.references.edges[row]);
         const route = availability.seed(facts);
 
-        if (route == .Compiled) {
-            const status = try selectPreparedLibrary(&state, row);
-
-            if (status != .Ready and status != .Checked) {
-                try rejectPreparedLibrary(&state, status);
-
-                unreachable;
-            }
-
-            if (wrapper.reject(state.compiled.export_row.function, &state.compiled.binding.functions, state.setter != null)) |issue| {
-                return loader.fail(state.attributes.module.?.value_location, issue.code, issue.message);
-            }
-
-            if (status == .Ready) try validatePreparedLibrary(&state);
-        }
+        if (route == .Compiled) try prepareLibrarySeed(&state, row);
 
         const name = if (route == .NamedSource) @import("../../../result_name.zig").resolveCall(state.attributes.function.?.*).name else "";
         const callee = availability.seedCallee(loader.signatures, route, facts, name);
@@ -230,46 +228,114 @@ pub fn readPreparedCallTarget(handle: *const anyopaque, row: ?u64) void {
     state.admission = admission(state, &state.loader.references.edges[@intCast(row.?)]);
 }
 
-pub fn selectPreparedLibrary(handle: *const anyopaque, row: ?u64) Error!CompiledStatus {
+pub fn resolvePreparedLibrary(handle: *const anyopaque, row: ?u64) Error!u64 {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const edge = &loader.references.edges[@intCast(row.?)];
 
-    return switch (try loader.libraries.select(&loader.project, edge.target.compiled)) {
-        .Ready => |selected| ready: {
-            state.compiled = selected;
-
-            break :ready if (selected.checked()) .Checked else .Ready;
-        },
-        inline else => |_, status| @field(CompiledStatus, @tagName(status)),
+    return switch (try frontend.project.compiled.resolve.library(loader.backing, loader.project.compiled_libraries, loader.project.root_dir, edge.target.compiled)) {
+        .found => |index| index,
+        .missing => libraryError(state, .Missing),
+        .conflict => libraryError(state, .Conflict),
     };
 }
 
-pub fn readPreparedLibraryFlags(handle: *const anyopaque) u64 {
+pub fn findPreparedLibrary(handle: *const anyopaque, index: u64) bool {
     const state = Invocation.borrow(handle);
-    const selected = state.compiled;
 
-    return compiled_admission.readFlags(selected.export_row.function, &selected.binding.functions, state.setter != null);
+    state.compiled.binding = state.loader.libraries.bound.get(@intCast(index)) orelse return false;
+
+    return true;
+}
+
+pub fn linkPreparedLibrary(handle: *const anyopaque, index: u64) Error!void {
+    const state = Invocation.borrow(handle);
+    const loader = state.loader;
+
+    state.compiled.binding = loader.libraries.link(&loader.project, @intCast(index)) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return libraryError(state, .Unlinked),
+    };
+}
+
+pub fn readPreparedLibraryMembers(handle: *const anyopaque, index: u64, row: ?u64) void {
+    const state = Invocation.borrow(handle);
+    const loader = state.loader;
+    const name = loader.references.edges[@intCast(row.?)].target.compiled.name;
+    const exports = loader.project.compiled_libraries[@intCast(index)].exports;
+    state.compiled_names = memory.borrowTextColumn("name", exports);
+    state.compiled_members = state.compiled.binding.exports.borrow(CompiledMembers, &state.compiled_names, name);
+}
+
+pub fn selectPreparedLibraryMember(handle: *const anyopaque, index: u64, row: ?u64) void {
+    const state = Invocation.borrow(handle);
+    const exported = &state.loader.project.compiled_libraries[@intCast(index)].exports[@intCast(row.?)];
+
+    state.compiled.export_row = exported;
+
+    if (comptime generated) {
+        const binding = state.compiled.binding;
+
+        state.compiled_admission = compiled_admission.facts(CompiledAdmission, exported.function, &binding.functions, state.setter != null);
+
+        state.compiled_check = .{
+            .words = @ptrCast(&binding.checked),
+            .function = if (exported.function) |function| @backingInt(function) else 0,
+        };
+    }
 }
 
 pub fn rejectPreparedLibrary(handle: *const anyopaque, status: CompiledStatus) Error!void {
-    const state = Invocation.borrow(handle);
-
-    const issue = wrapper.rejection(switch (status) {
+    return libraryError(Invocation.borrow(handle), switch (status) {
         inline else => |kind| @field(wrapper.Status, @tagName(kind)),
     });
+}
+
+fn libraryError(state: *const Invocation, status: wrapper.Status) Error {
+    const issue = wrapper.rejection(status);
 
     return state.loader.fail(state.attributes.module.?.value_location, issue.code, issue.message);
 }
 
-pub fn validatePreparedLibrary(handle: *const anyopaque) Error!void {
+pub fn validatePreparedLibrary(handle: *const anyopaque, verified_prefix: bool) Error!void {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const location = state.attributes.module.?.value_location;
 
-    if (try state.compiled.validate(loader.libraries.scratch.child_allocator, &loader.project.context, location.offset)) |issue| {
+    if (try state.compiled.validate(loader.libraries.scratch.child_allocator, &loader.project.context, location.offset, verified_prefix)) |issue| {
         return loader.fail(location, @tagName(issue.code), issue.message);
     }
+}
+
+fn prepareLibrarySeed(state: *Invocation, row: u64) Error!void {
+    const index = try resolvePreparedLibrary(state, row);
+
+    if (!findPreparedLibrary(state, index)) try linkPreparedLibrary(state, index);
+
+    const loader = state.loader;
+    const name = loader.references.edges[@intCast(row)].target.compiled.name;
+    const exports = loader.project.compiled_libraries[@intCast(index)].exports;
+    const member = state.compiled.binding.exports.find(exports, name) orelse return libraryError(state, .MissingExport);
+
+    selectPreparedLibraryMember(state, index, member);
+
+    const selected = state.compiled;
+
+    if (wrapper.reject(selected.export_row.function, &selected.binding.functions, state.setter != null)) |issue| {
+        return state.loader.fail(state.attributes.module.?.value_location, issue.code, issue.message);
+    }
+
+    const words = selected.binding.checked;
+    const bit = @as(u64, @backingInt(selected.export_row.function.?)) + 1;
+    const word = bit / @bitSizeOf(u64);
+    const mask = @as(u64, 1) << @as(u6, @truncate(bit));
+
+    if (words[word] & mask != 0) return;
+
+    try validatePreparedLibrary(state, words[0] & 1 != 0);
+
+    words[word] |= mask;
+    words[0] |= 1;
 }
 
 fn admission(state: *const Invocation, edge: *const Graph.Edge) Admission {
