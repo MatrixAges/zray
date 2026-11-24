@@ -1,0 +1,45 @@
+import memory from "memory"
+
+import type { Allocator } from "memory"
+import type { Request } from "./model"
+
+export type Input = {
+    request: Request,
+    owner: Allocator
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { request, owner } = in
+
+    if (request.compiled == null) {
+        return
+    }
+
+    const { rows, pending } = request.output
+
+    const target = pending[0]
+
+    if (target != null) {
+        memory.freeOwnedText(owner, target)
+    }
+
+    const count = memory.readU64(rows.progress, 0)
+
+    const { names, specifiers } = rows.published
+
+    const own_names = request.configured == null
+
+    const released = loop(0, {
+        while: row => row < count,
+        next: row => {
+            if (own_names) {
+                memory.freeOwnedText(owner, memory.readTextColumn(names, row))
+            }
+
+            memory.freeOwnedText(owner, memory.readTextColumn(specifiers, row))
+            row += 1
+        }
+    })
+}

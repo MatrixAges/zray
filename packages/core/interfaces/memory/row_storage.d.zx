@@ -37,6 +37,12 @@ export declare function reserveRowStorage(
     count: u64
 ): bool throws { OutOfMemory }
 
+export declare function trimRowStorage(
+    allocator,
+    target: RowBuffer,
+    used: u64
+): void throws { OutOfMemory }
+
 export declare function writeRowList(
     column: WriteColumn,
     index: u64,

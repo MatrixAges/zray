@@ -164,20 +164,41 @@ pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const
 
     const allocator = if (resource) |value| @import("column_set.zig").borrowAllocator(value) else default_allocator;
     const size = std.math.mul(usize, capacity, stride) catch return error.OutOfMemory;
-    const alignment = buffer.alignment;
-    const address = @returnAddress();
 
-    const next = if (previous.len != 0)
-        allocator.rawRemap(previous, alignment, size, address)
-    else
-        null;
+    try resizeRows(allocator, buffer, size, length * stride, @returnAddress());
+
+    return true;
+}
+
+pub fn trimRowStorage(allocator: std.mem.Allocator, target: *const anyopaque, used: u64) std.mem.Allocator.Error!void {
+    const buffer = rowBuffer(target);
+    const count: usize = @intCast(used);
+
+    std.debug.assert(count <= buffer.bytes.len / buffer.stride);
+
+    const size = count * buffer.stride;
+
+    if (size != buffer.bytes.len) try resizeRows(allocator, buffer, size, size, @returnAddress());
+}
+
+fn resizeRows(allocator: std.mem.Allocator, buffer: *RowBuffer, size: usize, prefix: usize, address: usize) std.mem.Allocator.Error!void {
+    const previous = buffer.bytes;
+    const alignment = buffer.alignment;
+
+    if (size == 0) {
+        allocator.rawFree(previous, alignment, address);
+
+        buffer.bytes = &.{};
+
+        return;
+    }
+
+    const next = if (previous.len != 0) allocator.rawRemap(previous, alignment, size, address) else null;
 
     const bytes = next orelse block: {
         const storage = allocator.rawAlloc(size, alignment, address) orelse return error.OutOfMemory;
 
         if (previous.len != 0) {
-            const prefix = length * stride;
-
             @memcpy(storage[0..prefix], previous[0..prefix]);
             allocator.rawFree(previous, alignment, address);
         }
@@ -186,8 +207,6 @@ pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const
     };
 
     buffer.bytes = bytes[0..size];
-
-    return true;
 }
 
 pub inline fn rowBufferBytes(target: *const anyopaque) []const u8 {

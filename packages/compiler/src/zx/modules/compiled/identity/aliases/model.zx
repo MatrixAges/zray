@@ -1,6 +1,5 @@
 import type { Modules } from "core/native_module_table/model"
 import type {
-    OptionalStringBuffer,
     ReadColumn,
     TextColumn,
     U64Buffer,
@@ -75,7 +74,7 @@ export type Rows = {
 
 export type Output = {
     rows: Rows,
-    pending: OptionalStringBuffer
+    pending: string?[]
 }
 
 export type Request = {
@@ -89,17 +88,4 @@ export type CompiledInput = {
     library: Compiled,
     configured?: Configured,
     output: Output
-}
-
-export type CompiledWalk = CompiledInput & {
-    cursor: u64,
-    count: u64,
-    capacity: u64,
-    status: Status,
-    running: bool
-}
-
-export type CompiledWrite = {
-    state: CompiledWalk,
-    item: Item
 }

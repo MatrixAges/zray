@@ -26,13 +26,12 @@ pub const Rows = struct {
 pub fn View(comptime Alias: type) type {
     return struct {
         rows: memory.RowOutput(Alias, Fields, .{ .names = &.{"name"}, .specifiers = &.{"specifier"} }),
-        read: [2]memory.ReadColumn,
+        read: [@typeInfo(Fields).@"struct".field_names.len]memory.ReadColumn,
         growth: memory.RowGrowth,
         published: Published,
         progress: [1]u64,
         count: []u64,
         pending_text: [1]?[]const u8,
-        pending: []?[]const u8,
         destination: Destination,
         output: Output,
         configured_columns: memory.ReadFields(configured_fields),
@@ -50,7 +49,6 @@ pub fn View(comptime Alias: type) type {
             self.progress = .{0};
             self.count = &self.progress;
             self.pending_text = .{null};
-            self.pending = &self.pending_text;
 
             self.destination = .{
                 .fields = &self.rows.view,
@@ -59,34 +57,12 @@ pub fn View(comptime Alias: type) type {
                 .progress = @ptrCast(&self.count),
             };
 
-            self.output = .{ .rows = &self.destination, .pending = @ptrCast(&self.pending) };
+            self.output = .{ .rows = &self.destination, .pending = &self.pending_text };
 
             if (configured) |entries| {
                 self.configured_columns = memory.borrowReadFields(configured_fields, entries);
                 self.configured = self.configured_columns.bind(Configured);
             }
-        }
-        pub fn release(self: *const @This(), allocator: std.mem.Allocator, own_targets: bool, own_names: bool) void {
-            const rows = self.rows.rows();
-
-            if (own_targets) {
-                if (self.pending_text[0]) |pending| allocator.free(pending);
-
-                for (rows[0..@intCast(self.progress[0])]) |row| {
-                    if (own_names) allocator.free(row.name);
-
-                    allocator.free(row.specifier);
-                }
-            }
-
-            allocator.free(rows);
-        }
-        pub fn take(self: *const @This(), allocator: std.mem.Allocator) std.mem.Allocator.Error![]const Alias {
-            var list = std.ArrayList(Alias).fromOwnedSlice(self.rows.rows());
-
-            list.items.len = @intCast(self.progress[0]);
-
-            return list.toOwnedSlice(allocator);
         }
     };
 }

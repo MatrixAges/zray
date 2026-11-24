@@ -1,0 +1,60 @@
+import memory from "memory"
+
+import ownDeclaration from "../own_declaration"
+import { Status } from "./model"
+import resolve from "./resolve"
+import write from "./write"
+
+import type { CompiledInput as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { library, configured, output } = in
+
+    const own_name = configured == null
+
+    return loop({
+        cursor: 0,
+        count: 0,
+        capacity: 0,
+        status: Status.Ready
+    }, {
+        while: state => state.status == Status.Ready,
+        next: state => {
+            const item = resolve({
+                modules: library.modules,
+                configured,
+                row: state.cursor
+            })
+
+            state.cursor = item.next
+            state.status = item.status
+
+            const { identity, name } = item
+
+            if (identity != null && name != null) {
+                const target = ownDeclaration({
+                    instance: library.instance,
+                    value: identity,
+                    shared: item.shared
+                })
+
+                memory.writeOptionalTextSlot(output.pending, 0, target)
+
+                state.capacity = write({
+                    rows: output.rows,
+                    count: state.count,
+                    capacity: state.capacity,
+                    name,
+                    specifier: target,
+                    own_name
+                })
+
+                memory.writeOptionalTextSlot(output.pending, 0, null)
+                state.count += 1
+            }
+        },
+        return: state => state.status
+    })
+}

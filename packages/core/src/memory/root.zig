@@ -391,6 +391,7 @@ pub const refreshRowWrite = column.refreshRowWrite;
 pub const refreshRowRead = column.refreshRowRead;
 pub const clearRowStorage = column.clearRowStorage;
 pub const reserveRowStorage = column.reserveRowStorage;
+pub const trimRowStorage = column.trimRowStorage;
 pub const allocateRowStorage = column.allocateRowStorage;
 pub const rowBufferBytes = column.rowBufferBytes;
 pub const writeRowList = column.writeRowList;

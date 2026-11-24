@@ -3,31 +3,11 @@
 
     <Args in={Alias.Request} out={Alias.Status} />
 
-    <If on={$in.compiled != null}>
-        <Call
-            module="publish_compiled"
-            in={{
-                library: $in.compiled,
-                configured: $in.configured,
-                output: $in.output
-            }}
-        />
+    <Call module="publish" in={$in} />
 
-        <Return value={$ctx.publish_compiled} />
+    <If on={$ctx.publish == Alias.Status.Done}>
+        <Call fn="finish" in={$in.output.rows} />
     </If>
 
-    <If on={$in.source != null}>
-        <Call
-            fn="source/publish"
-            in={{
-                declarations: $in.source,
-                configured: $in.configured,
-                output: $in.output.rows
-            }}
-        />
-
-        <Return value={$ctx.publish} />
-    </If>
-
-    <Return value={Alias.Status.Done} />
+    <Return value={$ctx.publish} />
 </Module>

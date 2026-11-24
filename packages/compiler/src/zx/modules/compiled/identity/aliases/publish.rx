@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Alias" />
+
+    <Args in={Alias.Request} out={Alias.Status} />
+
+    <If on={$in.compiled != null}>
+        <Call
+            fn="publish_compiled"
+            in={{
+                library: $in.compiled,
+                configured: $in.configured,
+                output: $in.output
+            }}
+        />
+
+        <Return value={$ctx.publish_compiled} />
+    </If>
+
+    <If on={$in.source != null}>
+        <Call
+            fn="source/publish"
+            in={{
+                declarations: $in.source,
+                configured: $in.configured,
+                output: $in.output.rows
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return value={Alias.Status.Done} />
+</Module>

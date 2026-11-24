@@ -1,0 +1,32 @@
+import declaration from "../declaration"
+import choose from "./choose"
+import { Status } from "./model"
+import resolved from "./resolved"
+
+import type { Cursor as Input, Item as Output } from "./model"
+
+export default function (in: Input): Output {
+    const choice = choose(in)
+
+    const { request, duplicate } = choice
+
+    if (duplicate || request == null) {
+        return {
+            next: choice.next,
+            status: duplicate ? Status.Conflict : Status.Done,
+            name: null,
+            identity: null,
+            shared: false
+        }
+    }
+
+    const target = declaration({
+        modules: in.modules,
+        requested: request
+    })
+
+    return resolved({
+        choice,
+        declaration: target
+    })
+}
