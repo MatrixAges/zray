@@ -1,0 +1,24 @@
+export type AstWriter = opaque
+
+export type AstOriginBuffer = opaque
+
+export type AstCapture = {
+    name: u8[],
+    label: u8[],
+    failure: u32
+}
+
+export type AstOrigin = {
+    expression_base: u32,
+    statement_base: u32,
+    serial: u64,
+    capture?: AstCapture
+}
+
+export declare function readAstOrigin(writer: AstWriter, buffer: AstOriginBuffer): AstOrigin
+
+export declare function appendExpressionRows(writer: AstWriter, rows: ExpressionRows): void
+    throws { OutOfMemory }
+
+export declare function appendStatementRows(writer: AstWriter, rows: StatementRows): void
+    throws { OutOfMemory }

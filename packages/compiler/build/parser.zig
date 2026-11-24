@@ -36,6 +36,9 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const manifests = b.addWriteFiles();
     const manifest = @import("generation_manifest.zig");
     const internal = @import("memory_interfaces.zig");
+    const ast_directory = b.addWriteFiles();
+    const ast_rows = ast_directory.add("rows.d.zx", internal.join(b, genz_dependency.builder, "src/ast/rows", &.{ "expressions.d.zx", "statements.d.zx", "write.d.zx" }));
+    const ast_prefix = b.fmt("{s}/ast/rows/", .{directories[3]});
     const execution_interfaces_dir = b.addWriteFiles();
     const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency.builder, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "module.d.zx", "resources.d.zx", "collections.d.zx", "publication.d.zx", "statement.d.zx" }));
     const lowering_prefix = b.fmt("{s}/{s}", .{ directories[3], lowering_declarations });
@@ -45,6 +48,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const project_interface = project_interfaces_dir.add("host.d.zx", internal.join(b, b, "src/" ++ project_directory, &.{ "types.d.zx", "project.d.zx", "delivery/host.d.zx", "cache/host.d.zx" }));
 
     const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], &.{
+        .{ .directory = ast_directory.getDirectory(), .prefix = ast_prefix },
         .{ .directory = execution_interfaces_dir.getDirectory(), .prefix = lowering_prefix },
         .{ .directory = project_interfaces_dir.getDirectory(), .prefix = project_prefix },
     });
@@ -73,6 +77,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         },
         .{ .path = declarations.index_path, .module = "memory" },
         .{ .path = declarations.columns_path, .module = memory_columns },
+        .{ .path = b.fmt("{s}rows.d.zx", .{ast_prefix}), .module = "ast_rows", .resolve_members = true },
     };
 
     const hardware_graph_interface: manifest.Interface = .{
@@ -160,6 +165,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         run.addFileInput(b.dependency("zxc_std", .{}).path("interfaces/string.d.zx"));
         run.addFileInput(declarations.index);
         run.addFileInput(declarations.columns);
+        run.addFileInput(ast_rows);
 
         if (set == .main) {
             run.addFileInput(roots[0].path(b, "zx/modules/path/lexical.d.zx"));

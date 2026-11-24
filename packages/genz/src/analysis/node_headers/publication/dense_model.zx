@@ -1,0 +1,16 @@
+import type { AstWriter, ExpressionRows, StatementRows } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export type Fragment = {
+    expressions: ExpressionRows,
+    statements: StatementRows[],
+    serial: u64,
+    valid: bool,
+    uses_allocator: bool
+}
+
+export type Input = {
+    lower: Lowering,
+    writer: AstWriter,
+    fragment: Fragment
+}

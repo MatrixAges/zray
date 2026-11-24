@@ -58,7 +58,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/predicates.zig"),
     @import("zx/regular_call/root.zig"),
     @import("zx/scope/execute.zig"),
-    @import("zx/simd/emission.zig"),
     @import("zx/sorting/root.zig"),
     @import("zx/sorting/worker.zig"),
     @import("zx/state_value/entry.zig"),

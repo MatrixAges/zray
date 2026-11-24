@@ -159,18 +159,3 @@ export type IterationProjectionStamp = {
 export type SortFrame = opaque
 
 export type SortWorkerFrame = opaque
-
-export type SimdFrame = opaque
-
-export type SimdPublication = opaque
-
-export enum SimdOperation {
-    Invalid,
-    Element,
-    Literal,
-    Negate,
-    Add,
-    Subtract,
-    Multiply,
-    Divide
-}

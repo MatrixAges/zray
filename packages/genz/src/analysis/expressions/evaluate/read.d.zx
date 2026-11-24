@@ -36,6 +36,9 @@ export declare function readRawList(frame: Lowering, operand: u32): u32?
 
 export declare function readList(frame: Lowering, operand: u32): u32 throws { OutOfMemory }
 
+export declare function wrapLoweredList(frame: Lowering, subject: u32, items: u32): u32
+    throws { OutOfMemory }
+
 export declare function readField(frame: Lowering, source: u32, name: string): u32
     throws { OutOfMemory }
 

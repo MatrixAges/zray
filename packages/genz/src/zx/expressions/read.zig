@@ -102,6 +102,13 @@ pub fn readList(frame: *const anyopaque, operand: u32) Error!u32 {
     return @backingInt(try list.expression(borrow(frame), @fromBackingInt(operand)));
 }
 
+pub fn wrapLoweredList(frame: *const anyopaque, subject: u32, items: u32) Error!u32 {
+    const self = borrow(frame);
+    const type_id = self.program.expression(@fromBackingInt(subject)).type_id;
+
+    return @backingInt(try list.wrap(self, type_id, @fromBackingInt(items), false));
+}
+
 pub fn readField(frame: *const anyopaque, source: u32, name: []const u8) Error!u32 {
     return @backingInt(try emit.field(borrow(frame), @fromBackingInt(source), name));
 }

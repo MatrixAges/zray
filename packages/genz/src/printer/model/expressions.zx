@@ -1,54 +1,16 @@
-export enum ExpressionsKind {
-    Identifier,
-    NullValue,
-    Unit,
-    ReturnValue,
-    CatchScope,
-    FixedArrayType,
-    UndefinedValue,
-    UnreachableValue,
-    OptionalType,
-    TupleType,
-    EnumType,
-    EnumLiteral,
-    Array,
-    Tuple,
-    Index,
-    Slice,
-    Range,
-    AddressOf,
-    ErrorValue,
-    Block,
-    TryValue,
-    CatchValue,
-    ComptimeValue,
-    ErrorSet,
-    ErrorUnion,
-    Integer,
-    Float,
-    String,
-    Boolean,
-    Primitive,
-    Dereference,
-    OptionalUnwrap,
-    Selection,
-    Pointer,
-    ConstPointer,
-    ConstSlice,
-    MutableSlice,
-    ManyPointer,
-    OpaqueType,
-    StructType,
-    NamespaceType,
-    ContainerType,
-    Field,
-    Unary,
-    Binary,
-    Builtin,
-    Call,
-    Conditional,
-    Object
-}
+import type {
+    ExpressionsKind,
+    ExpressionsUnaryOperator,
+    ExpressionsBinaryOperator,
+    ExpressionsBuiltinName
+} from "ast_rows"
+
+export {
+    ExpressionsKind,
+    ExpressionsUnaryOperator,
+    ExpressionsBinaryOperator,
+    ExpressionsBuiltinName
+} from "ast_rows"
 
 export enum ExpressionsPrimitive {
     Anytype,
@@ -68,67 +30,6 @@ export enum ExpressionsPrimitive {
     I65,
     F32,
     F64
-}
-
-export enum ExpressionsUnaryOperator {
-    Negate,
-    Not
-}
-
-export enum ExpressionsBinaryOperator {
-    Add,
-    SaturatingAdd,
-    ShiftLeft,
-    Subtract,
-    Multiply,
-    Divide,
-    Equal,
-    NotEqual,
-    Less,
-    LessEqual,
-    Greater,
-    GreaterEqual,
-    LogicalAnd,
-    LogicalOr,
-    Coalesce
-}
-
-export enum ExpressionsBuiltinName {
-    DivTrunc,
-    Rem,
-    As,
-    SetRuntimeSafety,
-    Import,
-    EmbedFile,
-    IntCast,
-    FloatCast,
-    FloatFromInt,
-    IntFromFloat,
-    Trunc,
-    TagName,
-    EnumFromInt,
-    IntFromEnum,
-    TypeOf,
-    FieldType,
-    TypeInfo,
-    SizeOf,
-    Max,
-    IntFromPtr,
-    Int,
-    Export,
-    CompileError,
-    IntFromBool,
-    ErrorName,
-    This,
-    ConstCast,
-    PtrCast,
-    AlignCast,
-    Memcpy,
-    Vector,
-    Splat,
-    Field,
-    HasField,
-    HasDecl
 }
 
 export type Expressions = {

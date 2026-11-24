@@ -1,0 +1,26 @@
+<Module>
+    <Type from="dense_model" as="Dense" />
+
+    <Args in={Dense.Input} out={void} />
+
+    <Call fn="host.requireAllocation" in={$in.fragment.valid} />
+
+    <Call
+        fn="host.appendExpressionRows"
+        in={[
+            $in.writer,
+            $in.fragment.expressions
+        ]}
+    />
+
+    <Call fn="append_statement_rows" in={$in} />
+
+    <Call
+        fn="host.finishGeneratedAst"
+        in={[
+            $in.lower,
+            $in.fragment.serial,
+            $in.fragment.uses_allocator
+        ]}
+    />
+</Module>

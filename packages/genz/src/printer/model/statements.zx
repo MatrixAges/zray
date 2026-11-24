@@ -1,23 +1,6 @@
-export enum StatementsKind {
-    Scope,
-    DeferExpression,
-    ErrdeferExpression,
-    DeferScope,
-    DiscardError,
-    Constant,
-    Variable,
-    Assignment,
-    ForLoop,
-    WhileLoop,
-    BreakLoop,
-    ContinueLoop,
-    BreakValue,
-    UnreachableStmt,
-    Result,
-    Branch,
-    Discard,
-    Expression
-}
+import type { StatementsKind } from "ast_rows"
+
+export { StatementsKind } from "ast_rows"
 
 export type Statements = {
     tags: StatementsKind[]

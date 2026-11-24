@@ -46,25 +46,3 @@ export declare function readSortOperand(frame: SortWorkerFrame, index: u64): voi
     throws { OutOfMemory }
 
 export declare function publishSortWorker(frame: SortWorkerFrame): u32 throws { OutOfMemory }
-
-export declare function lowerSimdSource(frame: SimdFrame): void throws { OutOfMemory }
-
-export declare function lowerSimdElement(frame: SimdFrame): void throws { OutOfMemory }
-
-export declare function reserveSimdLiterals(frame: SimdFrame): void throws { OutOfMemory }
-
-export declare function simdNodeOperation(frame: SimdFrame, index: u64): SimdOperation
-
-export declare function storeSimdLiteral(frame: SimdFrame, index: u64, slot: u64): void
-    throws { OutOfMemory }
-
-export declare function emitSimd(frame: SimdFrame): u32 throws { OutOfMemory }
-
-export declare function wrapSimdResult(frame: SimdFrame, result: u32): u32 throws { OutOfMemory }
-
-export declare function appendSimdExpressions(frame: SimdPublication): void throws { OutOfMemory }
-
-export declare function appendSimdStatement(frame: SimdPublication, index: u64): void
-    throws { OutOfMemory }
-
-export declare function publishSimdEffects(frame: SimdPublication): void

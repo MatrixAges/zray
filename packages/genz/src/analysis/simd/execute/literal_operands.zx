@@ -1,10 +1,13 @@
+import memory from "memory"
+
 import collect from "./fill_literals"
 
+import type { Input as Emission } from "../emit/model"
 import type { Literals } from "./model"
 
 export type Input = Literals
 
-export type Output = void
+export type Output = Emission.Pick("vector_literals", "tail_literals")
 
 export default function (in: Input): Output {
     collect({
@@ -12,8 +15,17 @@ export default function (in: Input): Output {
         offset: 0
     })
 
+    const count = in.nodes.length
+
     collect({
         ...in,
-        offset: in.count
+        offset: count
     })
+
+    const values = memory.u32Views(in.literals)
+
+    return {
+        vector_literals: memory.borrowU32Range(values, 0, count),
+        tail_literals: memory.borrowU32Range(values, count, count)
+    }
 }

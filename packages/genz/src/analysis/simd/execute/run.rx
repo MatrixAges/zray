@@ -3,32 +3,89 @@
 
     <Args in={SIMD.Input} out={SIMD.Output} />
 
-    <If on={!$in.accepted}>
+    <Call module="../analyze" in={$in.analysis} />
+
+    <If on={!$ctx.analyze.accepted}>
         <Return value={null} />
     </If>
 
-    <Call fn="index.lowerSimdSource" in={$in.frame} />
-    <Call fn="index.lowerSimdElement" in={$in.frame} />
-    <Call fn="index.reserveSimdLiterals" in={$in.frame} />
+    <Call
+        fn="index.readList"
+        in={[
+            $in.frame,
+            $ctx.analyze.candidate.source
+        ]}
+    />
+
+    <Call
+        fn="index.lowerType"
+        in={[
+            $in.frame,
+            $ctx.analyze.candidate.scalar,
+            false
+        ]}
+    />
+
+    <Call
+        fn="index.allocateFilledU32Buffer"
+        in={[
+            $in.owner,
+            $in.literals,
+            $ctx.analyze.expression.nodes.length * 2,
+            0
+        ]}
+    />
 
     <Call
         fn="literal_operands"
         in={{
             frame: $in.frame,
-            count: $in.count
+            literals: $in.literals,
+            nodes: $ctx.analyze.expression.nodes
         }}
     />
-
-    <Call fn="index.emitSimd" in={$in.frame} />
 
     <Call
-        fn="finish"
+        fn="index.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        module="../emit/build"
         in={{
-            frame: $in.frame,
-            wrap: $in.wrap,
-            result: $ctx.emitSimd
+            ...$ctx.readAstOrigin,
+            ...$ctx.literal_operands,
+            nodes: $ctx.analyze.expression.nodes,
+            uses_element: $ctx.analyze.expression.uses_element,
+            source: $ctx.readList,
+            element_type: $ctx.lowerType
         }}
     />
 
-    <Return value={$ctx.finish} />
+    <Call
+        module="../../node_headers/publication/dense"
+        in={{
+            lower: $in.frame,
+            writer: $in.writer,
+            fragment: $ctx.build.omit(["root"])
+        }}
+    />
+
+    <If on={$in.analysis.consumer == null}>
+        <Call
+            fn="index.wrapLoweredList"
+            in={[
+                $in.frame,
+                $in.analysis.subject,
+                $ctx.build.root
+            ]}
+        />
+
+        <Return value={$ctx.wrapLoweredList} />
+    </If>
+
+    <Return value={$ctx.build.root} />
 </Module>

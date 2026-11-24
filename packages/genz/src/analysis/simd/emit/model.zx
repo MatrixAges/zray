@@ -1,19 +1,16 @@
-import type { Capture } from "../../../ast/expressions/fallible"
+import type { AstOrigin } from "ast_rows"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
+import type { Fragment } from "../../node_headers/publication/dense_model"
 import type { Node } from "../model"
 
-export type Input = {
+export type Input = AstOrigin & {
     nodes: Node[],
     uses_element: bool,
     source: u32,
     element_type: u32,
     vector_literals: u32[],
-    tail_literals: u32[],
-    capture?: Capture,
-    expression_base: u32,
-    statement_base: u32,
-    serial: u64
+    tail_literals: u32[]
 }
 
 export type State = {
@@ -42,11 +39,6 @@ export type State = {
     }
 }
 
-export type Output = {
-    expressions: Expressions,
-    statements: Statements[],
-    root: u32,
-    serial: u64,
-    valid: bool,
-    uses_allocator: bool
+export type Output = Fragment & {
+    root: u32
 }

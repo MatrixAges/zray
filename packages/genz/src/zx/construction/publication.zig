@@ -11,6 +11,8 @@ const entry = @import("generated_publish_ast_fragment");
 const Input = std.meta.Child(entry.Input);
 const Kind = @FieldType(Input, "kind");
 const Api = @import("../expressions/evaluate.zig").Api;
+const Ast = @import("execution_abi").layouts.@"zig:ast_rows";
+const borrow = @import("../expressions/evaluate.zig").borrow;
 const Update = std.meta.Child(@import("generated_list_update").Output);
 const Collection = std.meta.Child(@import("generated_emit_collection_rows").Output);
 const Context = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Collection, "state")), "context"));
@@ -18,6 +20,41 @@ const IterationTypes = std.meta.Child(@import("generated_iteration_types_emit").
 const Expressions = @FieldType(Update, "expressions");
 const Forms = @FieldType(Update, "forms");
 const Rows = @FieldType(Update, "statements");
+
+pub const OriginBuffer = struct {
+    origin: Ast.AstOrigin = undefined,
+    capture: Ast.AstCapture = undefined,
+};
+
+pub fn readAstOrigin(writer: *const anyopaque, buffer: *const anyopaque) *const Ast.AstOrigin {
+    const self = borrow(writer);
+    const target: *OriginBuffer = @ptrCast(@alignCast(@constCast(buffer)));
+
+    if (self.capture) |capture| {
+        target.capture = .{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) };
+    }
+
+    target.origin = .{
+        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
+        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
+        .serial = self.serial,
+        .capture = if (self.capture == null) null else &target.capture,
+    };
+
+    return &target.origin;
+}
+
+pub fn appendExpressionRows(writer: *const anyopaque, source: *const Ast.ExpressionRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    dense.append(self.allocator, &self.builder.nodes.expressions, source) catch |err| return failure(err);
+}
+
+pub fn appendStatementRows(writer: *const anyopaque, source: *const Ast.StatementRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    dense.append(self.allocator, &self.builder.nodes.statements, source) catch |err| return failure(err);
+}
 
 pub const Targets = struct {
     body: ?*Sequence = null,

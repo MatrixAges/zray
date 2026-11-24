@@ -1,3 +1,4 @@
+export { appendExpressionRows } from "ast_rows"
 export {
     appendFragmentExpressions,
     appendFragmentStatements,

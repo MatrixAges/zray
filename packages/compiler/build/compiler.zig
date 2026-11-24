@@ -140,6 +140,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             genz.addImport("execution_abi", generated.execution.import_table.get("zxc_abi").?);
             generated.execution.addImport("ownership_host", genz);
             generated.execution.addImport("lowering_host", genz);
+            generated.execution.addImport("ast_rows", genz);
         }
 
         for (generated.bindings) |binding| {

@@ -1,5 +1,7 @@
 import host from "lowering_host"
-import { SimdOperation } from "lowering_host"
+import memory from "memory"
+
+import { Operation } from "../model"
 
 import type { Literals } from "./model"
 
@@ -11,12 +13,14 @@ export type Output = void
 
 export default function (in: Input): Output {
     const literals = loop(0, {
-        while: index => index < in.count,
+        while: index => index < in.nodes.length,
         next: index => {
-            if (
-                host.simdNodeOperation(in.frame, index) == SimdOperation.Literal
-            ) {
-                host.storeSimdLiteral(in.frame, index, in.offset + index)
+            const node = in.nodes[index]
+
+            if (node.operation == Operation.Literal) {
+                const value = host.lowerExpression(in.frame, node.source, false, null)
+
+                memory.writeU32(in.literals, in.offset + index, value)
             }
 
             index += 1
