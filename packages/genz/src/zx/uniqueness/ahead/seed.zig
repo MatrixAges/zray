@@ -1,22 +1,6 @@
 const std = @import("std");
 const State = enum(u32) { idle, queued, running, waiting, ready, failed, held };
 pub const Event = enum { Queue, Hold, Withdraw, Claim, Complete, Fail };
-pub const Step = enum { CheckMemo, Reserve, Submit, WithdrawOnFull, Claim, ReadGrowth, AnalyzeDeferred, AnalyzePlan, Publish, Complete, Wait, CheckReads };
-
-pub fn steps(comptime activity: anytype, comptime kind: @import("../memo.zig").Kind, comptime persistent: bool) []const Step {
-    return switch (activity) {
-        .Request => if (kind == .planned and !persistent)
-            &.{ .Reserve, .Submit, .WithdrawOnFull }
-        else
-            &.{ .CheckMemo, .Reserve, .Submit, .WithdrawOnFull },
-        .Analyze => switch (kind) {
-            .settled => &.{ .Claim, .AnalyzeDeferred, .Publish, .Complete },
-            .demanded => &.{ .Claim, .ReadGrowth, .AnalyzeDeferred, .Publish, .Complete },
-            .planned => &.{ .Claim, .AnalyzePlan, .Publish, .Complete },
-        },
-        .Collect => if (kind == .planned) &.{.Wait} else &.{ .Wait, .CheckReads },
-    };
-}
 
 fn cells(words: []u32) []std.atomic.Value(State) {
     return @ptrCast(words);

@@ -7,7 +7,6 @@ import type { Target as MemoTarget } from "../../memo/record/model"
 import type { Planned } from "../../replay/ordered/model"
 import type { Growth as GrowthRetention } from "../../retain/model"
 import type { Input as RetainRows } from "../../retain/rows"
-import type { Phase } from "../model"
 
 export enum Origin {
     Cached,
@@ -19,23 +18,6 @@ export type Available = {
     cached: bool,
     ahead: bool
 }
-
-export enum Step {
-    UseCached,
-    AdoptAhead,
-    Analyze,
-    Apply,
-    RecordTrace,
-    RetainOutput
-}
-
-export type Request = {
-    phase: Phase,
-    origin: Origin,
-    persistent: bool
-}
-
-export type PlanRequest = Request.Omit("phase")
 
 export type Growth = {
     target: WriteColumn,

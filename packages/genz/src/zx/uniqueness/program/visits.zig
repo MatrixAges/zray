@@ -1,5 +1,4 @@
 const std = @import("std");
-const zx = @import("zx");
 const Context = @import("host.zig").Context;
 const Ahead = @import("../ahead.zig");
 const Function = @import("../function.zig");
@@ -10,7 +9,6 @@ const compute = @import("visit/compute.zig");
 const demand_visit = @import("visit/demand.zig");
 const settle_visit = @import("visit/settlement.zig");
 const adopt_plan = @import("visit/adopt_plan.zig");
-const sequence = @import("generated_uniqueness_visit_sequence");
 const Error = std.mem.Allocator.Error;
 
 pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Round.Feedback {
@@ -59,27 +57,19 @@ fn Visit(comptime kind: Memo.Kind) type {
         record: Memo.Result(kind) = undefined,
         changed: []const u64 = &.{},
         const Self = @This();
-
-        const phase: Round.Phase = switch (kind) {
-            .settled => .Settle,
-            .demanded => .Demand,
-            .planned => .Plan,
-        };
         fn execute(self: *Self, comptime persistent: bool, comptime origin: intake.Origin) Error!void {
-            const steps = comptime zx.staticSequence(sequence, &.{
-                .phase = phase,
-                .origin = origin,
-                .persistent = persistent,
-            });
+            if (origin == .Ahead) {
+                try self.adopt(persistent);
+            } else if (origin == .Cached and (kind != .planned or persistent)) {
+                self.record = self.cached.?;
 
-            inline for (steps) |step| switch (step) {
-                .UseCached => self.record = self.cached.?,
-                .AdoptAhead => try self.adopt(persistent),
-                .Analyze => try self.analyze(persistent),
-                .Apply => try self.apply(),
-                .RecordTrace => try self.ctx.replay.met(kind, self.index, self.record, self.ctx.memo),
-                .RetainOutput => self.record = Memo.Planned.fromPlan(try self.record.plan().copy(self.ctx.allocator)),
-            };
+                if (kind != .planned) try self.apply();
+            } else {
+                try self.analyze(persistent);
+            }
+
+            if (kind != .planned or persistent) try self.ctx.replay.met(kind, self.index, self.record, self.ctx.memo);
+            if (kind == .planned and persistent) self.record = Memo.Planned.fromPlan(try self.record.plan().copy(self.ctx.allocator));
         }
         fn owner(self: *Self, comptime persistent: bool) std.mem.Allocator {
             return if (persistent) self.ctx.memo.arena.allocator() else self.ctx.allocator;

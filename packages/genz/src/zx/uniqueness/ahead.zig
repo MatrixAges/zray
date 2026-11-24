@@ -9,7 +9,6 @@ const Summaries = @import("summaries.zig");
 const Bodies = @import("program/bodies.zig");
 const generated = @import("genz_options").generated_analysis;
 const Schedule = if (generated) @import("ahead/schedule.zig") else @import("ahead/seed.zig");
-const workflow = @import("ahead/workflow.zig");
 const compute = @import("program/visit/compute.zig");
 const Window = @import("work/round.zig").Window;
 const BodyRows = @import("memo/body_rows.zig");
@@ -93,28 +92,27 @@ pub fn requestSeed(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: 
 fn offer(self: *Self, comptime kind: Memo.Kind, comptime persistent: bool, memo: *Memo, indices: Window, workers: usize) Error!void {
     var first: usize = 0;
 
-    offers: while (Schedule.scan(self.states, self.dirty, self.recursive, indices, first, workers)) |pos| {
+    while (Schedule.scan(self.states, self.dirty, self.recursive, indices, first, workers)) |pos| {
         const index: usize = @intCast(indices.at(pos));
-        var submitted: bool = undefined;
 
         first = pos + 1;
 
-        inline for (comptime workflow.steps(.Request, kind, persistent)) |step| switch (step) {
-            .CheckMemo => if (try memo.holds(kind, self.summaries, self.bodies.state(self.summaries, index))) {
+        if (kind != .planned or persistent) {
+            if (try memo.holds(kind, self.summaries, self.bodies.state(self.summaries, index))) {
                 _ = Schedule.transition(self.states, index, .Hold);
 
-                continue :offers;
-            },
-            .Reserve => _ = Schedule.transition(self.states, index, .Queue),
-            .Submit => submitted = self.pool.submit(@intCast(index)),
-            .WithdrawOnFull => if (!submitted) {
-                // An older ring entry can claim the new reservation before submit observes a full ring.
-                _ = Schedule.transition(self.states, index, .Withdraw);
+                continue;
+            }
+        }
 
-                return;
-            },
-            else => unreachable,
-        };
+        _ = Schedule.transition(self.states, index, .Queue);
+
+        if (!self.pool.submit(@intCast(index))) {
+            // An older ring entry can claim the new reservation before submit observes a full ring.
+            _ = Schedule.transition(self.states, index, .Withdraw);
+
+            return;
+        }
     }
 }
 
@@ -155,7 +153,8 @@ fn Task(comptime kind: Memo.Kind) type {
             };
         }
         fn execute(self: *Self, worker: *Pool.Worker, index: usize) Error!void {
-            var result: Found(kind) = undefined;
+            if (!Schedule.transition(self.states, index, .Claim)) return;
+
             var growth: Growth.Store = undefined;
 
             var input: compute.Input = .{
@@ -169,22 +168,17 @@ fn Task(comptime kind: Memo.Kind) type {
                 .owner = worker.kept.allocator(),
             };
 
-            inline for (comptime workflow.steps(.Analyze, kind, true)) |step| switch (step) {
-                .Claim => if (!Schedule.transition(self.states, index, .Claim)) return,
-                .ReadGrowth => {
-                    // A speculative demand can replace its own growth views before the foreground adopts them.
-                    const current = &self.bodies.units[index].growth;
-                    growth = if (generated) current.* else try current.clone(input.scratch);
-                    input.growth = &growth;
-                },
-                .AnalyzeDeferred, .AnalyzePlan => result = try analyze(step == .AnalyzeDeferred, input),
-                .Publish => {
-                    const slot: *Found(kind) = @ptrCast(&self.results[index].bytes);
-                    slot.* = result;
-                },
-                .Complete => _ = Schedule.transition(self.states, index, .Complete),
-                else => unreachable,
-            };
+            if (kind == .demanded) {
+                // A speculative demand can replace its own growth views before the foreground adopts them.
+                const current = &self.bodies.units[index].growth;
+                growth = if (generated) current.* else try current.clone(input.scratch);
+                input.growth = &growth;
+            }
+
+            const slot: *Found(kind) = @ptrCast(&self.results[index].bytes);
+
+            slot.* = try analyze(kind != .planned, input);
+            _ = Schedule.transition(self.states, index, .Complete);
         }
 
         fn analyze(comptime deferred: bool, input: compute.Input) Error!Found(kind) {
