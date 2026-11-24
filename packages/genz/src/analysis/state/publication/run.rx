@@ -3,6 +3,8 @@
 
     <Args in={Publication.Input} out={void} />
 
+    <Call fn="model.requireAllocation" in={$in.valid} />
+
     <Call
         fn="expressions"
         in={$in.pick([
@@ -27,7 +29,9 @@
         fn="finish"
         in={$in.pick([
             "target",
-            "fields"
+            "fields",
+            "serial",
+            "uses_allocator"
         ])}
     />
 </Module>

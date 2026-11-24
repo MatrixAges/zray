@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Preparation" />
+    <Type from="../model" as="Conversion" />
+
+    <Args in={Preparation.Fill} out={Conversion.Plan} />
+
+    <Call
+        fn="model.reserveConversionResources"
+        in={[
+            $in.resources.storage,
+            $in.plan.types.length
+        ]}
+    />
+
+    <Call
+        fn="../../resources/resolve"
+        in={{
+            ...$in.resources.omit(["storage"]),
+            plan: $in.plan
+        }}
+    />
+
+    <Return value={$in.plan} />
+</Module>

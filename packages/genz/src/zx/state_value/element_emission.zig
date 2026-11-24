@@ -129,7 +129,7 @@ pub fn prepare(self: *Lower, temporary: std.mem.Allocator, decision: Decision, v
 
     return .{
         .choice_value = zx.columns.view(std.meta.Child(@FieldType(Input, "choice")), decision),
-        .conversion = if (layout == null) try conversion.prepareMode(self, temporary, @fromBackingInt(decision.type_id), @fromBackingInt(value), decision.mode, capture) else null,
+        .conversion = if (layout == null) try conversion.prepareMode(self, temporary, @fromBackingInt(decision.type_id), @fromBackingInt(value), zx.columns.view(conversion.PlanningMode, decision.mode), capture) else null,
         .layout = layout orelse 0,
     };
 }

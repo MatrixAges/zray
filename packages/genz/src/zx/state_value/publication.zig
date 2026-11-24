@@ -24,16 +24,12 @@ const Frame = struct {
 };
 
 pub fn projection(self: *Lower, body: *Sequence, output: *const Projection) Lower.Error!void {
-    if (!output.result.valid) return error.OutOfMemory;
-
     const frame: Frame = .{ .lower = self, .binding = body, .body = body, .source = .{ .projection = output } };
 
-    return publish(&frame, output.result.segments.len, output.result.declaration != null, false);
+    return publish(&frame, output.result.segments.len, output.result.declaration != null, false, output.result.valid, output.result.serial, false);
 }
 
 pub fn conversion(self: *Lower, binding: ?*Sequence, body: ?*Sequence, output: anytype) Lower.Error!void {
-    if (!output.valid) return error.OutOfMemory;
-
     const frame: Frame = .{
         .lower = self,
         .binding = binding,
@@ -41,24 +37,24 @@ pub fn conversion(self: *Lower, binding: ?*Sequence, body: ?*Sequence, output: a
         .source = .{ .conversion = zx.columns.pointer(*const Conversion, output) },
     };
 
-    return publish(&frame, 1, false, true);
+    return publish(&frame, 1, false, true, output.valid, output.serial, output.uses_allocator);
 }
 
-fn publish(frame: *const Frame, segments: usize, helper: bool, fields: bool) Lower.Error!void {
+fn publish(frame: *const Frame, segments: usize, helper: bool, fields: bool, valid: bool, serial: u64, uses_allocator: bool) Lower.Error!void {
     const input: std.meta.Child(entry.Input) = .{
         .target = @ptrCast(frame),
         .segments = segments,
         .helper = helper,
         .fields = fields,
         .body = frame.body != null,
+        .valid = valid,
+        .serial = serial,
+        .uses_allocator = uses_allocator,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    entry.executeIn(fixed.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
+    return entry.executeIn(fixed.allocator(), &input);
 }
 
 pub fn appendAstExpressions(handle: *const anyopaque, index: u64) Lower.Error!void {
@@ -153,17 +149,11 @@ pub fn appendAstFields(handle: *const anyopaque) Lower.Error!void {
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| return imported(err);
 }
 
-pub fn finishAstPublication(handle: *const anyopaque) void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lower;
+pub fn finishAstPublication(handle: *const anyopaque, serial: u64, uses_allocator: bool) void {
+    const self = Frame.borrow(handle).lower;
 
-    switch (frame.source) {
-        .projection => |output| self.serial = @intCast(output.result.serial),
-        .conversion => |output| {
-            self.serial = @intCast(output.serial);
-            self.uses_allocator = self.uses_allocator or output.uses_allocator;
-        },
-    }
+    self.serial = @intCast(serial);
+    self.uses_allocator = self.uses_allocator or uses_allocator;
 }
 
 fn imported(err: rows.Error) Lower.Error {

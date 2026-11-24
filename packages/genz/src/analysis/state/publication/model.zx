@@ -5,5 +5,10 @@ export type Input = {
     segments: u64,
     helper: bool,
     fields: bool,
-    body: bool
+    body: bool,
+    valid: bool,
+    serial: u64,
+    uses_allocator: bool
 }
+
+export { requireAllocation } from "memory"

@@ -129,3 +129,5 @@ export type CollectionUpdate = {
 export type ListRepresentation = opaque
 
 export type ElementRepresentation = opaque
+
+export type ConversionResources = opaque

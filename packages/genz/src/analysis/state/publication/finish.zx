@@ -2,7 +2,7 @@ import host from "lowering_host"
 
 import type { Input as Publication } from "./model"
 
-export type Input = Publication.Pick("target", "fields")
+export type Input = Publication.Pick("target", "fields", "serial", "uses_allocator")
 
 export type Output = void
 
@@ -13,5 +13,5 @@ export default function (in: Input): Output {
         host.appendAstFields(target)
     }
 
-    host.finishAstPublication(target)
+    host.finishAstPublication(target, in.serial, in.uses_allocator)
 }

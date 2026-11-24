@@ -811,7 +811,6 @@ pub const growth = [_]Entry{
     .{ .path = "genz/analysis/state/locals/inline_stored.zx", .name = "state_inline_stored", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/query.zx", .name = "state_element_query", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/build.rx", .name = "state_element_emit", .owner = .genz },
-    .{ .path = "genz/analysis/state/conversion/plan/build.rx", .name = "state_conversion_plan", .owner = .genz },
     .{ .path = "genz/analysis/state/conversion/emit/build.rx", .name = "state_conversion_emit", .owner = .genz },
     .{ .path = "genz/ast/declarations/table/create.zx", .name = "auxiliary_create", .owner = .genz },
     .{ .path = "genz/ast/declarations/table/batch.zx", .name = "auxiliary_constant", .owner = .genz },
@@ -857,6 +856,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/state/conversion/prepare/run.rx", .name = "prepare_state_conversion", .owner = .genz },
     .{ .path = "genz/analysis/state/list/run.rx", .name = "run_state_list", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/run.rx", .name = "run_state_element", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/capture.rx", .name = "run_state_element_capture", .owner = .genz },
@@ -906,10 +906,7 @@ pub const execution = [_]Entry{
     .{ .path = "backends/zig/cache/writes/worker.zx", .name = "generation_cache_writer_worker", .owner = .compiler },
     .{ .path = "genz/analysis/iteration/fields/ownership/apply.zx", .name = "apply_loop_field_projection", .owner = .genz },
     .{ .path = "backends/zig/function_sources/updates/commit.zx", .name = "commit_pending_sources", .owner = .compiler },
-    .{ .path = "genz/analysis/state/conversion/view/satisfy.zx", .name = "state_view_satisfy", .owner = .genz },
-    .{ .path = "genz/analysis/state/conversion/view/walk.zx", .name = "state_view_plan", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/projection/prepare_layouts.zx", .name = "prepare_ownership_layouts", .owner = .genz },
-    .{ .path = "genz/analysis/state/resources/resolve.zx", .name = "resolve_state_resources", .owner = .genz },
     .{ .path = "genz/analysis/state/publication/run.rx", .name = "publish_state_ast", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/publication/run.rx", .name = "publish_ast_fragment", .owner = .genz },
     .{ .path = "backends/zig/library_entries/publish.zx", .name = "library_publish_entries", .owner = .compiler },

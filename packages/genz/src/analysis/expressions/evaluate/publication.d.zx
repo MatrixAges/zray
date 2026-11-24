@@ -19,7 +19,11 @@ export declare function appendAstBody(target: AstPublication, binding: bool): vo
 export declare function appendAstFields(target: AstPublication): void
     throws { OutOfMemory }
 
-export declare function finishAstPublication(target: AstPublication): void
+export declare function finishAstPublication(
+    target: AstPublication,
+    serial: u64,
+    uses_allocator: bool
+): void
 
 export declare function registerCallReference(target: CallAstPublication): void
     throws { OutOfMemory }

@@ -53,3 +53,8 @@ export declare function emitElement(
 ): u32 throws { OutOfMemory }
 
 export declare function elementCaptureName(frame: ElementRepresentation): u8[]
+
+export declare function reserveConversionResources(
+    storage: ConversionResources,
+    count: u64
+): void throws { OutOfMemory }

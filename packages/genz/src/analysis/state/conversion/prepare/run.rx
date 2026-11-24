@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Input} out={Preparation.Output} />
+
+    <Call fn="../is_view" in={$in.view.source.source.mode} />
+
+    <If on={$ctx.is_view}>
+        <If on={$in.check_view}>
+            <Call
+                fn="../view/satisfy"
+                in={{
+                    frame: $in.view.frame,
+                    source: $in.view.source,
+                    type_id: $in.view.source.source.root,
+                    mode: $in.view.source.source.mode
+                }}
+            />
+
+            <If on={$ctx.satisfy.operation == Preparation.Operation.Value}>
+                <Return value={null} />
+            </If>
+        </If>
+
+        <Call fn="../view/walk" in={$in.view} />
+
+        <Call
+            module="fill"
+            in={{
+                plan: $ctx.walk,
+                resources: $in.resources
+            }}
+        />
+
+        <Return value={$ctx.fill} />
+    </If>
+
+    <Call module="../plan/build" in={$in.view.source.source} />
+
+    <Call
+        module="fill"
+        in={{
+            plan: $ctx.build,
+            resources: $in.resources
+        }}
+    />
+
+    <Return value={$ctx.fill} />
+</Module>

@@ -4,9 +4,26 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Mode = @import("conversion.zig").Mode;
-const planner = @import("generated_state_conversion_plan");
-const PlanInput = std.meta.Child(planner.Input);
-const PlanningMode = @FieldType(PlanInput, "mode");
+const runner = @import("generated_prepare_state_conversion");
+const Request = std.meta.Child(runner.Input);
+const View = std.meta.Child(@FieldType(Request, "view"));
+const Source = std.meta.Child(@FieldType(View, "source"));
+const Conversion = std.meta.Child(@FieldType(Source, "source"));
+const Resources = std.meta.Child(@FieldType(Request, "resources"));
+pub const Input = std.meta.Child(@import("generated_state_conversion_emit").Input);
+pub const Capture = std.meta.Child(std.meta.Child(@FieldType(Input, "capture")));
+pub const PlanningMode = @FieldType(Conversion, "mode");
+
+const Columns = struct {
+    lower: *const Lower,
+    allocator: std.mem.Allocator,
+    layouts: []u32 = undefined,
+    targets: []u32 = undefined,
+    elements: []u32 = undefined,
+    origins: [][]const u8 = undefined,
+    serial: usize = undefined,
+    declarations: usize = undefined,
+};
 
 pub fn lower(self: *Lower, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     return lowerWithStorage(self, body, body, id, value, mode);
@@ -22,49 +39,25 @@ pub fn lowerWithStorage(self: *Lower, borrow_storage: anytype, body: anytype, id
     const temporary = buffered.allocator();
     var boundary: Capture = undefined;
     const capture = captureBoundary(self, &boundary);
-    const input = try prepareFor(self, temporary, id, value, mode, capture);
+    const input = (try prepare(self, temporary, id, value, planningMode(mode), capture, true)) orelse return value;
     const output = @import("generated_state_conversion_emit").executeIn(temporary, &input) catch |err| return failure(err);
 
     return apply(self, borrow_storage, body, output);
 }
 
 pub fn prepareFor(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: Mode, capture: ?*const Capture) Lower.Error!Input {
-    return prepareMode(self, temporary, id, value, switch (mode) {
-        .value => .Value,
-        .value_layout => .ValueLayout,
-        .row_value => .RowValue,
-        .pointer => .Pointer,
-        .layout => .Layout,
-        .row_layout => .RowLayout,
-        .borrow => .Borrow,
-        .view_value => .ViewValue,
-        .view_layout => .ViewLayout,
-    }, capture);
+    return prepareMode(self, temporary, id, value, planningMode(mode), capture);
 }
 
 pub fn prepareMode(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: PlanningMode, capture: ?*const Capture) Lower.Error!Input {
-    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(PlanInput, "types")), self.program.types);
-
-    const request: PlanInput = .{
-        .types = &types,
-        .queries = zx.columns.slice(@FieldType(PlanInput, "queries"), self.state_plan.queries),
-        .selected = self.state_plan.selected,
-        .element_storage = self.state_plan.element_storage,
-        .root = @backingInt(id),
-        .mode = mode,
-    };
-
-    const plan = if (mode == .ViewValue or mode == .ViewLayout)
-        try @import("view_plan.zig").build(self, temporary, &request)
-    else
-        planner.executeIn(temporary, &request) catch |err| return failure(err);
-
-    return prepare(self, temporary, plan, value, capture);
+    return (try prepare(self, temporary, id, value, mode, capture, false)).?;
 }
 
-pub const Input = std.meta.Child(@import("generated_state_conversion_emit").Input);
-pub const Capture = std.meta.Child(@typeInfo(@FieldType(Input, "capture")).optional.child);
-const Plan = std.meta.Child(planner.Output);
+fn planningMode(mode: Mode) PlanningMode {
+    return switch (mode) {
+        inline else => |kind| @field(PlanningMode, @import("../../node/view.zig").pascal(@tagName(kind))),
+    };
+}
 
 pub fn captureBoundary(self: *const Lower, storage: *Capture) ?*const Capture {
     const captured = self.capture orelse return null;
@@ -74,50 +67,67 @@ pub fn captureBoundary(self: *const Lower, storage: *Capture) ?*const Capture {
     return storage;
 }
 
-fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value: node.ExpressionId, capture: ?*const Capture) Lower.Error!Input {
-    const count = plan.types.len;
+pub fn reserveConversionResources(handle: *const anyopaque, length: u64) Lower.Error!void {
+    const columns: *Columns = @ptrCast(@alignCast(@constCast(handle)));
+    const count: usize = @intCast(length);
     const capacity = std.math.mul(usize, count, 3) catch return error.OutOfMemory;
-    const buffer = try temporary.alloc(u32, capacity);
-    const layouts = buffer[0..count];
-    const targets = buffer[count..][0..count];
-    const elements = buffer[count * 2 ..];
-    const origins = try temporary.alloc([]const u8, count);
-    const serial = self.serial;
-    const declarations = self.task_declarations.count();
-    const resolve = @import("generated_resolve_state_resources");
-    const Request = std.meta.Child(resolve.Input);
+    const buffer = try columns.allocator.alloc(u32, capacity);
+    columns.layouts = buffer[0..count];
+    columns.targets = buffer[count..][0..count];
+    columns.elements = buffer[count * 2 ..];
+    columns.origins = try columns.allocator.alloc([]const u8, count);
+    columns.serial = columns.lower.serial;
+    columns.declarations = columns.lower.task_declarations.count();
+}
 
-    const tables: std.meta.Child(@FieldType(Request, "types")) = .{
-        .abi_types = @ptrCast(self.abi_types),
-        .abi_layouts = @ptrCast(self.abi_layouts),
-        .state_types = @ptrCast(self.state_types),
-        .state_layouts = @ptrCast(self.state_layouts),
-        .views = @ptrCast(self.view_types),
+fn prepare(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: PlanningMode, capture: ?*const Capture, check_view: bool) Lower.Error!?Input {
+    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Conversion, "types")), self.program.types);
+
+    const conversion: Conversion = .{
+        .types = &types,
+        .queries = zx.columns.slice(@FieldType(Conversion, "queries"), self.state_plan.queries),
+        .selected = self.state_plan.selected,
+        .element_storage = self.state_plan.element_storage,
+        .root = @backingInt(id),
+        .mode = mode,
     };
 
-    const request: Request = .{
-        .frame = @ptrCast(self),
-        .plan = zx.columns.pointer(@FieldType(Request, "plan"), plan),
+    const source: Source = .{ .source = &conversion, .states = @ptrCast(self.state_types), .views = @ptrCast(self.view_types) };
+    const view: View = .{ .frame = @ptrCast(self), .source = &source };
+
+    const tables: std.meta.Child(@FieldType(Resources, "types")) = .{
+        .abi_types = @ptrCast(self.abi_types),
+        .abi_layouts = @ptrCast(self.abi_layouts),
+        .state_types = source.states,
+        .state_layouts = @ptrCast(self.state_layouts),
+        .views = source.views,
+    };
+
+    var columns: Columns = .{ .lower = self, .allocator = temporary };
+
+    const resources: Resources = .{
+        .frame = view.frame,
+        .storage = @ptrCast(&columns),
         .types = &tables,
         .children = self.program.types.first,
         .referenced = self.state_plan.borrowed,
-        .layouts = @ptrCast(&layouts),
-        .targets = @ptrCast(&targets),
-        .elements = @ptrCast(&elements),
-        .origins = @ptrCast(&origins),
+        .layouts = @ptrCast(&columns.layouts),
+        .targets = @ptrCast(&columns.targets),
+        .elements = @ptrCast(&columns.elements),
+        .origins = @ptrCast(&columns.origins),
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const request: Request = .{ .view = &view, .resources = &resources, .check_view = check_view };
+    const plan = (runner.executeIn(temporary, &request) catch |err| return failure(err)) orelse return null;
 
-    resolve.executeIn(fixed.allocator(), &request) catch |err| return failure(err);
-    std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
+    std.debug.assert(columns.serial == self.serial and columns.declarations == self.task_declarations.count());
 
     return .{
-        .plan = plan,
-        .layouts = layouts,
-        .targets = targets,
-        .elements = elements,
-        .origins = origins,
+        .plan = zx.columns.pointer(@FieldType(Input, "plan"), plan),
+        .layouts = columns.layouts,
+        .targets = columns.targets,
+        .elements = columns.elements,
+        .origins = columns.origins,
         .referenced = self.state_plan.borrowed,
         .value = @backingInt(value),
         .shared = self.shared_types,
