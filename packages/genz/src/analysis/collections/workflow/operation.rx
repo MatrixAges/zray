@@ -1,0 +1,71 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Operation} out={u32} />
+
+    <Call
+        fn="header"
+        in={{
+            frame: $in.frame,
+            value: $in.value,
+            represented: $in.represented,
+            frontier: $in.frontier
+        }}
+    />
+
+    <Call
+        fn="arguments"
+        in={$in.pick([
+            "frame",
+            "kind",
+            "arguments"
+        ])}
+    />
+
+    <Call fn="host.collectionElementType" in={$in.frame} />
+
+    <Call
+        fn="host.collectionLength"
+        in={[
+            $in.frame,
+            $in.items
+        ]}
+    />
+
+    <Call fn="host.collectionUnit" in={$in.frame} />
+
+    <If on={$in.kind == Flow.CollectionKind.Pop}>
+        <Call
+            fn="host.emitCollectionPop"
+            in={[
+                $in.frame,
+                $in.items,
+                $in.value,
+                $ctx.header,
+                $ctx.collectionElementType,
+                $ctx.collectionLength
+            ]}
+        />
+
+        <Return value={$ctx.emitCollectionPop} />
+    </If>
+
+    <Call
+        module="rows"
+        in={{
+            frame: $in.frame,
+            kind: $in.kind,
+            rows: {
+                ...$ctx.arguments,
+                items: $in.items,
+                value: $in.value,
+                header: $ctx.header,
+                element: $ctx.collectionElementType,
+                length: $ctx.collectionLength,
+                unit: $ctx.collectionUnit
+            }
+        }}
+    />
+
+    <Return value={$ctx.rows} />
+</Module>

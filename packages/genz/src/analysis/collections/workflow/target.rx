@@ -1,0 +1,75 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.TargetRequest} out={Flow.BoundTarget} />
+
+    <Call
+        fn="host.evaluateCollectionValue"
+        in={[
+            $in.frame,
+            $in.target
+        ]}
+    />
+
+    <Call fn="host.collectionTargetRepresented" in={$in.frame} />
+
+    <If on={$ctx.collectionTargetRepresented && $in.kind != Flow.CollectionKind.Slice}>
+        <Call
+            fn="host.clipCollectionTarget"
+            in={[
+                $in.frame,
+                $ctx.evaluateCollectionValue
+            ]}
+        />
+
+        <Call
+            fn="host.bindCollectionValue"
+            in={[
+                $in.frame,
+                $ctx.clipCollectionTarget
+            ]}
+        />
+
+        <Call
+            fn="host.readCollectionItems"
+            in={[
+                $in.frame,
+                $in.target,
+                $ctx.bindCollectionValue
+            ]}
+        />
+
+        <Return
+            value={{
+                value: $ctx.bindCollectionValue,
+                items: $ctx.readCollectionItems,
+                represented: true
+            }}
+        />
+    </If>
+
+    <Call
+        fn="host.bindCollectionValue"
+        in={[
+            $in.frame,
+            $ctx.evaluateCollectionValue
+        ]}
+    />
+
+    <Call
+        fn="host.readCollectionItems"
+        in={[
+            $in.frame,
+            $in.target,
+            $ctx.bindCollectionValue
+        ]}
+    />
+
+    <Return
+        value={{
+            value: $ctx.bindCollectionValue,
+            items: $ctx.readCollectionItems,
+            represented: $ctx.collectionTargetRepresented
+        }}
+    />
+</Module>

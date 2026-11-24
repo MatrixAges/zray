@@ -1,0 +1,37 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Outcome} out={u32} />
+
+    <If on={$in.removed_only}>
+        <Call
+            fn="host.finishCollection"
+            in={[
+                $in.frame,
+                $in.result
+            ]}
+        />
+
+        <Return value={$ctx.finishCollection} />
+    </If>
+
+    <Call module="convert" in={$in} />
+
+    <Call
+        fn="host.finalizeCollectionResult"
+        in={[
+            $in.frame,
+            $ctx.convert
+        ]}
+    />
+
+    <Call
+        fn="host.finishCollection"
+        in={[
+            $in.frame,
+            $ctx.finalizeCollectionResult
+        ]}
+    />
+
+    <Return value={$ctx.finishCollection} />
+</Module>

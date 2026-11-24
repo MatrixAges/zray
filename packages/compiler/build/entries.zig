@@ -643,12 +643,8 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/iteration/fields/ownership/build.rx", .name = "loop_fields_ownership", .owner = .genz },
     .{ .path = "genz/analysis/iteration/mutation/build.rx", .name = "iteration_mutation", .owner = .genz },
     .{ .path = "genz/analysis/iteration/literals/build.rx", .name = "iteration_literals", .owner = .genz },
-    .{ .path = "genz/analysis/collections/splice/build.rx", .name = "collection_splice", .owner = .genz },
-    .{ .path = "genz/analysis/collections/reorder/build.rx", .name = "collection_reorder", .owner = .genz },
-    .{ .path = "genz/analysis/collections/append/build.rx", .name = "collection_append", .owner = .genz },
     .{ .path = "genz/analysis/collections/pop/build.rx", .name = "collection_pop", .owner = .genz },
     .{ .path = "genz/analysis/collections/result/build.rx", .name = "collection_result", .owner = .genz },
-    .{ .path = "genz/analysis/collections/operands.zx", .name = "collection_operands", .owner = .genz },
     .{ .path = "genz/analysis/collections/finalize/build.rx", .name = "collection_finalize", .owner = .genz },
     .{ .path = "genz/analysis/store/lifecycle/policy.zx", .name = "store_lifecycle_policy", .owner = .genz },
     .{ .path = "genz/analysis/store/state/build.rx", .name = "store_state", .owner = .genz },
@@ -862,6 +858,8 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/collections/workflow/run.rx", .name = "run_collection_operation", .owner = .genz },
+    .{ .path = "genz/analysis/collections/workflow/emit.rx", .name = "emit_collection_rows", .owner = .genz },
     .{ .path = "rx/analysis/condition/walk.zx", .name = "rx_condition_walk", .owner = .rx_analysis },
     .{ .path = "inputs/generation/request/packages.zx", .name = "generation_packages", .owner = .bootstrap },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .bootstrap },

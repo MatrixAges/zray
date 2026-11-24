@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Input} out={u32} />
+
+    <Call
+        module="target"
+        in={$in.pick([
+            "frame",
+            "kind",
+            "target"
+        ])}
+    />
+
+    <If on={$in.kind == Flow.CollectionKind.Slice}>
+        <Call
+            module="slice"
+            in={{
+                ...$in,
+                ...$ctx.target
+            }}
+        />
+
+        <Return value={$ctx.slice} />
+    </If>
+
+    <Call
+        module="operation"
+        in={{
+            ...$in,
+            ...$ctx.target
+        }}
+    />
+
+    <Call
+        module="result"
+        in={{
+            frame: $in.frame,
+            result: $ctx.operation,
+            removed_only: $in.removed_only
+        }}
+    />
+
+    <Return value={$ctx.result} />
+</Module>

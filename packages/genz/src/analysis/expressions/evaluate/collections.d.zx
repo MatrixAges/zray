@@ -1,0 +1,67 @@
+export declare function evaluateCollectionValue(frame: CollectionFrame, origin: u32): u32
+    throws { OutOfMemory }
+
+export declare function collectionTargetRepresented(frame: CollectionFrame): bool
+
+export declare function clipCollectionTarget(frame: CollectionFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function bindCollectionValue(frame: CollectionFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function readCollectionItems(frame: CollectionFrame, origin: u32, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function writeCollectionElement(frame: CollectionFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function collectionHeader(frame: CollectionFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function collectionFlag(frame: CollectionFrame, value: bool): u32
+    throws { OutOfMemory }
+
+export declare function collectionElementType(frame: CollectionFrame): u32
+    throws { OutOfMemory }
+
+export declare function collectionLength(frame: CollectionFrame, items: u32): u32
+    throws { OutOfMemory }
+
+export declare function collectionUnit(frame: CollectionFrame): u32
+    throws { OutOfMemory }
+
+export declare function collectionCompare(frame: CollectionFrame): u8[]
+    throws { OutOfMemory }
+
+export declare function collectionMinimum(frame: CollectionFrame): u32?
+    throws { OutOfMemory }
+
+export declare function emitCollectionRows(
+    frame: CollectionFrame,
+    rows: CollectionRows,
+    minimum: u32?,
+    compare: u8[]?
+): u32 throws { OutOfMemory }
+
+export declare function emitCollectionPop(
+    frame: CollectionFrame,
+    items: u32,
+    value: u32,
+    header: u32,
+    element: u32,
+    length: u32
+): u32 throws { OutOfMemory }
+
+export declare function collectionResultNeedsConversion(frame: CollectionFrame): bool
+
+export declare function convertCollectionResult(frame: CollectionFrame, result: u32): u32
+    throws { OutOfMemory }
+
+export declare function finalizeCollectionResult(frame: CollectionFrame, result: u32): u32
+    throws { OutOfMemory }
+
+export declare function castCollectionResult(frame: CollectionFrame, layout: u32, result: u32): u32
+    throws { OutOfMemory }
+
+export declare function finishCollection(frame: CollectionFrame, result: u32): u32
+    throws { OutOfMemory }

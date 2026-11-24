@@ -1,0 +1,46 @@
+import type { CollectionKind } from "core/expression_table/kinds"
+import type { CollectionFrame, CollectionRows } from "lowering_host"
+
+export { CollectionKind } from "core/expression_table/kinds"
+
+export type Input = {
+    frame: CollectionFrame,
+    kind: CollectionKind,
+    target: u32,
+    arguments: u32[],
+    frontier: bool,
+    removed_only: bool,
+    layout?: u32
+}
+
+export type BoundTarget = {
+    value: u32,
+    items: u32,
+    represented: bool
+}
+
+export type TargetRequest = {
+    frame: CollectionFrame,
+    kind: CollectionKind,
+    target: u32
+}
+
+export type Arguments = {
+    first: u32,
+    second: u32,
+    third: u32
+}
+
+export type Operation = Input & BoundTarget
+
+export type Rows = {
+    frame: CollectionFrame,
+    kind: CollectionKind,
+    rows: CollectionRows
+}
+
+export type Outcome = {
+    frame: CollectionFrame,
+    result: u32,
+    removed_only: bool
+}

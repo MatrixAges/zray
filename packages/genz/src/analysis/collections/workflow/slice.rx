@@ -1,0 +1,78 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Operation} out={u32} />
+
+    <Call fn="host.collectionElementType" in={$in.frame} />
+
+    <Call
+        fn="host.collectionLength"
+        in={[
+            $in.frame,
+            $in.items
+        ]}
+    />
+
+    <Call
+        fn="host.collectionFlag"
+        in={[
+            $in.frame,
+            false
+        ]}
+    />
+
+    <Call fn="host.collectionUnit" in={$in.frame} />
+
+    <Call
+        fn="slice_rows"
+        in={{
+            items: $in.items,
+            value: $in.value,
+            header: $ctx.collectionFlag,
+            element: $ctx.collectionElementType,
+            length: $ctx.collectionLength,
+            unit: $ctx.collectionUnit
+        }}
+    />
+
+    <Call
+        fn="host.emitCollectionRows"
+        in={[
+            $in.frame,
+            $ctx.slice_rows,
+            null,
+            null
+        ]}
+    />
+
+    <If on={$in.layout != null}>
+        <Call
+            fn="host.castCollectionResult"
+            in={[
+                $in.frame,
+                $in.layout,
+                $ctx.emitCollectionRows
+            ]}
+        />
+
+        <Call
+            fn="host.finishCollection"
+            in={[
+                $in.frame,
+                $ctx.castCollectionResult
+            ]}
+        />
+
+        <Return value={$ctx.finishCollection} />
+    </If>
+
+    <Call
+        fn="host.finishCollection"
+        in={[
+            $in.frame,
+            $ctx.emitCollectionRows
+        ]}
+    />
+
+    <Return value={$ctx.finishCollection} />
+</Module>

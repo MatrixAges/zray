@@ -1,0 +1,16 @@
+import { unused_expression } from "./const"
+
+import type { CollectionRows } from "lowering_host"
+
+export type Input = CollectionRows.Omit("first", "second", "third")
+
+export type Output = CollectionRows
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        first: unused_expression,
+        second: unused_expression,
+        third: unused_expression
+    }
+}

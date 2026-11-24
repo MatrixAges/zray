@@ -1,0 +1,86 @@
+<Module>
+    <Type from="emission" as="Emission" />
+
+    <Args in={Emission.Input} out={Emission.Output} />
+
+    <If
+        on={$in.kind == Emission.CollectionKind.Push ||
+            $in.kind == Emission.CollectionKind.Concat}
+    >
+        <Call
+            module="../append/build"
+            in={{
+                ...$in.pick([
+                    "items",
+                    "value",
+                    "element",
+                    "length",
+                    "unit",
+                    "frontier",
+                    "lazy",
+                    "minimum",
+                    "selected",
+                    "layout",
+                    "shared",
+                    "ast",
+                    "bases"
+                ]),
+                argument: $in.first,
+                push: $in.kind == Emission.CollectionKind.Push
+            }}
+        />
+
+        <Return value={$ctx.build} />
+    </If>
+
+    <If on={$in.kind == Emission.CollectionKind.Splice}>
+        <Call
+            module="../splice/build"
+            in={{
+                ...$in.pick([
+                    "header",
+                    "element",
+                    "length",
+                    "selected",
+                    "layout",
+                    "retract",
+                    "removed_only",
+                    "shared",
+                    "ast",
+                    "bases"
+                ]),
+                source: $in.items,
+                start: $in.first,
+                count: $in.second,
+                replacement: $in.third
+            }}
+        />
+
+        <Return value={$ctx.build} />
+    </If>
+
+    <Call
+        module="../reorder/build"
+        in={{
+            ...$in.pick([
+                "header",
+                "element",
+                "length",
+                "unit",
+                "compare",
+                "selected",
+                "layout",
+                "shared",
+                "ast",
+                "bases"
+            ]),
+            source: $in.items,
+            in_place: $in.kind != Emission.CollectionKind.Slice && $in.in_place,
+            grow: $in.kind != Emission.CollectionKind.Slice && $in.grow,
+            sort: $in.kind == Emission.CollectionKind.Sort,
+            slice: $in.kind == Emission.CollectionKind.Slice
+        }}
+    />
+
+    <Return value={$ctx.build} />
+</Module>

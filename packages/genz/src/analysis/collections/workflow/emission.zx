@@ -1,0 +1,21 @@
+import type { CollectionKind } from "core/expression_table/kinds"
+import type { CollectionRows } from "lowering_host"
+import type { Input as Append } from "../append/model"
+import type { Output as Emitted } from "../model"
+
+export { CollectionKind } from "core/expression_table/kinds"
+
+export type Input =
+    CollectionRows & Append.Pick("selected", "layout", "shared", "ast", "bases") & {
+        kind: CollectionKind,
+        in_place: bool,
+        grow: bool,
+        frontier: bool,
+        lazy: bool,
+        retract: bool,
+        removed_only: bool,
+        minimum?: u32,
+        compare: u8[]
+    }
+
+export type Output = Emitted

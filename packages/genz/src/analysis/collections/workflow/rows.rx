@@ -1,0 +1,52 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Rows} out={u32} />
+
+    <If on={$in.kind == Flow.CollectionKind.Sort}>
+        <Call fn="host.collectionCompare" in={$in.frame} />
+
+        <Call
+            fn="host.emitCollectionRows"
+            in={[
+                $in.frame,
+                $in.rows,
+                null,
+                $ctx.collectionCompare
+            ]}
+        />
+
+        <Return value={$ctx.emitCollectionRows} />
+    </If>
+
+    <If
+        on={$in.kind == Flow.CollectionKind.Push ||
+            $in.kind == Flow.CollectionKind.Concat}
+    >
+        <Call fn="host.collectionMinimum" in={$in.frame} />
+
+        <Call
+            fn="host.emitCollectionRows"
+            in={[
+                $in.frame,
+                $in.rows,
+                $ctx.collectionMinimum,
+                null
+            ]}
+        />
+
+        <Return value={$ctx.emitCollectionRows} />
+    </If>
+
+    <Call
+        fn="host.emitCollectionRows"
+        in={[
+            $in.frame,
+            $in.rows,
+            null,
+            null
+        ]}
+    />
+
+    <Return value={$ctx.emitCollectionRows} />
+</Module>

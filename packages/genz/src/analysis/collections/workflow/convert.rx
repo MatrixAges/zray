@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Outcome} out={u32} />
+
+    <Call fn="host.collectionResultNeedsConversion" in={$in.frame} />
+
+    <If on={$ctx.collectionResultNeedsConversion}>
+        <Call
+            fn="host.convertCollectionResult"
+            in={[
+                $in.frame,
+                $in.result
+            ]}
+        />
+
+        <Return value={$ctx.convertCollectionResult} />
+    </If>
+
+    <Return value={$in.result} />
+</Module>

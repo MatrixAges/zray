@@ -1,0 +1,56 @@
+import host from "lowering_host"
+
+import { unused_expression } from "./const"
+import { CollectionKind } from "./model"
+
+import type { Arguments, Input as Request } from "./model"
+
+export type Input = Request.Pick("frame", "kind", "arguments")
+
+export type Output = Arguments
+
+export default function (in: Input): Output {
+    const { frame, kind, arguments } = in
+
+    if (kind == CollectionKind.Splice) {
+        const start = host.evaluateCollectionValue(frame, arguments[0])
+        const first = host.bindCollectionValue(frame, start)
+
+        const count = host.evaluateCollectionValue(frame, arguments[1])
+        const second = host.bindCollectionValue(frame, count)
+
+        const replacement_id = arguments[2]
+        const replacement = host.evaluateCollectionValue(frame, replacement_id)
+        const value = host.bindCollectionValue(frame, replacement)
+        const third = host.readCollectionItems(frame, replacement_id, value)
+
+        return {
+            first,
+            second,
+            third
+        }
+    }
+
+    if (kind == CollectionKind.Push || kind == CollectionKind.Concat) {
+        const id = arguments[0]
+        const value = host.evaluateCollectionValue(frame, id)
+        const bound = host.bindCollectionValue(frame, value)
+
+        const first = match kind {
+            CollectionKind.Push => host.writeCollectionElement(frame, bound),
+            _ => host.readCollectionItems(frame, id, bound)
+        }
+
+        return {
+            first,
+            second: unused_expression,
+            third: unused_expression
+        }
+    }
+
+    return {
+        first: unused_expression,
+        second: unused_expression,
+        third: unused_expression
+    }
+}
