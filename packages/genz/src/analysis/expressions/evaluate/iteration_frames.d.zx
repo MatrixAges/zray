@@ -69,12 +69,6 @@ export enum LoopInitial {
     Deep
 }
 
-export type LoopOperands = {
-    condition: u32,
-    body: u32,
-    by_value: bool
-}
-
 export type IterationResourceFrame = opaque
 
 export enum IterationResource {
@@ -110,12 +104,6 @@ export enum LoopStorage {
     State,
     StateValue,
     Clip
-}
-
-export enum LoopAssignment {
-    Direct,
-    State,
-    Projected
 }
 
 export type LoopFieldRebuild = opaque

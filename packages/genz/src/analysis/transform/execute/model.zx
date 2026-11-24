@@ -1,5 +1,6 @@
 import type { TransformKind } from "core/expression_table/kinds"
 import type { TransformFrame } from "lowering_host"
+import type { Source as RenewalSource } from "../../iteration/deferred/model"
 
 export { TransformKind } from "core/expression_table/kinds"
 
@@ -7,7 +8,11 @@ export type Frame = TransformFrame
 
 export type Input = {
     frame: Frame,
-    kind: TransformKind
+    kind: TransformKind,
+    id: u32,
+    renewal_source?: RenewalSource
 }
+
+export type Reduce = Input.Pick("frame", "id", "renewal_source")
 
 export type Output = u32?

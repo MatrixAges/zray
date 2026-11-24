@@ -11,7 +11,6 @@ const seed_parameters = @import("../parameters_seed.zig");
 const initial = @import("../initial.zig");
 const scope = @import("../../state_value/scope.zig");
 const step = @import("../step.zig");
-const renewal = @import("../renewal.zig");
 const generated = @import("genz_options").generated_analysis;
 const Api = @import("../../expressions/evaluate.zig").Api;
 const Admission = if (generated) Api.LoopAdmission else enum { Proceed, Dereference, Reject };
@@ -192,7 +191,20 @@ pub fn prepareLoopUpdate(handle: *const anyopaque) Error!void {
         .Clip => try clipLoopInitial(handle),
     };
 
-    return planLoopUpdate(handle, value);
+    storeLoopPreparedState(handle, value);
+
+    const frame = Frame.borrow(handle);
+
+    frame.schedule = step.plan(.{
+        .condition = @backingInt(frame.iteration.condition),
+        .body = @backingInt(frame.iteration.body),
+        .forwarded = loopForwardedCall(handle),
+        .postcondition = frame.iteration.postcondition,
+        .projected = frame.fields != null,
+        .selected_state = frame.initial.selected_state,
+        .layout = frame.initial.layout,
+        .discard = frame.mode == .discard,
+    });
 }
 
 pub fn loopStorage(handle: *const anyopaque) Api.LoopStorage {
@@ -227,35 +239,16 @@ pub fn clipLoopInitial(handle: *const anyopaque) Error!u32 {
     return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, frame.initial_value));
 }
 
-pub fn planLoopUpdate(handle: *const anyopaque, value: u32) Error!void {
+pub fn storeLoopPreparedState(handle: *const anyopaque, value: u32) void {
+    Frame.borrow(handle).initial_state = @fromBackingInt(value);
+}
+
+pub fn loopForwardedCall(handle: *const anyopaque) ?u32 {
     const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    frame.initial_state = @fromBackingInt(value);
 
-    frame.schedule = step.plan(.{
-        .condition = @backingInt(frame.iteration.condition),
-        .body = @backingInt(frame.iteration.body),
-        .forwarded = if (frame.selection.forwarded) |call| @backingInt(call) else null,
-        .postcondition = frame.iteration.postcondition,
-        .projected = frame.fields != null,
-        .selected_state = frame.initial.selected_state,
-        .layout = frame.initial.layout,
-        .buffered = frame.initial.buffered,
-        .discard = frame.mode == .discard,
-    });
+    return if (frame.selection.forwarded) |call| @backingInt(call) else null;
+}
 
-    frame.operands = .{
-        .condition = frame.schedule.condition,
-        .body = frame.schedule.step,
-        .by_value = frame.schedule.by_value,
-    };
-
-    var memory = std.heap.BufferFirstAllocator.init(&frame.renewal_buffer, frame.renewal_arena.allocator());
-
-    frame.renewals = try renewal.plan(self, memory.allocator(), .{
-        .owner = frame.id,
-        .type_id = frame.type_id,
-        .classify = if (frame.schedule.classify_renewals) frame.iteration else null,
-        .inline_lists = frame.schedule.inline_lists,
-    });
+pub fn releaseLoopPlanningScratch(handle: *const anyopaque) void {
+    _ = Frame.borrow(handle).renewal_workspace.scratch.reset(.free_all);
 }

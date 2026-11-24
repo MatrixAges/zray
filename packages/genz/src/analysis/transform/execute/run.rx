@@ -31,7 +31,14 @@
     <Call fn="index.lowerTransformCallback" in={$in.frame} />
 
     <If on={$in.kind == Transform.TransformKind.Reduce}>
-        <Call module="reduce" in={$in.frame} />
+        <Call
+            module="reduce"
+            in={$in.pick([
+                "frame",
+                "id",
+                "renewal_source"
+            ])}
+        />
 
         <Return value={$ctx.reduce} />
     </If>

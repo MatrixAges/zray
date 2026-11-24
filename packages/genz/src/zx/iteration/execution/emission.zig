@@ -7,6 +7,7 @@ const declarations = @import("../state.zig");
 const step = @import("../step.zig");
 const scope = @import("../../state_value/scope.zig");
 const result = @import("../result.zig");
+const renew_seed = @import("../renewal_seed.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
 const Api = @import("../../expressions/evaluate.zig").Api;
@@ -27,23 +28,19 @@ pub fn lowerLoopFirstTest(handle: *const anyopaque) Error!?u32 {
     return @backingInt(try frame.lowering.expr(@fromBackingInt(condition)));
 }
 
-pub fn loopFirstCondition(handle: *const anyopaque) ?u32 {
-    return Frame.borrow(handle).schedule.first_test;
-}
-
 pub fn loopSeedName(handle: *const anyopaque) []const u8 {
     const frame = Frame.borrow(handle);
 
     return frame.lowering.builder.nodes.get(frame.seed).identifier;
 }
 
-pub fn enterLoopUpdate(handle: *const anyopaque, update: Frame.UpdateScope) void {
+pub fn enterLoopUpdate(handle: *const anyopaque, update: Frame.UpdateScope, delayed: bool) void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
     frame.step_scope = switch (update) {
         .Projected => .{ .Projected = scope.enter(self, .Projected, .{ .loop_fields = &frame.fields.? }) },
-        .Ordinary => .{ .Ordinary = scope.enter(self, .Deferred, .{ .deferred_lists = frame.renewals.delayed }) },
+        .Ordinary => .{ .Ordinary = scope.enter(self, .Deferred, .{ .deferred_lists = delayed }) },
         .None => unreachable,
     };
 }
@@ -58,7 +55,7 @@ pub fn saveLoopUpdate(handle: *const anyopaque, condition: u32, value: u32, firs
     };
 }
 
-pub fn declareLoopState(handle: *const anyopaque, form: Layout, projected: bool) Error!void {
+pub fn declareLoopState(handle: *const anyopaque, form: Layout, projected: bool, mutable: bool) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const type_id = frame.type_id;
@@ -74,15 +71,16 @@ pub fn declareLoopState(handle: *const anyopaque, form: Layout, projected: bool)
         .name = name,
         .layout = layout,
         .initial = frame.initial_state,
-        .mutable = !projected or frame.renewals.needsEntries(self),
+        .mutable = mutable,
         .tracking = if (frame.changed_name.len != 0) frame.changed_name else null,
     });
 }
 
 pub fn enterLoweredLoop(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
     const projected = loopProjects(handle);
 
-    try emitLoopRenewals(handle);
+    frame.growth = try renew_seed.store(frame.lowering, frame.id, frame.type_id, .{ .reference = if (projected) frame.seed else frame.state });
 
     if (projected) {
         try maskLoopBorrowedFields(handle);
@@ -92,11 +90,16 @@ pub fn enterLoweredLoop(handle: *const anyopaque) Error!void {
     return publishLoopDeclarations(handle);
 }
 
-pub fn emitLoopRenewals(handle: *const anyopaque) Error!void {
+pub fn emitLoopRenewals(handle: *const anyopaque, first: u64, end: u64, filtered_inline: bool) Error!void {
     const frame = Frame.borrow(handle);
 
-    frame.growth = try frame.renewals.store(frame.lowering, frame.type_id, .{
-        .reference = if (frame.fields != null) frame.seed else frame.state,
+    frame.growth = try @import("../../growth/renew.zig").entry(frame.lowering, .{
+        .type_id = frame.type_id,
+        .target = .{ .reference = if (frame.fields != null) frame.seed else frame.state },
+        .first = @intCast(first),
+        .end = @intCast(end),
+        .skipped = frame.renewal_workspace.skipped.items,
+        .filtered_inline = filtered_inline,
     });
 }
 
@@ -138,10 +141,6 @@ pub fn writeLoopUpdate(handle: *const anyopaque) Error!void {
     }, frame.tracker);
 }
 
-pub fn loopAssignment(handle: *const anyopaque) Api.LoopAssignment {
-    return zx.columns.view(Api.LoopAssignment, Frame.borrow(handle).schedule.assignment);
-}
-
 pub fn loopNextValue(handle: *const anyopaque) u32 {
     return @backingInt(Frame.borrow(handle).next.value);
 }
@@ -158,19 +157,19 @@ pub fn clipLoopAssignment(handle: *const anyopaque) Error!u32 {
     return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.loop, frame.iteration.body, frame.next.value));
 }
 
-pub fn commitLoopUpdate(handle: *const anyopaque, value: u32) Error!void {
+pub fn commitLoopUpdate(handle: *const anyopaque, value: u32, state: bool) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.update = try step.publish(frame.lowering, &frame.loop, .{
         .type_id = frame.type_id,
-        .active = frame.schedule.assignment == .State and frame.lowering.state_active,
+        .active = state and frame.lowering.state_active,
         .target = frame.state,
         .value = @fromBackingInt(value),
         .mark = if (frame.tracker) |flag| flag.generated else null,
     });
 }
 
-pub fn frameLoweredLoop(handle: *const anyopaque) Error!void {
+pub fn frameLoweredLoop(handle: *const anyopaque, after_step: bool) Error!void {
     const frame = Frame.borrow(handle);
     const projected = frame.fields != null;
 
@@ -178,7 +177,7 @@ pub fn frameLoweredLoop(handle: *const anyopaque) Error!void {
 
     frame.prefix.frame = try @import("../frame.zig").lower(frame.lowering, if (projected) .{} else frame.growth, frame.update, .{
         .condition = frame.next.condition,
-        .after_step = frame.schedule.after_step,
+        .after_step = after_step,
         .guarded_initial = !projected and frame.guard != null,
     });
 }
@@ -186,7 +185,7 @@ pub fn frameLoweredLoop(handle: *const anyopaque) Error!void {
 pub fn recoverLoweredLoop(handle: *const anyopaque) Error!void {
     resetLoopResult(handle);
 
-    if (loopRestoresFields(handle)) try restoreLoopFields(handle);
+    if (Frame.borrow(handle).schedule.restore_projected) try restoreLoopFields(handle);
 }
 
 pub fn resetLoopResult(handle: *const anyopaque) void {
@@ -195,12 +194,6 @@ pub fn resetLoopResult(handle: *const anyopaque) void {
     frame.output().clearRetainingCapacity();
 
     frame.recovered = frame.state;
-}
-
-pub fn loopRestoresFields(handle: *const anyopaque) bool {
-    const frame = Frame.borrow(handle);
-
-    return frame.fields != null and frame.schedule.restore_projected;
 }
 
 pub fn restoreLoopFields(handle: *const anyopaque) Error!void {

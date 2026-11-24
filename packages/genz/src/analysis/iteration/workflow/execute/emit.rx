@@ -1,27 +1,51 @@
 <Module>
     <Type from="model" as="Loop" />
+    <Type from="../../step/model" as="Step" />
 
-    <Args in={Loop.Frame} out={u32} />
+    <Args in={Loop.Emit} out={u32} />
 
-    <Call fn="index.emitLoopRenewals" in={$in} />
-    <Call fn="index.loopProjects" in={$in} />
-
-    <If on={$ctx.loopProjects}>
-        <Call fn="index.maskLoopBorrowedFields" in={$in} />
-        <Call fn="index.declareProjectedLoopState" in={$in} />
+    <If on={$in.renewals.emit}>
+        <Call
+            fn="index.emitLoopRenewals"
+            in={[
+                $in.loop_frame,
+                $in.renewals.first,
+                $in.renewals.end,
+                $in.schedule.inline_lists
+            ]}
+        />
     </If>
 
-    <Call fn="index.publishLoopDeclarations" in={$in} />
-    <Call fn="assignment" in={$in} />
-    <Call fn="index.frameLoweredLoop" in={$in} />
-    <Call fn="index.resetLoopResult" in={$in} />
-    <Call fn="index.loopRestoresFields" in={$in} />
-
-    <If on={$ctx.loopRestoresFields}>
-        <Call fn="index.restoreLoopFields" in={$in} />
+    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
+        <Call fn="index.maskLoopBorrowedFields" in={$in.loop_frame} />
+        <Call fn="index.declareProjectedLoopState" in={$in.loop_frame} />
     </If>
 
-    <Call fn="finish" in={$in} />
+    <Call fn="index.publishLoopDeclarations" in={$in.loop_frame} />
+
+    <Call
+        fn="assignment"
+        in={{
+            loop_frame: $in.loop_frame,
+            assignment: $in.schedule.assignment
+        }}
+    />
+
+    <Call
+        fn="index.frameLoweredLoop"
+        in={[
+            $in.loop_frame,
+            $in.schedule.after_step
+        ]}
+    />
+
+    <Call fn="index.resetLoopResult" in={$in.loop_frame} />
+
+    <If on={$in.schedule.restore_projected}>
+        <Call fn="index.restoreLoopFields" in={$in.loop_frame} />
+    </If>
+
+    <Call fn="finish" in={$in.loop_frame} />
 
     <Return value={$ctx.finish} />
 </Module>

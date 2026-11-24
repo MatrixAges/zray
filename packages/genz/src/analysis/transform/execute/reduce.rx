@@ -1,23 +1,47 @@
 <Module>
     <Type from="model" as="Transform" />
 
-    <Args in={Transform.Frame} out={u32} />
+    <Args in={Transform.Reduce} out={u32} />
 
-    <Call fn="index.lowerReduceInitial" in={$in} />
-    <Call fn="index.transformStateActive" in={$in} />
-
-    <If on={$ctx.transformStateActive}>
-        <Call fn="index.convertReduceInitial" in={$in} />
-    </If>
-
-    <Call fn="index.renewReduceStorage" in={$in} />
+    <Call fn="index.lowerReduceInitial" in={$in.frame} />
+    <Call fn="index.transformStateActive" in={$in.frame} />
 
     <If on={$ctx.transformStateActive}>
-        <Call fn="index.convertReduceCallback" in={$in} />
+        <Call fn="index.convertReduceInitial" in={$in.frame} />
     </If>
 
-    <Call fn="index.bindTransformElement" in={$in} />
-    <Call fn="index.publishReduceTransform" in={$in} />
+    <If on={$in.renewal_source != null}>
+        <Call fn="index.reduceInlineLists" in={$in.frame} />
+
+        <Call
+            module="../../iteration/deferred/check"
+            in={{
+                ...$in.renewal_source,
+                owner: $in.id,
+                classify: false,
+                inline_lists: $ctx.reduceInlineLists
+            }}
+        />
+
+        <If on={$ctx.check.emit}>
+            <Call
+                fn="index.emitReduceRenewals"
+                in={[
+                    $in.frame,
+                    $ctx.check.first,
+                    $ctx.check.end,
+                    $ctx.reduceInlineLists
+                ]}
+            />
+        </If>
+    </If>
+
+    <If on={$ctx.transformStateActive}>
+        <Call fn="index.convertReduceCallback" in={$in.frame} />
+    </If>
+
+    <Call fn="index.bindTransformElement" in={$in.frame} />
+    <Call fn="index.publishReduceTransform" in={$in.frame} />
 
     <Return value={$ctx.publishReduceTransform} />
 </Module>

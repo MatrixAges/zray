@@ -17,12 +17,13 @@ export {
     closeLoopRepresentation,
     releaseLoopStatements,
     loopProjects,
+    loopForwardedCall,
+    releaseLoopPlanningScratch,
     emitLoopRenewals,
     maskLoopBorrowedFields,
     declareProjectedLoopState,
     publishLoopDeclarations,
     frameLoweredLoop,
     resetLoopResult,
-    loopRestoresFields,
     restoreLoopFields
 } from "lowering_host"

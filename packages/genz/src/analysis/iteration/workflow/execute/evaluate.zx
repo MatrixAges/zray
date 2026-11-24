@@ -1,20 +1,23 @@
 import host from "lowering_host"
 import { LoopParameterLayout, LoopUpdateScope } from "lowering_host"
 
+import { Assignment } from "../../step/model"
 import closeUpdate from "./close_update"
 import firstCondition from "./first_condition"
 
-import type { Input } from "./model"
+import type { Evaluate as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, loop_frame, operands } = in
+    const { frame, loop_frame, schedule, renewals } = in
 
-    const projected = host.loopProjects(loop_frame)
+    const projected = schedule.assignment == Assignment.Projected
 
     if (projected) {
-        host.declareLoopState(loop_frame, LoopParameterLayout.State, true)
+        const mutable = renewals.first != renewals.end
+
+        host.declareLoopState(loop_frame, LoopParameterLayout.State, true, mutable)
     }
 
     const first = firstCondition(in)
@@ -24,13 +27,13 @@ export default function (in: Input): Output {
         _ => LoopUpdateScope.Ordinary
     }
 
-    host.enterLoopUpdate(loop_frame, scope)
+    host.enterLoopUpdate(loop_frame, scope, renewals.delayed)
 
-    const condition = host.lowerExpression(frame, operands.condition, false, null)
+    const condition = host.lowerExpression(frame, schedule.condition, false, null)
 
     const value = match {
-        operands.by_value => host.lowerValueExpression(frame, operands.body),
-        _ => host.lowerExpression(frame, operands.body, false, null)
+        schedule.by_value => host.lowerValueExpression(frame, schedule.step),
+        _ => host.lowerExpression(frame, schedule.step, false, null)
     }
 
     closeUpdate(loop_frame)
@@ -39,6 +42,6 @@ export default function (in: Input): Output {
     if (!projected) {
         const layout = host.loopParameterLayout(loop_frame)
 
-        host.declareLoopState(loop_frame, layout, false)
+        host.declareLoopState(loop_frame, layout, false, true)
     }
 }

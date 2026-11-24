@@ -1,18 +1,24 @@
 import host from "lowering_host"
-import { LoopAssignment } from "lowering_host"
 
-import type { LoopFrame as Input } from "lowering_host"
+import { Assignment } from "../../step/model"
+
+import type { LoopFrame } from "lowering_host"
+
+export type Input = {
+    loop_frame: LoopFrame,
+    assignment: Assignment
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const assignment = host.loopAssignment(in)
+    const { loop_frame, assignment } = in
 
     const value = match assignment {
-        LoopAssignment.Projected => host.projectLoopAssignment(in),
-        LoopAssignment.State => host.clipLoopAssignment(in),
-        _ => host.loopNextValue(in)
+        Assignment.Projected => host.projectLoopAssignment(loop_frame),
+        Assignment.State => host.clipLoopAssignment(loop_frame),
+        _ => host.loopNextValue(loop_frame)
     }
 
-    host.commitLoopUpdate(in, value)
+    host.commitLoopUpdate(loop_frame, value, assignment == Assignment.State)
 }

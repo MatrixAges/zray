@@ -6,13 +6,21 @@
     <Call fn="initial" in={$in} />
 
     <If on={$ctx.initial == Loop.Admission.Reject}>
-        <Return value={null} />
+        <Return
+            value={{
+                expression: null
+            }}
+        />
     </If>
 
     <If on={$ctx.initial == Loop.Admission.Dereference}>
         <Call fn="dereference" in={$in} />
 
-        <Return value={$ctx.dereference} />
+        <Return
+            value={{
+                expression: $ctx.dereference
+            }}
+        />
     </If>
 
     <Call
@@ -24,9 +32,63 @@
     />
 
     <Call fn="storage" in={$in.loop_frame} />
-    <Call fn="evaluate" in={$in} />
+    <Call fn="index.loopForwardedCall" in={$in.loop_frame} />
+    <Call fn="index.loopProjects" in={$in.loop_frame} />
 
-    <Call module="emit" in={$in.loop_frame} />
+    <Call
+        module="../../step/plan"
+        in={{
+            ...$in.pick([
+                "condition",
+                "body",
+                "postcondition",
+                "discard"
+            ]),
+            ...$in.initial_plan.pick([
+                "selected_state",
+                "layout",
+                "buffered"
+            ]),
+            forwarded: $ctx.loopForwardedCall,
+            projected: $ctx.loopProjects
+        }}
+    />
 
-    <Return value={$ctx.emit} />
+    <Call
+        module="renewals"
+        in={{
+            loop_frame: $in.loop_frame,
+            renewal_source: $in.renewal_source,
+            owner: $in.id,
+            schedule: $ctx.plan
+        }}
+    />
+
+    <Call
+        fn="evaluate"
+        in={{
+            ...$in.pick([
+                "frame",
+                "loop_frame",
+                "parameters"
+            ]),
+            schedule: $ctx.plan,
+            renewals: $ctx.renewals
+        }}
+    />
+
+    <Call
+        module="emit"
+        in={{
+            loop_frame: $in.loop_frame,
+            schedule: $ctx.plan,
+            renewals: $ctx.renewals
+        }}
+    />
+
+    <Return
+        value={{
+            expression: $ctx.emit
+        }}
+    />
 </Module>

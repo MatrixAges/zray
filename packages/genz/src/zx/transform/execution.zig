@@ -6,6 +6,9 @@ const Sequence = @import("../../node/blocks.zig").Sequence;
 const aggregate = @import("../aggregate.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const entry = @import("generated_execute_transform");
+const Input = std.meta.Child(entry.Input);
+const RenewalSource = std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_source")));
+const RenewalWorkspace = @import("../growth/renew_workspace.zig");
 const Error = Lower.Error;
 
 pub const Frame = struct {
@@ -24,6 +27,7 @@ pub const Frame = struct {
     stored: node.ExpressionId = undefined,
     entered: node.Block = .{},
     name: []const u8 = undefined,
+    renewal_workspace: *RenewalWorkspace = undefined,
     label: []const u8 = undefined,
     capture: []const u8 = undefined,
     index: ?[]const u8 = null,
@@ -45,8 +49,6 @@ pub const Frame = struct {
 };
 
 pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.ExpressionId {
-    const Input = std.meta.Child(entry.Input);
-
     comptime @import("../../node/view.zig").compatible(@FieldType(ir.Transform, "kind"), @FieldType(Input, "kind"));
 
     var frame: Frame = .{
@@ -60,15 +62,25 @@ pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.Ex
 
     defer frame.deinit();
 
-    const input: Input = .{
-        .frame = @ptrCast(&frame),
-        .kind = @fromBackingInt(@backingInt(transform.kind)),
-    };
+    if (transform.kind == .reduce and self.plan.renewals.keys.len != 0) {
+        return RenewalWorkspace.run(&frame, RenewalSource, .{ .type_id = frame.typeId(), .roots = &.{} }, execute);
+    }
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const value = entry.executeIn(empty.allocator(), &input) catch |err| return switch (@as(anyerror, err)) {
-        error.OutOfMemory => error.OutOfMemory,
+    return execute(&frame, empty.allocator(), null);
+}
+
+fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const RenewalSource) Error!node.ExpressionId {
+    const input: Input = .{
+        .frame = @ptrCast(frame),
+        .kind = @fromBackingInt(@backingInt(frame.transform.kind)),
+        .id = @backingInt(frame.id),
+        .renewal_source = renewal_source,
+    };
+
+    const value = entry.executeIn(temporary, &input) catch |err| return switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         else => unreachable,
     };
 

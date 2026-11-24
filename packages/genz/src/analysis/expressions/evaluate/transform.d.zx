@@ -48,7 +48,14 @@ export declare function lowerReduceInitial(frame: TransformFrame): void throws {
 
 export declare function convertReduceInitial(frame: TransformFrame): void throws { OutOfMemory }
 
-export declare function renewReduceStorage(frame: TransformFrame): void throws { OutOfMemory }
+export declare function reduceInlineLists(frame: TransformFrame): bool
+
+export declare function emitReduceRenewals(
+    frame: TransformFrame,
+    first: u64,
+    end: u64,
+    filtered_inline: bool
+): void throws { OutOfMemory }
 
 export declare function convertReduceCallback(frame: TransformFrame): void
     throws { OutOfMemory }

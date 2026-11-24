@@ -2,7 +2,7 @@ import host from "lowering_host"
 
 import rename from "../../parameters/rename"
 
-import type { Input } from "./model"
+import type { Evaluate as Input } from "./model"
 
 export type Output = u32?
 
@@ -10,7 +10,7 @@ export default function (in: Input): Output {
     const { frame, loop_frame, parameters } = in
     const { target, condition, step } = parameters
 
-    const first = host.loopFirstCondition(loop_frame)
+    const first = in.schedule.first_test
 
     if (first == null) {
         return null

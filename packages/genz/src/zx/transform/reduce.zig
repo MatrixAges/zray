@@ -27,7 +27,7 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
 
     try body.append(self.allocator, .{ .variable = .{ .name = accumulator, .type_expr = args.layout, .value = initial } });
 
-    const entered = try renew(self, args.operation, type_id, accumulator);
+    const entered = try @import("../iteration/renewal_seed.zig").store(self, args.operation, type_id, .{ .name = accumulator });
 
     if (entered.len != 0) try body.append(self.allocator, .{ .branch = .{
         .condition = try self.builder.expression(.{ .binary = .{ .operator = .not_equal, .left = try self.field(args.source, "len"), .right = try self.builder.integer(0) } }),
@@ -48,22 +48,6 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     return @import("../aggregate.zig").finish(self, body, result);
 }
 
-fn renew(self: *Lower, operation: ir.ExprId, type_id: ir.TypeId, accumulator: []const u8) Lower.Error!node.Block {
-    var renewal_scope = std.heap.ArenaAllocator.init(self.workspace);
-    var renewal_buffer: [256]u8 = undefined;
-    var renewal_memory = std.heap.BufferFirstAllocator.init(&renewal_buffer, renewal_scope.allocator());
-
-    defer renewal_scope.deinit();
-
-    const renewals = try @import("../iteration/renewal.zig").plan(self, renewal_memory.allocator(), .{
-        .owner = operation,
-        .type_id = type_id,
-        .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
-    });
-
-    return renewals.store(self, type_id, .{ .name = accumulator });
-}
-
 pub fn lowerReduceInitial(handle: *const anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
@@ -77,10 +61,23 @@ pub fn convertReduceInitial(handle: *const anyopaque) Lower.Error!void {
     frame.initial = try ownership.erase(frame.lowering, &frame.body, frame.typeId(), frame.initial);
 }
 
-pub fn renewReduceStorage(handle: *const anyopaque) Lower.Error!void {
+pub fn reduceInlineLists(handle: *const anyopaque) bool {
+    const context = Frame.borrow(handle).lowering.iteration_value orelse return false;
+
+    return context.inline_lists;
+}
+
+pub fn emitReduceRenewals(handle: *const anyopaque, first: u64, end: u64, filtered_inline: bool) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
-    frame.entered = try renew(frame.lowering, frame.id, frame.typeId(), frame.name);
+    frame.entered = try @import("../growth/renew.zig").entry(frame.lowering, .{
+        .type_id = frame.typeId(),
+        .target = .{ .name = frame.name },
+        .first = @intCast(first),
+        .end = @intCast(end),
+        .skipped = frame.renewal_workspace.skipped.items,
+        .filtered_inline = filtered_inline,
+    });
 }
 
 pub fn convertReduceCallback(handle: *const anyopaque) Lower.Error!void {

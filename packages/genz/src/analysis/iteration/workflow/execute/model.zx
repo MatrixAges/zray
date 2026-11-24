@@ -1,5 +1,11 @@
-import type { LoopAdmission, LoopFrame, LoopOperands, Lowering } from "lowering_host"
+import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
+import type {
+    Output as RenewalPlan,
+    Source as RenewalSource
+} from "../../deferred/model"
+import type { Output as InitialPlan } from "../../initial/model"
 import type { View } from "../../parameters/model"
+import type { Output as StepPlan } from "../../step/model"
 
 export type Admission = LoopAdmission
 
@@ -11,9 +17,29 @@ export type Input = {
     id: u32,
     initial: u32,
     parameters: View,
-    operands: LoopOperands
+    initial_plan: InitialPlan,
+    condition: u32,
+    body: u32,
+    postcondition: bool,
+    discard: bool,
+    renewal_source?: RenewalSource
 }
 
 export type Parameters = Input.Pick("loop_frame", "parameters")
 
-export type Output = u32?
+export type Renewals = Input.Pick("loop_frame", "renewal_source") & {
+    owner: u32,
+    schedule: StepPlan
+}
+
+export type Emit = {
+    loop_frame: LoopFrame,
+    schedule: StepPlan,
+    renewals: RenewalPlan
+}
+
+export type Evaluate = Emit & Input.Pick("frame", "parameters")
+
+export type Output = {
+    expression?: u32
+}

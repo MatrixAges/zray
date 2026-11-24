@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Loop" />
+    <Type from="../../deferred/model" as="Deferred" />
+
+    <Args in={Loop.Renewals} out={Deferred.Output} />
+
+    <If on={$in.renewal_source != null}>
+        <Call
+            module="../../deferred/check"
+            in={{
+                ...$in.renewal_source,
+                owner: $in.owner,
+                classify: $in.schedule.classify_renewals,
+                inline_lists: $in.schedule.inline_lists
+            }}
+        />
+
+        <Call fn="index.releaseLoopPlanningScratch" in={$in.loop_frame} />
+
+        <Return value={$ctx.check} />
+    </If>
+
+    <Return
+        value={{
+            first: 0,
+            end: 0,
+            delayed: false,
+            emit: false
+        }}
+    />
+</Module>

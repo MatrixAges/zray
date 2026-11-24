@@ -27,6 +27,8 @@ export type Input = {
     inline_lists: bool
 }
 
+export type Source = Input.Pick("facts", "records", "destination")
+
 export type Schedule = {
     facts: Facts,
     paths: u32[][],

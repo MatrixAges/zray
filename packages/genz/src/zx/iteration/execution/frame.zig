@@ -14,16 +14,8 @@ const InitialGuard = @import("../../iteration_value/initial.zig");
 const Initial = @import("../initial.zig");
 const Selection = @import("../../iteration_layout/select.zig").Selection;
 const Step = @import("../step.zig");
-const Renewal = @import("../renewal.zig");
 const generated = @import("genz_options").generated_analysis;
 const Api = @import("../../expressions/evaluate.zig").Api;
-
-pub const Operands = if (generated) Api.LoopOperands else struct {
-    condition: u32,
-    body: u32,
-    by_value: bool,
-};
-
 pub const UpdateScope = if (generated) Api.LoopUpdateScope else enum { None, Projected, Ordinary };
 const Self = @This();
 
@@ -41,7 +33,6 @@ consumer: ?Consumer,
 body: Context.Statements,
 loop: Context.Statements,
 projected_body: Context.Statements,
-renewal_arena: std.heap.ArenaAllocator,
 name: []const u8 = undefined,
 state: node.ExpressionId = undefined,
 selection: Selection = undefined,
@@ -57,10 +48,8 @@ fields: ?Fields = null,
 changed_name: []const u8 = &.{},
 parameters: if (generated) Parameters else ?SeedParameters = if (generated) .{} else null,
 initial_state: node.ExpressionId = undefined,
-schedule: Step.Plan = undefined,
-operands: Operands = undefined,
-renewal_buffer: [256]u8 = undefined,
-renewals: Renewal.Plan = undefined,
+schedule: if (generated) void else Step.Plan = undefined,
+renewal_workspace: *@import("../../growth/renew_workspace.zig") = undefined,
 step_scope: union(UpdateScope) {
     None,
     Projected: state_scope.Frame(.Projected),
@@ -70,7 +59,7 @@ next: Step.Values = undefined,
 tracker: ?State.Tracker = undefined,
 prefix: Result.Prefix = .{},
 update: node.Block = undefined,
-growth: node.Block = undefined,
+growth: node.Block = .{},
 recovered: node.ExpressionId = undefined,
 pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Result.Mode, consumer: ?Consumer) Self {
     return .{
@@ -82,7 +71,6 @@ pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Re
         .body = statements(lowering),
         .loop = statements(lowering),
         .projected_body = statements(lowering),
-        .renewal_arena = .init(lowering.workspace),
     };
 }
 
@@ -114,9 +102,6 @@ pub fn restoreSeed(self: *Self) void {
     self.restoreUpdate();
 
     if (self.initial_scope) |saved| saved.restore();
-
-    self.renewal_arena.deinit();
-
     if (self.parameters) |parameters| parameters.restore();
     if (self.representation) |saved| saved.restore();
 }
@@ -155,7 +140,6 @@ pub fn releaseLoopScratch(handle: *const anyopaque) void {
     const self = borrow(handle);
 
     self.projected_body.deinit();
-    self.renewal_arena.deinit();
 }
 
 pub fn closeLoopRepresentation(handle: *const anyopaque) void {

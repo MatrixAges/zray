@@ -12,7 +12,8 @@ export {
     transformStateActive,
     lowerReduceInitial,
     convertReduceInitial,
-    renewReduceStorage,
+    reduceInlineLists,
+    emitReduceRenewals,
     convertReduceCallback,
     publishReduceTransform
 } from "lowering_host"

@@ -19,5 +19,5 @@ export default function (in: Input): Output {
         _ => host.loopInitialValue(in)
     }
 
-    host.planLoopUpdate(in, value)
+    host.storeLoopPreparedState(in, value)
 }
