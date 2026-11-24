@@ -93,6 +93,12 @@ pub fn appendAstNamespaceRows(writer: *const anyopaque, source: *const Ast.Names
     return appendRows(self, &self.builder.nodes.expressions, source, .BorrowingText);
 }
 
+pub fn appendAstProjectionRows(writer: *const anyopaque, source: *const Ast.ProjectionRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
+}
+
 pub fn appendAuxiliaryRow(writer: *const anyopaque, source: *const Ast.ConstantRows) Lower.Error![]const u8 {
     const self = borrow(writer);
     const values = try self.task_declarations.appendConstants(self.allocator, source, false);

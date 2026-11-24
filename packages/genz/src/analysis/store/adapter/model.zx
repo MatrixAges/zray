@@ -3,10 +3,10 @@ import type { Variables } from "../../../ast/context/model"
 import type { Columns as Functions } from "../../../ast/declarations/function"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
-import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
 
 export type Input = {
+    frame: Lowering,
     mapping: u32[],
     readable: bool[],
     store_count: u64,
@@ -15,21 +15,21 @@ export type Input = {
     declaration_base: u32
 }
 
-export type Extra = {
-    error_union_payload: u32[],
-    error_union_errors: u8[][]?[],
-    error_union_inferred: bool[],
-    container_type_fields_start: u32[],
-    container_type_fields_len: u32[],
-    container_type_declarations_start: u32[],
-    container_type_declarations_len: u32[]
-}
+export type Extra = ExpressionExtensions.Pick(
+    "error_union_payload",
+    "error_union_errors",
+    "error_union_inferred",
+    "container_type_fields_start",
+    "container_type_fields_len",
+    "container_type_declarations_start",
+    "container_type_declarations_len"
+)
 
 export type State = {
     source: Input,
     context: Context,
     extra: Extra,
-    fields: Fields,
+    fields: FieldRows,
     declarations: Functions
 }
 
@@ -56,11 +56,12 @@ export type Output = {
     extra: Extra,
     statements: Statements,
     variables: Variables,
-    fields: Fields,
+    fields: FieldRows,
     declarations: Functions,
     root: u32,
     serial: u64,
-    undefined_count: u64,
-    null_count: u64,
     valid: bool
 }
+
+import type { ExpressionExtensions, FieldRows } from "ast_rows"
+import type { Lowering } from "lowering_host"

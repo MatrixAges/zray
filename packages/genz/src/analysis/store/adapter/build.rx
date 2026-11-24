@@ -1,9 +1,36 @@
 <Module>
-    <Type from="model" as="Adapter" />
+    <Type from="execute" as="Adapter" />
+    <Type from="../rows" as="AST" />
 
-    <Args in={Adapter.Input} out={Adapter.Output} />
+    <Args in={Adapter.Input} out={u32} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="../rows.requireLoweringContext" in={$in.frame} />
+
+    <Call
+        fn="../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../rows.astFieldCount" in={$in.writer} />
+    <Call fn="../rows.astDeclarationCount" in={$in.writer} />
+
+    <Call
+        fn="initialize"
+        in={{
+            ...$in.omit([
+                "writer",
+                "origin"
+            ]),
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            },
+            declaration_base: $ctx.astDeclarationCount
+        }}
+    />
 
     <Call fn="context" />
     <Call fn="patch" />
@@ -11,5 +38,55 @@
     <Call fn="begin" />
     <Call fn="finish" />
 
-    <Return value={$ctx.finish} />
+    <Call fn="../rows.requireAllocation" in={$ctx.finish.valid} />
+    <Call fn="../../../ast/expressions/empty_extensions" in={{}} />
+
+    <Call
+        fn="../rows.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $ctx.finish.expressions,
+            $ctx.finish.forms,
+            {
+                ...$ctx.empty_extensions,
+                ...$ctx.finish.extra
+            }
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.finish.statements,
+            $ctx.finish.variables,
+            AST.AstPayloadOwnership.Borrowed
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendAstFunctions"
+        in={[
+            $in.writer,
+            $ctx.finish.declarations.omit(["tags"])
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendAstFields"
+        in={[
+            $in.writer,
+            $ctx.finish.fields
+        ]}
+    />
+
+    <Call
+        fn="../rows.setLoweringSerial"
+        in={[
+            $in.frame,
+            $ctx.finish.serial
+        ]}
+    />
+
+    <Return value={$ctx.finish.root} />
 </Module>

@@ -6,12 +6,14 @@ import field from "../../../ast/context/field"
 import identifier from "../../../ast/context/identifier"
 import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
 import { context_name } from "../const"
-import slotName from "../slot_name"
 import { parent_name } from "./const"
+import retainSlotName from "./retain_slot_name"
 
 import type { State as Input, Readable as Output } from "./model"
 
 export default function (in: Input): Output {
+    const frame = in.source.frame
+
     const context = identifier({
         state: in.context,
         name: bytes.fromText(context_name)
@@ -45,9 +47,10 @@ export default function (in: Input): Output {
                 const pointer = field({
                     state: current.state.context,
                     target: context.id,
-                    name: slotName(integers.widen(
-                        in.source.mapping[index]
-                    ))
+                    name: retainSlotName([
+                        frame,
+                        integers.widen(in.source.mapping[index])
+                    ])
                 })
 
                 const type_node = builtin({
@@ -61,7 +64,12 @@ export default function (in: Input): Output {
                     context: type_node.state
                 }
 
-                current.names = current.names.push(slotName(index))[0]
+                const name = retainSlotName([
+                    frame,
+                    index
+                ])
+
+                current.names = current.names.push(name)[0]
                 current.types = current.types.push(type_node.id)[0]
                 current.values = current.values.push(pointer.id)[0]
             }

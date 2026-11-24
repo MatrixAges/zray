@@ -218,3 +218,15 @@ export type NamespaceRows = {
     namespace_type_start: u32[],
     namespace_type_len: u32[]
 }
+
+export type ProjectionRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    identifier: u8[][],
+    field_target: u32[],
+    field_name: u8[][],
+    dereference: u32[],
+    binary_operator: ExpressionsBinaryOperator[],
+    binary_left: u32[],
+    binary_right: u32[]
+}

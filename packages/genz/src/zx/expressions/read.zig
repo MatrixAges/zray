@@ -102,6 +102,14 @@ pub fn readList(frame: *const anyopaque, operand: u32) Error!u32 {
     return @backingInt(try list.expression(borrow(frame), @fromBackingInt(operand)));
 }
 
+pub fn readBorrowedList(frame: *const anyopaque, type_id: u32, value: u32) Error!u32 {
+    return @backingInt(try list.borrowed(borrow(frame), @fromBackingInt(type_id), @fromBackingInt(value)));
+}
+
+pub fn readRepresentedValue(frame: *const anyopaque, type_id: u32, value: u32) Error!u32 {
+    return @backingInt(try @import("../state_value/conversion.zig").read(borrow(frame), @fromBackingInt(type_id), @fromBackingInt(value)));
+}
+
 pub fn wrapLoweredList(frame: *const anyopaque, subject: u32, items: u32) Error!u32 {
     const self = borrow(frame);
     const type_id = self.program.expression(@fromBackingInt(subject)).type_id;

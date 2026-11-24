@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { retainLoweringText } from "lowering_host"
 
 import binding from "../../../ast/context/binding"
 import block from "../../../ast/context/block"
@@ -12,14 +13,18 @@ import container from "./container"
 import type { Readable as Input, Output } from "./model"
 
 export default function (in: Input): Output {
+    const frame = in.state.source.frame
+
     const name = fresh({
         serial: in.state.context.serial,
         prefix: context_prefix
     })
 
+    const context_name = retainLoweringText(frame, name.name)
+
     const type_node = identifier({
         state: in.state.context,
-        name: name.name
+        name: context_name
     })
 
     const values_first = integers.narrow(
@@ -44,6 +49,8 @@ export default function (in: Input): Output {
         serial: name.serial,
         prefix: block_prefix
     })
+
+    const block_name = retainLoweringText(frame, label.name)
 
     const fields_first = integers.narrow(
         integers.widen(in.state.source.bases.field_base) + values.name.length
@@ -72,13 +79,13 @@ export default function (in: Input): Output {
 
     const declared = binding({
         state: structure.state.context,
-        name: name.name,
+        name: context_name,
         value: structure.id
     })
 
     const output = block({
         state: declared,
-        label: label.name,
+        label: block_name,
         first,
         value: result.id
     })
@@ -93,8 +100,6 @@ export default function (in: Input): Output {
         declarations: structure.state.declarations,
         root: output.id,
         serial: output.state.serial,
-        undefined_count: output.state.undefined_count,
-        null_count: output.state.null_count,
         valid: output.state.valid
     }
 }

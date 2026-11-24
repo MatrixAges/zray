@@ -1,6 +1,9 @@
 export {
     AstPayloadOwnership,
     appendAstDeclaredConstants,
+    appendAstFields,
+    appendAstFunctions,
+    appendAstProjectionRows,
     appendExpressionRows,
     appendExtendedExpressions,
     appendOwnedAstFields,
@@ -12,5 +15,10 @@ export {
     publishAstBindingRows,
     readAstOrigin
 } from "ast_rows"
-export { requireLoweringContext } from "lowering_host"
+export {
+    readBorrowedList,
+    readRepresentedValue,
+    requireLoweringContext,
+    setLoweringSerial
+} from "lowering_host"
 export { requireAllocation } from "memory"

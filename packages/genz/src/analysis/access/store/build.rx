@@ -1,0 +1,58 @@
+<Module>
+    <Type from="execute" as="Read" />
+    <Type from="../model" as="Access" />
+
+    <Args in={Read.Input} out={u32} />
+
+    <Call fn="../../store/rows.requireLoweringContext" in={$in.frame} />
+    <Call fn="../../store/rows.astExpressionCount" in={$in.writer} />
+
+    <Call
+        fn="../store"
+        in={{
+            ...$in.omit([
+                "writer",
+                "type_id"
+            ]),
+            expression_base: $ctx.astExpressionCount
+        }}
+    />
+
+    <Call fn="../../store/rows.requireAllocation" in={$ctx.store.valid} />
+
+    <Call
+        fn="../../store/rows.appendAstProjectionRows"
+        in={[
+            $in.writer,
+            $ctx.store.nodes
+        ]}
+    />
+
+    <If on={$ctx.store.result == Access.Result.Direct}>
+        <Return value={$ctx.store.root} />
+    </If>
+
+    <If on={$ctx.store.result == Access.Result.BorrowedList}>
+        <Call
+            fn="../../store/rows.readBorrowedList"
+            in={[
+                $in.frame,
+                $in.type_id,
+                $ctx.store.root
+            ]}
+        />
+
+        <Return value={$ctx.readBorrowedList} />
+    </If>
+
+    <Call
+        fn="../../store/rows.readRepresentedValue"
+        in={[
+            $in.frame,
+            $in.type_id,
+            $ctx.store.root
+        ]}
+    />
+
+    <Return value={$ctx.readRepresentedValue} />
+</Module>

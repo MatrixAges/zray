@@ -117,6 +117,9 @@ export declare function appendAstExpressionHeaders(
 export declare function appendAstNamespaceRows(writer: AstWriter, rows: NamespaceRows): void
     throws { OutOfMemory }
 
+export declare function appendAstProjectionRows(writer: AstWriter, rows: ProjectionRows): void
+    throws { OutOfMemory }
+
 export declare function appendAuxiliaryRow(writer: AstWriter, rows: ConstantRows): u8[]
     throws { OutOfMemory }
 

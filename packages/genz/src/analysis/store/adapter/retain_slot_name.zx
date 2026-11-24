@@ -1,0 +1,13 @@
+import { retainLoweringText } from "lowering_host"
+
+import slotName from "../slot_name"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = [Lowering, u64]
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return retainLoweringText(in[0], slotName(in[1]))
+}

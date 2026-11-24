@@ -70,3 +70,8 @@ export declare function readLength(
     result_type: u32,
     iteration: bool
 ): u32 throws { OutOfMemory }
+export declare function readBorrowedList(frame: Lowering, type_id: u32, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function readRepresentedValue(frame: Lowering, type_id: u32, value: u32): u32
+    throws { OutOfMemory }

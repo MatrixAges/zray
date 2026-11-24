@@ -583,7 +583,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/invocation/call.zx", .name = "invocation_call", .owner = .genz },
     .{ .path = "genz/analysis/invocation/builtin.zx", .name = "invocation_builtin", .owner = .genz },
     .{ .path = "genz/analysis/invocation/regular/emission/build.rx", .name = "regular_call_emit", .owner = .genz },
-    .{ .path = "genz/analysis/access/store.zx", .name = "store_access", .owner = .genz },
     .{ .path = "genz/analysis/access/reference.zx", .name = "reference_access", .owner = .genz },
     .{ .path = "genz/analysis/access/field.zx", .name = "field_access", .owner = .genz },
     .{ .path = "genz/analysis/access/dereference.zx", .name = "dereference_access", .owner = .genz },
@@ -600,7 +599,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/aggregate/object/build.rx", .name = "aggregate_object", .owner = .genz },
     .{ .path = "genz/analysis/aggregate/layout/plan.zx", .name = "object_layout_plan", .owner = .genz },
     .{ .path = "genz/analysis/aggregate/layout/borrowed/build.rx", .name = "object_borrowed_field", .owner = .genz },
-    .{ .path = "genz/analysis/store/adapter/build.rx", .name = "store_adapter", .owner = .genz },
     .{ .path = "genz/analysis/store/transaction/policy.zx", .name = "store_transaction", .owner = .genz },
     .{ .path = "genz/analysis/external/build.rx", .name = "external_body", .owner = .genz },
     .{ .path = "genz/analysis/external/prototype.rx", .name = "external_prototype", .owner = .genz },
@@ -803,6 +801,8 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/store/adapter/build.rx", .name = "store_adapter", .owner = .genz },
+    .{ .path = "genz/analysis/access/store/build.rx", .name = "store_access", .owner = .genz },
     .{ .path = "genz/analysis/binding/execute/run.rx", .name = "publish_binding", .owner = .genz },
     .{ .path = "genz/analysis/statements/destructure/execute/run.rx", .name = "publish_destructure", .owner = .genz },
     .{ .path = "genz/analysis/statements/result/execute/run.rx", .name = "publish_statement_result", .owner = .genz },
