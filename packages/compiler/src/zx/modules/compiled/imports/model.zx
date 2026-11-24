@@ -1,14 +1,21 @@
-import type { CompiledImport, CompiledUnit } from "project_host"
+import type { Allocator, U64Buffer } from "memory"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
+import type { CompiledImport } from "project_host"
+import type { Input as Search } from "./find"
 
-export type Input = CompiledImport
+export type Member = Search.Omit("count", "capacity")
 
-export type Selection = {
-    frame: Input,
-    unit: CompiledUnit
+export type Initializers = {
+    rows: RowBuffer,
+    owner: ColumnAllocator,
+    used: U64Buffer,
+    first: u64
 }
 
-export enum Status {
-    Ready,
-    InvalidLibrary,
-    MissingPublicModule
+export type Input = {
+    frame: CompiledImport,
+    owner: Allocator,
+    initializers: Initializers,
+    index: U64Buffer,
+    member: Member
 }

@@ -1,9 +1,9 @@
 export {
     bindCompiledImport,
+    compiledInitializerCount,
     findCompiledLibrary as findAdded,
     findCompiledLibrary as findInherited,
-    publishCompiledInitializers,
     rememberCompiledLibrary,
-    reserveCompiledImport,
+    reserveCompiledUnit,
     resolveCompiledImport
 } from "project_host"

@@ -1,0 +1,48 @@
+import capacity from "core/bytes/index/fixed_capacity"
+import { allocateRows } from "core/row_buffer"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Input as Import } from "./model"
+
+export type Input = Import.Pick("owner", "initializers", "index") & {
+    exports: u64,
+    added: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { initializers, added, owner, index, exports } = in
+    const { rows, first } = initializers
+
+    const limit = columns.rowCapacityLimit()
+
+    memory.requireAllocation(added <= limit - first)
+
+    const minimum = first + added
+    const current = columns.rowStorageCount(rows)
+
+    if (minimum > current) {
+        const increment = minimum / 2 + columns.rowGrowthBase(rows, current)
+        const count = minimum <= limit - increment ? minimum + increment : limit
+        const prefix = columns.rowBufferBytes(rows)
+
+        columns.clearRowStorage(rows)
+
+        allocateRows({
+            target: rows,
+            count,
+            owner: initializers.owner
+        })
+
+        if (first != 0) {
+            columns.copyRowPrefix(rows, prefix, first)
+        }
+    }
+
+    if (exports > 1) {
+        memory.allocateU64Buffer(owner, index, capacity(exports))
+        memory.clearU64Buffer(index)
+    }
+}

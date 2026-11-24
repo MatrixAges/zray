@@ -37,16 +37,6 @@ pub fn borrow(self: *const Self, comptime Input: type, names: *const zx.memory.T
 }
 
 pub fn find(self: *const Self, exports: []const Export, name: []const u8) ?usize {
-    if (comptime generated) {
-        const rule = @import("generated_compiled_import_find");
-        const names = zx.memory.borrowTextColumn("name", exports);
-        const input = self.borrow(std.meta.Child(rule.Input), &names, name);
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-        const row = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-
-        return if (row) |index| @intCast(index) else null;
-    }
-
     if (exports.len == 1) return if (zx.bytes.equal(exports[0].name, name)) 0 else null;
 
     return self.storage.get(name);

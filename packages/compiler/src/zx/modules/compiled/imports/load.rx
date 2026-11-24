@@ -1,14 +1,14 @@
 <Module>
     <Type from="model" as="Import" />
 
-    <Args in={Import.Input} out={Import.Status} />
+    <Args in={Import.Input} out={u64?} />
 
-    <Call fn="index.resolveCompiledImport" in={$in} />
+    <Call fn="index.resolveCompiledImport" in={$in.frame} />
 
     <Call
         fn="index.findAdded"
         in={[
-            $in,
+            $in.frame,
             $ctx.resolveCompiledImport,
             false
         ]}
@@ -18,8 +18,8 @@
         <Call
             fn="select"
             in={{
-                frame: $in,
-                unit: $ctx.findAdded
+                member: $in.member,
+                count: $ctx.findAdded
             }}
         />
 
@@ -29,7 +29,7 @@
     <Call
         fn="index.findInherited"
         in={[
-            $in,
+            $in.frame,
             $ctx.resolveCompiledImport,
             true
         ]}
@@ -39,8 +39,8 @@
         <Call
             fn="select"
             in={{
-                frame: $in,
-                unit: $ctx.findInherited
+                member: $in.member,
+                count: $ctx.findInherited
             }}
         />
 
@@ -48,31 +48,52 @@
     </If>
 
     <Call
-        fn="index.reserveCompiledImport"
+        fn="index.reserveCompiledUnit"
         in={[
-            $in,
+            $in.frame,
             $ctx.resolveCompiledImport
         ]}
+    />
+
+    <Call
+        fn="index.compiledInitializerCount"
+        in={[
+            $in.frame,
+            $ctx.resolveCompiledImport
+        ]}
+    />
+
+    <Call
+        fn="reserve"
+        in={{
+            owner: $in.owner,
+            initializers: $in.initializers,
+            index: $in.index,
+            exports: $ctx.reserveCompiledUnit,
+            added: $ctx.compiledInitializerCount
+        }}
     />
 
     <Call
         fn="index.bindCompiledImport"
         in={[
-            $in,
+            $in.frame,
             $ctx.resolveCompiledImport
         ]}
     />
 
-    <If on={!$ctx.bindCompiledImport}>
-        <Return value={Import.Status.InvalidLibrary} />
-    </If>
-
-    <Call fn="index.publishCompiledInitializers" in={$in} />
+    <Call
+        fn="publish"
+        in={{
+            target: $in.initializers,
+            added: $ctx.compiledInitializerCount
+        }}
+    />
 
     <Call
         fn="index.rememberCompiledLibrary"
         in={[
-            $in,
+            $in.frame,
             $ctx.resolveCompiledImport
         ]}
     />
@@ -80,8 +101,8 @@
     <Call
         fn="select"
         in={{
-            frame: $in,
-            unit: $ctx.rememberCompiledLibrary
+            member: $in.member,
+            count: $ctx.bindCompiledImport
         }}
     />
 

@@ -1,13 +1,20 @@
-import host from "project_host"
+import memory from "memory"
 
-import { Status } from "./model"
+import find from "./find"
 
-import type { Selection as Input } from "./model"
+import type { Member } from "./model"
 
-export type Output = Status
+export type Input = {
+    member: Member,
+    count: u64
+}
+
+export type Output = u64?
 
 export default function (in: Input): Output {
-    const found = host.selectCompiledMember(in.frame, in.unit)
-
-    return found ? Status.Ready : Status.MissingPublicModule
+    return find({
+        ...in.member,
+        count: in.count,
+        capacity: memory.u64Views(in.member.buckets).length
+    })
 }

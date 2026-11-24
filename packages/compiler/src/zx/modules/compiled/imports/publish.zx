@@ -1,0 +1,14 @@
+import memory from "memory"
+
+import type { Initializers } from "./model"
+
+export type Input = {
+    target: Initializers,
+    added: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU64(in.target.used, 0, in.target.first + in.added)
+}

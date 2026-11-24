@@ -129,22 +129,17 @@ export declare function findCompiledLibrary(
     frame: CompiledImport,
     index: u64,
     inherited: bool
-): CompiledUnit?
+): u64?
 
-export declare function reserveCompiledImport(frame: CompiledImport, index: u64): void
+export declare function reserveCompiledUnit(frame: CompiledImport, index: u64): u64
     throws { OutOfMemory }
 
-export declare function bindCompiledImport(frame: CompiledImport, index: u64): bool
-    throws { OutOfMemory }
+export declare function compiledInitializerCount(frame: CompiledImport, index: u64): u64
 
-export declare function publishCompiledInitializers(frame: CompiledImport): void
+export declare function bindCompiledImport(frame: CompiledImport, index: u64): u64
+    throws { OutOfMemory, InvalidLibrary }
 
-export declare function rememberCompiledLibrary(
-    frame: CompiledImport,
-    index: u64
-): CompiledUnit
-
-export declare function selectCompiledMember(frame: CompiledImport, library: CompiledUnit): bool
+export declare function rememberCompiledLibrary(frame: CompiledImport, index: u64): void
 
 export declare function bindArtifactMaterialization(
     frame: ArtifactExtraction,

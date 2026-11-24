@@ -24,7 +24,7 @@ needs_interface: bool,
 reserve: std.meta.Child(@FieldType(Layout, "reserve")),
 commit: std.meta.Child(@FieldType(Layout, "commit")),
 input: Layout,
-pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Input, library: *const model.Library, destination: load.Destination, call_scratch: ?load.CallScratch) void {
+pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Input, library: *const model.Library, destination: load.Destination, call_scratch: ?load.CallScratch, initializer_tail: ?[]model.StoreInitializer) void {
     self.owner = if (call_scratch) |scratch| scratch.functions else allocator.*;
     self.first = destination.functions.count();
     self.needs_interface = call_scratch == null;
@@ -46,7 +46,7 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
     self.types.init(&self.options, .{}, @as(Origins.Table, .{}));
     self.natives.init(allocator, destination.native_modules, .{}, &.{}, null);
 
-    if (self.needs_interface) self.public.init(input, library.instance, self.first);
+    if (self.needs_interface) self.public.init(input, library.instance, self.first, initializer_tail);
 
     self.reserve = .{ .storage = self.functions.target.storage, .resource = @ptrCast(&self.owner), .shape = null, .count = source.count() };
     self.commit = .{ .lengths = @ptrCast(&self.functions.lengths), .progress = self.functions.input.progress };

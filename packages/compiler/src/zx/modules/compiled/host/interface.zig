@@ -36,7 +36,7 @@ pub const View = struct {
     buffers: std.meta.Child(@FieldType(Request, "buffers")),
     targets: Targets,
     request: Request,
-    pub fn init(self: *View, input: *const Input, instance: []const u8, first: usize) void {
+    pub fn init(self: *View, input: *const Input, instance: []const u8, first: usize, initializer_tail: ?[]model.StoreInitializer) void {
         inline for (@typeInfo(Targets).@"struct".field_names) |name| {
             const rows = &@field(self, name);
 
@@ -44,6 +44,8 @@ pub const View = struct {
             @field(self.buffers, name) = @ptrCast(&rows.buffer);
             @field(self.targets, name) = &rows.view;
         }
+
+        if (initializer_tail) |rows| self.initializers.bind(rows);
 
         self.request = .{
             .exports = zx.columns.pointer(@FieldType(Request, "exports"), &input.graph.exports.input),

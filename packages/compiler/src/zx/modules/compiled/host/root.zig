@@ -12,13 +12,14 @@ const Options = struct {
     selected: ?[]const model.PublicReference = null,
     call_scratch: ?load_model.CallScratch = null,
     export_buckets: ?[]u64 = null,
+    initializer_tail: ?[]model.StoreInitializer = null,
 };
 
 pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options) !model.Loaded {
     var types = try @import("../../../analysis/type_table.zig").storage(allocator, options.types);
     var origins = try @import("../../nominal_origins.zig").copy(allocator, options.nominal_types);
 
-    return loadPrepared(allocator, options.library, .{
+    return load(allocator, options.library, .{
         .types = &types,
         .origins = &origins,
         .functions = options.functions,
@@ -30,18 +31,14 @@ pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options) !m
 }
 
 pub fn loadCalls(allocator: std.mem.Allocator, library: model.Library, destination: Destination, scratch: load_model.CallScratch, seed: bool) !void {
-    _ = try loadPrepared(allocator, library, destination, .{
+    _ = try load(allocator, library, destination, .{
         .seed = seed,
         .call_scratch = scratch,
         .export_buckets = scratch.export_buckets,
     });
 }
 
-pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: Destination, export_buckets: ?[]u64) !model.Loaded {
-    return loadPrepared(allocator, library, destination, .{ .export_buckets = export_buckets });
-}
-
-fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destination: Destination, options: Options) !model.Loaded {
+pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: Destination, options: Options) !model.Loaded {
     var arena = std.heap.ArenaAllocator.init(if (options.call_scratch) |scratch| scratch.temporary else allocator);
 
     defer arena.deinit();
@@ -55,7 +52,7 @@ fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destinatio
     var scope: zx.memory.ArenaScope = .{ .active = temporary };
 
     input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
-    installation.init(&allocator, &input, &library, destination, options.call_scratch);
+    installation.init(&allocator, &input, &library, destination, options.call_scratch, options.initializer_tail);
     defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, installation.functions.completed[0]);
     errdefer installation.types.release();
 

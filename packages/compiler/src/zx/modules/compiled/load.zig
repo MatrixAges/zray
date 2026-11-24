@@ -65,5 +65,5 @@ pub fn loadInto(allocator: std.mem.Allocator, library: model.Library, destinatio
         .native_modules = destination.native_modules,
     });
 
-    return @import("host/root.zig").load(allocator, library, destination, null);
+    return @import("host/root.zig").load(allocator, library, destination, .{});
 }

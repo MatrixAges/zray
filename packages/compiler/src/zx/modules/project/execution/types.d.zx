@@ -20,8 +20,6 @@ export type ProjectExternalBindings = opaque
 
 export type CompiledImport = opaque
 
-export type CompiledUnit = opaque
-
 export type ArtifactLink = opaque
 
 export type ArtifactExtraction = opaque
