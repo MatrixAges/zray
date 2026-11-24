@@ -1,0 +1,25 @@
+export {
+    AstPayloadOwnership,
+    readAstOrigin,
+    releaseAstScratch as releasePreparation,
+    releaseAstScratch as releaseDeclarations,
+    astExpressionCount,
+    auxiliaryDeclarationCount,
+    appendAstExpressionHeaders,
+    appendAstNamespaceRows,
+    appendAuxiliaryRow,
+    replaceAuxiliaryRow,
+    joinAstDeclarationRows,
+    astFieldCount,
+    astDeclarationCount,
+    astIdentifierCount,
+    replaceAstIdentifier,
+    appendStatementSequence,
+    appendExpressionRows,
+    appendExtendedExpressions,
+    appendStatementRows,
+    appendAstFields,
+    appendAstFunctions
+} from "ast_rows"
+export { retainLoweringText, setLoweringSerial } from "lowering_host"
+export { requireAllocation } from "memory"

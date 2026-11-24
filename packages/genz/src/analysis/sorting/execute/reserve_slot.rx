@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Sort" />
+
+    <Args in={Sort.Reservation} out={u8[]} />
+
+    <Call fn="../rows.astExpressionCount" in={$in.writer} />
+
+    <Call
+        fn="../reserve"
+        in={{
+            index: $in.slot,
+            expression_base: $ctx.astExpressionCount
+        }}
+    />
+
+    <Call fn="../rows.requireAllocation" in={$ctx.reserve.valid} />
+
+    <Call
+        fn="../rows.appendAstExpressionHeaders"
+        in={[
+            $in.writer,
+            $ctx.reserve.expressions.tags,
+            $ctx.reserve.expressions.offsets
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendAuxiliaryRow"
+        in={[
+            $in.writer,
+            $ctx.reserve.declarations.omit(["tags"])
+        ]}
+    />
+
+    <Return value={$ctx.appendAuxiliaryRow} />
+</Module>

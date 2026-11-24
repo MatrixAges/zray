@@ -28,6 +28,19 @@ pub const OriginBuffer = struct {
     capture: Ast.AstCapture = undefined,
 };
 
+pub const Scratch = struct {
+    arena: *std.heap.ArenaAllocator,
+    memory: *std.heap.BufferFirstAllocator,
+};
+
+pub fn releaseAstScratch(handle: *const anyopaque) void {
+    const scratch: *const Scratch = @ptrCast(@alignCast(handle));
+
+    scratch.memory.fixed_buffer_allocator.reset();
+
+    _ = scratch.arena.reset(.free_all);
+}
+
 pub fn readAstOrigin(writer: *const anyopaque, buffer: *const anyopaque) *const Ast.AstOrigin {
     const self = borrow(writer);
     const target: *OriginBuffer = @ptrCast(@alignCast(@constCast(buffer)));
@@ -57,6 +70,94 @@ pub fn appendExpressionRows(writer: *const anyopaque, source: *const Ast.Express
     }
 
     return appendRows(self, target, source, mode);
+}
+
+pub fn astExpressionCount(writer: *const anyopaque) u32 {
+    return @intCast(borrow(writer).builder.nodes.expressions.tags.items.len);
+}
+
+pub fn auxiliaryDeclarationCount(writer: *const anyopaque) u64 {
+    return borrow(writer).task_declarations.count();
+}
+
+pub fn appendAstExpressionHeaders(writer: *const anyopaque, tags: []const Ast.ExpressionsKind, offsets: []const u32) Lower.Error!void {
+    const self = borrow(writer);
+    const source = .{ .tags = tags, .offsets = offsets };
+
+    return appendRows(self, &self.builder.nodes.expressions, &source, .BorrowingText);
+}
+
+pub fn appendAstNamespaceRows(writer: *const anyopaque, source: *const Ast.NamespaceRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.expressions, source, .BorrowingText);
+}
+
+pub fn appendAuxiliaryRow(writer: *const anyopaque, source: *const Ast.ConstantRows) Lower.Error![]const u8 {
+    const self = borrow(writer);
+    const values = try self.task_declarations.appendConstants(self.allocator, source, false);
+
+    return values[0];
+}
+
+pub fn replaceAuxiliaryRow(writer: *const anyopaque, slot: u64, source: *const Ast.ConstantRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return self.task_declarations.replaceConstant(self.allocator, @intCast(slot), source);
+}
+
+pub fn joinAstDeclarationRows(writer: *const anyopaque, starts: []const u32, counts: []const u32) Lower.Error!u64 {
+    const self = borrow(writer);
+    const result = try blocks.joinDeclarations(self.allocator, self.builder.nodes, starts, counts);
+    const packed_span: packed struct(u64) { count: u32, start: u32 } = .{ .count = result.len, .start = result.start };
+
+    return @bitCast(packed_span);
+}
+
+pub fn astFieldCount(writer: *const anyopaque) u32 {
+    return @intCast(borrow(writer).builder.nodes.field_columns.count());
+}
+
+pub fn astDeclarationCount(writer: *const anyopaque) u32 {
+    return @intCast(borrow(writer).builder.nodes.declaration_rows.tags.items.len);
+}
+
+pub fn astIdentifierCount(writer: *const anyopaque) u64 {
+    return borrow(writer).builder.nodes.expressions.payloads.identifier.values.items.len;
+}
+
+pub fn replaceAstIdentifier(writer: *const anyopaque, index: u64, name: []const u8) void {
+    borrow(writer).builder.nodes.expressions.payloads.identifier.values.items[@intCast(index)] = name;
+}
+
+pub fn appendExtendedExpressions(writer: *const anyopaque, source: *const Ast.ExpressionRows, forms: *const Ast.ExpressionForms, extensions: *const Ast.ExpressionExtensions) Lower.Error!void {
+    const self = borrow(writer);
+    const joined = view.join(view.join(source.*, forms.*), extensions.*);
+
+    return appendRows(self, &self.builder.nodes.expressions, &joined, .BorrowingText);
+}
+
+pub fn appendAstFields(writer: *const anyopaque, source: *const Ast.FieldRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    _ = fields.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, source) catch |err| return failure(err);
+}
+
+pub fn appendAstFunctions(writer: *const anyopaque, source: *const Ast.FunctionRows) Lower.Error!void {
+    const self = borrow(writer);
+    const target = &self.builder.nodes.declaration_rows;
+    const Tag = std.meta.Child(@TypeOf(target.tags.items));
+    var buffer: [8]Tag = undefined;
+    var scratch: std.heap.BufferFirstAllocator = .init(std.mem.sliceAsBytes(&buffer), self.workspace);
+    const allocator = scratch.allocator();
+    const tags = try allocator.alloc(Tag, source.offsets.len);
+
+    defer allocator.free(tags);
+    @memset(tags, .Function);
+
+    const joined = view.join(source.*, .{ .tags = @as([]const Tag, tags) });
+
+    return appendRows(self, target, &joined, .BorrowingText);
 }
 
 pub fn appendStatementRows(writer: *const anyopaque, source: *const Ast.StatementRows, variables: ?*const Ast.StatementVariables, mode: Ast.AstPayloadOwnership) Lower.Error!void {
@@ -116,6 +217,13 @@ pub fn joinAstSpans(writer: *const anyopaque, first: u64, second: u64) Lower.Err
     const block = try blocks.join(self.allocator, self.builder.nodes, &.{ left.start, right.start }, &.{ left.count, right.count });
 
     return packSpan(block);
+}
+
+pub fn joinAstStatementRows(writer: *const anyopaque, starts: []const u32, counts: []const u32) Lower.Error!u32 {
+    const self = borrow(writer);
+    const block = try blocks.join(self.allocator, self.builder.nodes, starts, counts);
+
+    return block.start;
 }
 
 pub fn appendAstSpan(writer: *const anyopaque, span: u64) Lower.Error!void {

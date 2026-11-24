@@ -1,4 +1,11 @@
 import type {
+    AstOriginBuffer,
+    AstSequence,
+    AstWriter,
+    ExpressionExtensions as Extra
+} from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type {
     Input as Bases,
     State as Context,
     Variables
@@ -19,13 +26,6 @@ export type Input = {
     selected: bool,
     headered: u32,
     bases: Bases
-}
-
-export type Extra = {
-    error_set: u8[][][],
-    optional_type: u32[],
-    struct_type_start: u32[],
-    struct_type_len: u32[]
 }
 
 export type State = {
@@ -56,3 +56,12 @@ export type Output = {
     headered: u32,
     valid: bool
 }
+
+export type Execute = Input.Omit("bases") & {
+    writer: AstWriter,
+    lower: Lowering,
+    origin: AstOriginBuffer,
+    body: AstSequence
+}
+
+export type Result = Output.Pick("root", "headered")

@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 import { max_u32 } from "core/const"
 
+import empty from "../../../ast/expressions/empty"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import { left_name, right_name } from "../functions/const"
 import {
@@ -8,6 +9,8 @@ import {
     left_element_name,
     right_element_name
 } from "./const"
+
+import type { ExpressionRows } from "ast_rows"
 
 export type Input = {
     base: u32
@@ -19,11 +22,7 @@ export type Output = {
     environment_name: u8[],
     left: u32,
     right: u32,
-    expressions: {
-        tags: ExpressionsKind[],
-        offsets: u32[],
-        identifier: u8[][]
-    },
+    expressions: ExpressionRows,
     valid: bool
 }
 
@@ -38,6 +37,7 @@ export default function (in: Input): Output {
         left: base,
         right: base + 1,
         expressions: {
+            ...empty({}),
             tags: [
                 ExpressionsKind.Identifier,
                 ExpressionsKind.Identifier

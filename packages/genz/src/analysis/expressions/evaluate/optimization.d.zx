@@ -1,15 +1,14 @@
-export declare function reserveSortDeclaration(frame: SortFrame): void throws { OutOfMemory }
+export declare function sortElementType(frame: SortFrame): u32 throws { OutOfMemory }
 
-export declare function prepareSortTypes(frame: SortFrame): void throws { OutOfMemory }
+export declare function sortErrors(frame: SortFrame): u8[][]? throws { OutOfMemory }
 
-export declare function buildSortComparator(frame: SortFrame): void throws { OutOfMemory }
+export declare function buildSortComparator(
+    frame: SortFrame,
+    child: u32,
+    errors: u8[][]?
+): SortComparator throws { OutOfMemory }
 
-export declare function buildSortHelpers(frame: SortFrame): void throws { OutOfMemory }
-
-export declare function publishSortHelpers(frame: SortFrame): void
-    throws { OutOfMemory }
-
-export declare function publishSortEffects(frame: SortFrame): void
+export declare function publishSortEffects(frame: SortFrame, comparator: SortComparator): void
 
 export declare function evaluateSortTarget(frame: SortFrame): u32 throws { OutOfMemory }
 
@@ -17,27 +16,34 @@ export declare function sortSourceSelected(frame: SortFrame): bool
 
 export declare function clipSortTarget(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
 
-export declare function bindSortTarget(frame: SortFrame, target: u32): void throws { OutOfMemory }
+export declare function bindSortValue(frame: SortFrame, value: u32): u32 throws { OutOfMemory }
+
+export declare function readSortItems(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
 
 export declare function sortInputReusable(frame: SortFrame): bool
 
-export declare function sortWritable(frame: SortFrame): u32 throws { OutOfMemory }
+export declare function sortWritable(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
 
 export declare function sortReuseFlag(frame: SortFrame, reuse: bool): u32 throws { OutOfMemory }
 
-export declare function bindSortReuse(frame: SortFrame, reuse: u32): void throws { OutOfMemory }
+export declare function bindSortEnvironment(frame: SortFrame): u32 throws { OutOfMemory }
 
-export declare function bindSortEnvironment(frame: SortFrame): void throws { OutOfMemory }
+export declare function readSortHeader(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
 
-export declare function readSortHeader(frame: SortFrame): u32 throws { OutOfMemory }
-
-export declare function emitSort(frame: SortFrame, selected: bool, header: u32): u32
+export declare function finishSortResult(frame: SortFrame, value: u32, headered: u32): u32
     throws { OutOfMemory }
+
+export declare function bindSortWorkerNames(
+    frame: SortWorkerFrame,
+    left: u32,
+    right: u32,
+    names: u8[][]
+): void
 
 export declare function registerSortParameters(frame: SortWorkerFrame): void
     throws { OutOfMemory }
 
-export declare function evaluateSortComparator(frame: SortWorkerFrame): void
+export declare function evaluateSortComparator(frame: SortWorkerFrame): u32
     throws { OutOfMemory }
 
 export declare function sortOperandUsed(frame: SortWorkerFrame, index: u64): bool
@@ -45,4 +51,8 @@ export declare function sortOperandUsed(frame: SortWorkerFrame, index: u64): boo
 export declare function readSortOperand(frame: SortWorkerFrame, index: u64): void
     throws { OutOfMemory }
 
-export declare function publishSortWorker(frame: SortWorkerFrame): u32 throws { OutOfMemory }
+export declare function sortWorkerOutputType(frame: SortWorkerFrame): u32
+    throws { OutOfMemory }
+
+export declare function readSortWorkerFacts(frame: SortWorkerFrame): SortWorkerFacts
+    throws { OutOfMemory }

@@ -77,14 +77,7 @@ export default function (in: Input): Output {
             statements: empty({})
         },
         prefix: {
-            ...selected.state.statements.pick([
-                "tags",
-                "offsets",
-                "constant_name",
-                "constant_type_expr",
-                "constant_value",
-                "constant_exported"
-            ]),
+            ...selected.state.statements,
             discard: selected.values
         }
     }

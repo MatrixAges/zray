@@ -190,3 +190,27 @@ export type ExpressionForms = {
     conditional_capture: u8[]?[],
     conditional_error_capture: u8[]?[]
 }
+
+export type ExpressionExtensions = {
+    catch_scope_value: u32[],
+    catch_scope_capture: u8[]?[],
+    catch_scope_body_start: u32[],
+    catch_scope_body_len: u32[],
+    mutable_slice: u32[],
+    error_union_payload: u32[],
+    error_union_errors: u8[][]?[],
+    error_union_inferred: bool[],
+    namespace_type_start: u32[],
+    namespace_type_len: u32[],
+    error_set: u8[][][],
+    optional_type: u32[],
+    struct_type_start: u32[],
+    struct_type_len: u32[]
+}
+
+export type NamespaceRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    namespace_type_start: u32[],
+    namespace_type_len: u32[]
+}

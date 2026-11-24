@@ -1,0 +1,52 @@
+<Module>
+    <Type from="model" as="Sort" />
+
+    <Args in={Sort.Declaration} out={void} />
+
+    <Call
+        fn="../rows.joinAstDeclarationRows"
+        in={[
+            $in.writer,
+            [
+                $in.comparator,
+                $in.ordering,
+                $in.sort
+            ],
+            [
+                1,
+                1,
+                1
+            ]
+        ]}
+    />
+
+    <Call fn="../rows.astExpressionCount" in={$in.writer} />
+
+    <Call
+        fn="../publish"
+        in={{
+            name: $in.name,
+            expression_base: $ctx.astExpressionCount,
+            declarations: $ctx.joinAstDeclarationRows
+        }}
+    />
+
+    <Call fn="../rows.requireAllocation" in={$ctx.publish.valid} />
+
+    <Call
+        fn="../rows.appendAstNamespaceRows"
+        in={[
+            $in.writer,
+            $ctx.publish.expressions
+        ]}
+    />
+
+    <Call
+        fn="../rows.replaceAuxiliaryRow"
+        in={[
+            $in.writer,
+            $in.slot,
+            $ctx.publish.declarations.omit(["tags"])
+        ]}
+    />
+</Module>

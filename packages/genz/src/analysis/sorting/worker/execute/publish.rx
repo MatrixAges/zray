@@ -1,0 +1,76 @@
+<Module>
+    <Type from="model" as="Worker" />
+    <Type from="index" as="AST" />
+
+    <Args in={Worker.Publication} out={void} />
+
+    <Call fn="../../rows.requireAllocation" in={$in.fragment.valid} />
+
+    <Call
+        fn="../../rows.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $in.fragment.expressions,
+            $in.fragment.forms,
+            $in.fragment.extra
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendAstFields"
+        in={[
+            $in.writer,
+            $in.fragment.fields
+        ]}
+    />
+
+    <Call
+        fn="index.appendPrefix"
+        in={[
+            $in.writer,
+            $in.fragment.prefix,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="index.appendBindings"
+        in={[
+            $in.writer,
+            $in.fragment.bindings,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="index.appendEnding"
+        in={[
+            $in.writer,
+            $in.fragment.ending,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="index.joinAstStatementRows"
+        in={[
+            $in.writer,
+            $in.fragment.body.starts,
+            $in.fragment.body.counts
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendAstFunctions"
+        in={[
+            $in.writer,
+            {
+                ...$in.fragment.declarations.omit(["tags"]),
+                function_body_start: [$ctx.joinAstStatementRows]
+            }
+        ]}
+    />
+</Module>

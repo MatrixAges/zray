@@ -1,10 +1,12 @@
 export {
-    reserveSortDeclaration,
-    prepareSortTypes,
+    sortElementType,
+    sortErrors,
     buildSortComparator,
-    buildSortHelpers,
-    publishSortHelpers,
     publishSortEffects,
+    evaluateSortTarget,
     sortSourceSelected,
-    bindSortEnvironment
+    readSortItems,
+    bindSortEnvironment,
+    readSortHeader,
+    finishSortResult
 } from "lowering_host"

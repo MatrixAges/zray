@@ -1,12 +1,104 @@
 <Module>
     <Type from="model" as="Worker" />
+    <Type from="../../rows" as="AST" />
 
     <Args in={Worker.Input} out={Worker.Output} />
 
-    <Call fn="index.registerSortParameters" in={$in} />
-    <Call fn="index.evaluateSortComparator" in={$in} />
-    <Call fn="prepare_operands" in={$in} />
-    <Call fn="index.publishSortWorker" in={$in} />
+    <Call fn="../../rows.astExpressionCount" in={$in.writer} />
 
-    <Return value={$ctx.publishSortWorker} />
+    <Call
+        fn="../prepare"
+        in={{
+            base: $ctx.astExpressionCount
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.prepare.valid} />
+
+    <Call
+        fn="../../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.prepare.expressions,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="index.bindSortWorkerNames"
+        in={[
+            $in.frame,
+            $ctx.prepare.left,
+            $ctx.prepare.right,
+            [
+                $ctx.prepare.left_name,
+                $ctx.prepare.right_name,
+                $ctx.prepare.environment_name
+            ]
+        ]}
+    />
+
+    <Call fn="../../rows.releasePreparation" in={$in.scratch} />
+    <Call fn="index.registerSortParameters" in={$in.frame} />
+    <Call fn="index.evaluateSortComparator" in={$in.frame} />
+    <Call fn="prepare_operands" in={$in.frame} />
+    <Call fn="index.sortWorkerOutputType" in={$in.frame} />
+    <Call fn="index.readSortWorkerFacts" in={$in.frame} />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+    <Call fn="../../rows.astDeclarationCount" in={$in.writer} />
+
+    <Call
+        module="../build"
+        in={{
+            child: $in.child,
+            errors: $in.errors,
+            output_type: $ctx.sortWorkerOutputType,
+            value: $ctx.evaluateSortComparator,
+            raw: $ctx.readSortWorkerFacts.raw,
+            elements: $ctx.readSortWorkerFacts.elements,
+            used: $ctx.readSortWorkerFacts.used,
+            uses_allocator: $ctx.readSortWorkerFacts.uses_allocator,
+            uses_io: $ctx.readSortWorkerFacts.uses_io,
+            uses_process: $ctx.readSortWorkerFacts.uses_process,
+            uses_environment: $ctx.readSortWorkerFacts.uses_environment,
+            references: {
+                start: $ctx.readSortWorkerFacts.references_start,
+                count: $ctx.readSortWorkerFacts.references_count
+            },
+            left: {
+                start: $ctx.readSortWorkerFacts.left_start,
+                count: $ctx.readSortWorkerFacts.left_count
+            },
+            right: {
+                start: $ctx.readSortWorkerFacts.right_start,
+                count: $ctx.readSortWorkerFacts.right_count
+            },
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            },
+            declaration_base: $ctx.astDeclarationCount
+        }}
+    />
+
+    <Call
+        module="publish"
+        in={{
+            writer: $in.writer,
+            fragment: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.astDeclarationCount} />
 </Module>

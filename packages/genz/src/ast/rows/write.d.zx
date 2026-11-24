@@ -4,6 +4,8 @@ export type AstOriginBuffer = opaque
 
 export type AstSequence = opaque
 
+export type AstScratch = opaque
+
 export enum AstPayloadOwnership {
     Owned,
     BorrowingText,
@@ -57,3 +59,57 @@ export declare function joinAstSpans(writer: AstWriter, first: u64, second: u64)
 
 export declare function appendAstSpan(writer: AstWriter, span: u64): void
     throws { OutOfMemory }
+
+export declare function astFieldCount(writer: AstWriter): u32
+
+export declare function astDeclarationCount(writer: AstWriter): u32
+
+export declare function appendExtendedExpressions(
+    writer: AstWriter,
+    rows: ExpressionRows,
+    forms: ExpressionForms,
+    extensions: ExpressionExtensions
+): void throws { OutOfMemory }
+
+export declare function appendAstFields(writer: AstWriter, rows: FieldRows): void
+    throws { OutOfMemory }
+
+export declare function appendAstFunctions(writer: AstWriter, rows: FunctionRows): void
+    throws { OutOfMemory }
+
+export declare function joinAstStatementRows(
+    writer: AstWriter,
+    starts: u32[],
+    counts: u32[]
+): u32 throws { OutOfMemory }
+
+export declare function astIdentifierCount(writer: AstWriter): u64
+
+export declare function replaceAstIdentifier(writer: AstWriter, index: u64, name: u8[]): void
+
+export declare function astExpressionCount(writer: AstWriter): u32
+
+export declare function auxiliaryDeclarationCount(writer: AstWriter): u64
+
+export declare function appendAstExpressionHeaders(
+    writer: AstWriter,
+    tags: ExpressionsKind[],
+    offsets: u32[]
+): void throws { OutOfMemory }
+
+export declare function appendAstNamespaceRows(writer: AstWriter, rows: NamespaceRows): void
+    throws { OutOfMemory }
+
+export declare function appendAuxiliaryRow(writer: AstWriter, rows: ConstantRows): u8[]
+    throws { OutOfMemory }
+
+export declare function replaceAuxiliaryRow(writer: AstWriter, slot: u64, rows: ConstantRows): void
+    throws { OutOfMemory }
+
+export declare function joinAstDeclarationRows(
+    writer: AstWriter,
+    starts: u32[],
+    counts: u32[]
+): u64 throws { OutOfMemory }
+
+export declare function releaseAstScratch(scratch: AstScratch): void

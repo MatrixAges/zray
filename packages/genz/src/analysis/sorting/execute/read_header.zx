@@ -1,0 +1,11 @@
+import host from "lowering_host"
+
+import type { Target as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, target, selected } = in
+
+    return selected ? host.readSortHeader(frame, target) : 0
+}

@@ -1,4 +1,5 @@
 import context from "../../../ast/context/initialize"
+import emptyExtensions from "../../../ast/expressions/empty_extensions"
 import fields from "../../../ast/fields/empty"
 
 import type { Input, State as Output } from "./model"
@@ -7,12 +8,7 @@ export default function (in: Input): Output {
     return {
         source: in,
         context: context(in.bases),
-        extra: {
-            error_set: [],
-            optional_type: [],
-            struct_type_start: [],
-            struct_type_len: []
-        },
+        extra: emptyExtensions({}),
         fields: fields({}),
         values_count: 0,
         failure_type: 0,

@@ -6,6 +6,7 @@ import { ExpressionsKind } from "../../printer/model/expressions"
 import integer from "../../printer/text/integer"
 import { worker_prefix } from "./const"
 
+import type { ExpressionRows } from "ast_rows"
 import type { Columns as Declarations } from "../../ast/declarations/model"
 
 export type Input = {
@@ -14,10 +15,7 @@ export type Input = {
 }
 
 export type Output = {
-    expressions: {
-        tags: ExpressionsKind[],
-        offsets: u32[]
-    },
+    expressions: ExpressionRows.Pick("tags", "offsets"),
     declarations: Declarations,
     valid: bool
 }

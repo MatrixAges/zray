@@ -1,3 +1,4 @@
+import type { AstOriginBuffer, AstWriter, ExpressionExtensions as Extra } from "ast_rows"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Functions } from "../../../ast/declarations/function"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
@@ -10,19 +11,6 @@ export type Input = {
     errors?: u8[][],
     bases: Bases,
     declaration_base: u32
-}
-
-export type Extra = {
-    catch_scope_value: u32[],
-    catch_scope_capture: u8[]?[],
-    catch_scope_body_start: u32[],
-    catch_scope_body_len: u32[],
-    mutable_slice: u32[],
-    error_union_payload: u32[],
-    error_union_errors: u8[][]?[],
-    error_union_inferred: bool[],
-    namespace_type_start: u32[],
-    namespace_type_len: u32[]
 }
 
 export type State = {
@@ -56,3 +44,10 @@ export type Output = {
     sort: u32,
     valid: bool
 }
+
+export type ExecuteInput = Input.Pick("child", "errors") & {
+    writer: AstWriter,
+    origin: AstOriginBuffer
+}
+
+export type ExecuteOutput = Output.Pick("ordering", "sort")

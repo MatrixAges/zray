@@ -1,5 +1,31 @@
-import type { SortFrame } from "lowering_host"
+import type { AstOriginBuffer, AstScratch, AstSequence, AstWriter } from "ast_rows"
+import type { Lowering, SortFrame } from "lowering_host"
 
-export type Input = SortFrame
+export type Input = {
+    frame: SortFrame,
+    writer: AstWriter,
+    lower: Lowering,
+    body: AstSequence,
+    scratch: AstScratch,
+    origin: AstOriginBuffer
+}
 
 export type Output = u32
+
+export type Target = {
+    frame: SortFrame,
+    target: u32,
+    selected: bool
+}
+
+export type Reservation = {
+    writer: AstWriter,
+    slot: u64
+}
+
+export type Declaration = Reservation & {
+    name: u8[],
+    comparator: u32,
+    ordering: u32,
+    sort: u32
+}

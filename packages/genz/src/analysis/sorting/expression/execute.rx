@@ -1,0 +1,98 @@
+<Module>
+    <Type from="model" as="Sort" />
+
+    <Args in={Sort.Execute} out={Sort.Result} />
+
+    <Call
+        fn="../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        module="build"
+        in={{
+            ...$in.omit([
+                "writer",
+                "lower",
+                "origin",
+                "body"
+            ]),
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../rows.requireAllocation" in={$ctx.build.valid} />
+
+    <Call
+        fn="../rows.retainLoweringText"
+        in={[
+            $in.lower,
+            $ctx.build.name
+        ]}
+    />
+
+    <Call fn="../rows.astIdentifierCount" in={$in.writer} />
+
+    <Call
+        fn="../rows.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.forms,
+            $ctx.build.extra
+        ]}
+    />
+
+    <Call
+        fn="../rows.replaceAstIdentifier"
+        in={[
+            $in.writer,
+            $ctx.astIdentifierCount + $ctx.build.name_slot,
+            $ctx.retainLoweringText
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendAstFields"
+        in={[
+            $in.writer,
+            $ctx.build.fields
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendStatementSequence"
+        in={[
+            $in.writer,
+            $in.body,
+            $ctx.build.statements,
+            {
+                ...$ctx.build.variables,
+                variable_name: [$ctx.retainLoweringText]
+            }
+        ]}
+    />
+
+    <Call
+        fn="../rows.setLoweringSerial"
+        in={[
+            $in.lower,
+            $ctx.build.serial
+        ]}
+    />
+
+    <Return
+        value={{
+            root: $ctx.build.root,
+            headered: $ctx.build.headered
+        }}
+    />
+</Module>

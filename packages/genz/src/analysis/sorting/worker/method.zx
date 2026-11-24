@@ -24,7 +24,11 @@ export default function (in: Input): Output {
                 "tags",
                 "offsets"
             ]),
-            ...in.extra
+            ...in.extra.pick([
+                "error_union_payload",
+                "error_union_errors",
+                "error_union_inferred"
+            ])
         },
         base: in.source.bases.expression_base,
         payload: in.source.output_type,
@@ -98,10 +102,13 @@ export default function (in: Input): Output {
     return {
         expressions: ending.expressions,
         forms: ending.forms,
-        extra: returns.table.omit([
-            "tags",
-            "offsets"
-        ]),
+        extra: {
+            ...in.extra,
+            ...returns.table.omit([
+                "tags",
+                "offsets"
+            ])
+        },
         prefix: in.prefix,
         bindings: in.bindings,
         ending: ending.statements,

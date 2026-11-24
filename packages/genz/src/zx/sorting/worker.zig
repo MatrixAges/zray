@@ -1,8 +1,11 @@
+const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const emitting = @import("worker/emitting.zig");
+const reuse = @import("../scope/reuse.zig");
 const scope = @import("../functions/scope.zig");
+const rows = @import("../construction/publication.zig");
+const Api = @import("../expressions/evaluate.zig").Api;
 const Error = Lower.Error;
 pub const Result = struct { declaration: u32, io: bool, process: bool };
 
@@ -10,7 +13,13 @@ const Frame = struct {
     lowering: *Lower,
     value: ir.Transform,
     worker: *Lower,
-    final: emitting.Final,
+    raw: [2]node.ExpressionId = undefined,
+    elements: [2]node.ExpressionId = undefined,
+    saved: [3][]const u8 = undefined,
+    names: ?reuse.Names = null,
+    used: [2]bool = @splat(false),
+    helpers: [2]node.Block = @splat(.{}),
+    facts: Api.SortWorkerFacts = undefined,
     helper: @import("../../node/blocks.zig").Sequence,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -22,36 +31,45 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
 
     try scope.reserve(&worker, self.allocator, .Sort);
 
-    const prepared = try emitting.prepare(self);
-    var saved: [prepared.names.len][]const u8 = undefined;
-    const names = @import("../scope/reuse.zig").bindNames(self, value.parameters, &prepared.names, &saved);
-
-    defer names.restore(self);
-
     var frame: Frame = .{
         .lowering = self,
         .value = value,
         .worker = &worker,
-        .final = .{
-            .worker = &worker,
-            .environment = value.parameters[2],
-            .child = child,
-            .output_type = undefined,
-            .errors = errors,
-            .value = undefined,
-            .raw = prepared.raw,
-            .elements = prepared.raw,
-            .used = @splat(false),
-            .helpers = @splat(.{}),
-        },
         .helper = self.builder.statementSequence(self.workspace),
     };
 
+    var scratch: std.heap.ArenaAllocator = .init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
+    var origin: rows.OriginBuffer = .{};
+    const resource: rows.Scratch = .{ .arena = &scratch, .memory = &memory };
+
+    defer scratch.deinit();
+    defer if (frame.names) |names| names.restore(self);
     defer frame.helper.deinit();
 
-    const declaration = try @import("../expressions/evaluate.zig").invoke(@import("generated_execute_sort_worker"), @ptrCast(&frame));
+    const entry = @import("generated_execute_sort_worker");
 
-    return .{ .declaration = @backingInt(declaration), .io = worker.uses_io, .process = worker.uses_process };
+    const input: std.meta.Child(entry.Input) = .{
+        .frame = @ptrCast(&frame),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .scratch = @ptrCast(&resource),
+        .child = @backingInt(child),
+        .errors = errors,
+    };
+
+    const declaration = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
+
+    return .{ .declaration = declaration, .io = worker.uses_io, .process = worker.uses_process };
+}
+
+pub fn bindSortWorkerNames(handle: *const anyopaque, left: u32, right: u32, names: []const []const u8) void {
+    const frame = Frame.borrow(handle);
+
+    frame.raw = .{ @fromBackingInt(left), @fromBackingInt(right) };
+    frame.elements = frame.raw;
+    frame.names = reuse.bindNames(frame.lowering, frame.value.parameters, names, &frame.saved);
 }
 
 pub fn registerSortParameters(handle: *const anyopaque) Error!void {
@@ -60,10 +78,10 @@ pub fn registerSortParameters(handle: *const anyopaque) Error!void {
     try @import("../state_value/locals.zig").registerOwned(frame.worker, frame.value.parameters);
 }
 
-pub fn evaluateSortComparator(handle: *const anyopaque) Error!void {
+pub fn evaluateSortComparator(handle: *const anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    frame.final.value = try frame.worker.expr(frame.value.body);
+    return @backingInt(try frame.worker.expr(frame.value.body));
 }
 
 pub fn sortOperandUsed(handle: *const anyopaque, index: u64) bool {
@@ -76,19 +94,43 @@ pub fn readSortOperand(handle: *const anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
     const slot: usize = @intCast(index);
     const list_type = frame.lowering.program.expression(frame.value.target).type_id;
-
-    frame.final.elements[slot] = try @import("../state_value/elements.zig").read(frame.worker, &frame.helper, list_type, frame.final.raw[slot]);
-    frame.final.helpers[slot] = try frame.helper.block(frame.lowering.allocator);
-    frame.final.used[slot] = true;
+    frame.elements[slot] = try @import("../state_value/elements.zig").read(frame.worker, &frame.helper, list_type, frame.raw[slot]);
+    frame.helpers[slot] = try frame.helper.block(frame.lowering.allocator);
+    frame.used[slot] = true;
 
     frame.helper.clearRetainingCapacity();
 }
 
-pub fn publishSortWorker(handle: *const anyopaque) Error!u32 {
+pub fn sortWorkerOutputType(handle: *const anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const output_type = frame.lowering.program.expression(frame.value.body).type_id;
 
-    frame.final.output_type = try frame.lowering.typeExpr(output_type);
+    return @backingInt(try frame.lowering.typeExpr(output_type));
+}
 
-    return emitting.finish(frame.lowering, frame.final);
+pub fn readSortWorkerFacts(handle: *const anyopaque) Error!*const Api.SortWorkerFacts {
+    const frame = Frame.borrow(handle);
+    const worker = frame.worker;
+    const environment = frame.value.parameters[2];
+    const references = try worker.referenceBlock();
+    const raw: []const node.ExpressionId = &frame.raw;
+    const elements: []const node.ExpressionId = &frame.elements;
+
+    frame.facts = .{
+        .raw = @import("../../node/view.zig").slice([]const u32, raw),
+        .elements = @import("../../node/view.zig").slice([]const u32, elements),
+        .used = &frame.used,
+        .uses_allocator = worker.uses_allocator,
+        .uses_io = worker.uses_io,
+        .uses_process = worker.uses_process,
+        .uses_environment = worker.used[@backingInt(environment)],
+        .references_start = references.start,
+        .references_count = references.len,
+        .left_start = frame.helpers[0].start,
+        .left_count = frame.helpers[0].len,
+        .right_start = frame.helpers[1].start,
+        .right_count = frame.helpers[1].len,
+    };
+
+    return &frame.facts;
 }

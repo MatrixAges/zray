@@ -3,32 +3,128 @@
 
     <Args in={Sort.Input} out={Sort.Output} />
 
-    <Call fn="index.reserveSortDeclaration" in={$in} />
-    <Call fn="index.prepareSortTypes" in={$in} />
-    <Call fn="index.buildSortComparator" in={$in} />
-    <Call fn="index.buildSortHelpers" in={$in} />
-    <Call fn="index.publishSortHelpers" in={$in} />
-    <Call fn="index.publishSortEffects" in={$in} />
-    <Call fn="bind_target" in={$in} />
-    <Call fn="index.sortSourceSelected" in={$in} />
+    <Call fn="../rows.auxiliaryDeclarationCount" in={$in.writer} />
+
+    <Call
+        module="reserve_slot"
+        in={{
+            writer: $in.writer,
+            slot: $ctx.auxiliaryDeclarationCount
+        }}
+    />
+
+    <Call fn="../rows.releasePreparation" in={$in.scratch} />
+    <Call fn="index.sortElementType" in={$in.frame} />
+    <Call fn="index.sortErrors" in={$in.frame} />
+
+    <Call
+        fn="index.buildSortComparator"
+        in={[
+            $in.frame,
+            $ctx.sortElementType,
+            $ctx.sortErrors
+        ]}
+    />
+
+    <Call
+        module="../functions/publish"
+        in={{
+            writer: $in.writer,
+            origin: $in.origin,
+            child: $ctx.sortElementType,
+            errors: $ctx.sortErrors
+        }}
+    />
+
+    <Call
+        module="publish_slot"
+        in={{
+            writer: $in.writer,
+            slot: $ctx.auxiliaryDeclarationCount,
+            name: $ctx.reserve_slot,
+            comparator: $ctx.buildSortComparator.declaration,
+            ordering: $ctx.publish.ordering,
+            sort: $ctx.publish.sort
+        }}
+    />
+
+    <Call fn="../rows.releaseDeclarations" in={$in.scratch} />
+
+    <Call
+        fn="index.publishSortEffects"
+        in={[
+            $in.frame,
+            $ctx.buildSortComparator
+        ]}
+    />
+
+    <Call fn="index.evaluateSortTarget" in={$in.frame} />
+    <Call fn="index.sortSourceSelected" in={$in.frame} />
+
+    <Call
+        fn="bind_target"
+        in={{
+            frame: $in.frame,
+            target: $ctx.evaluateSortTarget,
+            selected: $ctx.sortSourceSelected
+        }}
+    />
+
+    <Call
+        fn="index.readSortItems"
+        in={[
+            $in.frame,
+            $ctx.bind_target
+        ]}
+    />
 
     <Call
         fn="bind_reuse"
         in={{
-            frame: $in,
+            frame: $in.frame,
+            target: $ctx.bind_target,
             selected: $ctx.sortSourceSelected
         }}
     />
 
-    <Call fn="index.bindSortEnvironment" in={$in} />
+    <Call fn="index.bindSortEnvironment" in={$in.frame} />
 
     <Call
-        fn="finish"
+        fn="read_header"
         in={{
-            frame: $in,
+            frame: $in.frame,
+            target: $ctx.bind_target,
             selected: $ctx.sortSourceSelected
         }}
     />
 
-    <Return value={$ctx.finish} />
+    <Call
+        module="../expression/execute"
+        in={{
+            writer: $in.writer,
+            lower: $in.lower,
+            origin: $in.origin,
+            body: $in.body,
+            name: $ctx.reserve_slot,
+            source: $ctx.readSortItems,
+            reuse: $ctx.bind_reuse,
+            environment: $ctx.bindSortEnvironment,
+            errors: $ctx.sortErrors,
+            io: $ctx.buildSortComparator.io,
+            process: $ctx.buildSortComparator.process,
+            selected: $ctx.sortSourceSelected,
+            headered: $ctx.read_header
+        }}
+    />
+
+    <Call
+        fn="index.finishSortResult"
+        in={[
+            $in.frame,
+            $ctx.execute.root,
+            $ctx.execute.headered
+        ]}
+    />
+
+    <Return value={$ctx.finishSortResult} />
 </Module>

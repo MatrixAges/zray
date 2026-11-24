@@ -1,5 +1,8 @@
+import integers from "std:integer"
+
 import constants from "../../ast/declarations/constants"
 import namespace from "../../ast/expressions/namespace"
+import { word_radix } from "../node_headers/block/const"
 
 import type { Columns as Declarations } from "../../ast/declarations/model"
 import type { Columns as Expressions } from "../../ast/expressions/namespace"
@@ -7,8 +10,7 @@ import type { Columns as Expressions } from "../../ast/expressions/namespace"
 export type Input = {
     name: u8[],
     expression_base: u32,
-    first: u32,
-    count: u32
+    declarations: u64
 }
 
 export type Output = {
@@ -26,8 +28,8 @@ export default function (in: Input): Output {
             namespace_type_len: []
         },
         base: in.expression_base,
-        start: in.first,
-        count: in.count
+        start: integers.narrow(in.declarations / word_radix),
+        count: integers.narrow(in.declarations % word_radix)
     })
 
     const declarations = constants({

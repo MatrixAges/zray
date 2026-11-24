@@ -1,0 +1,76 @@
+<Module>
+    <Type from="model" as="Sort" />
+    <Type from="../rows" as="AST" />
+
+    <Args in={Sort.ExecuteInput} out={Sort.ExecuteOutput} />
+
+    <Call
+        fn="../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../rows.astFieldCount" in={$in.writer} />
+    <Call fn="../rows.astDeclarationCount" in={$in.writer} />
+
+    <Call
+        module="build"
+        in={{
+            child: $in.child,
+            errors: $in.errors,
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            },
+            declaration_base: $ctx.astDeclarationCount
+        }}
+    />
+
+    <Call fn="../rows.requireAllocation" in={$ctx.build.valid} />
+
+    <Call
+        fn="../rows.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.forms,
+            $ctx.build.extra
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.build.statements,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendAstFields"
+        in={[
+            $in.writer,
+            $ctx.build.fields
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendAstFunctions"
+        in={[
+            $in.writer,
+            $ctx.build.declarations.omit(["tags"])
+        ]}
+    />
+
+    <Return
+        value={{
+            ordering: $ctx.build.ordering,
+            sort: $ctx.build.sort
+        }}
+    />
+</Module>

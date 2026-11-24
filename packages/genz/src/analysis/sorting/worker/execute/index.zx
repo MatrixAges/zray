@@ -1,5 +1,14 @@
 export {
+    AstPayloadOwnership,
+    appendStatementRows as appendPrefix,
+    appendStatementRows as appendBindings,
+    appendStatementRows as appendEnding,
+    joinAstStatementRows
+} from "ast_rows"
+export {
+    bindSortWorkerNames,
     registerSortParameters,
     evaluateSortComparator,
-    publishSortWorker
+    sortWorkerOutputType,
+    readSortWorkerFacts
 } from "lowering_host"

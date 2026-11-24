@@ -1,21 +1,13 @@
 import host from "lowering_host"
 
-import type { SortFrame } from "lowering_host"
+import type { Target as Input } from "./model"
 
-export type Input = SortFrame
-
-export type Output = void
+export type Output = u32
 
 export default function (in: Input): Output {
-    const target = host.evaluateSortTarget(in)
+    const { frame, target, selected } = in
 
-    if (host.sortSourceSelected(in)) {
-        const qualified = host.clipSortTarget(in, target)
+    const qualified = selected ? host.clipSortTarget(frame, target) : target
 
-        host.bindSortTarget(in, qualified)
-
-        return
-    }
-
-    host.bindSortTarget(in, target)
+    return host.bindSortValue(frame, qualified)
 }

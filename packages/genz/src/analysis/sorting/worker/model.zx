@@ -1,10 +1,10 @@
+import type { ExpressionExtensions as Extra } from "ast_rows"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Functions } from "../../../ast/declarations/function"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
 import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
-import type { StatementsKind } from "../../../printer/model/statements"
 
 export type Block = {
     start: u32,
@@ -36,28 +36,12 @@ export type Input = {
     declaration_base: u32
 }
 
-export type Bindings = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[],
-    discard: u32[]
-}
-
-export type Extra = {
-    error_union_payload: u32[],
-    error_union_errors: u8[][]?[],
-    error_union_inferred: bool[]
-}
-
 export type State = {
     source: Input,
     context: Context,
     discard: u32[],
-    bindings: Bindings,
-    prefix: Bindings,
+    bindings: Statements,
+    prefix: Statements,
     extra: Extra,
     fields: Fields
 }
@@ -66,8 +50,8 @@ export type Output = {
     expressions: Expressions,
     forms: Forms,
     extra: Extra,
-    prefix: Bindings,
-    bindings: Bindings,
+    prefix: Statements,
+    bindings: Statements,
     ending: Statements,
     body: Body,
     fields: Fields,
