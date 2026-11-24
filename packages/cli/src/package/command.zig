@@ -1,55 +1,59 @@
 const std = @import("std");
 const manifest = @import("manifest.zig");
+const constants = @import("cli_source").workspace_constants.@"zx.constants";
 
-pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, environment: *const std.process.Environ.Map, output: *std.Io.Writer, errors: *std.Io.Writer) !bool {
-    if (args.len != 0 and std.mem.eql(u8, args[0], "install")) return @import("install.zig").run(io, allocator, args[1..], environment, output, errors);
-    if (args.len != 0 and std.mem.eql(u8, args[0], "init")) return @import("init.zig").run(io, allocator, args, output, errors);
-    if (args.len != 0 and (std.mem.eql(u8, args[0], "index") or std.mem.eql(u8, args[0], "resolve"))) return @import("index.zig").run(io, allocator, args, output, errors);
+pub fn run(init: std.process.Init, request: anytype, args: []const []const u8, output: *std.Io.Writer, errors: *std.Io.Writer) !bool {
+    const allocator = init.arena.allocator();
+    const io = init.io;
+    const path = request.path orelse constants.manifest_name;
 
-    if (args.len < 1 or args.len > 2 or (!std.mem.eql(u8, args[0], "inspect") and !std.mem.eql(u8, args[0], "workspace") and !std.mem.eql(u8, args[0], "graph"))) {
-        try errors.writeAll("zxc pkg inspect|workspace|graph [pkg.yaml]\n");
-        try errors.writeAll(@import("init.zig").usage);
-        try errors.writeAll(@import("install.zig").usage);
+    return switch (request.action) {
+        .PackageInstall => @import("install.zig").run(io, allocator, args[1..], init.environ_map, output, errors),
+        .PackageInit => @import("init.zig").run(io, allocator, args, output, errors),
+        .PackageIndex, .PackageResolve => @import("index.zig").run(io, allocator, request, output, errors),
+        .PackageInspect => inspect(io, allocator, path, output, errors),
+        .PackageGraph => display(@import("graph.zig"), io, allocator, path, output, errors),
+        .PackageWorkspace => display(@import("workspace.zig"), io, allocator, path, output, errors),
+        .PackageUsage, .PackageIndexUsage => usage(request.action, errors),
+        else => unreachable,
+    };
+}
+
+pub const manifest_usage = "zxc pkg inspect|workspace|graph [pkg.yaml]\n";
+
+fn usage(action: anytype, writer: *std.Io.Writer) std.Io.Writer.Error!bool {
+    if (action == .PackageIndexUsage) {
+        try writer.writeAll(@import("index.zig").usage);
+    } else {
+        try writer.writeAll(manifest_usage);
+        try writer.writeAll(@import("init.zig").usage);
+        try writer.writeAll(@import("install.zig").usage);
+    }
+
+    return false;
+}
+
+fn display(comptime Loader: type, io: std.Io, allocator: std.mem.Allocator, path: []const u8, output: *std.Io.Writer, errors: *std.Io.Writer) !bool {
+    var result = try Loader.load(io, allocator, path);
+
+    defer result.deinit();
+
+    if (result.diagnostic) |message| {
+        try errors.print("{s}\n", .{message});
 
         return false;
     }
 
-    const path = if (args.len == 2) args[1] else "pkg.yaml";
-
-    if (std.mem.eql(u8, args[0], "graph")) {
-        var result = try @import("graph.zig").load(io, allocator, path);
-
-        defer result.deinit();
-
-        if (result.diagnostic) |message| {
-            try errors.print("{s}\n", .{message});
-
-            return false;
-        }
-
+    if (Loader == @import("graph.zig")) {
         try @import("graph/display.zig").write(&result, output);
-        try output.writeByte('\n');
+    } else try std.json.Stringify.value(result.packages, .{ .whitespace = .indent_2 }, output);
 
-        return true;
-    }
+    try output.writeByte('\n');
 
-    if (std.mem.eql(u8, args[0], "workspace")) {
-        var result = try @import("workspace.zig").load(io, allocator, path);
+    return true;
+}
 
-        defer result.deinit();
-
-        if (result.diagnostic) |message| {
-            try errors.print("{s}\n", .{message});
-
-            return false;
-        }
-
-        try std.json.Stringify.value(result.packages, .{ .whitespace = .indent_2 }, output);
-        try output.writeByte('\n');
-
-        return true;
-    }
-
+fn inspect(io: std.Io, allocator: std.mem.Allocator, path: []const u8, output: *std.Io.Writer, errors: *std.Io.Writer) !bool {
     const source = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(4 * 1024 * 1024)) catch |err| {
         if (err == error.OutOfMemory) return err;
 

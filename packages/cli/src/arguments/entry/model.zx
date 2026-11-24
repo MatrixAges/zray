@@ -1,0 +1,25 @@
+export enum Action {
+    Compilation,
+    Help,
+    PackageUsage,
+    PackageIndexUsage,
+    PackageInstall,
+    PackageInit,
+    PackageInspect,
+    PackageWorkspace,
+    PackageGraph,
+    PackageIndex,
+    PackageResolve,
+    RxEntry,
+    RxSources,
+    RxEntryUsage,
+    RxSourcesUsage
+}
+
+export type Request = {
+    action: Action,
+    path?: string,
+    project?: string,
+    name?: string,
+    range?: string
+}

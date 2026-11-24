@@ -1,0 +1,19 @@
+export const command_package: string = "pkg"
+
+export const command_check: string = "check-rx"
+
+export const flag_help: string = "--help"
+
+export const command_init: string = "init"
+
+export const command_install: string = "install"
+
+export const command_inspect: string = "inspect"
+
+export const command_workspace: string = "workspace"
+
+export const command_graph: string = "graph"
+
+export const command_index: string = "index"
+
+export const command_resolve: string = "resolve"

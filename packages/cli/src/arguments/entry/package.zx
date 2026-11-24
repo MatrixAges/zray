@@ -1,0 +1,80 @@
+import {
+    command_init,
+    command_install,
+    command_inspect,
+    command_workspace,
+    command_graph,
+    command_index,
+    command_resolve
+} from "./const"
+import { Action } from "./model"
+
+import type { Request } from "./model"
+
+export type Input = string[]
+
+export type Output = Request
+
+export default function (in: Input): Output {
+    if (in.length == 1) {
+        return {
+            action: Action.PackageUsage
+        }
+    }
+
+    const action = match in[1] {
+        command_init => Action.PackageInit,
+        command_install => Action.PackageInstall,
+        command_index => Action.PackageIndex,
+        command_resolve => Action.PackageResolve,
+        command_inspect => Action.PackageInspect,
+        command_workspace => Action.PackageWorkspace,
+        command_graph => Action.PackageGraph,
+        _ => Action.PackageUsage
+    }
+
+    if (action == Action.PackageInit || action == Action.PackageInstall) {
+        return {
+            action
+        }
+    }
+
+    if (action == Action.PackageResolve) {
+        if (in.length < 4 || in.length > 5) {
+            return {
+                action: Action.PackageIndexUsage
+            }
+        }
+
+        return {
+            action,
+            path: in.length == 5 ? in[4] : null,
+            name: in[2],
+            range: in[3]
+        }
+    }
+
+    if (action == Action.PackageIndex) {
+        if (in.length > 3) {
+            return {
+                action: Action.PackageIndexUsage
+            }
+        }
+
+        return {
+            action,
+            path: in.length == 3 ? in[2] : null
+        }
+    }
+
+    if (in.length > 3) {
+        return {
+            action: Action.PackageUsage
+        }
+    }
+
+    return {
+        action,
+        path: in.length == 3 ? in[2] : null
+    }
+}

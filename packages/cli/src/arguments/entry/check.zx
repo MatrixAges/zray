@@ -1,0 +1,39 @@
+import { flag_entry, flag_project } from "../const"
+import { Action } from "./model"
+
+import type { Request as Output } from "./model"
+
+export type Input = string[]
+
+export default function (in: Input): Output {
+    if (in.length == 1) {
+        return {
+            action: Action.RxSourcesUsage
+        }
+    }
+
+    if (in[1] != flag_entry) {
+        return {
+            action: Action.RxSources
+        }
+    }
+
+    if (in.length == 3) {
+        return {
+            action: Action.RxEntry,
+            path: in[2]
+        }
+    }
+
+    if (in.length == 5 && in[3] == flag_project) {
+        return {
+            action: Action.RxEntry,
+            path: in[2],
+            project: in[4]
+        }
+    }
+
+    return {
+        action: Action.RxEntryUsage
+    }
+}

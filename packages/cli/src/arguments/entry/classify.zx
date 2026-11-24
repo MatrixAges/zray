@@ -1,0 +1,32 @@
+import check from "./check"
+import { command_check, command_package, flag_help } from "./const"
+import { Action } from "./model"
+import packageRequest from "./package"
+
+import type { Request } from "./model"
+
+export type Input = string[]
+
+export type Output = Request
+
+export default function (in: Input): Output {
+    if (in.length == 0) {
+        return {
+            action: Action.Compilation
+        }
+    }
+
+    if (in.length == 1 && in[0] == flag_help) {
+        return {
+            action: Action.Help
+        }
+    }
+
+    return match in[0] {
+        command_package => packageRequest(in),
+        command_check => check(in),
+        _ => {
+            action: Action.Compilation
+        }
+    }
+}

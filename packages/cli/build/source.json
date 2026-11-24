@@ -106,6 +106,10 @@
             "name": "arguments"
         },
         {
+            "path": "entry/classify.zx",
+            "name": "command_request"
+        },
+        {
             "path": "package_init.zx",
             "name": "package_init"
         },
