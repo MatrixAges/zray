@@ -1,0 +1,65 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.TargetBinding} out={Flow.BoundTarget} />
+
+    <If on={$in.clip}>
+        <Call
+            fn="host.clipCollectionTarget"
+            in={[
+                $in.frame,
+                $in.evaluated
+            ]}
+        />
+
+        <Call
+            fn="host.bindCollectionValue"
+            in={[
+                $in.frame,
+                $ctx.clipCollectionTarget
+            ]}
+        />
+
+        <Call
+            fn="host.readCollectionItems"
+            in={[
+                $in.frame,
+                $in.target,
+                $ctx.bindCollectionValue
+            ]}
+        />
+
+        <Return
+            value={{
+                value: $ctx.bindCollectionValue,
+                items: $ctx.readCollectionItems,
+                represented: true
+            }}
+        />
+    </If>
+
+    <Call
+        fn="host.bindCollectionValue"
+        in={[
+            $in.frame,
+            $in.evaluated
+        ]}
+    />
+
+    <Call
+        fn="host.readCollectionItems"
+        in={[
+            $in.frame,
+            $in.target,
+            $ctx.bindCollectionValue
+        ]}
+    />
+
+    <Return
+        value={{
+            value: $ctx.bindCollectionValue,
+            items: $ctx.readCollectionItems,
+            represented: $in.represented
+        }}
+    />
+</Module>

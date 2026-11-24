@@ -72,7 +72,14 @@ export type ModuleSignatures = opaque
 
 export type AstPublication = opaque
 
-export type GrowthPublication = opaque
+export type FragmentPublication = opaque
+
+export enum FragmentKind {
+    Growth,
+    Collection,
+    Update,
+    Guard
+}
 
 export type DirectAstRows = opaque
 
@@ -107,4 +114,13 @@ export type CollectionRows = {
     element: u32,
     length: u32,
     unit: u32
+}
+
+export type CollectionUpdate = {
+    items: u32,
+    target: u32,
+    index: u32,
+    value: u32,
+    element: u32,
+    selected: bool
 }

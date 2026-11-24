@@ -4,7 +4,7 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const publication = @import("publication.zig");
+const publication = @import("../construction/publication.zig");
 const generated = @import("generated_growth_delivery");
 const Input = std.meta.Child(generated.Input);
 const Normalize = std.meta.Child(std.meta.Child(@FieldType(Input, "normalize")));
@@ -146,7 +146,7 @@ fn deliver(self: *Lower, body: ?*Sequence, input: Input) Lower.Error!Result {
     }).?;
 
     if (input.normalize == null) std.debug.assert(fragment.result.serial == self.serial);
-    try publication.publish(self, body, &fragment);
+    try publication.write(self, body, &fragment, .Growth);
 
     return .{
         .root = @fromBackingInt(fragment.result.root),

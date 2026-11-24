@@ -1,0 +1,9 @@
+import host from "lowering_host"
+
+import bind from "./operand"
+
+import type { Input, Output } from "./operand"
+
+export default function (in: Input): Output {
+    return host.writeCollectionElement(in[0], bind(in))
+}

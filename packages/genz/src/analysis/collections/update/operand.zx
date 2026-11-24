@@ -1,0 +1,15 @@
+import host from "lowering_host"
+
+import type { CollectionFrame } from "lowering_host"
+
+export type Input = [CollectionFrame, u32]
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const [frame, origin] = in
+
+    const value = host.evaluateCollectionValue(frame, origin)
+
+    return host.bindCollectionValue(frame, value)
+}

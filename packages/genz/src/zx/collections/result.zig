@@ -60,7 +60,7 @@ pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, typ
         .bases = &bases,
     };
 
-    const output = entry.executeIn(temporary, &input) catch |err| return @import("emission.zig").failure(err);
+    const output = entry.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
     return conversion.apply(self, body, body, output);
 }

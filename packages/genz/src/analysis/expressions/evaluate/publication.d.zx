@@ -117,23 +117,19 @@ export declare function writeLoopAssignmentField(
 
 export declare function finishLoopAssignment(target: LoopAssignmentPublication): void
 
-export declare function appendGrowthExpressions(target: GrowthPublication): void
+export declare function appendFragmentExpressions(target: FragmentPublication, borrow_text: bool): void
     throws { OutOfMemory }
 
-export declare function appendGrowthStatements(target: GrowthPublication): void
+export declare function appendFragmentStatements(target: FragmentPublication, kind: FragmentKind): void
     throws { OutOfMemory }
 
-export declare function appendGrowthSequence(target: GrowthPublication): void
+export declare function appendFragmentBody(
+    target: FragmentPublication,
+    kind: FragmentKind,
+    sequence: bool
+): void throws { OutOfMemory }
+
+export declare function appendFragmentFields(target: FragmentPublication, own_text: bool): void
     throws { OutOfMemory }
 
-export declare function appendGrowthBody(target: GrowthPublication): void
-    throws { OutOfMemory }
-
-export declare function appendGrowthFields(target: GrowthPublication): void
-    throws { OutOfMemory }
-
-export declare function commitGrowthPublication(
-    target: GrowthPublication,
-    serial: u64,
-    uses_allocator: bool
-): void
+export declare function commitFragment(target: FragmentPublication, serial: u64, uses_allocator: bool): void

@@ -1,0 +1,64 @@
+<Module>
+    <Type from="workflow" as="Update" />
+
+    <Args in={Update.Input} out={Update.Write} />
+
+    <Call fn="../workflow/host.collectionTargetRepresented" in={$in.frame} />
+
+    <Call
+        fn="../workflow/host.evaluateCollectionValue"
+        in={[
+            $in.frame,
+            $in.target
+        ]}
+    />
+
+    <Call
+        module="../workflow/bind_target"
+        in={{
+            frame: $in.frame,
+            target: $in.target,
+            evaluated: $ctx.evaluateCollectionValue,
+            represented: $ctx.collectionTargetRepresented,
+            clip: $ctx.collectionTargetRepresented
+        }}
+    />
+
+    <Call
+        fn="operand"
+        in={[
+            $in.frame,
+            $in.index
+        ]}
+    />
+
+    <Call
+        fn="../workflow/host.checkCollectionIndex"
+        in={[
+            $in.frame,
+            $ctx.bind_target.items,
+            $ctx.operand
+        ]}
+    />
+
+    <Call
+        fn="convert"
+        in={[
+            $in.frame,
+            $in.value
+        ]}
+    />
+
+    <Call fn="../workflow/host.collectionElementType" in={$in.frame} />
+
+    <Return
+        value={{
+            items: $ctx.bind_target.items,
+            target: $ctx.bind_target.value,
+            index: $ctx.operand,
+            value: $ctx.convert,
+            element: $ctx.collectionElementType,
+            selected: $ctx.collectionTargetRepresented
+        }}
+    />
+</Module>

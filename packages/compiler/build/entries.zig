@@ -858,6 +858,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/collections/update/run.rx", .name = "run_list_update", .owner = .genz },
     .{ .path = "genz/analysis/collections/workflow/run.rx", .name = "run_collection_operation", .owner = .genz },
     .{ .path = "genz/analysis/collections/workflow/emit.rx", .name = "emit_collection_rows", .owner = .genz },
     .{ .path = "rx/analysis/condition/walk.zx", .name = "rx_condition_walk", .owner = .rx_analysis },
@@ -908,7 +909,7 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/state/ownership/projection/prepare_layouts.zx", .name = "prepare_ownership_layouts", .owner = .genz },
     .{ .path = "genz/analysis/state/resources/resolve.zx", .name = "resolve_state_resources", .owner = .genz },
     .{ .path = "genz/analysis/state/publication/run.rx", .name = "publish_state_ast", .owner = .genz },
-    .{ .path = "genz/analysis/growth/delivery/publish.rx", .name = "publish_growth_ast", .owner = .genz },
+    .{ .path = "genz/analysis/node_headers/publication/run.rx", .name = "publish_ast_fragment", .owner = .genz },
     .{ .path = "backends/zig/library_entries/publish.zx", .name = "library_publish_entries", .owner = .compiler },
     .{ .path = "rx/analysis/project/mixed/history/reuse.rx", .name = "rx_mixed_history_reuse", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/history/prefix/scan.zx", .name = "rx_mixed_history_advance", .owner = .rx_analysis },

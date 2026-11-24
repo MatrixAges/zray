@@ -101,19 +101,7 @@ pub fn complete(self: *Lower, started: node.Block, value: ?node.ExpressionId, na
     return @import("../aggregate.zig").finishStored(self, body, root, null);
 }
 
-pub inline fn context(comptime Bases: type, self: *const Lower) Bases {
-    return .{
-        .capture = if (self.capture) |capture| &.{
-            .name = capture.name,
-            .label = capture.label,
-            .failure = @backingInt(capture.failure),
-        } else null,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .serial = self.serial,
-    };
-}
+pub const context = @import("../construction/context.zig").snapshot;
 
 pub fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
     @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, target, source) catch |err| return failure(err);

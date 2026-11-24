@@ -16,11 +16,25 @@ pub const Frame = struct {
     id: ir.ExprId,
     target: ir.ExprId,
     source_type: ir.TypeId,
-    result_type: ir.TypeId,
-    kind: ir.ListOperation,
-    flags: @import("../uniqueness/root.zig").Flags,
-    layout: ?node.ExpressionId,
-    removed_only: bool,
+    operation: ?Operation = null,
+    const Operation = struct {
+        result_type: ir.TypeId,
+        kind: ir.ListOperation,
+        flags: @import("../uniqueness/root.zig").Flags,
+        layout: ?node.ExpressionId,
+        removed_only: bool,
+    };
+    pub fn init(self: *Lower, id: ir.ExprId, target: ir.ExprId, temporary: std.mem.Allocator) Frame {
+        return .{
+            .lower = self,
+            .body = self.builder.statementSequence(self.workspace),
+            .temporary = temporary,
+            .id = id,
+            .target = target,
+            .source_type = @fromBackingInt(self.program.expressions.types[@backingInt(target)]),
+        };
+    }
+
     pub fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -36,13 +50,9 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
 
     defer scratch.deinit();
 
-    var frame: Frame = .{
-        .lower = self,
-        .body = self.builder.statementSequence(self.workspace),
-        .temporary = memory.allocator(),
-        .id = id,
-        .target = operation.target,
-        .source_type = @fromBackingInt(self.program.expressions.types[@backingInt(operation.target)]),
+    var frame = Frame.init(self, id, operation.target, memory.allocator());
+
+    frame.operation = .{
         .result_type = row.type_id,
         .kind = operation.kind,
         .flags = flags,
@@ -62,7 +72,7 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
         .layout = if (layout) |target| @backingInt(target) else null,
     };
 
-    return @fromBackingInt(entry.executeIn(frame.temporary, &input) catch |err| return @import("emission.zig").failure(err));
+    return @fromBackingInt(entry.executeIn(frame.temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err));
 }
 
 pub fn evaluateCollectionValue(handle: *const anyopaque, origin: u32) Error!u32 {
@@ -126,19 +136,19 @@ pub fn collectionResultNeedsConversion(handle: *const anyopaque) bool {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
 
-    return self.state_active and !self.state_plan.selected[@backingInt(frame.result_type)];
+    return self.state_active and !self.state_plan.selected[@backingInt(frame.operation.?.result_type)];
 }
 
 pub fn convertCollectionResult(handle: *const anyopaque, result: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try @import("result.zig").lower(frame.lower, &frame.body, frame.result_type, @fromBackingInt(result)));
+    return @backingInt(try @import("result.zig").lower(frame.lower, &frame.body, frame.operation.?.result_type, @fromBackingInt(result)));
 }
 
 pub fn finalizeCollectionResult(handle: *const anyopaque, result: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try @import("finalize.zig").lower(frame.lower, frame.result_type, @fromBackingInt(result), frame.layout));
+    return @backingInt(try @import("finalize.zig").lower(frame.lower, frame.operation.?.result_type, @fromBackingInt(result), frame.operation.?.layout));
 }
 
 pub fn castCollectionResult(handle: *const anyopaque, layout: u32, result: u32) Error!u32 {

@@ -1,0 +1,25 @@
+<Module>
+    <Type from="workflow" as="Update" />
+
+    <Args in={Update.Input} out={u32} />
+
+    <Call module="evaluate" in={$in} />
+
+    <Call
+        fn="../workflow/host.emitCollectionUpdate"
+        in={[
+            $in.frame,
+            $ctx.evaluate
+        ]}
+    />
+
+    <Call
+        fn="../workflow/host.finishCollection"
+        in={[
+            $in.frame,
+            $ctx.emitCollectionUpdate
+        ]}
+    />
+
+    <Return value={$ctx.finishCollection} />
+</Module>

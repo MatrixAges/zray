@@ -1,21 +1,12 @@
 const std = @import("std");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const rows = @import("../../node/import_rows.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 
 pub fn precondition(self: *Lower, body: *Sequence, predicate: node.ExpressionId) Lower.Error!void {
     const generated = @import("generated_precondition_guard");
     const Input = std.meta.Child(generated.Input);
-
-    const bases: std.meta.Child(@FieldType(Input, "bases")) = .{
-        .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .serial = self.serial,
-    };
-
+    const bases = @import("../construction/context.zig").snapshot(std.meta.Child(@FieldType(Input, "bases")), self);
     const input: Input = .{ .bases = &bases, .predicate = @backingInt(predicate) };
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
@@ -28,26 +19,5 @@ pub fn precondition(self: *Lower, body: *Sequence, predicate: node.ExpressionId)
         else => unreachable,
     };
 
-    try publish(self, body, output);
-}
-
-pub fn publish(self: *Lower, body: *Sequence, output: anytype) Lower.Error!void {
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = @import("../../node/view.zig").join(output.expressions.*, output.forms.*);
-
-    try append(self, &self.builder.nodes.expressions, &expressions);
-    try append(self, &self.builder.nodes.statements, output.statements);
-
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, output.roots) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-}
-
-fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
-    rows.appendBorrowingText(self.allocator, target, source) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    try @import("../construction/publication.zig").write(self, body, output, .Guard);
 }

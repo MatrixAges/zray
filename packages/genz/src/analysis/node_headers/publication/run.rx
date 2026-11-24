@@ -1,0 +1,63 @@
+<Module>
+    <Type from="model" as="Fragment" />
+
+    <Args in={Fragment.Input} out={void} />
+
+    <Call fn="host.requireAllocation" in={$in.valid} />
+
+    <Call
+        fn="host.appendFragmentExpressions"
+        in={[
+            $in.target,
+            $in.kind == Fragment.FragmentKind.Guard
+        ]}
+    />
+
+    <Call
+        fn="host.appendFragmentStatements"
+        in={[
+            $in.target,
+            $in.kind
+        ]}
+    />
+
+    <If on={$in.kind == Fragment.FragmentKind.Collection}>
+        <Call
+            fn="host.appendFragmentFields"
+            in={[
+                $in.target,
+                true
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="host.appendFragmentBody"
+        in={[
+            $in.target,
+            $in.kind,
+            $in.sequence
+        ]}
+    />
+
+    <If on={$in.fields && $in.kind != Fragment.FragmentKind.Collection}>
+        <Call
+            fn="host.appendFragmentFields"
+            in={[
+                $in.target,
+                false
+            ]}
+        />
+    </If>
+
+    <If on={$in.kind != Fragment.FragmentKind.Guard}>
+        <Call
+            fn="host.commitFragment"
+            in={[
+                $in.target,
+                $in.serial,
+                $in.uses_allocator
+            ]}
+        />
+    </If>
+</Module>

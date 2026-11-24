@@ -91,7 +91,7 @@ pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, arg
         .bases = &bases,
     };
 
-    const output = entry.executeIn(memory.allocator(), &input) catch |err| return @import("emission.zig").failure(err);
+    const output = entry.executeIn(memory.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
     return conversion.apply(self, body, body, output);
 }

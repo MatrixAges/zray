@@ -18,5 +18,7 @@ export {
     convertCollectionResult,
     finalizeCollectionResult,
     castCollectionResult,
+    checkCollectionIndex,
+    emitCollectionUpdate,
     finishCollection
 } from "lowering_host"

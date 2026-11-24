@@ -3,7 +3,7 @@ const zx = @import("zx");
 const Lower = @import("../lower.zig");
 const Frame = @import("workflow.zig").Frame;
 const Api = @import("../expressions/evaluate.zig").Api;
-const emission = @import("emission.zig");
+const publication = @import("../construction/publication.zig");
 const entry = @import("generated_emit_collection_rows");
 const Error = Lower.Error;
 
@@ -37,17 +37,10 @@ pub fn emitCollectionRows(handle: *const anyopaque, rows: *const Api.CollectionR
     const selected = @import("../state_value/list.zig").selected(self, frame.source_type);
     const layout = if (selected) try @import("../types.zig").get(self, self.state_types, frame.source_type) else null;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../state_value/list_emission.zig").borrow(self));
-
-    const bases: std.meta.Child(@FieldType(Input, "bases")) = .{
-        .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .serial = self.serial,
-    };
+    const bases = @import("../construction/context.zig").snapshot(std.meta.Child(@FieldType(Input, "bases")), self);
 
     const input: Input = .{
-        .kind = @fromBackingInt(@backingInt(frame.kind)),
+        .kind = @fromBackingInt(@backingInt(frame.operation.?.kind)),
         .items = rows.items,
         .value = rows.value,
         .header = rows.header,
@@ -61,20 +54,22 @@ pub fn emitCollectionRows(handle: *const anyopaque, rows: *const Api.CollectionR
         .compare = compare orelse &.{},
         .selected = selected,
         .layout = if (layout) |expression| @backingInt(expression) else 0,
-        .in_place = frame.flags.in_place,
-        .grow = frame.flags.grow,
-        .frontier = frame.flags.frontier,
-        .lazy = frame.flags.lazy,
-        .retract = frame.flags.retract,
-        .removed_only = frame.removed_only,
+        .in_place = frame.operation.?.flags.in_place,
+        .grow = frame.operation.?.flags.grow,
+        .frontier = frame.operation.?.flags.frontier,
+        .lazy = frame.operation.?.flags.lazy,
+        .retract = frame.operation.?.flags.retract,
+        .removed_only = frame.operation.?.removed_only,
         .shared = self.shared_types,
         .ast = &ast,
         .bases = &bases,
     };
 
-    const output = entry.executeIn(frame.temporary, &input) catch |err| return emission.failure(err);
+    const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
 
-    return @backingInt(try emission.apply(self, &frame.body, output));
+    try publication.write(self, &frame.body, output, .Collection);
+
+    return output.root;
 }
 
 pub fn emitCollectionPop(handle: *const anyopaque, items: u32, value: u32, header: u32, element: u32, length: u32) Error!u32 {
@@ -82,12 +77,12 @@ pub fn emitCollectionPop(handle: *const anyopaque, items: u32, value: u32, heade
 
     return @backingInt(try @import("pop.zig").lower(frame.lower, &frame.body, .{
         .type_id = frame.source_type,
-        .result_type = frame.result_type,
+        .result_type = frame.operation.?.result_type,
         .items = @fromBackingInt(items),
         .value = @fromBackingInt(value),
         .header = @fromBackingInt(header),
         .element = @fromBackingInt(element),
         .length = @fromBackingInt(length),
-        .retract = frame.flags.retract,
+        .retract = frame.operation.?.flags.retract,
     }));
 }

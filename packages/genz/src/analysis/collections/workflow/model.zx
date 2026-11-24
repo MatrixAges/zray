@@ -44,3 +44,9 @@ export type Outcome = {
     result: u32,
     removed_only: bool
 }
+
+export type TargetBinding = TargetRequest.Pick("frame", "target") & {
+    evaluated: u32,
+    represented: bool,
+    clip: bool
+}

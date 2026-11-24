@@ -53,7 +53,7 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
 
     defer scratch.deinit();
 
-    const output = entry.executeIn(memory.allocator(), &input) catch |err| return @import("emission.zig").failure(err);
+    const output = entry.executeIn(memory.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
     return construction.publish(self, output);
 }
