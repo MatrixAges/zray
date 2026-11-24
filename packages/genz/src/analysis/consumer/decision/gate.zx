@@ -2,19 +2,11 @@ import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
 import lookup from "core/integer/map/lookup"
 
-import { Gate, Phase } from "./model"
+import { Gate } from "./model"
 
 import type { Input, Gate as Output } from "./model"
 
 export default function (in: Input): Output {
-    if (in.phase == Phase.Fallback) {
-        return Gate.Fallback
-    }
-
-    if (in.phase == Phase.AfterSimd) {
-        return Gate.Policy
-    }
-
     const cache = in.cache.omit(["values"])
 
     if (lookup({

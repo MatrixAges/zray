@@ -1,0 +1,101 @@
+<Module>
+    <Type from="model" as="Execution" />
+    <Type from="../decision/model" as="Consumer" />
+    <Type from="../../iteration/result/model" as="Result" />
+
+    <Args in={Execution.Apply} out={Execution.Output} />
+
+    <Call fn="../decision/branch" in={$in.facts} />
+
+    <If on={$ctx.branch == Consumer.Branch.None}>
+        <Return value={null} />
+    </If>
+
+    <If on={$ctx.branch == Consumer.Branch.Scalar}>
+        <Call
+            fn="../projection"
+            in={$in.facts.pick([
+                "table",
+                "symbol",
+                "result"
+            ])}
+        />
+
+        <If on={$ctx.projection}>
+            <Call
+                fn="host.consumeLoop"
+                in={[
+                    $in.frame,
+                    true
+                ]}
+            />
+
+            <Return value={$ctx.consumeLoop} />
+        </If>
+
+        <Return value={null} />
+    </If>
+
+    <Call
+        module="../../iteration/result/analyze"
+        in={{
+            ...$in.facts.pick([
+                "types",
+                "table",
+                "symbol",
+                "result",
+                "capture"
+            ]),
+            cached: $in.facts.cache,
+            mode: Result.Mode.Eligible
+        }}
+    />
+
+    <If on={$ctx.analyze.valid}>
+        <Call
+            fn="host.consumeLoop"
+            in={[
+                $in.frame,
+                false
+            ]}
+        />
+
+        <If on={$ctx.consumeLoop != null}>
+            <Return value={$ctx.consumeLoop} />
+        </If>
+    </If>
+
+    <Call
+        fn="../decision/fallback"
+        in={$in.facts.pick([
+            "types",
+            "table",
+            "result"
+        ])}
+    />
+
+    <If on={$ctx.fallback}>
+        <Call
+            fn="../projection"
+            in={$in.facts.pick([
+                "table",
+                "symbol",
+                "result"
+            ])}
+        />
+
+        <If on={$ctx.projection}>
+            <Call
+                fn="host.consumeLoop"
+                in={[
+                    $in.frame,
+                    false
+                ]}
+            />
+
+            <Return value={$ctx.consumeLoop} />
+        </If>
+    </If>
+
+    <Return value={null} />
+</Module>

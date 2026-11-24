@@ -1,18 +1,11 @@
 import type { Expressions } from "core/expression_table/model"
-import type { State as Cache } from "core/integer/map/model"
 import type { Table } from "core/type_table/model"
-
-export enum Phase {
-    Initial,
-    AfterSimd,
-    Fallback
-}
+import type { LoopConsumerFacts } from "lowering_host"
 
 export enum Gate {
     None,
     Simd,
-    Policy,
-    Fallback
+    Policy
 }
 
 export enum Branch {
@@ -21,27 +14,12 @@ export enum Branch {
     Eligible
 }
 
-export enum Action {
-    None,
-    Simd,
-    Scalar,
-    Eligible,
-    Consume
-}
-
-export type Input = {
+export type Source = {
     types: Table,
     table: Expressions,
-    cache: Cache,
     symbol: u64,
     value: u32,
-    result: u64,
-    transaction: bool,
-    capture: bool,
-    phase: Phase
+    result: u64
 }
 
-export type Output = {
-    action: Action,
-    next?: Phase
-}
+export type Input = Source & LoopConsumerFacts

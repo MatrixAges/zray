@@ -774,7 +774,6 @@ pub const main = [_]Entry{
 };
 
 pub const growth = [_]Entry{
-    .{ .path = "genz/analysis/consumer/decision/build.rx", .name = "consumer_decision", .owner = .genz },
     .{ .path = "genz/analysis/consumer/projection.zx", .name = "consumer_projection", .owner = .genz },
     .{ .path = "genz/analysis/consumer/independent.zx", .name = "consumer_independent", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/scope/build.rx", .name = "value_scope_initialize", .owner = .genz },
@@ -1006,7 +1005,7 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/value/call/argument/materialize/tuple.zx", .name = "materialize_borrowed_tuple", .owner = .genz },
     .{ .path = "genz/analysis/invocation/execution/iteration.rx", .name = "lower_iteration_call", .owner = .genz },
     .{ .path = "genz/analysis/tasks/parallel/execute.zx", .name = "lower_parallel", .owner = .genz },
-    .{ .path = "genz/analysis/consumer/execute/run.zx", .name = "lower_loop_consumer", .owner = .genz },
+    .{ .path = "genz/analysis/consumer/execute/run.rx", .name = "lower_loop_consumer", .owner = .genz },
     .{ .path = "genz/analysis/consumer/read/run.rx", .name = "consumer_read", .owner = .genz },
     .{ .path = "genz/analysis/iteration/layout/execute.zx", .name = "execute_loop_layout", .owner = .genz },
     .{ .path = "genz/analysis/iteration/fields/ownership/execute.rx", .name = "rebuild_loop_fields", .owner = .genz },

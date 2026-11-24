@@ -1,0 +1,6 @@
+export {
+    loopConsumerFacts,
+    loopConsumerFacts as refreshLoopConsumerFacts,
+    consumeVectorLoop,
+    consumeLoop
+} from "lowering_host"

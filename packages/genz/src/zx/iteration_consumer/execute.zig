@@ -3,18 +3,19 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const evaluation = @import("../expressions/evaluate.zig");
+const Api = @import("../expressions/evaluate.zig").Api;
 const Consumer = @import("../iteration_consumer.zig").Consumer;
-const policy = @import("policy.zig");
-const Phase = evaluation.Api.ConsumerPhase;
-const Action = evaluation.Api.ConsumerAction;
 const Error = Lower.Error;
+const entry = @import("generated_lower_loop_consumer");
+const Input = std.meta.Child(entry.Input);
+const Source = std.meta.Child(@FieldType(Input, "source"));
 
 const Frame = struct {
     lowering: *Lower,
     selected: Consumer,
     iteration: ir.ExprId,
-    next: ?Phase = null,
+    cache: Api.LoopConsumerCache = undefined,
+    facts: Api.LoopConsumerFacts = undefined,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -22,23 +23,37 @@ const Frame = struct {
 
 pub fn lower(self: *Lower, selected: Consumer, iteration: ir.ExprId) Error!?node.ExpressionId {
     var frame: Frame = .{ .lowering = self, .selected = selected, .iteration = iteration };
-    const entry = @import("generated_lower_loop_consumer");
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = try entry.executeIn(empty.allocator(), @ptrCast(&frame));
+    const program: *const ir.Program = &self.program;
+    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "types")), program.types);
+
+    const source: Source = .{
+        .types = &types,
+        .table = zx.columns.pointer(@FieldType(Source, "table"), &program.expressions),
+        .symbol = @backingInt(selected.symbol),
+        .value = @backingInt(iteration),
+        .result = @backingInt(selected.result),
+    };
+
+    var arena = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    defer arena.deinit();
+
+    const input: Input = .{ .frame = @ptrCast(&frame), .source = &source };
+    const result = entry.executeIn(scratch.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
     return if (result) |id| @fromBackingInt(id) else null;
 }
 
-pub fn decideLoopConsumer(handle: *const anyopaque, phase: Phase) Error!Action {
+pub fn loopConsumerFacts(handle: *const anyopaque) *const Api.LoopConsumerFacts {
     const frame = Frame.borrow(handle);
-    const decision = try policy.decide(frame.lowering, frame.selected, frame.iteration, zx.columns.view(policy.Phase, phase));
-    frame.next = if (decision.next) |next| zx.columns.view(Phase, next) else null;
+    const self = frame.lowering;
 
-    return zx.columns.view(Action, decision.action);
-}
+    frame.cache = self.cache.view(Api.LoopConsumerCache);
+    frame.facts = .{ .cache = &frame.cache, .transaction = self.transaction(), .capture = self.capture != null };
 
-pub fn nextLoopConsumer(handle: *const anyopaque) ?Phase {
-    return Frame.borrow(handle).next;
+    return &frame.facts;
 }
 
 pub fn consumeVectorLoop(handle: *const anyopaque) Error!?u32 {

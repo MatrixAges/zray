@@ -1,9 +1,4 @@
-export declare function decideLoopConsumer(
-    consumer: LoopConsumer,
-    phase: ConsumerPhase
-): ConsumerAction throws { OutOfMemory }
-
-export declare function nextLoopConsumer(consumer: LoopConsumer): ConsumerPhase?
+export declare function loopConsumerFacts(consumer: LoopConsumer): LoopConsumerFacts
 
 export declare function consumeVectorLoop(consumer: LoopConsumer): u32?
     throws { OutOfMemory }

@@ -1,0 +1,14 @@
+import type { LoopConsumer } from "lowering_host"
+import type { Input as Facts, Source } from "../decision/model"
+
+export type Input = {
+    frame: LoopConsumer,
+    source: Source
+}
+
+export type Apply = {
+    frame: LoopConsumer,
+    facts: Facts
+}
+
+export type Output = u32?

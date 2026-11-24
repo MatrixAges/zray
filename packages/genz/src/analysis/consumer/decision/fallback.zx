@@ -2,7 +2,9 @@ import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import type { Input } from "./model"
+import type { Source } from "./model"
+
+export type Input = Source.Pick("types", "table", "result")
 
 export type Output = bool
 

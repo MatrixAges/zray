@@ -1,0 +1,56 @@
+<Module>
+    <Type from="model" as="Execution" />
+    <Type from="../decision/model" as="Consumer" />
+
+    <Args in={Execution.Input} out={Execution.Output} />
+
+    <Call fn="host.loopConsumerFacts" in={$in.frame} />
+
+    <Call
+        fn="../decision/gate"
+        in={{
+            ...$in.source,
+            ...$ctx.loopConsumerFacts
+        }}
+    />
+
+    <If on={$ctx.gate == Consumer.Gate.None}>
+        <Return value={null} />
+    </If>
+
+    <If on={$ctx.gate == Consumer.Gate.Simd}>
+        <Call fn="host.consumeVectorLoop" in={$in.frame} />
+
+        <If on={$ctx.consumeVectorLoop != null}>
+            <Return value={$ctx.consumeVectorLoop} />
+        </If>
+
+        <Call fn="host.refreshLoopConsumerFacts" in={$in.frame} />
+
+        <Call
+            module="apply"
+            in={{
+                frame: $in.frame,
+                facts: {
+                    ...$in.source,
+                    ...$ctx.refreshLoopConsumerFacts
+                }
+            }}
+        />
+
+        <Return value={$ctx.apply} />
+    </If>
+
+    <Call
+        module="apply"
+        in={{
+            frame: $in.frame,
+            facts: {
+                ...$in.source,
+                ...$ctx.loopConsumerFacts
+            }
+        }}
+    />
+
+    <Return value={$ctx.apply} />
+</Module>

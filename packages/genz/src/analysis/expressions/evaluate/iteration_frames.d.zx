@@ -1,5 +1,18 @@
 export type LoopConsumer = opaque
 
+export type LoopConsumerCache = {
+    count: u64,
+    metadata: u8[],
+    keys: u32[],
+    values: u32[]
+}
+
+export type LoopConsumerFacts = {
+    cache: LoopConsumerCache,
+    transaction: bool,
+    capture: bool
+}
+
 export type LoopLayout = opaque
 
 export type LoopFrame = opaque
@@ -15,20 +28,6 @@ export enum LoopUpdateScope {
     None,
     Projected,
     Ordinary
-}
-
-export enum ConsumerPhase {
-    Initial,
-    AfterSimd,
-    Fallback
-}
-
-export enum ConsumerAction {
-    None,
-    Simd,
-    Scalar,
-    Eligible,
-    Consume
 }
 
 export enum PathConversion {
