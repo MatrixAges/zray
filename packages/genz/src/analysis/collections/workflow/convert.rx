@@ -3,9 +3,7 @@
 
     <Args in={Flow.Outcome} out={u32} />
 
-    <Call fn="host.collectionResultNeedsConversion" in={$in.frame} />
-
-    <If on={$ctx.collectionResultNeedsConversion}>
+    <If on={$in.state_active && !$in.result_selected}>
         <Call
             fn="host.convertCollectionResult"
             in={[

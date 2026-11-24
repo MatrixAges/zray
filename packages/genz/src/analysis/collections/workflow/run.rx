@@ -37,7 +37,9 @@
         in={{
             frame: $in.frame,
             result: $ctx.operation,
-            removed_only: $in.removed_only
+            removed_only: $in.removed_only,
+            state_active: $in.state_active,
+            result_selected: $in.result_selected
         }}
     />
 

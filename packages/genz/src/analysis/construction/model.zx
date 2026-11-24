@@ -43,6 +43,12 @@ export type Input = {
     serial: u64
 }
 
+export type Request = {
+    construction: Input,
+    target?: u32,
+    origin: bool
+}
+
 export type State = {
     source: Input,
     context: Context,

@@ -4,6 +4,9 @@ export declare function materializeType(
     representation: StoredType
 ): u32 throws { OutOfMemory }
 
+export declare function lowerLayout(frame: Lowering, id: u32): u32
+    throws { OutOfMemory }
+
 export declare function loweringOrigin(frame: Lowering, id: u32): u8[]
     throws { OutOfMemory }
 

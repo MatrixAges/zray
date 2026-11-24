@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Execution} out={Result.Output} />
+
+    <Call fn="prepare_members" in={$in.preparation} />
+    <Call fn="model.refreshCollectionResultBases" in={$in.preparation.frame} />
+
+    <Call module="build" in={$in.source} />
+
+    <Return value={$ctx.build} />
+</Module>

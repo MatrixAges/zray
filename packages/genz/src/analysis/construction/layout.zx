@@ -1,8 +1,8 @@
-import builtin from "../../../ast/context/builtin"
-import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
-import origin from "../../construction/origin/tuple"
+import builtin from "../../ast/context/builtin"
+import { ExpressionsBuiltinName } from "../../printer/model/expressions"
+import origin from "./origin/tuple"
 
-import type { State } from "../../construction/model"
+import type { State } from "./model"
 
 export type Input = {
     state: State,

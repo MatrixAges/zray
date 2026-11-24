@@ -105,6 +105,8 @@ export type BasisWork = opaque
 
 export type CollectionFrame = opaque
 
+export type CollectionConversion = opaque
+
 export type CollectionRows = {
     first: u32,
     second: u32,

@@ -10,6 +10,8 @@ export type Input = {
     arguments: u32[],
     frontier: bool,
     removed_only: bool,
+    state_active: bool,
+    result_selected: bool,
     layout?: u32
 }
 
@@ -39,11 +41,10 @@ export type Rows = {
     rows: CollectionRows
 }
 
-export type Outcome = {
-    frame: CollectionFrame,
-    result: u32,
-    removed_only: bool
-}
+export type Outcome =
+    Input.Pick("frame", "removed_only", "state_active", "result_selected") & {
+        result: u32
+    }
 
 export type TargetBinding = TargetRequest.Pick("frame", "target") & {
     evaluated: u32,

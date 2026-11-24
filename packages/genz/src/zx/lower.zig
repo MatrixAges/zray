@@ -320,7 +320,7 @@ pub fn cast(self: *Self, type_expr: node.ExpressionId, value: node.ExpressionId)
 pub fn construct(self: *Self, type_id: ir.TypeId, value: node.ExpressionId) Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("construction_seed.zig").construct(self, type_id, value);
 
-    return @import("construction/build.zig").lower(self, type_id, value);
+    return @import("construction/build.zig").lower(self, type_id, value, null);
 }
 
 pub fn fresh(self: *Self, prefix: []const u8) Error![]const u8 {

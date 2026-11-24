@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import { prepareCollectionMember } from "lowering_host"
+
+import { Property } from "../../state/queries/model"
+import query from "../../state/queries/read"
+
+import type { Preparation as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, types, queries } = in
+
+    const scanned = loop(0, {
+        while: index => index < types.length,
+        next: index => {
+            const type_id = types[index]
+            const represented = query({
+                value: queries[integers.widen(type_id)],
+                property: Property.Represented
+            })
+
+            prepareCollectionMember(frame, index, represented ? type_id : null)
+
+            index += 1
+        }
+    })
+}

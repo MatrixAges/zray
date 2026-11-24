@@ -1,11 +1,26 @@
 <Module>
     <Type from="model" as="Construction" />
 
-    <Args in={Construction.Input} out={Construction.Output} />
+    <Args in={Construction.Request} out={Construction.Output} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="initialize" in={$in.construction} />
 
-    <Call module="apply" />
+    <If on={$in.target != null}>
+        <Call
+            fn="layout"
+            in={{
+                state: $ctx.initialize,
+                target: $in.target,
+                origin: $in.origin
+            }}
+        />
+
+        <Call fn="publish" />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Call module="apply" in={$ctx.initialize} />
 
     <Call fn="publish" />
 

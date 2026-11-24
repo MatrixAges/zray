@@ -1,0 +1,15 @@
+import type { Lowering } from "lowering_host"
+import type { Input as Construction, Policy } from "../model"
+
+export { lowerLayout, lowerType } from "lowering_host"
+
+export { Mode } from "../model"
+
+export type Input = {
+    frame: Lowering,
+    id: u32,
+    policy: Policy,
+    target?: u32
+}
+
+export type Output = Construction.Pick("mode", "layout", "type_expr", "storage_layout")

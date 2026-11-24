@@ -38,6 +38,10 @@ pub fn materializeType(frame: *const anyopaque, id: u32, representation: evaluat
     return @backingInt(try @import("../../types.zig").resource(borrow(frame), @fromBackingInt(id), representation));
 }
 
+pub fn lowerLayout(frame: *const anyopaque, id: u32) Error!u32 {
+    return @backingInt(try borrow(frame).layoutExpr(@fromBackingInt(id)));
+}
+
 pub fn loweringOrigin(frame: *const anyopaque, id: u32) Error![]const u8 {
     return @import("../../state_value/origin.zig").name(borrow(frame), @fromBackingInt(id));
 }

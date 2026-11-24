@@ -1,0 +1,66 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Input} out={Preparation.Output} />
+
+    <If on={$in.target != null}>
+        <Return
+            value={{
+                mode: Preparation.Mode.Value,
+                layout: $in.target,
+                type_expr: 0,
+                storage_layout: 0
+            }}
+        />
+    </If>
+
+    <Call fn="../policy" in={$in.policy} />
+
+    <Call
+        fn="model.lowerLayout"
+        in={[
+            $in.frame,
+            $in.id
+        ]}
+    />
+
+    <If on={$ctx.policy == Preparation.Mode.Heap}>
+        <Call
+            fn="model.lowerType"
+            in={[
+                $in.frame,
+                $in.id,
+                false
+            ]}
+        />
+
+        <Return
+            value={{
+                mode: $ctx.policy,
+                layout: $ctx.lowerLayout,
+                type_expr: $ctx.lowerType,
+                storage_layout: 0
+            }}
+        />
+    </If>
+
+    <If on={$ctx.policy == Preparation.Mode.Reference}>
+        <Return
+            value={{
+                mode: $ctx.policy,
+                layout: $ctx.lowerLayout,
+                type_expr: 0,
+                storage_layout: $ctx.lowerLayout
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            mode: $ctx.policy,
+            layout: $ctx.lowerLayout,
+            type_expr: 0,
+            storage_layout: 0
+        }}
+    />
+</Module>

@@ -18,7 +18,7 @@
     <Call module="convert" in={$in} />
 
     <Call
-        fn="host.finalizeCollectionResult"
+        fn="host.constructCollectionResult"
         in={[
             $in.frame,
             $ctx.convert
@@ -29,7 +29,7 @@
         fn="host.finishCollection"
         in={[
             $in.frame,
-            $ctx.finalizeCollectionResult
+            $ctx.constructCollectionResult
         ]}
     />
 
