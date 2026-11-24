@@ -30,14 +30,20 @@ export type Row = FunctionInput.Omit("control") & {
 
 export type Link = Owned?
 
-export type Input = {
-    source: Source,
+export type Binding = {
     target: Target,
-    mappings: Mappings,
     empty: Empty,
     workspace: Workspace,
     max_offset: u64,
     progress: U64Buffer
+}
+
+export type Batch = Binding & {
+    source: Source
+}
+
+export type Input = Batch & {
+    mappings: Mappings
 }
 
 export type Output = Publication

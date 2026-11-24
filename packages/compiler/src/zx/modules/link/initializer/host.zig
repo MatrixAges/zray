@@ -6,10 +6,9 @@ const Origins = @import("../../nominal_origins.zig");
 const Registry = @import("../../compiled/initializer_registry.zig");
 const Initializer = @import("../../source_store_initializer.zig");
 const Nodes = @import("../../artifact/nodes.zig");
-const publication = @import("../../artifact/materializing/publication/host.zig");
+const publication = @import("../source/workflow/host.zig");
 const comparison = @import("../../../ir/compare/initializer.zig");
 const merge = @import("../../../analysis/semantic/merge.zig");
-const TypePublication = @import("../../../analysis/semantic/merging/publication/view.zig");
 const plan = @import("generated_source_initializer_prepare");
 const Input = std.meta.Child(plan.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
@@ -57,7 +56,7 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
     writer.init(registry, true);
     defer writer.finish(registry);
 
-    return publication.appendInitializer(&nodes, functions, initial.program, temporary, &.{
+    return publication.append(&nodes, functions, initial.program, temporary, &.{
         .registry = &writer.input,
         .identity = initial.identity,
         .version = initial.schema_version,
@@ -85,24 +84,10 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
         .complete = true,
     };
 
-    var type_mapping: merge.View = undefined;
+    var view: merge.Registration = undefined;
 
-    type_mapping.init(&request, mapping);
-
-    const offsets = TypePublication.offsets(request.items);
-
-    const options: TypePublication.Options = .{
-        .allocator = request.allocator,
-        .payload = request.allocator,
-        .types = request.items,
-        .origins = request.nominal,
-        .offsets = &offsets,
-    };
-
-    var type_output: TypePublication = undefined;
-
-    type_output.init(&options, .{}, @as(Origins.Table, .{}));
-    errdefer type_output.release();
+    view.init(&request, mapping);
+    errdefer view.output.release();
 
     const rows = Registry.readRows(registry.rows.items);
     const keys = rows.view(std.meta.Child(@FieldType(Lookup, "source")));
@@ -119,10 +104,7 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
             .contract_count = program.contracts.count(),
         },
         .program = &validation.input,
-        .types = &.{
-            .preparation = adapt(@FieldType(TypeRegistration, "preparation"), &type_mapping.input),
-            .publication = adapt(@FieldType(TypeRegistration, "publication"), &type_output.target),
-        },
+        .types = &view.bind(TypeRegistration),
         .registration_started = @ptrCast(&marker),
         .registry = &.{
             .source = &keys,
@@ -141,8 +123,4 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
     };
 
     return result.*;
-}
-
-fn adapt(comptime Target: type, source: anytype) Target {
-    return zx.columns.pointer(Target, @as(*const std.meta.Child(@TypeOf(source)), source));
 }

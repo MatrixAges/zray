@@ -13,7 +13,7 @@ const Result = struct {
 pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, source_root: []const u8, execution: []const Declarations) Result {
     const files = b.addWriteFiles();
     const directory = "interfaces/memory";
-    const index = files.add("index.d.zx", join(b, core.builder, directory, &.{ "views.d.zx", "row_reads.d.zx", "buffer_values.d.zx", "scalar_buffers.d.zx", "atomic_words.d.zx", "stream.d.zx", "column_writes.d.zx", "text_storage.d.zx" }));
+    const index = files.add("index.d.zx", join(b, core.builder, directory, &.{ "types.d.zx", "views.d.zx", "arenas.d.zx", "row_reads.d.zx", "buffer_values.d.zx", "scalar_buffers.d.zx", "atomic_words.d.zx", "stream.d.zx", "column_writes.d.zx", "text_storage.d.zx" }));
     const columns = files.add("columns.d.zx", join(b, core.builder, directory, &.{ "function_descriptors.d.zx", "column_sets.d.zx", "column_set_operations.d.zx", "column_values.d.zx", "reference_views.d.zx" }));
     const prefix = b.fmt("{s}/memory/", .{source_root});
 

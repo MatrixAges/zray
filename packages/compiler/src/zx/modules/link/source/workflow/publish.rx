@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Source" />
+
+    <Args in={Source.Input} out={Source.Output} />
+
+    <If on={$in.preparation != null}>
+        <Call module="prepare" in={$in.preparation.check} />
+
+        <If on={$ctx.prepare != Source.Status.Ready}>
+            <Return value={$ctx.prepare} />
+        </If>
+    </If>
+
+    <If on={$in.reserve != null}>
+        <Call fn="../../../artifact/materializing/publication/reserve" in={$in.reserve} />
+    </If>
+
+    <If on={$in.preparation != null}>
+        <Call fn="finish_preparation" in={$in.preparation} />
+    </If>
+
+    <If on={$in.write != null}>
+        <Call module="write" in={$in.write} />
+
+        <Return value={$ctx.write} />
+    </If>
+
+    <Return value={Source.Status.Ready} />
+</Module>

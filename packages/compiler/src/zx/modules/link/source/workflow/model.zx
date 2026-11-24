@@ -1,12 +1,26 @@
 import type { Modules } from "core/native_module_table/model"
-import type { Allocator, OptionalU32Buffer, U8Buffer } from "memory"
+import type {
+    Allocator,
+    Arena,
+    ArenaScope,
+    BoolBuffer,
+    ColumnLengths,
+    OptionalU32Buffer,
+    U8Buffer,
+    U64Buffer
+} from "memory"
 import type {
     Append as TypeRegistration
 } from "../../../../analysis/semantic/merging/model"
 import type { Program } from "../../../../ir/canonical/validation/model"
 import type {
-    Input as FunctionStorage
+    Input as Reservation
 } from "../../../artifact/materializing/publication/reserve"
+import type {
+    Input as Batch,
+    RootRequest
+} from "../../../artifact/materializing/publication/source_model"
+import type { Input as Initializer } from "../../../compiled/initializer_registry/insert"
 import type { Input as RangeRequest } from "../../function_range/valid"
 import type { Destination } from "../../native/publication/model"
 
@@ -28,13 +42,38 @@ export type Native = {
     resource: Allocator
 }
 
-export type Input = {
+export type Check = {
     validation?: Program,
     registration_started: U8Buffer,
     types: TypeRegistration,
     range: RangeRequest,
     natives?: Native,
-    functions: FunctionStorage
+}
+
+export type Preparation = {
+    check: Check,
+    scratch: Arena,
+    resources: ArenaScope,
+    owner: Allocator,
+    reserved: BoolBuffer
+}
+
+export type Commit = {
+    lengths: ColumnLengths,
+    progress: U64Buffer
+}
+
+export type Write = {
+    batch?: Batch,
+    root?: RootRequest,
+    initializer?: Initializer,
+    commit: Commit
+}
+
+export type Input = {
+    preparation?: Preparation,
+    reserve?: Reservation,
+    write?: Write
 }
 
 export type Output = Status

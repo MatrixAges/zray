@@ -60,6 +60,36 @@ pub const View = struct {
     }
 };
 
+pub const Registration = struct {
+    const Output = @import("merging/publication/view.zig");
+
+    mapping: View,
+    output: Output,
+    offsets: Output.Offsets,
+    options: Output.Options,
+    pub fn init(self: *Registration, request: *const Request, mapping: *[]u32) void {
+        self.mapping.init(request, mapping);
+
+        self.offsets = Output.offsets(request.items);
+
+        self.options = .{
+            .allocator = request.allocator,
+            .payload = request.allocator,
+            .types = request.items,
+            .origins = request.nominal,
+            .offsets = &self.offsets,
+        };
+
+        self.output.init(&self.options, .{}, Origins.Table{});
+    }
+    pub fn bind(self: *const Registration, comptime Target: type) Target {
+        return .{
+            .preparation = zx.columns.pointer(@FieldType(Target, "preparation"), &self.mapping.input),
+            .publication = zx.columns.pointer(@FieldType(Target, "publication"), &self.output.target),
+        };
+    }
+};
+
 pub fn append(request: Request) Error![]const ir.TypeId {
     var mapping: []u32 = &.{};
     var arena = std.heap.ArenaAllocator.init(request.temporary);

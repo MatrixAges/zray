@@ -1,53 +1,3 @@
-export type U8Buffer = opaque
-export type BoolBuffer = opaque
-export type ByteWriter = opaque
-export type StreamReader = opaque
-export type StreamWriter = opaque
-export type U32Buffer = opaque
-
-export type AtomicIndex = opaque
-export type U32Scratch = opaque
-export type U64Buffer = opaque
-export type IndexBuffer = opaque
-export type SourceSpanBuffer = opaque
-export type U8Storage = opaque
-export type U32Storage = opaque
-export type U64Storage = opaque
-export type OptionalU32Buffer = opaque
-export type OptionalU16Buffer = opaque
-export type OptionalU8Buffer = opaque
-export type StringBuffer = opaque
-export type OptionalStringBuffer = opaque
-export type U8ListBuffer = opaque
-export type BoolListBuffer = opaque
-export type U32ListBuffer = opaque
-export type U64ListBuffer = opaque
-export type StringListBuffer = opaque
-export type NamedRows = opaque
-export type NamedColumns = opaque
-export type NamedRowBuffer = opaque
-
-export type Allocator = opaque
-export type Arena = opaque
-export type ScratchArena = opaque
-export type ArenaScope = opaque
-export type TextColumn = opaque
-export type ReadColumn = opaque
-export type ListColumn = opaque
-export type OptionalListColumn = opaque
-export type WriteColumn = opaque
-export type ColumnRanges = opaque
-export type ColumnLengths = opaque
-export type ColumnTransfers = opaque
-export type TransferGroup = opaque
-export type TransferColumn = opaque
-
-export enum TransferLayout {
-    Contiguous,
-    Projected,
-    Owned
-}
-
 export declare function sha256Into(target: U8Buffer, input: u8[]): u8[]
 
 export declare function sha256IntoRange(
@@ -62,26 +12,6 @@ export declare function sha256FramedInto(
     input: u8[],
     suffix: u8[]
 ): u8[]
-
-export declare function resetArena(
-    arena: Arena
-): void throws { OutOfMemory }
-
-export declare function rewindScratchArena(arena: ScratchArena): void
-
-export declare function selectArena(scope: ArenaScope, arena: Arena): void
-
-export declare function resetArenaRetainingCapacity(source: Arena): bool
-
-export declare function selectAllocator(scope: ArenaScope, allocator: Allocator): void
-
-export declare function lengthSlotCount(source: ColumnLengths): u64
-
-export declare function readLengthSlot(source: ColumnLengths, slot: u64): u64
-
-export declare function advanceLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
-
-export declare function shrinkLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
 
 export declare function allocateStringViews(
     allocator,

@@ -1,0 +1,17 @@
+import { publish } from "core/column_lengths"
+import memory from "memory"
+
+import type { Commit as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { lengths, progress } = in
+
+    publish({
+        target: lengths,
+        count: memory.readU64(progress, 0)
+    })
+
+    memory.writeU64(progress, 0, 0)
+}

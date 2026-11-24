@@ -63,19 +63,19 @@ pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.Func
     if (count == 0) return;
 
     if (comptime generated) {
-        try @import("materializing/publication/host.zig").append(self, storage, table, temporary);
+        try @import("../link/source/workflow/host.zig").append(self, storage, table, temporary, null);
     } else {
         for (0..count) |row| try storage.append(self.allocator, try self.function(table.at(row)));
     }
 }
 
 pub fn appendProgram(self: *Self, storage: *ir.FunctionStorage, program: *const ir.Program, temporary: std.mem.Allocator) Error!void {
-    if (comptime generated) return @import("materializing/publication/host.zig").appendRoot(self, storage, program, temporary);
+    if (comptime generated) return @import("../link/source/workflow/host.zig").append(self, storage, program, temporary, null);
     try storage.append(self.allocator, try self.function(@import("../function_body.zig").value(program.*)));
 }
 
 pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const ir.Function, temporary: std.mem.Allocator) Error!void {
-    if (comptime generated) return @import("materializing/publication/host.zig").appendRoot(self, storage, value, temporary);
+    if (comptime generated) return @import("../link/source/workflow/host.zig").append(self, storage, value, temporary, null);
     try storage.append(self.allocator, try self.function(value.*));
 }
 

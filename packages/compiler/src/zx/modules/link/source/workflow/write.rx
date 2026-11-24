@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Source" />
+    <Type from="../../../artifact/materializing/publication/model" as="Rows" />
+
+    <Args in={Source.Write} out={Source.Output} />
+
+    <If on={$in.root != null}>
+        <Call module="../../../artifact/materializing/publication/root" in={$in.root} />
+
+        <If on={$ctx.root == Rows.PublicationStatus.Complete}>
+            <If on={$in.initializer != null}>
+                <Call
+                    fn="../../../compiled/initializer_registry/insert"
+                    in={$in.initializer}
+                />
+            </If>
+
+            <Call fn="settle" in={$in.commit} />
+
+            <Return value={Source.Status.Ready} />
+        </If>
+
+        <Call fn="settle" in={$in.commit} />
+
+        <Return value={Source.Status.Invalid} />
+    </If>
+
+    <If on={$in.batch != null}>
+        <Call
+            module="../../../artifact/materializing/publication/source"
+            in={$in.batch}
+        />
+
+        <Call fn="settle" in={$in.commit} />
+
+        <If on={$ctx.source == Rows.PublicationStatus.Complete}>
+            <Return value={Source.Status.Ready} />
+        </If>
+    </If>
+
+    <Return value={Source.Status.Invalid} />
+</Module>

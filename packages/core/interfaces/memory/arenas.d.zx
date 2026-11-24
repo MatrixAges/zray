@@ -1,0 +1,13 @@
+export declare function resetArena(
+    arena: Arena
+): void throws { OutOfMemory }
+
+export declare function rewindScratchArena(arena: ScratchArena): void
+
+export declare function selectArena(scope: ArenaScope, arena: Arena): void
+
+export declare function resetArenaRetainingCapacity(source: Arena): bool
+
+export declare function releaseArena(source: Arena): void
+
+export declare function selectAllocator(scope: ArenaScope, allocator: Allocator): void

@@ -1,0 +1,11 @@
+import memory from "memory"
+
+import type { Preparation as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeBool(in.reserved, 0, true)
+    memory.releaseArena(in.scratch)
+    memory.selectAllocator(in.resources, in.owner)
+}

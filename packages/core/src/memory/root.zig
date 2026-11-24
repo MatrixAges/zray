@@ -164,6 +164,11 @@ pub fn resetArenaRetainingCapacity(source: *const anyopaque) bool {
     return arena.reset(.retain_capacity);
 }
 
+pub fn releaseArena(source: *const anyopaque) void {
+    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@constCast(source)));
+    _ = arena.reset(.free_all);
+}
+
 pub fn rewindScratchArena(source: *const anyopaque) void {
     const arena: *ScratchArena = @ptrCast(@alignCast(@constCast(source)));
 

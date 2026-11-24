@@ -3,18 +3,18 @@ import { load_numerator, load_denominator } from "core/bytes/index/const"
 import append from "./append"
 
 import type { Entry } from "./append"
-import type { Cursor, Storage } from "./model"
+import type { Storage } from "./model"
 
 export type Input = Entry & {
     registry: Storage
 }
 
-export type Output = Cursor
+export type Output = void
 
 export default function (in: Input): Output {
     const { registry } = in
 
-    return append({
+    const inserted = append({
         ...in,
         count: registry.count,
         space: registry.space,

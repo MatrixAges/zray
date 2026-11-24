@@ -3,7 +3,7 @@
     <Type from="../../../../analysis/semantic/merging/model" as="Types" />
     <Type from="../../native/model" as="Native" />
 
-    <Args in={Source.Input} out={Source.Output} />
+    <Args in={Source.Check} out={Source.Output} />
 
     <If on={$in.validation != null}>
         <Call module="../../../../ir/canonical/validation/validate" in={$in.validation} />
@@ -81,13 +81,6 @@
                 </Default>
             </Switch>
         </If>
-    </If>
-
-    <If on={$in.functions.count != 0}>
-        <Call
-            fn="../../../artifact/materializing/publication/reserve"
-            in={$in.functions}
-        />
     </If>
 
     <Return value={Source.Status.Ready} />
