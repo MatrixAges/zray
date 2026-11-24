@@ -161,7 +161,7 @@ pub fn current(state: *const State, prepared: Prepared, body: Compilation.Body) 
 /// Links a lowered module. The tables may have grown, and moved, since it was lowered, but the rows it read are
 /// unchanged, so the module refers to them where they are now.
 pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Error!?*Compilation.Metadata {
-    var input: Source.Input = .{
+    const input: Source.Input = .{
         .program = body.lowered.program,
         .function_suffix = if (body.lowered.function_suffix.count() != 0) body.lowered.function_suffix else null,
         .nominal_types = body.nominal_types,

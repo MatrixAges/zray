@@ -11,19 +11,13 @@ const checks = @import("../../ir/validate.zig");
 
 pub const Input = struct {
     program: ir.Program,
-    base_functions: ?ir.FunctionTable = null,
     /// Newly analyzed functions with absolute IDs following the borrowed base.
     function_suffix: ?ir.FunctionTable = null,
-    verified_functions: ir.FunctionTable = .{},
     nominal_types: Origins.Table,
     store_initializers: []const Initializer = &.{},
-    shared_initializers: []const Initializer = &.{},
     members: []const @import("../function_import.zig") = &.{},
     /// The declaration rows and their text already live in the result or retained signature arena.
     owned_declarations: bool = false,
-    /// The length of the shared type table the body was analyzed against, when the tables grew since; its base
-    /// functions are then a prefix of the shared ones rather than all of them.
-    base_types: ?usize = null,
     type_suffix: ?ir.TypeTable = null,
 };
 
@@ -49,44 +43,54 @@ pub const Loaded = struct {
     }
 };
 
-pub fn append(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
-    if (input.function_suffix != null or input.type_suffix != null) return error.InvalidModule;
+pub const Body = struct {
+    input: *const Input,
+    destination: program_link.Destination,
+    output: Output,
+    prefix: usize,
+    verified: usize,
+    shared_initializers: []const Initializer,
+    pub fn link(self: *const Body, replace_prefix: bool, type_prefix: ?usize, values: []const Initializer) std.mem.Allocator.Error!?usize {
+        appendBody(self, replace_prefix, type_prefix, values) catch |err| {
+            if (err == error.OutOfMemory) return error.OutOfMemory;
 
-    var nodes = try program_link.append(.{ .program = input.program, .nominal_types = input.nominal_types }, destination);
-    const extended = if (input.base_functions) |base| input.program.functions.count() > base.count() else true;
-    const tail = if (extended) &input.program.functions else &ir.FunctionTable{};
-    var result: Loaded = undefined;
+            return null;
+        };
 
-    try finish(&input, destination, &nodes, tail, 0, 0, result.destination());
+        return self.destination.functions.count();
+    }
+};
 
-    return result;
+pub fn appendSourceBody(handle: *const anyopaque, replace_prefix: bool, type_prefix: ?u64, initializer_rows: []const u8) std.mem.Allocator.Error!?u64 {
+    const body: *const Body = @ptrCast(@alignCast(handle));
+
+    const values: []const Initializer = if (initializer_rows.len == 0) &.{} else std.mem.bytesAsSlice(
+        Initializer,
+        @as([]align(@alignOf(Initializer)) const u8, @alignCast(initializer_rows)),
+    );
+
+    const count = try body.link(replace_prefix, if (type_prefix) |value| @intCast(value) else null, values);
+
+    return if (count) |value| value else null;
 }
 
-pub fn appendBody(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
-    return appendBorrowedBody(&input, destination);
-}
-
-pub fn appendBorrowedBody(input: *const Input, destination: program_link.Destination) program_link.Error!Loaded {
-    var result: Loaded = undefined;
-
-    try appendBodyInto(input, destination, result.destination());
-
-    return result;
-}
-
-pub fn appendBodyInto(input: *const Input, destination: program_link.Destination, output: Output) program_link.Error!void {
+fn appendBody(body: *const Body, replace_prefix: bool, type_prefix: ?usize, values: []const Initializer) program_link.Error!void {
+    const input = body.input;
+    const destination = body.destination;
     const program = &input.program;
-    const base = input.base_functions orelse program.functions;
+    const shared = destination.functions.view();
+    const base = shared.prefix(body.prefix);
+    const functions = if (replace_prefix) base else program.functions;
     var scratch = std.heap.ArenaAllocator.init(destination.temporary);
 
     defer scratch.deinit();
 
-    const extension = try table.extend(program.functions, base, if (input.function_suffix) |*suffix| suffix else null, .{
+    const extension = try table.extend(functions, base, if (input.function_suffix) |*suffix| suffix else null, .{
         .functions = destination.functions,
         .natives = destination.native_modules,
         .source_natives = program.native_modules,
         .type_count = destination.types.items.count(),
-        .base_types = input.base_types,
+        .base_types = type_prefix,
     });
 
     const tail = extension.tail;
@@ -95,37 +99,41 @@ pub fn appendBodyInto(input: *const Input, destination: program_link.Destination
     if (comptime checks.internal) {
         var checked = program.*;
 
-        if (input.function_suffix != null) checked.functions = try table.join(temporary, base, tail);
-        if (try checks.validateExtending(temporary, checked, input.verified_functions) != null) return error.InvalidIr;
+        checked.functions = if (input.function_suffix != null) try table.join(temporary, base, tail) else functions;
+
+        if (try checks.validateExtending(temporary, checked, shared.prefix(body.verified)) != null) return error.InvalidIr;
     }
 
-    const type_prefix = extension.types;
     var workspace = destination;
+
     workspace.temporary = temporary;
 
     var nodes = try program_link.appendAnalyzed(program, input.nominal_types, &workspace, &.{
-        .types = type_prefix,
+        .types = extension.types,
         .base = base.count(),
         .total = @intCast(extension.total),
         .tail = &tail,
         .type_suffix = input.type_suffix,
     });
 
-    try finish(input, destination, &nodes, &tail, base.count(), type_prefix, output);
+    try finish(body, &nodes, &tail, extension.types, values);
 }
 
-fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, tail: *const ir.FunctionTable, first: usize, type_prefix: usize, output: Output) program_link.Error!void {
+fn finish(body: *const Body, nodes: *Nodes, tail: *const ir.FunctionTable, type_prefix: usize, values: []const Initializer) program_link.Error!void {
+    const input = body.input;
+    const output = body.output;
     const program = &input.program;
+    const functions = body.destination.functions;
 
     if (comptime generated) {
-        try @import("source/surface/host.zig").publish(input, destination, nodes, tail, first, type_prefix, output);
+        try @import("source/surface/host.zig").publish(body, nodes, tail, type_prefix, values);
     } else {
-        const own = function_body.ownTail(program.*, tail.*, first);
-        const entry = try publishSeedEntry(program, destination.functions, nodes, own);
+        const own = function_body.ownTail(program.*, tail.*, body.prefix);
+        const entry = try publishSeedEntry(program, functions, nodes, own);
         const result = output.surface;
 
         result.exports, result.constant_exports = try publishSeedDeclarations(nodes, program);
-        result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
+        result.store_initializers = try @import("source/initializers.zig").link(nodes, values, body.shared_initializers);
         const surface = try @import("source/members.zig").link(nodes, input.members, entry);
         result.members = surface.members;
         output.function.* = if (surface.entry) |id| @backingInt(id) else null;
@@ -133,8 +141,8 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
         if (surface.entry) |id| {
             const row = @backingInt(id);
 
-            result.input_type = @fromBackingInt(destination.functions.input_types.items[row]);
-            result.output_type = @fromBackingInt(destination.functions.output_types.items[row]);
+            result.input_type = @fromBackingInt(functions.input_types.items[row]);
+            result.output_type = @fromBackingInt(functions.output_types.items[row]);
         } else {
             result.input_type = try nodes.types.include(program.input_type);
             result.output_type = try nodes.types.include(program.output_type);

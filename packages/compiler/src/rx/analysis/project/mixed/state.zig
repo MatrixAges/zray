@@ -20,7 +20,6 @@ functions: ir.FunctionStorage = .{},
 verified: usize = 0,
 native_modules: ir.NativeModuleStorage = .{},
 initializers: std.ArrayList(frontend.project.compiled.StoreInitializer) = .empty,
-retained_initializers: []const frontend.project.compiled.StoreInitializer = &.{},
 libraries: frontend.project.compiled.imports.Cache = .empty,
 finished: Finished,
 signature_indices: []const i64,
@@ -37,8 +36,10 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         .finished = .{},
         .libraries = .{ .inherited = signatures.libraries },
         .signature_indices = signature_indices,
-        .retained_initializers = signatures.store_initializers,
     };
+
+    self.initializers.items = @constCast(signatures.store_initializers);
+    self.initializers.capacity = signatures.store_initializers.len;
 
     const opening: Opening = .{ .state = &self, .types = &types };
 
@@ -52,7 +53,6 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         try opening.openResults();
         try opening.installOrigins();
         try opening.installSignatures();
-        try opening.installInitializers();
     }
 
     return self;
@@ -99,11 +99,6 @@ const Opening = struct {
             .end = @as(lengths, @splat(functions.count())),
         }});
     }
-    fn installInitializers(self: *const Opening) std.mem.Allocator.Error!void {
-        const state = self.state;
-
-        try state.initializers.appendSlice(state.allocator, state.signatures.store_initializers);
-    }
 };
 
 pub fn installMixedTypes(handle: *const anyopaque) std.mem.Allocator.Error!void {
@@ -124,10 +119,6 @@ pub fn installMixedOrigins(handle: *const anyopaque) Error!void {
 
 pub fn installMixedSignatures(handle: *const anyopaque) std.mem.Allocator.Error!void {
     try Opening.borrow(handle).installSignatures();
-}
-
-pub fn installMixedInitializers(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    try Opening.borrow(handle).installInitializers();
 }
 
 pub fn destination(self: *Self) frontend.project.artifact.program_link.Destination {

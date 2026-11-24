@@ -57,9 +57,6 @@ export declare function installMixedOrigins(state: MixedState): void
 export declare function installMixedSignatures(state: MixedState): void
     throws { OutOfMemory }
 
-export declare function installMixedInitializers(state: MixedState): void
-    throws { OutOfMemory }
-
 export declare function installMixedTypeEntry(target: MixedEntry, visible: u64): void
 
 export declare function installMixedFunctionEntry(
@@ -169,17 +166,6 @@ export declare function openMixedImport(binding: MixedImports, row: u64): MixedI
     throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function rejectMixedImport(binding: MixedImports, row: u64, message: string): void
-    throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function appendMixedBodyLink(
-    body: MixedBodyLink,
-    replace_prefix: bool,
-    type_prefix: u64?,
-    use_shared_initializers: bool,
-    refresh_initializers: bool
-): u64? throws { OutOfMemory }
-
-export declare function rejectMixedBodyLink(body: MixedBodyLink, message: string): void
     throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function openMixedZXPreparation(source: MixedZXPreparation): MixedZXParse

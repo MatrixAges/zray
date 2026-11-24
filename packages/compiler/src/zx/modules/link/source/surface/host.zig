@@ -21,21 +21,22 @@ const Prefix = std.meta.Child(@typeInfo(@FieldType(Initializers, "prefix")).opti
 const InitTarget = std.meta.Child(@FieldType(Initializers, "target"));
 const MemberTarget = std.meta.Child(@FieldType(Members, "target"));
 
-pub fn publish(input: *const Source.Input, destination: @import("../../program.zig").Destination, nodes: *Nodes, tail: *const ir.FunctionTable, base: usize, type_prefix: usize, output: Source.Output) Error!void {
+pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.FunctionTable, type_prefix: usize, values: []const Initializer) Error!void {
+    const input = body.input;
+    const output = body.output;
     const allocator = nodes.allocator;
-    const storage = destination.functions;
+    const storage = body.destination.functions;
 
     var entry: Entry = .{
         .program = &input.program,
         .storage = storage,
         .nodes = nodes,
-        .temporary = destination.temporary,
+        .temporary = body.destination.temporary,
     };
 
     const functions = remap.idMapping(Mapping, nodes.functions);
     const types = remap.typeMapping(Mapping, nodes.types);
-    const values = input.store_initializers;
-    const shared = input.shared_initializers;
+    const shared = body.shared_initializers;
     const left = memory.borrowTextColumn("identity", values);
     const initial_ids = memory.borrowReadColumn(ir.FunctionId, "function", values);
     const schemas = memory.borrowReadColumn(u32, "schema_version", values);
@@ -122,7 +123,7 @@ pub fn publish(input: *const Source.Input, destination: @import("../../program.z
     errdefer if (declared) surface.release(allocator);
 
     const request: Input = .{
-        .entry = &entry.bind(tail, base),
+        .entry = &entry.bind(tail, body.prefix),
         .function_storage = @ptrCast(&entry),
         .declarations = if (declared) &declarations else null,
         .initializers = &initializers,

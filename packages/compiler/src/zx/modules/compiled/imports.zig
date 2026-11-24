@@ -111,7 +111,18 @@ pub fn reserveCompiledImport(handle: *const anyopaque, index: u64) std.mem.Alloc
     const library = &frame.project.compiled_libraries[@intCast(index)];
 
     try frame.cache.added.ensureUnusedCapacity(frame.allocator, 1);
-    try frame.initializers.ensureUnusedCapacity(frame.allocator, library.store_initializers.len);
+
+    const initializers = frame.initializers;
+    const needed = std.math.add(usize, initializers.items.len, library.store_initializers.len) catch return error.OutOfMemory;
+
+    // Published prefixes live until the owner's arena is released.
+    if (needed > initializers.capacity) {
+        var grown = try Initializers.initCapacity(frame.allocator, Initializers.growCapacity(needed));
+
+        grown.appendSliceAssumeCapacity(initializers.items);
+
+        initializers.* = grown;
+    }
 
     const names = try Index.init(frame.allocator, library.exports.len);
 

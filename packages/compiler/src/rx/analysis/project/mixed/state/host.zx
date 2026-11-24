@@ -3,8 +3,7 @@ export {
     installMixedNatives,
     openMixedResults,
     installMixedOrigins,
-    installMixedSignatures,
-    installMixedInitializers
+    installMixedSignatures
 } from "rx_project_host"
 
 export type { MixedState } from "rx_project_host"

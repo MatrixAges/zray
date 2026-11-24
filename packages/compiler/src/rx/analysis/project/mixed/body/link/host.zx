@@ -1,1 +1,1 @@
-export { appendMixedBodyLink } from "rx_project_host"
+export { appendSourceBody } from "project_host"

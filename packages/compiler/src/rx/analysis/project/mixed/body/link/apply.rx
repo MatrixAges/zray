@@ -1,22 +1,21 @@
 <Module>
     <Type from="model" as="Link" />
 
-    <Args in={Link.Request} out={void} />
+    <Args in={Link.Request} out={string?} />
 
     <Call fn="types" in={$in.boundary} />
 
     <Call
-        fn="host.appendMixedBodyLink"
+        fn="host.appendSourceBody"
         in={[
             $in.body,
             $in.boundary.prepared.functions == $in.boundary.body_functions,
             $ctx.types,
-            $in.source,
-            $in.initializers != $in.retained
+            $in.source ? $in.shared : $in.initializers
         ]}
     />
 
-    <If on={$ctx.appendMixedBodyLink != null}>
+    <If on={$ctx.appendSourceBody != null}>
         <Call
             fn="commit"
             in={{
@@ -24,18 +23,14 @@
                     "verified",
                     "present"
                 ]),
-                count: $ctx.appendMixedBodyLink
+                count: $ctx.appendSourceBody
             }}
         />
 
-        <Else>
-            <Call
-                fn="reject"
-                in={$in.pick([
-                    "body",
-                    "source"
-                ])}
-            />
-        </Else>
+        <Return value={null} />
     </If>
+
+    <Call fn="reject" in={$in.pick(["source"])} />
+
+    <Return value={$ctx.reject} />
 </Module>

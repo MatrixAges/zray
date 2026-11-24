@@ -8,11 +8,21 @@ const generated = @import("rx_options").generated_graph;
 const Source = frontend.project.artifact.source_link;
 const Boundary = struct { functions: usize, types: usize };
 
-pub fn publish(state: *State, body: *Source.Input, prepared: Boundary, flow_location: ?rx.ast.Location, destination: Finished.Destination) State.Error!void {
+pub fn publish(state: *State, body: *const Source.Input, prepared: Boundary, flow_location: ?rx.ast.Location, destination: Finished.Destination) State.Error!void {
     const current: Boundary = .{ .functions = state.functions.count(), .types = state.types.items.count() };
     const body_functions = body.program.functions.count();
     const source = flow_location == null;
-    var link: Frame = .{ .state = state, .body = body, .functions = prepared.functions, .location = flow_location orelse .{ .offset = 0, .line = 1, .column = 1 }, .output = destination.value };
+
+    const link: Source.Body = .{
+        .input = body,
+        .destination = state.destination(),
+        .output = destination.value,
+        .prefix = prepared.functions,
+        .verified = state.verified,
+        .shared_initializers = state.initializers.items,
+    };
+
+    const location = flow_location orelse rx.ast.Location{ .offset = 0, .line = 1, .column = 1 };
 
     if (comptime generated) {
         const rule = @import("generated_rx_mixed_body_link");
@@ -28,8 +38,8 @@ pub fn publish(state: *State, body: *Source.Input, prepared: Boundary, flow_loca
         const input: std.meta.Child(rule.Input) = .{
             .body = @ptrCast(&link),
             .source = source,
-            .initializers = state.initializers.items.len,
-            .retained = state.retained_initializers.len,
+            .initializers = std.mem.sliceAsBytes(body.store_initializers),
+            .shared = std.mem.sliceAsBytes(link.shared_initializers),
             .verified = @ptrCast(&verified),
             .present = if (present) |*rows| @ptrCast(rows) else null,
             .boundary = &.{
@@ -39,61 +49,23 @@ pub fn publish(state: *State, body: *Source.Input, prepared: Boundary, flow_loca
             },
         };
 
-        return @import("../body.zig").run(rule, &input);
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+        const message = rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        if (message) |text| return state.fail(location, text);
+
+        return;
     }
 
     const types = if (current.functions == prepared.functions and current.types == prepared.types) null else prepared.types;
+    const values = if (source) link.shared_initializers else body.store_initializers;
 
-    state.verified = try link.append(body_functions == prepared.functions, types, source, state.retained_initializers.len != state.initializers.items.len) orelse
-        return state.fail(link.location, if (source) "source module body cannot be linked to its shared compilation context" else "RX module body cannot be linked to its shared compilation context");
+    state.verified = try link.link(body_functions == prepared.functions, types, values) orelse
+        return state.fail(location, if (source) "source module body cannot be linked to its shared compilation context" else "RX module body cannot be linked to its shared compilation context");
 
     if (destination.present) |cell| cell.* = true;
-}
-
-const Frame = struct {
-    state: *State,
-    body: *Source.Input,
-    functions: usize,
-    location: rx.ast.Location,
-    output: Source.Output,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
-    }
-    fn append(self: *Frame, replace_prefix: bool, type_prefix: ?usize, use_shared_initializers: bool, refresh_initializers: bool) std.mem.Allocator.Error!?usize {
-        const state = self.state;
-        const body = self.body;
-        const base = state.functions.view().prefix(self.functions);
-
-        if (replace_prefix) body.program.functions = base;
-
-        body.base_functions = base;
-        body.base_types = type_prefix;
-        body.verified_functions = state.verifiedFunctions();
-
-        if (refresh_initializers) state.retained_initializers = try state.allocator.dupe(frontend.project.compiled.StoreInitializer, state.initializers.items);
-
-        body.shared_initializers = state.retained_initializers;
-
-        if (use_shared_initializers) body.store_initializers = body.shared_initializers;
-
-        Source.appendBodyInto(body, state.destination(), self.output) catch |err| {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
-
-            return null;
-        };
-
-        return state.functions.count();
-    }
-};
-
-pub fn appendMixedBodyLink(handle: *const anyopaque, replace_prefix: bool, type_prefix: ?u64, use_shared_initializers: bool, refresh_initializers: bool) std.mem.Allocator.Error!?u64 {
-    const verified = try Frame.borrow(handle).append(replace_prefix, if (type_prefix) |value| @intCast(value) else null, use_shared_initializers, refresh_initializers);
-
-    return if (verified) |count| count else null;
-}
-
-pub fn rejectMixedBodyLink(handle: *const anyopaque, message: []const u8) State.Error!void {
-    const frame = Frame.borrow(handle);
-
-    return frame.state.fail(frame.location, message);
 }

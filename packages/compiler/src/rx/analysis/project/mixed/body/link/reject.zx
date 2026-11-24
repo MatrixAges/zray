@@ -1,15 +1,11 @@
-import host from "rx_project_host"
-
 import { flow_body, source_body } from "./const"
 
 import type { Request } from "./model"
 
-export type Input = Request.Pick("body", "source")
+export type Input = Request.Pick("source")
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const message = in.source ? source_body : flow_body
-
-    host.rejectMixedBodyLink(in.body, message)
+    return in.source ? source_body : flow_body
 }

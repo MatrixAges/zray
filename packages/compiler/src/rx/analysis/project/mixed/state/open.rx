@@ -8,5 +8,4 @@
     <Call fn="host.openMixedResults" in={$in} />
     <Call fn="host.installMixedOrigins" in={$in} />
     <Call fn="host.installMixedSignatures" in={$in} />
-    <Call fn="host.installMixedInitializers" in={$in} />
 </Module>

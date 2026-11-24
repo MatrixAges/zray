@@ -174,7 +174,6 @@ export type MixedImportRows = {
     exported: bool
 }
 
-export type MixedBodyLink = opaque
 
 export type MixedZXPreparation = opaque
 

@@ -1,5 +1,5 @@
 import type { BoolBuffer, WriteColumn } from "memory"
-import type { MixedBodyLink } from "rx_project_host"
+import type { SourceBody } from "project_host"
 
 export type Boundary = {
     functions: u64,
@@ -18,9 +18,9 @@ export type Publication = {
 }
 
 export type Request = Publication & {
-    body: MixedBodyLink,
+    body: SourceBody,
     source: bool,
-    initializers: u64,
-    retained: u64,
+    initializers: u8[],
+    shared: u8[],
     boundary: Body
 }

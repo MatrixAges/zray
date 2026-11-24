@@ -196,3 +196,10 @@ export declare function appendProjectExternal(
 
 export declare function appendSourceLinkEntry(entry: SourceEntry): void
     throws { OutOfMemory, InvalidModule }
+
+export declare function appendSourceBody(
+    body: SourceBody,
+    replace_prefix: bool,
+    type_prefix: u64?,
+    initializers: u8[]
+): u64? throws { OutOfMemory }

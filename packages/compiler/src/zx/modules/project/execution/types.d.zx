@@ -85,3 +85,5 @@ export type CacheEntries = opaque
 export type CacheEntry = opaque
 
 export type SourceEntry = opaque
+
+export type SourceBody = opaque

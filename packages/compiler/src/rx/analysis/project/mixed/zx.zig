@@ -268,7 +268,7 @@ pub fn link(state: *State, analyzed: Analyzed, destination: Finished.Destination
     program.exports = analyzed.exports;
     program.constant_exports = analyzed.constant_exports;
 
-    var body: Source.Input = .{
+    const body: Source.Input = .{
         .program = program,
         .function_suffix = if (analyzed.result.function_suffix) |tail| tail.* else null,
         .nominal_types = analyzed.result.nominal_types,

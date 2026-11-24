@@ -10,6 +10,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("modules/entry_body/host.zig"),
     @import("modules/link.zig"),
     @import("modules/link/source/entry/host.zig"),
+    @import("modules/link/source.zig"),
     @import("modules/parse_cache.zig"),
     @import("modules/project/execution/body.zig"),
     @import("modules/project/execution/delivery/bind.zig"),
