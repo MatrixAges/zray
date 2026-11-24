@@ -4,20 +4,24 @@ import { reserveAppend } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { MixedImportSelection } from "rx_project_host"
-import type { Layout, Target } from "./model"
+import type { MixedImportRows } from "rx_project_host"
+import type { Request } from "./model"
 
-export type Input = {
-    selected: MixedImportSelection,
-    target: Target,
-    layout: Layout
+export type Input = Request.Pick("functions", "published", "layout") & {
+    names: string[],
+    indices: u64[],
+    rows: MixedImportRows,
+    exported: bool
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { selected, target, layout } = in
-    const { names, indices, named, fallback } = selected
+    const { names, indices, rows, layout } = in
+
+    const target = in.exported ? in.published : in.functions
+
+    const { named, fallback } = rows
     const { stride, name_offset } = layout
 
     const used = memory.readU64(target.used, 0)

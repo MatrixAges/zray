@@ -1,0 +1,222 @@
+export type StoreInitializer = opaque
+
+export type Inference = opaque
+
+export type Derivation = opaque
+
+export type Solver = opaque
+
+export type ConstraintRound = opaque
+
+export type TypeResolver = opaque
+
+export type AssignmentApplication = opaque
+
+export type AssignmentRegistration = opaque
+
+export type ScopeRegistration = opaque
+
+export type ScopeLookup = opaque
+
+export type KnownRegistration = opaque
+
+export type UnificationTarget = opaque
+
+export type ObjectReadiness = opaque
+
+export type ObjectReplay = opaque
+
+export type ObjectFieldReplay = opaque
+
+export type FieldAccess = opaque
+
+export type FieldAlignment = opaque
+
+export type FieldColumnStorage = opaque
+
+export type ObjectConstructionRow = opaque
+
+export type BindingReplay = opaque
+
+export type BindingUse = opaque
+
+export type BindingReporter = opaque
+
+export type BindingSpans = opaque
+
+export type NonNullReplay = opaque
+
+export type NonNullRead = opaque
+
+export type OptionalQuery = opaque
+
+export type ProjectionGraph = opaque
+
+export type ProjectionSpans = opaque
+
+export type PortGraph = opaque
+
+export type ConstraintCollection = opaque
+
+export type ConditionFacts = opaque
+
+export type FlowTraversal = opaque
+
+export type ParallelTaskWork = opaque
+
+export type BodyStatements = opaque
+
+export type ExpressionLink = opaque
+
+export type ProgramStoreBinding = opaque
+
+export enum OperandColumn {
+    binary_left,
+    binary_operators,
+    binary_right,
+    captures,
+    collection_arguments,
+    collection_count,
+    collection_first,
+    collection_kinds,
+    collection_targets,
+    conditional_conditions,
+    conditional_no,
+    conditional_yes,
+    index_targets,
+    index_values,
+    iteration_bodies,
+    iteration_condition_parameters,
+    iteration_conditions,
+    iteration_environment_symbols,
+    iteration_initials,
+    iteration_parameters,
+    iteration_postconditions,
+    lengths,
+    match_conditions,
+    match_count,
+    match_fallbacks,
+    match_first,
+    match_results,
+    match_subjects,
+    object_count,
+    object_evaluation_count,
+    object_evaluation_first,
+    object_evaluation_values,
+    object_field_indices,
+    object_field_values,
+    object_first,
+    optional_values,
+    projection_indices,
+    projection_targets,
+    references,
+    scope_borrows,
+    scope_count,
+    scope_first,
+    scope_results,
+    scope_symbols,
+    scope_values,
+    sequence_count,
+    sequence_first,
+    sequence_items,
+    some,
+    transform_bodies,
+    transform_count,
+    transform_first,
+    transform_initials,
+    transform_kinds,
+    transform_parameters,
+    transform_targets,
+    unary_operands,
+    unary_operators,
+    update_indices,
+    update_targets,
+    update_values
+}
+
+export enum OperandRoute {
+    Fixed,
+    Sequence,
+    Collection,
+    Transform,
+    Scope,
+    Selection,
+    Object
+}
+
+export type Mixed = opaque
+
+export type MixedState = opaque
+
+export type MixedEntry = opaque
+
+export type MixedExports = opaque
+
+export type MixedObservationCapture = opaque
+
+export type MixedObservationPublish = opaque
+
+export type MixedPreparation = opaque
+
+export type MixedWorkspace = opaque
+
+export type MixedCandidate = opaque
+
+export type MixedWorker = opaque
+
+export type MixedCallees = opaque
+
+export type MixedImports = opaque
+
+export type MixedImportRows = {
+    named: u8[],
+    fallback: u8[],
+    exported: bool
+}
+
+export type MixedBodyLink = opaque
+
+export type MixedZXPreparation = opaque
+
+export type MixedZXParse = opaque
+
+export type MixedZXBody = opaque
+
+export type MixedRXBody = opaque
+
+export type ImportedCallee = {
+    function_id?: u32,
+    setter: bool,
+    has_stores: bool,
+    orchestration: bool
+}
+
+export type HistoryStores = opaque
+
+export type HistoryParseCache = opaque
+
+export type HistoryFunctionRange = opaque
+
+export type HistoryModuleLink = opaque
+
+export type HistoryXmlNode = opaque
+
+export type HistoryXmlRows = opaque
+
+export type HistoryXmlAttribute = opaque
+
+export type HistoryXmlText = opaque
+
+export enum HistoryXmlPart {
+    Attributes,
+    Children,
+    Text
+}
+
+export enum MixedAction {
+    Exhausted,
+    Skip,
+    MissingSignature,
+    AnalyzeZX,
+    LowerRX
+}

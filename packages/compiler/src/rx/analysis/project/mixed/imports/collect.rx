@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Imports" />
+
+    <Args in={Imports.Input} out={void} />
+
+    <Loop on={$in.row < $in.count}>
+        <Call module="step" in={$in} />
+    </Loop>
+</Module>

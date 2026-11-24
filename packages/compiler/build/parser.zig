@@ -46,11 +46,19 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const project_prefix = b.fmt("{s}/{s}/", .{ directories[0], project_directory });
     const project_interfaces_dir = b.addWriteFiles();
     const project_interface = project_interfaces_dir.add("host.d.zx", internal.join(b, b, "src/" ++ project_directory, &.{ "types.d.zx", "project.d.zx", "delivery/host.d.zx", "cache/host.d.zx" }));
+    const rx_project_directory = "rx/analysis/project/workflow";
+    const rx_project_prefix = b.fmt("{s}/{s}/", .{ directories[0], rx_project_directory });
+    const rx_project_interface = b.addWriteFiles();
+
+    const rx_project_host = rx_project_interface.add("host.d.zx", internal.join(b, b, "src/" ++ rx_project_directory ++ "/host", &.{
+        "types.d.zx", "project.d.zx", "mixed.d.zx", "history.d.zx", "flow.d.zx", "body.d.zx", "constraints.d.zx", "objects.d.zx", "projections.d.zx",
+    }));
 
     const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], &.{
         .{ .directory = ast_directory.getDirectory(), .prefix = ast_prefix },
         .{ .directory = execution_interfaces_dir.getDirectory(), .prefix = lowering_prefix },
         .{ .directory = project_interfaces_dir.getDirectory(), .prefix = project_prefix },
+        .{ .directory = rx_project_interface.getDirectory(), .prefix = rx_project_prefix },
     });
 
     b.addNamedLazyPath("memory_interface", declarations.index);
@@ -98,7 +106,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host", .resolve_members = true },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host", .resolve_members = true },
-        .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}host.d.zx", .{rx_project_prefix}), .module = "rx_project_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host", .resolve_members = true },
@@ -180,6 +188,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 run.addFileInput(roots[3].path(b, ownership_interface));
                 run.addFileInput(lowering);
                 run.addFileInput(project_interface);
+                run.addFileInput(rx_project_host);
                 addSubtree(run, tracked[0], "zx/modules");
                 addSubtree(run, tracked[0], "zx/analysis/publication");
                 addSubtree(run, tracked[0], "zx/frontend/retention");

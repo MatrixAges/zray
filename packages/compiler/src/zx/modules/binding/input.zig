@@ -1,9 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const Symbols = @import("symbols.zig").Symbols;
-const generated = @import("generated_project_binding");
+const delivery = @import("generated_project_binding_delivery");
 const memory = @import("zx").memory;
-pub const Input = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
+pub const Input = @FieldType(std.meta.Child(delivery.Input), "request");
 const Record = valueType(Input);
 const Names = @FieldType(Record, "names");
 const NativeNames = @typeInfo(field(Names, "native")).optional.child;

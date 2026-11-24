@@ -1,0 +1,61 @@
+export declare function normalizeProjectSources(state: Inference): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function restoreDerivedFrame(state: Inference): void
+
+export declare function deriveProjectFrame(state: Inference, signatures: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function compileProjectBodies(state: Inference): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishInferredStores(state: Inference, retained: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function prepareDerivedModules(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function collectDerivedGraph(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function orderDerivedSignatures(state: Derivation): void
+    throws { OutOfMemory }
+
+export declare function restoreDerivedSignatures(state: Derivation): bool
+
+export declare function analyzeDerivedSignatures(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function indexDerivedSignatures(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function loadDerivedStores(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function prepareDerivedFlow(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveDerivedFlow(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function completeDerivedShortcuts(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishDerivedFrame(state: Derivation): void
+
+export declare function openFlowPorts(state: Solver): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function releaseFlowDeclarations(state: Solver): void
+
+export declare function openFlowCollection(state: Solver): void
+
+export declare function releaseFlowCollection(state: Solver): void
+
+export declare function openFlowSolver(state: Solver): void
+
+export declare function releaseFlowPending(state: Solver): void
+
+export declare function bindFlowSignatures(state: Solver): void
+
+export declare function publishFlowSignatures(state: Solver): void

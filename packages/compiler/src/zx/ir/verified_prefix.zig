@@ -37,7 +37,7 @@ pub fn covers(table: *const ir.FunctionTable, prefix: *const ir.FunctionTable) b
     return matching(table, prefix, 0, limit, true) == limit;
 }
 
-fn sameColumns(table: *const ir.FunctionTable, prefix: *const ir.FunctionTable) bool {
+pub fn sameColumns(table: *const ir.FunctionTable, prefix: *const ir.FunctionTable) bool {
     inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
         if (@field(table, name).ptr != @field(prefix, name).ptr) return false;
     }

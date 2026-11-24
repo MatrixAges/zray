@@ -1,6 +1,9 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const structure = @import("../../ir/function_structure.zig");
+const coverage = @import("../../ir/verified_prefix.zig");
+const generated = @import("parser_options").generated_parser;
 pub const valid = structure.valid;
 pub const range = @import("function_range.zig").plan;
 
@@ -42,16 +45,14 @@ pub fn appendTail(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?
 }
 
 pub fn extend(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?*const ir.FunctionTable, shared: ?Shared) error{ InvalidModule, OutOfMemory }!Extension {
-    const covers = @import("../../ir/verified_prefix.zig").covers;
-
-    if (comptime !@import("parser_options").generated_parser) {
+    if (comptime !generated) {
         if (shared) |storage| {
             if (storage.base_types == null and !sameView(prefix, storage.functions.view())) return error.InvalidModule;
             if (prefix.count() > storage.functions.count() or !sameView(storage.source_natives, storage.natives.view())) return error.InvalidModule;
         }
 
         if (table.count() < prefix.count() or !valid(&prefix)) return error.InvalidModule;
-        if (!structure.validSuffix(&table, prefix.count()) or !covers(&table, &prefix)) return error.InvalidModule;
+        if (!structure.validSuffix(&table, prefix.count()) or !coverage.covers(&table, &prefix)) return error.InvalidModule;
 
         const tail = if (separate) |suffix| blk: {
             if (table.count() != prefix.count() or !valid(suffix)) return error.InvalidModule;
@@ -77,12 +78,16 @@ pub fn extend(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?*con
     const functions = view(Functions, table);
     const base = view(Functions, prefix);
     const suffix = if (separate) |part| view(Functions, part.*) else undefined;
+    var prefix_storage: @import("../../ir/verified_prefix/host.zig").Storage = .{};
+    const compare = prefix.count() != 0 and !coverage.sameColumns(&table, &prefix);
+    const borrowed = if (compare) prefix_storage.bind(&table, &prefix, prefix.count(), true) else undefined;
 
     const input: Input = .{
         .functions = &functions,
         .base = &base,
         .suffix = if (separate != null) &suffix else null,
         .maximum_count = std.math.maxInt(u32),
+        .coverage = if (compare) zx.columns.pointer(std.meta.Child(@FieldType(Input, "coverage")), &borrowed) else null,
         .shared = if (shared) |storage| &.{
             .same_functions = storage.base_types != null or sameView(prefix, storage.functions.view()),
             .same_natives = sameView(storage.source_natives, storage.natives.view()),
@@ -94,10 +99,8 @@ pub fn extend(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?*con
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const selected = @import("zx").columns.invoke(rule.executeValue, empty.allocator(), &input) catch return error.InvalidModule;
+    const selected = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch return error.InvalidModule;
     const result = selected orelse return error.InvalidModule;
-
-    if (!covers(&table, &prefix)) return error.InvalidModule;
 
     return .{
         .tail = switch (result.tail) {

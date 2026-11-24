@@ -1,0 +1,95 @@
+export declare function reserveBodyStatements(frame: BodyStatements, slots: u64): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function selectBodyWriter(frame: BodyStatements, block: u32): void
+
+export declare function evaluateBodyValue(frame: BodyStatements, row: u32, borrowed: bool): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function defineBodyTaskBinding(frame: BodyStatements, row: u32, value: u32): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function publishBodyBinding(frame: BodyStatements, symbol: u32): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function evaluateBodyCaseLabel(frame: BodyStatements, row: u32): u32?
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function initializeBodyCase(frame: BodyStatements): void
+
+export declare function requireBodyBlock(valid: bool): void throws { InvalidModule }
+
+export declare function registerBodyCallResult(
+    frame: BodyStatements,
+    value: u32,
+    parallel: bool
+): u32? throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function prepareBodyCall(frame: BodyStatements, item: u32): bool
+
+export declare function bindBodyGetters(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function evaluateBodyArgument(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function createBodyUnitArgument(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function resolveBodyCallStores(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function prepareBodyImport(frame: BodyStatements): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function appendBodyFunctionTail(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function bodyHasInitializers(frame: BodyStatements): bool
+
+export declare function linkBodyInitializers(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function appendBodyFunctionEntry(frame: BodyStatements): void
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function emitBodyCall(frame: BodyStatements): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function reserveExpressionLink(frame: ExpressionLink, returned: u32?, rows: u32[], bindings: u32[], count: u64): u32
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function borrowProgramStoreSlots(frame: ProgramStoreBinding): void
+
+export declare function requireProgramStoreMatch(compatible: bool): void throws { InvalidModule }
+
+export declare function reserveProgramStoreSlot(frame: ProgramStoreBinding): void throws {
+    OutOfMemory
+}
+
+export declare function prepareLinkSymbols(frame: ExpressionLink): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function prepareLinkLiterals(frame: ExpressionLink): bool
+    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
+
+export declare function bindExpressionOperands(
+    frame: ExpressionLink,
+    index: u32,
+    route: OperandRoute,
+    count: u32,
+    evaluation_count: u32
+): void throws { InvalidModule }
+
+export declare function expressionOperandWords(
+    frame: ExpressionLink,
+    column: OperandColumn
+): u32[]
+
+export declare function expressionOperandBytes(
+    frame: ExpressionLink,
+    column: OperandColumn
+): u8[]
+
+export declare function requireExpressionOperand(valid: bool): void
+    throws { InvalidModule }

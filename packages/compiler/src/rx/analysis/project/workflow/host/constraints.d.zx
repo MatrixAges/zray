@@ -1,0 +1,164 @@
+export declare function solveRevision(state: ConstraintRound): u64
+
+export declare function refreshSolverBindings(state: ConstraintRound): void
+
+export declare function refreshSolverNonNull(state: ConstraintRound): void
+
+export declare function refreshSolverLengths(state: ConstraintRound): void
+
+export declare function refreshSolverIndexes(state: ConstraintRound): void
+
+export declare function refreshSolverSequences(state: ConstraintRound): void
+
+export declare function refreshSolverValidation(state: ConstraintRound): void
+
+export declare function refreshSolverObjects(state: ConstraintRound): void
+
+export declare function refreshSolverAssignments(frame: ConstraintRound): void
+
+export declare function reserveResolveFrames(frame: TypeResolver, used: u64, added: u64): u64
+    throws { OutOfMemory }
+
+export declare function reserveResolveValues(frame: TypeResolver, used: u64, added: u64): u64
+    throws { OutOfMemory }
+
+export declare function reportResolveFailure(
+    frame: TypeResolver,
+    node: u32,
+    code: string,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function prepareResolveConstruction(
+    frame: TypeResolver,
+    node: u32,
+    first: u64,
+    count: u64,
+    object: bool
+): void
+
+export declare function reportResolveConstruction(
+    frame: TypeResolver,
+    code: string,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function bindResolvedType(
+    frame: TypeResolver,
+    kind: u8,
+    first: u32,
+    second: u32,
+    label: string,
+    children: u32[],
+    field_names: string[],
+    field_types: u32[],
+    names: string[]
+): void
+
+export declare function finishResolveConstruction(frame: TypeResolver): void
+
+export declare function refreshAssignmentTypes(frame: ConstraintRound): void
+
+export declare function assignmentRevision(frame: AssignmentApplication): u64
+
+export declare function reserveAssignmentClasses(frame: AssignmentApplication): void
+    throws { OutOfMemory }
+
+export declare function releaseAssignmentRanks(frame: AssignmentApplication): void
+
+export declare function reserveAssignmentDepths(frame: AssignmentApplication): u64[]
+    throws { OutOfMemory }
+
+export declare function reserveDeferredAssignments(
+    frame: AssignmentApplication,
+    words: u64
+): u64[] throws { OutOfMemory }
+
+export declare function reserveAssignmentOptional(
+    frame: AssignmentApplication,
+    node: u32,
+    payload: u32,
+    layers: u64
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function beginInitialAssignmentPayloads(frame: AssignmentApplication): u64
+    throws { OutOfMemory }
+
+export declare function beginRegisteredAssignmentPayloads(
+    frame: AssignmentApplication,
+    first: u64
+): u64 throws { OutOfMemory }
+
+export declare function registerAssignmentPayload(
+    frame: AssignmentApplication,
+    node: u32,
+    value: u32,
+    remaining: u64
+): u32 throws { OutOfMemory, InvalidSource }
+
+export declare function remainingAssignmentDepth(frame: AssignmentApplication): u64
+
+export declare function rejectAssignmentDepth(frame: AssignmentApplication, node: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function mergeAssignmentClass(frame: AssignmentApplication, row: u64, other: u32): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveKnownNodes(frame: KnownRegistration): void throws { OutOfMemory }
+
+export declare function reserveKnownIndex(frame: KnownRegistration, capacity: u64): void
+    throws { OutOfMemory }
+
+export declare function refreshKnownRegistry(frame: KnownRegistration): void
+
+export declare function rejectKnownType(frame: KnownRegistration): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function prepareUnificationFrame(
+    target: UnificationTarget,
+    left: u32,
+    right: u32,
+    depth: u64,
+    rooted: bool
+): void throws { OutOfMemory }
+
+export declare function walkUnificationFrames(target: UnificationTarget, depth: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function appendUnificationFrame(target: UnificationTarget): void
+    throws { OutOfMemory }
+
+export declare function alignUnificationFields(
+    target: UnificationTarget,
+    existing_names: string[]?,
+    existing_values: u32[],
+    incoming_values: u32[],
+    closed: bool
+): void throws { OutOfMemory }
+
+export declare function popUnificationFrame(target: UnificationTarget): void
+
+export declare function mergeUnificationFields(target: UnificationTarget): u32[]
+    throws { OutOfMemory }
+
+export declare function commitUnification(
+    target: UnificationTarget,
+    parent: u32,
+    child: u32,
+    first_allowed: u16?,
+    second_allowed: u16?,
+    first_fallback: u8?,
+    second_fallback: u8?,
+    kind: u8,
+    argument: u32,
+    members: u32[]
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function internUnificationType(target: UnificationTarget, type_id: u32): u32
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reportUnification(
+    target: UnificationTarget,
+    message: string,
+    depth: bool
+): void throws { OutOfMemory, InvalidSource }

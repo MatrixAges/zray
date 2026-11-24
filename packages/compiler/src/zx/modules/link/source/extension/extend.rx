@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Extension" />
+
+    <Args in={Extension.Request} out={Extension.Plan?} />
+
+    <Call module="select" in={$in.omit(["coverage"])} />
+
+    <If on={$ctx.select != null && $in.coverage != null}>
+        <Call fn="../../../../ir/verified_prefix/scan" in={$in.coverage} />
+
+        <If on={$ctx.scan != $in.coverage.limit}>
+            <Return value={null} />
+        </If>
+    </If>
+
+    <Return value={$ctx.select} />
+</Module>

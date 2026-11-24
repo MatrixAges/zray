@@ -228,7 +228,7 @@ pub const Project = struct {
         const imports = if (item.exported) &frame.export_functions else &frame.imports;
         const constants = if (item.exported) &frame.export_constants else &frame.constant_imports;
 
-        try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
+        try import_binding.applySeed(self.allocator, self.bindingAllocator(), item, .{
             .target = .native,
             .types = self.types.view(),
             .exports = &.{},
@@ -241,7 +241,7 @@ pub const Project = struct {
         const imports = if (item.exported) &frame.export_functions else &frame.imports;
         const constants = if (item.exported) &frame.export_constants else &frame.constant_imports;
 
-        try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
+        try import_binding.applySeed(self.allocator, self.bindingAllocator(), item, .{
             .target = if (target == .source) .source else .compiled,
             .types = self.types.view(),
             .exports = imported.exports,
@@ -278,7 +278,7 @@ pub const Project = struct {
             .{ .named = .{ .signatures = imported.signatures } };
 
         const symbols = import_binding.Symbols{ .target = .source, .types = self.types.view(), .exports = imported.exports, .constants = imported.constant_exports, .functions = names };
-        const selected = try import_binding.select(temporary, self.allocator, item, &symbols, self.reporter);
+        const selected = try import_binding.selectSeed(temporary, item, &symbols, self.reporter);
         const aliases = if (item.exported) &frame.export_aliases else &frame.aliases;
         const constants = if (item.exported) &frame.export_constants else &frame.constant_imports;
 
@@ -426,7 +426,7 @@ pub const Project = struct {
             break :blk result;
         };
 
-        try @import("binding.zig").apply(self.allocator, self.bindingAllocator(), item, .{
+        try import_binding.applySeed(self.allocator, self.bindingAllocator(), item, .{
             .target = .native,
             .types = self.types.view(),
             .exports = unit.exports,

@@ -1,0 +1,74 @@
+<Module>
+    <Type from="model" as="Imports" />
+    <Type from="../../../../../zx/frontend/parser/imports/model" as="Syntax" />
+
+    <Args in={Imports.Input} out={Imports.Input} />
+
+    <If
+        on={$in.imports.length == 0 ||
+            $in.imports[$in.row].kind != Syntax.ImportKind.TypeOnly}
+    >
+        <Call
+            fn="host.openMixedImport"
+            in={[
+                $in.binding,
+                $in.row
+            ]}
+        />
+
+        <If on={$ctx.openMixedImport != null}>
+            <Call module="../../../../../zx/modules/binding/bind" in={$in.symbols[0]} />
+
+            <If on={$ctx.bind.message != ""}>
+                <Call
+                    fn="host.rejectMixedImport"
+                    in={[
+                        $in.binding,
+                        $in.row,
+                        $ctx.bind.message
+                    ]}
+                />
+            </If>
+
+            <If on={$ctx.bind.function_names.length != 0}>
+                <Call
+                    fn="host.selectAllocator"
+                    in={[
+                        $in.scope,
+                        $in.owner
+                    ]}
+                />
+
+                <Call
+                    fn="publish"
+                    in={{
+                        names: $ctx.bind.function_names,
+                        indices: $ctx.bind.function_indices,
+                        rows: $ctx.openMixedImport,
+                        exported: $ctx.openMixedImport.exported,
+                        ...$in.pick([
+                            "functions",
+                            "published",
+                            "layout"
+                        ])
+                    }}
+                />
+
+                <Call
+                    fn="host.selectAllocator"
+                    in={[
+                        $in.scope,
+                        $in.scratch
+                    ]}
+                />
+            </If>
+        </If>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

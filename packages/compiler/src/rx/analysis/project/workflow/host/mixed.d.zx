@@ -1,0 +1,226 @@
+export declare function mixedBatchEnd(state: Mixed, batch: u64): u64
+
+export declare function prefetchMixedWindow(state: Mixed, first: u64, end: u64): u64
+    throws { OutOfMemory }
+
+export declare function restoreMixedPrefix(state: Mixed, first: u64, limit: u64): u64
+    throws { OutOfMemory }
+
+export declare function selectMixedBody(state: Mixed, first: u64, limit: u64): MixedAction
+
+export declare function rejectMixedBody(state: Mixed): u64
+    throws { InvalidSourceGraph }
+
+export declare function preparedMixedZXRow(state: Mixed): u64?
+
+export declare function acceptsPreparedMixedZX(state: Mixed, row: u64): bool
+
+export declare function retirePreparedMixedZX(state: Mixed, row: u64): void
+
+export declare function linkPreparedMixedZX(state: Mixed, row: u64): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function analyzeMixedZX(state: Mixed): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function acceptedPreparedMixedRX(state: Mixed): u64?
+
+export declare function linkPreparedMixedRX(state: Mixed, row: u64): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function lowerMixedRX(state: Mixed): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function skipMixedBody(state: Mixed): u64
+
+export declare function recordMixedBody(state: Mixed): void
+
+export declare function materializeMixedModule(state: Mixed): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function publishMixedObservations(state: Mixed): void throws { OutOfMemory }
+
+export declare function publishMixedExports(state: Mixed): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function retainMixedHistory(state: Mixed): void
+
+export declare function installMixedTypes(state: MixedState): void throws { OutOfMemory }
+
+export declare function installMixedNatives(state: MixedState): void throws { OutOfMemory }
+
+export declare function openMixedResults(state: MixedState): void throws { OutOfMemory }
+
+export declare function installMixedOrigins(state: MixedState): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function installMixedSignatures(state: MixedState): void
+    throws { OutOfMemory }
+
+export declare function installMixedInitializers(state: MixedState): void
+    throws { OutOfMemory }
+
+export declare function installMixedTypeEntry(target: MixedEntry, visible: u64): void
+
+export declare function installMixedFunctionEntry(
+    target: MixedEntry,
+    function_id: u32,
+    visible: u64,
+    entry: u32?
+): void throws { OutOfMemory }
+
+export declare function rejectMixedEntry(target: MixedEntry, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function installMixedExport(
+    target: MixedExports,
+    row: u64,
+    root: u64
+): void throws { OutOfMemory }
+
+export declare function rejectMixedExport(target: MixedExports, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function capturedMixedCallFunctions(
+    capture: MixedObservationCapture,
+    row: u64
+): u64
+
+export declare function detachMixedCall(
+    capture: MixedObservationCapture,
+    row: u64,
+    shared: bool
+): void
+
+export declare function mixedCallNeedsPrefix(target: MixedObservationPublish, row: u64): bool
+
+export declare function restoreMixedCallPrefix(target: MixedObservationPublish, row: u64): void
+    throws { OutOfMemory }
+
+export declare function restoreMixedCallContext(target: MixedObservationPublish, row: u64): void
+
+export declare function restoreMixedReturnContext(target: MixedObservationPublish): void
+
+export declare function reserveMixedWorkers(state: MixedPreparation): u64
+    throws { OutOfMemory }
+
+export declare function mixedResultIsZX(workspace: MixedWorkspace, row: u64): bool
+
+export declare function releaseMixedZXResult(workspace: MixedWorkspace, row: u64): void
+
+export declare function clearMixedResults(workspace: MixedWorkspace): void
+
+export declare function resetMixedWorker(workspace: MixedWorkspace, index: u64): void
+
+export declare function resetMixedBindings(workspace: MixedWorkspace): void
+
+export declare function openMixedCandidate(state: MixedPreparation, index: u64): void
+
+export declare function prepareMixedZXCandidate(
+    state: MixedPreparation,
+    index: u64
+): MixedCandidate? throws { OutOfMemory }
+
+export declare function prepareMixedRXCandidate(
+    state: MixedPreparation,
+    index: u64
+): MixedCandidate? throws { OutOfMemory }
+
+export declare function recordMixedCandidate(
+    state: MixedPreparation,
+    position: u64,
+    result: MixedCandidate
+): void throws { OutOfMemory }
+
+export declare function restoreMixedCandidateDiagnostic(state: MixedPreparation): void
+
+export declare function preparedMixedPositions(state: MixedPreparation): u64[]
+
+export declare function executeMixedWorkers(state: MixedPreparation, participants: u64): void
+
+export declare function preparedMixedIsZX(worker: MixedWorker, row: u64): bool
+
+export declare function runPreparedMixedZX(worker: MixedWorker, row: u64): void
+
+export declare function runPreparedMixedRX(worker: MixedWorker, row: u64): void
+
+export declare function importMixedCallee(
+    binding: MixedCallees,
+    position: u64,
+    target: u64
+): ImportedCallee throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function compileMixedSetter(
+    binding: MixedCallees,
+    position: u64,
+    target: u64
+): u32? throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function restoreMixedCalleeOwner(binding: MixedCallees): void
+
+export declare function rejectMixedCallee(
+    binding: MixedCallees,
+    position: u64,
+    name: bool,
+    message: string
+): void throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function openMixedImport(binding: MixedImports, row: u64): MixedImportRows?
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function rejectMixedImport(binding: MixedImports, row: u64, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function appendMixedBodyLink(
+    body: MixedBodyLink,
+    replace_prefix: bool,
+    type_prefix: u64?,
+    use_shared_initializers: bool,
+    refresh_initializers: bool
+): u64? throws { OutOfMemory }
+
+export declare function rejectMixedBodyLink(body: MixedBodyLink, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function openMixedZXPreparation(source: MixedZXPreparation): MixedZXParse
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function checkMixedZXPreparation(
+    source: MixedZXPreparation,
+    parsed: MixedZXParse
+): void throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function bindMixedZXPreparation(
+    source: MixedZXPreparation,
+    parsed: MixedZXParse,
+    checked: bool
+): void throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function analyzeMixedZXBody(body: MixedZXBody): bool throws { OutOfMemory }
+
+export declare function reportMixedZXBody(body: MixedZXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function mixedZXSetterDeclared(body: MixedZXBody): bool
+
+export declare function mixedZXSetterSlots(body: MixedZXBody): u64
+
+export declare function rejectMixedZXSetter(body: MixedZXBody, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function installMixedZXSetter(body: MixedZXBody): void throws { OutOfMemory }
+
+export declare function linkMixedZXBody(body: MixedZXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function bindMixedRXBody(body: MixedRXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function lowerMixedRXBody(body: MixedRXBody, entry: bool): bool
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function reportMixedRXBody(body: MixedRXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function linkMixedRXBody(body: MixedRXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }

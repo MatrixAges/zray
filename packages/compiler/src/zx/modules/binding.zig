@@ -2,34 +2,21 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const memory = zx.memory;
-const generated = @import("parser_options").generated_parser;
 const Context = @import("binding/context.zig");
 const FunctionImport = @import("function_import.zig");
-const Request = @import("binding/input.zig");
+pub const Request = @import("binding/input.zig");
 const Publisher = @import("binding/publication/host.zig");
 const Reexports = @import("binding/publication/reexports.zig");
 pub const Members = @import("binding/members.zig");
 pub const Symbols = @import("binding/symbols.zig").Symbols;
-pub const Selection = @import("binding/symbols.zig").Selection;
+const Selection = @import("binding/symbols.zig").Selection;
+pub const selectSeed = @import("binding/seed.zig").select;
 
 pub const Lists = struct {
     types: Publisher.TypeLists,
     functions: ?Publisher.FunctionList = null,
     reexports: ?Reexports.List = null,
 };
-
-/// A caller that immediately copies the diagnostic can borrow it from the selection scope.
-pub fn select(allocator: std.mem.Allocator, diagnostics: ?std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter) zx.Error!Selection {
-    if (comptime !generated) return @import("binding/seed.zig").select(allocator, item, symbols, reporter);
-
-    var storage: Request.Storage = undefined;
-    const input = storage.init(item, symbols);
-
-    const output = @import("generated_project_binding").executeValue(allocator, input) catch |err|
-        return bindingFailure(diagnostics orelse allocator, item.span, reporter, err);
-
-    return readSelection(output, diagnostics, reporter);
-}
 
 pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter, lists: Lists) zx.Error!void {
     const rule = @import("generated_project_binding_delivery");
@@ -56,7 +43,11 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
     const result = zx.columns.invoke(rule.executeValue, scope.allocator(), &input) catch |err|
         return bindingFailure(allocator, item.span, reporter, err);
 
-    return reportOutcome(result, allocator, reporter);
+    if (result.message.len != 0) return reporter.fail(
+        .module,
+        .{ .start = @intCast(result.start), .end = @intCast(result.end) },
+        try allocator.dupe(u8, result.message),
+    );
 }
 
 fn bindingFailure(allocator: std.mem.Allocator, span: zx.Span, reporter: *zx.Reporter, err: anyerror) zx.Error {
@@ -67,41 +58,14 @@ fn bindingFailure(allocator: std.mem.Allocator, span: zx.Span, reporter: *zx.Rep
     return reporter.fail(.contract, span, message);
 }
 
-fn readSelection(output: anytype, diagnostics: ?std.mem.Allocator, reporter: *zx.Reporter) zx.Error!Selection {
-    try reportOutcome(output, diagnostics, reporter);
-
-    return .{
-        .aliases = .{ .names = output.alias_names, .indices = output.alias_indices },
-        .constants = .{ .names = output.constant_names, .indices = output.constant_indices },
-        .functions = .{ .names = output.function_names, .indices = output.function_indices },
-        .namespace = output.namespace,
-    };
-}
-
-fn reportOutcome(output: anytype, diagnostics: ?std.mem.Allocator, reporter: *zx.Reporter) zx.Error!void {
-    if (output.message.len != 0) return reporter.fail(
-        .module,
-        .{ .start = @intCast(output.start), .end = @intCast(output.end) },
-        if (diagnostics) |owner| try owner.dupe(u8, output.message) else output.message,
-    );
-}
-
-pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, context: Context, reporter: *zx.Reporter, aliases: *std.ArrayList(zx.ir.Export), imports: *std.ArrayList(FunctionImport), constants: *std.ArrayList(zx.ir.Constant)) zx.Error!void {
+pub fn applySeed(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, context: Context, reporter: *zx.Reporter, aliases: *std.ArrayList(zx.ir.Export), imports: *std.ArrayList(FunctionImport), constants: *std.ArrayList(zx.ir.Constant)) zx.Error!void {
     const members: Members = .{ .default = if (context.default_member) |*member| member else null, .named = context.members };
-    const functions = if (comptime generated) members.names() else if (item.kind == .type_only) Members.Names{} else members.names();
+    const functions = if (item.kind == .type_only) Members.Names{} else members.names();
     const symbols = Symbols{ .target = context.target, .types = context.types, .exports = context.exports, .constants = context.constant_exports, .functions = functions };
-
-    if (comptime generated) {
-        return deliver(allocator, temporary, item, &symbols, reporter, .{
-            .types = .{ .exports = context.exports, .values = context.constant_exports, .aliases = aliases, .constants = constants },
-            .functions = .{ .members = members, .imports = imports },
-        });
-    }
-
-    const selected = try select(temporary, allocator, item, &symbols, reporter);
+    const selected = try selectSeed(temporary, item, &symbols, reporter);
 
     try publishTypes(allocator, selected, context.exports, context.constant_exports, aliases, constants);
-    try publishFunctions(allocator, selected, members, imports);
+    try publishSeedFunctions(allocator, selected, members, imports, &.{}, false);
 }
 
 pub fn publishTypes(allocator: std.mem.Allocator, selected: Selection, exports: []const zx.ir.Export, values: []const zx.ir.Constant, aliases: *std.ArrayList(zx.ir.Export), constants: *std.ArrayList(zx.ir.Constant)) std.mem.Allocator.Error!void {
@@ -124,15 +88,20 @@ pub fn publishTypes(allocator: std.mem.Allocator, selected: Selection, exports: 
     }
 }
 
-pub fn publishFunctions(allocator: std.mem.Allocator, selected: Selection, members: Members, imports: *std.ArrayList(FunctionImport)) std.mem.Allocator.Error!void {
-    const namespace = if (selected.functions.names.len != 0 and selected.namespace != null) try allocator.dupe(u8, selected.namespace.?) else null;
+pub fn publishSeedFunctions(allocator: std.mem.Allocator, selected: Selection, members: Members, imports: *std.ArrayList(FunctionImport), prefix: []const FunctionImport, preserve_namespace: bool) std.mem.Allocator.Error!void {
+    const namespace = if (!preserve_namespace and selected.functions.names.len != 0 and selected.namespace != null) try allocator.dupe(u8, selected.namespace.?) else null;
+    const count = std.math.add(usize, prefix.len, selected.functions.names.len) catch return error.OutOfMemory;
 
-    try imports.ensureUnusedCapacity(allocator, selected.functions.names.len);
+    try imports.ensureUnusedCapacity(allocator, count);
+
+    imports.appendSliceAssumeCapacity(prefix);
 
     for (selected.functions.names, selected.functions.indices) |name, index| {
         var imported = members.at(@intCast(index)).*;
+
         imported.name = try allocator.dupe(u8, name);
-        imported.namespace = namespace;
+
+        if (!preserve_namespace) imported.namespace = namespace;
 
         imports.appendAssumeCapacity(imported);
     }

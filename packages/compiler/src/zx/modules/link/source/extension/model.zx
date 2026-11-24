@@ -1,4 +1,5 @@
 import type { Complete } from "core/function_table/complete"
+import type { Input as Coverage } from "../../../../ir/verified_prefix/scan"
 
 export enum Tail {
     Embedded,
@@ -21,6 +22,10 @@ export type Input = {
     suffix?: Complete,
     maximum_count: u64,
     shared?: Shared
+}
+
+export type Request = Input & {
+    coverage?: Coverage
 }
 
 export type Plan = {

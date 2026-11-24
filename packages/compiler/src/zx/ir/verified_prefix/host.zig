@@ -16,26 +16,34 @@ fn info(comptime name: []const u8) type {
     return std.meta.Child(@typeInfo(@FieldType(Column, name)).optional.child);
 }
 
-pub noinline fn scan(table: *const Table, prefix: *const Table, limit: usize, strict: bool) usize {
-    const names = @typeInfo(Table).@"struct".field_names;
-    var pairs: [names.len]Pair = undefined;
-    var views: [names.len]Column = undefined;
-    var columns: [names.len]*const Column = undefined;
-    var used: usize = 0;
+const names = @typeInfo(Table).@"struct".field_names;
 
-    inline for (names) |name| {
-        const left = @field(table, name);
-        const right = @field(prefix, name);
+pub const Storage = struct {
+    pairs: [names.len]Pair = undefined,
+    views: [names.len]Column = undefined,
+    columns: [names.len]*const Column = undefined,
+    pub fn bind(self: *Storage, table: *const Table, prefix: *const Table, limit: usize, strict: bool) Input {
+        var used: usize = 0;
 
-        if (left.ptr != right.ptr) {
-            views[used] = borrow(&pairs[used], left, right);
-            columns[used] = &views[used];
-            used += 1;
+        inline for (names) |name| {
+            const left = @field(table, name);
+            const right = @field(prefix, name);
+
+            if (left.ptr != right.ptr) {
+                self.views[used] = borrow(&self.pairs[used], left, right);
+                self.columns[used] = &self.views[used];
+                used += 1;
+            }
         }
-    }
 
+        return .{ .columns = self.columns[0..used], .limit = limit, .strict = strict };
+    }
+};
+
+pub noinline fn scan(table: *const Table, prefix: *const Table, limit: usize, strict: bool) usize {
+    var storage: Storage = .{};
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const input: Input = .{ .columns = columns[0..used], .limit = limit, .strict = strict };
+    const input = storage.bind(table, prefix, limit, strict);
 
     return @intCast(zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable);
 }
