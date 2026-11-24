@@ -10,19 +10,8 @@ pub fn View(comptime Functions: type) type {
     const Part = std.meta.Child(@FieldType(Functions, "prefix"));
     const Headers = std.meta.Child(@FieldType(Part, "headers"));
     const References = std.meta.Elem(@FieldType(Part, "bodies"));
-    const Columns = std.meta.Elem(@FieldType(Functions, "columns"));
-    const Column = std.meta.Child(std.meta.Elem(Columns));
+    const Columns = std.meta.Child(@FieldType(Functions, "columns"));
     const Layout = std.meta.Child(@FieldType(Functions, "contract_layout"));
-
-    const Definition = struct {
-        const columns = blk: {
-            var layouts: [groups.len]Columns = undefined;
-
-            for (groups, &layouts) |group, *layout| layout.* = projection.referenced(Column, group[0]);
-
-            break :blk layouts;
-        };
-    };
 
     const Table = struct {
         headers: Headers,
@@ -58,7 +47,7 @@ pub fn View(comptime Functions: type) type {
             self.input = .{
                 .prefix = &self.prefix.view,
                 .local = &self.local.view,
-                .columns = &Definition.columns,
+                .columns = projection.groups(Columns, groups),
                 .contract_layout = referenced.contractLayout(Layout),
             };
         }

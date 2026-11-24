@@ -37,14 +37,14 @@ pub fn publish(input: *const Source.Input, destination: @import("../../program.z
     const values = input.store_initializers;
     const shared = input.shared_initializers;
     const left = memory.borrowTextColumn("identity", values);
-    const right = memory.borrowTextColumn("identity", shared);
     const initial_ids = memory.borrowReadColumn(ir.FunctionId, "function", values);
     const schemas = memory.borrowReadColumn(u32, "schema_version", values);
 
     const prefix: ?Prefix = if (values.len == 0 or shared.len == 0 or nodes.functions != .range) null else .{
-        .left = &.{ .names = @ptrCast(&left), .data = left.bytes, .count = values.len },
-        .right = &.{ .names = @ptrCast(&right), .data = right.bytes, .count = shared.len },
+        .left = &.{ .data = left.bytes, .count = values.len },
+        .right = &.{ .data = std.mem.sliceAsBytes(shared), .count = shared.len },
         .stride = @sizeOf(Initializer),
+        .identity_offset = @offsetOf(Initializer, "identity"),
         .function_id = @offsetOf(Initializer, "function"),
         .schema_version = @offsetOf(Initializer, "schema_version"),
         .little_endian = @import("builtin").target.cpu.arch.endian() == .little,

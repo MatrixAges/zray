@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
 import strings from "zig:string"
-import memory from "memory"
+import memory from "memory/columns"
 
 import type { Prefix } from "./initializer_rows"
 
@@ -41,8 +41,9 @@ export default function (in: Input): Output {
         return false
     }
 
-    const left = memory.readTextColumn(pair.left.names, row)
-    const right = memory.readTextColumn(pair.right.names, row)
+    const identity_offset = start + pair.identity_offset
+    const left = memory.readBorrowedRowText(pair.left.data, identity_offset)
+    const right = memory.readBorrowedRowText(pair.right.data, identity_offset)
 
     return pair.identity ? strings.sameStorage(left, right) : left == right
 }

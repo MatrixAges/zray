@@ -5,27 +5,29 @@ const Surface = frontend.project.artifact.source_link.Surface;
 const memory = @import("zx").memory;
 const little_endian = @import("builtin").target.cpu.arch.endian() == .little;
 
-pub fn equal(current: *const Finished, previous: *const Finished, row: usize) bool {
+pub const Link = struct {
+    earlier: *const Finished,
+    current: *const Finished,
+    row: usize,
+};
+
+pub fn matchHistoryLink(handle: *const anyopaque) bool {
+    const pair: *const Link = @ptrCast(@alignCast(handle));
+    const current = pair.current;
+    const previous = pair.earlier;
+    const row = pair.row;
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const allocator = fixed.allocator();
     const link = @import("generated_rx_mixed_history_link");
     const Input = std.meta.Child(link.Input);
     const Port = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "ports")), "left"));
-    const Row = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "exports")), "left"));
-    const Export = std.meta.Elem(@FieldType(Surface, "exports"));
     const Initializer = std.meta.Elem(@FieldType(Surface, "store_initializers"));
     const left = current.getAssumePresent(row);
     const right = previous.getAssumePresent(row);
-    const left_names = memory.borrowTextColumn("name", left.exports);
-    const right_names = memory.borrowTextColumn("name", right.exports);
-    const left_identities = memory.borrowTextColumn("identity", left.store_initializers);
-    const right_identities = memory.borrowTextColumn("identity", right.store_initializers);
+    const left_exports = memory.borrowNamedRows("type_id", left.exports);
+    const right_exports = memory.borrowNamedRows("type_id", right.exports);
     const left_port = port(Port, left, current.functions[row]);
     const right_port = port(Port, right, previous.functions[row]);
-    const left_exports = rows(Row, &left_names, left.exports);
-    const right_exports = rows(Row, &right_names, right.exports);
-    const left_initializers = rows(Row, &left_identities, left.store_initializers);
-    const right_initializers = rows(Row, &right_identities, right.store_initializers);
     const MemberView = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "members")), "left"));
     const ConstantView = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "constants")), "left"));
     const left_members = frontend.project.FunctionImport.Columns.borrow(left.members);
@@ -46,19 +48,19 @@ pub fn equal(current: *const Finished, previous: *const Finished, row: usize) bo
         },
         .ports = &.{ .left = &left_port, .right = &right_port },
         .exports = &.{
-            .left = &left_exports,
-            .right = &right_exports,
-            .stride = @sizeOf(Export),
-            .type_id = offset(Export, "type_id"),
-            .little_endian = little_endian,
+            .left = @ptrCast(&left_exports),
+            .right = @ptrCast(&right_exports),
+            .left_count = left_exports.len,
+            .right_count = right_exports.len,
             .shared = left.exports.ptr == right.exports.ptr,
         },
         .initializers = &.{
-            .left = &left_initializers,
-            .right = &right_initializers,
+            .left = &.{ .data = std.mem.sliceAsBytes(left.store_initializers), .count = left.store_initializers.len },
+            .right = &.{ .data = std.mem.sliceAsBytes(right.store_initializers), .count = right.store_initializers.len },
             .stride = @sizeOf(Initializer),
-            .function_id = offset(Initializer, "function"),
-            .schema_version = offset(Initializer, "schema_version"),
+            .identity_offset = @offsetOf(Initializer, "identity"),
+            .function_id = @offsetOf(Initializer, "function"),
+            .schema_version = @offsetOf(Initializer, "schema_version"),
             .little_endian = little_endian,
             .shared = left.store_initializers.ptr == right.store_initializers.ptr,
             .identity = false,
@@ -67,19 +69,6 @@ pub fn equal(current: *const Finished, previous: *const Finished, row: usize) bo
     };
 
     return link.executeValue(allocator, &input) catch unreachable;
-}
-
-fn rows(comptime Row: type, names: *const memory.TextColumn, source: anytype) Row {
-    return .{ .names = @ptrCast(names), .data = std.mem.sliceAsBytes(source), .count = source.len };
-}
-
-fn offset(comptime Row: type, comptime field: []const u8) usize {
-    const Value = @FieldType(Row, field);
-    const Raw = if (@typeInfo(Value) == .@"enum") @typeInfo(Value).@"enum".tag_type else Value;
-
-    comptime if (Raw != u32) @compileError("History comparison requires a u32-backed row field");
-
-    return @offsetOf(Row, field);
 }
 
 fn port(comptime Port: type, value: *const Surface, function: ?u32) Port {

@@ -1,36 +1,116 @@
-import type { Complete } from "core/function_table/complete"
+import memory from "memory/columns"
 
-export type Columns = Complete.Pick(
-    "native_inputs",
-    "native_errors",
-    "native_members",
-    "native_exports"
-)
-
-export type Input = {
-    left: Columns,
-    right: Columns
-}
+import type { Range as Input } from "./range"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { left, right } = in
+    const { earlier, current, first, end } = in
+
+    const native = in.layout.native
+
+    const left_members = memory.readReferenceTextListsRange(
+        memory.readReferenceColumn(
+            earlier,
+            native.members.earlier
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const right_members = memory.readReferenceTextListsRange(
+        memory.readReferenceColumn(
+            current,
+            native.members.current
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const left_exports = memory.readReferenceOptionalTextRange(
+        memory.readReferenceColumn(
+            earlier,
+            native.exports.earlier
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const right_exports = memory.readReferenceOptionalTextRange(
+        memory.readReferenceColumn(
+            current,
+            native.exports.current
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const left_error_lists = memory.readReferenceOptionalTextListsRange(
+        memory.readReferenceColumn(
+            earlier,
+            native.errors.earlier
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const right_error_lists = memory.readReferenceOptionalTextListsRange(
+        memory.readReferenceColumn(
+            current,
+            native.errors.current
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const left_inputs = memory.readReferenceOptionalNamedListsRange(
+        memory.readReferenceColumn(
+            earlier,
+            native.inputs.earlier
+            ,
+            null
+        ),
+        first,
+        end
+    )
+
+    const right_inputs = memory.readReferenceOptionalNamedListsRange(
+        memory.readReferenceColumn(
+            current,
+            native.inputs.current
+            ,
+            null
+        ),
+        first,
+        end
+    )
 
     return loop({
         index: 0,
-        equal: left.native_members.length == right.native_members.length
+        equal: left_members.length == right_members.length
     }, {
-        while: row => row.equal && row.index < left.native_members.length,
+        while: row => row.equal && row.index < left_members.length,
         next: row => {
             const i = row.index
-            const lhs = left.native_members[i]
-            const rhs = right.native_members[i]
+            const lhs = left_members[i]
+            const rhs = right_members[i]
 
             const members = loop({
                 index: 0,
-                equal: lhs.length == rhs.length && left.native_exports[i] ==
-                    right.native_exports[i]
+                equal: lhs.length == rhs.length && left_exports[i] ==
+                    right_exports[i]
             }, {
                 while: item => item.equal && item.index < lhs.length,
                 next: item => {
@@ -40,8 +120,8 @@ export default function (in: Input): Output {
                 return: item => item.equal
             })
 
-            const left_errors = left.native_errors[i]
-            const right_errors = right.native_errors[i]
+            const left_errors = left_error_lists[i]
+            const right_errors = right_error_lists[i]
             const errors = match {
                 !members => false,
                 left_errors == null || right_errors == null =>
@@ -60,8 +140,8 @@ export default function (in: Input): Output {
                 })
             }
 
-            const left_names = left.native_inputs[i]
-            const right_names = right.native_inputs[i]
+            const left_names = left_inputs[i]
+            const right_names = right_inputs[i]
 
             row.equal = match {
                 !errors => false,

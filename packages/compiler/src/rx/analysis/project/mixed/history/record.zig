@@ -4,7 +4,8 @@ const History = @import("../../history.zig");
 const Reuse = @import("../reuse.zig");
 const State = @import("../state.zig");
 const alignment = @import("alignment.zig");
-const comparison = @import("comparison.zig");
+const compare = @import("frontend").compare_ir;
+const linked = @import("linked.zig");
 const Snapshot = @import("snapshot.zig").Storage;
 const columns = @import("../../history/columns.zig");
 
@@ -23,8 +24,9 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
     var edges_input: std.meta.Child(@FieldType(Analysis, "dependencies")) = undefined;
     var functions_input: std.meta.Child(@FieldType(Analysis, "functions")) = undefined;
     var comparison_input: std.meta.Child(@FieldType(Analysis, "comparison")) = undefined;
-    var link: comparison.Link = undefined;
-    var functions: comparison.Range = undefined;
+    const Range = std.meta.Child(@FieldType(@TypeOf(comparison_input), "functions"));
+    var link: linked.Link = undefined;
+    var functions: Range = undefined;
     const prior = if (reuse.aligned) reuse.previous else null;
 
     const analysis: Analysis = if (prior) |previous| block: {
@@ -48,15 +50,8 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
         };
 
         link = .{ .earlier = &previous.finished, .current = &state.finished, .row = index };
-
-        functions = .{
-            .earlier = &previous.functions,
-            .current = &state.functions,
-            .first = before.functions,
-            .end = @intCast(storage.extent.functions),
-        };
-
-        comparison_input = .{ .link = @ptrCast(&link), .functions = @ptrCast(&functions) };
+        functions = compare.range(Range, &previous.functions, &state.functions, before.functions, @intCast(storage.extent.functions));
+        comparison_input = .{ .link = @ptrCast(&link), .functions = &functions };
 
         break :block .{
             .alignment = &types,

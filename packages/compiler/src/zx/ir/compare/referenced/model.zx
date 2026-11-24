@@ -7,11 +7,18 @@ export enum Storage {
     Texts
 }
 
-export type Column = {
-    storage: Storage,
-    offset: u64,
-    width: u64,
-    mask: u8
+export type Columns = {
+    offsets: u64[],
+    widths: u64[],
+    masks: u8[],
+    storage: Storage[]
+}
+
+export type ColumnGroups = {
+    offsets: u64[][],
+    widths: u64[][],
+    masks: u8[][],
+    storage: Storage[][]
 }
 
 export type Pair = {
@@ -25,14 +32,14 @@ export type RowIndices = {
 }
 
 export type Table = Pair & {
-    columns: Column[]
+    columns: Columns
 }
 
 export type Nested = {
     symbols: u64,
     expressions: u64,
-    symbol_columns: Column[],
-    expression_columns: Column[]
+    symbol_columns: Columns,
+    expression_columns: Columns
 }
 
 export type Contracts = Pair & {

@@ -1,12 +1,13 @@
 const std = @import("std");
-const zx = @import("zx");
 const History = @import("../../history.zig");
 const State = @import("../state.zig");
 const alignment = @import("alignment.zig");
-const comparisons = @import("comparison.zig");
+const compare = @import("frontend").compare_ir;
 const Snapshot = @import("snapshot.zig").Storage;
 const rule = @import("generated_rx_mixed_history_start");
 const Input = std.meta.Child(rule.Input);
+const Earlier = std.meta.Child(@typeInfo(@FieldType(Input, "earlier")).optional.child);
+const Range = std.meta.Child(@FieldType(Earlier, "functions"));
 
 pub fn begin(state: *const State, previous: ?*const History.Retained, shape: *const [32]u8, initial: *History.Checkpoint) bool {
     var storage: Snapshot = undefined;
@@ -20,13 +21,7 @@ pub fn begin(state: *const State, previous: ?*const History.Retained, shape: *co
     const current_paths = current.modules.items(.path);
     var borrowed: alignment.Borrowed = undefined;
     const types = borrowed.project(state, retained, &History.Checkpoint.zero, boundary, &storage.extent);
-
-    const functions: comparisons.Range = .{
-        .earlier = &retained.functions,
-        .current = &state.functions,
-        .first = 0,
-        .end = @intCast(storage.extent.functions),
-    };
+    const functions = compare.range(Range, &retained.functions, &state.functions, 0, @intCast(storage.extent.functions));
 
     return execute(&.{
         .capture = &capture,
@@ -47,7 +42,7 @@ pub fn begin(state: *const State, previous: ?*const History.Retained, shape: *co
                 .shared_paths = earlier_paths.ptr == current_paths.ptr,
             },
             .alignment = &types,
-            .functions = @ptrCast(&functions),
+            .functions = &functions,
         },
     });
 }

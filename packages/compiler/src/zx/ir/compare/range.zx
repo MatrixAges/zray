@@ -1,0 +1,40 @@
+import type { ReferenceRow } from "memory/columns"
+import type { ColumnGroups, Columns, Nested } from "./referenced/model"
+
+export type Offsets = {
+    earlier: u64,
+    current: u64
+}
+
+export type Headers = Columns & {
+    current_offsets: u64[]
+}
+
+export type Bodies = {
+    earlier_offsets: u64[],
+    current_offsets: u64[],
+    columns: ColumnGroups
+}
+
+export type Native = {
+    members: Offsets,
+    exports: Offsets,
+    errors: Offsets,
+    inputs: Offsets
+}
+
+export type Layout = {
+    headers: Headers,
+    native: Native,
+    bodies: Bodies,
+    contract: Nested,
+    contract_offsets: Offsets
+}
+
+export type Range = {
+    earlier: ReferenceRow,
+    current: ReferenceRow,
+    first: u64,
+    end: u64,
+    layout: Layout
+}

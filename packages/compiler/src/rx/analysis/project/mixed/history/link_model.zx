@@ -1,5 +1,5 @@
 import type { Rows as ConstantRows } from "core/constant/rows"
-import type { TextColumn } from "memory"
+import type { NamedRows } from "memory"
 import type { BindingColumns } from "../../../../../zx/modules/binding/model"
 import type { Prefix } from "../../../../../zx/modules/link/source/initializer_rows"
 
@@ -9,27 +9,17 @@ export type Port = {
     output_type: u32
 }
 
-export type Rows = {
-    names: TextColumn,
-    data: u8[],
-    count: u64
-}
-
 export type PortPair = {
     left: Port,
     right: Port
 }
 
-export type RowPair = {
-    left: Rows,
-    right: Rows,
-    stride: u64,
-    little_endian: bool,
+export type ExportPair = {
+    left: NamedRows,
+    right: NamedRows,
+    left_count: u64,
+    right_count: u64,
     shared: bool
-}
-
-export type ExportPair = RowPair & {
-    type_id: u64
 }
 
 export type InitializerPair = Prefix

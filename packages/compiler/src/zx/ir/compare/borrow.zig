@@ -1,7 +1,7 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 
-pub const Function = Columns(.function, struct {
+pub const Function = Columns(struct {
     *const ir.StoreTable,
     *const ir.SymbolTable,
     *const ir.ExpressionTable,
@@ -9,49 +9,43 @@ pub const Function = Columns(.function, struct {
     *const ir.ContractTable,
 });
 
-pub const Header = Columns(.header, struct { *const ir.FunctionTable });
 const Mode = enum { function, body, header };
 const Kind = enum { words, tags, options, text };
 const Counts = struct { words: usize = 0, tags: usize = 0, options: usize = 0, text: usize = 0 };
 
-fn Columns(comptime mode: Mode, comptime Tables: type) type {
-    const sizes = count(mode, Tables);
+fn Columns(comptime Tables: type) type {
+    const sizes = count(.function, Tables);
 
     return struct {
         const Self = @This();
-        pub const masks = tagMasks(mode, Tables, sizes.tags);
+        pub const masks = tagMasks(.function, Tables, sizes.tags);
         words: [sizes.words][]const u8,
         tags: [sizes.tags][]const u8,
         options: [sizes.options][]const ?u32,
         text: [sizes.text][]const []const u8,
         pub fn borrow(self: *Self, tables: Tables) void {
-            self.borrowRange(tables, 0, null);
-        }
-        pub fn borrowRange(self: *Self, tables: Tables, start: usize, end: ?usize) void {
-            comptime var offsets: Counts = .{};
+            comptime var positions: Counts = .{};
 
             inline for (tables) |table| {
                 const Table = std.meta.Child(@TypeOf(table));
 
                 inline for (@typeInfo(Table).@"struct".field_names) |name| {
-                    if (comptime !included(mode, Table, name)) continue;
+                    if (comptime !included(.function, Table, name)) continue;
 
-                    const column = @field(table, name);
-                    const field = column[start .. end orelse column.len];
+                    const field = @field(table, name);
                     const kind = comptime classify(std.meta.Elem(@TypeOf(field)));
                     const group = @tagName(kind);
-                    const index = @field(offsets, group);
+                    const index = @field(positions, group);
 
                     @field(self, group)[index] = switch (kind) {
                         .words, .tags => std.mem.sliceAsBytes(field),
                         .options, .text => field,
                     };
 
-                    @field(offsets, group) += 1;
+                    @field(positions, group) += 1;
                 }
             }
         }
-
         pub fn view(self: *const Self, comptime Target: type) Target {
             return .{ .words = &self.words, .tags = &self.tags, .options = &self.options, .text = &self.text };
         }
@@ -102,46 +96,103 @@ fn tagMasks(comptime mode: Mode, comptime Tables: type, comptime size: usize) [s
     return result;
 }
 
-pub fn referenced(comptime Spec: type, comptime Table: type) []const *const Spec {
-    @setEvalBranchQuota(100_000);
-
-    const descriptors = comptime rows(Spec, Table);
-
-    const pointers = comptime blk: {
-        var result: [descriptors.len]*const Spec = undefined;
-
-        for (&result, &descriptors) |*slot, *column| slot.* = column;
-
-        break :blk result;
-    };
-
-    return &pointers;
+pub fn referenced(comptime Target: type, comptime Table: type) *const Target {
+    return view(Target, Table, .body);
 }
 
-fn rows(comptime Spec: type, comptime Table: type) [rowCount(Table)]Spec {
-    var result: [rowCount(Table)]Spec = undefined;
+pub fn headers(comptime Target: type) *const Target {
+    return view(Target, ir.FunctionTable, .header);
+}
+
+fn view(comptime Target: type, comptime Table: type, comptime mode: Mode) *const Target {
+    const Storage = std.meta.Elem(@FieldType(Target, "storage"));
+    const values = comptime describe(Storage, Table, mode);
+
+    const Static = struct {
+        const layout: Target = layout: {
+            var result: Target = undefined;
+
+            for (@typeInfo(Target).@"struct".field_names) |name| {
+                @field(result, name) = &@field(values, name);
+            }
+
+            break :layout result;
+        };
+    };
+
+    return &Static.layout;
+}
+
+pub fn groups(comptime Target: type, comptime tables: anytype) *const Target {
+    const Storage = std.meta.Elem(std.meta.Elem(@FieldType(Target, "storage")));
+
+    const Static = struct {
+        const layout: Target = layout: {
+            var result: Target = undefined;
+
+            for (@typeInfo(Target).@"struct".field_names) |name| {
+                const slices = table_columns: {
+                    var values: [tables.len]std.meta.Elem(@FieldType(Target, name)) = undefined;
+
+                    for (tables, 0..) |table, index| {
+                        const columns = describe(Storage, table[0], .body);
+
+                        values[index] = &@field(columns, name);
+                    }
+
+                    break :table_columns values;
+                };
+
+                @field(result, name) = &slices;
+            }
+
+            break :layout result;
+        };
+    };
+
+    return &Static.layout;
+}
+
+fn Layout(comptime Storage: type, comptime Table: type, comptime mode: Mode) type {
+    const size = count(mode, struct { *const Table });
+    const length = size.words + size.tags + size.options + size.text;
+
+    return struct {
+        offsets: [length]u64,
+        current_offsets: [if (mode == .header) length else 0]u64,
+        widths: [length]u64,
+        masks: [length]u8,
+        storage: [length]Storage,
+    };
+}
+
+fn describe(comptime Storage: type, comptime Table: type, comptime mode: Mode) Layout(Storage, Table, mode) {
+    @setEvalBranchQuota(100_000);
+
+    var result: Layout(Storage, Table, mode) = undefined;
     const order = [_]Kind{ .words, .tags, .options, .text };
     var index: usize = 0;
 
     for (order) |kind| {
         for (@typeInfo(Table).@"struct".field_names) |name| {
-            if (!included(.body, Table, name)) continue;
+            if (!included(mode, Table, name)) continue;
 
             const Element = std.meta.Elem(@FieldType(Table, name));
 
             if (classify(Element) != kind) continue;
 
-            result[index] = .{
-                .storage = switch (kind) {
-                    .words => .Bytes,
-                    .tags => .Tags,
-                    .options => .OptionalIds,
-                    .text => .Texts,
-                },
-                .offset = @offsetOf(Table, name),
-                .width = @sizeOf(Element),
-                .mask = if (kind == .tags) tagMask(Element) else 0,
+            result.storage[index] = switch (kind) {
+                .words => .Bytes,
+                .tags => .Tags,
+                .options => .OptionalIds,
+                .text => .Texts,
             };
+
+            result.offsets[index] = @offsetOf(Table, name);
+            result.widths[index] = @sizeOf(Element);
+            result.masks[index] = if (kind == .tags) tagMask(Element) else 0;
+
+            if (mode == .header) result.current_offsets[index] = storageOffset(name);
 
             index += 1;
         }
@@ -150,10 +201,16 @@ fn rows(comptime Spec: type, comptime Table: type) [rowCount(Table)]Spec {
     return result;
 }
 
-fn rowCount(comptime Table: type) usize {
-    const size = count(.body, struct { *const Table });
+pub fn offsets(comptime Target: type, comptime name: []const u8) Target {
+    return .{ .earlier = @offsetOf(ir.FunctionTable, name), .current = storageOffset(name) };
+}
 
-    return size.words + size.tags + size.options + size.text;
+fn storageOffset(comptime name: []const u8) usize {
+    const List = @FieldType(ir.FunctionStorage, name);
+
+    comptime std.debug.assert(std.meta.Elem(@FieldType(ir.FunctionTable, name)) == std.meta.Elem(@FieldType(List, "items")));
+
+    return @offsetOf(ir.FunctionStorage, name) + @offsetOf(List, "items");
 }
 
 fn tagMask(comptime Element: type) u8 {

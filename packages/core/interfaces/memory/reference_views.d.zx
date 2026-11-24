@@ -23,6 +23,55 @@ export declare function readReferenceRange(
     end: u64
 ): u8[] throws { IndexOutOfBounds }
 
+export declare function readReferenceColumn(
+    source: ReferenceRow,
+    offset: u64,
+    shape: ReferenceRows?
+): ReferenceRows throws { IndexOutOfBounds }
+
+export declare function readReferenceByteRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64,
+    width: u64
+): u8[] throws { IndexOutOfBounds }
+
+export declare function readReferenceOptionalU32Range(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): u32?[] throws { IndexOutOfBounds }
+
+export declare function readReferenceTextRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): string[] throws { IndexOutOfBounds }
+
+export declare function readReferenceOptionalTextRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): string?[] throws { IndexOutOfBounds }
+
+export declare function readReferenceTextListsRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): string[][] throws { IndexOutOfBounds }
+
+export declare function readReferenceOptionalTextListsRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): string[]?[] throws { IndexOutOfBounds }
+
+export declare function readReferenceOptionalNamedListsRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): string?[]?[] throws { IndexOutOfBounds }
+
 export declare function selectReferenceRow(
     source: ReferenceRows,
     row: u64,

@@ -53,7 +53,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/mixed/body/link.zig"),
     @import("project/mixed/callees.zig"),
     @import("project/mixed/exports.zig"),
-    @import("project/mixed/history/comparison.zig"),
+    @import("project/mixed/history/linked.zig"),
     @import("project/mixed/imports.zig"),
     @import("project/mixed/metadata.zig"),
     @import("project/mixed/publication.zig"),

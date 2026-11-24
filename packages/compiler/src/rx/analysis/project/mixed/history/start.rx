@@ -36,9 +36,9 @@
             <Return value={false} />
         </If>
 
-        <Call fn="index.matchHistoryHeaders" in={$in.earlier.functions} />
+        <Call module="../../../../../zx/ir/compare/header" in={$in.earlier.functions} />
 
-        <Return value={$ctx.matchHistoryHeaders} />
+        <Return value={$ctx.header} />
     </If>
 
     <Return value={false} />

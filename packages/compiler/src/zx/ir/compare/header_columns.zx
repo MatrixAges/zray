@@ -1,0 +1,67 @@
+import bytes from "std:bytes"
+import memory from "memory/columns"
+
+import optionalIds from "./optional_ids"
+import { Storage } from "./referenced/model"
+import tags from "./tags"
+import texts from "./texts"
+
+import type { Range as Input } from "./range"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { earlier, current, first, end, layout } = in
+
+    const headers = layout.headers
+
+    return loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < headers.storage.length,
+        next: state => {
+            const index = state.index
+            const width = headers.widths[index]
+            const left =
+                memory.readReferenceColumn(earlier, headers.offsets[index], null)
+            const right =
+                memory.readReferenceColumn(
+                    current,
+                    headers.current_offsets[index],
+                    null
+                )
+
+            state.equal = match headers.storage[index] {
+                Storage.Bytes => bytes.equals(
+                    memory.readReferenceByteRange(
+                        left,
+                        first,
+                        end,
+                        width
+                    ),
+                    memory.readReferenceByteRange(right, first, end, width)
+                ),
+                Storage.Tags => tags({
+                    left: memory.readReferenceByteRange(left, first, end, width),
+                    right: memory.readReferenceByteRange(right, first, end, width),
+                    mask: headers.masks[index]
+                }),
+                Storage.OptionalIds => optionalIds({
+                    left: memory.readReferenceOptionalU32Range(left, first, end),
+                    right: memory.readReferenceOptionalU32Range(
+                        right,
+                        first,
+                        end
+                    )
+                }),
+                _ => texts({
+                    left: memory.readReferenceTextRange(left, first, end),
+                    right: memory.readReferenceTextRange(right, first, end)
+                })
+            }
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+}

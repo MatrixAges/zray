@@ -9,13 +9,13 @@
         <Return value={false} />
     </If>
 
-    <Call fn="index.matchHistoryHeaders" in={$in.functions} />
+    <Call module="../../../../../zx/ir/compare/header" in={$in.functions} />
 
-    <If on={!$ctx.matchHistoryHeaders}>
+    <If on={!$ctx.header}>
         <Return value={false} />
     </If>
 
-    <Call fn="index.matchHistoryBodies" in={$in.functions} />
+    <Call fn="../../../../../zx/ir/compare/referenced/bodies" in={$in.functions} />
 
-    <Return value={$ctx.matchHistoryBodies} />
+    <Return value={$ctx.bodies} />
 </Module>

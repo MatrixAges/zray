@@ -18,14 +18,19 @@ export default function (in: Input): Output {
         index: 0,
         equal: true
     }, {
-        while: state => state.equal && state.index < columns.length,
+        while: state => state.equal && state.index < columns.offsets.length,
         next: state => {
             const index = state.index
 
             state.equal = compare({
                 left: left.bodies[index],
                 right: right.bodies[index],
-                columns: columns[index],
+                columns: {
+                    offsets: columns.offsets[index],
+                    widths: columns.widths[index],
+                    masks: columns.masks[index],
+                    storage: columns.storage[index]
+                },
                 left_row,
                 right_row
             })

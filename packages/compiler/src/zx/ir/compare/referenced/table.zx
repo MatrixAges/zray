@@ -26,12 +26,13 @@ export default function (in: Input): Output {
         index: 0,
         equal: true
     }, {
-        while: state => state.equal && state.index < columns.length,
+        while: state => state.equal && state.index < columns.storage.length,
         next: state => {
-            const column = columns[state.index]
-            const { offset, width } = column
+            const index = state.index
+            const offset = columns.offsets[index]
+            const width = columns.widths[index]
 
-            state.equal = match column.storage {
+            state.equal = match columns.storage[index] {
                 Storage.Bytes => bytes.equals(
                     memory.readReferenceRowBytes(a, offset, width),
                     memory.readReferenceRowBytes(b, offset, width)
@@ -39,7 +40,7 @@ export default function (in: Input): Output {
                 Storage.Tags => tags({
                     left: memory.readReferenceRowBytes(a, offset, width),
                     right: memory.readReferenceRowBytes(b, offset, width),
-                    mask: column.mask
+                    mask: columns.masks[index]
                 }),
                 Storage.OptionalIds => optionalIds({
                     left: memory.readReferenceRowOptionalU32(a, offset),

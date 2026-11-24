@@ -1,6 +1,6 @@
 import type { Complete } from "core/function_table/complete"
 import type { ReferenceRows } from "memory/columns"
-import type { Column, Nested } from "../referenced/model"
+import type { ColumnGroups, Nested } from "../referenced/model"
 
 export type Headers = Complete.Omit(
     "stores",
@@ -19,6 +19,6 @@ export type Part = {
 export type Functions = {
     prefix: Part,
     local: Part,
-    columns: Column[][],
+    columns: ColumnGroups,
     contract_layout: Nested
 }

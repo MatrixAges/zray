@@ -193,8 +193,6 @@ export type ImportedCallee = {
 
 export type HistoryParseCache = opaque
 
-export type HistoryFunctionRange = opaque
-
 export type HistoryModuleLink = opaque
 
 export enum MixedAction {

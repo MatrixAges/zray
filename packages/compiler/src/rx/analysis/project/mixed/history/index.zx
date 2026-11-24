@@ -1,5 +1,1 @@
-export {
-    matchHistoryLink,
-    matchHistoryHeaders,
-    matchHistoryBodies
-} from "rx_project_host"
+export { matchHistoryLink } from "rx_project_host"

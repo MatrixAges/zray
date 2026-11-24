@@ -1,15 +1,19 @@
 <Module>
-    <Type from="model" as="Comparison" />
+    <Type from="range" as="Comparison" />
 
-    <Args in={Comparison.Header} out={bool} />
+    <Args in={Comparison.Range} out={bool} />
 
-    <Call fn="columns" in={$in.columns} />
+    <If on={$in.first == $in.end}>
+        <Return value={true} />
+    </If>
 
-    <If on={!$ctx.columns}>
+    <Call fn="header_columns" in={$in} />
+
+    <If on={!$ctx.header_columns}>
         <Return value={false} />
     </If>
 
-    <Call fn="native_columns" in={$in.native} />
+    <Call fn="native_columns" in={$in} />
 
     <Return value={$ctx.native_columns} />
 </Module>

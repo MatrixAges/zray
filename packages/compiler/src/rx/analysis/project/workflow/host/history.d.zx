@@ -5,7 +5,3 @@ export declare function historyBodyOpening(
 ): u64? throws { OutOfMemory }
 
 export declare function matchHistoryLink(link: HistoryModuleLink): bool
-
-export declare function matchHistoryHeaders(range: HistoryFunctionRange): bool
-
-export declare function matchHistoryBodies(range: HistoryFunctionRange): bool

@@ -1,47 +1,60 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
-
-pub const borrow = @import("borrow.zig");
+const ir = @import("zx").ir;
+const columns = @import("borrow.zig");
+const referenced = @import("referenced/host.zig");
 pub const initializer = @import("initializer.zig");
-pub const bodies = @import("referenced/host.zig").bodies;
 
-pub fn headers(left: *const ir.FunctionTable, right: *const ir.FunctionTable, start: usize, end: usize) bool {
-    if (start == end) return true;
+pub fn range(comptime Target: type, earlier: *const ir.FunctionTable, current: *const ir.FunctionStorage, first: usize, end: usize) Target {
+    const Layout = std.meta.Child(@FieldType(Target, "layout"));
+    const Native = std.meta.Child(@FieldType(Layout, "native"));
+    const Bodies = std.meta.Child(@FieldType(Layout, "bodies"));
+    const Header = std.meta.Child(@FieldType(Layout, "headers"));
+    const Groups = std.meta.Child(@FieldType(Bodies, "columns"));
+    const Offsets = std.meta.Child(@FieldType(Native, "members"));
+    const Contract = std.meta.Child(@FieldType(Layout, "contract"));
+    const groups = referenced.groups;
 
-    const entry = @import("generated_ir_compare_header");
-    const Input = std.meta.Child(entry.Input);
-    const Pair = std.meta.Child(@FieldType(Input, "columns"));
-    const View = std.meta.Child(@FieldType(Pair, "left"));
-    const Native = std.meta.Child(@FieldType(Input, "native"));
-    const NativeColumns = std.meta.Child(@FieldType(Native, "left"));
-    var lhs: borrow.Header = undefined;
-    var rhs: borrow.Header = undefined;
+    const Static = struct {
+        const offsets: struct { [groups.len]u64, [groups.len]u64 } = data: {
+            var earlier_offsets: [groups.len]u64 = undefined;
+            var current_offsets: [groups.len]u64 = undefined;
 
-    lhs.borrowRange(.{left}, start, end);
-    rhs.borrowRange(.{right}, start, end);
+            for (groups, 0..) |group, index| {
+                const pair = columns.offsets(Offsets, group[1]);
 
-    const a = lhs.view(View);
-    const b = rhs.view(View);
-    const native_left = native(NativeColumns, left, start, end);
-    const native_right = native(NativeColumns, right, start, end);
+                earlier_offsets[index] = pair.earlier;
+                current_offsets[index] = pair.current;
+            }
 
-    const input: Input = .{
-        .columns = &.{ .left = &a, .right = &b, .masks = &borrow.Header.masks },
-        .native = &.{ .left = &native_left, .right = &native_right },
+            break :data .{ earlier_offsets, current_offsets };
+        };
+
+        const bodies: Bodies = .{
+            .earlier_offsets = &offsets[0],
+            .current_offsets = &offsets[1],
+            .columns = columns.groups(Groups, groups),
+        };
+        const native: Native = .{
+            .members = &columns.offsets(Offsets, "native_members"),
+            .exports = &columns.offsets(Offsets, "native_exports"),
+            .errors = &columns.offsets(Offsets, "native_errors"),
+            .inputs = &columns.offsets(Offsets, "native_inputs"),
+        };
+
+        const layout: Layout = .{
+            .headers = columns.headers(Header),
+            .native = &native,
+            .bodies = &bodies,
+            .contract = referenced.contractLayout(Contract),
+            .contract_offsets = &columns.offsets(Offsets, "contracts"),
+        };
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return entry.executeIn(fixed.allocator(), &input) catch unreachable;
-}
-
-fn native(comptime View: type, table: *const ir.FunctionTable, start: usize, end: usize) View {
-    var result: View = undefined;
-
-    inline for (@typeInfo(View).@"struct".field_names) |name| {
-        @field(result, name) = @field(table, name)[start..end];
-    }
-
-    return result;
+    return .{
+        .earlier = @ptrCast(earlier),
+        .current = @ptrCast(current),
+        .first = first,
+        .end = end,
+        .layout = &Static.layout,
+    };
 }

@@ -4,32 +4,33 @@ import memory from "memory/columns"
 import contracts from "./contracts"
 import table from "./table"
 
-import type { Contracts, Table } from "./model"
-
-export type Input = {
-    tables: Table[],
-    contracts: Contracts,
-    first: u64,
-    end: u64
-}
+import type { Range as Input } from "../range"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { tables, first, end } = in
+    const { earlier, current, first, end, layout } = in
+    const { earlier_offsets, current_offsets, columns } = layout.bodies
+
+    if (first == end) {
+        return true
+    }
 
     const shared = loop({
         index: 0,
         equal: true
     }, {
-        while: state => state.equal && state.index < tables.length,
+        while: state => state.equal && state.index < earlier_offsets.length,
         next: state => {
-            const pair = tables[state.index]
+            const index = state.index
+            const left =
+                memory.readReferenceColumn(earlier, earlier_offsets[index], null)
+            const right =
+                memory.readReferenceColumn(current, current_offsets[index], null)
+            const lhs = memory.readReferenceRange(left, first, end)
+            const rhs = memory.readReferenceRange(right, first, end)
 
-            const left = memory.readReferenceRange(pair.left, first, end)
-            const right = memory.readReferenceRange(pair.right, first, end)
-
-            state.equal = bytes.equals(left, right)
+            state.equal = bytes.equals(lhs, rhs)
             state.index += 1
         },
         return: state => state.equal
@@ -38,6 +39,18 @@ export default function (in: Input): Output {
     if (shared) {
         return true
     }
+
+    const left_contracts = memory.readReferenceColumn(
+        earlier,
+        layout.contract_offsets.earlier,
+        null
+    )
+
+    const right_contracts = memory.readReferenceColumn(
+        current,
+        layout.contract_offsets.current,
+        null
+    )
 
     return loop({
         row: first,
@@ -51,10 +64,29 @@ export default function (in: Input): Output {
                 index: 0,
                 equal: true
             }, {
-                while: item => item.equal && item.index < tables.length,
+                while: item => item.equal && item.index < earlier_offsets.length,
                 next: item => {
+                    const index = item.index
+                    const left = memory.readReferenceColumn(
+                        earlier,
+                        earlier_offsets[index],
+                        null
+                    )
+                    const right = memory.readReferenceColumn(
+                        current,
+                        current_offsets[index],
+                        null
+                    )
+
                     item.equal = table({
-                        ...tables[item.index],
+                        left,
+                        right,
+                        columns: {
+                            offsets: columns.offsets[index],
+                            widths: columns.widths[index],
+                            masks: columns.masks[index],
+                            storage: columns.storage[index]
+                        },
                         left_row: row,
                         right_row: row
                     })
@@ -65,7 +97,9 @@ export default function (in: Input): Output {
 
             if (state.equal) {
                 state.equal = contracts({
-                    ...in.contracts,
+                    left: left_contracts,
+                    right: right_contracts,
+                    layout: layout.contract,
                     left_row: row,
                     right_row: row
                 })
