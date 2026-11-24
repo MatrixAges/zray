@@ -3,15 +3,13 @@ import memory from "memory"
 import type { Counters } from "./model"
 
 export type Input = Counters & {
-    count: u64
+    count: u64,
+    verified_end: u64
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.writeU64(in.verified, 0, in.verified_end)
-
-    const reused = memory.readU64(in.reused, 0)
-
-    memory.writeU64(in.reused, 0, reused + in.count)
+    memory.writeColumnIndex(in.verified, 0, in.verified_end)
+    memory.writeColumnIndex(in.reused, 0, in.reused_before + in.count)
 }

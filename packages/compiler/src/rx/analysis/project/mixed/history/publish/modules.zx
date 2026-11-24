@@ -1,29 +1,29 @@
+import memory from "memory"
+
 import copySpan from "./span"
 
-import type { Modules } from "./model"
+import type { Input as Publication } from "./model"
 
-export type Input = {
-    rows: u64[],
-    modules: Modules
-}
+export type Input = Publication.Pick("rows", "modules", "first", "end")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { rows, modules } = in
+    const { rows, modules, end } = in
     const { surfaces, functions, present, available } = modules
 
-    const copied = loop(0, {
-        while: position => position < rows.length,
+    const copied = loop(in.first, {
+        while: position => position < end,
         next: position => {
-            const first = rows[position]
+            const first = memory.readColumnIndex(rows, position)
             const loaded = available[first]
-            const end = loop({
+            const next = loop({
                 next: position + 1,
                 row: first + 1
             }, {
                 while: state =>
-                    state.next < rows.length && rows[state.next] == state.row &&
+                    state.next < end &&
+                    memory.readColumnIndex(rows, state.next) == state.row &&
                     available[state.row] == loaded,
                 next: state => {
                     state.next += 1
@@ -31,7 +31,7 @@ export default function (in: Input): Output {
                 },
                 return: state => state.next
             })
-            const limit = first + (end - position)
+            const limit = first + (next - position)
 
             copySpan({
                 column: present,
@@ -52,7 +52,7 @@ export default function (in: Input): Output {
                 })
             }
 
-            position = end
+            position = next
         }
     })
 }

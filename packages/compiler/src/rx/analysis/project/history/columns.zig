@@ -17,6 +17,24 @@ pub fn measure(storage: anytype) Lengths(@TypeOf(storage.*)) {
     return result;
 }
 
+pub fn words(bytes: []const u8) zx.memory.ReadColumn {
+    const width = @sizeOf(usize);
+
+    return .{ .bytes = bytes, .count = bytes.len / width, .stride = width, .offset = 0 };
+}
+
+pub fn wordTarget(bytes: []u8) zx.memory.WriteColumn {
+    const width = @sizeOf(usize);
+
+    return .{ .items = bytes.ptr, .count = bytes.len / width, .stride = width, .width = width };
+}
+
+pub fn bindTransfers(columns: []zx.memory.column_transfer.Column, storage: anytype, source: anytype) void {
+    inline for (@typeInfo(@TypeOf(storage.*)).@"struct".field_names, 0..) |name, index| {
+        columns[index] = zx.memory.column_transfer.bind(&@field(storage, name), @field(source, name), false, true);
+    }
+}
+
 /// Whether the rows `left` added between `left_start` and `left_end` equal those `right` added from `right_start` on.
 pub fn equal(left: anytype, left_start: anytype, left_end: @TypeOf(left_start), right: @TypeOf(left), right_start: @TypeOf(left_start), right_end: @TypeOf(left_start)) bool {
     inline for (@typeInfo(@TypeOf(left)).@"struct".field_names, 0..) |name, index| {

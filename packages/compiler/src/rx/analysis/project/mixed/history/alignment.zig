@@ -13,7 +13,8 @@ pub fn matchesSeed(state: *const State, previous: *const history.Retained, start
 
 pub const Borrowed = struct {
     const Start = std.meta.Child(@import("generated_rx_mixed_history_start").Input);
-    const Input = std.meta.Child(@FieldType(Start, "alignment"));
+    const Earlier = std.meta.Child(@typeInfo(@FieldType(Start, "earlier")).optional.child);
+    const Input = std.meta.Child(@FieldType(Earlier, "alignment"));
     const Pair = std.meta.Child(@FieldType(Input, "columns"));
     const View = std.meta.Child(@FieldType(Pair, "left"));
     const Extent = std.meta.Child(@FieldType(Input, "extent_left"));
@@ -22,24 +23,22 @@ pub const Borrowed = struct {
     left_view: View,
     right_view: View,
     left_extent: Extent,
-    right_extent: Extent,
     pair: Pair,
-    pub fn project(self: *Borrowed, state: *const State, previous: *const history.Retained, start: *const history.Checkpoint, earlier: *const history.Checkpoint, current: *const history.Checkpoint) Input {
+    pub fn project(self: *Borrowed, state: *const State, previous: *const history.Retained, start: *const history.Checkpoint, earlier: *const history.Checkpoint, current: *const Extent) Input {
         const starts = .{ start.types, start.origins };
 
         self.left = borrow(.{ previous.types, previous.origins }, starts, .{ earlier.types, earlier.origins });
-        self.right = borrow(.{ state.types.items.view(), state.types.origins.items.view() }, starts, .{ current.types, current.origins });
+        self.right = borrow(.{ state.types.items.view(), state.types.origins.items.view() }, starts, null);
         self.left_view = self.left.view(View);
         self.right_view = self.right.view(View);
         self.left_extent = extent(Extent, earlier);
-        self.right_extent = extent(Extent, current);
         self.pair = .{ .left = &self.left_view, .right = &self.right_view, .masks = &.{} };
 
-        return .{ .extent_left = &self.left_extent, .extent_right = &self.right_extent, .columns = &self.pair };
+        return .{ .extent_left = &self.left_extent, .extent_right = current, .columns = &self.pair };
     }
 };
 
-pub fn extent(comptime Target: type, value: *const history.Checkpoint) Target {
+fn extent(comptime Target: type, value: *const history.Checkpoint) Target {
     return .{
         .functions = value.functions,
         .native_modules = value.native_modules,
@@ -56,14 +55,16 @@ const ViewColumns = struct {
     }
 };
 
-fn borrow(tables: anytype, start: anytype, end: @TypeOf(start)) ViewColumns {
+fn borrow(tables: anytype, start: anytype, end: ?@TypeOf(start)) ViewColumns {
     var result: ViewColumns = undefined;
     comptime var word = 0;
     comptime var text = 0;
 
     inline for (tables, 0..) |table, table_index| {
         inline for (@typeInfo(@TypeOf(table)).@"struct".field_names, 0..) |field, index| {
-            const values = @field(table, field)[start[table_index][index]..end[table_index][index]];
+            const rows = @field(table, field);
+            const limit = if (end) |counts| counts[table_index][index] else rows.len;
+            const values = rows[start[table_index][index]..limit];
 
             switch (std.meta.Elem(@TypeOf(values))) {
                 u8, u32 => {

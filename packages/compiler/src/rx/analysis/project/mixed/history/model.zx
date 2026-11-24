@@ -3,8 +3,8 @@ import type { HistoryFunctionRange, HistoryModuleLink } from "rx_project_host"
 import type { ColumnPair } from "../../../../../zx/ir/compare/model"
 import type { Inputs as SourceInputs } from "../../history/model"
 import type { Input as Dependencies } from "./changed"
-import type { Input as Checkpoints } from "./checkpoint"
 import type { Extent } from "./extent"
+import type { Input as Capture } from "./snapshot"
 
 export type Alignment = {
     extent_left: Extent,
@@ -41,6 +41,7 @@ export type RecordTarget = {
 }
 
 export type Record = {
+    capture: Capture,
     target: RecordTarget,
     analysis?: Reanalysis
 }
@@ -60,10 +61,16 @@ export type Graph = {
     shared_paths: bool
 }
 
-export type Start = {
+export type Earlier = {
     inputs: SourceInputs,
-    boundary: Checkpoints,
+    checkpoint: u8[],
     graph: Graph,
     alignment: Alignment,
     functions: HistoryFunctionRange
+}
+
+export type Start = {
+    capture: Capture,
+    checkpoint: u8[],
+    earlier?: Earlier
 }

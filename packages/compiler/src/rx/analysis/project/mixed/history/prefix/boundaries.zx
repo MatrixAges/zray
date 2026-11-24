@@ -1,4 +1,6 @@
-import { initializer_column, library_column } from "./const"
+import memory from "memory"
+
+import { initializer_column, library_column, native_module_column } from "./const"
 
 import type { Boundaries } from "./model"
 
@@ -10,16 +12,20 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { words, stride, links_offset } = in.boundaries
+    const { words, stride, functions_offset } = in.boundaries
 
-    const before = in.position * stride + links_offset
+    const before = in.position * stride + functions_offset
     const after = before + stride
-    const natives = words[before] == words[after]
+
+    const natives = memory.readColumnIndex(words, before + native_module_column) ==
+        memory.readColumnIndex(words, after + native_module_column)
 
     const initializers =
-        words[before + initializer_column] == words[after + initializer_column]
+        memory.readColumnIndex(words, before + initializer_column) ==
+        memory.readColumnIndex(words, after + initializer_column)
 
-    const libraries = words[before + library_column] == words[after + library_column]
+    const libraries = memory.readColumnIndex(words, before + library_column) ==
+        memory.readColumnIndex(words, after + library_column)
 
     return natives && initializers && libraries
 }

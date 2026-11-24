@@ -1,0 +1,16 @@
+import memory from "memory"
+
+import type { Boundaries } from "../prefix/model"
+
+export type Input = {
+    boundaries: Boundaries,
+    position: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { words, stride, functions_offset } = in.boundaries
+
+    return memory.readColumnIndex(words, in.position * stride + functions_offset)
+}

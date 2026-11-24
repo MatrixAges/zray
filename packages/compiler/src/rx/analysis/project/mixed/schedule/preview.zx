@@ -2,11 +2,11 @@ import memory from "memory"
 
 import probe from "../history/prefix/probe"
 
-import type { U64Buffer } from "memory"
+import type { ReadColumn, U64Buffer } from "memory"
 import type { History } from "../history/prefix/model"
 
 export type Input = {
-    order: u64[],
+    order: ReadColumn,
     start: u64,
     end: u64,
     entry: u64,
@@ -41,7 +41,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.next < end && state.count < capacity,
         next: state => {
-            const index = order[state.next]
+            const index = memory.readColumnIndex(order, state.next)
 
             if (!compiled_dependencies[index]) {
                 const eligible = match {

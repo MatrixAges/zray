@@ -1,0 +1,20 @@
+import type { Allocator, TransferGroup } from "memory"
+import type { Input as Window, Boundaries } from "../prefix/model"
+import type { Input as Publication } from "../publish/model"
+
+export type Transfer = {
+    allocator: Allocator,
+    group: TransferGroup
+}
+
+export type Restore = Transfer & {
+    boundaries: Boundaries,
+    first: u64,
+    end: u64
+}
+
+export type Input = {
+    window: Window,
+    transfer: Transfer,
+    publication: Publication.Omit("first", "end", "verified_end")
+}

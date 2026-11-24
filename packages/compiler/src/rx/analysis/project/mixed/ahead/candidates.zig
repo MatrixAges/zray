@@ -1,7 +1,7 @@
 const std = @import("std");
 const Body = @import("../body.zig");
 const Self = @This();
-pub const generated = @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
+pub const generated = @import("rx_options").generated_graph;
 pub const chunk_size = 8;
 pub const Item = struct { position: usize, action: Body.Action };
 
@@ -32,7 +32,7 @@ pub fn next(self: *Self) ?Item {
 
         self.first += 1;
 
-        if (!self.reuse.reusable(self.state, index, position)) {
+        if (!self.reuse.reusableSeed(self.state, index, position)) {
             return .{ .position = position, .action = if (index < graph.sources.zx_count) .AnalyzeZX else .LowerRX };
         }
     }

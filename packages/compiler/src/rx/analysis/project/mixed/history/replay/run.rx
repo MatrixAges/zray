@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Replay" />
+
+    <Args in={Replay.Input} out={u64} />
+
+    <Call fn="../prefix/scan" in={$in.window} />
+
+    <If on={$ctx.scan == $in.window.first}>
+        <Return value={$ctx.scan} />
+    </If>
+
+    <Call
+        fn="columns"
+        in={{
+            ...$in.transfer,
+            boundaries: $in.window.history.boundaries,
+            first: $in.window.first,
+            end: $ctx.scan
+        }}
+    />
+
+    <Call
+        fn="extent"
+        in={{
+            boundaries: $in.window.history.boundaries,
+            position: $ctx.scan
+        }}
+    />
+
+    <Call
+        module="../publish/prefix"
+        in={{
+            ...$in.publication,
+            first: $in.window.first,
+            end: $ctx.scan,
+            verified_end: $ctx.extent
+        }}
+    />
+
+    <Return value={$ctx.scan} />
+</Module>

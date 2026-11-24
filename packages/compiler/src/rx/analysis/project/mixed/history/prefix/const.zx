@@ -1,7 +1,9 @@
 export const digest_width: u64 = 4
 
-export const initializer_column: u64 = 1
+export const native_module_column: u64 = 1
 
-export const library_column: u64 = 2
+export const initializer_column: u64 = 2
+
+export const library_column: u64 = 3
 
 export const type_id_bytes: u64 = 4

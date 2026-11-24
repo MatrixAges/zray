@@ -3,6 +3,7 @@
 
     <Args in={History.Record} out={void} />
 
+    <Call fn="snapshot" in={$in.capture} />
     <Call fn="record_analyzed" in={$in.target} />
 
     <If on={$in.analysis != null}>

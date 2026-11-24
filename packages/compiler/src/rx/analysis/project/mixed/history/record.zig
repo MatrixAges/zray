@@ -5,6 +5,8 @@ const Reuse = @import("../reuse.zig");
 const State = @import("../state.zig");
 const alignment = @import("alignment.zig");
 const comparison = @import("comparison.zig");
+const Snapshot = @import("snapshot.zig").Storage;
+const columns = @import("../../history/columns.zig");
 
 pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, index: usize, position: usize) void {
     const rule = @import("generated_rx_mixed_history_record");
@@ -12,18 +14,10 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
     const Analysis = std.meta.Child(@typeInfo(@FieldType(Input, "analysis")).optional.child);
     const before = &reuse.boundaries[position];
     const after = &reuse.boundaries[position + 1];
-
-    @import("snapshot.zig").write(state, after);
-
+    var storage: Snapshot = undefined;
+    const capture = storage.bind(state, after);
     const aligned: []bool = @as(*[1]bool, @ptrCast(&reuse.aligned));
-
-    const counter: zx.memory.WriteColumn = .{
-        .items = @ptrCast(&owner.analyzed),
-        .count = 1,
-        .stride = @sizeOf(usize),
-        .width = @sizeOf(usize),
-    };
-
+    const counter = columns.wordTarget(std.mem.asBytes(&owner.analyzed));
     var borrowed: alignment.Borrowed = undefined;
     var types: std.meta.Child(@FieldType(Analysis, "alignment")) = undefined;
     var edges_input: std.meta.Child(@FieldType(Analysis, "dependencies")) = undefined;
@@ -37,7 +31,7 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
         const earlier = previous.boundaries[position..][0..2];
         const edges = state.graph.source_dependencies.?;
 
-        types = borrowed.project(state, previous, before, &earlier[1], after);
+        types = borrowed.project(state, previous, before, &earlier[1], &storage.extent);
 
         edges_input = .{
             .dependencies = edges.targets,
@@ -59,7 +53,7 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
             .earlier = &previous.functions,
             .current = &state.functions,
             .first = before.functions,
-            .end = after.functions,
+            .end = @intCast(storage.extent.functions),
         };
 
         comparison_input = .{ .link = @ptrCast(&link), .functions = @ptrCast(&functions) };
@@ -74,6 +68,7 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
     } else undefined;
 
     const input: Input = .{
+        .capture = &capture,
         .target = &.{
             .row = index,
             .analyzed = owner.analyzed,

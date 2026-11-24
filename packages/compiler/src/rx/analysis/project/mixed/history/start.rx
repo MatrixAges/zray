@@ -3,31 +3,43 @@
 
     <Args in={History.Start} out={bool} />
 
-    <Call fn="../../history/inputs" in={$in.inputs} />
+    <Call fn="snapshot" in={$in.capture} />
 
-    <If on={!$ctx.inputs}>
-        <Return value={false} />
+    <If on={$in.earlier != null}>
+        <Call fn="../../history/inputs" in={$in.earlier.inputs} />
+
+        <If on={!$ctx.inputs}>
+            <Return value={false} />
+        </If>
+
+        <Call
+            fn="same_checkpoint"
+            in={{
+                earlier: $in.earlier.checkpoint,
+                current: $in.checkpoint
+            }}
+        />
+
+        <If on={!$ctx.same_checkpoint}>
+            <Return value={false} />
+        </If>
+
+        <Call fn="graph_match" in={$in.earlier.graph} />
+
+        <If on={!$ctx.graph_match}>
+            <Return value={false} />
+        </If>
+
+        <Call module="align" in={$in.earlier.alignment} />
+
+        <If on={!$ctx.align}>
+            <Return value={false} />
+        </If>
+
+        <Call fn="index.matchHistoryHeaders" in={$in.earlier.functions} />
+
+        <Return value={$ctx.matchHistoryHeaders} />
     </If>
 
-    <Call fn="checkpoint" in={$in.boundary} />
-
-    <If on={!$ctx.checkpoint}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="graph_match" in={$in.graph} />
-
-    <If on={!$ctx.graph_match}>
-        <Return value={false} />
-    </If>
-
-    <Call module="align" in={$in.alignment} />
-
-    <If on={!$ctx.align}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="index.matchHistoryHeaders" in={$in.functions} />
-
-    <Return value={$ctx.matchHistoryHeaders} />
+    <Return value={false} />
 </Module>

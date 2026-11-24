@@ -7,7 +7,9 @@
         fn="modules"
         in={$in.pick([
             "rows",
-            "modules"
+            "modules",
+            "first",
+            "end"
         ])}
     />
 
@@ -24,7 +26,8 @@
         fn="counters"
         in={{
             ...$in.counters,
-            count: $in.end - $in.first
+            count: $in.end - $in.first,
+            verified_end: $in.verified_end
         }}
     />
 </Module>

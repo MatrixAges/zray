@@ -40,6 +40,21 @@ pub const Checkpoint = extern struct {
     native_modules: usize,
     initializers: usize,
     libraries: usize,
+    pub const function_slot = @typeInfo(@FieldType(Checkpoint, "types")).array.len + @typeInfo(@FieldType(Checkpoint, "origins")).array.len;
+
+    comptime {
+        const word = @sizeOf(usize);
+        const offset = function_slot * word;
+
+        if (@offsetOf(Checkpoint, "types") != 0 or
+            @offsetOf(Checkpoint, "origins") != @sizeOf(@FieldType(Checkpoint, "types")) or
+            @offsetOf(Checkpoint, "functions") != offset or
+            @offsetOf(Checkpoint, "native_modules") != offset + word or
+            @offsetOf(Checkpoint, "initializers") != offset + 2 * word or
+            @offsetOf(Checkpoint, "libraries") != offset + 3 * word or
+            @sizeOf(Checkpoint) != offset + 4 * word) @compileError("mixed history checkpoints must contain adjacent native words");
+    }
+
     pub const zero: Checkpoint = .{
         .types = @splat(0),
         .origins = @splat(0),

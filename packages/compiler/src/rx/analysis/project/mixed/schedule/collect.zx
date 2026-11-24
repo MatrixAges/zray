@@ -25,7 +25,7 @@ export default function (in: Input): Output {
         while: stage => stage.accepted < limit && stage.count != 0,
         next: stage => {
             const position = memory.readU64(positions, stage.cursor)
-            const index = order[position]
+            const index = memory.readColumnIndex(order, position)
             const is_zx = index < signatures.length
 
             host.openMixedCandidate(workspace, index)

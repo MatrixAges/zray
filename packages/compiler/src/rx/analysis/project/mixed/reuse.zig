@@ -16,20 +16,19 @@ const alignment = @import("history/alignment.zig");
 const snapshot = @import("history/snapshot.zig");
 const Graph = @FieldType(State, "graph");
 const generated = @import("rx_options").generated_graph;
-const batch_reuse = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const Self = @This();
-pub const Prefix = if (batch_reuse) @import("history/admit.zig").Borrowed else void;
+pub const Prefix = if (generated) @import("history/admit.zig").Borrowed else void;
 
 record: ?*history.History,
 previous: ?*const history.Retained = null,
 derived: history.Frame,
 aligned: bool = false,
-prefix: if (batch_reuse) ?*const Prefix else void = if (batch_reuse) null else {},
+prefix: if (generated) ?*const Prefix else void = if (generated) null else {},
 /// Modules whose rows or link differ from the earlier ones, or that depend on such a module.
 redone: []bool = &.{},
 digests: history.SourceDigests = .{},
 boundaries: []history.Checkpoint = &.{},
-pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*history.History, derived: history.Frame, sources: []const project.Source, prefix: *Prefix) std.mem.Allocator.Error!Self {
+pub fn begin(state: *State, cache: *const project.ParseCache, record: ?*history.History, derived: history.Frame, sources: []const project.Source, prefix: *Prefix) std.mem.Allocator.Error!Self {
     const owner = record orelse return .{ .record = null, .derived = derived };
     const count = state.graph.modules.len;
 
@@ -42,7 +41,8 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
     };
 
     @memset(self.redone, false);
-    snapshot.write(state, &self.boundaries[0]);
+
+    if (comptime !generated) snapshot.writeSeed(state, &self.boundaries[0]);
 
     const retained = if (owner.bodies_only) &owner.previous.? else null;
     const paths = state.graph.modules.items(.path);
@@ -66,22 +66,20 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
 
     @memset(self.digests.present[ranges.rx_end..], false);
 
-    const previous = if (owner.previous) |*value| value else return self;
+    const previous = if (owner.previous) |*value| value else null;
 
     self.previous = previous;
 
-    self.aligned = if (comptime generated)
-        @import("history/start.zig").matches(state, previous, &owner.shape, &self.boundaries[0])
+    if (comptime generated) {
+        self.aligned = @import("history/start.zig").begin(state, previous, &owner.shape, &self.boundaries[0]);
 
-    else
-        matchesSeed(state, previous, &owner.shape, &self.boundaries[0]);
-
-    if (comptime batch_reuse) {
         if (self.aligned) {
-            prefix.init(state, &derived, previous, self.digests, self.redone);
+            prefix.init(state, &derived, previous.?, self.digests, self.redone);
 
             self.prefix = prefix;
         }
+    } else if (previous) |retained_history| {
+        self.aligned = matchesSeed(state, retained_history, &owner.shape, &self.boundaries[0]);
     }
 
     return self;
@@ -91,18 +89,13 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
 pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.Allocator.Error!usize {
     const previous = self.previous orelse return first;
 
-    if (!self.aligned) return first;
+    if (!self.aligned or first >= limit) return first;
+    if (comptime generated) return @import("history/replay.zig").run(state, previous, self.prefix.?, self.boundaries, first, limit, &self.record.?.reused);
 
     const order = state.graph.order;
     var position = first;
 
-    if (comptime batch_reuse) {
-        const admission = @import("history/admit.zig");
-
-        position = admission.advance(state, &self.prefix.?.history, first, limit);
-    } else {
-        while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}
-    }
+    while (position < limit and self.reusableSeed(state, order[position], position)) : (position += 1) {}
 
     if (position == first) return first;
 
@@ -120,30 +113,21 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
         },
     });
 
-    if (comptime batch_reuse) {
-        @import("history/publish.zig").copy(state, self.boundaries, previous, first, position, &self.record.?.reused);
-    } else {
-        for (order[first..position]) |index| state.finished.retain(previous.finished, index);
+    for (order[first..position]) |index| state.finished.retain(previous.finished, index);
 
-        @memcpy(self.boundaries[first + 1 .. position + 1], previous.boundaries[first + 1 .. position + 1]);
+    @memcpy(self.boundaries[first + 1 .. position + 1], previous.boundaries[first + 1 .. position + 1]);
 
-        state.verified = end.functions;
-        self.record.?.reused += position - first;
-    }
+    state.verified = end.functions;
+    self.record.?.reused += position - first;
 
     return position;
 }
 
 /// Whether `reuse` can copy `index`'s rows while the tables stay aligned until its turn.
-pub fn reusable(self: *const Self, state: *const State, index: usize, position: usize) bool {
+pub fn reusableSeed(self: *const Self, state: *const State, index: usize, position: usize) bool {
     const previous = self.previous orelse return false;
 
     if (!self.aligned or index == state.graph.entry) return false;
-
-    if (comptime generated) {
-        return @import("history/admit.zig").reusable(state, &self.derived, previous, self.redone, self.digests, index, position);
-    }
-
     if (!self.unchanged(state, index)) return false;
 
     const start = &previous.boundaries[position];
@@ -163,7 +147,7 @@ pub fn analyzed(self: *Self, state: *const State, index: usize, position: usize)
 
     self.redone[index] = true;
 
-    snapshot.write(state, end);
+    snapshot.writeSeed(state, end);
 
     owner.analyzed += 1;
 
