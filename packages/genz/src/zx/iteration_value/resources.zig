@@ -1,76 +1,31 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const evaluation = @import("../expressions/evaluate.zig");
-const entry = @import("generated_resolve_iteration_resources");
-const Input = std.meta.Child(entry.Input);
 const Error = Lower.Error;
 
-const Plan = union(enum) {
-    borrowed: @FieldType(Input, "borrowed"),
-    input: @FieldType(Input, "operations"),
-    returned: @FieldType(Input, "requirements"),
-    leaves,
+pub const Columns = struct {
+    allocator: std.mem.Allocator,
+    layouts: []u32 = undefined,
+    operands: []u32 = undefined,
+    pub fn bind(self: *Columns, comptime Shape: type, context: *Context, with_operands: bool) Shape {
+        return .{
+            .frame = @ptrCast(context),
+            .storage = @ptrCast(self),
+            .layouts = @ptrCast(&self.layouts),
+            .operands = if (with_operands) @ptrCast(&self.operands) else null,
+        };
+    }
 };
 
-pub fn layouts(
-    context: *Context,
-    allocator: std.mem.Allocator,
-    types: []const u32,
-    root: node.ExpressionId,
-    plan: Plan,
-) Error![]const u32 {
-    var output = try allocator.alloc(u32, types.len);
+pub fn reserveIterationResources(handle: *const anyopaque, length: u64, with_operands: bool) Error!void {
+    const columns: *Columns = @ptrCast(@alignCast(@constCast(handle)));
+    const count: usize = @intCast(length);
+    columns.layouts = try columns.allocator.alloc(u32, count);
 
-    try resolve(context, types, root, plan, &output, null);
-
-    return output;
-}
-
-pub fn conversion(
-    context: *Context,
-    allocator: std.mem.Allocator,
-    types: []const u32,
-    root: node.ExpressionId,
-    plan: Plan,
-) Error!struct { layouts: []const u32, operands: []const u32 } {
-    var output = try allocator.alloc(u32, types.len);
-    var operands = try allocator.alloc(u32, types.len);
-
-    try resolve(context, types, root, plan, &output, &operands);
-
-    return .{ .layouts = output, .operands = operands };
-}
-
-fn resolve(
-    context: *Context,
-    types: []const u32,
-    root: node.ExpressionId,
-    plan: Plan,
-    output: *[]u32,
-    operands: ?*[]u32,
-) Error!void {
-    const input: Input = .{
-        .frame = @ptrCast(context),
-        .mode = switch (plan) {
-            .borrowed => .Borrow,
-            .input => .Input,
-            .returned => .Returned,
-            .leaves => .Leaves,
-        },
-        .root = @backingInt(root),
-        .types = types,
-        .borrowed = if (plan == .borrowed) plan.borrowed else &.{},
-        .operations = if (plan == .input) plan.input else &.{},
-        .requirements = if (plan == .returned) plan.returned else &.{},
-        .layouts = @ptrCast(output),
-        .operands = if (operands) |items| @ptrCast(items) else null,
-    };
-
-    return evaluation.execute(entry, &input);
+    if (with_operands) columns.operands = try columns.allocator.alloc(u32, count);
 }
 
 pub fn publish(context: *Context, types: []const u32, values: []const u32) Error!void {

@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Fill} out={void} />
+
+    <Call fn="reserve" in={$in} />
+
+    <Call
+        fn="../resolve"
+        in={{
+            ...$in.omit(["buffers"]),
+            ...$in.buffers.omit(["storage"])
+        }}
+    />
+</Module>

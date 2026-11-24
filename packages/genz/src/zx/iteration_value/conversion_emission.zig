@@ -8,8 +8,9 @@ const Lower = @import("../lower.zig");
 pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const self = context.lowering;
     const root_layout = try @import("types.zig").get(context, id);
-    const planner = @import("generated_conversion_plan");
-    const PlanInput = std.meta.Child(planner.Input);
+    const preparation = @import("generated_prepare_iteration_input");
+    const Prepare = std.meta.Child(preparation.Input);
+    const PlanInput = std.meta.Child(@FieldType(Prepare, "source"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(PlanInput, "types")), self.program.types);
 
     const request: PlanInput = .{
@@ -19,26 +20,26 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         .inline_lists = context.inline_lists,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const operation = zx.columns.invoke(@import("generated_conversion_operation").executeValue, fixed.allocator(), &request) catch unreachable;
-
-    if (operation == .Value) return value;
-
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
-    const plan = planner.executeIn(buffered.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
+    const temporary = buffered.allocator();
+    var columns: @import("resources.zig").Columns = .{ .allocator = temporary };
+
+    const prepare: Prepare = .{
+        .source = &request,
+        .root = @backingInt(root_layout),
+        .buffers = &columns.bind(std.meta.Child(@FieldType(Prepare, "buffers")), context, true),
     };
 
     const serial = self.serial;
     const declarations = context.declarations.last;
-    const Operations = @FieldType(std.meta.Child(@import("generated_resolve_iteration_resources").Input), "operations");
-    const prepared = try @import("resources.zig").conversion(context, buffered.allocator(), plan.types, root_layout, .{ .input = zx.columns.slice(Operations, plan.kinds) });
+
+    const plan = (preparation.executeIn(temporary, &prepare) catch |err|
+        return @import("../construction/publication.zig").failure(err)) orelse return value;
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last));
 
@@ -46,9 +47,9 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const Input = std.meta.Child(emitter.Input);
 
     const input: Input = .{
-        .plan = plan,
-        .layouts = prepared.layouts,
-        .elements = prepared.operands,
+        .plan = zx.columns.pointer(@FieldType(Input, "plan"), plan),
+        .layouts = columns.layouts,
+        .elements = columns.operands,
         .value = @backingInt(value),
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),

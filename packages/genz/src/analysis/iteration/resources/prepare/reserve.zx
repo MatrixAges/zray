@@ -1,0 +1,15 @@
+import { reserveIterationResources } from "lowering_host"
+
+import type { Fill as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { buffers, types } = in
+
+    reserveIterationResources(
+        buffers.storage,
+        types.length,
+        buffers.operands != null
+    )
+}

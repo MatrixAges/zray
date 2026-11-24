@@ -1,0 +1,52 @@
+import type { IterationResourceStorage } from "lowering_host"
+import type { Input as BorrowInput, Plan as BorrowPlan } from "../../borrow/model"
+import type {
+    Input as ConversionInput,
+    Plan as ConversionPlan
+} from "../../conversion/model"
+import type { Prepare, Prepared } from "../../conversion/output/model"
+import type { Input as TypeInput, Plan as TypePlan } from "../../types/model"
+import type { Input as Resolve } from "../model"
+
+export { Operation as BorrowOperation } from "../../borrow/model"
+export { Operation as ConversionOperation } from "../../conversion/model"
+export { Operation as TypeOperation } from "../../types/model"
+export { Mode } from "../model"
+
+export type Buffers = Resolve.Pick("frame", "layouts", "operands") & {
+    storage: IterationResourceStorage
+}
+
+export type Root = {
+    buffers: Buffers,
+    root: u32
+}
+
+export type Borrow = Root & {
+    source: BorrowInput
+}
+
+export type Input = Root & {
+    source: ConversionInput
+}
+
+export type Returned = Root & {
+    source: Prepare
+}
+
+export type Types = {
+    source: TypeInput,
+    buffers: Buffers
+}
+
+export type Fill = Resolve.Omit("frame", "layouts", "operands") & {
+    buffers: Buffers
+}
+
+export type BorrowOutput = BorrowPlan?
+
+export type InputOutput = ConversionPlan?
+
+export type ReturnedOutput = Prepared?
+
+export type TypesOutput = TypePlan?

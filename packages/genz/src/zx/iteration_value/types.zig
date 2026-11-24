@@ -10,17 +10,10 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
     if (self.types.get(id)) |value| return value;
 
     const lowering = self.lowering;
-    const planner = @import("generated_iteration_types_plan");
-    const PlanInput = std.meta.Child(planner.Input);
+    const preparation = @import("generated_prepare_iteration_types");
+    const Prepare = std.meta.Child(preparation.Input);
+    const PlanInput = std.meta.Child(@FieldType(Prepare, "source"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(PlanInput, "types")), lowering.program.types);
-    const classifier = @import("generated_iteration_type_operation");
-    const Classification = std.meta.Child(classifier.Input);
-    const classification: Classification = .{ .kind = types.kinds[@backingInt(id)], .inline_lists = self.inline_lists };
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const operation = zx.columns.invoke(classifier.executeValue, fixed.allocator(), &classification) catch unreachable;
-
-    if (operation == .Native) return lowering.typeExpr(id);
-
     const cached = self.types.view(std.meta.Child(@FieldType(PlanInput, "cached")));
 
     const request: PlanInput = .{
@@ -36,20 +29,24 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
 
     defer scratch.deinit();
 
-    const plan = planner.executeIn(buffered.allocator(), &request) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
+    const temporary = buffered.allocator();
+    var columns: @import("resources.zig").Columns = .{ .allocator = temporary };
+
+    const prepare: Prepare = .{
+        .source = &request,
+        .buffers = &columns.bind(std.meta.Child(@FieldType(Prepare, "buffers")), self, false),
     };
 
-    const resources = @import("resources.zig");
-    const prepared = try resources.layouts(self, buffered.allocator(), plan.leaves, @fromBackingInt(0), .leaves);
+    const plan = (preparation.executeIn(temporary, &prepare) catch |err|
+        return @import("../construction/publication.zig").failure(err)) orelse return lowering.typeExpr(id);
+
     const emitter = @import("generated_iteration_types_emit");
     const EmitInput = std.meta.Child(emitter.Input);
 
     const input: EmitInput = .{
-        .types = &types,
-        .plan = plan,
-        .prepared = prepared,
+        .types = zx.columns.pointer(@FieldType(EmitInput, "types"), &types),
+        .plan = zx.columns.pointer(@FieldType(EmitInput, "plan"), plan),
+        .prepared = columns.layouts,
         .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(lowering.builder.nodes.field_columns.count()),
         .serial = lowering.serial,

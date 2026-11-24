@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Input} out={Preparation.InputOutput} />
+
+    <Call fn="../../conversion/operation" in={$in.source} />
+
+    <If on={$ctx.operation == Preparation.ConversionOperation.Value}>
+        <Return value={null} />
+    </If>
+
+    <Call module="../../conversion/plan" in={$in.source} />
+
+    <Call
+        module="fill"
+        in={{
+            buffers: $in.buffers,
+            mode: Preparation.Mode.Input,
+            root: $in.root,
+            types: $ctx.plan.types,
+            borrowed: [],
+            operations: $ctx.plan.kinds,
+            requirements: []
+        }}
+    />
+
+    <Return value={$ctx.plan} />
+</Module>

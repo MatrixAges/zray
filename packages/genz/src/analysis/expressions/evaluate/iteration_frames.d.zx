@@ -71,6 +71,8 @@ export enum LoopInitial {
 
 export type IterationResourceFrame = opaque
 
+export type IterationResourceStorage = opaque
+
 export enum IterationResource {
     None,
     IterationType,

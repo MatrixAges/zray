@@ -45,10 +45,10 @@ export default function (in: Input): Output {
     }
 
     const type_index = integers.widen(id)
-    const kind = in.source.types.kinds[type_index]
 
     const selected = operation({
-        kind,
+        types: in.source.types,
+        root: id,
         inline_lists: in.source.inline_lists
     })
 

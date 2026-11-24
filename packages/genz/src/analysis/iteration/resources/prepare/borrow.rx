@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Borrow} out={Preparation.BorrowOutput} />
+
+    <Call fn="../../borrow/operation" in={$in.source} />
+
+    <If on={$ctx.operation == Preparation.BorrowOperation.Value}>
+        <Return value={null} />
+    </If>
+
+    <Call module="../../borrow/plan" in={$in.source} />
+
+    <Call
+        module="fill"
+        in={{
+            buffers: $in.buffers,
+            mode: Preparation.Mode.Borrow,
+            root: $in.root,
+            types: $ctx.plan.types,
+            borrowed: $ctx.plan.kinds,
+            operations: [],
+            requirements: []
+        }}
+    />
+
+    <Return value={$ctx.plan} />
+</Module>

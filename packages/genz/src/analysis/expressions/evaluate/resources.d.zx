@@ -21,6 +21,12 @@ export declare function materializeIterationResource(
     resource: IterationResource
 ): u32 throws { OutOfMemory }
 
+export declare function reserveIterationResources(
+    storage: IterationResourceStorage,
+    count: u64,
+    with_operands: bool
+): void throws { OutOfMemory }
+
 export declare function cacheIterationType(
     frame: IterationResourceFrame,
     id: u32,

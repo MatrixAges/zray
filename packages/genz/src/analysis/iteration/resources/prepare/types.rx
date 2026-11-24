@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Types} out={Preparation.TypesOutput} />
+
+    <Call fn="../../types/operation" in={$in.source.omit(["cached"])} />
+
+    <If on={$ctx.operation == Preparation.TypeOperation.Native}>
+        <Return value={null} />
+    </If>
+
+    <Call module="../../types/plan" in={$in.source} />
+
+    <Call
+        module="fill"
+        in={{
+            buffers: $in.buffers,
+            mode: Preparation.Mode.Leaves,
+            root: 0,
+            types: $ctx.plan.leaves,
+            borrowed: [],
+            operations: [],
+            requirements: []
+        }}
+    />
+
+    <Return value={$ctx.plan} />
+</Module>
