@@ -1,0 +1,41 @@
+import host from "lowering_host"
+
+import { index } from "./const"
+
+import type { Publish } from "../collect/model"
+import type { Collection } from "./model"
+
+export type Input = Collection.Pick("frame", "callback") & {
+    result: u32,
+    map: bool
+}
+
+export type Output = Publish.Pick(
+    "result",
+    "value",
+    "index"
+)
+
+export default function (in: Input): Output {
+    const frame = in.frame
+
+    if (in.map) {
+        const result = host.bindMapTransformResult(frame, in.result)
+        const name = host.transformFreshName(frame, index)
+        const value = host.storeMapTransformValue(frame, in.callback)
+
+        return {
+            result,
+            value,
+            index: name
+        }
+    }
+
+    const value = host.storeFilterTransformValue(frame)
+
+    return {
+        result: in.result,
+        value,
+        index: null
+    }
+}

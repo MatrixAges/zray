@@ -1,0 +1,7 @@
+export const items: string = "items"
+
+export const index: string = "index"
+
+export const accumulator_block: string = "block"
+
+export const predicate_block: string = "predicate"

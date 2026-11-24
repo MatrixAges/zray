@@ -1,14 +1,22 @@
 <Module>
     <Type from="model" as="Transform" />
+    <Type from="../publication/model" as="Publication" />
 
     <Args in={Transform.Reduce} out={u32} />
 
+    <Call fn="index.reduceAccumulator" in={$in.frame} />
     <Call fn="index.lowerReduceInitial" in={$in.frame} />
     <Call fn="index.transformStateActive" in={$in.frame} />
 
-    <If on={$ctx.transformStateActive}>
-        <Call fn="index.convertReduceInitial" in={$in.frame} />
-    </If>
+    <Call
+        fn="index.convertInitial"
+        in={{
+            frame: $in.frame,
+            value: $ctx.lowerReduceInitial,
+            initial: true,
+            active: $ctx.transformStateActive
+        }}
+    />
 
     <If on={$in.renewal_source != null}>
         <Call fn="index.reduceInlineLists" in={$in.frame} />
@@ -28,6 +36,7 @@
                 fn="index.emitReduceRenewals"
                 in={[
                     $in.frame,
+                    $ctx.reduceAccumulator,
                     $ctx.check.first,
                     $ctx.check.end,
                     $ctx.reduceInlineLists
@@ -36,12 +45,122 @@
         </If>
     </If>
 
-    <If on={$ctx.transformStateActive}>
-        <Call fn="index.convertReduceCallback" in={$in.frame} />
-    </If>
+    <Call
+        fn="index.convertCallback"
+        in={{
+            frame: $in.frame,
+            value: $in.callback,
+            initial: false,
+            active: $ctx.transformStateActive
+        }}
+    />
 
     <Call fn="index.bindTransformElement" in={$in.frame} />
-    <Call fn="index.publishReduceTransform" in={$in.frame} />
 
-    <Return value={$ctx.publishReduceTransform} />
+    <Call
+        fn="block_name"
+        in={{
+            frame: $in.frame,
+            predicate: false
+        }}
+    />
+
+    <Call
+        fn="index.outerBlock"
+        in={[
+            $in.ast.writer,
+            $in.ast.body
+        ]}
+    />
+
+    <Call
+        fn="index.callbackBlock"
+        in={[
+            $in.ast.writer,
+            $in.ast.loop
+        ]}
+    />
+
+    <Call
+        fn="index.elementBlock"
+        in={[
+            $in.ast.writer,
+            $in.ast.binding
+        ]}
+    />
+
+    <Call
+        fn="index.joinAstSpans"
+        in={[
+            $in.ast.writer,
+            $ctx.elementBlock,
+            $ctx.callbackBlock
+        ]}
+    />
+
+    <Call
+        fn="split_reduce_spans"
+        in={{
+            element: $ctx.joinAstSpans,
+            callback: $ctx.callbackBlock
+        }}
+    />
+
+    <Call fn="index.reduceEntered" in={$in.frame} />
+    <Call fn="index.outerRange" in={$ctx.outerBlock} />
+    <Call fn="index.enteredRange" in={$ctx.reduceEntered} />
+
+    <Call
+        fn="index.readAstOrigin"
+        in={[
+            $in.ast.writer,
+            $in.ast.origin
+        ]}
+    />
+
+    <Call
+        module="../reduce/build"
+        in={{
+            ...$in.pick([
+                "source",
+                "layout"
+            ]),
+            ...$ctx.readAstOrigin.pick([
+                "expression_base",
+                "statement_base"
+            ]),
+            ...$ctx.split_reduce_spans.omit([
+                "before",
+                "after"
+            ]),
+            accumulator: $ctx.reduceAccumulator,
+            initial: $ctx.convertInitial,
+            callback: $ctx.convertCallback,
+            capture: $ctx.bindTransformElement,
+            label: $ctx.block_name,
+            entered_start: $ctx.enteredRange.start,
+            entered_count: $ctx.enteredRange.count,
+            outer_count: $ctx.outerRange.count
+        }}
+    />
+
+    <Call
+        module="../publication/append"
+        in={{
+            writer: $in.ast.writer,
+            expressions: $ctx.build.expressions,
+            forms: null,
+            prelude: null,
+            element: $ctx.split_reduce_spans.before,
+            step: $ctx.build.update,
+            remainder: $ctx.split_reduce_spans.after,
+            outer: $ctx.outerBlock,
+            result: $ctx.build.outer,
+            variables: $ctx.build.variables,
+            ownership: Publication.AstPayloadOwnership.Borrowed,
+            valid: $ctx.build.valid
+        }}
+    />
+
+    <Return value={$ctx.build.root} />
 </Module>

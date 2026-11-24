@@ -1,5 +1,6 @@
 <Module>
     <Type from="dense_model" as="Dense" />
+    <Type from="host" as="Host" />
 
     <Args in={Dense.Input} out={void} />
 
@@ -9,7 +10,9 @@
         fn="host.appendExpressionRows"
         in={[
             $in.writer,
-            $in.fragment.expressions
+            $in.fragment.expressions,
+            null,
+            Host.AstPayloadOwnership.Owned
         ]}
     />
 

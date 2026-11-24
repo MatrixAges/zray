@@ -15,7 +15,14 @@
         on={$in.kind == Transform.TransformKind.Every ||
             $in.kind == Transform.TransformKind.Some}
     >
-        <Call module="predicate" in={$in.frame} />
+        <Call
+            module="predicate"
+            in={$in.pick([
+                "frame",
+                "ast",
+                "kind"
+            ])}
+        />
 
         <Return value={$ctx.predicate} />
     </If>
@@ -33,17 +40,28 @@
     <If on={$in.kind == Transform.TransformKind.Reduce}>
         <Call
             module="reduce"
-            in={$in.pick([
-                "frame",
-                "id",
-                "renewal_source"
-            ])}
+            in={{
+                ...$in.omit(["kind"]),
+                source: $ctx.bindTransformSource,
+                callback: $ctx.lowerTransformCallback,
+                layout: $ctx.resolveTransformResultType
+            }}
         />
 
         <Return value={$ctx.reduce} />
     </If>
 
-    <Call module="collect" in={$in} />
+    <Call
+        module="collect"
+        in={{
+            ...$in.omit([
+                "id",
+                "renewal_source"
+            ]),
+            source: $ctx.bindTransformSource,
+            callback: $ctx.lowerTransformCallback
+        }}
+    />
 
     <Return value={$ctx.collect} />
 </Module>

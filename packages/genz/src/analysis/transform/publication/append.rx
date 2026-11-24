@@ -1,0 +1,75 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <Call fn="index.requireAllocation" in={$in.valid} />
+
+    <Call
+        fn="index.appendExpressionRows"
+        in={[
+            $in.writer,
+            $in.expressions,
+            $in.forms,
+            $in.ownership
+        ]}
+    />
+
+    <If on={$in.prelude != null}>
+        <Call
+            fn="index.appendPrelude"
+            in={[
+                $in.writer,
+                $in.prelude,
+                null,
+                $in.ownership
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.appendElement"
+        in={[
+            $in.writer,
+            $in.element
+        ]}
+    />
+
+    <Call
+        fn="index.appendStep"
+        in={[
+            $in.writer,
+            $in.step,
+            null,
+            $in.ownership
+        ]}
+    />
+
+    <If on={$in.remainder != null}>
+        <Call
+            fn="index.appendRemainder"
+            in={[
+                $in.writer,
+                $in.remainder
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.appendOuter"
+        in={[
+            $in.writer,
+            $in.outer
+        ]}
+    />
+
+    <Call
+        fn="index.appendResult"
+        in={[
+            $in.writer,
+            $in.result,
+            $in.variables,
+            $in.ownership
+        ]}
+    />
+</Module>

@@ -1,5 +1,6 @@
 import type {
     ExpressionsKind,
+    ExpressionsPrimitive,
     ExpressionsUnaryOperator,
     ExpressionsBinaryOperator,
     ExpressionsBuiltinName
@@ -7,30 +8,11 @@ import type {
 
 export {
     ExpressionsKind,
+    ExpressionsPrimitive,
     ExpressionsUnaryOperator,
     ExpressionsBinaryOperator,
     ExpressionsBuiltinName
 } from "ast_rows"
-
-export enum ExpressionsPrimitive {
-    Anytype,
-    Type,
-    Anyerror,
-    Anyopaque,
-    Void,
-    Bool,
-    U8,
-    U16,
-    U32,
-    U64,
-    Usize,
-    I32,
-    I33,
-    I64,
-    I65,
-    F32,
-    F64
-}
 
 export type Expressions = {
     tags: ExpressionsKind[]

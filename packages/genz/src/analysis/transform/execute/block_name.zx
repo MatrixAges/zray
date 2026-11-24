@@ -1,0 +1,18 @@
+import host from "lowering_host"
+
+import { accumulator_block, predicate_block } from "./const"
+
+import type { Frame } from "./model"
+
+export type Input = {
+    frame: Frame,
+    predicate: bool
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const prefix = in.predicate ? predicate_block : accumulator_block
+
+    return host.transformFreshName(in.frame, prefix)
+}

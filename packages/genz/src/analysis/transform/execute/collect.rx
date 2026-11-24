@@ -1,12 +1,177 @@
 <Module>
     <Type from="model" as="Transform" />
+    <Type from="../publication/model" as="Publication" />
 
-    <Args in={Transform.Input} out={u32} />
+    <Args in={Transform.Collection} out={u32} />
 
     <Call fn="bind_context" in={$in.frame} />
-    <Call fn="prepare_collection" in={$in} />
-    <Call fn="index.bindTransformElement" in={$in.frame} />
-    <Call fn="index.publishCollectTransform" in={$in.frame} />
 
-    <Return value={$ctx.publishCollectTransform} />
+    <Call
+        fn="prepare_collection"
+        in={$in.pick([
+            "frame",
+            "kind"
+        ])}
+    />
+
+    <Call
+        fn="index.readAstOrigin"
+        in={[
+            $in.ast.writer,
+            $in.ast.origin
+        ]}
+    />
+
+    <Call
+        module="../collect/prepare"
+        in={{
+            ...$ctx.prepare_collection,
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: 0
+            },
+            source: $in.source
+        }}
+    />
+
+    <Call fn="index.requireAllocation" in={$ctx.prepare.state.valid} />
+
+    <Call
+        fn="../publication/index.appendExpressionRows"
+        in={[
+            $in.ast.writer,
+            $ctx.prepare.state.expressions,
+            $ctx.prepare.state.forms,
+            Publication.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="index.appendStatementSequence"
+        in={[
+            $in.ast.writer,
+            $in.ast.body,
+            $ctx.prepare.state.statements,
+            $ctx.prepare.state.variables
+        ]}
+    />
+
+    <If on={$ctx.prepare_collection.map}>
+        <Call
+            fn="index.finishGeneratedAst"
+            in={[
+                $in.ast.lower,
+                null,
+                true
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="store_collection"
+        in={{
+            ...$in.pick([
+                "frame",
+                "callback"
+            ]),
+            map: $ctx.prepare_collection.map,
+            result: $ctx.prepare.id
+        }}
+    />
+
+    <Call fn="index.bindTransformElement" in={$in.frame} />
+
+    <Call
+        fn="index.extendStatementSequence"
+        in={[
+            $in.ast.binding,
+            $in.ast.loop
+        ]}
+    />
+
+    <Call
+        fn="index.outerBlock"
+        in={[
+            $in.ast.writer,
+            $in.ast.body
+        ]}
+    />
+
+    <Call
+        fn="index.elementBlock"
+        in={[
+            $in.ast.writer,
+            $in.ast.binding
+        ]}
+    />
+
+    <Call fn="index.outerRange" in={$ctx.outerBlock} />
+    <Call fn="index.elementRange" in={$ctx.elementBlock} />
+
+    <Call
+        fn="index.refreshAstOrigin"
+        in={[
+            $in.ast.writer,
+            $in.ast.origin
+        ]}
+    />
+
+    <Call
+        module="../collect/publish"
+        in={{
+            ...$in.pick([
+                "source",
+                "callback"
+            ]),
+            ...$ctx.store_collection,
+            bases: {
+                ...$ctx.refreshAstOrigin,
+                field_base: 0
+            },
+            capture: $ctx.bindTransformElement,
+            name: $ctx.prepare_collection.name,
+            element_start: $ctx.elementRange.start,
+            element_count: $ctx.elementRange.count,
+            outer_count: $ctx.outerRange.count
+        }}
+    />
+
+    <Call
+        module="../publication/append"
+        in={{
+            writer: $in.ast.writer,
+            expressions: $ctx.publish.context.expressions,
+            forms: $ctx.publish.context.forms,
+            prelude: $ctx.publish.branch_body,
+            element: $ctx.elementBlock,
+            step: $ctx.publish.update,
+            remainder: null,
+            outer: $ctx.outerBlock,
+            result: $ctx.publish.context.statements,
+            variables: null,
+            ownership: Publication.AstPayloadOwnership.BorrowingText,
+            valid: $ctx.publish.valid
+        }}
+    />
+
+    <Call
+        fn="index.finishGeneratedAst"
+        in={[
+            $in.ast.lower,
+            null,
+            true
+        ]}
+    />
+
+    <Call
+        fn="index.finishTransformCollection"
+        in={[
+            $in.frame,
+            $ctx.publish.outer_start,
+            $ctx.publish.outer_count,
+            $ctx.publish.result
+        ]}
+    />
+
+    <Return value={$ctx.finishTransformCollection} />
 </Module>

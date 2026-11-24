@@ -1,18 +1,40 @@
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { TransformKind } from "core/expression_table/kinds"
-import type { TransformFrame } from "lowering_host"
+import type { Lowering, TransformFrame } from "lowering_host"
 import type { Source as RenewalSource } from "../../iteration/deferred/model"
 
 export { TransformKind } from "core/expression_table/kinds"
 
 export type Frame = TransformFrame
 
+export type Ast = {
+    writer: AstWriter,
+    lower: Lowering,
+    origin: AstOriginBuffer,
+    body: AstSequence,
+    loop: AstSequence,
+    binding: AstSequence
+}
+
 export type Input = {
     frame: Frame,
+    ast: Ast,
     kind: TransformKind,
     id: u32,
     renewal_source?: RenewalSource
 }
 
-export type Reduce = Input.Pick("frame", "id", "renewal_source")
+export type Predicate = Input.Pick("frame", "ast", "kind")
+
+export type Collection = Predicate & {
+    source: u32,
+    callback: u32
+}
+
+export type Reduce = Input.Pick("frame", "ast", "id", "renewal_source") & {
+    source: u32,
+    callback: u32,
+    layout: u32
+}
 
 export type Output = u32?

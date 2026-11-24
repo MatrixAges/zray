@@ -1,0 +1,33 @@
+import integers from "std:integer"
+
+import { word_radix } from "../../node_headers/block/const"
+
+import type { Input as Emission } from "../reduce/model"
+
+export type Input = {
+    element: u64,
+    callback: u64
+}
+
+export type Output = Emission.Pick(
+    "element_start",
+    "element_count",
+    "before_assignment"
+) & {
+    before: u64,
+    after: u64
+}
+
+export default function (in: Input): Output {
+    const start = in.element / word_radix
+    const count = in.element % word_radix
+    const prefix = in.callback % word_radix
+
+    return {
+        element_start: integers.narrow(start),
+        element_count: count,
+        before_assignment: prefix,
+        before: start * word_radix + prefix,
+        after: (start + prefix) * word_radix + (count - prefix)
+    }
+}

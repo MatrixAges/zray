@@ -50,3 +50,10 @@ export type StatementRows = {
     branch_capture_reference: bool[],
     branch_error_capture: u8[]?[]
 }
+
+export type StatementVariables = {
+    variable_name: u8[][],
+    variable_type_expr: u32?[],
+    variable_value: u32[],
+    variable_exported: bool[]
+}

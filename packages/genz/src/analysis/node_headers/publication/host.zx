@@ -1,4 +1,4 @@
-export { appendExpressionRows } from "ast_rows"
+export { appendExpressionRows, AstPayloadOwnership } from "ast_rows"
 export {
     appendFragmentExpressions,
     appendFragmentStatements,

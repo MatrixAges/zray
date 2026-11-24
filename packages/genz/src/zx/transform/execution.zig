@@ -4,9 +4,10 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const aggregate = @import("../aggregate.zig");
-const evaluation = @import("../expressions/evaluate.zig");
+const publication = @import("../construction/publication.zig");
 const entry = @import("generated_execute_transform");
 const Input = std.meta.Child(entry.Input);
+const Ast = std.meta.Child(@FieldType(Input, "ast"));
 const RenewalSource = std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_source")));
 const RenewalWorkspace = @import("../growth/renew_workspace.zig");
 const Error = Lower.Error;
@@ -19,18 +20,8 @@ pub const Frame = struct {
     loop: Sequence,
     binding: Sequence,
     added: []const ir.SymbolId = &.{},
-    source: node.ExpressionId = undefined,
-    layout: node.ExpressionId = undefined,
-    callback: node.ExpressionId = undefined,
-    initial: node.ExpressionId = undefined,
-    result: node.ExpressionId = undefined,
-    stored: node.ExpressionId = undefined,
     entered: node.Block = .{},
-    name: []const u8 = undefined,
     renewal_workspace: *RenewalWorkspace = undefined,
-    label: []const u8 = undefined,
-    capture: []const u8 = undefined,
-    index: ?[]const u8 = null,
     pub fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -66,14 +57,30 @@ pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.Ex
         return RenewalWorkspace.run(&frame, RenewalSource, .{ .type_id = frame.typeId(), .roots = &.{} }, execute);
     }
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
-    return execute(&frame, empty.allocator(), null);
+    defer arena.deinit();
+
+    return execute(&frame, scratch.allocator(), null);
 }
 
 fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const RenewalSource) Error!node.ExpressionId {
+    var origin: publication.OriginBuffer = .{};
+
+    const ast: Ast = .{
+        .writer = @ptrCast(frame.lowering),
+        .lower = @ptrCast(frame.lowering),
+        .origin = @ptrCast(&origin),
+        .body = @ptrCast(&frame.body),
+        .loop = @ptrCast(&frame.loop),
+        .binding = @ptrCast(&frame.binding),
+    };
+
     const input: Input = .{
         .frame = @ptrCast(frame),
+        .ast = &ast,
         .kind = @fromBackingInt(@backingInt(frame.transform.kind)),
         .id = @backingInt(frame.id),
         .renewal_source = renewal_source,
@@ -105,24 +112,28 @@ pub fn tryTransformSimd(handle: *const anyopaque) Error!?u32 {
     return @backingInt(value);
 }
 
-pub fn bindTransformSource(handle: *const anyopaque) Error!void {
+pub fn bindTransformSource(handle: *const anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const value = try @import("../state_value/list.zig").expression(self, frame.transform.target);
 
-    frame.source = try aggregate.bind(self, &frame.body, value);
+    return @backingInt(try aggregate.bind(self, &frame.body, value));
 }
 
-pub fn resolveTransformResultType(handle: *const anyopaque) Error!void {
+pub fn resolveTransformResultType(handle: *const anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    frame.layout = try frame.lowering.typeExpr(frame.typeId());
+    return @backingInt(try frame.lowering.typeExpr(frame.typeId()));
 }
 
-pub fn lowerTransformCallback(handle: *const anyopaque) Error!void {
+pub fn lowerTransformCallback(handle: *const anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    frame.callback = try frame.lowering.expr(frame.transform.body);
+    return @backingInt(try frame.lowering.expr(frame.transform.body));
+}
+
+pub fn transformFreshName(handle: *const anyopaque, prefix: []const u8) Error![]const u8 {
+    return Frame.borrow(handle).lowering.fresh(prefix);
 }
 
 pub fn transformContextInitial(handle: *const anyopaque) ?u32 {
@@ -141,10 +152,11 @@ pub fn publishTransformContext(handle: *const anyopaque, value: u32) Error!void 
     return @import("context.zig").publish(frame.lowering, &frame.body, frame.transform.parameters[1], @fromBackingInt(value));
 }
 
-pub fn bindTransformElement(handle: *const anyopaque) Error!void {
+pub fn bindTransformElement(handle: *const anyopaque) Error![]const u8 {
     const frame = Frame.borrow(handle);
     const element = frame.transform.parameters[@intFromBool(frame.transform.kind == .reduce)];
-    frame.capture = try @import("../state_value/elements.zig").captureName(frame.lowering, &frame.binding, frame.sourceType(), element);
+
+    return @import("../state_value/elements.zig").captureName(frame.lowering, &frame.binding, frame.sourceType(), element);
 }
 
 pub fn transformStateActive(handle: *const anyopaque) bool {

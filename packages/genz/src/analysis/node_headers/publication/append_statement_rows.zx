@@ -1,4 +1,5 @@
 import host from "ast_rows"
+import { AstPayloadOwnership } from "ast_rows"
 
 import type { Input } from "./dense_model"
 
@@ -10,7 +11,12 @@ export default function (in: Input): Output {
     const written = loop(0, {
         while: row => row < statements.length,
         next: row => {
-            host.appendStatementRows(in.writer, statements[row])
+            host.appendStatementRows(
+                in.writer,
+                statements[row],
+                null,
+                AstPayloadOwnership.Owned
+            )
 
             row += 1
         }

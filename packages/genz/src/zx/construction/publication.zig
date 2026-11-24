@@ -1,7 +1,9 @@
 const std = @import("std");
 const columns = @import("zx").columns;
 const Lower = @import("../lower.zig");
-const Sequence = @import("../../node/blocks.zig").Sequence;
+const blocks = @import("../../node/blocks.zig");
+const node = @import("../../node.zig");
+const Sequence = blocks.Sequence;
 const view = @import("../../node/view.zig");
 const dense = @import("../../node/import_rows.zig");
 const sparse = @import("../../node/import_selected.zig");
@@ -44,16 +46,83 @@ pub fn readAstOrigin(writer: *const anyopaque, buffer: *const anyopaque) *const 
     return &target.origin;
 }
 
-pub fn appendExpressionRows(writer: *const anyopaque, source: *const Ast.ExpressionRows) Lower.Error!void {
+pub fn appendExpressionRows(writer: *const anyopaque, source: *const Ast.ExpressionRows, forms: ?*const Ast.ExpressionForms, mode: Ast.AstPayloadOwnership) Lower.Error!void {
     const self = borrow(writer);
+    const target = &self.builder.nodes.expressions;
 
-    dense.append(self.allocator, &self.builder.nodes.expressions, source) catch |err| return failure(err);
+    if (forms) |extra| {
+        const joined = view.join(source.*, extra.*);
+
+        return appendRows(self, target, &joined, mode);
+    }
+
+    return appendRows(self, target, source, mode);
 }
 
-pub fn appendStatementRows(writer: *const anyopaque, source: *const Ast.StatementRows) Lower.Error!void {
+pub fn appendStatementRows(writer: *const anyopaque, source: *const Ast.StatementRows, variables: ?*const Ast.StatementVariables, mode: Ast.AstPayloadOwnership) Lower.Error!void {
     const self = borrow(writer);
+    const target = &self.builder.nodes.statements;
 
-    dense.append(self.allocator, &self.builder.nodes.statements, source) catch |err| return failure(err);
+    if (variables) |extra| {
+        const joined = view.join(source.*, extra.*);
+
+        return appendRows(self, target, &joined, mode);
+    }
+
+    return appendRows(self, target, source, mode);
+}
+
+fn appendRows(self: *Lower, target: anytype, source: anytype, mode: Ast.AstPayloadOwnership) Lower.Error!void {
+    const result = switch (mode) {
+        .Owned => dense.append(self.allocator, target, source),
+        .BorrowingText => dense.appendBorrowingText(self.allocator, target, source),
+        .Borrowed => dense.appendBorrowed(self.allocator, target, source),
+    };
+
+    return result catch |err| failure(err);
+}
+
+const Span = packed struct(u64) { count: u32, start: u32 };
+
+pub fn packSpan(block: node.Block) u64 {
+    return @bitCast(Span{ .start = block.start, .count = block.len });
+}
+
+pub fn appendStatementSequence(writer: *const anyopaque, handle: *const anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables) Lower.Error!void {
+    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
+    const joined = view.join(source.*, variables.*);
+
+    statements.appendBorrowingText(borrow(writer).allocator, target, &joined) catch |err| return failure(err);
+}
+
+pub fn extendStatementSequence(handle: *const anyopaque, suffix: *const anyopaque) Lower.Error!void {
+    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
+    const source: *const Sequence = @ptrCast(@alignCast(suffix));
+
+    return target.extend(source);
+}
+
+pub fn statementSequenceBlock(writer: *const anyopaque, handle: *const anyopaque) Lower.Error!u64 {
+    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
+    const block = try target.block(borrow(writer).allocator);
+
+    return packSpan(block);
+}
+
+pub fn joinAstSpans(writer: *const anyopaque, first: u64, second: u64) Lower.Error!u64 {
+    const self = borrow(writer);
+    const left: Span = @bitCast(first);
+    const right: Span = @bitCast(second);
+    const block = try blocks.join(self.allocator, self.builder.nodes, &.{ left.start, right.start }, &.{ left.count, right.count });
+
+    return packSpan(block);
+}
+
+pub fn appendAstSpan(writer: *const anyopaque, span: u64) Lower.Error!void {
+    const self = borrow(writer);
+    const part: Span = @bitCast(span);
+
+    return blocks.appendAtTail(self.allocator, self.builder.nodes, .{ .start = part.start, .len = part.count });
 }
 
 pub const Targets = struct {

@@ -1,21 +1,28 @@
+import bytes from "std:bytes"
 import { TransformKind } from "core/expression_table/kinds"
 import host from "lowering_host"
 
-import type { Input } from "./model"
+import { items } from "./const"
 
-export type Output = void
+import type { Prepare } from "../collect/model"
+import type { Collection } from "./model"
+
+export type Input = Collection.Pick("frame", "kind")
+
+export type Output = Prepare.Pick(
+    "name",
+    "element",
+    "map"
+)
 
 export default function (in: Input): Output {
-    const { frame, kind } = in
+    const map = in.kind == TransformKind.Map
+    const name = map ? bytes.fromText("") : host.transformFreshName(in.frame, items)
+    const element = host.transformCollectionElement(in.frame)
 
-    const mapping = kind == TransformKind.Map
-
-    host.prepareCollectTransform(frame, mapping)
-
-    if (mapping) {
-        host.bindMapTransformResult(frame)
-        host.storeMapTransformValue(frame)
-    } else {
-        host.storeFilterTransformValue(frame)
+    return {
+        name,
+        element,
+        map
     }
 }

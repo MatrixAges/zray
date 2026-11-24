@@ -1,21 +1,12 @@
-import type { Capture } from "../expressions/fallible"
+import type { AstOrigin, StatementVariables as Variables } from "ast_rows"
 import type { Columns as Forms } from "../expressions/forms/model"
 import type { Columns as Expressions } from "../expressions/model"
 import type { Columns as Statements } from "../statements/model"
 
-export type Input = {
-    capture?: Capture,
-    expression_base: u32,
-    statement_base: u32,
-    field_base: u32,
-    serial: u64
-}
+export type { StatementVariables as Variables } from "ast_rows"
 
-export type Variables = {
-    variable_name: u8[][],
-    variable_type_expr: u32?[],
-    variable_value: u32[],
-    variable_exported: bool[]
+export type Input = AstOrigin & {
+    field_base: u32
 }
 
 export type State = {

@@ -1,0 +1,25 @@
+import type {
+    AstPayloadOwnership,
+    AstWriter,
+    ExpressionForms,
+    ExpressionRows,
+    StatementRows,
+    StatementVariables
+} from "ast_rows"
+
+export { AstPayloadOwnership } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    expressions: ExpressionRows,
+    forms?: ExpressionForms,
+    prelude?: StatementRows,
+    element: u64,
+    step: StatementRows,
+    remainder?: u64,
+    outer: u64,
+    result: StatementRows,
+    variables?: StatementVariables,
+    ownership: AstPayloadOwnership,
+    valid: bool
+}

@@ -1,19 +1,40 @@
 export {
+    appendStatementSequence,
+    extendStatementSequence,
+    joinAstSpans,
+    readAstOrigin,
+    readAstOrigin as refreshAstOrigin,
+    statementSequenceBlock as outerBlock,
+    statementSequenceBlock as callbackBlock,
+    statementSequenceBlock as elementBlock
+} from "ast_rows"
+export {
     lowerTransformSort,
     enterTransformParameters,
     tryTransformSimd,
     bindTransformSource,
     resolveTransformResultType,
-    prepareTransformPredicate,
     lowerTransformCallback,
     bindTransformElement,
-    publishTransformPredicate,
-    publishCollectTransform,
+    transformFreshName,
+    transformCollectionElement,
+    finishTransformCollection,
+    finishGeneratedAst,
     transformStateActive,
     lowerReduceInitial,
-    convertReduceInitial,
+    reduceAccumulator,
     reduceInlineLists,
     emitReduceRenewals,
-    convertReduceCallback,
-    publishReduceTransform
+    reduceEntered
 } from "lowering_host"
+export { requireAllocation } from "memory"
+
+export {
+    default as convertInitial,
+    default as convertCallback
+} from "./convert_reduce_value"
+export {
+    default as elementRange,
+    default as outerRange,
+    default as enteredRange
+} from "./span"

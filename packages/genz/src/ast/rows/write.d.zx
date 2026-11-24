@@ -2,6 +2,14 @@ export type AstWriter = opaque
 
 export type AstOriginBuffer = opaque
 
+export type AstSequence = opaque
+
+export enum AstPayloadOwnership {
+    Owned,
+    BorrowingText,
+    Borrowed
+}
+
 export type AstCapture = {
     name: u8[],
     label: u8[],
@@ -17,8 +25,35 @@ export type AstOrigin = {
 
 export declare function readAstOrigin(writer: AstWriter, buffer: AstOriginBuffer): AstOrigin
 
-export declare function appendExpressionRows(writer: AstWriter, rows: ExpressionRows): void
+export declare function appendExpressionRows(
+    writer: AstWriter,
+    rows: ExpressionRows,
+    forms: ExpressionForms?,
+    ownership: AstPayloadOwnership
+): void throws { OutOfMemory }
+
+export declare function appendStatementRows(
+    writer: AstWriter,
+    rows: StatementRows,
+    variables: StatementVariables?,
+    ownership: AstPayloadOwnership
+): void throws { OutOfMemory }
+
+export declare function appendStatementSequence(
+    writer: AstWriter,
+    target: AstSequence,
+    rows: StatementRows,
+    variables: StatementVariables
+): void throws { OutOfMemory }
+
+export declare function extendStatementSequence(target: AstSequence, suffix: AstSequence): void
     throws { OutOfMemory }
 
-export declare function appendStatementRows(writer: AstWriter, rows: StatementRows): void
+export declare function statementSequenceBlock(writer: AstWriter, target: AstSequence): u64
+    throws { OutOfMemory }
+
+export declare function joinAstSpans(writer: AstWriter, first: u64, second: u64): u64
+    throws { OutOfMemory }
+
+export declare function appendAstSpan(writer: AstWriter, span: u64): void
     throws { OutOfMemory }
