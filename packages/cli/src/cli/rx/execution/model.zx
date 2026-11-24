@@ -1,0 +1,20 @@
+import type { RxApplication } from "rx_execution_host"
+import type { Settings } from "../../compilation/model"
+
+export type Request = {
+    application: RxApplication,
+    settings: Settings
+}
+
+export type Loaded = Request & {
+    entry: string
+}
+
+export type Analyzed = Request & {
+    stores: u64
+}
+
+export type Build = {
+    application: RxApplication,
+    stores: u64
+}

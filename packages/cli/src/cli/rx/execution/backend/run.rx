@@ -1,32 +1,16 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Backend" />
 
-    <Args in={IO.NativeBuild} out={IO.Status} />
+    <Args in={Backend.Invocation} out={IO.Status} />
 
-    <Call fn="index.watchesNativeBuild" in={$in} />
-    <Call fn="index.nativeNodeHost" in={$in} />
-
-    <If on={$ctx.watchesNativeBuild}>
-        <Call
-            module="observed"
-            in={{
-                build: $in,
-                node: $ctx.nativeNodeHost,
-                observed: true
-            }}
-        />
+    <If on={$in.observed}>
+        <Call module="observed" in={$in} />
 
         <Return value={$ctx.observed} />
     </If>
 
-    <Call
-        module="staged"
-        in={{
-            build: $in,
-            node: $ctx.nativeNodeHost,
-            observed: false
-        }}
-    />
+    <Call module="staged" in={$in} />
 
     <Return value={$ctx.staged} />
 </Module>

@@ -1,21 +1,20 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Execution" />
 
-    <Args in={IO.RxApplication} out={IO.Status} />
+    <Args in={Execution.Request} out={IO.Status} />
 
-    <Call fn="index.emitRxApplicationText" in={$in} />
+    <Call fn="index.emitRxApplicationText" in={$in.application} />
 
     <If on={!$ctx.emitRxApplicationText}>
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call fn="index.rxApplicationHasOutput" in={$in} />
-
-    <If on={$ctx.rxApplicationHasOutput}>
-        <Call fn="index.writeRxApplicationText" in={$in} />
+    <If on={$in.settings.output != null}>
+        <Call fn="index.writeRxApplicationText" in={$in.application} />
 
         <Else>
-            <Call fn="index.printRxApplicationText" in={$in} />
+            <Call fn="index.printRxApplicationText" in={$in.application} />
         </Else>
     </If>
 

@@ -22,24 +22,17 @@ export enum Status {
 }
 
 
-export declare function rxRequestsLibrary(check: RxApplication): bool
 export declare function reportRxLibraryEntry(check: RxApplication): void throws { SourceLoadFailure }
-export declare function loadRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
-export declare function rxApplicationIsGateway(check: RxApplication): bool
+export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
 export declare function buildRxGateway(check: RxApplication): Status throws { SourceLoadFailure }
-export declare function analyzeRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
-export declare function rxApplicationVerifying(check: RxApplication): bool
+export declare function analyzeRxApplication(check: RxApplication): u64? throws { SourceLoadFailure }
 export declare function verifyRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
-export declare function rxApplicationFpga(check: RxApplication): bool
 export declare function generateRxFpga(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function openRxApplicationCache(check: RxApplication): void throws { SourceLoadFailure }
-export declare function rxApplicationNative(check: RxApplication): bool
 export declare function emitRxApplicationText(check: RxApplication): bool throws { SourceLoadFailure }
-export declare function rxApplicationHasOutput(check: RxApplication): bool
 export declare function writeRxApplicationText(check: RxApplication): void throws { SourceLoadFailure }
 export declare function printRxApplicationText(check: RxApplication): void throws { SourceLoadFailure }
 export declare function emitRxApplicationModules(check: RxApplication): bool throws { SourceLoadFailure }
-export declare function rxApplicationHasStore(check: RxApplication): bool
 export declare function collectRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
 export declare function emitRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
 export declare function emitRxState(check: RxApplication): void throws { SourceLoadFailure }
@@ -56,7 +49,6 @@ export declare function reserveGatewayServices(check: GatewayAnalysis): u64 thro
 export declare function recordGatewayService(check: GatewayAnalysis, index: u64): void
 export declare function analyzeGatewayServices(check: GatewayAnalysis): bool throws { SourceLoadFailure }
 
-export declare function permitsGatewayBuild(check: GatewayBuild): bool
 export declare function reportGatewayBuildMode(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function loadGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
 export declare function linkGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
@@ -72,8 +64,6 @@ export declare function resolveGatewayToolchain(check: GatewayBuild): void throw
 export declare function resolveGatewayNativeProject(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function runGatewayBackend(check: GatewayBuild): Status throws { SourceLoadFailure }
 
-export declare function watchesNativeBuild(build: NativeBuild): bool
-export declare function nativeNodeHost(build: NativeBuild): bool
 export declare function createStagedBindings(build: NativeBuild): void throws {
     SourceLoadFailure
 }
@@ -203,21 +193,15 @@ export declare function appendNapiModule(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 
-export declare function compilationLinting(check: Compilation): bool
 export declare function runCompilationLint(check: Compilation): Status throws { SourceLoadFailure }
-export declare function compilationFormatting(check: Compilation): bool
 export declare function compilationIsConfiguration(check: Compilation): bool
 export declare function runCompilationConfiguration(check: Compilation): Status throws { SourceLoadFailure }
-export declare function compilationIsLibrary(check: Compilation): bool
-export declare function compilationWatching(check: Compilation): bool
 export declare function openCompilationInputs(check: Compilation): void throws { SourceLoadFailure }
 export declare function resolveCompilationEntry(check: Compilation): void throws { SourceLoadFailure }
 export declare function compilationIsRx(check: Compilation): bool
 export declare function runCompilationRx(check: Compilation): Status throws { SourceLoadFailure }
 export declare function loadCompilationProject(check: Compilation): bool throws { SourceLoadFailure }
 export declare function compilationIsManifest(check: Compilation): bool
-export declare function compilationVerifying(check: Compilation): bool
-export declare function compilationNative(check: Compilation): bool
 export declare function runCompilationLibraryProof(check: Compilation): Status throws { SourceLoadFailure }
 export declare function runCompilationLibraryBuild(check: Compilation): Status throws { SourceLoadFailure }
 export declare function readCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
@@ -226,15 +210,12 @@ export declare function readCompilationDependencies(check: Compilation): bool th
 export declare function compilationHasRxImport(check: Compilation): bool
 export declare function adoptCompilationInputs(check: Compilation): void
 
-export declare function compilationCacheEnabled(check: Compilation): bool
-export declare function compilationCacheStats(check: Compilation): bool
 export declare function compilationHasCompiledLibraries(check: Compilation): bool
 export declare function reportCompilationCacheBypass(check: Compilation): void throws { SourceLoadFailure }
 export declare function loadCompilationCache(check: Compilation): void throws { SourceLoadFailure }
 export declare function saveCompilationCache(check: Compilation): void throws { SourceLoadFailure }
 export declare function reportCompilationCache(check: Compilation): void throws { SourceLoadFailure }
 export declare function reportCompilationCacheDisabled(check: Compilation): void throws { SourceLoadFailure }
-export declare function compilationFpga(check: Compilation): bool
 export declare function analyzeCompilationCached(check: Compilation): void throws { SourceLoadFailure }
 export declare function analyzeCompilationUncached(check: Compilation): void throws { SourceLoadFailure }
 export declare function checkCompilationAnalysis(check: Compilation, proof: bool): bool throws { SourceLoadFailure }
@@ -249,9 +230,7 @@ export declare function emitCompilationModules(check: Compilation): bool throws 
 export declare function reportCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
 export declare function resolveCompilationToolchain(check: Compilation): bool throws { SourceLoadFailure }
 export declare function buildCompilationModules(check: Compilation): Status throws { SourceLoadFailure }
-export declare function compilationCheckingText(check: Compilation): bool
 export declare function checkCompilationText(check: Compilation): bool throws { SourceLoadFailure }
-export declare function compilationWritingText(check: Compilation): bool
 export declare function writeCompilationText(check: Compilation): void throws { SourceLoadFailure }
 export declare function printCompilationText(check: Compilation): void throws { SourceLoadFailure }
 

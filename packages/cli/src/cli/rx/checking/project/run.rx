@@ -22,17 +22,13 @@
     </If>
 
     <Call fn="../index.reserveCheckCalls" in={$in} />
-    <Call fn="../index.checkHasGateway" in={$in} />
-    <Call fn="../index.checkModuleCount" in={$in} />
 
-    <If on={!$ctx.checkHasGateway || $ctx.checkModuleCount > 0}>
+    <If on={!$ctx.reserveCheckCalls.gateway || $ctx.reserveCheckCalls.module_count > 0}>
         <Call
             module="graph"
             in={{
-                check: $in,
-                source_count: $ctx.reserveCheckCalls,
-                module_count: $ctx.checkModuleCount,
-                gateway: $ctx.checkHasGateway
+                ...$ctx.reserveCheckCalls,
+                check: $in
             }}
         />
 
@@ -53,7 +49,7 @@
         fn="functions"
         in={{
             check: $in,
-            count: $ctx.reserveCheckCalls
+            count: $ctx.reserveCheckCalls.source_count
         }}
     />
 

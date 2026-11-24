@@ -1,24 +1,25 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Compile" />
 
-    <Args in={IO.Compilation} out={IO.Status} />
+    <Args in={Compile.Request} out={IO.Status} />
 
-    <Call fn="index.compilationIsConfiguration" in={$in} />
+    <Call fn="index.compilationIsConfiguration" in={$in.compilation} />
 
     <If on={$ctx.compilationIsConfiguration}>
-        <Call fn="index.runCompilationConfiguration" in={$in} />
+        <Call fn="index.runCompilationConfiguration" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationConfiguration} />
     </If>
 
-    <Call fn="index.resolveCompilationEntry" in={$in} />
-    <Call fn="index.readCompilationSource" in={$in} />
+    <Call fn="index.resolveCompilationEntry" in={$in.compilation} />
+    <Call fn="index.readCompilationSource" in={$in.compilation} />
 
     <If on={!$ctx.readCompilationSource}>
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call fn="index.formatCompilationSource" in={$in} />
+    <Call fn="index.formatCompilationSource" in={$in.compilation} />
 
     <If on={!$ctx.formatCompilationSource}>
         <Return value={IO.Status.Failed} />

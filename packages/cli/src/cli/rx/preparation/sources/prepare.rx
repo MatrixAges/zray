@@ -1,14 +1,14 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Preparation" />
 
-    <Args in={IO.Preparation} out={void} />
+    <Args in={Preparation.Request} out={void} />
 
-    <Call fn="../index.reservePreparationRoots" in={$in} />
+    <Call fn="../index.reservePreparationRoots" in={$in.preparation} />
 
     <Call
         fn="register"
         in={{
-            preparation: $in,
+            preparation: $in.preparation,
             count: $ctx.reservePreparationRoots
         }}
     />
@@ -17,7 +17,7 @@
         <Call
             module="roots"
             in={{
-                preparation: $in,
+                ...$in,
                 count: $ctx.reservePreparationRoots,
                 index: 0,
                 running: $ctx.reservePreparationRoots != 0

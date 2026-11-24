@@ -1,0 +1,44 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Analyzed} out={IO.Status} />
+
+    <If on={$in.settings.verifying}>
+        <Call fn="index.verifyRxApplication" in={$in.application} />
+
+        <If on={$ctx.verifyRxApplication}>
+            <Return value={IO.Status.Success} />
+        </If>
+
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <If on={$in.settings.fpga}>
+        <Call fn="index.generateRxFpga" in={$in.application} />
+
+        <If on={$ctx.generateRxFpga}>
+            <Return value={IO.Status.Success} />
+        </If>
+
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.openRxApplicationCache" in={$in.application} />
+
+    <If on={$in.settings.native}>
+        <Call
+            module="build"
+            in={{
+                application: $in.application,
+                stores: $in.stores
+            }}
+        />
+
+        <Return value={$ctx.build} />
+    </If>
+
+    <Call module="text" in={$in.omit(["stores"])} />
+
+    <Return value={$ctx.text} />
+</Module>

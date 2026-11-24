@@ -1,6 +1,4 @@
 export {
-    watchesNativeBuild,
-    nativeNodeHost,
     createStagedBindings,
     openStagedOutput,
     openBackendEnvironment,

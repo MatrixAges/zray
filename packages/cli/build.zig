@@ -153,6 +153,7 @@ pub fn build(b: *std.Build) void {
     });
 
     cli_source.addImport("rx_checking_host", rx_checking);
+    host.addImport("rx_checking_abi", cli_source.import_table.get("zxc_abi").?);
 
     const lint_workflow = b.createModule(.{
         .root_source_file = b.path("src/cli/lint/bindings.zig"),

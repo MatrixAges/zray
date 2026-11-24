@@ -1,12 +1,11 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Compile" />
 
-    <Args in={IO.Compilation} out={IO.Status} />
+    <Args in={Compile.Request} out={IO.Status} />
 
-    <Call fn="index.compilationCheckingText" in={$in} />
-
-    <If on={$ctx.compilationCheckingText}>
-        <Call fn="index.checkCompilationText" in={$in} />
+    <If on={$in.settings.check}>
+        <Call fn="index.checkCompilationText" in={$in.compilation} />
 
         <If on={!$ctx.checkCompilationText}>
             <Return value={IO.Status.Failed} />
@@ -15,13 +14,11 @@
         <Return value={IO.Status.Success} />
     </If>
 
-    <Call fn="index.compilationWritingText" in={$in} />
-
-    <If on={$ctx.compilationWritingText}>
-        <Call fn="index.writeCompilationText" in={$in} />
+    <If on={$in.settings.write || $in.settings.output != null}>
+        <Call fn="index.writeCompilationText" in={$in.compilation} />
 
         <Else>
-            <Call fn="index.printCompilationText" in={$in} />
+            <Call fn="index.printCompilationText" in={$in.compilation} />
         </Else>
     </If>
 

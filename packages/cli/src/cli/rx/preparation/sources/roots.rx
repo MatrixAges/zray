@@ -5,10 +5,11 @@
 
     <Call
         module="root"
-        in={[
-            $in.preparation,
-            $in.index
-        ]}
+        in={$in.pick([
+            "preparation",
+            "scoped",
+            "index"
+        ])}
     />
 
     <Return

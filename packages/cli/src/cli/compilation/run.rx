@@ -1,65 +1,56 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Compile" />
 
-    <Args in={IO.Compilation} out={IO.Status} />
+    <Args in={Compile.Request} out={IO.Status} />
 
-    <Call fn="index.compilationLinting" in={$in} />
-
-    <If on={$ctx.compilationLinting}>
-        <Call fn="index.runCompilationLint" in={$in} />
+    <If on={$in.settings.linting}>
+        <Call fn="index.runCompilationLint" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationLint} />
     </If>
 
-    <Call fn="index.compilationFormatting" in={$in} />
-
-    <If on={$ctx.compilationFormatting}>
+    <If on={$in.settings.formatting}>
         <Call module="format" in={$in} />
 
         <Return value={$ctx.format} />
     </If>
 
-    <Call fn="index.compilationIsLibrary" in={$in} />
-    <Call fn="index.compilationWatching" in={$in} />
-
-    <If on={$ctx.compilationIsLibrary && !$ctx.compilationWatching}>
-        <Call fn="index.openCompilationInputs" in={$in} />
+    <If on={$in.settings.library && !$in.watching}>
+        <Call fn="index.openCompilationInputs" in={$in.compilation} />
     </If>
 
-    <Call fn="index.resolveCompilationEntry" in={$in} />
-    <Call fn="index.compilationIsRx" in={$in} />
+    <Call fn="index.resolveCompilationEntry" in={$in.compilation} />
+    <Call fn="index.compilationIsRx" in={$in.compilation} />
 
-    <If on={$ctx.compilationIsRx && !$ctx.compilationIsLibrary}>
-        <Call fn="index.runCompilationRx" in={$in} />
+    <If on={$ctx.compilationIsRx && !$in.settings.library}>
+        <Call fn="index.runCompilationRx" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationRx} />
     </If>
 
-    <Call fn="index.loadCompilationProject" in={$in} />
+    <Call fn="index.loadCompilationProject" in={$in.compilation} />
 
     <If on={!$ctx.loadCompilationProject}>
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call fn="index.compilationVerifying" in={$in} />
-    <Call fn="index.compilationIsManifest" in={$in} />
+    <Call fn="index.compilationIsManifest" in={$in.compilation} />
 
-    <If on={$ctx.compilationVerifying && $ctx.compilationIsManifest}>
-        <Call fn="index.runCompilationLibraryProof" in={$in} />
+    <If on={$in.settings.verifying && $ctx.compilationIsManifest}>
+        <Call fn="index.runCompilationLibraryProof" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationLibraryProof} />
     </If>
 
-    <Call fn="index.compilationNative" in={$in} />
-
-    <If on={$ctx.compilationNative && $ctx.compilationIsLibrary}>
-        <Call fn="index.runCompilationLibraryBuild" in={$in} />
+    <If on={$in.settings.native && $in.settings.library}>
+        <Call fn="index.runCompilationLibraryBuild" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationLibraryBuild} />
     </If>
 
     <If on={$ctx.compilationIsRx}>
-        <Call fn="index.runCompilationRx" in={$in} />
+        <Call fn="index.runCompilationRx" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationRx} />
     </If>

@@ -1,6 +1,26 @@
 import type { Compilation } from "rx_execution_host"
 
-export type Query = {
+export type Settings = {
+    formatting: bool,
+    linting: bool,
+    library: bool,
+    verifying: bool,
+    fpga: bool,
+    native: bool,
+    cache: bool,
+    cache_stats: bool,
+    json_result: bool,
+    check: bool,
+    write: bool,
+    output?: string
+}
+
+export type Request = {
     compilation: Compilation,
+    settings: Settings,
+    watching: bool
+}
+
+export type Query = Request & {
     proof: bool
 }

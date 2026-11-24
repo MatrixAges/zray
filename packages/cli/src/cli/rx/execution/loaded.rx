@@ -1,0 +1,31 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="model" as="Execution" />
+    <Type from="../collection/index" as="Collection" />
+
+    <Args in={Execution.Loaded} out={IO.Status} />
+
+    <Call fn="../collection/kind" in={$in.entry} />
+
+    <If on={$ctx.kind == Collection.Kind.Gateway}>
+        <Call fn="index.buildRxGateway" in={$in.application} />
+
+        <Return value={$ctx.buildRxGateway} />
+    </If>
+
+    <Call fn="index.analyzeRxApplication" in={$in.application} />
+
+    <If on={$ctx.analyzeRxApplication != null}>
+        <Call
+            module="analyzed"
+            in={{
+                ...$in.omit(["entry"]),
+                stores: $ctx.analyzeRxApplication
+            }}
+        />
+
+        <Return value={$ctx.analyzed} />
+    </If>
+
+    <Return value={IO.Status.Failed} />
+</Module>

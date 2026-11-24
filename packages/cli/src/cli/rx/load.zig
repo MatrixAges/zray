@@ -7,6 +7,7 @@ const functions_check = @import("function.zig");
 const collection = @import("collection.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
+const CheckRows = @import("rx_checking_abi").layouts.@"zig:rx_checking_host".CheckRows;
 
 const State = struct {
     io: std.Io,
@@ -23,6 +24,7 @@ const State = struct {
     loaded: ?collection.Result = null,
     functions: []const rx.TextSource = &.{},
     calls: []std.ArrayList(functions_check.Selection) = &.{},
+    rows: CheckRows = undefined,
     graph_entry: []const u8 = undefined,
     sources: []compiler.project.Source = &.{},
     roots: [][]const u8 = &.{},
@@ -129,22 +131,18 @@ pub fn collectCheckTypes(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn reserveCheckCalls(handle: *const anyopaque) Error!u64 {
+pub fn reserveCheckCalls(handle: *const anyopaque) Error!*const CheckRows {
     const self = State.get(handle);
 
     self.calls = self.allocator.alloc(std.ArrayList(functions_check.Selection), self.functions.len) catch |err| return self.failure.save(err);
 
     @memset(self.calls, .empty);
 
-    return self.functions.len;
-}
+    const documents = &self.loaded.?.data;
 
-pub fn checkHasGateway(handle: *const anyopaque) bool {
-    return State.get(handle).loaded.?.data.gateway != null;
-}
+    self.rows = .{ .source_count = self.functions.len, .module_count = documents.modules.len, .gateway = documents.gateway != null };
 
-pub fn checkModuleCount(handle: *const anyopaque) u64 {
-    return State.get(handle).loaded.?.data.modules.len;
+    return &self.rows;
 }
 
 pub fn reserveCheckGraph(handle: *const anyopaque, gateway: bool) Error!void {

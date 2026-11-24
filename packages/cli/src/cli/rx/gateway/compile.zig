@@ -46,19 +46,20 @@ const State = struct {
 
 pub fn run(context: *const Compile.Context, loaded: *const Loaded) !Compile.Status {
     var state: State = .{ .context = context, .loaded = loaded };
+    const entry = @import("cli_source").build_gateway_application;
+    const settings = context.options.executionSettings();
     const reference = &state;
+
+    const request: std.meta.Child(entry.Input) = .{
+        .gateway = @ptrCast(&reference),
+        .settings = &settings,
+    };
 
     defer state.deinit();
 
-    const status = @import("cli_source").build_gateway_application.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const status = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
 
     return native.status(status);
-}
-
-pub fn permitsGatewayBuild(handle: *const anyopaque) bool {
-    const options = &State.get(handle).context.options;
-
-    return options.native and !options.verifying and !options.fpga and options.result == .json;
 }
 
 pub fn reportGatewayBuildMode(handle: *const anyopaque) Error!void {

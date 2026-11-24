@@ -1,4 +1,6 @@
 const std = @import("std");
+const CompilationRequest = std.meta.Child(@import("cli_source").compile_command.Input);
+const Settings = std.meta.Child(@FieldType(CompilationRequest, "settings"));
 
 pub const Options = struct {
     input: []const u8,
@@ -30,6 +32,22 @@ pub const Options = struct {
     watch: bool = false,
     run: bool = false,
     run_args: []const []const u8 = &.{},
+    pub fn executionSettings(self: *const Options) Settings {
+        return .{
+            .formatting = self.formatting,
+            .linting = self.linting,
+            .library = self.mode == .lib,
+            .verifying = self.verifying,
+            .fpga = self.fpga,
+            .native = self.native,
+            .cache = self.cache,
+            .cache_stats = self.cache_stats,
+            .json_result = self.result == .json,
+            .check = self.check,
+            .write = self.write,
+            .output = self.output,
+        };
+    }
 };
 
 pub fn parse(args: []const []const u8) error{InvalidArguments}!Options {

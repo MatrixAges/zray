@@ -112,9 +112,14 @@ pub fn run(allocator: std.mem.Allocator, options: *const entry.Options) !?entry.
 
     const reference = &state;
 
+    const request: std.meta.Child(rule.Input) = .{
+        .preparation = @ptrCast(&reference),
+        .scoped = project.package_scopes.len != 0,
+    };
+
     defer state.deinit();
 
-    const ready = rule.executeIn(allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const ready = rule.executeIn(allocator, &request) catch |err| return state.failure.unwrap(err);
 
     return if (ready) try state.finish() else null;
 }
@@ -212,10 +217,6 @@ pub fn loadPreparationRoot(handle: *const anyopaque, index: u64) Error!u64 {
     self.traversal.readEntry(path, self.functions[row].source, true) catch |err| return self.failure.save(err);
 
     return first;
-}
-
-pub fn hasPreparationScopes(handle: *const anyopaque) bool {
-    return State.get(handle).options.project.package_scopes.len != 0;
 }
 
 pub fn preparedZxCount(handle: *const anyopaque) u64 {

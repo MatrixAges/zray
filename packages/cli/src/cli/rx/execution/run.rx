@@ -1,70 +1,28 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Execution" />
 
-    <Args in={IO.RxApplication} out={IO.Status} />
+    <Args in={Execution.Request} out={IO.Status} />
 
-    <Call fn="index.rxRequestsLibrary" in={$in} />
-
-    <If on={$ctx.rxRequestsLibrary}>
-        <Call fn="index.reportRxLibraryEntry" in={$in} />
-
-        <Return value={IO.Status.Failed} />
-    </If>
-
-    <Call fn="index.loadRxApplication" in={$in} />
-
-    <If on={!$ctx.loadRxApplication}>
-        <Return value={IO.Status.Failed} />
-    </If>
-
-    <Call fn="index.rxApplicationIsGateway" in={$in} />
-
-    <If on={$ctx.rxApplicationIsGateway}>
-        <Call fn="index.buildRxGateway" in={$in} />
-
-        <Return value={$ctx.buildRxGateway} />
-    </If>
-
-    <Call fn="index.analyzeRxApplication" in={$in} />
-
-    <If on={!$ctx.analyzeRxApplication}>
-        <Return value={IO.Status.Failed} />
-    </If>
-
-    <Call fn="index.rxApplicationVerifying" in={$in} />
-
-    <If on={$ctx.rxApplicationVerifying}>
-        <Call fn="index.verifyRxApplication" in={$in} />
-
-        <If on={$ctx.verifyRxApplication}>
-            <Return value={IO.Status.Success} />
-        </If>
+    <If on={$in.settings.library}>
+        <Call fn="index.reportRxLibraryEntry" in={$in.application} />
 
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call fn="index.rxApplicationFpga" in={$in} />
+    <Call fn="index.loadRxApplication" in={$in.application} />
 
-    <If on={$ctx.rxApplicationFpga}>
-        <Call fn="index.generateRxFpga" in={$in} />
+    <If on={$ctx.loadRxApplication != null}>
+        <Call
+            module="loaded"
+            in={{
+                ...$in,
+                entry: $ctx.loadRxApplication
+            }}
+        />
 
-        <If on={$ctx.generateRxFpga}>
-            <Return value={IO.Status.Success} />
-        </If>
-
-        <Return value={IO.Status.Failed} />
+        <Return value={$ctx.loaded} />
     </If>
 
-    <Call fn="index.openRxApplicationCache" in={$in} />
-    <Call fn="index.rxApplicationNative" in={$in} />
-
-    <If on={$ctx.rxApplicationNative}>
-        <Call module="build" in={$in} />
-
-        <Return value={$ctx.build} />
-    </If>
-
-    <Call module="text" in={$in} />
-
-    <Return value={$ctx.text} />
+    <Return value={IO.Status.Failed} />
 </Module>

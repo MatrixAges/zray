@@ -1,10 +1,7 @@
-import type { ProjectCheck } from "rx_checking_host"
+import type { CheckRows, ProjectCheck } from "rx_checking_host"
 
-export type Graph = {
-    check: ProjectCheck,
-    source_count: u64,
-    module_count: u64,
-    gateway: bool
+export type Graph = CheckRows & {
+    check: ProjectCheck
 }
 
 export type Range = {

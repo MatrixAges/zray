@@ -68,17 +68,21 @@ pub const State = struct {
 
 pub fn run(context: Compile.Context) !Compile.Status {
     var state: State = .{ .context = context, .abi = .init(context.allocator) };
+    const entry = @import("cli_source").compile_command;
+    const settings = context.options.executionSettings();
     const reference = &state;
+
+    const request: std.meta.Child(entry.Input) = .{
+        .compilation = @ptrCast(&reference),
+        .settings = &settings,
+        .watching = context.watch != null,
+    };
 
     defer state.deinit();
 
-    const result = @import("cli_source").compile_command.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
 
     return native.status(result);
-}
-
-pub fn compilationLinting(handle: *const anyopaque) bool {
-    return State.get(handle).options().linting;
 }
 
 pub fn runCompilationLint(handle: *const anyopaque) Error!native.Status {
@@ -86,10 +90,6 @@ pub fn runCompilationLint(handle: *const anyopaque) Error!native.Status {
     const result = @import("../lint.zig").run(self.context) catch |err| return self.failure.save(err);
 
     return native.sourceStatus(result);
-}
-
-pub fn compilationFormatting(handle: *const anyopaque) bool {
-    return State.get(handle).options().formatting;
 }
 
 pub fn compilationIsConfiguration(handle: *const anyopaque) bool {
@@ -103,14 +103,6 @@ pub fn runCompilationConfiguration(handle: *const anyopaque) Error!native.Status
     const result = @import("../configuration/root.zig").run(self.context) catch |err| return self.failure.save(err);
 
     return native.sourceStatus(result);
-}
-
-pub fn compilationIsLibrary(handle: *const anyopaque) bool {
-    return State.get(handle).options().mode == .lib;
-}
-
-pub fn compilationWatching(handle: *const anyopaque) bool {
-    return State.get(handle).context.watch != null;
 }
 
 pub fn openCompilationInputs(handle: *const anyopaque) Error!void {
@@ -168,14 +160,6 @@ pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
 
 pub fn compilationIsManifest(handle: *const anyopaque) bool {
     return std.mem.eql(u8, std.fs.path.basename(State.get(handle).options().input), "pkg.yaml");
-}
-
-pub fn compilationVerifying(handle: *const anyopaque) bool {
-    return State.get(handle).options().verifying;
-}
-
-pub fn compilationNative(handle: *const anyopaque) bool {
-    return State.get(handle).options().native;
 }
 
 pub fn runCompilationLibraryProof(handle: *const anyopaque) Error!native.Status {

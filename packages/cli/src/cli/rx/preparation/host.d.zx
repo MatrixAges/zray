@@ -41,7 +41,6 @@ export declare function reservePreparationRoots(preparation: Preparation): u64 t
 export declare function registerPreparationRoot(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
 export declare function hasPreparedRoot(preparation: Preparation, index: u64): bool
 export declare function loadPreparationRoot(preparation: Preparation, index: u64): u64 throws { SourceLoadFailure }
-export declare function hasPreparationScopes(preparation: Preparation): bool
 export declare function preparedZxCount(preparation: Preparation): u64
 export declare function validatePreparedSource(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
 export declare function collectPreparationLibraries(preparation: Preparation): bool throws { SourceLoadFailure }

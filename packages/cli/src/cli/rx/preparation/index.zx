@@ -19,7 +19,6 @@ export {
     reservePreparationRoots,
     hasPreparedRoot,
     loadPreparationRoot,
-    hasPreparationScopes,
     collectPreparationLibraries,
     inferPreparedProject
 } from "rx_preparation_host"

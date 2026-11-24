@@ -89,17 +89,20 @@ const State = struct {
 
 pub fn run(context: Compile.Context) !Compile.Status {
     var state: State = .{ .context = &context, .type_output = .init(context.allocator) };
+    const entry = @import("cli_source").run_rx_application;
+    const settings = context.options.executionSettings();
     const reference = &state;
+
+    const request: std.meta.Child(entry.Input) = .{
+        .application = @ptrCast(&reference),
+        .settings = &settings,
+    };
 
     defer state.deinit();
 
-    const result = @import("cli_source").run_rx_application.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
 
     return native.status(result);
-}
-
-pub fn rxRequestsLibrary(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.mode == .lib;
 }
 
 pub fn reportRxLibraryEntry(handle: *const anyopaque) Error!void {
@@ -108,23 +111,23 @@ pub fn reportRxLibraryEntry(handle: *const anyopaque) Error!void {
     self.context.stderr.writeAll("RX libraries require the unified package publishing entry\n") catch |err| return self.failure.save(err);
 }
 
-pub fn loadRxApplication(handle: *const anyopaque) Error!bool {
+pub fn loadRxApplication(handle: *const anyopaque) Error!?[]const u8 {
     const self = State.get(handle);
     const context = self.context;
 
-    self.loaded = project.loadWithInputs(context.io, context.allocator, context.options.input, context.options.project, self.inputs()) catch |err| return self.reportFailure(err);
+    self.loaded = project.loadWithInputs(context.io, context.allocator, context.options.input, context.options.project, self.inputs()) catch |err| {
+        _ = try self.reportFailure(err);
+
+        return null;
+    };
 
     if (self.loaded.diagnostic) |message| {
         context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
 
-    return true;
-}
-
-pub fn rxApplicationIsGateway(handle: *const anyopaque) bool {
-    return std.mem.endsWith(u8, State.get(handle).loaded.project.entry, ".gateway.rx");
+    return self.loaded.project.entry;
 }
 
 pub fn buildRxGateway(handle: *const anyopaque) Error!native.Status {
@@ -139,7 +142,7 @@ pub fn buildRxGateway(handle: *const anyopaque) Error!native.Status {
     return native.sourceStatus(result);
 }
 
-pub fn analyzeRxApplication(handle: *const anyopaque) Error!bool {
+pub fn analyzeRxApplication(handle: *const anyopaque) Error!?u64 {
     const self = State.get(handle);
     const context = self.context;
     const watched = if (context.watch) |attempt| attempt.parse_cache else null;
@@ -151,13 +154,13 @@ pub fn analyzeRxApplication(handle: *const anyopaque) Error!bool {
         .writer = context.stderr,
         .parse_cache = watched orelse &self.parsing.?,
         .inputs = self.inputs(),
-    }) catch |err| return self.reportFailure(err);
+    }) catch |err| {
+        _ = try self.reportFailure(err);
 
-    return self.prepared != null;
-}
+        return null;
+    };
 
-pub fn rxApplicationVerifying(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.verifying;
+    return if (self.prepared) |*prepared| prepared.analysis.value.ir.stores.count() else null;
 }
 
 pub fn verifyRxApplication(handle: *const anyopaque) Error!bool {
@@ -169,10 +172,6 @@ pub fn verifyRxApplication(handle: *const anyopaque) Error!bool {
         .solver = context.options.solver,
         .output = context.options.output,
     }, context.stderr) catch |err| return self.reportFailure(err);
-}
-
-pub fn rxApplicationFpga(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.fpga;
 }
 
 pub fn generateRxFpga(handle: *const anyopaque) Error!bool {
@@ -189,10 +188,6 @@ pub fn openRxApplicationCache(handle: *const anyopaque) Error!void {
     self.cache = cache.init(context.io, context.allocator, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
 }
 
-pub fn rxApplicationNative(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.native;
-}
-
 pub fn emitRxApplicationText(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
     const result = compiler.emitProgramVerified(self.context.allocator, self.configuration(), &self.prepared.?.analysis) catch |err| return self.failure.save(err);
@@ -202,10 +197,6 @@ pub fn emitRxApplicationText(handle: *const anyopaque) Error!bool {
     self.text = result.source;
 
     return true;
-}
-
-pub fn rxApplicationHasOutput(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.output != null;
 }
 
 pub fn writeRxApplicationText(handle: *const anyopaque) Error!void {
@@ -238,10 +229,6 @@ pub fn emitRxApplicationModules(handle: *const anyopaque) Error!bool {
     self.bundle = result.bundle;
 
     return true;
-}
-
-pub fn rxApplicationHasStore(handle: *const anyopaque) bool {
-    return State.get(handle).prepared.?.analysis.value.ir.stores.count() != 0;
 }
 
 pub fn collectRxInitializers(handle: *const anyopaque) Error!void {

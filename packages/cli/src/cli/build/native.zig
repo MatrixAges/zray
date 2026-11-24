@@ -21,11 +21,18 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .command = .{ .allocator = context.allocator },
     };
 
+    const entry = @import("cli_source").build_native_application;
     const reference = &state;
+
+    const invocation: std.meta.Child(entry.Input) = .{
+        .build = @ptrCast(&reference),
+        .node = context.options.host == .node,
+        .observed = context.watch != null,
+    };
 
     defer state.deinit();
 
-    const result = @import("cli_source").build_native_application.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(context.allocator, &invocation) catch |err| return state.failure.unwrap(err);
 
     return status(result);
 }
@@ -46,14 +53,6 @@ pub fn sourceStatus(result: Compile.Status) Status {
         .backend_failed => .BackendFailed,
         .retry => .Retry,
     };
-}
-
-pub fn watchesNativeBuild(handle: *const anyopaque) bool {
-    return State.get(handle).context.watch != null;
-}
-
-pub fn nativeNodeHost(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.host == .node;
 }
 
 pub fn createStagedBindings(handle: *const anyopaque) Error!void {

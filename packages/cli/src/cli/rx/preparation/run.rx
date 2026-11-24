@@ -1,25 +1,26 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Preparation" />
 
-    <Args in={IO.Preparation} out={bool} />
+    <Args in={Preparation.Request} out={bool} />
 
-    <Call fn="index.loadPreparationDocuments" in={$in} />
+    <Call fn="index.loadPreparationDocuments" in={$in.preparation} />
 
     <If on={!$ctx.loadPreparationDocuments}>
         <Return value={false} />
     </If>
 
-    <Call fn="index.preparePhysicalRoot" in={$in} />
+    <Call fn="index.preparePhysicalRoot" in={$in.preparation} />
 
     <Call
         fn="validate_modules"
         in={{
-            preparation: $in,
+            preparation: $in.preparation,
             count: $ctx.preparePhysicalRoot
         }}
     />
 
-    <Call fn="index.collectPreparationTypes" in={$in} />
+    <Call fn="index.collectPreparationTypes" in={$in.preparation} />
 
     <If on={!$ctx.collectPreparationTypes}>
         <Return value={false} />
@@ -27,16 +28,16 @@
 
     <Call module="sources/prepare" in={$in} />
 
-    <Call fn="index.collectPreparationLibraries" in={$in} />
+    <Call fn="index.collectPreparationLibraries" in={$in.preparation} />
 
     <If on={!$ctx.collectPreparationLibraries}>
         <Return value={false} />
     </If>
 
-    <Call fn="index.inferPreparedProject" in={$in} />
+    <Call fn="index.inferPreparedProject" in={$in.preparation} />
 
     <If on={$ctx.inferPreparedProject}>
-        <Call fn="evidence" in={$in} />
+        <Call fn="evidence" in={$in.preparation} />
     </If>
 
     <Return value={$ctx.inferPreparedProject} />

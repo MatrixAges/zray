@@ -20,7 +20,14 @@ export type NewSources = {
     first: u64
 }
 
-export type Root = [Preparation, u64]
+export type Request = {
+    preparation: Preparation,
+    scoped: bool
+}
+
+export type Root = Request & {
+    index: u64
+}
 
 export type TypeReference = TypePass & {
     diagnostic: string
@@ -31,8 +38,7 @@ export type CompiledReference = {
     diagnostic: string
 }
 
-export type RootWalk = Range & {
-    index: u64,
+export type RootWalk = Root & Range & {
     running: bool
 }
 

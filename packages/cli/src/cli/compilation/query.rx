@@ -4,9 +4,7 @@
 
     <Args in={Query.Query} out={IO.Status} />
 
-    <Call fn="index.compilationCacheEnabled" in={$in.compilation} />
-
-    <If on={$ctx.compilationCacheEnabled}>
+    <If on={$in.settings.cache}>
         <Call fn="index.analyzeCompilationCached" in={$in.compilation} />
 
         <Else>
@@ -51,7 +49,7 @@
         </Else>
     </If>
 
-    <Call module="cache/finish" in={$in.compilation} />
+    <Call module="cache/finish" in={$in.omit(["proof"])} />
 
     <Return value={IO.Status.Success} />
 </Module>

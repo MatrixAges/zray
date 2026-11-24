@@ -8,14 +8,6 @@ const artifacts = @import("../artifacts.zig");
 const generation = @import("../generation_cache.zig");
 const verification = @import("../verify.zig");
 
-pub fn compilationCacheEnabled(handle: *const anyopaque) bool {
-    return State.get(handle).options().cache;
-}
-
-pub fn compilationCacheStats(handle: *const anyopaque) bool {
-    return State.get(handle).options().cache_stats;
-}
-
 pub fn compilationHasCompiledLibraries(handle: *const anyopaque) bool {
     return State.get(handle).loaded.project.compiled_libraries.len != 0;
 }
@@ -56,10 +48,6 @@ pub fn reportCompilationCacheDisabled(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
     self.context.stderr.writeAll("zxc cache: disabled\n") catch |err| return self.failure.save(err);
-}
-
-pub fn compilationFpga(handle: *const anyopaque) bool {
-    return State.get(handle).options().fpga;
 }
 
 pub fn analyzeCompilationCached(handle: *const anyopaque) Error!void {
@@ -219,10 +207,6 @@ pub fn buildCompilationModules(handle: *const anyopaque) Error!native.Status {
     return native.sourceStatus(result);
 }
 
-pub fn compilationCheckingText(handle: *const anyopaque) bool {
-    return State.get(handle).options().check;
-}
-
 pub fn checkCompilationText(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
     const writer = self.context.stderr;
@@ -233,12 +217,6 @@ pub fn checkCompilationText(handle: *const anyopaque) Error!bool {
     writer.flush() catch |err| return self.failure.save(err);
 
     return false;
-}
-
-pub fn compilationWritingText(handle: *const anyopaque) bool {
-    const options = State.get(handle).options();
-
-    return options.write or options.output != null;
 }
 
 pub fn writeCompilationText(handle: *const anyopaque) Error!void {
