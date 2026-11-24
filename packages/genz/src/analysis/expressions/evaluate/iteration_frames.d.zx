@@ -150,6 +150,8 @@ export enum IterationOperandSlot {
 
 export type IterationProjectionFrame = opaque
 
+export type IterationResultApplication = opaque
+
 export type IterationProjectionStamp = {
     serial: u64,
     history_count: u64

@@ -1,0 +1,11 @@
+import type { Input as Resources } from "../../resources/projection"
+import type { Input as Projection, Plan } from "../model"
+
+export { reserveIterationProjectionColumns } from "lowering_host"
+
+export type Input = {
+    source: Projection,
+    resources: Resources.Omit("plan")
+}
+
+export type Output = Plan

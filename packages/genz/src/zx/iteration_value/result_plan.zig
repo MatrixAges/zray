@@ -8,6 +8,16 @@ const enabled = @import("genz_options").generated_analysis;
 const generated = if (enabled) @import("generated_iteration_result") else struct {};
 pub const Output = if (enabled) std.meta.Child(generated.Output) else void;
 
+pub fn valid(workspace: std.mem.Allocator, program: *const ir.Program, cache: ?*const Cache, selected: Consumer, comptime mode: anytype, capture: bool) Lower.Error!bool {
+    var scratch = std.heap.ArenaAllocator.init(workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    defer scratch.deinit();
+
+    return (try analyze(buffered.allocator(), program, cache, selected, mode, capture)).valid;
+}
+
 pub fn analyze(allocator: std.mem.Allocator, program: *const ir.Program, cache: ?*const Cache, selected: Consumer, comptime mode: anytype, capture: bool) Lower.Error!*const Output {
     const Input = std.meta.Child(generated.Input);
     const Cached = std.meta.Child(@typeInfo(@FieldType(Input, "cached")).optional.child);
@@ -24,8 +34,5 @@ pub fn analyze(allocator: std.mem.Allocator, program: *const ir.Program, cache: 
         .mode = @field(@FieldType(Input, "mode"), @tagName(mode)),
     };
 
-    return generated.executeIn(allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow => error.OutOfMemory,
-        else => unreachable,
-    };
+    return generated.executeIn(allocator, &input) catch |err| @import("../construction/publication.zig").failure(err);
 }

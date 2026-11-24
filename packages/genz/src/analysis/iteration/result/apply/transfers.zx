@@ -1,0 +1,28 @@
+import host from "lowering_host"
+import memory from "memory"
+
+import type { Transfers as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, plan, slots } = in
+
+    host.reserveIterationTransferSlots(frame, plan.transfer_count)
+
+    const applied = loop(0, {
+        while: row => row < plan.transfers.length,
+        next: row => {
+            const id = plan.transfers[row]
+            const slot = plan.slots[row]
+            const projected = host.projectIterationResult(frame, id)
+            const value = match {
+                plan.reuse[row] => memory.readU32(slots, slot),
+                _ => host.transferIterationResult(frame, id, projected, slot)
+            }
+
+            host.cacheIterationResult(frame, id, value)
+            row += 1
+        }
+    })
+}

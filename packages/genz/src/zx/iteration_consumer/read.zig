@@ -7,6 +7,7 @@ const evaluation = @import("../expressions/evaluate.zig");
 const lists = @import("../state_value/list.zig");
 const entry = @import("generated_consumer_read");
 const Input = std.meta.Child(entry.Input);
+const Source = std.meta.Child(@FieldType(Input, "source"));
 
 pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     var arena = std.heap.ArenaAllocator.init(self.workspace);
@@ -15,39 +16,28 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.Exp
 
     defer arena.deinit();
 
-    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
-    const expressions: *const ir.ExpressionTable = &self.program.expressions;
+    const program: *const ir.Program = &self.program;
+    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "types")), program.types);
 
-    const input: Input = .{
-        .table = zx.columns.pointer(@FieldType(Input, "table"), expressions),
+    const source: Source = .{
+        .table = zx.columns.pointer(@FieldType(Source, "table"), &program.expressions),
         .types = &types,
         .selected = self.state_plan.selected,
-        .queries = zx.columns.slice(@FieldType(Input, "queries"), self.state_plan.queries),
+        .queries = zx.columns.slice(@FieldType(Source, "queries"), self.state_plan.queries),
         .element_storage = self.state_plan.element_storage,
         .active = self.state_active,
         .root = @backingInt(root),
         .symbol = @backingInt(symbol),
     };
 
-    const plan = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const input: Input = .{ .frame = @ptrCast(self), .source = &source, .state = @backingInt(state) };
+    const output = entry.executeIn(scratch.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
-    std.debug.assert(plan.valid);
+    return @fromBackingInt(output);
+}
 
-    const evaluate = @import("generated_lower_loop_path");
-    const Arguments = std.meta.Child(evaluate.Input);
-
-    const arguments: Arguments = .{
-        .frame = @ptrCast(self),
-        .rows = plan.rows,
-        .representations = zx.columns.slice(@FieldType(Arguments, "representations"), plan.representations),
-        .length_type = if (plan.length_type) |raw| @backingInt(try self.typeExpr(@fromBackingInt(raw))) else null,
-        .state = @backingInt(state),
-    };
-
-    return evaluation.invoke(evaluate, &arguments);
+pub fn requireLoopPath(valid: bool) void {
+    std.debug.assert(valid);
 }
 
 pub fn projectLoopPath(handle: *const anyopaque, row: u32, target: u32, length_type: ?u32) Lower.Error!u32 {

@@ -1,0 +1,23 @@
+import type { IterationResultApplication, Lowering } from "lowering_host"
+import type { U32Buffer } from "memory"
+import type { Output as Plan } from "../model"
+
+export {
+    lowerExpression,
+    lowerValueExpression,
+    projectIterationResult
+} from "lowering_host"
+
+export type Input = {
+    frame: IterationResultApplication,
+    lower: Lowering,
+    plan: Plan,
+    slots: U32Buffer,
+    result: u32,
+    buffered: bool,
+    layout: bool
+}
+
+export type Transfers = Input.Pick("frame", "plan", "slots")
+
+export type Reads = Input.Pick("frame", "plan")

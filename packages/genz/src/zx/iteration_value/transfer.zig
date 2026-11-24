@@ -35,10 +35,7 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
 
     defer scratch.deinit();
 
-    const output = generated.executeIn(buffered.allocator(), &input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const output = generated.executeIn(buffered.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
     try @import("publication.zig").write(self, .Transfer, .{ .context = context, .body = body }, output);
 

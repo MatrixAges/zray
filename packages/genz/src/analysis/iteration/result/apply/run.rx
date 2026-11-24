@@ -1,0 +1,60 @@
+<Module>
+    <Type from="model" as="Application" />
+
+    <Args in={Application.Input} out={u32} />
+
+    <If on={$in.plan.primitive}>
+        <Call
+            fn="model.projectIterationResult"
+            in={[
+                $in.frame,
+                $in.result
+            ]}
+        />
+
+        <Return value={$ctx.projectIterationResult} />
+    </If>
+
+    <If on={$in.buffered}>
+        <Call
+            fn="transfers"
+            in={$in.pick([
+                "frame",
+                "plan",
+                "slots"
+            ])}
+        />
+    </If>
+
+    <Call
+        fn="reads"
+        in={$in.pick([
+            "frame",
+            "plan"
+        ])}
+    />
+
+    <If on={$in.layout}>
+        <Call
+            fn="model.lowerValueExpression"
+            in={[
+                $in.lower,
+                $in.result
+            ]}
+        />
+
+        <Return value={$ctx.lowerValueExpression} />
+    </If>
+
+    <Call
+        fn="model.lowerExpression"
+        in={[
+            $in.lower,
+            $in.result,
+            false,
+            null
+        ]}
+    />
+
+    <Return value={$ctx.lowerExpression} />
+</Module>

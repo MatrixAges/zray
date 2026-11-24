@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Read" />
+
+    <Args in={Read.Request} out={u32} />
+
+    <Call fn="walk" in={$in.source} />
+    <Call fn="model.requireLoopPath" in={$ctx.walk.valid} />
+
+    <Call
+        fn="prepare"
+        in={{
+            ...$in.pick([
+                "frame",
+                "state"
+            ]),
+            plan: $ctx.walk
+        }}
+    />
+
+    <Call fn="execute" />
+
+    <Return value={$ctx.execute} />
+</Module>

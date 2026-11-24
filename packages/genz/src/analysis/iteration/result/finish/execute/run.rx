@@ -3,14 +3,22 @@
 
     <Args in={Result.Input} out={u32} />
 
-    <Call fn="prepare" in={$in} />
+    <Call module="../plan" in={$in.facts} />
+
+    <Call
+        fn="prepare"
+        in={{
+            ...$in.omit(["facts"]),
+            ...$ctx.plan
+        }}
+    />
 
     <Call
         fn="complete"
         in={{
             target: $in.target,
             state: $in.state,
-            completion: $in.completion,
+            completion: $ctx.plan.completion,
             prepared: $ctx.prepare
         }}
     />

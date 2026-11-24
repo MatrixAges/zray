@@ -121,7 +121,7 @@ pub fn lower(lowering: *Lower, selected: consumer.Consumer, state: node.Expressi
 
 pub fn buffered(context: *@import("root.zig"), body: *std.ArrayList(node.Statement), selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     const lowering = context.lowering;
-    const projection = @import("projection.zig");
+    const projection = @import("projection_seed.zig");
 
     if (primitive(lowering.program, lowering.program.expression(selected.result).type_id)) return projection.read(context, selected, selected.result, state);
 

@@ -1,15 +1,13 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const Context = @import("../iteration_value/root.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
-const entry = if (generated) @import("generated_iteration_result_finish") else struct {};
 
-const Plan = if (generated) std.meta.Child(entry.Output) else struct {
+const Plan = struct {
     preparation: enum { BufferedConsumer, DeepConsumer, Consumer, ConvertedConsumer, Unit, Reserve, Block, Layout, Pointer },
     completion: enum { Prepared, State, GuardPrepared, GuardState, GuardDeep, GuardConstruct },
 };
@@ -44,8 +42,6 @@ pub const Result = struct {
             .prefix = previous,
         };
 
-        const actions = config.plan();
-
         if (generated) {
             const execute = @import("generated_publish_loop_result");
             const Input = std.meta.Child(execute.Input);
@@ -53,13 +49,22 @@ pub const Result = struct {
             const input: Input = .{
                 .target = @ptrCast(&frame),
                 .state = @backingInt(state),
-                .preparation = zx.columns.view(@FieldType(Input, "preparation"), actions.preparation),
-                .completion = zx.columns.view(@FieldType(Input, "completion"), actions.completion),
+                .facts = &.{
+                    .consumer = config.consumer != null,
+                    .deep = config.deep,
+                    .inline_lists = config.context.inline_lists,
+                    .converted = config.converted,
+                    .discard = config.mode == .discard,
+                    .by_value = config.by_value,
+                    .local = config.local,
+                    .selected = config.selected_state,
+                },
             };
 
             return evaluation.invoke(execute, &input);
         }
 
+        const actions = config.seedPlan();
         const prepared = try frame.prepare(actions.preparation);
 
         const guard = switch (actions.completion) {
@@ -75,27 +80,6 @@ pub const Result = struct {
         };
 
         return frame.publish(value, guard);
-    }
-    fn plan(config: Result) Plan {
-        if (!generated) return config.seedPlan();
-
-        const Input = std.meta.Child(entry.Input);
-
-        const input: Input = .{
-            .consumer = config.consumer != null,
-            .deep = config.deep,
-            .inline_lists = config.context.inline_lists,
-            .converted = config.converted,
-            .discard = config.mode == .discard,
-            .by_value = config.by_value,
-            .local = config.local,
-            .selected = config.selected_state,
-        };
-
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-        const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
-
-        return .{ .preparation = result.preparation, .completion = result.completion };
     }
     fn seedPlan(config: Result) Plan {
         if (config.consumer != null) {

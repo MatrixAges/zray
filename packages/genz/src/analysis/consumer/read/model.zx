@@ -1,13 +1,9 @@
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
+import type { Lowering, PathConversion as Representation } from "lowering_host"
 import type { Query } from "../../state/queries/model"
 
-export enum Representation {
-    Plain,
-    BorrowList,
-    Convert,
-    ReadElement
-}
+export { PathConversion as Representation, requireLoopPath } from "lowering_host"
 
 export type Input = {
     table: Expressions,
@@ -25,4 +21,14 @@ export type Output = {
     representations: Representation[],
     length_type?: u32,
     valid: bool
+}
+
+export type Request = {
+    frame: Lowering,
+    source: Input,
+    state: u32
+}
+
+export type Prepare = Request.Pick("frame", "state") & {
+    plan: Output
 }

@@ -3,7 +3,7 @@ import { LoopResultWrap } from "lowering_host"
 
 import { Preparation } from "../model"
 
-import type { Input } from "./model"
+import type { Actions as Input } from "./model"
 
 export type Output = u32
 

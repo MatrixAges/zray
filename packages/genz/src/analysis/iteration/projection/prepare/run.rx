@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Input} out={Preparation.Output} />
+
+    <Call module="../plan" in={$in.source} />
+
+    <If on={!$ctx.plan.valid || $ctx.plan.operations.length == 0}>
+        <Return value={$ctx.plan} />
+    </If>
+
+    <Call
+        fn="model.reserveIterationProjectionColumns"
+        in={[
+            $in.resources.history,
+            $ctx.plan.operations.length
+        ]}
+    />
+
+    <Call
+        fn="../../resources/projection"
+        in={{
+            ...$in.resources,
+            plan: $ctx.plan
+        }}
+    />
+
+    <Return value={$ctx.plan} />
+</Module>

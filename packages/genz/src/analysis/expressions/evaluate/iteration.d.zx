@@ -191,3 +191,4 @@ export declare function convertLoopResult(target: LoopResultFrame, deep: bool): 
 
 export declare function publishLoopResult(target: LoopResultFrame, value: u32, guard: u32?): u32
     throws { OutOfMemory }
+export declare function requireLoopPath(valid: bool): void
