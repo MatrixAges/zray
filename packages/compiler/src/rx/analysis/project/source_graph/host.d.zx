@@ -31,17 +31,18 @@ export declare function rejectSourceGraphRoot(
     target: GraphConstruction,
     path: string,
     missing: string
-): u64 throws { InvalidGraph }
+): u64 throws { OutOfMemory, InvalidGraph }
 
-export declare function scanSourceGraph(target: GraphConstruction, additional: u64): u64
-    throws { OutOfMemory, InvalidGraph }
+export declare function openSourceGraphScanner(target: GraphVisit): void
+    throws { OutOfMemory }
 
-export declare function orderSourceGraph(target: GraphConstruction, reached: u64): void
-    throws { OutOfMemory, InvalidGraph }
+export declare function finishSourceGraphScan(target: GraphVisit, retain_parses: bool): u64[]
 
-export declare function publishSourceGraphParses(target: GraphConstruction): void
-
-export declare function publishSourceGraph(target: GraphConstruction): void
+export declare function rejectSourceGraphCycle(
+    target: GraphConstruction,
+    owner: u64,
+    edge: u64
+): void throws { InvalidGraph }
 
 export declare function readSourceGraphZX(target: GraphVisit, owner: u64): void
     throws { OutOfMemory, InvalidGraph }

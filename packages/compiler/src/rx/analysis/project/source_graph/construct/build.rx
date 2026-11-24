@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Graph" />
 
-    <Args in={Graph.Input} out={void} />
+    <Args in={Graph.Input} out={Graph.Output} />
 
     <Call
         fn="register"
@@ -11,31 +11,146 @@
             "root",
             "index",
             "paths",
-            "normalized"
+            "normalized",
+            "path_allocator"
         ])}
     />
 
-    <Call fn="roots" in={$in.omit(["retain_parses"])} />
+    <Call
+        fn="roots"
+        in={$in.omit([
+            "visit",
+            "columns",
+            "edge_allocator",
+            "frontier_allocator",
+            "order_allocator",
+            "order",
+            "retain_parses",
+            "retain_dependencies"
+        ])}
+    />
 
     <Call
-        fn="host.scanSourceGraph"
+        fn="allocate"
+        in={{
+            columns: $in.columns.pick([
+                "starts",
+                "ends"
+            ]),
+            edges: $in.edge_allocator,
+            count: $in.ranges.end
+        }}
+    />
+
+    <Call fn="host.openSourceGraphScanner" in={$in.visit} />
+
+    <Call
+        fn="host.allocateFilledU32Buffer"
         in={[
-            $in.target,
-            $ctx.roots
+            $in.frontier_allocator,
+            $in.columns.seen,
+            $in.ranges.end,
+            0
         ]}
     />
 
     <Call
-        fn="host.orderSourceGraph"
+        fn="host.allocateU64Buffer"
         in={[
-            $in.target,
-            $ctx.scanSourceGraph
+            $in.frontier_allocator,
+            $in.columns.queue,
+            $in.ranges.end
         ]}
     />
 
-    <If on={$in.retain_parses}>
-        <Call fn="host.publishSourceGraphParses" in={$in.target} />
+    <Call fn="host.u64Views" in={$in.roots} />
+
+    <Call
+        module="../scan/visit"
+        in={{
+            ...$in.columns,
+            ...$in.ranges.omit(["end"]),
+            target: $in.visit,
+            roots: $ctx.u64Views
+        }}
+    />
+
+    <Call
+        fn="host.releaseU64Buffer"
+        in={[
+            $in.frontier_allocator,
+            $in.columns.queue
+        ]}
+    />
+
+    <Call
+        fn="host.releaseU32Buffer"
+        in={[
+            $in.frontier_allocator,
+            $in.columns.seen
+        ]}
+    />
+
+    <Call
+        fn="host.finishSourceGraphScan"
+        in={[
+            $in.visit,
+            $in.retain_parses
+        ]}
+    />
+
+    <Call
+        fn="order_buffer"
+        in={{
+            allocator: $in.order_allocator,
+            order: $in.order,
+            count: $ctx.visit
+        }}
+    />
+
+    <Call
+        fn="adjacency"
+        in={{
+            columns: $in.columns.pick([
+                "starts",
+                "ends"
+            ]),
+            targets: $ctx.finishSourceGraphScan
+        }}
+    />
+
+    <Call
+        module="../schedule"
+        in={{
+            offsets: $ctx.adjacency.starts,
+            ends: $ctx.adjacency.ends,
+            targets: $ctx.adjacency.targets,
+            roots: $ctx.u64Views,
+            order: $ctx.order_buffer,
+            order_out: $in.order
+        }}
+    />
+
+    <If on={$ctx.schedule.cycle != null}>
+        <Call
+            fn="host.rejectSourceGraphCycle"
+            in={[
+                $in.target,
+                $ctx.schedule.cycle.owner,
+                $ctx.schedule.cycle.edge
+            ]}
+        />
     </If>
 
-    <Call fn="host.publishSourceGraph" in={$in.target} />
+    <Return
+        value={{
+            entry: $ctx.u64Views[0],
+            additional: $ctx.roots,
+            order: $ctx.order_buffer,
+            count: $ctx.schedule.count,
+            batch_ends: $ctx.schedule.batch_ends,
+            retain_parses: $in.retain_parses,
+            dependencies: $in.retain_dependencies ? $ctx.adjacency : null
+        }}
+    />
 </Module>

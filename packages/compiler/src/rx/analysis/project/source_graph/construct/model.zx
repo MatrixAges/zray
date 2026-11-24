@@ -1,6 +1,7 @@
 import type { Table } from "core/bytes/index/fixed"
-import type { Allocator, TextColumn, U64Buffer } from "memory"
-import type { GraphConstruction } from "rx_graph_host"
+import type { PathAllocator } from "lexical_path"
+import type { Allocator, TextColumn, U32Buffer, U64Buffer } from "memory"
+import type { GraphConstruction, GraphVisit } from "rx_graph_host"
 import type { Ranges as SourceRanges } from "../source"
 
 export type Ranges = SourceRanges & {
@@ -13,7 +14,8 @@ export type Registration = {
     root: string,
     index: Table,
     paths: SourcePaths,
-    normalized: string[]
+    normalized: string[],
+    path_allocator: PathAllocator
 }
 
 export type SourcePaths = {
@@ -28,9 +30,40 @@ export type RootPaths = Registration & {
     entry: string,
     roots: U64Buffer,
     allocator: Allocator,
+    temporary: Allocator,
     include_rx: bool
 }
 
+export type Columns = {
+    seen: U32Buffer,
+    queue: U64Buffer,
+    starts: U64Buffer,
+    ends: U64Buffer
+}
+
 export type Input = RootPaths & {
+    visit: GraphVisit,
+    columns: Columns,
+    edge_allocator: Allocator,
+    frontier_allocator: Allocator,
+    order_allocator: Allocator,
+    order: U64Buffer,
+    retain_parses: bool,
+    retain_dependencies: bool
+}
+
+export type Dependencies = {
+    starts: u64[],
+    ends: u64[],
+    targets: u64[]
+}
+
+export type Output = {
+    entry: u64,
+    additional: u64,
+    order: u64[],
+    count: u64,
+    batch_ends: u64[],
+    dependencies?: Dependencies,
     retain_parses: bool
 }

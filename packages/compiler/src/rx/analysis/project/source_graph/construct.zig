@@ -4,8 +4,9 @@ const zx = @import("zx");
 const project = @import("frontend").project;
 const model = @import("model.zig");
 const Collector = @import("collect.zig");
+const Scan = @import("scan.zig").Scan;
 const Index = project.source_index.Map;
-const Prefetched = project.ParseCache.Prefetched;
+const native_width = @bitSizeOf(usize) == 64 and @alignOf(u64) >= @alignOf(usize);
 const Allocator = std.mem.Allocator;
 const Error = Collector.Error;
 const root_location: rx.ast.Location = .{ .offset = 0, .line = 1, .column = 1 };
@@ -32,95 +33,198 @@ pub fn build(allocator: Allocator, backing: Allocator, opts: model.Options, expl
 
     defer temporary.deinit(backing);
 
-    var buffer: [512]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, backing);
+    const edge_allocator = if (opts.retain_source_dependencies) allocator else backing;
+
+    var collector: Collector = .{
+        .allocator = allocator,
+        .backing = backing,
+        .target_allocator = edge_allocator,
+        .temporary = .init(backing),
+        .options = opts.project,
+        .modules = modules,
+        .sources = sources,
+        .paths = paths,
+    };
+
+    defer collector.temporary.deinit();
+
+    if (collector.options.source_index == null) collector.options.source_index = paths;
+
+    var local_cache: project.ParseCache = .{ .allocator = allocator };
+
+    var scanner: Scan = .{
+        .collector = &collector,
+        .sources = opts.sources,
+        .modules = opts.modules,
+        .stores = opts.stores,
+        .cache = opts.parse_cache orelse &local_cache,
+        .owns_cache = opts.parse_cache == null,
+    };
+
+    defer scanner.deinit();
+
+    var temporary_storage = std.heap.ArenaAllocator.init(backing);
+
+    defer temporary_storage.deinit();
 
     var state: Build = .{
         .allocator = allocator,
-        .backing = backing,
-        .scratch = scratch.allocator(),
+        .scratch = temporary_storage.allocator(),
         .opts = &opts,
         .paths = paths,
+        .scanner = &scanner,
         .modules = modules,
         .sources = sources,
     };
 
     defer state.deinit();
 
-    if (comptime @import("rx_options").generated_graph) {
+    const result = if (comptime @import("rx_options").generated_graph)
+        state.generate(explicit)
+
+    else
+        state.seed(explicit);
+
+    return result catch |err| switch (err) {
+        error.InvalidGraph => .{ .diagnostic = state.diagnostic orelse collector.issue.? },
+        error.OutOfMemory => error.OutOfMemory,
+    };
+}
+
+const Build = struct {
+    allocator: Allocator,
+    scratch: Allocator,
+    opts: *const model.Options,
+    paths: *Index,
+    scanner: *Scan,
+    modules: model.Modules.Slice,
+    sources: model.Sources,
+    roots: []u64 = &.{},
+    adjacency: model.Adjacency = .{ .starts = &.{}, .ends = &.{} },
+    diagnostic: ?@FieldType(model.Value, "diagnostic") = null,
+    fn borrow(handle: *const anyopaque) *Build {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn deinit(self: *Build) void {
+        if (self.opts.retain_source_dependencies) return;
+
+        const collector = self.scanner.collector;
+        const allocator = collector.target_allocator;
+
+        collector.targets.deinit(allocator);
+        allocator.free(self.adjacency.ends);
+        allocator.free(self.adjacency.starts);
+    }
+
+    fn generate(self: *Build, explicit: anytype) Error!model.Value {
         const rule = @import("generated_rx_construct_source_graph");
         const memory = zx.memory;
+        const opts = self.opts;
         const Element = std.meta.Elem(@TypeOf(explicit));
         const entries: []const Element = explicit[0..];
         const roots = if (Element == []const u8) memory.borrowTextSlice(entries) else memory.borrowTextColumn("path", entries);
         const zx_paths = memory.borrowTextColumn("path", opts.sources);
         const rx_paths = memory.borrowTextColumn("path", opts.modules);
         const stores = memory.borrowTextColumn("path", opts.stores);
+        const order_allocator = if (native_width) self.allocator else self.scratch;
+        const frontier_allocator = self.scanner.collector.backing;
+        var queue: []u64 = &.{};
+        var seen: []u32 = &.{};
+        var ranked: []u64 = &.{};
 
-        @memset(modules.items(.dependencies), &.{});
-        @memset(modules.items(.compiled_dependency), false);
+        defer {
+            frontier_allocator.free(queue);
+            frontier_allocator.free(seen);
+        }
+
+        @memset(self.modules.items(.dependencies), &.{});
+        @memset(self.modules.items(.compiled_dependency), false);
 
         const input: std.meta.Child(rule.Input) = .{
-            .target = @ptrCast(&state),
+            .target = @ptrCast(self),
             .root = opts.project.root_dir,
-            .index = &.{ .keys = paths.keys, .buckets = @ptrCast(&paths.buckets), .capacity = paths.buckets.len },
+            .index = &.{ .keys = self.paths.keys, .buckets = @ptrCast(&self.paths.buckets), .capacity = self.paths.buckets.len },
             .paths = &.{ .zx = @ptrCast(&zx_paths), .rx = @ptrCast(&rx_paths), .stores = @ptrCast(&stores) },
-            .normalized = paths.keys,
+            .normalized = self.paths.keys,
+            .path_allocator = @ptrCast(&self.allocator),
             .ranges = &.{
-                .zx_count = sources.zx_count,
-                .rx_end = sources.rx_end,
-                .end = modules.len,
+                .zx_count = self.sources.zx_count,
+                .rx_end = self.sources.rx_end,
+                .end = self.modules.len,
             },
             .explicit = @ptrCast(&roots),
             .explicit_count = entries.len,
             .entry = opts.entry,
-            .roots = @ptrCast(&state.roots),
-            .allocator = @ptrCast(&allocator),
+            .roots = @ptrCast(&self.roots),
+            .allocator = @ptrCast(&self.allocator),
+            .temporary = @ptrCast(&self.scratch),
             .include_rx = opts.include_rx_modules,
+            .visit = @ptrCast(self.scanner),
+            .columns = &.{
+                .seen = @ptrCast(&seen),
+                .queue = @ptrCast(&queue),
+                .starts = @ptrCast(&self.adjacency.starts),
+                .ends = @ptrCast(&self.adjacency.ends),
+            },
+            .edge_allocator = @ptrCast(&self.scanner.collector.target_allocator),
+            .frontier_allocator = @ptrCast(&frontier_allocator),
+            .order_allocator = @ptrCast(&order_allocator),
+            .order = @ptrCast(&ranked),
             .retain_parses = opts.prefetched != null,
+            .retain_dependencies = opts.retain_source_dependencies,
         };
 
-        zx.columns.invoke(rule.executeIn, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-            error.InvalidGraph => return state.value,
-            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-            else => unreachable,
+        const result = rule.executeIn(self.scratch, &input) catch |err| {
+            if (native_width) order_allocator.free(ranked);
+
+            return switch (@as(anyerror, err)) {
+                error.InvalidGraph => error.InvalidGraph,
+                error.OutOfMemory, error.Overflow => error.OutOfMemory,
+                else => unreachable,
+            };
         };
-    } else {
-        state.seed(explicit) catch |err| switch (err) {
-            error.InvalidGraph => return state.value,
-            error.OutOfMemory => return error.OutOfMemory,
+
+        std.debug.assert(result.count == result.order.len);
+
+        const schedule: model.Schedule = .{
+            .order = try self.indices(result.order, false),
+            .batch_ends = try self.indices(result.batch_ends, true),
         };
+
+        const dependencies: ?model.SourceDependencies = if (result.dependencies) |value|
+            .{ .starts = value.starts, .ends = value.ends, .targets = value.targets }
+
+        else
+            null;
+
+        return self.finish(@intCast(result.entry), @intCast(result.additional), schedule, dependencies, result.retain_parses);
     }
+    fn indices(self: *Build, values: []const u64, comptime copy: bool) Allocator.Error![]const usize {
+        if (native_width) return if (copy) self.allocator.dupe(usize, @ptrCast(values)) else @as([]const usize, @ptrCast(values));
 
-    return state.value;
-}
+        const result = try self.allocator.alloc(usize, values.len);
 
-const Build = struct {
-    allocator: Allocator,
-    backing: Allocator,
-    scratch: Allocator,
-    opts: *const model.Options,
-    paths: *Index,
-    modules: model.Modules.Slice,
-    sources: model.Sources,
-    roots: []u64 = &.{},
-    additional_roots: []const usize = &.{},
-    adjacency: model.Adjacency = .{ .starts = &.{}, .ends = &.{} },
-    targets: std.ArrayList(u64) = .empty,
-    prefetched: Prefetched = .{},
-    schedule: model.Schedule = undefined,
-    value: model.Value = undefined,
-    fn borrow(handle: *const anyopaque) *Build {
-        return @ptrCast(@alignCast(@constCast(handle)));
+        for (result, values) |*row, value| row.* = @intCast(value);
+
+        return result;
     }
-    fn deinit(self: *Build) void {
-        self.prefetched.deinit(self.backing);
+    fn finish(self: *Build, entry: usize, additional: usize, schedule: model.Schedule, dependencies: ?model.SourceDependencies, retain_parses: bool) Allocator.Error!model.Value {
+        const additional_roots = try self.indices(self.roots[1..][0..additional], false);
 
-        if (self.opts.retain_source_dependencies) return;
+        if (retain_parses) {
+            self.opts.prefetched.?.* = self.scanner.parsed;
+            self.scanner.parsed = .{};
+        }
 
-        self.targets.deinit(self.backing);
-        self.backing.free(self.adjacency.ends);
-        self.backing.free(self.adjacency.starts);
+        return .{ .graph = .{
+            .modules = self.modules,
+            .sources = self.sources,
+            .order = schedule.order,
+            .batch_ends = schedule.batch_ends,
+            .entry = entry,
+            .additional_roots = additional_roots,
+            .source_dependencies = dependencies,
+        } };
     }
     fn rxSource(self: *const Build, row: usize) ?rx.ModuleSource {
         return switch (self.sources.at(row)) {
@@ -140,12 +244,12 @@ const Build = struct {
         return self.paths.claim(row, resolved);
     }
     fn reject(self: *Build, path_name: []const u8, location: rx.ast.Location, message: []const u8) Error {
-        self.value = .{ .diagnostic = .{
+        self.diagnostic = .{
             .path = try self.allocator.dupe(u8, path_name),
             .location = location,
             .code = "module",
             .message = message,
-        } };
+        };
 
         return error.InvalidGraph;
     }
@@ -163,105 +267,7 @@ const Build = struct {
 
         return self.paths.get(resolved) orelse self.reject(resolved, root_location, message);
     }
-    fn finishRoots(self: *Build, additional_count: usize) Allocator.Error!void {
-        const roots = self.roots[1..][0..additional_count];
-
-        if (comptime @bitSizeOf(usize) == 64 and @alignOf(u64) >= @alignOf(usize)) {
-            self.additional_roots = @ptrCast(roots);
-
-            return;
-        }
-
-        const result = try self.allocator.alloc(usize, roots.len);
-
-        for (result, roots) |*row, root| row.* = @intCast(root);
-
-        self.additional_roots = result;
-    }
-
-    fn scan(self: *Build) Error!usize {
-        const allocator = if (self.opts.retain_source_dependencies) self.allocator else self.backing;
-
-        self.adjacency.starts = try allocator.alloc(u64, self.modules.len + 1);
-        self.adjacency.ends = try allocator.alloc(u64, self.modules.len);
-
-        @memset(self.adjacency.starts, 0);
-        @memset(self.adjacency.ends, 0);
-
-        var collector: Collector = .{
-            .allocator = self.allocator,
-            .backing = self.backing,
-            .target_allocator = allocator,
-            .temporary = .init(self.backing),
-            .options = self.opts.project,
-            .modules = self.modules,
-            .sources = self.sources,
-            .paths = self.paths,
-        };
-
-        defer collector.temporary.deinit();
-
-        defer self.targets = collector.targets;
-
-        if (collector.options.source_index == null) collector.options.source_index = self.paths;
-
-        return @import("scan.zig").run(
-            &collector,
-            &self.adjacency,
-            self.roots,
-            self.opts.sources,
-            self.opts.modules,
-            self.opts.stores,
-            self.opts.parse_cache,
-            if (self.opts.prefetched != null) &self.prefetched else null,
-        ) catch |err| {
-            if (err == error.InvalidGraph) self.value = .{ .diagnostic = collector.issue.? };
-
-            return err;
-        };
-    }
-
-    fn order(self: *Build, reached: usize) Error!void {
-        switch (try @import("order.zig").build(
-            self.allocator,
-            self.backing,
-            self.modules,
-            self.sources,
-            self.adjacency,
-            self.roots,
-            self.opts.sources,
-            reached,
-        )) {
-            .schedule => |schedule| self.schedule = schedule,
-            .diagnostic => |diagnostic| {
-                self.value = .{ .diagnostic = diagnostic };
-
-                return error.InvalidGraph;
-            },
-        }
-    }
-
-    fn publishParses(self: *Build) void {
-        self.opts.prefetched.?.* = self.prefetched;
-        self.prefetched = .{};
-    }
-
-    fn publish(self: *Build) void {
-        self.value = .{ .graph = .{
-            .modules = self.modules,
-            .sources = self.sources,
-            .order = self.schedule.order,
-            .batch_ends = self.schedule.batch_ends,
-            .entry = @intCast(self.roots[0]),
-            .additional_roots = self.additional_roots,
-            .source_dependencies = if (self.opts.retain_source_dependencies) .{
-                .starts = self.adjacency.starts,
-                .ends = self.adjacency.ends,
-                .targets = self.adjacency.targets,
-            } else null,
-        } };
-    }
-    fn seed(self: *Build, explicit: anytype) Error!void {
+    fn seed(self: *Build, explicit: anytype) Error!model.Value {
         for (0..self.modules.len) |row| {
             const source_path = self.path(row);
             const store = self.sources.at(row) == .store;
@@ -282,7 +288,7 @@ const Build = struct {
             }
         }
 
-        const entry = try self.resolve(self.backing, self.opts.entry, "entry module is missing from the registered source set");
+        const entry = try self.resolve(self.scanner.collector.backing, self.opts.entry, "entry module is missing from the registered source set");
         const rx_roots = if (self.opts.include_rx_modules) self.opts.modules.len else 0;
         const additional_count = rx_roots + explicit.len;
         self.roots = try self.allocator.alloc(u64, 1 + additional_count + self.opts.stores.len);
@@ -297,11 +303,31 @@ const Build = struct {
             root.* = try self.resolve(self.scratch, source_path, "source graph root is missing from the registered input set");
         }
 
-        try self.finishRoots(additional_count);
-        try self.order(try self.scan());
-        if (self.opts.prefetched != null) self.publishParses();
+        const edge_allocator = self.scanner.collector.target_allocator;
+        self.adjacency.starts = try edge_allocator.alloc(u64, self.modules.len + 1);
+        self.adjacency.ends = try edge_allocator.alloc(u64, self.modules.len);
 
-        self.publish();
+        @memset(self.adjacency.starts, 0);
+        @memset(self.adjacency.ends, 0);
+
+        try self.scanner.runSeed(&self.adjacency, self.roots, self.opts.prefetched != null);
+
+        const schedule = switch (try @import("seed.zig").build(self.allocator, self.scanner.collector.backing, self.modules, self.sources, self.roots, self.opts.sources)) {
+            .schedule => |value| value,
+            .diagnostic => |value| {
+                self.diagnostic = value;
+
+                return error.InvalidGraph;
+            },
+        };
+
+        const dependencies: ?model.SourceDependencies = if (self.opts.retain_source_dependencies) .{
+            .starts = self.adjacency.starts,
+            .ends = self.adjacency.ends,
+            .targets = self.adjacency.targets,
+        } else null;
+
+        return self.finish(entry, additional_count, schedule, dependencies, self.opts.prefetched != null);
     }
 };
 
@@ -309,30 +335,27 @@ pub fn rejectSourceGraphPath(handle: *const anyopaque, row: u64, normalized: boo
     return Build.borrow(handle).rejectRegistration(@intCast(row), normalized, message);
 }
 
-pub fn rejectSourceGraphRoot(handle: *const anyopaque, path: []const u8, missing: []const u8) error{InvalidGraph}!u64 {
+pub fn rejectSourceGraphRoot(handle: *const anyopaque, path: []const u8, missing: []const u8) Error!u64 {
+    return Build.borrow(handle).reject(path, root_location, missing);
+}
+
+pub fn rejectSourceGraphCycle(handle: *const anyopaque, owner: u64, edge: u64) error{InvalidGraph}!void {
     const state = Build.borrow(handle);
+    const row: usize = @intCast(owner);
+    const module = state.modules.get(row);
+    var source_index = state.adjacency.starts[row];
 
-    state.value = .{ .diagnostic = .{ .path = path, .location = root_location, .code = "module", .message = missing } };
+    for (module.dependencies) |dependency| {
+        if (dependency.target != .source) continue;
 
-    return error.InvalidGraph;
-}
+        if (source_index == edge) {
+            state.diagnostic = model.cycle(module, state.sources.at(row), dependency, state.opts.sources).diagnostic;
 
-pub fn scanSourceGraph(handle: *const anyopaque, additional: u64) Error!u64 {
-    const state = Build.borrow(handle);
+            return error.InvalidGraph;
+        }
 
-    try state.finishRoots(@intCast(additional));
+        source_index += 1;
+    }
 
-    return try state.scan();
-}
-
-pub fn orderSourceGraph(handle: *const anyopaque, reached: u64) Error!void {
-    try Build.borrow(handle).order(@intCast(reached));
-}
-
-pub fn publishSourceGraphParses(handle: *const anyopaque) void {
-    Build.borrow(handle).publishParses();
-}
-
-pub fn publishSourceGraph(handle: *const anyopaque) void {
-    Build.borrow(handle).publish();
+    unreachable;
 }

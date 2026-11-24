@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import type { Allocator, U64Buffer } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    order: U64Buffer,
+    count: u64
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    memory.allocateU64Buffer(in.allocator, in.order, in.count)
+
+    return memory.u64Views(in.order)
+}

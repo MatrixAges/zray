@@ -3,6 +3,12 @@ const syntax = @import("syntax.zig");
 const Allocator = std.mem.Allocator;
 const path_stack_capacity = 512;
 
+pub fn resolveOwnedParts(resource: *const anyopaque, parts: []const []const u8) Allocator.Error![]u8 {
+    const allocator: *const Allocator = @ptrCast(@alignCast(resource));
+
+    return std.fs.path.resolve(allocator.*, parts);
+}
+
 pub fn resolvePortable(allocator: Allocator, base: []const u8, directory: []const u8, leaf: []const u8) Allocator.Error![]u8 {
     const path = try std.fs.path.resolve(allocator, &.{ base, directory, leaf });
 

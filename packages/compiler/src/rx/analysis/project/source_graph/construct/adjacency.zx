@@ -1,0 +1,16 @@
+import memory from "memory"
+
+import type { Columns, Dependencies as Output } from "./model"
+
+export type Input = {
+    columns: Columns.Pick("starts", "ends"),
+    targets: u64[]
+}
+
+export default function (in: Input): Output {
+    return {
+        starts: memory.u64Views(in.columns.starts),
+        ends: memory.u64Views(in.columns.ends),
+        targets: in.targets
+    }
+}

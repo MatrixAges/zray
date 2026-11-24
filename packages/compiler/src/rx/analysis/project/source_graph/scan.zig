@@ -1,100 +1,71 @@
 const std = @import("std");
 const rx = @import("rx");
-const zx = @import("zx");
 const project = @import("frontend").project;
 const Collector = @import("collect.zig");
 const Frontier = @import("frontier.zig");
 const model = @import("model.zig");
 const rx_edges = @import("rx_edges.zig");
 const zx_edges = @import("zx_edges.zig");
-const enabled = @import("rx_options").generated_graph;
 
-pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u64, sources: []const project.Source, modules: []const rx.ModuleSource, stores: []const rx.ModuleSource, shared: ?*project.ParseCache, prefetched: ?*project.ParseCache.Prefetched) Collector.Error!usize {
-    const backing = collector.backing;
-    var local = project.ParseCache{ .allocator = collector.allocator };
-
-    defer local.deinit();
-
-    const cache = shared orelse &local;
-    const paths = collector.modules.items(.path);
-    var parsed = try cache.prefetchRegistered(backing, sources, paths[0..sources.len]);
-
-    defer parsed.deinit(backing);
-
-    var frontier = try Frontier.init(backing, collector.modules.len);
-
-    defer frontier.deinit(backing);
-
-    var scan: Scan = .{
-        .collector = collector,
-        .sources = sources,
-        .modules = modules,
-        .stores = stores,
-        .parsed = &parsed,
-    };
-
-    defer cache.reused += scan.reused;
-
-    const reached = if (comptime enabled) source: {
-        const rule = @import("generated_rx_visit_source_graph");
-
-        const input: std.meta.Child(rule.Input) = .{
-            .target = @ptrCast(&scan),
-            .zx_count = collector.sources.zx_count,
-            .rx_end = collector.sources.rx_end,
-            .roots = roots,
-            .seen = @ptrCast(&frontier.seen),
-            .queue = @ptrCast(&frontier.queue),
-            .starts = @ptrCast(&adjacency.starts),
-            .ends = @ptrCast(&adjacency.ends),
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const count = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-            error.InvalidGraph => return error.InvalidGraph,
-            else => unreachable,
-        };
-
-        break :source @as(usize, @intCast(count));
-    } else seed: {
-        var next = frontier.advance(adjacency, .{ .targets = roots, .end = 0 });
-
-        while (next) |owner| {
-            switch (collector.sources.at(owner)) {
-                .zx => try scan.collectZX(owner),
-                .rx => |row| try scan.collectRX(owner, modules[row]),
-                .store => |row| try scan.collectRX(owner, stores[row]),
-            }
-
-            const targets = try scan.publish(owner, frontier.edge_end);
-
-            next = frontier.advance(adjacency, .{ .targets = targets, .end = collector.targets.items.len });
-        }
-
-        break :seed frontier.end;
-    };
-
-    adjacency.targets = collector.targets.items;
-
-    if (prefetched) |output| {
-        output.* = parsed;
-        parsed = .{};
-    }
-
-    return reached;
-}
-
-const Scan = struct {
+pub const Scan = struct {
     collector: *Collector,
     sources: []const project.Source,
     modules: []const rx.ModuleSource,
     stores: []const rx.ModuleSource,
-    parsed: *project.ParseCache.Prefetched,
+    cache: ?*project.ParseCache,
+    owns_cache: bool,
+    parsed: project.ParseCache.Prefetched = .{},
     reused: usize = 0,
     fn borrow(handle: *const anyopaque) *Scan {
         return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    pub fn deinit(self: *Scan) void {
+        self.finish(false);
+    }
+
+    fn prefetch(self: *Scan) std.mem.Allocator.Error!void {
+        const paths = self.collector.modules.items(.path);
+
+        self.parsed = try self.cache.?.prefetchRegistered(self.collector.backing, self.sources, paths[0..self.sources.len]);
+    }
+
+    fn finish(self: *Scan, retain_parses: bool) void {
+        if (!retain_parses) self.parsed.deinit(self.collector.backing);
+
+        const cache = self.cache orelse return;
+        cache.reused += self.reused;
+
+        if (self.owns_cache) cache.deinit();
+
+        self.cache = null;
+        _ = self.collector.temporary.reset(.free_all);
+    }
+    pub fn runSeed(self: *Scan, adjacency: *model.Adjacency, roots: []const u64, retain_parses: bool) Collector.Error!void {
+        const collector = self.collector;
+
+        try self.prefetch();
+
+        var frontier = try Frontier.init(collector.backing, collector.modules.len);
+
+        defer frontier.deinit(collector.backing);
+
+        var next = frontier.advance(adjacency, .{ .targets = roots, .end = 0 });
+
+        while (next) |owner| {
+            switch (collector.sources.at(owner)) {
+                .zx => try self.collectZX(owner),
+                .rx => |row| try self.collectRX(owner, self.modules[row]),
+                .store => |row| try self.collectRX(owner, self.stores[row]),
+            }
+
+            const targets = try self.publish(owner, frontier.edge_end);
+
+            next = frontier.advance(adjacency, .{ .targets = targets, .end = collector.targets.items.len });
+        }
+
+        adjacency.targets = collector.targets.items;
+
+        self.finish(retain_parses);
     }
     fn collectZX(self: *Scan, owner: usize) Collector.Error!void {
         const source = self.sources[owner];
@@ -132,6 +103,18 @@ const Scan = struct {
         return collector.targets.items[start..];
     }
 };
+
+pub fn openSourceGraphScanner(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    return Scan.borrow(handle).prefetch();
+}
+
+pub fn finishSourceGraphScan(handle: *const anyopaque, retain_parses: bool) []const u64 {
+    const scan = Scan.borrow(handle);
+
+    scan.finish(retain_parses);
+
+    return scan.collector.targets.items;
+}
 
 pub fn readSourceGraphZX(handle: *const anyopaque, owner: u64) Collector.Error!void {
     try Scan.borrow(handle).collectZX(@intCast(owner));

@@ -1,10 +1,10 @@
 import bytes from "std:bytes"
 import fixed from "core/bytes/index/fixed"
+import lexical from "lexical_path"
 import memory from "memory"
 import host from "rx_graph_host"
 
 import { store_suffix } from "../../../../../const"
-import resolve from "../../../../../zx/modules/project/target/package/path"
 import { Kind } from "../../../../path_kind/model"
 import normalize from "../../../../path_segments/normalize"
 import { duplicate_path, duplicate_store, invalid_registration } from "./const"
@@ -14,7 +14,7 @@ import type { Registration as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, ranges, paths, index, normalized, root } = in
+    const { target, ranges, paths, index, normalized, root, path_allocator } = in
 
     const registered = loop(0, {
         while: row => row < ranges.end,
@@ -44,10 +44,10 @@ export default function (in: Input): Output {
                 }
             }
 
-            const absolute = resolve({
+            const absolute = lexical.resolveOwnedPathParts(path_allocator, [
                 root,
                 path
-            })
+            ])
 
             memory.writeTextSlot(normalized, row, absolute)
 

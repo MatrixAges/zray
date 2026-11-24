@@ -11,12 +11,14 @@ export type Output = u64
 export default function (in: Input): Output {
     const { ranges, roots } = in
 
-    const lookup = in.pick([
-        "target",
-        "index",
-        "root",
-        "allocator"
-    ])
+    const lookup = {
+        ...in.pick([
+            "target",
+            "index",
+            "root"
+        ]),
+        allocator: in.temporary
+    }
 
     const entry = locate({
         ...lookup,

@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { Allocator } from "memory"
+import type { Columns } from "./model"
+
+export type Input = {
+    columns: Columns.Pick("starts", "ends"),
+    edges: Allocator,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { columns, edges, count } = in
+
+    memory.allocateU64Buffer(edges, columns.starts, count + 1)
+    memory.allocateU64Buffer(edges, columns.ends, count)
+    memory.clearU64Buffer(columns.starts)
+    memory.clearU64Buffer(columns.ends)
+}
