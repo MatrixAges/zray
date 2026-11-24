@@ -86,7 +86,7 @@ pub fn emitListRepresentation(handle: *const anyopaque, layout: ?u32) Lower.Erro
 
     const output = generated.executeIn(buffered.allocator(), &input) catch |err| return publication.failure(err);
 
-    try publication.write(self, null, output, .List);
+    try publication.write(self, .{}, output, .List);
 
     return output.root;
 }

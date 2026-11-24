@@ -1,0 +1,20 @@
+import { FragmentBody, FragmentKind } from "lowering_host"
+
+import type { Body } from "./model"
+
+export type Input = Body.Omit("target")
+
+export type Output = FragmentBody
+
+export default function (in: Input): Output {
+    if (!in.sequence) {
+        return FragmentBody.Direct
+    }
+
+    return match in.kind {
+        FragmentKind.Growth => FragmentBody.Roots,
+        FragmentKind.Guard => FragmentBody.BorrowedRoots,
+        FragmentKind.Collection => FragmentBody.SelectedWithVariables,
+        _ => FragmentBody.Selected
+    }
+}

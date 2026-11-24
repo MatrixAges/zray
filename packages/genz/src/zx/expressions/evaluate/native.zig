@@ -54,6 +54,13 @@ pub fn setLoweringSerial(frame: *const anyopaque, serial: u64) void {
     borrow(frame).serial = @intCast(serial);
 }
 
+pub fn finishGeneratedAst(frame: *const anyopaque, serial: u64, uses_allocator: bool) void {
+    const self = borrow(frame);
+
+    self.serial = @intCast(serial);
+    self.uses_allocator = self.uses_allocator or uses_allocator;
+}
+
 pub fn lowerLiteral(frame: *const anyopaque, id: u32, value_type: u32) Error!u32 {
     return @backingInt(try @import("../../literals.zig").lower(borrow(frame), @fromBackingInt(id), @fromBackingInt(value_type)));
 }

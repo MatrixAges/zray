@@ -39,7 +39,7 @@ pub fn checkCollectionIndex(handle: *const anyopaque, items: u32, index: u32) Er
     const input: Input = .{ .bases = &bases, .items = items, .index = index };
     const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
 
-    return publication.write(frame.lower, &frame.body, output, .Guard);
+    return publication.write(frame.lower, .{ .body = &frame.body }, output, .Guard);
 }
 
 pub fn emitCollectionUpdate(handle: *const anyopaque, request: *const Api.CollectionUpdate) Error!u32 {
@@ -69,7 +69,7 @@ pub fn emitCollectionUpdate(handle: *const anyopaque, request: *const Api.Collec
 
     const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
 
-    try publication.write(self, &frame.body, output, .Update);
+    try publication.write(self, .{ .body = &frame.body }, output, .Update);
 
     return output.root;
 }

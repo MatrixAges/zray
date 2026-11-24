@@ -2,7 +2,9 @@ export {
     appendFragmentExpressions,
     appendFragmentStatements,
     appendFragmentBody,
+    appendFragmentStorage,
     appendFragmentFields,
-    commitFragment
+    finishGeneratedAst,
+    FragmentBody
 } from "lowering_host"
 export { requireAllocation } from "memory"

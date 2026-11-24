@@ -14,7 +14,10 @@
         ]}
     />
 
-    <If on={$in.kind != Fragment.FragmentKind.List}>
+    <If
+        on={$in.kind != Fragment.FragmentKind.List &&
+            $in.kind != Fragment.FragmentKind.Origin}
+    >
         <Call
             fn="host.appendFragmentStatements"
             in={[
@@ -33,14 +36,37 @@
             />
         </If>
 
-        <Call
-            fn="host.appendFragmentBody"
-            in={[
-                $in.target,
-                $in.kind,
-                $in.sequence
-            ]}
-        />
+        <If
+            on={$in.kind == Fragment.FragmentKind.Construction ||
+                $in.kind == Fragment.FragmentKind.Conversion}
+        >
+            <Call
+                module="storage"
+                in={$in.pick([
+                    "target",
+                    "kind",
+                    "sequence"
+                ])}
+            />
+
+            <Else>
+                <Call
+                    fn="body_mode"
+                    in={$in.pick([
+                        "kind",
+                        "sequence"
+                    ])}
+                />
+
+                <Call
+                    fn="host.appendFragmentBody"
+                    in={[
+                        $in.target,
+                        $ctx.body_mode
+                    ]}
+                />
+            </Else>
+        </If>
     </If>
 
     <If on={$in.fields && $in.kind != Fragment.FragmentKind.Collection}>
@@ -55,12 +81,13 @@
 
     <If
         on={$in.kind != Fragment.FragmentKind.Guard &&
-            $in.kind != Fragment.FragmentKind.List}
+            $in.kind != Fragment.FragmentKind.List &&
+            $in.kind != Fragment.FragmentKind.Origin}
     >
         <Call
-            fn="host.commitFragment"
+            fn="host.finishGeneratedAst"
             in={[
-                $in.target,
+                $in.lower,
                 $in.serial,
                 $in.uses_allocator
             ]}

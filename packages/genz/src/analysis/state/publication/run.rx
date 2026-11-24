@@ -21,17 +21,14 @@
         ])}
     />
 
-    <If on={$in.body}>
-        <Call fn="body" in={$in.target} />
-    </If>
+    <Call fn="body" in={$in.target} />
 
     <Call
-        fn="finish"
-        in={$in.pick([
-            "target",
-            "fields",
-            "serial",
-            "uses_allocator"
-        ])}
+        fn="model.finishGeneratedAst"
+        in={[
+            $in.lower,
+            $in.serial,
+            false
+        ]}
     />
 </Module>

@@ -67,7 +67,7 @@ pub fn emitCollectionRows(handle: *const anyopaque, rows: *const Api.CollectionR
 
     const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
 
-    try publication.write(self, &frame.body, output, .Collection);
+    try publication.write(self, .{ .body = &frame.body }, output, .Collection);
 
     return output.root;
 }

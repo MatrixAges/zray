@@ -2,7 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const apply = @import("apply.zig");
+const publication = @import("publication.zig");
 const preparation = @import("generated_prepare_construction");
 const generated = @import("generated_construction");
 
@@ -34,7 +34,7 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
     const statements = self.builder.nodes.statements.tags.items.len;
     const references = self.referenceBatches();
     const temporary = buffered.allocator();
-    const resources = preparation.executeValue(temporary, &request) catch |err| return @import("publication.zig").failure(err);
+    const resources = preparation.executeValue(temporary, &request) catch |err| return publication.failure(err);
     const Request = std.meta.Child(generated.Input);
     const Input = std.meta.Child(@FieldType(Request, "construction"));
     const kind = self.program.typeOf(id);
@@ -59,19 +59,9 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
     };
 
     const input: Request = .{ .construction = &construction, .target = target, .origin = selected };
-    const output = generated.executeIn(temporary, &input) catch |err| return @import("publication.zig").failure(err);
+    const output = generated.executeIn(temporary, &input) catch |err| return publication.failure(err);
 
-    return publish(self, output);
-}
-
-pub fn publish(self: *Lower, output: anytype) Lower.Error!node.ExpressionId {
-    if (!output.valid) return error.OutOfMemory;
-    try apply.expressions(self, output);
-    try apply.rows(self, &self.builder.nodes.statements, output.statements);
-    try apply.storage(self, output);
-
-    self.serial = @intCast(output.serial);
-    self.uses_allocator = self.uses_allocator or output.uses_allocator;
+    try publication.write(self, .{}, output, .Construction);
 
     return @fromBackingInt(output.root);
 }

@@ -146,7 +146,8 @@ fn deliver(self: *Lower, body: ?*Sequence, input: Input) Lower.Error!Result {
     }).?;
 
     if (input.normalize == null) std.debug.assert(fragment.result.serial == self.serial);
-    try publication.write(self, body, &fragment, .Growth);
+
+    try publication.write(self, .{ .body = body }, &fragment, .Growth);
 
     return .{
         .root = @fromBackingInt(fragment.result.root),

@@ -140,7 +140,7 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: nod
 }
 
 pub fn apply(self: *Lower, borrow_storage: anytype, body: anytype, output: anytype) Lower.Error!node.ExpressionId {
-    try @import("publication.zig").conversion(self, borrow_storage, body, output);
+    try @import("../construction/publication.zig").write(self, .{ .body = body, .binding = borrow_storage }, output, .Conversion);
 
     return @fromBackingInt(output.root);
 }

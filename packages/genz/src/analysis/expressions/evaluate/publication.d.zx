@@ -16,11 +16,8 @@ export declare function appendAstHelper(target: AstPublication): void
 export declare function appendAstBody(target: AstPublication, binding: bool): void
     throws { OutOfMemory }
 
-export declare function appendAstFields(target: AstPublication): void
-    throws { OutOfMemory }
-
-export declare function finishAstPublication(
-    target: AstPublication,
+export declare function finishGeneratedAst(
+    frame: Lowering,
     serial: u64,
     uses_allocator: bool
 ): void
@@ -129,11 +126,11 @@ export declare function appendFragmentStatements(target: FragmentPublication, ki
 
 export declare function appendFragmentBody(
     target: FragmentPublication,
-    kind: FragmentKind,
-    sequence: bool
+    mode: FragmentBody
 ): void throws { OutOfMemory }
+
+export declare function appendFragmentStorage(target: FragmentPublication): void
+    throws { OutOfMemory }
 
 export declare function appendFragmentFields(target: FragmentPublication, own_text: bool): void
     throws { OutOfMemory }
-
-export declare function commitFragment(target: FragmentPublication, serial: u64, uses_allocator: bool): void

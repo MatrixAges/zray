@@ -19,5 +19,5 @@ pub fn precondition(self: *Lower, body: *Sequence, predicate: node.ExpressionId)
         else => unreachable,
     };
 
-    try @import("../construction/publication.zig").write(self, body, output, .Guard);
+    try @import("../construction/publication.zig").write(self, .{ .body = body }, output, .Guard);
 }

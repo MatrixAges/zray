@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const publication = @import("publication.zig");
 
 pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const generated = @import("generated_tuple_origin");
@@ -25,13 +26,9 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!
 
     defer scratch.deinit();
 
-    const output = generated.executeIn(buffered.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const output = generated.executeIn(buffered.allocator(), &input) catch |err| return publication.failure(err);
 
-    if (!output.valid) return error.OutOfMemory;
-    try @import("apply.zig").expressions(self, output);
+    try publication.write(self, .{}, output, .Origin);
 
     return @fromBackingInt(output.root);
 }

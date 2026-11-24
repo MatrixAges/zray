@@ -79,7 +79,20 @@ export enum FragmentKind {
     Collection,
     Update,
     Guard,
-    List
+    List,
+    Construction,
+    Origin,
+    Conversion
+}
+
+export enum FragmentBody {
+    Direct,
+    Roots,
+    BorrowedRoots,
+    Selected,
+    SelectedWithVariables,
+    ConvertedBinding,
+    ConvertedBody
 }
 
 export type DirectAstRows = opaque
