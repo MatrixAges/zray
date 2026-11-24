@@ -1,0 +1,37 @@
+<Module>
+    <Type from="workflow" as="List" />
+
+    <Args in={List.Input} out={u32} />
+
+    <Call fn="query" in={$in.request} />
+
+    <If on={$ctx.query != null}>
+        <Return value={$ctx.query} />
+    </If>
+
+    <Call fn="layout" in={$in.request.operation} />
+
+    <If on={$ctx.layout}>
+        <Call fn="workflow.listRepresentationLayout" in={$in.frame} />
+
+        <Call
+            fn="workflow.emitListRepresentation"
+            in={[
+                $in.frame,
+                $ctx.listRepresentationLayout
+            ]}
+        />
+
+        <Return value={$ctx.emitListRepresentation} />
+    </If>
+
+    <Call
+        fn="workflow.emitListRepresentation"
+        in={[
+            $in.frame,
+            null
+        ]}
+    />
+
+    <Return value={$ctx.emitListRepresentation} />
+</Module>

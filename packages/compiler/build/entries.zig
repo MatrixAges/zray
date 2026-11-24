@@ -724,7 +724,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/construction/origin/build.zx", .name = "tuple_origin", .owner = .genz },
     .{ .path = "genz/analysis/construction/origin/name.zx", .name = "origin_name", .owner = .genz },
     .{ .path = "genz/analysis/state/list/selected.zx", .name = "state_list_selected", .owner = .genz },
-    .{ .path = "genz/analysis/state/list/query.zx", .name = "state_list_query", .owner = .genz },
     .{ .path = "genz/analysis/state/list/build.rx", .name = "state_list", .owner = .genz },
     .{ .path = "genz/analysis/growth/delivery/run.rx", .name = "growth_delivery", .owner = .genz },
     .{ .path = "genz/analysis/growth/reserve/build.rx", .name = "growth_reserve", .owner = .genz },
@@ -858,6 +857,9 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/state/list/run.rx", .name = "run_state_list", .owner = .genz },
+    .{ .path = "genz/analysis/state/elements/run.rx", .name = "run_state_element", .owner = .genz },
+    .{ .path = "genz/analysis/state/elements/capture.rx", .name = "run_state_element_capture", .owner = .genz },
     .{ .path = "genz/analysis/collections/update/run.rx", .name = "run_list_update", .owner = .genz },
     .{ .path = "genz/analysis/collections/workflow/run.rx", .name = "run_collection_operation", .owner = .genz },
     .{ .path = "genz/analysis/collections/workflow/emit.rx", .name = "emit_collection_rows", .owner = .genz },

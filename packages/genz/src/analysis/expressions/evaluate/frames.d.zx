@@ -78,7 +78,8 @@ export enum FragmentKind {
     Growth,
     Collection,
     Update,
-    Guard
+    Guard,
+    List
 }
 
 export type DirectAstRows = opaque
@@ -124,3 +125,7 @@ export type CollectionUpdate = {
     element: u32,
     selected: bool
 }
+
+export type ListRepresentation = opaque
+
+export type ElementRepresentation = opaque

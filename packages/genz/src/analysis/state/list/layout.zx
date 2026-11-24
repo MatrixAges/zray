@@ -1,0 +1,16 @@
+import { Operation } from "./const"
+
+export type Input = Operation
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return match in {
+        Operation.Create => true,
+        Operation.Proven => true,
+        Operation.Owned => true,
+        Operation.Borrowed => true,
+        Operation.Wrap => true,
+        _ => false
+    }
+}

@@ -14,21 +14,7 @@ pub fn publish(self: *Lower, exported: bool) Lower.Error!Stored {
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
-    const Capture = std.meta.Child(@typeInfo(@FieldType(Bases, "capture")).optional.child);
-    var capture: Capture = undefined;
-
-    const bases: Bases = .{
-        .capture = if (self.capture) |boundary| captured: {
-            capture = .{ .name = boundary.name, .label = boundary.label, .failure = @backingInt(boundary.failure) };
-
-            break :captured &capture;
-        } else null,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .serial = self.serial,
-    };
-
+    const bases = @import("../construction/context.zig").snapshot(Bases, self);
     const input: Input = .{ .bases = &bases, .exported = exported, .shared_types = self.shared_types };
     const output = entry.executeValue(self.allocator, if (indirect) &input else input) catch |err| return failure(err);
 

@@ -1,0 +1,32 @@
+<Module>
+    <Type from="workflow" as="Elements" />
+
+    <Args in={Elements.Input} out={u8[]} />
+
+    <If on={$in.choice.discard}>
+        <Return value={$in.choice.discard_name} />
+    </If>
+
+    <If on={!$in.choice.passthrough}>
+        <Call
+            fn="layout"
+            in={{
+                frame: $in.frame,
+                stored: $in.choice.stored
+            }}
+        />
+
+        <Call
+            fn="workflow.emitElement"
+            in={[
+                $in.frame,
+                $in.value,
+                $ctx.layout
+            ]}
+        />
+    </If>
+
+    <Call fn="workflow.elementCaptureName" in={$in.frame} />
+
+    <Return value={$ctx.elementCaptureName} />
+</Module>

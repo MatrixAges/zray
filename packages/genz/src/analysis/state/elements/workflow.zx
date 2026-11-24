@@ -1,0 +1,10 @@
+import type { ElementRepresentation } from "lowering_host"
+import type { Choice } from "./model"
+
+export type Input = {
+    frame: ElementRepresentation,
+    choice: Choice,
+    value: u32
+}
+
+export { emitElement, elementCaptureName } from "lowering_host"

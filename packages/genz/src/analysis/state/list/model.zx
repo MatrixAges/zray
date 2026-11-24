@@ -22,11 +22,6 @@ export type Query = {
     ast: Ast
 }
 
-export type Plan = {
-    passthrough?: u32,
-    layout: bool
-}
-
 export type Input = {
     request: Query,
     construct: bool,

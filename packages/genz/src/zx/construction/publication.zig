@@ -22,7 +22,7 @@ const Frame = struct {
     sequence: ?*Sequence,
     expressions: Expressions,
     forms: Forms,
-    statements: Rows,
+    statements: ?Rows,
     vars: ?@FieldType(Context, "variables"),
     subset: ?@FieldType(Update, "body"),
     roots: ?Rows,
@@ -36,7 +36,7 @@ pub fn write(self: *Lower, sequence: ?*Sequence, output: anytype, comptime kind:
     const data = switch (kind) {
         .Growth => &output.result,
         .Collection => output.state.context,
-        .Update, .Guard => output,
+        .Update, .Guard, .List => output,
     };
 
     const expressions = if (kind == .Growth) columns.view(std.meta.Child(Expressions), data.expressions) else undefined;
@@ -47,7 +47,7 @@ pub fn write(self: *Lower, sequence: ?*Sequence, output: anytype, comptime kind:
         .sequence = sequence,
         .expressions = if (kind == .Growth) &expressions else columns.pointer(Expressions, data.expressions),
         .forms = if (kind == .Growth) &forms else columns.pointer(Forms, data.forms),
-        .statements = columns.pointer(Rows, data.statements),
+        .statements = if (kind == .List) null else columns.pointer(Rows, data.statements),
         .vars = if (kind == .Collection) data.variables else null,
         .subset = switch (kind) {
             .Collection => columns.pointer(@FieldType(Update, "body"), output.state.body),
@@ -61,7 +61,7 @@ pub fn write(self: *Lower, sequence: ?*Sequence, output: anytype, comptime kind:
         },
         .fields = switch (kind) {
             .Growth => if (output.fields) |source| columns.pointer(@FieldType(Update, "fields"), source) else null,
-            .Collection, .Update => columns.pointer(@FieldType(Update, "fields"), output.fields),
+            .Collection, .Update, .List => columns.pointer(@FieldType(Update, "fields"), output.fields),
             .Guard => null,
         },
     };
@@ -74,10 +74,10 @@ pub fn write(self: *Lower, sequence: ?*Sequence, output: anytype, comptime kind:
         .valid = if (kind == .Growth) data.valid else output.valid,
         .serial = switch (kind) {
             .Growth => data.serial,
-            .Guard => 0,
+            .Guard, .List => 0,
             .Collection, .Update => output.serial,
         },
-        .uses_allocator = kind != .Guard and output.uses_allocator,
+        .uses_allocator = kind != .Guard and kind != .List and output.uses_allocator,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
@@ -104,11 +104,12 @@ pub fn appendFragmentStatements(handle: *const anyopaque, kind: Kind) Lower.Erro
     const allocator = frame.lower.allocator;
 
     switch (kind) {
-        .Growth => dense.append(allocator, target, frame.statements) catch |err| return failure(err),
-        .Guard => dense.appendBorrowingText(allocator, target, frame.statements) catch |err| return failure(err),
-        .Update => sparse.append(allocator, target, frame.statements) catch |err| return failure(err),
+        .Growth => dense.append(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .Guard => dense.appendBorrowingText(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .Update => sparse.append(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .List => unreachable,
         .Collection => {
-            const source = view.join(frame.statements.*, frame.vars.?.*);
+            const source = view.join(frame.statements.?.*, frame.vars.?.*);
 
             sparse.append(allocator, target, &source) catch |err| return failure(err);
         },
@@ -129,9 +130,11 @@ pub fn appendFragmentBody(handle: *const anyopaque, kind: Kind, sequence: bool) 
 
     switch (kind) {
         .Growth => statements.append(allocator, target, frame.roots.?) catch |err| return failure(err),
+        .List => unreachable,
         .Guard => statements.appendBorrowingText(allocator, target, frame.roots.?) catch |err| return failure(err),
         .Collection, .Update => {
-            var roots = frame.statements.*;
+            var roots = frame.statements.?.*;
+
             roots.tags = frame.subset.?.tags;
             roots.offsets = frame.subset.?.offsets;
 

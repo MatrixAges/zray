@@ -5,7 +5,9 @@ import { ExpressionsKind } from "../../../printer/model/expressions"
 import { items_field, storage_field, list_field_count } from "../../types/state/const"
 import { Operation } from "./const"
 
-import type { Query as Input, Plan as Output } from "./model"
+import type { Query as Input } from "./model"
+
+export type Output = u32?
 
 export default function (in: Input): Output {
     const guarded = in.operation == Operation.Owned || in.operation == Operation.Wrap
@@ -14,10 +16,7 @@ export default function (in: Input): Output {
     const guarded_access = guarded || items
 
     if (!in.selected && guarded_access) {
-        return {
-            passthrough: in.value,
-            layout: false
-        }
+        return in.value
     }
 
     if (items) {
@@ -39,24 +38,11 @@ export default function (in: Input): Output {
                 )
 
                 if (first_name && second_name) {
-                    return {
-                        passthrough: in.ast.field_value[first],
-                        layout: false
-                    }
+                    return in.ast.field_value[first]
                 }
             }
         }
     }
 
-    return {
-        passthrough: null,
-        layout: match in.operation {
-            Operation.Create => true,
-            Operation.Proven => true,
-            Operation.Owned => true,
-            Operation.Borrowed => true,
-            Operation.Wrap => true,
-            _ => false
-        }
-    }
+    return null
 }

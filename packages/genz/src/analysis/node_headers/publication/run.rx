@@ -9,36 +9,39 @@
         fn="host.appendFragmentExpressions"
         in={[
             $in.target,
-            $in.kind == Fragment.FragmentKind.Guard
+            $in.kind == Fragment.FragmentKind.Guard ||
+                $in.kind == Fragment.FragmentKind.List
         ]}
     />
 
-    <Call
-        fn="host.appendFragmentStatements"
-        in={[
-            $in.target,
-            $in.kind
-        ]}
-    />
-
-    <If on={$in.kind == Fragment.FragmentKind.Collection}>
+    <If on={$in.kind != Fragment.FragmentKind.List}>
         <Call
-            fn="host.appendFragmentFields"
+            fn="host.appendFragmentStatements"
             in={[
                 $in.target,
-                true
+                $in.kind
+            ]}
+        />
+
+        <If on={$in.kind == Fragment.FragmentKind.Collection}>
+            <Call
+                fn="host.appendFragmentFields"
+                in={[
+                    $in.target,
+                    true
+                ]}
+            />
+        </If>
+
+        <Call
+            fn="host.appendFragmentBody"
+            in={[
+                $in.target,
+                $in.kind,
+                $in.sequence
             ]}
         />
     </If>
-
-    <Call
-        fn="host.appendFragmentBody"
-        in={[
-            $in.target,
-            $in.kind,
-            $in.sequence
-        ]}
-    />
 
     <If on={$in.fields && $in.kind != Fragment.FragmentKind.Collection}>
         <Call
@@ -50,7 +53,10 @@
         />
     </If>
 
-    <If on={$in.kind != Fragment.FragmentKind.Guard}>
+    <If
+        on={$in.kind != Fragment.FragmentKind.Guard &&
+            $in.kind != Fragment.FragmentKind.List}
+    >
         <Call
             fn="host.commitFragment"
             in={[

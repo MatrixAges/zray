@@ -1,6 +1,5 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
@@ -8,7 +7,9 @@ const generated = @import("generated_state_list");
 const Input = std.meta.Child(generated.Input);
 const Query = std.meta.Child(@FieldType(Input, "request"));
 const Operation = @FieldType(Query, "operation");
-const Ast = std.meta.Child(@FieldType(Query, "ast"));
+pub const Ast = std.meta.Child(@FieldType(Query, "ast"));
+const runner = @import("generated_run_state_list");
+const publication = @import("../construction/publication.zig");
 
 const Request = struct {
     value: node.ExpressionId = @fromBackingInt(0),
@@ -19,39 +20,60 @@ const Request = struct {
     flag: bool = false,
 };
 
+const Frame = struct {
+    lower: *Lower,
+    id: ?ir.TypeId,
+    query: *const Query,
+    request: Request,
+    fn borrowHandle(handle: *const anyopaque) *const Frame {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
 pub fn lower(self: *Lower, id: ?ir.TypeId, operation: Operation, request: Request) Lower.Error!node.ExpressionId {
-    const before = borrow(self);
-
-    const query: Query = .{
-        .operation = operation,
-        .selected = request.selected,
-        .value = @backingInt(request.value),
-        .ast = &before,
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const plan = zx.columns.invoke(@import("generated_state_list_query").executeValue, fixed.allocator(), &query) catch unreachable;
-
-    if (plan.passthrough) |value| return @fromBackingInt(value);
-
-    const layout: ?node.ExpressionId = if (plan.layout) try @import("../types.zig").get(self, self.state_types, id.?) else null;
     const ast = borrow(self);
 
-    const current: Query = .{
+    const query: Query = .{
         .operation = operation,
         .selected = request.selected,
         .value = @backingInt(request.value),
         .ast = &ast,
     };
 
+    const frame: Frame = .{ .lower = self, .id = id, .query = &query, .request = request };
+    const input: std.meta.Child(runner.Input) = .{ .frame = @ptrCast(&frame), .request = @import("zx").columns.pointer(@FieldType(std.meta.Child(runner.Input), "request"), &query) };
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    return @fromBackingInt(runner.executeIn(fixed.allocator(), &input) catch |err| return publication.failure(err));
+}
+
+pub fn listRepresentationLayout(handle: *const anyopaque) Lower.Error!u32 {
+    const frame = Frame.borrowHandle(handle);
+    const self = frame.lower;
+
+    return @backingInt(try @import("../types.zig").get(self, self.state_types, frame.id.?));
+}
+
+pub fn emitListRepresentation(handle: *const anyopaque, layout: ?u32) Lower.Error!u32 {
+    const frame = Frame.borrowHandle(handle);
+    const self = frame.lower;
+    const request = frame.request;
+    var query = frame.query.*;
+    var ast: Ast = undefined;
+
+    if (layout != null) {
+        ast = borrow(self);
+        query.ast = &ast;
+    }
+
     const input: Input = .{
-        .request = &current,
-        .construct = plan.layout,
+        .request = &query,
+        .construct = layout != null,
         .condition = @backingInt(request.condition),
         .unique = @backingInt(request.unique),
         .storage = request.storage,
         .flag = request.flag,
-        .layout = if (layout) |value| @backingInt(value) else 0,
+        .layout = layout orelse 0,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(self.builder.nodes.field_columns.count()),
     };
@@ -62,26 +84,11 @@ pub fn lower(self: *Lower, id: ?ir.TypeId, operation: Operation, request: Reques
 
     defer scratch.deinit();
 
-    const output = generated.executeIn(buffered.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const output = generated.executeIn(buffered.allocator(), &input) catch |err| return publication.failure(err);
 
-    if (!output.valid) return error.OutOfMemory;
+    try publication.write(self, null, output, .List);
 
-    const expressions = view.join(output.expressions.*, output.forms.*);
-
-    @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => @panic("invalid state list field columns"),
-    };
-
-    return @fromBackingInt(output.root);
+    return output.root;
 }
 
 pub fn borrow(self: *const Lower) Ast {
@@ -98,4 +105,48 @@ pub fn borrow(self: *const Lower) Ast {
         .field_name = view.slice(@FieldType(Ast, "field_name"), fields.name.values.items),
         .field_value = view.slice(@FieldType(Ast, "field_value"), fields.value.values.items),
     };
+}
+
+pub fn tag(self: *Lower, storage: @import("list_seed.zig").Storage) Lower.Error!node.ExpressionId {
+    return lower(self, null, .Tag, .{ .storage = @fromBackingInt(@backingInt(storage)) });
+}
+
+pub fn headered(self: *Lower, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, null, .Headered, .{ .value = value });
+}
+
+pub fn exclusive(self: *Lower, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, null, .Exclusive, .{ .value = value });
+}
+
+pub fn writable(self: *Lower, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, null, .Writable, .{ .value = value });
+}
+
+pub fn weakened(self: *Lower, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, null, .Weakened, .{ .value = value });
+}
+
+pub fn create(self: *Lower, id: ir.TypeId, slice: node.ExpressionId, has_header: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, id, .Create, .{ .value = slice, .condition = has_header });
+}
+
+pub fn proven(self: *Lower, id: ir.TypeId, slice: node.ExpressionId, has_header: node.ExpressionId, is_unique: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, id, .Proven, .{ .value = slice, .condition = has_header, .unique = is_unique });
+}
+
+pub fn owned(self: *Lower, id: ir.TypeId, slice: node.ExpressionId, has_header: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, id, .Owned, .{ .value = slice, .condition = has_header, .selected = @import("list.zig").selected(self, id) });
+}
+
+pub fn borrowed(self: *Lower, id: ir.TypeId, slice: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, id, .Borrowed, .{ .value = slice });
+}
+
+pub fn items(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, id, .Items, .{ .value = value, .selected = @import("list.zig").selected(self, id) });
+}
+
+pub fn wrap(self: *Lower, id: ir.TypeId, value: node.ExpressionId, has_header: bool) Lower.Error!node.ExpressionId {
+    return lower(self, id, .Wrap, .{ .value = value, .flag = has_header, .selected = @import("list.zig").selected(self, id) });
 }

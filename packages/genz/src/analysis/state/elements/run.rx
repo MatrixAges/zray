@@ -1,0 +1,28 @@
+<Module>
+    <Type from="workflow" as="Elements" />
+
+    <Args in={Elements.Input} out={u32} />
+
+    <If on={$in.choice.passthrough}>
+        <Return value={$in.value} />
+    </If>
+
+    <Call
+        fn="layout"
+        in={{
+            frame: $in.frame,
+            stored: $in.choice.stored
+        }}
+    />
+
+    <Call
+        fn="workflow.emitElement"
+        in={[
+            $in.frame,
+            $in.value,
+            $ctx.layout
+        ]}
+    />
+
+    <Return value={$ctx.emitElement} />
+</Module>

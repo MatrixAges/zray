@@ -46,13 +46,7 @@ pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, typ
     std.debug.assert(statements == self.builder.nodes.statements.tags.items.len);
     std.debug.assert(storage == self.referenceBatches());
 
-    const bases: Bases = .{
-        .capture = if (self.capture) |item| &.{ .name = item.name, .label = item.label, .failure = @backingInt(item.failure) } else null,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .serial = self.serial,
-    };
+    const bases = @import("../construction/context.zig").snapshot(Bases, self);
 
     const input: Input = .{
         .value = @backingInt(value),
