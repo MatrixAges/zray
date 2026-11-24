@@ -1,11 +1,14 @@
 import host from "lowering_host"
 
+import rename from "../../parameters/rename"
+
 import type { Input } from "./model"
 
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const { frame, loop_frame } = in
+    const { frame, loop_frame, parameters } = in
+    const { target, condition, step } = parameters
 
     const first = host.loopFirstCondition(loop_frame)
 
@@ -13,11 +16,26 @@ export default function (in: Input): Output {
         return null
     }
 
-    host.nameLoopParameters(loop_frame, true)
+    const seed_name = host.loopSeedName(loop_frame)
+
+    rename({
+        target,
+        condition,
+        step,
+        condition_name: seed_name,
+        step_name: seed_name
+    })
 
     const value = host.lowerExpression(frame, first, false, null)
+    const name = host.loopParameterName(loop_frame)
 
-    host.nameLoopParameters(loop_frame, false)
+    rename({
+        target,
+        condition,
+        step,
+        condition_name: name,
+        step_name: name
+    })
 
     return value
 }

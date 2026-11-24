@@ -1,37 +1,53 @@
+import memory from "memory"
+
+import {
+    active_slot,
+    condition_slot,
+    stack_condition_slot,
+    stack_step_slot,
+    state_condition_slot,
+    state_step_slot,
+    step_slot
+} from "./const"
 import removePair from "./remove_pair"
 import rename from "./rename"
 
-import type { Restore as Input, Counts as Output } from "./model"
+import type { View as Input } from "./model"
+
+export type Output = void
 
 export default function (in: Input): Output {
-    const { condition, step, target, condition_name, step_name } = in
+    const { condition, step, target, previous } = in
 
-    const state = removePair({
+    const flags = memory.boolViews(in.flags)
+
+    if (!flags[active_slot]) {
+        return
+    }
+
+    removePair({
         index: in.state,
         condition,
         step,
-        remove_condition: in.remove_state_condition,
-        remove_step: in.remove_state_step
+        remove_condition: flags[state_condition_slot],
+        remove_step: flags[state_step_slot]
     })
 
-    const stack = removePair({
+    removePair({
         index: in.stack,
         condition,
         step,
-        remove_condition: in.remove_stack_condition,
-        remove_step: in.remove_stack_step
+        remove_condition: flags[stack_condition_slot],
+        remove_step: flags[stack_step_slot]
     })
+
+    const names = memory.stringViews(previous)
 
     rename({
         target,
         condition,
         step,
-        condition_name,
-        step_name
+        condition_name: names[condition_slot],
+        step_name: names[step_slot]
     })
-
-    return {
-        state,
-        stack
-    }
 }

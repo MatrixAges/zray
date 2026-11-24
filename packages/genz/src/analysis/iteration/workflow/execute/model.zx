@@ -1,4 +1,5 @@
-import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
+import type { LoopAdmission, LoopFrame, LoopOperands, Lowering } from "lowering_host"
+import type { View } from "../../parameters/model"
 
 export type Admission = LoopAdmission
 
@@ -8,7 +9,11 @@ export type Input = {
     frame: Lowering,
     loop_frame: LoopFrame,
     id: u32,
-    initial: u32
+    initial: u32,
+    parameters: View,
+    operands: LoopOperands
 }
+
+export type Parameters = Input.Pick("loop_frame", "parameters")
 
 export type Output = u32?

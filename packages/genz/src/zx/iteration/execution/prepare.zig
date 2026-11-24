@@ -7,7 +7,7 @@ const Frame = @import("frame.zig");
 const Context = @import("../../iteration_value/root.zig");
 const aggregate = @import("../../aggregate.zig");
 const selection = @import("../../iteration_layout/select.zig");
-const parameters = @import("../parameters.zig");
+const seed_parameters = @import("../parameters_seed.zig");
 const initial = @import("../initial.zig");
 const scope = @import("../../state_value/scope.zig");
 const step = @import("../step.zig");
@@ -148,29 +148,38 @@ pub fn trackLoopChange(handle: *const anyopaque) Error!void {
 pub fn openLoopParameters(handle: *const anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
-    frame.parameters = try parameters.enter(frame.lowering, frame.iteration, frame.initial.parameters, frame.name, &frame.context);
+    frame.parameters = try seed_parameters.enter(frame.lowering, frame.iteration, frame.initial.parameters, frame.name, &frame.context);
 }
 
 pub fn loopParameterLayout(handle: *const anyopaque) Api.LoopParameterLayout {
     return zx.columns.view(Api.LoopParameterLayout, Frame.borrow(handle).initial.parameters);
 }
 
-pub fn bindLoopParameters(handle: *const anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.parameters = parameters.bind(frame.lowering, frame.iteration, frame.initial.parameters, frame.name);
+pub fn loopParameterName(handle: *const anyopaque) []const u8 {
+    return Frame.borrow(handle).name;
 }
 
-pub fn addLoopParameterMembers(handle: *const anyopaque) Error!void {
+pub fn addLoopParameterMembers(handle: *const anyopaque, condition: bool, step_parameter: bool) Error!void {
     const frame = Frame.borrow(handle);
+    const lowering = frame.lowering;
 
-    try frame.parameters.?.addMembers(frame.initial.parameters, &frame.context);
+    const symbols = switch (frame.initial.parameters) {
+        .Plain => unreachable,
+        .State => &lowering.state_symbols,
+        .Stack => &lowering.stack_symbols,
+        .Deep => &frame.context.symbols,
+    };
+
+    const ids = [_]ir.SymbolId{ frame.iteration.condition_parameter, frame.iteration.parameter };
+    const first = @intFromBool(!condition);
+    const end = ids.len - @intFromBool(!step_parameter);
+
+    try symbols.addMany(lowering.allocator, ids[first..end]);
 }
 
 pub fn openLoopParameterContext(handle: *const anyopaque) void {
     const frame = Frame.borrow(handle);
-
-    frame.parameters.?.openContext(&frame.context);
+    frame.parameters.context = scope.enter(frame.lowering, .Iteration, .{ .iteration_value = &frame.context });
 }
 
 pub fn prepareLoopUpdate(handle: *const anyopaque) Error!void {
@@ -234,6 +243,12 @@ pub fn planLoopUpdate(handle: *const anyopaque, value: u32) Error!void {
         .buffered = frame.initial.buffered,
         .discard = frame.mode == .discard,
     });
+
+    frame.operands = .{
+        .condition = frame.schedule.condition,
+        .body = frame.schedule.step,
+        .by_value = frame.schedule.by_value,
+    };
 
     var memory = std.heap.BufferFirstAllocator.init(&frame.renewal_buffer, frame.renewal_arena.allocator());
 

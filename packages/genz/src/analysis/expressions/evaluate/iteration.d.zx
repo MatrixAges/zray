@@ -15,24 +15,25 @@ export declare function setLoopInitialScope(loop_frame: LoopFrame, active: bool)
 
 export declare function loopParameterLayout(frame: LoopFrame): LoopParameterLayout
 
-export declare function bindLoopParameters(frame: LoopFrame): void
+export declare function loopParameterName(frame: LoopFrame): string
 
-export declare function addLoopParameterMembers(frame: LoopFrame): void
-    throws { OutOfMemory }
+export declare function addLoopParameterMembers(
+    frame: LoopFrame,
+    condition: bool,
+    step: bool
+): void throws { OutOfMemory }
 
 export declare function openLoopParameterContext(frame: LoopFrame): void
 
 export declare function restoreLoopParameterContext(frame: LoopFrame): void
 
-export declare function restoreLoopParameters(frame: LoopFrame): void
-
 export declare function loopProjects(loop_frame: LoopFrame): bool
 
 export declare function loopFirstCondition(frame: LoopFrame): u32?
 
-export declare function nameLoopParameters(frame: LoopFrame, seed: bool): void
+export declare function loopSeedName(frame: LoopFrame): string
 
-export declare function enterLoopUpdate(frame: LoopFrame, projected: bool): LoopOperands
+export declare function enterLoopUpdate(frame: LoopFrame, scope: LoopUpdateScope): void
 
 export declare function loopUpdateScope(frame: LoopFrame): LoopUpdateScope
 

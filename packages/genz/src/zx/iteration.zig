@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const Consumer = @import("iteration_consumer.zig").Consumer;
@@ -32,21 +33,69 @@ pub fn consume(self: *Lower, id: ir.ExprId, consumer: Consumer) Lower.Error!?nod
 fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: result.Mode, consumer: ?Consumer) Lower.Error!?node.ExpressionId {
     var frame = Frame.create(self, id, iteration, mode, consumer);
 
-    defer frame.restore();
+    if (!generated) {
+        defer frame.restoreSeed();
 
-    if (!generated) return runSeed(&frame);
+        return runSeed(&frame);
+    }
 
+    return run(&frame);
+}
+
+fn run(frame: *Frame) Lower.Error!?node.ExpressionId {
     const entry = @import("generated_lower_loop");
+    const release = @import("generated_release_loop");
+    const Input = std.meta.Child(entry.Input);
+    const Views = std.meta.Child(@FieldType(Input, "parameters"));
+    const Index = std.meta.Child(@FieldType(Views, "state"));
+    const self = frame.lowering;
+    const state = self.state_symbols.current();
+    const stack = self.stack_symbols.current();
+    const state_count: []u64 = @as(*[1]u64, @ptrCast(&state.count));
+    const stack_count: []u64 = @as(*[1]u64, @ptrCast(&stack.count));
+    const flags: []bool = &frame.parameters.flags;
+    const previous: [][]const u8 = &frame.parameters.previous;
 
-    const input: std.meta.Child(entry.Input) = .{
+    const state_view: Index = .{
+        .count = @ptrCast(&state_count),
+        .keys = @ptrCast(&state.keys.items),
+        .buckets = @ptrCast(&state.buckets.items),
+    };
+
+    const stack_view: Index = .{
+        .count = @ptrCast(&stack_count),
+        .keys = @ptrCast(&stack.keys.items),
+        .buckets = @ptrCast(&stack.buckets.items),
+    };
+
+    const parameters: Views = .{
+        .condition = @backingInt(frame.iteration.condition_parameter),
+        .step = @backingInt(frame.iteration.parameter),
+        .target = @ptrCast(&self.names),
+        .previous = @ptrCast(&previous),
+        .flags = @ptrCast(&flags),
+        .state = &state_view,
+        .stack = &stack_view,
+    };
+
+    const input: Input = .{
         .frame = @ptrCast(self),
-        .loop_frame = @ptrCast(&frame),
-        .id = @backingInt(id),
-        .initial = @backingInt(iteration.initial),
+        .loop_frame = @ptrCast(frame),
+        .id = @backingInt(frame.id),
+        .initial = @backingInt(frame.iteration.initial),
+        .parameters = &parameters,
+        .operands = &frame.operands,
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const value = try entry.executeIn(empty.allocator(), &input);
+    const resources: std.meta.Child(release.Input) = .{ .loop_frame = input.loop_frame, .parameters = &parameters };
+
+    defer release.executeIn(empty.allocator(), &resources) catch unreachable;
+
+    const value = entry.executeIn(empty.allocator(), &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     return if (value) |expression| @fromBackingInt(expression) else null;
 }
@@ -79,7 +128,10 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
     if (projected) try emit.declareLoopState(handle, .State, true);
 
     const first = try emit.lowerLoopFirstTest(handle);
-    const operands = emit.enterLoopUpdate(handle, projected);
+
+    emit.enterLoopUpdate(handle, if (projected) .Projected else .Ordinary);
+
+    const operands = frame.operands;
     const condition = try self.expr(@fromBackingInt(operands.condition));
     const body: ir.ExprId = @fromBackingInt(operands.body);
     const update = if (operands.by_value) try @import("value_call/root.zig").expression(self, body) else try self.expr(body);

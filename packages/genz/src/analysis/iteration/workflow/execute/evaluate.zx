@@ -1,5 +1,5 @@
 import host from "lowering_host"
-import { LoopParameterLayout } from "lowering_host"
+import { LoopParameterLayout, LoopUpdateScope } from "lowering_host"
 
 import closeUpdate from "./close_update"
 import firstCondition from "./first_condition"
@@ -9,7 +9,7 @@ import type { Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, loop_frame } = in
+    const { frame, loop_frame, operands } = in
 
     const projected = host.loopProjects(loop_frame)
 
@@ -18,7 +18,14 @@ export default function (in: Input): Output {
     }
 
     const first = firstCondition(in)
-    const operands = host.enterLoopUpdate(loop_frame, projected)
+
+    const scope = match {
+        projected => LoopUpdateScope.Projected,
+        _ => LoopUpdateScope.Ordinary
+    }
+
+    host.enterLoopUpdate(loop_frame, scope)
+
     const condition = host.lowerExpression(frame, operands.condition, false, null)
 
     const value = match {

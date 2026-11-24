@@ -1,5 +1,5 @@
 import type { Action, Mode } from "../layout/model"
-import type { Layout } from "../parameters/model"
+import type { Layout } from "../parameters/layout"
 
 export enum Evaluation {
     Reference,

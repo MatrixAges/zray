@@ -10,7 +10,7 @@ const result = @import("../result.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
 const Api = @import("../../expressions/evaluate.zig").Api;
-const Layout = if (generated) Api.LoopParameterLayout else @import("../parameters.zig").Layout;
+const Layout = if (generated) Api.LoopParameterLayout else @import("../parameters_seed.zig").Layout;
 
 pub fn loopProjects(handle: *const anyopaque) bool {
     return Frame.borrow(handle).fields != null;
@@ -31,30 +31,21 @@ pub fn loopFirstCondition(handle: *const anyopaque) ?u32 {
     return Frame.borrow(handle).schedule.first_test;
 }
 
-pub fn nameLoopParameters(handle: *const anyopaque, seed: bool) void {
+pub fn loopSeedName(handle: *const anyopaque) []const u8 {
     const frame = Frame.borrow(handle);
-    const name = if (seed) frame.lowering.builder.nodes.get(frame.seed).identifier else frame.name;
 
-    frame.parameters.?.rename(name);
+    return frame.lowering.builder.nodes.get(frame.seed).identifier;
 }
 
-pub fn enterLoopUpdate(handle: *const anyopaque, projected: bool) *const Frame.Operands {
+pub fn enterLoopUpdate(handle: *const anyopaque, update: Frame.UpdateScope) void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
-    frame.step_scope = if (projected)
-        .{ .Projected = scope.enter(self, .Projected, .{ .loop_fields = &frame.fields.? }) }
-
-    else
-        .{ .Ordinary = scope.enter(self, .Deferred, .{ .deferred_lists = frame.renewals.delayed }) };
-
-    frame.operands = .{
-        .condition = frame.schedule.condition,
-        .body = frame.schedule.step,
-        .by_value = frame.schedule.by_value,
+    frame.step_scope = switch (update) {
+        .Projected => .{ .Projected = scope.enter(self, .Projected, .{ .loop_fields = &frame.fields.? }) },
+        .Ordinary => .{ .Ordinary = scope.enter(self, .Deferred, .{ .deferred_lists = frame.renewals.delayed }) },
+        .None => unreachable,
     };
-
-    return &frame.operands;
 }
 
 pub fn saveLoopUpdate(handle: *const anyopaque, condition: u32, value: u32, first: ?u32) void {

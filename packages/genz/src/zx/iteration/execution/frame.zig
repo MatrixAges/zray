@@ -4,7 +4,7 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Context = @import("../../iteration_value/root.zig");
 const Consumer = @import("../../iteration_consumer.zig").Consumer;
-const Parameters = @import("../parameters.zig");
+const SeedParameters = @import("../parameters_seed.zig");
 const Fields = @import("../fields/root.zig");
 const Result = @import("../result.zig");
 const State = @import("../state.zig");
@@ -26,6 +26,12 @@ pub const Operands = if (generated) Api.LoopOperands else struct {
 
 pub const UpdateScope = if (generated) Api.LoopUpdateScope else enum { None, Projected, Ordinary };
 const Self = @This();
+
+const Parameters = struct {
+    previous: [2][]const u8 = undefined,
+    flags: [5]bool = @splat(false),
+    context: ?state_scope.Frame(.Iteration) = null,
+};
 
 lowering: *Lower,
 id: ir.ExprId,
@@ -49,7 +55,7 @@ representation: @typeInfo(Represented).error_union.payload = null,
 seed: node.ExpressionId = undefined,
 fields: ?Fields = null,
 changed_name: []const u8 = &.{},
-parameters: ?Parameters = null,
+parameters: if (generated) Parameters else ?SeedParameters = if (generated) .{} else null,
 initial_state: node.ExpressionId = undefined,
 schedule: Step.Plan = undefined,
 operands: Operands = undefined,
@@ -99,19 +105,12 @@ pub fn restoreUpdate(self: *Self) void {
         closeLoopUpdate(self, active);
 
         if (active == .Ordinary) {
-            self.parameters.?.restoreContext();
+            restoreLoopParameterContext(self);
         }
     }
 }
 
-pub fn restore(self: *Self) void {
-    if (generated) {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const entry = @import("generated_release_loop");
-
-        return entry.executeIn(empty.allocator(), @ptrCast(self)) catch unreachable;
-    }
-
+pub fn restoreSeed(self: *Self) void {
     self.restoreUpdate();
 
     if (self.initial_scope) |saved| saved.restore();
@@ -139,7 +138,13 @@ pub fn closeLoopUpdate(handle: *const anyopaque, active: UpdateScope) void {
 }
 
 pub fn restoreLoopParameterContext(handle: *const anyopaque) void {
-    borrow(handle).parameters.?.restoreContext();
+    const self = borrow(handle);
+
+    if (generated) {
+        if (self.parameters.context) |saved| saved.restore();
+    } else if (self.parameters) |parameters| {
+        parameters.restoreContext();
+    }
 }
 
 pub fn closeLoopInitial(handle: *const anyopaque) void {
@@ -151,10 +156,6 @@ pub fn releaseLoopScratch(handle: *const anyopaque) void {
 
     self.projected_body.deinit();
     self.renewal_arena.deinit();
-}
-
-pub fn restoreLoopParameters(handle: *const anyopaque) void {
-    if (borrow(handle).parameters) |parameters| parameters.restore();
 }
 
 pub fn closeLoopRepresentation(handle: *const anyopaque) void {

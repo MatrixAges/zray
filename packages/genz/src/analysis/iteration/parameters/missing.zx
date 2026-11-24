@@ -1,17 +1,21 @@
-import get from "core/integer/index/get"
+import lookup from "core/integer/index/lookup"
+import memory from "memory"
 
 import type { Pair as Input, Missing as Output } from "./model"
 
 export default function (in: Input): Output {
-    const index = in.index
+    const keys = memory.u32Views(in.index.keys)
+    const buckets = memory.u32Views(in.index.buckets)
 
-    const condition = get({
-        index,
+    const condition = lookup({
+        keys,
+        buckets,
         key: in.condition
     }) == null
 
-    const step = in.step != in.condition && get({
-        index,
+    const step = in.step != in.condition && lookup({
+        keys,
+        buckets,
         key: in.step
     }) == null
 

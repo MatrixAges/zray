@@ -1,5 +1,5 @@
 import { Action } from "../layout/model"
-import { Layout } from "../parameters/model"
+import { Layout } from "../parameters/layout"
 
 import type { Shape as Output } from "./model"
 

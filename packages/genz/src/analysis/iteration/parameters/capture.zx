@@ -1,20 +1,45 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import type { Change as Input, Names as Output } from "./model"
+import {
+    active_slot,
+    condition_slot,
+    stack_condition_slot,
+    stack_step_slot,
+    state_condition_slot,
+    state_step_slot,
+    step_slot
+} from "./const"
+import rename from "./rename"
+
+import type { RemovalFlags, View } from "./model"
+
+export type Input = View.Omit("state", "stack") & {
+    name: string,
+    removal: RemovalFlags
+}
+
+export type Output = void
 
 export default function (in: Input): Output {
-    const names = memory.stringViews(in.target)
-    const condition = integers.widen(in.condition)
-    const step = integers.widen(in.step)
-    const condition_name = names[condition]
-    const step_name = names[step]
+    const { target, previous, flags, condition, step, removal, name } = in
 
-    memory.writeString(in.target, condition, in.name)
-    memory.writeString(in.target, step, in.name)
+    const names = memory.stringViews(target)
 
-    return {
-        condition_name,
-        step_name
-    }
+    memory.writeString(previous, condition_slot, names[integers.widen(condition)])
+    memory.writeString(previous, step_slot, names[integers.widen(step)])
+
+    memory.writeBool(flags, state_condition_slot, removal.remove_state_condition)
+    memory.writeBool(flags, state_step_slot, removal.remove_state_step)
+    memory.writeBool(flags, stack_condition_slot, removal.remove_stack_condition)
+    memory.writeBool(flags, stack_step_slot, removal.remove_stack_step)
+    memory.writeBool(flags, active_slot, true)
+
+    rename({
+        target,
+        condition,
+        step,
+        condition_name: name,
+        step_name: name
+    })
 }

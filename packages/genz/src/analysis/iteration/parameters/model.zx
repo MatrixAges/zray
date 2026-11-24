@@ -1,25 +1,33 @@
-import type { Index, Mutable } from "core/integer/index/model"
-import type { StringBuffer } from "memory"
+import type { LoopParameterLayout } from "lowering_host"
+import type { BoolBuffer, StringBuffer, U32Buffer, U64Buffer } from "memory"
 
-export enum Layout {
-    Plain,
-    Stack,
-    State,
-    Deep
+export type Layout = LoopParameterLayout
+
+export type LiveIndex = {
+    count: U64Buffer,
+    keys: U32Buffer,
+    buckets: U32Buffer
 }
 
-export type Input = {
-    layout: Layout,
-    condition: u32,
-    step: u32,
-    state: Index,
-    stack: Index
-}
-
-export type Pair = {
-    index: Index,
+export type Slots = {
     condition: u32,
     step: u32
+}
+
+export type Input = Slots & {
+    layout: Layout,
+    state: LiveIndex,
+    stack: LiveIndex
+}
+
+export type View = Input.Omit("layout") & {
+    target: StringBuffer,
+    previous: StringBuffer,
+    flags: BoolBuffer
+}
+
+export type Pair = Slots & {
+    index: LiveIndex
 }
 
 export type Missing = {
@@ -36,8 +44,6 @@ export type Output = {
     remove_stack_step: bool
 }
 
-export type Slots = Input.Pick("condition", "step")
-
 export type Names = {
     condition_name: string,
     step_name: string
@@ -47,18 +53,10 @@ export type Target = Slots & {
     target: StringBuffer
 }
 
-export type Change = Target & {
-    name: string
-}
-
-export type Enter = Input & Change
-
-export type Scope = Output & Names
-
 export type Rename = Target & Names
 
 export type Removal = Slots & {
-    index: Mutable,
+    index: LiveIndex,
     remove_condition: bool,
     remove_step: bool
 }
@@ -69,13 +67,3 @@ export type RemovalFlags = Output.Pick(
     "remove_stack_condition",
     "remove_stack_step"
 )
-
-export type Restore = Target & Names & RemovalFlags & {
-    state: Mutable,
-    stack: Mutable
-}
-
-export type Counts = {
-    state: u64,
-    stack: u64
-}

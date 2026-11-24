@@ -4,7 +4,7 @@ const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_iteration_initial") else struct {};
 const Representation = @import("../iteration_layout/select.zig").Representation;
 const Mode = @import("result.zig").Mode;
-const ParameterLayout = @import("parameters.zig").Layout;
+const ParameterLayout = @import("parameters_seed.zig").Layout;
 
 pub const Request = struct {
     representation: Representation,

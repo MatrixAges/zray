@@ -2,35 +2,71 @@
     <Type from="model" as="Loop" />
     <Type from="index" as="Native" />
 
-    <Args in={Loop.Frame} out={void} />
+    <Args in={Loop.Parameters} out={void} />
 
-    <Call fn="index.loopUsesStateScope" in={$in} />
+    <Call fn="index.loopUsesStateScope" in={$in.loop_frame} />
 
     <If on={$ctx.loopUsesStateScope}>
-        <Call fn="index.enterLoopRepresentation" in={$in} />
+        <Call fn="index.enterLoopRepresentation" in={$in.loop_frame} />
     </If>
 
-    <Call fn="index.createLoopSeed" in={$in} />
-    <Call fn="index.loopProjectsFields" in={$in} />
+    <Call fn="index.createLoopSeed" in={$in.loop_frame} />
+    <Call fn="index.loopProjectsFields" in={$in.loop_frame} />
 
     <If on={$ctx.loopProjectsFields}>
-        <Call fn="index.prepareLoopFields" in={$in} />
+        <Call fn="index.prepareLoopFields" in={$in.loop_frame} />
     </If>
 
-    <Call fn="index.loopTracksChange" in={$in} />
+    <Call fn="index.loopTracksChange" in={$in.loop_frame} />
 
     <If on={$ctx.loopTracksChange}>
-        <Call fn="index.trackLoopChange" in={$in} />
+        <Call fn="index.trackLoopChange" in={$in.loop_frame} />
     </If>
 
-    <Call fn="index.bindLoopParameters" in={$in} />
-    <Call fn="index.loopParameterLayout" in={$in} />
+    <Call fn="index.loopParameterLayout" in={$in.loop_frame} />
+
+    <Call
+        module="../../parameters/plan"
+        in={{
+            ...$in.parameters.pick([
+                "condition",
+                "step",
+                "state",
+                "stack"
+            ]),
+            layout: $ctx.loopParameterLayout
+        }}
+    />
+
+    <Call fn="index.loopParameterName" in={$in.loop_frame} />
+
+    <Call
+        fn="../../parameters/capture"
+        in={{
+            ...$in.parameters.omit([
+                "state",
+                "stack"
+            ]),
+            name: $ctx.loopParameterName,
+            removal: $ctx.plan.omit([
+                "add_condition",
+                "add_step"
+            ])
+        }}
+    />
 
     <If on={$ctx.loopParameterLayout != Native.LoopParameterLayout.Plain}>
-        <Call fn="index.addLoopParameterMembers" in={$in} />
+        <Call
+            fn="index.addLoopParameterMembers"
+            in={[
+                $in.loop_frame,
+                $ctx.plan.add_condition,
+                $ctx.plan.add_step
+            ]}
+        />
     </If>
 
     <If on={$ctx.loopParameterLayout == Native.LoopParameterLayout.Deep}>
-        <Call fn="index.openLoopParameterContext" in={$in} />
+        <Call fn="index.openLoopParameterContext" in={$in.loop_frame} />
     </If>
 </Module>

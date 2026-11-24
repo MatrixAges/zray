@@ -1,15 +1,16 @@
 <Module>
     <Type from="model" as="Parameters" />
+    <Type from="../workflow/execute/index" as="Native" />
 
     <Args in={Parameters.Input} out={Parameters.Output} />
 
-    <If on={$in.layout == Parameters.Layout.State}>
+    <If on={$in.layout == Native.LoopParameterLayout.State}>
         <Call fn="state" in={$in} />
 
         <Return value={$ctx.state} />
     </If>
 
-    <If on={$in.layout == Parameters.Layout.Stack}>
+    <If on={$in.layout == Native.LoopParameterLayout.Stack}>
         <Call
             fn="missing"
             in={{
@@ -33,8 +34,10 @@
 
     <Return
         value={{
-            add_condition: $in.layout == Parameters.Layout.Deep,
-            add_step: $in.layout == Parameters.Layout.Deep && $in.condition != $in.step,
+            add_condition: $in.layout == Native.LoopParameterLayout.Deep,
+            add_step:
+                $in.layout == Native.LoopParameterLayout.Deep &&
+                $in.condition != $in.step,
             remove_state_condition: false,
             remove_state_step: false,
             remove_stack_condition: false,

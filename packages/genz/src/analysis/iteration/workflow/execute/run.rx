@@ -15,7 +15,13 @@
         <Return value={$ctx.dereference} />
     </If>
 
-    <Call module="parameters" in={$in.loop_frame} />
+    <Call
+        module="parameters"
+        in={$in.pick([
+            "loop_frame",
+            "parameters"
+        ])}
+    />
 
     <Call fn="storage" in={$in.loop_frame} />
     <Call fn="evaluate" in={$in} />

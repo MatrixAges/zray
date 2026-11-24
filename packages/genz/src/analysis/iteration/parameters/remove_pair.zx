@@ -1,30 +1,39 @@
 import remove from "core/integer/index/remove"
+import memory from "memory"
+
+import { count_slot } from "./const"
 
 import type { Removal as Input } from "./model"
 
-export type Output = u64
+export type Output = void
 
 export default function (in: Input): Output {
     const { index, condition, step } = in
+    const { keys, buckets } = index
+
+    const before = memory.readU64(index.count, count_slot)
 
     const after_condition = match {
         in.remove_condition => remove({
-            ...index,
+            count: before,
+            keys,
+            buckets,
             key: condition
         }),
         _ => null
     }
 
-    const count = after_condition == null ? index.count : index.count - 1
+    const count = after_condition == null ? before : before - 1
 
     const after_step = match {
         in.remove_step => remove({
-            ...index,
             count,
+            keys,
+            buckets,
             key: step
         }),
         _ => null
     }
 
-    return after_step == null ? count : count - 1
+    memory.writeU64(index.count, count_slot, after_step == null ? count : count - 1)
 }
