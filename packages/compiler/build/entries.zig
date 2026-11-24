@@ -248,7 +248,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/compiled/execute.rx", .name = "compiled_library" },
     .{ .path = "zx/modules/compiled/validate.rx", .name = "compiled_validation" },
     .{ .path = "zx/modules/compiled/validation/linked/check.rx", .name = "compiled_linked_validation" },
-    .{ .path = "zx/modules/compiled/loading/install/publish.rx", .name = "compiled_publish" },
     .{ .path = "zx/modules/compiled/identity/declared.rx", .name = "compiled_native_declaration" },
     .{ .path = "zx/modules/compiled/identity/aliases/build.rx", .name = "native_abi_aliases" },
     .{ .path = "zx/modules/native_configuration/admission/externals.zx", .name = "native_configuration_externals" },

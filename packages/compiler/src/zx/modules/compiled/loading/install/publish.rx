@@ -1,18 +1,33 @@
 <Module>
     <Type from="model" as="Install" />
 
-    <Args in={Install.Request} out={void} />
+    <Args in={Install.Publication} out={void} />
 
-    <Call module="prepare" in={$in.preparation} />
-    <Call module="../functions/batch" in={$in.functions} />
+    <Call module="prepare" in={$in} />
 
-    <If on={$in.interface != null}>
+    <Call
+        module="../functions/batch"
+        in={{
+            ...$in.installation.functions,
+            mapping: $in.plan.functions
+        }}
+    />
+
+    <If on={$in.installation.interface != null}>
         <If
-            on={$in.interface.exports.count != 0 || $in.interface.initializers.count != 0}
+            on={$in.installation.interface.exports.count != 0 ||
+                $in.installation.interface.initializers.count != 0}
         >
-            <Call module="../interface/materialize" in={$in.interface} />
+            <Call
+                module="../interface/materialize"
+                in={{
+                    ...$in.installation.interface,
+                    mapping: $in.plan.functions.types,
+                    selection: $in.plan.selection
+                }}
+            />
         </If>
     </If>
 
-    <Call fn="../../../link/source/workflow/settle" in={$in.commit} />
+    <Call fn="../../../link/source/workflow/settle" in={$in.installation.commit} />
 </Module>

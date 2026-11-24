@@ -1,4 +1,4 @@
-import { accepted } from "./const"
+import { Status } from "../../status"
 
 import type { Request as Input, Traversal as Output } from "./model"
 
@@ -15,7 +15,7 @@ export default function (in: Input): Output {
                 type_namespaces: []
             },
             mapping: [],
-            status: accepted
+            status: Status.Ready
         },
         index: 0,
         running: in.source.specifiers.length != 0

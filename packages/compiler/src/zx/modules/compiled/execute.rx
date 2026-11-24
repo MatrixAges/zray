@@ -1,51 +1,34 @@
 <Module>
-    <Type from="model" as="Model" />
+    <Type from="loading/install/model" as="Install" />
+    <Type from="status" as="Link" />
 
-    <Args in={Model.Input} out={Model.Result} />
+    <Args in={Install.Request} out={Link.Status} />
 
     <Call
-        module="destination"
+        fn="loading/install/initialize"
+        in={$in.pick([
+            "plan",
+            "temporary"
+        ])}
+    />
+
+    <Call module="plan" in={$in.plan} />
+
+    <If on={$ctx.plan.status != Link.Status.Ready}>
+        <Return value={$ctx.plan.status} />
+    </If>
+
+    <Call
+        module="loading/install/publish"
         in={{
-            seed: $in.seed,
-            destination: $in.destination
+            ...$in.pick([
+                "installation",
+                "resources",
+                "preparing"
+            ]),
+            plan: $ctx.plan
         }}
     />
 
-    <If on={!$ctx.destination}>
-        <Call fn="empty" in={7} />
-
-        <Return value={$ctx.empty} />
-    </If>
-
-    <Call
-        fn="identity/valid"
-        in={$in.pick([
-            "instance",
-            "artifact"
-        ])}
-    />
-
-    <If on={!$ctx.valid}>
-        <Call fn="empty" in={1} />
-
-        <Return value={$ctx.empty} />
-    </If>
-
-    <Call
-        module="validate"
-        in={$in.pick([
-            "graph",
-            "export_index"
-        ])}
-    />
-
-    <If on={!$ctx.validate}>
-        <Call fn="empty" in={1} />
-
-        <Return value={$ctx.empty} />
-    </If>
-
-    <Call module="load" in={$in} />
-
-    <Return value={$ctx.load} />
+    <Return value={Link.Status.Ready} />
 </Module>

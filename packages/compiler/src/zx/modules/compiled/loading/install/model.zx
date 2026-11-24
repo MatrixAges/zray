@@ -1,27 +1,34 @@
 import type { Allocator, ArenaScope, BoolBuffer } from "memory"
 import type {
-    Input as TypeWrite
+    Target as TypeTarget
 } from "../../../../analysis/semantic/merging/publication/model"
 import type {
-    Input as FunctionStorage
+    Input as Reserve
 } from "../../../artifact/materializing/publication/reserve"
-import type { Input as NativeWrite } from "../../../link/native/publication/model"
+import type { Destination as NativeTarget } from "../../../link/native/publication/model"
 import type { Commit } from "../../../link/source/workflow/model"
+import type { Input as Planning, Result } from "../../model"
 import type { Input as Functions } from "../functions/batch_model"
 import type { Request as Interface } from "../interface/model"
 
-export type Preparation = {
-    types: TypeWrite,
-    natives: NativeWrite,
-    functions: FunctionStorage,
-    prepared: BoolBuffer,
-    resources: ArenaScope,
+export type Installation = {
+    types: TypeTarget,
+    natives: NativeTarget,
+    reserve: Reserve,
+    functions: Functions.Omit("mapping"),
+    interface?: Interface.Omit("selection", "mapping"),
+    commit: Commit,
     owner: Allocator
 }
 
 export type Request = {
-    preparation: Preparation,
-    functions: Functions,
-    interface?: Interface,
-    commit: Commit
+    plan: Planning,
+    installation: Installation,
+    temporary: Allocator,
+    resources: ArenaScope,
+    preparing: BoolBuffer
+}
+
+export type Publication = Request.Pick("installation", "resources", "preparing") & {
+    plan: Result
 }

@@ -1,33 +1,60 @@
 <Module>
     <Type from="model" as="Install" />
 
-    <Args in={Install.Preparation} out={void} />
+    <Args in={Install.Publication} out={void} />
+
+    <Call
+        fn="memory.writeBool"
+        in={[
+            $in.preparing,
+            0,
+            true
+        ]}
+    />
+
+    <Call
+        fn="../../../../analysis/semantic/merging/publication/size"
+        in={{
+            delta: $in.plan.types,
+            origins: $in.plan.origins,
+            destination: $in.installation.types.destination
+        }}
+    />
 
     <Call
         module="../../../../analysis/semantic/merging/publication/write"
-        in={$in.types}
+        in={{
+            ...$in.installation.types,
+            delta: $in.plan.types,
+            origins: $in.plan.origins
+        }}
     />
 
-    <If on={$in.natives.source.specifiers.length != 0}>
+    <If on={$in.plan.natives.specifiers.length != 0}>
         <Call
             module="../../../link/native/publication/publish"
-            in={$in.natives}
+            in={{
+                source: $in.plan.natives,
+                mapping: $in.plan.functions.types,
+                rows: null,
+                destination: $in.installation.natives
+            }}
         />
     </If>
 
-    <If on={$in.functions.count != 0}>
+    <If on={$in.installation.reserve.count != 0}>
         <Call
             fn="../../../artifact/materializing/publication/reserve"
-            in={$in.functions}
+            in={$in.installation.reserve}
         />
     </If>
 
     <Call
         fn="memory.writeBool"
         in={[
-            $in.prepared,
+            $in.preparing,
             0,
-            true
+            false
         ]}
     />
 
@@ -35,7 +62,7 @@
         fn="memory.selectAllocator"
         in={[
             $in.resources,
-            $in.owner
+            $in.installation.owner
         ]}
     />
 </Module>

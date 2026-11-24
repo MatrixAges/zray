@@ -1,4 +1,4 @@
-import { accepted } from "./const"
+import { Status } from "../../status"
 
 import type { State, Traversal as Output } from "./model"
 
@@ -15,7 +15,7 @@ export default function (in: Input): Output {
         state: in.state,
         index,
         running:
-            in.state.status == accepted &&
+            in.state.status == Status.Ready &&
             index < in.current.request.source.specifiers.length
     }
 }

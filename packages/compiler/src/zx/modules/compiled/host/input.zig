@@ -6,7 +6,8 @@ const load = @import("../load.zig");
 const Origins = @import("../../nominal_origins.zig");
 const borrow = @import("../../../ir/canonical/borrow.zig");
 const generated = @import("generated_compiled_library");
-const Input = std.meta.Child(generated.Input);
+const Request = std.meta.Child(generated.Input);
+const Input = std.meta.Child(@FieldType(Request, "plan"));
 const Graph = std.meta.Child(@FieldType(Input, "graph"));
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Selection = std.meta.Child(@typeInfo(@FieldType(Input, "selection")).optional.child);
@@ -21,8 +22,9 @@ destination: Destination,
 selection: Selection,
 selection_rows: memory.ReadFields(selection_fields),
 type_ids: []u32,
+export_buckets: []u64,
 input: Input,
-pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: load.Destination, seed: bool, selected: ?[]const model.PublicReference) std.mem.Allocator.Error!void {
+pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: load.Destination, seed: bool, selected: ?[]const model.PublicReference, export_buckets: ?[]u64) void {
     self.graph.init(allocator, graph);
 
     const origins = destination.origins.items.view();
@@ -37,18 +39,16 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
         self.selection = self.selection_rows.bind(Selection);
     }
 
-    self.type_ids = try allocator.alloc(u32, graph.program.types.count());
-
-    @memset(self.type_ids, 0);
+    self.type_ids = &.{};
+    self.export_buckets = export_buckets orelse &.{};
 
     self.input = .{
         .graph = &self.graph.input,
-        .export_index = null,
+        .export_index = @ptrCast(&self.export_buckets),
         .instance = instance,
         .artifact = artifact,
         .seed = seed,
         .destination = &self.destination,
-        .type_ids = self.type_ids,
         .type_mapping = @ptrCast(&self.type_ids),
         .selection = if (selected != null) &self.selection else null,
     };

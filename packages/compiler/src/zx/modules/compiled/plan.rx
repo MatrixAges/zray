@@ -1,0 +1,52 @@
+<Module>
+    <Type from="model" as="Model" />
+    <Type from="status" as="Link" />
+
+    <Args in={Model.Input} out={Model.Result} />
+
+    <Call
+        module="destination"
+        in={{
+            seed: $in.seed,
+            destination: $in.destination
+        }}
+    />
+
+    <If on={!$ctx.destination}>
+        <Call fn="empty" in={Link.Status.InvalidNominalTypes} />
+
+        <Return value={$ctx.empty} />
+    </If>
+
+    <Call
+        fn="identity/valid"
+        in={$in.pick([
+            "instance",
+            "artifact"
+        ])}
+    />
+
+    <If on={!$ctx.valid}>
+        <Call fn="empty" in={Link.Status.InvalidLibrary} />
+
+        <Return value={$ctx.empty} />
+    </If>
+
+    <Call
+        module="validate"
+        in={$in.pick([
+            "graph",
+            "export_index"
+        ])}
+    />
+
+    <If on={!$ctx.validate}>
+        <Call fn="empty" in={Link.Status.InvalidLibrary} />
+
+        <Return value={$ctx.empty} />
+    </If>
+
+    <Call module="load" in={$in} />
+
+    <Return value={$ctx.load} />
+</Module>

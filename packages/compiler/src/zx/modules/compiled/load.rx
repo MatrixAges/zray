@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Model" />
+    <Type from="status" as="Link" />
     <Type from="../../analysis/semantic/merging/model" as="Merge" />
 
     <Args in={Model.Input} out={Model.Result} />
@@ -44,22 +45,25 @@
         />
 
         <If on={$ctx.capacity}>
+            <Call fn="loading/install/memory.u32Views" in={$in.type_mapping} />
+
             <Call
                 module="loading/native/walk"
                 in={{
                     source: $in.graph.program.context.modules,
                     base: $in.destination.natives,
-                    types: $in.type_ids,
+                    types: $ctx.u32Views,
                     instance: $in.instance,
                     maximum: $in.graph.program.context.maximum_count
                 }}
             />
 
-            <If on={$ctx.walk.status == 0}>
+            <If on={$ctx.walk.status == Link.Status.Ready}>
                 <Call
                     module="loading/publish"
                     in={{
                         input: $in,
+                        type_ids: $ctx.u32Views,
                         base: $ctx.type_base,
                         merged: $ctx.types,
                         native: $ctx.walk
@@ -76,7 +80,7 @@
             </If>
 
             <Else>
-                <Call fn="empty" in={6} />
+                <Call fn="empty" in={Link.Status.OutOfMemory} />
 
                 <Return value={$ctx.empty} />
             </Else>

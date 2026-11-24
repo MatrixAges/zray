@@ -1,12 +1,12 @@
-import type { Table as NameIndex } from "core/bytes/index/borrowed/wide_slot"
 import type { Rows } from "core/constant/rows"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { ListColumn, ReadColumn, TextColumn, U32Buffer } from "memory"
+import type { ListColumn, ReadColumn, TextColumn, U32Buffer, U64Buffer } from "memory"
 import type { ListColumn as ByteList, ListProjection } from "memory/columns"
 import type { Program } from "../../ir/canonical/validation/model"
 import type { Mapping as FunctionMapping } from "./loading/functions/model"
+import type { Status } from "./status"
 
 export type Exports = {
     count: u64,
@@ -69,11 +69,9 @@ export type Destination = {
     function_count: u64
 }
 
-export type ExportIndex = NameIndex.Omit("names")
-
 export type Validation = {
     graph: Graph,
-    export_index?: ExportIndex
+    export_index?: U64Buffer
 }
 
 export type Input = Validation & {
@@ -81,13 +79,12 @@ export type Input = Validation & {
     artifact: string,
     seed: bool,
     destination: Destination,
-    type_ids: u32[],
     type_mapping: U32Buffer,
     selection?: Selection
 }
 
 export type Result = {
-    status: u64,
+    status: Status,
     types: Table,
     origins: Bindings,
     natives: Modules,

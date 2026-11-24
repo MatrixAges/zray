@@ -1,11 +1,14 @@
+import memory from "memory"
+
 import select from "../../../project/target/select"
 import find from "../../imports/find"
 
-import type { ExportIndex, Exports } from "../../model"
+import type { U64Buffer } from "memory"
+import type { Exports } from "../../model"
 
 export type Input = {
     source: Exports,
-    index?: ExportIndex,
+    index?: U64Buffer,
     name: string
 }
 
@@ -14,9 +17,12 @@ export type Output = u64?
 export default function (in: Input): Output {
     const { source, index, name } = in
 
-    if (index != null) {
+    const capacity = index == null ? 0 : memory.u64Views(index).length
+
+    if (index != null && capacity != 0) {
         return find({
-            ...index,
+            buckets: index,
+            capacity,
             names: source.names,
             count: source.count,
             name

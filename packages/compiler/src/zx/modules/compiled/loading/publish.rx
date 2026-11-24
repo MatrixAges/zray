@@ -1,6 +1,7 @@
 <Module>
     <Type from="type_delta" as="TypeDelta" />
     <Type from="../model" as="Model" />
+    <Type from="../status" as="Link" />
     <Type from="../../../analysis/semantic/merging/model" as="Merge" />
     <Type from="native/model" as="NativeModel" />
 
@@ -8,6 +9,7 @@
         in={{
             base: TypeDelta.Output,
             input: Model.Input,
+            type_ids: u32[],
             merged: Merge.State,
             native: NativeModel.State
         }}
@@ -32,7 +34,7 @@
         }}
     />
 
-    <If on={$ctx.plan.status != 0}>
+    <If on={$ctx.plan.status != Link.Status.Ready}>
         <Call fn="../empty" in={$ctx.plan.status} />
 
         <Return value={$ctx.empty} />
@@ -40,12 +42,12 @@
 
     <Return
         value={{
-            status: 0,
+            status: Link.Status.Ready,
             types: $ctx.type_delta,
             origins: $in.merged.origins,
             natives: $in.native.delta,
             functions: {
-                types: $in.input.type_ids,
+                types: $in.type_ids,
                 natives: $in.native.mapping
             },
             selection: $ctx.plan.selection

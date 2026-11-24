@@ -1,11 +1,12 @@
 import type { Binding, Modules } from "core/native_module_table/model"
+import type { Status } from "../../status"
 
 export type Value = Binding
 
 export type State = {
     delta: Modules,
     mapping: u32[],
-    status: u64
+    status: Status
 }
 
 export type Request = {

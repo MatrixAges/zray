@@ -1,9 +1,11 @@
 const std = @import("std");
+const zx = @import("zx");
 const model = @import("../../compiled.zig");
 const load_model = @import("../load.zig");
 const Destination = load_model.Destination;
 const generated = @import("generated_compiled_library");
 const Input = @import("input.zig");
+const Installation = @import("installation.zig");
 
 const Options = struct {
     seed: bool = false,
@@ -44,41 +46,41 @@ fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destinatio
 
     defer arena.deinit();
 
+    const temporary = arena.allocator();
     const graph = model.Graph{ .program = library.program, .exports = library.exports, .nominal_types = library.nominal_types, .store_initializers = library.store_initializers };
     var input: Input = undefined;
+    var installation: Installation = undefined;
+    var preparing = [1]bool{false};
+    const progress: []bool = &preparing;
+    var scope: zx.memory.ArenaScope = .{ .active = temporary };
 
-    try input.init(arena.allocator(), &graph, library.instance, library.artifact, destination, options.seed, options.selected);
+    input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
+    installation.init(&allocator, &input, &library, destination, options.call_scratch);
+    defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, installation.functions.completed[0]);
+    errdefer installation.types.release();
 
-    var index: std.meta.Child(@typeInfo(@FieldType(@TypeOf(input.input), "export_index")).optional.child) = undefined;
-
-    const export_buckets = options.export_buckets orelse if (options.selected != null and options.selected.?.len > 1 and library.exports.len > 1)
-        (try model.ExportIndex.init(arena.allocator(), library.exports.len)).buckets()
-
-    else
-        null;
-
-    if (export_buckets) |*buckets| {
-        index = .{ .buckets = @ptrCast(buckets), .capacity = buckets.len };
-        input.input.export_index = &index;
-    }
-
-    const result = generated.execute(&arena, &input.input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
+    const request: std.meta.Child(generated.Input) = .{
+        .plan = &input.input,
+        .installation = &installation.input,
+        .temporary = @ptrCast(&temporary),
+        .resources = @ptrCast(&scope),
+        .preparing = @ptrCast(&progress),
     };
 
-    switch (result.status) {
-        0 => {},
-        1 => return error.InvalidLibrary,
-        2 => return error.InvalidModule,
-        3 => return error.MissingNominalOrigin,
-        4 => return error.ConflictingNominalType,
-        5 => return error.ConflictingInterface,
-        6 => return error.OutOfMemory,
-        7 => return error.InvalidNominalTypes,
-        8 => return error.MissingPublicModule,
-        else => unreachable,
-    }
+    const status = generated.executeIn(scope.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => return if (preparing[0]) error.OutOfMemory else error.InvalidModule,
+    };
 
-    return @import("publish.zig").apply(allocator, arena.allocator(), &input, &library, result, destination, options.call_scratch);
+    return switch (status) {
+        .Ready => installation.result(destination, library.program.functions.count()),
+        .InvalidLibrary => error.InvalidLibrary,
+        .InvalidModule => error.InvalidModule,
+        .MissingNominalOrigin => error.MissingNominalOrigin,
+        .ConflictingNominalType => error.ConflictingNominalType,
+        .ConflictingInterface => error.ConflictingInterface,
+        .OutOfMemory => error.OutOfMemory,
+        .InvalidNominalTypes => error.InvalidNominalTypes,
+        .MissingPublicModule => error.MissingPublicModule,
+    };
 }

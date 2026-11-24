@@ -28,9 +28,9 @@
         <Return value={false} />
     </If>
 
-    <Call module="exports/names" in={$in} />
+    <Call fn="exports/name_index" in={$in} />
 
-    <If on={!$ctx.names}>
+    <If on={!$ctx.name_index}>
         <Return value={false} />
     </If>
 

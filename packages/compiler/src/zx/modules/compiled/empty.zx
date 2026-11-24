@@ -1,6 +1,7 @@
 import type { Result } from "./model"
+import type { Status } from "./status"
 
-export type Input = u64
+export type Input = Status
 
 export type Output = Result
 

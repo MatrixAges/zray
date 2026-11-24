@@ -1,16 +1,25 @@
 import slot from "core/bytes/index/borrowed/wide_slot"
 import memory from "memory"
 
-import type { Table } from "core/bytes/index/borrowed/wide_slot"
+import unique from "../unique_column"
 
-export type Input = Table & {
-    count: u64
-}
+import type { Validation as Input } from "../../model"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { names, buckets, capacity, count } = in
+    const { exports } = in.graph
+    const { names, count } = exports
+
+    const buckets = in.export_index
+    const capacity = buckets == null ? 0 : memory.u64Views(buckets).length
+
+    if (buckets == null || capacity == 0) {
+        return unique({
+            names,
+            count
+        })
+    }
 
     if (count < 2) {
         return true

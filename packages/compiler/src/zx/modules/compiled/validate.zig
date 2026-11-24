@@ -29,15 +29,8 @@ pub fn validateIndexed(allocator: std.mem.Allocator, library: model.Graph, names
 
     graph.init(temporary, &library);
 
-    const buckets = if (names) |index| index.buckets() else null;
-
-    const index: std.meta.Child(@typeInfo(@FieldType(Input, "export_index")).optional.child) = if (buckets) |*buffer|
-        .{ .buckets = @ptrCast(buffer), .capacity = buffer.len }
-
-    else
-        undefined;
-
-    const input: Input = .{ .graph = &graph.input, .export_index = if (buckets == null) null else &index };
+    const index = if (names) |value| &value.storage else null;
+    const input: Input = .{ .graph = &graph.input, .export_index = if (index) |buckets| @ptrCast(buckets) else null };
 
     const accepted = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,

@@ -1,18 +1,19 @@
 import memory from "memory"
 
-import { missing_public_module } from "./const"
+import { Status } from "../../status"
 import lookup from "./lookup"
 
-import type { ExportIndex, Exports, Selection, SelectionPlan } from "../../model"
+import type { U64Buffer } from "memory"
+import type { Exports, Selection, SelectionPlan } from "../../model"
 
 export type Input = {
     source: Exports,
-    export_index?: ExportIndex,
+    export_index?: U64Buffer,
     selection?: Selection
 }
 
 export type Output = {
-    status: u64,
+    status: Status,
     selection?: SelectionPlan
 }
 
@@ -21,7 +22,7 @@ export default function (in: Input): Output {
 
     if (selection == null) {
         return {
-            status: 0,
+            status: Status.Ready,
             selection: null
         }
     }
@@ -74,7 +75,7 @@ export default function (in: Input): Output {
     })
 
     return {
-        status: result.found ? 0 : missing_public_module,
+        status: result.found ? Status.Ready : Status.MissingPublicModule,
         selection: {
             rows: result.rows,
             names: selection.names,

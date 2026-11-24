@@ -2,7 +2,7 @@ import integers from "std:integer"
 import compatible from "core/native_module_table/compatible"
 import find from "core/native_module_table/find"
 
-import { accepted, conflicting_interface, out_of_memory } from "./const"
+import { Status } from "../../status"
 
 import type { Modules } from "core/native_module_table/model"
 import type { Value, State } from "./model"
@@ -55,14 +55,14 @@ export default function (in: Input): Output {
         return {
             ...in.state,
             mapping: in.state.mapping.push(integers.narrow(index))[0],
-            status: valid ? accepted : conflicting_interface
+            status: valid ? Status.Ready : Status.ConflictingInterface
         }
     }
 
     if (count >= in.maximum) {
         return {
             ...in.state,
-            status: out_of_memory
+            status: Status.OutOfMemory
         }
     }
 
@@ -78,6 +78,6 @@ export default function (in: Input): Output {
             type_namespaces: delta.type_namespaces.push(value.namespace)[0]
         },
         mapping: in.state.mapping.push(integers.narrow(count))[0],
-        status: accepted
+        status: Status.Ready
     }
 }

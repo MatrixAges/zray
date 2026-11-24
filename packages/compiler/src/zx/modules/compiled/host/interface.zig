@@ -4,9 +4,8 @@ const ir = zx.ir;
 const memory = zx.memory;
 const model = @import("../../compiled.zig");
 const Input = @import("input.zig");
-const Plan = std.meta.Child(@import("generated_compiled_library").Output);
-const Publication = @import("function.zig").Request;
-const Request = std.meta.Child(@typeInfo(@FieldType(Publication, "interface")).optional.child);
+const Layout = @import("installation.zig").Layout;
+const Request = std.meta.Child(@typeInfo(@FieldType(Layout, "interface")).optional.child);
 const Targets = std.meta.Child(@FieldType(Request, "targets"));
 
 pub const Interface = struct {
@@ -34,11 +33,10 @@ pub const View = struct {
     }),
     constants: memory.RowOutput(ir.Constant, Field("constants"), .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} }),
     initializers: memory.RowOutput(model.StoreInitializer, Field("initializers"), .{ .identities = &.{"identity"}, .versions = &.{"schema_version"}, .functions = &.{"function"} }),
-    selection: std.meta.Child(@typeInfo(@FieldType(Request, "selection")).optional.child),
     buffers: std.meta.Child(@FieldType(Request, "buffers")),
     targets: Targets,
     request: Request,
-    pub fn init(self: *View, input: *const Input, plan: *const Plan, first: usize) void {
+    pub fn init(self: *View, input: *const Input, instance: []const u8, first: usize) void {
         inline for (@typeInfo(Targets).@"struct".field_names) |name| {
             const rows = &@field(self, name);
 
@@ -47,15 +45,11 @@ pub const View = struct {
             @field(self.targets, name) = &rows.view;
         }
 
-        if (plan.selection) |value| self.selection = zx.columns.view(@TypeOf(self.selection), value);
-
         self.request = .{
             .exports = zx.columns.pointer(@FieldType(Request, "exports"), &input.graph.exports.input),
             .initializers = zx.columns.pointer(@FieldType(Request, "initializers"), &input.graph.initializers),
-            .selection = if (plan.selection != null) &self.selection else null,
             .first = first,
-            .mapping = plan.functions.types,
-            .instance = input.input.instance,
+            .instance = instance,
             .buffers = &self.buffers,
             .targets = &self.targets,
         };
