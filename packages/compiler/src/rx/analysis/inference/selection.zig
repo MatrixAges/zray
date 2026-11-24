@@ -5,40 +5,23 @@ const selection = @import("frontend").object_selection;
 const Graph = @import("types.zig");
 const ObjectReadiness = @import("object_closure/seed.zig");
 const Expression = @import("expression.zig");
-const Schedule = @import("expression/schedule.zig");
 
 pub const Selection = struct { source: Graph.Id, result: Graph.Id, keys: []const []const u8, omit: bool, span: zx.Span };
 pub const incomplete_source = "object selection requires a complete source type; declare Args or Input";
 
 pub fn infer(self: *Expression, expression: anytype, call: anytype, span: zx.Span) zx.Error!Graph.Id {
-    var keys: []const []const u8 = undefined;
-    var source: Graph.Id = undefined;
-    var result: Graph.Id = undefined;
-    var omit: bool = undefined;
+    const keys = try readKeys(self, expression, span);
+    const field = syntax.value(call.callee).field;
+    const source = try self.infer(field.target, null);
+    const result = try self.graph.add(.{ .object = .{} }, span);
 
-    inline for (comptime Schedule.steps(.Selection)) |step| {
-        switch (step) {
-            .Done => {},
-            .ReadKeys => keys = try readKeys(self, expression, span),
-            .InferReceiver => {
-                const field = syntax.value(call.callee).field;
-                source = try self.infer(field.target, null);
-                omit = std.mem.eql(u8, field.name.text, "omit");
-            },
-            .RegisterSelection => {
-                result = try self.graph.add(.{ .object = .{} }, span);
-
-                try self.graph.pending.selections.append(self.graph.pending.allocator, .{
-                    .source = source,
-                    .result = result,
-                    .keys = keys,
-                    .omit = omit,
-                    .span = span,
-                });
-            },
-            else => unreachable,
-        }
-    }
+    try self.graph.pending.selections.append(self.graph.pending.allocator, .{
+        .source = source,
+        .result = result,
+        .keys = keys,
+        .omit = std.mem.eql(u8, field.name.text, "omit"),
+        .span = span,
+    });
 
     return result;
 }

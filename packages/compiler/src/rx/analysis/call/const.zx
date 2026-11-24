@@ -1,0 +1,7 @@
+export const executable_flag: u64 = 1
+
+export const setter_flag: u64 = 2
+
+export const has_stores_flag: u64 = 4
+
+export const orchestration_flag: u64 = 8

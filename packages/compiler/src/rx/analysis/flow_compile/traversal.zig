@@ -16,7 +16,7 @@ const Body = struct {
     fn reserve(compiler: *Compiler, unit: Prepared.Unit) Compiler.Error!Body {
         return .{ .first = try compiler.compiled.reserveSteps(compiler.binding_allocator, unit.count), .count = unit.count };
     }
-    fn close(self: Body, compiler: *Compiler, block: bool) Compiler.Error!u32 {
+    fn close(self: Body, compiler: *Compiler, block: bool) std.mem.Allocator.Error!u32 {
         return compiler.compiled.unit(compiler.binding_allocator, self.first, self.count, block);
     }
 };
@@ -25,15 +25,13 @@ const Selection = struct {
     item: u32,
     parsed: frontend.ExpressionInput.Result,
     subject: *const zx.ir.Program,
-    first: u32,
-    count: u32,
 };
 
 const Payload = union(Region) {
     Root: void,
     Task: struct { item: u32, bindings: usize },
     ParallelTask: void,
-    Parallel: struct { first: u32, count: u32, outputs: frontend.expressions.BindingStorage = .empty },
+    Parallel: frontend.expressions.BindingStorage,
     Selection: Selection,
     Case: struct { bindings: usize, facts: usize, label: ?*const zx.ir.Program },
 };
@@ -51,7 +49,7 @@ const Frame = struct {
     fn release(self: *Frame, allocator: std.mem.Allocator) void {
         switch (self.payload) {
             .Selection => |*selection| selection.parsed.deinit(),
-            .Parallel => |*parallel| parallel.outputs.deinit(allocator),
+            .Parallel => |*outputs| outputs.deinit(allocator),
             else => {},
         }
     }
@@ -90,7 +88,7 @@ pub const Host = struct {
     }
 
     pub fn callOutputs(self: *Host, current: *Frame) *frontend.expressions.BindingStorage {
-        return if (current.payload == .Parallel) &current.payload.Parallel.outputs else &self.compiler.bindings;
+        return if (current.payload == .Parallel) &current.payload.Parallel else &self.compiler.bindings;
     }
 
     pub fn result(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
@@ -113,7 +111,7 @@ pub const Host = struct {
         const plan = compiler.plan;
 
         if (parallel_task) {
-            _ = try @import("../parallel_task.zig").compile(compiler, &plan.tasks[item], &current.payload.Parallel.outputs);
+            _ = try @import("../parallel_task.zig").compile(compiler, &plan.tasks[item], &current.payload.Parallel);
 
             return;
         }
@@ -136,9 +134,12 @@ pub const Host = struct {
         const first_call = try Flow.index(compiler.calls.items.len);
         const child = try self.stack.addOne(self.memory);
 
-        child.* = .{ .cursor = Cursor.body(branches), .destination = destination, .payload = .{
-            .Parallel = .{ .first = first_call, .count = branches.count },
-        } };
+        child.* = .{
+            .cursor = Cursor.body(branches),
+            .destination = destination,
+            .body = .{ .first = first_call, .count = branches.count },
+            .payload = .{ .Parallel = .empty },
+        };
     }
 
     pub fn selection(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
@@ -155,9 +156,12 @@ pub const Host = struct {
         const cases = try compiler.compiled.reserveCases(compiler.binding_allocator, count);
         const child = try self.stack.addOne(self.memory);
 
-        child.* = .{ .cursor = Cursor.cases(count), .destination = destination, .payload = .{
-            .Selection = .{ .item = item, .parsed = parsed, .subject = subject, .first = cases, .count = count },
-        } };
+        child.* = .{
+            .cursor = Cursor.cases(count),
+            .destination = destination,
+            .body = .{ .first = cases, .count = count },
+            .payload = .{ .Selection = .{ .item = item, .parsed = parsed, .subject = subject } },
+        };
     }
 
     pub fn openCase(self: *Host, current: *Frame, first: usize) Compiler.Error!void {
@@ -195,7 +199,7 @@ pub const Host = struct {
         const compiler = self.compiler;
         const selected = &current.payload.Selection;
         const case = &compiler.plan.selections[selected.item].cases[first];
-        const destination = selected.first + @as(u32, @intCast(first));
+        const destination = current.body.first + @as(u32, @intCast(first));
         const range = try Body.reserve(compiler, case.body);
         const child = try self.stack.addOne(self.memory);
 
@@ -238,48 +242,69 @@ pub const Host = struct {
     pub fn evaluateTaskOutput(self: *Host, output: *Compiler.TaskOutput, binding: Compiler.Result) Compiler.Error!void {
         const compiler = self.compiler;
 
-        try output.evaluate(compiler, compiler.plan.tasks[self.frame().payload.Task.item].output.?, binding);
+        try output.evaluate(compiler, compiler.plan.tasks[self.frame().payload.Task.item].output.?.*, binding);
+    }
+    pub fn mergeParallelBindings(self: *Host) std.mem.Allocator.Error!void {
+        const compiler = self.compiler;
+
+        try zx.columns.appendRows(&compiler.bindings, compiler.binding_allocator, self.frame().payload.Parallel.slice(), 0);
     }
 
     pub fn closeParallel(self: *Host) Compiler.Error!void {
         const compiler = self.compiler;
         const current = self.frame();
-        const branches = &current.payload.Parallel;
 
-        try zx.columns.appendRows(&compiler.bindings, compiler.binding_allocator, branches.outputs.slice(), 0);
+        try self.mergeParallelBindings();
 
-        compiler.compiled.steps.set(current.destination, .{ .kind = .Parallel, .first = branches.first, .count = branches.count });
+        compiler.compiled.steps.set(current.destination, .{ .kind = .Parallel, .first = current.body.first, .count = current.body.count });
     }
 
     pub fn closeSelection(self: *Host) Compiler.Error!void {
         const compiler = self.compiler;
         const current = self.frame();
         const selected = &current.payload.Selection;
-        const plan = &compiler.plan.selections[selected.item];
-        const exhaustive = try compiler.checkSelection(selected.subject, plan.subject.*, plan.cases, selected.first, selected.count);
+        const exhaustive = try self.checkSelection();
 
         compiler.compiled.steps.set(current.destination, .{
             .kind = .Selection,
-            .first = selected.first,
-            .count = selected.count,
+            .first = current.body.first,
+            .count = current.body.count,
             .value = selected.subject,
             .exhaustive = exhaustive,
         });
     }
 
-    pub fn closeCase(self: *Host, comptime restore: bool) Compiler.Error!void {
+    pub fn checkSelection(self: *Host) Compiler.Error!bool {
+        const compiler = self.compiler;
+        const current = self.frame();
+        const selected = &current.payload.Selection;
+        const plan = &compiler.plan.selections[selected.item];
+        const labels = compiler.compiled.cases.items(.value)[current.body.first..][0..current.body.count];
+        const checked = try @import("../selection.zig").check(compiler.allocator, selected.subject, plan.subject.*, labels, plan.cases);
+
+        if (checked == .exhaustive) return checked.exhaustive;
+
+        compiler.issue = checked.diagnostic;
+
+        return error.InvalidFlow;
+    }
+    pub fn publishCase(self: *Host, row: u32) std.mem.Allocator.Error!void {
+        const current = self.frame();
+        const body = try current.body.close(self.compiler, true);
+
+        self.compiler.compiled.cases.set(row, .{ .value = current.payload.Case.label, .body = body });
+    }
+
+    pub fn closeCase(self: *Host) Compiler.Error!void {
         const compiler = self.compiler;
         const current = self.frame();
         const saved = current.payload.Case;
-        const unit = try current.body.close(compiler, true);
 
-        if (restore) {
-            compiler.nonnull.shrinkRetainingCapacity(saved.facts);
+        try self.publishCase(current.destination);
 
-            compiler.bindings.len = saved.bindings;
-        }
+        compiler.nonnull.shrinkRetainingCapacity(saved.facts);
 
-        compiler.compiled.cases.set(current.destination, .{ .value = saved.label, .body = unit });
+        compiler.bindings.len = saved.bindings;
     }
 };
 

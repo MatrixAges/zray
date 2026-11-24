@@ -1,0 +1,25 @@
+import memory from "memory"
+
+import type { ListColumn } from "memory"
+
+export type Input = {
+    names: ListColumn,
+    module: u64,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { names, module, name } = in
+
+    const end = memory.listLength(names, module)
+
+    return loop(0, {
+        while: row => row < end && memory.readListText(names, module, row) != name,
+        next: row => {
+            row += 1
+        },
+        return: row => row == end ? null : row
+    })
+}

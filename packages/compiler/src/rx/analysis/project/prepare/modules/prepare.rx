@@ -1,0 +1,52 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Run} out={Preparation.Run} />
+
+    <Call
+        fn="host.beginPreparedModule"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="host.prepareModuleStores"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="host.prepareModuleFlow"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="host.prepareModuleImports"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="host.publishPreparedModule"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

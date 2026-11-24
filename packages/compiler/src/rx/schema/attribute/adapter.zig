@@ -99,14 +99,7 @@ fn source(comptime policy: Policy, attributes: anytype, node: anytype) Finding {
             .has_function = policy == .Call and attributes.@"fn" != null,
             .has_setter = policy == .Call and attributes.setter != null,
         },
-    }) catch |err| switch (err) {
-        error.InvalidUtf8 => return .{ .issue = switch (policy) {
-            .Type => .TypeAlias,
-            .Field => .FieldName,
-            else => unreachable,
-        } },
-        else => unreachable,
-    };
+    }) catch unreachable;
 
     return .{ .issue = result.issue, .index = @intCast(result.index) };
 }

@@ -13,7 +13,7 @@ export type Input = Labels
 export type Output = Checked
 
 export default function (in: Input): Output {
-    const count = in.roots.length
+    const { count } = in
 
     const slots: u64[] = match {
         count > linear_case_limit => bytes.repeat(

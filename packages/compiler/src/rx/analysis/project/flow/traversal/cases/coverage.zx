@@ -1,4 +1,4 @@
-import { publishFlowCaseCoverage } from "rx_project_host"
+import memory from "memory"
 
 import record from "../../../../condition/coverage"
 import remaining from "../../../../condition/remaining"
@@ -30,19 +30,22 @@ export default function (in: Input): Output {
             remaining: in.case_remaining
         })
 
-        publishFlowCaseCoverage(in.frame, in.position, true, true, truth)
-    } else if (!in.case_stopped) {
+        memory.writeColumnOptionalBool(in.coverage.truth, in.position, truth)
+        memory.writeColumnBool(in.coverage.stopped, 0, true)
+        memory.writeColumnOptionalBool(in.coverage.remaining, 0, truth)
+
+        return
+    }
+
+    memory.writeColumnOptionalBool(in.coverage.truth, in.position, in.truth)
+
+    if (!in.case_stopped) {
         const next = record({
             remaining: in.case_remaining,
             label: in.truth
         })
 
-        publishFlowCaseCoverage(
-            in.frame,
-            in.position,
-            false,
-            next.stopped,
-            next.remaining
-        )
+        memory.writeColumnBool(in.coverage.stopped, 0, next.stopped)
+        memory.writeColumnOptionalBool(in.coverage.remaining, 0, next.remaining)
     }
 }

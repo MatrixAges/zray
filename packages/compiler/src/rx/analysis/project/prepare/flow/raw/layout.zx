@@ -1,0 +1,174 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import bodyEvent from "../../../../../dependency_graph/flow/body_event"
+import { declaration } from "../../../../../dependency_graph/flow/const"
+import project from "../../../../../dependency_graph/flow/project"
+import unit from "../../../../../dependency_graph/flow/unit"
+import { Tag } from "../../../../../schema/execution/model"
+import capacityAfter from "./capacity"
+import role from "./role"
+import taskOutput from "./task_output"
+
+import type { View } from "../../../../../dependency_graph/flow/model"
+import type { Counts, Output as Planned, Rows, Run } from "./model"
+
+export type Input = Run.Pick("layout", "buffers") & {
+    rows: Rows
+}
+
+export type Output = Planned
+
+export default function (in: Input): Output {
+    const { layout, buffers, rows } = in
+    const { nodes, children, counts, parents, siblings } = rows
+
+    const view: View = {
+        nodes: null,
+        siblings,
+        slots: rows.slots,
+        facts: buffers.facts
+    }
+
+    const columns = buffers.pick([
+        "step_rows",
+        "unit_firsts",
+        "unit_counts"
+    ])
+
+    const capacity: Counts = {
+        steps: 0,
+        calls: 0,
+        results: 0,
+        tasks: 0,
+        groups: 0,
+        selections: 0
+    }
+
+    const planned = loop({
+        next: 1,
+        finishing: false,
+        module_steps: 0,
+        parallel_tasks: 0,
+        events: 0,
+        capacity
+    }, {
+        while: state => state.next != 0,
+        next: state => {
+            const slot = state.next - 1
+            const node = nodes[slot]
+            const head = children[slot]
+            const tag = role([
+                layout,
+                node
+            ])
+
+            if (!state.finishing && tag == Tag.Task) {
+                state.events = taskOutput({
+                    layout,
+                    node,
+                    buffers,
+                    slot,
+                    event: state.events
+                })
+            }
+
+            if (!state.finishing && head != 0) {
+                state.next = head
+            } else {
+                const parent = parents[slot]
+
+                const parent_tag = match parent {
+                    0 => Tag.Unknown,
+                    _ => role([
+                        layout,
+                        nodes[parent - 1]
+                    ])
+                }
+
+                const parallel = tag == Tag.Task && parent_tag == Tag.Parallel
+                const has_output =
+                    tag == Tag.Task && memory.readU32(buffers.facts, slot) != 0
+
+                if (parallel) {
+                    state.parallel_tasks += 1
+                }
+
+                const flags = project({
+                    view,
+                    head,
+                    tag
+                })
+
+                const marks = integers.andBits(
+                    integers.widen(flags),
+                    integers.widen(declaration)
+                )
+
+                if (parent == 1 && marks == 0) {
+                    state.module_steps += 1
+                }
+
+                const implicit = parallel && has_output
+
+                const steps = unit({
+                    geometry: {
+                        children: {
+                            view,
+                            head
+                        },
+                        child_count: counts[slot],
+                        tag,
+                        root_steps: state.module_steps,
+                        implicit_result: implicit
+                    },
+                    columns,
+                    slot,
+                    start: state.capacity.steps,
+                    flags,
+                    task_output: has_output
+                })
+
+                const loop_body = tag == Tag.Call && parent_tag == Tag.Loop
+
+                if (parent != 0 && !loop_body) {
+                    const event = bodyEvent({
+                        tag,
+                        slot,
+                        parallel_rank: parallel ? state.parallel_tasks : null
+                    })
+
+                    if (event != null) {
+                        memory.writeU64(buffers.events, state.events, event)
+                        state.events += 1
+                    }
+                }
+
+                state.capacity = capacityAfter({
+                    capacity: state.capacity,
+                    tag,
+                    implicit,
+                    loop_body,
+                    steps
+                })
+
+                const previous = siblings[slot]
+                state.finishing = previous == 0
+                state.next = state.finishing ? parent : previous
+            }
+        },
+        return: state => state.pick([
+            "capacity",
+            "events",
+            "parallel_tasks"
+        ])
+    })
+
+    return {
+        ...planned,
+        tree: rows.pick([
+            "nodes",
+            "children"
+        ])
+    }
+}

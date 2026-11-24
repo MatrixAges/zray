@@ -6,7 +6,7 @@ pub const Mask = std.enums.EnumSet(zx.ir.Scalar);
 pub const Domain = enum { numeric, signed, floating };
 pub const Shape = enum { open, scalar, concrete, structure };
 pub const Issue = enum { none, empty, operator, structure };
-pub const Form = if (enabled) @import("generated_rx_operator_constraints").Input else @import("operators/seed.zig").Form;
+pub const Form = if (enabled) @FieldType(Value(@import("generated_rx_scalar_operator").Output), "form") else enum { And, Or, Coalesce, Compare, Arithmetic, Not, NegativeLiteral, Negative, Conditional };
 pub const Number = struct { allowed: Mask, fallback: zx.ir.Scalar };
 pub const Operator = struct { form: Form, allowed: ?Mask = null, use_hint: bool = false };
 pub const Restriction = struct { allowed: Mask, issue: Issue };

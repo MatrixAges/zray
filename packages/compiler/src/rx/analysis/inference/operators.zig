@@ -1,16 +1,10 @@
-const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
 const Scalar = @import("scalar.zig");
 const condition = @import("../condition.zig");
-const enabled = @import("rx_options").generated_graph;
-const generated = if (enabled) @import("generated_rx_operator_constraints") else void;
-const seed = @import("operators/seed.zig");
 const Form = Scalar.Form;
-const Step = if (enabled) std.meta.Child(generated.Output) else seed.Step;
-const plan_capacity = 5;
 
 pub fn inferBinary(self: *Expression, binary: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
     const operands = .{ binary.left, binary.right };
@@ -38,30 +32,50 @@ pub fn inferConditional(self: *Expression, branch: anytype, expected: ?Graph.Id,
 }
 
 fn apply(comptime form: Form, self: *Expression, operands: anytype, span: zx.Span, expected: ?Graph.Id, allowed: ?Scalar.Mask) zx.Error!Graph.Id {
-    const steps = comptime plan(form);
     const graph = self.graph;
-    var result: Graph.Id = undefined;
 
-    inline for (steps) |step| {
-        switch (step) {
-            .Done => {},
-            .Boolean => result = try graph.scalar(.bool, span),
-            .Unknown => result = try graph.add(.unknown, span),
-            .Expected => result = expected orelse try graph.add(.unknown, span),
-            .NegativeLiteral => result = try graph.number(syntax.value(operands[0]).number, true, span),
-            .Restrict => if (allowed) |mask| try graph.restrict(result, mask, span),
-            .DeclareLeft => result = try self.declared(operands[0]),
-            .OptionalPayload => result = try graph.payload(result, .optional, span),
-            .ExpectResult => if (expected) |hint| try graph.expect(result, hint, span),
-            .InferLeft => _ = try self.infer(operands[0], result),
-            .InferRight => _ = try self.infer(operands[1], result),
-            .InferCondition => _ = try self.infer(operands[0], try graph.scalar(.bool, span)),
-            .InferRightIfTrue, .InferRightIfFalse => try inferGuarded(self, operands[0], step == .InferRightIfTrue, operands[1], result),
-            .InferThirdIfFalse => try inferGuarded(self, operands[0], false, operands[2], result),
-        }
-    }
+    return switch (form) {
+        .And, .Or, .Not => result: {
+            const value = try graph.scalar(.bool, span);
 
-    return result;
+            _ = try self.infer(operands[0], value);
+
+            if (form != .Not) try inferGuarded(self, operands[0], form == .And, operands[1], value);
+
+            break :result value;
+        },
+        .Coalesce => result: {
+            const value = try graph.payload(try self.declared(operands[0]), .optional, span);
+
+            if (expected) |hint| try graph.expect(value, hint, span);
+
+            _ = try self.infer(operands[1], value);
+
+            break :result value;
+        },
+        .Compare, .Arithmetic, .Negative => result: {
+            const value = if (form == .Arithmetic) expected orelse try graph.add(.unknown, span) else try graph.add(.unknown, span);
+
+            if (allowed) |mask| try graph.restrict(value, mask, span);
+
+            _ = try self.infer(operands[0], value);
+
+            if (form != .Negative) _ = try self.infer(operands[1], value);
+
+            break :result if (form == .Compare) try graph.scalar(.bool, span) else value;
+        },
+        .NegativeLiteral => graph.number(syntax.value(operands[0]).number, true, span),
+        .Conditional => result: {
+            const value = expected orelse try graph.add(.unknown, span);
+
+            _ = try self.infer(operands[0], try graph.scalar(.bool, span));
+
+            try inferGuarded(self, operands[0], true, operands[1], value);
+            try inferGuarded(self, operands[0], false, operands[2], value);
+
+            break :result value;
+        },
+    };
 }
 
 fn inferGuarded(self: *Expression, predicate: anytype, present: bool, operand: @TypeOf(predicate), expected: Graph.Id) zx.Error!void {
@@ -72,17 +86,4 @@ fn inferGuarded(self: *Expression, predicate: anytype, present: bool, operand: @
     try condition.assumeValue(self.graph.scratch, predicate, present, self.conditionScope());
 
     _ = try self.infer(operand, expected);
-}
-
-fn plan(comptime form: Form) [plan_capacity]Step {
-    if (!enabled) return seed.plan(form);
-
-    var buffer: [256]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-    const sequence = generated.executeValue(scratch.allocator(), form) catch unreachable;
-    var steps: [plan_capacity]Step = @splat(.Done);
-
-    @memcpy(steps[0..sequence.len], sequence);
-
-    return steps;
 }

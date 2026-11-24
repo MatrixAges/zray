@@ -5,10 +5,29 @@ const memory = @import("zx").memory;
 const entry = @import("generated_rx_publish_type_imports");
 const Input = std.meta.Child(entry.Input);
 const Qualified = std.meta.Child(@typeInfo(@FieldType(Input, "qualified")).optional.child);
+const Values = std.meta.Child(@FieldType(Input, "values"));
 const Export = zx.ir.Export;
 pub const Target = struct { alias: []const u8, rows: []Export };
 
+const Tail = struct {
+    allocator: std.mem.Allocator,
+    visible: *expressions.BindingStorage,
+    names: [][]const u8 = undefined,
+    ids: []zx.ir.TypeId = undefined,
+    view: Values = undefined,
+    fn open(self: *Tail) void {
+        var reserved = self.visible.slice();
+
+        reserved.len = reserved.capacity;
+        self.names = reserved.items(.name)[self.visible.len..];
+        self.ids = reserved.items(.type_id)[self.visible.len..];
+        self.view = .{ .names = @ptrCast(&self.names), .ids = @ptrCast(&self.ids), .capacity = self.ids.len };
+    }
+};
+
 pub fn append(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator, exports: []const Export, kinds: []const u8, visible: *expressions.BindingStorage, target: ?Target) std.mem.Allocator.Error!void {
+    if (exports.len == 0) return;
+
     const rows = memory.borrowNamedRows("type_id", exports);
     const destination: []memory.NamedId = if (target) |output| memory.borrowNamedRows("type_id", output.rows) else &.{};
 
@@ -17,31 +36,31 @@ pub fn append(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator, 
         .rows = @ptrCast(&destination),
     };
 
-    var cursor: u64 = 0;
+    var tail: Tail = .{ .allocator = value_allocator, .visible = visible };
 
-    while (cursor < rows.len) {
-        var reserved = visible.slice();
-        reserved.len = reserved.capacity;
-        const names = reserved.items(.name)[visible.len..];
-        const ids = reserved.items(.type_id)[visible.len..];
+    tail.open();
 
-        const input: Input = .{
-            .rows = @ptrCast(&rows),
-            .length = rows.len,
-            .kinds = kinds,
-            .qualified = if (target != null) &qualified else null,
-            .values = &.{ .names = @ptrCast(&names), .ids = @ptrCast(&ids), .capacity = ids.len },
-            .next = cursor,
-        };
+    entry.executeIn(allocator, &.{
+        .rows = @ptrCast(&rows),
+        .length = rows.len,
+        .kinds = kinds,
+        .qualified = if (target != null) &qualified else null,
+        .tail = @ptrCast(&tail),
+        .values = &tail.view,
+    }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.IndexOutOfBounds => unreachable,
+    };
+}
 
-        const result = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.IndexOutOfBounds => unreachable,
-        };
+pub fn advanceTypeBindingTail(handle: *const anyopaque, used: u64, grow: bool) std.mem.Allocator.Error!void {
+    const tail: *Tail = @ptrCast(@alignCast(@constCast(handle)));
 
-        visible.len += @intCast(result.visible);
-        cursor = result.next;
+    tail.visible.len += @intCast(used);
 
-        if (cursor < rows.len) try visible.ensureUnusedCapacity(value_allocator, 1);
+    if (grow) {
+        try tail.visible.ensureUnusedCapacity(tail.allocator, 1);
+
+        tail.open();
     }
 }

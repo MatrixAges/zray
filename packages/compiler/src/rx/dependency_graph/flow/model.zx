@@ -3,7 +3,8 @@ import type { Tag } from "../../schema/execution/model"
 import type { Node } from "../../syntax/document/model"
 
 export type View = {
-    nodes: Node[],
+    nodes?: Node[],
+    siblings: u64[],
     slots: u64[],
     facts: U32Buffer
 }
@@ -15,6 +16,6 @@ export type Children = {
 
 export type Input = {
     view: View,
-    row: u64,
+    head: u64,
     tag: Tag,
 }

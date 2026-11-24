@@ -1,0 +1,9 @@
+export const missing_alias: string = "Type requires an explicit as attribute"
+
+export const non_source: string = "Type requires a ZX source module"
+
+export const native_target: string =
+    "native and standard imports must use the interface registry"
+
+export const missing_signature: string =
+    "Type source signature is missing from the analyzed input set"

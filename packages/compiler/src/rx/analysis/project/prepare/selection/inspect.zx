@@ -1,0 +1,51 @@
+import columns from "memory/columns"
+
+import find from "../../../../schema/tree/attribute_row"
+import node from "../flow/tree"
+import { subject_attribute } from "./const"
+
+import type { Branches as Output, Input as Selection } from "./model"
+
+export type Input = Selection.Pick("tree", "slot", "conditional", "has_else")
+
+export default function (in: Input): Output {
+    const { tree } = in
+    const { layout } = tree
+
+    const width = layout.node_width
+
+    const source = node([
+        tree,
+        in.slot
+    ])
+
+    const subject = find({
+        layout,
+        node: source,
+        key: subject_attribute
+    })
+
+    const children = columns.readBorrowedRowList(source, layout.node_children, width)
+
+    const child_count = children.length / width
+    const borrowed = tree.borrowed
+
+    const first_child = match {
+        children.length == 0 => 0,
+        borrowed != null => borrowed.children[in.slot] - child_count,
+        _ => columns.borrowedByteOffset(tree.nodes, children) / width
+    }
+
+    const case_count = match {
+        !in.conditional => child_count,
+        in.has_else => 2,
+        _ => 1
+    }
+
+    return {
+        subject: subject ?? [],
+        first_child,
+        child_count,
+        case_count
+    }
+}

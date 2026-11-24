@@ -2,6 +2,7 @@ import integers from "std:integer"
 import memory from "memory"
 
 import { alternate, returns, terminates } from "./const"
+import previous from "./previous"
 import sequence from "./sequence"
 
 import type { Children } from "./model"
@@ -35,7 +36,10 @@ export default function (in: Input): Output {
 
     const body = sequence({
         view,
-        head: view.nodes[row].previous_sibling
+        head: previous([
+            view,
+            row
+        ])
     })
 
     const either = integers.orBits(integers.widen(body), integers.widen(fallback))

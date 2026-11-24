@@ -1,6 +1,8 @@
+import { i64_positive_magnitude, max_u64 } from "core/const"
+
 import type { Index as Input } from "./model"
 
-export type Output = i64?
+export type Output = u64?
 
 export default function (in: Input): Output {
     if (in.owner >= in.indices.length) {
@@ -13,10 +15,7 @@ export default function (in: Input): Output {
         return null
     }
 
-    const ordinal = match {
-        stored < 0 => 0 - stored,
-        _ => stored
-    }
+    const has_store = stored > i64_positive_magnitude
 
-    return ordinal - 1
+    return has_store ? max_u64 - stored : stored - 1
 }

@@ -1,4 +1,5 @@
-import type { Expressions } from "core/expression_table/model"
+import type { Control, Expressions } from "memory/columns"
+import type { SelectionLabels } from "rx_project_host"
 
 export enum Kind {
     Default,
@@ -10,9 +11,16 @@ export enum Kind {
     Enumeration
 }
 
+export type LabelView = {
+    control: Control,
+    expressions: Expressions,
+    root?: u32
+}
+
 export type Labels = {
-    expressions: Expressions[],
-    roots: u32?[]
+    programs: SelectionLabels,
+    current: LabelView,
+    count: u64
 }
 
 export type Label = {

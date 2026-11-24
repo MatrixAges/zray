@@ -1,18 +1,12 @@
-import type { U8Buffer, U32Buffer } from "memory"
+import type { RowBuffer, WriteColumn } from "memory/columns"
+import type { Tree } from "../flow/tree"
 
-export type Units = {
-    firsts: u32[],
-    counts: u32[]
-}
-
-export type Rows = {
-    tags: U8Buffer,
-    words: U32Buffer,
-    tag_offset: u64,
-    first_offset: u64,
-    count_offset: u64,
-    byte_stride: u64,
-    word_stride: u64
+export type CaseRows = {
+    kind: WriteColumn,
+    source: WriteColumn,
+    first: WriteColumn,
+    count: WriteColumn,
+    truth: WriteColumn
 }
 
 export type Labels = {
@@ -21,14 +15,37 @@ export type Labels = {
     fallback: u8
 }
 
-export type Input = {
-    units: Units,
-    rows: Rows,
+export type SelectionRows = {
+    subject: WriteColumn,
+    cases: WriteColumn
+}
+
+export type Rows = {
+    destination: SelectionRows,
+    storage: RowBuffer,
     labels: Labels,
+    body: CaseRows
+}
+
+export type Units = {
+    unit_firsts: u32[],
+    unit_counts: u32[]
+}
+
+export type Input = {
+    tree: Tree,
+    rows: Rows,
+    units: Units,
     facts: u32[],
-    first_child: u64,
-    child_count: u64,
-    subject: u64,
+    slot: u64,
+    row: u32,
     conditional: bool,
     has_else: bool
+}
+
+export type Branches = {
+    subject: u8[],
+    first_child: u64,
+    child_count: u64,
+    case_count: u64
 }

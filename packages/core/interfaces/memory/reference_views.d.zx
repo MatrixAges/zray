@@ -134,6 +134,11 @@ export declare function readBorrowedRowList(
     width: u64
 ): u8[] throws { IndexOutOfBounds }
 
+export declare function borrowedByteOffset(
+    storage: u8[],
+    view: u8[]
+): u64 throws { IndexOutOfBounds }
+
 export declare function appendByteView(
     resource: ColumnAllocator,
     storage: ByteViewStorage,

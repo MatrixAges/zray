@@ -4,7 +4,6 @@ const zx = @import("zx");
 const rx = @import("rx");
 const Builder = @import("../../program/builder.zig");
 const expression = @import("../../expression.zig");
-const Declarations = @import("../../project/declarations.zig");
 const Options = @import("../initializer.zig").Options;
 const Self = @This();
 
@@ -58,11 +57,8 @@ pub fn prepare(self: *Self, count: usize, comptime seed: bool) std.mem.Allocator
     _ = try self.builder.symbol("in", input_type, span);
 }
 
-pub fn openField(self: *Self, row: usize) std.mem.Allocator.Error!void {
-    const attributes = Declarations.attributes(self.options.layout.fields[row], .Field);
-    const value = attributes.second.?;
-
-    self.field.name = attributes.first;
+pub fn openField(self: *Self, row: usize, name: *const rx.ast.Attribute, value: *const rx.ast.Attribute) std.mem.Allocator.Error!void {
+    self.field.name = name;
     self.field.value = value;
     self.field.type_id = self.options.field_types[row];
     self.field.parsed = try @import("../../attribute.zig").parseBorrowed(self.backing, value.*, self.options.owner);

@@ -3,7 +3,6 @@ const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
-const Schedule = @import("expression/schedule.zig");
 const Target = @import("sequences/target.zig");
 
 pub const Sequence = struct { value: Graph.Id, elements: []const Graph.Id, spans: []const zx.Span, span: zx.Span };
@@ -11,24 +10,18 @@ pub const Sequence = struct { value: Graph.Id, elements: []const Graph.Id, spans
 const Elements = std.MultiArrayList(struct { element: Graph.Id, span: zx.Span });
 
 pub fn infer(self: *Expression, items: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
-    var value: Graph.Id = undefined;
-    var rows: Elements.Slice = undefined;
+    const value = try self.graph.add(.sequence, span);
 
-    inline for (comptime Schedule.steps(.Sequence)) |step| {
-        switch (step) {
-            .Done => {},
-            .SequenceResult => value = try self.graph.add(.sequence, span),
-            .ExpectResult => if (expected) |target| try self.graph.expect(value, target, span),
-            .InferElements => rows = try inferElements(self, items),
-            .RegisterSequence => try self.graph.pending.sequences.append(self.graph.pending.allocator, .{
-                .value = value,
-                .elements = rows.items(.element),
-                .spans = rows.items(.span),
-                .span = span,
-            }),
-            else => unreachable,
-        }
-    }
+    if (expected) |target| try self.graph.expect(value, target, span);
+
+    const rows = try inferElements(self, items);
+
+    try self.graph.pending.sequences.append(self.graph.pending.allocator, .{
+        .value = value,
+        .elements = rows.items(.element),
+        .spans = rows.items(.span),
+        .span = span,
+    });
 
     return value;
 }

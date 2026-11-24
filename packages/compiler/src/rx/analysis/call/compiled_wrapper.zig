@@ -44,11 +44,27 @@ pub fn build(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Error
     return program;
 }
 
-pub fn reject(function: ?ir.FunctionId, functions: *const ir.FunctionStorage, setter: bool) ?struct { code: []const u8, message: []const u8 } {
-    return switch (@import("compiled_admission.zig").check(function, functions, setter)) {
+pub const Rejection = struct { code: []const u8, message: []const u8 };
+pub const Status = enum { Ready, Checked, Missing, Conflict, Unlinked, MissingExport, MissingFunction, Setter, Transaction };
+
+pub fn reject(function: ?ir.FunctionId, functions: *const ir.FunctionStorage, setter: bool) ?Rejection {
+    const result = @import("compiled_admission.zig").check(function, functions, setter);
+
+    return switch (result) {
         .Executable => null,
+        inline else => |kind| rejection(@field(Status, @tagName(kind))),
+    };
+}
+
+pub fn rejection(kind: Status) Rejection {
+    return switch (kind) {
+        .Missing => .{ .code = "module", .message = "compiled library is missing from the input set" },
+        .Conflict => .{ .code = "module", .message = "compiled package instance has conflicting artifacts" },
+        .Unlinked => .{ .code = "module", .message = "compiled library cannot be linked to the shared type table" },
+        .MissingExport => .{ .code = "module", .message = "compiled package does not export the requested public module" },
         .MissingFunction => .{ .code = "module", .message = "Call.module requires an executable public module" },
         .Setter => .{ .code = "capability", .message = "Call.module cannot grant a setter; Store authorization belongs inside the published RX module" },
         .Transaction => .{ .code = "capability", .message = "compiled Store transactions require an explicit authorized RX module" },
+        .Ready, .Checked => unreachable,
     };
 }

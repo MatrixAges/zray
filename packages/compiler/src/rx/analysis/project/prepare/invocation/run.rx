@@ -1,0 +1,63 @@
+<Module>
+    <Type from="model" as="Invocation" />
+    <Type from="host" as="Host" />
+
+    <Args in={Invocation.Run} out={void} />
+
+    <Call
+        fn="read"
+        in={$in.pick([
+            "state",
+            "attributes"
+        ])}
+    />
+
+    <If on={$ctx.read}>
+        <Call fn="host.authorizePreparedSetter" in={$in.state} />
+    </If>
+
+    <Call fn="../../declarations/edges" in={$in.edges} />
+
+    <Call
+        fn="host.readPreparedCallTarget"
+        in={[
+            $in.state,
+            $ctx.edges
+        ]}
+    />
+
+    <Call fn="../../../call/availability" in={$in.admission} />
+
+    <If on={$ctx.availability == Host.CallRoute.Compiled}>
+        <Call
+            module="compiled"
+            in={{
+                state: $in.state,
+                edge: $ctx.edges
+            }}
+        />
+    </If>
+
+    <Call
+        fn="publish"
+        in={{
+            state: $in.state,
+            edge: $ctx.edges,
+            route: $ctx.availability,
+            admission: $in.admission,
+            signatures: $in.signatures
+        }}
+    />
+
+    <If on={$ctx.publish && $in.previous_kind != null}>
+        <Call
+            module="previous"
+            in={$in.omit([
+                "attributes",
+                "edges",
+                "admission",
+                "signatures"
+            ])}
+        />
+    </If>
+</Module>

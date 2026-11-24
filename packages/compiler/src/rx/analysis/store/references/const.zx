@@ -1,0 +1,5 @@
+export const invalid_namespace: string =
+    "Store namespace must be an identifier; use as for a different display name"
+
+export const duplicate_namespace: string =
+    "Store namespace is already registered in this module"

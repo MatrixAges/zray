@@ -13,8 +13,6 @@ pub const Imports = struct {
     values: expressions.BindingColumns = .{},
 };
 
-pub const Value = union(enum) { imports: Imports, diagnostic: target.Diagnostic };
-
 pub fn values(allocator: std.mem.Allocator, types: zx.ir.TypeTable, imports: []const zx.ir.Export) std.mem.Allocator.Error!expressions.BindingColumns {
     var result: expressions.BindingStorage = .empty;
 
@@ -31,102 +29,120 @@ pub fn values(allocator: std.mem.Allocator, types: zx.ir.TypeTable, imports: []c
     return expressions.BindingColumns.view(result.slice());
 }
 
-pub fn collect(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator, source: rx.ModuleSource, edges: []const Graph.Edge, signatures: Signatures, kinds: []const u8) std.mem.Allocator.Error!Value {
-    var references: Graph.References = .{ .edges = edges };
+pub fn collect(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator, source: rx.ModuleSource, edges: []const Graph.Edge, signatures: Signatures, kinds: []const u8, issue: *?target.Diagnostic) Declarations.Error!Imports {
     var types: std.ArrayList(zx.ir.Export) = .empty;
     var visible: expressions.BindingStorage = .empty;
-    var declarations = Declarations.init(source.node, .TypeImport);
 
-    while (declarations.next()) |node| {
-        const attributes = Declarations.attributes(node, .TypeImport);
+    var work: Work = .{
+        .allocator = allocator,
+        .value_allocator = value_allocator,
+        .owner = source.path,
+        .references = .{ .edges = edges },
+        .signatures = signatures,
+        .kinds = kinds,
+        .issue = issue,
+        .types = &types,
+        .visible = &visible,
+    };
+
+    try Declarations.walk(source.node, .TypeImport, &work);
+
+    return .{ .types = types.items, .values = expressions.BindingColumns.view(visible.slice()) };
+}
+
+const Work = struct {
+    allocator: std.mem.Allocator,
+    value_allocator: std.mem.Allocator,
+    owner: []const u8,
+    references: Graph.References,
+    signatures: Signatures,
+    kinds: []const u8,
+    issue: *?target.Diagnostic,
+    types: *std.ArrayList(zx.ir.Export),
+    visible: *expressions.BindingStorage,
+    pub fn append(self: *Work, attributes: Declarations.Attributes) Declarations.Error!void {
         const from = attributes.first;
-        const alias = attributes.second orelse return failure(allocator, source, from, "Type requires an explicit as attribute");
-        const reference = references.next(.type_import).edge;
-        const signature = admit(&signatures, reference);
+        const alias = attributes.second orelse return self.fail(from, "Type requires an explicit as attribute");
+        const edge = self.references.next(.type_import).edge;
 
-        const index = switch (signature.status) {
-            .Resolved => signature.index.?,
-            .NonSource => return failure(allocator, source, from, "Type requires a ZX source module"),
-            .Native => return failure(allocator, source, from, "native and standard imports must use the interface registry"),
-            .MissingSignature => return failure(allocator, source, from, "Type source signature is missing from the analyzed input set"),
+        const owner = switch (edge.target) {
+            .source => |row| row,
+            .compiled => return self.fail(from, "Type requires a ZX source module"),
+            .native => return self.fail(from, "native and standard imports must use the interface registry"),
         };
 
-        const exports = signatures.modules[@intCast(index)].signature.exports;
+        if (self.signatures.graph.sources.at(owner) != .zx) return self.fail(from, "Type requires a ZX source module");
 
-        try types.ensureUnusedCapacity(allocator, exports.len);
+        const index = Signatures.indexAt(self.signatures.indices, owner) orelse return self.fail(from, "Type source signature is missing from the analyzed input set");
+
+        try self.publish(index, alias);
+    }
+    fn publish(self: *Work, index: usize, alias: *const rx.ast.Attribute) std.mem.Allocator.Error!void {
+        const exports = self.signatures.modules[index].signature.exports;
+
+        try self.types.ensureUnusedCapacity(self.allocator, exports.len);
 
         if (comptime generated) {
-            try @import("type_imports/publish.zig").append(allocator, value_allocator, exports, kinds, &visible, .{
+            try @import("type_imports/publish.zig").append(self.allocator, self.value_allocator, exports, self.kinds, self.visible, .{
                 .alias = alias.value,
-                .rows = types.unusedCapacitySlice()[0..exports.len],
+                .rows = self.types.unusedCapacitySlice()[0..exports.len],
             });
 
-            types.items.len += exports.len;
+            self.types.items.len += exports.len;
         } else {
             for (exports) |exported| {
                 const row = @backingInt(exported.type_id);
-                const name = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ alias.value, exported.name });
+                const name = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ alias.value, exported.name });
 
-                types.appendAssumeCapacity(.{ .name = name, .type_id = exported.type_id });
+                self.types.appendAssumeCapacity(.{ .name = name, .type_id = exported.type_id });
 
-                if (row < kinds.len and valueKind(kinds[row])) {
-                    try visible.append(value_allocator, .{ .name = name, .type_id = exported.type_id });
+                if (row < self.kinds.len and valueKind(self.kinds[row])) {
+                    try self.visible.append(self.value_allocator, .{ .name = name, .type_id = exported.type_id });
                 }
             }
         }
     }
 
-    return .{ .imports = .{ .types = types.items, .values = expressions.BindingColumns.view(visible.slice()) } };
-}
+    fn fail(self: *Work, from: *const rx.ast.Attribute, message: []const u8) Declarations.Error {
+        self.issue.* = .{
+            .path = try self.allocator.dupe(u8, self.owner),
+            .location = from.value_location,
+            .code = "module",
+            .message = message,
+        };
 
-const admission = if (generated) @import("generated_rx_type_import_admit") else void;
-
-const Decision = if (generated) @typeInfo(@TypeOf(admission.executeValue(undefined, undefined))).error_union.payload else struct {
-    status: enum { Resolved, NonSource, Native, MissingSignature },
-    index: ?i64 = null,
+        return error.InvalidFlow;
+    }
 };
 
-fn admit(signatures: *const Signatures, edge: *const Graph.Edge) Decision {
-    if (comptime generated) {
-        const ranges = signatures.graph.sources;
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+fn borrow(handle: *const anyopaque) *Work {
+    return @ptrCast(@alignCast(@constCast(handle)));
+}
 
-        return admission.executeValue(scratch.allocator(), &.{
-            .target = switch (edge.target) {
-                .source => .Source,
-                .compiled => .Compiled,
-                .native => .Native,
-            },
-            .signature = &.{
-                .owner = if (edge.target == .source) edge.target.source else 0,
-                .sources = &.{ .zx_count = ranges.zx_count, .rx_end = ranges.rx_end },
-                .indices = signatures.indices,
-            },
-        }) catch unreachable;
-    }
+const ReferenceTarget = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".ReferenceTarget else void;
 
-    const index = switch (edge.target) {
-        .source => |row| row,
-        .compiled => return .{ .status = .NonSource },
-        .native => return .{ .status = .Native },
+pub fn typeDeclarationTarget(handle: *const anyopaque, row: ?u64) ReferenceTarget {
+    return switch (borrow(handle).references.edges[@intCast(row.?)].target) {
+        .source => .Source,
+        .compiled => .Compiled,
+        .native => .Native,
     };
+}
 
-    if (signatures.graph.sources.at(index) != .zx) return .{ .status = .NonSource };
+pub fn typeDeclarationOwner(handle: *const anyopaque, row: ?u64) u64 {
+    const edge = &borrow(handle).references.edges[@intCast(row.?)];
 
-    const row = Signatures.indexAt(signatures.indices, index) orelse return .{ .status = .MissingSignature };
+    return if (edge.target == .source) edge.target.source else 0;
+}
 
-    return .{ .status = .Resolved, .index = @intCast(row) };
+pub fn publishTypeDeclaration(handle: *const anyopaque, index: ?u64, alias: []const u8) std.mem.Allocator.Error!void {
+    try borrow(handle).publish(@intCast(index.?), Declarations.attribute(alias));
+}
+
+pub fn rejectTypeDeclaration(handle: *const anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
+    return borrow(handle).fail(Declarations.attribute(at), message);
 }
 
 fn valueKind(kind: u8) bool {
     return kind == @backingInt(std.meta.Tag(zx.ir.Type).enumeration);
-}
-
-fn failure(allocator: std.mem.Allocator, source: rx.ModuleSource, attribute: *const rx.ast.Attribute, message: []const u8) std.mem.Allocator.Error!Value {
-    return .{ .diagnostic = .{
-        .path = try allocator.dupe(u8, source.path),
-        .location = attribute.value_location,
-        .code = "module",
-        .message = message,
-    } };
 }

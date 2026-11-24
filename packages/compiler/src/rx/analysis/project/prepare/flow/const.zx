@@ -8,6 +8,10 @@ export const groups: u64 = 3
 
 export const selections: u64 = 4
 
+export const result_value: string = "value"
+
+export const task_out: string = "out"
+
 export const return_path_code: string = "return_path"
 
 export const unsupported_code: string = "unsupported"

@@ -1,5 +1,7 @@
 export type StoreInitializer = opaque
 
+export type StoreDefinitionWork = opaque
+
 export type Inference = opaque
 
 export type Derivation = opaque
@@ -61,6 +63,20 @@ export type ConstraintCollection = opaque
 export type ConditionFacts = opaque
 
 export type FlowTraversal = opaque
+
+export type SelectionLabels = opaque
+
+export type DeclarationTarget = opaque
+
+export type TypeBindingTail = opaque
+
+export enum ReferenceTarget {
+    Source,
+    Compiled,
+    Native
+}
+
+export type ModulePreparation = opaque
 
 export enum FlowKind {
     Call,

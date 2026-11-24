@@ -36,6 +36,12 @@ export declare function writeColumnBool(
     value: bool
 ): void throws { IndexOutOfBounds }
 
+export declare function writeColumnOptionalBool(
+    target: WriteColumn,
+    index: u64,
+    value: bool?
+): void throws { IndexOutOfBounds }
+
 export declare function writeColumnBytes(
     target: WriteColumn,
     index: u64,

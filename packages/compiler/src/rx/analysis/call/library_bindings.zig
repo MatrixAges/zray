@@ -1,20 +1,11 @@
 const std = @import("std");
 const frontend = @import("frontend");
-const rx = @import("rx");
-const ir = @import("zx").ir;
-const target = @import("target.zig");
+const zx = @import("zx");
+const ir = zx.ir;
 const wrapper = @import("compiled_wrapper.zig");
 const compiled = frontend.project.compiled;
 const Self = @This();
 const Error = std.mem.Allocator.Error;
-const Value = union(enum) { ports: frontend.project.signature_project.Ports, diagnostic: target.Diagnostic };
-
-const Call = struct {
-    owner: []const u8,
-    location: rx.ast.Location,
-    setter: bool,
-    selected: compiled.Target,
-};
 
 const Bound = struct {
     functions: ir.FunctionStorage = .{},
@@ -23,17 +14,62 @@ const Bound = struct {
     validated: bool = false,
 };
 
+pub const Selection = union(enum) { Ready: Target, Missing, Conflict, Unlinked, MissingExport };
+
+pub const Target = struct {
+    binding: *Bound,
+    export_row: *const compiled.Export,
+    pub fn checked(self: Target) bool {
+        const id = self.export_row.function orelse return false;
+
+        return self.binding.checked.isSet(@backingInt(id));
+    }
+    pub fn ports(self: Target) frontend.project.signature_project.Ports {
+        const function = @backingInt(self.export_row.function.?);
+
+        return .{
+            .input_type = @fromBackingInt(self.binding.functions.input_types.items[function]),
+            .output_type = @fromBackingInt(self.binding.functions.output_types.items[function]),
+        };
+    }
+    pub fn validate(self: Target, backing: std.mem.Allocator, context: *const frontend.Context, offset: usize) Error!?zx.Diagnostic {
+        var temporary = std.heap.ArenaAllocator.init(backing);
+
+        defer temporary.deinit();
+
+        const id = self.export_row.function.?;
+        const binding = self.binding;
+        const functions = binding.functions.view();
+
+        const program = try wrapper.build(temporary.allocator(), .{
+            .file_name = self.export_row.path,
+            .offset = offset,
+            .id = id,
+            .types = context.types,
+            .functions = functions,
+            .native_modules = context.native_modules,
+        });
+
+        if (try frontend.validateIrExtending(backing, program, if (binding.validated) functions else .{})) |issue| return issue;
+
+        binding.validated = true;
+
+        binding.checked.set(@backingInt(id));
+
+        return null;
+    }
+};
+
 allocator: std.mem.Allocator,
 scratch: std.heap.ArenaAllocator,
 bound: std.AutoHashMapUnmanaged(usize, *Bound) = .empty,
-pub fn bind(self: *Self, project: *frontend.project.Options, call: Call) Error!Value {
+pub fn select(self: *Self, project: *frontend.project.Options, selected: compiled.Target) Error!Selection {
     const libraries = project.compiled_libraries;
-    const backing = self.scratch.child_allocator;
 
-    const index = switch (try compiled.resolve.library(backing, libraries, project.root_dir, call.selected)) {
+    const index = switch (try compiled.resolve.library(self.scratch.child_allocator, libraries, project.root_dir, selected)) {
         .found => |value| value,
-        .conflict => return self.fail(call, "module", "compiled package instance has conflicting artifacts"),
-        .missing => return self.fail(call, "module", "compiled library is missing from the input set"),
+        .conflict => return .Conflict,
+        .missing => return .Missing,
     };
 
     const library = &libraries[index];
@@ -42,7 +78,7 @@ pub fn bind(self: *Self, project: *frontend.project.Options, call: Call) Error!V
         const loaded = self.load(project, library) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
 
-            return self.fail(call, "module", "compiled library cannot be linked to the shared type table");
+            return .Unlinked;
         };
 
         try self.bound.put(self.scratch.allocator(), index, loaded);
@@ -50,42 +86,9 @@ pub fn bind(self: *Self, project: *frontend.project.Options, call: Call) Error!V
         break :block loaded;
     };
 
-    const row = binding.exports.find(library.exports, call.selected.name) orelse return self.fail(call, "module", "compiled package does not export the requested public module");
-    const exported = &library.exports[row];
+    const row = binding.exports.find(library.exports, selected.name) orelse return .MissingExport;
 
-    if (wrapper.reject(exported.function, &binding.functions, call.setter)) |issue| return self.fail(call, issue.code, issue.message);
-
-    const id = exported.function.?;
-    const function = @backingInt(id);
-
-    if (!binding.checked.isSet(function)) {
-        var temporary = std.heap.ArenaAllocator.init(backing);
-
-        defer temporary.deinit();
-
-        const context = &project.context;
-        const functions = binding.functions.view();
-
-        const program = try wrapper.build(temporary.allocator(), .{
-            .file_name = exported.path,
-            .offset = call.location.offset,
-            .id = id,
-            .types = context.types,
-            .functions = functions,
-            .native_modules = context.native_modules,
-        });
-
-        if (try frontend.validateIrExtending(backing, program, if (binding.validated) functions else .{})) |issue| return self.fail(call, @tagName(issue.code), issue.message);
-
-        binding.validated = true;
-
-        binding.checked.set(function);
-    }
-
-    return .{ .ports = .{
-        .input_type = @fromBackingInt(binding.functions.input_types.items[function]),
-        .output_type = @fromBackingInt(binding.functions.output_types.items[function]),
-    } };
+    return .{ .Ready = .{ .binding = binding, .export_row = &library.exports[row] } };
 }
 
 fn load(self: *Self, project: *frontend.project.Options, library: *const compiled.Library) !*Bound {
@@ -118,10 +121,4 @@ fn load(self: *Self, project: *frontend.project.Options, library: *const compile
     context.native_modules = natives.view();
 
     return binding;
-}
-
-fn fail(self: *const Self, call: Call, code: []const u8, message: []const u8) Error!Value {
-    const result = try target.failure(self.allocator, .{ .path = call.owner, .location = call.location, .code = code, .message = message });
-
-    return .{ .diagnostic = result.diagnostic };
 }

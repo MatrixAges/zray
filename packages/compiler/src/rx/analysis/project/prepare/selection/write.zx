@@ -1,13 +1,17 @@
-import memory from "memory"
+import columns from "memory/columns"
 
-import type { Rows, Units } from "./model"
+import reference from "../flow/write_reference"
+
+import type { CaseRows, Units } from "./model"
 
 export type Input = {
-    rows: Rows,
+    rows: CaseRows,
     units: Units,
     slot: u64,
     row: u64,
-    tag: u8
+    tag: u8,
+    attribute: u8[]?,
+    attribute_width: u64
 }
 
 export type Output = void
@@ -15,11 +19,15 @@ export type Output = void
 export default function (in: Input): Output {
     const { rows, units, slot, row, tag } = in
 
-    const first = units.firsts[slot]
-    const count = units.counts[slot]
-    const word = row * rows.word_stride
+    columns.writeColumnU32(rows.first, row, units.unit_firsts[slot])
+    columns.writeColumnU32(rows.count, row, units.unit_counts[slot])
+    columns.writeColumnU8(rows.kind, row, tag)
+    columns.writeColumnOptionalBool(rows.truth, row, null)
 
-    memory.writeU32(rows.words, word + rows.first_offset, first)
-    memory.writeU32(rows.words, word + rows.count_offset, count)
-    memory.writeU8(rows.tags, row * rows.byte_stride + rows.tag_offset, tag)
+    reference([
+        rows.source,
+        row,
+        in.attribute,
+        in.attribute_width
+    ])
 }

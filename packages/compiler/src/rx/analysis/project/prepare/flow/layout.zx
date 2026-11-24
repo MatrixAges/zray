@@ -63,8 +63,10 @@ export default function (in: Input): Output {
         _ => false
     }
 
-    const task_id: u64? = match route {
-        Route.ParallelTask => in.index.parallel_tasks - (phase - check_task_phase),
+    const task_id: u32? = match route {
+        Route.ParallelTask => integers.narrow(
+            in.index.parallel_tasks - (phase - check_task_phase)
+        ),
         _ => null
     }
 

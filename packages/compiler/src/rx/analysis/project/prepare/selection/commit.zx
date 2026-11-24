@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import columns from "memory/columns"
+
+import reference from "../flow/write_reference"
+
+import type { Rows } from "./model"
+
+export type Input = {
+    rows: Rows,
+    row: u32,
+    attribute: u8[],
+    attribute_width: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows } = in
+
+    const row = integers.widen(in.row)
+
+    reference([
+        rows.destination.subject,
+        row,
+        in.attribute,
+        in.attribute_width
+    ])
+
+    columns.writeRowList(rows.destination.cases, row, rows.storage)
+}

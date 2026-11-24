@@ -41,13 +41,13 @@ pub const Case = struct {
 };
 
 pub const Task = struct {
-    id: ?usize = null,
+    id: ?u32 = null,
     node: *const rx.ast.Node,
     body: Unit,
-    output: ?rx.ast.Attribute = null,
+    output: ?*const rx.ast.Attribute = null,
 };
 
-const Selection = struct { subject: *const rx.ast.Attribute, cases: []Case };
+pub const Selection = struct { subject: *const rx.ast.Attribute, cases: []Case };
 const Row = struct { kind: Kind, item: u32 };
 const Rows = std.MultiArrayList(Row);
 
@@ -77,31 +77,26 @@ pub const Builder = struct {
     groups: std.ArrayList(Unit) = .empty,
     selections: std.ArrayList(Selection) = .empty,
     pub fn init(allocator: std.mem.Allocator, capacity: @FieldType(rx.IndexedFlow, "capacity")) std.mem.Allocator.Error!Builder {
+        const payloads = .{ "results", "tasks", "groups", "selections" };
         var builder: Builder = .{};
+
+        errdefer {
+            builder.rows.deinit(allocator);
+            inline for (payloads) |field| @field(builder, field).deinit(allocator);
+        }
 
         try builder.rows.setCapacity(allocator, capacity.steps);
 
-        errdefer builder.rows.deinit(allocator);
-
-        try builder.results.ensureTotalCapacityPrecise(allocator, capacity.results);
-
-        errdefer builder.results.deinit(allocator);
-
-        try builder.tasks.ensureTotalCapacityPrecise(allocator, capacity.tasks);
-
-        errdefer builder.tasks.deinit(allocator);
-
-        try builder.groups.ensureTotalCapacityPrecise(allocator, capacity.groups);
-
-        errdefer builder.groups.deinit(allocator);
-
-        try builder.selections.ensureTotalCapacityPrecise(allocator, capacity.selections);
-
         builder.rows.len = capacity.steps;
-        builder.results.items.len = capacity.results;
-        builder.tasks.items.len = capacity.tasks;
-        builder.groups.items.len = capacity.groups;
-        builder.selections.items.len = capacity.selections;
+
+        inline for (payloads) |field| {
+            const list = &@field(builder, field);
+            const count = @field(capacity, field);
+
+            try list.ensureTotalCapacityPrecise(allocator, count);
+
+            list.items.len = count;
+        }
 
         return builder;
     }

@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Run} out={Flow.Run} />
+
+    <If on={$in.body != null}>
+        <Call
+            module="next"
+            in={{
+                index: $in.body.index,
+                remaining: $in.remaining,
+                rows: $in.body.rows
+            }}
+        />
+
+        <If on={$ctx.next.route != Flow.Route.Done}>
+            <Call
+                module="apply"
+                in={{
+                    invocation: $in.invocation,
+                    index: $in.body.index,
+                    tree: $in.body.tree,
+                    payload: $in.body.payload,
+                    event: $ctx.next
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                ...$in,
+                remaining: $ctx.next.route == Flow.Route.Done ? 0 : $ctx.next.remaining
+            }}
+        />
+    </If>
+
+    <Return value={$in} />
+</Module>

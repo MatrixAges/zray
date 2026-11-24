@@ -23,10 +23,20 @@
     </If>
 
     <Call
+        fn="attributes"
+        in={$in.pick([
+            "fields",
+            "row"
+        ])}
+    />
+
+    <Call
         fn="../host.evaluateStoreField"
         in={[
             $in.frame,
-            $in.row
+            $in.row,
+            $ctx.attributes.first ?? [],
+            $ctx.attributes.second ?? []
         ]}
     />
 

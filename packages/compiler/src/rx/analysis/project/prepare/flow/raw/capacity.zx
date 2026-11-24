@@ -1,0 +1,28 @@
+import { Tag } from "../../../../../schema/execution/model"
+
+import type { Counts as Output } from "./model"
+
+export type Input = {
+    capacity: Output,
+    tag: Tag,
+    implicit: bool,
+    loop_body: bool,
+    steps: u64
+}
+
+export default function (in: Input): Output {
+    const { tag, capacity } = in
+
+    const call = tag == Tag.Loop || (tag == Tag.Call && !in.loop_body)
+    const result = in.implicit || tag == Tag.Return
+
+    return {
+        steps: in.steps,
+        calls: capacity.calls + (call ? 1 : 0),
+        results: capacity.results + (result ? 1 : 0),
+        tasks: capacity.tasks + (tag == Tag.Task ? 1 : 0),
+        groups: capacity.groups + (tag == Tag.Parallel ? 1 : 0),
+        selections: capacity.selections +
+            (tag == Tag.Switch || tag == Tag.If ? 1 : 0)
+    }
+}

@@ -1,38 +1,17 @@
-export enum Target {
-    Source,
-    Compiled,
-    Native
-}
+import { CallRoute as Route, ReferenceTarget as Target } from "rx_project_host"
 
-export enum Route {
-    Source,
-    AuthorizedSource,
-    NamedSource,
-    NamedSetter,
-    NamedTarget,
-    Compiled,
-    Native,
-    Denied
-}
+import type { CallAdmission } from "rx_project_host"
 
-export type Input = {
-    target: Target,
-    named: bool,
-    declared_setter: bool,
-    setter: bool,
-    ambient_store: bool
-}
+export { CallRoute as Route, ReferenceTarget as Target } from "rx_project_host"
 
-export type Output = {
-    route: Route,
-    local: bool
-}
+export type Input = CallAdmission
+
+export type Output = Route
 
 export default function (in: Input): Output {
-    const explicit = in.declared_setter == in.setter
-    const permitted = explicit && !in.ambient_store
+    const permitted = in.declared_setter == in.setter && !in.ambient_store
 
-    const route = match {
+    return match {
         in.named && in.target != Target.Source => Route.NamedTarget,
         in.named && in.setter => Route.NamedSetter,
         in.named => Route.NamedSource,
@@ -41,10 +20,5 @@ export default function (in: Input): Output {
             Target.Compiled => permitted ? Route.Compiled : Route.Denied,
             _ => Route.Native
         }
-    }
-
-    return {
-        route,
-        local: route == Route.Source || route == Route.NamedSource
     }
 }

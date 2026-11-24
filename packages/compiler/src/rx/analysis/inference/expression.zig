@@ -9,7 +9,6 @@ const Scope = @import("scope.zig");
 const condition = @import("../condition.zig");
 const operators = @import("operators.zig");
 const composition = @import("expression/composition.zig");
-const Schedule = @import("expression/schedule.zig");
 const Self = @This();
 const path_buffer_size = 128;
 
@@ -34,31 +33,15 @@ fn inferValue(self: *Self, expression: anytype, expected: ?Graph.Id, comptime re
     const node = syntax.value(expression);
     const span = self.sourceSpan(expression.span);
     const reference = try self.resolveReference(expression, node, span, refine);
+    const base = reference.value orelse try self.inferNode(node, expression, span, expected, try self.payload(expected), reference.implicit_input);
+    const value = try self.refined(reference.refined, base, span);
 
-    if (reference.value != null) return self.evaluate(.BoundValue, expression, node, span, expected, reference);
+    if (reference.value != null) try self.graph.requireValue(value, span);
 
-    return self.evaluate(.UnboundValue, expression, node, span, expected, reference);
-}
+    if (expected) |target| {
+        try self.graph.expect(value, target, span);
 
-inline fn evaluate(self: *Self, comptime form: Schedule.Form, expression: anytype, node: anytype, span: zx.Span, expected: ?Graph.Id, reference: Scope.Reference) zx.Error!Graph.Id {
-    var value: Graph.Id = undefined;
-    var hint: ?Graph.Id = null;
-
-    inline for (comptime Schedule.steps(form)) |step| {
-        switch (step) {
-            .Done => {},
-            .BoundValue => value = reference.value.?,
-            .TypeHint => hint = try self.payload(expected),
-            .InferValue => value = try self.inferNode(node, expression, span, expected, hint, reference.implicit_input),
-            .RefineValue => value = try self.refined(reference.refined, value, span),
-            .RequireValue => try self.graph.requireValue(value, span),
-            .ExpectResult => if (expected) |target| {
-                try self.graph.expect(value, target, span);
-
-                value = target;
-            },
-            else => unreachable,
-        }
+        return target;
     }
 
     return value;

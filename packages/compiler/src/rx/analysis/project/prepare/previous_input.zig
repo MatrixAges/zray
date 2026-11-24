@@ -3,47 +3,48 @@ const zx = @import("zx");
 const rx = @import("rx");
 const Loader = @import("../prepare.zig").Loader;
 const names = @import("../../result_name.zig");
-const void_type: zx.ir.TypeId = @fromBackingInt(@backingInt(zx.ir.Scalar.void));
+pub const Kind = @import("../flow.zig").Kind;
+pub const void_type: zx.ir.TypeId = @fromBackingInt(@backingInt(zx.ir.Scalar.void));
 
-pub fn bind(loader: *Loader, index: usize, previous: u32) Loader.Error!void {
-    const calls = loader.calls.slice();
+pub fn kind(loader: *const Loader, row: u32) Kind {
+    return loader.plan.rows.items(.kind)[row];
+}
 
-    if (calls.items(.input)[index] != null) return;
+pub fn name(loader: *const Loader, row: u32, task_output: bool) ?[]const u8 {
+    const item = loader.plan.rows.items(.item)[row];
 
-    const callees = calls.items(.callee);
-    const callee = callees[index];
+    if (task_output) {
+        const task = &loader.plan.tasks.items[item];
 
-    if (callee == .signature and callee.signature.input_type == void_type) return;
+        return if (task.output != null) names.resolve(task.node.*).name else null;
+    }
 
-    const rows = loader.plan.rows.slice();
-    const item = rows.items(.item)[previous];
-    const kind = rows.items(.kind)[previous];
+    const producer = loader.calls.items(.callee)[item];
 
-    const name = switch (kind) {
-        .Call => name: {
-            const producer = callees[item];
+    if (producer == .signature and producer.signature.output_type == void_type) return null;
 
-            if (producer == .signature and producer.signature.output_type == void_type) return;
+    return names.resolveCall(loader.calls.items(.name_source)[item].*).name;
+}
 
-            break :name names.resolveCall(calls.items(.name_source)[item].*).name;
-        },
-        .Task => name: {
-            const task = &loader.plan.tasks.items[item];
-
-            if (task.output == null) return;
-
-            break :name names.resolve(task.node.*).name;
-        },
+pub fn seed(loader: *Loader, index: usize, row: u32) std.mem.Allocator.Error!void {
+    const task = switch (kind(loader, row)) {
+        .Call => false,
+        .Task => true,
         else => return,
     };
 
-    const location = calls.items(.node)[index].location;
-    const prefix: []const u8 = if (kind == .Task) "$ctx.task." else "$ctx.";
-    const value = try std.mem.concat(loader.allocator, u8, &.{ prefix, name });
+    const result = name(loader, row, task) orelse return;
+    const value = try std.mem.concat(loader.allocator, u8, &.{ if (task) "$ctx.task." else "$ctx.", result });
+
+    try publish(loader, index, value);
+}
+
+pub fn publish(loader: *Loader, index: usize, value: []const u8) std.mem.Allocator.Error!void {
+    const location = loader.calls.items(.node)[index].location;
     const attribute = try loader.allocator.create(rx.ast.Attribute);
     attribute.* = .{ .name = "in", .value = value, .kind = .expression, .location = location, .value_location = location };
 
-    calls.items(.input)[index] = attribute;
+    loader.calls.items(.input)[index] = attribute;
 
     try loader.recordArgument(index, try loader.inputs.parse(attribute.*, loader.owner));
 }

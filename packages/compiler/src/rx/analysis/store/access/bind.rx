@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Access" />
+
+    <Args in={Access.FieldBindings} out={void} />
+
+    <Call
+        module="read"
+        in={{
+            source: $in.source,
+            tree: $in.tree,
+            root: $in.root,
+            names: $in.scope.names
+        }}
+    />
+
+    <If on={$ctx.read.length != 0}>
+        <Call
+            fn="publish"
+            in={{
+                scope: $in.scope,
+                output: $in.output,
+                positions: $ctx.read
+            }}
+        />
+    </If>
+</Module>

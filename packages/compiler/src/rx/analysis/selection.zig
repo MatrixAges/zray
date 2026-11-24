@@ -6,14 +6,19 @@ const Diagnostic = @import("expression.zig").Diagnostic;
 const Value = @FieldType(zx.ir.ExpressionRow, "value");
 const enabled = @import("rx_options").generated_graph;
 const Result = union(enum) { exhaustive: bool, diagnostic: Diagnostic };
+const rule = if (enabled) @import("generated_rx_selection_check") else void;
+const Input = if (enabled) std.meta.Child(rule.Input) else void;
+const Labels = if (enabled) std.meta.Child(@FieldType(Input, "labels")) else void;
+const View = if (enabled) std.meta.Child(@FieldType(Labels, "current")) else void;
+
+const Reader = struct {
+    cases: []const ?*const zx.ir.Program,
+    current: View = undefined,
+};
 
 pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) std.mem.Allocator.Error!Result {
     if (comptime !enabled) return seed(subject, attribute, cases, sources);
 
-    const rule = @import("generated_rx_selection_check");
-    const Input = std.meta.Child(rule.Input);
-    const Labels = std.meta.Child(@FieldType(Input, "labels"));
-    const Expressions = std.meta.Child(@FieldType(Labels, "expressions"));
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.heap.page_size_min / 8]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
@@ -21,15 +26,8 @@ pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attrib
     defer arena.deinit();
 
     const temporary = scratch.allocator();
-    const expressions = try temporary.alloc(Expressions, cases.len);
-    const roots = try temporary.alloc(?u32, cases.len);
-
-    for (cases, expressions, roots) |case, *columns, *root| {
-        columns.* = zx.columns.pointer(Expressions, &((case orelse subject).expressions));
-        root.* = if (case) |program| @backingInt(resultExpression(&program.body)) else null;
-    }
-
     const target = subject.typeOf(subject.output_type);
+    var reader: Reader = .{ .cases = cases };
 
     const input: Input = .{
         .subject = &.{
@@ -37,7 +35,11 @@ pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attrib
             .enum_members = if (target == .enumeration) target.enumeration.members.len else null,
             .case_count = cases.len,
         },
-        .labels = &.{ .expressions = expressions, .roots = roots },
+        .labels = &.{
+            .programs = @ptrCast(&reader),
+            .current = &reader.current,
+            .count = cases.len,
+        },
     };
 
     const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
@@ -54,6 +56,19 @@ pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attrib
     }
 
     return .{ .exhaustive = result.coverage.exhaustive };
+}
+
+pub fn borrowFlowSelectionLabel(handle: *const anyopaque, row: u64) bool {
+    const reader: *Reader = @ptrCast(@alignCast(@constCast(handle)));
+    const program = reader.cases[@intCast(row)] orelse return false;
+
+    reader.current = .{
+        .control = zx.columns.pointer(@FieldType(View, "control"), program.body.control),
+        .expressions = zx.columns.pointer(@FieldType(View, "expressions"), &program.expressions),
+        .root = if (program.body.root) |root| @backingInt(root) else null,
+    };
+
+    return true;
 }
 
 fn seed(subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) Result {
@@ -102,13 +117,9 @@ fn duplicate(attribute: rx.ast.Attribute) Result {
 }
 
 fn label(program: zx.ir.Program) Value {
-    return program.expression(resultExpression(&program.body)).value;
-}
+    const block = program.body.block();
 
-fn resultExpression(body: *const zx.ir.ControlBody) zx.ir.ExprId {
-    const block = body.block();
-
-    return block.at(block.len - 1).result.?;
+    return program.expression(block.at(block.len - 1).result.?).value;
 }
 
 fn same(left: Value, right: Value) bool {

@@ -1,12 +1,11 @@
 import { Tag } from "../../schema/execution/model"
 import conditional from "./layout/conditional"
 
-import type { Node } from "../../syntax/document/model"
 import type { Children } from "./model"
 
 export type Input = {
     children: Children,
-    node: Node,
+    child_count: u64,
     tag: Tag,
     root_steps: u64,
     implicit_result: bool
@@ -19,13 +18,13 @@ export default function (in: Input): Output {
         Tag.Module => in.root_steps,
         Tag.If => conditional({
             children: in.children,
-            count: in.node.child_count
+            count: in.child_count
         }),
-        Tag.Task => in.node.child_count + (in.implicit_result ? 1 : 0),
-        Tag.Case => in.node.child_count,
-        Tag.Default => in.node.child_count,
-        Tag.Else => in.node.child_count,
-        Tag.Parallel => in.node.child_count,
+        Tag.Task => in.child_count + (in.implicit_result ? 1 : 0),
+        Tag.Case => in.child_count,
+        Tag.Default => in.child_count,
+        Tag.Else => in.child_count,
+        Tag.Parallel => in.child_count,
         _ => 0
     }
 }

@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Definition" />
+
+    <Args in={Definition.Input.Omit("output_types")} out={void} />
+
+    <Call module="../../../../zx/modules/project/state/check" in={$in.shared} />
+
+    <Call
+        fn="context_issue"
+        in={{
+            shared: $ctx.check,
+            aliases: $in.aliases
+        }}
+    />
+
+    <If on={$ctx.context_issue != null}>
+        <Call
+            fn="host.rejectStoreDefinitionContext"
+            in={[
+                $in.state,
+                $ctx.context_issue
+            ]}
+        />
+    </If>
+</Module>

@@ -23,7 +23,7 @@
         />
     </If>
 
-    <Call module="../references/lookup/resolve" in={$in.signature} />
+    <Call fn="../references/lookup/resolve" in={$in.signature} />
 
     <If on={$ctx.resolve.kind != Source.Kind.ZX}>
         <Return

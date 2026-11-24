@@ -3,24 +3,58 @@
 
     <Args in={Selection.Input} out={void} />
 
+    <Call
+        fn="inspect"
+        in={$in.pick([
+            "tree",
+            "slot",
+            "conditional",
+            "has_else"
+        ])}
+    />
+
+    <Call
+        fn="reserve"
+        in={[
+            $in.rows.storage,
+            $ctx.inspect.case_count
+        ]}
+    />
+
     <If on={$in.conditional}>
         <Call
             fn="conditional"
-            in={$in.omit([
-                "facts",
-                "conditional"
-            ])}
+            in={{
+                tree: $in.tree,
+                units: $in.units,
+                rows: $in.rows,
+                slot: $in.slot,
+                has_else: $in.has_else,
+                branches: $ctx.inspect
+            }}
         />
 
         <Else>
             <Call
                 fn="cases"
-                in={$in.omit([
-                    "subject",
-                    "conditional",
-                    "has_else"
-                ])}
+                in={{
+                    tree: $in.tree,
+                    units: $in.units,
+                    rows: $in.rows,
+                    facts: $in.facts,
+                    branches: $ctx.inspect
+                }}
             />
         </Else>
     </If>
+
+    <Call
+        fn="commit"
+        in={{
+            rows: $in.rows,
+            row: $in.row,
+            attribute: $ctx.inspect.subject,
+            attribute_width: $in.tree.layout.attribute_width
+        }}
+    />
 </Module>

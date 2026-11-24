@@ -63,19 +63,6 @@ pub const TaskOutput = struct {
     }
 };
 
-pub fn checkSelection(self: *Self, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, alternatives: []const Prepared.Case, first: u32, count: u32) Error!bool {
-    const labels = self.compiled.cases.items(.value)[first..][0..count];
-    const checked = try @import("selection.zig").check(self.allocator, subject, attribute, labels, alternatives);
-
-    if (checked == .diagnostic) {
-        self.issue = checked.diagnostic;
-
-        return error.InvalidFlow;
-    }
-
-    return checked.exhaustive;
-}
-
 pub fn checkParallelCall(self: *Self, index: u32, id: u32) Error!void {
     if (try frontend.isParallelSafe(self.allocator, self.calls.items[id].callee)) return;
 

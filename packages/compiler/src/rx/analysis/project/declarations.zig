@@ -1,112 +1,93 @@
 const std = @import("std");
 const rx = @import("rx");
-const generated = @import("rx_options").generated_graph;
-const memory = @import("zx").memory;
-const rule = if (generated) @import("generated_rx_declaration_next") else void;
-const Self = @This();
-pub const Kind = if (generated) @FieldType(std.meta.Child(rule.Input), "kind") else enum { Arguments, TypeImport, Store, Field };
+const zx = @import("zx");
+const enabled = @import("rx_options").generated_graph;
+const entry = if (enabled) @import("generated_rx_visit_declarations") else void;
+const Input = if (enabled) std.meta.Child(entry.Input) else void;
+pub const Kind = if (enabled) @FieldType(Input, "kind") else enum { Arguments, TypeImport, Store, Field };
+pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
 
-const Attributes = struct {
+pub const Attributes = struct {
     first: *const rx.ast.Attribute,
     second: ?*const rx.ast.Attribute,
 };
 
-nodes: []const rx.ast.Node,
-names: if (generated) memory.TextColumn else void,
-kind: Kind,
-start: usize = 0,
-pub fn init(source: rx.ast.Node, kind: Kind) Self {
-    const nodes = source.children;
+pub fn walk(source: rx.ast.Node, comptime kind: Kind, work: anytype) Error!void {
+    if (source.children.len == 0) return;
+    if (comptime enabled) return visit(source, kind, work);
 
-    return .{
-        .nodes = nodes,
-        .names = if (generated) memory.borrowTextColumn("name", nodes) else {},
-        .kind = kind,
-    };
-}
+    for (source.children) |*node| {
+        if (!seedMatches(node.*, kind)) continue;
 
-pub fn next(self: *Self) ?*const rx.ast.Node {
-    if (self.start == self.nodes.len) return null;
+        const attributes = seedAttributes(node, kind);
 
-    const row = if (comptime generated) indexed: {
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-        const selected = rule.executeValue(scratch.allocator(), &.{
-            .names = @ptrCast(&self.names),
-            .count = self.nodes.len,
-            .start = self.start,
-            .kind = self.kind,
-        }) catch unreachable;
-
-        break :indexed if (selected) |index| @as(?usize, @intCast(index)) else null;
-    } else seedNext(self.nodes, self.start, self.kind);
-
-    const index = row orelse {
-        self.start = self.nodes.len;
-
-        return null;
-    };
-
-    self.start = index + 1;
-
-    return &self.nodes[index];
-}
-
-pub fn attributes(node: *const rx.ast.Node, kind: Kind) Attributes {
-    if (comptime generated) {
-        const scan = @import("generated_rx_declaration_attributes");
-        const names = memory.borrowTextColumn("name", node.attributes);
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-        const slots = scan.executeValue(scratch.allocator(), &.{
-            .names = @ptrCast(&names),
-            .count = node.attributes.len,
-            .kind = kind,
-        }) catch unreachable;
-
-        return .{
-            .first = &node.attributes[@intCast(slots.first orelse unreachable)],
-            .second = if (slots.second) |index| &node.attributes[@intCast(index)] else null,
-        };
-    }
-
-    const target = @import("../call/target.zig");
-
-    const primary = switch (kind) {
-        .Arguments => "in",
-        .Field => "name",
-        else => "from",
-    };
-
-    const secondary = switch (kind) {
-        .Arguments => "out",
-        .Field => "value",
-        else => "as",
-    };
-
-    const first = target.borrowAttribute(node.*, primary).?;
-    var second = target.borrowAttribute(node.*, secondary);
-
-    if (kind == .Store) {
-        for (node.attributes) |*attribute| {
-            if (std.mem.eql(u8, attribute.name, secondary)) second = attribute;
+        if (kind == .Arguments) {
+            try work.append(node, attributes);
+        } else {
+            try work.append(attributes);
         }
     }
-
-    return .{ .first = first, .second = second };
 }
 
-fn seedNext(nodes: []const rx.ast.Node, start: usize, kind: Kind) ?usize {
-    const name = switch (kind) {
+fn visit(source: rx.ast.Node, comptime kind: Kind, work: anytype) Error!void {
+    const Tree = std.meta.Child(@FieldType(Input, "tree"));
+    const Layout = std.meta.Child(@FieldType(Tree, "layout"));
+    const References = std.meta.Child(std.meta.Child(@FieldType(Input, "references")));
+    const names = zx.memory.borrowTextColumn("name", source.children);
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const allocator = if (kind == .Store) work.temporary else scratch.allocator();
+
+    entry.executeIn(allocator, &.{
+        .target = @ptrCast(work),
+        .kind = kind,
+        .names = @ptrCast(&names),
+        .tree = &.{ .nodes = std.mem.sliceAsBytes(source.children), .borrowed = null, .layout = &comptime rx.astLayout(Layout) },
+        .next = 0,
+        .count = source.children.len,
+        .edge = 0,
+        .references = if (kind == .Arguments) null else &work.references.view(References, if (kind == .Store) .store else .type_import),
+        .signatures = if (kind == .TypeImport) &.{
+            .indices = @ptrCast(work.signatures.indices),
+            .sources = &.{ .zx_count = work.signatures.graph.sources.zx_count, .rx_end = work.signatures.graph.sources.rx_end },
+        } else null,
+    }) catch |err| switch (@as(anyerror, err)) {
+        error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        error.OutOfMemory, error.InvalidFlow => return @errorCast(err),
+        else => unreachable,
+    };
+}
+
+pub inline fn attribute(bytes: []const u8) *const rx.ast.Attribute {
+    std.debug.assert(bytes.len == @sizeOf(rx.ast.Attribute));
+
+    return @ptrCast(@alignCast(bytes.ptr));
+}
+
+fn seedMatches(node: rx.ast.Node, kind: Kind) bool {
+    return std.mem.eql(u8, node.name, switch (kind) {
         .Arguments => "Args",
         .TypeImport => "Type",
         .Store => "Store",
         .Field => "Field",
+    });
+}
+
+pub fn seedAttributes(node: *const rx.ast.Node, kind: Kind) Attributes {
+    const target = @import("../call/target.zig");
+
+    const names: [2][]const u8 = switch (kind) {
+        .Arguments => .{ "in", "out" },
+        .Field => .{ "name", "value" },
+        else => .{ "from", "as" },
     };
 
-    for (nodes[start..], start..) |node, row| {
-        if (std.mem.eql(u8, node.name, name)) return row;
+    var second = target.borrowAttribute(node.*, names[1]);
+
+    if (kind == .Store) {
+        for (node.attributes) |*item| if (std.mem.eql(u8, item.name, names[1])) {
+            second = item;
+        };
     }
 
-    return null;
+    return .{ .first = target.borrowAttribute(node.*, names[0]).?, .second = second };
 }

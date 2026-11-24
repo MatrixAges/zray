@@ -89,7 +89,7 @@ pub const Walker = struct {
     pub fn taskOutput(self: *Walker, entry: *const Flow.Task) zx.Error!?Graph.Id {
         const attribute = entry.output orelse return null;
 
-        return try inferAttribute(self.expression, self.module.source.path, attribute, null);
+        return try inferAttribute(self.expression, self.module.source.path, attribute.*, null);
     }
     pub fn parallelTaskOutput(self: *Walker, entry: *const Flow.Task) zx.Error!Graph.Id {
         if (!self.returned) {

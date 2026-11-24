@@ -1,0 +1,22 @@
+import type { CallAdmission, InvocationPreparation } from "rx_project_host"
+import type { Input as CallAttributes } from "../../../call/attributes/scan"
+import type { Input as EdgeSearch } from "../../declarations/edges"
+import type { Kind } from "../../flow/traversal/model"
+import type { Signatures } from "../../references/call_signature"
+
+export type Previous = {
+    state: InvocationPreparation,
+    previous_end: u32,
+    previous_kind?: Kind
+}
+
+export type Run = Previous & {
+    attributes: CallAttributes,
+    edges: EdgeSearch,
+    admission: CallAdmission,
+    signatures: Signatures
+}
+
+export type Compiled = Previous.Pick("state") & {
+    edge?: u64
+}

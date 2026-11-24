@@ -3,40 +3,23 @@ const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const Graph = @import("../types.zig");
 const Expression = @import("../expression.zig");
-const Schedule = @import("schedule.zig");
 const generated = @import("rx_options").generated_graph;
 const Kind = enum { Template, Match };
 const batch_size = 16;
 
 pub fn template(self: *Expression, parts: anytype, span: zx.Span) zx.Error!Graph.Id {
-    var result: Graph.Id = undefined;
+    try visit(.Template, self, parts, null);
 
-    inline for (comptime Schedule.steps(.Template)) |step| {
-        switch (step) {
-            .Done => {},
-            .InferInterpolations => try visit(.Template, self, parts, null),
-            .StringResult => result = try self.graph.scalar(.string, span),
-            else => unreachable,
-        }
-    }
-
-    return result;
+    return self.graph.scalar(.string, span);
 }
 
 pub fn matching(self: *Expression, selection: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
-    var result: Graph.Id = undefined;
-    var subject: Graph.Id = undefined;
+    const result = expected orelse try self.graph.add(.unknown, span);
+    const subject = if (selection.subject) |item| try self.infer(item, null) else try self.graph.scalar(.bool, span);
 
-    inline for (comptime Schedule.steps(.Match)) |step| {
-        switch (step) {
-            .Done => {},
-            .MatchResult => result = expected orelse try self.graph.add(.unknown, span),
-            .InferSubject => subject = if (selection.subject) |item| try self.infer(item, null) else try self.graph.scalar(.bool, span),
-            .InferArms => try visit(.Match, self, selection.arms, .{ .subject = subject, .result = result }),
-            .InferFallback => _ = try self.infer(selection.fallback, result),
-            else => unreachable,
-        }
-    }
+    try visit(.Match, self, selection.arms, .{ .subject = subject, .result = result });
+
+    _ = try self.infer(selection.fallback, result);
 
     return result;
 }

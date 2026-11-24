@@ -1,4 +1,8 @@
-import type { Index } from "core/bytes/index/model"
+import type { Index as NamespaceIndex } from "core/bytes/index/model"
+import type { DeclarationTarget } from "rx_project_host"
+import type { Layout } from "../../../syntax/tree/layout"
+
+export type Index = NamespaceIndex
 
 export enum Status {
     Accepted,
@@ -24,4 +28,13 @@ export type Declaration = {
 
 export type Binding = Output & {
     name: string
+}
+
+export type Prepare = {
+    target: DeclarationTarget,
+    edge?: u64,
+    from: u8[],
+    alias?: u8[],
+    layout: Layout,
+    index: Index
 }

@@ -4,6 +4,7 @@ import type {
     StringBuffer,
     U32Buffer
 } from "memory"
+import type { TypeBindingTail } from "rx_project_host"
 
 export type Qualified = {
     alias: string,
@@ -16,16 +17,11 @@ export type Values = {
     capacity: u64
 }
 
-export type Output = {
-    next: u64,
-    visible: u64
-}
-
 export type Input = {
     rows: NamedRows,
     length: u64,
     kinds: u8[],
     qualified?: Qualified,
+    tail: TypeBindingTail,
     values: Values,
-    next: u64
 }

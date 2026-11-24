@@ -3,15 +3,15 @@ import memory from "memory"
 
 import { Tag } from "../../schema/execution/model"
 import { declaration } from "./const"
+import previous from "./previous"
 
 import type { U32Buffer } from "memory"
-import type { Node } from "../../syntax/document/model"
-import type { View } from "./model"
+import type { Children } from "./model"
 
 export type Input = {
-    view: View,
+    children: Children,
     step_rows: U32Buffer,
-    node: Node,
+    child_count: u64,
     tag: Tag,
     first: u64,
     count: u64
@@ -20,26 +20,31 @@ export type Input = {
 export type Output = u64
 
 export default function (in: Input): Output {
-    const implicit = in.tag == Tag.Task && in.count > in.node.child_count
-    const has_else = in.tag == Tag.If && in.count < in.node.child_count
+    const { view, head } = in.children
 
-    const head = match {
-        has_else => in.view.nodes[in.node.children - 1].previous_sibling,
-        _ => in.node.children
+    const implicit = in.tag == Tag.Task && in.count > in.child_count
+    const has_else = in.tag == Tag.If && in.count < in.child_count
+
+    const last = match {
+        has_else => previous([
+            view,
+            head - 1
+        ]),
+        _ => head
     }
 
     const end = in.first + in.count
     const position = implicit ? end - 1 : end
 
     return loop({
-        row: head,
+        row: last,
         position
     }, {
         while: state => state.row != 0 && state.position > in.first,
         next: state => {
             const row = state.row - 1
-            const slot = in.view.slots[row]
-            const flags = integers.widen(memory.readU32(in.view.facts, slot))
+            const slot = view.slots[row]
+            const flags = integers.widen(memory.readU32(view.facts, slot))
             const skipped = integers.andBits(flags, integers.widen(declaration))
 
             if (skipped == 0 || in.tag == Tag.Parallel) {
@@ -51,7 +56,10 @@ export default function (in: Input): Output {
                 )
             }
 
-            state.row = in.view.nodes[row].previous_sibling
+            state.row = previous([
+                view,
+                row
+            ])
         },
         return: state => state.position
     })

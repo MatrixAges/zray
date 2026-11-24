@@ -1,0 +1,57 @@
+<Module>
+    <Type from="model" as="Namespace" />
+
+    <Args in={Namespace.Prepare} out={Namespace.Index} />
+
+    <Call
+        fn="../../project/declarations/host.storeDeclarationName"
+        in={[
+            $in.target,
+            $in.edge
+        ]}
+    />
+
+    <Call
+        fn="explicit"
+        in={$in.pick([
+            "alias",
+            "layout"
+        ])}
+    />
+
+    <Call
+        module="register"
+        in={{
+            index: $in.index,
+            explicit: $ctx.explicit,
+            fallback: $ctx.storeDeclarationName
+        }}
+    />
+
+    <If on={$ctx.register.status == Namespace.Status.Accepted}>
+        <Call
+            fn="../../project/declarations/host.publishStoreDeclaration"
+            in={[
+                $in.target,
+                $in.edge,
+                $in.from,
+                $ctx.register.name
+            ]}
+        />
+
+        <Else>
+            <Call fn="diagnostic" in={$ctx.register.status} />
+
+            <Call
+                fn="../../project/declarations/host.rejectStoreDeclaration"
+                in={[
+                    $in.target,
+                    $in.alias ?? $in.from,
+                    $ctx.diagnostic
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Return value={$ctx.register.index} />
+</Module>

@@ -332,6 +332,10 @@ pub inline fn writeBool(target: *const anyopaque, index: u64, value: bool) Index
     return write(bool, target, index, value);
 }
 
+pub inline fn writeOptionalBool(target: *const anyopaque, index: u64, value: ?bool) IndexError!void {
+    return write(?bool, target, index, value);
+}
+
 pub inline fn writeBytes(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
     return write([]const u8, target, index, value);
 }

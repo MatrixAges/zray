@@ -56,18 +56,12 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
 
     const attributes = checked.value.data.attributes;
 
-    const admission = @import("availability.zig").check(.{
-        .source = attributes.module == null,
-        .check_authority = true,
-        .declared_setter = attributes.setter != null,
-        .setter = options.setter != null,
-        .ambient_store = options.project.context.stores.len != 0,
-    });
+    if ((attributes.setter != null) != (options.setter != null) or options.project.context.stores.len != 0) {
+        return failure(allocator, .{ .path = options.owner, .location = options.call.location, .code = "capability", .message = "Store calls require explicit per-call authorization from module declarations" });
+    }
 
-    if (!admission.authorized) return failure(allocator, .{ .path = options.owner, .location = options.call.location, .code = "capability", .message = "Store calls require explicit per-call authorization from module declarations" });
-
-    const fields = @import("attributes.zig").scan(options.call);
-    const target = fields.module orelse fields.function.?;
+    const function_attribute = borrowAttribute(options.call, "fn");
+    const target = borrowAttribute(options.call, "module") orelse function_attribute.?;
     var project = options.project;
 
     if (project.source_index == null) project.source_index = try frontend.project.source_index.buildIn(allocator, options.sources, project.root_dir);
@@ -107,7 +101,7 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
     };
 
     const absolute = try std.fs.path.resolve(allocator, &.{ project.root_dir, candidate });
-    const member = if (fields.function != null) frontend.project.module_path.callMember(target.value) else null;
+    const member = if (function_attribute != null) frontend.project.module_path.callMember(target.value) else null;
 
     const selected: frontend.project.module_path.CallSource = if (member) |name|
         try frontend.project.module_path.selectQualified(allocator, absolute, name, frontend.project.source_index.Known{ .paths = project.source_index.? })

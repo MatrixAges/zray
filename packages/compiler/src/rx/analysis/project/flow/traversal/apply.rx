@@ -93,7 +93,8 @@
                     "inference",
                     "end",
                     "case_remaining",
-                    "case_stopped"
+                    "case_stopped",
+                    "coverage"
                 ])}
             />
         </Case>
@@ -129,17 +130,34 @@
         </Case>
 
         <Case value={Model.Action.CloseParallel}>
-            <Call fn="host.closeFlowParallel" in={$in.frame} />
+            <Call fn="host.mergeFlowParallelBindings" in={$in.frame} />
+
+            <If on={$in.returns == null}>
+                <Call
+                    fn="publish_step"
+                    in={{
+                        frame: $in.frame,
+                        index: $in.cursor.destination,
+                        kind: Host.FlowKind.Parallel
+                    }}
+                />
+            </If>
         </Case>
 
         <Case value={Model.Action.CloseSelection}>
-            <Call
-                fn="host.completeFlowBranch"
-                in={[
-                    $in.frame,
-                    true
-                ]}
-            />
+            <If on={$in.returns == null}>
+                <Call fn="host.checkFlowSelection" in={$in.frame} />
+
+                <Call
+                    fn="publish_step"
+                    in={{
+                        frame: $in.frame,
+                        index: $in.cursor.destination,
+                        kind: Host.FlowKind.Selection,
+                        exhaustive: $ctx.checkFlowSelection
+                    }}
+                />
+            </If>
         </Case>
 
         <Case value={Model.Action.CloseCase}>
@@ -149,7 +167,9 @@
                     "frame",
                     "lengths",
                     "saved_bindings",
-                    "saved_facts"
+                    "saved_facts",
+                    "cursor",
+                    "returns"
                 ])}
             />
         </Case>

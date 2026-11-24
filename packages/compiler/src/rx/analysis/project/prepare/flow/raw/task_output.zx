@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import {
+    check_task_event
+} from "../../../../../dependency_graph/flow/const"
+import find from "../../../../../schema/tree/attribute_row"
+import { task_out } from "../const"
+
+import type { Layout } from "../../../../../syntax/tree/layout"
+import type { Buffers } from "./model"
+
+export type Input = {
+    layout: Layout,
+    node: u8[],
+    buffers: Buffers,
+    slot: u64,
+    event: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const output = find({
+        layout: in.layout,
+        node: in.node,
+        key: task_out
+    })
+
+    memory.writeU32(in.buffers.facts, in.slot, output == null ? 0 : 1)
+
+    if (output == null) {
+        return in.event
+    }
+
+    memory.writeU64(in.buffers.events, in.event, check_task_event + in.slot)
+
+    return in.event + 1
+}

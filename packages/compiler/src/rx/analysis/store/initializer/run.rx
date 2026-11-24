@@ -25,6 +25,7 @@
             in={{
                 frame: $in.frame,
                 layout: $in.layout,
+                fields: $in.fields,
                 row: $ctx.plan.first,
                 end: $ctx.plan.end,
                 next: $ctx.plan.next,

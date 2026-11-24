@@ -5,6 +5,7 @@ export enum Status {
     Resolved,
     NonSource,
     Native,
+    MissingAlias,
     MissingSignature
 }
 
@@ -15,5 +16,5 @@ export type Input = {
 
 export type Output = {
     status: Status,
-    index?: i64
+    index?: u64
 }

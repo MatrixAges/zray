@@ -15,9 +15,12 @@ names: []const []const u8 = &.{},
 ends: []const u64 = &.{},
 pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.Error!void {
     for (modules, 0..) |module, index| {
-        var declarations = Declarations.init(module.source.node, .Arguments);
+        var work: Ports = .{ .source = self, .module = index };
 
-        while (declarations.next()) |node| try self.appendPorts(index, node);
+        Declarations.walk(module.source.node, .Arguments, &work) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidFlow => unreachable,
+        };
     }
 
     if (self.entries.len == 0) return;
@@ -43,12 +46,25 @@ pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.
     self.ends = result.ends;
 }
 
-fn appendPorts(self: *Self, module: usize, node: *const rx.ast.Node) std.mem.Allocator.Error!void {
-    const ports = Declarations.attributes(node, .Arguments);
+const Ports = struct {
+    source: *Self,
+    module: usize,
+    pub fn append(self: *Ports, node: *const rx.ast.Node, ports: Declarations.Attributes) std.mem.Allocator.Error!void {
+        const source = self.source;
 
-    for ([_]*const rx.ast.Attribute{ ports.first, ports.second.? }) |attribute| {
-        try self.entries.append(self.allocator, .{ .module = module, .location = node.location, .attribute = attribute, .expression = attribute.value });
+        for ([_]*const rx.ast.Attribute{ ports.first, ports.second.? }) |attribute| {
+            try source.entries.append(source.allocator, .{ .module = self.module, .location = node.location, .attribute = attribute, .expression = attribute.value });
+        }
     }
+};
+
+pub fn publishArgumentDeclaration(handle: *const anyopaque, node: []const u8, first: []const u8, second: []const u8) std.mem.Allocator.Error!void {
+    const ports: *Ports = @ptrCast(@alignCast(@constCast(handle)));
+
+    try ports.append(@ptrCast(@alignCast(node.ptr)), .{
+        .first = Declarations.attribute(first),
+        .second = Declarations.attribute(second),
+    });
 }
 
 fn seed(self: *Self) std.mem.Allocator.Error!void {

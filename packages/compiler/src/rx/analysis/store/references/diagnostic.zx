@@ -1,0 +1,10 @@
+import { invalid_namespace, duplicate_namespace } from "./const"
+import { Status } from "./model"
+
+export type Input = Status
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return in == Status.Duplicate ? duplicate_namespace : invalid_namespace
+}

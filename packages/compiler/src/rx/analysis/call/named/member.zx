@@ -1,5 +1,7 @@
 import memory from "memory"
 
+import position from "./member_position"
+
 import type { Members } from "./model"
 
 export type Input = {
@@ -13,17 +15,13 @@ export type Output = u32?
 export default function (in: Input): Output {
     const { members, module, name } = in
 
-    const end = memory.listLength(members.names, module)
-
-    const row = loop(0, {
-        while: index =>
-            index < end && memory.readListText(members.names, module, index) != name,
-        next: index => {
-            index += 1
-        }
+    const row = position({
+        names: members.names,
+        module,
+        name
     })
 
-    if (row == end) {
+    if (row == null) {
         return null
     }
 

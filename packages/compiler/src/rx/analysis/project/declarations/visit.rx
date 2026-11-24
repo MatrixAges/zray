@@ -1,0 +1,9 @@
+<Module>
+    <Type from="workflow" as="Declaration" />
+
+    <Args in={Declaration.Visit} out={void} />
+
+    <Loop on={$in.next < $in.count}>
+        <Call module="step" in={$in} />
+    </Loop>
+</Module>

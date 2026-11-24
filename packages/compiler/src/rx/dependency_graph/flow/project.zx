@@ -21,11 +21,9 @@ import type { Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const view = in.view
-
     const children = {
-        view,
-        head: view.nodes[in.row].children
+        view: in.view,
+        head: in.head
     }
 
     return match in.tag {

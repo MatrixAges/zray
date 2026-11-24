@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Run} out={void} />
+
+    <If on={$in.body == null}>
+        <Call module="../invocation/run" in={$in.invocation} />
+
+        <Else>
+            <Loop on={$in.remaining != 0}>
+                <Call module="step" in={$in} />
+            </Loop>
+        </Else>
+    </If>
+</Module>

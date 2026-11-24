@@ -1,0 +1,15 @@
+import integers from "std:integer"
+import columns from "memory/columns"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { payload, event } = in
+
+    const row = integers.widen(event.item)
+
+    columns.writeColumnU32(payload.groups.first, row, event.first)
+    columns.writeColumnU32(payload.groups.count, row, event.count)
+}

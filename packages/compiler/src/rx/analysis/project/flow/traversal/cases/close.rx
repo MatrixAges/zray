@@ -1,15 +1,17 @@
 <Module>
     <Type from="../effect" as="Effect" />
 
-    <Args in={Effect.CaseClose} out={void} />
+    <Args in={Effect.BranchClose} out={void} />
 
-    <Call
-        fn="../host.completeFlowBranch"
-        in={[
-            $in.frame,
-            false
-        ]}
-    />
+    <If on={$in.returns == null}>
+        <Call
+            fn="../host.finishFlowCase"
+            in={[
+                $in.frame,
+                $in.cursor.destination
+            ]}
+        />
+    </If>
 
     <Call
         fn="../host.shrinkLengthSlot"

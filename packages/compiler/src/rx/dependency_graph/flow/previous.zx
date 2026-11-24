@@ -1,0 +1,15 @@
+import type { View } from "./model"
+
+export type Input = [
+    View,
+    u64
+]
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const [view, row] = in
+    const { nodes, siblings } = view
+
+    return nodes == null ? siblings[row] : nodes[row].previous_sibling
+}

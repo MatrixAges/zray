@@ -1,0 +1,26 @@
+import { Admission } from "../../../../zx/modules/project/state/model"
+import checkAliases from "../type/aliases"
+import {
+    invalid_aliases,
+    invalid_natives,
+    invalid_nominals,
+    invalid_types
+} from "./const"
+
+import type { Input as AliasCheck } from "../type/aliases"
+
+export type Input = {
+    shared: Admission,
+    aliases: AliasCheck
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    return match in.shared {
+        Admission.Types => invalid_types,
+        Admission.Native => invalid_natives,
+        Admission.Nominal => invalid_nominals,
+        _ => checkAliases(in.aliases) ? null : invalid_aliases
+    }
+}

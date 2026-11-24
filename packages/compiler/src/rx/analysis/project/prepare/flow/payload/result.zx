@@ -1,0 +1,33 @@
+import integers from "std:integer"
+import columns from "memory/columns"
+
+import find from "../../../../../schema/tree/attribute_row"
+import { result_value, task_out } from "../const"
+import node from "../tree"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { tree, payload, event } = in
+
+    const source = node([
+        tree,
+        event.slot
+    ])
+
+    const implicit = event.implicit_item
+
+    const value = find({
+        layout: tree.layout,
+        node: source,
+        key: implicit == null ? result_value : task_out
+    })
+
+    columns.writeRow(
+        payload.results,
+        integers.widen(implicit ?? event.item),
+        value ?? []
+    )
+}

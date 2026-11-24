@@ -1,7 +1,13 @@
-import type { ColumnLengths, ReadColumn } from "memory"
+import type { ColumnLengths, ReadColumn, WriteColumn } from "memory"
 import type { FlowTraversal } from "rx_project_host"
 import type { Cursor, Plan, ReturnState } from "./model"
 import type { Rows as ResultRows } from "./select_result"
+
+export type CoverageTarget = {
+    truth: WriteColumn,
+    stopped: WriteColumn,
+    remaining: WriteColumn
+}
 
 export type Request = Plan & {
     frame: FlowTraversal,
@@ -10,6 +16,7 @@ export type Request = Plan & {
     cursor_length: ColumnLengths,
     labels: ReadColumn,
     fallback: u8,
+    coverage: CoverageTarget,
     returns?: ReturnState,
     results?: ResultRows
 }

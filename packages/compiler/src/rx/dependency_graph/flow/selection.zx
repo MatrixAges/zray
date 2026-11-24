@@ -2,6 +2,7 @@ import integers from "std:integer"
 import memory from "memory"
 
 import { alternate, returns, terminates } from "./const"
+import previous from "./previous"
 
 import type { Children } from "./model"
 
@@ -30,7 +31,10 @@ export default function (in: Input): Output {
             state.has_return = state.has_return || yields
             state.all_end = state.all_end && stops
             state.fallback = state.fallback || otherwise
-            state.row = view.nodes[row].previous_sibling
+            state.row = previous([
+                view,
+                row
+            ])
         }
     })
 

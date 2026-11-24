@@ -18,37 +18,24 @@ pub fn reads(allocator: std.mem.Allocator, backing: std.mem.Allocator, parsed: I
     defer arena.deinit();
 
     const rule = @import("generated_rx_store_reads");
+    const Input = std.meta.Child(rule.Input);
+    const Destination = std.meta.Child(@FieldType(Input, "output"));
+    var bindings: memory.RowOutput(Binding, std.meta.Child(@FieldType(Destination, "fields")), .{}) = undefined;
 
-    const positions = try invoke(rule.executeValue, scratch.allocator(), .{
+    bindings.init();
+    errdefer allocator.free(bindings.rows());
+
+    const input: Input = .{
         .source = parsed.source,
         .tree = parsed.output.expressions,
         .root = parsed.output.result,
-        .names = scope.names,
-    });
-
-    if (positions.len == 0) return &.{};
-
-    const result = try allocator.alloc(Binding, positions.len);
-
-    errdefer allocator.free(result);
-
-    const names = memory.borrowWriteColumn([]const u8, "name", result);
-    const paths = memory.borrowWriteColumn([]const u8, "path", result);
-    const types = memory.borrowWriteColumn(u32, "type_id", result);
-    const publish = @import("generated_rx_store_read_bindings");
-    const Input = std.meta.Child(publish.Input);
-
-    const input: Input = .{
         .scope = zx.columns.pointer(@FieldType(Input, "scope"), &scope),
-        .positions = positions,
-        .names = @ptrCast(&names),
-        .paths = @ptrCast(&paths),
-        .types = @ptrCast(&types),
+        .output = &.{ .owner = @ptrCast(&allocator), .rows = @ptrCast(&bindings.buffer), .fields = &bindings.view },
     };
 
-    try invoke(publish.executeValue, scratch.allocator(), input);
+    try invoke(rule.executeIn, scratch.allocator(), input);
 
-    return result;
+    return bindings.rows();
 }
 
 pub fn setter(backing: std.mem.Allocator, parsed: Indexed, scope: Scope) std.mem.Allocator.Error!Setter {

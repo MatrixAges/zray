@@ -1,0 +1,41 @@
+import type { TextColumn } from "memory"
+import type { DeclarationTarget } from "rx_project_host"
+import type { Index } from "../../store/references/model"
+import type { Tree } from "../prepare/flow/tree"
+import type { Input as Lookup } from "../references/lookup/model"
+import type { Input as References } from "../source_graph/references/next"
+import type { Kind } from "./model"
+
+export type Signatures = Lookup.Omit("owner")
+
+export type Run = {
+    target: DeclarationTarget,
+    kind: Kind,
+    names: TextColumn,
+    tree: Tree,
+    next: u64,
+    count: u64,
+    references?: References,
+    signatures?: Signatures,
+    edge: u64
+}
+
+export type Visit = Run & {
+    tag: string,
+    namespaces: Index
+}
+
+export type Hit = {
+    next: u64,
+    node?: u8[],
+    first?: u8[],
+    second?: u8[]
+}
+
+export type TypeImport = {
+    target: DeclarationTarget,
+    from: u8[],
+    alias?: u8[],
+    edge?: u64,
+    signatures?: Signatures
+}

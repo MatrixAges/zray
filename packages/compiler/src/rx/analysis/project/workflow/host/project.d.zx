@@ -38,8 +38,8 @@ export declare function prepareDerivedFlow(state: Derivation): void
 export declare function solveDerivedFlow(state: Derivation): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function completeDerivedShortcuts(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
+export declare function completeDerivedShortcut(state: Derivation, row: u64): void
+    throws { OutOfMemory }
 
 export declare function publishDerivedFrame(state: Derivation): void
 

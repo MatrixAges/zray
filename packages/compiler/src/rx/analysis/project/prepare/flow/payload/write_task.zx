@@ -1,0 +1,53 @@
+import integers from "std:integer"
+import columns from "memory/columns"
+
+import find from "../../../../../schema/tree/attribute_row"
+import { task_out } from "../const"
+import { Route } from "../model"
+import node from "../tree"
+import reference from "../write_reference"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { tree, payload, event } = in
+    const { tasks } = payload
+
+    const row = integers.widen(event.item)
+
+    const source = node([
+        tree,
+        event.slot
+    ])
+
+    const explicit_output = event.route == Route.Task && event.task_output
+
+    const output: u8[]? = match {
+        explicit_output => find({
+            layout: tree.layout,
+            node: source,
+            key: task_out
+        }),
+        _ => null
+    }
+
+    reference([
+        tasks.node,
+        row,
+        source,
+        tree.layout.node_width
+    ])
+
+    reference([
+        tasks.output,
+        row,
+        output,
+        tree.layout.attribute_width
+    ])
+
+    columns.writeColumnOptionalU32(tasks.id, row, event.task_id)
+    columns.writeColumnU32(tasks.first, row, event.first)
+    columns.writeColumnU32(tasks.count, row, event.count)
+}

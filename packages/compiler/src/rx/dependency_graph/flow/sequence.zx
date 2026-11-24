@@ -11,6 +11,7 @@ import {
     terminates,
     unreachable
 } from "./const"
+import previous from "./previous"
 
 import type { Children } from "./model"
 
@@ -33,7 +34,10 @@ export default function (in: Input): Output {
             const row = state.row - 1
             const slot = view.slots[row]
             const flags = integers.widen(memory.readU32(view.facts, slot))
-            state.row = view.nodes[row].previous_sibling
+            state.row = previous([
+                view,
+                row
+            ])
 
             if (integers.andBits(flags, integers.widen(declaration)) == 0) {
                 const stop = integers.andBits(flags, integers.widen(terminates)) != 0

@@ -1,15 +1,17 @@
 import type { StoreInitializer } from "rx_project_host"
+import type { Fields } from "./fields/attributes"
 import type { Layout } from "./fields/model"
 import type { Work } from "./object/model"
 
 export type Request = {
     frame: StoreInitializer,
     layout: Layout,
+    fields: Fields,
     first: u32,
     object: Work
 }
 
-export type Scan = Request.Pick("frame", "layout") & {
+export type Scan = Request.Pick("frame", "layout", "fields") & {
     row: u64,
     end: u64,
     next?: u32,

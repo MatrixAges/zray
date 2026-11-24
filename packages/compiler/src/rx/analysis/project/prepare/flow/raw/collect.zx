@@ -1,0 +1,75 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Input, Rows as Output } from "./model"
+
+export default function (in: Input): Output {
+    const width = in.layout.node_width
+    const pending: u8[] = []
+
+    return loop({
+        nodes: [in.root],
+        children: [0],
+        counts: [0],
+        parents: [0],
+        siblings: [0],
+        slots: [0],
+        pending,
+        row: 0,
+        parent: 0,
+        previous: 0
+    }, {
+        while: state => state.row < state.nodes.length,
+        next: state => {
+            if (state.pending.length == 0) {
+                const row = state.row
+                const children = columns.readBorrowedRowList(
+                    state.nodes[row],
+                    in.layout.node_children,
+                    width
+                )
+
+                const count = children.length / width
+
+                state.parent = row + 1
+                state.previous = 0
+                state.pending = children
+                state.counts[row] = count
+                state.children[row] = count == 0 ? 0 : state.nodes.length + count
+
+                if (count == 0) {
+                    state.row += 1
+                }
+            } else {
+                const slot = state.nodes.length
+                const child = memory.borrowU8Range(state.pending, 0, width)
+
+                state.nodes = state.nodes.push(child)[0]
+                state.children = state.children.push(0)[0]
+                state.counts = state.counts.push(0)[0]
+                state.parents = state.parents.push(state.parent)[0]
+                state.siblings = state.siblings.push(state.previous)[0]
+                state.slots = state.slots.push(slot)[0]
+
+                state.previous = slot + 1
+                state.pending = memory.borrowU8Range(
+                    state.pending,
+                    width,
+                    state.pending.length - width
+                )
+
+                if (state.pending.length == 0) {
+                    state.row += 1
+                }
+            }
+        },
+        return: state => state.pick([
+            "nodes",
+            "children",
+            "counts",
+            "parents",
+            "siblings",
+            "slots"
+        ])
+    })
+}

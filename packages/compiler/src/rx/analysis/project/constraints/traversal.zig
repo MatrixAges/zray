@@ -133,7 +133,11 @@ pub const Host = struct {
         if (selected.cases[first].label.kind == .Default) {
             selected.cases[first].truth = try selected.labels.remaining(selected.cases[first + 1 ..]);
         } else {
-            selected.labels.observe(try self.labelCase(current, first));
+            const truth = try self.labelCase(current, first);
+
+            selected.cases[first].truth = truth;
+
+            selected.labels.observe(truth);
         }
 
         const facts = walker.expression.nonnull.items.len;
@@ -150,9 +154,8 @@ pub const Host = struct {
         defer label.deinit();
 
         _ = try self.walker.inferParsed(&label, attribute, selected.subject);
-        case.truth = condition.boolean(&label);
 
-        return case.truth;
+        return condition.boolean(&label);
     }
     pub fn refineCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
         const selected = &current.payload.Selection;
@@ -185,9 +188,7 @@ pub const Host = struct {
 
     pub fn closeSelection(_: *Host) zx.Error!void {}
 
-    pub fn closeCase(self: *Host, comptime restore: bool) zx.Error!void {
-        if (!restore) return;
-
+    pub fn closeCase(self: *Host) zx.Error!void {
         const expression = self.walker.expression;
         const saved = self.frame().payload.Case;
 

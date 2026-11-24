@@ -1,23 +1,6 @@
-import type { TextColumn } from "memory"
-
 export enum Kind {
     Arguments,
     TypeImport,
     Store,
     Field
-}
-
-export type Names = {
-    names: TextColumn,
-    count: u64,
-    kind: Kind
-}
-
-export type Rows = Names & {
-    start: u64
-}
-
-export type Attributes = {
-    first?: u64,
-    second?: u64
 }

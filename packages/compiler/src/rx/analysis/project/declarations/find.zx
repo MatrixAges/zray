@@ -1,0 +1,52 @@
+import memory from "memory"
+
+import readNode from "../prepare/flow/tree"
+import fields from "./fields"
+
+import type { Hit as Output, Visit } from "./workflow"
+
+export type Input = Visit.Pick("names", "tree", "next", "count", "kind", "tag")
+
+export default function (in: Input): Output {
+    const { tree, kind, count, tag } = in
+
+    const layout = tree.layout
+    const empty: u8[]? = null
+
+    const found = loop({
+        next: in.next,
+        node: empty
+    }, {
+        while: state => state.node == null && state.next < count,
+        next: state => {
+            if (memory.readTextColumn(in.names, state.next) == tag) {
+                state.node = readNode([
+                    tree,
+                    state.next
+                ])
+            }
+
+            state.next += 1
+        }
+    })
+
+    const node = found.node
+
+    if (node == null) {
+        return {
+            next: found.next
+        }
+    }
+
+    const attributes = fields({
+        node,
+        layout,
+        kind
+    })
+
+    return {
+        next: found.next,
+        node,
+        ...attributes
+    }
+}

@@ -7,35 +7,6 @@ const enabled = @import("rx_options").generated_graph;
 const rule = if (enabled) @import("generated_rx_shortcut_lower") else void;
 pub const call_index = 0;
 
-pub fn nextDeferred(modules: []const @import("prepare.zig").Module, first: usize) ?usize {
-    if (first == modules.len) return null;
-
-    if (comptime enabled) {
-        const Module = std.meta.Elem(@TypeOf(modules));
-
-        comptime if (@sizeOf(@FieldType(Module, "deferred_shortcut")) != @sizeOf(u8)) @compileError("Incompatible layout for borrowing deferred shortcut marks");
-
-        const scan = @import("generated_rx_shortcut_deferred");
-        const bytes = std.mem.sliceAsBytes(modules);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const result = scan.executeValue(empty.allocator(), &.{
-            .marks = bytes[@offsetOf(Module, "deferred_shortcut")..],
-            .stride = @sizeOf(Module),
-            .start = first,
-            .count = modules.len,
-        }) catch unreachable;
-
-        return if (result) |row| @intCast(row) else null;
-    }
-
-    for (modules[first..], first..) |*module, row| {
-        if (module.deferred_shortcut) return row;
-    }
-
-    return null;
-}
-
 pub fn call(node: rx.ast.Node) rx.ast.Node {
     const attribute = target.borrowAttribute(node, "fn").?;
     const attributes: *const [1]rx.ast.Attribute = @ptrCast(attribute);

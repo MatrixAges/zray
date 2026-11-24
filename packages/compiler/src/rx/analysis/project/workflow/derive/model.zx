@@ -1,0 +1,8 @@
+import type { ReadColumn } from "memory"
+import type { Input as Signatures } from "./signatures/model"
+
+export type Input = Signatures & {
+    shortcuts: ReadColumn
+}
+
+export type Resolve = Input.Omit("retained")

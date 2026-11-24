@@ -1,4 +1,5 @@
 const std = @import("std");
+const Declarations = @import("../../project/declarations.zig");
 const State = @import("state.zig");
 const Fields = @import("fields.zig");
 const object = @import("object.zig");
@@ -15,7 +16,9 @@ pub fn run(state: *State) std.mem.Allocator.Error!Value {
 
     while (ranges.next()) |range| {
         for (range.first..range.end, cursor..) |row, position| {
-            try state.openField(row);
+            const attributes = Declarations.seedAttributes(options.layout.fields[row], .Field);
+
+            try state.openField(row, attributes.first, attributes.second.?);
 
             defer state.releaseField();
 

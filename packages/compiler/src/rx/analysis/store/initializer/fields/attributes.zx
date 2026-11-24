@@ -1,0 +1,37 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import read from "../../../project/declarations/fields"
+import { Kind } from "../../../project/declarations/model"
+
+import type { Layout } from "../../../../syntax/tree/layout"
+
+export type Fields = {
+    pointers: u8[],
+    width: u64,
+    layout: Layout
+}
+
+export type Input = {
+    fields: Fields,
+    row: u64
+}
+
+export type Output = {
+    first?: u8[],
+    second?: u8[]
+}
+
+export default function (in: Input): Output {
+    const { fields, row } = in
+    const { layout, width, pointers } = fields
+
+    const address = memory.borrowU8Range(pointers, row * width, width)
+    const node = columns.readBorrowedRowReference(address, 0, layout.node_width)
+
+    return read({
+        node: node ?? [],
+        layout,
+        kind: Kind.Field
+    })
+}

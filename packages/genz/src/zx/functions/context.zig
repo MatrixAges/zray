@@ -2,40 +2,24 @@ const std = @import("std");
 const Lower = @import("../lower.zig");
 const generated = @import("genz_options").generated_analysis;
 const allocating = @import("generated_function_context_reserve");
-const resetting = if (generated) @import("generated_function_context_reset") else void;
-const ResetForm = if (generated) resetting.Input else enum { Body, Adapter, StateView };
-
-const ResetField = if (generated) std.meta.Child(resetting.Output) else enum {
-    References,
-    ProjectedSymbols,
-    InputAliases,
-    UsesAllocator,
-    UsesContext,
-    UsesIo,
-    UsesProcess,
-    AllowsAllocation,
-};
+const ResetForm = enum { Body, Adapter, StateView };
 
 pub inline fn reset(self: *Lower, comptime form: ResetForm) void {
-    const fields: []const ResetField = comptime if (generated)
-        @import("zx").staticSequence(resetting, form)
+    self.reference_storage = .empty;
 
-    else switch (form) {
-        .Body => &.{ .References, .ProjectedSymbols, .InputAliases, .UsesAllocator, .UsesContext, .UsesIo, .UsesProcess },
-        .Adapter => &.{ .References, .UsesAllocator, .UsesContext, .UsesIo, .UsesProcess, .AllowsAllocation },
-        .StateView => &.{.References},
-    };
+    if (form == .StateView) return;
 
-    inline for (fields) |field| switch (field) {
-        .References => self.reference_storage = .empty,
-        .ProjectedSymbols => self.projected_symbols = null,
-        .InputAliases => self.input_aliases = null,
-        .UsesAllocator => self.uses_allocator = false,
-        .UsesContext => self.uses_context = false,
-        .UsesIo => self.uses_io = false,
-        .UsesProcess => self.uses_process = false,
-        .AllowsAllocation => self.allows_allocation = true,
-    };
+    if (form == .Body) {
+        self.projected_symbols = null;
+        self.input_aliases = null;
+    }
+
+    self.uses_allocator = false;
+    self.uses_context = false;
+    self.uses_io = false;
+    self.uses_process = false;
+
+    if (form == .Adapter) self.allows_allocation = true;
 }
 
 pub fn reserve(self: *Lower) Lower.Error!void {

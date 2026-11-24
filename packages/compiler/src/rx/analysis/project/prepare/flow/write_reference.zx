@@ -1,0 +1,20 @@
+import columns from "memory/columns"
+
+import type { WriteColumn } from "memory/columns"
+
+export type Input = [
+    WriteColumn,
+    u64,
+    u8[]?,
+    u64
+]
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const [column, row, bytes, width] = in
+
+    const index: u64? = bytes == null ? null : 0
+
+    columns.writeColumnRowReference(column, row, bytes ?? [], width, index)
+}

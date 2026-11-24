@@ -20,28 +20,9 @@ pub const MemberColumns = struct {
     }
 };
 
-const Selection = if (generated) @typeInfo(@TypeOf(@import("generated_rx_named_signature").executeValue(undefined, undefined))).error_union.payload else struct { row: ?u64, has_store: bool };
+const Selection = struct { row: ?u64, has_store: bool };
 
-pub fn signature(members: Members, name: []const u8) Selection {
-    if (comptime generated) {
-        const Member = std.meta.Elem(Members);
-        const names = zx.memory.borrowTextColumn("name", members);
-        const kinds = zx.memory.borrowReadColumn(Member.Kind, "kind", members);
-        const stores = zx.memory.borrowReadColumn(bool, "has_store", members);
-        const entry = @import("generated_rx_named_signature");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const input: std.meta.Child(entry.Input) = .{
-            .names = &.{ .rows = @ptrCast(&names), .length = members.len, .default_name = null },
-            .name = name,
-            .kinds = @ptrCast(&kinds),
-            .stores = @ptrCast(&stores),
-            .callable = @backingInt(Member.Kind.callable),
-        };
-
-        return zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
-    }
-
+pub fn signatureSeed(members: Members, name: []const u8) Selection {
     const row = position("name", members, name) orelse return .{ .row = null, .has_store = false };
     const member = members[row];
 
@@ -123,7 +104,7 @@ pub fn inspect(calls: anytype, modules: anytype, path: []const u8) Check {
         if (row == null) continue;
 
         const valid = if (signed) valid: {
-            const selected = signature(members, name);
+            const selected = signatureSeed(members, name);
 
             break :valid selected.row != null and !selected.has_store;
         } else memberId(members, name) != null;

@@ -15,7 +15,7 @@ export type Input = Batch.Pick("action", "item", "position") & Cursor.Pick(
     labels: ReadColumn,
     fallback: u8,
     inference: bool
-} & Request.Pick("cursor", "returns", "results")
+} & Request.Pick("cursor", "returns", "results", "coverage")
 
 export type CaseCoverage = Input.Pick(
     "frame",
@@ -24,12 +24,15 @@ export type CaseCoverage = Input.Pick(
     "fallback",
     "end",
     "case_remaining",
-    "case_stopped"
+    "case_stopped",
+    "coverage"
 )
 
 export type Row = CaseCoverage & Input.Pick("lengths", "inference")
 
 export type CaseClose = Input.Pick("frame", "lengths", "saved_bindings", "saved_facts")
+
+export type BranchClose = CaseClose & Input.Pick("cursor", "returns")
 
 export type TaskClose = CaseClose.Omit("saved_facts") & Request.Pick(
     "cursor",

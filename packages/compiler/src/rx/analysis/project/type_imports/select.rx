@@ -1,0 +1,76 @@
+<Module>
+    <Type from="admission" as="Import" />
+    <Type from="../declarations/workflow" as="Declaration" />
+
+    <Args in={Declaration.TypeImport} out={void} />
+
+    <If on={$in.alias == null}>
+        <Call fn="diagnostic" in={Import.Status.MissingAlias} />
+
+        <Call
+            fn="../declarations/host.rejectTypeDeclaration"
+            in={[
+                $in.target,
+                $in.from,
+                $ctx.diagnostic
+            ]}
+        />
+
+        <Else>
+            <If on={$in.signatures != null}>
+                <Call
+                    fn="../declarations/host.typeDeclarationTarget"
+                    in={[
+                        $in.target,
+                        $in.edge
+                    ]}
+                />
+
+                <Call
+                    fn="../declarations/host.typeDeclarationOwner"
+                    in={[
+                        $in.target,
+                        $in.edge
+                    ]}
+                />
+
+                <Call
+                    module="admit"
+                    in={{
+                        target: $ctx.typeDeclarationTarget,
+                        signature: {
+                            ...$in.signatures,
+                            owner: $ctx.typeDeclarationOwner
+                        }
+                    }}
+                />
+
+                <Switch on={$ctx.admit.status}>
+                    <Case value={Import.Status.Resolved}>
+                        <Call
+                            fn="../declarations/host.publishTypeDeclaration"
+                            in={[
+                                $in.target,
+                                $ctx.admit.index,
+                                $in.alias ?? []
+                            ]}
+                        />
+                    </Case>
+
+                    <Default>
+                        <Call fn="diagnostic" in={$ctx.admit.status} />
+
+                        <Call
+                            fn="../declarations/host.rejectTypeDeclaration"
+                            in={[
+                                $in.target,
+                                $in.from,
+                                $ctx.diagnostic
+                            ]}
+                        />
+                    </Default>
+                </Switch>
+            </If>
+        </Else>
+    </If>
+</Module>

@@ -1,0 +1,31 @@
+import memory from "memory"
+
+import type { Layout } from "../../../../syntax/tree/layout"
+import type { Tree as Borrowed } from "./raw/model"
+
+export type Tree = {
+    nodes: u8[],
+    borrowed?: Borrowed,
+    layout: Layout
+}
+
+export type Input = [
+    Tree,
+    u64
+]
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const [tree, slot] = in
+
+    const borrowed = tree.borrowed
+
+    if (borrowed != null) {
+        return borrowed.nodes[slot]
+    }
+
+    const width = tree.layout.node_width
+
+    return memory.borrowU8Range(tree.nodes, slot * width, width)
+}

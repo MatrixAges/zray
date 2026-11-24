@@ -11,6 +11,13 @@ const callees = @import("project/mixed/callees.zig");
 const imports = @import("project/mixed/imports.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @import("selection.zig"),
+    @import("project/type_imports.zig"),
+    @import("project/type_imports/publish.zig"),
+    @import("project/contracts/source.zig"),
+    @import("store/references.zig"),
+    @import("project/prepare/invocation/host.zig"),
+    @import("project/prepare/modules/host.zig"),
     @This(),
     @import("rx").graph_registration,
     @import("inference/assignment/application/host.zig"),
@@ -67,4 +74,5 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/workflow/infer/host.zig"),
     @import("project/workflow/solve/host.zig"),
     @import("store/initializer/host.zig"),
+    @import("store/prepare/host.zig"),
 }).resolve;

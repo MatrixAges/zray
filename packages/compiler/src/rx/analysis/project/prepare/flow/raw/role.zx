@@ -1,0 +1,19 @@
+import columns from "memory/columns"
+
+import { Tag } from "../../../../../schema/execution/model"
+import classify from "../../../../../schema/execution/tag"
+
+import type { Layout } from "../../../../../syntax/tree/layout"
+
+export type Input = [
+    Layout,
+    u8[]
+]
+
+export type Output = Tag
+
+export default function (in: Input): Output {
+    const [layout, node] = in
+
+    return classify(columns.readBorrowedRowText(node, layout.node_name))
+}

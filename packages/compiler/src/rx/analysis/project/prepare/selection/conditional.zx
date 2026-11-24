@@ -1,29 +1,38 @@
 import write from "./write"
 
-import type { Input as Selection } from "./model"
+import type { Branches, Input as Selection } from "./model"
 
-export type Input = Selection.Omit("facts", "conditional")
+export type Input = Selection.Pick("tree", "units", "rows", "slot", "has_else") & {
+    branches: Branches
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { units, rows, labels } = in
+    const { units, rows, branches } = in
+    const { labels } = rows
+
+    const width = in.tree.layout.attribute_width
 
     write({
-        rows,
+        rows: rows.body,
         units,
-        slot: in.subject,
+        slot: in.slot,
         row: 0,
-        tag: labels.affirmative
+        tag: labels.affirmative,
+        attribute: branches.subject,
+        attribute_width: width
     })
 
     if (in.has_else) {
         write({
-            rows,
+            rows: rows.body,
             units,
-            slot: in.first_child + in.child_count - 1,
+            slot: branches.first_child + branches.child_count - 1,
             row: 1,
-            tag: labels.fallback
+            tag: labels.fallback,
+            attribute: null,
+            attribute_width: width
         })
     }
 }

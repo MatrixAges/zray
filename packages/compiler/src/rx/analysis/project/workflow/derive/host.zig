@@ -5,6 +5,7 @@ const zx = @import("zx");
 const project = @import("../../../project.zig");
 const target = @import("../../../call/target.zig");
 const preparation = @import("../../prepare.zig");
+const shorthand = @import("../../shorthand.zig");
 const registry = @import("../../../store/registry.zig");
 const source_graph = project.source_graph;
 const Frame = @import("../../history.zig").Frame;
@@ -34,7 +35,7 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
 
     if (comptime generated) {
         const entry = @import("generated_rx_execute_derivation");
-        const input: std.meta.Child(entry.Input) = .{ .state = @ptrCast(&state), .retained = check_signatures };
+        const input: std.meta.Child(entry.Input) = .{ .state = @ptrCast(&state), .retained = check_signatures, .shortcuts = @ptrCast(&state.shortcuts) };
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         return entry.executeIn(empty.allocator(), &input) catch |err| workflow.errorSet(err);
@@ -48,7 +49,10 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
     try state.stores();
     try state.prepare();
     try @import("../solve/host.zig").run(&state);
-    try state.completeShortcuts();
+
+    for (state.prepared.?.modules, 0..) |*module, row| {
+        if (module.deferred_shortcut) try completeDerivedShortcut(&state, row);
+    }
 
     state.publish();
 }
@@ -73,6 +77,7 @@ pub const State = struct {
     indexed: ?source_graph.Signatures = null,
     registered: ?registry.Data = null,
     prepared: ?preparation.Loaded = null,
+    shortcuts: if (generated) zx.memory.ReadColumn else void = undefined,
     fn modules(self: *State) Error!void {
         const options = self.options;
         const allocator = self.allocator;
@@ -222,6 +227,8 @@ pub const State = struct {
         }
 
         self.prepared = result.loaded;
+
+        if (comptime generated) self.shortcuts = zx.memory.borrowReadColumn(bool, "deferred_shortcut", result.loaded.modules);
     }
 
     fn publish(self: *State) void {
@@ -234,10 +241,6 @@ pub const State = struct {
         self.frame.loaded = self.prepared.?;
         self.frame.signatures = self.signatures_data.?;
         self.frame.signature_indices = self.indexed.?.indices;
-    }
-
-    fn completeShortcuts(self: *State) Error!void {
-        return preparation.completeShortcuts(self.allocator, self.prepared.?.modules, self.frame.resolved);
     }
 
     pub fn fail(self: *State, diagnostic: target.Diagnostic) Error {
@@ -289,8 +292,18 @@ pub fn solveDerivedFlow(handle: *const anyopaque) Error!void {
     return @import("../solve/host.zig").run(borrow(handle));
 }
 
-pub fn completeDerivedShortcuts(handle: *const anyopaque) Error!void {
-    return borrow(handle).completeShortcuts();
+pub fn completeDerivedShortcut(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!void {
+    const state = borrow(handle);
+    const row: usize = @intCast(index);
+    const module = &state.prepared.?.modules[row];
+    const signatures = state.frame.resolved;
+    const call = shorthand.call_index;
+    const plan = try shorthand.lower(state.allocator, module.calls.items(.node)[call], call, @fromBackingInt(signatures.inputs[row]), @fromBackingInt(signatures.outputs[row]));
+
+    module.calls.items(.node)[call] = plan.node;
+    module.calls.items(.input)[call] = plan.input;
+
+    module.plan = plan.flow;
 }
 
 pub fn publishDerivedFrame(handle: *const anyopaque) void {

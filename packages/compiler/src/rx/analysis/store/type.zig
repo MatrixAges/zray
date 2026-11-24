@@ -4,26 +4,12 @@ const rx = @import("rx");
 const zx = @import("zx");
 const target = @import("../call/target.zig");
 const Layout = @import("layout.zig");
-const Schedule = @import("prepare/schedule.zig");
 const Diagnostic = @import("../expression.zig").Diagnostic;
 const generated = @import("rx_options").generated_graph;
 
 pub const Value = union(enum) { resolved: struct { types: zx.ir.TypeStorage, fields: []const zx.ir.TypeId }, diagnostic: Diagnostic };
 
-pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner: []const u8, layout: Layout, context: frontend.Context, aliases: []const zx.ir.Export) std.mem.Allocator.Error!Value {
-    inline for (comptime Schedule.steps(.TypeContext)) |step| {
-        const issue: ?[]const u8 = switch (step) {
-            .Done => null,
-            .CheckTypes => if (context.types.count() != 0 and !frontend.validateTypes(context.types)) "invalid shared Store type table" else null,
-            .CheckNativeTypes => if (!frontend.native_context.valid(context.types, context.native_modules)) "invalid shared native module table" else null,
-            .CheckNominalTypes => if (!try frontend.validateNominalTypes(context.types, context.nominal_types)) "invalid shared nominal type table" else null,
-            .CheckAliases => if (!validAliases(aliases, context.types.count())) "Store type alias is missing from the shared type table" else null,
-            else => unreachable,
-        };
-
-        if (issue) |message| return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message }) };
-    }
-
+pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner: []const u8, layout: Layout, base: zx.ir.TypeTable, aliases: []const zx.ir.Export) std.mem.Allocator.Error!Value {
     var parsed = try frontend.parseModule(temporary, layout.text, owner);
 
     defer parsed.deinit();
@@ -36,7 +22,7 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner
 
             if (program.imports.len != 0 or program.constants.len != 0 or program.body != null or program.contracts.len != 0 or program.has_store) break :native invalid(temporary, layout);
 
-            break :native resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Native{ .items = program.declarations });
+            break :native resolveDeclarations(allocator, temporary, layout, base, aliases, frontend.type_views.Native{ .items = program.declarations });
         },
         .indexed => |indexed| if (comptime @TypeOf(indexed) != void) indexed: {
             const output = indexed.output;
@@ -46,12 +32,12 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner
 
                 if (!admission.valid) break :indexed invalid(temporary, layout);
 
-                break :indexed resolveIndexed(allocator, temporary, layout, context.types, aliases, indexed.source, output, admission.mismatch);
+                break :indexed resolveIndexed(allocator, temporary, layout, base, aliases, indexed.source, output, admission.mismatch);
             }
 
             if (output.imports.len != 0 or output.constants.len != 0 or output.body != null or output.contracts.len != 0 or output.has_store) break :indexed invalid(temporary, layout);
 
-            break :indexed resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output });
+            break :indexed resolveDeclarations(allocator, temporary, layout, base, aliases, frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output });
         } else unreachable,
     };
 }
@@ -158,19 +144,6 @@ fn seedLocation(layout: Layout, offset: usize) Location {
     return .{ .field = field, .relative = @min(offset -| layout.typeStart(field), layout.expressions[field].len) };
 }
 
-fn validAliases(aliases: []const zx.ir.Export, count: usize) bool {
-    if (aliases.len == 0) return true;
-
-    if (comptime generated) {
-        const rule = @import("generated_rx_store_type_aliases");
-        const rows = @import("zx").memory.borrowNamedRows("type_id", aliases);
-        const input: std.meta.Child(rule.Input) = .{ .aliases = @ptrCast(&rows), .length = rows.len, .type_count = count };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    }
-
-    for (aliases) |alias| if (@backingInt(alias.type_id) >= count) return false;
-
-    return true;
+pub fn contextDiagnostic(allocator: std.mem.Allocator, layout: Layout, message: []const u8) std.mem.Allocator.Error!Diagnostic {
+    return mapped(allocator, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message });
 }

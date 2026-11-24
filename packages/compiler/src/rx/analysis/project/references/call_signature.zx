@@ -1,26 +1,137 @@
-export type Input = {
-    forwards_rx: bool,
-    type_only: bool,
-    setter: bool,
-    has_store: bool
+import { i64_positive_magnitude, max_u64 } from "core/const"
+import memory from "memory"
+import { CallCallee, CallRoute } from "rx_project_host"
+
+import namedSurface from "../../call/named/surface"
+import { Kind } from "../source_graph/source"
+import lookup from "./lookup/resolve"
+
+import type { ReadColumn } from "memory"
+import type { CallAdmission } from "rx_project_host"
+import type { Members } from "../../call/named/surface"
+import type { Input as Lookup } from "./lookup/model"
+
+export type Signatures = Lookup.Omit("owner") & {
+    forwards: u64[],
+    type_only: ReadColumn,
+    members: Members
 }
 
-export enum Output {
-    Function,
-    Forward,
-    SetterOnForward,
-    TypeOnly,
-    MissingStore
+export type Input = {
+    route: CallRoute,
+    admission: CallAdmission,
+    signatures: Signatures
+}
+
+export type Output = {
+    callee: CallCallee,
+    module?: u64,
+    signature?: u64,
+    member?: u64
 }
 
 export default function (in: Input): Output {
-    if (in.forwards_rx) {
-        return in.setter ? Output.SetterOnForward : Output.Forward
+    const { route, admission, signatures } = in
+
+    const checks_signature = match route {
+        CallRoute.Source => true,
+        CallRoute.AuthorizedSource => true,
+        CallRoute.NamedSource => true,
+        _ => false
     }
 
+    if (!checks_signature) {
+        return {
+            callee: CallCallee.Unused
+        }
+    }
+
+    const owner = admission.owner
+    const named = route == CallRoute.NamedSource
+
+    const target = lookup({
+        owner,
+        sources: signatures.sources,
+        indices: signatures.indices
+    })
+
+    if (target.kind != Kind.ZX) {
+        return match {
+            named => {
+                callee: CallCallee.InvalidNamedTarget
+            },
+            target.kind == Kind.RX => {
+                callee: CallCallee.Module,
+                module: target.row
+            },
+            _ => {
+                callee: CallCallee.MissingModule
+            }
+        }
+    }
+
+    const signature = target.signature
+
+    if (signature == null) {
+        return {
+            callee: CallCallee.MissingSignature
+        }
+    }
+
+    if (named) {
+        const selection = namedSurface({
+            members: signatures.members,
+            module: signature,
+            reference: admission.reference
+        })
+
+        return match {
+            selection.has_store => {
+                callee: CallCallee.NamedStore
+            },
+            selection.row == null => {
+                callee: CallCallee.MissingNamedFunction
+            },
+            _ => {
+                callee: CallCallee.NamedFunction,
+                signature,
+                member: selection.row
+            }
+        }
+    }
+
+    const forward = match signatures.forwards.length {
+        0 => 0,
+        _ => signatures.forwards[signature]
+    }
+
+    if (forward != 0) {
+        return match {
+            admission.setter => {
+                callee: CallCallee.SetterOnForward
+            },
+            forward == max_u64 => {
+                callee: CallCallee.MissingForward
+            },
+            _ => {
+                callee: CallCallee.Module,
+                module: forward - 1
+            }
+        }
+    }
+
+    const has_store = signatures.indices[owner] > i64_positive_magnitude
+
     return match {
-        in.type_only => Output.TypeOnly,
-        in.setter && !in.has_store => Output.MissingStore,
-        _ => Output.Function
+        memory.readColumnBool(signatures.type_only, signature) => {
+            callee: CallCallee.TypeOnly
+        },
+        admission.setter && !has_store => {
+            callee: CallCallee.MissingStore
+        },
+        _ => {
+            callee: CallCallee.Function,
+            signature
+        }
     }
 }

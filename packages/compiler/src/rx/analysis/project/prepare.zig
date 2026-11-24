@@ -32,6 +32,14 @@ pub const Call = struct {
 
 pub const Calls = std.MultiArrayList(Call);
 
+pub fn loadError(err: anyerror) Loader.Error {
+    return switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        error.InvalidFlow => error.InvalidFlow,
+        else => unreachable,
+    };
+}
+
 pub const Module = struct {
     source: rx.ModuleSource,
     deferred_shortcut: bool = false,
@@ -80,24 +88,6 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
     };
 
     return .{ .loaded = .{ .modules = plans, .local_calls = local_calls, .project = loader.project } };
-}
-
-pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signatures: @import("signatures.zig").Table) std.mem.Allocator.Error!void {
-    const shorthand = @import("shorthand.zig");
-    var first: usize = 0;
-
-    while (first < modules.len) {
-        const row = shorthand.nextDeferred(modules, first) orelse break;
-        const module = &modules[row];
-        const index = shorthand.call_index;
-        const plan = try shorthand.lower(allocator, module.calls.items(.node)[index], index, @fromBackingInt(signatures.inputs[row]), @fromBackingInt(signatures.outputs[row]));
-
-        module.calls.items(.node)[index] = plan.node;
-        module.calls.items(.input)[index] = plan.input;
-
-        module.plan = plan.flow;
-        first = row + 1;
-    }
 }
 
 pub const Loader = struct {
@@ -150,7 +140,11 @@ pub const Loader = struct {
         if (target.optionalAttribute(node, "fn") != null) return self.shortcut(node);
 
         if (comptime generated) {
-            if (source.indexedFlow()) |flow| return @import("prepare/indexed.zig").bind(self, flow);
+            const body = @import("prepare/indexed.zig");
+
+            if (source.indexedFlow()) |flow| return body.indexed(self, flow);
+
+            return body.borrowed(self, &source.node);
         }
 
         const root = Flow.Unit{ .first = try self.plan.reserve(self.allocator, node.children.len) };
@@ -181,7 +175,7 @@ pub const Loader = struct {
                 },
                 .call => .{ .Call = try self.call(node.*, if (cursor > region.first) cursor else 0) },
                 .task => task: {
-                    const output = target.optionalAttribute(node.*, "out");
+                    const output = target.borrowAttribute(node.*, "out");
                     const body = try self.taskBody(node, output, false);
 
                     exits = body.exits;
@@ -262,22 +256,22 @@ pub const Loader = struct {
                 continue;
             }
 
-            const id = self.nextTaskId();
-            const body = try self.taskBody(child, target.optionalAttribute(child.*, "out"), true);
+            const id = try self.nextTaskId();
+            const body = try self.taskBody(child, target.borrowAttribute(child.*, "out"), true);
 
             try self.plan.write(self.allocator, row, .{ .ParallelTask = .{ .id = id, .node = child, .body = body.unit } });
         }
 
         return .{ .first = branches.first, .count = @intCast(node.children.len) };
     }
-    fn nextTaskId(self: *Loader) usize {
-        const id = self.task_count;
+    fn nextTaskId(self: *Loader) Error!u32 {
+        const id = std.math.cast(u32, self.task_count) orelse return error.OutOfMemory;
 
         self.task_count += 1;
 
         return id;
     }
-    fn taskBody(self: *Loader, node: *const rx.ast.Node, output: ?rx.ast.Attribute, parallel_task: bool) Error!Flow.Sequence {
+    fn taskBody(self: *Loader, node: *const rx.ast.Node, output: ?*const rx.ast.Attribute, parallel_task: bool) Error!Flow.Sequence {
         const has_implicit_result = parallel_task and output != null;
         const count = node.children.len + @intFromBool(has_implicit_result);
         const region = try self.unit(count);
@@ -287,7 +281,7 @@ pub const Loader = struct {
         if (body.exits.returns) return self.fail(attribute.value_location, "return_path", "Task.out and Return cannot both define the same task output");
 
         if (parallel_task) {
-            try self.plan.write(self.allocator, body.unit.first + body.unit.count, .{ .Result = attribute });
+            try self.plan.write(self.allocator, body.unit.first + body.unit.count, .{ .Result = attribute.* });
 
             body.unit.count += 1;
 
@@ -299,7 +293,7 @@ pub const Loader = struct {
 
     pub const call = @import("prepare/invocation/host.zig").bind;
 
-    pub fn recordArgument(self: *Loader, index: usize, parsed: *const frontend.ExpressionInput.Result) Error!void {
+    pub fn recordArgument(self: *Loader, index: usize, parsed: *const frontend.ExpressionInput.Result) std.mem.Allocator.Error!void {
         const first = self.arguments.items.len;
 
         if (index >= first) {
@@ -311,59 +305,14 @@ pub const Loader = struct {
         self.arguments.items[index] = parsed;
     }
 
-    pub fn sourceCallee(self: *Loader, source: usize, location: rx.ast.Location, setter: bool) Error!Callee {
-        const resolved = switch (self.signatures.lookup(source)) {
-            .rx => |index| return .{ .module = index },
-            .store => return self.fail(location, "module", "Call.module target is not registered"),
-            .zx => |signature| signature orelse return self.fail(location, "module", "source function signature is missing from the analyzed input set"),
-        };
-
-        const signature = resolved.module.signature;
-        const forwarded = resolved.forward;
-
-        return switch (routeSignature(forwarded != .none, signature.type_only, setter, signature.has_store)) {
-            .Function => .{ .signature = signature.ports },
-            .Forward => if (forwarded == .module) .{ .module = forwarded.module } else self.fail(location, "module", "default re-export target is missing from the RX module collection"),
-            .SetterOnForward => self.fail(location, "capability", "RX module Store authorization belongs inside the module"),
-            .TypeOnly => self.fail(location, "module", "Call.fn requires an executable ZX module with a default function"),
-            .MissingStore => self.fail(location, "capability", "a Call.setter target must declare its second parameter as { store }"),
-        };
-    }
-    pub fn namedCallee(self: *Loader, source: usize, selection: *const rx.ast.Attribute) Error!Callee {
-        const signature = switch (self.signatures.lookup(source)) {
-            .zx => |value| if (value) |resolved| resolved.module.signature else return self.fail(selection.value_location, "module", "source function signature is missing from the analyzed input set"),
-            else => return self.fail(selection.value_location, "module", "a qualified Call.fn requires a ZX source module"),
-        };
-
-        const name = @import("../result_name.zig").resolveCall(selection.*).name;
-        const selected = @import("../call/named.zig").signature(signature.members, name);
-
-        if (selected.has_store) return self.fail(selection.value_location, "capability", "a named Call cannot invoke a Store transaction");
-
-        const row = selected.row orelse return self.fail(selection.value_location, "module", "ZX source does not export the selected callable function");
-
-        return .{ .signature = signature.members[@intCast(row)].ports };
-    }
-    pub fn compiledCallee(self: *Loader, location: rx.ast.Location, selected: frontend.project.compiled.Target, setter: bool) Error!Callee {
-        const result = try self.libraries.bind(&self.project, .{
-            .owner = self.owner,
-            .location = location,
-            .setter = setter,
-            .selected = selected,
-        });
-
-        if (result == .diagnostic) {
-            self.issue = result.diagnostic;
-
-            return error.InvalidFlow;
-        }
-
-        return .{ .signature = result.ports };
-    }
     pub fn fail(self: *Loader, location: rx.ast.Location, code: []const u8, message: []const u8) Error {
         const result = try target.failure(self.allocator, .{ .path = self.owner, .location = location, .code = code, .message = message });
 
-        self.issue = result.diagnostic;
+        return self.reject(result.diagnostic);
+    }
+
+    pub fn reject(self: *Loader, issue: target.Diagnostic) Error {
+        self.issue = issue;
 
         return error.InvalidFlow;
     }
@@ -380,26 +329,4 @@ fn seedAction(name: []const u8) Action {
         .If => .if_flow,
         else => .unsupported,
     };
-}
-
-const SignatureRoute = if (generated)
-    @typeInfo(@TypeOf(@import("generated_rx_call_signature").executeValue(undefined, undefined))).error_union.payload
-
-else
-    enum { Function, Forward, SetterOnForward, TypeOnly, MissingStore };
-
-fn routeSignature(forwards_rx: bool, type_only: bool, setter: bool, has_store: bool) SignatureRoute {
-    if (comptime generated) {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const rule = @import("generated_rx_call_signature");
-        const input: std.meta.Child(rule.Input) = .{ .forwards_rx = forwards_rx, .type_only = type_only, .setter = setter, .has_store = has_store };
-
-        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    }
-
-    if (forwards_rx) return if (setter) .SetterOnForward else .Forward;
-    if (type_only) return .TypeOnly;
-    if (setter and !has_store) return .MissingStore;
-
-    return .Function;
 }

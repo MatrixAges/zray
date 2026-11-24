@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import { ascii_dollar, ascii_dot } from "core/ascii/const"
 
-import validPath from "../../zx/analysis/expression_program/bindings/path/valid"
+import validPath from "../../zx/analysis/expression_program/bindings/path/ascii"
 
 export type Input = {
     name: string,
@@ -11,11 +11,11 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    if (!validPath(in.name)) {
+    const name = bytes.fromText(in.name)
+
+    if (!validPath(name)) {
         return false
     }
-
-    const name = bytes.fromText(in.name)
 
     if (bytes.indexOfScalar(name, 0, ascii_dot) != null) {
         return false

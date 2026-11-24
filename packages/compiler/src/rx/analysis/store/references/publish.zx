@@ -2,13 +2,17 @@ import memory from "memory"
 
 import objectName from "./object_name"
 
-import type { StringBuffer, TextColumn, U32Buffer } from "memory"
+import type {
+    ReadColumn,
+    StringBuffer,
+    TextColumn,
+    U32Buffer
+} from "memory"
 
 export type Objects = {
     names: TextColumn,
     identities: TextColumn,
-    ids: u32[],
-    stride: u64,
+    ids: ReadColumn,
     count: u64
 }
 
@@ -46,7 +50,7 @@ export default function (in: Input): Output {
                 state.valid = false
             } else {
                 const identity = memory.readTextColumn(objects.identities, row)
-                const id = objects.ids[row * objects.stride]
+                const id = memory.readColumnU32(objects.ids, row)
 
                 memory.writeString(bindings.names, row, name)
                 memory.writeString(bindings.paths, row, identity)

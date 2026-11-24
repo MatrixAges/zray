@@ -51,7 +51,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const rx_project_interface = b.addWriteFiles();
 
     const rx_project_host = rx_project_interface.add("host.d.zx", internal.join(b, b, "src/" ++ rx_project_directory ++ "/host", &.{
-        "types.d.zx", "project.d.zx", "mixed.d.zx", "history.d.zx", "flow.d.zx", "body.d.zx", "constraints.d.zx", "objects.d.zx", "projections.d.zx",
+        "types.d.zx", "call_types.d.zx", "project.d.zx", "mixed.d.zx", "history.d.zx", "flow.d.zx", "prepare.d.zx", "body.d.zx", "constraints.d.zx", "objects.d.zx", "projections.d.zx",
     }));
 
     const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], &.{
@@ -194,8 +194,23 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "zx/frontend/retention");
                 addSubtree(run, tracked[0], "rx/analysis/inference");
                 addSubtree(run, tracked[0], "rx/analysis/condition");
+                addSubtree(run, tracked[0], "rx/analysis/selection");
                 addSubtree(run, tracked[0], "rx/analysis/parallel_task");
                 addSubtree(run, tracked[0], "rx/analysis/project/flow");
+                addSubtree(run, tracked[0], "rx/analysis/project/declarations");
+                addSubtree(run, tracked[0], "rx/analysis/project/type_imports");
+                addSubtree(run, tracked[0], "rx/analysis/project/references");
+                addSubtree(run, tracked[0], "rx/analysis/store/initializer");
+                addSubtree(run, tracked[0], "rx/analysis/store/references");
+                addSubtree(run, tracked[0], "rx/schema");
+                addSubtree(run, tracked[0], "zx/analysis/expression_program/bindings/path");
+                addSubtree(run, tracked[0], "rx/analysis/project/prepare/flow");
+                addSubtree(run, tracked[0], "rx/analysis/project/prepare/invocation");
+                addSubtree(run, tracked[0], "rx/analysis/call/attributes");
+                addSubtree(run, tracked[0], "rx/analysis/project/prepare/modules");
+                addSubtree(run, tracked[0], "rx/analysis/project/prepare/selection");
+                addSubtree(run, tracked[0], "rx/schema/tree");
+                addSubtree(run, tracked[0], "rx/syntax/tree");
                 addSubtree(run, tracked[0], "rx/analysis/program/statements");
                 addSubtree(run, tracked[0], "rx/analysis/project/workflow");
                 addSubtree(run, tracked[0], "rx/analysis/project/mixed");

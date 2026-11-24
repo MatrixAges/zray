@@ -91,6 +91,14 @@ pub inline fn borrowedReference(row: []const u8, offset: u64, width: u64) IndexE
     return pointer[0 .. std.math.cast(usize, width) orelse return error.IndexOutOfBounds];
 }
 
+pub inline fn borrowedOffset(storage: []const u8, view: []const u8) IndexError!u64 {
+    const offset = std.math.sub(usize, @intFromPtr(view.ptr), @intFromPtr(storage.ptr)) catch return error.IndexOutOfBounds;
+
+    if (offset > storage.len or view.len > storage.len - offset) return error.IndexOutOfBounds;
+
+    return offset;
+}
+
 inline fn borrowedField(comptime T: type, row: []const u8, offset: u64) IndexError!T {
     if (offset > row.len or row.len - offset < @sizeOf(T)) return error.IndexOutOfBounds;
 

@@ -16,14 +16,16 @@ import taskExit from "../flow/task_exit"
 import unit from "../flow/unit"
 import select from "./select"
 
+import type { View } from "../flow/model"
 import type { Reference, Scan as Input, Scanned as Output } from "./model"
 
 export default function (in: Input): Output {
     const parents = in.parents
     const source = bytes.fromText(in.source)
 
-    const view = {
+    const view: View = {
         nodes: in.nodes,
+        siblings: [],
         slots: in.slots,
         facts: in.facts
     }
@@ -91,7 +93,7 @@ export default function (in: Input): Output {
                     const slot = in.slots[row]
                     const parallel = tag == Tag.Task && parallelParent({
                         source,
-                        nodes: view.nodes,
+                        nodes: in.nodes,
                         parents,
                         depth: state.depth
                     })
@@ -106,7 +108,7 @@ export default function (in: Input): Output {
 
                     const flags = project({
                         view,
-                        row,
+                        head: node.children,
                         tag
                     })
 
@@ -130,7 +132,7 @@ export default function (in: Input): Output {
                                 view,
                                 head: node.children
                             },
-                            node,
+                            child_count: node.child_count,
                             tag,
                             root_steps,
                             implicit_result: implicit
@@ -143,13 +145,10 @@ export default function (in: Input): Output {
                     })
 
                     const has_call = tag == Tag.Call || tag == Tag.Loop
-                    const parent_row = match {
-                        has_call => memory.readU64(parents, state.depth - 1),
-                        _ => 0
-                    }
+                    const parent = has_call ? memory.readU64(parents, state.depth - 1) : 0
                     const loop_body = tag == Tag.Call && matches({
                         source,
-                        ...view.nodes[parent_row - 1].name,
+                        ...in.nodes[parent - 1].name,
                         name: loop_tag
                     })
 
@@ -177,10 +176,10 @@ export default function (in: Input): Output {
 
                         if (missingInput({
                             source,
-                            nodes: view.nodes,
+                            nodes: in.nodes,
                             attributes: in.attributes,
-                            parent: view.nodes[parent_row - 1],
-                            call: view.nodes[call_row - 1],
+                            parent: in.nodes[parent - 1],
+                            call: in.nodes[call_row - 1],
                             previous: node.previous_sibling
                         })) {
                             state.missing_input = call_row - 1

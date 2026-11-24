@@ -1,0 +1,156 @@
+export declare function beginPreparedCall(
+    state: InvocationPreparation,
+    node: u8[],
+    item: u32,
+    previous_end: u32
+): void
+
+export declare function storeDeclarationName(
+    state: DeclarationTarget,
+    edge: u64?
+): string
+
+export declare function publishStoreDeclaration(
+    state: DeclarationTarget,
+    edge: u64?,
+    from: u8[],
+    scope: string
+): void throws { OutOfMemory, InvalidFlow }
+
+export declare function rejectStoreDeclaration(
+    state: DeclarationTarget,
+    at: u8[],
+    message: string
+): void throws { OutOfMemory, InvalidFlow }
+
+export declare function typeDeclarationTarget(
+    state: DeclarationTarget,
+    edge: u64?
+): ReferenceTarget
+
+export declare function typeDeclarationOwner(
+    state: DeclarationTarget,
+    edge: u64?
+): u64
+
+export declare function publishTypeDeclaration(
+    state: DeclarationTarget,
+    signature: u64?,
+    alias: u8[]
+): void throws { OutOfMemory }
+
+export declare function rejectTypeDeclaration(
+    state: DeclarationTarget,
+    at: u8[],
+    message: string
+): void throws { OutOfMemory, InvalidFlow }
+
+export declare function publishArgumentDeclaration(
+    state: DeclarationTarget,
+    node: u8[],
+    first: u8[],
+    second: u8[]
+): void throws { OutOfMemory }
+
+export declare function beginPreparedModule(state: ModulePreparation, row: u64): void
+    throws { OutOfMemory }
+
+export declare function prepareModuleStores(state: ModulePreparation, row: u64): void
+    throws { OutOfMemory, InvalidFlow }
+
+export declare function prepareModuleFlow(state: ModulePreparation, row: u64): void
+    throws { OutOfMemory, InvalidFlow }
+
+export declare function prepareModuleImports(state: ModulePreparation, row: u64): void
+    throws { OutOfMemory, InvalidFlow }
+
+export declare function publishPreparedModule(state: ModulePreparation, row: u64): void
+    throws { OutOfMemory }
+
+export declare function readPreparedCall(
+    state: InvocationPreparation,
+    argument: u64?,
+    function_slot: u64?,
+    module: u64?,
+    setter: u64?
+): bool throws { OutOfMemory, InvalidFlow }
+
+export declare function authorizePreparedSetter(state: InvocationPreparation): void
+    throws { OutOfMemory, InvalidFlow }
+
+export declare function readPreparedCallTarget(
+    state: InvocationPreparation,
+    edge: u64?
+): void
+
+export declare function selectPreparedLibrary(
+    state: InvocationPreparation,
+    edge: u64?
+): CompiledCallStatus throws { OutOfMemory, InvalidFlow }
+
+export declare function readPreparedLibraryFlags(state: InvocationPreparation): u64
+
+export declare function rejectPreparedLibrary(
+    state: InvocationPreparation,
+    status: CompiledCallStatus
+): void throws { OutOfMemory, InvalidFlow }
+
+export declare function validatePreparedLibrary(state: InvocationPreparation): void
+    throws { OutOfMemory, InvalidFlow }
+
+export declare function publishPreparedCall(
+    state: InvocationPreparation,
+    edge: u64?,
+    route: CallRoute,
+    callee: CallCallee,
+    module_row: u64?,
+    signature: u64?,
+    member: u64?,
+    local: bool
+): bool throws { OutOfMemory, InvalidFlow }
+
+export declare function preparedPreviousName(
+    state: InvocationPreparation,
+    row: u32,
+    task: bool
+): string?
+
+export declare function publishPreparedPrevious(
+    state: InvocationPreparation,
+    path: string
+): void throws { OutOfMemory }
+
+export declare function rejectPreparedFlow(
+    state: InvocationPreparation,
+    node: u8[],
+    at_output: bool,
+    code: string,
+    message: string
+): void throws { OutOfMemory, InvalidFlow }
+export declare function advanceTypeBindingTail(
+    tail: TypeBindingTail,
+    used: u64,
+    grow: bool
+): void throws { OutOfMemory }
+
+export declare function collectStoreDefinitionLayout(state: StoreDefinitionWork): void
+    throws { OutOfMemory }
+
+export declare function rejectStoreDefinitionContext(
+    state: StoreDefinitionWork,
+    message: string
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function resolveStoreDefinitionTypes(state: StoreDefinitionWork): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveStoreDefinitionObjects(state: StoreDefinitionWork): u64
+    throws { OutOfMemory }
+
+export declare function compileStoreDefinitionObject(state: StoreDefinitionWork, row: u64): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function freezeStoreDefinitionTypes(state: StoreDefinitionWork): u8[]
+
+export declare function publishStoreDefinition(state: StoreDefinitionWork): void
+    throws { OutOfMemory }

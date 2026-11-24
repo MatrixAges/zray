@@ -1,0 +1,8 @@
+import type { Output, Payload } from "../model"
+import type { Tree } from "../tree"
+
+export type Input = {
+    tree: Tree,
+    payload: Payload,
+    event: Output
+}

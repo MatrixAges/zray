@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import type { Buffers } from "./model"
+
+export type Input = [
+    Buffers,
+    u64
+]
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const [buffers, count] = in
+    const { storage } = buffers
+
+    const firsts = count
+    const counts = firsts + count
+    const rows = counts + count
+
+    memory.allocateU32Views(storage, rows + count)
+    memory.bindU32Range(storage, buffers.facts, 0, count)
+    memory.bindU32Range(storage, buffers.unit_firsts, firsts, count)
+    memory.bindU32Range(storage, buffers.unit_counts, counts, count)
+    memory.bindU32Range(storage, buffers.step_rows, rows, count)
+    memory.allocateU64Views(buffers.events, count * 2)
+}

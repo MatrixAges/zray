@@ -16,6 +16,7 @@ pub const View = std.meta.Child(@FieldType(Input, "cursor"));
 const Returns = std.meta.Child(@typeInfo(@FieldType(Input, "returns")).optional.child);
 const Saved = std.meta.Child(@FieldType(Returns, "saved"));
 const ResultRows = std.meta.Child(@typeInfo(@FieldType(Input, "results")).optional.child);
+const Coverage = std.meta.Child(@FieldType(Input, "coverage"));
 
 const State = struct {
     target: union(enum) { inference: *Inference, lowering: *Lowering },
@@ -27,12 +28,15 @@ const State = struct {
     parent_return: Saved = undefined,
     slots: [3]*usize,
     labels: memory.ReadColumn = undefined,
+    truth: memory.WriteColumn = undefined,
+    stopped: memory.WriteColumn = undefined,
+    remaining: memory.WriteColumn = undefined,
     fn borrow(handle: *const anyopaque) *State {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
 };
 
-pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase(true)) {
+pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) {
     const inference = @TypeOf(target) == *Inference;
 
     var state: State = .{
@@ -51,6 +55,7 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase(tru
     const returns: Returns = .{ .output = @ptrCast(&output), .returned = @ptrCast(&returned), .saved = &state.parent_return };
     const result_slots: memory.ColumnLengths = if (inference) &.{} else &.{&target.compiler.next_binding};
     const results: ResultRows = .{ .cursor = @ptrCast(&result_slots), .types = if (inference) &.{} else @ptrCast(target.compiler.results.types) };
+    const coverage: Coverage = .{ .truth = @ptrCast(&state.truth), .stopped = @ptrCast(&state.stopped), .remaining = @ptrCast(&state.remaining) };
 
     const input: Input = .{
         .frame = @ptrCast(&state),
@@ -59,6 +64,7 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase(tru
         .cursor_length = @ptrCast(&cursor_length),
         .labels = @ptrCast(&state.labels),
         .fallback = @backingInt(Label.Default),
+        .coverage = &coverage,
         .returns = if (inference) &returns else null,
         .results = if (inference) null else &results,
         .kinds = plan.kinds,
@@ -113,6 +119,11 @@ pub fn refreshFlowCursor(handle: *const anyopaque) void {
                 state.labels = memory.borrowNestedColumn(Label, &.{ "label", "kind" }, cases);
 
                 if (inference) {
+                    const coverage: []@TypeOf(selection.labels.coverage) = (&selection.labels.coverage)[0..1];
+
+                    state.truth = memory.borrowWriteColumn(?bool, "truth", cases);
+                    state.stopped = memory.borrowWriteColumn(bool, "stopped", coverage);
+                    state.remaining = memory.borrowWriteColumn(?bool, "remaining", coverage);
                     state.cursor.case_remaining = selection.labels.coverage.remaining;
                     state.cursor.case_stopped = selection.labels.coverage.stopped;
                 }
@@ -179,16 +190,26 @@ pub fn evaluateFlowReturn(handle: *const anyopaque, item: u32) Error!void {
     }
 }
 
-pub inline fn writeFlowStep(handle: *const anyopaque, row: u64, kind: anytype, first: u32, output: anytype) void {
+pub inline fn writeFlowStep(handle: *const anyopaque, row: u64, kind: anytype, first: u32, exhaustive: bool, output: anytype) void {
     const state = State.borrow(handle);
+    const target = state.target.lowering;
     const task = if (kind == .Task) &state.task else null;
+    const frame = target.frame();
+    const grouped = kind == .Selection or kind == .Parallel;
 
-    state.target.lowering.compiler.compiled.steps.set(@intCast(row), .{
+    target.compiler.compiled.steps.set(@intCast(row), .{
         .kind = @fromBackingInt(@backingInt(kind)),
         .output = @fromBackingInt(@backingInt(output)),
-        .first = if (task) |value| value.body else first,
+        .first = if (task) |value| value.body else if (grouped) frame.body.first else first,
+        .count = if (grouped) frame.body.count else 0,
+        .exhaustive = exhaustive,
         .name = if (task) |value| value.name() else null,
-        .value = if (task) |value| value.value else if (kind == .Return) state.return_value else null,
+        .value = switch (kind) {
+            .Return => state.return_value,
+            .Task => state.task.value,
+            .Selection => frame.payload.Selection.subject,
+            else => null,
+        },
     });
 }
 
@@ -226,14 +247,6 @@ pub fn readFlowConditionLabel(handle: *const anyopaque, row: u64) std.mem.Alloca
     const selected = &State.borrow(handle).target.inference.frame().payload.Selection;
 
     return selected.labels.lookAhead(selected.cases[@intCast(row)].label.attribute().?);
-}
-
-pub fn publishFlowCaseCoverage(handle: *const anyopaque, row: u64, fallback: bool, stopped: bool, remaining: ?bool) void {
-    const selected = &State.borrow(handle).target.inference.frame().payload.Selection;
-
-    selected.labels.coverage = .{ .stopped = stopped, .remaining = remaining };
-
-    if (fallback) selected.cases[@intCast(row)].truth = remaining;
 }
 
 pub fn refineFlowCase(handle: *const anyopaque, row: u64) Error!void {
@@ -298,18 +311,19 @@ pub fn finishLoweredFlowTask(handle: *const anyopaque) Compiler.Error!?bool {
     return state.task.publish(state.target.lowering.compiler);
 }
 
-pub fn closeFlowParallel(handle: *const anyopaque) Error!void {
+pub fn mergeFlowParallelBindings(handle: *const anyopaque) Error!void {
     switch (State.borrow(handle).target) {
-        inline else => |target| try target.closeParallel(),
+        .inference => |target| try target.closeParallel(),
+        .lowering => |target| try target.mergeParallelBindings(),
     }
 }
 
-pub fn completeFlowBranch(handle: *const anyopaque, selection: bool) Error!void {
-    const target = State.borrow(handle).target;
+pub fn checkFlowSelection(handle: *const anyopaque) Compiler.Error!bool {
+    return State.borrow(handle).target.lowering.checkSelection();
+}
 
-    if (target != .lowering) return;
-
-    return if (selection) target.lowering.closeSelection() else target.lowering.closeCase(false);
+pub fn finishFlowCase(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!void {
+    return State.borrow(handle).target.lowering.publishCase(@intCast(row));
 }
 
 pub fn popFlowFrame(handle: *const anyopaque) void {

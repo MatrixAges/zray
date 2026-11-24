@@ -1,0 +1,37 @@
+import memory from "memory"
+
+import next from "../source_graph/references/next"
+
+import type { Input as Reference } from "../source_graph/references/next"
+
+export type Input = {
+    reference?: Reference,
+    first: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { reference, first } = in
+
+    if (reference == null) {
+        return null
+    }
+
+    const offset = first * reference.stride
+
+    if (offset >= reference.roles.length) {
+        return null
+    }
+
+    const relative = next({
+        ...reference,
+        roles: memory.borrowU8Range(
+            reference.roles,
+            offset,
+            reference.roles.length - offset
+        )
+    })
+
+    return relative == null ? null : first + relative
+}

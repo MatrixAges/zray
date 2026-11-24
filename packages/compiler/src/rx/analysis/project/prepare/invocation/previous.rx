@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Invocation" />
+    <Type from="../../flow/traversal/model" as="Flow" />
+
+    <Args in={Invocation.Previous} out={void} />
+
+    <If
+        on={$in.previous_kind == Flow.Kind.Call ||
+            $in.previous_kind == Flow.Kind.Task}
+    >
+        <Call
+            fn="host.preparedPreviousName"
+            in={[
+                $in.state,
+                $in.previous_end - 1,
+                $in.previous_kind == Flow.Kind.Task
+            ]}
+        />
+
+        <If on={$ctx.preparedPreviousName != null}>
+            <Call
+                fn="previous_path"
+                in={[
+                    $ctx.preparedPreviousName,
+                    $in.previous_kind == Flow.Kind.Task
+                ]}
+            />
+
+            <Call
+                fn="host.publishPreparedPrevious"
+                in={[
+                    $in.state,
+                    $ctx.previous_path
+                ]}
+            />
+        </If>
+    </If>
+</Module>

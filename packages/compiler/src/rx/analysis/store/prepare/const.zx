@@ -1,0 +1,8 @@
+export const invalid_types: string = "invalid shared Store type table"
+
+export const invalid_natives: string = "invalid shared native module table"
+
+export const invalid_nominals: string = "invalid shared nominal type table"
+
+export const invalid_aliases: string =
+    "Store type alias is missing from the shared type table"

@@ -10,7 +10,7 @@ const Event = struct {
     pop: bool = false,
 };
 
-pub fn run(state: anytype, plan: *const Flow.Plan) @TypeOf(state.closeCase(true)) {
+pub fn run(state: anytype, plan: *const Flow.Plan) @TypeOf(state.closeCase()) {
     while (true) {
         const current = state.frame();
         const first = current.cursor.first;
@@ -30,7 +30,7 @@ pub fn run(state: anytype, plan: *const Flow.Plan) @TypeOf(state.closeCase(true)
             .CloseTask, .CloseParallelTask => try state.closeTask(batch.action == .CloseParallelTask),
             .CloseParallel => try state.closeParallel(),
             .CloseSelection => try state.closeSelection(),
-            .CloseCase => try state.closeCase(true),
+            .CloseCase => try state.closeCase(),
         }
 
         if (batch.pop) state.pop();

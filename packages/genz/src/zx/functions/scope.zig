@@ -4,7 +4,6 @@ const ir = zx.ir;
 const Lower = @import("../lower.zig");
 const context = @import("context.zig");
 const entry = @import("generated_function_context_scope");
-const body = @import("generated_function_context_body");
 const Rule = @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload;
 
 pub inline fn inherit(parent: *Lower, comptime form: entry.Input) Lower {
@@ -92,30 +91,25 @@ pub fn reserve(self: *Lower, allocator: std.mem.Allocator, comptime form: entry.
 }
 
 pub fn installPredicate(program: *ir.Program, predicates: *const ir.ContractTable, index: usize) void {
-    inline for (comptime zx.staticSequence(body, .Predicate)) |field| {
-        switch (field) {
-            .Symbols => program.symbols = predicates.symbols[index].*,
-            .Expressions => program.expressions = predicates.expressions[index].*,
-            else => @compileError("Predicate scope can only install symbol and expression columns"),
-        }
-    }
+    program.symbols = predicates.symbols[index].*;
+    program.expressions = predicates.expressions[index].*;
 }
 
-pub fn installFunction(program: *ir.Program, index: usize, comptime form: body.Input) void {
+pub fn installFunction(program: *ir.Program, index: usize, comptime form: enum { Function, Native }) void {
     const functions = &program.functions;
 
-    inline for (comptime zx.staticSequence(body, form)) |field| {
-        switch (field) {
-            .Symbols => program.symbols = functions.symbols[index].*,
-            .Expressions => program.expressions = functions.expressions[index].*,
-            .Body => program.body = functions.controlAt(index),
-            .InputType => program.input_type = @fromBackingInt(functions.input_types[index]),
-            .OutputType => program.output_type = @fromBackingInt(functions.output_types[index]),
-            .Stores => program.stores = functions.stores[index].*,
-            .StoreMode => program.store_mode = functions.store_modes[index],
-            .Contracts => program.contracts = functions.contracts[index].*,
-        }
+    if (form == .Function) {
+        program.symbols = functions.symbols[index].*;
+        program.expressions = functions.expressions[index].*;
+        program.body = functions.controlAt(index);
     }
+
+    program.input_type = @fromBackingInt(functions.input_types[index]);
+    program.output_type = @fromBackingInt(functions.output_types[index]);
+    program.stores = functions.stores[index].*;
+    program.store_mode = functions.store_modes[index];
+
+    if (form == .Function) program.contracts = functions.contracts[index].*;
 }
 
 pub inline fn publish(parent: *Lower, child: *const Lower, comptime form: entry.Input) void {

@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Run} out={void} />
+
+    <Loop on={$in.row < $in.count}>
+        <Call module="prepare" in={$in} />
+    </Loop>
+</Module>

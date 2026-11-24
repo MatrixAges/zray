@@ -4,36 +4,33 @@ const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
 const Construction = @import("construction.zig");
-const Schedule = @import("expression/schedule.zig");
 
 pub fn infer(self: *Expression, fields: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
     const first = self.graph.pending.construction_parts.len;
     const indexed = @import("rx_options").generated_graph and @typeInfo(@TypeOf(fields)) == .@"struct";
     var buffer: [32]u32 = undefined;
-    var hints: []const u32 = &.{};
-    var result: Graph.Id = undefined;
+
+    try self.graph.pending.construction_parts.resize(self.graph.pending.allocator, first + fields.len);
+
+    const hints: []const u32 = if (indexed and expected != null and fields.len > 1)
+        try markHints(self.graph.scratch, fields, &buffer)
+    else
+        &.{};
 
     defer if (hints.len > buffer.len) self.graph.scratch.free(hints);
 
-    inline for (comptime Schedule.steps(.Object)) |step| {
-        switch (step) {
-            .Done => {},
-            .ReserveParts => try self.graph.pending.construction_parts.resize(self.graph.pending.allocator, first + fields.len),
-            .PlanFieldHints => if (indexed and expected != null and fields.len > 1) {
-                hints = try markHints(self.graph.scratch, fields, &buffer);
-            },
-            .InferFields => try inferFields(self, fields, expected, first, hints, indexed),
-            .ObjectResult => result = try self.graph.add(.{ .object = .{} }, span),
-            .ExpectResult => if (expected) |target| try self.graph.expect(result, target, span),
-            .RegisterObject => try self.graph.pending.constructions.append(self.graph.pending.allocator, .{
-                .result = result,
-                .first = first,
-                .count = fields.len,
-                .span = span,
-            }),
-            else => unreachable,
-        }
-    }
+    try inferFields(self, fields, expected, first, hints, indexed);
+
+    const result = try self.graph.add(.{ .object = .{} }, span);
+
+    if (expected) |target| try self.graph.expect(result, target, span);
+
+    try self.graph.pending.constructions.append(self.graph.pending.allocator, .{
+        .result = result,
+        .first = first,
+        .count = fields.len,
+        .span = span,
+    });
 
     return result;
 }

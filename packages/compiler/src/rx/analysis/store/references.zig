@@ -6,14 +6,6 @@ const target = @import("../call/target.zig");
 const Graph = @import("../project/source_graph/model.zig");
 const Declarations = @import("../project/declarations.zig");
 const generated = @import("rx_options").generated_graph;
-const register = if (generated) @import("generated_rx_store_namespace").executeState else void;
-const Parameters = if (generated) @typeInfo(@TypeOf(register)).@"fn" else void;
-const Parameter = if (generated) Parameters.param_types[1].? else void;
-const Registration = if (generated and @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-const Namespaces = if (generated) @FieldType(Registration, "index") else std.StringHashMapUnmanaged(void);
-const Status = if (generated) @FieldType(@typeInfo(Parameters.return_type.?).error_union.payload, "status") else enum { Accepted, Invalid, Duplicate };
-const Namespace = struct { name: []const u8, status: Status };
-const empty: Namespaces = if (generated) frontend.project.source_index.emptyGenerated(Namespaces) else .empty;
 
 const Row = struct {
     name: []const u8,
@@ -38,68 +30,89 @@ pub const Scope = struct {
     }
 };
 
-pub const Value = union(enum) { scope: Scope, diagnostic: target.Diagnostic };
-
-pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: rx.ModuleSource, edges: []const Graph.Edge, sources: Graph.Sources, definitions: []const Store.Definition) std.mem.Allocator.Error!Value {
-    if (definitions.len == 0 or edges.len == 0) return .{ .scope = .{} };
+pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: rx.ModuleSource, edges: []const Graph.Edge, sources: Graph.Sources, definitions: []const Store.Definition, issue: *?target.Diagnostic) Declarations.Error!Scope {
+    if (definitions.len == 0 or edges.len == 0) return .{};
 
     var bindings: Storage = .empty;
-    var namespaces = empty;
-    var references: Graph.References = .{ .edges = edges };
-    var declarations = Declarations.init(source.node, .Store);
 
-    defer if (!generated) namespaces.deinit(temporary);
+    var work: Work = .{
+        .allocator = allocator,
+        .temporary = temporary,
+        .owner = source.path,
+        .references = .{ .edges = edges },
+        .sources = sources,
+        .definitions = definitions,
+        .issue = issue,
+        .bindings = &bindings,
+    };
 
-    while (declarations.next()) |node| {
-        const attributes = Declarations.attributes(node, .Store);
-        const from = attributes.first;
-        const edge = references.next(.store).edge;
-        const definition = &definitions[sources.at(edge.target.source).store];
-        const explicit = if (attributes.second) |named| named.value else null;
-        const location = (attributes.second orelse from).value_location;
-        const namespace = try claim(temporary, &namespaces, explicit, definition.name);
+    defer if (!generated) work.namespaces.deinit(temporary);
 
-        switch (namespace.status) {
-            .Accepted => {},
-            .Invalid => return failure(allocator, source.path, location, "Store namespace must be an identifier; use as for a different display name"),
-            .Duplicate => return failure(allocator, source.path, location, "Store namespace is already registered in this module"),
-        }
-
-        const published = if (comptime generated)
-            try @import("references/publish.zig").append(allocator, temporary, namespace.name, definition.objects, &bindings)
-        else
-            try publishSeed(allocator, temporary, namespace.name, definition.objects, &bindings);
-
-        if (!published) return failure(allocator, source.path, from.value_location, "Store Object names must be identifiers");
-    }
+    try Declarations.walk(source.node, .Store, &work);
 
     const rows = bindings.slice();
 
-    return .{ .scope = .{ .names = rows.items(.name), .paths = rows.items(.path), .types = rows.items(.type_id) } };
+    return .{ .names = rows.items(.name), .paths = rows.items(.path), .types = rows.items(.type_id) };
 }
 
-fn claim(allocator: std.mem.Allocator, state: *Namespaces, explicit: ?[]const u8, fallback: []const u8) std.mem.Allocator.Error!Namespace {
-    if (comptime !generated) {
-        const name = explicit orelse fallback;
+const Work = struct {
+    allocator: std.mem.Allocator,
+    temporary: std.mem.Allocator,
+    owner: []const u8,
+    references: Graph.References,
+    sources: Graph.Sources,
+    definitions: []const Store.Definition,
+    issue: *?target.Diagnostic,
+    bindings: *Storage,
+    namespaces: if (generated) void else std.StringHashMapUnmanaged(void) = if (generated) {} else .empty,
+    pub fn append(self: *Work, attributes: Declarations.Attributes) Declarations.Error!void {
+        const row = self.references.next(.store).row;
+        const item = self.definition(row);
+        const at = attributes.second orelse attributes.first;
+        const name = if (attributes.second) |alias| alias.value else item.name;
 
-        if (!seedIdentifier(name)) return .{ .name = name, .status = .Invalid };
-
-        const duplicate = (try state.getOrPut(allocator, name)).found_existing;
-
-        return .{ .name = name, .status = if (duplicate) .Duplicate else .Accepted };
+        if (!seedIdentifier(name)) return self.fail(at.value_location, "Store namespace must be an identifier; use as for a different display name");
+        if ((try self.namespaces.getOrPut(self.temporary, name)).found_existing) return self.fail(at.value_location, "Store namespace is already registered in this module");
+        try self.publish(item, attributes.first, name);
     }
+    fn definition(self: *const Work, row: usize) *const Store.Definition {
+        const source = self.references.edges[row].target.source;
 
-    const input: Registration = .{ .index = state.*, .explicit = explicit, .fallback = fallback };
+        return &self.definitions[self.sources.at(source).store];
+    }
+    fn publish(self: *Work, item: *const Store.Definition, from: *const rx.ast.Attribute, namespace: []const u8) Declarations.Error!void {
+        const published = if (comptime generated)
+            try @import("references/publish.zig").append(self.allocator, self.temporary, namespace, item.objects, self.bindings)
+        else
+            try publishSeed(self.allocator, self.temporary, namespace, item.objects, self.bindings);
 
-    const result = register(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
-        error.InvalidUtf8 => return .{ .name = explicit orelse fallback, .status = .Invalid },
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+        if (!published) return self.fail(from.value_location, "Store Object names must be identifiers");
+    }
+    fn fail(self: *Work, location: rx.ast.Location, message: []const u8) Declarations.Error {
+        const failed = try target.failure(self.allocator, .{ .path = self.owner, .location = location, .code = "capability", .message = message });
 
-    state.* = result.index;
+        self.issue.* = failed.diagnostic;
 
-    return .{ .name = result.name, .status = result.status };
+        return error.InvalidFlow;
+    }
+};
+
+fn borrow(handle: *const anyopaque) *Work {
+    return @ptrCast(@alignCast(@constCast(handle)));
+}
+
+pub fn storeDeclarationName(handle: *const anyopaque, row: ?u64) []const u8 {
+    return borrow(handle).definition(@intCast(row.?)).name;
+}
+
+pub fn publishStoreDeclaration(handle: *const anyopaque, row: ?u64, from: []const u8, namespace: []const u8) Declarations.Error!void {
+    const work = borrow(handle);
+
+    try work.publish(work.definition(@intCast(row.?)), Declarations.attribute(from), namespace);
+}
+
+pub fn rejectStoreDeclaration(handle: *const anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
+    return borrow(handle).fail(Declarations.attribute(at).value_location, message);
 }
 
 fn publishSeed(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: []const u8, objects: []const Store.Object, bindings: *Storage) std.mem.Allocator.Error!bool {
@@ -118,10 +131,4 @@ fn publishSeed(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: 
 
 fn seedIdentifier(name: []const u8) bool {
     return frontend.binding_path.valid(name) and std.mem.indexOfAny(u8, name, ".$") == null;
-}
-
-fn failure(allocator: std.mem.Allocator, path: []const u8, location: rx.ast.Location, message: []const u8) std.mem.Allocator.Error!Value {
-    const failed = try target.failure(allocator, .{ .path = path, .location = location, .code = "capability", .message = message });
-
-    return .{ .diagnostic = failed.diagnostic };
 }

@@ -96,8 +96,6 @@ fn initializePreparedWithConcurrency(temporary: std.mem.Allocator, workspace: st
 const TypeScratch = @import("types/scratch.zig");
 const Analysis = @import("function_analysis.zig");
 const generated = @import("genz_options").generated_analysis;
-const workspace_entry = if (generated) @import("generated_lowering_workspace") else void;
-const WorkspaceStep = if (generated) std.meta.Child(workspace_entry.Output) else enum { Borrow, Ast, Allocate, Bind, Context };
 
 pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: Analysis, scratch: ?*TypeScratch, body: bool) std.mem.Allocator.Error!Lower {
     const options = @as(u2, @intFromBool(scratch != null)) << 1 | @intFromBool(body);
@@ -109,73 +107,64 @@ pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Alloc
 
 fn initializeWorkspace(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: Analysis, scratch: ?*TypeScratch, comptime reusable: bool, comptime body: bool) std.mem.Allocator.Error!Lower {
     const count = program.types.count();
-    var builder: @import("../builder.zig") = undefined;
-    var lowering: Lower = undefined;
     var type_values: []node.ExpressionId = undefined;
     var type_layouts: []node.ExpressionId = undefined;
     var state_types: []node.ExpressionId = &.{};
     var state_layouts: []node.ExpressionId = &.{};
     var views: []node.ExpressionId = &.{};
 
-    inline for (comptime workspaceSteps(reusable, body)) |step| switch (step) {
-        .Borrow => {
-            const columns = try scratch.?.prepare(count);
+    if (reusable) {
+        const columns = try scratch.?.prepare(count);
 
-            type_values = columns.abi_types;
-            type_layouts = columns.abi_layouts;
-            state_types = columns.state_types;
-            state_layouts = columns.state_layouts;
-            views = columns.views;
-        },
-        .Ast => builder = try @import("../builder.zig").init(temporary),
-        .Allocate => {
-            if (generated) {
-                try @import("types/workspace.zig").allocateAbi(temporary, count, &type_values, &type_layouts);
-            } else {
-                type_values = try temporary.alloc(node.ExpressionId, count);
-                type_layouts = try temporary.alloc(node.ExpressionId, count);
-            }
-        },
-        .Bind => lowering = .{
-            .allocator = temporary,
-            .workspace = workspace,
-            .program = program,
-            .entry_flags = facts.entry_flags,
-            .builder = builder,
-            .types = type_values,
-            .layouts = type_layouts,
-            .type_scratch = scratch,
-            .state_types = state_types,
-            .state_layouts = state_layouts,
-            .view_types = views,
-            .state_plan = facts.value.state,
-            .layout_types = facts.layout_types,
-            .slot_counts = facts.basis.slots.counts,
-            .growth_functions = facts.grows,
-            .io_functions = facts.io,
-            .process_functions = facts.process,
-            .task_functions = facts.tasks,
-            .function_errors = if (facts.errors.len == program.functions.count()) facts.errors else null,
-            .value_functions = facts.value.values,
-            .pure_functions = facts.value.pure,
-            .identity_free_functions = facts.identity_free,
-            .local_functions = facts.value.local,
-            .fresh_outputs = facts.fresh_outputs,
-            .constructed_outputs = facts.constructed_outputs,
-            .plans = facts.uniqueness.functions,
-            .plan = facts.uniqueness.entry,
-        },
-        .Context => try @import("functions/context.zig").reserve(&lowering),
+        type_values = columns.abi_types;
+        type_layouts = columns.abi_layouts;
+        state_types = columns.state_types;
+        state_layouts = columns.state_layouts;
+        views = columns.views;
+    }
+
+    const builder = try @import("../builder.zig").init(temporary);
+
+    if (!reusable) {
+        if (generated) {
+            try @import("types/workspace.zig").allocateAbi(temporary, count, &type_values, &type_layouts);
+        } else {
+            type_values = try temporary.alloc(node.ExpressionId, count);
+            type_layouts = try temporary.alloc(node.ExpressionId, count);
+        }
+    }
+
+    var lowering: Lower = .{
+        .allocator = temporary,
+        .workspace = workspace,
+        .program = program,
+        .entry_flags = facts.entry_flags,
+        .builder = builder,
+        .types = type_values,
+        .layouts = type_layouts,
+        .type_scratch = scratch,
+        .state_types = state_types,
+        .state_layouts = state_layouts,
+        .view_types = views,
+        .state_plan = facts.value.state,
+        .layout_types = facts.layout_types,
+        .slot_counts = facts.basis.slots.counts,
+        .growth_functions = facts.grows,
+        .io_functions = facts.io,
+        .process_functions = facts.process,
+        .task_functions = facts.tasks,
+        .function_errors = if (facts.errors.len == program.functions.count()) facts.errors else null,
+        .value_functions = facts.value.values,
+        .pure_functions = facts.value.pure,
+        .identity_free_functions = facts.identity_free,
+        .local_functions = facts.value.local,
+        .fresh_outputs = facts.fresh_outputs,
+        .constructed_outputs = facts.constructed_outputs,
+        .plans = facts.uniqueness.functions,
+        .plan = facts.uniqueness.entry,
     };
 
+    if (body) try @import("functions/context.zig").reserve(&lowering);
+
     return lowering;
-}
-
-fn workspaceSteps(comptime reusable: bool, comptime body: bool) []const WorkspaceStep {
-    if (generated) return zx.staticSequence(workspace_entry, &.{ .reusable = reusable, .body = body });
-
-    const setup: []const WorkspaceStep = if (reusable) &.{ .Borrow, .Ast } else &.{ .Ast, .Allocate };
-    const finish: []const WorkspaceStep = if (body) &.{ .Bind, .Context } else &.{.Bind};
-
-    return setup ++ finish;
 }

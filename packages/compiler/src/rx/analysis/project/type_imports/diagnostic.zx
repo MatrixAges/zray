@@ -1,0 +1,15 @@
+import { Status } from "./admission"
+import { missing_alias, non_source, native_target, missing_signature } from "./const"
+
+export type Input = Status
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match in {
+        Status.MissingAlias => missing_alias,
+        Status.NonSource => non_source,
+        Status.Native => native_target,
+        _ => missing_signature
+    }
+}

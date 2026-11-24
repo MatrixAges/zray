@@ -157,7 +157,12 @@ export declare function reserveFieldAlignmentIndex(frame: FieldAlignment, minimu
     throws { OutOfMemory }
 
 export declare function prepareStoreInitializer(frame: StoreInitializer, count: u64): void throws { OutOfMemory }
-export declare function evaluateStoreField(frame: StoreInitializer, row: u64): bool throws { OutOfMemory }
+export declare function evaluateStoreField(
+    frame: StoreInitializer,
+    row: u64,
+    name: u8[],
+    value: u8[]
+): bool throws { OutOfMemory }
 export declare function recordStoreField(frame: StoreInitializer, position: u64): void throws { OutOfMemory }
 export declare function linkStoreField(frame: StoreInitializer, position: u64): bool throws { OutOfMemory }
 export declare function releaseStoreField(frame: StoreInitializer): void

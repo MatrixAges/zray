@@ -9,25 +9,3 @@ export enum Form {
     Negative,
     Conditional
 }
-
-export enum Step {
-    Done,
-    Boolean,
-    Unknown,
-    Expected,
-    NegativeLiteral,
-    Restrict,
-    DeclareLeft,
-    OptionalPayload,
-    ExpectResult,
-    InferLeft,
-    InferRight,
-    InferCondition,
-    InferRightIfTrue,
-    InferRightIfFalse,
-    InferThirdIfFalse
-}
-
-export type Input = Form
-
-export type Output = Step[]

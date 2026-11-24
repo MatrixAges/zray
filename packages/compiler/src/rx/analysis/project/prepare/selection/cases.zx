@@ -1,32 +1,52 @@
 import integers from "std:integer"
 
 import { alternate } from "../../../../dependency_graph/flow/const"
+import find from "../../../../schema/tree/attribute_row"
+import { result_value } from "../flow/const"
+import node from "../flow/tree"
 import write from "./write"
 
-import type { Input as Selection } from "./model"
+import type { Branches, Input as Selection } from "./model"
 
-export type Input = Selection.Omit("subject", "conditional", "has_else")
+export type Input = Selection.Pick("tree", "units", "rows", "facts") & {
+    branches: Branches
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { units, rows, labels, facts, first_child, child_count } = in
+    const { tree, units, rows, facts, branches } = in
+    const { layout } = tree
+    const { labels } = rows
 
     const mask = integers.widen(alternate)
 
     const written = loop(0, {
-        while: row => row < child_count,
+        while: row => row < branches.child_count,
         next: row => {
-            const slot = first_child + row
+            const slot = branches.first_child + row
             const flags = integers.widen(facts[slot])
             const fallback = integers.andBits(flags, mask) != 0
+            const attribute: u8[]? = match {
+                fallback => null,
+                _ => find({
+                    layout,
+                    node: node([
+                        tree,
+                        slot
+                    ]),
+                    key: result_value
+                })
+            }
 
             write({
-                rows,
+                rows: rows.body,
                 units,
                 slot,
                 row,
-                tag: fallback ? labels.fallback : labels.ordinary
+                tag: fallback ? labels.fallback : labels.ordinary,
+                attribute,
+                attribute_width: layout.attribute_width
             })
 
             row += 1

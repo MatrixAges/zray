@@ -1,0 +1,7 @@
+import type { ModulePreparation } from "rx_project_host"
+
+export type Run = {
+    state: ModulePreparation,
+    row: u64,
+    count: u64
+}

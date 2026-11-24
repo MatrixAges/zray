@@ -1,17 +1,20 @@
-export enum Form {
-    Definition,
-    TypeContext
+import type { WriteColumn } from "memory"
+import type { StoreDefinitionWork } from "rx_project_host"
+import type { Shared } from "../../../../zx/modules/project/state/model"
+import type { Input as AliasCheck } from "../type/aliases"
+
+export type Input = {
+    state: StoreDefinitionWork,
+    shared: Shared,
+    aliases: AliasCheck,
+    output_types: WriteColumn
 }
 
-export enum Step {
-    Done,
-    CollectLayout,
-    ResolveTypes,
-    PrepareValues,
-    CompileObjects,
-    PublishDefinition,
-    CheckTypes,
-    CheckNativeTypes,
-    CheckNominalTypes,
-    CheckAliases
+export type Objects = Input.Pick("state") & {
+    count: u64
+}
+
+export type TypePublication = Input.Pick("output_types") & {
+    count: u64,
+    view: u8[]
 }

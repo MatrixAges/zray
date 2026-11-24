@@ -53,9 +53,16 @@ fn loadIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, sources: []c
     for (sources, definitions, 0..) |source, *definition, index| {
         defer _ = value_memory.reset(.retain_capacity);
         const imports = @import("../project/type_imports.zig");
-        const aliases = if (signatures) |signed| try imports.collect(allocator, value_memory.allocator(), source, edges[index], signed, shared.types.kinds) else imports.Value{ .imports = .{} };
+        var issue: ?target.Diagnostic = null;
 
-        if (aliases == .diagnostic) return .{ .diagnostic = aliases.diagnostic };
+        const aliases = if (signatures) |signed|
+            imports.collect(allocator, value_memory.allocator(), source, edges[index], signed, shared.types.kinds, &issue) catch |err| switch (err) {
+                error.OutOfMemory => return error.OutOfMemory,
+                error.InvalidFlow => return .{ .diagnostic = issue.? },
+            }
+
+        else
+            imports.Imports{};
 
         const result = try Store.analyzeWithValues(allocator, backing, .{
             .owner = source.path,
@@ -63,8 +70,8 @@ fn loadIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, sources: []c
             .types = shared.types,
             .nominal_types = shared.nominal_types,
             .native_modules = shared.native_modules,
-            .aliases = aliases.imports.types,
-        }, aliases.imports.values);
+            .aliases = aliases.types,
+        }, aliases.values);
 
         if (result == .diagnostic) return .{ .diagnostic = result.diagnostic };
 

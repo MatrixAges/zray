@@ -1,0 +1,27 @@
+import source from "../../source_graph/source"
+import { Kind } from "../../source_graph/source"
+import signatureIndex from "./signature_index"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { owner, sources, indices } = in
+
+    const entity = source({
+        owner,
+        sources
+    })
+
+    const signature = match entity.kind {
+        Kind.ZX => signatureIndex({
+            owner,
+            indices
+        }),
+        _ => null
+    }
+
+    return {
+        ...entity,
+        signature
+    }
+}

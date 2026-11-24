@@ -1,0 +1,16 @@
+import { call_prefix, task_prefix } from "../../../result_name/const"
+
+export type Input = [
+    string,
+    bool
+]
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const [name, task] = in
+
+    const prefix = task ? task_prefix : call_prefix
+
+    return `${prefix}.${name}`
+}

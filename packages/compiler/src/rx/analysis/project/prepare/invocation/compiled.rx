@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Invocation" />
+    <Type from="host" as="Host" />
+
+    <Args in={Invocation.Compiled} out={void} />
+
+    <Call
+        fn="host.selectPreparedLibrary"
+        in={[
+            $in.state,
+            $in.edge
+        ]}
+    />
+
+    <Call
+        fn="compiled_status"
+        in={{
+            status: $ctx.selectPreparedLibrary,
+            state: $in.state
+        }}
+    />
+
+    <If on={$ctx.compiled_status == Host.CompiledCallStatus.Ready}>
+        <Call fn="host.validatePreparedLibrary" in={$in.state} />
+
+        <Else>
+            <If on={$ctx.compiled_status != Host.CompiledCallStatus.Checked}>
+                <Call
+                    fn="host.rejectPreparedLibrary"
+                    in={[
+                        $in.state,
+                        $ctx.compiled_status
+                    ]}
+                />
+            </If>
+        </Else>
+    </If>
+</Module>

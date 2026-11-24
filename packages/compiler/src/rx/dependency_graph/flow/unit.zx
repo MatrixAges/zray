@@ -28,11 +28,11 @@ export type Output = u64
 
 export default function (in: Input): Output {
     const { geometry, columns, slot, start } = in
-    const { children, node, tag } = geometry
+    const { children, child_count, tag } = geometry
 
     const view = children.view
     const count = layout(geometry)
-    const has_else = tag == Tag.If && count < node.child_count
+    const has_else = tag == Tag.If && count < child_count
     const output_flag = in.task_output ? task_has_output : 0
     const else_flag = has_else ? if_has_else : 0
 
@@ -41,9 +41,9 @@ export default function (in: Input): Output {
     const first = match {
         count == 0 => start,
         _ => place({
-            view,
+            children,
             step_rows: columns.step_rows,
-            node,
+            child_count,
             tag,
             first: start,
             count

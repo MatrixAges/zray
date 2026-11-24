@@ -46,6 +46,7 @@
             lengths: $in.request.lengths,
             labels: $in.request.labels,
             fallback: $in.request.fallback,
+            coverage: $in.request.coverage,
             inference: $in.request.returns != null,
             cursor: $in.request.cursor,
             returns: $in.request.returns,

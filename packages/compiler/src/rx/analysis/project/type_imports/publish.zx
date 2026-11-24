@@ -1,57 +1,56 @@
 import integers from "std:integer"
 import memory from "memory"
+import { advanceTypeBindingTail } from "rx_project_host"
 
 import qualify from "../references/qualify"
 import valueKind from "../references/value_kind"
 
-import type { Input, Output } from "./model"
+import type { Input } from "./model"
+
+export type Output = void
 
 export default function (in: Input): Output {
-    const values = in.values
     const qualified = in.qualified
 
     return loop({
-        next: in.next,
-        visible: 0,
-        full: false
+        next: 0,
+        visible: 0
     }, {
-        while: state => state.next < in.length && !state.full,
+        while: state => state.next < in.length,
         next: state => {
             const row = state.next
             const id = memory.readRowId(in.rows, row)
             const index = integers.widen(id)
             const visible = index < in.kinds.length && valueKind(in.kinds[index])
 
-            if (visible && state.visible == values.capacity) {
-                state.full = true
-            } else {
-                if (qualified != null || visible) {
-                    const original = memory.readRowName(in.rows, row)
-                    const name = match {
-                        qualified != null => qualify({
-                            alias: qualified.alias,
-                            member: original
-                        }),
-                        _ => original
-                    }
+            if (visible && state.visible == in.values.capacity) {
+                advanceTypeBindingTail(in.tail, state.visible, true)
+                state.visible = 0
+            }
 
-                    if (qualified != null) {
-                        memory.writeNamedRow(qualified.rows, row, name, id)
-                    }
-
-                    if (visible) {
-                        memory.writeString(values.names, state.visible, name)
-                        memory.writeU32(values.ids, state.visible, id)
-                        state.visible += 1
-                    }
+            if (qualified != null || visible) {
+                const original = memory.readRowName(in.rows, row)
+                const name = match {
+                    qualified != null => qualify({
+                        alias: qualified.alias,
+                        member: original
+                    }),
+                    _ => original
                 }
 
-                state.next += 1
+                if (qualified != null) {
+                    memory.writeNamedRow(qualified.rows, row, name, id)
+                }
+
+                if (visible) {
+                    memory.writeString(in.values.names, state.visible, name)
+                    memory.writeU32(in.values.ids, state.visible, id)
+                    state.visible += 1
+                }
             }
+
+            state.next += 1
         },
-        return: state => ({
-            next: state.next,
-            visible: state.visible
-        })
+        return: state => advanceTypeBindingTail(in.tail, state.visible, false)
     })
 }

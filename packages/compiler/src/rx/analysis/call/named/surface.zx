@@ -1,0 +1,50 @@
+import memory from "memory"
+
+import select from "../../result_name/select"
+import position from "./member_position"
+
+import type { ListColumn } from "memory"
+import type { Selection as Output } from "./model"
+
+export type Members = {
+    names: ListColumn,
+    kinds: ListColumn,
+    stores: ListColumn,
+    callable: u8
+}
+
+export type Input = {
+    members: Members,
+    module: u64,
+    reference: string
+}
+
+export default function (in: Input): Output {
+    const { members, module } = in
+
+    const name = select({
+        reference: in.reference,
+        function_target: true
+    })
+
+    const row = position({
+        names: members.names,
+        module,
+        name
+    })
+
+    if (row == null) {
+        return {
+            row,
+            has_store: false
+        }
+    }
+
+    const has_store = memory.readListBool(members.stores, module, row)
+    const callable = memory.readListU8(members.kinds, module, row) == members.callable
+
+    return {
+        row: callable ? row : null,
+        has_store
+    }
+}
