@@ -1,4 +1,4 @@
-import host from "rx_project_host"
+import memory from "memory"
 
 import changed from "../changed"
 import sameSignature from "../signature"
@@ -64,18 +64,24 @@ export default function (in: Input): Output {
             return true
         }
 
-        return sameStore([
-            host.historyStoreNode(
+        const { layout, width, node_offset } = stores
+
+        const earlier = (index - history.previous_sources.rx_end) * width
+        const current = (index - sources.rx_end) * width
+
+        return sameStore({
+            left: memory.borrowU8Range(
                 stores.earlier,
-                index - history.previous_sources.rx_end,
-                null
+                earlier + node_offset,
+                layout.node_width
             ),
-            host.historyStoreNode(
+            right: memory.borrowU8Range(
                 stores.current,
-                index - sources.rx_end,
-                null
-            )
-        ])
+                current + node_offset,
+                layout.node_width
+            ),
+            layout
+        })
     }
 
     const same = sameDigest({

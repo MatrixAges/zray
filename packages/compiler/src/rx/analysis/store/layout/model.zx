@@ -1,6 +1,6 @@
 import type { Allocator } from "memory"
 import type { WriteColumn } from "memory/columns"
-import type { Layout } from "../../../schema/tree/model"
+import type { Layout } from "../../../syntax/tree/layout"
 import type { Bytes } from "../../project/contracts/model"
 
 export type Input = {

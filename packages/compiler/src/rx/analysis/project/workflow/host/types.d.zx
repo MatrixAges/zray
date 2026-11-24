@@ -191,27 +191,11 @@ export type ImportedCallee = {
     orchestration: bool
 }
 
-export type HistoryStores = opaque
-
 export type HistoryParseCache = opaque
 
 export type HistoryFunctionRange = opaque
 
 export type HistoryModuleLink = opaque
-
-export type HistoryXmlNode = opaque
-
-export type HistoryXmlRows = opaque
-
-export type HistoryXmlAttribute = opaque
-
-export type HistoryXmlText = opaque
-
-export enum HistoryXmlPart {
-    Attributes,
-    Children,
-    Text
-}
 
 export enum MixedAction {
     Exhausted,

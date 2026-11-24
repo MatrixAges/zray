@@ -10,7 +10,6 @@ export type Input = {
     cursor: Cursor,
     references: StringBuffer,
     packages: U8Buffer,
-    attribute_value: u64,
     capacity: u64
 }
 
@@ -46,7 +45,7 @@ export default function (in: Input): Output {
             } else {
                 const value = columns.readBorrowedRowText(
                     item.attribute ?? [],
-                    in.attribute_value
+                    cursor.layout.attribute_value
                 )
 
                 memory.writeString(in.references, state.count, value)

@@ -1,0 +1,20 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { Pair } from "./model"
+
+export type Input = Pair.Omit("layout") & {
+    offset: u64,
+    width: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right, offset, width } = in
+
+    return bytes.equals(
+        memory.borrowU8Range(left, offset, width),
+        memory.borrowU8Range(right, offset, width)
+    )
+}

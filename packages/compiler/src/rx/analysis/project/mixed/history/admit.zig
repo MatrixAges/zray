@@ -23,8 +23,6 @@ pub const Borrowed = struct {
     earlier_view: SignatureView,
     current_view: SignatureView,
     signatures: SignaturePair,
-    earlier_stores: []const Module,
-    current_stores: []const Module,
     stores: Stores,
     history: ScanHistory,
     transfers: [type_count + origin_count + function_count]Transfer.Column,
@@ -56,8 +54,6 @@ pub const Borrowed = struct {
             .earlier_view = undefined,
             .current_view = undefined,
             .signatures = undefined,
-            .earlier_stores = undefined,
-            .current_stores = undefined,
             .stores = undefined,
             .history = undefined,
             .transfers = undefined,
@@ -88,9 +84,15 @@ pub const Borrowed = struct {
         const shared_stores = self.previous_sources.rx_end == graph.sources.rx_end and earlier.stores.ptr == current.stores.ptr and earlier.stores.len == current.stores.len;
 
         if (!shared_stores) {
-            self.earlier_stores = earlier.stores;
-            self.current_stores = current.stores;
-            self.stores = .{ .earlier = @ptrCast(&self.earlier_stores), .current = @ptrCast(&self.current_stores) };
+            const Layout = std.meta.Child(@FieldType(Stores, "layout"));
+
+            self.stores = .{
+                .earlier = std.mem.sliceAsBytes(earlier.stores),
+                .current = std.mem.sliceAsBytes(current.stores),
+                .width = @sizeOf(Module),
+                .node_offset = @offsetOf(Module, "node"),
+                .layout = &comptime @import("rx").astLayout(Layout),
+            };
         }
 
         self.history = .{

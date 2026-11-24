@@ -1,0 +1,19 @@
+export type Layout = {
+    node_width: u64,
+    node_name: u64,
+    node_location: u64,
+    node_children: u64,
+    node_attributes: u64,
+    node_text: u64,
+    attribute_width: u64,
+    attribute_name: u64,
+    attribute_value: u64,
+    attribute_kind: u64,
+    attribute_location: u64,
+    attribute_value_location: u64,
+    attribute_raw_value: u64,
+    text_width: u64,
+    text_value: u64,
+    text_location: u64,
+    location_width: u64
+}

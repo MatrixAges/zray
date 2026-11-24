@@ -1,48 +1,56 @@
-import bytes from "std:bytes"
-import host from "rx_project_host"
+import columns from "memory/columns"
 
-import type { Attributes as Input } from "./model"
+import samePosition from "./position"
+
+import type { Pair as Input } from "./model"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const [left, right] = in
+    const { left, right, layout } = in
+    const { attribute_kind: kind, attribute_name: name, attribute_value: value } = layout
 
-    const left_expression = host.historyAttributeIsExpression(left)
-    const right_expression = host.historyAttributeIsExpression(right)
-
-    if (left_expression != right_expression) {
-        return false
-    }
-
-    if (host.historyAttributeName(left) != host.historyAttributeName(right)) {
-        return false
-    }
-
-    if (host.historyAttributeValue(left) != host.historyAttributeValue(right)) {
+    if (left[kind] != right[kind]) {
         return false
     }
 
     if (
-        !bytes.equals(
-            host.historyAttributePosition(left, false),
-            host.historyAttributePosition(right, false)
-        )
+        columns.readBorrowedRowText(left, name) !=
+            columns.readBorrowedRowText(right, name)
     ) {
         return false
     }
 
     if (
-        !bytes.equals(
-            host.historyAttributePosition(left, true),
-            host.historyAttributePosition(right, true)
-        )
+        columns.readBorrowedRowText(left, value) !=
+            columns.readBorrowedRowText(right, value)
     ) {
         return false
     }
 
-    const raw_left = host.historyAttributeRaw(left)
-    const raw_right = host.historyAttributeRaw(right)
+    const width = layout.location_width
+
+    if (!samePosition({
+        left,
+        right,
+        offset: layout.attribute_location,
+        width
+    })) {
+        return false
+    }
+
+    if (!samePosition({
+        left,
+        right,
+        offset: layout.attribute_value_location,
+        width
+    })) {
+        return false
+    }
+
+    const offset = layout.attribute_raw_value
+    const raw_left = columns.readBorrowedRowOptionalText(left, offset)
+    const raw_right = columns.readBorrowedRowOptionalText(right, offset)
 
     if (raw_left == null) {
         return raw_right == null

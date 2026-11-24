@@ -4,7 +4,8 @@ import columns from "memory/columns"
 import classify from "../../../schema/execution/tag"
 import target from "../target"
 
-import type { Layout, Reference } from "./model"
+import type { Layout } from "../../../syntax/tree/layout"
+import type { Reference } from "./model"
 
 export type Input = {
     node: u8[],

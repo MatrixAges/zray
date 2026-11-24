@@ -1,0 +1,50 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import attribute from "./attribute"
+import { Leaf } from "./model"
+import text from "./text"
+
+import type { Pair } from "./model"
+
+export type Input = Pair & {
+    leaf: Leaf
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right, layout, leaf } = in
+
+    if (left.length != right.length) {
+        return false
+    }
+
+    if (columns.sameBorrowedBytes(left, right)) {
+        return true
+    }
+
+    const width = leaf == Leaf.Attribute ? layout.attribute_width : layout.text_width
+
+    return loop({
+        offset: 0,
+        matches: true
+    }, {
+        while: state => state.matches && state.offset < left.length,
+        next: state => {
+            const pair = {
+                left: memory.borrowU8Range(left, state.offset, width),
+                right: memory.borrowU8Range(right, state.offset, width),
+                layout
+            }
+
+            state.matches = match leaf {
+                Leaf.Attribute => attribute(pair),
+                _ => text(pair)
+            }
+
+            state.offset += width
+        },
+        return: state => state.matches
+    })
+}

@@ -66,6 +66,13 @@ export declare function readBorrowedRowText(
     offset: u64
 ): string throws { IndexOutOfBounds }
 
+export declare function readBorrowedRowOptionalText(
+    row: u8[],
+    offset: u64
+): string? throws { IndexOutOfBounds }
+
+export declare function sameBorrowedBytes(left: u8[], right: u8[]): bool
+
 export declare function readBorrowedRowReference(
     row: u8[],
     offset: u64,

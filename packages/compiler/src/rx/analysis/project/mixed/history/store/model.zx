@@ -1,26 +1,12 @@
-import type {
-    HistoryXmlAttribute,
-    HistoryXmlNode,
-    HistoryXmlRows,
-    HistoryXmlText
-} from "rx_project_host"
+import type { Layout } from "../../../../../syntax/tree/layout"
 
-export type Nodes = [
-    HistoryXmlNode,
-    HistoryXmlNode
-]
+export type Pair = {
+    left: u8[],
+    right: u8[],
+    layout: Layout
+}
 
-export type Rows = [
-    HistoryXmlRows,
-    HistoryXmlRows
-]
-
-export type Attributes = [
-    HistoryXmlAttribute,
-    HistoryXmlAttribute
-]
-
-export type Text = [
-    HistoryXmlText,
-    HistoryXmlText
-]
+export enum Leaf {
+    Attribute,
+    Text
+}

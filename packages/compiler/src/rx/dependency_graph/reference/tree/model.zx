@@ -1,14 +1,6 @@
 import type { ByteViewStorage, ColumnAllocator } from "memory/columns"
+import type { Layout } from "../../../syntax/tree/layout"
 import type { Role, Target } from "../model"
-
-export type Layout = {
-    node_width: u64,
-    node_name: u64,
-    node_children: u64,
-    node_attributes: u64,
-    attribute_width: u64,
-    attribute_name: u64
-}
 
 export type Cursor = {
     pending: u8[],

@@ -1,7 +1,7 @@
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { Layout } from "./model"
+import type { Layout } from "../../syntax/tree/layout"
 
 export type Input = {
     layout: Layout,

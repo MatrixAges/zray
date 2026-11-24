@@ -1,30 +1,10 @@
 const std = @import("std");
 const ast = @import("dsl").ast;
 const zx = @import("zx");
+const layout = @import("../../syntax/tree/layout.zig").bind;
 
 pub fn supports(comptime Node: type) bool {
     return Node == ast.View or @hasDecl(Node, "schemaChildren");
-}
-
-pub fn layout(comptime Layout: type) Layout {
-    const Attribute = ast.Attribute;
-    const Kind = @FieldType(Attribute, "kind");
-
-    comptime {
-        std.debug.assert(@sizeOf(Kind) == 1);
-        std.debug.assert(@backingInt(Kind.string) == 0 and @backingInt(Kind.expression) == 1);
-    }
-
-    return .{
-        .node_width = @sizeOf(ast.Node),
-        .node_name = @offsetOf(ast.Node, "name"),
-        .node_children = @offsetOf(ast.Node, "children"),
-        .node_attributes = @offsetOf(ast.Node, "attributes"),
-        .attribute_width = @sizeOf(Attribute),
-        .attribute_name = @offsetOf(Attribute, "name"),
-        .attribute_value = @offsetOf(Attribute, "value"),
-        .attribute_kind = @offsetOf(Attribute, "kind"),
-    };
 }
 
 pub fn invoke(comptime Rule: type, allocator: std.mem.Allocator, node: anytype, input: *std.meta.Child(Rule.Input)) std.mem.Allocator.Error!Result(Rule) {

@@ -1,5 +1,6 @@
 const std = @import("std");
 const ast = @import("dsl").ast;
+const layout = @import("../../syntax/tree/layout.zig").bind;
 const Entry = @import("frontend").xml_references.Entry;
 const rule = @import("generated_rx_ast_reference_next");
 const select_rule = @import("generated_rx_ast_reference_select");
@@ -55,7 +56,6 @@ pub const Cursor = struct {
             .cursor = &self.borrow(std.meta.Child(@FieldType(Request, "cursor")), &allocator),
             .references = @ptrCast(&references),
             .packages = @ptrCast(&packages),
-            .attribute_value = @offsetOf(ast.Attribute, "value"),
             .capacity = references.len,
         }) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
@@ -80,17 +80,6 @@ pub fn select(node: *const ast.Node, graph_only: bool) ?Entry {
     }) catch unreachable;
 
     return if (result) |item| fromWire(item) else null;
-}
-
-fn layout(comptime Layout: type) Layout {
-    return .{
-        .node_width = @sizeOf(ast.Node),
-        .node_name = @offsetOf(ast.Node, "name"),
-        .node_children = @offsetOf(ast.Node, "children"),
-        .node_attributes = @offsetOf(ast.Node, "attributes"),
-        .attribute_width = @sizeOf(ast.Attribute),
-        .attribute_name = @offsetOf(ast.Attribute, "name"),
-    };
 }
 
 pub fn fromWire(item: anytype) Entry {

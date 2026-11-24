@@ -1,19 +1,27 @@
-import bytes from "std:bytes"
-import host from "rx_project_host"
+import columns from "memory/columns"
 
-import type { Text as Input } from "./model"
+import samePosition from "./position"
+
+import type { Pair as Input } from "./model"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const [left, right] = in
+    const { left, right, layout } = in
 
-    if (host.historyTextValue(left) != host.historyTextValue(right)) {
+    const value = layout.text_value
+
+    if (
+        columns.readBorrowedRowText(left, value) !=
+            columns.readBorrowedRowText(right, value)
+    ) {
         return false
     }
 
-    return bytes.equals(
-        host.historyTextPosition(left),
-        host.historyTextPosition(right)
-    )
+    return samePosition({
+        left,
+        right,
+        offset: layout.text_location,
+        width: layout.location_width
+    })
 }

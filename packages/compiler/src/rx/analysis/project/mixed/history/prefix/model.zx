@@ -1,5 +1,5 @@
 import type { ReadColumn } from "memory"
-import type { HistoryStores } from "rx_project_host"
+import type { Layout } from "../../../../../syntax/tree/layout"
 import type { Ports } from "../../../signatures/model"
 import type { Ranges } from "../../../source_graph/source"
 
@@ -34,8 +34,11 @@ export type Signatures = {
 }
 
 export type Stores = {
-    earlier: HistoryStores,
-    current: HistoryStores
+    earlier: u8[],
+    current: u8[],
+    width: u64,
+    node_offset: u64,
+    layout: Layout
 }
 
 export type History = {

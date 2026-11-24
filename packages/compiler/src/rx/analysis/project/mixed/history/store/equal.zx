@@ -1,67 +1,81 @@
-import bytes from "std:bytes"
-import host from "rx_project_host"
-import { HistoryXmlPart } from "rx_project_host"
+import memory from "memory"
+import columns from "memory/columns"
 
-import attributes from "./attributes"
-import texts from "./texts"
+import leaves from "./leaves"
+import { Leaf } from "./model"
+import samePosition from "./position"
 
-import type { Nodes as Input } from "./model"
+import type { Pair as Input } from "./model"
 
 export type Output = bool
 
 export default function equal(in: Input): Output {
-    const [left, right] = in
+    const { left, right, layout } = in
 
-    if (host.historyXmlNodesShare(left, right)) {
+    if (columns.sameBorrowedBytes(left, right)) {
         return true
     }
 
-    if (host.historyNodeName(left) != host.historyNodeName(right)) {
-        return false
-    }
+    const name = layout.node_name
 
     if (
-        !bytes.equals(
-            host.historyNodePosition(left),
-            host.historyNodePosition(right)
-        )
+        columns.readBorrowedRowText(left, name) !=
+            columns.readBorrowedRowText(right, name)
     ) {
         return false
     }
 
-    if (!attributes([
-        host.historyNodeRows(
-            left,
-            HistoryXmlPart.Attributes,
-            null
-        ),
-        host.historyNodeRows(right, HistoryXmlPart.Attributes, null)
-    ])) {
+    if (!samePosition({
+        left,
+        right,
+        offset: layout.node_location,
+        width: layout.location_width
+    })) {
         return false
     }
 
-    const left_children = host.historyNodeRows(left, HistoryXmlPart.Children, null)
-    const right_children = host.historyNodeRows(right, HistoryXmlPart.Children, null)
-    const count = host.historyXmlRowCount(left_children)
+    const { node_attributes, attribute_width } = layout
 
-    if (count != host.historyXmlRowCount(right_children)) {
+    if (!leaves({
+        left: columns.readBorrowedRowList(left, node_attributes, attribute_width),
+        right: columns.readBorrowedRowList(right, node_attributes, attribute_width),
+        layout,
+        leaf: Leaf.Attribute
+    })) {
         return false
     }
 
-    if (!host.historyXmlRowsShare(left_children, right_children)) {
+    const { node_children, node_width } = layout
+
+    const left_children = columns.readBorrowedRowList(left, node_children, node_width)
+    const right_children = columns.readBorrowedRowList(right, node_children, node_width)
+
+    if (left_children.length != right_children.length) {
+        return false
+    }
+
+    if (!columns.sameBorrowedBytes(left_children, right_children)) {
         const children = loop({
-            row: 0,
+            offset: 0,
             matches: true
         }, {
-            while: state => state.matches && state.row < count,
+            while: state => state.matches && state.offset < left_children.length,
             next: state => {
-                const row = state.row
-
-                state.matches = equal([
-                    host.historyNodeAt(left_children, row, null),
-                    host.historyNodeAt(right_children, row, null)
-                ])
-                state.row += 1
+                state.matches = equal({
+                    left: memory.borrowU8Range(
+                        left_children,
+                        state.offset,
+                        node_width
+                    ),
+                    right:
+                        memory.borrowU8Range(
+                            right_children,
+                            state.offset,
+                            node_width
+                        ),
+                    layout
+                })
+                state.offset += node_width
             },
             return: state => state.matches
         })
@@ -71,8 +85,12 @@ export default function equal(in: Input): Output {
         }
     }
 
-    return texts([
-        host.historyNodeRows(left, HistoryXmlPart.Text, null),
-        host.historyNodeRows(right, HistoryXmlPart.Text, null)
-    ])
+    const { node_text, text_width } = layout
+
+    return leaves({
+        left: columns.readBorrowedRowList(left, node_text, text_width),
+        right: columns.readBorrowedRowList(right, node_text, text_width),
+        layout,
+        leaf: Leaf.Text
+    })
 }

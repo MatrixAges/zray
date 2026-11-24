@@ -72,6 +72,7 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
     if (indexed == null) cursor.reset(&source.node);
 
     const Tree = std.meta.Child(std.meta.Child(@FieldType(Input, "cursor")));
+    const Layout = std.meta.Child(@FieldType(Tree, "layout"));
 
     try execute(collector, &scan, &.{
         .scan = &.{
@@ -85,12 +86,7 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
             .directory = std.fs.path.dirname(source.path) orelse ".",
             .allocator = @ptrCast(&allocator),
             .workspace = &.{ .bytes = workspace, .target = @ptrCast(&workspace), .start = 0 },
-            .layout = &.{
-                .location_width = @sizeOf(Location),
-                .node_location = @offsetOf(rx.ast.Node, "location"),
-                .attribute_location = @offsetOf(rx.ast.Attribute, "value_location"),
-                .attribute_value = @offsetOf(rx.ast.Attribute, "value"),
-            },
+            .layout = &comptime rx.astLayout(Layout),
         },
         .indexed = if (indexed) |entries| &.{
             .bytes = std.mem.sliceAsBytes(entries),

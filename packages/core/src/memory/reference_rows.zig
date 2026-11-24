@@ -50,17 +50,27 @@ pub inline fn text(source: *const anyopaque, offset: u64) IndexError![]const []c
 }
 
 pub inline fn borrowedText(row: []const u8, offset: u64) IndexError![]const u8 {
-    if (offset > row.len or row.len - offset < @sizeOf([]const u8)) return error.IndexOutOfBounds;
+    return borrowedField([]const u8, row, offset);
+}
 
-    return (try field([]const u8, row.ptr, offset)).*;
+pub inline fn borrowedOptionalText(row: []const u8, offset: u64) IndexError!?[]const u8 {
+    return borrowedField(?[]const u8, row, offset);
+}
+
+pub inline fn sameBorrowedBytes(left: []const u8, right: []const u8) bool {
+    return left.ptr == right.ptr and left.len == right.len;
 }
 
 pub inline fn borrowedReference(row: []const u8, offset: u64, width: u64) IndexError!?[]const u8 {
-    if (offset > row.len or row.len - offset < @sizeOf(?[*]const u8)) return error.IndexOutOfBounds;
-
-    const pointer = (try field(?[*]const u8, row.ptr, offset)).* orelse return null;
+    const pointer = (try borrowedField(?[*]const u8, row, offset)) orelse return null;
 
     return pointer[0..std.math.cast(usize, width) orelse return error.IndexOutOfBounds];
+}
+
+inline fn borrowedField(comptime T: type, row: []const u8, offset: u64) IndexError!T {
+    if (offset > row.len or row.len - offset < @sizeOf(T)) return error.IndexOutOfBounds;
+
+    return (try field(T, row.ptr, offset)).*;
 }
 
 pub inline fn borrowedList(row: []const u8, offset: u64, width: u64) IndexError![]const u8 {

@@ -9,7 +9,6 @@ const mixed = @import("project/mixed.zig");
 const ahead = @import("project/mixed/ahead.zig");
 const callees = @import("project/mixed/callees.zig");
 const imports = @import("project/mixed/imports.zig");
-const store_view = @import("project/mixed/history/store_view.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
@@ -55,7 +54,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/mixed/callees.zig"),
     @import("project/mixed/exports.zig"),
     @import("project/mixed/history/comparison.zig"),
-    @import("project/mixed/history/store_view.zig"),
     @import("project/mixed/imports.zig"),
     @import("project/mixed/metadata.zig"),
     @import("project/mixed/publication.zig"),
