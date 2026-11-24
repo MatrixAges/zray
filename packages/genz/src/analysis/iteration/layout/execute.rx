@@ -1,0 +1,39 @@
+<Module>
+    <Type from="execute_model" as="Layout" />
+
+    <Args in={Layout.Input} out={Layout.Output} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="advance"
+            in={{
+                ...$in,
+                action: Layout.Action.CheckPure,
+                forwarded: null,
+                running: true
+            }}
+        />
+    </Loop>
+
+    <Call
+        module="../initial/plan"
+        in={{
+            representation: $ctx.advance.action,
+            mode: $in.facts.mode,
+            state_active: $in.facts.state_active,
+            direct_initial: $ctx.advance.facts.initial == true,
+            postcondition: $in.postcondition,
+            consumer: $in.facts.consumer,
+            pure: $ctx.advance.facts.pure == true,
+            forwarded: $ctx.advance.forwarded != null
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.plan,
+            action: $ctx.advance.action,
+            forwarded: $ctx.advance.forwarded
+        }}
+    />
+</Module>

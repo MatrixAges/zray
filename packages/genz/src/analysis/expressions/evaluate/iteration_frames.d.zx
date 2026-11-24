@@ -37,25 +37,6 @@ export enum PathConversion {
     ReadElement
 }
 
-export enum LayoutAction {
-    CheckPure,
-    CheckLocal,
-    CheckForwarding,
-    CheckBuffers,
-    CheckDeep,
-    CheckAbi,
-    CheckShallow,
-    CheckProjection,
-    CheckInitial,
-    Dereference,
-    Reject,
-    Plain,
-    Stack,
-    State,
-    Deep,
-    Buffered
-}
-
 export enum LoopAdmission {
     Proceed,
     Dereference,

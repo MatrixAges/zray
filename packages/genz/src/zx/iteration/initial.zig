@@ -1,7 +1,6 @@
 const std = @import("std");
-const zx = @import("zx");
 const generated = @import("genz_options").generated_analysis;
-const entry = if (generated) @import("generated_iteration_initial") else struct {};
+const entry = if (generated) @import("generated_lower_loop") else struct {};
 const Representation = @import("../iteration_layout/select.zig").Representation;
 const Mode = @import("result.zig").Mode;
 const ParameterLayout = @import("parameters_seed.zig").Layout;
@@ -17,7 +16,7 @@ pub const Request = struct {
     forwarded: bool,
 };
 
-pub const Plan = if (generated) std.meta.Child(entry.Output) else struct {
+pub const Plan = if (generated) std.meta.Child(@FieldType(std.meta.Child(entry.Input), "initial_plan")) else struct {
     parameters: ParameterLayout,
     layout: bool,
     selected_state: bool,
@@ -35,55 +34,7 @@ pub const Plan = if (generated) std.meta.Child(entry.Output) else struct {
 
 pub const Guard = @FieldType(Plan, "guard");
 
-pub fn plan(request: Request) Plan {
-    if (comptime !generated) return seed(request);
-
-    const Input = std.meta.Child(entry.Input);
-
-    const input: Input = .{
-        .representation = switch (request.representation) {
-            .plain => .Plain,
-            .stack => .Stack,
-            .state => .State,
-            .deep => .Deep,
-            .buffered => .Buffered,
-            .dereference, .reject => unreachable,
-        },
-        .mode = switch (request.mode) {
-            .reference => .Reference,
-            .value => .Value,
-            .discard => .Discard,
-            .consume => .Consume,
-        },
-        .state_active = request.state_active,
-        .direct_initial = request.direct_initial,
-        .postcondition = request.postcondition,
-        .consumer = request.consumer,
-        .pure = request.pure,
-        .forwarded = request.forwarded,
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
-
-    return .{
-        .parameters = result.parameters,
-        .layout = result.layout,
-        .selected_state = result.selected_state,
-        .deep = result.deep,
-        .buffered = result.buffered,
-        .evaluation = result.evaluation,
-        .local = result.local,
-        .by_value = result.by_value,
-        .project_fields = result.project_fields,
-        .track = result.track,
-        .guard = result.guard,
-        .state_scope = result.state_scope,
-        .storage = result.storage,
-    };
-}
-
-fn seed(input: Request) Plan {
+pub fn plan(input: Request) Plan {
     const parameters: ParameterLayout = switch (input.representation) {
         .plain => .Plain,
         .stack => .Stack,

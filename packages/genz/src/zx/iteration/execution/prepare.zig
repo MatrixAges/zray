@@ -44,7 +44,7 @@ pub fn prepareLoopInitial(handle: *const anyopaque) Initial {
 
     frame.type_id = @fromBackingInt(self.program.expressions.types[@backingInt(frame.id)]);
 
-    frame.initial = initial.plan(.{
+    frame.initial = if (generated) frame.selection.plan else initial.plan(.{
         .representation = frame.selection.representation,
         .mode = frame.mode,
         .state_active = self.state_active,

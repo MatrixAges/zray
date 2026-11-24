@@ -1,0 +1,87 @@
+import host from "lowering_host"
+
+import { Action } from "./model"
+
+import type { Progress } from "./execute_model"
+
+export type Input = Progress
+
+export type Output = Progress
+
+export default function (in: Input): Output {
+    const { frame, facts, action } = in
+
+    switch (action) {
+        case Action.CheckPure: return {
+            ...in,
+            facts: {
+                ...facts,
+                pure: host.loopPure(frame)
+            }
+        }
+        case Action.CheckLocal: return {
+            ...in,
+            facts: {
+                ...facts,
+                local: host.loopLocalCalls(frame)
+            }
+        }
+        case Action.CheckForwarding:
+            const forwarded = host.loopForwardedValue(frame)
+
+            return {
+                ...in,
+                forwarded,
+                facts: {
+                    ...facts,
+                    forwarded: forwarded != null
+                }
+            }
+        case Action.CheckBuffers: return {
+            ...in,
+            facts: {
+                ...facts,
+                buffered: host.loopBufferLayout(frame)
+            }
+        }
+        case Action.CheckDeep: return {
+            ...in,
+            facts: {
+                ...facts,
+                deep: host.loopDeepLayout(frame)
+            }
+        }
+        case Action.CheckAbi: return {
+            ...in,
+            facts: {
+                ...facts,
+                abi: host.loopAbiLayout(frame)
+            }
+        }
+        case Action.CheckShallow: return {
+            ...in,
+            facts: {
+                ...facts,
+                shallow: host.loopShallowLayout(frame)
+            }
+        }
+        case Action.CheckProjection: return {
+            ...in,
+            facts: {
+                ...facts,
+                projection: host.loopConsumerProjection(frame)
+            }
+        }
+        case Action.CheckInitial: return {
+            ...in,
+            facts: {
+                ...facts,
+                initial: host.loopDirectInitial(frame)
+            }
+        }
+        default: return {
+            ...in,
+            running: false
+        }
+    }
+}

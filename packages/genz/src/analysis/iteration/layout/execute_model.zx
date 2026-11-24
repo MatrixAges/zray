@@ -1,0 +1,22 @@
+import type { LoopLayout } from "lowering_host"
+import type { Output as Initial } from "../initial/model"
+import type { Action, Input as Facts } from "./model"
+
+export { Action } from "./model"
+
+export type Input = {
+    frame: LoopLayout,
+    facts: Facts,
+    postcondition: bool
+}
+
+export type Progress = Input & {
+    action: Action,
+    forwarded?: u32,
+    running: bool
+}
+
+export type Output = Initial & {
+    action: Action,
+    forwarded?: u32
+}

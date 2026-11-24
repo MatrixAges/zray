@@ -4,31 +4,34 @@ const ir = zx.ir;
 const Lower = @import("../lower.zig");
 const layout = @import("../iteration_layout.zig");
 const consumers = @import("../iteration_consumer.zig");
-const evaluation = @import("../expressions/evaluate.zig");
+const initial = @import("../iteration/initial.zig");
+const failure = @import("../construction/publication.zig").failure;
 const generated = @import("genz_options").generated_analysis;
 const Mode = @import("../iteration/result.zig").Mode;
 pub const Representation = enum { plain, stack, state, deep, buffered, dereference, reject };
 
-pub const Selection = struct {
+pub const Selection = if (generated) struct {
+    representation: Representation,
+    forwarded: ?ir.ExprId,
+    plan: initial.Plan,
+} else struct {
     representation: Representation,
     forwarded: ?ir.ExprId = null,
     pure: bool = false,
     direct_initial: bool = false,
 };
 
-const model = if (generated) @import("generated_iteration_layout_selection") else void;
-const Input = if (generated) std.meta.Child(model.Input) else void;
-const Action = if (generated) evaluation.Api.LayoutAction else void;
+const entry = if (generated) @import("generated_execute_loop_layout") else void;
+const Input = if (generated) std.meta.Child(entry.Input) else void;
+const Facts = if (generated) std.meta.Child(@FieldType(Input, "facts")) else void;
 
 const Frame = struct {
-    lowering: *Lower,
+    lowering: *const Lower,
     iteration: ir.Iteration,
     consumer: ?consumers.Consumer,
     type_id: ir.TypeId,
-    facts: Input,
-    forwarded: ?ir.ExprId = null,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *const anyopaque) *const Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -39,7 +42,7 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
 
     const type_id = self.program.expression(id).type_id;
 
-    const input: Input = .{
+    const facts: Facts = .{
         .mode = switch (mode) {
             .reference => .Reference,
             .value => .Value,
@@ -66,13 +69,13 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
         .initial = null,
     };
 
-    var frame: Frame = .{ .lowering = self, .iteration = iteration, .consumer = consumer, .type_id = type_id, .facts = input };
-    const entry = @import("generated_execute_loop_layout");
+    const frame: Frame = .{ .lowering = self, .iteration = iteration, .consumer = consumer, .type_id = type_id };
+    const input: Input = .{ .frame = @ptrCast(&frame), .facts = &facts, .postcondition = iteration.postcondition };
     var memory = std.heap.FixedBufferAllocator.init(&.{});
-    const action = try entry.executeIn(memory.allocator(), @ptrCast(&frame));
+    const decision = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
 
     return .{
-        .representation = switch (action) {
+        .representation = switch (decision.action) {
             .Plain => .plain,
             .Stack => .stack,
             .State => .state,
@@ -82,42 +85,69 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
             .Reject => .reject,
             else => unreachable,
         },
-        .forwarded = frame.forwarded,
-        .pure = frame.facts.pure.?,
-        .direct_initial = frame.facts.initial orelse false,
+        .forwarded = if (decision.forwarded) |forwarded| @fromBackingInt(forwarded) else null,
+        .plan = zx.columns.view(initial.Plan, decision),
     };
 }
 
-pub fn chooseLoopLayout(handle: *const anyopaque) Action {
-    const frame = Frame.borrow(handle);
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
-    const action = model.executeIn(memory.allocator(), &frame.facts) catch unreachable;
-
-    return zx.columns.view(Action, action);
-}
-
-pub fn checkLoopLayout(handle: *const anyopaque, action: Action) Lower.Error!void {
+pub fn loopPure(handle: *const anyopaque) Lower.Error!bool {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
-    const iteration = frame.iteration;
 
-    switch (action) {
-        .CheckPure => frame.facts.pure = try layout.eligible(self.allocator, self.program, iteration, self.pure_functions),
-        .CheckLocal => frame.facts.local = try layout.eligible(self.allocator, self.program, iteration, self.local_functions),
-        .CheckForwarding => {
-            frame.forwarded = try layout.forwarded(self, iteration);
-            frame.facts.forwarded = frame.forwarded != null;
-        },
-        .CheckBuffers => frame.facts.buffered = try layout.buffers(self.allocator, self.program, iteration, self.identity_free_functions, self.plan.flags),
-        .CheckDeep => frame.facts.deep = try layout.deep(self.allocator, self.program, iteration, self.identity_free_functions),
-        .CheckAbi => frame.facts.abi = try layout.abi(self, iteration, frame.type_id),
-        .CheckShallow => frame.facts.shallow = try layout.shallow(self.allocator, self.program, iteration),
-        .CheckProjection => {
-            const selected = frame.consumer.?;
+    return layout.eligible(self.allocator, self.program, frame.iteration, self.pure_functions);
+}
 
-            frame.facts.projection = consumers.projection(self.program, selected.result, selected.symbol);
-        },
-        .CheckInitial => frame.facts.initial = try layout.initialValue(self.allocator, self.program, iteration.initial, self.identity_free_functions),
-        else => unreachable,
-    }
+pub fn loopLocalCalls(handle: *const anyopaque) Lower.Error!bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    return layout.eligible(self.allocator, self.program, frame.iteration, self.local_functions);
+}
+
+pub fn loopForwardedValue(handle: *const anyopaque) Lower.Error!?u32 {
+    const frame = Frame.borrow(handle);
+    const forwarded = try layout.forwarded(frame.lowering, frame.iteration);
+
+    return if (forwarded) |id| @backingInt(id) else null;
+}
+
+pub fn loopBufferLayout(handle: *const anyopaque) Lower.Error!bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    return layout.buffers(self.allocator, self.program, frame.iteration, self.identity_free_functions, self.plan.flags);
+}
+
+pub fn loopDeepLayout(handle: *const anyopaque) Lower.Error!bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    return layout.deep(self.allocator, self.program, frame.iteration, self.identity_free_functions);
+}
+
+pub fn loopAbiLayout(handle: *const anyopaque) Lower.Error!bool {
+    const frame = Frame.borrow(handle);
+
+    return layout.abi(frame.lowering, frame.iteration, frame.type_id);
+}
+
+pub fn loopShallowLayout(handle: *const anyopaque) Lower.Error!bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    return layout.shallow(self.allocator, self.program, frame.iteration);
+}
+
+pub fn loopConsumerProjection(handle: *const anyopaque) bool {
+    const frame = Frame.borrow(handle);
+    const consumer = frame.consumer.?;
+
+    return consumers.projection(frame.lowering.program, consumer.result, consumer.symbol);
+}
+
+pub fn loopDirectInitial(handle: *const anyopaque) Lower.Error!bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    return layout.initialValue(self.allocator, self.program, frame.iteration.initial, self.identity_free_functions);
 }

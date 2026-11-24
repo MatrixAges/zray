@@ -1,7 +1,20 @@
-export declare function chooseLoopLayout(layout: LoopLayout): LayoutAction
+export declare function loopPure(layout: LoopLayout): bool throws { OutOfMemory }
 
-export declare function checkLoopLayout(layout: LoopLayout, action: LayoutAction): void
-    throws { OutOfMemory }
+export declare function loopLocalCalls(layout: LoopLayout): bool throws { OutOfMemory }
+
+export declare function loopForwardedValue(layout: LoopLayout): u32? throws { OutOfMemory }
+
+export declare function loopBufferLayout(layout: LoopLayout): bool throws { OutOfMemory }
+
+export declare function loopDeepLayout(layout: LoopLayout): bool throws { OutOfMemory }
+
+export declare function loopAbiLayout(layout: LoopLayout): bool throws { OutOfMemory }
+
+export declare function loopShallowLayout(layout: LoopLayout): bool throws { OutOfMemory }
+
+export declare function loopConsumerProjection(layout: LoopLayout): bool
+
+export declare function loopDirectInitial(layout: LoopLayout): bool throws { OutOfMemory }
 
 export declare function beginLoweredLoop(loop_frame: LoopFrame): LoopAdmission
     throws { OutOfMemory }

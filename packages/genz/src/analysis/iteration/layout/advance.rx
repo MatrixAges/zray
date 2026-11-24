@@ -1,0 +1,17 @@
+<Module>
+    <Type from="execute_model" as="Layout" />
+
+    <Args in={Layout.Progress} out={Layout.Progress} />
+
+    <Call module="select" in={$in.facts} />
+
+    <Call
+        fn="probe"
+        in={{
+            ...$in,
+            action: $ctx.select
+        }}
+    />
+
+    <Return value={$ctx.probe} />
+</Module>
