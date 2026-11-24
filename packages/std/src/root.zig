@@ -13,6 +13,7 @@ pub const resolvePortablePath = @import("path/root.zig").resolvePortable;
 pub const resolvePathSuffix = @import("path/root.zig").resolveSuffix;
 pub const resolvePathJoined = @import("path/root.zig").resolveJoined;
 pub const pathParent = @import("std").fs.path.dirname;
+pub const pathBasename = @import("std").fs.path.basename;
 pub const os = @import("os.zig");
 pub const url_search_params = @import("url/search_params/root.zig");
 pub const url = @import("url/root.zig");

@@ -55,6 +55,14 @@ pub inline fn borrowedText(row: []const u8, offset: u64) IndexError![]const u8 {
     return (try field([]const u8, row.ptr, offset)).*;
 }
 
+pub inline fn borrowedReference(row: []const u8, offset: u64, width: u64) IndexError!?[]const u8 {
+    if (offset > row.len or row.len - offset < @sizeOf(?[*]const u8)) return error.IndexOutOfBounds;
+
+    const pointer = (try field(?[*]const u8, row.ptr, offset)).* orelse return null;
+
+    return pointer[0..std.math.cast(usize, width) orelse return error.IndexOutOfBounds];
+}
+
 pub inline fn borrowedList(row: []const u8, offset: u64, width: u64) IndexError![]const u8 {
     const slice = try borrowedText(row, offset);
     const length = std.math.mul(usize, slice.len, std.math.cast(usize, width) orelse return error.IndexOutOfBounds) catch return error.IndexOutOfBounds;

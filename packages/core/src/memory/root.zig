@@ -278,6 +278,7 @@ pub const readReferenceRowBytes = reference_rows.bytes;
 pub const readReferenceRowOptionalU32 = reference_rows.optionalU32;
 pub const readReferenceRowText = reference_rows.text;
 pub const readBorrowedRowText = reference_rows.borrowedText;
+pub const readBorrowedRowReference = reference_rows.borrowedReference;
 pub const readBorrowedRowList = reference_rows.borrowedList;
 pub const appendByteView = reference_rows.appendByteView;
 pub const popByteView = reference_rows.popByteView;

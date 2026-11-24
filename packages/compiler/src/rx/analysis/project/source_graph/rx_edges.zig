@@ -47,7 +47,7 @@ fn referenceSeed(collector: anytype, owner: []const u8, selection: dependency.En
     try local(collector, resolved, selection);
 }
 
-pub fn local(collector: anytype, path: []const u8, entry: dependency.Entry) @TypeOf(collector.*).Error!void {
+fn local(collector: anytype, path: []const u8, entry: dependency.Entry) @TypeOf(collector.*).Error!void {
     const attribute = entry.attribute.?;
 
     if (entry.role == .Call and entry.target == .Function) {

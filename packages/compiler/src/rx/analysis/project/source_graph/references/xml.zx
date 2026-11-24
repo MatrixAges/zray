@@ -1,0 +1,65 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import deliver from "./deliver"
+
+import type { Target } from "../../../../dependency_graph/reference/model"
+import type { Scan, Xml } from "./model"
+
+export type Input = {
+    scan: Scan,
+    xml: Xml,
+    bytes: u8[],
+    node?: u8[],
+    attribute?: u8[],
+    target: Target,
+    role: u8,
+    package_allowed: bool
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const { attribute, node, xml } = in
+    const { layout } = xml
+
+    const location: u8[]? = match {
+        attribute != null => memory.borrowU8Range(
+            attribute,
+            layout.attribute_location,
+            layout.location_width
+        ),
+        node != null => memory.borrowU8Range(
+            node,
+            layout.node_location,
+            layout.location_width
+        ),
+        _ => null
+    }
+
+    const reference: string? = match {
+        attribute == null => null,
+        _ => columns.readBorrowedRowText(attribute, layout.attribute_value)
+    }
+
+    return deliver({
+        scan: in.scan,
+        ...xml.pick([
+            "owner",
+            "directory",
+            "allocator"
+        ]),
+        workspace: {
+            ...xml.workspace,
+            bytes: in.bytes
+        },
+        target: in.target,
+        package_allowed: in.package_allowed,
+        reference,
+        site: {
+            location,
+            offset: 0,
+            role: in.role
+        }
+    })
+}

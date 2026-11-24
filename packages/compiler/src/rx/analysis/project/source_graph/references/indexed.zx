@@ -1,0 +1,61 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import { Target } from "../../../../dependency_graph/reference/model"
+import { target_function, target_module } from "./const"
+import deliver from "./xml"
+
+import type { References, Scan, Xml } from "./model"
+
+export type Input = {
+    scan: Scan,
+    xml: Xml,
+    references: References
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { references, xml, scan } = in
+
+    const scanned = loop({
+        next: references.count,
+        bytes: xml.workspace.bytes
+    }, {
+        while: state => state.next != 0,
+        next: state => {
+            state.next -= 1
+            const start = state.next * references.width
+            const row = memory.borrowU8Range(references.bytes, start, references.width)
+            const attribute = columns.readBorrowedRowReference(
+                row,
+                references.attribute,
+                references.attribute_width
+            )
+            const node: u8[]? = match {
+                attribute == null => columns.readBorrowedRowReference(
+                    row,
+                    references.node,
+                    references.node_width
+                ),
+                _ => null
+            }
+            const target = match row[references.target] {
+                target_module => Target.Module,
+                target_function => Target.Function,
+                _ => Target.Store
+            }
+
+            state.bytes = deliver({
+                scan,
+                xml,
+                bytes: state.bytes,
+                node,
+                attribute,
+                target,
+                role: row[references.role],
+                package_allowed: row[references.package_allowed] != 0
+            })
+        }
+    })
+}

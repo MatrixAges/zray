@@ -9,4 +9,8 @@ export const target_module: u8 = 0
 
 export const target_function: u8 = 1
 
-export const tree_reference_site: u64 = 0
+export const role_dependency: u8 = 0
+
+export const role_call: u8 = 1
+
+export const role_type_import: u8 = 2

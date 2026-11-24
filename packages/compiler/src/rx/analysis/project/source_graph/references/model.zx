@@ -1,18 +1,52 @@
-import type { Allocator, ReadColumn } from "memory"
-import type { IndirectTextColumn } from "memory/columns"
+import type { Allocator } from "memory"
 import type { GraphEdgeScan } from "rx_graph_host"
+import type { Import } from "../../../../../zx/frontend/parser/imports/model"
+import type { Cursor } from "../../../../dependency_graph/reference/tree/model"
 import type { Input as Route } from "./route/model"
 
 export type References = {
-    values: IndirectTextColumn,
-    package_allowed: ReadColumn,
-    target_codes: u8[],
-    stride: u64,
+    bytes: u8[],
+    width: u64,
+    node: u64,
+    attribute: u64,
+    target: u64,
+    role: u64,
+    package_allowed: u64,
+    node_width: u64,
+    attribute_width: u64,
     count: u64
 }
 
-export type Scan = Route.Pick("directory", "packages", "workspace") & {
-    target: GraphEdgeScan,
-    allocator: Allocator,
-    delegate_import: bool
+export type XmlLayout = {
+    node_location: u64,
+    attribute_location: u64,
+    attribute_value: u64,
+    location_width: u64
 }
+
+export type Scan = Route.Pick("packages") & {
+    target: GraphEdgeScan,
+    intrinsic?: string,
+    discover: bool
+}
+
+export type Xml = Route.Pick("directory", "workspace") & {
+    owner: string,
+    allocator: Allocator,
+    layout: XmlLayout
+}
+
+export type Imports = {
+    source: string,
+    rows: Import[]
+}
+
+export type Input = {
+    scan: Scan,
+    xml?: Xml,
+    indexed?: References,
+    cursor?: Cursor,
+    imports?: Imports
+}
+
+export type Output = void

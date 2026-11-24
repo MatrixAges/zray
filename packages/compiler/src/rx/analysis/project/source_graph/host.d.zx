@@ -8,6 +8,14 @@ export type GraphEdgePublication = opaque
 
 export type GraphEdgeScan = opaque
 
+export enum GraphReferenceKind {
+    Diagnostic,
+    Source,
+    Store,
+    Import,
+    Native
+}
+
 export declare function rejectGraphModuleRegistration(
     target: GraphModuleRegistration,
     row: u64,
@@ -68,41 +76,18 @@ export declare function rejectSourceGraphEdge(
     message: string
 ): void throws { OutOfMemory, InvalidGraph }
 
-export declare function bindSourceGraphTreeReference(
+export declare function deliverSourceGraphReference(
     target: GraphEdgeScan,
-    node: u8[],
-    attribute: u8[]?,
-    function_target: bool,
-    call: bool,
-    type_import: bool
-): void
-
-export declare function rejectSourceGraphReference(
-    target: GraphEdgeScan,
-    site: u64,
-    message: string
-): void throws { OutOfMemory, InvalidGraph }
-
-export declare function resolveSourceGraphReference(
-    target: GraphEdgeScan,
-    site: u64,
-    length: u64,
-    is_store: bool
-): void throws { OutOfMemory, InvalidGraph }
-
-export declare function sourceGraphInternal(target: GraphEdgeScan, reference: string): string?
-
-export declare function appendSourceGraphNative(
-    target: GraphEdgeScan,
-    site: u64,
-    name: string
-): void throws { OutOfMemory, InvalidGraph }
-
-export declare function resolveSourceGraphImport(
-    target: GraphEdgeScan,
-    site: u64,
-    reference: string,
+    kind: GraphReferenceKind,
+    location: u8[]?,
+    offset: u64,
+    role: u8,
+    value: string?,
+    path: u8[]?,
+    member: string?,
     package_route: bool,
     first: u64?,
     duplicate: bool
 ): void throws { OutOfMemory, InvalidGraph }
+
+export declare function sourceGraphInternal(target: GraphEdgeScan, reference: string): string?

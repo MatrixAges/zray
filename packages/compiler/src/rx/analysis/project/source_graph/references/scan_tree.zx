@@ -1,28 +1,25 @@
-import columns from "memory/columns"
-import host from "rx_graph_host"
-
-import { Role, Target } from "../../../../dependency_graph/reference/model"
+import { Role } from "../../../../dependency_graph/reference/model"
 import next from "../../../../dependency_graph/reference/tree/next"
-import { tree_reference_site } from "./const"
-import deliver from "./deliver"
+import { role_call, role_dependency, role_type_import } from "./const"
+import deliver from "./xml"
 
 import type { Cursor } from "../../../../dependency_graph/reference/tree/model"
-import type { Scan } from "./model"
+import type { Scan, Xml } from "./model"
 
-export type Input = Scan & {
-    cursor: Cursor,
-    attribute_value: u64,
-    intrinsic: string
+export type Input = {
+    scan: Scan,
+    xml: Xml,
+    cursor: Cursor
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { cursor, workspace } = in
+    const { cursor, scan, xml } = in
 
     const scanned = loop({
         pending: cursor.pending,
-        bytes: workspace.bytes,
+        bytes: xml.workspace.bytes,
         done: false
     }, {
         while: state => !state.done,
@@ -42,36 +39,21 @@ export default function (in: Input): Output {
             if (item == null) {
                 state.done = true
             } else {
-                host.bindSourceGraphTreeReference(
-                    in.target,
-                    item.node,
-                    item.attribute,
-                    item.target == Target.Function,
-                    item.role == Role.Call,
-                    item.role == Role.TypeImport
-                )
-
-                const attribute = item.attribute
-                const reference: string? = match {
-                    attribute == null => null,
-                    _ => columns.readBorrowedRowText(attribute, in.attribute_value)
+                const role = match item.role {
+                    Role.Call => role_call,
+                    Role.TypeImport => role_type_import,
+                    _ => role_dependency
                 }
 
                 state.bytes = deliver({
-                    directory: in.directory,
-                    packages: in.packages,
-                    workspace: {
-                        ...workspace,
-                        bytes: state.bytes
-                    },
+                    scan,
+                    xml,
+                    bytes: state.bytes,
+                    node: item.node,
+                    attribute: item.attribute,
                     target: item.target,
-                    package_allowed: item.package_allowed,
-                    scan: in.target,
-                    allocator: in.allocator,
-                    intrinsic: in.intrinsic,
-                    delegate_import: in.delegate_import,
-                    reference,
-                    site: tree_reference_site
+                    role,
+                    package_allowed: item.package_allowed
                 })
             }
         }

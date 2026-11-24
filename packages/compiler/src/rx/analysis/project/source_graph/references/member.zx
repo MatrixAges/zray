@@ -1,0 +1,27 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { ascii_slash } from "core/ascii/const"
+import lexical from "lexical_path"
+
+import offset from "../../../../../zx/modules/path/call_member"
+
+export type Input = string
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const spelling = bytes.fromText(in)
+
+    if (spelling.length == 0 || spelling[spelling.length - 1] == ascii_slash) {
+        return null
+    }
+
+    const name = lexical.pathBasename(in)
+    const start = offset(name)
+
+    if (start == null) {
+        return null
+    }
+
+    return encoding.sliceBytes(name, start, name.length)
+}

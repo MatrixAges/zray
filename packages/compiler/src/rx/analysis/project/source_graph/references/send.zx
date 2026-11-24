@@ -1,0 +1,51 @@
+import host from "rx_graph_host"
+
+import type { GraphEdgeScan, GraphReferenceKind } from "rx_graph_host"
+
+export type Site = {
+    location?: u8[],
+    offset: u64,
+    role: u8
+}
+
+export type Selection = {
+    first?: u64,
+    duplicate: bool
+}
+
+export type Input = {
+    target: GraphEdgeScan,
+    kind: GraphReferenceKind,
+    site: Site,
+    value?: string,
+    member?: string,
+    path?: u8[],
+    selection?: Selection
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { site, selection } = in
+
+    const first: u64? = match {
+        selection == null => null,
+        _ => selection.first
+    }
+
+    const duplicate = selection != null && selection.duplicate
+
+    host.deliverSourceGraphReference(
+        in.target,
+        in.kind,
+        site.location,
+        site.offset,
+        site.role,
+        in.value,
+        in.path,
+        in.member,
+        selection != null,
+        first,
+        duplicate
+    )
+}

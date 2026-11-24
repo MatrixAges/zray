@@ -1,15 +1,18 @@
 import host from "rx_graph_host"
+import { GraphReferenceKind } from "rx_graph_host"
 
 import { Route } from "../../../../../zx/modules/project/target/model"
 import { invalid_import } from "./const"
+import send from "./send"
 
 import type { GraphEdgeScan } from "rx_graph_host"
 import type { Output as Package } from "../../../../../zx/modules/project/target/select"
+import type { Selection, Site } from "./send"
 
 export type Input = Package & {
     target: GraphEdgeScan,
     reference: string,
-    site: u64,
+    site: Site,
     route: Route
 }
 
@@ -19,13 +22,23 @@ export default function (in: Input): Output {
     const { target, reference, site, route } = in
 
     if (route == Route.Invalid) {
-        host.rejectSourceGraphReference(target, site, invalid_import)
+        send({
+            target,
+            kind: GraphReferenceKind.Diagnostic,
+            site,
+            value: invalid_import
+        })
 
         return
     }
 
     if (route == Route.Intrinsic || route == Route.Interface) {
-        host.appendSourceGraphNative(target, site, reference)
+        send({
+            target,
+            kind: GraphReferenceKind.Native,
+            site,
+            value: reference
+        })
 
         return
     }
@@ -34,18 +47,30 @@ export default function (in: Input): Output {
         const internal = host.sourceGraphInternal(target, reference)
 
         if (internal != null) {
-            host.appendSourceGraphNative(target, site, internal)
+            send({
+                target,
+                kind: GraphReferenceKind.Native,
+                site,
+                value: internal
+            })
 
             return
         }
     }
 
-    host.resolveSourceGraphImport(
+    const selection: Selection? = match {
+        route == Route.Package => in.pick([
+            "first",
+            "duplicate"
+        ]),
+        _ => null
+    }
+
+    send({
         target,
+        kind: GraphReferenceKind.Import,
         site,
-        reference,
-        route == Route.Package,
-        in.first,
-        in.duplicate
-    )
+        value: reference,
+        selection
+    })
 }

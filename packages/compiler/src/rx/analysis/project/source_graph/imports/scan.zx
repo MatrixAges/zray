@@ -1,53 +1,57 @@
 import encoding from "std:encoding"
-import host from "rx_graph_host"
+import { GraphReferenceKind } from "rx_graph_host"
 
 import classify from "../../../../../zx/modules/project/target/classify"
 import { Route } from "../../../../../zx/modules/project/target/model"
 import select from "../../../../../zx/modules/project/target/select"
+import { role_dependency } from "../references/const"
 import publishImport from "../references/import"
+import send from "../references/send"
 
-import type { GraphEdgeScan } from "rx_graph_host"
-import type { Import } from "../../../../../zx/frontend/parser/imports/model"
-import type { Rows } from "../../../../../zx/modules/project/target/select"
+import type { Imports, Scan } from "../references/model"
+import type { Site } from "../references/send"
 
 export type Input = {
-    target: GraphEdgeScan,
-    source: string,
-    intrinsic: string,
-    packages: Rows,
-    imports: Import[],
-    discover: bool
+    scan: Scan,
+    imports: Imports
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, source, intrinsic, packages, imports, discover } = in
+    const { scan, imports } = in
 
     const scanned = loop(0, {
-        while: index => index < imports.length,
+        while: index => index < imports.rows.length,
         next: index => {
-            const item = imports[index]
+            const item = imports.rows[index]
             const span = item.path
-            const reference = encoding.sliceBytes(source, span.start + 1, span.end - 1)
-            if (discover) {
-                host.resolveSourceGraphImport(
-                    target,
-                    item.span.start,
-                    reference,
-                    false,
-                    null,
-                    false
-                )
+            const reference = encoding.sliceBytes(
+                imports.source,
+                span.start + 1,
+                span.end - 1
+            )
+            const site: Site = {
+                offset: item.span.start,
+                role: role_dependency
+            }
+
+            if (scan.discover) {
+                send({
+                    target: scan.target,
+                    kind: GraphReferenceKind.Import,
+                    site,
+                    value: reference
+                })
             } else {
                 const route = classify({
                     path: reference,
-                    intrinsic
+                    intrinsic: scan.intrinsic ?? ""
                 })
 
                 const selected = match route {
                     Route.Package => select({
-                        specifiers: packages,
+                        specifiers: scan.packages,
                         name: reference,
                         check_duplicates: true
                     }),
@@ -58,9 +62,9 @@ export default function (in: Input): Output {
                 }
 
                 publishImport({
-                    target,
+                    target: scan.target,
                     reference,
-                    site: item.span.start,
+                    site,
                     route,
                     ...selected
                 })

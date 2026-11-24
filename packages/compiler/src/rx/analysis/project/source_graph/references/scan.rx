@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="References" />
+
+    <Args in={References.Input} out={References.Output} />
+
+    <If on={$in.xml != null}>
+        <If on={$in.indexed != null}>
+            <Call
+                fn="indexed"
+                in={{
+                    scan: $in.scan,
+                    xml: $in.xml,
+                    references: $in.indexed
+                }}
+            />
+
+            <Else>
+                <If on={$in.cursor != null}>
+                    <Call
+                        fn="scan_tree"
+                        in={{
+                            scan: $in.scan,
+                            xml: $in.xml,
+                            cursor: $in.cursor
+                        }}
+                    />
+                </If>
+            </Else>
+        </If>
+
+        <Else>
+            <If on={$in.imports != null}>
+                <Call
+                    fn="../imports/scan"
+                    in={{
+                        scan: $in.scan,
+                        imports: $in.imports
+                    }}
+                />
+            </If>
+        </Else>
+    </If>
+</Module>

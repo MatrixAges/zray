@@ -1,24 +1,27 @@
 import memory from "memory"
-import host from "rx_graph_host"
+import { GraphReferenceKind } from "rx_graph_host"
 
 import classify from "../../../../../zx/modules/project/target/classify"
 import { Route as ImportRoute } from "../../../../../zx/modules/project/target/model"
-import { invalid_reference, missing_reference } from "./const"
+import { Target } from "../../../../dependency_graph/reference/model"
+import { invalid_reference, missing_reference, role_call } from "./const"
 import publishImport from "./import"
+import member from "./member"
 import { Kind } from "./route/model"
 import resolve from "./route/resolve"
+import send from "./send"
 
 import type { Allocator } from "memory"
-import type { GraphEdgeScan } from "rx_graph_host"
+import type { Scan } from "./model"
 import type { Input as Route } from "./route/model"
+import type { Site } from "./send"
 
-export type Input = Route.Omit("reference") & {
-    scan: GraphEdgeScan,
+export type Input = Route.Omit("packages", "reference") & {
+    scan: Scan,
     allocator: Allocator,
-    intrinsic?: string,
-    delegate_import: bool,
+    owner: string,
     reference?: string,
-    site: u64
+    site: Site
 }
 
 export type Output = u8[]
@@ -27,7 +30,12 @@ export default function (in: Input): Output {
     const { scan, reference, site, workspace } = in
 
     if (reference == null) {
-        host.rejectSourceGraphReference(scan, site, missing_reference)
+        send({
+            target: scan.target,
+            kind: GraphReferenceKind.Diagnostic,
+            site,
+            value: missing_reference
+        })
 
         return workspace.bytes
     }
@@ -37,9 +45,9 @@ export default function (in: Input): Output {
             "directory",
             "target",
             "package_allowed",
-            "packages",
             "workspace"
         ]),
+        packages: scan.packages,
         reference
     }
 
@@ -67,17 +75,21 @@ export default function (in: Input): Output {
 
     switch (route.kind) {
         case Kind.Package:
-            if (in.delegate_import) {
-                host.resolveSourceGraphImport(
-                    scan,
+            const selection = route.pick([
+                "first",
+                "duplicate"
+            ])
+
+            if (scan.discover) {
+                send({
+                    target: scan.target,
+                    kind: GraphReferenceKind.Import,
                     site,
-                    reference,
-                    true,
-                    route.first,
-                    route.duplicate
-                )
+                    value: reference,
+                    selection
+                })
             } else {
-                const intrinsic = in.intrinsic
+                const intrinsic = scan.intrinsic
 
                 const import_route = match {
                     intrinsic == null => ImportRoute.Package,
@@ -88,20 +100,44 @@ export default function (in: Input): Output {
                 }
 
                 publishImport({
-                    target: scan,
+                    target: scan.target,
                     reference,
                     site,
                     route: import_route,
-                    first: route.first,
-                    duplicate: route.duplicate
+                    ...selection
                 })
             }
         case Kind.Source:
-            host.resolveSourceGraphReference(scan, site, route.length, false)
+            const named = site.role == role_call && in.target == Target.Function
+            const path = memory.borrowU8Range(bytes, 0, route.length)
+
+            const export_name: string? = match {
+                named => member(reference),
+                _ => null
+            }
+
+            send({
+                target: scan.target,
+                kind: GraphReferenceKind.Source,
+                site,
+                path,
+                member: export_name
+            })
         case Kind.Store:
-            host.resolveSourceGraphReference(scan, site, route.length, true)
+            send({
+                target: scan.target,
+                kind: GraphReferenceKind.Store,
+                site,
+                value: in.owner,
+                path: memory.borrowU8Range(bytes, 0, route.length)
+            })
         default:
-            host.rejectSourceGraphReference(scan, site, invalid_reference)
+            send({
+                target: scan.target,
+                kind: GraphReferenceKind.Diagnostic,
+                site,
+                value: invalid_reference
+            })
     }
 
     return bytes
