@@ -2,9 +2,15 @@ export { readU64 } from "memory"
 export {
     closeNativeScope,
     openNativeScope,
-    prepareNativeScopeNames,
     publishNativeScopeDeclarations,
     publishNativeScopeSettings,
+    requireNativeScopeAdmission,
+    reserveNativeScopeIndex,
+    reserveNativeScopeInterfaces,
     reserveNativeScopeLibraryPaths,
-    reserveNativeScopeModules
+    reserveNativeScopeModules,
+    reserveNativeScopeNames
 } from "native_scope_host"
+
+export { default as checkExternals } from "./rules/admission/externals"
+export { default as checkModules } from "./rules/admission/modules"

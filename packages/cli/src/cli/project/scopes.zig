@@ -4,6 +4,8 @@ const model = @import("../../package/manifest/model.zig");
 const Inputs = @import("watch_inputs").Inputs;
 const State = @import("scopes/state.zig");
 const rule = @import("cli_source").native_scope_load;
+const memory = @import("zx").memory;
+const name_workspace_size = 1024;
 pub const NativeSettings = @import("scopes/publish.zig").NativeSettings;
 pub const Result = State.Result;
 
@@ -25,14 +27,32 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
     defer state.close();
 
     const reference = &state;
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [name_workspace_size]u8 = undefined;
+    var first = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var scratch = std.heap.ArenaAllocator.init(first.allocator());
+    var active: memory.ArenaScope = .{ .active = scratch.allocator() };
     var position = [1]u64{0};
     const index: []u64 = &position;
 
-    rule.executeIn(scratch.allocator(), &.{
+    defer scratch.deinit();
+
+    const Resources = std.meta.Child(@FieldType(std.meta.Child(@typeInfo(rule.Input).optional.child), "resources"));
+
+    const resources: Resources = .{
+        .owner = @ptrCast(&allocator),
+        .scratch = @ptrCast(&scratch),
+        .active = @ptrCast(&active),
+    };
+
+    state.workspace = .{ .externals = &state.external_rows, .modules = &state.module_rows, .binding = &state.binding };
+    state.binding = .{ .window = &state.window, .registry = &state.registry_view, .resources = &resources };
+
+    rule.executeIn(active.allocator(), &.{
         .frame = @ptrCast(&reference),
         .count = scopes.len,
         .index = @ptrCast(&index),
+        .workspace = &state.workspace,
+        .resources = &resources,
     }) catch |err| return state.failure.unwrap(err);
 
     return state.take(manifests[owner]);

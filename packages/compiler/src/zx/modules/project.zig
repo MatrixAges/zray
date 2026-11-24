@@ -37,7 +37,6 @@ pub const package_scope = @import("package_scope.zig");
 pub const Package = package_scope.Package;
 pub const PackageScope = package_scope.Scope;
 pub const specifier = @import("specifier.zig");
-pub const native_configuration = @import("native_configuration.zig");
 
 pub const Options = struct {
     source_index: ?*const source_index.Map = null,

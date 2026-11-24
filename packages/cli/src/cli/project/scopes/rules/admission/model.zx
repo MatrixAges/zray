@@ -1,15 +1,7 @@
 import type { Table } from "core/bytes/index/borrowed/wide_slot"
 import type { ReadColumn } from "memory"
 
-export enum Status {
-    Valid,
-    InvalidSpecifier,
-    InvalidExternalSpecifier,
-    InvalidNativeInterfacePath,
-    InvalidNativeModule,
-    ReservedNativeModule,
-    DuplicateNativeModule
-}
+export { Admission as Status } from "native_scope_host"
 
 export type Modules = {
     index: Table,

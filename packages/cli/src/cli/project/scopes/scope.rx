@@ -19,25 +19,45 @@
         ]}
     />
 
+    <Call fn="index.checkExternals" in={$in.workspace.externals} />
+
     <Call
-        fn="read"
+        fn="index.requireNativeScopeAdmission"
+        in={[
+            $in.frame,
+            $ctx.checkExternals
+        ]}
+    />
+
+    <Call fn="index.reserveNativeScopeInterfaces" in={$in.frame} />
+    <Call fn="read" in={$ctx.openNativeScope} />
+    <Call fn="index.reserveNativeScopeIndex" in={$in.frame} />
+    <Call fn="index.checkModules" in={$in.workspace.modules} />
+
+    <Call
+        fn="index.requireNativeScopeAdmission"
+        in={[
+            $in.frame,
+            $ctx.checkModules
+        ]}
+    />
+
+    <Call fn="index.reserveNativeScopeNames" in={$in.frame} />
+
+    <Call
+        fn="resolve_names"
         in={{
-            frame: $in.frame,
-            count: $ctx.openNativeScope.declarations
+            window: $ctx.openNativeScope,
+            local: {
+                items: $in.workspace.modules.index.names,
+                length: $in.workspace.modules.count
+            },
+            resolved: $ctx.reserveNativeScopeNames,
+            resources: $in.resources
         }}
     />
 
-    <Call fn="index.prepareNativeScopeNames" in={$in.frame} />
-
-    <Call
-        fn="bind"
-        in={{
-            frame: $in.frame,
-            declarations: $ctx.openNativeScope.declarations,
-            externals: $ctx.openNativeScope.externals
-        }}
-    />
-
+    <Call fn="bind" in={$in.workspace.binding} />
     <Call fn="index.publishNativeScopeDeclarations" in={$in.frame} />
     <Call fn="index.reserveNativeScopeLibraryPaths" in={$in.frame} />
 
@@ -51,7 +71,7 @@
     />
 
     <Call fn="index.reserveNativeScopeModules" in={$in.frame} />
-    <Call fn="modules" in={$ctx.openNativeScope} />
+    <Call fn="modules" in={$in.workspace.binding} />
     <Call fn="index.publishNativeScopeSettings" in={$in.frame} />
     <Call fn="index.closeNativeScope" in={$in.frame} />
 </Module>

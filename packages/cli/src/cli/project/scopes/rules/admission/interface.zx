@@ -1,0 +1,21 @@
+import classify from "compiler_rules/specifier/check"
+import { Kind } from "compiler_rules/specifier/model"
+
+import checkPath from "./interface_path"
+import { Status } from "./model"
+
+export type Input = {
+    specifier: string,
+    path: string
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    return match classify(in.specifier) {
+        Kind.Invalid => Status.InvalidSpecifier,
+        Kind.File => Status.InvalidExternalSpecifier,
+        Kind.Package => Status.InvalidExternalSpecifier,
+        _ => checkPath(in.path)
+    }
+}

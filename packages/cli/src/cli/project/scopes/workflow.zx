@@ -1,13 +1,31 @@
-import type { U64Buffer } from "memory"
-import type { NativeScopeLoad } from "native_scope_host"
+import type { Rows } from "compiler_rules/project/target/select"
+import type { Allocator, Arena, ArenaScope, U64Buffer } from "memory"
+import type { NativeScopeLoad, ScopeWindow } from "native_scope_host"
+import type { Modules } from "./rules/admission/model"
+import type { Registry } from "./rules/naming/model"
+
+export type Workspace = {
+    externals: Rows,
+    modules: Modules,
+    binding: Binding
+}
+
+export type Resources = {
+    owner: Allocator,
+    scratch: Arena,
+    active: ArenaScope
+}
 
 export type Input = {
     frame: NativeScopeLoad,
     count: u64,
-    index: U64Buffer
+    index: U64Buffer,
+    workspace: Workspace,
+    resources: Resources
 }
 
-export type Read = {
-    frame: NativeScopeLoad,
-    count: u64
+export type Binding = {
+    window: ScopeWindow,
+    registry: Registry,
+    resources: Resources
 }

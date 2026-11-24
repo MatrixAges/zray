@@ -1,0 +1,17 @@
+import type { Table } from "core/bytes/index/borrowed/wide_slot"
+
+export type Scope = {
+    owner: string,
+    entry_root: string,
+    compiled: bool
+}
+
+export type Request = {
+    scope: Scope,
+    value: string
+}
+
+export type Registry = {
+    index: Table,
+    names: string[]
+}

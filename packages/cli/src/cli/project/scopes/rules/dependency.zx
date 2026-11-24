@@ -1,24 +1,37 @@
 import bytes from "std:bytes"
 import { ascii_equals } from "core/ascii/const"
 import memory from "memory"
+import { Admission, requireNativeScopeAdmission } from "native_scope_host"
 
 import registered from "./naming/registered"
 
-import type { StringBuffer } from "memory"
-import type { Registry } from "./naming/model"
+import type { Binding } from "../workflow"
 
 export type Input = {
-    registry: Registry,
-    dependencies: string[],
-    output: StringBuffer
+    binding: Binding,
+    dependencies: string[]
 }
 
-export type Output = bool
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { registry, dependencies, output } = in
+    const { binding, dependencies } = in
+    const { resources, registry } = binding
 
-    return loop({
+    if (dependencies.length == 0) {
+        return dependencies
+    }
+
+    const output = memory.requireTextSlots(
+        memory.allocateTextSlots(
+            resources.owner,
+            dependencies.length
+        )
+    )
+
+    memory.selectAllocator(resources.active, resources.owner)
+
+    const valid = loop({
         index: 0,
         valid: true
     }, {
@@ -40,11 +53,26 @@ export default function (in: Input): Output {
             } else {
                 const alias = memory.borrowTextRange(value, 0, separator ?? size)
 
-                memory.writeString(output, current.index, `${alias}=${resolved}`)
+                memory.writeTextSlot(
+                    output,
+                    current.index,
+                    `${alias}=${resolved}`
+                )
             }
 
             current.index += 1
         },
         return: current => current.valid
     })
+
+    memory.selectArena(resources.active, resources.scratch)
+
+    if (!valid) {
+        requireNativeScopeAdmission(
+            binding.window.frame,
+            Admission.UnknownNativeDependency
+        )
+    }
+
+    return output
 }

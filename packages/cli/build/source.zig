@@ -29,8 +29,20 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
     _ = files.addCopyFile(compiler.namedLazyPath("memory_columns_interface"), "memory/columns.d.zx");
 
-    for ([_][]const u8{ "const.zx", "ascii/const.zx" }) |file| {
+    for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/index/slot.zx", "bytes/index/borrowed/wide_slot.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
+    }
+
+    for ([_][]const u8{
+        "compiled/const.zx",
+        "compiled/identity/native_name.zx",
+        "compiled/identity/scope.zx",
+        "path/const.zx",
+        "project/target/select.zx",
+        "specifier/check.zx",
+        "specifier/model.zx",
+    }) |file| {
+        _ = files.addCopyFile(compiler.path(b.fmt("src/zx/modules/{s}", .{file})), b.fmt("compiler_rules/{s}", .{file}));
     }
 
     const generated = generate(b, compiler, files, "build/source.json", "cli");

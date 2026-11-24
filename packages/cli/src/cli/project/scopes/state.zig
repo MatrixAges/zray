@@ -4,12 +4,15 @@ const effects = @import("../../sources/effects.zig");
 const CompiledNative = @import("../compiled_native.zig");
 const Inputs = @import("watch_inputs").Inputs;
 const model = @import("../../../package/manifest/model.zig");
-const configuration = compiler.project.native_configuration;
+const memory = @import("zx").memory;
 const storage = @import("publish.zig");
 const abi = @import("cli_abi").layouts.@"zig:native_scope_host";
 const Self = @This();
 const name_workspace_slots = 32;
-
+const Request = std.meta.Child(@typeInfo(@import("cli_source").native_scope_load.Input).optional.child);
+const Workspace = std.meta.Child(@FieldType(Request, "workspace"));
+const Modules = std.meta.Child(@FieldType(Workspace, "modules"));
+const Binding = std.meta.Child(@FieldType(Workspace, "binding"));
 pub const Result = struct { config: model.Manifest, interfaces: []const compiler.project.NativeInterface, settings: []const storage.NativeSettings };
 
 io: std.Io,
@@ -34,9 +37,23 @@ native: []compiler.project.NativeInterface = undefined,
 legacy: []compiler.project.External = undefined,
 slots: [name_workspace_slots][]const u8 = undefined,
 name_memory: std.heap.BufferFirstAllocator = undefined,
-names: ?configuration.Names = null,
+names: [][]const u8 = &.{},
+buckets: []u64 = &.{},
+externals_view: memory.TextColumn = undefined,
+names_view: memory.TextColumn = undefined,
+path_view: memory.ReadColumn = undefined,
+header_view: memory.ReadColumn = undefined,
+index: std.meta.Child(@FieldType(Modules, "index")) = undefined,
+workspace: Workspace = undefined,
+binding: Binding = undefined,
+registry_view: std.meta.Child(@FieldType(Binding, "registry")) = undefined,
+external_rows: std.meta.Child(@FieldType(Workspace, "externals")) = undefined,
+module_rows: Modules = undefined,
+owner: abi.ScopeOwner = undefined,
 window: abi.ScopeWindow = undefined,
 paths: abi.ModulePaths = undefined,
+interface: abi.InterfacePath = undefined,
+declaration: abi.DeclarationBinding = undefined,
 module: model.NativeModule = undefined,
 module_first: usize = undefined,
 pub fn get(handle: *const anyopaque) *Self {
@@ -52,10 +69,14 @@ pub fn scope(self: *const Self) *compiler.project.PackageScope {
 }
 
 pub fn close(self: *Self) void {
-    if (self.names) |names| {
-        names.deinit(self.name_memory.allocator());
+    if (self.names.len != 0 or self.buckets.len != 0) {
+        const temporary = self.name_memory.allocator();
 
-        self.names = null;
+        temporary.free(self.names);
+        temporary.free(self.buckets);
+
+        self.names = &.{};
+        self.buckets = &.{};
     }
 
     if (self.compiled) |*binding| {

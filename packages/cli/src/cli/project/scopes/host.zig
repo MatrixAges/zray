@@ -4,7 +4,8 @@ const CompiledNative = @import("../compiled_native.zig");
 const State = @import("state.zig");
 const effects = @import("../../sources/effects.zig");
 const storage = @import("publish.zig");
-const configuration = compiler.project.native_configuration;
+const memory = @import("zx").memory;
+const source_index = compiler.project.source_index;
 const abi = @import("cli_abi").layouts.@"zig:native_scope_host";
 
 pub fn openNativeScope(handle: *const anyopaque, index: u64) effects.Error!*const abi.ScopeWindow {
@@ -16,14 +17,14 @@ pub fn openNativeScope(handle: *const anyopaque, index: u64) effects.Error!*cons
     const root = self.scope().root;
 
     self.compiled = CompiledNative.load(self.io, self.allocator, root, config.*, self.scopes, self.inputs) catch |err| return self.failure.save(err);
-
-    configuration.validateExternals(config.externals) catch |err| return self.failure.save(err);
-
-    self.native = self.allocator.alloc(compiler.project.NativeInterface, config.native_interfaces.len) catch |err| return self.failure.save(err);
+    self.externals_view = memory.borrowTextColumn("specifier", config.externals);
+    self.external_rows = .{ .items = @ptrCast(&self.externals_view), .length = config.externals.len };
+    self.owner = .{ .owner = root, .entry_root = self.entry_root, .compiled = self.compiled != null };
 
     self.window = .{
         .frame = @ptrCast(handle),
-        .declarations = self.native.len,
+        .scope = &self.owner,
+        .declarations = config.native_interfaces.len,
         .externals = config.externals.len,
         .modules = config.native_modules.len,
         .library_paths = config.library_paths,
@@ -32,13 +33,40 @@ pub fn openNativeScope(handle: *const anyopaque, index: u64) effects.Error!*cons
     return &self.window;
 }
 
+pub fn requireNativeScopeAdmission(handle: *const anyopaque, status: abi.Admission) effects.Error!void {
+    if (status == .Valid) return;
+
+    return State.get(handle).failure.save(switch (status) {
+        .Valid => unreachable,
+        .InvalidSpecifier => error.InvalidSpecifier,
+        .InvalidExternalSpecifier => error.InvalidExternalSpecifier,
+        .InvalidNativeInterfacePath => error.InvalidNativeInterfacePath,
+        .InvalidNativeModule => error.InvalidNativeModule,
+        .ReservedNativeModule => error.ReservedNativeModule,
+        .DuplicateNativeModule => error.DuplicateNativeModule,
+        .UnknownNativeDependency => error.UnknownNativeDependency,
+    });
+}
+
+pub fn reserveNativeScopeInterfaces(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const self = State.get(handle);
+
+    self.native = try self.allocator.alloc(compiler.project.NativeInterface, self.config().native_interfaces.len);
+}
+
+pub fn nativeScopeInterfacePath(handle: *const anyopaque, row: u64) *const abi.InterfacePath {
+    const self = State.get(handle);
+    const declaration = &self.config().native_interfaces[@intCast(row)];
+
+    self.interface = .{ .specifier = declaration.specifier, .path = declaration.path };
+
+    return &self.interface;
+}
+
 pub fn readNativeScopeInterface(handle: *const anyopaque, row: u64) effects.Error!void {
     const self = State.get(handle);
     const index: usize = @intCast(row);
     const declaration = &self.config().native_interfaces[index];
-
-    configuration.validateInterface(declaration.specifier, declaration.path) catch |err| return self.failure.save(err);
-
     const path = resolveNativeScopePath(handle, declaration.path) catch |err| return self.failure.save(err);
 
     if (self.inputs) |observed| observed.add(self.io, path) catch |err| return self.failure.save(err);
@@ -56,43 +84,72 @@ pub fn readNativeScopeInterface(handle: *const anyopaque, row: u64) effects.Erro
     };
 }
 
-pub fn prepareNativeScopeNames(handle: *const anyopaque) effects.Error!void {
+pub fn reserveNativeScopeIndex(handle: *const anyopaque) effects.Error!void {
     const self = State.get(handle);
     const config = self.config();
+    const modules = config.native_modules;
+
     self.legacy = self.allocator.dupe(compiler.project.External, config.externals) catch |err| return self.failure.save(err);
     self.name_memory = std.heap.BufferFirstAllocator.init(std.mem.sliceAsBytes(&self.slots), self.allocator);
+    self.buckets = source_index.Map.bucketsFor(self.name_memory.allocator(), modules.len) catch |err| return self.failure.save(err);
+    self.names_view = memory.borrowTextColumn("name", modules);
+    self.path_view = memory.borrowReadColumn(?[]const u8, "path", modules);
+    self.header_view = memory.borrowReadColumn(?[]const u8, "header", modules);
+    self.index = .{ .names = @ptrCast(&self.names_view), .buckets = @ptrCast(&self.buckets), .capacity = self.buckets.len };
 
-    self.names = configuration.bindNames(self.allocator, self.name_memory.allocator(), config.native_modules, .{
-        .owner = self.scope().root,
-        .entry_root = self.entry_root,
-        .compiled = self.compiled != null,
-    }) catch |err| return self.failure.save(err);
+    self.module_rows = .{
+        .index = &self.index,
+        .count = modules.len,
+        .paths = @ptrCast(&self.path_view),
+        .headers = @ptrCast(&self.header_view),
+    };
 }
 
-pub fn bindNativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool) effects.Error!void {
+pub fn reserveNativeScopeNames(handle: *const anyopaque) std.mem.Allocator.Error![]const []const u8 {
+    const self = State.get(handle);
+
+    self.names = try self.name_memory.allocator().alloc([]const u8, self.config().native_modules.len);
+    self.registry_view = .{ .index = &self.index, .names = self.names };
+
+    return self.names;
+}
+
+pub fn nativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool) *const abi.DeclarationBinding {
     const self = State.get(handle);
     const index: usize = @intCast(row);
 
     if (external) {
         const declaration = &self.legacy[index];
 
-        return bindDeclaration(self, declaration.specifier, &declaration.identity, &declaration.implementation.module);
+        self.declaration = .{ .specifier = declaration.specifier, .module = declaration.implementation.module };
+    } else {
+        const declaration = &self.native[index];
+
+        self.declaration = .{ .specifier = declaration.specifier, .module = declaration.module };
     }
 
-    const declaration = &self.native[index];
-
-    return bindDeclaration(self, declaration.specifier, &declaration.identity, &declaration.module);
+    return &self.declaration;
 }
 
-fn bindDeclaration(self: *State, specifier: []const u8, identity: *?[]const u8, module: *[]const u8) effects.Error!void {
-    const owner = self.allocator;
+pub fn compiledNativeScopeIdentity(handle: *const anyopaque, specifier: []const u8) effects.Error![]const u8 {
+    const self = State.get(handle);
 
-    identity.* = (if (self.compiled) |binding|
-        binding.declaration(owner, specifier)
-    else
-        configuration.declaration(owner, self.scope().root, specifier)) catch |err| return self.failure.save(err);
+    return self.compiled.?.declaration(self.allocator, specifier) catch |err| self.failure.save(err);
+}
 
-    module.* = self.names.?.name(owner, module.*) catch |err| return self.failure.save(err);
+pub fn writeNativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool, identity: []const u8, module: []const u8) void {
+    const self = State.get(handle);
+    const index: usize = @intCast(row);
+
+    if (external) {
+        const declaration = &self.legacy[index];
+        declaration.identity = identity;
+        declaration.implementation.module = module;
+    } else {
+        const declaration = &self.native[index];
+        declaration.identity = identity;
+        declaration.module = module;
+    }
 }
 
 pub fn publishNativeScopeDeclarations(handle: *const anyopaque) effects.Error!void {
@@ -140,22 +197,25 @@ pub fn nativeScopeModulePaths(handle: *const anyopaque, row: u64) *const abi.Mod
     const config = self.config();
     const source = &config.native_modules[@intCast(row)];
 
-    self.paths = .{ .path = source.path, .includes = source.include_paths orelse config.include_paths };
+    self.paths = .{
+        .path = source.path,
+        .includes = source.include_paths orelse config.include_paths,
+        .dependencies = source.dependencies,
+    };
 
     return &self.paths;
 }
 
-pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, path: ?[]const u8, includes: u64) effects.Error![]const []const u8 {
+pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []const u8, path: ?[]const u8, dependencies: []const []const u8, includes: u64) std.mem.Allocator.Error![]const []const u8 {
     const self = State.get(handle);
     const index: usize = @intCast(row);
-    const names = &self.names.?;
 
     self.module = self.config().native_modules[index];
-    self.module.name = names.resolved[index];
+    self.module.name = name;
     self.module.path = path;
-    self.module.dependencies = names.dependencies(self.allocator, self.module.dependencies) catch |err| return self.failure.save(err);
+    self.module.dependencies = dependencies;
 
-    return self.allocator.alloc([]const u8, @intCast(includes)) catch |err| return self.failure.save(err);
+    return self.allocator.alloc([]const u8, @intCast(includes));
 }
 
 pub fn publishNativeScopeModule(handle: *const anyopaque, includes: []const []const u8) effects.Error!void {

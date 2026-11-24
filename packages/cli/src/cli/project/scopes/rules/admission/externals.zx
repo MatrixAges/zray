@@ -1,10 +1,10 @@
+import classify from "compiler_rules/specifier/check"
+import { Kind } from "compiler_rules/specifier/model"
 import memory from "memory"
 
-import classify from "../../specifier/check"
-import { Kind } from "../../specifier/model"
 import { Status } from "./model"
 
-import type { Rows } from "../../project/target/select"
+import type { Rows } from "compiler_rules/project/target/select"
 
 export type Input = Rows
 

@@ -1,0 +1,27 @@
+import nativeName from "compiler_rules/compiled/identity/native_name"
+
+import packageName from "./package_name"
+
+import type { Request as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { scope, value } = in
+
+    if (scope.compiled) {
+        return nativeName({
+            instance: scope.owner,
+            value
+        })
+    }
+
+    if (scope.owner == scope.entry_root) {
+        return value
+    }
+
+    return packageName({
+        owner: scope.owner,
+        value
+    })
+}

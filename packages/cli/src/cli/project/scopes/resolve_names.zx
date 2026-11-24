@@ -1,0 +1,40 @@
+import memory from "memory"
+
+import backend from "./rules/naming/backend"
+
+import type { Rows } from "compiler_rules/project/target/select"
+import type { ScopeWindow } from "native_scope_host"
+import type { Resources } from "./workflow"
+
+export type Input = {
+    window: ScopeWindow,
+    local: Rows,
+    resolved: string[],
+    resources: Resources
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { local, resolved, resources } = in
+
+    const written = loop(0, {
+        while: row => row < local.length,
+        next: row => {
+            const value = memory.readTextColumn(local.items, row)
+            const name = backend({
+                scope: in.window.scope,
+                value
+            })
+
+            memory.writeTextSlot(
+                resolved,
+                row,
+                memory.copyColumnText(resources.owner, name)
+            )
+
+            memory.resetArena(resources.scratch)
+            row += 1
+        }
+    })
+}

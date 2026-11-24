@@ -6,16 +6,17 @@ import {
 } from "native_scope_host"
 
 import paths from "./paths"
+import resolveDependencies from "./rules/dependency"
 
-import type { ScopeWindow as Input } from "native_scope_host"
+import type { Binding as Input } from "./workflow"
 
 export type Output = void
 
 export default function (in: Input): Output {
     const published = loop(0, {
-        while: row => row < in.modules,
+        while: row => row < in.window.modules,
         next: row => {
-            const { frame } = in
+            const { frame } = in.window
             const source = nativeScopeModulePaths(frame, row)
 
             const original = source.path
@@ -24,10 +25,17 @@ export default function (in: Input): Output {
                 _ => null
             }
 
+            const dependencies = resolveDependencies({
+                binding: in,
+                dependencies: source.dependencies
+            })
+
             const includes = prepareNativeScopeModule(
                 frame,
                 row,
+                in.registry.names[row],
                 path,
+                dependencies,
                 source.includes.length
             )
 

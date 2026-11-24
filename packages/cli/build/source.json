@@ -52,6 +52,10 @@
             "prefix": "scopes/"
         },
         {
+            "path": "compiler_rules",
+            "prefix": "compiler_rules/"
+        },
+        {
             "path": "memory",
             "prefix": "memory/"
         },
@@ -482,6 +486,26 @@
         {
             "specifier": "core/ascii/const",
             "entry": "core/ascii/const.zx"
+        },
+        {
+            "specifier": "core/bytes/index/borrowed/wide_slot",
+            "entry": "core/bytes/index/borrowed/wide_slot.zx"
+        },
+        {
+            "specifier": "compiler_rules/compiled/identity/native_name",
+            "entry": "compiler_rules/compiled/identity/native_name.zx"
+        },
+        {
+            "specifier": "compiler_rules/project/target/select",
+            "entry": "compiler_rules/project/target/select.zx"
+        },
+        {
+            "specifier": "compiler_rules/specifier/check",
+            "entry": "compiler_rules/specifier/check.zx"
+        },
+        {
+            "specifier": "compiler_rules/specifier/model",
+            "entry": "compiler_rules/specifier/model.zx"
         },
         {
             "specifier": "cli/native_module_lookup",

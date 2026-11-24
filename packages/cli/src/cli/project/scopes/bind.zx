@@ -1,31 +1,75 @@
-import { bindNativeScopeDeclaration } from "native_scope_host"
+import memory from "memory"
+import {
+    Admission,
+    compiledNativeScopeIdentity,
+    nativeScopeDeclaration,
+    requireNativeScopeAdmission,
+    writeNativeScopeDeclaration
+} from "native_scope_host"
 
-import type { NativeScopeLoad } from "native_scope_host"
+import backend from "./rules/naming/backend"
+import declaration from "./rules/naming/declaration"
+import registered from "./rules/naming/registered"
 
-export type Input = {
-    frame: NativeScopeLoad,
-    declarations: u64,
-    externals: u64
-}
+import type { Binding as Input } from "./workflow"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, declarations, externals } = in
+    const bound = loop(0, {
+        while: index => index < in.window.declarations + in.window.externals,
+        next: index => {
+            const { window, registry, resources } = in
+            const { frame, scope } = window
+            const external = index >= window.declarations
+            const row = match external {
+                true => index - window.declarations,
+                _ => index
+            }
 
-    const native = loop(0, {
-        while: row => row < declarations,
-        next: row => {
-            bindNativeScopeDeclaration(frame, row, false)
-            row += 1
-        }
-    })
+            const { specifier, module } = nativeScopeDeclaration(frame, row, external)
 
-    const legacy = loop(0, {
-        while: row => row < externals,
-        next: row => {
-            bindNativeScopeDeclaration(frame, row, true)
-            row += 1
+            const generated: string? = match scope.compiled {
+                true => compiledNativeScopeIdentity(frame, specifier),
+                _ => declaration({
+                    owner: scope.owner,
+                    value: specifier
+                })
+            }
+
+            if (generated == null) {
+                requireNativeScopeAdmission(
+                    frame,
+                    Admission.InvalidExternalSpecifier
+                )
+            } else {
+                const identity = match scope.compiled {
+                    true => generated,
+                    _ => memory.copyColumnText(resources.owner, generated)
+                }
+
+                const known = registered({
+                    registry,
+                    value: module
+                })
+
+                const resolved =
+                    known ?? memory.copyColumnText(resources.owner, backend({
+                        scope,
+                        value: module
+                    }))
+
+                writeNativeScopeDeclaration(
+                    frame,
+                    row,
+                    external,
+                    identity,
+                    resolved
+                )
+                memory.resetArena(resources.scratch)
+            }
+
+            index += 1
         }
     })
 }
