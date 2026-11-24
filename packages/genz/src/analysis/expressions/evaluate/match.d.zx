@@ -9,9 +9,3 @@ export declare function publishMatchSubject(
     value: u32,
     discard: bool
 ): void throws { OutOfMemory }
-
-export declare function lowerMatchArms(selection: MatchFrame, fallback: u32): u32
-    throws { OutOfMemory }
-
-export declare function finishMatchResult(selection: MatchFrame, value: u32): u32
-    throws { OutOfMemory }

@@ -1,0 +1,95 @@
+<Module>
+    <Type from="workflow" as="Lower" />
+    <Type from="model" as="Match" />
+
+    <Args in={Lower.Input} out={Match.Output} />
+
+    <If on={$in.source.subject != null}>
+        <Call
+            fn="workflow.lowerExpression"
+            in={[
+                $in.frame,
+                $in.source.subject,
+                false,
+                null
+            ]}
+        />
+
+        <Call
+            fn="workflow.publishMatchSubject"
+            in={[
+                $in.selection,
+                $ctx.lowerExpression,
+                $in.source.conditions.length == 0
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="fallback"
+        in={$in.pick([
+            "frame",
+            "fallback",
+            "layout"
+        ])}
+    />
+
+    <If on={$in.source.conditions.length == 0}>
+        <Call
+            fn="empty"
+            in={{
+                fallback: $ctx.fallback
+            }}
+        />
+
+        <Return value={$ctx.empty} />
+    </If>
+
+    <Call fn="mode" in={$in.layout} />
+
+    <Call
+        module="plan"
+        in={{
+            source: $in.source,
+            results: $in.results,
+            result: $ctx.mode
+        }}
+    />
+
+    <Call fn="workflow.requireAllocation" in={$ctx.plan.valid} />
+
+    <Call
+        fn="workflow.createU32Buffer"
+        in={[
+            $in.resource,
+            $ctx.plan.operations.length,
+            null
+        ]}
+    />
+
+    <Call
+        fn="evaluate"
+        in={{
+            operations: $ctx.plan.operations,
+            first: $ctx.plan.first,
+            second: $ctx.plan.second,
+            frame: $in.frame,
+            values: $ctx.createU32Buffer
+        }}
+    />
+
+    <Call
+        fn="emission"
+        in={{
+            selected: $ctx.plan.selected,
+            count: $ctx.plan.count,
+            positions: $in.positions,
+            values: $ctx.createU32Buffer,
+            fallback: $ctx.fallback
+        }}
+    />
+
+    <Call module="emit" />
+
+    <Return value={$ctx.emit} />
+</Module>

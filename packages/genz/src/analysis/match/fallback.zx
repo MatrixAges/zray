@@ -1,0 +1,12 @@
+import host from "lowering_host"
+
+import type { Fallback as Input } from "./workflow"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return match {
+        in.layout => host.lowerValueExpression(in.frame, in.fallback),
+        _ => host.lowerExpression(in.frame, in.fallback, false, null)
+    }
+}

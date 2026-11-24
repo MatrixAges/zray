@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { arm_slot, expression_slot } from "./const"
+
+import type { ColumnLengths, U32Buffer } from "memory"
+import type { Emit, Plan } from "./model"
+
+export type Input = Plan.Pick("selected", "count") & {
+    positions: ColumnLengths,
+    values: U32Buffer,
+    fallback: u32
+}
+
+export type Output = Emit
+
+export default function (in: Input): Output {
+    return {
+        ...in.pick([
+            "selected",
+            "count",
+            "fallback"
+        ]),
+        values: memory.u32Views(in.values),
+        base: integers.narrow(memory.readLengthSlot(in.positions, expression_slot)),
+        arm_base: integers.narrow(memory.readLengthSlot(in.positions, arm_slot))
+    }
+}

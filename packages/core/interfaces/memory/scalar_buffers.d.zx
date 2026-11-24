@@ -26,6 +26,12 @@ export declare function createU8Buffer(
     shape: U8Buffer?
 ): U8Buffer throws { OutOfMemory }
 
+export declare function createU32Buffer(
+    resource: Allocator,
+    count: u64,
+    shape: U32Buffer?
+): U32Buffer throws { OutOfMemory }
+
 export declare function allocateU8Buffer(
     resource: Allocator,
     target: U8Buffer,

@@ -1,4 +1,6 @@
-import type { Emit as Input, Output } from "./model"
+import type { Emit, Output } from "./model"
+
+export type Input = Emit.Pick("fallback")
 
 export default function (in: Input): Output {
     return {

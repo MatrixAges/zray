@@ -5,7 +5,6 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
 const evaluation = @import("expressions/evaluate.zig");
-const bridge = @import("match/bridge.zig");
 const Sequence = @import("../node/blocks.zig").Sequence;
 
 pub fn lower(self: *Lower, selection: ir.MatchRow) Lower.Error!node.ExpressionId {
@@ -18,8 +17,6 @@ pub fn lowerValue(self: *Lower, selection: ir.MatchRow) Lower.Error!node.Express
 
 const Frame = struct {
     lowering: *Lower,
-    selection: ir.MatchRow,
-    mode: bridge.ResultMode,
     subject: ?ir.ExprId,
     previous: ?node.ExpressionId,
     body: Sequence,
@@ -37,33 +34,70 @@ const Frame = struct {
 fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return if (layout) @import("match/seed.zig").lowerValue(self, selection) else @import("match/seed.zig").lower(self, selection);
 
-    const prepared = bridge.prepare(selection, layout);
-    const subject: ?ir.ExprId = if (prepared.subject) |id| @fromBackingInt(id) else null;
-
     var frame: Frame = .{
         .lowering = self,
-        .selection = selection,
-        .mode = prepared.result,
-        .subject = subject,
-        .previous = if (subject) |id| self.cache.get(id) else null,
+        .subject = selection.subject,
+        .previous = if (selection.subject) |id| self.cache.get(id) else null,
         .body = self.builder.statementSequence(self.workspace),
     };
 
     defer frame.restore();
 
-    const entry = @import("generated_lower_match_result");
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    const input: std.meta.Child(entry.Input) = .{
-        .frame = @ptrCast(self),
-        .selection = @ptrCast(&frame),
-        .subject = prepared.subject,
-        .discard = prepared.discard,
-        .fallback = prepared.fallback,
-        .value = prepared.result == .Value,
-        .has_arms = prepared.has_arms,
+    defer scratch.deinit();
+
+    const allocator = buffered.allocator();
+    const entry = @import("generated_lower_match_result");
+    const Input = std.meta.Child(entry.Input);
+    const Labels = std.meta.Child(@FieldType(Input, "source"));
+    const expressions = zx.columns.borrow(std.meta.Child(@FieldType(Labels, "expressions")), @as(*const ir.ExpressionTable, &self.program.expressions));
+    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Labels, "types")), self.program.types);
+    const nodes = self.builder.nodes;
+    const positions: zx.memory.ColumnLengths = &.{ &nodes.expressions.tags.items.len, &nodes.arm_columns.fields.value.values.items.len };
+
+    const labels: Labels = .{
+        .expressions = &expressions,
+        .types = &types,
+        .subject = if (selection.subject) |id| @backingInt(id) else null,
+        .conditions = selection.arms.conditions[0..selection.arms.len],
     };
 
-    return evaluation.invoke(entry, &input);
+    const input: Input = .{
+        .frame = @ptrCast(self),
+        .selection = @ptrCast(&frame),
+        .source = &labels,
+        .results = selection.arms.results[0..selection.arms.len],
+        .fallback = @backingInt(selection.fallback),
+        .layout = layout,
+        .positions = @ptrCast(&positions),
+        .resource = @ptrCast(&allocator),
+    };
+
+    const output = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
+
+    if (!output.valid) return error.OutOfMemory;
+
+    if (selection.arms.len != 0) {
+        const Output = std.meta.Child(entry.Output);
+        const arms = zx.columns.view(std.meta.Child(@FieldType(Output, "arms")), output.arms);
+        const rows = zx.columns.view(std.meta.Child(@FieldType(Output, "nodes")), output.nodes);
+        @import("../node/import_arms.zig").append(self.allocator, &nodes.arm_columns, &arms) catch |err| return failure(err);
+        @import("../node/import_rows.zig").appendBorrowed(self.allocator, &nodes.expressions, &rows) catch |err| return failure(err);
+    }
+
+    const result: node.ExpressionId = @fromBackingInt(output.root);
+
+    return if (selection.subject != null) aggregate.finish(self, &frame.body, result) else result;
+}
+
+fn failure(err: anyerror) Lower.Error {
+    return switch (err) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => unreachable,
+    };
 }
 
 pub fn publishMatchSubject(handle: *const anyopaque, value: u32, discard: bool) Lower.Error!void {
@@ -76,48 +110,6 @@ pub fn publishMatchSubject(handle: *const anyopaque, value: u32, discard: bool) 
     frame.installed = true;
 
     if (discard) try frame.body.append(try self.builder.statements(&.{.{ .discard = binding }}));
-}
-
-pub fn lowerMatchArms(handle: *const anyopaque, fallback: u32) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try lowerArms(frame.lowering, frame.selection, frame.mode, @fromBackingInt(fallback)));
-}
-
-pub fn finishMatchResult(handle: *const anyopaque, value: u32) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try aggregate.finish(frame.lowering, &frame.body, @fromBackingInt(value)));
-}
-
-fn lowerArms(self: *Lower, selection: ir.MatchRow, mode: bridge.ResultMode, fallback: node.ExpressionId) Lower.Error!node.ExpressionId {
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
-
-    defer scratch.deinit();
-
-    const allocator = buffered.allocator();
-    const plan = try bridge.plan(self, allocator, selection, mode);
-
-    if (!plan.valid) return error.OutOfMemory;
-
-    const values = try allocator.alloc(node.ExpressionId, plan.operations.len);
-    const entry = @import("generated_lower_match_arms");
-    const Input = std.meta.Child(entry.Input);
-    const storage: []u32 = @ptrCast(values);
-
-    const input: Input = .{
-        .frame = @ptrCast(self),
-        .operations = zx.columns.slice(@FieldType(Input, "operations"), plan.operations),
-        .first = plan.first,
-        .second = plan.second,
-        .values = @ptrCast(&storage),
-    };
-
-    try evaluation.execute(entry, &input);
-
-    return bridge.emit(self, allocator, plan.selected, plan.count, values, fallback);
 }
 
 pub fn lowerMatchEquality(handle: *const anyopaque, left: u32, right: u32) Lower.Error!u32 {

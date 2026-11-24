@@ -8,7 +8,9 @@ import empty from "./empty"
 import type { Emit as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const initial = empty(in)
+    const initial = empty({
+        fallback: in.fallback
+    })
 
     const built = loop({
         ...initial.nodes,

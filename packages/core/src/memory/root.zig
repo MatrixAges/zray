@@ -6,6 +6,7 @@ pub const sha256FramedInto = sha256.framedInto;
 const buffer_owner = @import("buffer_owner.zig");
 pub const createBoolBuffer = buffer_owner.bools;
 pub const createU8Buffer = buffer_owner.bytes;
+pub const createU32Buffer = buffer_owner.u32s;
 pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
 pub const selectArena = ArenaScope.select;

@@ -1,0 +1,17 @@
+import type { Lowering, MatchFrame } from "lowering_host"
+import type { Allocator, ColumnLengths } from "memory"
+import type { Input as PlanInput } from "./model"
+
+export type Input = PlanInput.Omit("result") & {
+    frame: Lowering,
+    selection: MatchFrame,
+    fallback: u32,
+    layout: bool,
+    positions: ColumnLengths,
+    resource: Allocator
+}
+
+export type Fallback = Input.Pick("frame", "fallback", "layout")
+
+export { lowerExpression, publishMatchSubject } from "lowering_host"
+export { createU32Buffer, requireAllocation } from "memory"
