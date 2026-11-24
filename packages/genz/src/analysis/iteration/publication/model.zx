@@ -1,4 +1,6 @@
-import type { IterationPublication } from "lowering_host"
+import type { FragmentPublication, IterationPublication, Lowering } from "lowering_host"
+
+export { FragmentBody } from "lowering_host"
 
 export enum Mode {
     Borrow,
@@ -14,5 +16,14 @@ export enum Mode {
 
 export type Input = {
     target: IterationPublication,
+    lower: Lowering,
+    rows: Rows,
+    valid: bool,
+    serial?: u64,
+    uses_allocator: bool
+}
+
+export type Rows = {
+    fragment: FragmentPublication,
     mode: Mode
 }

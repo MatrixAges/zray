@@ -18,11 +18,13 @@
         on={$in.kind != Fragment.FragmentKind.List &&
             $in.kind != Fragment.FragmentKind.Origin}
     >
+        <Call fn="statement_mode" in={$in.kind} />
+
         <Call
             fn="host.appendFragmentStatements"
             in={[
                 $in.target,
-                $in.kind
+                $ctx.statement_mode
             ]}
         />
 

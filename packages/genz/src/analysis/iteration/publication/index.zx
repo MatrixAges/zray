@@ -1,8 +1,12 @@
 export {
     ownIterationLabel,
-    appendIterationSequence,
+    repairIterationBlockLabel,
+    repairIterationBreakLabel,
+    appendFragmentLayoutExpressions,
+    appendFragmentBody,
+    appendFragmentStorage,
     cachePublishedIterationTypes,
     recordIterationTransfer,
-    finishIterationPublication,
-    hoistIterationStorage
+    finishGeneratedAst
 } from "lowering_host"
+export { requireAllocation } from "memory"

@@ -54,10 +54,11 @@ pub fn setLoweringSerial(frame: *const anyopaque, serial: u64) void {
     borrow(frame).serial = @intCast(serial);
 }
 
-pub fn finishGeneratedAst(frame: *const anyopaque, serial: u64, uses_allocator: bool) void {
+pub fn finishGeneratedAst(frame: *const anyopaque, serial: ?u64, uses_allocator: bool) void {
     const self = borrow(frame);
 
-    self.serial = @intCast(serial);
+    if (serial) |value| self.serial = @intCast(value);
+
     self.uses_allocator = self.uses_allocator or uses_allocator;
 }
 

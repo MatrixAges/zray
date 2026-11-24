@@ -2,12 +2,12 @@ import host from "lowering_host"
 
 import { Mode } from "./model"
 
-import type { Input } from "./model"
+import type { Rows as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, mode } = in
+    const { fragment, mode } = in
 
     const borrowed = match mode {
         Mode.Mutation => true,
@@ -16,5 +16,5 @@ export default function (in: Input): Output {
         _ => false
     }
 
-    host.appendIterationExpressions(target, borrowed)
+    host.appendFragmentExpressions(fragment, borrowed)
 }

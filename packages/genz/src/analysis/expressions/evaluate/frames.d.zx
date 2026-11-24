@@ -88,11 +88,20 @@ export enum FragmentKind {
 export enum FragmentBody {
     Direct,
     Roots,
+    RootsWithVariables,
     BorrowedRoots,
     Selected,
     SelectedWithVariables,
     ConvertedBinding,
     ConvertedBody
+}
+
+export enum FragmentStatements {
+    Dense,
+    BorrowingText,
+    Borrowed,
+    Sparse,
+    SparseWithVariables
 }
 
 export type DirectAstRows = opaque

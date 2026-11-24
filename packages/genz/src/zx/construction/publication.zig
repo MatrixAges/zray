@@ -10,10 +10,11 @@ const fields = @import("../../node/import_fields.zig");
 const entry = @import("generated_publish_ast_fragment");
 const Input = std.meta.Child(entry.Input);
 const Kind = @FieldType(Input, "kind");
-const Body = @import("../expressions/evaluate.zig").Api.FragmentBody;
+const Api = @import("../expressions/evaluate.zig").Api;
 const Update = std.meta.Child(@import("generated_list_update").Output);
 const Collection = std.meta.Child(@import("generated_emit_collection_rows").Output);
 const Context = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Collection, "state")), "context"));
+const IterationTypes = std.meta.Child(@import("generated_iteration_types_emit").Output);
 const Expressions = @FieldType(Update, "expressions");
 const Forms = @FieldType(Update, "forms");
 const Rows = @FieldType(Update, "statements");
@@ -23,18 +24,19 @@ pub const Targets = struct {
     binding: ?*Sequence = null,
 };
 
-const Frame = struct {
+pub const Frame = struct {
     lower: *Lower,
-    targets: Targets,
+    targets: Targets = .{},
     expressions: Expressions,
-    forms: Forms,
-    statements: ?Rows,
-    vars: ?@FieldType(Context, "variables"),
-    subset: ?@FieldType(Update, "body"),
-    roots: ?Rows,
-    converted_body: ?Rows,
-    converted_binding: ?Rows,
-    fields: ?@FieldType(Update, "fields"),
+    forms: ?Forms = null,
+    layouts: ?@FieldType(IterationTypes, "layouts") = null,
+    statements: ?Rows = null,
+    vars: ?@FieldType(Context, "variables") = null,
+    subset: ?@FieldType(Update, "body") = null,
+    roots: ?Rows = null,
+    converted_body: ?Rows = null,
+    converted_binding: ?Rows = null,
+    fields: ?@FieldType(Update, "fields") = null,
     fn borrow(target: *const anyopaque) *const Frame {
         return @ptrCast(@alignCast(target));
     }
@@ -104,7 +106,7 @@ pub fn appendFragmentExpressions(handle: *const anyopaque, borrow_text: bool) Lo
     const frame = Frame.borrow(handle);
     const target = &frame.lower.builder.nodes.expressions;
     const allocator = frame.lower.allocator;
-    const source = view.join(frame.expressions.*, frame.forms.*);
+    const source = view.join(frame.expressions.*, frame.forms.?.*);
 
     if (borrow_text) {
         dense.appendBorrowingText(allocator, target, &source) catch |err| return failure(err);
@@ -113,17 +115,25 @@ pub fn appendFragmentExpressions(handle: *const anyopaque, borrow_text: bool) Lo
     }
 }
 
-pub fn appendFragmentStatements(handle: *const anyopaque, kind: Kind) Lower.Error!void {
+pub fn appendFragmentLayoutExpressions(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const source = view.join(frame.expressions.*, frame.layouts.?.*);
+    const target = &frame.lower.builder.nodes.expressions;
+
+    dense.append(frame.lower.allocator, target, &source) catch |err| return failure(err);
+}
+
+pub fn appendFragmentStatements(handle: *const anyopaque, mode: Api.FragmentStatements) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const target = &frame.lower.builder.nodes.statements;
     const allocator = frame.lower.allocator;
 
-    switch (kind) {
-        .Growth, .Construction => dense.append(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .Guard => dense.appendBorrowingText(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .Update => sparse.append(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .List, .Origin => unreachable,
-        .Collection, .Conversion => {
+    switch (mode) {
+        .Dense => dense.append(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .BorrowingText => dense.appendBorrowingText(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .Borrowed => dense.appendBorrowed(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .Sparse => sparse.append(allocator, target, frame.statements.?) catch |err| return failure(err),
+        .SparseWithVariables => {
             const source = view.join(frame.statements.?.*, frame.vars.?.*);
 
             sparse.append(allocator, target, &source) catch |err| return failure(err);
@@ -131,13 +141,18 @@ pub fn appendFragmentStatements(handle: *const anyopaque, kind: Kind) Lower.Erro
     }
 }
 
-pub fn appendFragmentBody(handle: *const anyopaque, mode: Body) Lower.Error!void {
+pub fn appendFragmentBody(handle: *const anyopaque, mode: Api.FragmentBody) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const allocator = frame.lower.allocator;
 
     switch (mode) {
         .Direct => dense.append(allocator, &frame.lower.builder.nodes.statements, frame.roots.?) catch |err| return failure(err),
         .Roots => statements.append(allocator, frame.targets.body.?, frame.roots.?) catch |err| return failure(err),
+        .RootsWithVariables => {
+            const source = view.join(frame.roots.?.*, frame.vars.?.*);
+
+            statements.append(allocator, frame.targets.body.?, &source) catch |err| return failure(err);
+        },
         .BorrowedRoots => statements.appendBorrowingText(allocator, frame.targets.body.?, frame.roots.?) catch |err| return failure(err),
         .Selected, .SelectedWithVariables => {
             var roots = frame.statements.?.*;
