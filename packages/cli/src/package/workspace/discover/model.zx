@@ -2,6 +2,14 @@ import type { Search } from "package_workspace_host"
 
 export type Cursor = {
     search: Search,
+    directory: string,
+    has_nearest: bool,
     complete: bool,
     running: bool
+}
+
+export enum Progress {
+    Advance,
+    Retained,
+    Stop
 }

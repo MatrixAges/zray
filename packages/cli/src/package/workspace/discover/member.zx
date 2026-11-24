@@ -1,12 +1,8 @@
-import memory from "memory"
+import { workspacePackagePath } from "package_workspace_host"
 
-import type { TextColumn } from "memory"
+import type { MemberSearch } from "package_workspace_host"
 
-export type Input = {
-    paths: TextColumn,
-    count: u64,
-    target: string
-}
+export type Input = MemberSearch
 
 export type Output = bool
 
@@ -17,7 +13,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.count && !state.found,
         next: state => {
-            state.found = memory.readTextColumn(in.paths, state.row) == in.target
+            state.found = workspacePackagePath(in.search, state.row) == in.target
             state.row += 1
         },
         return: state => state.found

@@ -1,15 +1,12 @@
 export {
     startSearch,
-    moveParent,
+    parentDirectory,
     readCandidate,
-    hasNearest,
-    hasWorkspace,
     rememberCandidate,
     selectCandidate,
     loadAncestor,
-    ancestorContainsMember,
     selectAncestor,
-    selectNearest,
+    discardCandidates,
     Probe
 } from "package_workspace_host"
 

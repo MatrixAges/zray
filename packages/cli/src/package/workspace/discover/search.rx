@@ -3,9 +3,9 @@
 
     <Args in={Workspace.Cursor} out={Workspace.Cursor} />
 
-    <Call module="step" in={$in.search} />
+    <Call module="step" in={$in} />
 
-    <If on={$ctx.step}>
+    <If on={$ctx.step == Workspace.Progress.Stop}>
         <Return
             value={{
                 ...$in,
@@ -15,12 +15,24 @@
         />
     </If>
 
-    <Call fn="index.moveParent" in={$in.search} />
+    <Call fn="index.discardCandidates" in={$in.search} />
+    <Call fn="index.parentDirectory" in={$in.directory} />
+
+    <If on={$ctx.parentDirectory != null}>
+        <Return
+            value={{
+                ...$in,
+                directory: $ctx.parentDirectory,
+                has_nearest: $in.has_nearest || $ctx.step == Workspace.Progress.Retained
+            }}
+        />
+    </If>
 
     <Return
         value={{
             ...$in,
-            running: $ctx.moveParent
+            has_nearest: $in.has_nearest || $ctx.step == Workspace.Progress.Retained,
+            running: false
         }}
     />
 </Module>

@@ -1,43 +1,65 @@
 <Module>
     <Type from="index" as="IO" />
     <Type from="decision" as="Choice" />
+    <Type from="model" as="Workspace" />
 
-    <Args in={IO.Search} out={bool} />
+    <Args in={Workspace.Cursor} out={Workspace.Progress} />
 
-    <Call fn="index.readCandidate" in={$in} />
+    <Call
+        fn="index.readCandidate"
+        in={[
+            $in.search,
+            $in.directory
+        ]}
+    />
 
-    <If on={$ctx.readCandidate != IO.Probe.Read}>
-        <Return value={$ctx.readCandidate == IO.Probe.Invalid} />
+    <If on={$ctx.readCandidate == IO.Probe.Invalid}>
+        <Return value={Workspace.Progress.Stop} />
     </If>
 
-    <Call fn="index.hasNearest" in={$in} />
-    <Call fn="index.hasWorkspace" in={$in} />
+    <If on={$ctx.readCandidate == IO.Probe.Missing}>
+        <Return value={Workspace.Progress.Advance} />
+    </If>
 
     <Call
         fn="decision"
         in={{
-            has_nearest: $ctx.hasNearest,
-            has_workspace: $ctx.hasWorkspace
+            has_nearest: $in.has_nearest,
+            has_workspace: $ctx.readCandidate == IO.Probe.Workspace
         }}
     />
 
     <If on={$ctx.decision == Choice.Decision.Remember}>
-        <Call fn="index.rememberCandidate" in={$in} />
+        <Call fn="index.rememberCandidate" in={$in.search} />
 
-        <Return value={false} />
+        <Return value={Workspace.Progress.Retained} />
     </If>
 
     <If on={$ctx.decision == Choice.Decision.Select}>
-        <Call fn="index.selectCandidate" in={$in} />
+        <Call
+            fn="index.selectCandidate"
+            in={[
+                $in.search,
+                false
+            ]}
+        />
 
-        <Return value={true} />
+        <Return value={Workspace.Progress.Stop} />
     </If>
 
     <If on={$ctx.decision == Choice.Decision.Inspect}>
-        <Call module="ancestor" in={$in} />
+        <Call
+            module="ancestor"
+            in={$in.pick([
+                "search",
+                "directory"
+            ])}
+        />
 
-        <Return value={$ctx.ancestor} />
+        <If on={$ctx.ancestor}>
+            <Return value={Workspace.Progress.Stop} />
+        </If>
     </If>
 
-    <Return value={false} />
+    <Return value={Workspace.Progress.Advance} />
 </Module>

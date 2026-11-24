@@ -1,12 +1,12 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
 const compiler = @import("compiler");
-const zx = @import("zx");
 const source = @import("manifest/input.zig");
 const Manifest = @import("manifest/model.zig").Manifest;
 const rules = @import("cli_source");
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
+const Directory = @import("package_workspace_abi").layouts.@"zig:package_workspace_host".Directory;
 const constants = rules.workspace_constants.@"zx.constants";
 pub const Package = struct { path: []const u8, manifest: Manifest };
 
@@ -65,6 +65,7 @@ const State = struct {
     directory: ?std.Io.Dir = null,
     walker: ?std.Io.Dir.SelectiveWalker = null,
     current: std.Io.Dir.Walker.Entry = undefined,
+    current_view: Directory = undefined,
     member: Manifest = undefined,
     member_path: []const u8 = undefined,
     fn get(handle: *const anyopaque) *State {
@@ -104,7 +105,7 @@ fn collect(io: std.Io, result: *Result, request: Request) ![]const Package {
 
     const reference = &state;
 
-    rules.workspace_collect.executeValue(allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    rules.workspace_collect.executeIn(allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
 
     return try state.packages.toOwnedSlice(allocator);
 }
@@ -142,7 +143,7 @@ pub fn openDirectory(handle: *const anyopaque) Error!void {
     self.walker = dir.walkSelectively(self.allocator) catch |err| return self.failure.save(err);
 }
 
-pub fn nextDirectory(handle: *const anyopaque) Error!bool {
+pub fn nextDirectory(handle: *const anyopaque) Error!?*const Directory {
     const self = State.get(handle);
     const walker = &self.walker.?;
 
@@ -150,19 +151,12 @@ pub fn nextDirectory(handle: *const anyopaque) Error!bool {
         if (entry.kind != .directory) continue;
 
         self.current = entry;
+        self.current_view = .{ .path = entry.path, .name = entry.basename };
 
-        return true;
+        return &self.current_view;
     }
 
-    return false;
-}
-
-pub fn directoryPath(handle: *const anyopaque) []const u8 {
-    return State.get(handle).current.path;
-}
-
-pub fn directoryName(handle: *const anyopaque) []const u8 {
-    return State.get(handle).current.basename;
+    return null;
 }
 
 pub fn recordDirectory(handle: *const anyopaque) Error!void {
@@ -275,17 +269,6 @@ pub fn portablePath(allocator: std.mem.Allocator, path: []const u8) std.mem.Allo
         error.OutOfMemory => error.OutOfMemory,
         else => unreachable,
     };
-}
-
-pub fn containsMember(members: []const Package, path: []const u8) bool {
-    const paths = zx.memory.borrowTextColumn("path", members);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    return rules.workspace_member_path.executeValue(scratch.allocator(), &.{
-        .paths = @ptrCast(&paths),
-        .count = members.len,
-        .target = path,
-    }) catch unreachable;
 }
 
 fn lessThan(_: void, left: []const u8, right: []const u8) bool {

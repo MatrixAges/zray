@@ -1,19 +1,25 @@
 <Module>
-    <Type from="index" as="IO" />
+    <Type from="model" as="Workspace" />
 
-    <Args in={IO.Search} out={bool} />
+    <Args in={Workspace.Cursor.Pick("search", "directory")} out={bool} />
 
-    <Call fn="index.loadAncestor" in={$in} />
+    <Call
+        fn="index.loadAncestor"
+        in={[
+            $in.search,
+            $in.directory
+        ]}
+    />
 
-    <If on={!$ctx.loadAncestor}>
-        <Return value={true} />
+    <If on={$ctx.loadAncestor != null}>
+        <Call fn="member" in={$ctx.loadAncestor} />
+
+        <If on={$ctx.member}>
+            <Call fn="index.selectAncestor" in={$in.search} />
+        </If>
+
+        <Return value={$ctx.member} />
     </If>
 
-    <Call fn="index.ancestorContainsMember" in={$in} />
-
-    <If on={$ctx.ancestorContainsMember}>
-        <Call fn="index.selectAncestor" in={$in} />
-    </If>
-
-    <Return value={$ctx.ancestorContainsMember} />
+    <Return value={true} />
 </Module>

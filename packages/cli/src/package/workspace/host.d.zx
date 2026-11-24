@@ -11,7 +11,19 @@ export type ScopeBinding = opaque
 export enum Probe {
     Missing,
     Invalid,
-    Read
+    Package,
+    Workspace
+}
+
+export type MemberSearch = {
+    search: Search,
+    count: u64,
+    target: string
+}
+
+export type Directory = {
+    path: string,
+    name: string
 }
 
 export declare function readRoot(collection: Collection): string[] throws { SourceLoadFailure }
@@ -20,9 +32,7 @@ export declare function invalidPattern(collection: Collection, pattern: string):
 }
 
 export declare function openDirectory(collection: Collection): void throws { SourceLoadFailure }
-export declare function nextDirectory(collection: Collection): bool throws { SourceLoadFailure }
-export declare function directoryPath(collection: Collection): string
-export declare function directoryName(collection: Collection): string
+export declare function nextDirectory(collection: Collection): Directory? throws { SourceLoadFailure }
 export declare function recordDirectory(collection: Collection): void throws { SourceLoadFailure }
 export declare function enterDirectory(collection: Collection): void throws { SourceLoadFailure }
 
@@ -40,17 +50,16 @@ export declare function publishMember(collection: Collection, index: u64): void 
     SourceLoadFailure
 }
 
-export declare function startSearch(search: Search): void throws { SourceLoadFailure }
-export declare function readCandidate(search: Search): Probe throws { SourceLoadFailure }
-export declare function hasNearest(search: Search): bool
-export declare function hasWorkspace(search: Search): bool
+export declare function startSearch(search: Search): string throws { SourceLoadFailure }
+export declare function readCandidate(search: Search, directory: string): Probe
+    throws { SourceLoadFailure }
 export declare function rememberCandidate(search: Search): void
-export declare function selectCandidate(search: Search): void
-export declare function loadAncestor(search: Search): bool throws { SourceLoadFailure }
-export declare function ancestorContainsMember(search: Search): bool throws { SourceLoadFailure }
+export declare function selectCandidate(search: Search, nearest: bool): void
+export declare function loadAncestor(search: Search, directory: string): MemberSearch?
+    throws { SourceLoadFailure }
+export declare function workspacePackagePath(search: Search, row: u64): string
 export declare function selectAncestor(search: Search): void
-export declare function moveParent(search: Search): bool
-export declare function selectNearest(search: Search): void
+export declare function discardCandidates(search: Search): void
 
 export declare function scopeRoot(source: Source, path: string): string?
 export declare function physicalSource(source: Source, path: string): string throws {

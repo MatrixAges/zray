@@ -5,27 +5,24 @@
 
     <Call fn="index.nextDirectory" in={$in.collection} />
 
-    <If on={!$ctx.nextDirectory}>
-        <Return
-            value={{
-                ...$in,
-                running: false
+    <If on={$ctx.nextDirectory != null}>
+        <Call
+            module="visit"
+            in={{
+                collection: $in.collection,
+                patterns: $in.patterns,
+                path: $ctx.nextDirectory.path,
+                name: $ctx.nextDirectory.name
             }}
         />
+
+        <Return value={$in} />
     </If>
 
-    <Call fn="index.directoryPath" in={$in.collection} />
-    <Call fn="index.directoryName" in={$in.collection} />
-
-    <Call
-        module="visit"
-        in={{
-            collection: $in.collection,
-            patterns: $in.patterns,
-            path: $ctx.directoryPath,
-            name: $ctx.directoryName
+    <Return
+        value={{
+            ...$in,
+            running: false
         }}
     />
-
-    <Return value={$in} />
 </Module>

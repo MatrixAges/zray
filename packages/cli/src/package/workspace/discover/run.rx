@@ -10,13 +10,21 @@
             module="search"
             in={{
                 search: $in,
+                directory: $ctx.startSearch,
+                has_nearest: false,
                 complete: false,
                 running: true
             }}
         />
     </Loop>
 
-    <If on={!$ctx.search.complete}>
-        <Call fn="index.selectNearest" in={$in} />
+    <If on={!$ctx.search.complete && $ctx.search.has_nearest}>
+        <Call
+            fn="index.selectCandidate"
+            in={[
+                $in,
+                true
+            ]}
+        />
     </If>
 </Module>

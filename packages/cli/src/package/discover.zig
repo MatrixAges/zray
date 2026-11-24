@@ -7,6 +7,7 @@ const rules = @import("cli_source");
 const constants = rules.workspace_constants.@"zx.constants";
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
+const MemberSearch = @import("package_workspace_abi").layouts.@"zig:package_workspace_host".MemberSearch;
 pub const Probe = @import("package_workspace_abi").native.@"zig:package_workspace_host".Probe;
 
 pub const Result = struct {
@@ -30,12 +31,12 @@ const State = struct {
     retained: std.mem.Allocator,
     entry: []const u8,
     inputs: ?*Inputs,
-    directory: []const u8 = undefined,
     result: Result = .{},
     nearest: ?Candidate = null,
     candidate: ?Candidate = null,
     members: ?workspace.Result = null,
     member_memory: ?std.heap.ArenaAllocator = null,
+    member_search: MemberSearch = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
@@ -69,24 +70,24 @@ pub fn findWithInputs(io: std.Io, scratch: std.mem.Allocator, retained: std.mem.
 
     const reference = &state;
 
-    rules.workspace_discover.executeValue(scratch, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    rules.workspace_discover.executeIn(scratch, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
 
     return state.result;
 }
 
-pub fn startSearch(handle: *const anyopaque) Error!void {
+pub fn startSearch(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
 
     if (self.inputs) |observed| observed.add(self.io, self.entry) catch |err| return self.failure.save(err);
 
     const real = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.entry, self.scratch) catch |err| return self.failure.save(err);
 
-    self.directory = std.fs.path.dirname(real).?;
+    return std.fs.path.dirname(real).?;
 }
 
-pub fn readCandidate(handle: *const anyopaque) Error!Probe {
+pub fn readCandidate(handle: *const anyopaque, directory: []const u8) Error!Probe {
     const self = State.get(handle);
-    const path = std.fs.path.join(self.scratch, &.{ self.directory, constants.manifest_name }) catch |err| return self.failure.save(err);
+    const path = std.fs.path.join(self.scratch, &.{ directory, constants.manifest_name }) catch |err| return self.failure.save(err);
 
     const file = source.locate(self.io, self.scratch, path, self.inputs) catch |err| switch (err) {
         error.FileNotFound => return .Missing,
@@ -113,17 +114,9 @@ pub fn readCandidate(handle: *const anyopaque) Error!Probe {
             self.candidate = .{ .manifest = .{ .file = file, .data = data }, .arena = arena };
             retained = true;
 
-            return .Read;
+            return if (data.workspace == null) .Package else .Workspace;
         },
     }
-}
-
-pub fn hasNearest(handle: *const anyopaque) bool {
-    return State.get(handle).nearest != null;
-}
-
-pub fn hasWorkspace(handle: *const anyopaque) bool {
-    return State.get(handle).candidate.?.manifest.data.workspace != null;
 }
 
 pub fn rememberCandidate(handle: *const anyopaque) void {
@@ -133,15 +126,16 @@ pub fn rememberCandidate(handle: *const anyopaque) void {
     self.candidate = null;
 }
 
-pub fn selectCandidate(handle: *const anyopaque) void {
+pub fn selectCandidate(handle: *const anyopaque, nearest: bool) void {
     const self = State.get(handle);
-    const candidate = self.candidate.?.manifest;
-    self.result.path = candidate.file.path;
-    self.result.root = candidate;
-    self.candidate = null;
+    const selected = if (nearest) &self.nearest else &self.candidate;
+    const manifest = selected.*.?.manifest;
+    self.result.path = manifest.file.path;
+    self.result.root = manifest;
+    selected.* = null;
 }
 
-pub fn loadAncestor(handle: *const anyopaque) Error!bool {
+pub fn loadAncestor(handle: *const anyopaque, directory: []const u8) Error!?*const MemberSearch {
     const self = State.get(handle);
     const candidate = self.candidate.?.manifest;
     self.member_memory = .init(self.retained);
@@ -157,15 +151,9 @@ pub fn loadAncestor(handle: *const anyopaque) Error!bool {
     if (self.members.?.diagnostic) |message| {
         self.result.diagnostic = self.scratch.dupe(u8, message) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
 
-    return true;
-}
-
-pub fn ancestorContainsMember(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const directory = self.directory;
     const local = std.fs.path.dirname(self.nearest.?.manifest.file.path).?;
     const target = std.fs.path.relative(self.scratch, directory, null, directory, local) catch |err| return self.failure.save(err);
 
@@ -175,7 +163,13 @@ pub fn ancestorContainsMember(handle: *const anyopaque) Error!bool {
     else
         target;
 
-    return workspace.containsMember(self.members.?.packages, member);
+    self.member_search = .{ .search = @ptrCast(handle), .count = self.members.?.packages.len, .target = member };
+
+    return &self.member_search;
+}
+
+pub fn workspacePackagePath(handle: *const anyopaque, row: u64) []const u8 {
+    return State.get(handle).members.?.packages[@intCast(row)].path;
 }
 
 pub fn selectAncestor(handle: *const anyopaque) void {
@@ -189,22 +183,6 @@ pub fn selectAncestor(handle: *const anyopaque) void {
     self.nearest = null;
 }
 
-pub fn moveParent(handle: *const anyopaque) bool {
-    const self = State.get(handle);
-
-    self.discardProbe();
-
-    self.directory = std.fs.path.dirname(self.directory) orelse return false;
-
-    return true;
-}
-
-pub fn selectNearest(handle: *const anyopaque) void {
-    const self = State.get(handle);
-
-    if (self.nearest) |saved| {
-        self.result.path = saved.manifest.file.path;
-        self.result.root = saved.manifest;
-        self.nearest = null;
-    }
+pub fn discardCandidates(handle: *const anyopaque) void {
+    State.get(handle).discardProbe();
 }
