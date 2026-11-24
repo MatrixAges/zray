@@ -3,24 +3,20 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 
 import { ExpressionsKind } from "../../../printer/model/expressions"
-import integer from "../../../printer/text/integer"
-import { pending_name, store_prefix } from "../../store/const"
+import { pending_name } from "../../store/const"
+import retainSlotName from "../../store/retain_slot_name"
+
+import type { ProjectionRows } from "ast_rows"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
+    frame: Lowering,
     slot: u32,
     base: u32
 }
 
-export type Nodes = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    identifier: u8[][],
-    field_target: u32[],
-    field_name: u8[][]
-}
-
 export type Output = {
-    nodes: Nodes,
+    nodes: ProjectionRows,
     root: u32,
     valid: bool
 }
@@ -33,17 +29,21 @@ export default function (in: Input): Output {
                 offsets: [],
                 identifier: [],
                 field_target: [],
-                field_name: []
+                field_name: [],
+                dereference: [],
+                binary_operator: [],
+                binary_left: [],
+                binary_right: []
             },
             root: 0,
             valid: false
         }
     }
 
-    const name = integer({
-        output: bytes.fromText(store_prefix),
-        value: integers.widen(in.slot)
-    })
+    const name = retainSlotName([
+        in.frame,
+        integers.widen(in.slot)
+    ])
 
     return {
         nodes: {
@@ -57,7 +57,11 @@ export default function (in: Input): Output {
             ],
             identifier: [bytes.fromText(pending_name)],
             field_target: [in.base],
-            field_name: [name]
+            field_name: [name],
+            dereference: [],
+            binary_operator: [],
+            binary_left: [],
+            binary_right: []
         },
         root: in.base + 1,
         valid: true

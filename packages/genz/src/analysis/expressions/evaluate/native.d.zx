@@ -42,6 +42,9 @@ export declare function lowerExpression(
     cached: u32?
 ): u32 throws { OutOfMemory }
 
+export declare function lowerDiscardedExpression(frame: Lowering, id: u32): u32
+    throws { OutOfMemory }
+
 export declare function lowerRegular(
     frame: Lowering,
     id: u32,

@@ -56,8 +56,6 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
 }
 
 fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize) Lower.Error!struct { span: node.Block, consumed_previous: bool } {
-    const basic = @import("basic.zig");
-
     output.clearRetainingCapacity();
 
     var consumed_previous = false;
@@ -99,7 +97,8 @@ fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, 
         },
         .switch_stmt => |selection| try @import("switch/seed.zig").lowerSwitch(self, selection),
         .store_set => |setter| set: {
-            const target = try basic.storeTarget(self, setter.slot);
+            const name = try std.fmt.allocPrint(self.allocator, "store_{d}", .{setter.slot});
+            const target = try self.field(try self.builder.identifier("pending"), name);
             const value = try self.expr(setter.value);
 
             break :set try self.builder.statements(&.{.{ .assignment = .{ .target = target, .value = value } }});

@@ -295,6 +295,10 @@ pub fn publishAstBindingRows(writer: *const anyopaque, source: *const Ast.Bindin
     return packSpan(.{ .start = start, .len = @intCast(source.tags.len) });
 }
 
+pub fn publishAstBasicStatements(writer: *const anyopaque, source: *const Ast.BasicStatementRows) Lower.Error!u64 {
+    return packSpan(try borrow(writer).builder.publishStatements(source));
+}
+
 fn appendSequenceRows(writer: *const anyopaque, handle: *const anyopaque, source: anytype) Lower.Error!void {
     const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
 

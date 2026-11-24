@@ -1,17 +1,17 @@
 import { StatementsKind } from "../../../printer/model/statements"
+import empty from "./empty"
+
+import type { BasicStatementRows } from "ast_rows"
 
 export type Input = {
     value: u32
 }
 
-export type Output = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    discard: u32[]
-}
+export type Output = BasicStatementRows
 
 export default function (in: Input): Output {
     return {
+        ...empty({}),
         tags: [StatementsKind.Discard],
         offsets: [0],
         discard: [in.value]

@@ -1,6 +1,6 @@
 import { retainLoweringText } from "lowering_host"
 
-import slotName from "../slot_name"
+import slotName from "./slot_name"
 
 import type { Lowering } from "lowering_host"
 

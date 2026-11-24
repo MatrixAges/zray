@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="Basic" />
+
+    <Args in={Basic.StoreWrite} out={u64} />
+
+    <Call fn="../rows.astExpressionCount" in={$in.writer} />
+
+    <Call
+        fn="store_target"
+        in={{
+            frame: $in.frame,
+            slot: $in.slot,
+            base: $ctx.astExpressionCount
+        }}
+    />
+
+    <Call fn="../rows.requireAllocation" in={$ctx.store_target.valid} />
+
+    <Call
+        fn="../rows.appendAstProjectionRows"
+        in={[
+            $in.writer,
+            $ctx.store_target.nodes
+        ]}
+    />
+
+    <Call
+        fn="../rows.lowerExpression"
+        in={[
+            $in.frame,
+            $in.value,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="assignment"
+        in={{
+            target: $ctx.store_target.root,
+            value: $ctx.lowerExpression
+        }}
+    />
+
+    <Call
+        fn="../rows.publishAstBasicStatements"
+        in={[
+            $in.writer,
+            $ctx.assignment
+        ]}
+    />
+
+    <Return value={$ctx.publishAstBasicStatements} />
+</Module>

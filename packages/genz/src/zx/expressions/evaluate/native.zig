@@ -17,6 +17,10 @@ pub fn lowerExpression(frame: *const anyopaque, id: u32, checked: bool, cached: 
     return @backingInt(try borrow(frame).exprWithCache(@fromBackingInt(id), .{ .checked = checked, .value = cached }));
 }
 
+pub fn lowerDiscardedExpression(frame: *const anyopaque, id: u32) Error!u32 {
+    return @backingInt(try iteration.discard(borrow(frame), @fromBackingInt(id)));
+}
+
 pub fn lowerRegular(frame: *const anyopaque, id: u32, checked: bool, cached: ?u32) Error!u32 {
     return @backingInt(try borrow(frame).regularWithCache(@fromBackingInt(id), .{ .checked = checked, .value = cached }));
 }

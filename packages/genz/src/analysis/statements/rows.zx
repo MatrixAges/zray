@@ -1,6 +1,7 @@
 export {
     AstPayloadOwnership,
     appendAstBindingRows,
+    appendAstProjectionRows,
     appendExpressionRows,
     appendStatementRows,
     appendStatementSequence,
@@ -8,10 +9,12 @@ export {
     astFieldCount,
     astStatementCount,
     finishAstSequence,
+    publishAstBasicStatements,
     readAstOrigin
 } from "ast_rows"
 export {
     lowerCapture,
+    lowerDiscardedExpression,
     lowerExpression,
     lowerLayout,
     lowerType,

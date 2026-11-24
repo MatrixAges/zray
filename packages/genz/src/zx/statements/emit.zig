@@ -1,6 +1,6 @@
 const Frame = @import("traversal/host.zig").Frame;
 const Api = @import("../expressions/evaluate.zig").Api;
-const basic = @import("basic.zig");
+const publication = @import("publication.zig");
 
 pub fn beginStatementStore(handle: *const anyopaque, slot: u64, index: u64) ?bool {
     const frame = Frame.borrow(handle);
@@ -27,8 +27,12 @@ pub fn emitEvaluation(handle: *const anyopaque, slot: u64, index: u64) bool {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const id = frame.block(slot).at(@intCast(index)).evaluate;
-    const value = @import("../iteration.zig").discard(self, id) catch return false;
-    const span = basic.discard(self, value) catch return false;
+
+    const span = publication.span(self, @import("generated_statement_evaluation"), &.{
+        .writer = @ptrCast(self),
+        .frame = @ptrCast(self),
+        .value = @backingInt(id),
+    }) catch return false;
 
     return frame.emitted(span, false);
 }
@@ -117,9 +121,13 @@ pub fn emitStoreWriteStatement(handle: *const anyopaque, slot: u64, index: u64) 
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const setter = frame.block(slot).at(@intCast(index)).store_set;
-    const target = basic.storeTarget(self, setter.slot) catch return false;
-    const value = self.expr(setter.value) catch return false;
-    const span = basic.assignment(self, target, value) catch return false;
+
+    const span = publication.span(self, @import("generated_statement_store_write"), &.{
+        .writer = @ptrCast(self),
+        .frame = @ptrCast(self),
+        .slot = setter.slot,
+        .value = @backingInt(setter.value),
+    }) catch return false;
 
     return frame.emitted(span, false);
 }

@@ -1,4 +1,7 @@
 import { StatementsKind } from "../../../printer/model/statements"
+import empty from "./empty"
+
+import type { BasicStatementRows } from "ast_rows"
 
 export type Input = {
     condition: u32,
@@ -8,21 +11,11 @@ export type Input = {
     no_count: u32
 }
 
-export type Output = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    branch_condition: u32[],
-    branch_yes_start: u32[],
-    branch_yes_len: u32[],
-    branch_no_start: u32[],
-    branch_no_len: u32[],
-    branch_capture: u8[]?[],
-    branch_capture_reference: bool[],
-    branch_error_capture: u8[]?[]
-}
+export type Output = BasicStatementRows
 
 export default function (in: Input): Output {
     return {
+        ...empty({}),
         tags: [StatementsKind.Branch],
         offsets: [0],
         branch_condition: [in.condition],

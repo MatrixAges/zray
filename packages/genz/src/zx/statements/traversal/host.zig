@@ -5,7 +5,7 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Scope = @import("scope.zig");
 const Selection = @import("../switch/state.zig");
-const basic = @import("../basic.zig");
+const publication = @import("../publication.zig");
 const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
@@ -155,7 +155,15 @@ pub fn saveStatementBranch(handle: *const anyopaque, slot: u64) bool {
 pub fn joinStatementBranch(handle: *const anyopaque, slot: u64, offset: u32) bool {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
-    const branch = basic.branch(frame.lowering, scope.condition, scope.yes, frame.child) catch return false;
+
+    const branch = publication.span(frame.lowering, @import("generated_statement_branch"), &.{
+        .writer = @ptrCast(frame.lowering),
+        .condition = @backingInt(scope.condition),
+        .yes_start = scope.yes.start,
+        .yes_count = scope.yes.len,
+        .no_start = frame.child.start,
+        .no_count = frame.child.len,
+    }) catch return false;
 
     scope.put(offset, branch);
 

@@ -1,0 +1,23 @@
+import type { BasicStatementRows } from "ast_rows"
+
+export type Input = {}
+
+export type Output = BasicStatementRows
+
+export default function (in: Input): Output {
+    return {
+        tags: [],
+        offsets: [],
+        discard: [],
+        assignment_target: [],
+        assignment_value: [],
+        branch_condition: [],
+        branch_yes_start: [],
+        branch_yes_len: [],
+        branch_no_start: [],
+        branch_no_len: [],
+        branch_capture: [],
+        branch_capture_reference: [],
+        branch_error_capture: []
+    }
+}

@@ -59,6 +59,11 @@ export declare function appendAstBindingRows(
 export declare function publishAstBindingRows(writer: AstWriter, rows: BindingRows): u64
     throws { OutOfMemory }
 
+export declare function publishAstBasicStatements(
+    writer: AstWriter,
+    rows: BasicStatementRows
+): u64 throws { OutOfMemory }
+
 export declare function appendAstDeclaredConstants(
     writer: AstWriter,
     target: AstDeclarations,

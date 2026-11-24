@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Basic" />
+
+    <Args in={Basic.Branch} out={u64} />
+
+    <Call fn="branch" in={$in.omit(["writer"])} />
+
+    <Call
+        fn="../rows.publishAstBasicStatements"
+        in={[
+            $in.writer,
+            $ctx.branch
+        ]}
+    />
+
+    <Return value={$ctx.publishAstBasicStatements} />
+</Module>

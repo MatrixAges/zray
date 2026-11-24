@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Basic" />
+
+    <Args in={Basic.Evaluation} out={u64} />
+
+    <Call
+        fn="../rows.lowerDiscardedExpression"
+        in={[
+            $in.frame,
+            $in.value
+        ]}
+    />
+
+    <Call
+        fn="discard"
+        in={{
+            value: $ctx.lowerDiscardedExpression
+        }}
+    />
+
+    <Call
+        fn="../rows.publishAstBasicStatements"
+        in={[
+            $in.writer,
+            $ctx.discard
+        ]}
+    />
+
+    <Return value={$ctx.publishAstBasicStatements} />
+</Module>
