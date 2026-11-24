@@ -24,6 +24,7 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("package/source.zig"),
     @import("package/project.zig"),
     @import("package/project/scope.zig"),
+    @import("cli/project/scopes/host.zig"),
     @import("cli/rx/collection/state.zig"),
     @import("cli/rx/collection/files.zig"),
     @import("cli/rx/collection/documents.zig"),

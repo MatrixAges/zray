@@ -1,0 +1,10 @@
+export { readU64 } from "memory"
+export {
+    closeNativeScope,
+    openNativeScope,
+    prepareNativeScopeNames,
+    publishNativeScopeDeclarations,
+    publishNativeScopeSettings,
+    reserveNativeScopeLibraryPaths,
+    reserveNativeScopeModules
+} from "native_scope_host"

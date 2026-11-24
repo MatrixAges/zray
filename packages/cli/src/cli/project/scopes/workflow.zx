@@ -1,0 +1,13 @@
+import type { U64Buffer } from "memory"
+import type { NativeScopeLoad } from "native_scope_host"
+
+export type Input = {
+    frame: NativeScopeLoad,
+    count: u64,
+    index: U64Buffer
+}
+
+export type Read = {
+    frame: NativeScopeLoad,
+    count: u64
+}

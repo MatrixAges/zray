@@ -1,0 +1,17 @@
+<Module>
+    <Type from="workflow" as="Scopes" />
+
+    <Args in={Scopes.Input?} out={Scopes.Input?} />
+
+    <If on={$in != null}>
+        <Call module="scope" in={$in} />
+
+        <Call fn="advance" in={$in} />
+
+        <If on={$ctx.advance}>
+            <Return value={$in} />
+        </If>
+    </If>
+
+    <Return value={null} />
+</Module>

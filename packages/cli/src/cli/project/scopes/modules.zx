@@ -1,0 +1,44 @@
+import {
+    nativeScopeModulePaths,
+    prepareNativeScopeModule,
+    publishNativeScopeModule,
+    resolveNativeScopePath
+} from "native_scope_host"
+
+import paths from "./paths"
+
+import type { ScopeWindow as Input } from "native_scope_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const published = loop(0, {
+        while: row => row < in.modules,
+        next: row => {
+            const { frame } = in
+            const source = nativeScopeModulePaths(frame, row)
+
+            const original = source.path
+            const path: string? = match {
+                original != null => resolveNativeScopePath(frame, original),
+                _ => null
+            }
+
+            const includes = prepareNativeScopeModule(
+                frame,
+                row,
+                path,
+                source.includes.length
+            )
+
+            paths({
+                frame,
+                source: source.includes,
+                target: includes
+            })
+
+            publishNativeScopeModule(frame, includes)
+            row += 1
+        }
+    })
+}

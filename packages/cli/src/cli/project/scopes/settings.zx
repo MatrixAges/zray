@@ -7,6 +7,8 @@ import type { Settings as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
+    const { output } = in
+
     const root = bytes.fromText(in.root)
 
     const end = loop(0, {
@@ -14,9 +16,9 @@ export default function (in: Input): Output {
         next: row => {
             const name = memory.readTextColumn(in.names, row)
 
-            memory.writeColumnBytes(in.output_names, row, bytes.fromText(name))
-            memory.writeColumnBytes(in.output_roots, row, root)
-            columns.writeColumnTextList(in.output_includes, row, in.includes)
+            memory.writeColumnBytes(output.names, row, bytes.fromText(name))
+            memory.writeColumnBytes(output.roots, row, root)
+            columns.writeColumnTextList(output.includes, row, in.includes)
             row += 1
         }
     })

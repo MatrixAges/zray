@@ -1,0 +1,31 @@
+import { bindNativeScopeDeclaration } from "native_scope_host"
+
+import type { NativeScopeLoad } from "native_scope_host"
+
+export type Input = {
+    frame: NativeScopeLoad,
+    declarations: u64,
+    externals: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, declarations, externals } = in
+
+    const native = loop(0, {
+        while: row => row < declarations,
+        next: row => {
+            bindNativeScopeDeclaration(frame, row, false)
+            row += 1
+        }
+    })
+
+    const legacy = loop(0, {
+        while: row => row < externals,
+        next: row => {
+            bindNativeScopeDeclaration(frame, row, true)
+            row += 1
+        }
+    })
+}

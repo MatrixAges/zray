@@ -1,0 +1,9 @@
+<Module>
+    <Type from="workflow" as="Scopes" />
+
+    <Args in={Scopes.Input?} out={void} />
+
+    <Loop on={$in != null}>
+        <Call module="next" in={$in} />
+    </Loop>
+</Module>

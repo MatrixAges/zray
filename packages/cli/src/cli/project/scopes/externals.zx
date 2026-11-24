@@ -7,18 +7,20 @@ import type { Externals as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
+    const { rows, output } = in
+
     const end = loop(0, {
-        while: row => row < in.count,
+        while: row => row < rows.count,
         next: row => {
-            const identity = memory.readOptionalTextColumn(in.identities, row)
-            const specifier = identity ?? memory.readTextColumn(in.names, row)
+            const identity = memory.readOptionalTextColumn(rows.identities, row)
+            const specifier = identity ?? memory.readTextColumn(rows.names, row)
 
             memory.writeColumnBytes(
-                in.specifiers,
+                output.specifiers,
                 row,
                 bytes.fromText(specifier)
             )
-            columns.writeColumnOptionalText(in.output_identities, row, null)
+            columns.writeColumnOptionalText(output.identities, row, null)
             row += 1
         }
     })

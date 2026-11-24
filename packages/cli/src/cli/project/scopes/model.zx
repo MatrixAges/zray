@@ -10,20 +10,32 @@ export type DeclarationRows = {
     count: u64
 }
 
-export type Declarations = {
-    rows: DeclarationRows,
+export type DeclarationOutput = {
     specifiers: WriteColumn,
     paths: WriteColumn,
     modules: WriteColumn,
     namespaces: Column
 }
 
-export type Externals = {
+export type Declarations = {
+    rows: DeclarationRows,
+    output: DeclarationOutput
+}
+
+export type ExternalRows = {
     identities: ReadColumn,
     names: TextColumn,
-    specifiers: WriteColumn,
-    output_identities: Column,
     count: u64
+}
+
+export type ExternalOutput = {
+    specifiers: WriteColumn,
+    identities: Column
+}
+
+export type Externals = {
+    rows: ExternalRows,
+    output: ExternalOutput
 }
 
 export type Publication = {
@@ -31,12 +43,16 @@ export type Publication = {
     externals: Externals
 }
 
+export type SettingsOutput = {
+    names: WriteColumn,
+    roots: WriteColumn,
+    includes: Column
+}
+
 export type Settings = {
     names: TextColumn,
     root: string,
     includes: string[],
     count: u64,
-    output_names: WriteColumn,
-    output_roots: WriteColumn,
-    output_includes: Column
+    output: SettingsOutput
 }

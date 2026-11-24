@@ -314,6 +314,10 @@
             "name": "standard_linkage"
         },
         {
+            "path": "scopes/run.rx",
+            "name": "native_scope_load"
+        },
+        {
             "path": "scopes/publish.rx",
             "name": "native_scope_publication"
         },
@@ -541,6 +545,11 @@
         {
             "path": "workspace/host.d.zx",
             "module": "package_workspace_host",
+            "resolve_members": true
+        },
+        {
+            "path": "scopes/host.d.zx",
+            "module": "native_scope_host",
             "resolve_members": true
         },
         {

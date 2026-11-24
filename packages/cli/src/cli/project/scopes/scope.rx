@@ -1,0 +1,57 @@
+<Module>
+    <Type from="workflow" as="Scopes" />
+
+    <Args in={Scopes.Input} out={void} />
+
+    <Call
+        fn="index.readU64"
+        in={[
+            $in.index,
+            0
+        ]}
+    />
+
+    <Call
+        fn="index.openNativeScope"
+        in={[
+            $in.frame,
+            $ctx.readU64
+        ]}
+    />
+
+    <Call
+        fn="read"
+        in={{
+            frame: $in.frame,
+            count: $ctx.openNativeScope.declarations
+        }}
+    />
+
+    <Call fn="index.prepareNativeScopeNames" in={$in.frame} />
+
+    <Call
+        fn="bind"
+        in={{
+            frame: $in.frame,
+            declarations: $ctx.openNativeScope.declarations,
+            externals: $ctx.openNativeScope.externals
+        }}
+    />
+
+    <Call fn="index.publishNativeScopeDeclarations" in={$in.frame} />
+    <Call fn="index.reserveNativeScopeLibraryPaths" in={$in.frame} />
+
+    <Call
+        fn="paths"
+        in={{
+            frame: $in.frame,
+            source: $ctx.openNativeScope.library_paths,
+            target: $ctx.reserveNativeScopeLibraryPaths
+        }}
+    />
+
+    <Call fn="index.reserveNativeScopeModules" in={$in.frame} />
+    <Call fn="modules" in={$ctx.openNativeScope} />
+    <Call fn="index.publishNativeScopeSettings" in={$in.frame} />
+    <Call fn="index.closeNativeScope" in={$in.frame} />
+</Module>

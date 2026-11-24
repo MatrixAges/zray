@@ -90,6 +90,7 @@ pub fn build(b: *std.Build) void {
         "library_workflow_host",
         "source_loader_host",
         "package_workspace_host",
+        "native_scope_host",
         "rx_collection_host",
         "rx_preparation_host",
         "rx_checking_host",

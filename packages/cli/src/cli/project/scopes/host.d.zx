@@ -1,0 +1,46 @@
+export type NativeScopeLoad = opaque
+
+export type ScopeWindow = {
+    frame: NativeScopeLoad,
+    declarations: u64,
+    externals: u64,
+    modules: u64,
+    library_paths: string[]
+}
+
+export type ModulePaths = {
+    path?: string,
+    includes: string[]
+}
+
+export declare function openNativeScope(frame: NativeScopeLoad, index: u64): ScopeWindow
+    throws { SourceLoadFailure }
+export declare function readNativeScopeInterface(frame: NativeScopeLoad, row: u64): void
+    throws { SourceLoadFailure }
+export declare function prepareNativeScopeNames(frame: NativeScopeLoad): void
+    throws { SourceLoadFailure }
+export declare function bindNativeScopeDeclaration(
+    frame: NativeScopeLoad,
+    row: u64,
+    external: bool
+): void throws { SourceLoadFailure }
+export declare function publishNativeScopeDeclarations(frame: NativeScopeLoad): void
+    throws { SourceLoadFailure }
+export declare function reserveNativeScopeLibraryPaths(frame: NativeScopeLoad): string[]
+    throws { OutOfMemory }
+export declare function resolveNativeScopePath(frame: NativeScopeLoad, path: string): string
+    throws { OutOfMemory }
+export declare function reserveNativeScopeModules(frame: NativeScopeLoad): void
+    throws { OutOfMemory }
+export declare function nativeScopeModulePaths(frame: NativeScopeLoad, row: u64): ModulePaths
+export declare function prepareNativeScopeModule(
+    frame: NativeScopeLoad,
+    row: u64,
+    path: string?,
+    includes: u64
+): string[] throws { SourceLoadFailure }
+export declare function publishNativeScopeModule(frame: NativeScopeLoad, includes: string[]): void
+    throws { SourceLoadFailure }
+export declare function publishNativeScopeSettings(frame: NativeScopeLoad): void
+    throws { OutOfMemory }
+export declare function closeNativeScope(frame: NativeScopeLoad): void
