@@ -8,6 +8,7 @@ const Binding = @import("../../../function_import.zig");
 const Initializer = @import("../../../compiled.zig").StoreInitializer;
 const Error = @import("../../program.zig").Error;
 const remap = @import("../../../artifact/nodes/remap.zig");
+const Entry = @import("../entry/host.zig").Entry;
 const generated = @import("generated_source_surface");
 const Input = std.meta.Child(generated.Input);
 const Declarations = std.meta.Child(@typeInfo(@FieldType(Input, "declarations")).optional.child);
@@ -20,8 +21,17 @@ const Prefix = std.meta.Child(@typeInfo(@FieldType(Initializers, "prefix")).opti
 const InitTarget = std.meta.Child(@FieldType(Initializers, "target"));
 const MemberTarget = std.meta.Child(@FieldType(Members, "target"));
 
-pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, nodes: *const Nodes, entry: ?ir.FunctionId, type_prefix: usize, output: Source.Output) Error!void {
+pub fn publish(input: *const Source.Input, destination: @import("../../program.zig").Destination, nodes: *Nodes, tail: *const ir.FunctionTable, base: usize, type_prefix: usize, output: Source.Output) Error!void {
     const allocator = nodes.allocator;
+    const storage = destination.functions;
+
+    var entry: Entry = .{
+        .program = &input.program,
+        .storage = storage,
+        .nodes = nodes,
+        .temporary = destination.temporary,
+    };
+
     const functions = remap.idMapping(Mapping, nodes.functions);
     const types = remap.typeMapping(Mapping, nodes.types);
     const values = input.store_initializers;
@@ -91,7 +101,7 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
             .count = member_source.len,
         },
         .target = &member_output.view,
-        .entry = if (entry) |id| @backingInt(id) else null,
+        .entry = null,
         .type_ids = if (member_source.len == 0) &.{} else @ptrCast(nodes.types.mapped),
         .functions = zx.columns.pointer(@FieldType(Members, "functions"), &functions),
     };
@@ -112,14 +122,16 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
     errdefer if (declared) surface.release(allocator);
 
     const request: Input = .{
+        .entry = &entry.bind(tail, base),
+        .function_storage = @ptrCast(&entry),
         .declarations = if (declared) &declarations else null,
         .initializers = &initializers,
         .members = &members,
         .member_storage = @ptrCast(&member_output.buffer),
         .ports = &.{
             .declared = &.{ .input_type = @backingInt(input.program.input_type), .output_type = @backingInt(input.program.output_type) },
-            .inputs = storage.input_types.items,
-            .outputs = storage.output_types.items,
+            .inputs = @ptrCast(&storage.input_types.items),
+            .outputs = @ptrCast(&storage.output_types.items),
             .types = &types,
         },
     };

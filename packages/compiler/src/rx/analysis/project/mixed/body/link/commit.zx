@@ -1,43 +1,17 @@
 import memory from "memory"
-import host from "rx_project_host"
 
-import { invalid_flow_body, invalid_source_body } from "./const"
+import type { Publication } from "./model"
 
-import type { BoolBuffer, WriteColumn } from "memory"
-import type { MixedBodyLink } from "rx_project_host"
-import type { Body, Plan } from "./model"
-
-export type Link = {
-    body: MixedBodyLink,
-    source: bool,
-    verified: WriteColumn,
-    present?: BoolBuffer
+export type Input = Publication & {
+    count: u64
 }
-
-export type Request = Link & {
-    boundary: Body
-}
-
-export type Input = Link & Plan
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { body, replace_prefix, type_prefix } = in
+    const { count, verified, present } = in
 
-    const count = host.appendMixedBodyLink(body, replace_prefix, type_prefix)
-
-    if (count == null) {
-        const message = in.source ? invalid_source_body : invalid_flow_body
-
-        host.rejectMixedBodyLink(body, message)
-
-        return
-    }
-
-    memory.writeColumnIndex(in.verified, 0, count)
-
-    const { present } = in
+    memory.writeColumnIndex(verified, 0, count)
 
     if (present != null) {
         memory.writeBool(present, 0, true)

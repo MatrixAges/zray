@@ -281,7 +281,7 @@ pub fn link(state: *State, analyzed: Analyzed, destination: Finished.Destination
         .type_suffix = analyzed.result.type_suffix,
     };
 
-    try @import("body/link.zig").publish(state, &body, .{ .functions = analyzed.functions, .types = analyzed.types }, .source, destination);
+    try @import("body/link.zig").publish(state, &body, .{ .functions = analyzed.functions, .types = analyzed.types }, null, destination);
 }
 
 pub fn diagnostic(state: *State, source: []const u8, issue: zx.Diagnostic) State.Error {

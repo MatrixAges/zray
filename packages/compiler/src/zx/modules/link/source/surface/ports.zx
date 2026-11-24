@@ -1,7 +1,9 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import remap from "../../../artifact/remapping/id"
 
+import type { U32Buffer } from "memory"
 import type { Mapping } from "../../../artifact/remapping/model"
 
 export type Ports = {
@@ -12,8 +14,8 @@ export type Ports = {
 export type Input = {
     entry?: u32,
     declared: Ports,
-    inputs: u32[],
-    outputs: u32[],
+    inputs: U32Buffer,
+    outputs: U32Buffer,
     types: Mapping
 }
 
@@ -26,8 +28,8 @@ export default function (in: Input): Output {
         const row = integers.widen(entry)
 
         return {
-            input_type: in.inputs[row],
-            output_type: in.outputs[row]
+            input_type: memory.readU32(in.inputs, row),
+            output_type: memory.readU32(in.outputs, row)
         }
     }
 

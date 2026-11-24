@@ -138,15 +138,6 @@ pub fn verifiedFunctions(self: *const Self) ir.FunctionTable {
     return self.functions.view().prefix(self.verified);
 }
 
-/// A frozen view can be retained by linked modules after the import list grows.
-pub fn initializersView(self: *Self) std.mem.Allocator.Error![]const frontend.project.compiled.StoreInitializer {
-    if (self.retained_initializers.len != self.initializers.items.len) {
-        self.retained_initializers = try self.allocator.dupe(frontend.project.compiled.StoreInitializer, self.initializers.items);
-    }
-
-    return self.retained_initializers;
-}
-
 pub fn signature(self: *const Self, index: usize) ?frontend.project.signature_project.Module {
     const row = @import("../references/signatures.zig").indexAt(self.signature_indices, index) orelse return null;
 

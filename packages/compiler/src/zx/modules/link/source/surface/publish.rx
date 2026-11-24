@@ -3,6 +3,12 @@
 
     <Args in={Surface.Input} out={Surface.Output?} />
 
+    <Call module="../entry/entry" in={$in.entry} />
+
+    <If on={$ctx.entry.append}>
+        <Call fn="host.appendSourceLinkEntry" in={$in.function_storage} />
+    </If>
+
     <If on={$in.declarations != null}>
         <Call module="../declarations/publish" in={$in.declarations} />
     </If>
@@ -30,7 +36,13 @@
         </If>
     </If>
 
-    <Call fn="../members/publish" in={$in.members} />
+    <Call
+        fn="../members/publish"
+        in={{
+            ...$in.members,
+            entry: $ctx.entry.function
+        }}
+    />
 
     <If on={$ctx.publish != null}>
         <Call

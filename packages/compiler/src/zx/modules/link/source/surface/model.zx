@@ -1,10 +1,14 @@
 import type { RowBuffer } from "memory/columns"
+import type { SourceEntry } from "project_host"
 import type { Input as Declarations } from "../declarations/model"
+import type { Input as Entry } from "../entry/model"
 import type { Input as Initializers } from "../initializers/resolve_model"
 import type { Input as Members, Result } from "../members/model"
 import type { Input as Ports, Output as PublishedPorts } from "./ports"
 
 export type Input = {
+    entry: Entry,
+    function_storage: SourceEntry,
     declarations?: Declarations,
     initializers: Initializers,
     members: Members,

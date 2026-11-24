@@ -83,3 +83,5 @@ export type CacheSlot = opaque
 export type CacheEntries = opaque
 
 export type CacheEntry = opaque
+
+export type SourceEntry = opaque

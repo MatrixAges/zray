@@ -118,9 +118,7 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
     const program = &input.program;
 
     if (comptime generated) {
-        const entry = try @import("source/entry/host.zig").publish(program, tail, first, destination.functions, nodes, destination.temporary);
-
-        try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, type_prefix, output);
+        try @import("source/surface/host.zig").publish(input, destination, nodes, tail, first, type_prefix, output);
     } else {
         const own = function_body.ownTail(program.*, tail.*, first);
         const entry = try publishSeedEntry(program, destination.functions, nodes, own);

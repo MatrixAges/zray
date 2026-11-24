@@ -172,7 +172,7 @@ pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Err
         state,
         &input,
         .{ .functions = prepared.functions, .types = prepared.types },
-        .{ .flow = prepared.module.source.node.location },
+        prepared.module.source.node.location,
         state.finished.destination(prepared.index),
     );
 

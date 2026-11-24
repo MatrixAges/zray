@@ -460,7 +460,9 @@ export declare function selectMixedImport(
 export declare function appendMixedBodyLink(
     body: MixedBodyLink,
     replace_prefix: bool,
-    type_prefix: u64?
+    type_prefix: u64?,
+    use_shared_initializers: bool,
+    refresh_initializers: bool
 ): u64? throws { OutOfMemory }
 
 export declare function rejectMixedBodyLink(body: MixedBodyLink, message: string): void

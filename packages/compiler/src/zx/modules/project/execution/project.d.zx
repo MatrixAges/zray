@@ -193,3 +193,6 @@ export declare function appendProjectExternal(
     name: string,
     namespace: string?
 ): void throws { OutOfMemory }
+
+export declare function appendSourceLinkEntry(entry: SourceEntry): void
+    throws { OutOfMemory, InvalidModule }

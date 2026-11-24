@@ -1,5 +1,5 @@
-export const invalid_source_body: string =
+export const source_body: string =
     "source module body cannot be linked to its shared compilation context"
 
-export const invalid_flow_body: string =
+export const flow_body: string =
     "RX module body cannot be linked to its shared compilation context"
