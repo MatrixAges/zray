@@ -7,7 +7,7 @@ const functions_check = @import("function.zig");
 const collection = @import("collection.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const CheckRows = @import("rx_checking_abi").layouts.@"zig:rx_checking_host".CheckRows;
+const CheckRows = @import("cli_abi").layouts.@"zig:rx_checking_host".CheckRows;
 
 const State = struct {
     io: std.Io,

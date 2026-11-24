@@ -1,13 +1,18 @@
 import main from "bundle"
 import echo from "bundle/echo"
-import flow from "bundle/workflow"
 
 import type { PublishedMode } from "bundle/types"
 
 export type Input = PublishedMode
 
-export type Output = { main: PublishedMode, echo: PublishedMode, flow: PublishedMode }
+export type Output = {
+    main: PublishedMode,
+    echo: PublishedMode
+}
 
 export default function (in: Input): Output {
-  return { main: main(in), echo: echo(in), flow: flow(in) }
+    return {
+        main: main(in),
+        echo: echo(in)
+    }
 }

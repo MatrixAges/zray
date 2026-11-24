@@ -26,7 +26,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency) *std.Build.Step {
         run.addFileArg(b.path(b.fmt("tests/library_publish/{s}_test.ts", .{name})));
         run.addFileInput(b.path("tests/library_publish/fixture.ts"));
 
-        for ([_][]const u8{ "source/identity.zx", "source/invert.zx", "source/types.zx", "source/flow.rx", "consumer/main.zx", "zig/build.zig", "zig/build.zig.zon", "zig/consumer_test.zig" }) |file| {
+        for ([_][]const u8{ "source/identity.zx", "source/invert.zx", "source/types.zx", "source/flow.rx", "consumer/main.zx", "consumer/main.rx", "zig/build.zig", "zig/build.zig.zon", "zig/consumer_test.zig" }) |file| {
             run.addFileInput(b.path(b.fmt("tests/library_publish/fixtures/{s}", .{file})));
         }
 

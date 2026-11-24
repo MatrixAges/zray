@@ -19,7 +19,7 @@
     <Call fn="includes" in={$in} />
 
     <If on={$ctx.hasNativeHeader}>
-        <Call fn="index.writeNativeHeader" in={$in} />
-        <Call fn="index.writeNativeAdapter" in={$in} />
+        <Call fn="index.writeLibraryNativeHeader" in={$in} />
+        <Call fn="index.writeLibraryNativeAdapter" in={$in} />
     </If>
 </Module>

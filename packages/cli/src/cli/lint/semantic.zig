@@ -5,7 +5,7 @@ const model = @import("../../package/manifest/model.zig");
 const library = @import("../library/analyze.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const Entry = @import("lint_workflow_abi").native.@"zig:lint_workflow_host".Entry;
+const Entry = @import("cli_abi").native.@"zig:lint_workflow_host".Entry;
 
 const State = struct {
     context: *const Compile.Context,

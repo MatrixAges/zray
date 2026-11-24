@@ -6,7 +6,7 @@ const Manifest = @import("manifest/model.zig").Manifest;
 const rules = @import("cli_source");
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
-const Directory = @import("package_workspace_abi").layouts.@"zig:package_workspace_host".Directory;
+const Directory = @import("cli_abi").layouts.@"zig:package_workspace_host".Directory;
 const constants = rules.workspace_constants.@"zx.constants";
 pub const Package = struct { path: []const u8, manifest: Manifest };
 

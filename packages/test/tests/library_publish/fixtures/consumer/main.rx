@@ -1,0 +1,12 @@
+<Module>
+    <Call fn="main" in={$in} />
+
+    <Call module="bundle/workflow" in={$ctx.main.value} />
+
+    <Return
+        value={{
+            ...$ctx.main,
+            value: $ctx.workflow
+        }}
+    />
+</Module>

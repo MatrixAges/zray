@@ -27,11 +27,13 @@
     "interfaces": [
         {
             "path": "backend/frames/host.d.zx",
-            "module": "backend_frames"
+            "module": "backend_frames",
+            "resolve_members": true
         },
         {
             "path": "backend/diagnostics/host.d.zx",
-            "module": "backend_diagnostics"
+            "module": "backend_diagnostics",
+            "resolve_members": true
         }
     ]
 }

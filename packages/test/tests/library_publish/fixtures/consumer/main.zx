@@ -1,7 +1,6 @@
 import identity from "bundle"
 import alias from "bundle/alias"
 import invert from "bundle/toggle"
-import flow from "bundle/workflow"
 
 import type { Payload } from "bundle/types"
 
@@ -10,5 +9,8 @@ export type Input = Payload
 export type Output = Payload
 
 export default function (in: Input): Output {
-  return { value: flow(alias(identity(in.value))), enabled: invert(in.enabled) }
+    return {
+        value: alias(identity(in.value)),
+        enabled: invert(in.enabled)
+    }
 }

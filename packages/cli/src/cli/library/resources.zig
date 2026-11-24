@@ -147,7 +147,7 @@ pub fn addExternalInclude(handle: *const anyopaque, path: []const u8) Error!void
     self.external_includes.append(self.allocator, path) catch |err| return self.failure.save(err);
 }
 
-pub fn writeNativeHeader(handle: *const anyopaque) Error!void {
+pub fn writeLibraryNativeHeader(handle: *const anyopaque) Error!void {
     const self = effects.state(State, handle);
 
     writeHeader(self) catch |err| return self.failure.save(err);
@@ -162,7 +162,7 @@ fn writeHeader(self: *State) !void {
     try artifacts.write(self.io, path, source);
 }
 
-pub fn writeNativeAdapter(handle: *const anyopaque) Error!void {
+pub fn writeLibraryNativeAdapter(handle: *const anyopaque) Error!void {
     const self = effects.state(State, handle);
 
     writeAdapter(self) catch |err| return self.failure.save(err);

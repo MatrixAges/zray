@@ -5,7 +5,7 @@ const pkgs = @import("pkgs");
 const yaml = @import("yaml.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const Layout = @import("lint_workflow_abi").native.@"zig:lint_workflow_host".Layout;
+const Layout = @import("cli_abi").native.@"zig:lint_workflow_host".Layout;
 
 const State = struct {
     context: *const Compile.Context,

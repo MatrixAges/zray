@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) void {
     host.addImport("cli_packages", @import("build/source.zig").packages(b, compiler, target, optimize, host));
     host.addImport("package_store", @import("build/source.zig").store(b, compiler, target, optimize, pkgs.module("pkgs"), host.import_table.get("cli_source").?));
     host.addImport("cli_toolchain", @import("build/source.zig").toolchain(b, compiler, target, optimize, host));
-    host.addImport("backend_protocol", @import("build/source.zig").backend(b, compiler, target, optimize));
+    host.addImport("backend_protocol", @import("build/source.zig").backend(b, compiler, host.import_table.get("zx").?, target, optimize));
     host.addImport("watch_inputs", @import("build/source.zig").observations(b, compiler, target, optimize, host.import_table.get("cli_source").?));
     host.addImport("cli_watch", @import("build/source.zig").watch(b, compiler, target, optimize, host));
     host.addImport("manifest_output", b.modules.get("manifest_output").?);
@@ -85,95 +85,19 @@ pub fn build(b: *std.Build) void {
 
     const cli_source = host.import_table.get("cli_source").?;
 
-    const staging_host = b.createModule(.{
-        .root_source_file = b.path("src/cli/library/stage/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
+    for ([_][]const u8{
+        "library_stage_host",
+        "library_workflow_host",
+        "source_loader_host",
+        "package_workspace_host",
+        "rx_collection_host",
+        "rx_preparation_host",
+        "rx_checking_host",
+        "lint_workflow_host",
+        "rx_execution_host",
+    }) |name| cli_source.addImport(name, host);
 
-    cli_source.addImport("library_stage_host", staging_host);
-    host.addImport("library_stage_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const library_workflow = b.createModule(.{
-        .root_source_file = b.path("src/cli/library/workflow/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("library_workflow_host", library_workflow);
-    host.addImport("library_workflow_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const source_loader = b.createModule(.{
-        .root_source_file = b.path("src/cli/sources/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("source_loader_host", source_loader);
-    host.addImport("source_loader_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const package_workspace = b.createModule(.{
-        .root_source_file = b.path("src/package/workspace/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("package_workspace_host", package_workspace);
-    host.addImport("package_workspace_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const rx_collection = b.createModule(.{
-        .root_source_file = b.path("src/cli/rx/collection/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("rx_collection_host", rx_collection);
-    host.addImport("rx_collection_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const rx_preparation = b.createModule(.{
-        .root_source_file = b.path("src/cli/rx/preparation/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("rx_preparation_host", rx_preparation);
-    host.addImport("rx_preparation_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const rx_checking = b.createModule(.{
-        .root_source_file = b.path("src/cli/rx/checking/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("rx_checking_host", rx_checking);
-    host.addImport("rx_checking_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const lint_workflow = b.createModule(.{
-        .root_source_file = b.path("src/cli/lint/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("lint_workflow_host", lint_workflow);
-    host.addImport("lint_workflow_abi", cli_source.import_table.get("zxc_abi").?);
-
-    const rx_execution = b.createModule(.{
-        .root_source_file = b.path("src/cli/rx/execution/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
-    cli_source.addImport("rx_execution_host", rx_execution);
-    host.addImport("rx_execution_abi", cli_source.import_table.get("zxc_abi").?);
+    host.addImport("cli_abi", cli_source.import_table.get("zxc_abi").?);
 
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 

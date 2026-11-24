@@ -33,6 +33,12 @@ const frame_constants = source.frame_constants.@"zx.constants";
 pub const diagnostics = @import("error_bundle.zig");
 pub const frames = @import("source/frames/storage.zig");
 
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    frames,
+    diagnostics,
+}).resolve;
+
 comptime {
     if (@sizeOf(Message.Header) != frame_constants.frame_header_size or
         @sizeOf(Message.ErrorBundle) != frame_constants.error_bundle_header_size or

@@ -525,11 +525,13 @@
         },
         {
             "path": "publication/host.d.zx",
-            "module": "publication_host"
+            "module": "publication_host",
+            "resolve_members": true
         },
         {
             "path": "native_sources/host.d.zx",
-            "module": "native_resource_host"
+            "module": "native_resource_host",
+            "resolve_members": true
         },
         {
             "path": "sources/host.d.zx",

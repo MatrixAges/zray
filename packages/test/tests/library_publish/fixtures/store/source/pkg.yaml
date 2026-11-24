@@ -5,3 +5,4 @@ exports:
     ./again: advance.rx
     ./read: read.rx
     ./settings: settings.rx
+    ./settings_type: settings.zx

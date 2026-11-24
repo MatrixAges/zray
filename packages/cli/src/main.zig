@@ -10,69 +10,51 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("package/install/fresh/storage.zig"),
     @import("package/install/host.zig"),
     @import("package/install/locked/storage.zig"),
+    @import("cli/library/publish.zig"),
+    @import("cli/library/stage/output.zig"),
+    @import("cli/library/resources.zig"),
+    @import("cli/library/build.zig"),
+    @import("cli/library/analysis/rows.zig"),
+    @import("cli/library/link/inputs.zig"),
+    @import("cli/library/verify.zig"),
+    @import("cli/sources/discovery/host.zig"),
+    @import("cli/sources/templates.zig"),
+    @import("package/workspace.zig"),
+    @import("package/discover.zig"),
+    @import("package/source.zig"),
+    @import("package/project.zig"),
+    @import("package/project/scope.zig"),
+    @import("cli/rx/collection/state.zig"),
+    @import("cli/rx/collection/files.zig"),
+    @import("cli/rx/collection/documents.zig"),
+    @import("cli/rx/preparation/project.zig"),
+    @import("cli/rx/preparation/references.zig"),
+    @import("cli/rx/type_sources.zig"),
+    @import("cli/rx/load.zig"),
+    @import("cli/rx/store_types.zig"),
+    @import("cli/rx/function.zig"),
+    @import("cli/lint.zig"),
+    @import("cli/lint/source.zig"),
+    @import("cli/lint/semantic.zig"),
+    @import("cli/lint/rx.zig"),
+    @import("cli/lint/workspace.zig"),
+    @import("cli/lint/sources.zig"),
+    @import("cli/configuration/root.zig"),
+    @import("cli/rx/compile.zig"),
+    @import("cli/rx/gateway/analyze.zig"),
+    @import("cli/rx/gateway/compile.zig"),
+    @import("cli/build/native.zig"),
+    @import("cli/build/prepare.zig"),
+    @import("cli/build/arguments.zig"),
+    @import("cli/build/modules.zig"),
+    @import("cli/compilation/state.zig"),
+    @import("cli/compilation/emit.zig"),
+    @import("cli/cache.zig"),
+    @import("cli/fpga.zig"),
 }).resolve;
 
 pub const watch = @import("cli/watch.zig");
 pub const toolchain = @import("cli/toolchain.zig");
-pub const library_stage = @import("cli/library/publish.zig");
-
-pub const package_workspace = struct {
-    pub const collection = @import("package/workspace.zig");
-    pub const discovery = @import("package/discover.zig");
-    pub const source = @import("package/source.zig");
-    pub const project = @import("package/project.zig");
-};
-
-pub const library_workflow = struct {
-    pub const build = @import("cli/library/build.zig");
-    pub const analysis = @import("cli/library/analysis/rows.zig");
-    pub const link = @import("cli/library/link/inputs.zig");
-    pub const proof = @import("cli/library/verify.zig");
-};
-
-pub const source_loader = struct {
-    pub const discovery = @import("cli/sources/discovery/host.zig");
-    pub const templates = @import("cli/sources/templates.zig");
-};
-
-pub const rx_collection = struct {
-    pub const state = @import("cli/rx/collection/state.zig");
-    pub const files = @import("cli/rx/collection/files.zig");
-    pub const documents = @import("cli/rx/collection/documents.zig");
-};
-
-pub const rx_preparation = struct {
-    pub const project = @import("cli/rx/preparation/project.zig");
-    pub const references = @import("cli/rx/preparation/references.zig");
-    pub const types = @import("cli/rx/type_sources.zig");
-};
-
-pub const rx_checking = struct {
-    pub const project = @import("cli/rx/load.zig");
-    pub const store = @import("cli/rx/store_types.zig");
-    pub const function = @import("cli/rx/function.zig");
-};
-
-pub const lint_workflow = struct {
-    pub const command = @import("cli/lint.zig");
-    pub const source = @import("cli/lint/source.zig");
-    pub const semantic = @import("cli/lint/semantic.zig");
-    pub const special = @import("cli/lint/rx.zig");
-    pub const workspace = @import("cli/lint/workspace.zig");
-    pub const reachable = @import("cli/lint/sources.zig");
-    pub const configuration = @import("cli/configuration/root.zig");
-};
-
-pub const rx_execution = struct {
-    pub const application = @import("cli/rx/compile.zig");
-    pub const analysis = @import("cli/rx/gateway/analyze.zig");
-    pub const gateway = @import("cli/rx/gateway/compile.zig");
-    pub const backend = @import("cli/build/native.zig");
-    pub const compilation = @import("cli/compilation/state.zig");
-    pub const emit = @import("cli/compilation/emit.zig");
-    pub const cache = @import("cli/cache.zig");
-    pub const fpga = @import("cli/fpga.zig");
-};
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();

@@ -7,57 +7,18 @@ pub const Failure = effects.Failure;
 pub const inventory = @import("library/inventory.zig");
 pub const output = @import("watch/output.zig");
 pub const paths = @import("native_sources/path.zig");
-pub const openDirectory = directory.openDirectory;
-pub const nextEntry = directory.nextEntry;
-pub const copyEntry = directory.copyEntry;
-pub const capture = verification.capture;
-pub const verify = verification.verify;
-pub const retain = verification.retain;
-pub const copyAssembly = application.copyAssembly;
-pub const copyBinary = application.copyBinary;
-pub const checkBinary = application.checkBinary;
-pub const checkAssembly = application.checkAssembly;
-pub const checkBindings = application.checkBindings;
-pub const writeBindings = application.writeBindings;
-pub const inputCount = library.inputCount;
-pub const relativeInput = library.relativeInput;
-pub const absolutePath = library.absolutePath;
-pub const prepareRetirement = library.prepareRetirement;
-pub const validateEntry = library.validateEntry;
-pub const contentCount = library.contentCount;
-pub const copyContent = library.copyContent;
-pub const retiredCount = library.retiredCount;
-pub const removeRetired = library.removeRetired;
-pub const copyInventory = library.copyInventory;
-pub const nextInput = output.nextInput;
-pub const logicalPath = output.logicalPath;
-pub const physicalPath = output.physicalPath;
 pub const resources = @import("native_sources/resources.zig");
 const collector = @import("library/inventory/collector.zig");
 const retirement = @import("library/retirement/storage.zig");
-pub const resourceRoot = resources.resourceRoot;
-pub const openResources = resources.openResources;
-pub const nextResource = resources.nextResource;
-pub const observeResource = resources.observeResource;
-pub const resourceLinkIsFile = resources.resourceLinkIsFile;
-pub const keepResource = resources.keepResource;
-pub const openInventory = collector.openInventory;
-pub const nextInventory = collector.nextInventory;
-pub const inventoryPath = collector.inventoryPath;
-pub const addInventoryFile = collector.addInventoryFile;
-pub const readRetirement = retirement.readRetirement;
-pub const reserveTargets = retirement.reserveTargets;
-pub const retirementTargetCount = retirement.retirementTargetCount;
-pub const registerRetirementTarget = retirement.registerRetirementTarget;
-pub const retirementOldCount = retirement.retirementOldCount;
-pub const retirementNativeOnly = retirement.retirementNativeOnly;
-pub const selectRetirementRow = retirement.selectRetirementRow;
-pub const retirementSpellingMatches = retirement.retirementSpellingMatches;
-pub const retirementOldKind = retirement.retirementOldKind;
-pub const retirementTargetKind = retirement.retirementTargetKind;
-pub const resolveRetirementRow = retirement.resolveRetirementRow;
-pub const retirementPhysicalMatches = retirement.retirementPhysicalMatches;
-pub const checkRetirementInput = retirement.checkRetirementInput;
-pub const retirementDigest = retirement.retirementDigest;
-pub const retirementExpectedDigest = retirement.retirementExpectedDigest;
-pub const keepRetirement = retirement.keepRetirement;
+
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    directory,
+    application,
+    verification,
+    library,
+    output,
+    resources,
+    collector,
+    retirement,
+}).resolve;

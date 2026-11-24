@@ -10,7 +10,7 @@ const Error = effects.Error;
 pub const preparation = @import("prepare.zig");
 pub const command = @import("arguments.zig");
 pub const modules = @import("modules.zig");
-pub const Status = @import("rx_execution_abi").native.@"zig:rx_execution_host".Status;
+pub const Status = @import("cli_abi").native.@"zig:rx_execution_host".Status;
 
 pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBundle, project: *const Loaded, toolchain: Paths) !Compile.Status {
     var state: State = .{

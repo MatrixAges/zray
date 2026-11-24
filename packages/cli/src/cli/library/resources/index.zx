@@ -7,6 +7,6 @@ export {
     hasNativeHeader,
     bundleNativeModule,
     allocateBundlePaths,
-    writeNativeHeader,
-    writeNativeAdapter
+    writeLibraryNativeHeader,
+    writeLibraryNativeAdapter
 } from "library_stage_host"

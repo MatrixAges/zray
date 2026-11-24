@@ -7,8 +7,8 @@ const rules = @import("cli_source");
 const constants = rules.workspace_constants.@"zx.constants";
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
-const MemberSearch = @import("package_workspace_abi").layouts.@"zig:package_workspace_host".MemberSearch;
-pub const Probe = @import("package_workspace_abi").native.@"zig:package_workspace_host".Probe;
+const MemberSearch = @import("cli_abi").layouts.@"zig:package_workspace_host".MemberSearch;
+pub const Probe = @import("cli_abi").native.@"zig:package_workspace_host".Probe;
 
 pub const Result = struct {
     path: ?[]const u8 = null,

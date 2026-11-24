@@ -9,7 +9,7 @@ const generation = @import("../generation_cache.zig");
 const installation = @import("../toolchain.zig");
 const effects = @import("workflow/effects.zig");
 const Error = effects.Error;
-const Status = @import("library_workflow_abi").native.@"zig:library_workflow_host".BuildStatus;
+const Status = @import("cli_abi").native.@"zig:library_workflow_host".BuildStatus;
 const rule = @import("cli_source").library_build;
 const Inventory = @import("publication_host").inventory;
 

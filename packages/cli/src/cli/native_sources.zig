@@ -60,43 +60,10 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
     };
 }
 
-pub const absoluteHeader = bundle.absoluteHeader;
-pub const prepareBundle = bundle.prepareBundle;
-pub const bundlePath = bundle.bundlePath;
-pub const logicalOutputInside = bundle.logicalOutputInside;
-pub const physicalOutputInside = bundle.physicalOutputInside;
-pub const openCollection = collection.openCollection;
-pub const entryPath = collection.entryPath;
-pub const readBundle = collection.readBundle;
-pub const enqueue = collection.enqueue;
-pub const pendingCount = collection.pendingCount;
-pub const selectPending = collection.selectPending;
-pub const sourcePending = collection.sourcePending;
-pub const checkPending = collection.checkPending;
-pub const readPending = collection.readPending;
-pub const reusePending = collection.reusePending;
-pub const observePending = collection.observePending;
-pub const addPending = collection.addPending;
-pub const promotePending = collection.promotePending;
-pub const referenceCount = collection.referenceCount;
-pub const enqueueReference = collection.enqueueReference;
-pub const prepareIncludes = bundle.prepareIncludes;
-pub const selectInclude = includes.selectInclude;
-pub const includeFiles = includes.includeFiles;
-pub const includesFile = includes.includesFile;
-pub const writeInclude = includes.writeInclude;
-pub const sourceCount = bundle.sourceCount;
-pub const sourceIsAsset = bundle.sourceIsAsset;
-pub const sourcePath = bundle.sourcePath;
-pub const prepareFiles = bundle.prepareFiles;
-pub const publishFile = bundle.publishFile;
-pub const openAst = ast.openAst;
-pub const closeAst = ast.closeAst;
-pub const nextBuiltin = ast.nextBuiltin;
-pub const builtinName = ast.builtinName;
-pub const builtinArguments = ast.builtinArguments;
-pub const builtinHasLiteral = ast.builtinHasLiteral;
-pub const decodeLiteral = ast.decodeLiteral;
-pub const discardLiteral = ast.discardLiteral;
-pub const recordReference = ast.recordReference;
-pub const invalidBuiltin = ast.invalidBuiltin;
+pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
+    @This(),
+    bundle,
+    collection,
+    includes,
+    ast,
+}).resolve;

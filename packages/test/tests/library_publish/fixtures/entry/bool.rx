@@ -1,0 +1,5 @@
+<Module>
+    <Call module="bundle" in={$in} />
+
+    <Return value={$ctx.bundle} />
+</Module>

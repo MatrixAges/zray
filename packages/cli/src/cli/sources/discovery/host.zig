@@ -5,7 +5,7 @@ const Traversal = @import("../../sources.zig").Traversal;
 const effects = @import("../effects.zig");
 const Error = effects.Error;
 const Text = @import("../text.zig");
-const Target = @import("source_loader_abi").native.@"zig:source_loader_host".Target;
+const Target = @import("cli_abi").native.@"zig:source_loader_host".Target;
 const ModuleResult = compiler.project.ParseCache.ModuleResult;
 const rule = @import("cli_source").discover_sources;
 

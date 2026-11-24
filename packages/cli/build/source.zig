@@ -218,7 +218,7 @@ pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.
     return observations_module;
 }
 
-pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/cli/backend/source"), "source", .{ .include_extensions = &.{ ".rx", ".zx" } });
 
@@ -229,14 +229,10 @@ pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build
         .root_source_file = b.path("src/cli/backend/protocol.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "backend_abi", .module = abi }},
-    });
-
-    const effects = b.createModule(.{
-        .root_source_file = b.path("src/cli/backend/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "backend_protocol", .module = protocol }},
+        .imports = &.{
+            .{ .name = "backend_abi", .module = abi },
+            .{ .name = "zx", .module = core },
+        },
     });
 
     protocol.addAnonymousImport("backend_source", .{
@@ -246,8 +242,8 @@ pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
-            .{ .name = "backend_frames", .module = effects },
-            .{ .name = "backend_diagnostics", .module = effects },
+            .{ .name = "backend_frames", .module = protocol },
+            .{ .name = "backend_diagnostics", .module = protocol },
         },
     });
 

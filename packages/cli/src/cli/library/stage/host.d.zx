@@ -33,5 +33,5 @@ export declare function bundleFileCount(resources: NativeResources): u64
 export declare function recordBundlePath(resources: NativeResources, index: u64): void
 export declare function nativeIncludes(resources: NativeResources): string[]
 export declare function addExternalInclude(resources: NativeResources, path: string): void throws { PublicationFailure }
-export declare function writeNativeHeader(resources: NativeResources): void throws { PublicationFailure }
-export declare function writeNativeAdapter(resources: NativeResources): void throws { PublicationFailure }
+export declare function writeLibraryNativeHeader(resources: NativeResources): void throws { PublicationFailure }
+export declare function writeLibraryNativeAdapter(resources: NativeResources): void throws { PublicationFailure }
