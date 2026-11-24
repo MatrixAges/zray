@@ -75,4 +75,5 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/workflow/solve/host.zig"),
     @import("store/initializer/host.zig"),
     @import("store/prepare/host.zig"),
+    @import("store/registry.zig"),
 }).resolve;

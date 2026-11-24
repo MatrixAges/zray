@@ -63,6 +63,7 @@ pub const Target = struct {
 allocator: std.mem.Allocator,
 scratch: std.heap.ArenaAllocator,
 bound: std.AutoHashMapUnmanaged(usize, *Bound) = .empty,
+workspace: ?*compiled.CallWorkspace = null,
 pub fn select(self: *Self, project: *frontend.project.Options, selected: compiled.Target) Error!Selection {
     const libraries = project.compiled_libraries;
 
@@ -96,29 +97,28 @@ fn load(self: *Self, project: *frontend.project.Options, library: *const compile
     const binding = try temporary.create(Bound);
     binding.* = .{ .exports = .{}, .checked = .{} };
     const context = &project.context;
-    var natives = try frontend.native_context.storage(self.allocator, context.native_modules);
+
+    const workspace = self.workspace orelse new: {
+        const storage = try temporary.create(compiled.CallWorkspace);
+        storage.* = try compiled.CallWorkspace.init(self.allocator, context);
+        self.workspace = storage;
+
+        break :new storage;
+    };
 
     binding.exports = try compiled.ExportIndex.init(temporary, library.exports.len);
 
-    const result = try compiled.loadCalls(self.allocator, .{
+    try workspace.link(self.allocator, library.*, &binding.functions, .{
         .functions = temporary,
         .temporary = self.scratch.child_allocator,
         .export_buckets = binding.exports.buckets(),
-    }, .{
-        .library = library.*,
-        .types = context.types,
-        .nominal_types = context.nominal_types,
-        .functions = &binding.functions,
-        .native_modules = &natives,
     });
 
     binding.checked = try std.DynamicBitSetUnmanaged.initEmpty(temporary, binding.functions.count());
 
     try binding.exports.finish(library.exports);
 
-    context.types = result.types;
-    context.nominal_types = result.nominal_types;
-    context.native_modules = natives.view();
+    workspace.publish(context);
 
     return binding;
 }

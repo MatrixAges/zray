@@ -34,8 +34,6 @@ pub const View = struct {
     }),
     constants: memory.RowOutput(ir.Constant, Field("constants"), .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} }),
     initializers: memory.RowOutput(model.StoreInitializer, Field("initializers"), .{ .identities = &.{"identity"}, .versions = &.{"schema_version"}, .functions = &.{"function"} }),
-    exports_view: std.meta.Child(@FieldType(Request, "exports")),
-    initializers_view: std.meta.Child(@FieldType(Request, "initializers")),
     selection: std.meta.Child(@typeInfo(@FieldType(Request, "selection")).optional.child),
     buffers: std.meta.Child(@FieldType(Request, "buffers")),
     targets: Targets,
@@ -49,14 +47,11 @@ pub const View = struct {
             @field(self.targets, name) = &rows.view;
         }
 
-        self.exports_view = zx.columns.view(@TypeOf(self.exports_view), input.graph.exports.input);
-        self.initializers_view = zx.columns.view(@TypeOf(self.initializers_view), input.graph.initializers.input);
-
         if (plan.selection) |value| self.selection = zx.columns.view(@TypeOf(self.selection), value);
 
         self.request = .{
-            .exports = &self.exports_view,
-            .initializers = &self.initializers_view,
+            .exports = zx.columns.pointer(@FieldType(Request, "exports"), &input.graph.exports.input),
+            .initializers = zx.columns.pointer(@FieldType(Request, "initializers"), &input.graph.initializers),
             .selection = if (plan.selection != null) &self.selection else null,
             .first = first,
             .mapping = plan.functions.types,

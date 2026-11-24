@@ -4,7 +4,8 @@ const ir = zx.ir;
 const memory = zx.memory;
 const Builder = @import("../build.zig");
 const Constants = @import("../../../analysis/constants/columns.zig").Rows;
-const BindingColumns = @import("bindings/view.zig").Columns;
+const member_fields = @import("../../function_import.zig").member_fields;
+const BindingColumns = memory.ReadFields(member_fields);
 const Edges = @import("traversal/view.zig").Columns;
 const admission = @import("../artifact/admission/host.zig");
 pub const Binding = @import("../artifact/binding/abi.zig").Binding;
@@ -20,6 +21,8 @@ const ConstantView = std.meta.Child(@FieldType(Walk, "constants"));
 const Signatures = std.meta.Child(@typeInfo(@FieldType(Views, "linked_shape")).optional.child);
 const Ownership = ir.SymbolTable.Ownership;
 const Export = ir.Export;
+const alias_fields = .{ .names = "name", .ids = "type_id" };
+const import_fields = .{ .specifiers = "specifier", .names = "names", .source_names = "source_names", .exported = "exported", .wildcard = "wildcard" };
 
 pub const View = struct {
     input: Input,
@@ -33,19 +36,14 @@ pub const View = struct {
     members: Bindings,
     constant_columns: Constants,
     constants: ConstantView,
-    alias_names: memory.ReadColumn,
-    alias_ids: memory.ReadColumn,
+    alias_columns: memory.ReadFields(alias_fields),
     aliases: Aliases,
     linked_slots: [@typeInfo(Signatures).@"struct".field_names.len]*anyopaque,
     linked_columns: memory.ColumnSet,
     linked: Signatures,
     edge_columns: Edges,
     edges: std.meta.Child(@FieldType(Imports, "edges")),
-    specifiers: memory.ReadColumn,
-    names: memory.ReadColumn,
-    source_names: memory.ReadColumn,
-    exported: memory.ReadColumn,
-    wildcard: memory.ReadColumn,
+    dependency_columns: memory.ReadFields(import_fields),
     pub fn init(self: *View, builder: *Builder, index: usize, mappings: *admission.Mappings, sources: *const Providers) void {
         comptime std.debug.assert(@sizeOf(Ownership) == @sizeOf(u8));
 
@@ -53,39 +51,23 @@ pub const View = struct {
         const targets = builder.plan.sources(index);
         const dependencies = module.dependencies;
 
-        self.import_columns = BindingColumns.borrow(module.function_imports);
-        self.member_columns = BindingColumns.borrow(module.members);
-        self.imported = self.import_columns.view(Bindings);
-        self.members = self.member_columns.view(Bindings);
+        self.import_columns = memory.borrowReadFields(member_fields, module.function_imports);
+        self.member_columns = memory.borrowReadFields(member_fields, module.members);
+        self.imported = self.import_columns.bind(Bindings);
+        self.members = self.member_columns.bind(Bindings);
         self.constant_columns = Constants.borrow(module.constant_imports);
         self.constants = self.constant_columns.view(ConstantView);
-        self.alias_names = memory.borrowTextColumn("name", module.type_imports);
-        self.alias_ids = memory.borrowReadColumn(ir.TypeId, "type_id", module.type_imports);
-
-        self.aliases = .{
-            .names = @ptrCast(&self.alias_names),
-            .ids = @ptrCast(&self.alias_ids),
-            .count = self.alias_names.count,
-        };
-
+        self.alias_columns = memory.borrowReadFields(alias_fields, module.type_imports);
+        self.aliases = self.alias_columns.bind(Aliases);
         self.linked_slots = memory.bindColumnSet(Signatures, false, &builder.functions);
         self.linked_columns = &self.linked_slots;
         self.edge_columns = Edges.borrow(dependencies, targets);
         self.edges = self.edge_columns.view(@FieldType(View, "edges"));
-        self.specifiers = memory.borrowTextColumn("specifier", dependencies);
-        self.names = memory.borrowReadColumn([]const []const u8, "names", dependencies);
-        self.source_names = memory.borrowReadColumn([]const []const u8, "source_names", dependencies);
-        self.exported = memory.borrowReadColumn(bool, "exported", dependencies);
-        self.wildcard = memory.borrowReadColumn(bool, "wildcard", dependencies);
+        self.dependency_columns = memory.borrowReadFields(import_fields, dependencies);
 
-        self.imports = .{
-            .edges = &self.edges,
-            .specifiers = @ptrCast(&self.specifiers),
-            .names = @ptrCast(&self.names),
-            .source_names = @ptrCast(&self.source_names),
-            .exported = @ptrCast(&self.exported),
-            .wildcard = @ptrCast(&self.wildcard),
-        };
+        self.dependency_columns.fill(&self.imports);
+
+        self.imports.edges = &self.edges;
 
         self.checks = .{
             .count = module.functions.count(),

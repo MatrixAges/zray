@@ -128,38 +128,19 @@ pub fn BindingPublication(comptime Input: type) type {
     return struct {
         const Self = @This();
         source: Source,
-        names: memory.TextColumn,
-        namespaces: memory.ReadColumn,
-        ports: Binding.Readable,
-        output: memory.RowOutput(Binding, Target, .{
-            .name = &.{"name"},
-            .namespace = &.{"namespace"},
-            .id = &.{"id"},
-            .input_type = &.{"input_type"},
-            .output_type = &.{"output_type"},
-            .intrinsic = &.{"intrinsic"},
-        }),
+        columns: Binding.Columns,
+        output: memory.RowOutput(Binding, Target, .{}),
         types: Map,
         functions: Map,
         input: Input,
         pub fn init(self: *Self, source: []const Binding, nodes: *const Nodes) void {
-            self.names = memory.borrowTextColumn("name", source);
-            self.namespaces = memory.borrowReadColumn(?[]const u8, "namespace", source);
-            self.ports = Binding.Readable.borrowRows(source);
+            self.columns = Binding.borrowColumns(source);
             self.types = remap.typeMapping(Map, nodes.types);
             self.functions = remap.idMapping(Map, nodes.functions);
 
             self.output.init();
 
-            self.source = .{
-                .name = @ptrCast(&self.names),
-                .namespace = @ptrCast(&self.namespaces),
-                .id = @ptrCast(&self.ports.id),
-                .input_type = @ptrCast(&self.ports.input_type),
-                .output_type = @ptrCast(&self.ports.output_type),
-                .intrinsic = @ptrCast(&self.ports.intrinsic),
-                .count = source.len,
-            };
+            self.source = self.columns.bind(Source);
 
             self.input = .{
                 .source = &self.source,

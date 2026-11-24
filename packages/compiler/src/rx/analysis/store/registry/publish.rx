@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Registry" />
+
+    <Args in={Registry.Publication} out={void} />
+
+    <Loop on={$in.row < $in.count}>
+        <Call module="publish_entry" in={$in} />
+    </Loop>
+</Module>

@@ -74,13 +74,7 @@ pub fn appendProgram(self: *Self, storage: *ir.FunctionStorage, program: *const 
     try storage.append(self.allocator, try self.function(@import("../function_body.zig").value(program.*)));
 }
 
-pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const ir.Function, temporary: std.mem.Allocator) Error!void {
-    if (comptime generated) return @import("../link/source/workflow/host.zig").append(self, storage, value, temporary, null);
-    try storage.append(self.allocator, try self.function(value.*));
-}
-
 pub const Structure = enum { unchecked, validated };
-pub const remapInitializer = @import("nodes/initializer.zig").remap;
 
 pub const FunctionEntry = struct {
     body: ir.Function,

@@ -69,12 +69,9 @@ pub const State = struct {
     fn publishStores(self: *State, retained: bool) Error!void {
         const contract = &self.result.?.contract;
 
-        contract.store_definitions = if (retained)
-            try registry.publish(self.allocator, self.frame.definitions, contract, .Retained)
-
-        else
-            try registry.publish(self.allocator, self.frame.definitions, contract, .Owned);
+        contract.store_definitions = try registry.publish(self.allocator, self.frame.definitions, contract, retained);
     }
+
     fn normalize(self: *State) Error!void {
         self.options.sources = switch (try frontend.project.prepareSources(self.allocator, self.options.sources, self.options.project)) {
             .sources => |items| items,

@@ -470,7 +470,7 @@ pub inline fn readListOptionalU8(source: *const anyopaque, index: u64, member: u
     return readColumn(?u8, &column, member);
 }
 
-inline fn listColumn(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!ReadColumn {
+pub inline fn listColumn(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!ReadColumn {
     const column: *const ListColumn = @ptrCast(@alignCast(source));
     const list = try readColumn([]const u8, &column.lists, index);
 

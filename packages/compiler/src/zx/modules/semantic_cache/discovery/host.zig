@@ -127,8 +127,14 @@ fn eligible(paths: []const []const u8) u64 {
     return mask;
 }
 
-inline fn columns(comptime field: []const u8, rows: []const interface.Native) @TypeOf(zx.memory.borrowReadFields(.{ .names = field, .specifiers = "specifier", .identities = "identity" }, rows)) {
-    return zx.memory.borrowReadFields(.{ .names = field, .specifiers = "specifier", .identities = "identity" }, rows);
+const RegistryFields = struct {
+    names: []const u8,
+    specifiers: []const u8 = "specifier",
+    identities: []const u8 = "identity",
+};
+
+inline fn columns(comptime field: []const u8, rows: []const interface.Native) zx.memory.ReadFields(RegistryFields{ .names = field }) {
+    return zx.memory.borrowReadFields(RegistryFields{ .names = field }, rows);
 }
 
 inline fn registryView(comptime Registry: type, views: anytype) Registry {

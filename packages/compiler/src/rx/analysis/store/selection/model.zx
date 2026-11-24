@@ -1,19 +1,44 @@
 import type { Stores } from "core/store_table/model"
-import type { TextColumn, U32Buffer } from "memory"
+import type { ListColumn, ReadColumn, U32Buffer, WriteColumn } from "memory"
+import type { RowBuffer } from "memory/columns"
 
 export type Members = {
     ids: u32[],
     stores: Stores[]
 }
 
-export type Input = {
+export type Request = {
     entry: string[],
     members: Members,
-    identities: TextColumn,
-    count: u64,
-    first: u64,
+    identities: ListColumn,
     selected: U32Buffer,
     capacity: u64
+}
+
+export type Input = Request & {
+    definition: u64,
+    count: u64,
+    first: u64
+}
+
+export type Columns = {
+    identity: WriteColumn,
+    schema_version: WriteColumn,
+    program: WriteColumn
+}
+
+export type Collection = Request & {
+    programs: ListColumn,
+    versions: ReadColumn,
+    buffer: RowBuffer,
+    columns: Columns
+}
+
+export type Page = Collection.Pick("identities", "programs", "selected", "columns") & {
+    definition: u64,
+    version: u32,
+    start: u64,
+    count: u64
 }
 
 export enum Choice {

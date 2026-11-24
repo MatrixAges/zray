@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Page as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { columns, definition } = in
+
+    const written = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const object = integers.widen(memory.readU32(in.selected, row))
+            const identity = memory.readListText(in.identities, definition, object)
+            const destination = in.start + row
+
+            memory.writeColumnBytes(
+                columns.identity,
+                destination,
+                bytes.fromText(identity)
+            )
+            memory.writeColumnU32(columns.schema_version, destination, in.version)
+            memory.writeListReference(
+                columns.program,
+                destination,
+                in.programs,
+                definition,
+                object
+            )
+
+            row += 1
+        }
+    })
+}

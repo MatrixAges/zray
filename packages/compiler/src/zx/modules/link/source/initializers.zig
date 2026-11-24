@@ -14,7 +14,13 @@ pub fn link(nodes: *Nodes, values: []const Initializer, shared: []const Initiali
 
     @memcpy(initializers[0..borrowed], shared[0..borrowed]);
 
-    for (values[borrowed..], initializers[borrowed..]) |source, *initializer| initializer.* = try nodes.remapInitializer(source, true);
+    for (values[borrowed..], initializers[borrowed..]) |source, *initializer| {
+        initializer.* = .{
+            .identity = try nodes.allocator.dupe(u8, source.identity),
+            .schema_version = source.schema_version,
+            .function = try nodes.functionId(source.function),
+        };
+    }
 
     return initializers;
 }

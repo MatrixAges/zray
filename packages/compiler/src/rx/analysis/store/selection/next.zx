@@ -16,7 +16,8 @@ export default function (in: Input): Output {
         while: state =>
             state.valid && state.next < in.count && state.written < in.capacity,
         next: state => {
-            const identity = memory.readTextColumn(in.identities, state.next)
+            const identity =
+                memory.readListText(in.identities, in.definition, state.next)
             const entry = find({
                 paths: in.entry,
                 identity

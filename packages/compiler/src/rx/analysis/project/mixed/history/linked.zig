@@ -30,15 +30,15 @@ pub fn matchHistoryLink(handle: *const anyopaque) bool {
     const right_port = port(Port, right, previous.functions[row]);
     const MemberView = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "members")), "left"));
     const ConstantView = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "constants")), "left"));
-    const left_members = frontend.project.FunctionImport.Columns.borrow(left.members);
-    const right_members = frontend.project.FunctionImport.Columns.borrow(right.members);
+    const left_members = frontend.project.FunctionImport.borrowColumns(left.members);
+    const right_members = frontend.project.FunctionImport.borrowColumns(right.members);
     const left_constants = frontend.ConstantRows.borrow(left.constant_exports);
     const right_constants = frontend.ConstantRows.borrow(right.constant_exports);
 
     const input: Input = .{
         .members = &.{
-            .left = &left_members.view(MemberView),
-            .right = &right_members.view(MemberView),
+            .left = &left_members.bind(MemberView),
+            .right = &right_members.bind(MemberView),
             .shared = left.members.ptr == right.members.ptr,
         },
         .constants = &.{

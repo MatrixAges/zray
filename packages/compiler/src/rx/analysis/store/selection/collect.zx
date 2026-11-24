@@ -1,0 +1,35 @@
+import memory from "memory"
+
+import select from "./definition"
+
+import type { Collection as Input } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    if (in.entry.length == 0 && in.members.ids.length == 0) {
+        return 0
+    }
+
+    const count = memory.columnLength(in.versions)
+
+    return loop({
+        definition: 0,
+        written: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.definition < count,
+        next: state => {
+            const result = select({
+                ...in,
+                definition: state.definition,
+                written: state.written
+            })
+
+            state.written = result.written
+            state.valid = result.valid
+            state.definition += 1
+        },
+        return: state => state.valid ? state.written : null
+    })
+}

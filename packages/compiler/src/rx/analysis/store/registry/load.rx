@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Registry" />
+
+    <Args in={Registry.Load} out={void} />
+
+    <Loop on={$in.row < $in.count}>
+        <Call module="entry" in={$in} />
+    </Loop>
+</Module>

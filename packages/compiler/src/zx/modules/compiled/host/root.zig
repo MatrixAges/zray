@@ -12,7 +12,7 @@ const Options = struct {
     export_buckets: ?[]u64 = null,
 };
 
-pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, call_scratch: ?load_model.CallScratch) !model.Loaded {
+pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options) !model.Loaded {
     var types = try @import("../../../analysis/type_table.zig").storage(allocator, options.types);
     var origins = try @import("../../nominal_origins.zig").copy(allocator, options.nominal_types);
 
@@ -24,8 +24,14 @@ pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, ca
     }, .{
         .seed = true,
         .selected = options.selected,
-        .call_scratch = call_scratch,
-        .export_buckets = if (call_scratch) |scratch| scratch.export_buckets else null,
+    });
+}
+
+pub fn loadCalls(allocator: std.mem.Allocator, library: model.Library, destination: Destination, scratch: load_model.CallScratch, seed: bool) !void {
+    _ = try loadPrepared(allocator, library, destination, .{
+        .seed = seed,
+        .call_scratch = scratch,
+        .export_buckets = scratch.export_buckets,
     });
 }
 

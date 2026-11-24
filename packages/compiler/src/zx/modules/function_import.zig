@@ -70,26 +70,19 @@ pub const Readable = struct {
     }
 };
 
-pub const Columns = struct {
-    namespace: zx.memory.ReadColumn,
-    name: zx.memory.TextColumn,
-    ports: Readable,
-    pub fn borrow(rows: []const Self) Columns {
-        return .{
-            .namespace = zx.memory.borrowReadColumn(?[]const u8, "namespace", rows),
-            .name = zx.memory.borrowTextColumn("name", rows),
-            .ports = Readable.borrowRows(rows),
-        };
-    }
-    pub fn view(self: *const Columns, comptime Target: type) Target {
-        return .{
-            .namespace = @ptrCast(&self.namespace),
-            .name = @ptrCast(&self.name),
-            .id = @ptrCast(&self.ports.id),
-            .input_type = @ptrCast(&self.ports.input_type),
-            .output_type = @ptrCast(&self.ports.output_type),
-            .intrinsic = @ptrCast(&self.ports.intrinsic),
-            .count = self.name.count,
-        };
-    }
+const fields = .{ .name = "name", .namespace = "namespace", .id = "id", .input_type = "input_type", .output_type = "output_type", .intrinsic = "intrinsic" };
+
+pub const Columns = zx.memory.ReadFields(fields);
+
+pub fn borrowColumns(rows: []const Self) Columns {
+    return zx.memory.borrowReadFields(fields, rows);
+}
+
+pub const member_fields = .{
+    .names = "name",
+    .namespaces = "namespace",
+    .ids = "id",
+    .inputs = "input_type",
+    .outputs = "output_type",
+    .intrinsics = "intrinsic",
 };

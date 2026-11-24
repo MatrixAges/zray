@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Registry" />
+
+    <Args in={Registry.Publication} out={Registry.Publication} />
+
+    <Call
+        fn="host.openStoreRegistryPublication"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="publish_objects"
+        in={{
+            count: $ctx.openStoreRegistryPublication,
+            tables: $in.tables
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

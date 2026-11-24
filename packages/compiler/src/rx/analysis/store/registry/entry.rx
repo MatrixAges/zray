@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Registry" />
+
+    <Args in={Registry.Load} out={Registry.Load} />
+
+    <Call
+        fn="host.bindStoreRegistryAliases"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="host.compileStoreRegistryEntry"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="commit"
+        in={{
+            ...$in.pick([
+                "types",
+                "scratch"
+            ]),
+            view: $ctx.compileStoreRegistryEntry
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

@@ -4,15 +4,14 @@ const Member = frontend.project.FunctionImport;
 const Nodes = frontend.ArtifactNodes;
 const Error = frontend.project.artifact.Error;
 const memory = @import("zx").memory;
-const Field = enum { name, intrinsic, id, input_type, output_type };
 
-const column_names = std.enums.EnumArray(Field, []const u8).init(.{
-    .name = "names",
-    .intrinsic = "intrinsics",
-    .id = "ids",
-    .input_type = "inputs",
-    .output_type = "outputs",
-});
+const fields = .{
+    .names = "name",
+    .intrinsics = "intrinsic",
+    .ids = "id",
+    .inputs = "input_type",
+    .outputs = "output_type",
+};
 
 pub fn View(comptime Input: type) type {
     const Publication = std.meta.Child(@FieldType(Input, "public_members"));
@@ -34,9 +33,9 @@ pub fn View(comptime Input: type) type {
             .namespaces = &.{"namespace"},
         }),
         paths: memory.TextColumn,
-        direct: std.enums.EnumArray(Field, memory.ReadColumn),
-        lists: std.enums.EnumArray(Field, memory.ListColumn),
-        projected: std.enums.EnumArray(Field, memory.ReadColumn),
+        direct: memory.ReadFields(fields),
+        lists: memory.ListFields(fields),
+        projected: memory.ReadFields(fields),
         source: Source,
         members: Members,
         records: Records,
@@ -47,35 +46,15 @@ pub fn View(comptime Input: type) type {
         pub fn init(self: *Self, analysis: *const frontend.AnalysisResult, entry_path: []const u8, nodes: *const Nodes) void {
             self.output.init();
 
-            const public = analysis.public_functions;
-
-            inline for (std.enums.values(Field)) |field| {
-                const name = @tagName(field);
-                const column = comptime column_names.get(field);
-
-                const Scalar = switch (field) {
-                    .name => []const u8,
-                    .intrinsic => ?u8,
-                    else => ?u32,
-                };
-
-                self.direct.set(field, switch (field) {
-                    .name => memory.borrowTextColumn(name, public),
-                    .intrinsic => memory.borrowOptionalU8Column(name, public),
-                    else => memory.borrowOptionalU32Column(name, public),
-                });
-
-                self.lists.set(field, memory.borrowListPath(Scalar, &.{ "reexports", "functions" }, &.{name}, analysis.modules));
-                @field(self.source, column) = @ptrCast(self.direct.getPtr(field));
-                @field(self.members, column) = @ptrCast(self.projected.getPtr(field));
-            }
-
-            self.source.count = public.len;
+            self.direct = memory.borrowReadFields(fields, analysis.public_functions);
+            self.lists = memory.borrowListFields(&.{ "reexports", "functions" }, fields, analysis.modules);
+            self.source = self.direct.bind(Source);
+            self.members = self.projected.bind(Members);
             self.paths = memory.borrowTextColumn("path", analysis.modules);
-            self.projection = .{ .sources = &self.lists.values, .target = &self.projected.values };
+            self.projection = .{ .sources = &self.lists.columns, .target = &self.projected.columns };
             const range = nodes.functions.range;
             self.mapping = .{ .kind = .Range, .dense = &.{}, .sparse = &.{}, .planned = &.{}, .first = range.first, .prefix = range.prefix, .count = range.count };
-            self.records = .{ .paths = @ptrCast(&self.paths), .names = @ptrCast(self.lists.getPtr(.name)), .intrinsics = @ptrCast(self.lists.getPtr(.intrinsic)), .count = analysis.modules.len, .entry_path = entry_path };
+            self.records = .{ .paths = @ptrCast(&self.paths), .names = @ptrCast(self.lists.column("names")), .intrinsics = @ptrCast(self.lists.column("intrinsics")), .count = analysis.modules.len, .entry_path = entry_path };
 
             self.publication = .{
                 .source = &self.source,

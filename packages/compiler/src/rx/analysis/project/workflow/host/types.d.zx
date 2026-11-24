@@ -2,6 +2,10 @@ export type StoreInitializer = opaque
 
 export type StoreDefinitionWork = opaque
 
+export type StoreRegistryLoad = opaque
+
+export type StoreRegistryPublication = opaque
+
 export type Inference = opaque
 
 export type Derivation = opaque

@@ -393,6 +393,16 @@ pub inline fn writeRowReference(target: *const anyopaque, index: u64, storage: [
     try write(?[*]const u8, target, index, address);
 }
 
+pub inline fn writeListReference(target: *const anyopaque, index: u64, source: *const anyopaque, row: u64, member: u64) IndexError!void {
+    const column = try @import("rows.zig").listColumn(source, row);
+
+    if (member >= column.count) return error.IndexOutOfBounds;
+
+    const address = column.bytes.ptr + column.offset + @as(usize, @intCast(member)) * column.stride;
+
+    try write(?[*]const u8, target, index, address);
+}
+
 pub inline fn writeOptionalTextList(target: *const anyopaque, index: u64, value: ?[]const []const u8) IndexError!void {
     return write(?[]const []const u8, target, index, value);
 }

@@ -11,7 +11,6 @@ const Input = std.meta.Child(@FieldType(Transaction, "rebind"));
 const TypeRequest = std.meta.Child(@FieldType(Transaction, "types"));
 const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
 const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
-const Columns = FunctionImport.Columns;
 const BindingColumns = std.meta.Child(@FieldType(Bindings, "previous"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
@@ -84,20 +83,16 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
     const current_aliases = names.borrow(current.aliases);
     const previous_names = names.view(AliasRows, &previous_aliases);
     const current_names = names.view(AliasRows, &current_aliases);
-    const old_imports = Columns.borrow(module.function_imports);
-    const new_imports = Columns.borrow(current.imports);
-    const old_members = Columns.borrow(module.members);
-    const new_members = Columns.borrow(current.members);
-    const old_bindings = old_imports.view(BindingColumns);
-    const new_bindings = new_imports.view(BindingColumns);
-    const old_exports = old_members.view(BindingColumns);
-    const new_exports = new_members.view(BindingColumns);
+    const old_imports = FunctionImport.borrowColumns(module.function_imports);
+    const new_imports = FunctionImport.borrowColumns(current.imports);
+    const old_members = FunctionImport.borrowColumns(module.members);
+    const new_members = FunctionImport.borrowColumns(current.members);
 
     const input: Input = .{
         .aliases = &.{ .previous = &previous_names, .current = &current_names },
         .modules = &.{ .previous = &previous_modules, .current = &current_modules },
-        .bindings = &.{ .previous = &old_bindings, .current = &new_bindings },
-        .members = &.{ .previous = &old_exports, .current = &new_exports },
+        .bindings = &.{ .previous = &old_imports.bind(BindingColumns), .current = &new_imports.bind(BindingColumns) },
+        .members = &.{ .previous = &old_members.bind(BindingColumns), .current = &new_members.bind(BindingColumns) },
         .signatures = &.{ .previous = &previous_signatures, .current = &current_signatures },
         .has_body = module.function != null,
         .linked_count = current.functions.count(),

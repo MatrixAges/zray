@@ -1,0 +1,24 @@
+import type { Arena, WriteColumn } from "memory"
+import type { StoreRegistryLoad, StoreRegistryPublication } from "rx_project_host"
+
+export type Load = {
+    state: StoreRegistryLoad,
+    count: u64,
+    row: u64,
+    types: WriteColumn,
+    scratch: Arena
+}
+
+export type Tables = {
+    types: WriteColumn,
+    natives: WriteColumn,
+    type_view: u8[],
+    native_view: u8[]
+}
+
+export type Publication = {
+    state: StoreRegistryPublication,
+    count: u64,
+    row: u64,
+    tables: Tables
+}

@@ -37,12 +37,10 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     const functions = remap.idMapping(Mapping, nodes.functions);
     const types = remap.typeMapping(Mapping, nodes.types);
     const shared = body.shared_initializers;
-    const left = memory.borrowTextColumn("identity", values);
-    const initial_ids = memory.borrowReadColumn(ir.FunctionId, "function", values);
-    const schemas = memory.borrowReadColumn(u32, "schema_version", values);
+    const initial_rows = memory.borrowReadFields(.{ .identity = "identity", .function = "function", .schema_version = "schema_version" }, values);
 
     const prefix: ?Prefix = if (values.len == 0 or shared.len == 0 or nodes.functions != .range) null else .{
-        .left = &.{ .data = left.bytes, .count = values.len },
+        .left = &.{ .data = initial_rows.column("identity").bytes, .count = values.len },
         .right = &.{ .data = std.mem.sliceAsBytes(shared), .count = shared.len },
         .stride = @sizeOf(Initializer),
         .identity_offset = @offsetOf(Initializer, "identity"),
@@ -54,16 +52,12 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
         .function_prefix = nodes.functions.range.prefix,
     };
 
-    var initial_output: memory.RowOutput(Initializer, InitTarget, .{
-        .identity = &.{"identity"},
-        .function = &.{"function"},
-        .schema_version = &.{"schema_version"},
-    }) = undefined;
+    var initial_output: memory.RowOutput(Initializer, InitTarget, .{}) = undefined;
 
     initial_output.init();
 
     const initializers: Initializers = .{
-        .source = &.{ .identity = @ptrCast(&left), .function = @ptrCast(&initial_ids), .schema_version = @ptrCast(&schemas) },
+        .source = &initial_rows.bind(std.meta.Child(@FieldType(Initializers, "source"))),
         .functions = zx.columns.pointer(@FieldType(Initializers, "functions"), &functions),
         .end = values.len,
         .prefix = if (prefix) |*found| found else null,
@@ -73,11 +67,7 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     };
 
     const member_source = input.members;
-    const names = memory.borrowTextColumn("name", member_source);
-    const intrinsics = memory.borrowOptionalU8Column("intrinsic", member_source);
-    const ids = memory.borrowOptionalU32Column("id", member_source);
-    const inputs = memory.borrowOptionalU32Column("input_type", member_source);
-    const outputs = memory.borrowOptionalU32Column("output_type", member_source);
+    const member_rows = memory.borrowReadFields(.{ .names = "name", .intrinsics = "intrinsic", .ids = "id", .inputs = "input_type", .outputs = "output_type" }, member_source);
 
     var member_output: memory.RowOutput(Binding, MemberTarget, .{
         .names = &.{"name"},
@@ -93,14 +83,7 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     const members: Members = .{
         .anonymous = .Entry,
         .first = 0,
-        .source = &.{
-            .names = @ptrCast(&names),
-            .intrinsics = @ptrCast(&intrinsics),
-            .ids = @ptrCast(&ids),
-            .inputs = @ptrCast(&inputs),
-            .outputs = @ptrCast(&outputs),
-            .count = member_source.len,
-        },
+        .source = &member_rows.bind(std.meta.Child(@FieldType(Members, "source"))),
         .target = &member_output.view,
         .entry = null,
         .type_ids = if (member_source.len == 0) &.{} else @ptrCast(nodes.types.mapped),

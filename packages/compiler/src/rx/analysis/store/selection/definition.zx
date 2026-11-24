@@ -1,0 +1,74 @@
+import { reserveAppend } from "core/row_buffer"
+import memory from "memory"
+
+import next from "./next"
+import publish from "./publish"
+
+import type { Collection } from "./model"
+
+export type Input = Collection & {
+    definition: u64,
+    written: u64
+}
+
+export type Output = {
+    written: u64,
+    valid: bool
+}
+
+export default function (in: Input): Output {
+    const { definition, identities } = in
+
+    const count = memory.listLength(identities, definition)
+    const version = memory.readColumnU32(in.versions, definition)
+
+    return loop({
+        first: 0,
+        written: in.written,
+        valid: true
+    }, {
+        while: state => state.valid && state.first < count,
+        next: state => {
+            const page = next({
+                ...in.pick([
+                    "entry",
+                    "members",
+                    "identities",
+                    "selected",
+                    "capacity",
+                    "definition"
+                ]),
+                count,
+                first: state.first
+            })
+
+            const capacity = reserveAppend([
+                in.buffer,
+                state.written,
+                page.written,
+                null
+            ])
+
+            publish({
+                ...in.pick([
+                    "identities",
+                    "programs",
+                    "selected",
+                    "columns",
+                    "definition"
+                ]),
+                version,
+                start: state.written,
+                count: page.written
+            })
+
+            state.first = page.next
+            state.written += page.written
+            state.valid = page.valid
+        },
+        return: state => ({
+            written: state.written,
+            valid: state.valid
+        })
+    })
+}
