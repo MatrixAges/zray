@@ -1,0 +1,3 @@
+export const span_start_slot: u64 = 0
+
+export const span_count_slot: u64 = 1

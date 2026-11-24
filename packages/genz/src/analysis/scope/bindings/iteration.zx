@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import host from "lowering_host"
+import memory from "memory"
+
+import { Action } from "./model"
+
+import type { Binding, Input as Scope, Values } from "./model"
+
+export type Input = {
+    scope: Scope,
+    binding: Binding,
+    output: Values
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { scope, binding, output } = in
+    const { position, symbol } = binding
+
+    const value: u32? = match binding.action {
+        Action.Skip => null,
+        _ => host.lowerExpression(scope.frame, binding.value, false, null)
+    }
+
+    if (value != null && symbol != null) {
+        const index = integers.widen(symbol)
+
+        if (scope.selection.used[index]) {
+            const name = scope.names[index]
+
+            const type_id =
+                host.lowerType(scope.frame, scope.symbol_types[index], true)
+
+            memory.writeOptionalU32(output.values, position, value)
+            memory.writeOptionalU32(output.types, position, type_id)
+            memory.writeU8List(output.names, position, name)
+
+            return
+        }
+    }
+
+    memory.writeOptionalU32(output.values, position, value)
+    memory.writeOptionalU32(output.types, position, null)
+    memory.writeU8List(output.names, position, [])
+}

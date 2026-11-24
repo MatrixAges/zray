@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
-import get from "core/integer/index/get"
+import lookup from "core/integer/index/lookup"
+import memory from "memory"
 
 import before from "../../binding/before"
 import { Route } from "../../binding/model"
@@ -8,19 +9,21 @@ import { Action } from "./model"
 
 import type { Binding as Output, Selection } from "./model"
 
-export type Input = Selection & {
+export type Input = {
+    selection: Selection,
     remaining: u64
 }
 
 export default function (in: Input): Output {
+    const data = in.selection
     const position = in.remaining - 1
-    const symbol = in.symbols[position]
-    const value = in.values[position]
+    const symbol = data.symbols[position]
+    const value = data.values[position]
     const row = integers.widen(value)
-    const kind = in.kinds[row]
+    const kind = data.kinds[row]
 
     const used = match {
-        symbol != null => in.used[integers.widen(symbol)],
+        symbol != null => data.used[integers.widen(symbol)],
         _ => false
     }
 
@@ -30,7 +33,7 @@ export default function (in: Input): Output {
         value
     }
 
-    if (in.iteration) {
+    if (data.iteration) {
         const reference = kind == ExpressionKind.Reference
 
         const skip = (
@@ -45,18 +48,18 @@ export default function (in: Input): Output {
         }
     }
 
-    if (position < in.changes.length && in.changes[position] != null) {
+    if (position < data.changes.length && data.changes[position] != null) {
         return {
             ...binding,
             action: Action.Reuse
         }
     }
 
-    const type_id = integers.widen(in.types[row])
+    const type_id = integers.widen(data.types[row])
 
     const route = before({
         kind,
-        type_kind: in.type_kinds[type_id],
+        type_kind: data.type_kinds[type_id],
         scope: true,
         has_symbol: symbol != null,
         used
@@ -76,8 +79,9 @@ export default function (in: Input): Output {
         }
     }
 
-    const stacked = get({
-        index: in.stack,
+    const stacked = lookup({
+        keys: memory.u32Views(data.stack_keys),
+        buckets: memory.u32Views(data.stack_buckets),
         key: symbol
     }) != null
 

@@ -1,57 +1,48 @@
 import host from "lowering_host"
-import { ScopeAction } from "lowering_host"
+
+import { Action } from "./model"
 
 import type { Lowering, ScopeFrame } from "lowering_host"
+import type { Binding } from "./model"
 
 export type Input = {
     frame: Lowering,
     scope: ScopeFrame,
-    action: ScopeAction
+    binding: Binding,
+    type_id: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, scope, action } = in
+    const { frame, scope, binding, type_id } = in
+    const { action, position, symbol, value } = binding
 
-    if (action == ScopeAction.Reuse) {
-        host.reuseScopeBinding(scope)
-
-        return
-    }
-
-    if (action == ScopeAction.Task) {
-        host.emitScopeTask(scope)
+    if (action == Action.Reuse) {
+        host.reuseScopeBinding(scope, position)
 
         return
     }
 
-    if (action == ScopeAction.Type) {
-        const type_id = host.scopeBindingType(scope)
-        const value = host.lowerType(frame, type_id, true)
-
-        host.publishIterationBinding(scope, value)
+    if (action == Action.Task) {
+        host.emitScopeTask(scope, symbol, value)
 
         return
     }
 
-    const operand = host.scopeBindingOperand(scope)
+    const borrowed = host.prepareScopeBinding(scope, symbol, value, type_id)
 
-    if (action == ScopeAction.Iteration) {
-        const value = host.lowerExpression(frame, operand, false, null)
-
-        host.publishIterationBinding(scope, value)
-
-        return
+    const lowered: u32 = borrowed ?? match action {
+        Action.Discard => host.discardScopeOperand(frame, value),
+        Action.Value => host.lowerValueExpression(frame, value),
+        _ => host.lowerExpression(frame, value, false, null)
     }
 
-    const borrowed = host.prepareScopeBinding(scope)
-
-    const value: u32 = borrowed ?? match {
-        action == ScopeAction.Discard => host.discardScopeOperand(frame, operand),
-        action == ScopeAction.Value => host.lowerValueExpression(frame, operand),
-        _ => host.lowerExpression(frame, operand, false, null)
-    }
-
-    host.publishScopeBinding(scope, value, action == ScopeAction.Value)
+    host.publishScopeBinding(
+        scope,
+        position,
+        symbol,
+        lowered,
+        action == Action.Value
+    )
 }

@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Scope" />
+
+    <Args in={Scope.Input} out={Scope.Output} />
+
+    <Call fn="prepare" in={$in} />
+
+    <Call
+        fn="workflow.beginScopeBindings"
+        in={[
+            $in.scope,
+            $ctx.prepare.count
+        ]}
+    />
+
+    <Call
+        fn="collect"
+        in={{
+            source: $in,
+            ...$ctx.prepare.pick([
+                "count",
+                "type_id"
+            ])
+        }}
+    />
+
+    <Call
+        fn="workflow.finishScopeBindings"
+        in={[
+            $in.scope,
+            $ctx.prepare.value
+        ]}
+    />
+
+    <Return
+        value={{
+            value: $ctx.finishScopeBindings
+        }}
+    />
+</Module>

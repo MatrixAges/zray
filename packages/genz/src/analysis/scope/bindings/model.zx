@@ -1,5 +1,5 @@
 import type { ExpressionKind } from "core/expression_table/kinds"
-import type { Index } from "core/integer/index/model"
+import type { Lowering, ScopeFrame } from "lowering_host"
 import type { OptionalU32Buffer, U32Buffer, U8ListBuffer } from "memory"
 
 export enum Action {
@@ -9,10 +9,7 @@ export enum Action {
     Discard,
     Value,
     Ordinary,
-    Iteration,
-    Type,
-    Begin,
-    Done
+    Iteration
 }
 
 export type Selection = {
@@ -22,7 +19,8 @@ export type Selection = {
     types: u32[],
     type_kinds: u8[],
     used: bool[],
-    stack: Index,
+    stack_keys: U32Buffer,
+    stack_buckets: U32Buffer,
     changes: u32?[],
     iteration: bool
 }
@@ -34,14 +32,10 @@ export type Binding = {
     action: Action
 }
 
-export type Request = Binding & {
-    name: u8[],
-    type_id?: u32
-}
-
 export type Spans = {
     starts: U32Buffer,
-    counts: U32Buffer
+    counts: U32Buffer,
+    current: U32Buffer
 }
 
 export type Values = {
@@ -50,13 +44,22 @@ export type Values = {
     names: U8ListBuffer
 }
 
-export type Advance = {
+export type Input = {
+    frame: Lowering,
+    scope: ScopeFrame,
+    result: u32,
+    layout: bool,
     selection: Selection,
-    previous: Request,
-    value: u32,
-    count: u32,
     spans?: Spans,
     values?: Values,
     names: u8[][],
     symbol_types: u32[]
 }
+
+export type Prepared = {
+    value: u32,
+    type_id: u32,
+    count: u64
+}
+
+export type Output = Prepared.Pick("value")

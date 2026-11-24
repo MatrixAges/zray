@@ -1,82 +1,108 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../../node.zig");
 const blocks = @import("../../node/blocks.zig");
-const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const Iteration = @import("../iteration_value/root.zig");
 const reuse = @import("reuse.zig");
-const schedule = @import("schedule.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const entry = @import("generated_lower_scope_bindings");
-const ScopeAction = evaluation.Api.ScopeAction;
 const Error = Lower.Error;
+const Spans = struct { starts: []u32, counts: []u32 };
+const Values = struct { values: []?u32, types: []?u32, names: [][]const u8 };
 
 const Regular = struct {
-    plan: schedule.Result,
     aliases: *const ?reuse,
     inline_spans: [64]u32 = undefined,
     allocated: ?[]u32 = null,
-    spans: schedule.Spans = undefined,
+    spans: Spans = undefined,
     sequence: ?blocks.Sequence = null,
 };
 
 const Iterated = struct {
-    context: *Iteration,
     allocator: std.mem.Allocator,
-    values: schedule.Values = undefined,
+    values: Values = undefined,
 };
 
 const Frame = struct {
     lowering: *Lower,
     scope: ir.ScopeRow,
     state: union(enum) { regular: Regular, iteration: Iterated },
-    request: schedule.Request = undefined,
-    emitted: node.Block = .{},
-    fn run(self: *Frame, layout: bool, result_plan: ?schedule.Result) Error!node.ExpressionId {
-        const plan = result_plan orelse schedule.Result{
-            .type_id = undefined,
-            .candidate = null,
-            .count = self.scope.bindings.len,
-            .consumed_count = 0,
-        };
-
+    span: [2]u32 = undefined,
+    fn run(self: *Frame, layout: bool) Error!node.ExpressionId {
         const Input = std.meta.Child(entry.Input);
-        const Candidate = std.meta.Child(std.meta.Child(@FieldType(Input, "candidate")));
+        const Selection = std.meta.Child(@FieldType(Input, "selection"));
+        const SpanColumns = std.meta.Child(std.meta.Child(@FieldType(Input, "spans")));
+        const ValueColumns = std.meta.Child(std.meta.Child(@FieldType(Input, "values")));
+        const lowering = self.lowering;
+        const iteration_mode = self.state == .iteration;
+        const expressions = &lowering.program.expressions;
+        const stack = lowering.stack_symbols.current();
+        const current: []u32 = &self.span;
 
-        const candidate: Candidate = if (plan.candidate) |last| .{
-            .symbol = @backingInt(last.symbol),
-            .value = @backingInt(last.value),
+        const spans: SpanColumns = if (!iteration_mode) .{
+            .starts = @ptrCast(&self.state.regular.spans.starts),
+            .counts = @ptrCast(&self.state.regular.spans.counts),
+            .current = @ptrCast(&current),
         } else undefined;
 
+        const values: ValueColumns = if (iteration_mode) .{
+            .values = @ptrCast(&self.state.iteration.values.values),
+            .types = @ptrCast(&self.state.iteration.values.types),
+            .names = @ptrCast(&self.state.iteration.values.names),
+        } else undefined;
+
+        const selection: Selection = .{
+            .symbols = self.scope.bindings.symbols,
+            .values = self.scope.bindings.values,
+            .kinds = zx.columns.slice(@FieldType(Selection, "kinds"), expressions.kinds),
+            .types = expressions.types,
+            .type_kinds = lowering.program.types.kinds,
+            .used = lowering.used,
+            .stack_keys = @ptrCast(&stack.keys.items),
+            .stack_buckets = @ptrCast(&stack.buckets.items),
+            .changes = if (!iteration_mode and self.state.regular.aliases.* != null) self.state.regular.aliases.*.?.state.changes else &.{},
+            .iteration = iteration_mode,
+        };
+
         const input: Input = .{
-            .frame = @ptrCast(self.lowering),
+            .frame = @ptrCast(lowering),
             .scope = @ptrCast(self),
             .result = @backingInt(self.scope.result),
             .layout = layout,
-            .count = plan.count,
-            .consumed_count = plan.consumed_count,
-            .candidate = if (plan.candidate != null) &candidate else null,
+            .selection = &selection,
+            .spans = if (iteration_mode) null else &spans,
+            .values = if (iteration_mode) &values else null,
+            .names = if (iteration_mode) lowering.names else &.{},
+            .symbol_types = if (iteration_mode) lowering.program.symbols.types else &.{},
         };
 
-        return evaluation.invoke(entry, &input);
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        const output = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        return @fromBackingInt(output.value);
     }
 };
 
-pub fn regular(lowering: *Lower, scope: ir.ScopeRow, layout: bool, plan: schedule.Result, aliases: *const ?reuse) Error!node.ExpressionId {
-    var frame: Frame = .{ .lowering = lowering, .scope = scope, .state = .{ .regular = .{ .plan = plan, .aliases = aliases } } };
+pub fn regular(lowering: *Lower, scope: ir.ScopeRow, layout: bool, aliases: *const ?reuse) Error!node.ExpressionId {
+    var frame: Frame = .{ .lowering = lowering, .scope = scope, .state = .{ .regular = .{ .aliases = aliases } } };
     const ordinary = &frame.state.regular;
 
     defer if (ordinary.allocated) |allocation| lowering.workspace.free(allocation);
     defer if (ordinary.sequence) |*sequence| sequence.deinit();
 
-    return frame.run(layout, plan);
+    return frame.run(layout);
 }
 
 pub fn iteration(context: *Iteration, allocator: std.mem.Allocator, scope: ir.ScopeRow) Error!node.ExpressionId {
-    var frame: Frame = .{ .lowering = context.lowering, .scope = scope, .state = .{ .iteration = .{ .context = context, .allocator = allocator } } };
+    var frame: Frame = .{ .lowering = context.lowering, .scope = scope, .state = .{ .iteration = .{ .allocator = allocator } } };
 
-    return frame.run(false, null);
+    return frame.run(false);
 }
 
 fn borrow(handle: *const anyopaque) *Frame {
@@ -93,7 +119,6 @@ pub fn consumeScopeResult(handle: *const anyopaque, symbol: u32, value: u32, lay
 pub fn beginScopeBindings(handle: *const anyopaque, length: u64) Error!void {
     const frame = borrow(handle);
     const count: usize = @intCast(length);
-    frame.request = schedule.begin(count);
 
     switch (frame.state) {
         .regular => |*state| {
@@ -118,71 +143,44 @@ pub fn beginScopeBindings(handle: *const anyopaque, length: u64) Error!void {
     }
 }
 
-pub fn advanceScopeBinding(handle: *const anyopaque) ScopeAction {
+pub fn reuseScopeBinding(handle: *const anyopaque, position: u64) Error!void {
     const frame = borrow(handle);
+    const block = (try frame.state.regular.aliases.*.?.publish(frame.lowering, @intCast(position))).?;
 
-    frame.request = switch (frame.state) {
-        .regular => |*state| regular_request: {
-            const changes = if (state.aliases.*) |active| active.state.changes else &.{};
-
-            break :regular_request schedule.advance(frame.lowering, frame.scope, changes, @as(*const schedule.Spans, &state.spans), &frame.request, frame.emitted);
-        },
-        .iteration => |*state| schedule.advance(frame.lowering, frame.scope, &.{}, @as(*const schedule.Values, &state.values), &frame.request, frame.emitted),
-    };
-
-    frame.emitted = .{};
-
-    comptime view.compatible(@FieldType(schedule.Request, "action"), ScopeAction);
-
-    return @fromBackingInt(@backingInt(frame.request.action));
+    frame.span = .{ block.start, block.len };
 }
 
-pub fn scopeBindingOperand(handle: *const anyopaque) u32 {
-    return borrow(handle).request.value;
-}
-
-pub fn scopeBindingType(handle: *const anyopaque) u32 {
-    return borrow(handle).request.type_id.?;
-}
-
-pub fn reuseScopeBinding(handle: *const anyopaque) Error!void {
+pub fn emitScopeTask(handle: *const anyopaque, symbol: ?u32, value: u32) Error!void {
     const frame = borrow(handle);
-    const item = schedule.binding(frame.request);
+    const block = try @import("../tasks/root.zig").bind(frame.lowering, frame.lowering.names[symbol.?], @fromBackingInt(value), false);
 
-    frame.emitted = (try frame.state.regular.aliases.*.?.publish(frame.lowering, item.position)).?;
+    frame.span = .{ block.start, block.len };
 }
 
-pub fn emitScopeTask(handle: *const anyopaque) Error!void {
-    const frame = borrow(handle);
-    const item = schedule.binding(frame.request);
-    frame.emitted = try @import("../tasks/root.zig").bind(frame.lowering, frame.lowering.names[@backingInt(item.symbol.?)], item.value, false);
-}
-
-pub fn prepareScopeBinding(handle: *const anyopaque) Error!?u32 {
+pub fn prepareScopeBinding(handle: *const anyopaque, symbol: ?u32, value: u32, type_id: u32) Error!?u32 {
     const frame = borrow(handle);
     const self = frame.lowering;
     const ordinary = &frame.state.regular;
 
     ordinary.sequence = self.builder.statementSequence(self.workspace);
 
-    const symbol = frame.request.symbol orelse return null;
-    const value = try @import("../value_call/locals.zig").optionalCall(self, &ordinary.sequence.?, @fromBackingInt(symbol), @fromBackingInt(frame.request.value), ordinary.plan.type_id);
+    const key = symbol orelse return null;
+    const borrowed = try @import("../value_call/locals.zig").optionalCall(self, &ordinary.sequence.?, @fromBackingInt(key), @fromBackingInt(value), @fromBackingInt(type_id));
 
-    return if (value) |id| @backingInt(id) else null;
+    return if (borrowed) |id| @backingInt(id) else null;
 }
 
 pub fn discardScopeOperand(handle: *const anyopaque, operand: u32) Error!u32 {
     return @backingInt(try @import("../iteration.zig").discard(evaluation.borrow(handle), @fromBackingInt(operand)));
 }
 
-pub fn publishScopeBinding(handle: *const anyopaque, value: u32, layout: bool) Error!void {
+pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32, value: u32, layout: bool) Error!void {
     const frame = borrow(handle);
     const ordinary = &frame.state.regular;
-    const item = schedule.binding(frame.request);
-    const mutable = if (ordinary.aliases.*) |active| active.variables[item.position] else false;
+    const mutable = if (ordinary.aliases.*) |active| active.variables[@intCast(position)] else false;
 
-    frame.emitted = try @import("../binding.zig").publish(frame.lowering, &ordinary.sequence.?, .{
-        .symbol = item.symbol,
+    const block = try @import("../binding.zig").publish(frame.lowering, &ordinary.sequence.?, .{
+        .symbol = if (symbol) |id| @fromBackingInt(id) else null,
         .value = @fromBackingInt(value),
         .by_value = layout,
         .scope = true,
@@ -192,10 +190,7 @@ pub fn publishScopeBinding(handle: *const anyopaque, value: u32, layout: bool) E
     ordinary.sequence.?.deinit();
 
     ordinary.sequence = null;
-}
-
-pub fn publishIterationBinding(handle: *const anyopaque, value: u32) void {
-    borrow(handle).emitted.start = value;
+    frame.span = .{ block.start, block.len };
 }
 
 pub fn finishScopeBindings(handle: *const anyopaque, result: u32) Error!u32 {

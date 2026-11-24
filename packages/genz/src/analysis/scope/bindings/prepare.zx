@@ -1,0 +1,52 @@
+import integers from "std:integer"
+import host from "lowering_host"
+
+import resolve from "../result"
+
+import type { Input, Prepared } from "./model"
+
+export type Output = Prepared
+
+export default function (in: Input): Output {
+    const { frame, scope, result, layout, selection } = in
+
+    if (selection.iteration) {
+        return {
+            value: host.lowerExpression(frame, result, false, null),
+            type_id: selection.types[integers.widen(result)],
+            count: selection.symbols.length
+        }
+    }
+
+    const plan = resolve({
+        ...selection.pick([
+            "symbols",
+            "values",
+            "types"
+        ]),
+        result
+    })
+
+    const { candidate, type_id } = plan
+
+    const consumed = match {
+        candidate != null => host.consumeScopeResult(
+            scope,
+            candidate.symbol,
+            candidate.value,
+            layout
+        ),
+        _ => null
+    }
+
+    const value: u32 = consumed ?? match {
+        layout => host.lowerValueExpression(frame, result),
+        _ => host.lowerExpression(frame, result, false, null)
+    }
+
+    return {
+        value,
+        type_id,
+        count: consumed != null ? plan.consumed_count : plan.count
+    }
+}

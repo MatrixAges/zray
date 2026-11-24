@@ -1,0 +1,63 @@
+import memory from "memory"
+
+import { span_count_slot, span_start_slot } from "./const"
+import execute from "./execute"
+import iteration from "./iteration"
+import { Action } from "./model"
+import next from "./next"
+
+import type { Input as Scope, Prepared } from "./model"
+
+export type Input = Prepared.Pick("count", "type_id") & {
+    source: Scope
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, count, type_id } = in
+    const { frame, scope, selection, spans, values } = source
+
+    const remaining = loop(count, {
+        while: remaining => remaining != 0,
+        next: remaining => {
+            const binding = next({
+                selection,
+                remaining
+            })
+
+            if (spans != null) {
+                const skip = binding.action == Action.Skip
+
+                if (!skip) {
+                    execute({
+                        frame,
+                        scope,
+                        binding,
+                        type_id
+                    })
+                }
+
+                const start = match {
+                    skip => 0,
+                    _ => memory.readU32(spans.current, span_start_slot)
+                }
+                const length = match {
+                    skip => 0,
+                    _ => memory.readU32(spans.current, span_count_slot)
+                }
+
+                memory.writeU32(spans.starts, binding.position, start)
+                memory.writeU32(spans.counts, binding.position, length)
+            } else if (values != null) {
+                iteration({
+                    scope: source,
+                    binding,
+                    output: values
+                })
+            }
+
+            remaining = binding.position
+        }
+    })
+}

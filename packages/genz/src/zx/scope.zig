@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const Reuse = @import("scope/reuse.zig");
-const schedule = @import("scope/schedule.zig");
+const schedule = @import("scope/schedule_seed.zig");
 const generated = @import("genz_options").generated_analysis;
 
 pub fn lower(self: *Lower, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
@@ -24,7 +24,6 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer self.stack_symbols.removeMany(stacked);
 
-    const plan = schedule.result(self, scope);
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
 
     defer scratch.deinit();
@@ -33,7 +32,9 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer if (reuse) |*aliases| aliases.restore(self);
 
-    if (generated) return @import("scope/execute.zig").regular(self, scope, layout, plan, &reuse);
+    if (generated) return @import("scope/execute.zig").regular(self, scope, layout, &reuse);
+
+    const plan = schedule.result(self, scope);
 
     const consumed = if (plan.candidate) |last|
         try @import("iteration_consumer.zig").lower(self, last.symbol, last.value, scope.result, layout)
