@@ -1,0 +1,7 @@
+import type { ParallelTaskWork } from "rx_project_host"
+import type { Rows as ResultRows } from "../project/flow/traversal/select_result"
+
+export type Input = {
+    frame: ParallelTaskWork,
+    results: ResultRows
+}

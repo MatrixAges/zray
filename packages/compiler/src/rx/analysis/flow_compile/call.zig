@@ -47,8 +47,10 @@ pub fn unit(self: *Self, compiler: *Compiler) Compiler.Error!void {
     self.invocation.argument = try @import("../call/unit.zig").create(compiler.metadataAllocator(), compiler.owner, compiler.types, compiler.inputs.calls.items(.node)[self.row].location);
 }
 
-pub fn publish(self: *Self, compiler: *Compiler, outputs: *frontend.expressions.BindingStorage) Compiler.Error!u32 {
-    self.invocation.out = try compiler.publishResult(outputs);
+pub fn publish(self: *Self, compiler: *Compiler, outputs: *frontend.expressions.BindingStorage, result: Compiler.Result) Compiler.Error!u32 {
+    try result.publish(compiler.binding_allocator, outputs);
+
+    self.invocation.out = result.name;
 
     return compiler.appendCall(self.invocation);
 }

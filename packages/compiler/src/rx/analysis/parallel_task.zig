@@ -26,7 +26,6 @@ const Work = struct {
     program: zx.ir.Program = undefined,
     suffix: ?*const zx.ir.FunctionTable = null,
     argument: zx.ir.Program = undefined,
-    call_id: u32 = undefined,
     fn bind(self: *Work) Flow.Error!void {
         const parent = self.parent;
         const temporary = self.temporary;
@@ -93,6 +92,16 @@ const Work = struct {
     fn diagnostic(self: *Work, err: anyerror) Flow.Error {
         return if (err == error.OutOfMemory) error.OutOfMemory else self.fail(self.reporter.diagnostic.?);
     }
+    fn publish(self: *Work, result: Flow.Result) Flow.Error!u32 {
+        try result.publish(self.parent.binding_allocator, self.outputs);
+
+        return self.parent.appendCall(.{
+            .callee = self.program,
+            .callee_suffix = self.suffix,
+            .argument = self.argument,
+            .out = result.name,
+        });
+    }
     fn borrow(handle: *const anyopaque) *Work {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -118,27 +127,33 @@ pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressi
     if (comptime generated) {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const entry = @import("generated_rx_compile_parallel_task");
+        const Input = std.meta.Child(entry.Input);
+        const result_slots: zx.memory.ColumnLengths = &.{&parent.next_binding};
 
-        entry.executeValue(empty.allocator(), @ptrCast(&work)) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.InvalidFlow => return error.InvalidFlow,
+        const input: Input = .{
+            .frame = @ptrCast(&work),
+            .results = &.{ .cursor = @ptrCast(&result_slots), .types = @ptrCast(parent.results.types) },
+        };
+
+        return entry.executeValue(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => error.OutOfMemory,
+            error.InvalidFlow => error.InvalidFlow,
             else => unreachable,
         };
-    } else {
-        const handle: *const anyopaque = &work;
-
-        try compileParallelTaskBody(handle);
-        try checkParallelTaskCalls(handle);
-        try resolveParallelTaskCaptures(handle);
-        try lowerParallelTaskProgram(handle);
-        try checkParallelTaskProgram(handle);
-        try analyzeParallelTaskOwnership(handle);
-        try validateParallelTaskProgram(handle);
-        try buildParallelTaskArgument(handle);
-        try publishParallelTask(handle);
     }
 
-    return work.call_id;
+    const handle: *const anyopaque = &work;
+
+    try compileParallelTaskBody(handle);
+    try checkParallelTaskCalls(handle);
+    try resolveParallelTaskCaptures(handle);
+    try lowerParallelTaskProgram(handle);
+    try checkParallelTaskProgram(handle);
+    try analyzeParallelTaskOwnership(handle);
+    try validateParallelTaskProgram(handle);
+    try buildParallelTaskArgument(handle);
+
+    return work.publish(parent.seedResult());
 }
 
 pub fn compileParallelTaskBody(handle: *const anyopaque) Flow.Error!void {
@@ -248,14 +263,8 @@ pub fn buildParallelTaskArgument(handle: *const anyopaque) Flow.Error!void {
     if (parent.captures) |outer| outer.observeMapped(work.argument.expressions.references, work.selected.positions);
 }
 
-pub fn publishParallelTask(handle: *const anyopaque) Flow.Error!void {
+pub fn publishParallelTask(handle: *const anyopaque, row: u64, visible: bool) Flow.Error!u32 {
     const work = Work.borrow(handle);
-    const out = try work.parent.publishResult(work.outputs);
 
-    work.call_id = try work.parent.appendCall(.{
-        .callee = work.program,
-        .callee_suffix = work.suffix,
-        .argument = work.argument,
-        .out = out,
-    });
+    return work.publish(work.parent.selectedResult(row, visible));
 }

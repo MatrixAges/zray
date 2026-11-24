@@ -1,10 +1,6 @@
-import type { ColumnLengths } from "memory"
-import type { FlowTraversal } from "rx_project_host"
+import type { Request } from "../workflow"
 
-export type Batch = {
-    frame: FlowTraversal,
-    lengths: ColumnLengths,
-    items: u32[],
+export type Batch = Request.Pick("frame", "lengths", "items", "cursor", "results") & {
     row: u64,
     end: u64
 }

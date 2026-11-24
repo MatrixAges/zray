@@ -1,0 +1,36 @@
+<Module>
+    <Type from="../effect" as="Effect" />
+
+    <Args in={Effect.TaskClose} out={void} />
+
+    <Call
+        fn="../host.inferFlowTaskOutput"
+        in={[
+            $in.frame,
+            $in.parallel
+        ]}
+    />
+
+    <If on={$in.parallel && $in.returns != null}>
+        <Call fn="../host.requestParallelTaskOutput" in={$in.frame} />
+        <Call fn="../restore_return" in={$in.returns} />
+    </If>
+
+    <Call
+        fn="../host.shrinkLengthSlot"
+        in={[
+            $in.lengths,
+            0,
+            $in.saved_bindings
+        ]}
+    />
+
+    <Call
+        fn="../host.bindFlowTaskOutput"
+        in={[
+            $in.frame,
+            $in.parallel,
+            $ctx.inferFlowTaskOutput
+        ]}
+    />
+</Module>

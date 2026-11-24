@@ -81,7 +81,11 @@ pub const Host = struct {
         for (items, first..) |item, row| {
             const id = try self.compiler.call(item, outputs);
 
-            try self.writeCall(current, row, item, id);
+            if (current.payload == .Parallel) {
+                try self.compiler.checkParallelCall(item, id);
+            } else {
+                self.compiler.compiled.steps.set(current.row(row), .{ .kind = .Call, .first = id });
+            }
         }
     }
 
@@ -89,32 +93,21 @@ pub const Host = struct {
         return if (current.payload == .Parallel) &current.payload.Parallel.outputs else &self.compiler.bindings;
     }
 
-    pub fn writeCall(self: *Host, current: *Frame, row: usize, item: u32, id: u32) Compiler.Error!void {
-        const compiler = self.compiler;
-
-        if (current.payload == .Parallel) return compiler.checkParallelCall(item, id);
-
-        compiler.compiled.steps.set(current.row(row), .{ .kind = .Call, .first = id });
-    }
-
     pub fn result(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
-        self.writeReturn(current, first, try self.evaluateReturn(current, item));
+        const value = try self.evaluateReturn(current, item);
+
+        self.compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = value });
     }
 
     pub fn evaluateReturn(self: *Host, current: *Frame, item: u32) Compiler.Error!*const zx.ir.Program {
         const compiler = self.compiler;
         const publish = current.payload == .Root and compiler.retain_metadata;
+        const value = try compiler.keep(try compiler.value(compiler.plan.results[item], compiler.output_type, publish));
 
-        return compiler.keep(try compiler.value(compiler.plan.results[item], compiler.output_type, publish));
+        if (publish) compiler.root_return = value;
+
+        return value;
     }
-    pub fn writeReturn(self: *Host, current: *Frame, first: usize, value: *const zx.ir.Program) void {
-        const compiler = self.compiler;
-
-        compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = value });
-
-        if (current.payload == .Root and compiler.retain_metadata) compiler.root_return = value;
-    }
-
     pub fn task(self: *Host, current: *Frame, first: usize, item: u32, parallel_task: bool) Compiler.Error!void {
         const compiler = self.compiler;
         const plan = compiler.plan;
@@ -217,11 +210,19 @@ pub const Host = struct {
         var output: Compiler.TaskOutput = undefined;
         const bindings = self.frame().payload.Task.bindings;
 
-        if (try self.prepareTaskOutput(&output)) try self.evaluateTaskOutput(&output);
+        if (try self.prepareTaskOutput(&output)) try self.evaluateTaskOutput(&output, self.compiler.seedResult());
 
         self.compiler.bindings.len = bindings;
 
-        try self.publishTaskOutput(&output);
+        const visible = try output.publish(self.compiler);
+
+        self.compiler.compiled.steps.set(self.frame().destination, .{
+            .kind = .Task,
+            .first = output.body,
+            .output = if (visible) |binds| (if (binds) .Constant else .Evaluate) else .None,
+            .value = output.value,
+            .name = output.name(),
+        });
     }
 
     pub fn prepareTaskOutput(self: *Host, output: *Compiler.TaskOutput) Compiler.Error!bool {
@@ -229,21 +230,15 @@ pub const Host = struct {
         const compiler = self.compiler;
         const body = try frame_.body.close(compiler, false);
 
-        output.* = Compiler.TaskOutput.init(body);
+        output.* = .{ .body = body };
 
         return compiler.plan.tasks[frame_.payload.Task.item].output != null;
     }
 
-    pub fn evaluateTaskOutput(self: *Host, output: *Compiler.TaskOutput) Compiler.Error!void {
+    pub fn evaluateTaskOutput(self: *Host, output: *Compiler.TaskOutput, binding: Compiler.Result) Compiler.Error!void {
         const compiler = self.compiler;
 
-        try output.evaluate(compiler, &compiler.plan.tasks[self.frame().payload.Task.item]);
-    }
-
-    pub fn publishTaskOutput(self: *Host, output: *const Compiler.TaskOutput) Compiler.Error!void {
-        try output.publish(self.compiler);
-
-        self.compiler.compiled.steps.set(self.frame().destination, output.step);
+        try output.evaluate(compiler, compiler.plan.tasks[self.frame().payload.Task.item].output.?, binding);
     }
 
     pub fn closeParallel(self: *Host) Compiler.Error!void {

@@ -42,22 +42,24 @@ pub fn root(self: *Self, sequence: Prepared.Unit) Error!u32 {
 }
 
 pub const TaskOutput = struct {
-    step: Flow.Step,
+    body: u32,
+    value: ?*const zx.ir.Program = null,
     result: ?Result = null,
-    pub fn init(body: u32) TaskOutput {
-        return .{ .step = .{ .kind = .Task, .first = body } };
+    pub fn name(self: *const TaskOutput) ?[]const u8 {
+        return if (self.result) |binding| binding.name else null;
     }
-    pub fn evaluate(self: *TaskOutput, compiler: *Self, work: *const Prepared.Task) Error!void {
-        const attribute = work.output orelse return;
-        const result = compiler.takeResult();
-        self.step.value = try compiler.keep(try compiler.value(attribute, result.type_id, false));
-        self.step.output = if (result.name != null) .Constant else .Evaluate;
-        self.step.name = result.name;
+
+    pub fn evaluate(self: *TaskOutput, compiler: *Self, attribute: rx.ast.Attribute, result: Result) Error!void {
+        self.value = try compiler.keep(try compiler.value(attribute, result.type_id, false));
         self.result = result;
     }
 
-    pub fn publish(self: *const TaskOutput, compiler: *Self) Error!void {
-        if (self.result) |result| try result.publish(compiler.binding_allocator, &compiler.bindings);
+    pub fn publish(self: *const TaskOutput, compiler: *Self) Error!?bool {
+        const result = self.result orelse return null;
+
+        try result.publish(compiler.binding_allocator, &compiler.bindings);
+
+        return result.name != null;
     }
 };
 
@@ -208,44 +210,31 @@ pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage
 
     self.bindings.len = count;
 
-    return work.publish(self, outputs);
+    return work.publish(self, outputs, self.seedResult());
 }
 
-const Result = struct {
+pub const Result = struct {
     name: ?[]const u8,
     type_id: zx.ir.TypeId,
-    fn publish(self: Result, allocator: std.mem.Allocator, outputs: *frontend.expressions.BindingStorage) std.mem.Allocator.Error!void {
+    pub fn publish(self: Result, allocator: std.mem.Allocator, outputs: *frontend.expressions.BindingStorage) std.mem.Allocator.Error!void {
         const name = self.name orelse return;
 
         try outputs.append(allocator, .{ .name = name, .type_id = self.type_id });
     }
 };
 
-fn takeResult(self: *Self) Result {
+pub fn seedResult(self: *Self) Result {
     const row = self.next_binding;
 
     self.next_binding += 1;
 
-    if (comptime @import("rx_options").generated_graph) {
-        const rule = @import("generated_rx_flow_result");
-        const input: std.meta.Child(rule.Input) = .{ .names = self.results.names, .types = @ptrCast(self.results.types), .row = row };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return .{ .name = result.name, .type_id = @fromBackingInt(result.type_id) };
-    }
-
-    const binding = self.results.at(row);
-
-    return .{ .name = if (binding.type_id == frontend.types.scalarId(.void)) null else binding.name, .type_id = binding.type_id };
+    return self.selectedResult(row, self.results.types[row] != frontend.types.scalarId(.void));
 }
 
-pub fn publishResult(self: *Self, outputs: *frontend.expressions.BindingStorage) std.mem.Allocator.Error!?[]const u8 {
-    const result = self.takeResult();
+pub fn selectedResult(self: *const Self, row: u64, visible: bool) Result {
+    const binding = self.results.at(@intCast(row));
 
-    try result.publish(self.binding_allocator, outputs);
-
-    return result.name;
+    return .{ .name = if (visible) binding.name else null, .type_id = binding.type_id };
 }
 
 pub fn appendCall(self: *Self, invocation: Module.Call) std.mem.Allocator.Error!u32 {

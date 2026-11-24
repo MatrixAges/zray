@@ -1,0 +1,34 @@
+import { scalar_void } from "core/type_table/const"
+import memory from "memory"
+
+import type { ColumnLengths } from "memory"
+
+export type Rows = {
+    cursor: ColumnLengths,
+    types: u32[]
+}
+
+export type Input = Rows?
+
+export type Output = {
+    row: u64,
+    visible: bool
+}
+
+export default function (in: Input): Output {
+    if (in == null) {
+        return {
+            row: 0,
+            visible: false
+        }
+    }
+
+    const row = memory.readLengthSlot(in.cursor, 0)
+
+    memory.advanceLengthSlot(in.cursor, 0, 1)
+
+    return {
+        row,
+        visible: in.types[row] != scalar_void
+    }
+}

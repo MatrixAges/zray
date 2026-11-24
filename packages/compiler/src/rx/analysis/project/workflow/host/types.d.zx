@@ -62,6 +62,20 @@ export type ConditionFacts = opaque
 
 export type FlowTraversal = opaque
 
+export enum FlowKind {
+    Call,
+    Parallel,
+    Return,
+    Task,
+    Selection
+}
+
+export enum FlowPublish {
+    None,
+    Evaluate,
+    Constant
+}
+
 export type ParallelTaskWork = opaque
 
 export type BodyStatements = opaque

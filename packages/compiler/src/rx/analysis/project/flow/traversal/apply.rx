@@ -1,5 +1,6 @@
 <Module>
     <Type from="effect" as="Effect" />
+    <Type from="host" as="Host" />
     <Type from="model" as="Model" />
 
     <Args in={Effect.Input} out={void} />
@@ -14,13 +15,24 @@
                 ]}
             />
 
-            <Call
-                fn="host.publishFlowReturn"
-                in={[
-                    $in.frame,
-                    $in.position
-                ]}
-            />
+            <If on={$in.returns == null}>
+                <Call
+                    fn="publish_step"
+                    in={{
+                        frame: $in.frame,
+                        index:
+                            $in.cursor.target_first +
+                            ($in.position - $in.cursor.target_start),
+                        kind: Host.FlowKind.Return
+                    }}
+                />
+
+                <Else>
+                    <If on={$in.returns != null}>
+                        <Call fn="mark_returned" in={$in.returns} />
+                    </If>
+                </Else>
+            </If>
         </Case>
 
         <Case value={Model.Action.OpenTask}>
@@ -93,6 +105,9 @@
                     frame: $in.frame,
                     lengths: $in.lengths,
                     saved_bindings: $in.saved_bindings,
+                    cursor: $in.cursor,
+                    returns: $in.returns,
+                    results: $in.results,
                     parallel: false
                 }}
             />
@@ -105,6 +120,9 @@
                     frame: $in.frame,
                     lengths: $in.lengths,
                     saved_bindings: $in.saved_bindings,
+                    cursor: $in.cursor,
+                    returns: $in.returns,
+                    results: $in.results,
                     parallel: true
                 }}
             />

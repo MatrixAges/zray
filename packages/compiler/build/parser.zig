@@ -194,6 +194,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "zx/frontend/retention");
                 addSubtree(run, tracked[0], "rx/analysis/inference");
                 addSubtree(run, tracked[0], "rx/analysis/condition");
+                addSubtree(run, tracked[0], "rx/analysis/parallel_task");
                 addSubtree(run, tracked[0], "rx/analysis/project/flow");
                 addSubtree(run, tracked[0], "rx/analysis/program/statements");
                 addSubtree(run, tracked[0], "rx/analysis/project/workflow");

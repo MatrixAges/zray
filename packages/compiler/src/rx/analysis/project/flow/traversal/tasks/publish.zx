@@ -1,0 +1,30 @@
+import { FlowKind, FlowPublish } from "rx_project_host"
+
+import publish from "../publish_step"
+
+import type { FlowTraversal } from "rx_project_host"
+
+export type Input = {
+    frame: FlowTraversal,
+    index: u64,
+    visible?: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { visible } = in
+
+    const output = match {
+        visible == null => FlowPublish.None,
+        visible => FlowPublish.Constant,
+        _ => FlowPublish.Evaluate
+    }
+
+    publish({
+        frame: in.frame,
+        kind: FlowKind.Task,
+        index: in.index,
+        output
+    })
+}

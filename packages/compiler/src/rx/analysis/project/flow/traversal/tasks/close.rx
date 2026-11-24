@@ -3,34 +3,44 @@
 
     <Args in={Effect.TaskClose} out={void} />
 
-    <If on={$in.parallel}>
-        <Call fn="../host.inferParallelTaskOutput" in={$in.frame} />
-        <Call fn="../host.requestParallelTaskOutput" in={$in.frame} />
-        <Call fn="../host.restoreParallelTaskReturn" in={$in.frame} />
+    <If on={$in.returns != null}>
+        <Call module="infer" in={$in} />
 
         <Else>
             <Call fn="../host.prepareFlowTaskOutput" in={$in.frame} />
 
             <If on={$ctx.prepareFlowTaskOutput}>
-                <Call fn="../host.evaluateFlowTaskOutput" in={$in.frame} />
+                <Call fn="../select_result" in={$in.results} />
+
+                <Call
+                    fn="../host.evaluateFlowTaskOutput"
+                    in={[
+                        $in.frame,
+                        $ctx.select_result.row,
+                        $ctx.select_result.visible
+                    ]}
+                />
             </If>
+
+            <Call
+                fn="../host.shrinkLengthSlot"
+                in={[
+                    $in.lengths,
+                    0,
+                    $in.saved_bindings
+                ]}
+            />
+
+            <Call fn="../host.finishLoweredFlowTask" in={$in.frame} />
+
+            <Call
+                fn="publish"
+                in={{
+                    frame: $in.frame,
+                    visible: $ctx.finishLoweredFlowTask,
+                    index: $in.cursor.destination
+                }}
+            />
         </Else>
     </If>
-
-    <Call
-        fn="../host.shrinkLengthSlot"
-        in={[
-            $in.lengths,
-            0,
-            $in.saved_bindings
-        ]}
-    />
-
-    <Call
-        fn="../host.publishFlowTaskOutput"
-        in={[
-            $in.frame,
-            $in.parallel
-        ]}
-    />
 </Module>

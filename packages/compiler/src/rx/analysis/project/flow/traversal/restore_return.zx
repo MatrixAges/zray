@@ -1,0 +1,10 @@
+import memory from "memory"
+
+import type { ReturnState as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU32(in.output, 0, in.saved.output)
+    memory.writeBool(in.returned, 0, in.saved.returned)
+}

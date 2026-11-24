@@ -1,5 +1,7 @@
 <Module>
     <Type from="model" as="Calls" />
+    <Type from="../host" as="Host" />
+    <Type from="../model" as="Model" />
 
     <Args in={Calls.Batch} out={Calls.Batch} />
 
@@ -38,13 +40,43 @@
         ]}
     />
 
+    <Call fn="../select_result" in={$in.results} />
+
     <Call
-        fn="../host.publishFlowCall"
+        fn="../host.registerFlowCall"
         in={[
             $in.frame,
-            $in.row
+            $ctx.select_result.row,
+            $ctx.select_result.visible
         ]}
     />
+
+    <If on={$ctx.registerFlowCall != null}>
+        <If on={$in.cursor.region == Model.Region.Parallel}>
+            <Call
+                fn="../host.checkFlowParallelCall"
+                in={[
+                    $in.frame,
+                    $in.items[$in.row],
+                    $ctx.registerFlowCall
+                ]}
+            />
+
+            <Else>
+                <Call
+                    fn="../publish_step"
+                    in={{
+                        frame: $in.frame,
+                        index:
+                            $in.cursor.target_first +
+                            ($in.row - $in.cursor.target_start),
+                        kind: Host.FlowKind.Call,
+                        first: $ctx.registerFlowCall
+                    }}
+                />
+            </Else>
+        </If>
+    </If>
 
     <Return
         value={{

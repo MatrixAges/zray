@@ -1,3 +1,5 @@
+import type { BoolBuffer, U32Buffer } from "memory"
+
 export enum Kind {
     Call,
     Result,
@@ -38,7 +40,21 @@ export type Cursor = {
     saved_bindings: u64,
     saved_facts: u64,
     case_remaining?: bool,
-    case_stopped: bool
+    case_stopped: bool,
+    target_start: u64,
+    target_first: u64,
+    destination: u64
+}
+
+export type SavedReturn = {
+    output: u32,
+    returned: bool
+}
+
+export type ReturnState = {
+    output: U32Buffer,
+    returned: BoolBuffer,
+    saved: SavedReturn
 }
 
 export type Plan = {

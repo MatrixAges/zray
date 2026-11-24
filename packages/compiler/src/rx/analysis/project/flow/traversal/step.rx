@@ -31,6 +31,8 @@
                 frame: $in.request.frame,
                 items: $in.request.items,
                 lengths: $in.request.lengths,
+                cursor: $in.request.cursor,
+                results: $in.request.results,
                 row: $in.request.cursor.first,
                 end: $ctx.advance.position
             }}
@@ -44,7 +46,10 @@
             lengths: $in.request.lengths,
             labels: $in.request.labels,
             fallback: $in.request.fallback,
-            inference: $in.request.inference,
+            inference: $in.request.returns != null,
+            cursor: $in.request.cursor,
+            returns: $in.request.returns,
+            results: $in.request.results,
             saved_bindings: $in.request.cursor.saved_bindings,
             saved_facts: $in.request.cursor.saved_facts,
             case_remaining: $in.request.cursor.case_remaining,

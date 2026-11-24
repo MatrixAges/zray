@@ -53,13 +53,22 @@ export declare function evaluateFlowArgument(state: FlowTraversal): void
 export declare function createFlowUnitArgument(state: FlowTraversal): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function publishFlowCall(state: FlowTraversal, row: u64): void
+export declare function registerFlowCall(state: FlowTraversal, row: u64, visible: bool): u32?
+    throws { OutOfMemory, InvalidSource, InvalidFlow }
+
+export declare function checkFlowParallelCall(state: FlowTraversal, item: u32, id: u32): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function evaluateFlowReturn(state: FlowTraversal, item: u32): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function publishFlowReturn(state: FlowTraversal, row: u64): void
+export declare function writeFlowStep(
+    state: FlowTraversal,
+    index: u64,
+    kind: FlowKind,
+    first: u32,
+    output: FlowPublish
+): void
 
 export declare function openFlowTask(state: FlowTraversal, row: u64, item: u32, parallel: bool): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
@@ -91,21 +100,22 @@ export declare function pushFlowCase(state: FlowTraversal, row: u64, bindings: u
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function prepareFlowTaskOutput(state: FlowTraversal): bool
-    throws { OutOfMemory, InvalidSource, InvalidFlow }
+    throws { OutOfMemory, InvalidFlow }
 
-export declare function evaluateFlowTaskOutput(state: FlowTraversal): void
-    throws { OutOfMemory, InvalidSource, InvalidFlow }
+export declare function evaluateFlowTaskOutput(state: FlowTraversal, row: u64, visible: bool): void
+    throws { OutOfMemory, InvalidFlow }
 
-export declare function inferParallelTaskOutput(state: FlowTraversal): void
+export declare function inferFlowTaskOutput(state: FlowTraversal, parallel: bool): u32?
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function requestParallelTaskOutput(state: FlowTraversal): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function restoreParallelTaskReturn(state: FlowTraversal): void
-
-export declare function publishFlowTaskOutput(state: FlowTraversal, parallel: bool): void
+export declare function bindFlowTaskOutput(state: FlowTraversal, parallel: bool, value: u32?): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
+
+export declare function finishLoweredFlowTask(state: FlowTraversal): bool?
+    throws { OutOfMemory, InvalidFlow }
 
 export declare function closeFlowParallel(state: FlowTraversal): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
@@ -139,5 +149,5 @@ export declare function validateParallelTaskProgram(work: ParallelTaskWork): voi
 export declare function buildParallelTaskArgument(work: ParallelTaskWork): void
     throws { OutOfMemory, InvalidFlow }
 
-export declare function publishParallelTask(work: ParallelTaskWork): void
+export declare function publishParallelTask(work: ParallelTaskWork, row: u64, visible: bool): u32
     throws { OutOfMemory, InvalidFlow }

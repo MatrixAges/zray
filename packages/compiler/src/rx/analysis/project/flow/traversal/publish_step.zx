@@ -1,0 +1,23 @@
+import { writeFlowStep, FlowPublish } from "rx_project_host"
+
+import type { FlowKind, FlowTraversal } from "rx_project_host"
+
+export type Input = {
+    frame: FlowTraversal,
+    index: u64,
+    kind: FlowKind,
+    first?: u32,
+    output?: FlowPublish
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    writeFlowStep(
+        in.frame,
+        in.index,
+        in.kind,
+        in.first ?? 0,
+        in.output ?? FlowPublish.None
+    )
+}
