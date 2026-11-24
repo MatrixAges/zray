@@ -1,0 +1,20 @@
+import type { Lowering } from "lowering_host"
+import type { Input as Projection } from "../model"
+import type { Input as Plan } from "../plan/model"
+
+export {
+    StoredType,
+    materializeType,
+    retainLoweringText,
+    setLoweringSerial
+} from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    plan: Plan,
+    layouts: u32[]
+}
+
+export type Prepared = Projection.Pick("name", "helper", "clear_plan", "type_expr")
+
+export type Output = Prepared?

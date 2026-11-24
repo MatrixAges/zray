@@ -5,21 +5,14 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 
 pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32, required: bool) Lower.Error!node.ExpressionId {
-    const planner = @import("generated_ownership_projection_plan");
-    const PlanInput = std.meta.Child(planner.Input);
+    const preparation = @import("generated_prepare_ownership_projection");
+    const Request = std.meta.Child(preparation.Input);
+    const PlanInput = std.meta.Child(@FieldType(Request, "plan"));
     const Outline = std.meta.Child(@FieldType(PlanInput, "source"));
     const Query = std.meta.Child(@FieldType(Outline, "source"));
     const Facts = std.meta.Child(@FieldType(Query, "facts"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
-
-    const facts: Facts = .{
-        .types = &types,
-        .selected = self.state_plan.selected,
-        .counts = self.slot_counts,
-        .first = self.plan.slot_first,
-        .transfers = self.plan.transfers,
-    };
-
+    const facts = @import("query.zig").borrowFacts(Facts, self, &types);
     const query: Query = .{ .facts = &facts, .node = @backingInt(id), .type_id = @backingInt(type_id), .slot = slot };
     const outline: Outline = .{ .source = &query, .referenced = self.state_plan.borrowed };
     var hash: zx.Sha256 = undefined;
@@ -35,6 +28,8 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
         .required = required,
     };
 
+    const layouts: []const u32 = @ptrCast(self.state_layouts);
+    const request: Request = .{ .frame = @ptrCast(self), .plan = &plan_input, .layouts = layouts };
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -42,45 +37,20 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    const request = (planner.executeIn(temporary, &plan_input) catch |err| return failure(err)) orelse return value;
+    const prepared = (preparation.executeIn(temporary, &request) catch |err| return failure(err)) orelse return value;
     const emitter = @import("generated_ownership_projection");
     const Input = std.meta.Child(emitter.Input);
-    const Registration = std.meta.Child(@typeInfo(@FieldType(Input, "helper")).optional.child);
-    const name = try self.allocator.dupe(u8, request.qualified.name);
-
-    const helper: ?Registration = if (request.helper) |selected| .{
-        .name = if (selected.registered) selected.name else try self.allocator.dupe(u8, selected.name),
-        .registered = selected.registered,
-    } else null;
-
-    self.serial = @intCast(request.qualified.serial);
-
-    const type_expr = try @import("../../types.zig").get(self, self.state_types, type_id);
-    const layouts: []const u32 = @ptrCast(self.state_layouts);
-
-    if (request.clear_plan) |plan| {
-        if (plan.references.len != 0) {
-            const prepare = @import("generated_prepare_ownership_layouts");
-
-            const preparation: std.meta.Child(prepare.Input) = .{
-                .frame = @ptrCast(self),
-                .references = plan.references,
-                .layouts = layouts,
-            };
-
-            prepare.executeIn(temporary, &preparation) catch |err| return failure(err);
-        }
-    }
-
+    const Helper = @typeInfo(@FieldType(Input, "helper")).optional.child;
+    const Clear = @typeInfo(@FieldType(Input, "clear_plan")).optional.child;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../list_emission.zig").borrow(self));
 
     const input: Input = .{
-        .source = &outline,
-        .name = name,
-        .helper = if (helper) |*selected| selected else null,
-        .clear_plan = request.clear_plan,
+        .source = zx.columns.pointer(@FieldType(Input, "source"), &outline),
+        .name = prepared.name,
+        .helper = if (prepared.helper) |helper| zx.columns.pointer(Helper, helper) else null,
+        .clear_plan = if (prepared.clear_plan) |clear| zx.columns.pointer(Clear, clear) else null,
         .layouts = layouts,
-        .type_expr = @backingInt(type_expr),
+        .type_expr = prepared.type_expr,
         .value = @backingInt(value),
         .ast = &ast,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),

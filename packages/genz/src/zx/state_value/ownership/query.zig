@@ -24,14 +24,7 @@ pub fn needed(self: *const Lower, id: ir.ExprId, type_id: ir.TypeId, slot: u32) 
     const Input = std.meta.Child(module.Input);
     const Facts = std.meta.Child(@FieldType(Input, "facts"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
-
-    const facts: Facts = .{
-        .types = &types,
-        .selected = self.state_plan.selected,
-        .counts = self.slot_counts,
-        .first = self.plan.slot_first,
-        .transfers = self.plan.transfers,
-    };
+    const facts = borrowFacts(Facts, self, &types);
 
     const input: Input = .{
         .facts = &facts,
@@ -51,14 +44,7 @@ pub fn outlined(self: *const Lower, id: ir.ExprId, type_id: ir.TypeId, slot: u32
     const Source = std.meta.Child(@FieldType(Input, "source"));
     const Facts = std.meta.Child(@FieldType(Source, "facts"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
-
-    const facts: Facts = .{
-        .types = &types,
-        .selected = self.state_plan.selected,
-        .counts = self.slot_counts,
-        .first = self.plan.slot_first,
-        .transfers = self.plan.transfers,
-    };
+    const facts = borrowFacts(Facts, self, &types);
 
     const source: Source = .{
         .facts = &facts,
@@ -75,4 +61,14 @@ pub fn outlined(self: *const Lower, id: ir.ExprId, type_id: ir.TypeId, slot: u32
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return zx.columns.invoke(module.executeValue, empty.allocator(), &input) catch unreachable;
+}
+
+pub fn borrowFacts(comptime Facts: type, self: *const Lower, types: @FieldType(Facts, "types")) Facts {
+    return .{
+        .types = types,
+        .selected = self.state_plan.selected,
+        .counts = self.slot_counts,
+        .first = self.plan.slot_first,
+        .transfers = self.plan.transfers,
+    };
 }

@@ -1,0 +1,28 @@
+import { retainLoweringText } from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+import type { Registration } from "../../helper/flow/model"
+import type { Request } from "../plan/model"
+
+export type Input = Request.Pick("helper") & {
+    frame: Lowering
+}
+
+export type Output = Registration?
+
+export default function (in: Input): Output {
+    const { frame, helper } = in
+
+    if (helper == null) {
+        return null
+    }
+
+    if (helper.registered) {
+        return helper
+    }
+
+    return {
+        ...helper,
+        name: retainLoweringText(frame, helper.name)
+    }
+}

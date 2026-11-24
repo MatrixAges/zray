@@ -42,6 +42,14 @@ pub fn loweringOrigin(frame: *const anyopaque, id: u32) Error![]const u8 {
     return @import("../../state_value/origin.zig").name(borrow(frame), @fromBackingInt(id));
 }
 
+pub fn retainLoweringText(frame: *const anyopaque, text: []const u8) Error![]const u8 {
+    return borrow(frame).allocator.dupe(u8, text);
+}
+
+pub fn setLoweringSerial(frame: *const anyopaque, serial: u64) void {
+    borrow(frame).serial = @intCast(serial);
+}
+
 pub fn lowerLiteral(frame: *const anyopaque, id: u32, value_type: u32) Error!u32 {
     return @backingInt(try @import("../../literals.zig").lower(borrow(frame), @fromBackingInt(id), @fromBackingInt(value_type)));
 }

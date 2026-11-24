@@ -1,0 +1,64 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Input} out={Preparation.Output} />
+
+    <Call module="../plan/build" in={$in.plan} />
+
+    <If on={$ctx.build != null}>
+        <Call
+            fn="model.retainLoweringText"
+            in={[
+                $in.frame,
+                $ctx.build.qualified.name
+            ]}
+        />
+
+        <Call
+            fn="retain_helper"
+            in={{
+                frame: $in.frame,
+                helper: $ctx.build.helper
+            }}
+        />
+
+        <Call
+            fn="model.setLoweringSerial"
+            in={[
+                $in.frame,
+                $ctx.build.qualified.serial
+            ]}
+        />
+
+        <Call
+            fn="model.materializeType"
+            in={[
+                $in.frame,
+                $in.plan.source.source.type_id,
+                Preparation.StoredType.StateType
+            ]}
+        />
+
+        <If on={$ctx.build.clear_plan != null}>
+            <Call
+                fn="../prepare_layouts"
+                in={{
+                    frame: $in.frame,
+                    references: $ctx.build.clear_plan.references,
+                    layouts: $in.layouts
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                name: $ctx.retainLoweringText,
+                helper: $ctx.retain_helper,
+                clear_plan: $ctx.build.clear_plan,
+                type_expr: $ctx.materializeType
+            }}
+        />
+    </If>
+
+    <Return value={null} />
+</Module>
