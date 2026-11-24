@@ -1,3 +1,5 @@
+import { retainLoweringText } from "lowering_host"
+
 import identifier from "../../../ast/context/identifier"
 import fresh from "../../../ast/fresh"
 import binding from "../../../ast/statements/binding"
@@ -12,33 +14,35 @@ export default function (in: Input): Output {
         return in
     }
 
-    const name = fresh({
+    const fresh_name = fresh({
         serial: in.context.serial,
         prefix: output_prefix
     })
 
+    const name = retainLoweringText(in.frame, fresh_name.name)
+
     const reference = identifier({
         state: {
             ...in.context,
-            serial: name.serial
+            serial: fresh_name.serial
         },
-        name: name.name
+        name
     })
 
     const saved = binding({
         table: reference.state.statements,
         base: 0,
-        name: name.name,
+        name,
         value
     })
 
     return {
+        frame: in.frame,
         context: {
             ...reference.state,
             statements: saved.table,
             valid: reference.state.valid && saved.valid
         },
-        value: reference.id,
-        name: name.name
+        value: reference.id
     }
 }

@@ -1,0 +1,16 @@
+import { lowerLayout, lowerType } from "lowering_host"
+
+import { TypeMode } from "../model"
+
+import type { Type as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    return match in.mode {
+        TypeMode.None => null,
+        TypeMode.LoopLayout => in.loop_layout,
+        TypeMode.Layout => lowerLayout(in.frame, in.type_id),
+        _ => lowerType(in.frame, in.type_id, false)
+    }
+}

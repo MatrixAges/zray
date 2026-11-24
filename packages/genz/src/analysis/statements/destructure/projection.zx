@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { retainLoweringText } from "lowering_host"
 
 import expression from "../../../ast/expressions/header"
 import statement from "../../../ast/statements/header"
@@ -39,12 +40,14 @@ export default function (in: Input): Output {
         value: in.index
     })
 
+    const held = retainLoweringText(state.source.frame, name)
+
     return {
         ...state,
         expression_tags: field.tags,
         expression_offsets: field.offsets,
         field_target: state.field_target.push(state.reference)[0],
-        field_name: state.field_name.push(name)[0],
+        field_name: state.field_name.push(held)[0],
         statement_tags: binding.tags,
         statement_offsets: binding.offsets,
         constant_name:

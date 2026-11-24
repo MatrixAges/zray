@@ -1,8 +1,12 @@
+import expressions from "../../../ast/expressions/empty"
+import statements from "../../../ast/statements/empty"
+
 import type { State as Input, Output } from "./model"
 
 export default function (in: Input): Output {
     return {
         expressions: {
+            ...expressions({}),
             tags: in.expression_tags,
             offsets: in.expression_offsets,
             identifier: in.identifier,
@@ -10,6 +14,7 @@ export default function (in: Input): Output {
             field_name: in.field_name
         },
         statements: {
+            ...statements({}),
             tags: in.statement_tags,
             offsets: in.statement_offsets,
             ...in.pick([

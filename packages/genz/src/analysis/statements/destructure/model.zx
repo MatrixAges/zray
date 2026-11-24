@@ -1,7 +1,10 @@
+import type { ExpressionRows, StatementRows } from "ast_rows"
+import type { Lowering } from "lowering_host"
 import type { ExpressionsKind } from "../../../printer/model/expressions"
 import type { StatementsKind } from "../../../printer/model/statements"
 
 export type Input = {
+    frame: Lowering,
     name: u8[],
     value: u32,
     symbols: u32?[],
@@ -35,26 +38,8 @@ export type Projection = {
     symbol: u32
 }
 
-export type Expressions = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    identifier: u8[][],
-    field_target: u32[],
-    field_name: u8[][]
-}
-
-export type Statements = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[],
-    discard: u32[]
-}
-
 export type Output = {
-    expressions: Expressions,
-    statements: Statements,
+    expressions: ExpressionRows,
+    statements: StatementRows,
     valid: bool
 }

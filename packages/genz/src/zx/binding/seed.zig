@@ -25,3 +25,25 @@ pub fn after(self: *const Lower, symbol: ?ir.SymbolId, by_value: bool, scope: bo
         .type_mode = if (scope and self.loop_fields != null and self.loop_fields.?.symbol(id)) .LoopLayout else if (by_value) .Layout else .Abi,
     };
 }
+
+pub fn publish(self: *Lower, output: anytype, declaration: anytype) Lower.Error!node.Block {
+    const plan = after(self, declaration.symbol, declaration.by_value, declaration.scope, declaration.mutable);
+
+    const type_expr: ?node.ExpressionId = switch (plan.type_mode) {
+        .None => null,
+        .LoopLayout => self.loop_fields.?.layout,
+        .Layout => try self.layoutExpr(self.program.symbols.at(@backingInt(declaration.symbol.?)).type_id),
+        .Abi => try self.typeExpr(self.program.symbols.at(@backingInt(declaration.symbol.?)).type_id),
+    };
+
+    const name = if (plan.type_mode == .None) &.{} else self.names[@backingInt(declaration.symbol.?)];
+
+    try output.append(self.allocator, switch (plan.kind) {
+        .constant => .{ .constant = .{ .name = name, .type_expr = type_expr, .value = declaration.value } },
+        .variable => .{ .variable = .{ .name = name, .type_expr = type_expr, .value = declaration.value } },
+        .discard => .{ .discard = declaration.value },
+        else => unreachable,
+    });
+
+    return self.builder.statements(output.items);
+}

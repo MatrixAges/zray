@@ -1,3 +1,4 @@
+import empty from "../../../ast/statements/empty"
 import { StatementsKind } from "../../../printer/model/statements"
 
 import type { Input, Output } from "./model"
@@ -6,17 +7,12 @@ export default function (in: Input): Output {
     return {
         expressions: null,
         statements: {
+            ...empty({}),
             tags: [StatementsKind.Result],
             offsets: [0],
-            constant_name: [],
-            constant_type_expr: [],
-            constant_value: [],
-            constant_exported: [],
-            expression: [],
             result: [in.value]
         },
         serial: in.bases.serial,
-        name: null,
         valid: true
     }
 }

@@ -19,19 +19,12 @@ export default function (in: Input): Output {
     return {
         expressions: in.context.expressions,
         statements: {
+            ...table,
             tags: row.tags,
             offsets: row.offsets,
-            ...table.pick([
-                "constant_name",
-                "constant_type_expr",
-                "constant_value",
-                "constant_exported",
-                "expression"
-            ]),
             result: table.result.push(in.value)[0]
         },
         serial: in.context.serial,
-        name: in.name,
         valid: in.context.valid && row.valid
     }
 }

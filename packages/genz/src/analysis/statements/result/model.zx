@@ -1,34 +1,24 @@
+import type { StatementRows } from "ast_rows"
+import type { Lowering } from "lowering_host"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
-import type { StatementsKind } from "../../../printer/model/statements"
 
 export type Input = {
+    frame: Lowering,
     value?: u32,
     transaction: bool,
     bases: Bases
 }
 
 export type State = {
+    frame: Lowering,
     context: Context,
-    value?: u32,
-    name?: u8[]
-}
-
-export type Statements = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[],
-    expression: u32[],
-    result: u32?[]
+    value?: u32
 }
 
 export type Output = {
     expressions?: Expressions,
-    statements: Statements,
+    statements: StatementRows,
     serial: u64,
-    name?: u8[],
     valid: bool
 }

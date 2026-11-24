@@ -1,0 +1,23 @@
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Input as Policy } from "../after"
+import type { TypeMode } from "../model"
+
+export type Input = {
+    writer: AstWriter,
+    sequence: AstSequence,
+    frame: Lowering,
+    policy: Policy,
+    name: u8[],
+    value: u32,
+    type_id: u32,
+    loop_layout?: u32
+}
+
+export type Type = Input.Pick(
+    "frame",
+    "type_id",
+    "loop_layout"
+) & {
+    mode: TypeMode
+}

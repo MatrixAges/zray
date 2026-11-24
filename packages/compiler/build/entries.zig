@@ -557,9 +557,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/statements/switch/reference.zx", .name = "switch_reference", .owner = .genz },
     .{ .path = "genz/analysis/statements/switch/build.rx", .name = "switch_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/switch/labels.zx", .name = "switch_labels", .owner = .genz },
-    .{ .path = "genz/analysis/statements/destructure/name.zx", .name = "destructure_name", .owner = .genz },
-    .{ .path = "genz/analysis/statements/destructure/build.rx", .name = "destructure_emit", .owner = .genz },
-    .{ .path = "genz/analysis/statements/result/build.rx", .name = "result_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/block/plan.zx", .name = "statement_block_plan", .owner = .genz },
     .{ .path = "genz/analysis/statements/traversal/build.rx", .name = "statement_traversal", .owner = .genz },
     .{ .path = "genz/analysis/statements/traversal/commit.zx", .name = "statement_run_commit", .owner = .genz },
@@ -596,9 +593,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/capture/prepare.zx", .name = "capture_prepare", .owner = .genz },
     .{ .path = "genz/analysis/capture/result.zx", .name = "capture_result", .owner = .genz },
     .{ .path = "genz/analysis/capture/finish.zx", .name = "capture_finish", .owner = .genz },
-    .{ .path = "genz/analysis/binding/before.zx", .name = "binding_before", .owner = .genz },
-    .{ .path = "genz/analysis/binding/after.zx", .name = "binding_after", .owner = .genz },
-    .{ .path = "genz/analysis/binding/emit.zx", .name = "binding_emit", .owner = .genz },
     .{ .path = "genz/analysis/control/writes.zx", .name = "control_writes", .owner = .genz },
     .{ .path = "genz/analysis/aggregate/tuple.zx", .name = "aggregate_tuple", .owner = .genz },
     .{ .path = "genz/analysis/aggregate/sequence.zx", .name = "aggregate_sequence", .owner = .genz },
@@ -813,6 +807,9 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/binding/execute/run.rx", .name = "publish_binding", .owner = .genz },
+    .{ .path = "genz/analysis/statements/destructure/execute/run.rx", .name = "publish_destructure", .owner = .genz },
+    .{ .path = "genz/analysis/statements/result/execute/run.rx", .name = "publish_statement_result", .owner = .genz },
     .{ .path = "genz/analysis/state/conversion/prepare/run.rx", .name = "prepare_state_conversion", .owner = .genz },
     .{ .path = "genz/analysis/state/list/run.rx", .name = "run_state_list", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/run.rx", .name = "run_state_element", .owner = .genz },

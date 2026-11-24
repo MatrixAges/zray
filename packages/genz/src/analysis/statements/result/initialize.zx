@@ -4,8 +4,8 @@ import type { Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
     return {
+        frame: in.frame,
         context: initialize(in.bases),
-        value: in.value,
-        name: null
+        value: in.value
     }
 }

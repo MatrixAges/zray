@@ -1,0 +1,12 @@
+import { lowerCapture, lowerExpression } from "lowering_host"
+
+import type { Operand as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return match {
+        in.capture => lowerCapture(in.frame, in.value, true),
+        _ => lowerExpression(in.frame, in.value, false, null)
+    }
+}

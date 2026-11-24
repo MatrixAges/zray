@@ -253,10 +253,19 @@ pub fn publishAstScopedRows(writer: *const anyopaque, source: *const Ast.Stateme
 }
 
 pub fn appendStatementSequence(writer: *const anyopaque, handle: *const anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables) Lower.Error!void {
-    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
     const joined = view.join(source.*, variables.*);
 
-    statements.appendBorrowingText(borrow(writer).allocator, target, &joined) catch |err| return failure(err);
+    return appendSequenceRows(writer, handle, &joined);
+}
+
+pub fn appendAstBindingRows(writer: *const anyopaque, handle: *const anyopaque, source: *const Ast.BindingRows) Lower.Error!void {
+    return appendSequenceRows(writer, handle, source);
+}
+
+fn appendSequenceRows(writer: *const anyopaque, handle: *const anyopaque, source: anytype) Lower.Error!void {
+    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
+
+    statements.appendBorrowingText(borrow(writer).allocator, target, source) catch |err| return failure(err);
 }
 
 pub fn extendStatementSequence(handle: *const anyopaque, suffix: *const anyopaque) Lower.Error!void {

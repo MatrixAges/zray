@@ -1,0 +1,8 @@
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { Input as Fragment } from "../model"
+
+export type Input = Fragment.Omit("bases") & {
+    writer: AstWriter,
+    sequence: AstSequence,
+    origin: AstOriginBuffer
+}

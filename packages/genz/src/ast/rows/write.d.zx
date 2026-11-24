@@ -48,6 +48,12 @@ export declare function appendStatementSequence(
     variables: StatementVariables
 ): void throws { OutOfMemory }
 
+export declare function appendAstBindingRows(
+    writer: AstWriter,
+    target: AstSequence,
+    rows: BindingRows
+): void throws { OutOfMemory }
+
 export declare function extendStatementSequence(target: AstSequence, suffix: AstSequence): void
     throws { OutOfMemory }
 

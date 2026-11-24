@@ -1,0 +1,75 @@
+<Module>
+    <Type from="model" as="Result" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Result.Input} out={u64} />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        module="../build"
+        in={{
+            ...$in.pick([
+                "frame",
+                "transaction",
+                "value"
+            ]),
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.build.valid} />
+
+    <If on={$ctx.build.expressions != null}>
+        <Call
+            fn="../../rows.appendExpressionRows"
+            in={[
+                $in.writer,
+                $ctx.build.expressions,
+                null,
+                AST.AstPayloadOwnership.BorrowingText
+            ]}
+        />
+    </If>
+
+    <Call fn="../../../../ast/statements/empty_variables" in={{}} />
+
+    <Call
+        fn="../../rows.appendStatementSequence"
+        in={[
+            $in.writer,
+            $in.sequence,
+            $ctx.build.statements,
+            $ctx.empty_variables
+        ]}
+    />
+
+    <Call
+        fn="../../rows.setLoweringSerial"
+        in={[
+            $in.frame,
+            $ctx.build.serial
+        ]}
+    />
+
+    <Call
+        fn="../../rows.finishAstSequence"
+        in={[
+            $in.writer,
+            $in.sequence
+        ]}
+    />
+
+    <Return value={$ctx.finishAstSequence} />
+</Module>
