@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Input} out={Delivery.Output?} />
+
+    <If on={$in.normalize != null}>
+        <Call module="../normalize/build" in={$in.normalize} />
+
+        <Call
+            fn="finish"
+            in={{
+                ...$ctx.build,
+                statement_base: $in.normalize.source.statement_base,
+                uses_allocator: $in.uses_allocator
+            }}
+        />
+
+        <Return value={$ctx.finish} />
+    </If>
+
+    <If on={$in.entry != null}>
+        <Call module="../renew/entry/build" in={$in.entry} />
+
+        <Call
+            fn="finish"
+            in={{
+                result: $ctx.build,
+                fields: null,
+                statement_base: $in.entry.source.statement_base,
+                uses_allocator: $in.uses_allocator
+            }}
+        />
+
+        <Return value={$ctx.finish} />
+    </If>
+
+    <If on={$in.value != null}>
+        <Call module="../value/build" in={$in.value} />
+
+        <Call
+            fn="finish"
+            in={{
+                result: $ctx.build,
+                fields: null,
+                statement_base: $in.value.source.statement_base,
+                uses_allocator: $in.uses_allocator
+            }}
+        />
+
+        <Return value={$ctx.finish} />
+    </If>
+
+    <Return value={null} />
+</Module>

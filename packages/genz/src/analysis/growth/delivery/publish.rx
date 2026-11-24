@@ -1,0 +1,29 @@
+<Module>
+    <Type from="publication" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <Call fn="host.appendGrowthExpressions" in={$in.target} />
+    <Call fn="host.appendGrowthStatements" in={$in.target} />
+
+    <If on={$in.sequence}>
+        <Call fn="host.appendGrowthSequence" in={$in.target} />
+
+        <Else>
+            <Call fn="host.appendGrowthBody" in={$in.target} />
+        </Else>
+    </If>
+
+    <If on={$in.fields}>
+        <Call fn="host.appendGrowthFields" in={$in.target} />
+    </If>
+
+    <Call
+        fn="host.commitGrowthPublication"
+        in={[
+            $in.target,
+            $in.serial,
+            $in.uses_allocator
+        ]}
+    />
+</Module>

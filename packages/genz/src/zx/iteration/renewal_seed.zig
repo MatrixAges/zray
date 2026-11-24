@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const renew = @import("../growth/renew_seed.zig").renew;
-const Target = @import("../growth/renew.zig").Target;
+const Target = @import("../growth/delivery.zig").Target;
 
 pub fn needsEntries(lowering: *const Lower, owner: ir.ExprId) bool {
     for (lowering.plan.renewals) |record| {

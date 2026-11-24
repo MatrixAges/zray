@@ -1,0 +1,9 @@
+import type { GrowthPublication } from "lowering_host"
+
+export type Input = {
+    target: GrowthPublication,
+    sequence: bool,
+    fields: bool,
+    serial: u64,
+    uses_allocator: bool
+}

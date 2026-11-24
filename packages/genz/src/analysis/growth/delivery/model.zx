@@ -1,0 +1,28 @@
+import type { Columns as Fields } from "../../../ast/fields/model"
+import type { Output as Growth } from "../model"
+import type { Input as Normalize } from "../normalize/model"
+import type { Input as Entry } from "../renew/entry/model"
+import type { Input as Value } from "../value/model"
+
+export type Input = {
+    normalize?: Normalize,
+    entry?: Entry,
+    value?: Value,
+    uses_allocator: bool
+}
+
+export type Fragment = {
+    result: Growth,
+    fields?: Fields
+}
+
+export type Finish = Fragment & {
+    statement_base: u32,
+    uses_allocator: bool
+}
+
+export type Output = Fragment & {
+    start: u64,
+    count: u64,
+    uses_allocator: bool
+}

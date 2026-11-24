@@ -23,7 +23,7 @@ pub fn renewValue(self: *Lower, id: ir.ExprId, value: node.ExpressionId) Lower.E
     const source = if (self.state_active) try @import("state_value/ownership.zig").clip(self, &body, id, value) else value;
 
     try body.append(try self.builder.statements(&.{.{ .variable = .{ .name = name, .value = source } }}));
-    try @import("growth/renew.zig").appendValue(self, &body, id, renewed);
+    try @import("growth/delivery.zig").appendValue(self, &body, id, renewed);
 
     return aggregate.finish(self, &body, renewed);
 }
@@ -52,7 +52,7 @@ pub fn normalize(self: *Lower, id: ir.ExprId, value: node.ExpressionId) Lower.Er
 
     std.debug.assert(serial == self.serial);
 
-    const result = try @import("growth/call.zig").normalize(self, &body, element, qualified, selected, layout);
+    const result = try @import("growth/delivery.zig").normalize(self, &body, element, qualified, selected, layout);
 
     return aggregate.finish(self, &body, result);
 }

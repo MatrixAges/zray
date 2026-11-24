@@ -23,6 +23,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/function_analysis/workflow.zig"),
     @import("zx/functions/body.zig"),
     @import("zx/functions/value.zig"),
+    @import("zx/growth/publication.zig"),
     @import("zx/invocation/execute.zig"),
     @import("zx/invocation/publication.zig"),
     @import("zx/iteration/assignment.zig"),

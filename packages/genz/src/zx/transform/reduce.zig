@@ -70,7 +70,7 @@ pub fn reduceInlineLists(handle: *const anyopaque) bool {
 pub fn emitReduceRenewals(handle: *const anyopaque, first: u64, end: u64, filtered_inline: bool) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
-    frame.entered = try @import("../growth/renew.zig").entry(frame.lowering, .{
+    frame.entered = try @import("../growth/delivery.zig").entry(frame.lowering, .{
         .type_id = frame.typeId(),
         .target = .{ .name = frame.name },
         .first = @intCast(first),

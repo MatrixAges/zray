@@ -1,0 +1,18 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Finish as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { result, fields } = in
+
+    memory.requireAllocation(result.valid)
+
+    return {
+        result,
+        fields,
+        start: integers.widen(in.statement_base) + result.statements.tags.length,
+        count: result.body.tags.length,
+        uses_allocator: in.uses_allocator || result.uses_allocator
+    }
+}

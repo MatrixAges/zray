@@ -93,7 +93,7 @@ pub fn enterLoweredLoop(handle: *const anyopaque) Error!void {
 pub fn emitLoopRenewals(handle: *const anyopaque, first: u64, end: u64, filtered_inline: bool) Error!void {
     const frame = Frame.borrow(handle);
 
-    frame.growth = try @import("../../growth/renew.zig").entry(frame.lowering, .{
+    frame.growth = try @import("../../growth/delivery.zig").entry(frame.lowering, .{
         .type_id = frame.type_id,
         .target = .{ .reference = if (frame.fields != null) frame.seed else frame.state },
         .first = @intCast(first),

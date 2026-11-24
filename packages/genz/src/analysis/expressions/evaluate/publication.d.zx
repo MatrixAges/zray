@@ -116,3 +116,24 @@ export declare function writeLoopAssignmentField(
 ): void throws { OutOfMemory }
 
 export declare function finishLoopAssignment(target: LoopAssignmentPublication): void
+
+export declare function appendGrowthExpressions(target: GrowthPublication): void
+    throws { OutOfMemory }
+
+export declare function appendGrowthStatements(target: GrowthPublication): void
+    throws { OutOfMemory }
+
+export declare function appendGrowthSequence(target: GrowthPublication): void
+    throws { OutOfMemory }
+
+export declare function appendGrowthBody(target: GrowthPublication): void
+    throws { OutOfMemory }
+
+export declare function appendGrowthFields(target: GrowthPublication): void
+    throws { OutOfMemory }
+
+export declare function commitGrowthPublication(
+    target: GrowthPublication,
+    serial: u64,
+    uses_allocator: bool
+): void

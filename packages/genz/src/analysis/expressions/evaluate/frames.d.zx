@@ -72,6 +72,8 @@ export type ModuleSignatures = opaque
 
 export type AstPublication = opaque
 
+export type GrowthPublication = opaque
+
 export type DirectAstRows = opaque
 
 export type FieldProjection = opaque
