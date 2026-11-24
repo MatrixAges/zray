@@ -10,7 +10,7 @@ pub fn main(init: std.process.Init) !void {
 
     if (args.len < 4) return error.ExpectedSourceRouteAndDirectory;
 
-    _ = std.meta.stringToEnum(enum { source, forward, reverse, rx_forward, rx_reverse, zx_forward, zx_reverse, republish_forward, republish_reverse }, args[2]) orelse return error.InvalidRoute;
+    _ = std.meta.stringToEnum(enum { source, forward, reverse, rx_forward, rx_reverse, republish_forward, republish_reverse }, args[2]) orelse return error.InvalidRoute;
 
     const bytes = block: {
         const text = try std.Io.Dir.cwd().readFileAlloc(init.io, args[1], temporary, .limited(1024 * 1024));

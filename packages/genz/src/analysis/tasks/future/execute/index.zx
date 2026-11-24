@@ -1,0 +1,8 @@
+export {
+    publishTaskEffects,
+    lowerTaskOperand,
+    startInlineTask,
+    finishTaskBlock
+} from "lowering_host"
+
+export { default as started, default as completed } from "../../worker/execute/reference"

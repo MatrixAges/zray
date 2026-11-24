@@ -56,3 +56,74 @@ export declare function sortWorkerOutputType(frame: SortWorkerFrame): u32
 
 export declare function readSortWorkerFacts(frame: SortWorkerFrame): SortWorkerFacts
     throws { OutOfMemory }
+
+export declare function taskCaptureType(worker: TaskWorker, symbol: u32): u32
+    throws { OutOfMemory }
+
+export declare function openTaskWorker(worker: TaskWorker): void throws { OutOfMemory }
+
+export declare function bindTaskCaptureNames(worker: TaskWorker, first: u32): void
+    throws { OutOfMemory }
+
+export declare function evaluateTaskWorker(worker: TaskWorker): u32 throws { OutOfMemory }
+
+export declare function taskWorkerOutput(worker: TaskWorker): u32 throws { OutOfMemory }
+
+export declare function taskWorkerErrors(worker: TaskWorker): u8[][]?
+
+export declare function readTaskWorkerUsage(worker: TaskWorker): TaskWorkerUsage
+
+export declare function readTaskReferenceBody(worker: TaskWorker): u64 throws { OutOfMemory }
+
+export declare function publishTaskEffects(
+    frame: Lowering,
+    allocator: bool,
+    io: bool,
+    process: bool
+): void
+
+export declare function buildTaskWorker(frame: Lowering, task: u32, process: bool): u32
+    throws { OutOfMemory }
+
+export declare function lowerTaskOperand(frame: Lowering, expression: u32): u32
+    throws { OutOfMemory }
+
+export declare function startInlineTask(frame: Lowering, task: u32, name: u8[]): u64
+    throws { OutOfMemory }
+
+export declare function finishTaskBlock(frame: Lowering, start: u32, count: u32, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function markParallelStatement(frame: Lowering): void
+
+export declare function lowerParallelArgument(frame: Lowering, expression: u32): u32
+    throws { OutOfMemory }
+
+export declare function buildParallelWorker(frame: Lowering, expression: u32): u32
+    throws { OutOfMemory }
+
+export declare function storeParallelRecord(
+    records: ParallelRecords,
+    index: u64,
+    argument: u32,
+    worker_type: u32,
+    type_name: u8[],
+    input_name: u8[],
+    worker_name: u8[],
+    thread_name: u8[],
+    symbol: u32?
+): void
+
+export declare function readParallelRecords(records: ParallelRecords): ParallelRecord[]
+
+export declare function parallelWorkerInput(frame: Lowering, function_id: u32): u32
+    throws { OutOfMemory }
+
+export declare function parallelWorkerOutput(frame: Lowering, function_id: u32): u32
+    throws { OutOfMemory }
+
+export declare function parallelWorkerCallee(frame: Lowering, function_id: u32): u32
+    throws { OutOfMemory }
+
+export declare function reserveParallelRecords(records: ParallelRecords, count: u64): void
+    throws { OutOfMemory }

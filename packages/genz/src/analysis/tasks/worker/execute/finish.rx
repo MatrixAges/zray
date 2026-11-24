@@ -1,0 +1,44 @@
+<Module>
+    <Type from="model" as="Worker" />
+
+    <Args in={Worker.Finish} out={u32} />
+
+    <Call fn="../../rows.astDeclarationCount" in={$in.writer} />
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        module="../build"
+        in={{
+            ...$in.omit([
+                "writer",
+                "origin",
+                "slot"
+            ]),
+            declaration_base: $ctx.astDeclarationCount,
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call
+        module="publish"
+        in={{
+            writer: $in.writer,
+            slot: $in.slot,
+            fragment: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

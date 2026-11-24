@@ -1,0 +1,11 @@
+import emptyExtensions from "../../../../ast/expressions/empty_extensions"
+
+import type { ExpressionExtensions as Output } from "ast_rows"
+import type { Extra as Input } from "../finish_model"
+
+export default function (in: Input): Output {
+    return {
+        ...emptyExtensions({}),
+        ...in
+    }
+}

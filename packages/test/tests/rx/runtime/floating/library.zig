@@ -38,7 +38,7 @@ fn restore(init: std.process.Init, bytes: []u8, route: []const u8, directory: []
     }
 
     var consumer = block: {
-        var imported = try importer.link(temporary, &library, name, if (std.mem.startsWith(u8, route, "zx_")) .zx else .rx);
+        var imported = try importer.link(temporary, &library, name, .rx);
 
         defer imported.deinit();
 
@@ -58,7 +58,7 @@ fn restore(init: std.process.Init, bytes: []u8, route: []const u8, directory: []
     defer consumer.deinit();
 
     if (std.mem.startsWith(u8, route, "republish_")) {
-        var republished = try importer.link(allocator, &consumer, "consumer", .zx);
+        var republished = try importer.link(allocator, &consumer, "consumer", .rx);
 
         defer republished.deinit();
 

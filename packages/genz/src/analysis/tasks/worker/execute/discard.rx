@@ -1,0 +1,58 @@
+<Module>
+    <Type from="model" as="Worker" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Worker.Discard} out={u32} />
+
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        fn="../discard"
+        in={{
+            ...$in.usage,
+            process: $in.process,
+            captures: $in.captures,
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.discard.valid} />
+
+    <Call
+        fn="../../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.discard.expressions,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call fn="discard_rows" in={$ctx.discard.statements} />
+
+    <Call
+        fn="../../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.discard_rows,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call fn="../../rows.astStatementCount" in={$in.writer} />
+
+    <Return value={$ctx.astStatementCount} />
+</Module>

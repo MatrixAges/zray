@@ -1,0 +1,17 @@
+import integers from "std:integer"
+
+import { word_radix } from "../../../node_headers/block/const"
+
+export type Input = u64
+
+export type Output = {
+    start: u32,
+    count: u32
+}
+
+export default function (in: Input): Output {
+    return {
+        start: integers.narrow(in / word_radix),
+        count: integers.narrow(in % word_radix)
+    }
+}

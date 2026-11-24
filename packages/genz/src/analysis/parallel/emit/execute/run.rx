@@ -1,0 +1,110 @@
+<Module>
+    <Type from="model" as="Parallel" />
+    <Type from="../label" as="Label" />
+    <Type from="../../../tasks/rows" as="AST" />
+
+    <Args in={Parallel.Input} out={Parallel.Output} />
+
+    <Call fn="index.markParallelStatement" in={$in.frame} />
+
+    <Call
+        fn="index.reserveParallelRecords"
+        in={[
+            $in.records,
+            $in.expressions.length
+        ]}
+    />
+
+    <Call
+        module="name"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "origin"
+            ]),
+            kind: Label.Kind.Allocator
+        }}
+    />
+
+    <Loop on={$in.index < $in.expressions.length}>
+        <Call
+            module="branch"
+            in={{
+                ...$in.omit([
+                    "used",
+                    "names"
+                ]),
+                index: 0
+            }}
+        />
+    </Loop>
+
+    <Call fn="index.readParallelRecords" in={$in.records} />
+    <Call fn="../../../tasks/rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="../../../tasks/rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        module="../build"
+        in={{
+            ...$in.pick([
+                "used",
+                "names"
+            ]),
+            shared: $ctx.name,
+            records: $ctx.readParallelRecords,
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../../tasks/rows.requireAllocation" in={$ctx.build.valid} />
+
+    <Call
+        fn="../../../tasks/rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.forms,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../../tasks/rows.appendAstFields"
+        in={[
+            $in.writer,
+            $ctx.build.fields
+        ]}
+    />
+
+    <Call
+        fn="index.publishAstScopedRows"
+        in={[
+            $in.writer,
+            $ctx.build.statements,
+            $ctx.build.variables,
+            $ctx.build.extra.scope_start,
+            $ctx.build.extra.scope_len
+        ]}
+    />
+
+    <Call
+        fn="outer_span"
+        in={{
+            span: $ctx.publishAstScopedRows,
+            inner: $ctx.build.inner_count
+        }}
+    />
+
+    <Return value={$ctx.outer_span} />
+</Module>

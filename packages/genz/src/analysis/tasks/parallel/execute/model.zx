@@ -1,0 +1,23 @@
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { Lowering, ParallelFrame } from "lowering_host"
+import type { U8ListBuffer } from "memory"
+
+export type Input = {
+    group: ParallelFrame,
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    body: AstSequence,
+    tasks: u32[],
+    fields: u32?[],
+    object_names?: u8[][],
+    results: U8ListBuffer,
+    values: U8ListBuffer
+}
+
+export type Branch =
+    Input.Pick("group", "frame", "writer", "origin", "body", "tasks") & {
+        index: u64
+    }
+
+export type Output = u32

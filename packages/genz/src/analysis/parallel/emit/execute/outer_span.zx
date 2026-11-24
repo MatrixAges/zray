@@ -1,0 +1,18 @@
+import integers from "std:integer"
+
+import { word_radix } from "../../../node_headers/block/const"
+
+export type Input = {
+    span: u64,
+    inner: u32
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const start = in.span / word_radix
+    const count = in.span % word_radix
+    const inner = integers.widen(in.inner)
+
+    return (start + inner) * word_radix + count - inner
+}

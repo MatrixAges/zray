@@ -1,0 +1,15 @@
+import host from "lowering_host"
+
+import type { ParallelFrame } from "lowering_host"
+
+export type Input = {
+    group: ParallelFrame,
+    value: u32,
+    construct: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return in.construct ? host.constructParallelResult(in.group, in.value) : in.value
+}

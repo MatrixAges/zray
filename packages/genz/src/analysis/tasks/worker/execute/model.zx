@@ -1,0 +1,30 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { TaskWorker, TaskWorkerUsage } from "lowering_host"
+import type { Input as WorkerFinish, Output as Final } from "../finish_model"
+
+export type Input = {
+    worker: TaskWorker,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    captures: u32[],
+    process: bool
+}
+
+export type Output = u32
+
+export type Reservation = {
+    writer: AstWriter,
+    slot: u64
+}
+
+export type Publication = Reservation & {
+    fragment: Final
+}
+
+export type Discard = Input.Pick("writer", "origin", "process", "captures") & {
+    usage: TaskWorkerUsage
+}
+
+export type Finish = WorkerFinish.Omit("declaration_base", "bases") & Reservation & {
+    origin: AstOriginBuffer
+}

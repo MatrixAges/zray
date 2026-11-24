@@ -1,0 +1,97 @@
+<Module>
+    <Type from="model" as="Worker" />
+    <Type from="../../../tasks/rows" as="AST" />
+
+    <Args in={Worker.Input} out={Worker.Output} />
+
+    <Call
+        fn="index.parallelWorkerInput"
+        in={[
+            $in.frame,
+            $in.function_id
+        ]}
+    />
+
+    <Call
+        fn="index.parallelWorkerOutput"
+        in={[
+            $in.frame,
+            $in.function_id
+        ]}
+    />
+
+    <Call
+        fn="index.parallelWorkerCallee"
+        in={[
+            $in.frame,
+            $in.function_id
+        ]}
+    />
+
+    <Call
+        fn="../../../tasks/rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../../../tasks/rows.astFieldCount" in={$in.writer} />
+    <Call fn="../../../tasks/rows.astDeclarationCount" in={$in.writer} />
+
+    <Call
+        module="../build"
+        in={{
+            input_type: $ctx.parallelWorkerInput,
+            output_type: $ctx.parallelWorkerOutput,
+            callee: $ctx.parallelWorkerCallee,
+            declaration_base: $ctx.astDeclarationCount,
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../../tasks/rows.requireAllocation" in={$ctx.build.valid} />
+    <Call fn="extensions" in={$ctx.build.extra} />
+
+    <Call
+        fn="../../../tasks/rows.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.forms,
+            $ctx.extensions
+        ]}
+    />
+
+    <Call
+        fn="../../../tasks/rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.build.statements,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../../tasks/rows.appendAstFunctions"
+        in={[
+            $in.writer,
+            $ctx.build.declarations.omit(["tags"])
+        ]}
+    />
+
+    <Call
+        fn="../../../tasks/rows.appendAstFields"
+        in={[
+            $in.writer,
+            $ctx.build.fields
+        ]}
+    />
+
+    <Return value={$ctx.build.root} />
+</Module>

@@ -1,0 +1,48 @@
+<Module>
+    <Type from="model" as="Worker" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Worker.Publication} out={u32} />
+
+    <Call fn="../../rows.requireAllocation" in={$in.fragment.valid} />
+    <Call fn="extensions" in={$in.fragment.extra} />
+
+    <Call
+        fn="../../rows.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $in.fragment.expressions,
+            null,
+            $ctx.extensions
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $in.fragment.statements,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendAstFunctions"
+        in={[
+            $in.writer,
+            $in.fragment.declarations.omit(["tags"])
+        ]}
+    />
+
+    <Call
+        fn="../../rows.replaceAuxiliaryRow"
+        in={[
+            $in.writer,
+            $in.slot,
+            $in.fragment.alias.omit(["tags"])
+        ]}
+    />
+
+    <Return value={$in.fragment.root} />
+</Module>

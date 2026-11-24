@@ -1,0 +1,27 @@
+import host from "lowering_host"
+
+import type { Input as Worker } from "./model"
+
+export type Input = Worker.Pick("worker", "captures")
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const types: u32[] = []
+
+    const { worker, captures } = in
+
+    return loop({
+        types,
+        index: 0
+    }, {
+        while: state => state.index < captures.length,
+        next: state => {
+            const type_id = host.taskCaptureType(worker, captures[state.index])
+
+            state.types = state.types.push(type_id)[0]
+            state.index += 1
+        },
+        return: state => state.types
+    })
+}

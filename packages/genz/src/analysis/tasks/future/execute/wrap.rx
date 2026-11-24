@@ -1,0 +1,35 @@
+<Module>
+    <Type from="wrap_model" as="Wrap" />
+
+    <Args in={Wrap.Input} out={u32} />
+
+    <Call fn="index.started" in={$in.started} />
+    <Call fn="index.completed" in={$in.completed} />
+
+    <Call
+        fn="../../rows.tailAstStatementRows"
+        in={[
+            $in.writer,
+            [
+                $ctx.started.start,
+                $ctx.completed.start
+            ],
+            [
+                $ctx.started.count,
+                $ctx.completed.count
+            ]
+        ]}
+    />
+
+    <Call
+        fn="index.finishTaskBlock"
+        in={[
+            $in.frame,
+            $ctx.tailAstStatementRows,
+            $ctx.started.count + $ctx.completed.count,
+            $in.value
+        ]}
+    />
+
+    <Return value={$ctx.finishTaskBlock} />
+</Module>

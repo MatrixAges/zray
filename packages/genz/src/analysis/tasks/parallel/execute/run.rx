@@ -1,0 +1,147 @@
+<Module>
+    <Type from="model" as="Parallel" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Parallel.Input} out={Parallel.Output} />
+
+    <Loop on={$in.index < $in.tasks.length}>
+        <Call
+            module="branch"
+            in={{
+                ...$in.pick([
+                    "group",
+                    "frame",
+                    "writer",
+                    "origin",
+                    "body",
+                    "tasks"
+                ]),
+                index: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        fn="index.reserveParallelNames"
+        in={[
+            $in.group,
+            $in.fields.length
+        ]}
+    />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        fn="../labels"
+        in={{
+            ...$in.pick([
+                "frame",
+                "fields",
+                "results",
+                "values"
+            ]),
+            serial: $ctx.readAstOrigin.serial
+        }}
+    />
+
+    <Call
+        fn="../../rows.setLoweringSerial"
+        in={[
+            $in.frame,
+            $ctx.labels
+        ]}
+    />
+
+    <Call fn="index.readParallelNames" in={$in.group} />
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        module="../build"
+        in={{
+            ...$ctx.readParallelNames,
+            fields: $in.fields,
+            object_names: $in.object_names,
+            bases: {
+                ...$ctx.readAstOrigin,
+                serial: $ctx.labels,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.build.valid} />
+
+    <Call
+        fn="../../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.forms,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendAstFields"
+        in={[
+            $in.writer,
+            $ctx.build.fields
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.build.statements,
+            null,
+            AST.AstPayloadOwnership.Borrowed
+        ]}
+    />
+
+    <Call
+        fn="result"
+        in={{
+            group: $in.group,
+            value: $ctx.build.root,
+            construct: $ctx.build.construct
+        }}
+    />
+
+    <Call
+        fn="body"
+        in={{
+            target: $in.body,
+            start: $ctx.readAstOrigin.statement_base,
+            count: $ctx.build.statements.tags.length
+        }}
+    />
+
+    <Call
+        fn="../../rows.finishAstSequence"
+        in={[
+            $in.writer,
+            $in.body
+        ]}
+    />
+
+    <Call fn="index.span" />
+
+    <Call
+        fn="index.finishTaskBlock"
+        in={[
+            $in.frame,
+            $ctx.span.start,
+            $ctx.span.count,
+            $ctx.result
+        ]}
+    />
+
+    <Return value={$ctx.finishTaskBlock} />
+</Module>

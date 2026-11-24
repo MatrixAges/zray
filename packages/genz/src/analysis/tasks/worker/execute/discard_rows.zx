@@ -1,0 +1,11 @@
+import emptyStatements from "../../../../ast/statements/empty"
+
+import type { StatementRows as Output } from "ast_rows"
+import type { Statements as Input } from "../discard"
+
+export default function (in: Input): Output {
+    return {
+        ...emptyStatements({}),
+        ...in
+    }
+}

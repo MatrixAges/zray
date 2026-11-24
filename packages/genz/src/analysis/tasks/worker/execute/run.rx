@@ -1,0 +1,132 @@
+<Module>
+    <Type from="model" as="Worker" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Worker.Input} out={Worker.Output} />
+
+    <Call fn="../../rows.auxiliaryDeclarationCount" in={$in.writer} />
+
+    <Call
+        module="reserve_slot"
+        in={{
+            writer: $in.writer,
+            slot: $ctx.auxiliaryDeclarationCount
+        }}
+    />
+
+    <Call fn="index.openTaskWorker" in={$in.worker} />
+
+    <Call
+        fn="types"
+        in={$in.pick([
+            "worker",
+            "captures"
+        ])}
+    />
+
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        fn="../prepare"
+        in={{
+            process: $in.process,
+            symbols: $in.captures,
+            types: $ctx.types,
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.prepare.valid} />
+
+    <Call
+        fn="../../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.prepare.expressions,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendOwnedAstFields"
+        in={[
+            $in.writer,
+            $ctx.prepare.fields
+        ]}
+    />
+
+    <Call
+        fn="index.bindTaskCaptureNames"
+        in={[
+            $in.worker,
+            $ctx.prepare.capture_first
+        ]}
+    />
+
+    <Call fn="index.evaluateTaskWorker" in={$in.worker} />
+    <Call fn="index.taskWorkerOutput" in={$in.worker} />
+    <Call fn="index.taskWorkerErrors" in={$in.worker} />
+    <Call fn="../../rows.astStatementCount" in={$in.writer} />
+    <Call fn="index.readTaskWorkerUsage" in={$in.worker} />
+
+    <Call
+        module="discard"
+        in={{
+            writer: $in.writer,
+            origin: $in.origin,
+            captures: $in.captures,
+            process: $in.process,
+            usage: $ctx.readTaskWorkerUsage
+        }}
+    />
+
+    <Call fn="index.readTaskReferenceBody" in={$in.worker} />
+
+    <Call fn="reference" />
+
+    <Call
+        fn="../../rows.tailAstStatementRows"
+        in={[
+            $in.writer,
+            [
+                $ctx.astStatementCount,
+                $ctx.reference.start
+            ],
+            [
+                $ctx.discard - $ctx.astStatementCount,
+                $ctx.reference.count
+            ]
+        ]}
+    />
+
+    <Call
+        module="finish"
+        in={{
+            writer: $in.writer,
+            origin: $in.origin,
+            name: $ctx.reserve_slot,
+            slot: $ctx.auxiliaryDeclarationCount,
+            value: $ctx.evaluateTaskWorker,
+            output_type: $ctx.taskWorkerOutput,
+            errors: $ctx.taskWorkerErrors,
+            parameters_first: $ctx.prepare.first,
+            parameters_count: $ctx.prepare.count,
+            body_first: $ctx.tailAstStatementRows
+        }}
+    />
+
+    <Return value={$ctx.finish} />
+</Module>

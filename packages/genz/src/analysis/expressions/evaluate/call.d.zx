@@ -115,8 +115,14 @@ export declare function finishBorrowedTuple(tuple: BorrowedTuple): u32
 export declare function startParallelBranch(
     group: ParallelFrame,
     index: u64,
-    task: u32
-): void throws { OutOfMemory }
+    task: u32,
+    future: u8[]
+): u64 throws { OutOfMemory }
 
-export declare function finishParallel(group: ParallelFrame): u32
+export declare function reserveParallelNames(group: ParallelFrame, count: u64): void
+    throws { OutOfMemory }
+
+export declare function readParallelNames(group: ParallelFrame): TaskParallelNames
+
+export declare function constructParallelResult(group: ParallelFrame, value: u32): u32
     throws { OutOfMemory }

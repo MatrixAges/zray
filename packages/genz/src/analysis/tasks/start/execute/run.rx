@@ -1,0 +1,100 @@
+<Module>
+    <Type from="model" as="Start" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Start.Input} out={Start.Output} />
+
+    <Call
+        fn="index.publishTaskEffects"
+        in={[
+            $in.frame,
+            true,
+            true,
+            $in.process
+        ]}
+    />
+
+    <Call
+        fn="index.buildTaskWorker"
+        in={[
+            $in.frame,
+            $in.id,
+            $in.process
+        ]}
+    />
+
+    <Call fn="../../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        module="../build"
+        in={{
+            ...$in.omit([
+                "frame",
+                "id",
+                "writer",
+                "origin"
+            ]),
+            worker: $ctx.buildTaskWorker,
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.build.valid} />
+
+    <Call
+        fn="../../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.forms,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <If on={$ctx.build.binding != null}>
+        <Call
+            fn="../../rows.appendAstCleanupRows"
+            in={[
+                $in.writer,
+                $ctx.build.binding.statements.tags,
+                $ctx.build.binding.statements.offsets,
+                $ctx.build.binding.statements.pick([
+                    "variable_name",
+                    "variable_type_expr",
+                    "variable_value",
+                    "variable_exported"
+                ]),
+                $ctx.build.binding.statements.discard_error,
+                $ctx.build.binding.statements.defer_scope_start,
+                $ctx.build.binding.statements.defer_scope_len
+            ]}
+        />
+
+        <Return
+            value={{
+                value: $ctx.build.root,
+                first: $ctx.build.binding.first,
+                count: $ctx.build.binding.count
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            value: $ctx.build.root,
+            first: 0,
+            count: 0
+        }}
+    />
+</Module>

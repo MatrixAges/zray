@@ -1,0 +1,9 @@
+export { publishAstScopedRows } from "ast_rows"
+export {
+    markParallelStatement,
+    reserveParallelRecords,
+    lowerParallelArgument,
+    buildParallelWorker,
+    storeParallelRecord,
+    readParallelRecords
+} from "lowering_host"

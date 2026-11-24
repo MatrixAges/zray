@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Parallel" />
+
+    <Args in={Parallel.Branch} out={Parallel.Branch} />
+
+    <Call
+        module="../../future/execute/open_inline"
+        in={$in.pick([
+            "frame",
+            "writer",
+            "origin"
+        ])}
+    />
+
+    <Call
+        fn="index.startParallelBranch"
+        in={[
+            $in.group,
+            $in.index,
+            $in.tasks[$in.index],
+            $ctx.open_inline
+        ]}
+    />
+
+    <Call
+        fn="../../rows.appendAstSequenceSpan"
+        in={[
+            $in.body,
+            $ctx.startParallelBranch
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

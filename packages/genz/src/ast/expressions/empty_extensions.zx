@@ -17,6 +17,10 @@ export default function (in: Input): Output {
         error_set: [],
         optional_type: [],
         struct_type_start: [],
-        struct_type_len: []
+        struct_type_len: [],
+        container_type_fields_start: [],
+        container_type_fields_len: [],
+        container_type_declarations_start: [],
+        container_type_declarations_len: []
     }
 }

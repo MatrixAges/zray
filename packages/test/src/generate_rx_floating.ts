@@ -12,20 +12,23 @@ for (const width of [32, 64] as const) {
     writeOutput(
         base + '.rx',
         `<Module>
-  <Switch on={$in.choose}>
-    <Case value={true}>
-      <Task name="selected" out={$ctx.identity}>
-        <Call fn="identity" in={$in.safe} />
-      </Task>
-      <Return value={$ctx.task.selected} />
-    </Case>
-    <Default>
-      <Task name="selected" out={$ctx.first}>
-        <Call fn="first" in={$in.items} />
-      </Task>
-      <Return value={$ctx.task.selected} />
-    </Default>
-  </Switch>
+    <Switch on={$in.choose}>
+        <Case value={true}>
+            <Task name="selected" out={$ctx.identity}>
+                <Call fn="identity" in={$in.safe} />
+            </Task>
+
+            <Return value={$ctx.task.selected} />
+        </Case>
+
+        <Default>
+            <Task name="selected" out={$ctx.first}>
+                <Call fn="first" in={$in.items} />
+            </Task>
+
+            <Return value={$ctx.task.selected} />
+        </Default>
+    </Switch>
 </Module>
 `
     )

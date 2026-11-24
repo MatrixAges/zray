@@ -130,17 +130,40 @@ pub fn replaceAstIdentifier(writer: *const anyopaque, index: u64, name: []const 
     borrow(writer).builder.nodes.expressions.payloads.identifier.values.items[@intCast(index)] = name;
 }
 
-pub fn appendExtendedExpressions(writer: *const anyopaque, source: *const Ast.ExpressionRows, forms: *const Ast.ExpressionForms, extensions: *const Ast.ExpressionExtensions) Lower.Error!void {
+pub fn appendExtendedExpressions(writer: *const anyopaque, source: *const Ast.ExpressionRows, forms: ?*const Ast.ExpressionForms, extensions: *const Ast.ExpressionExtensions) Lower.Error!void {
     const self = borrow(writer);
-    const joined = view.join(view.join(source.*, forms.*), extensions.*);
+    const rows = view.join(source.*, extensions.*);
 
-    return appendRows(self, &self.builder.nodes.expressions, &joined, .BorrowingText);
+    if (forms) |values| {
+        const joined = view.join(rows, values.*);
+
+        return appendRows(self, &self.builder.nodes.expressions, &joined, .BorrowingText);
+    }
+
+    return appendRows(self, &self.builder.nodes.expressions, &rows, .BorrowingText);
 }
 
 pub fn appendAstFields(writer: *const anyopaque, source: *const Ast.FieldRows) Lower.Error!void {
     const self = borrow(writer);
 
     _ = fields.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, source) catch |err| return failure(err);
+}
+
+pub fn appendOwnedAstFields(writer: *const anyopaque, source: *const Ast.FieldRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    fields.append(self.allocator, &self.builder.nodes.field_columns, source) catch |err| return failure(err);
+}
+
+pub fn astStatementCount(writer: *const anyopaque) u32 {
+    return @intCast(borrow(writer).builder.nodes.statements.tags.items.len);
+}
+
+pub fn tailAstStatementRows(writer: *const anyopaque, starts: []const u32, counts: []const u32) Lower.Error!u32 {
+    const self = borrow(writer);
+    const block = try blocks.tail(self.allocator, self.builder.nodes, starts, counts);
+
+    return block.start;
 }
 
 pub fn appendAstFunctions(writer: *const anyopaque, source: *const Ast.FunctionRows) Lower.Error!void {
@@ -189,6 +212,46 @@ pub fn packSpan(block: node.Block) u64 {
     return @bitCast(Span{ .start = block.start, .count = block.len });
 }
 
+pub fn unpackSpan(span: u64) node.Block {
+    const decoded: Span = @bitCast(span);
+
+    return .{ .start = decoded.start, .len = decoded.count };
+}
+
+pub fn appendAstCleanupRows(
+    writer: *const anyopaque,
+    tags: []const Ast.StatementsKind,
+    offsets: []const u32,
+    variables: ?*const Ast.StatementVariables,
+    discards: []const u32,
+    defer_starts: []const u32,
+    defer_counts: []const u32,
+) Lower.Error!u64 {
+    const self = borrow(writer);
+
+    const source = .{
+        .tags = tags,
+        .offsets = offsets,
+        .discard_error = discards,
+        .defer_scope_start = defer_starts,
+        .defer_scope_len = defer_counts,
+    };
+    const block = if (variables) |values| written: {
+        const joined = view.join(source, values.*);
+
+        break :written try self.builder.publishStatements(&joined);
+    } else try self.builder.publishStatements(&source);
+
+    return packSpan(block);
+}
+
+pub fn publishAstScopedRows(writer: *const anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables, starts: []const u32, counts: []const u32) Lower.Error!u64 {
+    const self = borrow(writer);
+    const joined = view.join(view.join(source.*, variables.*), .{ .scope_start = starts, .scope_len = counts });
+
+    return packSpan(try self.builder.publishStatements(&joined));
+}
+
 pub fn appendStatementSequence(writer: *const anyopaque, handle: *const anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables) Lower.Error!void {
     const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
     const joined = view.join(source.*, variables.*);
@@ -208,6 +271,18 @@ pub fn statementSequenceBlock(writer: *const anyopaque, handle: *const anyopaque
     const block = try target.block(borrow(writer).allocator);
 
     return packSpan(block);
+}
+
+pub fn appendAstSequenceSpan(handle: *const anyopaque, span: u64) Lower.Error!void {
+    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
+
+    return target.append(unpackSpan(span));
+}
+
+pub fn finishAstSequence(writer: *const anyopaque, handle: *const anyopaque) Lower.Error!u64 {
+    const target: *Sequence = @ptrCast(@alignCast(@constCast(handle)));
+
+    return packSpan(try target.finish(borrow(writer).allocator));
 }
 
 pub fn joinAstSpans(writer: *const anyopaque, first: u64, second: u64) Lower.Error!u64 {

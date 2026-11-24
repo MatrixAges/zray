@@ -43,7 +43,7 @@ pub fn add(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.Res
 
         const cases = emit.addOutputFileArg("cases.zig");
 
-        for ([_][]const u8{ "source", "forward", "reverse", "rx_forward", "rx_reverse", "zx_forward", "zx_reverse", "republish_forward", "republish_reverse" }) |route| {
+        for ([_][]const u8{ "source", "forward", "reverse", "rx_forward", "rx_reverse", "republish_forward", "republish_reverse" }) |route| {
             const compile = b.addRunArtifact(tool);
 
             compile.addFileArg(b.path(b.fmt("tests/{s}.rx", .{suite.path})));

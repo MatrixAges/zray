@@ -1,0 +1,54 @@
+import host from "lowering_host"
+
+import label from "../label"
+import { Kind } from "../label"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    serial: u64
+}
+
+export type Output = {
+    type_name: u8[],
+    input_name: u8[],
+    worker_name: u8[]
+}
+
+export default function (in: Input): Output {
+    const { frame, serial } = in
+
+    const type_value = label({
+        serial,
+        kind: Kind.Type
+    })
+
+    const type_name = host.retainLoweringText(frame, type_value.name)
+
+    host.setLoweringSerial(frame, type_value.serial)
+
+    const input_value = label({
+        serial: type_value.serial,
+        kind: Kind.Input
+    })
+
+    const input_name = host.retainLoweringText(frame, input_value.name)
+
+    host.setLoweringSerial(frame, input_value.serial)
+
+    const worker_value = label({
+        serial: input_value.serial,
+        kind: Kind.Worker
+    })
+
+    const worker_name = host.retainLoweringText(frame, worker_value.name)
+
+    host.setLoweringSerial(frame, worker_value.serial)
+
+    return {
+        type_name,
+        input_name,
+        worker_name
+    }
+}

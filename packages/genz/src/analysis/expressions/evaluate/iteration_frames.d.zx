@@ -148,3 +148,31 @@ export type SortWorkerFacts = {
     right_start: u32,
     right_count: u32
 }
+
+export type TaskWorker = opaque
+
+export type TaskWorkerUsage = {
+    uses_allocator: bool,
+    uses_io: bool,
+    uses_process: bool,
+    used: bool[],
+    names: u8[][]
+}
+
+export type TaskParallelNames = {
+    futures: u8[][],
+    results: u8[][],
+    values: u8[][]
+}
+
+export type ParallelRecords = opaque
+
+export type ParallelRecord = {
+    argument: u32,
+    worker_type: u32,
+    type_name: u8[],
+    input_name: u8[],
+    worker_name: u8[],
+    thread_name: u8[],
+    symbol?: u32
+}

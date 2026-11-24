@@ -1,0 +1,16 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Input as Start } from "../model"
+
+export type Input = Start.Omit("worker", "bases") & {
+    frame: Lowering,
+    id: u32,
+    writer: AstWriter,
+    origin: AstOriginBuffer
+}
+
+export type Output = {
+    value: u32,
+    first: u32,
+    count: u32
+}

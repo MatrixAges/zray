@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Parallel" />
+
+    <Args in={Parallel.Label} out={u8[]} />
+
+    <Call
+        fn="../../../tasks/rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        fn="../label"
+        in={{
+            serial: $ctx.readAstOrigin.serial,
+            kind: $in.kind
+        }}
+    />
+
+    <Call
+        fn="../../../tasks/rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.label.name
+        ]}
+    />
+
+    <Call
+        fn="../../../tasks/rows.setLoweringSerial"
+        in={[
+            $in.frame,
+            $ctx.label.serial
+        ]}
+    />
+
+    <Return value={$ctx.retainLoweringText} />
+</Module>

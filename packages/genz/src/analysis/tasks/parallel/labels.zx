@@ -1,12 +1,15 @@
+import host from "lowering_host"
 import memory from "memory"
 
 import label from "../future/label"
 import { Kind } from "../future/label"
 
+import type { Lowering } from "lowering_host"
 import type { U8ListBuffer } from "memory"
 
 export type Input = {
     serial: u64,
+    frame: Lowering,
     fields: u32?[],
     results: U8ListBuffer,
     values: U8ListBuffer
@@ -26,7 +29,11 @@ export default function (in: Input): Output {
                 kind: Kind.Result
             })
 
-            memory.writeU8List(in.results, current.index, name.name)
+            memory.writeU8List(
+                in.results,
+                current.index,
+                host.retainLoweringText(in.frame, name.name)
+            )
 
             current.serial = name.serial
             current.index += 1
@@ -46,7 +53,11 @@ export default function (in: Input): Output {
                     kind: Kind.Value
                 })
 
-                memory.writeU8List(in.values, current.index, name.name)
+                memory.writeU8List(
+                    in.values,
+                    current.index,
+                    host.retainLoweringText(in.frame, name.name)
+                )
 
                 current.serial = name.serial
             } else {

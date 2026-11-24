@@ -2,88 +2,102 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
-const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
+const rows = @import("../construction/publication.zig");
+const evaluate = @import("../expressions/evaluate.zig");
+const Record = evaluate.Api.ParallelRecord;
+
+const Records = struct {
+    allocator: std.mem.Allocator,
+    references: []*const Record = &.{},
+    values: []Record = &.{},
+    fn borrow(handle: *const anyopaque) *Records {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
 
 pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel")) Lower.Error!node.Block {
     if (!@import("genz_options").generated_analysis) return self.builder.statements(try @import("root_seed.zig").lower(self, invocations));
 
-    self.uses_parallel = true;
-    self.uses_allocator = true;
-
-    const entry = @import("generated_parallel_emit");
-    const Input = std.meta.Child(entry.Input);
-    const RecordRef = std.meta.Child(@FieldType(Input, "records"));
-    const Record = if (@typeInfo(RecordRef) == .pointer) std.meta.Child(RecordRef) else RecordRef;
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    const entry = @import("generated_execute_parallel_statement");
+    var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+    var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
+    var origin: rows.OriginBuffer = .{};
+    var records: Records = .{ .allocator = memory.allocator() };
 
     defer scratch.deinit();
 
-    const references = try memory.allocator().alloc(RecordRef, invocations.len);
-    const records = if (@typeInfo(RecordRef) == .pointer) try memory.allocator().alloc(Record, invocations.len) else references;
-    const shared = try fresh(self, .Allocator);
-
-    for (0..invocations.len) |index| {
-        const invocation = invocations.at(index);
-        const call = self.program.expression(invocation.value).value.call;
-        const type_name = try fresh(self, .Type);
-        const input_name = try fresh(self, .Input);
-        const worker_name = try fresh(self, .Worker);
-        const argument = try self.expr(call.argument);
-        const worker_type = try @import("worker.zig").lower(self, call.function);
-        const thread_name = try fresh(self, .Thread);
-
-        records[index] = .{
-            .argument = @backingInt(argument),
-            .worker_type = @backingInt(worker_type),
-            .type_name = type_name,
-            .input_name = input_name,
-            .worker_name = worker_name,
-            .thread_name = thread_name,
-            .symbol = if (invocation.symbol) |id| @backingInt(id) else null,
-        };
-
-        if (comptime @typeInfo(RecordRef) == .pointer) references[index] = &records[index];
-    }
-
-    const bases: std.meta.Child(@FieldType(Input, "bases")) = .{
-        .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .serial = self.serial,
+    const input: std.meta.Child(entry.Input) = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .expressions = invocations.values[0..invocations.len],
+        .symbols = invocations.symbols[0..invocations.len],
+        .records = @ptrCast(&records),
+        .used = self.used,
+        .names = self.names,
     };
 
-    const input: Input = .{ .shared = shared, .records = references, .used = self.used, .names = self.names, .bases = &bases };
-    const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
+    const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
-    if (!result.valid) return error.OutOfMemory;
-
-    const expressions = view.join(result.expressions.*, result.forms.*);
-    const statements = view.join(view.join(result.statements.*, result.variables.*), result.extra.*);
-    @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
-
-    const block = try self.builder.publishStatements(&statements);
-
-    return .{ .start = block.start + result.inner_count, .len = block.len - result.inner_count };
+    return rows.unpackSpan(result);
 }
 
-fn fresh(self: *Lower, kind: anytype) Lower.Error![]const u8 {
-    const entry = @import("generated_parallel_label");
-    const input: std.meta.Child(entry.Input) = .{ .serial = self.serial, .kind = kind };
-    const output = zx.columns.invoke(entry.executeValue, self.allocator, &input) catch |err| return failure(err);
+pub fn markParallelStatement(handle: *const anyopaque) void {
+    const self = evaluate.borrow(handle);
 
-    self.serial = @intCast(output.serial);
-
-    return output.name;
+    self.uses_parallel = true;
+    self.uses_allocator = true;
 }
 
-fn failure(err: anyerror) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
+pub fn lowerParallelArgument(handle: *const anyopaque, expression: u32) Lower.Error!u32 {
+    const self = evaluate.borrow(handle);
+    const call = self.program.expression(@fromBackingInt(expression)).value.call;
+
+    return @backingInt(try self.expr(call.argument));
+}
+
+pub fn buildParallelWorker(handle: *const anyopaque, expression: u32) Lower.Error!u32 {
+    const self = evaluate.borrow(handle);
+    const call = self.program.expression(@fromBackingInt(expression)).value.call;
+
+    return @backingInt(try @import("worker.zig").lower(self, call.function));
+}
+
+pub fn reserveParallelRecords(handle: *const anyopaque, count: u64) Lower.Error!void {
+    const records = Records.borrow(handle);
+    records.references = try records.allocator.alloc(*const Record, @intCast(count));
+    records.values = try records.allocator.alloc(Record, @intCast(count));
+}
+
+pub fn storeParallelRecord(
+    handle: *const anyopaque,
+    row: u64,
+    argument: u32,
+    worker_type: u32,
+    type_name: []const u8,
+    input_name: []const u8,
+    worker_name: []const u8,
+    thread_name: []const u8,
+    symbol: ?u32,
+) void {
+    const records = Records.borrow(handle);
+    const index: usize = @intCast(row);
+
+    records.values[index] = .{
+        .argument = argument,
+        .worker_type = worker_type,
+        .type_name = type_name,
+        .input_name = input_name,
+        .worker_name = worker_name,
+        .thread_name = thread_name,
+        .symbol = symbol,
     };
+
+    records.references[index] = &records.values[index];
+}
+
+pub fn readParallelRecords(handle: *const anyopaque) []const *const Record {
+    return Records.borrow(handle).references;
 }
