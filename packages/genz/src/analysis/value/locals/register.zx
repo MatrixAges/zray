@@ -1,4 +1,4 @@
-import insert from "core/integer/index/insert"
+import attach from "../../members/attach"
 
 import type { Register as Input, Walk as Output } from "./model"
 
@@ -16,16 +16,12 @@ export default function (in: Input): Output {
         return next
     }
 
-    const added = state.added.push(state.symbol)[0]
-
-    const registered = insert({
-        index: state.index,
-        key: state.symbol
-    })
-
     return {
         ...next,
-        added,
-        index: registered.index
+        ...attach(state.pick([
+            "index",
+            "added",
+            "symbol"
+        ]))
     }
 }

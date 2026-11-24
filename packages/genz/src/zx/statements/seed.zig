@@ -7,14 +7,13 @@ const blocks = @import("../../node/blocks.zig");
 pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     if (values.len == 0) return .{};
 
-    const state_symbols = try @import("../state_value/locals.zig").statements(self, values);
+    const state_symbols = try @import("../state_value/locals_seed.zig").statements(self, values);
 
     defer for (state_symbols) |symbol| {
         _ = self.state_symbols.remove(symbol);
     };
 
-    const locals = @import("../value_call/locals.zig");
-    const stacked = try locals.register(self, values);
+    const stacked = try @import("../value_call/locals_seed.zig").register(self, values);
 
     defer for (stacked) |symbol| {
         _ = self.stack_symbols.remove(symbol);

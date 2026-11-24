@@ -1,0 +1,65 @@
+<Module>
+    <Type from="model" as="Scope" />
+    <Type from="../registration" as="Locals" />
+
+    <Args in={Scope.Run} out={Locals.Registered} />
+
+    <Call
+        fn="../../../state/locals/scope"
+        in={{
+            facts: $in.source.source.pick([
+                "symbol_types",
+                "queries"
+            ]),
+            index: {
+                count: $in.storage.state_count,
+                keys: $in.storage.state_keys,
+                buckets: $in.storage.state_buckets
+            },
+            active: $in.source.source.active,
+            symbols: $in.source.symbols
+        }}
+    />
+
+    <Call
+        module="build"
+        in={{
+            source: $in.source,
+            index: {
+                count: $in.storage.stack_count,
+                keys: $in.storage.stack_keys,
+                buckets: $in.storage.stack_buckets
+            },
+            cache: $in.storage.pick([
+                "aliases",
+                "projected"
+            ])
+        }}
+    />
+
+    <Loop on={$in.state.phase != Scope.Phase.Done}>
+        <Call
+            module="step"
+            in={{
+                source: $in.source,
+                state: $ctx.build
+            }}
+        />
+    </Loop>
+
+    <Return
+        value={{
+            storage: {
+                ...$ctx.step.state.cache,
+                state_count: $ctx.scope.index.count,
+                state_keys: $ctx.scope.index.keys,
+                state_buckets: $ctx.scope.index.buckets,
+                stack_count: $ctx.step.state.index.count,
+                stack_keys: $ctx.step.state.index.keys,
+                stack_buckets: $ctx.step.state.index.buckets
+            },
+            state_added: $ctx.scope.added,
+            stack_added: $ctx.step.state.added
+        }}
+    />
+</Module>

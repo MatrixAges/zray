@@ -750,11 +750,11 @@ pub const main = [_]Entry{
 pub const growth = [_]Entry{
     .{ .path = "genz/analysis/consumer/projection.zx", .name = "consumer_projection", .owner = .genz },
     .{ .path = "genz/analysis/consumer/independent.zx", .name = "consumer_independent", .owner = .genz },
-    .{ .path = "genz/analysis/value/locals/scope/build.rx", .name = "value_scope_initialize", .owner = .genz },
-    .{ .path = "genz/analysis/value/locals/scope/step.rx", .name = "value_scope_step", .owner = .genz },
-    .{ .path = "genz/analysis/value/locals/resolve.rx", .name = "value_local_resolve", .owner = .genz },
-    .{ .path = "genz/analysis/value/locals/advance.rx", .name = "value_local_register", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/optional.zx", .name = "value_local_optional", .owner = .genz },
+    .{ .path = "genz/analysis/value/locals/release.zx", .name = "value_local_release", .owner = .genz },
+    .{ .path = "genz/analysis/value/locals/scope/run.rx", .name = "value_scope_register", .owner = .genz },
+    .{ .path = "genz/analysis/value/locals/block.rx", .name = "value_block_register", .owner = .genz },
+    .{ .path = "core/integer/index/restore.zx", .name = "members_restore", .owner = .genz },
     .{ .path = "genz/analysis/value/call/emit/build.rx", .name = "value_call_emit", .owner = .genz },
     .{ .path = "genz/analysis/value/call/argument/build.rx", .name = "value_argument_borrow", .owner = .genz },
     .{ .path = "genz/analysis/value/call/expression.zx", .name = "value_dispatch", .owner = .genz },
@@ -789,8 +789,6 @@ pub const growth = [_]Entry{
 };
 
 pub const collections = [_]Entry{
-    .{ .path = "genz/analysis/state/locals/statements.zx", .name = "state_locals_statements", .owner = .genz },
-    .{ .path = "genz/analysis/state/locals/scope.zx", .name = "state_locals_scope", .owner = .genz },
     .{ .path = "genz/analysis/state/locals/owned.zx", .name = "state_locals_owned", .owner = .genz },
     .{ .path = "genz/analysis/state/locals/parameters.rx", .name = "state_locals_parameters", .owner = .genz },
     .{ .path = "genz/analysis/iteration/transfer/history/append.zx", .name = "transfer_append", .owner = .genz },

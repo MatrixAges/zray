@@ -109,6 +109,14 @@ pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
     edit(self.current(), keys, @import("generated_members_remove_many"));
 }
 
+pub fn restoreBuckets(self: *Self) void {
+    const entry = @import("generated_members_restore");
+    const input = writable(std.meta.Child(entry.Input), self.current());
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+}
+
 fn edit(state: *State, keys: []const ir.SymbolId, comptime entry: type) void {
     const Input = std.meta.Child(entry.Input);
     const index = writable(std.meta.Child(@FieldType(Input, "index")), state);

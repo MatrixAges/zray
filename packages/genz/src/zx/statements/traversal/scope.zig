@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
+const locals = @import("../../value_call/locals.zig");
 const entry = @import("generated_statement_run_commit");
 const Self = @This();
 
@@ -10,8 +11,7 @@ values: ir.Block,
 starts: []u32,
 counts: []u32,
 routes: []const u8,
-state_symbols: []const ir.SymbolId = &.{},
-stack_symbols: []const ir.SymbolId = &.{},
+registered: locals.Registered = .{},
 condition: node.ExpressionId = undefined,
 yes: node.Block = undefined,
 pub const Buffer = struct {
@@ -25,13 +25,9 @@ pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self
 
     if (values.len == 0) return scope;
 
-    scope.state_symbols = try @import("../../state_value/locals.zig").statements(lowering, values);
+    scope.registered = try locals.register(lowering, values);
 
-    errdefer lowering.state_symbols.removeMany(scope.state_symbols);
-
-    scope.stack_symbols = try @import("../../value_call/locals.zig").register(lowering, values);
-
-    errdefer lowering.stack_symbols.removeMany(scope.stack_symbols);
+    errdefer scope.registered.release(lowering);
 
     try @import("../block.zig").fill(lowering, values, buffer.routes);
 
@@ -39,8 +35,7 @@ pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self
 }
 
 pub fn close(self: *const Self, lowering: *Lower) void {
-    lowering.stack_symbols.removeMany(self.stack_symbols);
-    lowering.state_symbols.removeMany(self.state_symbols);
+    self.registered.release(lowering);
 }
 
 pub fn put(self: *const Self, offset: usize, span: node.Block) void {

@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import get from "core/integer/index/get"
-import insert from "core/integer/index/insert"
 
+import attach from "../../members/attach"
 import { Property } from "../queries/model"
 import read from "../queries/read"
 
@@ -28,11 +28,8 @@ export default function (in: Input): Output {
         return in.state
     }
 
-    const added = in.state.added.push(in.symbol)[0]
-    const registered = insert(key)
-
-    return {
-        index: registered.index,
-        added
-    }
+    return attach({
+        ...in.state,
+        symbol: in.symbol
+    })
 }

@@ -1,0 +1,70 @@
+<Module>
+    <Type from="registration" as="Locals" />
+
+    <Args in={Locals.Block} out={Locals.Registered} />
+
+    <Call
+        fn="../../state/locals/statements"
+        in={{
+            ...$in.pick([
+                "control",
+                "first",
+                "count"
+            ]),
+            facts: $in.source.pick([
+                "symbol_types",
+                "queries"
+            ]),
+            active: $in.source.active,
+            index: {
+                count: $in.storage.state_count,
+                keys: $in.storage.state_keys,
+                buckets: $in.storage.state_buckets
+            }
+        }}
+    />
+
+    <Call
+        module="advance"
+        in={{
+            ...$in.pick([
+                "source",
+                "control",
+                "first",
+                "count"
+            ]),
+            state: {
+                index: {
+                    count: $in.storage.stack_count,
+                    keys: $in.storage.stack_keys,
+                    buckets: $in.storage.stack_buckets
+                },
+                added: [],
+                cache: $in.storage.pick([
+                    "aliases",
+                    "projected"
+                ]),
+                position: $in.first,
+                pending: false,
+                symbol: 0,
+                value: 0
+            }
+        }}
+    />
+
+    <Return
+        value={{
+            storage: {
+                ...$ctx.advance.cache,
+                state_count: $ctx.statements.index.count,
+                state_keys: $ctx.statements.index.keys,
+                state_buckets: $ctx.statements.index.buckets,
+                stack_count: $ctx.advance.index.count,
+                stack_keys: $ctx.advance.index.keys,
+                stack_buckets: $ctx.advance.index.buckets
+            },
+            state_added: $ctx.statements.added,
+            stack_added: $ctx.advance.added
+        }}
+    />
+</Module>

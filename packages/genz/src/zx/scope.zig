@@ -15,14 +15,10 @@ pub fn lowerValue(self: *Lower, scope: ir.ScopeRow) Lower.Error!node.ExpressionI
 }
 
 fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.ExpressionId {
-    const state_symbols = try @import("state_value/locals.zig").scope(self, scope);
-
-    defer self.state_symbols.removeMany(state_symbols);
-
     const values = @import("value_call/root.zig");
-    const stacked = try @import("value_call/locals.zig").scope(self, scope, layout);
+    const locals = try @import("value_call/locals.zig").scope(self, scope, layout);
 
-    defer self.stack_symbols.removeMany(stacked);
+    defer locals.release(self);
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
 

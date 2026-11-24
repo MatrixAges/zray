@@ -1,6 +1,7 @@
 import type { Index } from "core/integer/index/model"
 import type { Layout } from "../../../types/layout"
 import type { Cache, Facts, Resolution } from "../model"
+import type { Storage } from "../registration"
 
 export type Description = {
     source: Facts,
@@ -16,6 +17,10 @@ export type Input = {
     source: Description,
     index: Index,
     cache: Cache
+}
+
+export type Run = Input.Pick("source") & {
+    storage: Storage
 }
 
 export type Flags = {
@@ -35,8 +40,6 @@ export type Scan = {
 export enum Phase {
     Candidate,
     Resolve,
-    Append,
-    Insert,
     Done
 }
 

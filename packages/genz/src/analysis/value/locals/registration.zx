@@ -1,0 +1,22 @@
+import type { Cache, Input } from "./model"
+
+export type Indices = {
+    state_count: u64,
+    state_keys: u32[],
+    state_buckets: u32[],
+    stack_count: u64,
+    stack_keys: u32[],
+    stack_buckets: u32[]
+}
+
+export type Storage = Indices & Cache
+
+export type Block = Input.Omit("state") & {
+    storage: Storage
+}
+
+export type Registered = {
+    storage: Storage,
+    state_added: u32[],
+    stack_added: u32[]
+}

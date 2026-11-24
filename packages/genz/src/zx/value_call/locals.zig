@@ -3,54 +3,72 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const Members = @import("../members.zig");
 const seed = @import("locals_seed.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn register(self: *Lower, statements: ir.Block) Lower.Error![]const ir.SymbolId {
-    if (!generated) return seed.register(self, statements);
+pub const Registered = struct {
+    state: []const ir.SymbolId = &.{},
+    stack: []const ir.SymbolId = &.{},
+    pub fn release(self: Registered, lowering: *Lower) void {
+        if (!generated) {
+            lowering.stack_symbols.removeMany(self.stack);
+            lowering.state_symbols.removeMany(self.state);
 
-    const entry = @import("generated_value_local_register");
+            return;
+        }
+
+        if (self.stack.len == 0 and self.state.len == 0) return;
+
+        const entry = @import("generated_value_local_release");
+        const Input = std.meta.Child(entry.Input);
+        const stack = lowering.stack_symbols.current();
+        const state = lowering.state_symbols.current();
+        const Removal = std.meta.Child(@FieldType(Input, "stack"));
+        const Index = std.meta.Child(@FieldType(Removal, "index"));
+        const stack_buffer = Members.writable(Index, stack);
+        const state_buffer = Members.writable(Index, state);
+        const view = @import("../../node/view.zig");
+        const remove_stack: Removal = .{ .index = &stack_buffer, .keys = view.slice([]const u32, self.stack) };
+        const remove_state: Removal = .{ .index = &state_buffer, .keys = view.slice([]const u32, self.state) };
+        const input: Input = .{ .stack = &remove_stack, .state = &remove_state };
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+        const output = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+        stack.count = output.stack;
+        state.count = output.state;
+    }
+};
+
+pub fn register(self: *Lower, statements: ir.Block) Lower.Error!Registered {
+    const entry = @import("generated_value_block_register");
     const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
     const Input = Child(Parameter);
     const Facts = std.meta.Child(@FieldType(Input, "source"));
-    const Walk = @FieldType(Input, "state");
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
     const data = facts(self, Facts, &types);
-
-    const state: Walk = .{
-        .index = zx.columns.view(@FieldType(Walk, "index"), self.stack_symbols.current().*),
-        .added = .{ .items = &.{}, .storage = .plain },
-        .cache = cache(self, @FieldType(Walk, "cache")),
-        .position = statements.first,
-        .pending = false,
-        .symbol = 0,
-        .value = 0,
-    };
 
     const input: Input = .{
         .source = &data,
         .control = zx.columns.pointer(@FieldType(Input, "control"), statements.control),
         .first = statements.first,
         .count = statements.len,
-        .state = state,
+        .storage = storage(self, @FieldType(Input, "storage")),
     };
 
-    const output = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
-    const current = self.stack_symbols.current();
-
-    current.* = zx.columns.view(@TypeOf(current.*), output.index);
-
-    publish(self, output.cache);
-    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
-
-    return @as([*]const ir.SymbolId, @ptrCast(output.added.items.ptr))[0..output.added.items.len];
+    return apply(self, entry.executeState, &input);
 }
 
-pub fn scope(self: *Lower, value: ir.ScopeRow, layout: bool) Lower.Error![]const ir.SymbolId {
-    if (!generated) return seed.scope(self, value, layout);
+pub fn scope(self: *Lower, value: ir.ScopeRow, layout: bool) Lower.Error!Registered {
+    if (!generated) {
+        const state = try @import("../state_value/locals_seed.zig").scope(self, value);
 
-    const creating = @import("generated_value_scope_initialize");
-    const Parameter = @typeInfo(@TypeOf(creating.executeState)).@"fn".param_types[1].?;
+        errdefer self.state_symbols.removeMany(state);
+
+        return .{ .state = state, .stack = try seed.scope(self, value, layout) };
+    }
+
+    const entry = @import("generated_value_scope_register");
+    const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
     const Input = Child(Parameter);
     const Description = Child(@FieldType(Input, "source"));
     const Facts = Child(@FieldType(Description, "source"));
@@ -69,63 +87,38 @@ pub fn scope(self: *Lower, value: ir.ScopeRow, layout: bool) Lower.Error![]const
 
     const input: Input = .{
         .source = &description,
-        .index = zx.columns.view(@FieldType(Input, "index"), self.stack_symbols.current().*),
-        .cache = cache(self, @FieldType(Input, "cache")),
+        .storage = storage(self, @FieldType(Input, "storage")),
     };
 
-    var state = creating.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
-
-    publish(self, state.cache);
-
-    errdefer for (state.added.items) |symbol| {
-        _ = self.stack_symbols.remove(@fromBackingInt(symbol));
-    };
-
-    const stepping = @import("generated_value_scope_step");
-    const StepParameter = @typeInfo(@TypeOf(stepping.executeState)).@"fn".param_types[1].?;
-    const Step = Child(StepParameter);
-    const step_source = zx.columns.view(Child(@FieldType(Step, "source")), description);
-
-    while (state.phase != .Done) {
-        const step: Step = .{ .source = &step_source, .state = state };
-
-        state = stepping.executeState(self.allocator, if (@typeInfo(StepParameter) == .pointer) &step else step) catch |err| return failure(err);
-
-        const current = self.stack_symbols.current();
-
-        current.* = zx.columns.view(@TypeOf(current.*), state.index);
-
-        publish(self, state.cache);
-    }
-
-    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
-
-    return @as([*]const ir.SymbolId, @ptrCast(state.added.items.ptr))[0..state.added.items.len];
+    return apply(self, entry.executeState, &input);
 }
 
-pub fn borrowed(self: *Lower, symbol: ir.SymbolId, value: ir.ExprId) Lower.Error!bool {
-    if (!generated) return seed.borrowed(self, symbol, value);
+fn apply(self: *Lower, comptime execute: anytype, input: anytype) Lower.Error!Registered {
+    const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
 
-    const entry = @import("generated_value_local_resolve");
-    const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
-    const Input = Child(Parameter);
-    const Facts = std.meta.Child(@FieldType(Input, "source"));
-    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
-    const data = facts(self, Facts, &types);
+    const output = execute(self.allocator, if (@typeInfo(Parameter) == .pointer) input else input.*) catch |err| {
+        // Registration only appends keys. The old counts and key prefixes still define both indexes.
+        self.stack_symbols.restoreBuckets();
+        self.state_symbols.restoreBuckets();
 
-    const input: Input = .{
-        .source = &data,
-        .cache = cache(self, @FieldType(Input, "cache")),
-        .symbol = @backingInt(symbol),
-        .value = @backingInt(value),
-        .phase = .None,
+        return failure(err);
     };
 
-    const output = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+    const value = output.storage;
 
-    publish(self, output.cache);
+    install(&self.state_symbols, value.state_count, value.state_keys, value.state_buckets);
+    install(&self.stack_symbols, value.stack_count, value.stack_keys, value.stack_buckets);
 
-    return output.borrowed;
+    self.input_aliases = if (value.aliases) |items| items.items else null;
+    self.projected_symbols = if (value.projected) |items| items.items else null;
+
+    return .{ .state = symbols(output.state_added.items), .stack = symbols(output.stack_added.items) };
+}
+
+fn install(members: *Members, count: u64, keys: anytype, buckets: @TypeOf(keys)) void {
+    const index = members.current();
+
+    index.* = .{ .count = count, .keys = zx.columns.view(@TypeOf(index.keys), keys), .buckets = zx.columns.view(@TypeOf(index.buckets), buckets) };
 }
 
 pub fn optionalCall(self: *Lower, body: if (generated) *@import("../../node/blocks.zig").Sequence else *std.ArrayList(node.Statement), symbol: ir.SymbolId, value: ir.ExprId, boundary: ir.TypeId) Lower.Error!?node.ExpressionId {
@@ -164,16 +157,20 @@ fn read(comptime Target: type, values: anytype) Target {
     return .{ .items = zx.columns.slice(@FieldType(Target, "items"), values), .storage = .plain };
 }
 
-fn cache(self: *const Lower, comptime Cache: type) Cache {
+fn storage(self: *Lower, comptime Storage: type) Storage {
+    const state = self.state_symbols.current();
+    const stack = self.stack_symbols.current();
+
     return .{
+        .state_count = state.count,
+        .state_keys = zx.columns.view(@FieldType(Storage, "state_keys"), state.keys),
+        .state_buckets = zx.columns.view(@FieldType(Storage, "state_buckets"), state.buckets),
+        .stack_count = stack.count,
+        .stack_keys = zx.columns.view(@FieldType(Storage, "stack_keys"), stack.keys),
+        .stack_buckets = zx.columns.view(@FieldType(Storage, "stack_buckets"), stack.buckets),
         .aliases = if (self.input_aliases) |items| .{ .items = items, .storage = .plain } else null,
         .projected = if (self.projected_symbols) |items| .{ .items = items, .storage = .plain } else null,
     };
-}
-
-fn publish(self: *Lower, value: anytype) void {
-    self.input_aliases = if (value.aliases) |items| items.items else null;
-    self.projected_symbols = if (value.projected) |items| items.items else null;
 }
 
 fn facts(self: *const Lower, comptime Facts: type, types: anytype) Facts {
@@ -198,6 +195,12 @@ fn facts(self: *const Lower, comptime Facts: type, types: anytype) Facts {
 
 fn Child(comptime Value: type) type {
     return if (@typeInfo(Value) == .pointer) std.meta.Child(Value) else Value;
+}
+
+fn symbols(items: []const u32) []const ir.SymbolId {
+    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
+
+    return @as([*]const ir.SymbolId, @ptrCast(items.ptr))[0..items.len];
 }
 
 fn failure(err: anyerror) Lower.Error {

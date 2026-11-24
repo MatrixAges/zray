@@ -1,20 +1,26 @@
+import attach from "../../../members/attach"
 import { Phase } from "./model"
 
 import type { Resolved as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
+    const next = {
+        ...in.state,
+        cache: in.resolution.cache,
+        position: in.state.position + 1,
+        phase: Phase.Candidate
+    }
+
     if (in.resolution.borrowed) {
-        return {
-            ...in.state,
-            cache: in.resolution.cache,
-            position: in.state.position + 1,
-            phase: Phase.Candidate
-        }
+        return next
     }
 
     return {
-        ...in.state,
-        cache: in.resolution.cache,
-        phase: Phase.Append
+        ...next,
+        ...attach(in.state.pick([
+            "index",
+            "added",
+            "symbol"
+        ]))
     }
 }
