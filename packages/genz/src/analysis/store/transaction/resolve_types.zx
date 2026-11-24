@@ -1,0 +1,20 @@
+import { lowerType } from "lowering_host"
+import memory from "memory/columns"
+
+import type { Types as Input } from "./declare"
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const written = loop(0, {
+        while: index => index < in.ids.length,
+        next: index => {
+            const type_node = lowerType(in.frame, in.ids[index], false)
+
+            memory.writeColumnU32s(in.buffer, index, type_node)
+            index += 1
+        }
+    })
+
+    return in.values
+}

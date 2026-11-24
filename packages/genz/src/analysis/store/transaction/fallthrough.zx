@@ -1,11 +1,10 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Input as Block } from "../../control/block_terminates"
-import type { Input as Bases, Output as Commit } from "./commit"
 import type { Input as Policy } from "./policy"
 
 export type Input = {
     transaction: Policy,
     body: Block,
-    bases: Bases
+    writer: AstWriter,
+    origin: AstOriginBuffer
 }
-
-export type Output = Commit?

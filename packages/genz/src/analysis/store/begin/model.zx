@@ -29,8 +29,7 @@ export type Input = {
     function_modes: StoreMode[],
     first: u64,
     count: u64,
-    index: u64,
-    bases: Bases
+    index: u64
 }
 
 export type Emit = {
@@ -46,5 +45,3 @@ export type Output = {
     body: u32,
     valid: bool
 }
-
-export type Result = Output?

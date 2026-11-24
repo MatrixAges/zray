@@ -1,7 +1,8 @@
 <Module>
-    <Type from="initial_model" as="Initial" />
+    <Type from="initialize_input" as="Initial" />
+    <Type from="../rows" as="AST" />
 
-    <Args in={Initial.Input} out={Initial.Result} />
+    <Args in={Initial.Input} out={u64} />
 
     <Call
         fn="policy"
@@ -12,10 +13,32 @@
     />
 
     <If on={!$ctx.policy}>
-        <Return value={null} />
+        <Return value={0} />
     </If>
 
-    <Call fn="null_fields" in={$in} />
+    <Call
+        fn="../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="null_fields"
+        in={{
+            ...$in.omit([
+                "writer",
+                "origin"
+            ]),
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
 
     <Call fn="pending_object" />
 
@@ -36,5 +59,33 @@
         }}
     />
 
-    <Return value={$ctx.pending_binding} />
+    <Call fn="../rows.requireAllocation" in={$ctx.pending_binding.valid} />
+
+    <Call
+        fn="../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.pending_binding.expressions,
+            $ctx.pending_binding.forms,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendOwnedAstFields"
+        in={[
+            $in.writer,
+            $ctx.pending_binding.fields
+        ]}
+    />
+
+    <Call
+        fn="../rows.publishAstBindingRows"
+        in={[
+            $in.writer,
+            $ctx.pending_binding.statements
+        ]}
+    />
+
+    <Return value={$ctx.publishAstBindingRows} />
 </Module>

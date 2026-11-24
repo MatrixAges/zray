@@ -100,6 +100,23 @@ pub fn appendAuxiliaryRow(writer: *const anyopaque, source: *const Ast.ConstantR
     return values[0];
 }
 
+pub fn appendAstDeclaredConstants(writer: *const anyopaque, handle: *const anyopaque, source: *const Ast.ConstantRows) Lower.Error!void {
+    const self = borrow(writer);
+    const target: *@import("../../node/declarations.zig").Sequence = @ptrCast(@alignCast(@constCast(handle)));
+    const Tag = std.meta.Child(@TypeOf(self.builder.nodes.declaration_rows.tags.items));
+    var buffer: [8]Tag = undefined;
+    var scratch: std.heap.BufferFirstAllocator = .init(std.mem.sliceAsBytes(&buffer), self.workspace);
+    const allocator = scratch.allocator();
+    const tags = try allocator.alloc(Tag, source.offsets.len);
+
+    defer allocator.free(tags);
+    @memset(tags, .Constant);
+
+    const rows = view.join(source.*, .{ .tags = @as([]const Tag, tags) });
+
+    target.appendColumns(self.allocator, &rows, true) catch |err| return failure(err);
+}
+
 pub fn replaceAuxiliaryRow(writer: *const anyopaque, slot: u64, source: *const Ast.ConstantRows) Lower.Error!void {
     const self = borrow(writer);
 
@@ -260,6 +277,16 @@ pub fn appendStatementSequence(writer: *const anyopaque, handle: *const anyopaqu
 
 pub fn appendAstBindingRows(writer: *const anyopaque, handle: *const anyopaque, source: *const Ast.BindingRows) Lower.Error!void {
     return appendSequenceRows(writer, handle, source);
+}
+
+pub fn publishAstBindingRows(writer: *const anyopaque, source: *const Ast.BindingRows) Lower.Error!u64 {
+    const self = borrow(writer);
+    const target = &self.builder.nodes.statements;
+    const start: u32 = @intCast(target.tags.items.len);
+
+    try appendRows(self, target, source, .BorrowingText);
+
+    return packSpan(.{ .start = start, .len = @intCast(source.tags.len) });
 }
 
 fn appendSequenceRows(writer: *const anyopaque, handle: *const anyopaque, source: anytype) Lower.Error!void {

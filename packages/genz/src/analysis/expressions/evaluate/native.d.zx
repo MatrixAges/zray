@@ -33,6 +33,8 @@ export enum ConditionalPart {
     No
 }
 
+export declare function requireLoweringContext(frame: Lowering): void
+
 export declare function lowerExpression(
     frame: Lowering,
     id: u32,

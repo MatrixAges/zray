@@ -1,21 +1,76 @@
 <Module>
-    <Type from="model" as="Begin" />
+    <Type from="execute" as="Begin" />
+    <Type from="../rows" as="AST" />
 
-    <Args in={Begin.Input} out={Begin.Result} />
+    <Args in={Begin.Input} out={u64} />
 
-    <Call fn="collect" in={$in} />
+    <Call
+        fn="collect"
+        in={$in.pick([
+            "control",
+            "values",
+            "function_modes",
+            "first",
+            "count",
+            "index"
+        ])}
+    />
 
     <If on={$ctx.collect.length == 0}>
-        <Return value={null} />
+        <Return value={0} />
     </If>
+
+    <Call
+        fn="../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="../rows.astFieldCount" in={$in.writer} />
 
     <Call
         fn="emit"
         in={{
             slots: $ctx.collect,
-            bases: $in.bases
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            }
         }}
     />
 
-    <Return value={$ctx.emit} />
+    <Call fn="../rows.requireLoweringContext" in={$in.frame} />
+    <Call fn="../rows.requireAllocation" in={$ctx.emit.valid} />
+
+    <Call
+        fn="../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.emit.expressions,
+            $ctx.emit.forms,
+            AST.AstPayloadOwnership.Owned
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.emit.statements,
+            $ctx.emit.variables,
+            AST.AstPayloadOwnership.Borrowed
+        ]}
+    />
+
+    <Call
+        fn="../../node_headers/block/span"
+        in={{
+            start: $ctx.emit.body,
+            count: 1
+        }}
+    />
+
+    <Return value={$ctx.span} />
 </Module>

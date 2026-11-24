@@ -1,0 +1,17 @@
+import type { AstDeclarations, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { ColumnU32s } from "memory/columns"
+
+export type Types = {
+    frame: Lowering,
+    buffer: ColumnU32s,
+    values: u32[],
+    ids: u32[]
+}
+
+export type Input = {
+    writer: AstWriter,
+    declarations: AstDeclarations,
+    types: Types,
+    name: u8[]
+}

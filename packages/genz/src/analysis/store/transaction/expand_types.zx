@@ -1,0 +1,29 @@
+import empty from "../../../ast/expressions/empty"
+import emptyExtensions from "../../../ast/expressions/empty_extensions"
+
+import type { ExpressionRows, ExpressionExtensions } from "ast_rows"
+import type { Expressions as Input } from "./declaration_model"
+
+export type Output = {
+    expressions: ExpressionRows,
+    extensions: ExpressionExtensions
+}
+
+export default function (in: Input): Output {
+    return {
+        expressions: {
+            ...empty({}),
+            ...in.pick([
+                "tags",
+                "offsets"
+            ])
+        },
+        extensions: {
+            ...emptyExtensions({}),
+            ...in.omit([
+                "tags",
+                "offsets"
+            ])
+        }
+    }
+}

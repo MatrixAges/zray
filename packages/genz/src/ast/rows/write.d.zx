@@ -1,5 +1,7 @@
 export type AstWriter = opaque
 
+export type AstDeclarations = opaque
+
 export type AstOriginBuffer = opaque
 
 export type AstSequence = opaque
@@ -52,6 +54,15 @@ export declare function appendAstBindingRows(
     writer: AstWriter,
     target: AstSequence,
     rows: BindingRows
+): void throws { OutOfMemory }
+
+export declare function publishAstBindingRows(writer: AstWriter, rows: BindingRows): u64
+    throws { OutOfMemory }
+
+export declare function appendAstDeclaredConstants(
+    writer: AstWriter,
+    target: AstDeclarations,
+    rows: ConstantRows
 ): void throws { OutOfMemory }
 
 export declare function extendStatementSequence(target: AstSequence, suffix: AstSequence): void

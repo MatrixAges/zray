@@ -40,5 +40,3 @@ export type Output = {
     statements: Statements,
     valid: bool
 }
-
-export type Result = Output?

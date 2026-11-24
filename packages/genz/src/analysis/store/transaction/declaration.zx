@@ -7,13 +7,9 @@ import emptyFields from "../../../ast/fields/empty"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import slotName from "../slot_name"
 
-import type { Input, Result as Output } from "./declaration_model"
+import type { Input, Output } from "./declaration_model"
 
 export default function (in: Input): Output {
-    if (in.types.length == 0) {
-        return null
-    }
-
     const tags: ExpressionsKind[] = []
     const offsets: u32[] = []
     const optional_type: u32[] = []

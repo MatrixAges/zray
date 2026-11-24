@@ -1,21 +1,68 @@
 <Module>
     <Type from="fallthrough" as="Fallthrough" />
+    <Type from="../rows" as="AST" />
 
-    <Args in={Fallthrough.Input} out={Fallthrough.Output} />
+    <Args in={Fallthrough.Input} out={u64} />
 
     <Call fn="policy" in={$in.transaction} />
 
     <If on={!$ctx.policy}>
-        <Return value={null} />
+        <Return value={0} />
     </If>
 
     <Call fn="../../control/block_terminates" in={$in.body} />
 
     <If on={$ctx.block_terminates}>
-        <Return value={null} />
+        <Return value={0} />
     </If>
 
-    <Call fn="commit" in={$in.bases} />
+    <Call
+        fn="../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
 
-    <Return value={$ctx.commit} />
+    <Call fn="../rows.astFieldCount" in={$in.writer} />
+
+    <Call
+        fn="commit"
+        in={{
+            ...$ctx.readAstOrigin,
+            field_base: $ctx.astFieldCount
+        }}
+    />
+
+    <Call fn="../rows.requireAllocation" in={$ctx.commit.valid} />
+
+    <Call
+        fn="../rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.commit.expressions,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.commit.statements,
+            null,
+            AST.AstPayloadOwnership.Borrowed
+        ]}
+    />
+
+    <Call
+        fn="../../node_headers/block/span"
+        in={{
+            start: $ctx.readAstOrigin.statement_base,
+            count: $ctx.commit.statements.tags.length
+        }}
+    />
+
+    <Return value={$ctx.span} />
 </Module>

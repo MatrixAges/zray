@@ -1,23 +1,30 @@
+import expressionStatement from "../../../ast/context/expression_statement"
 import initialize from "../../../ast/context/initialize"
 import commit from "./commit_value"
 
 import type { Input as Bases } from "../../../ast/context/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
+import type { Columns as Statements } from "../../../ast/statements/model"
 
 export type Input = Bases
 
 export type Output = {
     expressions: Expressions,
-    root: u32,
+    statements: Statements,
     valid: bool
 }
 
 export default function (in: Input): Output {
     const result = commit(initialize(in))
 
+    const state = expressionStatement({
+        state: result.state,
+        value: result.id
+    })
+
     return {
-        expressions: result.state.expressions,
-        root: result.id,
-        valid: result.state.valid
+        expressions: state.expressions,
+        statements: state.statements,
+        valid: state.valid
     }
 }

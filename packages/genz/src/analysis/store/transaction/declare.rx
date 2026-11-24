@@ -1,0 +1,53 @@
+<Module>
+    <Type from="declare" as="Pending" />
+
+    <Args in={Pending.Input} out={void} />
+
+    <If on={$in.types.ids.length != 0}>
+        <Call fn="resolve_types" in={$in.types} />
+        <Call fn="../rows.astExpressionCount" in={$in.writer} />
+        <Call fn="../rows.astFieldCount" in={$in.writer} />
+        <Call fn="../rows.astDeclarationCount" in={$in.writer} />
+
+        <Call
+            fn="declaration"
+            in={{
+                types: $ctx.resolve_types,
+                name: $in.name,
+                expression_base: $ctx.astExpressionCount,
+                field_base: $ctx.astFieldCount,
+                declaration_base: $ctx.astDeclarationCount
+            }}
+        />
+
+        <Call fn="../rows.requireAllocation" in={$ctx.declaration.valid} />
+        <Call fn="expand_types" in={$ctx.declaration.expressions} />
+
+        <Call
+            fn="../rows.appendExtendedExpressions"
+            in={[
+                $in.writer,
+                $ctx.expand_types.expressions,
+                null,
+                $ctx.expand_types.extensions
+            ]}
+        />
+
+        <Call
+            fn="../rows.appendOwnedAstFields"
+            in={[
+                $in.writer,
+                $ctx.declaration.fields
+            ]}
+        />
+
+        <Call
+            fn="../rows.appendAstDeclaredConstants"
+            in={[
+                $in.writer,
+                $in.declarations,
+                $ctx.declaration.declarations.omit(["tags"])
+            ]}
+        />
+    </If>
+</Module>

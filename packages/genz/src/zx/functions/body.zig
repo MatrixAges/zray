@@ -16,7 +16,9 @@ const Frame = struct {
     flags: prelude.Flags = undefined,
     declaration: node.Function = undefined,
     fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+        const reference: *const *Frame = @ptrCast(@alignCast(handle));
+
+        return reference.*;
     }
 };
 
@@ -28,8 +30,10 @@ pub fn lower(self: *Lower, name: []const u8, exported: bool) Error!node.Declarat
         .signature_request = .{ .name = name, .exported = exported, .errors = undefined },
     };
 
+    const reference = &frame;
+
     const input: std.meta.Child(entry.Input) = .{
-        .body = @ptrCast(&frame),
+        .body = @ptrCast(&reference),
         .stores = self.program.stores.count() != 0,
     };
 
