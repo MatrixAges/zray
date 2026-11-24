@@ -25,9 +25,12 @@ const Publication = struct {
         const collector = self.collector;
         const temporary = collector.temporary.allocator();
         const flag: []bool = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
-        var selected = [_][]const u8{""};
+        var paths = [_][]const u8{ "", "" };
 
-        defer temporary.free(selected[0]);
+        defer {
+            temporary.free(paths[1]);
+            temporary.free(paths[0]);
+        }
 
         const input: Input = .{
             .target = @ptrCast(self),
@@ -37,7 +40,7 @@ const Publication = struct {
                 .targets = @ptrCast(&collector.targets),
                 .compiled = if (compiled) @ptrCast(&flag) else null,
             },
-            .owned = &.{ .allocator = @ptrCast(&temporary), .selected = &selected },
+            .owned = &.{ .allocator = @ptrCast(&temporary), .resolved = paths[0..1], .selected = paths[1..] },
         };
 
         zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
@@ -69,22 +72,17 @@ pub fn source(collector: *Collector, location: Location, role: model.Reference, 
         .windows = builtin.os.tag == .windows,
     };
 
-    const temporary = collector.temporary.allocator();
-    const absolute = if (details.relative) try std.fs.path.resolve(temporary, &.{ collector.options.root_dir, selection.path }) else selection.path;
-
-    defer if (details.relative) temporary.free(absolute);
-
     const other = collector.options.source_index;
     const index = table(collector.paths);
     const alternate = if (other != collector.paths) table(other.?) else undefined;
 
     try publication.publish(&.{
-        .path = absolute,
+        .path = selection.path,
         .index = &index,
         .matched = if (other == collector.paths) selection.row else null,
         .scope = if (details.boundary != null and roots.count != 0) &boundary else null,
         .store_start = if (details.store_owner != null) collector.sources.rx_end else null,
-        .select = details.relative,
+        .root = if (details.relative) collector.options.root_dir else null,
         .member_width = details.member_width,
         .selection_index = if (other != collector.paths) &alternate else null,
     }, false);

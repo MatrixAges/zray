@@ -7,7 +7,11 @@
         fn="register"
         in={$in.pick([
             "target",
-            "ranges"
+            "ranges",
+            "root",
+            "index",
+            "paths",
+            "normalized"
         ])}
     />
 

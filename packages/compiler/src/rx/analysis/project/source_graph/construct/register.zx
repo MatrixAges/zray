@@ -1,7 +1,10 @@
 import bytes from "std:bytes"
+import fixed from "core/bytes/index/fixed"
+import memory from "memory"
 import host from "rx_graph_host"
 
 import { store_suffix } from "../../../../../const"
+import resolve from "../../../../../zx/modules/project/target/package/path"
 import { Kind } from "../../../../path_kind/model"
 import normalize from "../../../../path_segments/normalize"
 import { duplicate_path, duplicate_store, invalid_registration } from "./const"
@@ -11,13 +14,17 @@ import type { Registration as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, ranges } = in
+    const { target, ranges, paths, index, normalized, root } = in
 
     const registered = loop(0, {
         while: row => row < ranges.end,
         next: row => {
-            const path = host.sourceGraphPath(target, row)
             const is_store = row >= ranges.rx_end
+            const path = match {
+                row < ranges.zx_count => memory.readTextColumn(paths.zx, row),
+                is_store => memory.readTextColumn(paths.stores, row - ranges.rx_end),
+                _ => memory.readTextColumn(paths.rx, row - ranges.zx_count)
+            }
 
             if (row >= ranges.zx_count) {
                 const plan = normalize({
@@ -37,7 +44,20 @@ export default function (in: Input): Output {
                 }
             }
 
-            if (!host.claimSourceGraphPath(target, row, path)) {
+            const absolute = resolve({
+                root,
+                path
+            })
+
+            memory.writeTextSlot(normalized, row, absolute)
+
+            const duplicate = fixed({
+                ...index,
+                key: bytes.fromText(absolute),
+                insert: row
+            })
+
+            if (duplicate != null) {
                 const message = is_store ? duplicate_store : duplicate_path
                 host.rejectSourceGraphPath(target, row, !is_store, message)
             }

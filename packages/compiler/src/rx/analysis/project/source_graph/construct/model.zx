@@ -1,3 +1,4 @@
+import type { Table } from "core/bytes/index/fixed"
 import type { Allocator, TextColumn, U64Buffer } from "memory"
 import type { GraphConstruction } from "rx_graph_host"
 import type { Ranges as SourceRanges } from "../source"
@@ -8,7 +9,17 @@ export type Ranges = SourceRanges & {
 
 export type Registration = {
     target: GraphConstruction,
-    ranges: Ranges
+    ranges: Ranges,
+    root: string,
+    index: Table,
+    paths: SourcePaths,
+    normalized: string[]
+}
+
+export type SourcePaths = {
+    zx: TextColumn,
+    rx: TextColumn,
+    stores: TextColumn
 }
 
 export type RootPaths = Registration & {

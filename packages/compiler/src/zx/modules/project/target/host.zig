@@ -53,33 +53,16 @@ pub fn classify(path: []const u8) Route {
 }
 
 pub fn resolvePath(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, reporter: *zx.Reporter, span: zx.Span) zx.Error![]const u8 {
-    return (try resolveFile(allocator, from, path, root, false, false, reporter, span)).path;
-}
-
-fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, allow_rx: bool, check_direction: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!ResolvedFile {
     if (comptime enabled) {
-        const rule = @import("generated_project_file_target");
+        const result = try resolveFile(allocator, from, path, root, null, .{ .scopes = &.{}, .owner = null }, false, false, reporter, span);
 
-        const input: std.meta.Child(rule.Input) = .{
-            .path = path,
-            .from = from,
-            .root = root,
-            .basename = std.fs.path.basename(path),
-            .extension = std.fs.path.extension(path).len != 0,
-            .allow_rx = allow_rx,
-            .check_direction = check_direction,
-        };
-
-        const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.WriteFailed => return error.OutOfMemory,
-            else => unreachable,
-        };
-
-        if (result.issue) |issue| return reporter.fail(.module, span, issue);
-
-        return .{ .path = result.path.?, .fallback = result.fallback };
+        return result.target.source;
     }
 
+    return (try seedResolveFile(allocator, from, path, root, false, false, reporter, span)).path;
+}
+
+fn seedResolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, allow_rx: bool, check_direction: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!ResolvedFile {
     if (check_direction) try checkImportDirection(allow_rx, path, reporter, span);
 
     const plan = seedFilePlan(path, allow_rx);
@@ -167,10 +150,16 @@ fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []
         .File => {
             const allocator = memory.source;
             const root = scope.root(options.root_dir);
-            const file = try resolveFile(allocator, from, path, root, allow_rx, true, reporter, span);
 
-            if (comptime enabled) return finishFile(keep_row, allocator, file, options.source_index, scope, reporter, span);
+            if (comptime enabled) {
+                var result = try resolveFile(allocator, from, path, root, options.source_index, scope, allow_rx, true, reporter, span);
 
+                if (!keep_row) result.source_row = null;
+
+                return result;
+            }
+
+            const file = try seedResolveFile(allocator, from, path, root, allow_rx, true, reporter, span);
             var resolved = file.path;
 
             errdefer allocator.free(resolved);
@@ -219,24 +208,28 @@ pub fn checkImportDirection(allow_rx: bool, target: []const u8, reporter: *zx.Re
     }
 }
 
-fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: ResolvedFile, index: ?*const source_index.Map, scope: Scope, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
-    const table = if (file.fallback) index orelse &source_index.Map.empty else &source_index.Map.empty;
-    const resolved = file.path;
-
-    if (table.buckets.len == 0 and scope.scopes.len == 0) return .{ .target = .{ .source = resolved } };
-
-    errdefer allocator.free(resolved);
-
+fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, index: ?*const source_index.Map, scope: Scope, allow_rx: bool, check_direction: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
+    const table = index orelse &source_index.Map.empty;
     const roots = zx.memory.borrowTextColumn("root", scope.scopes);
-    const rule = @import("generated_project_file_selection");
+    const rule = @import("generated_project_file_resolution");
+    var output = [_][]const u8{""};
+
+    errdefer allocator.free(output[0]);
 
     const input: std.meta.Child(rule.Input) = .{
-        .path = resolved,
+        .path = path,
+        .from = from,
+        .root = root,
+        .basename = std.fs.path.basename(path),
+        .extension = std.fs.path.extension(path).len != 0,
+        .allow_rx = allow_rx,
+        .check_direction = check_direction,
         .release = @ptrCast(&allocator),
         .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },
         .owner = scope.owner,
         .windows = builtin.os.tag == .windows,
         .index = &.{ .keys = table.keys, .buckets = @ptrCast(&table.buckets), .capacity = table.buckets.len },
+        .output = &output,
     };
 
     const selected = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -246,9 +239,7 @@ fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: Resol
 
     if (selected.issue) |issue| return reporter.fail(.module, span, issue);
 
-    const row = if (keep_row) selected.row else null;
-
-    return .{ .target = .{ .source = selected.path }, .source_row = if (row) |value| @intCast(value) else null };
+    return .{ .target = .{ .source = output[0] }, .source_row = if (selected.row) |value| @intCast(value) else null };
 }
 
 fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package, selected: registry.Match, allow_rx: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {

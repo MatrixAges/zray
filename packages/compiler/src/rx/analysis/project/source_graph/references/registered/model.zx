@@ -14,7 +14,7 @@ export type Lookup = {
 export type Source = Lookup & {
     scope?: Scope.Omit("path"),
     store_start?: u64,
-    select: bool,
+    root?: string,
     selection_index?: Table,
     member_width?: u64
 }
@@ -27,6 +27,7 @@ export type Resources = {
 
 export type PathStorage = {
     allocator: Allocator,
+    resolved: string[],
     selected: string[]
 }
 

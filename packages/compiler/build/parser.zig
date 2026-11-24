@@ -81,12 +81,15 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .resolve_members = true,
     };
 
-    const main_interfaces = interfaces ++ [_]manifest.Interface{
-        .{ .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}), .module = lexical_path },
-        hardware_graph_interface,
+    const lexical_interface: manifest.Interface = .{
+        .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}),
+        .module = lexical_path,
     };
 
+    const main_interfaces = interfaces ++ [_]manifest.Interface{ lexical_interface, hardware_graph_interface };
+
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
+        lexical_interface,
         .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host", .resolve_members = true },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host", .resolve_members = true },
@@ -462,6 +465,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },
             .{ .name = memory_columns, .module = memory },
+            .{ .name = lexical_path, .module = standard },
         },
     });
 

@@ -1,0 +1,34 @@
+import memory from "memory"
+import { rejectSourceGraphRoot } from "rx_graph_host"
+
+import find from "../../../../../zx/modules/path/alias/find"
+import resolve from "../../../../../zx/modules/project/target/package/path"
+
+import type { RootPaths } from "./model"
+
+export type Input = RootPaths.Pick("target", "index", "root", "allocator") & {
+    path: string,
+    missing: string
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const path = resolve(in.pick([
+        "root",
+        "path"
+    ]))
+
+    const row = find({
+        path,
+        index: in.index
+    })
+
+    if (row == null) {
+        return rejectSourceGraphRoot(in.target, path, in.missing)
+    }
+
+    memory.freeOwnedText(in.allocator, path)
+
+    return row
+}

@@ -1,17 +1,29 @@
 import memory from "memory"
-import host from "rx_graph_host"
 
 import writeRows from "../root_rows"
 import { missing_entry, missing_root } from "./const"
+import locate from "./entry"
 
 import type { RootPaths as Input } from "./model"
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { target, ranges, roots } = in
+    const { ranges, roots } = in
 
-    const entry = host.resolveSourceGraphRoot(target, in.entry, missing_entry)
+    const lookup = in.pick([
+        "target",
+        "index",
+        "root",
+        "allocator"
+    ])
+
+    const entry = locate({
+        ...lookup,
+        path: in.entry,
+        missing: missing_entry
+    })
+
     const rx_count = in.include_rx ? ranges.rx_end - ranges.zx_count : 0
     const additional = rx_count + in.explicit_count
     const start = 1 + rx_count
@@ -39,7 +51,11 @@ export default function (in: Input): Output {
         while: row => row < in.explicit_count,
         next: row => {
             const path = memory.readTextColumn(in.explicit, row)
-            const root = host.resolveSourceGraphRoot(target, path, missing_root)
+            const root = locate({
+                ...lookup,
+                path,
+                missing: missing_root
+            })
 
             memory.writeU64(roots, start + row, root)
             row += 1

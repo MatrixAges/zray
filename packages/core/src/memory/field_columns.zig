@@ -2,16 +2,17 @@ const std = @import("std");
 const read = @import("rows.zig");
 const write = @import("write_column.zig");
 
-pub fn borrowRead(comptime mapping: anytype, rows: anytype) Fields(read.ReadColumn, mapping) {
+pub fn borrowRead(comptime mapping: anytype, rows: anytype) Fields(read.ReadColumn, @TypeOf(mapping)) {
     return borrow(read.ReadColumn, mapping, rows);
 }
 
-pub fn borrowWrite(comptime mapping: anytype, rows: anytype) Fields(write.Column, mapping) {
+pub fn borrowWrite(comptime mapping: anytype, rows: anytype) Fields(write.Column, @TypeOf(mapping)) {
     return borrow(write.Column, mapping, rows);
 }
 
-fn Fields(comptime Column: type, comptime mapping: anytype) type {
-    const fields = @typeInfo(@TypeOf(mapping)).@"struct".field_names;
+fn Fields(comptime Column: type, comptime Mapping: type) type {
+    const fields = @typeInfo(Mapping).@"struct".field_names;
+    const maps_count = @hasField(Mapping, "count");
 
     return struct {
         const Self = @This();
@@ -20,7 +21,7 @@ fn Fields(comptime Column: type, comptime mapping: anytype) type {
         /// The ABI value refers to the descriptors in this borrow.
         pub inline fn bind(self: *const Self, comptime Shape: type) Shape {
             var result: Shape = undefined;
-            const count: usize = @intFromBool(@hasField(Shape, "count") and !@hasField(@TypeOf(mapping), "count"));
+            const count: usize = @intFromBool(@hasField(Shape, "count") and !maps_count);
 
             comptime std.debug.assert(@typeInfo(Shape).@"struct".field_names.len == fields.len + count);
             self.fill(&result);
@@ -34,14 +35,14 @@ fn Fields(comptime Column: type, comptime mapping: anytype) type {
                 @field(target, field) = @ptrCast(&self.columns[index]);
             }
 
-            if (@hasField(Shape, "count") and !@hasField(@TypeOf(mapping), "count")) target.count = self.count;
+            if (@hasField(Shape, "count") and !maps_count) target.count = self.count;
         }
     };
 }
 
-inline fn borrow(comptime Column: type, comptime mapping: anytype, rows: anytype) Fields(Column, mapping) {
+inline fn borrow(comptime Column: type, comptime mapping: anytype, rows: anytype) Fields(Column, @TypeOf(mapping)) {
     const Row = std.meta.Child(@TypeOf(rows));
-    var result: Fields(Column, mapping) = .{ .columns = undefined, .count = rows.len };
+    var result: Fields(Column, @TypeOf(mapping)) = .{ .columns = undefined, .count = rows.len };
 
     inline for (@typeInfo(@TypeOf(mapping)).@"struct".field_names, 0..) |name, index| {
         const field = @field(mapping, name);

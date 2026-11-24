@@ -1,0 +1,62 @@
+import memory from "memory"
+
+import { path_slot } from "../const"
+import resolve from "../file"
+import select from "./select"
+
+import type { FileProbe, FileRequest, FileSelection } from "../model"
+
+export type Input = FileRequest & FileProbe.Omit("path") & {
+    output: string[]
+}
+
+export type Output = FileSelection.Pick("row", "issue")
+
+export default function (in: Input): Output {
+    const target = resolve(in.pick([
+        "path",
+        "basename",
+        "extension",
+        "allow_rx",
+        "from",
+        "root",
+        "check_direction"
+    ]))
+
+    const path = target.path
+
+    if (path == null) {
+        return {
+            issue: target.issue
+        }
+    }
+
+    memory.writeTextSlot(in.output, path_slot, path)
+
+    const capacity = target.fallback ? in.index.capacity : 0
+
+    if (capacity == 0 && in.roots.length == 0) {
+        return {}
+    }
+
+    const selected = select({
+        ...in.pick([
+            "release",
+            "owner",
+            "roots",
+            "windows"
+        ]),
+        index: {
+            ...in.index,
+            capacity
+        },
+        path
+    })
+
+    memory.writeTextSlot(in.output, path_slot, selected.path)
+
+    return selected.pick([
+        "row",
+        "issue"
+    ])
+}

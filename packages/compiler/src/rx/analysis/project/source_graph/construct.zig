@@ -53,9 +53,19 @@ pub fn build(allocator: Allocator, backing: Allocator, opts: model.Options, expl
         const Element = std.meta.Elem(@TypeOf(explicit));
         const entries: []const Element = explicit[0..];
         const roots = if (Element == []const u8) memory.borrowTextSlice(entries) else memory.borrowTextColumn("path", entries);
+        const zx_paths = memory.borrowTextColumn("path", opts.sources);
+        const rx_paths = memory.borrowTextColumn("path", opts.modules);
+        const stores = memory.borrowTextColumn("path", opts.stores);
+
+        @memset(modules.items(.dependencies), &.{});
+        @memset(modules.items(.compiled_dependency), false);
 
         const input: std.meta.Child(rule.Input) = .{
             .target = @ptrCast(&state),
+            .root = opts.project.root_dir,
+            .index = &.{ .keys = paths.keys, .buckets = @ptrCast(&paths.buckets), .capacity = paths.buckets.len },
+            .paths = &.{ .zx = @ptrCast(&zx_paths), .rx = @ptrCast(&rx_paths), .stores = @ptrCast(&stores) },
+            .normalized = paths.keys,
             .ranges = &.{
                 .zx_count = sources.zx_count,
                 .rx_end = sources.rx_end,
@@ -70,9 +80,7 @@ pub fn build(allocator: Allocator, backing: Allocator, opts: model.Options, expl
             .retain_parses = opts.prefetched != null,
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        zx.columns.invoke(rule.executeIn, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        zx.columns.invoke(rule.executeIn, allocator, &input) catch |err| switch (@as(anyerror, err)) {
             error.InvalidGraph => return state.value,
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => unreachable,
@@ -297,22 +305,16 @@ const Build = struct {
     }
 };
 
-pub fn sourceGraphPath(handle: *const anyopaque, row: u64) []const u8 {
-    return Build.borrow(handle).path(@intCast(row));
-}
-
-pub fn claimSourceGraphPath(handle: *const anyopaque, row: u64, path: []const u8) Allocator.Error!bool {
-    return Build.borrow(handle).claim(@intCast(row), path);
-}
-
 pub fn rejectSourceGraphPath(handle: *const anyopaque, row: u64, normalized: bool, message: []const u8) Error!void {
     return Build.borrow(handle).rejectRegistration(@intCast(row), normalized, message);
 }
 
-pub fn resolveSourceGraphRoot(handle: *const anyopaque, raw: []const u8, missing: []const u8) Error!u64 {
+pub fn rejectSourceGraphRoot(handle: *const anyopaque, path: []const u8, missing: []const u8) error{InvalidGraph}!u64 {
     const state = Build.borrow(handle);
 
-    return try state.resolve(state.scratch, raw, missing);
+    state.value = .{ .diagnostic = .{ .path = path, .location = root_location, .code = "module", .message = missing } };
+
+    return error.InvalidGraph;
 }
 
 pub fn scanSourceGraph(handle: *const anyopaque, additional: u64) Error!u64 {
