@@ -1,23 +1,15 @@
 export {
-    evaluateCollectionValue,
-    collectionTargetRepresented,
     clipCollectionTarget,
-    bindCollectionValue,
     readCollectionItems,
     writeCollectionElement,
     collectionHeader,
-    collectionFlag,
     collectionElementType,
-    collectionLength,
-    collectionUnit,
     collectionCompare,
     collectionMinimum,
     emitCollectionRows,
     emitCollectionPop,
     convertCollectionResult,
     constructCollectionResult,
-    castCollectionResult,
-    checkCollectionIndex,
     emitCollectionUpdate,
-    finishCollection
+    lowerExpression
 } from "lowering_host"

@@ -1,17 +1,6 @@
-import integers from "std:integer"
-import {
-    appendAstBlockRows,
-    appendAstLeafStatements,
-    finishAstSequence,
-    readAstOrigin
-} from "ast_rows"
-import host from "lowering_host"
-import { requireAllocation } from "memory"
+import { finishAstSequence } from "ast_rows"
 
-import unpackSpan from "../../tasks/worker/execute/reference"
-import blockRows from "../binding/block_rows"
-import breakRows from "../binding/break_rows"
-import plan from "../binding/plan"
+import finishStored from "./finish_stored"
 
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
@@ -29,35 +18,11 @@ export type Output = u32
 export default function (in: Input): Output {
     const { frame, writer, origin, sequence, value } = in
 
-    const span = unpackSpan(finishAstSequence(writer, sequence))
-    const current = readAstOrigin(writer, origin)
-
-    const planned = plan({
-        value,
-        expression_base: current.expression_base,
-        statement_base: span.start,
-        body_count: integers.widen(span.count),
-        serial: current.serial
+    return finishStored({
+        frame,
+        writer,
+        origin,
+        span: finishAstSequence(writer, sequence),
+        value
     })
-
-    requireAllocation(planned.valid)
-
-    const name = host.retainLoweringText(frame, planned.name)
-
-    const break_statements = breakRows({
-        name,
-        value: planned.value
-    })
-
-    const block_expressions = blockRows({
-        plan: planned,
-        name,
-        guard: null
-    })
-
-    appendAstLeafStatements(writer, break_statements)
-    appendAstBlockRows(writer, block_expressions.block, block_expressions.conditionals)
-    host.finishGeneratedAst(frame, planned.serial, false)
-
-    return planned.root
 }

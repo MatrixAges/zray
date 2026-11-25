@@ -1,15 +1,54 @@
+import { appendAstBindingRows } from "ast_rows"
 import host from "lowering_host"
 
-import type { Frame as Input } from "./model"
+import { StatementsKind } from "../../../printer/model/statements"
+
+import type { ContextBinding as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const initial = host.transformContextInitial(in)
+    const { ast, initial, context_used, context_name, context_type } = in
 
-    if (initial != null) {
-        const value = host.lowerTransformContextInitial(in, initial)
+    if (initial == null) {
+        return
+    }
 
-        host.publishTransformContext(in, value)
+    const value = host.lowerExpression(ast.lower, initial, false, null)
+
+    if (context_used) {
+        const type_expr = host.lowerType(ast.lower, context_type, false)
+
+        appendAstBindingRows(ast.writer, ast.body, {
+            tags: [StatementsKind.Constant],
+            offsets: [0],
+            constant_name: [context_name],
+            constant_type_expr: [type_expr],
+            constant_value: [value],
+            constant_exported: [false],
+            variable_name: [],
+            variable_type_expr: [],
+            variable_value: [],
+            variable_exported: [],
+            discard: [],
+            break_value_label: [],
+            break_value_value: []
+        })
+    } else {
+        appendAstBindingRows(ast.writer, ast.body, {
+            tags: [StatementsKind.Discard],
+            offsets: [0],
+            constant_name: [],
+            constant_type_expr: [],
+            constant_value: [],
+            constant_exported: [],
+            variable_name: [],
+            variable_type_expr: [],
+            variable_value: [],
+            variable_exported: [],
+            discard: [value],
+            break_value_label: [],
+            break_value_value: []
+        })
     }
 }

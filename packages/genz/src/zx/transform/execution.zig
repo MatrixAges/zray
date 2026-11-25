@@ -20,7 +20,6 @@ pub const Frame = struct {
     loop: Sequence,
     binding: Sequence,
     members: ?@import("../members.zig").Checkpoint = null,
-    entered: node.Block = .{},
     renewal_workspace: *RenewalWorkspace = undefined,
     pub fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
@@ -67,11 +66,16 @@ pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.Ex
 }
 
 fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const RenewalSource) Error!node.ExpressionId {
+    const self = frame.lowering;
+    const transform = frame.transform;
+    const has_context = transform.kind != .reduce and transform.initial != null;
+    const context_symbol = if (has_context) @backingInt(transform.parameters[1]) else 0;
+    const context_used = has_context and self.used[context_symbol];
     var origin: publication.OriginBuffer = .{};
 
     const ast: Ast = .{
-        .writer = @ptrCast(frame.lowering),
-        .lower = @ptrCast(frame.lowering),
+        .writer = @ptrCast(self),
+        .lower = @ptrCast(self),
         .origin = @ptrCast(&origin),
         .body = @ptrCast(&frame.body),
         .loop = @ptrCast(&frame.loop),
@@ -81,8 +85,17 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const input: Input = .{
         .frame = @ptrCast(frame),
         .ast = &ast,
-        .kind = @fromBackingInt(@backingInt(frame.transform.kind)),
+        .kind = @fromBackingInt(@backingInt(transform.kind)),
         .id = @backingInt(frame.id),
+        .result_type = @backingInt(frame.typeId()),
+        .body_expr = @backingInt(transform.body),
+        .initial = if (transform.initial) |initial| @backingInt(initial) else null,
+        .context_used = context_used,
+        .context_name = if (context_used) self.names[context_symbol] else &.{},
+        .context_type = if (has_context) self.program.symbols.types[context_symbol] else 0,
+        .state_active = self.state_active,
+        .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
+        .accumulator = if (transform.kind == .reduce) self.names[@backingInt(transform.parameters[0])] else &.{},
         .renewal_source = renewal_source,
     };
 
@@ -120,45 +133,9 @@ pub fn bindTransformSource(handle: *anyopaque) Error!u32 {
     return @backingInt(try aggregate.bind(self, &frame.body, value));
 }
 
-pub fn resolveTransformResultType(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.lowering.typeExpr(frame.typeId()));
-}
-
-pub fn lowerTransformCallback(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.lowering.expr(frame.transform.body));
-}
-
-pub fn transformFreshName(handle: *anyopaque, prefix: []const u8) Error![]const u8 {
-    return Frame.borrow(handle).lowering.fresh(prefix);
-}
-
-pub fn transformContextInitial(handle: *anyopaque) ?u32 {
-    const id = Frame.borrow(handle).transform.initial orelse return null;
-
-    return @backingInt(id);
-}
-
-pub fn lowerTransformContextInitial(handle: *anyopaque, id: u32) Error!u32 {
-    return @backingInt(try Frame.borrow(handle).lowering.expr(@fromBackingInt(id)));
-}
-
-pub fn publishTransformContext(handle: *anyopaque, value: u32) Error!void {
-    const frame = Frame.borrow(handle);
-
-    return @import("context.zig").publish(frame.lowering, &frame.body, frame.transform.parameters[1], @fromBackingInt(value));
-}
-
 pub fn bindTransformElement(handle: *anyopaque) Error![]const u8 {
     const frame = Frame.borrow(handle);
     const element = frame.transform.parameters[@intFromBool(frame.transform.kind == .reduce)];
 
     return @import("../state_value/elements.zig").captureName(frame.lowering, &frame.binding, frame.sourceType(), element);
-}
-
-pub fn transformStateActive(handle: *anyopaque) bool {
-    return Frame.borrow(handle).lowering.state_active;
 }

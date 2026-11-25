@@ -3,21 +3,28 @@ import { TransformKind } from "core/expression_table/kinds"
 import host from "lowering_host"
 
 import { items } from "./const"
+import freshName from "./fresh_name"
 
 import type { Prepare } from "../collect/model"
 import type { Collection } from "./model"
 
-export type Input = Collection.Pick("frame", "kind")
+export type Input = Collection.Pick("frame", "ast", "kind")
 
-export type Output = Prepare.Pick(
-    "name",
-    "element",
-    "map"
-)
+export type Output = Prepare.Pick("name", "element", "map")
 
 export default function (in: Input): Output {
     const map = in.kind == TransformKind.Map
-    const name = map ? bytes.fromText("") : host.transformFreshName(in.frame, items)
+
+    const name = match map {
+        true => bytes.fromText(""),
+        _ => freshName({
+            lower: in.ast.lower,
+            writer: in.ast.writer,
+            origin: in.ast.origin,
+            prefix: items
+        })
+    }
+
     const element = host.transformCollectionElement(in.frame)
 
     return {

@@ -13,11 +13,14 @@
         />
 
         <Call
-            fn="host.bindCollectionValue"
-            in={[
-                $in.frame,
-                $ctx.clipCollectionTarget
-            ]}
+            fn="../../aggregate/execute/bind_operand"
+            in={{
+                frame: $in.ast.lower,
+                writer: $in.ast.writer,
+                origin: $in.ast.origin,
+                sequence: $in.ast.sequence,
+                value: $ctx.clipCollectionTarget
+            }}
         />
 
         <Call
@@ -25,13 +28,13 @@
             in={[
                 $in.frame,
                 $in.target,
-                $ctx.bindCollectionValue
+                $ctx.bind_operand
             ]}
         />
 
         <Return
             value={{
-                value: $ctx.bindCollectionValue,
+                value: $ctx.bind_operand,
                 items: $ctx.readCollectionItems,
                 represented: true
             }}
@@ -39,11 +42,14 @@
     </If>
 
     <Call
-        fn="host.bindCollectionValue"
-        in={[
-            $in.frame,
-            $in.evaluated
-        ]}
+        fn="../../aggregate/execute/bind_operand"
+        in={{
+            frame: $in.ast.lower,
+            writer: $in.ast.writer,
+            origin: $in.ast.origin,
+            sequence: $in.ast.sequence,
+            value: $in.evaluated
+        }}
     />
 
     <Call
@@ -51,13 +57,13 @@
         in={[
             $in.frame,
             $in.target,
-            $ctx.bindCollectionValue
+            $ctx.bind_operand
         ]}
     />
 
     <Return
         value={{
-            value: $ctx.bindCollectionValue,
+            value: $ctx.bind_operand,
             items: $ctx.readCollectionItems,
             represented: $in.represented
         }}

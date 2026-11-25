@@ -1,0 +1,35 @@
+import bytes from "std:bytes"
+import { appendAstAccessRows, astExpressionCount } from "ast_rows"
+
+import { ExpressionsKind } from "../../../printer/model/expressions"
+import { length_member } from "../../intrinsics/index/const"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    items: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in.writer)
+    const empty: u32[][] = []
+
+    appendAstAccessRows(
+        in.writer,
+        {
+            tags: [ExpressionsKind.Field],
+            offsets: [0],
+            field_target: [in.items],
+            field_name: [bytes.fromText(length_member)],
+            dereference: [],
+            optional_unwrap: [],
+            builtin_name: []
+        },
+        empty
+    )
+
+    return base
+}

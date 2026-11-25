@@ -7,6 +7,7 @@
         fn="header"
         in={{
             frame: $in.frame,
+            writer: $in.ast.writer,
             value: $in.value,
             represented: $in.represented,
             frontier: $in.frontier
@@ -17,6 +18,7 @@
         fn="arguments"
         in={$in.pick([
             "frame",
+            "ast",
             "kind",
             "arguments"
         ])}
@@ -25,14 +27,14 @@
     <Call fn="host.collectionElementType" in={$in.frame} />
 
     <Call
-        fn="host.collectionLength"
-        in={[
-            $in.frame,
-            $in.items
-        ]}
+        fn="emit_length"
+        in={{
+            writer: $in.ast.writer,
+            items: $in.items
+        }}
     />
 
-    <Call fn="host.collectionUnit" in={$in.frame} />
+    <Call fn="emit_unit" in={$in.ast.writer} />
 
     <If on={$in.kind == Flow.CollectionKind.Pop}>
         <Call
@@ -43,7 +45,7 @@
                 $in.value,
                 $ctx.header,
                 $ctx.collectionElementType,
-                $ctx.collectionLength
+                $ctx.emit_length
             ]}
         />
 
@@ -61,8 +63,8 @@
                 value: $in.value,
                 header: $ctx.header,
                 element: $ctx.collectionElementType,
-                length: $ctx.collectionLength,
-                unit: $ctx.collectionUnit
+                length: $ctx.emit_length,
+                unit: $ctx.emit_unit
             }
         }}
     />

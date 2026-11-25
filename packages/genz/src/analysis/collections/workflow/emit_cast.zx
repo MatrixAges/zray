@@ -1,0 +1,37 @@
+import { appendAstAccessRows, astExpressionCount, storeAstIdPair } from "ast_rows"
+
+import {
+    ExpressionsBuiltinName,
+    ExpressionsKind
+} from "../../../printer/model/expressions"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    layout: u32,
+    value: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in.writer)
+    const pair = storeAstIdPair(in.writer, in.layout, in.value)
+
+    appendAstAccessRows(
+        in.writer,
+        {
+            tags: [ExpressionsKind.Builtin],
+            offsets: [0],
+            field_target: [],
+            field_name: [],
+            dereference: [],
+            optional_unwrap: [],
+            builtin_name: [ExpressionsBuiltinName.As]
+        },
+        [pair]
+    )
+
+    return base
+}

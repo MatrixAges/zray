@@ -29,7 +29,7 @@ export default function (in: Input): Output {
     const borrowed = host.prepareScopeBinding(scope, symbol, value, type_id)
 
     const lowered: u32 = borrowed ?? match action {
-        Action.Discard => host.discardScopeOperand(frame, value),
+        Action.Discard => host.lowerDiscardedExpression(frame, value),
         Action.Value => host.lowerValueExpression(frame, value),
         _ => host.lowerExpression(frame, value, false, null)
     }

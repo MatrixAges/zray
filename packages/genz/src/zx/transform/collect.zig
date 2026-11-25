@@ -10,18 +10,10 @@ pub fn transformCollectionElement(handle: *anyopaque) Lower.Error!u32 {
     return @backingInt(try elements.typeExpr(frame.lowering, frame.typeId()));
 }
 
-pub fn bindMapTransformResult(handle: *anyopaque, result: u32) Lower.Error!u32 {
+pub fn storeMapTransformValue(handle: *anyopaque, value: u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try aggregate.bind(frame.lowering, &frame.body, @fromBackingInt(result)));
-}
-
-pub fn storeMapTransformValue(handle: *anyopaque, callback: u32) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const value = try aggregate.bind(self, &frame.loop, @fromBackingInt(callback));
-
-    return @backingInt(try elements.write(self, &frame.loop, frame.typeId(), value));
+    return @backingInt(try elements.write(frame.lowering, &frame.loop, frame.typeId(), @fromBackingInt(value)));
 }
 
 pub fn storeFilterTransformValue(handle: *anyopaque) Lower.Error!u32 {

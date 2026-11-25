@@ -21,20 +21,62 @@ export type Input = {
     ast: Ast,
     kind: TransformKind,
     id: u32,
+    result_type: u32,
+    body_expr: u32,
+    initial?: u32,
+    context_used: bool,
+    context_name: u8[],
+    context_type: u32,
+    state_active: bool,
+    inline_lists: bool,
+    accumulator: u8[],
     renewal_source?: RenewalSource
 }
 
-export type Predicate = Input.Pick("frame", "ast", "kind")
+export type ContextBinding =
+    Input.Pick("ast", "initial", "context_used", "context_name", "context_type")
 
-export type Collection = Predicate & {
-    source: u32,
-    callback: u32
-}
+export type Predicate = Input.Pick(
+    "frame",
+    "ast",
+    "kind",
+    "body_expr",
+    "initial",
+    "context_used",
+    "context_name",
+    "context_type"
+)
 
-export type Reduce = Input.Pick("frame", "ast", "id", "renewal_source") & {
+export type Collection =
+    Input.Pick(
+        "frame",
+        "ast",
+        "kind",
+        "initial",
+        "context_used",
+        "context_name",
+        "context_type"
+    ) & {
+        source: u32,
+        callback: u32
+    }
+
+export type Reduce = Input.Pick(
+    "frame",
+    "ast",
+    "id",
+    "renewal_source",
+    "initial",
+    "state_active",
+    "inline_lists",
+    "accumulator"
+) & {
     source: u32,
     callback: u32,
     layout: u32
 }
+
+export type Renewal =
+    Input.Pick("frame", "id", "accumulator", "inline_lists", "renewal_source")
 
 export type Output = u32?

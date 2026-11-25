@@ -1,9 +1,23 @@
 import host from "lowering_host"
 
-import bind from "./operand"
+import operand from "./operand"
 
-import type { Input, Output } from "./operand"
+import type { CollectionFrame } from "lowering_host"
+import type { Ast } from "../workflow/model"
+
+export type Input = {
+    frame: CollectionFrame,
+    ast: Ast,
+    origin: u32
+}
+
+export type Output = u32
 
 export default function (in: Input): Output {
-    return host.writeCollectionElement(in[0], bind(in))
+    const bound = operand({
+        ast: in.ast,
+        origin: in.origin
+    })
+
+    return host.writeCollectionElement(in.frame, bound)
 }

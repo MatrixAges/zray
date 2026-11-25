@@ -1,11 +1,10 @@
-import host from "lowering_host"
-
 import { accumulator_block, predicate_block } from "./const"
+import freshName from "./fresh_name"
 
-import type { Frame } from "./model"
+import type { Ast } from "./model"
 
 export type Input = {
-    frame: Frame,
+    ast: Ast,
     predicate: bool
 }
 
@@ -14,5 +13,10 @@ export type Output = u8[]
 export default function (in: Input): Output {
     const prefix = in.predicate ? predicate_block : accumulator_block
 
-    return host.transformFreshName(in.frame, prefix)
+    return freshName({
+        lower: in.ast.lower,
+        writer: in.ast.writer,
+        origin: in.ast.origin,
+        prefix
+    })
 }

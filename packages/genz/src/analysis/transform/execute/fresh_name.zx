@@ -1,0 +1,33 @@
+import { readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+
+import fresh from "../../../ast/fresh"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    lower: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    prefix: string
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const { lower, writer, origin, prefix } = in
+
+    const current = readAstOrigin(writer, origin)
+
+    const generated = fresh({
+        serial: current.serial,
+        prefix
+    })
+
+    const name = host.retainLoweringText(lower, generated.name)
+
+    host.setLoweringSerial(lower, generated.serial)
+
+    return name
+}

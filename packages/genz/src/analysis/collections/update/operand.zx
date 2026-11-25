@@ -1,15 +1,26 @@
 import host from "lowering_host"
 
-import type { CollectionFrame } from "lowering_host"
+import bindOperand from "../../aggregate/execute/bind_operand"
 
-export type Input = [CollectionFrame, u32]
+import type { Ast } from "../workflow/model"
+
+export type Input = {
+    ast: Ast,
+    origin: u32
+}
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const [frame, origin] = in
+    const { ast, origin } = in
 
-    const value = host.evaluateCollectionValue(frame, origin)
+    const value = host.lowerExpression(ast.lower, origin, false, null)
 
-    return host.bindCollectionValue(frame, value)
+    return bindOperand({
+        frame: ast.lower,
+        writer: ast.writer,
+        origin: ast.origin,
+        sequence: ast.sequence,
+        value
+    })
 }

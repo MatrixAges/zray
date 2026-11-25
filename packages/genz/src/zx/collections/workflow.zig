@@ -3,9 +3,9 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const aggregate = @import("../aggregate.zig");
 const lists = @import("../state_value/list.zig");
 const elements = @import("../state_value/elements.zig");
+const publication = @import("../construction/publication.zig");
 const entry = @import("generated_run_collection_operation");
 const Error = Lower.Error;
 
@@ -62,8 +62,17 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
 
     defer frame.body.deinit();
 
+    var origin: publication.OriginBuffer = undefined;
+
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(&frame),
+        .ast = &.{
+            .lower = @ptrCast(self),
+            .writer = @ptrCast(self),
+            .origin = @ptrCast(&origin),
+            .sequence = @ptrCast(&frame.body),
+        },
+        .represented = lists.selected(self, frame.source_type),
         .kind = @fromBackingInt(@backingInt(operation.kind)),
         .target = @backingInt(operation.target),
         .arguments = @import("../../node/view.zig").slice([]const u32, operation.arguments),
@@ -74,29 +83,7 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
         .layout = if (layout) |target| @backingInt(target) else null,
     };
 
-    return @fromBackingInt(entry.executeIn(frame.temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err));
-}
-
-pub fn evaluateCollectionValue(handle: *anyopaque, origin: u32) Error!u32 {
-    return @backingInt(try Frame.borrow(handle).lower.expr(@fromBackingInt(origin)));
-}
-
-pub fn collectionTargetRepresented(handle: *anyopaque) bool {
-    const frame = Frame.borrow(handle);
-
-    return lists.selected(frame.lower, frame.source_type);
-}
-
-pub fn clipCollectionTarget(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../state_value/ownership.zig").clip(frame.lower, &frame.body, frame.target, @fromBackingInt(value)));
-}
-
-pub fn bindCollectionValue(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try aggregate.bind(frame.lower, &frame.body, @fromBackingInt(value)));
+    return @fromBackingInt(entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err));
 }
 
 pub fn readCollectionItems(handle: *anyopaque, origin: u32, value: u32) Error!u32 {
@@ -104,6 +91,12 @@ pub fn readCollectionItems(handle: *anyopaque, origin: u32, value: u32) Error!u3
     const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[origin]);
 
     return @backingInt(try lists.items(self, type_id, @fromBackingInt(value)));
+}
+
+pub fn clipCollectionTarget(handle: *anyopaque, value: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try @import("../state_value/ownership.zig").clip(frame.lower, &frame.body, frame.target, @fromBackingInt(value)));
 }
 
 pub fn writeCollectionElement(handle: *anyopaque, value: u32) Error!u32 {
@@ -116,22 +109,10 @@ pub fn collectionHeader(handle: *anyopaque, value: u32) Error!u32 {
     return @backingInt(try lists.headered(Frame.borrow(handle).lower, @fromBackingInt(value)));
 }
 
-pub fn collectionFlag(handle: *anyopaque, value: bool) Error!u32 {
-    return @backingInt(try Frame.borrow(handle).lower.builder.expression(.{ .boolean = value }));
-}
-
 pub fn collectionElementType(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try elements.typeExpr(frame.lower, frame.source_type));
-}
-
-pub fn collectionLength(handle: *anyopaque, items: u32) Error!u32 {
-    return @backingInt(try Frame.borrow(handle).lower.field(@fromBackingInt(items), "len"));
-}
-
-pub fn collectionUnit(handle: *anyopaque) Error!u32 {
-    return @backingInt(try Frame.borrow(handle).lower.builder.expression(.unit));
 }
 
 pub fn convertCollectionResult(handle: *anyopaque, result: u32) Error!u32 {
@@ -145,16 +126,4 @@ pub fn constructCollectionResult(handle: *anyopaque, result: u32) Error!u32 {
     const operation = frame.operation.?;
 
     return @backingInt(try @import("../construction/build.zig").lower(frame.lower, operation.result_type, @fromBackingInt(result), operation.layout));
-}
-
-pub fn castCollectionResult(handle: *anyopaque, layout: u32, result: u32) Error!u32 {
-    const self = Frame.borrow(handle).lower;
-
-    return @backingInt(try self.cast(@fromBackingInt(layout), @fromBackingInt(result)));
-}
-
-pub fn finishCollection(handle: *anyopaque, result: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try aggregate.finish(frame.lower, &frame.body, @fromBackingInt(result)));
 }

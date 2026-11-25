@@ -4,24 +4,24 @@
     <Args in={Flow.TargetRequest} out={Flow.BoundTarget} />
 
     <Call
-        fn="host.evaluateCollectionValue"
+        fn="host.lowerExpression"
         in={[
-            $in.frame,
-            $in.target
+            $in.ast.lower,
+            $in.target,
+            false,
+            null
         ]}
     />
-
-    <Call fn="host.collectionTargetRepresented" in={$in.frame} />
 
     <Call
         module="bind_target"
         in={{
             frame: $in.frame,
+            ast: $in.ast,
             target: $in.target,
-            evaluated: $ctx.evaluateCollectionValue,
-            represented: $ctx.collectionTargetRepresented,
-            clip:
-                $ctx.collectionTargetRepresented && $in.kind != Flow.CollectionKind.Slice
+            evaluated: $ctx.lowerExpression,
+            represented: $in.represented,
+            clip: $in.represented && $in.kind != Flow.CollectionKind.Slice
         }}
     />
 

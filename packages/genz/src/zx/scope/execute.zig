@@ -10,7 +10,6 @@ const evaluation = @import("../expressions/evaluate.zig");
 const entry = @import("generated_lower_scope_bindings");
 const Error = Lower.Error;
 const packSpan = @import("../construction/publication.zig").packSpan;
-const unpackSpan = @import("../construction/publication.zig").unpackSpan;
 const inline_span_count = 32;
 const inline_preparation_words = 4;
 
@@ -46,10 +45,13 @@ const Frame = struct {
             .iteration = iteration_mode,
         };
 
+        var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
+
         const input: Input = .{
             .frame = @ptrCast(lowering),
             .scope = @ptrCast(&self),
             .writer = @ptrCast(lowering),
+            .origin = @ptrCast(&origin),
             .result = @backingInt(self.scope.result),
             .layout = layout,
             .selection = &selection,
@@ -119,10 +121,6 @@ pub fn prepareScopeBinding(handle: *const anyopaque, symbol: ?u32, value: u32, t
     return if (borrowed) |id| @backingInt(id) else null;
 }
 
-pub fn discardScopeOperand(handle: *anyopaque, operand: u32) Error!u32 {
-    return @backingInt(try @import("../iteration.zig").discard(evaluation.borrow(handle), @fromBackingInt(operand)));
-}
-
 pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32, value: u32, layout: bool) Error!u64 {
     const frame = borrow(handle);
     const mutable = if (frame.aliases) |active| active.variables[@intCast(position)] else false;
@@ -140,10 +138,6 @@ pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32
     frame.sequence = null;
 
     return packSpan(block);
-}
-
-pub fn completeScopeBlock(handle: *anyopaque, span: u64, result: u32) Error!u32 {
-    return @backingInt(try @import("../aggregate.zig").finishStored(evaluation.borrow(handle), unpackSpan(span), @fromBackingInt(result), null));
 }
 
 pub fn completeIterationScope(handle: *const anyopaque, bindings: *const evaluation.Api.IterationScopeBindings, result: u32) Error!u32 {

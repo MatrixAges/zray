@@ -1,0 +1,19 @@
+import host from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    lower: Lowering,
+    initial?: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return host.lowerExpression(
+        in.lower,
+        in.initial ?? host.invalidLowering(),
+        false,
+        null
+    )
+}

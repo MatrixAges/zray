@@ -13,19 +13,13 @@ export {
     enterTransformParameters,
     tryTransformSimd,
     bindTransformSource,
-    resolveTransformResultType,
-    lowerTransformCallback,
     bindTransformElement,
-    transformFreshName,
     transformCollectionElement,
     finishTransformCollection,
     finishGeneratedAst,
-    transformStateActive,
-    lowerReduceInitial,
-    reduceAccumulator,
-    reduceInlineLists,
     emitReduceRenewals,
-    reduceEntered
+    lowerExpression,
+    lowerType
 } from "lowering_host"
 export { requireAllocation } from "memory"
 

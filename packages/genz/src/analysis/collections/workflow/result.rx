@@ -5,14 +5,17 @@
 
     <If on={$in.removed_only}>
         <Call
-            fn="host.finishCollection"
-            in={[
-                $in.frame,
-                $in.result
-            ]}
+            fn="../../aggregate/execute/finish_block"
+            in={{
+                frame: $in.ast.lower,
+                writer: $in.ast.writer,
+                origin: $in.ast.origin,
+                sequence: $in.ast.sequence,
+                value: $in.result
+            }}
         />
 
-        <Return value={$ctx.finishCollection} />
+        <Return value={$ctx.finish_block} />
     </If>
 
     <Call module="convert" in={$in} />
@@ -26,12 +29,15 @@
     />
 
     <Call
-        fn="host.finishCollection"
-        in={[
-            $in.frame,
-            $ctx.constructCollectionResult
-        ]}
+        fn="../../aggregate/execute/finish_block"
+        in={{
+            frame: $in.ast.lower,
+            writer: $in.ast.writer,
+            origin: $in.ast.origin,
+            sequence: $in.ast.sequence,
+            value: $ctx.constructCollectionResult
+        }}
     />
 
-    <Return value={$ctx.finishCollection} />
+    <Return value={$ctx.finish_block} />
 </Module>

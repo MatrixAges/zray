@@ -4,12 +4,22 @@
 
     <Args in={Transform.Collection} out={u32} />
 
-    <Call fn="bind_context" in={$in.frame} />
+    <Call
+        fn="bind_context"
+        in={$in.pick([
+            "ast",
+            "initial",
+            "context_used",
+            "context_name",
+            "context_type"
+        ])}
+    />
 
     <Call
         fn="prepare_collection"
         in={$in.pick([
             "frame",
+            "ast",
             "kind"
         ])}
     />
@@ -72,6 +82,7 @@
         in={{
             ...$in.pick([
                 "frame",
+                "ast",
                 "callback"
             ]),
             map: $ctx.prepare_collection.map,

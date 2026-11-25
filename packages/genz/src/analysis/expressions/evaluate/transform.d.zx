@@ -7,34 +7,13 @@ export declare function tryTransformSimd(frame: TransformFrame): u32? throws { O
 
 export declare function bindTransformSource(frame: TransformFrame): u32 throws { OutOfMemory }
 
-export declare function resolveTransformResultType(frame: TransformFrame): u32
-    throws { OutOfMemory }
-
-export declare function lowerTransformCallback(frame: TransformFrame): u32 throws { OutOfMemory }
-
-export declare function transformContextInitial(frame: TransformFrame): u32?
-
-export declare function lowerTransformContextInitial(frame: TransformFrame, id: u32): u32
-    throws { OutOfMemory }
-
-export declare function publishTransformContext(frame: TransformFrame, value: u32): void
-    throws { OutOfMemory }
-
 export declare function bindTransformElement(frame: TransformFrame): u8[] throws { OutOfMemory }
 
-export declare function bindMapTransformResult(frame: TransformFrame, result: u32): u32
+export declare function storeMapTransformValue(frame: TransformFrame, callback: u32): u32
     throws { OutOfMemory }
-
-export declare function storeMapTransformValue(frame: TransformFrame, callback: u32): u32 throws { OutOfMemory }
 
 export declare function storeFilterTransformValue(frame: TransformFrame): u32
     throws { OutOfMemory }
-
-export declare function transformStateActive(frame: TransformFrame): bool
-
-export declare function lowerReduceInitial(frame: TransformFrame): u32 throws { OutOfMemory }
-
-export declare function reduceInlineLists(frame: TransformFrame): bool
 
 export declare function emitReduceRenewals(
     frame: TransformFrame,
@@ -42,10 +21,7 @@ export declare function emitReduceRenewals(
     first: u64,
     end: u64,
     filtered_inline: bool
-): void throws { OutOfMemory }
-
-export declare function transformFreshName(frame: TransformFrame, prefix: string): u8[]
-    throws { OutOfMemory }
+): u64 throws { OutOfMemory }
 
 export declare function transformCollectionElement(frame: TransformFrame): u32
     throws { OutOfMemory }
@@ -57,9 +33,5 @@ export declare function finishTransformCollection(
     result: u32
 ): u32 throws { OutOfMemory }
 
-export declare function reduceAccumulator(frame: TransformFrame): u8[]
-
 export declare function convertReduceValue(frame: TransformFrame, value: u32, initial: bool): u32
     throws { OutOfMemory }
-
-export declare function reduceEntered(frame: TransformFrame): u64

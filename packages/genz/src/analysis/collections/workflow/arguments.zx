@@ -1,27 +1,52 @@
 import host from "lowering_host"
 
+import bindOperand from "../../aggregate/execute/bind_operand"
 import { unused_expression } from "./const"
 import { CollectionKind } from "./model"
 
-import type { Arguments, Input as Request } from "./model"
+import type { Arguments, Ast, Input as Request } from "./model"
 
-export type Input = Request.Pick("frame", "kind", "arguments")
+export type Input = Request.Pick("frame", "kind", "arguments") & {
+    ast: Ast
+}
 
 export type Output = Arguments
 
 export default function (in: Input): Output {
-    const { frame, kind, arguments } = in
+    const { frame, ast, kind, arguments } = in
 
     if (kind == CollectionKind.Splice) {
-        const start = host.evaluateCollectionValue(frame, arguments[0])
-        const first = host.bindCollectionValue(frame, start)
+        const start = host.lowerExpression(ast.lower, arguments[0], false, null)
 
-        const count = host.evaluateCollectionValue(frame, arguments[1])
-        const second = host.bindCollectionValue(frame, count)
+        const first = bindOperand({
+            frame: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            sequence: ast.sequence,
+            value: start
+        })
+
+        const count = host.lowerExpression(ast.lower, arguments[1], false, null)
+
+        const second = bindOperand({
+            frame: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            sequence: ast.sequence,
+            value: count
+        })
 
         const replacement_id = arguments[2]
-        const replacement = host.evaluateCollectionValue(frame, replacement_id)
-        const value = host.bindCollectionValue(frame, replacement)
+        const replacement = host.lowerExpression(ast.lower, replacement_id, false, null)
+
+        const value = bindOperand({
+            frame: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            sequence: ast.sequence,
+            value: replacement
+        })
+
         const third = host.readCollectionItems(frame, replacement_id, value)
 
         return {
@@ -33,8 +58,15 @@ export default function (in: Input): Output {
 
     if (kind == CollectionKind.Push || kind == CollectionKind.Concat) {
         const id = arguments[0]
-        const value = host.evaluateCollectionValue(frame, id)
-        const bound = host.bindCollectionValue(frame, value)
+        const value = host.lowerExpression(ast.lower, id, false, null)
+
+        const bound = bindOperand({
+            frame: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            sequence: ast.sequence,
+            value
+        })
 
         const first = match kind {
             CollectionKind.Push => host.writeCollectionElement(frame, bound),

@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Transform" />
+
+    <Args in={Transform.Renewal} out={u64} />
+
+    <If on={$in.renewal_source != null}>
+        <Call
+            module="../../iteration/deferred/check"
+            in={{
+                ...$in.renewal_source,
+                owner: $in.id,
+                classify: false,
+                inline_lists: $in.inline_lists
+            }}
+        />
+
+        <If on={$ctx.check.emit}>
+            <Call
+                fn="index.emitReduceRenewals"
+                in={[
+                    $in.frame,
+                    $in.accumulator,
+                    $ctx.check.first,
+                    $ctx.check.end,
+                    $in.inline_lists
+                ]}
+            />
+
+            <Return value={$ctx.emitReduceRenewals} />
+        </If>
+    </If>
+
+    <Return value={0} />
+</Module>

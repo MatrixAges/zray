@@ -14,12 +14,15 @@
     />
 
     <Call
-        fn="../workflow/host.finishCollection"
-        in={[
-            $in.frame,
-            $ctx.emitCollectionUpdate
-        ]}
+        fn="../../aggregate/execute/finish_block"
+        in={{
+            frame: $in.ast.lower,
+            writer: $in.ast.writer,
+            origin: $in.ast.origin,
+            sequence: $in.ast.sequence,
+            value: $ctx.emitCollectionUpdate
+        }}
     />
 
-    <Return value={$ctx.finishCollection} />
+    <Return value={$ctx.finish_block} />
 </Module>

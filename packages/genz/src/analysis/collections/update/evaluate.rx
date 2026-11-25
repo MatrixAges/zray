@@ -3,13 +3,13 @@
 
     <Args in={Update.Input} out={Update.Write} />
 
-    <Call fn="../workflow/host.collectionTargetRepresented" in={$in.frame} />
-
     <Call
-        fn="../workflow/host.evaluateCollectionValue"
+        fn="../workflow/host.lowerExpression"
         in={[
-            $in.frame,
-            $in.target
+            $in.ast.lower,
+            $in.target,
+            false,
+            null
         ]}
     />
 
@@ -17,36 +17,40 @@
         module="../workflow/bind_target"
         in={{
             frame: $in.frame,
+            ast: $in.ast,
             target: $in.target,
-            evaluated: $ctx.evaluateCollectionValue,
-            represented: $ctx.collectionTargetRepresented,
-            clip: $ctx.collectionTargetRepresented
+            evaluated: $ctx.lowerExpression,
+            represented: $in.represented,
+            clip: $in.represented
         }}
     />
 
     <Call
         fn="operand"
-        in={[
-            $in.frame,
-            $in.index
-        ]}
+        in={{
+            ast: $in.ast,
+            origin: $in.index
+        }}
     />
 
     <Call
-        fn="../workflow/host.checkCollectionIndex"
-        in={[
-            $in.frame,
-            $ctx.bind_target.items,
-            $ctx.operand
-        ]}
+        fn="check_bounds"
+        in={{
+            writer: $in.ast.writer,
+            origin: $in.ast.origin,
+            sequence: $in.ast.sequence,
+            items: $ctx.bind_target.items,
+            index: $ctx.operand
+        }}
     />
 
     <Call
         fn="convert"
-        in={[
-            $in.frame,
-            $in.value
-        ]}
+        in={{
+            frame: $in.frame,
+            ast: $in.ast,
+            origin: $in.value
+        }}
     />
 
     <Call fn="../workflow/host.collectionElementType" in={$in.frame} />
@@ -58,7 +62,7 @@
             index: $ctx.operand,
             value: $ctx.convert,
             element: $ctx.collectionElementType,
-            selected: $ctx.collectionTargetRepresented
+            selected: $in.represented
         }}
     />
 </Module>

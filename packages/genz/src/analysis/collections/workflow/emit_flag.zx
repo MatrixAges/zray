@@ -1,0 +1,37 @@
+import { appendAstLiteralRows, astExpressionCount } from "ast_rows"
+
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    value: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in.writer)
+    const empty: u32[][] = []
+
+    appendAstLiteralRows(
+        in.writer,
+        {
+            tags: [ExpressionsKind.Boolean],
+            offsets: [0],
+            integer: [],
+            float: [],
+            string: [],
+            boolean: [in.value],
+            enum_literal: [],
+            error_value: [],
+            unary_operator: [],
+            unary_operand: [],
+            builtin_name: []
+        },
+        empty
+    )
+
+    return base
+}

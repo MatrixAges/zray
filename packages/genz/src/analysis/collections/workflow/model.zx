@@ -1,10 +1,20 @@
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { CollectionKind } from "core/expression_table/kinds"
-import type { CollectionFrame, CollectionRows } from "lowering_host"
+import type { CollectionFrame, CollectionRows, Lowering } from "lowering_host"
 
 export { CollectionKind } from "core/expression_table/kinds"
 
+export type Ast = {
+    lower: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence
+}
+
 export type Input = {
     frame: CollectionFrame,
+    ast: Ast,
+    represented: bool,
     kind: CollectionKind,
     target: u32,
     arguments: u32[],
@@ -23,6 +33,8 @@ export type BoundTarget = {
 
 export type TargetRequest = {
     frame: CollectionFrame,
+    ast: Ast,
+    represented: bool,
     kind: CollectionKind,
     target: u32
 }
@@ -42,11 +54,11 @@ export type Rows = {
 }
 
 export type Outcome =
-    Input.Pick("frame", "removed_only", "state_active", "result_selected") & {
+    Input.Pick("frame", "ast", "removed_only", "state_active", "result_selected") & {
         result: u32
     }
 
-export type TargetBinding = TargetRequest.Pick("frame", "target") & {
+export type TargetBinding = TargetRequest.Pick("frame", "ast", "target") & {
     evaluated: u32,
     represented: bool,
     clip: bool

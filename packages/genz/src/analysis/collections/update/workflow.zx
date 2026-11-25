@@ -1,7 +1,10 @@
 import type { CollectionFrame, CollectionUpdate } from "lowering_host"
+import type { Ast } from "../workflow/model"
 
 export type Input = {
     frame: CollectionFrame,
+    ast: Ast,
+    represented: bool,
     target: u32,
     index: u32,
     value: u32

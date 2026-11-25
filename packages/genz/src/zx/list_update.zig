@@ -21,25 +21,23 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
     defer scratch.deinit();
     defer frame.body.deinit();
 
+    var origin: publication.OriginBuffer = undefined;
+
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(&frame),
+        .ast = &.{
+            .lower = @ptrCast(self),
+            .writer = @ptrCast(self),
+            .origin = @ptrCast(&origin),
+            .sequence = @ptrCast(&frame.body),
+        },
+        .represented = @import("state_value/list.zig").selected(self, frame.source_type),
         .target = @backingInt(update.target),
         .index = @backingInt(update.index),
         .value = @backingInt(update.value),
     };
 
     return @fromBackingInt(entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err));
-}
-
-pub fn checkCollectionIndex(handle: *anyopaque, items: u32, index: u32) Error!void {
-    const frame = Frame.borrow(handle);
-    const entry = @import("generated_list_update_bounds");
-    const Input = std.meta.Child(entry.Input);
-    const bases = context.snapshot(std.meta.Child(@FieldType(Input, "bases")), frame.lower);
-    const input: Input = .{ .bases = &bases, .items = items, .index = index };
-    const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
-
-    return publication.write(frame.lower, .{ .body = &frame.body }, output, .Guard);
 }
 
 pub fn emitCollectionUpdate(handle: *anyopaque, request: *const Api.CollectionUpdate) Error!u32 {

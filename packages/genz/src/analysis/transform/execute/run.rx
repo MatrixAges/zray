@@ -20,7 +20,12 @@
             in={$in.pick([
                 "frame",
                 "ast",
-                "kind"
+                "kind",
+                "body_expr",
+                "initial",
+                "context_used",
+                "context_name",
+                "context_type"
             ])}
         />
 
@@ -34,17 +39,43 @@
     </If>
 
     <Call fn="index.bindTransformSource" in={$in.frame} />
-    <Call fn="index.resolveTransformResultType" in={$in.frame} />
-    <Call fn="index.lowerTransformCallback" in={$in.frame} />
+
+    <Call
+        fn="index.lowerType"
+        in={[
+            $in.ast.lower,
+            $in.result_type,
+            false
+        ]}
+    />
+
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.ast.lower,
+            $in.body_expr,
+            false,
+            null
+        ]}
+    />
 
     <If on={$in.kind == Transform.TransformKind.Reduce}>
         <Call
             module="reduce"
             in={{
-                ...$in.omit(["kind"]),
+                ...$in.pick([
+                    "frame",
+                    "ast",
+                    "id",
+                    "renewal_source",
+                    "initial",
+                    "state_active",
+                    "inline_lists",
+                    "accumulator"
+                ]),
                 source: $ctx.bindTransformSource,
-                callback: $ctx.lowerTransformCallback,
-                layout: $ctx.resolveTransformResultType
+                callback: $ctx.lowerExpression,
+                layout: $ctx.lowerType
             }}
         />
 
@@ -54,12 +85,17 @@
     <Call
         module="collect"
         in={{
-            ...$in.omit([
-                "id",
-                "renewal_source"
+            ...$in.pick([
+                "frame",
+                "ast",
+                "kind",
+                "initial",
+                "context_used",
+                "context_name",
+                "context_type"
             ]),
             source: $ctx.bindTransformSource,
-            callback: $ctx.lowerTransformCallback
+            callback: $ctx.lowerExpression
         }}
     />
 

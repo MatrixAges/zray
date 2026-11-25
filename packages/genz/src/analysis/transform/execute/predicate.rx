@@ -9,13 +9,32 @@
     <Call
         fn="block_name"
         in={{
-            frame: $in.frame,
+            ast: $in.ast,
             predicate: true
         }}
     />
 
-    <Call fn="index.lowerTransformCallback" in={$in.frame} />
-    <Call fn="bind_context" in={$in.frame} />
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.ast.lower,
+            $in.body_expr,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="bind_context"
+        in={$in.pick([
+            "ast",
+            "initial",
+            "context_used",
+            "context_name",
+            "context_type"
+        ])}
+    />
+
     <Call fn="index.bindTransformElement" in={$in.frame} />
 
     <Call
@@ -54,7 +73,7 @@
             ]),
             kind: $in.kind,
             source: $ctx.bindTransformSource,
-            callback: $ctx.lowerTransformCallback,
+            callback: $ctx.lowerExpression,
             label: $ctx.block_name,
             capture: $ctx.bindTransformElement,
             outer_count: $ctx.outerRange.count,

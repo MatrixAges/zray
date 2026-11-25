@@ -1,15 +1,7 @@
-export declare function evaluateCollectionValue(frame: CollectionFrame, origin: u32): u32
+export declare function readCollectionItems(frame: CollectionFrame, origin: u32, value: u32): u32
     throws { OutOfMemory }
-
-export declare function collectionTargetRepresented(frame: CollectionFrame): bool
 
 export declare function clipCollectionTarget(frame: CollectionFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function bindCollectionValue(frame: CollectionFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function readCollectionItems(frame: CollectionFrame, origin: u32, value: u32): u32
     throws { OutOfMemory }
 
 export declare function writeCollectionElement(frame: CollectionFrame, value: u32): u32
@@ -18,16 +10,7 @@ export declare function writeCollectionElement(frame: CollectionFrame, value: u3
 export declare function collectionHeader(frame: CollectionFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function collectionFlag(frame: CollectionFrame, value: bool): u32
-    throws { OutOfMemory }
-
 export declare function collectionElementType(frame: CollectionFrame): u32
-    throws { OutOfMemory }
-
-export declare function collectionLength(frame: CollectionFrame, items: u32): u32
-    throws { OutOfMemory }
-
-export declare function collectionUnit(frame: CollectionFrame): u32
     throws { OutOfMemory }
 
 export declare function collectionCompare(frame: CollectionFrame): u8[]
@@ -65,15 +48,6 @@ export declare function prepareCollectionMember(
 ): void throws { OutOfMemory }
 
 export declare function refreshCollectionResultBases(frame: CollectionConversion): void
-
-export declare function castCollectionResult(frame: CollectionFrame, layout: u32, result: u32): u32
-    throws { OutOfMemory }
-
-export declare function finishCollection(frame: CollectionFrame, result: u32): u32
-    throws { OutOfMemory }
-
-export declare function checkCollectionIndex(frame: CollectionFrame, items: u32, index: u32): void
-    throws { OutOfMemory }
 
 export declare function emitCollectionUpdate(frame: CollectionFrame, input: CollectionUpdate): u32
     throws { OutOfMemory }

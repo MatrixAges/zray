@@ -1,0 +1,17 @@
+import { appendAstExpressionHeaders, astExpressionCount } from "ast_rows"
+
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = AstWriter
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in)
+
+    appendAstExpressionHeaders(in, [ExpressionsKind.Unit], [0])
+
+    return base
+}

@@ -1,28 +1,47 @@
 import host from "lowering_host"
 
+import bindOperand from "../../aggregate/execute/bind_operand"
 import { index } from "./const"
+import freshName from "./fresh_name"
 
 import type { Publish } from "../collect/model"
 import type { Collection } from "./model"
 
-export type Input = Collection.Pick("frame", "callback") & {
+export type Input = Collection.Pick("frame", "ast", "callback") & {
     result: u32,
     map: bool
 }
 
-export type Output = Publish.Pick(
-    "result",
-    "value",
-    "index"
-)
+export type Output = Publish.Pick("result", "value", "index")
 
 export default function (in: Input): Output {
-    const frame = in.frame
+    const { frame, ast, callback } = in
 
     if (in.map) {
-        const result = host.bindMapTransformResult(frame, in.result)
-        const name = host.transformFreshName(frame, index)
-        const value = host.storeMapTransformValue(frame, in.callback)
+        const result = bindOperand({
+            frame: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            sequence: ast.body,
+            value: in.result
+        })
+
+        const name = freshName({
+            lower: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            prefix: index
+        })
+
+        const bound = bindOperand({
+            frame: ast.lower,
+            writer: ast.writer,
+            origin: ast.origin,
+            sequence: ast.loop,
+            value: callback
+        })
+
+        const value = host.storeMapTransformValue(frame, bound)
 
         return {
             result,

@@ -40,15 +40,17 @@
         />
 
         <Call
-            fn="workflow.completeScopeBlock"
-            in={[
-                $in.frame,
-                $ctx.tailAstPackedStatements,
-                $ctx.prepare.value
-            ]}
+            fn="../../aggregate/execute/finish_stored"
+            in={{
+                frame: $in.frame,
+                writer: $in.writer,
+                origin: $in.origin,
+                span: $ctx.tailAstPackedStatements,
+                value: $ctx.prepare.value
+            }}
         />
 
-        <Return value={$ctx.completeScopeBlock} />
+        <Return value={$ctx.finish_stored} />
     </If>
 
     <Call

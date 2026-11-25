@@ -674,7 +674,6 @@ pub const growth = [_]Entry{
     .{ .path = "genz/analysis/state/ownership/needed.zx", .name = "ownership_needed", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/outlined.zx", .name = "ownership_outlined", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/projection/build.rx", .name = "ownership_projection", .owner = .genz },
-    .{ .path = "genz/analysis/collections/update/bounds.rx", .name = "list_update_bounds", .owner = .genz },
     .{ .path = "genz/analysis/collections/update/build.rx", .name = "list_update", .owner = .genz },
     .{ .path = "genz/analysis/functions/adapter/eligible.rx", .name = "function_adapter_eligible", .owner = .genz },
     .{ .path = "genz/analysis/functions/adapter/argument.rx", .name = "function_adapter_argument", .owner = .genz },

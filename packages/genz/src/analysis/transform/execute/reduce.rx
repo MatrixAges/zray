@@ -4,46 +4,34 @@
 
     <Args in={Transform.Reduce} out={u32} />
 
-    <Call fn="index.reduceAccumulator" in={$in.frame} />
-    <Call fn="index.lowerReduceInitial" in={$in.frame} />
-    <Call fn="index.transformStateActive" in={$in.frame} />
+    <Call
+        fn="reduce_initial"
+        in={{
+            lower: $in.ast.lower,
+            initial: $in.initial
+        }}
+    />
 
     <Call
         fn="index.convertInitial"
         in={{
             frame: $in.frame,
-            value: $ctx.lowerReduceInitial,
+            value: $ctx.reduce_initial,
             initial: true,
-            active: $ctx.transformStateActive
+            active: $in.state_active
         }}
     />
 
-    <If on={$in.renewal_source != null}>
-        <Call fn="index.reduceInlineLists" in={$in.frame} />
-
-        <Call
-            module="../../iteration/deferred/check"
-            in={{
-                ...$in.renewal_source,
-                owner: $in.id,
-                classify: false,
-                inline_lists: $ctx.reduceInlineLists
-            }}
-        />
-
-        <If on={$ctx.check.emit}>
-            <Call
-                fn="index.emitReduceRenewals"
-                in={[
-                    $in.frame,
-                    $ctx.reduceAccumulator,
-                    $ctx.check.first,
-                    $ctx.check.end,
-                    $ctx.reduceInlineLists
-                ]}
-            />
-        </If>
-    </If>
+    <Call
+        module="renewal"
+        in={$in.pick([
+            "frame",
+            "id",
+            "accumulator",
+            "inline_lists",
+            "renewal_source"
+        ])}
+    />
 
     <Call
         fn="index.convertCallback"
@@ -51,7 +39,7 @@
             frame: $in.frame,
             value: $in.callback,
             initial: false,
-            active: $ctx.transformStateActive
+            active: $in.state_active
         }}
     />
 
@@ -60,7 +48,7 @@
     <Call
         fn="block_name"
         in={{
-            frame: $in.frame,
+            ast: $in.ast,
             predicate: false
         }}
     />
@@ -106,9 +94,8 @@
         }}
     />
 
-    <Call fn="index.reduceEntered" in={$in.frame} />
     <Call fn="index.outerRange" in={$ctx.outerBlock} />
-    <Call fn="index.enteredRange" in={$ctx.reduceEntered} />
+    <Call fn="index.enteredRange" in={$ctx.renewal} />
 
     <Call
         fn="index.readAstOrigin"
@@ -123,7 +110,8 @@
         in={{
             ...$in.pick([
                 "source",
-                "layout"
+                "layout",
+                "accumulator"
             ]),
             ...$ctx.readAstOrigin.pick([
                 "expression_base",
@@ -133,7 +121,6 @@
                 "before",
                 "after"
             ]),
-            accumulator: $ctx.reduceAccumulator,
             initial: $ctx.convertInitial,
             callback: $ctx.convertCallback,
             capture: $ctx.bindTransformElement,

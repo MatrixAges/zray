@@ -6,32 +6,32 @@
     <Call fn="host.collectionElementType" in={$in.frame} />
 
     <Call
-        fn="host.collectionLength"
-        in={[
-            $in.frame,
-            $in.items
-        ]}
+        fn="emit_length"
+        in={{
+            writer: $in.ast.writer,
+            items: $in.items
+        }}
     />
 
     <Call
-        fn="host.collectionFlag"
-        in={[
-            $in.frame,
-            false
-        ]}
+        fn="emit_flag"
+        in={{
+            writer: $in.ast.writer,
+            value: false
+        }}
     />
 
-    <Call fn="host.collectionUnit" in={$in.frame} />
+    <Call fn="emit_unit" in={$in.ast.writer} />
 
     <Call
         fn="slice_rows"
         in={{
             items: $in.items,
             value: $in.value,
-            header: $ctx.collectionFlag,
+            header: $ctx.emit_flag,
             element: $ctx.collectionElementType,
-            length: $ctx.collectionLength,
-            unit: $ctx.collectionUnit
+            length: $ctx.emit_length,
+            unit: $ctx.emit_unit
         }}
     />
 
@@ -47,32 +47,38 @@
 
     <If on={$in.layout != null}>
         <Call
-            fn="host.castCollectionResult"
-            in={[
-                $in.frame,
-                $in.layout,
-                $ctx.emitCollectionRows
-            ]}
+            fn="emit_cast"
+            in={{
+                writer: $in.ast.writer,
+                layout: $in.layout,
+                value: $ctx.emitCollectionRows
+            }}
         />
 
         <Call
-            fn="host.finishCollection"
-            in={[
-                $in.frame,
-                $ctx.castCollectionResult
-            ]}
+            fn="../../aggregate/execute/finish_block"
+            in={{
+                frame: $in.ast.lower,
+                writer: $in.ast.writer,
+                origin: $in.ast.origin,
+                sequence: $in.ast.sequence,
+                value: $ctx.emit_cast
+            }}
         />
 
-        <Return value={$ctx.finishCollection} />
+        <Return value={$ctx.finish_block} />
     </If>
 
     <Call
-        fn="host.finishCollection"
-        in={[
-            $in.frame,
-            $ctx.emitCollectionRows
-        ]}
+        fn="../../aggregate/execute/finish_block"
+        in={{
+            frame: $in.ast.lower,
+            writer: $in.ast.writer,
+            origin: $in.ast.origin,
+            sequence: $in.ast.sequence,
+            value: $ctx.emitCollectionRows
+        }}
     />
 
-    <Return value={$ctx.finishCollection} />
+    <Return value={$ctx.finish_block} />
 </Module>
