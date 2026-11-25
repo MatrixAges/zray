@@ -1,0 +1,17 @@
+import { directory_separator as slash } from "compiler_rules/path/const"
+
+import { native_directory } from "./const"
+
+export type Input = {
+    directory: string,
+    name: string,
+    extension: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { directory, name, extension } = in
+
+    return `${directory}${slash}${native_directory}${slash}${name}${extension}`
+}

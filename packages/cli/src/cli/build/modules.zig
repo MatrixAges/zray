@@ -3,6 +3,9 @@ const compiler = @import("compiler");
 const State = @import("../build.zig").State;
 const Command = @import("command.zig");
 const artifacts = @import("../artifacts.zig");
+const process = @import("../backend/process.zig");
+const source = @import("cli_source");
+const workspace = source.workspace_artifact_constants.@"zx.constants";
 const Error = @import("../sources/effects.zig").Error;
 const NativeModule = @import("cli_abi").layouts.@"zig:rx_execution_host".NativeBackendModule;
 
@@ -41,7 +44,7 @@ pub fn bindBackendModule(handle: *const anyopaque, index: u64, includes: []const
     const row: usize = @intCast(index);
     const module = &self.project.config.native_modules[row];
 
-    self.native = .{ .row = row, .spec = .{
+    self.native = .{ .header = module.header, .spec = .{
         .settings = self.settings,
         .name = module.name,
         .path = path orelse undefined,
@@ -53,21 +56,22 @@ pub fn bindBackendModule(handle: *const anyopaque, index: u64, includes: []const
     } };
 }
 
-pub fn writeNativeHeader(handle: *const anyopaque) Error!void {
+pub fn writeNativeHeader(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
     const context = self.context;
-    const allocator = context.allocator;
-    const module = &self.project.config.native_modules[self.native.row];
-    const directory = self.workspace.directory;
-    self.native.spec.path = std.fmt.allocPrint(allocator, "{s}/native/{s}.zig", .{ directory, module.name }) catch |err| return self.failure.save(err);
-    self.native.header = std.fmt.allocPrint(allocator, "{s}/native/{s}.h", .{ directory, module.name }) catch |err| return self.failure.save(err);
-    const include = std.json.Stringify.valueAlloc(allocator, module.header.?, .{}) catch |err| return self.failure.save(err);
-    const source = std.fmt.allocPrint(allocator, "#include {s}\n", .{include}) catch |err| return self.failure.save(err);
 
-    artifacts.retain(context.io, allocator, self.native.header, source) catch |err| return self.failure.save(err);
+    const header = source.workspace_native_header.executeValue(context.allocator, &.{
+        .directory = self.workspace.directory,
+        .name = self.native.spec.name,
+        .header = self.native.header.?,
+    }) catch |err| return self.failure.save(err);
+
+    artifacts.retain(context.io, context.allocator, header.path, header.source) catch |err| return self.failure.save(err);
+
+    return header.path;
 }
 
-pub fn translateNativeHeader(handle: *const anyopaque) Error!bool {
+pub fn spawnNativeTranslation(handle: *const anyopaque, header: []const u8) Error!bool {
     const self = State.get(handle);
     const context = self.context;
     const translation = &self.translation.?;
@@ -80,23 +84,54 @@ pub fn translateNativeHeader(handle: *const anyopaque) Error!bool {
         .global = translation.cache.global,
         .settings = self.settings,
         .includes = self.native.spec.includes,
-        .header = self.native.header,
+        .header = header,
     }) catch |err| return self.failure.save(err);
 
-    const translated = translation.execute(context.io, command.arguments.items, &self.environment.?, self.native.spec.name) catch |err| return self.failure.save(err);
+    translation.pending = process.run(context.io, translation.arena.child_allocator, command.arguments.items, &self.environment.?, .translation) catch |err| return self.failure.save(err);
 
-    self.native.spec.translated = translated;
+    return translation.pending.?.succeeded;
+}
 
-    return translated != null;
+pub fn bindNativeTranslation(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const translation = &self.translation.?;
+    const hash = std.fmt.bytesToHex(translation.pending.?.digest.?, .lower);
+
+    self.native.spec.translated = source.backend_cache_path.executeIn(translation.arena.allocator(), &.{
+        .root = translation.cache.local,
+        .hash = &hash,
+        .stem = self.native.spec.name,
+    }) catch |err| return self.failure.save(err);
+}
+
+pub fn retainNativeTranslation(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const translation = &self.translation.?;
+
+    translation.responses.append(translation.arena.allocator(), translation.pending.?) catch |err| return self.failure.save(err);
+
+    translation.pending = null;
+}
+
+pub fn releaseNativeTranslation(handle: *const anyopaque) void {
+    const translation = &State.get(handle).translation.?;
+
+    translation.pending.?.deinit();
+
+    translation.pending = null;
 }
 
 pub fn writeNativeAdapter(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
-    const adapter = compiler.zig.host.cAdapter(context.allocator) catch |err| return self.failure.save(err);
+    const allocator = context.allocator;
+    const path = source.workspace_native_path.executeIn(allocator, &.{ .directory = self.workspace.directory, .name = self.native.spec.name, .extension = workspace.zig_extension }) catch |err| return self.failure.save(err);
+    const adapter = compiler.zig.host.cAdapter(allocator) catch |err| return self.failure.save(err);
 
-    defer context.allocator.free(adapter);
-    artifacts.retain(context.io, context.allocator, self.native.spec.path, adapter) catch |err| return self.failure.save(err);
+    defer allocator.free(adapter);
+    artifacts.retain(context.io, allocator, path, adapter) catch |err| return self.failure.save(err);
+
+    self.native.spec.path = path;
 }
 
 pub fn appendNativeModule(handle: *const anyopaque) Error!void {
@@ -128,8 +163,8 @@ pub fn appendNapiModule(handle: *const anyopaque) Error!void {
     appendSupport(self, Command.constants.napi_module, Command.constants.napi_source, &.{Command.constants.application_module}) catch |err| return self.failure.save(err);
 }
 
-fn appendSupport(self: *State, name: []const u8, source: []const u8, imports: []const []const u8) !void {
-    const path = try std.fmt.allocPrint(self.context.allocator, "{s}/{s}", .{ self.workspace.directory, source });
+fn appendSupport(self: *State, name: []const u8, file: []const u8, imports: []const []const u8) !void {
+    const path = try std.fmt.allocPrint(self.context.allocator, "{s}/{s}", .{ self.workspace.directory, file });
 
     try self.command.module(.{
         .settings = self.settings,

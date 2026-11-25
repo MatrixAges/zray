@@ -1,0 +1,19 @@
+import { napi_directory, node_directory } from "./const"
+
+import type { Workspace } from "./model"
+
+export type Input = Workspace.Omit("fs")
+
+export type Output = {
+    node: string,
+    napi: string
+}
+
+export default function (in: Input): Output {
+    const { directory, separator } = in
+
+    return {
+        node: `${directory}${separator}${node_directory}`,
+        napi: `${directory}${separator}${napi_directory}`
+    }
+}

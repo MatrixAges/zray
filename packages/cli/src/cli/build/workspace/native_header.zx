@@ -1,0 +1,30 @@
+import { quoteJsonString } from "artifact_io"
+
+import { header_extension, include_prefix, line_end } from "./const"
+import nativePath from "./native_path"
+
+import type { Input as NativePath } from "./native_path"
+
+export type Input = NativePath.Omit("extension") & {
+    header: string
+}
+
+export type Output = {
+    path: string,
+    source: string
+}
+
+export default function (in: Input): Output {
+    const { directory, name } = in
+
+    const include = quoteJsonString(in.header)
+
+    return {
+        path: nativePath({
+            directory,
+            name,
+            extension: header_extension
+        }),
+        source: `${include_prefix}${include}${line_end}`
+    }
+}

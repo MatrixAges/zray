@@ -1,7 +1,9 @@
 const std = @import("std");
 const protocol = @import("backend_protocol");
 
-pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const u8, environment: *const std.process.Environ.Map) !protocol.Result {
+pub const Mode = enum { application, translation };
+
+pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const u8, environment: *const std.process.Environ.Map, mode: Mode) !protocol.Result {
     var child = try std.process.spawn(io, .{
         .argv = arguments,
         .environ_map = environment,
@@ -40,7 +42,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const 
 
     const termination = try child.wait(io);
 
-    if (arguments.len > 1 and std.mem.eql(u8, arguments[1], "translate-c")) return protocol.decodeTranslation(allocator, reader.reader(0).buffered(), reader.reader(1).buffered(), termination);
+    if (mode == .translation) return protocol.decodeTranslation(allocator, reader.reader(0).buffered(), reader.reader(1).buffered(), termination);
 
     return protocol.decode(allocator, reader.reader(0).buffered(), reader.reader(1).buffered(), termination);
 }

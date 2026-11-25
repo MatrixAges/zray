@@ -294,8 +294,20 @@
             "name": "workspace_retain"
         },
         {
-            "path": "workspace_files/views.zx",
-            "name": "workspace_views"
+            "path": "workspace_files/const.zx",
+            "name": "workspace_artifact_constants"
+        },
+        {
+            "path": "workspace_files/native_path.zx",
+            "name": "workspace_native_path"
+        },
+        {
+            "path": "workspace_files/native_header.zx",
+            "name": "workspace_native_header"
+        },
+        {
+            "path": "workspace_files/host_resources.rx",
+            "name": "workspace_host_resources"
         },
         {
             "path": "command/translation.zx",
@@ -328,10 +340,6 @@
         {
             "path": "backend_dependencies/resolve.rx",
             "name": "backend_inputs"
-        },
-        {
-            "path": "backend_dependencies/translation.zx",
-            "name": "backend_translation_retention"
         },
         {
             "path": "backend_dependencies/cache_path.zx",

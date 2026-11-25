@@ -1,0 +1,27 @@
+import { NodeTarget } from "rx_execution_host"
+
+import { freestanding, wasm32, wasm64, windows } from "./const"
+
+import type { BackendTarget as Input } from "rx_execution_host"
+
+export type Output = {
+    wasm: bool,
+    node: NodeTarget
+}
+
+export default function (in: Input): Output {
+    const arch = in.arch ?? in.host_arch
+    const os = in.os ?? in.host_os
+    const wasm = in.arch == wasm32 && in.os == freestanding
+
+    const node = match {
+        arch == wasm32 || arch == wasm64 => NodeTarget.UnsupportedNodeTarget,
+        os == windows && in.node_library == null => NodeTarget.NodeImportLibraryRequired,
+        _ => NodeTarget.Ready
+    }
+
+    return {
+        wasm,
+        node
+    }
+}

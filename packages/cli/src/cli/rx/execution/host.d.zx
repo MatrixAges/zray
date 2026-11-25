@@ -28,6 +28,19 @@ export type NativeBackendModule = {
     path?: string
 }
 
+export type BackendTarget = {
+    arch?: string,
+    os?: string,
+    host_arch: string,
+    host_os: string,
+    node_library?: string
+}
+
+export enum NodeTarget {
+    Ready,
+    UnsupportedNodeTarget,
+    NodeImportLibraryRequired
+}
 
 export declare function reportRxLibraryEntry(check: RxApplication): void throws { SourceLoadFailure }
 export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
@@ -80,7 +93,7 @@ export declare function openStagedOutput(build: NativeBuild): void throws {
 export declare function openBackendEnvironment(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function openBackendTranslation(build: NativeBuild, observed: bool): void throws {
+export declare function openBackendTranslation(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 export declare function reportStagedTranslationFailure(build: NativeBuild): void throws {
@@ -136,10 +149,10 @@ export declare function encodeBackendConfiguration(build: NativeBuild): void thr
 export declare function prepareBackendAbi(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function resolveNativeTarget(build: NativeBuild): bool throws {
+export declare function readNativeTarget(build: NativeBuild): BackendTarget throws {
     SourceLoadFailure
 }
-export declare function generateNodeRunner(build: NativeBuild): void throws {
+export declare function generateNodeRunner(build: NativeBuild, wasm: bool): void throws {
     SourceLoadFailure
 }
 export declare function generateWasmRunner(build: NativeBuild): void throws {
@@ -148,7 +161,7 @@ export declare function generateWasmRunner(build: NativeBuild): void throws {
 export declare function writeBackendWorkspace(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function retainNodeResources(build: NativeBuild): void throws {
+export declare function retainNodeResources(build: NativeBuild, target: NodeTarget): void throws {
     SourceLoadFailure
 }
 export declare function releaseBackendSources(build: NativeBuild): void
@@ -163,7 +176,8 @@ export declare function recordNativeName(build: NativeBuild, index: u64): bool
 export declare function appendBackendPrefix(
     build: NativeBuild,
     libc: bool,
-    library_paths: string[]
+    library_paths: string[],
+    wasm: bool
 ): void throws {
     SourceLoadFailure
 }
@@ -186,12 +200,19 @@ export declare function bindBackendModule(
     abi: string?,
     path: string?
 ): void
-export declare function writeNativeHeader(build: NativeBuild): void throws {
+export declare function writeNativeHeader(build: NativeBuild): string throws {
     SourceLoadFailure
 }
-export declare function translateNativeHeader(build: NativeBuild): bool throws {
+export declare function spawnNativeTranslation(build: NativeBuild, header: string): bool throws {
     SourceLoadFailure
 }
+export declare function bindNativeTranslation(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function retainNativeTranslation(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function releaseNativeTranslation(build: NativeBuild): void
 export declare function writeNativeAdapter(build: NativeBuild): void throws {
     SourceLoadFailure
 }

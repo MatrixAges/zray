@@ -1,0 +1,7 @@
+export const wasm32: string = "wasm32"
+
+export const wasm64: string = "wasm64"
+
+export const freestanding: string = "freestanding"
+
+export const windows: string = "windows"

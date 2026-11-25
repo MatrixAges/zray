@@ -29,6 +29,11 @@ export type Workspace = {
     separator: string
 }
 
+export type HostResources = Workspace & {
+    node: Files,
+    napi: Files
+}
+
 export type Input = {
     fs: FileSystem,
     separator: string,

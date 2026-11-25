@@ -24,7 +24,7 @@ pub fn recordNativeName(handle: *const anyopaque, index: u64) bool {
     return module.header != null;
 }
 
-pub fn appendBackendPrefix(handle: *const anyopaque, libc: bool, library_paths: []const []const u8) Error!void {
+pub fn appendBackendPrefix(handle: *const anyopaque, libc: bool, library_paths: []const []const u8, wasm: bool) Error!void {
     const self = State.get(handle);
     const context = self.context;
     const loaded = self.project;
@@ -34,7 +34,7 @@ pub fn appendBackendPrefix(handle: *const anyopaque, libc: bool, library_paths: 
         .tool = self.toolchain.executable,
         .library = self.toolchain.library,
         .node = context.options.host == .node,
-        .wasm = self.wasm,
+        .wasm = wasm,
         .node_library = self.node_library,
         .server = if (self.staged == null) &.{
             .name = Build.Observed.artifact_name,

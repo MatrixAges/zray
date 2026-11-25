@@ -1,9 +1,14 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const builtin = @import("builtin");
+const source = @import("cli_source");
+const zx = @import("zx");
 const State = @import("../build.zig").State;
 const artifacts = @import("../artifacts.zig");
 const node_resources = @import("../node/resources.zig");
 const Error = @import("../sources/effects.zig").Error;
+const BackendTarget = @import("cli_abi").layouts.@"zig:rx_execution_host".BackendTarget;
+const NodeTarget = @import("cli_abi").native.@"zig:rx_execution_host".NodeTarget;
 
 pub fn validateNativePorts(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
@@ -52,18 +57,31 @@ pub fn prepareBackendAbi(handle: *const anyopaque) Error!void {
     self.abi_views.init(self.abi.views);
 }
 
-pub fn resolveNativeTarget(handle: *const anyopaque) Error!bool {
+pub fn readNativeTarget(handle: *const anyopaque) Error!*const BackendTarget {
     const self = State.get(handle);
+    const options = self.context.options;
 
-    self.wasm = @import("../wasm/target.zig").freestanding(self.context.options.target) catch |err| return self.failure.save(err);
+    const query = if (options.target) |triple|
+        std.Target.Query.parse(.{ .arch_os_abi = triple }) catch |err| return self.failure.save(err)
 
-    return self.wasm;
+    else
+        std.Target.Query{};
+
+    self.target = .{
+        .arch = if (query.cpu_arch) |arch| @tagName(arch) else null,
+        .os = if (query.os_tag) |os| @tagName(os) else null,
+        .host_arch = @tagName(builtin.cpu.arch),
+        .host_os = @tagName(builtin.os.tag),
+        .node_library = options.node_library,
+    };
+
+    return &self.target;
 }
 
-pub fn generateNodeRunner(handle: *const anyopaque) Error!void {
+pub fn generateNodeRunner(handle: *const anyopaque, wasm: bool) Error!void {
     const self = State.get(handle);
 
-    if (self.wasm or self.bundle.runner != null) return self.failure.save(error.UnsupportedNodeRunner);
+    if (wasm or self.bundle.runner != null) return self.failure.save(error.UnsupportedNodeRunner);
 
     self.runner = compiler.zig.host.node.runner(self.context.allocator, self.bundle.state_module != null) catch |err| return self.failure.save(err);
 }
@@ -85,36 +103,36 @@ pub fn writeBackendWorkspace(handle: *const anyopaque) Error!void {
     self.workspace = artifacts.prepare(context.io, context.allocator, self.bundle, self.runner, self.configuration, self.abi, context.options.result == .json) catch |err| return self.failure.save(err);
 }
 
-pub fn retainNodeResources(handle: *const anyopaque) Error!void {
-    const builtin = @import("builtin");
+pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!void {
     const self = State.get(handle);
     const context = self.context;
-    const options = context.options;
 
-    const target = if (options.target) |triple|
-        std.Target.Query.parse(.{ .arch_os_abi = triple }) catch |err| return self.failure.save(err)
+    switch (target) {
+        .Ready => {},
+        .UnsupportedNodeTarget => return self.failure.save(error.UnsupportedNodeTarget),
+        .NodeImportLibraryRequired => return self.failure.save(error.NodeImportLibraryRequired),
+    }
 
-    else
-        std.Target.Query.fromTarget(&builtin.target);
-
-    const os = target.os_tag orelse builtin.os.tag;
-    const arch = target.cpu_arch orelse builtin.cpu.arch;
-
-    if (arch == .wasm32 or arch == .wasm64) return self.failure.save(error.UnsupportedNodeTarget);
-    if (os == .windows and options.node_library == null) return self.failure.save(error.NodeImportLibraryRequired);
-
-    if (options.node_library) |path| {
+    if (context.options.node_library) |path| {
         self.node_library = std.fs.path.resolve(context.allocator, &.{path}) catch |err| return self.failure.save(err);
     }
 
-    const node = std.fs.path.join(context.allocator, &.{ self.workspace.directory, "node" }) catch |err| return self.failure.save(err);
-    const sources = &self.node_sources.?;
+    const native = &self.node_sources.?;
+    const node: []const node_resources.File = &native.files;
+    const napi: []const node_resources.File = &native.napi;
+    const node_paths = zx.memory.borrowTextColumn("path", node);
+    const node_sources = zx.memory.borrowTextColumn("source", node);
+    const napi_paths = zx.memory.borrowTextColumn("path", napi);
+    const napi_sources = zx.memory.borrowTextColumn("source", napi);
+    var disk: @import("artifact_io").Context = .{ .io = context.io };
 
-    artifacts.retainFiles(context.io, context.allocator, node, &sources.files) catch |err| return self.failure.save(err);
-
-    const napi = std.fs.path.join(context.allocator, &.{ self.workspace.directory, "napi" }) catch |err| return self.failure.save(err);
-
-    artifacts.retainFiles(context.io, context.allocator, napi, &sources.napi) catch |err| return self.failure.save(err);
+    source.workspace_host_resources.executeIn(context.allocator, &.{
+        .fs = @ptrCast(&disk),
+        .directory = self.workspace.directory,
+        .separator = &.{std.fs.path.sep},
+        .node = &.{ .count = node.len, .paths = @ptrCast(&node_paths), .sources = @ptrCast(&node_sources) },
+        .napi = &.{ .count = napi.len, .paths = @ptrCast(&napi_paths), .sources = @ptrCast(&napi_sources) },
+    }) catch |err| return self.failure.save(disk.unwrap(err));
 }
 
 pub fn releaseBackendSources(handle: *const anyopaque) void {

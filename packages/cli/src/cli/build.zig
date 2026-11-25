@@ -28,7 +28,7 @@ pub const State = struct {
     node_sources: ?NodeSources = null,
     node_library: ?[]const u8 = null,
     runner: ?[]const u8 = null,
-    wasm: bool = false,
+    target: @import("cli_abi").layouts.@"zig:rx_execution_host".BackendTarget = undefined,
     configuration: []const u8 = undefined,
     abi: @import("abi.zig").Result = undefined,
     abi_views: @import("project/native_paths.zig").Abi = undefined,
@@ -40,8 +40,7 @@ pub const State = struct {
     native: PendingNative = undefined,
     pub const PendingNative = struct {
         spec: Command.Module,
-        row: usize,
-        header: []const u8 = undefined,
+        header: ?[]const u8,
     };
     pub fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);

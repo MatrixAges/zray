@@ -7,3 +7,15 @@ export const modules_root: string = ".zxc/build/modules"
 export const zig_extension: string = ".zig"
 
 export const result_source: string = "result.zig"
+
+export const native_directory: string = "native"
+
+export const header_extension: string = ".h"
+
+export const include_prefix: string = "#include "
+
+export const line_end: string = "\n"
+
+export const node_directory: string = "node"
+
+export const napi_directory: string = "napi"

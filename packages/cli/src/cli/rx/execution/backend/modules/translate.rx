@@ -1,14 +1,33 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Backend" />
 
-    <Args in={IO.NativeBuild} out={bool} />
+    <Args in={Backend.BuildMode} out={bool} />
 
-    <Call fn="../index.writeNativeHeader" in={$in} />
-    <Call fn="../index.translateNativeHeader" in={$in} />
+    <Call fn="../index.writeNativeHeader" in={$in.build} />
 
-    <If on={$ctx.translateNativeHeader}>
-        <Call fn="../index.writeNativeAdapter" in={$in} />
+    <Call
+        fn="../index.spawnNativeTranslation"
+        in={[
+            $in.build,
+            $ctx.writeNativeHeader
+        ]}
+    />
+
+    <If on={!$ctx.spawnNativeTranslation}>
+        <Return value={false} />
     </If>
 
-    <Return value={$ctx.translateNativeHeader} />
+    <Call fn="../index.bindNativeTranslation" in={$in.build} />
+
+    <If on={$in.observed}>
+        <Call fn="../index.retainNativeTranslation" in={$in.build} />
+
+        <Else>
+            <Call fn="../index.releaseNativeTranslation" in={$in.build} />
+        </Else>
+    </If>
+
+    <Call fn="../index.writeNativeAdapter" in={$in.build} />
+
+    <Return value={true} />
 </Module>

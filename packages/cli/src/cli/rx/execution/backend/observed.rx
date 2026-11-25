@@ -5,15 +5,7 @@
     <Args in={Backend.Invocation} out={IO.Status} />
 
     <Call fn="preload_dependencies" in={$in.build} />
-
-    <Call
-        fn="index.openBackendTranslation"
-        in={[
-            $in.build,
-            $in.observed
-        ]}
-    />
-
+    <Call fn="index.openBackendTranslation" in={$in.build} />
     <Call fn="index.openBackendEnvironment" in={$in.build} />
 
     <Call module="prepare" in={$in} />

@@ -60,19 +60,6 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
     return .{ .directory = directory, .module_paths = paths };
 }
 
-pub fn retainFiles(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, files: []const @import("node/resources.zig").File) !void {
-    const paths = zx.memory.borrowTextColumn("path", files);
-    const sources = zx.memory.borrowTextColumn("source", files);
-    var context: disk.Context = .{ .io = io };
-
-    source.workspace_views.executeIn(allocator, &.{
-        .fs = @ptrCast(&context),
-        .directory = directory,
-        .separator = &.{std.fs.path.sep},
-        .files = &.{ .count = files.len, .paths = @ptrCast(&paths), .sources = @ptrCast(&sources) },
-    }) catch |err| return context.unwrap(err);
-}
-
 pub fn retain(io: std.Io, allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
     var context: disk.Context = .{ .io = io };
 

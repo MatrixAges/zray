@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.HostResources} out={void} />
+
+    <Call
+        fn="host_directories"
+        in={$in.pick([
+            "directory",
+            "separator"
+        ])}
+    />
+
+    <Call
+        fn="views"
+        in={{
+            fs: $in.fs,
+            directory: $ctx.host_directories.node,
+            separator: $in.separator,
+            files: $in.node
+        }}
+    />
+
+    <Call
+        fn="views"
+        in={{
+            fs: $in.fs,
+            directory: $ctx.host_directories.napi,
+            separator: $in.separator,
+            files: $in.napi
+        }}
+    />
+</Module>

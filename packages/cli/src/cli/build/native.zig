@@ -35,6 +35,7 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .observed = context.watch != null,
         .native = &.{
             .build = @ptrCast(&reference),
+            .observed = context.watch != null,
             .count = project.config.native_modules.len,
             .cursor = @ptrCast(&cursor),
             .setup = &paths.setup,
@@ -100,16 +101,16 @@ pub fn openBackendEnvironment(handle: *const anyopaque) Error!void {
     self.environment = environment;
 }
 
-pub fn openBackendTranslation(handle: *const anyopaque, observed: bool) Error!void {
+pub fn openBackendTranslation(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
     const cache = Build.Observed.Cache.init(context.io, context.allocator, context.environment) catch |err| return self.failure.save(err);
-    self.translation = @import("translation.zig").init(context.allocator, cache, observed);
+    self.translation = .{ .arena = .init(context.allocator), .cache = cache };
 }
 
 pub fn reportStagedTranslationFailure(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
-    const failure = &self.translation.?.failure.?;
+    const failure = &self.translation.?.pending.?;
     var buffer: [4096]u8 = undefined;
     var stderr = std.Io.File.stderr().writer(self.context.io, &buffer);
 
@@ -152,14 +153,14 @@ pub fn spawnObservedBackend(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
 
-    self.response = @import("../backend/process.zig").run(context.io, context.allocator, self.command.arguments.items, &self.environment.?) catch |err| return self.failure.save(err);
+    self.response = @import("../backend/process.zig").run(context.io, context.allocator, self.command.arguments.items, &self.environment.?, .application) catch |err| return self.failure.save(err);
 }
 
 pub fn takeTranslationFailure(handle: *const anyopaque) void {
     const self = State.get(handle);
 
-    self.response = self.translation.?.failure.?;
-    self.translation.?.failure = null;
+    self.response = self.translation.?.pending.?;
+    self.translation.?.pending = null;
 }
 
 pub fn resolveObservedNativeInputs(handle: *const anyopaque) Error!void {

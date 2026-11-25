@@ -73,7 +73,13 @@
     />
 
     <If on={$ctx.source_path == null}>
-        <Call module="translate" in={$in.build} />
+        <Call
+            module="translate"
+            in={$in.pick([
+                "build",
+                "observed"
+            ])}
+        />
 
         <If on={!$ctx.translate}>
             <Return value={false} />

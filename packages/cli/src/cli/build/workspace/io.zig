@@ -1,6 +1,10 @@
 const std = @import("std");
 const Error = error{ArtifactIoFailure};
 
+pub fn quoteJsonString(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
+    return std.json.Stringify.valueAlloc(allocator, value, .{});
+}
+
 pub const Context = struct {
     io: std.Io,
     directory: std.Io.Dir = .cwd(),

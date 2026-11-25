@@ -1,5 +1,9 @@
 export type FileSystem = opaque
 
+export declare function quoteJsonString(allocator, value: string): string throws {
+    OutOfMemory
+} concurrent
+
 export declare function matches(fs: FileSystem, path: string, expected: string): bool throws {
     ArtifactIoFailure
 }

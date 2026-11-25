@@ -11,20 +11,34 @@
 
     <Call fn="index.encodeBackendConfiguration" in={$in.build} />
     <Call fn="index.prepareBackendAbi" in={$in.build} />
-    <Call fn="index.resolveNativeTarget" in={$in.build} />
+    <Call fn="index.readNativeTarget" in={$in.build} />
+
+    <Call fn="target" />
 
     <If on={$in.node}>
-        <Call fn="index.generateNodeRunner" in={$in.build} />
+        <Call
+            fn="index.generateNodeRunner"
+            in={[
+                $in.build,
+                $ctx.target.wasm
+            ]}
+        />
     </If>
 
-    <If on={$ctx.resolveNativeTarget}>
+    <If on={$ctx.target.wasm}>
         <Call fn="index.generateWasmRunner" in={$in.build} />
     </If>
 
     <Call fn="index.writeBackendWorkspace" in={$in.build} />
 
     <If on={$in.node}>
-        <Call fn="index.retainNodeResources" in={$in.build} />
+        <Call
+            fn="index.retainNodeResources"
+            in={[
+                $in.build,
+                $ctx.target.node
+            ]}
+        />
     </If>
 
     <Call fn="index.releaseBackendSources" in={$in.build} />
@@ -33,7 +47,13 @@
         <Call fn="index.prepareStagedParents" in={$in.build} />
     </If>
 
-    <Call module="command" in={$in} />
+    <Call
+        module="command"
+        in={{
+            ...$in,
+            wasm: $ctx.target.wasm
+        }}
+    />
 
     <Return value={$ctx.command} />
 </Module>

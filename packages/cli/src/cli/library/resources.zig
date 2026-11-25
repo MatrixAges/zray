@@ -2,6 +2,8 @@ const std = @import("std");
 const compiler = @import("compiler");
 const project = @import("../project.zig");
 const artifacts = @import("../artifacts.zig");
+const source = @import("cli_source");
+const workspace = source.workspace_artifact_constants.@"zx.constants";
 const native_sources = @import("native_resource_host");
 const Inputs = @import("watch_inputs").Inputs;
 const effects = @import("publication_host").effects;
@@ -130,30 +132,21 @@ pub fn addExternalInclude(handle: *const anyopaque, path: []const u8) Error!void
 pub fn writeLibraryNativeHeader(handle: *const anyopaque) Error!void {
     const self = effects.state(State, handle);
 
-    writeHeader(self) catch |err| return self.failure.save(err);
-}
+    const header = source.workspace_native_header.executeValue(self.allocator, &.{
+        .directory = self.directory,
+        .name = self.current.name,
+        .header = self.current.header.?,
+    }) catch |err| return self.failure.save(err);
 
-fn writeHeader(self: *State) !void {
-    const allocator = self.allocator;
-    const path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.h", .{ self.directory, self.current.name });
-    const include = try std.json.Stringify.valueAlloc(allocator, self.current.header.?, .{});
-    const source = try std.fmt.allocPrint(allocator, "#include {s}\n", .{include});
-
-    try artifacts.write(self.io, path, source);
+    artifacts.write(self.io, header.path, header.source) catch |err| return self.failure.save(err);
 }
 
 pub fn writeLibraryNativeAdapter(handle: *const anyopaque) Error!void {
     const self = effects.state(State, handle);
-
-    writeAdapter(self) catch |err| return self.failure.save(err);
-}
-
-fn writeAdapter(self: *State) !void {
     const allocator = self.allocator;
-    const path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.zig", .{ self.directory, self.current.name });
-    const source = try compiler.zig.host.cAdapter(allocator);
+    const path = source.workspace_native_path.executeIn(allocator, &.{ .directory = self.directory, .name = self.current.name, .extension = workspace.zig_extension }) catch |err| return self.failure.save(err);
+    const adapter = compiler.zig.host.cAdapter(allocator) catch |err| return self.failure.save(err);
 
-    defer allocator.free(source);
-
-    try artifacts.write(self.io, path, source);
+    defer allocator.free(adapter);
+    artifacts.write(self.io, path, adapter) catch |err| return self.failure.save(err);
 }

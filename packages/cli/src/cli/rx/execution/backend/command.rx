@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Backend" />
 
-    <Args in={Backend.Invocation} out={bool} />
+    <Args in={Backend.CommandInvocation} out={bool} />
 
     <Call fn="index.reserveNativeNames" in={$in.build} />
 
@@ -27,7 +27,8 @@
         in={[
             $in.build,
             $ctx.names,
-            $ctx.paths
+            $ctx.paths,
+            $in.wasm
         ]}
     />
 
