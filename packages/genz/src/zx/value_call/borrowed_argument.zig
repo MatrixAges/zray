@@ -1,10 +1,10 @@
 const std = @import("std");
-const zx = @import("zx");
 const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const object_fields = @import("../aggregate/object.zig");
+const failure = @import("../construction/publication.zig").failure;
 
 pub const Source = union(enum) {
     value: node.ExpressionId,
@@ -27,7 +27,6 @@ pub fn lower(self: *Lower, body: anytype, source: Source) Lower.Error!node.Expre
 
     const entry = @import("generated_value_argument_borrow");
     const Input = std.meta.Child(entry.Input);
-    const Output = std.meta.Child(entry.Output);
     const Object = std.meta.Child(@typeInfo(@FieldType(Input, "object")).optional.child);
     const Selection = std.meta.Child(@FieldType(Object, "selection"));
 
@@ -45,6 +44,9 @@ pub fn lower(self: *Lower, body: anytype, source: Source) Lower.Error!node.Expre
     } else undefined;
 
     const input: Input = .{
+        .writer = @ptrCast(self),
+        .frame = @ptrCast(self),
+        .sequence = @ptrCast(body),
         .value = if (source == .value) @backingInt(source.value) else 0,
         .layout = if (source == .tuple) @backingInt(source.tuple.layout) else null,
         .values = if (source == .tuple) view.slice(@FieldType(Input, "values"), source.tuple.values) else &.{},
@@ -63,36 +65,7 @@ pub fn lower(self: *Lower, body: anytype, source: Source) Lower.Error!node.Expre
         break :object_allocator buffered.allocator();
     } else memory.allocator();
 
-    const output = zx.columns.invoke(entry.executeValue, temporary, &input) catch |err| return failure(err);
+    const root = entry.executeIn(temporary, &input) catch |err| return failure(err);
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const name = try self.allocator.dupe(u8, output.name);
-    const names = [_][]const u8{name};
-    var arguments: [1][]const u32 = undefined;
-    var expressions = zx.columns.view(std.meta.Child(@FieldType(Output, "expressions")), output.expressions);
-    var statements = zx.columns.view(std.meta.Child(@FieldType(Output, "statements")), output.statements);
-
-    expressions.identifier = &names;
-    statements.constant_name = &names;
-
-    if (expressions.builtin_arguments.len != 0) {
-        arguments[0] = try self.allocator.dupe(u32, expressions.builtin_arguments[0]);
-        expressions.builtin_arguments = &arguments;
-    }
-
-    if (output.fields) |fields| try @import("../../node/import_fields.zig").appendObject(self.allocator, &self.builder.nodes.field_columns, fields);
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
-    @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-
-    self.serial = @intCast(output.serial);
-
-    return @fromBackingInt(output.root);
-}
-
-fn failure(err: anyerror) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
-    };
+    return @fromBackingInt(root);
 }

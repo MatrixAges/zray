@@ -1,15 +1,10 @@
-import type { Columns as ObjectColumns } from "../../../../ast/expressions/object"
-import type {
-    ExpressionsBuiltinName,
-    ExpressionsKind
-} from "../../../../printer/model/expressions"
+import type { AstIdentifierRows, AstOperandRows, AstSequence } from "ast_rows"
+import type { Target } from "../../../aggregate/binding/publication"
 import type {
     Input as Binding,
-    Output as Bound,
-    Statements
-} from "../../../aggregate/binding/model"
+    Output as Bound
+} from "../../../aggregate/binding/reference"
 import type {
-    Fields as ObjectFields,
     Input as Object,
     Output as ObjectRows
 } from "../../../aggregate/object/model"
@@ -23,42 +18,30 @@ export type Input = {
     object?: Object
 }
 
+export type Publication = Input & Target & {
+    sequence: AstSequence
+}
+
 export type ObjectInput = Input.Pick("object")
 
 export type ObjectOutput = ObjectRows?
 
 export type Prepared = {
-    source: Input,
     binding: Binding,
+    value: u32,
+    cast_arguments: u32[],
     valid: bool
 }
 
 export type Reference = {
-    prepared: Prepared,
     bound: Bound,
+    identifiers: AstIdentifierRows,
+    values: u32[],
+    cast_arguments: u32[],
     object?: ObjectRows
 }
 
-export type BindingExpressions = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    tuple: u32[][],
-    builtin_name: ExpressionsBuiltinName[],
-    builtin_arguments: u32[][],
-    identifier: u8[][],
-    address_of: u32[]
-}
-
-export type ObjectExpression = ObjectColumns.Omit("tags", "offsets")
-
-export type Expressions = BindingExpressions & ObjectExpression
-
 export type Output = {
-    expressions: Expressions,
-    statements: Statements,
-    fields?: ObjectFields,
-    name: u8[],
-    serial: u64,
-    root: u32,
-    valid: bool
+    expressions: AstOperandRows,
+    root: u32
 }

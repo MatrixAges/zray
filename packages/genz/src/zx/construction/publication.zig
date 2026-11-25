@@ -254,6 +254,22 @@ pub fn appendAstIdentifierRows(writer: *const anyopaque, source: *const Ast.AstI
     return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
 }
 
+pub fn retainAstIds(writer: *const anyopaque, ids: []const u32) Lower.Error![]const u32 {
+    return borrow(writer).allocator.dupe(u32, ids);
+}
+
+pub fn appendAstOperandRows(writer: *const anyopaque, source: *const Ast.AstOperandRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
+}
+
+pub fn appendAstObjectRows(writer: *const anyopaque, source: *const Ast.AstObjectRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
+}
+
 pub fn appendAstObjectFields(writer: *const anyopaque, source: *const Ast.AstObjectFields) Lower.Error!void {
     const self = borrow(writer);
 

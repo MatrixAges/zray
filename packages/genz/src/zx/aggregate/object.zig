@@ -1,7 +1,7 @@
 const std = @import("std");
-const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const failure = @import("../construction/publication.zig").failure;
 const generated = @import("genz_options").generated_analysis;
 
 pub const Field = if (generated) u32 else node.Field;
@@ -27,11 +27,11 @@ pub fn lower(self: *Lower, scratch: std.mem.Allocator, request: Request) Lower.E
     const entry = @import("generated_aggregate_object");
     const Input = std.meta.Child(entry.Input);
     const Selection = std.meta.Child(@FieldType(Input, "selection"));
-    const Expression = std.meta.Child(@FieldType(std.meta.Child(entry.Output), "expression"));
-    const base = self.builder.nodes.expressions.tags.items.len;
     const selection: Selection = .{ .names = request.names, .first = 0, .indices = request.indices, .values = request.fields };
 
     const input: Input = .{
+        .writer = @ptrCast(self),
+        .base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .type_expr = @backingInt(request.type_expr),
         .first = @intCast(self.builder.nodes.field_columns.count()),
         .selection = &selection,
@@ -39,18 +39,7 @@ pub fn lower(self: *Lower, scratch: std.mem.Allocator, request: Request) Lower.E
 
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch);
-    const output = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
-    const expression = zx.columns.view(Expression, output.expression);
+    const root = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
-    try @import("../../node/import_fields.zig").appendObject(self.allocator, &self.builder.nodes.field_columns, output.fields);
-    @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expression) catch |err| return failure(err);
-
-    return @fromBackingInt(@intCast(base));
-}
-
-fn failure(err: anyerror) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
-    };
+    return @fromBackingInt(root);
 }

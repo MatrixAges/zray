@@ -103,6 +103,15 @@ export declare function appendAstIdentifierRows(writer: AstWriter, rows: AstIden
 export declare function appendAstObjectFields(writer: AstWriter, rows: AstObjectFields): void
     throws { OutOfMemory }
 
+export declare function retainAstIds(writer: AstWriter, ids: u32[]): u32[]
+    throws { OutOfMemory }
+
+export declare function appendAstOperandRows(writer: AstWriter, rows: AstOperandRows): void
+    throws { OutOfMemory }
+
+export declare function appendAstObjectRows(writer: AstWriter, rows: AstObjectRows): void
+    throws { OutOfMemory }
+
 export declare function appendAstFieldAddresses(writer: AstWriter, rows: AstFieldAddressRows): void
     throws { OutOfMemory }
 

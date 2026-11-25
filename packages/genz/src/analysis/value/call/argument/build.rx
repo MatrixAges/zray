@@ -1,22 +1,92 @@
 <Module>
     <Type from="model" as="Borrow" />
 
-    <Args in={Borrow.Input} out={Borrow.Output} />
+    <Args in={Borrow.Publication} out={u32} />
 
-    <Call fn="prepare" in={$in} />
+    <Call
+        fn="prepare"
+        in={$in.omit([
+            "writer",
+            "frame",
+            "sequence"
+        ])}
+    />
 
     <Call module="object" in={$in.pick(["object"])} />
 
-    <Call fn="../../../aggregate/binding/bind" in={$ctx.prepare.binding} />
+    <Call fn="../../../aggregate/binding/reference" in={$ctx.prepare.binding} />
+    <Call fn="rows.requireAllocation" in={$ctx.prepare.valid && $ctx.reference.valid} />
 
     <Call
-        fn="reference"
+        fn="rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.reference.name
+        ]}
+    />
+
+    <Call
+        fn="rows.retainAstIds"
+        in={[
+            $in.writer,
+            $ctx.prepare.cast_arguments
+        ]}
+    />
+
+    <Call
+        fn="../../../aggregate/binding/operand_rows"
         in={{
-            prepared: $ctx.prepare,
-            bound: $ctx.bind,
+            name: $ctx.retainLoweringText,
+            value: $ctx.prepare.value
+        }}
+    />
+
+    <Call
+        fn="result"
+        in={{
+            bound: $ctx.reference,
+            identifiers: $ctx.operand_rows.expressions,
+            cast_arguments: $ctx.retainAstIds,
+            values: $in.values,
             object: $ctx.object
         }}
     />
 
-    <Return value={$ctx.reference} />
+    <If on={$ctx.object != null}>
+        <Call
+            fn="rows.appendAstObjectFields"
+            in={[
+                $in.writer,
+                $ctx.object.fields
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="rows.appendAstBindingRows"
+        in={[
+            $in.writer,
+            $in.sequence,
+            $ctx.operand_rows.statements
+        ]}
+    />
+
+    <Call
+        fn="rows.appendAstOperandRows"
+        in={[
+            $in.writer,
+            $ctx.result.expressions
+        ]}
+    />
+
+    <Call
+        fn="rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            $ctx.reference.serial,
+            false
+        ]}
+    />
+
+    <Return value={$ctx.result.root} />
 </Module>
