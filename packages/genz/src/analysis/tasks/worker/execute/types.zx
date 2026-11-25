@@ -1,15 +1,16 @@
+import integers from "std:integer"
 import host from "lowering_host"
 
 import type { Input as Worker } from "./model"
 
-export type Input = Worker.Pick("worker", "captures")
+export type Input = Worker.Pick("lower", "captures", "symbol_types")
 
 export type Output = u32[]
 
 export default function (in: Input): Output {
     const types: u32[] = []
 
-    const { worker, captures } = in
+    const { lower, captures, symbol_types } = in
 
     return loop({
         types,
@@ -17,7 +18,11 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < captures.length,
         next: state => {
-            const type_id = host.taskCaptureType(worker, captures[state.index])
+            const type_id = host.lowerType(
+                lower,
+                symbol_types[integers.widen(captures[state.index])],
+                false
+            )
 
             state.types = state.types.push(type_id)[0]
             state.index += 1

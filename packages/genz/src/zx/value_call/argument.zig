@@ -45,7 +45,18 @@ pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Error!node.ExpressionI
         .constructed_outputs = self.constructed_outputs,
     };
 
-    const input: Input = .{ .frame = @ptrCast(&frame), .route = &route };
+    const operand: ?u32 = if (expressions.kinds[row] == .Call)
+        @backingInt(self.program.expression(id).value.call.argument)
+
+    else
+        null;
+
+    const input: Input = .{
+        .frame = @ptrCast(&frame),
+        .route = &route,
+        .id = row,
+        .operand = operand,
+    };
 
     return evaluation.invoke(entry, &input);
 }
@@ -54,12 +65,6 @@ pub fn lowerBorrowedOperand(handle: *const anyopaque, id: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try borrow(frame.lowering, frame.body, @fromBackingInt(id)));
-}
-
-pub fn lowerExistingBorrowedArgument(handle: *const anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return existing(frame, frame.id);
 }
 
 pub fn lowerExistingBorrowedOperand(handle: *const anyopaque, id: u32) Error!u32 {
@@ -76,12 +81,6 @@ fn existing(frame: *const Frame, id: ir.ExprId) Error!u32 {
     const bound = try aggregate.bind(self, frame.body, value);
 
     return @backingInt(try conversion.convert(self, frame.body, type_id, bound, .borrow));
-}
-
-pub fn borrowedCallOperand(handle: *const anyopaque) u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(frame.lowering.program.expression(frame.id).value.call.argument);
 }
 
 pub fn emitBorrowedCall(handle: *const anyopaque, value: u32) Error!u32 {

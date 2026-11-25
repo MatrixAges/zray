@@ -14,13 +14,12 @@
         }}
     />
 
-    <Call fn="index.openTaskWorker" in={$in.worker} />
-
     <Call
         fn="types"
         in={$in.pick([
-            "worker",
-            "captures"
+            "lower",
+            "captures",
+            "symbol_types"
         ])}
     />
 
@@ -76,9 +75,25 @@
         ]}
     />
 
-    <Call fn="index.evaluateTaskWorker" in={$in.worker} />
-    <Call fn="index.taskWorkerOutput" in={$in.worker} />
-    <Call fn="index.taskWorkerErrors" in={$in.worker} />
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.worker_lower,
+            $in.body_expr,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="index.lowerType"
+        in={[
+            $in.lower,
+            $in.result_type,
+            false
+        ]}
+    />
+
     <Call fn="../../rows.astStatementCount" in={$in.writer} />
     <Call fn="index.readTaskWorkerUsage" in={$in.worker} />
 
@@ -119,9 +134,9 @@
             origin: $in.origin,
             name: $ctx.reserve_slot,
             slot: $ctx.auxiliaryDeclarationCount,
-            value: $ctx.evaluateTaskWorker,
-            output_type: $ctx.taskWorkerOutput,
-            errors: $ctx.taskWorkerErrors,
+            value: $ctx.lowerExpression,
+            output_type: $ctx.lowerType,
+            errors: $in.errors,
             parameters_first: $ctx.prepare.first,
             parameters_count: $ctx.prepare.count,
             body_first: $ctx.tailAstStatementRows

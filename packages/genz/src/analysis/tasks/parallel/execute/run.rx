@@ -4,29 +4,15 @@
 
     <Args in={Parallel.Input} out={Parallel.Output} />
 
-    <Loop on={$in.index < $in.tasks.length}>
-        <Call
-            module="branch"
-            in={{
-                ...$in.pick([
-                    "group",
-                    "frame",
-                    "writer",
-                    "origin",
-                    "body",
-                    "tasks"
-                ]),
-                index: 0
-            }}
-        />
-    </Loop>
-
     <Call
-        fn="index.reserveParallelNames"
-        in={[
-            $in.group,
-            $in.fields.length
-        ]}
+        fn="branches"
+        in={$in.pick([
+            "frame",
+            "writer",
+            "origin",
+            "body",
+            "tasks"
+        ])}
     />
 
     <Call
@@ -42,9 +28,7 @@
         in={{
             ...$in.pick([
                 "frame",
-                "fields",
-                "results",
-                "values"
+                "fields"
             ]),
             serial: $ctx.readAstOrigin.serial
         }}
@@ -54,22 +38,23 @@
         fn="../../rows.setLoweringSerial"
         in={[
             $in.frame,
-            $ctx.labels
+            $ctx.labels.serial
         ]}
     />
 
-    <Call fn="index.readParallelNames" in={$in.group} />
     <Call fn="../../rows.astFieldCount" in={$in.writer} />
 
     <Call
         module="../build"
         in={{
-            ...$ctx.readParallelNames,
+            futures: $ctx.branches,
+            results: $ctx.labels.results,
+            values: $ctx.labels.values,
             fields: $in.fields,
             object_names: $in.object_names,
             bases: {
                 ...$ctx.readAstOrigin,
-                serial: $ctx.labels,
+                serial: $ctx.labels.serial,
                 field_base: $ctx.astFieldCount
             }
         }}
@@ -108,7 +93,8 @@
     <Call
         fn="result"
         in={{
-            group: $in.group,
+            frame: $in.frame,
+            type_id: $in.type_id,
             value: $ctx.build.root,
             construct: $ctx.build.construct
         }}
@@ -131,17 +117,16 @@
         ]}
     />
 
-    <Call fn="index.span" />
-
     <Call
-        fn="index.finishTaskBlock"
-        in={[
-            $in.frame,
-            $ctx.span.start,
-            $ctx.span.count,
-            $ctx.result
-        ]}
+        fn="../../../aggregate/execute/finish_stored"
+        in={{
+            frame: $in.frame,
+            writer: $in.writer,
+            origin: $in.origin,
+            span: $ctx.finishAstSequence,
+            value: $ctx.result
+        }}
     />
 
-    <Return value={$ctx.finishTaskBlock} />
+    <Return value={$ctx.finish_stored} />
 </Module>

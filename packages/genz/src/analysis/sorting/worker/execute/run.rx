@@ -41,9 +41,28 @@
 
     <Call fn="../../rows.releasePreparation" in={$in.scratch} />
     <Call fn="index.registerSortParameters" in={$in.frame} />
-    <Call fn="index.evaluateSortComparator" in={$in.frame} />
+
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.worker,
+            $in.body_expr,
+            false,
+            null
+        ]}
+    />
+
     <Call fn="prepare_operands" in={$in.frame} />
-    <Call fn="index.sortWorkerOutputType" in={$in.frame} />
+
+    <Call
+        fn="index.lowerType"
+        in={[
+            $in.lower,
+            $in.output_type,
+            false
+        ]}
+    />
+
     <Call fn="index.readSortWorkerFacts" in={$in.frame} />
 
     <Call
@@ -62,8 +81,8 @@
         in={{
             child: $in.child,
             errors: $in.errors,
-            output_type: $ctx.sortWorkerOutputType,
-            value: $ctx.evaluateSortComparator,
+            output_type: $ctx.lowerType,
+            value: $ctx.lowerExpression,
             raw: $ctx.readSortWorkerFacts.raw,
             elements: $ctx.readSortWorkerFacts.elements,
             used: $ctx.readSortWorkerFacts.used,

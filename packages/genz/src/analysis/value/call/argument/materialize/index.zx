@@ -1,5 +1,5 @@
 export {
     materializeBorrowedObject,
     materializeBorrowedTuple,
-    lowerExistingBorrowedArgument
+    lowerExistingBorrowedOperand
 } from "lowering_host"

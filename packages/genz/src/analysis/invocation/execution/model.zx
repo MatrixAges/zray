@@ -1,7 +1,18 @@
-import type { CallArgument, CallFrame, IterationCallFrame, Lowering } from "lowering_host"
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type {
+    CallArgument,
+    CallFrame,
+    IterationCallFrame,
+    Lowering
+} from "lowering_host"
+
+export { Representation } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    body: AstSequence,
     call: CallFrame,
     operand: u32,
     argument: CallArgument,
@@ -9,18 +20,31 @@ export type Input = {
     clip: bool,
     stores: bool,
     convert: bool,
-    finish: bool
+    finish: bool,
+    unwrap_empty: bool
 }
 
 export type Output = u32
 
-export type Emission = Input.Pick("call", "stores", "convert", "finish") & {
-    value: u32
-}
+export type Emission =
+    Input.Pick(
+        "frame",
+        "writer",
+        "origin",
+        "body",
+        "call",
+        "stores",
+        "convert",
+        "finish",
+        "unwrap_empty"
+    ) & {
+        value: u32
+    }
 
 export type Iteration = {
     frame: Lowering,
     call: IterationCallFrame,
+    call_id: u32,
     operand: u32,
     value_call: bool
 }

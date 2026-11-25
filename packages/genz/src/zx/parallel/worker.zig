@@ -13,6 +13,7 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
     var origin: rows.OriginBuffer = .{};
+    const index = @backingInt(id);
 
     defer scratch.deinit();
 
@@ -20,24 +21,14 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .function_id = @backingInt(id),
+        .function_id = index,
+        .input_type = self.program.functions.input_types[index],
+        .output_type = self.program.functions.output_types[index],
     };
 
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
     return @fromBackingInt(result);
-}
-
-pub fn parallelWorkerInput(handle: *anyopaque, index: u32) Lower.Error!u32 {
-    const self = evaluate.borrow(handle);
-
-    return @backingInt(try self.typeExpr(@fromBackingInt(self.program.functions.input_types[index])));
-}
-
-pub fn parallelWorkerOutput(handle: *anyopaque, index: u32) Lower.Error!u32 {
-    const self = evaluate.borrow(handle);
-
-    return @backingInt(try self.typeExpr(@fromBackingInt(self.program.functions.output_types[index])));
 }
 
 pub fn parallelWorkerCallee(handle: *anyopaque, index: u32) Lower.Error!u32 {

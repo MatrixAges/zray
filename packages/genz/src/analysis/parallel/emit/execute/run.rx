@@ -8,14 +8,6 @@
     <Call fn="index.markParallelStatement" in={$in.frame} />
 
     <Call
-        fn="index.reserveParallelRecords"
-        in={[
-            $in.records,
-            $in.expressions.length
-        ]}
-    />
-
-    <Call
         module="name"
         in={{
             ...$in.pick([
@@ -27,20 +19,14 @@
         }}
     />
 
-    <Loop on={$in.index < $in.expressions.length}>
-        <Call
-            module="branch"
-            in={{
-                ...$in.omit([
-                    "used",
-                    "names"
-                ]),
-                index: 0
-            }}
-        />
-    </Loop>
+    <Call
+        fn="branches"
+        in={$in.omit([
+            "used",
+            "names"
+        ])}
+    />
 
-    <Call fn="index.readParallelRecords" in={$in.records} />
     <Call fn="../../../tasks/rows.astFieldCount" in={$in.writer} />
 
     <Call
@@ -59,7 +45,7 @@
                 "names"
             ]),
             shared: $ctx.name,
-            records: $ctx.readParallelRecords,
+            records: $ctx.branches,
             bases: {
                 ...$ctx.readAstOrigin,
                 field_base: $ctx.astFieldCount

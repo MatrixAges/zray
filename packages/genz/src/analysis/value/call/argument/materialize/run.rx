@@ -20,15 +20,27 @@
         </Case>
 
         <Case value={Route.Output.Call}>
-            <Call fn="call" in={$in.frame} />
+            <Call
+                fn="call"
+                in={$in.pick([
+                    "frame",
+                    "operand"
+                ])}
+            />
 
             <Return value={$ctx.call} />
         </Case>
 
         <Case value={Route.Output.Existing}>
-            <Call fn="index.lowerExistingBorrowedArgument" in={$in.frame} />
+            <Call
+                fn="index.lowerExistingBorrowedOperand"
+                in={[
+                    $in.frame,
+                    $in.id
+                ]}
+            />
 
-            <Return value={$ctx.lowerExistingBorrowedArgument} />
+            <Return value={$ctx.lowerExistingBorrowedOperand} />
         </Case>
     </Switch>
 </Module>

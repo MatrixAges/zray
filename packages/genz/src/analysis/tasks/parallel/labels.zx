@@ -1,71 +1,77 @@
 import host from "lowering_host"
-import memory from "memory"
 
 import label from "../future/label"
 import { Kind } from "../future/label"
 
 import type { Lowering } from "lowering_host"
-import type { U8ListBuffer } from "memory"
 
 export type Input = {
     serial: u64,
     frame: Lowering,
-    fields: u32?[],
-    results: U8ListBuffer,
-    values: U8ListBuffer
+    fields: u32?[]
 }
 
-export type Output = u64
+export type Output = {
+    serial: u64,
+    results: u8[][],
+    values: u8[][]
+}
 
 export default function (in: Input): Output {
-    const results = loop({
-        index: 0,
-        serial: in.serial
+    const empty_results: u8[][] = []
+    const empty_values: u8[][] = []
+    const empty_name: u8[] = []
+
+    const first = loop({
+        serial: in.serial,
+        items: empty_results,
+        index: 0
     }, {
         while: current => current.index < in.fields.length,
         next: current => {
-            const name = label({
+            const generated = label({
                 serial: current.serial,
                 kind: Kind.Result
             })
 
-            memory.writeU8List(
-                in.results,
-                current.index,
-                host.retainLoweringText(in.frame, name.name)
-            )
+            const retained = host.retainLoweringText(in.frame, generated.name)
 
-            current.serial = name.serial
+            current.items = current.items.push(retained)[0]
+            current.serial = generated.serial
             current.index += 1
         },
-        return: current => current.serial
+        return: current => current
     })
 
-    return loop({
-        index: 0,
-        serial: results
+    const second = loop({
+        serial: first.serial,
+        items: empty_values,
+        index: 0
     }, {
         while: current => current.index < in.fields.length,
         next: current => {
             if (in.fields[current.index] != null) {
-                const name = label({
+                const generated = label({
                     serial: current.serial,
                     kind: Kind.Value
                 })
 
-                memory.writeU8List(
-                    in.values,
-                    current.index,
-                    host.retainLoweringText(in.frame, name.name)
-                )
+                const retained = host.retainLoweringText(in.frame, generated.name)
 
-                current.serial = name.serial
+                current.items = current.items.push(retained)[0]
+                current.serial = generated.serial
             } else {
-                memory.writeU8List(in.values, current.index, [])
+                current.items = current.items.push(empty_name)[0]
             }
 
             current.index += 1
         },
-        return: current => current.serial
+        return: current => current
     })
+
+    return {
+        serial: second.serial,
+        results: first.items,
+        values: second.items
+    }
 }

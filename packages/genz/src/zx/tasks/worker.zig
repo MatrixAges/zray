@@ -10,9 +10,6 @@ const Api = @import("../expressions/evaluate.zig").Api;
 
 const Frame = struct {
     lowering: *Lower,
-    body: ir.ExprId,
-    result: ir.TypeId,
-    errors: ir.TypeId,
     captures: []const ir.SymbolId,
     temporary: std.mem.Allocator,
     worker: Lower = undefined,
@@ -40,41 +37,33 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
 
     var frame: Frame = .{
         .lowering = self,
-        .body = task.body,
-        .result = task_type.result,
-        .errors = task_type.errors,
         .captures = task.captures,
         .temporary = scratch.allocator(),
     };
+
+    frame.worker = scope.inherit(self, .Task);
+
+    try scope.reserve(&frame.worker, scratch.allocator(), .Task);
 
     defer if (frame.names) |names| names.restore(self);
 
     const input: Input = .{
         .worker = @ptrCast(&frame),
+        .lower = @ptrCast(self),
+        .worker_lower = @ptrCast(&frame.worker),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
         .captures = view.slice(@FieldType(Input, "captures"), task.captures),
+        .symbol_types = self.program.symbols.types,
+        .body_expr = @backingInt(task.body),
+        .result_type = @backingInt(task_type.result),
+        .errors = self.program.typeOf(task_type.errors).error_set,
         .process = process,
     };
 
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
     return @fromBackingInt(result);
-}
-
-pub fn openTaskWorker(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.worker = scope.inherit(frame.lowering, .Task);
-
-    try scope.reserve(&frame.worker, frame.temporary, .Task);
-}
-
-pub fn taskCaptureType(handle: *anyopaque, symbol: u32) Lower.Error!u32 {
-    const self = Frame.borrow(handle).lowering;
-    const id: ir.TypeId = @fromBackingInt(self.program.symbols.types[symbol]);
-
-    return @backingInt(try self.typeExpr(id));
 }
 
 pub fn bindTaskCaptureNames(handle: *anyopaque, first: u32) Lower.Error!void {
@@ -84,24 +73,6 @@ pub fn bindTaskCaptureNames(handle: *anyopaque, first: u32) Lower.Error!void {
     const names = self.builder.nodes.field_columns.fields.name.values.items;
 
     frame.names = reuse.bindNames(self, frame.captures, names[first..][0..frame.captures.len], saved);
-}
-
-pub fn evaluateTaskWorker(handle: *anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.worker.expr(frame.body));
-}
-
-pub fn taskWorkerOutput(handle: *anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.lowering.typeExpr(frame.result));
-}
-
-pub fn taskWorkerErrors(handle: *anyopaque) ?[]const []const u8 {
-    const frame = Frame.borrow(handle);
-
-    return frame.lowering.program.typeOf(frame.errors).error_set;
 }
 
 pub fn readTaskWorkerUsage(handle: *anyopaque) *const Api.TaskWorkerUsage {

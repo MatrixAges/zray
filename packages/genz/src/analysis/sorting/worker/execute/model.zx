@@ -1,12 +1,16 @@
 import type { AstOriginBuffer, AstScratch, AstWriter } from "ast_rows"
-import type { SortWorkerFrame } from "lowering_host"
+import type { Lowering, SortWorkerFrame } from "lowering_host"
 import type { Input as WorkerInput, Output as WorkerOutput } from "../model"
 
 export type Input = WorkerInput.Pick("child", "errors") & {
     frame: SortWorkerFrame,
     writer: AstWriter,
+    lower: Lowering,
+    worker: Lowering,
     scratch: AstScratch,
-    origin: AstOriginBuffer
+    origin: AstOriginBuffer,
+    body_expr: u32,
+    output_type: u32
 }
 
 export type Output = u32

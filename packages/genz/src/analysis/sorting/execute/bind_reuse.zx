@@ -1,26 +1,33 @@
 import host from "lowering_host"
 
-import type { Target as Input } from "./model"
+import bindOperand from "../../aggregate/execute/bind_operand"
+import emitFlag from "../../collections/workflow/emit_flag"
+
+import type { Reuse as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, target, selected } = in
-
-    const reusable = host.sortInputReusable(frame)
+    const { frame, lower, writer, origin, body, target, selected, reusable } = in
 
     const reads_header = (
         - selected
         - and !reusable
     )
 
-    if (reads_header) {
-        const writable = host.sortWritable(frame, target)
-
-        return host.bindSortValue(frame, writable)
+    const value = match {
+        reads_header => host.sortWritable(frame, target),
+        _ => emitFlag({
+            writer,
+            value: reusable
+        })
     }
 
-    const reuse = host.sortReuseFlag(frame, reusable)
-
-    return host.bindSortValue(frame, reuse)
+    return bindOperand({
+        frame: lower,
+        writer,
+        origin,
+        sequence: body,
+        value
+    })
 }

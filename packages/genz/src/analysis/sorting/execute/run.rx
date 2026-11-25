@@ -15,14 +15,13 @@
 
     <Call fn="../rows.releasePreparation" in={$in.scratch} />
     <Call fn="index.sortElementType" in={$in.frame} />
-    <Call fn="index.sortErrors" in={$in.frame} />
 
     <Call
         fn="index.buildSortComparator"
         in={[
             $in.frame,
             $ctx.sortElementType,
-            $ctx.sortErrors
+            $in.errors
         ]}
     />
 
@@ -32,7 +31,7 @@
             writer: $in.writer,
             origin: $in.origin,
             child: $ctx.sortElementType,
-            errors: $ctx.sortErrors
+            errors: $in.errors
         }}
     />
 
@@ -58,16 +57,17 @@
         ]}
     />
 
-    <Call fn="index.evaluateSortTarget" in={$in.frame} />
-    <Call fn="index.sortSourceSelected" in={$in.frame} />
-
     <Call
         fn="bind_target"
-        in={{
-            frame: $in.frame,
-            target: $ctx.evaluateSortTarget,
-            selected: $ctx.sortSourceSelected
-        }}
+        in={$in.pick([
+            "frame",
+            "lower",
+            "writer",
+            "origin",
+            "body",
+            "target",
+            "selected"
+        ])}
     />
 
     <Call
@@ -81,20 +81,36 @@
     <Call
         fn="bind_reuse"
         in={{
-            frame: $in.frame,
-            target: $ctx.bind_target,
-            selected: $ctx.sortSourceSelected
+            ...$in.pick([
+                "frame",
+                "lower",
+                "writer",
+                "origin",
+                "body",
+                "selected",
+                "reusable"
+            ]),
+            target: $ctx.bind_target
         }}
     />
 
-    <Call fn="index.bindSortEnvironment" in={$in.frame} />
+    <Call
+        fn="bind_environment"
+        in={$in.pick([
+            "lower",
+            "writer",
+            "origin",
+            "body",
+            "environment"
+        ])}
+    />
 
     <Call
         fn="read_header"
         in={{
             frame: $in.frame,
             target: $ctx.bind_target,
-            selected: $ctx.sortSourceSelected
+            selected: $in.selected
         }}
     />
 
@@ -108,11 +124,11 @@
             name: $ctx.reserve_slot,
             source: $ctx.readSortItems,
             reuse: $ctx.bind_reuse,
-            environment: $ctx.bindSortEnvironment,
-            errors: $ctx.sortErrors,
+            environment: $ctx.bind_environment,
+            errors: $in.errors,
             io: $ctx.buildSortComparator.io,
             process: $ctx.buildSortComparator.process,
-            selected: $ctx.sortSourceSelected,
+            selected: $in.selected,
             headered: $ctx.read_header
         }}
     />

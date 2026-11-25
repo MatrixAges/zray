@@ -8,7 +8,7 @@ export {
 export {
     bindSortWorkerNames,
     registerSortParameters,
-    evaluateSortComparator,
-    sortWorkerOutputType,
+    lowerExpression,
+    lowerType,
     readSortWorkerFacts
 } from "lowering_host"

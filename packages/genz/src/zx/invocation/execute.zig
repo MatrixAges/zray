@@ -32,6 +32,7 @@ const Frame = struct {
 
 pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node.ExpressionId {
     var body = lowering.builder.statementSequence(lowering.workspace);
+    var origin: @import("../construction/publication.zig").OriginBuffer = .{};
 
     defer body.deinit();
 
@@ -45,6 +46,9 @@ pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node
 
     const input: Input = .{
         .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
+        .origin = @ptrCast(&origin),
+        .body = @ptrCast(&body),
         .call = @ptrCast(&frame),
         .operand = @backingInt(operation.argument),
         .argument = argument,
@@ -53,13 +57,15 @@ pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node
         .stores = plan.stores,
         .convert = plan.convert_output,
         .finish = true,
+        .unwrap_empty = true,
     };
 
-    return evaluation.invoke(entry, &input);
+    return evaluation.invokeWith(lowering, entry, &input);
 }
 
 pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: bool, pointer: bool) Error!node.ExpressionId {
     const plan = @import("../value_call/policy.zig").invocation(lowering, operation, borrowed, pointer);
+    var origin: @import("../construction/publication.zig").OriginBuffer = .{};
     var frame: Frame = .{ .lowering = lowering, .body = body, .operation = operation, .plan = .{ .value = plan } };
 
     const argument: CallArgument = switch (plan.argument) {
@@ -70,6 +76,9 @@ pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: 
 
     const input: Input = .{
         .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
+        .origin = @ptrCast(&origin),
+        .body = @ptrCast(body),
         .call = @ptrCast(&frame),
         .operand = @backingInt(operation.argument),
         .argument = argument,
@@ -78,9 +87,10 @@ pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: 
         .stores = false,
         .convert = plan.return_mode != .Keep,
         .finish = !borrowed,
+        .unwrap_empty = false,
     };
 
-    return evaluation.invoke(entry, &input);
+    return evaluation.invokeWith(lowering, entry, &input);
 }
 
 pub fn lowerCallTuple(handle: *anyopaque) Error!u32 {
@@ -170,15 +180,4 @@ pub fn convertCallResult(handle: *anyopaque, value_id: u32) Error!u32 {
     };
 
     return @backingInt(converted);
-}
-
-pub fn finishLoweredCall(handle: *anyopaque, value_id: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const result: node.ExpressionId = @fromBackingInt(value_id);
-
-    if (frame.plan == .value) return @backingInt(try aggregate.finish(frame.lowering, frame.body, result));
-
-    const block = try frame.body.finish(frame.lowering.allocator);
-
-    return if (block.len == 0) value_id else @backingInt(try aggregate.finishStored(frame.lowering, block, result, null));
 }

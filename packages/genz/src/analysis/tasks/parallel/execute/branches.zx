@@ -1,0 +1,47 @@
+import { appendAstSequenceSpan, readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+
+import futureLabel from "../../future/label"
+import { Kind as LabelKind } from "../../future/label"
+
+import type { Branches as Input } from "./model"
+
+export type Output = u8[][]
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, body, tasks } = in
+
+    const futures: u8[][] = []
+
+    return loop({
+        futures,
+        index: 0
+    }, {
+        while: state => state.index < tasks.length,
+        next: state => {
+            const current = readAstOrigin(writer, origin)
+
+            const generated = futureLabel({
+                kind: LabelKind.Future,
+                serial: current.serial
+            })
+
+            const retained = host.retainLoweringText(frame, generated.name)
+
+            host.setLoweringSerial(frame, generated.serial)
+
+            const span = host.startInlineTask(
+                frame,
+                tasks[state.index],
+                retained,
+                true
+            )
+
+            appendAstSequenceSpan(body, span)
+
+            state.futures = state.futures.push(retained)[0]
+            state.index += 1
+        },
+        return: state => state.futures
+    })
+}

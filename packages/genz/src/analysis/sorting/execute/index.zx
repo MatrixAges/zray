@@ -1,12 +1,8 @@
 export {
     sortElementType,
-    sortErrors,
     buildSortComparator,
     publishSortEffects,
-    evaluateSortTarget,
-    sortSourceSelected,
     readSortItems,
-    bindSortEnvironment,
     readSortHeader,
     finishSortResult
 } from "lowering_host"

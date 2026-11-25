@@ -5,18 +5,20 @@
     <Args in={Worker.Input} out={Worker.Output} />
 
     <Call
-        fn="index.parallelWorkerInput"
+        fn="index.lowerInputType"
         in={[
             $in.frame,
-            $in.function_id
+            $in.input_type,
+            false
         ]}
     />
 
     <Call
-        fn="index.parallelWorkerOutput"
+        fn="index.lowerOutputType"
         in={[
             $in.frame,
-            $in.function_id
+            $in.output_type,
+            false
         ]}
     />
 
@@ -42,8 +44,8 @@
     <Call
         module="../build"
         in={{
-            input_type: $ctx.parallelWorkerInput,
-            output_type: $ctx.parallelWorkerOutput,
+            input_type: $ctx.lowerInputType,
+            output_type: $ctx.lowerOutputType,
             callee: $ctx.parallelWorkerCallee,
             declaration_base: $ctx.astDeclarationCount,
             bases: {

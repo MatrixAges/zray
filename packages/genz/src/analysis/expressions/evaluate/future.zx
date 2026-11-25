@@ -40,7 +40,7 @@ export default function (in: Input): Output {
 
         host.setLoweringSerial(frame, generated.serial)
 
-        const started = host.startInlineTask(frame, child, retained)
+        const started = host.startInlineTask(frame, child, retained, false)
 
         return complete({
             frame,

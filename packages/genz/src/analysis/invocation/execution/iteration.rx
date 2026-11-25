@@ -6,26 +6,42 @@
     <Call fn="iteration_input" in={$in} />
 
     <If on={$in.value_call}>
-        <Call fn="index.invokeIterationValue" in={$in.call} />
+        <Call
+            fn="index.lowerCall"
+            in={[
+                $in.frame,
+                $in.call_id,
+                Call.Representation.Value,
+                false
+            ]}
+        />
 
         <Call
             fn="convert"
             in={{
                 call: $in.call,
-                value: $ctx.invokeIterationValue
+                value: $ctx.lowerCall
             }}
         />
 
         <Return value={$ctx.convert} />
     </If>
 
-    <Call fn="index.invokeIterationRegular" in={$in.call} />
+    <Call
+        fn="index.lowerRegular"
+        in={[
+            $in.frame,
+            $in.call_id,
+            false,
+            null
+        ]}
+    />
 
     <Call
         fn="convert"
         in={{
             call: $in.call,
-            value: $ctx.invokeIterationRegular
+            value: $ctx.lowerRegular
         }}
     />
 

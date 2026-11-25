@@ -12,9 +12,7 @@ export default function (in: Input): Output {
     const operands = loop(0, {
         while: index => index < comparator_arity,
         next: index => {
-            if (host.sortOperandUsed(in, index)) {
-                host.readSortOperand(in, index)
-            }
+            host.readSortOperand(in, index)
 
             index += 1
         }

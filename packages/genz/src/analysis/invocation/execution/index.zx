@@ -1,4 +1,4 @@
 export {
-    invokeIterationValue,
-    invokeIterationRegular
+    lowerCall,
+    lowerRegular
 } from "lowering_host"

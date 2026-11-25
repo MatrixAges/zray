@@ -1,20 +1,9 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const rows = @import("../construction/publication.zig");
 const evaluate = @import("../expressions/evaluate.zig");
-const Record = evaluate.Api.ParallelRecord;
-
-const Records = struct {
-    allocator: std.mem.Allocator,
-    references: []*const Record = &.{},
-    values: []Record = &.{},
-    fn borrow(handle: *anyopaque) *Records {
-        return @ptrCast(@alignCast(handle));
-    }
-};
 
 pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel")) Lower.Error!node.Block {
     if (!@import("genz_options").generated_analysis) return self.builder.statements(try @import("root_seed.zig").lower(self, invocations));
@@ -24,22 +13,31 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
     var origin: rows.OriginBuffer = .{};
-    var records: Records = .{ .allocator = memory.allocator() };
+    const allocator = memory.allocator();
+    const arguments = try allocator.alloc(u32, invocations.len);
+    const functions = try allocator.alloc(u32, invocations.len);
 
     defer scratch.deinit();
+
+    for (invocations.values[0..invocations.len], arguments, functions) |expression, *argument, *function| {
+        const call = self.program.expression(@fromBackingInt(expression)).value.call;
+
+        argument.* = @backingInt(call.argument);
+        function.* = @backingInt(call.function);
+    }
 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .expressions = invocations.values[0..invocations.len],
+        .arguments = arguments,
+        .functions = functions,
         .symbols = invocations.symbols[0..invocations.len],
-        .records = @ptrCast(&records),
         .used = self.used,
         .names = self.names,
     };
 
-    const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
+    const result = entry.executeIn(allocator, &input) catch |err| return rows.failure(err);
 
     return rows.unpackSpan(result);
 }
@@ -51,53 +49,6 @@ pub fn markParallelStatement(handle: *anyopaque) void {
     self.uses_allocator = true;
 }
 
-pub fn lowerParallelArgument(handle: *anyopaque, expression: u32) Lower.Error!u32 {
-    const self = evaluate.borrow(handle);
-    const call = self.program.expression(@fromBackingInt(expression)).value.call;
-
-    return @backingInt(try self.expr(call.argument));
-}
-
-pub fn buildParallelWorker(handle: *anyopaque, expression: u32) Lower.Error!u32 {
-    const self = evaluate.borrow(handle);
-    const call = self.program.expression(@fromBackingInt(expression)).value.call;
-
-    return @backingInt(try @import("worker.zig").lower(self, call.function));
-}
-
-pub fn reserveParallelRecords(handle: *anyopaque, count: u64) Lower.Error!void {
-    const records = Records.borrow(handle);
-    records.references = try records.allocator.alloc(*const Record, @intCast(count));
-    records.values = try records.allocator.alloc(Record, @intCast(count));
-}
-
-pub fn storeParallelRecord(
-    handle: *anyopaque,
-    row: u64,
-    argument: u32,
-    worker_type: u32,
-    type_name: []const u8,
-    input_name: []const u8,
-    worker_name: []const u8,
-    thread_name: []const u8,
-    symbol: ?u32,
-) void {
-    const records = Records.borrow(handle);
-    const index: usize = @intCast(row);
-
-    records.values[index] = .{
-        .argument = argument,
-        .worker_type = worker_type,
-        .type_name = type_name,
-        .input_name = input_name,
-        .worker_name = worker_name,
-        .thread_name = thread_name,
-        .symbol = symbol,
-    };
-
-    records.references[index] = &records.values[index];
-}
-
-pub fn readParallelRecords(handle: *anyopaque) []const *const Record {
-    return Records.borrow(handle).references;
+pub fn buildParallelWorker(handle: *anyopaque, function_id: u32) Lower.Error!u32 {
+    return @backingInt(try @import("worker.zig").lower(evaluate.borrow(handle), @fromBackingInt(function_id)));
 }

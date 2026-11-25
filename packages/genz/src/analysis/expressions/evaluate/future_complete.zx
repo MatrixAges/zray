@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import {
     AstPayloadOwnership,
     appendAstCleanupRows,
@@ -6,9 +7,10 @@ import {
     readAstOrigin,
     tailAstStatementRows
 } from "ast_rows"
-import host from "lowering_host"
 import { requireAllocation } from "memory"
 
+import finishStored from "../../aggregate/execute/finish_stored"
+import { word_radix } from "../../node_headers/block/const"
 import futureCall from "../../tasks/future/call"
 import cancelResult from "../../tasks/future/cancel_result"
 import unpackSpan from "../../tasks/worker/execute/reference"
@@ -97,10 +99,15 @@ export default function (in: Input): Output {
         ]
     )
 
-    return host.finishTaskBlock(
+    const span = integers.widen(first) * word_radix
+    + integers.widen(started_span.count)
+    + integers.widen(completed_span.count)
+
+    return finishStored({
         frame,
-        first,
-        started_span.count + completed_span.count,
-        built.root
-    )
+        writer,
+        origin,
+        span,
+        value: built.root
+    })
 }

@@ -32,8 +32,6 @@ export type IterationCallFrame = mutable_opaque
 
 export type BorrowedArgument = opaque
 
-export type ParallelFrame = mutable_opaque
-
 export type MatchFrame = mutable_opaque
 
 export enum StatementResultMode {

@@ -1,5 +1,5 @@
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
-import type { Lowering, ParallelRecords } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { Kind } from "../label"
 
 export type Writer = {
@@ -13,18 +13,14 @@ export type Label = Writer & {
 }
 
 export type Invocations = Writer & {
-    records: ParallelRecords,
-    expressions: u32[],
+    arguments: u32[],
+    functions: u32[],
     symbols: u32?[]
 }
 
 export type Input = Invocations & {
     used: bool[],
     names: u8[][]
-}
-
-export type Branch = Invocations & {
-    index: u64
 }
 
 export type Output = u64

@@ -1,9 +1,10 @@
 import host from "lowering_host"
 
-import type { ParallelFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
-    group: ParallelFrame,
+    frame: Lowering,
+    type_id: u32,
     value: u32,
     construct: bool
 }
@@ -11,5 +12,5 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    return in.construct ? host.constructParallelResult(in.group, in.value) : in.value
+    return in.construct ? host.finishObject(in.frame, in.type_id, in.value) : in.value
 }

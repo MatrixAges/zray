@@ -5,7 +5,14 @@ import type { Input as Routing } from "../route"
 
 export type Input = {
     frame: BorrowedArgument,
-    route: Routing
+    route: Routing,
+    id: u32,
+    operand?: u32
+}
+
+export type Call = {
+    frame: BorrowedArgument,
+    operand?: u32
 }
 
 export type Output = u32

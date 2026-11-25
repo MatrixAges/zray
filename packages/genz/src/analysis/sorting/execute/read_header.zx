@@ -1,6 +1,6 @@
 import host from "lowering_host"
 
-import type { Target as Input } from "./model"
+import type { Header as Input } from "./model"
 
 export type Output = u32
 

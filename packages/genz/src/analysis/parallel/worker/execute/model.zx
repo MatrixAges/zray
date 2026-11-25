@@ -5,7 +5,9 @@ export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
-    function_id: u32
+    function_id: u32,
+    input_type: u32,
+    output_type: u32
 }
 
 export type Output = u32

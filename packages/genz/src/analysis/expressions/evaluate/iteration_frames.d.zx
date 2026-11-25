@@ -165,21 +165,3 @@ export type TaskWorkerUsage = {
     used: bool[],
     names: u8[][]
 }
-
-export type TaskParallelNames = {
-    futures: u8[][],
-    results: u8[][],
-    values: u8[][]
-}
-
-export type ParallelRecords = mutable_opaque
-
-export type ParallelRecord = {
-    argument: u32,
-    worker_type: u32,
-    type_name: u8[],
-    input_name: u8[],
-    worker_name: u8[],
-    thread_name: u8[],
-    symbol?: u32
-}

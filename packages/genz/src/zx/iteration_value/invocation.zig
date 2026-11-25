@@ -43,9 +43,9 @@ pub fn lower(self: *Context, id: ir.ExprId, row: ir.ExpressionRow, value_call: b
         try openIterationCall(@ptrCast(&frame), @backingInt(value));
 
         const invocation = if (value_call)
-            try invokeIterationValue(@ptrCast(&frame))
+            @backingInt(try @import("../value_call/root.zig").invocation(self.lowering, row.value.call))
         else
-            try invokeIterationRegular(@ptrCast(&frame));
+            @backingInt(try self.lowering.regular(id));
 
         return @fromBackingInt(try convertResult(&frame, invocation));
     }
@@ -55,6 +55,7 @@ pub fn lower(self: *Context, id: ir.ExprId, row: ir.ExpressionRow, value_call: b
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self.lowering),
         .call = @ptrCast(&frame),
+        .call_id = @backingInt(id),
         .operand = @backingInt(row.value.call.argument),
         .value_call = value_call,
     };
@@ -72,18 +73,6 @@ pub fn openIterationCall(handle: *anyopaque, value: u32) Lower.Error!void {
 
     frame.context.argument = .{ .id = argument, .value = input };
     frame.cached = try self.cache.bind(self.allocator, argument, input);
-}
-
-pub fn invokeIterationValue(handle: *anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../value_call/root.zig").invocation(frame.context.lowering, frame.row.value.call));
-}
-
-pub fn invokeIterationRegular(handle: *anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.context.lowering.regular(frame.call_id));
 }
 
 pub fn convertIterationCall(handle: *anyopaque, value: u32) Lower.Error!u32 {

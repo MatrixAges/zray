@@ -1,12 +1,18 @@
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
-import type { TaskWorker, TaskWorkerUsage } from "lowering_host"
+import type { Lowering, TaskWorker, TaskWorkerUsage } from "lowering_host"
 import type { Input as WorkerFinish, Output as Final } from "../finish_model"
 
 export type Input = {
     worker: TaskWorker,
+    lower: Lowering,
+    worker_lower: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
     captures: u32[],
+    symbol_types: u32[],
+    body_expr: u32,
+    result_type: u32,
+    errors?: u8[][],
     process: bool
 }
 

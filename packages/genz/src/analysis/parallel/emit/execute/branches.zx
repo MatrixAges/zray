@@ -1,0 +1,69 @@
+import { readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+
+import label from "../label"
+import { Kind } from "../label"
+import leadNames from "./lead_names"
+
+import type { Record } from "../model"
+import type { Invocations as Input } from "./model"
+
+export type Output = Record[]
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, arguments: calls, functions, symbols } = in
+
+    const records: Record[] = []
+
+    return loop({
+        records,
+        index: 0
+    }, {
+        while: state => state.index < calls.length,
+        next: state => {
+            const lead_origin = readAstOrigin(writer, origin)
+
+            const lead = leadNames({
+                frame,
+                serial: lead_origin.serial
+            })
+
+            const argument = host.lowerExpression(
+                frame,
+                calls[state.index],
+                false,
+                null
+            )
+
+            const worker_type = host.buildParallelWorker(
+                frame,
+                functions[state.index]
+            )
+
+            const thread_origin = readAstOrigin(writer, origin)
+
+            const thread_label = label({
+                serial: thread_origin.serial,
+                kind: Kind.Thread
+            })
+
+            const thread_name = host.retainLoweringText(frame, thread_label.name)
+
+            host.setLoweringSerial(frame, thread_label.serial)
+
+            const record: Record = {
+                argument,
+                worker_type,
+                type_name: lead.type_name,
+                input_name: lead.input_name,
+                worker_name: lead.worker_name,
+                thread_name,
+                symbol: symbols[state.index]
+            }
+
+            state.records = state.records.push(record)[0]
+            state.index += 1
+        },
+        return: state => state.records
+    })
+}

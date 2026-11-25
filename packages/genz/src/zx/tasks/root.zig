@@ -75,15 +75,8 @@ pub fn publishTaskEffects(handle: *anyopaque, allocator: bool, io: bool, process
     self.uses_process = self.uses_process or process;
 }
 
-pub fn startInlineTask(handle: *anyopaque, task: u32, name: []const u8) Lower.Error!u64 {
-    return rows.packSpan(try bind(evaluate.borrow(handle), name, @fromBackingInt(task), false));
-}
-
-pub fn finishTaskBlock(handle: *anyopaque, first: u32, count: u32, value: u32) Lower.Error!u32 {
-    const self = evaluate.borrow(handle);
-    const result = try @import("../aggregate.zig").finishStored(self, .{ .start = first, .len = count }, @fromBackingInt(value), null);
-
-    return @backingInt(result);
+pub fn startInlineTask(handle: *anyopaque, task: u32, name: []const u8, concurrent: bool) Lower.Error!u64 {
+    return rows.packSpan(try bind(evaluate.borrow(handle), name, @fromBackingInt(task), concurrent));
 }
 
 pub fn parallel(self: *Lower, type_id: ir.TypeId, branches: @FieldType(@FieldType(ir.ExpressionRow, "value"), "parallel")) Lower.Error!node.ExpressionId {

@@ -53,9 +53,13 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(&frame),
         .writer = @ptrCast(self),
+        .lower = @ptrCast(self),
+        .worker = @ptrCast(&worker),
         .origin = @ptrCast(&origin),
         .scratch = @ptrCast(&resource),
         .child = @backingInt(child),
+        .body_expr = @backingInt(value.body),
+        .output_type = @backingInt(self.program.expression(value.body).type_id),
         .errors = errors,
     };
 
@@ -78,34 +82,19 @@ pub fn registerSortParameters(handle: *anyopaque) Error!void {
     try @import("../state_value/locals.zig").registerOwned(frame.worker, frame.value.parameters);
 }
 
-pub fn evaluateSortComparator(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.worker.expr(frame.value.body));
-}
-
-pub fn sortOperandUsed(handle: *anyopaque, index: u64) bool {
-    const frame = Frame.borrow(handle);
-
-    return frame.worker.used[@backingInt(frame.value.parameters[@intCast(index)])];
-}
-
 pub fn readSortOperand(handle: *anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
     const slot: usize = @intCast(index);
+
+    if (!frame.worker.used[@backingInt(frame.value.parameters[slot])]) return;
+
     const list_type = frame.lowering.program.expression(frame.value.target).type_id;
+
     frame.elements[slot] = try @import("../state_value/elements.zig").read(frame.worker, &frame.helper, list_type, frame.raw[slot]);
     frame.helpers[slot] = try frame.helper.block(frame.lowering.allocator);
     frame.used[slot] = true;
 
     frame.helper.clearRetainingCapacity();
-}
-
-pub fn sortWorkerOutputType(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const output_type = frame.lowering.program.expression(frame.value.body).type_id;
-
-    return @backingInt(try frame.lowering.typeExpr(output_type));
 }
 
 pub fn readSortWorkerFacts(handle: *anyopaque) Error!*const Api.SortWorkerFacts {

@@ -1,13 +1,22 @@
 import host from "lowering_host"
 
+import bindOperand from "../../aggregate/execute/bind_operand"
+
 import type { Target as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, target, selected } = in
+    const { frame, lower, writer, origin, body, target, selected } = in
 
-    const qualified = selected ? host.clipSortTarget(frame, target) : target
+    const raw = host.lowerExpression(lower, target, false, null)
+    const qualified = selected ? host.clipSortTarget(frame, raw) : raw
 
-    return host.bindSortValue(frame, qualified)
+    return bindOperand({
+        frame: lower,
+        writer,
+        origin,
+        sequence: body,
+        value: qualified
+    })
 }

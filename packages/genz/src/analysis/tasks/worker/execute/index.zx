@@ -1,9 +1,7 @@
 export {
-    openTaskWorker,
     bindTaskCaptureNames,
-    evaluateTaskWorker,
-    taskWorkerOutput,
-    taskWorkerErrors,
+    lowerExpression,
+    lowerType,
     readTaskWorkerUsage,
     readTaskReferenceBody
 } from "lowering_host"

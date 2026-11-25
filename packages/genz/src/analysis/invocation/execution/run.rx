@@ -9,10 +9,15 @@
         fn="emit"
         in={{
             ...$in.pick([
+                "frame",
+                "writer",
+                "origin",
+                "body",
                 "call",
                 "stores",
                 "convert",
-                "finish"
+                "finish",
+                "unwrap_empty"
             ]),
             value: $ctx.prepare
         }}

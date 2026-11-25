@@ -34,16 +34,7 @@ export declare function emitLoweredCall(call: CallFrame, value: u32, store: u32?
 export declare function convertCallResult(call: CallFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function finishLoweredCall(call: CallFrame, value: u32): u32
-    throws { OutOfMemory }
-
 export declare function openIterationCall(call: IterationCallFrame, value: u32): void
-    throws { OutOfMemory }
-
-export declare function invokeIterationValue(call: IterationCallFrame): u32
-    throws { OutOfMemory }
-
-export declare function invokeIterationRegular(call: IterationCallFrame): u32
     throws { OutOfMemory }
 
 export declare function convertIterationCall(call: IterationCallFrame, value: u32): u32
@@ -55,16 +46,11 @@ export declare function materializeBorrowedObject(frame: BorrowedArgument): u32
 export declare function materializeBorrowedTuple(frame: BorrowedArgument): u32
     throws { OutOfMemory }
 
-export declare function lowerExistingBorrowedArgument(frame: BorrowedArgument): u32
-    throws { OutOfMemory }
-
 export declare function lowerBorrowedOperand(frame: BorrowedArgument, id: u32): u32
     throws { OutOfMemory }
 
 export declare function lowerExistingBorrowedOperand(frame: BorrowedArgument, id: u32): u32
     throws { OutOfMemory }
-
-export declare function borrowedCallOperand(frame: BorrowedArgument): u32
 
 export declare function emitBorrowedCall(frame: BorrowedArgument, value: u32): u32
     throws { OutOfMemory }
@@ -80,18 +66,3 @@ export declare function cacheBorrowedOperand(
     id: u32,
     value: u32
 ): void throws { OutOfMemory }
-
-export declare function startParallelBranch(
-    group: ParallelFrame,
-    index: u64,
-    task: u32,
-    future: u8[]
-): u64 throws { OutOfMemory }
-
-export declare function reserveParallelNames(group: ParallelFrame, count: u64): void
-    throws { OutOfMemory }
-
-export declare function readParallelNames(group: ParallelFrame): TaskParallelNames
-
-export declare function constructParallelResult(group: ParallelFrame, value: u32): u32
-    throws { OutOfMemory }
