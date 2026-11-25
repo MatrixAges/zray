@@ -28,7 +28,7 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var columns: @import("resources.zig").Columns = .{ .allocator = temporary };
+    var columns: @import("resources.zig").Columns = .{};
 
     const prepare: Prepare = .{
         .source = &request,

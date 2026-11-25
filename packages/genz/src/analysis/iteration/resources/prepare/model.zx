@@ -1,4 +1,3 @@
-import type { IterationResourceStorage } from "lowering_host"
 import type { Input as BorrowInput, Plan as BorrowPlan } from "../../borrow/model"
 import type {
     Input as ConversionInput,
@@ -13,9 +12,7 @@ export { Operation as ConversionOperation } from "../../conversion/model"
 export { Operation as TypeOperation } from "../../types/model"
 export { Mode } from "../model"
 
-export type Buffers = Resolve.Pick("frame", "layouts", "operands") & {
-    storage: IterationResourceStorage
-}
+export type Buffers = Resolve.Pick("frame", "layouts", "operands")
 
 export type Root = {
     buffers: Buffers,

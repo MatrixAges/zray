@@ -92,7 +92,10 @@
                 "initial",
                 "context_used",
                 "context_name",
-                "context_type"
+                "context_type",
+                "element_symbol",
+                "element_name",
+                "used"
             ]),
             source: $ctx.bindTransformSource,
             callback: $ctx.lowerExpression

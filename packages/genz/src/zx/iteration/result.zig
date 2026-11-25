@@ -45,15 +45,21 @@ pub const Result = struct {
         if (generated) {
             const execute = @import("generated_publish_loop_result");
             const Input = std.meta.Child(execute.Input);
-            var origin: @import("../construction/publication.zig").OriginBuffer = .{};
+            const publication = @import("../construction/publication.zig");
+            var origin: publication.OriginBuffer = .{};
 
             const input: Input = .{
                 .target = @ptrCast(&frame),
                 .frame = @ptrCast(self),
                 .writer = @ptrCast(self),
                 .origin = @ptrCast(&origin),
+                .body = @ptrCast(body),
                 .changed_name = config.changed_name,
                 .state = @backingInt(state),
+                .initial = @backingInt(config.initial),
+                .renewals = publication.packSpan(previous.renewals),
+                .declarations = publication.packSpan(previous.declarations),
+                .frame_span = publication.packSpan(previous.frame),
                 .facts = &.{
                     .consumer = config.consumer != null,
                     .deep = config.deep,
@@ -223,8 +229,4 @@ pub fn wrapLoopResult(handle: *const anyopaque, form: evaluation.Api.LoopResultW
 
 pub fn convertLoopResult(handle: *const anyopaque, deep: bool) Lower.Error!u32 {
     return @backingInt(try Publication.borrow(handle).convert(deep));
-}
-
-pub fn publishLoopResult(handle: *const anyopaque, value: u32, guard: ?u32) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).publish(@fromBackingInt(value), if (guard) |condition| @fromBackingInt(condition) else null));
 }

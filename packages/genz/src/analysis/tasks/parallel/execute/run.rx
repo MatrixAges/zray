@@ -124,7 +124,8 @@
             writer: $in.writer,
             origin: $in.origin,
             span: $ctx.finishAstSequence,
-            value: $ctx.result
+            value: $ctx.result,
+            guard: null
         }}
     />
 

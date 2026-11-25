@@ -37,13 +37,6 @@ export enum LoopUpdateScope {
     Ordinary
 }
 
-export enum PathConversion {
-    Plain,
-    BorrowList,
-    Convert,
-    ReadElement
-}
-
 export enum LoopAdmission {
     Proceed,
     Dereference,
@@ -51,8 +44,6 @@ export enum LoopAdmission {
 }
 
 export type IterationResourceFrame = mutable_opaque
-
-export type IterationResourceStorage = mutable_opaque
 
 export enum IterationResource {
     None,

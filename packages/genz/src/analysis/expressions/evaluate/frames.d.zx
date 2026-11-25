@@ -163,5 +163,3 @@ export type CollectionUpdate = {
 export type ListRepresentation = opaque
 
 export type ElementRepresentation = mutable_opaque
-
-export type ConversionResources = mutable_opaque

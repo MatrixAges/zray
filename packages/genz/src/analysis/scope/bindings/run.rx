@@ -46,7 +46,8 @@
                 writer: $in.writer,
                 origin: $in.origin,
                 span: $ctx.tailAstPackedStatements,
-                value: $ctx.prepare.value
+                value: $ctx.prepare.value,
+                guard: null
             }}
         />
 

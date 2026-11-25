@@ -51,14 +51,28 @@ pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Error!node.ExpressionI
     else
         null;
 
+    const items: []const u32 = if (expressions.kinds[row] == .Tuple)
+        @ptrCast(self.program.expression(id).value.tuple)
+
+    else
+        &.{};
+
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
+
     const input: Input = .{
         .frame = @ptrCast(&frame),
+        .lowering = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .sequence = @ptrCast(body),
         .route = &route,
         .id = row,
+        .type_id = expressions.types[row],
         .operand = operand,
+        .items = items,
     };
 
-    return evaluation.invoke(entry, &input);
+    return evaluation.invokeWith(self, entry, &input);
 }
 
 pub fn lowerBorrowedOperand(handle: *const anyopaque, id: u32) Error!u32 {
@@ -96,25 +110,4 @@ pub fn emitBorrowedCall(handle: *const anyopaque, value: u32) Error!u32 {
     defer cached.restore();
 
     return @backingInt(try @import("root.zig").borrowInvocation(self, frame.body, invocation));
-}
-
-pub fn materializeBorrowedTuple(handle: *const anyopaque) Error!u32 {
-    const context = Frame.borrow(handle);
-    const self = context.lowering;
-    const expression = self.program.expression(context.id);
-    const items = expression.value.tuple;
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
-    const entry = @import("generated_materialize_borrowed_tuple");
-
-    const input: std.meta.Child(entry.Input) = .{
-        .frame = @ptrCast(handle),
-        .lowering = @ptrCast(self),
-        .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
-        .sequence = @ptrCast(context.body),
-        .type_id = @backingInt(expression.type_id),
-        .items = @ptrCast(items),
-    };
-
-    return @backingInt(try evaluation.invokeWith(self, entry, &input));
 }

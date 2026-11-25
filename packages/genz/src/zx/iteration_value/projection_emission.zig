@@ -32,7 +32,7 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var timeline: Timeline = .{ .context = context, .temporary = temporary };
+    var timeline: Timeline = .{ .context = context };
 
     const preparation: Prepare = .{
         .source = &request,
@@ -78,20 +78,11 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
 
 const Timeline = struct {
     context: *Context,
-    temporary: std.mem.Allocator,
     prepared: []u32 = undefined,
     serials: []u64 = undefined,
     history_count: []u64 = undefined,
     stamp: Api.IterationProjectionStamp = undefined,
 };
-
-pub fn reserveIterationProjectionColumns(handle: *anyopaque, length: u64) Lower.Error!void {
-    const timeline: *Timeline = @ptrCast(@alignCast(handle));
-    const count: usize = @intCast(length);
-    timeline.prepared = try timeline.temporary.alloc(u32, count);
-    timeline.serials = try timeline.temporary.alloc(u64, count);
-    timeline.history_count = try timeline.temporary.alloc(u64, count);
-}
 
 pub fn reserveIterationProjection(handle: *anyopaque, fresh: u64) Lower.Error!*const Api.IterationProjectionStamp {
     const timeline: *Timeline = @ptrCast(@alignCast(handle));

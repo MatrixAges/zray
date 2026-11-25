@@ -10,14 +10,6 @@
     </If>
 
     <Call
-        fn="model.reserveIterationProjectionColumns"
-        in={[
-            $in.resources.history,
-            $ctx.plan.operations.length
-        ]}
-    />
-
-    <Call
         fn="../../resources/projection"
         in={{
             ...$in.resources,

@@ -1,3 +1,4 @@
+import type { AstWriter } from "ast_rows"
 import type { CollectionConversion } from "lowering_host"
 import type { Input as Bases } from "../../../ast/context/model"
 import type {
@@ -6,8 +7,6 @@ import type {
     Output as Emission
 } from "../../state/conversion/emit/model"
 import type { Query } from "../../state/queries/model"
-
-export { refreshCollectionResultBases } from "lowering_host"
 
 export type Input = {
     value: u32,
@@ -32,6 +31,7 @@ export type Preparation = {
 }
 
 export type Execution = {
+    writer: AstWriter,
     source: Input,
     preparation: Preparation
 }

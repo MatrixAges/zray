@@ -71,6 +71,8 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const has_context = transform.kind != .reduce and transform.initial != null;
     const context_symbol = if (has_context) @backingInt(transform.parameters[1]) else 0;
     const context_used = has_context and self.used[context_symbol];
+    const element_symbol: u32 = if (transform.kind == .filter) @backingInt(transform.parameters[0]) else 0;
+    var used = std.mem.sliceAsBytes(self.used);
     var origin: publication.OriginBuffer = .{};
 
     const ast: Ast = .{
@@ -93,6 +95,9 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .context_used = context_used,
         .context_name = if (context_used) self.names[context_symbol] else &.{},
         .context_type = if (has_context) self.program.symbols.types[context_symbol] else 0,
+        .element_symbol = element_symbol,
+        .element_name = if (transform.kind == .filter) self.names[element_symbol] else &.{},
+        .used = @ptrCast(&used),
         .state_active = self.state_active,
         .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
         .accumulator = if (transform.kind == .reduce) self.names[@backingInt(transform.parameters[0])] else &.{},

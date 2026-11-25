@@ -45,7 +45,16 @@
                 ]}
             />
 
-            <Call fn="index.cachePublishedIterationTypes" in={$in.target} />
+            <If on={$in.context != null}>
+                <Call
+                    fn="../resources/cache"
+                    in={{
+                        frame: $in.context,
+                        types: $in.cache_types,
+                        values: $in.cache_values
+                    }}
+                />
+            </If>
         </Case>
 
         <Case value={Publication.Mode.Transfer}>

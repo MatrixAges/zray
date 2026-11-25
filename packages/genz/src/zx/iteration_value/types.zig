@@ -30,7 +30,7 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var columns: @import("resources.zig").Columns = .{ .allocator = temporary };
+    var columns: @import("resources.zig").Columns = .{};
 
     const prepare: Prepare = .{
         .source = &request,

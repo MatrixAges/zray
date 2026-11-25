@@ -12,9 +12,6 @@ export declare function bindTransformElement(frame: TransformFrame): u8[] throws
 export declare function storeMapTransformValue(frame: TransformFrame, callback: u32): u32
     throws { OutOfMemory }
 
-export declare function storeFilterTransformValue(frame: TransformFrame): u32
-    throws { OutOfMemory }
-
 export declare function emitReduceRenewals(
     frame: TransformFrame,
     accumulator: u8[],

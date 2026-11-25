@@ -28,6 +28,13 @@ export type Output = void
 export default function (in: Input): Output {
     const { frame, plan, types, children, referenced } = in
 
+    const count = plan.types.length
+
+    memory.allocateU32Views(in.layouts, count)
+    memory.allocateU32Views(in.targets, count)
+    memory.allocateU32Views(in.elements, count)
+    memory.allocateU8ListViews(in.origins, count)
+
     const resolved = loop(0, {
         while: row => row < plan.types.length,
         next: row => {

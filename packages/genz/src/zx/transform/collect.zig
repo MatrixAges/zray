@@ -16,18 +16,6 @@ pub fn storeMapTransformValue(handle: *anyopaque, value: u32) Lower.Error!u32 {
     return @backingInt(try elements.write(frame.lowering, &frame.loop, frame.typeId(), @fromBackingInt(value)));
 }
 
-pub fn storeFilterTransformValue(handle: *anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const element = @backingInt(frame.transform.parameters[0]);
-    const value = try self.builder.identifier(self.names[element]);
-    const stored = try elements.write(self, &frame.loop, frame.typeId(), value);
-
-    self.used[element] = true;
-
-    return @backingInt(stored);
-}
-
 pub fn finishTransformCollection(handle: *anyopaque, start: u32, count: u32, result: u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;

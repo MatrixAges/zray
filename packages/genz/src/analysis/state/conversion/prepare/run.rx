@@ -25,25 +25,25 @@
         <Call fn="../view/walk" in={$in.view} />
 
         <Call
-            module="fill"
+            fn="../../resources/resolve"
             in={{
-                plan: $ctx.walk,
-                resources: $in.resources
+                ...$in.resources,
+                plan: $ctx.walk
             }}
         />
 
-        <Return value={$ctx.fill} />
+        <Return value={$ctx.walk} />
     </If>
 
     <Call module="../plan/build" in={$in.view.source.source} />
 
     <Call
-        module="fill"
+        fn="../../resources/resolve"
         in={{
-            plan: $ctx.build,
-            resources: $in.resources
+            ...$in.resources,
+            plan: $ctx.build
         }}
     />
 
-    <Return value={$ctx.fill} />
+    <Return value={$ctx.build} />
 </Module>

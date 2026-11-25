@@ -21,12 +21,6 @@ export declare function materializeIterationResource(
     resource: IterationResource
 ): u32 throws { OutOfMemory }
 
-export declare function reserveIterationResources(
-    storage: IterationResourceStorage,
-    count: u64,
-    with_operands: bool
-): void throws { OutOfMemory }
-
 export declare function cacheIterationType(
     frame: IterationResourceFrame,
     id: u32,
@@ -45,11 +39,6 @@ export declare function publishIterationMutation(
     list_layout: u32,
     result_layout: u32
 ): u32 throws { OutOfMemory }
-
-export declare function reserveIterationProjectionColumns(
-    history: IterationProjectionFrame,
-    count: u64
-): void throws { OutOfMemory }
 
 export declare function reserveIterationProjection(
     history: IterationProjectionFrame,
@@ -82,8 +71,3 @@ export declare function emitElement(
 ): u32 throws { OutOfMemory }
 
 export declare function elementCaptureName(frame: ElementRepresentation): u8[]
-
-export declare function reserveConversionResources(
-    storage: ConversionResources,
-    count: u64
-): void throws { OutOfMemory }

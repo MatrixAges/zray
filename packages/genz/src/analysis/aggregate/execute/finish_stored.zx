@@ -11,33 +11,43 @@ import unpackSpan from "../../tasks/worker/execute/reference"
 import blockRows from "../binding/block_rows"
 import breakRows from "../binding/break_rows"
 import plan from "../binding/plan"
+import resultInput from "../binding/result_input"
 
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
+import type { Guard } from "../binding/model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
     span: u64,
-    value: u32
+    value: u32,
+    guard?: Guard
 }
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, span, value } = in
+    const { frame, writer, origin, span, value, guard } = in
 
-    const block = unpackSpan(span)
+    const unpacked = unpackSpan(span)
     const current = readAstOrigin(writer, origin)
 
-    const planned = plan({
-        value,
-        expression_base: current.expression_base,
-        statement_base: block.start,
-        body_count: integers.widen(block.count),
-        serial: current.serial
-    })
+    const planned = plan(
+        resultInput({
+            frame,
+            writer,
+            block: {
+                value,
+                expression_base: current.expression_base,
+                statement_base: unpacked.start,
+                body_count: integers.widen(unpacked.count),
+                serial: current.serial
+            },
+            guard
+        })
+    )
 
     requireAllocation(planned.valid)
 
@@ -51,7 +61,7 @@ export default function (in: Input): Output {
     const block_expressions = blockRows({
         plan: planned,
         name,
-        guard: null
+        guard
     })
 
     appendAstLeafStatements(writer, break_statements)

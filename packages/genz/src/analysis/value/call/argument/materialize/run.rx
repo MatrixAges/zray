@@ -14,9 +14,22 @@
         </Case>
 
         <Case value={Route.Output.Tuple}>
-            <Call fn="index.materializeBorrowedTuple" in={$in.frame} />
+            <Call
+                fn="prepare_tuple"
+                in={$in.pick([
+                    "frame",
+                    "lowering",
+                    "writer",
+                    "origin",
+                    "sequence",
+                    "type_id",
+                    "items"
+                ])}
+            />
 
-            <Return value={$ctx.materializeBorrowedTuple} />
+            <Call module="../build" />
+
+            <Return value={$ctx.build} />
         </Case>
 
         <Case value={Route.Output.Call}>

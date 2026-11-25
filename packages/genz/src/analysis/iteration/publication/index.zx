@@ -5,7 +5,6 @@ export {
     appendFragmentLayoutExpressions,
     appendFragmentBody,
     appendFragmentStorage,
-    cachePublishedIterationTypes,
     recordIterationTransfer,
     finishGeneratedAst
 } from "lowering_host"

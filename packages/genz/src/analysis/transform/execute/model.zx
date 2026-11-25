@@ -1,6 +1,7 @@
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { TransformKind } from "core/expression_table/kinds"
 import type { Lowering, TransformFrame } from "lowering_host"
+import type { U8Buffer } from "memory"
 import type { Source as RenewalSource } from "../../iteration/deferred/model"
 
 export { TransformKind } from "core/expression_table/kinds"
@@ -27,6 +28,9 @@ export type Input = {
     context_used: bool,
     context_name: u8[],
     context_type: u32,
+    element_symbol: u32,
+    element_name: u8[],
+    used: U8Buffer,
     state_active: bool,
     inline_lists: bool,
     accumulator: u8[],
@@ -55,7 +59,10 @@ export type Collection =
         "initial",
         "context_used",
         "context_name",
-        "context_type"
+        "context_type",
+        "element_symbol",
+        "element_name",
+        "used"
     ) & {
         source: u32,
         callback: u32

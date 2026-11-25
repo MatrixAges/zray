@@ -47,7 +47,5 @@ export declare function prepareCollectionMember(
     type_id: u32?
 ): void throws { OutOfMemory }
 
-export declare function refreshCollectionResultBases(frame: CollectionConversion): void
-
 export declare function emitCollectionUpdate(frame: CollectionFrame, input: CollectionUpdate): u32
     throws { OutOfMemory }

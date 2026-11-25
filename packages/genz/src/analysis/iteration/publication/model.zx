@@ -1,4 +1,9 @@
-import type { FragmentPublication, IterationPublication, Lowering } from "lowering_host"
+import type {
+    FragmentPublication,
+    IterationPublication,
+    IterationResourceFrame,
+    Lowering
+} from "lowering_host"
 
 export { FragmentBody } from "lowering_host"
 
@@ -17,6 +22,9 @@ export enum Mode {
 export type Input = {
     target: IterationPublication,
     lower: Lowering,
+    context?: IterationResourceFrame,
+    cache_types: u32[],
+    cache_values: u32[],
     rows: Rows,
     valid: bool,
     serial?: u64,

@@ -43,9 +43,6 @@ export declare function repairIterationBlockLabel(target: IterationPublication):
 
 export declare function repairIterationBreakLabel(target: IterationPublication): void
 
-export declare function cachePublishedIterationTypes(target: IterationPublication): void
-    throws { OutOfMemory }
-
 export declare function recordIterationTransfer(target: IterationPublication): void
     throws { OutOfMemory }
 

@@ -25,6 +25,12 @@ export type Input = {
 export type Output = void
 
 export default function (in: Input): Output {
+    const count = in.plan.operations.length
+
+    memory.allocateU32Views(in.prepared, count)
+    memory.allocateU64Views(in.serials, count)
+    memory.allocateU64Views(in.history_count, count)
+
     const resolved = loop(0, {
         while: row => row < in.plan.operations.length,
         next: row => {

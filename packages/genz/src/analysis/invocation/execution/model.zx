@@ -15,6 +15,7 @@ export type Input = {
     body: AstSequence,
     call: CallFrame,
     operand: u32,
+    operand_type: u32,
     argument: CallArgument,
     adapt: bool,
     clip: bool,

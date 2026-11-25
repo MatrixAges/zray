@@ -12,10 +12,3 @@ export declare function projectLoopPath(
     target: u32,
     length_type: u32?
 ): u32 throws { OutOfMemory }
-
-export declare function convertLoopPath(
-    frame: Lowering,
-    row: u32,
-    value: u32,
-    conversion: PathConversion
-): u32 throws { OutOfMemory }

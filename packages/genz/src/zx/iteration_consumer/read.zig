@@ -62,16 +62,3 @@ pub fn projectLoopPath(handle: *anyopaque, row: u32, target: u32, length_type: ?
         else => unreachable,
     });
 }
-
-pub fn convertLoopPath(handle: *anyopaque, row: u32, id: u32, conversion: evaluation.Api.PathConversion) Lower.Error!u32 {
-    const self = evaluation.borrow(handle);
-    const value = self.program.expression(@fromBackingInt(row));
-    const projected: node.ExpressionId = @fromBackingInt(id);
-
-    return @backingInt(switch (conversion) {
-        .Plain => unreachable,
-        .BorrowList => try lists.borrowed(self, value.type_id, projected),
-        .ReadElement => try @import("../state_value/elements.zig").expression(self, self.program.expression(value.value.index.target).type_id, projected),
-        .Convert => try @import("../state_value/conversion.zig").read(self, value.type_id, projected),
-    });
-}

@@ -10,15 +10,13 @@ const Input = std.meta.Child(entry.Input);
 const Mode = @FieldType(std.meta.Child(@FieldType(Input, "rows")), "mode");
 const Error = Lower.Error;
 const Transfer = std.meta.Child(@import("generated_iteration_transfer").Output);
-const TypeCache = struct { ids: []const u32, values: []const u32 };
 const Rows = std.meta.Child(@FieldType(Fragment, "statements"));
 
 const Frame = struct {
     lowering: *Lower,
-    context: ?*Context,
     labels: []const []const u8,
+    context: ?*Context,
     record: ?@FieldType(Transfer, "record"),
-    cache: ?TypeCache,
     label: ?[]const u8 = null,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
@@ -60,15 +58,17 @@ pub fn write(self: *Lower, comptime mode: Mode, scope: Scope, output: anytype) E
 
     var frame: Frame = .{
         .lowering = self,
-        .context = scope.context,
         .labels = if (mode == .Mutation) fragment.expressions.block_label else &.{},
+        .context = scope.context,
         .record = if (mode == .Transfer) result.record else null,
-        .cache = if (mode == .Types) .{ .ids = result.cache_types, .values = result.cache_values } else null,
     };
 
     const input: Input = .{
         .target = @ptrCast(&frame),
         .lower = @ptrCast(self),
+        .context = if (scope.context) |context| @ptrCast(context) else null,
+        .cache_types = if (mode == .Types) result.cache_types else &.{},
+        .cache_values = if (mode == .Types) result.cache_values else &.{},
         .rows = &.{ .fragment = @ptrCast(&fragment), .mode = mode },
         .valid = result.valid,
         .serial = switch (mode) {
@@ -81,7 +81,7 @@ pub fn write(self: *Lower, comptime mode: Mode, scope: Scope, output: anytype) E
         },
     };
 
-    return evaluation.execute(entry, &input);
+    return evaluation.executeWith(self, entry, &input);
 }
 
 pub fn ownIterationLabel(handle: *anyopaque) Error!void {
@@ -103,13 +103,6 @@ pub fn repairIterationBreakLabel(handle: *anyopaque) void {
     const labels = statements.payloads.break_value.fields.label.values.items;
 
     labels[labels.len - 1] = frame.label.?;
-}
-
-pub fn cachePublishedIterationTypes(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const cache = frame.cache.?;
-
-    return @import("resources.zig").publish(frame.context.?, cache.ids, cache.values);
 }
 
 pub fn recordIterationTransfer(handle: *anyopaque) Error!void {

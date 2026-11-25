@@ -24,9 +24,16 @@
         in={{
             ...$in.pick([
                 "target",
+                "frame",
                 "writer",
+                "origin",
+                "body",
                 "changed_name",
-                "state"
+                "state",
+                "initial",
+                "renewals",
+                "declarations",
+                "frame_span"
             ]),
             completion: $ctx.plan.completion,
             prepared: $ctx.prepare

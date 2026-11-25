@@ -1,15 +1,36 @@
-import { appendAstIdentifierRows, astExpressionCount } from "ast_rows"
+import {
+    appendAstIdentifierRows,
+    astExpressionCount,
+    statementSequenceBlock,
+    tailAstPackedStatements
+} from "ast_rows"
 import host from "lowering_host"
 
 import { ExpressionsKind } from "../../../../../printer/model/expressions"
+import finishStored from "../../../../aggregate/execute/finish_stored"
 import { Completion } from "../model"
 
+import type { Guard } from "../../../../aggregate/binding/model"
 import type { Complete as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { target, writer, changed_name, completion, state, prepared } = in
+    const {
+        target,
+        frame,
+        writer,
+        origin,
+        body,
+        changed_name,
+        completion,
+        state,
+        initial,
+        renewals,
+        declarations,
+        frame_span,
+        prepared
+    } = in
 
     const needs_guard = match completion {
         Completion.Prepared => false,
@@ -38,5 +59,30 @@ export default function (in: Input): Output {
         _ => state
     }
 
-    return host.publishLoopResult(target, value, guard)
+    const appended = statementSequenceBlock(writer, body)
+
+    const span = tailAstPackedStatements(writer, [
+        renewals,
+        declarations,
+        frame_span,
+        appended
+    ])
+
+    const checked: Guard? = match {
+        guard == null => null,
+        _ => {
+            condition: guard,
+            yes: value,
+            no: initial
+        }
+    }
+
+    return finishStored({
+        frame,
+        writer,
+        origin,
+        span,
+        value,
+        guard: checked
+    })
 }

@@ -4,9 +4,16 @@
     <Args in={Result.Execution} out={Result.Output} />
 
     <Call fn="prepare_members" in={$in.preparation} />
-    <Call fn="model.refreshCollectionResultBases" in={$in.preparation.frame} />
 
-    <Call module="build" in={$in.source} />
+    <Call
+        fn="refresh_bases"
+        in={$in.pick([
+            "writer",
+            "source"
+        ])}
+    />
+
+    <Call module="build" />
 
     <Return value={$ctx.build} />
 </Module>

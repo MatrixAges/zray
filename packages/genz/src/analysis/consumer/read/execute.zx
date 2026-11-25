@@ -1,9 +1,9 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
 import host from "lowering_host"
-import { PathConversion } from "lowering_host"
 
 import emitIndex from "../../expressions/read/emit_index"
+import { Representation } from "./model"
 
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Expressions } from "core/expression_table/model"
@@ -15,7 +15,7 @@ export type Input = {
     origin: AstOriginBuffer,
     table: Expressions,
     rows: u32[],
-    representations: PathConversion[],
+    representations: Representation[],
     length_type?: u32,
     state: u32
 }
@@ -33,22 +33,19 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.index - 1
             const row = rows[index]
+            const row_index = integers.widen(row)
+            const payload = integers.widen(table.payloads[row_index])
             const projected = host.projectLoopPath(frame, row, state.value, length_type)
 
             const value = match {
-                table.kinds[integers.widen(row)] == ExpressionKind.Index => emitIndex({
+                table.kinds[row_index] == ExpressionKind.Index => emitIndex({
                     frame,
                     writer,
                     origin,
                     values: projected,
                     position: host.lowerExpression(
                         frame,
-                        table
-                            .index_values[integers.widen(
-                                table.payloads[integers.widen(
-                                    row
-                                )]
-                            )],
+                        table.index_values[payload],
                         false,
                         null
                     )
@@ -59,8 +56,19 @@ export default function (in: Input): Output {
             const conversion = representations[index]
 
             state.value = match conversion {
-                PathConversion.Plain => value,
-                _ => host.convertLoopPath(frame, row, value, conversion)
+                Representation.Plain => value,
+                Representation.BorrowList =>
+                    host.readBorrowedList(frame, table.types[row_index], value),
+                Representation.ReadElement =>
+                    host.readElement(
+                        frame,
+                        table.types[integers.widen(
+                            table.index_targets[payload]
+                        )],
+                        value
+                    ),
+                _ =>
+                    host.readRepresentedValue(frame, table.types[row_index], value),
             }
             state.index = index
         },

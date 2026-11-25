@@ -36,7 +36,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         .borrowed = self.state_plan.borrowed,
     };
 
-    var columns: @import("resources.zig").Columns = .{ .allocator = temporary };
+    var columns: @import("resources.zig").Columns = .{};
 
     const prepare: Prepare = .{
         .source = &.{ .source = &request, .facts = &facts },

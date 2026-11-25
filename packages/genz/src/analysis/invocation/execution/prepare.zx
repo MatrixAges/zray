@@ -1,5 +1,8 @@
 import host from "lowering_host"
-import { CallArgument } from "lowering_host"
+import { CallArgument, Representation } from "lowering_host"
+
+import emitCast from "../../collections/workflow/emit_cast"
+import bindAddress from "./bind_address"
 
 import type { Input } from "./model"
 
@@ -9,9 +12,31 @@ export default function (in: Input): Output {
     const { frame, call, operand } = in
 
     const value = match in.argument {
-        CallArgument.Tuple => host.lowerCallTuple(call),
+        CallArgument.Tuple =>
+            bindAddress({
+                frame,
+                writer: in.writer,
+                origin: in.origin,
+                sequence: in.body,
+                value: emitCast({
+                    writer: in.writer,
+                    layout: host.lowerLayout(frame, in.operand_type),
+                    value: host.lowerAggregate(
+                        frame,
+                        operand,
+                        Representation.Value
+                    )
+                })
+            }),
         CallArgument.Borrow => host.lowerCallBorrow(call),
-        CallArgument.Stack => host.lowerCallStack(call),
+        CallArgument.Stack =>
+            bindAddress({
+                frame,
+                writer: in.writer,
+                origin: in.origin,
+                sequence: in.body,
+                value: host.lowerAggregate(frame, operand, Representation.Value)
+            }),
         _ => host.lowerExpression(frame, operand, false, null)
     }
 

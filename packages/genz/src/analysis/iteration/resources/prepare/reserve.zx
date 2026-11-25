@@ -1,4 +1,4 @@
-import { reserveIterationResources } from "lowering_host"
+import memory from "memory"
 
 import type { Fill as Input } from "./model"
 
@@ -7,9 +7,11 @@ export type Output = void
 export default function (in: Input): Output {
     const { buffers, types } = in
 
-    reserveIterationResources(
-        buffers.storage,
-        types.length,
-        buffers.operands != null
-    )
+    const count = types.length
+
+    memory.allocateU32Views(buffers.layouts, count)
+
+    if (buffers.operands != null) {
+        memory.allocateU32Views(buffers.operands, count)
+    }
 }

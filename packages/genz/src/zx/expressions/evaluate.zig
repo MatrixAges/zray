@@ -153,6 +153,15 @@ pub fn execute(comptime entry: type, input: entry.Input) Lower.Error!void {
     entry.executeIn(empty.allocator(), input) catch |err| return executionFailure(err);
 }
 
+pub fn executeWith(self: *Lower, comptime entry: type, input: entry.Input) Lower.Error!void {
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    defer scratch.deinit();
+    entry.executeIn(memory.allocator(), input) catch |err| return executionFailure(err);
+}
+
 fn executionFailure(err: anyerror) Lower.Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,

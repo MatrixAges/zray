@@ -9,7 +9,7 @@
         fn="../resolve"
         in={{
             ...$in.omit(["buffers"]),
-            ...$in.buffers.omit(["storage"])
+            ...$in.buffers
         }}
     />
 </Module>

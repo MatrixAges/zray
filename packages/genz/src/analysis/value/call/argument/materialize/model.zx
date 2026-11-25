@@ -5,9 +5,15 @@ import type { Input as Routing } from "../route"
 
 export type Input = {
     frame: BorrowedArgument,
+    lowering: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
     route: Routing,
     id: u32,
-    operand?: u32
+    type_id: u32,
+    operand?: u32,
+    items: u32[]
 }
 
 export type Call = {

@@ -51,6 +51,7 @@ pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node
         .body = @ptrCast(&body),
         .call = @ptrCast(&frame),
         .operand = @backingInt(operation.argument),
+        .operand_type = @backingInt(lowering.program.expression(operation.argument).type_id),
         .argument = argument,
         .adapt = plan.argument == .StateBorrow or plan.argument == .StatePointer,
         .clip = false,
@@ -81,6 +82,7 @@ pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: 
         .body = @ptrCast(body),
         .call = @ptrCast(&frame),
         .operand = @backingInt(operation.argument),
+        .operand_type = @backingInt(lowering.program.expression(operation.argument).type_id),
         .argument = argument,
         .adapt = plan.input_mode != .Keep,
         .clip = plan.clip,
@@ -93,28 +95,10 @@ pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: 
     return evaluation.invokeWith(lowering, entry, &input);
 }
 
-pub fn lowerCallTuple(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const id = frame.operation.argument;
-    const expression = self.program.expression(id);
-    const layout = try @import("../aggregate/sequence.zig").lower(self, id, expression, expression.value.tuple, true);
-    const argument = try aggregate.bind(self, frame.body, try self.cast(try self.layoutExpr(expression.type_id), layout));
-
-    return @backingInt(try self.builder.expression(.{ .address_of = argument }));
-}
-
 pub fn lowerCallBorrow(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../value_call/argument.zig").borrow(frame.lowering, frame.body, frame.operation.argument));
-}
-
-pub fn lowerCallStack(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const object = try aggregate.objectValue(frame.lowering, frame.operation.argument);
-
-    return @backingInt(try @import("../value_call/borrowed_argument.zig").lower(frame.lowering, frame.body, .{ .value = object }));
 }
 
 pub fn adaptCallArgument(handle: *anyopaque, value_id: u32) Error!u32 {

@@ -1,11 +1,8 @@
-import type { ConversionResources } from "lowering_host"
 import type { Input as Resolve } from "../../resources/resolve"
 import type { Plan } from "../model"
 import type { Input as View } from "../view/walk"
 
-export type Resources = Resolve.Omit("plan") & {
-    storage: ConversionResources
-}
+export type Resources = Resolve.Omit("plan")
 
 export type Input = {
     view: View,
@@ -13,13 +10,6 @@ export type Input = {
     check_view: bool
 }
 
-export type Fill = {
-    resources: Resources,
-    plan: Plan
-}
-
 export type Output = Plan?
 
 export { Operation } from "../model"
-
-export { reserveConversionResources } from "lowering_host"

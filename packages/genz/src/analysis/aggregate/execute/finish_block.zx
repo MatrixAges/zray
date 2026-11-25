@@ -23,6 +23,7 @@ export default function (in: Input): Output {
         writer,
         origin,
         span: finishAstSequence(writer, sequence),
-        value
+        value,
+        guard: null
     })
 }

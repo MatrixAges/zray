@@ -83,7 +83,10 @@
             ...$in.pick([
                 "frame",
                 "ast",
-                "callback"
+                "callback",
+                "element_symbol",
+                "element_name",
+                "used"
             ]),
             map: $ctx.prepare_collection.map,
             result: $ctx.prepare.id

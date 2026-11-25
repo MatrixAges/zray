@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { LoopResultFrame, Lowering } from "lowering_host"
 import type { Completion, Input as Facts, Preparation } from "../model"
 
@@ -7,8 +7,13 @@ export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
+    body: AstSequence,
     changed_name: u8[],
     state: u32,
+    initial: u32,
+    renewals: u64,
+    declarations: u64,
+    frame_span: u64,
     facts: Facts
 }
 
@@ -19,7 +24,19 @@ export type Actions =
     }
 
 export type Complete =
-    Input.Pick("target", "writer", "changed_name", "state") & {
+    Input.Pick(
+        "target",
+        "frame",
+        "writer",
+        "origin",
+        "body",
+        "changed_name",
+        "state",
+        "initial",
+        "renewals",
+        "declarations",
+        "frame_span"
+    ) & {
         completion: Completion,
         prepared: u32
     }
