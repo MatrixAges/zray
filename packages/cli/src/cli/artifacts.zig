@@ -55,7 +55,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
             .files = &.{ .count = bundle.modules.len, .paths = @ptrCast(&names), .sources = @ptrCast(&sources) },
             .output = @ptrCast(&output),
         },
-    }) catch |err| return ioError(context, err);
+    }) catch |err| return context.unwrap(err);
 
     return .{ .directory = directory, .module_paths = paths };
 }
@@ -70,15 +70,11 @@ pub fn retainFiles(io: std.Io, allocator: std.mem.Allocator, directory: []const 
         .directory = directory,
         .separator = &.{std.fs.path.sep},
         .files = &.{ .count = files.len, .paths = @ptrCast(&paths), .sources = @ptrCast(&sources) },
-    }) catch |err| return ioError(context, err);
+    }) catch |err| return context.unwrap(err);
 }
 
 pub fn retain(io: std.Io, allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
     var context: disk.Context = .{ .io = io };
 
-    source.workspace_retain.executeIn(allocator, &.{ .fs = @ptrCast(&context), .path = path, .source = content }) catch |err| return ioError(context, err);
-}
-
-fn ioError(context: disk.Context, err: anyerror) anyerror {
-    return if (err == error.ArtifactIoFailure) context.failure.? else err;
+    source.workspace_retain.executeIn(allocator, &.{ .fs = @ptrCast(&context), .path = path, .source = content }) catch |err| return context.unwrap(err);
 }

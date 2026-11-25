@@ -1,21 +1,24 @@
-import { stageFileCount, writeStageFile } from "library_stage_host"
+import { writeAtomic } from "artifact_io"
+import memory from "memory"
 
-import type { FileGroup, Stage } from "library_stage_host"
+import type { FileSystem } from "artifact_io"
+import type { Files } from "../../workspace_files/model"
 
-export type Input = {
-    stage: Stage,
-    group: FileGroup
-}
+export type Input = [FileSystem, Files]
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = stageFileCount(in.stage, in.group)
+    const [fs, files] = in
 
     const written = loop(0, {
-        while: index => index < count,
+        while: index => index < files.count,
         next: index => {
-            writeStageFile(in.stage, in.group, index)
+            writeAtomic(
+                fs,
+                memory.readTextColumn(files.paths, index),
+                memory.readTextColumn(files.sources, index)
+            )
 
             index += 1
         }

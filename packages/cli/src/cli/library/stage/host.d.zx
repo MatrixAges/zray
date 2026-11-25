@@ -2,12 +2,6 @@ export type Stage = opaque
 
 export type NativeResources = opaque
 
-export enum FileGroup {
-    AbiViews,
-    Generated,
-    Public
-}
-
 export type LibraryNativeModule = {
     name: string,
     includes?: string[]
@@ -18,9 +12,6 @@ export declare function prepareStageAbi(stage: Stage): void throws { Publication
 export declare function prepareStageLayout(stage: Stage): void throws { PublicationFailure }
 export declare function collectStageInventory(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageArtifact(stage: Stage): void throws { PublicationFailure }
-export declare function writeStageAbi(stage: Stage): void throws { PublicationFailure }
-export declare function stageFileCount(stage: Stage, group: FileGroup): u64
-export declare function writeStageFile(stage: Stage, group: FileGroup, index: u64): void throws { PublicationFailure }
 export declare function writeStageManifest(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageBuild(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageInventory(stage: Stage): void throws { PublicationFailure }

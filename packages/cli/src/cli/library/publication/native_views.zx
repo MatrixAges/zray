@@ -2,16 +2,33 @@ import locate from "cli/native_module_lookup"
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { TextColumn } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
 import type { WriteColumn } from "memory/columns"
 import type { Rows } from "./layout/model"
 
+export type NativeModules = Rows & {
+    paths: ReadColumn,
+    headers: ReadColumn,
+    dependencies: ReadColumn,
+    include_paths: ReadColumn
+}
+
+export type NativeOutput = {
+    names: WriteColumn,
+    paths: WriteColumn,
+    headers: WriteColumn,
+    dependencies: WriteColumn,
+    include_paths: WriteColumn,
+    abi_views: WriteColumn
+}
+
 export type Input = {
-    modules: Rows,
+    modules: NativeModules,
     views: Rows & {
         paths: TextColumn
     },
-    target: WriteColumn
+    includes: string[],
+    target: NativeOutput
 }
 
 export type Output = void
@@ -23,6 +40,12 @@ export default function (in: Input): Output {
         while: index => index < modules.count,
         next: index => {
             const name = memory.readTextColumn(modules.names, index)
+            const path = memory.readOptionalTextColumn(modules.paths, index)
+            const header = memory.readOptionalTextColumn(modules.headers, index)
+            const dependencies = memory.readTextListColumn(modules.dependencies, index)
+            const includes =
+                memory.readOptionalTextListColumn(modules.include_paths, index) ??
+                in.includes
             const view = locate({
                 count: views.count,
                 names: views.names,
@@ -30,15 +53,17 @@ export default function (in: Input): Output {
                 last: true
             })
 
-            if (view == null) {
-                columns.writeColumnOptionalText(target, index, null)
-            } else {
-                columns.writeColumnOptionalText(
-                    target,
-                    index,
-                    memory.readTextColumn(views.paths, view)
-                )
+            const abi: string? = match {
+                view != null => memory.readTextColumn(views.paths, view),
+                _ => null
             }
+
+            columns.writeColumnText(target.names, index, name)
+            columns.writeColumnOptionalText(target.paths, index, path)
+            columns.writeColumnOptionalText(target.headers, index, header)
+            columns.writeColumnTextList(target.dependencies, index, dependencies)
+            columns.writeColumnTextList(target.include_paths, index, includes)
+            columns.writeColumnOptionalText(target.abi_views, index, abi)
 
             index += 1
         }

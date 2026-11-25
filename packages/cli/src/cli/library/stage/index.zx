@@ -1,3 +1,4 @@
+export { writeAtomic } from "artifact_io"
 export {
     prepareStageAbi,
     prepareStageLayout,

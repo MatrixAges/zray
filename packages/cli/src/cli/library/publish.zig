@@ -10,6 +10,10 @@ pub const resources = @import("resources.zig");
 pub const output = @import("stage/output.zig");
 
 pub fn write(request: Request) ![]const inventory.File {
+    const directory = try std.Io.Dir.cwd().openDir(request.io, request.directory, .{});
+
+    defer directory.close(request.io);
+
     var failure: host.Failure = .{};
 
     var native: resources.State = .{
@@ -21,7 +25,7 @@ pub fn write(request: Request) ![]const inventory.File {
         .failure = &failure,
     };
 
-    var state: storage.State = .{ .request = request, .resources = &native, .failure = &failure };
+    var state: storage.State = .{ .request = request, .resources = &native, .failure = &failure, .disk = .{ .io = request.io, .directory = directory } };
     const stage_ref = &state;
     const native_ref = &native;
     var paths: @import("../project/native_paths.zig").Paths = undefined;
@@ -32,13 +36,15 @@ pub fn write(request: Request) ![]const inventory.File {
 
     rule.executeIn(request.allocator, &.{
         .stage = @ptrCast(&stage_ref),
+        .fs = @ptrCast(&state.disk),
+        .files = &state.files,
         .resources = &.{
             .resources = @ptrCast(&native_ref),
             .setup = &paths.setup,
             .count = request.loaded.config.native_modules.len,
             .cursor = @ptrCast(&cursor),
         },
-    }) catch |err| return failure.unwrap(err);
+    }) catch |err| return failure.unwrap(state.disk.unwrap(err));
 
     return state.managed;
 }
@@ -68,6 +74,8 @@ pub fn prepareStageLayout(handle: *const anyopaque) Error!void {
         .libraries = config.libraries,
         .library_paths = self.resources.library_paths,
     };
+
+    self.borrowFiles();
 }
 
 pub fn collectStageInventory(handle: *const anyopaque) Error!void {

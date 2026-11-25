@@ -9,8 +9,40 @@
 
     <Call fn="index.prepareStageLayout" in={$in.stage} />
     <Call fn="index.writeStageArtifact" in={$in.stage} />
-    <Call fn="abi" in={$in.stage} />
-    <Call fn="modules" in={$in.stage} />
+
+    <Call
+        fn="index.writeAtomic"
+        in={[
+            $in.fs,
+            $in.files.abi_path,
+            $in.files.abi
+        ]}
+    />
+
+    <Call
+        fn="files"
+        in={[
+            $in.fs,
+            $in.files.aliases
+        ]}
+    />
+
+    <Call
+        fn="files"
+        in={[
+            $in.fs,
+            $in.files.generated
+        ]}
+    />
+
+    <Call
+        fn="files"
+        in={[
+            $in.fs,
+            $in.files.public
+        ]}
+    />
+
     <Call fn="index.writeStageManifest" in={$in.stage} />
     <Call fn="index.writeStageBuild" in={$in.stage} />
     <Call fn="index.collectStageInventory" in={$in.stage} />

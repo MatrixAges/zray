@@ -3,7 +3,22 @@ const Error = error{ArtifactIoFailure};
 
 pub const Context = struct {
     io: std.Io,
+    directory: std.Io.Dir = .cwd(),
     failure: ?anyerror = null,
+    pub fn create(self: Context, path: []const u8) !std.Io.File.Atomic {
+        return self.directory.createFileAtomic(self.io, path, .{ .make_path = true, .replace = true });
+    }
+    pub fn unwrap(self: Context, err: anyerror) anyerror {
+        return if (err == error.ArtifactIoFailure) self.failure.? else err;
+    }
+    pub fn writeFile(self: Context, path: []const u8, content: []const u8) !void {
+        var file = try self.create(path);
+
+        defer file.deinit(self.io);
+
+        try file.file.writeStreamingAll(self.io, content);
+        try file.replace(self.io);
+    }
     fn get(handle: *const anyopaque) *Context {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
@@ -12,7 +27,7 @@ pub const Context = struct {
 pub fn matches(handle: *const anyopaque, path: []const u8, expected: []const u8) Error!bool {
     const context = Context.get(handle);
 
-    return matchesFile(context.io, path, expected) catch |err| {
+    return matchesFile(context.directory, context.io, path, expected) catch |err| {
         context.failure = err;
 
         return error.ArtifactIoFailure;
@@ -22,7 +37,7 @@ pub fn matches(handle: *const anyopaque, path: []const u8, expected: []const u8)
 pub fn writeAtomic(handle: *const anyopaque, path: []const u8, source: []const u8) Error!void {
     const context = Context.get(handle);
 
-    write(context.io, path, source) catch |err| {
+    context.writeFile(path, source) catch |err| {
         context.failure = err;
 
         return error.ArtifactIoFailure;
@@ -30,16 +45,13 @@ pub fn writeAtomic(handle: *const anyopaque, path: []const u8, source: []const u
 }
 
 pub fn write(io: std.Io, path: []const u8, content: []const u8) !void {
-    var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .make_path = true, .replace = true });
+    const context: Context = .{ .io = io };
 
-    defer file.deinit(io);
-
-    try file.file.writeStreamingAll(io, content);
-    try file.replace(io);
+    return context.writeFile(path, content);
 }
 
-fn matchesFile(io: std.Io, path: []const u8, expected: []const u8) !bool {
-    const file = std.Io.Dir.cwd().openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows }) catch |err| switch (err) {
+fn matchesFile(directory: std.Io.Dir, io: std.Io, path: []const u8, expected: []const u8) !bool {
+    const file = directory.openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows }) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return err,
     };
