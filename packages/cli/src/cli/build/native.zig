@@ -172,8 +172,9 @@ pub fn resolveObservedNativeInputs(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
     const translation = &self.translation.?;
+    const watch = context.watch.?;
 
-    self.observed = Build.Observed.resolveBatches(context.io, &self.response.?, translation.responses.items, translation.cache, self.toolchain.library, context.options, context.watch.?.inputs) catch |err| return self.failure.save(err);
+    self.observed = Build.Observed.resolveBatches(context.io, &self.response.?, translation.responses.items, translation.cache, self.toolchain.library, context.options, watch.inputs, watch.backend_owner.allocator()) catch |err| return self.failure.save(err);
     self.response = null;
 
     translation.deinit();

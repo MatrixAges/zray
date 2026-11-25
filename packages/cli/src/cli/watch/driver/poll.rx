@@ -3,22 +3,30 @@
 
     <Args in={Driver.Poll} out={Driver.Poll} />
 
-    <Call fn="index.delayPoll" in={$in.watch} />
+    <Call
+        fn="index.delay"
+        in={[
+            $in.watch,
+            Driver.Delay.Poll
+        ]}
+    />
+
     <Call fn="index.checkCanceled" in={$in.watch} />
     <Call fn="index.pollApplication" in={$in.watch} />
-    <Call fn="index.scanInputs" in={$in.watch} />
+    <Call fn="next_poll" in={$in} />
 
-    <If on={$ctx.scanInputs == Driver.Scan.NewError}>
-        <Call fn="index.reportScanError" in={$in.watch} />
+    <If
+        on={$ctx.next_poll.scan_error != $in.scan_error &&
+            $ctx.next_poll.scan_error != null}
+    >
+        <Call
+            fn="index.reportScanError"
+            in={[
+                $in.watch,
+                $ctx.next_poll.scan_error
+            ]}
+        />
     </If>
-
-    <Call
-        fn="next_poll"
-        in={{
-            state: $in,
-            outcome: $ctx.scanInputs
-        }}
-    />
 
     <Return value={$ctx.next_poll} />
 </Module>

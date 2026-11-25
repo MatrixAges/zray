@@ -1,23 +1,9 @@
-export { Status, Scan } from "watch_host"
+import { Status } from "watch_host"
 
 import type { Watch } from "watch_host"
 
-export type { Watch } from "watch_host"
+export { Delay, SnapshotSlot, Status } from "watch_host"
 
-export type Input = {
-    watch: Watch,
-    run_application: bool,
-    cache: bool
-}
+export type { Cycle, Poll, ScanResult, Snapshot, Watch } from "watch_host"
 
-export type Poll = {
-    watch: Watch,
-    retry_backend: bool,
-    running: bool,
-    scans: u64,
-    changed: bool
-}
-
-export type Cycle = Input & {
-    running: bool
-}
+export type Wait = [Watch, Status]

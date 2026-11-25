@@ -19,7 +19,8 @@
     "interfaces": [
         {
             "path": "driver/host.d.zx",
-            "module": "watch_host"
+            "module": "watch_host",
+            "resolve_members": true
         }
     ]
 }

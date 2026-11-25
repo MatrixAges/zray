@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Wait} out={void} />
+
+    <If on={$in[1] == Driver.Status.Success}>
+        <Call fn="index.adoptPublishedSnapshot" in={$in[0]} />
+
+        <If on={!$ctx.adoptPublishedSnapshot}>
+            <Call
+                fn="index.captureSnapshot"
+                in={[
+                    $in[0],
+                    Driver.SnapshotSlot.Success
+                ]}
+            />
+        </If>
+
+        <Call
+            fn="index.releaseSnapshot"
+            in={[
+                $in[0],
+                Driver.SnapshotSlot.Failure
+            ]}
+        />
+
+        <Else>
+            <Call fn="restore" in={$in[0]} />
+
+            <Call
+                fn="index.captureSnapshot"
+                in={[
+                    $in[0],
+                    Driver.SnapshotSlot.Failure
+                ]}
+            />
+        </Else>
+    </If>
+</Module>

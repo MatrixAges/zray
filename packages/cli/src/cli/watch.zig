@@ -7,9 +7,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
     defer state.deinit();
 
-    @import("cli_watch").run.executeValue(allocator, &.{
-        .watch = @ptrCast(&state),
-        .run_application = options.run,
-        .cache = options.cache,
-    }) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
+    const handle = &state;
+
+    @import("cli_watch").run.executeIn(allocator, @ptrCast(&handle)) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
 }

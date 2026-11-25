@@ -1,0 +1,21 @@
+import host from "watch_host"
+
+import { SnapshotSlot } from "./model"
+
+import type { Cycle as Input, Snapshot } from "./model"
+
+export type Output = Snapshot?
+
+export default function (in: Input): Output {
+    if (!in.cache) {
+        return null
+    }
+
+    const previous = host.borrowSnapshot(in.watch, SnapshotSlot.Success)
+
+    if (previous != null) {
+        return previous
+    }
+
+    return host.borrowSnapshot(in.watch, SnapshotSlot.Failure)
+}

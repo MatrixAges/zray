@@ -185,13 +185,6 @@ pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
     const generated = generate(b, compiler, files, "build/watch.json", "watch");
     const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
 
-    const effects = b.createModule(.{
-        .root_source_file = b.path("src/cli/watch/driver/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "cli_host", .module = host }},
-    });
-
     host.addImport("cli_watch_abi", abi);
 
     return b.createModule(.{
@@ -200,7 +193,7 @@ pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
         .optimize = optimize,
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
-            .{ .name = "watch_host", .module = effects },
+            .{ .name = "watch_host", .module = host },
         },
     });
 }

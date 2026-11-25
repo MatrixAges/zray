@@ -50,12 +50,12 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn resolve(io: std.Io, response: *Response, cache: Cache, library: []const u8, options: Options, inputs: *Inputs) !Self {
-    return resolveBatches(io, response, &.{}, cache, library, options, inputs);
+    return resolveBatches(io, response, &.{}, cache, library, options, inputs, response.arena.allocator());
 }
 
-pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Response, cache: Cache, library: []const u8, options: Options, inputs: *Inputs) !Self {
+pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Response, cache: Cache, library: []const u8, options: Options, inputs: *Inputs, path_allocator: std.mem.Allocator) !Self {
     const allocator = response.arena.allocator();
-    var context: host.Context = .{ .io = io, .owned = allocator, .inputs = inputs, .translations = translations, .response = response };
+    var context: host.Context = .{ .io = io, .owned = path_allocator, .inputs = inputs, .translations = translations, .response = response };
 
     const observation = source.backend_inputs.executeIn(allocator, &.{
         .dependencies = @ptrCast(&context),

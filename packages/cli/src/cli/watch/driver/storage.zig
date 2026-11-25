@@ -5,9 +5,13 @@ const Snapshot = @import("watch_inputs").Snapshot;
 const Attempt = @import("../attempt.zig");
 const Process = @import("../process.zig");
 const ParseCache = @import("compiler").project.ParseCache;
-const abi = @import("cli_watch_abi").native.@"zig:watch_host";
-pub const Status = abi.Status;
-pub const Scan = abi.Scan;
+const abi = @import("cli_watch_abi");
+pub const Status = abi.native.@"zig:watch_host".Status;
+pub const SnapshotSlot = abi.native.@"zig:watch_host".SnapshotSlot;
+pub const ScanResult = abi.layouts.@"zig:watch_host".ScanResult;
+const Cycle = abi.layouts.@"zig:watch_host".Cycle;
+const Poll = abi.layouts.@"zig:watch_host".Poll;
+const Watch = std.meta.Child(@FieldType(Cycle, "watch"));
 pub const Error = error{WatchFailure};
 pub const build = @import("build.zig");
 pub const wait = @import("wait.zig");
@@ -39,8 +43,9 @@ pub const State = struct {
     last_failure: ?Snapshot = null,
     backend_paths: []const []const u8 = &.{},
     diagnostic: []const u8 = &.{},
-    status: Status = .Retry,
-    scan_error: ?anyerror = null,
+    scan: ScanResult = undefined,
+    cycles: DoubleBuffer(Cycle) = .{},
+    polls: DoubleBuffer(Poll) = .{},
     turn: ?Turn = null,
     failure: ?anyerror = null,
     pub fn init(io: std.Io, allocator: std.mem.Allocator, options: Options, environment: *const std.process.Environ.Map, stdout: *std.Io.Writer, stderr: *std.Io.Writer) State {
@@ -63,15 +68,27 @@ pub const State = struct {
         self.allocator.free(self.diagnostic);
         self.parse_cache.deinit();
         self.backend_arena.deinit();
-
-        if (self.last_failure) |*snapshot| snapshot.deinit();
-        if (self.last_success) |*snapshot| snapshot.deinit();
-
+        self.replaceSnapshot(.Failure, null);
+        self.replaceSnapshot(.Success, null);
         self.application.deinit(self.io);
     }
 
     pub fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+        return @import("publication_host").effects.state(State, handle);
+    }
+    pub fn replaceSnapshot(self: *State, slot: SnapshotSlot, next: ?Snapshot) void {
+        const target = self.snapshotSlot(slot);
+
+        if (target.*) |*previous| previous.deinit();
+
+        target.* = next;
+    }
+
+    pub fn snapshotSlot(self: *State, slot: SnapshotSlot) *?Snapshot {
+        return switch (slot) {
+            .Success => &self.last_success,
+            .Failure => &self.last_failure,
+        };
     }
 
     pub fn fail(self: *State, err: anyerror) Error {
@@ -80,6 +97,31 @@ pub const State = struct {
         return error.WatchFailure;
     }
 };
+
+fn DoubleBuffer(comptime Row: type) type {
+    return struct {
+        rows: [2]Row = undefined,
+        next: bool = false,
+        fn write(self: *@This(), row: Row) *const Row {
+            const destination = &self.rows[@intFromBool(self.next)];
+
+            self.next = !self.next;
+            destination.* = row;
+
+            return destination;
+        }
+    };
+}
+
+pub fn writeCycle(handle: *const Watch, running: bool, status: Status) *const Cycle {
+    const self = State.get(handle);
+
+    return self.cycles.write(.{ .watch = handle, .cache = self.options.cache, .run_application = self.options.run, .running = running, .status = status });
+}
+
+pub fn writePoll(handle: *const Watch, snapshot: SnapshotSlot, retry_backend: bool, running: bool, scans: u64, changed: bool, scan_error: ?u16) *const Poll {
+    return State.get(handle).polls.write(.{ .watch = handle, .snapshot = snapshot, .retry_backend = retry_backend, .running = running, .scans = scans, .changed = changed, .scan_error = scan_error });
+}
 
 pub fn announce(handle: *const anyopaque) Error!void {
     const self = State.get(handle);

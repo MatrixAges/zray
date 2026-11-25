@@ -9,26 +9,13 @@ pub fn interrupted(_: *const anyopaque) bool {
     return interrupt.requested();
 }
 
-pub fn hasBaseline(handle: *const anyopaque) bool {
+pub fn delay(handle: *const anyopaque, interval: @import("cli_watch_abi").native.@"zig:watch_host".Delay) Error!void {
     const self = State.get(handle);
 
-    return self.last_failure != null or self.last_success != null;
-}
-
-pub fn lastStatus(handle: *const anyopaque) storage.Status {
-    return State.get(handle).status;
-}
-
-pub fn delayPoll(handle: *const anyopaque) Error!void {
-    return delay(handle, constants.poll_delay_ms);
-}
-
-pub fn delayRetry(handle: *const anyopaque) Error!void {
-    return delay(handle, constants.retry_delay_ms);
-}
-
-fn delay(handle: *const anyopaque, milliseconds: u64) Error!void {
-    const self = State.get(handle);
+    const milliseconds = switch (interval) {
+        .Poll => constants.poll_delay_ms,
+        .Retry => constants.retry_delay_ms,
+    };
 
     std.Io.sleep(self.io, .fromMilliseconds(@intCast(milliseconds)), .awake) catch |err| return self.fail(err);
 }
@@ -43,32 +30,26 @@ pub fn pollApplication(handle: *const anyopaque) Error!void {
     self.application.poll(self.io, self.stderr) catch |err| return self.fail(err);
 }
 
-pub fn scanInputs(handle: *const anyopaque) Error!storage.Scan {
+pub fn scanInputs(handle: *const anyopaque, slot: storage.SnapshotSlot) Error!*const storage.ScanResult {
     const self = State.get(handle);
-    const baseline = self.last_failure orelse self.last_success.?;
+    const baseline = &self.snapshotSlot(slot).*.?;
 
     const unchanged = baseline.poll(self.io, self.allocator) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return self.fail(err);
 
-        const repeated = if (self.scan_error) |previous| previous == err else false;
+        self.scan = .{ .changed = false, .error_code = @intFromError(err) };
 
-        self.scan_error = err;
-
-        return if (repeated) .RepeatedError else .NewError;
+        return &self.scan;
     };
 
-    self.scan_error = null;
+    self.scan = .{ .changed = !unchanged, .error_code = null };
 
-    return if (unchanged) .Unchanged else .Changed;
+    return &self.scan;
 }
 
-pub fn reportScanError(handle: *const anyopaque) Error!void {
+pub fn reportScanError(handle: *const anyopaque, code: u16) Error!void {
     const self = State.get(handle);
 
-    self.stderr.print("zxc watch: input scan: {s}\n", .{@errorName(self.scan_error.?)}) catch |err| return self.fail(err);
+    self.stderr.print("zxc watch: input scan: {s}\n", .{@errorName(@errorFromInt(code))}) catch |err| return self.fail(err);
     self.stderr.flush() catch |err| return self.fail(err);
-}
-
-pub fn clearScanError(handle: *const anyopaque) void {
-    State.get(handle).scan_error = null;
 }

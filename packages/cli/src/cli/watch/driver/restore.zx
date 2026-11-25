@@ -1,20 +1,22 @@
 import host from "watch_host"
 
+import { SnapshotSlot } from "./model"
+
 import type { Watch as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = host.priorCount(in)
+    const snapshot = host.borrowSnapshot(in, SnapshotSlot.Success)
 
-    const restored = loop({
-        index: 0
-    }, {
-        while: current => current.index < count,
-        next: current => {
-            host.reobserve(in, current.index)
+    if (snapshot != null) {
+        const restored = loop(0, {
+            while: index => index < host.snapshotLength(snapshot),
+            next: index => {
+                host.reobserve(in, snapshot, index)
 
-            current.index += 1
-        }
-    })
+                index += 1
+            }
+        })
+    }
 }

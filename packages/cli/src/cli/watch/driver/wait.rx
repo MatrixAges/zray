@@ -1,29 +1,24 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Watch} out={bool} />
+    <Args in={Driver.Cycle} out={bool} />
 
-    <Call fn="index.lastStatus" in={$in} />
-
-    <If on={$ctx.lastStatus == Driver.Status.Retry}>
-        <Call fn="index.delayRetry" in={$in} />
+    <If on={$in.status == Driver.Status.Retry}>
+        <Call
+            fn="index.delay"
+            in={[
+                $in.watch,
+                Driver.Delay.Retry
+            ]}
+        />
 
         <Return value={false} />
     </If>
 
-    <Call fn="index.clearScanError" in={$in} />
+    <Call fn="start_poll" in={$in} />
 
     <Loop on={$in.running}>
-        <Call
-            module="poll"
-            in={{
-                watch: $in,
-                retry_backend: $ctx.lastStatus == Driver.Status.BackendFailed,
-                running: true,
-                scans: 0,
-                changed: false
-            }}
-        />
+        <Call module="poll" />
     </Loop>
 
     <Return value={$ctx.poll.changed} />

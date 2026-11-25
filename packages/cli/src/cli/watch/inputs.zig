@@ -17,7 +17,7 @@ cwd: []const u8,
 entries: Observations = .empty,
 consistent: bool = true,
 retain_versions: bool = false,
-previous: ?Snapshot = null,
+previous: ?*const Snapshot = null,
 published: ?Snapshot = null,
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !Self {
     var arena = std.heap.ArenaAllocator.init(allocator);
