@@ -95,9 +95,13 @@ export declare function retainStagedBindings(build: NativeBuild): void throws {
 export declare function publishStagedBackend(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function prepareObservedNativeBuild(build: NativeBuild): void throws {
+export declare function previousBackendPaths(build: NativeBuild): string[]
+export declare function hasBackendObservation(build: NativeBuild, path: string): bool
+export declare function preloadBackendPath(build: NativeBuild, path: string): void throws {
     SourceLoadFailure
 }
+export declare function preloadedBackendPaths(build: NativeBuild): string[]
+export declare function expireBackendPath(build: NativeBuild, path: string): void
 export declare function spawnObservedBackend(build: NativeBuild): void throws {
     SourceLoadFailure
 }
@@ -108,13 +112,12 @@ export declare function resolveObservedNativeInputs(build: NativeBuild): void th
 export declare function createObservedBindings(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function finishObservedNativeInputs(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
+export declare function publishBackendPaths(build: NativeBuild): void
 export declare function reportObservedNativeBuild(build: NativeBuild): bool throws {
     SourceLoadFailure
 }
-export declare function requireObservedNativeInputs(build: NativeBuild): void throws {
+export declare function observedInputsComplete(build: NativeBuild): bool
+export declare function rejectIncompleteBackendInputs(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 export declare function publishObservedNativeBuild(build: NativeBuild): bool throws {

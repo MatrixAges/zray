@@ -44,14 +44,18 @@ fn lookup(inputs: *Inputs, path: []const u8) !Slot {
     return .{ .path = entry.key_ptr.*, .value = entry.value_ptr, .existing = entry.found_existing };
 }
 
-pub fn add(inputs: *Inputs, io: std.Io, path: []const u8, directory_entries: bool) !void {
+pub const Addition = struct { entry: *Inputs.Observation, inserted: bool };
+
+pub fn add(inputs: *Inputs, io: std.Io, path: []const u8, directory_entries: bool) !Addition {
     var context: Context = .{ .io = io, .inputs = inputs, .path = path };
     const handle = &context;
 
-    _ = source.add.executeIn(inputs.arena.allocator(), &.{
+    const admission = source.add.executeIn(inputs.arena.allocator(), &.{
         .registration = @ptrCast(&handle),
         .directory_entries = directory_entries,
     }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
+
+    return .{ .entry = context.slot.value, .inserted = admission == .New };
 }
 
 pub fn record(inputs: *Inputs, io: std.Io, path: []const u8, bytes: []const u8) !void {
@@ -156,6 +160,7 @@ pub fn publishObservation(handle: *const anyopaque, directory_entries: bool, con
         .state = if (self.failure) |err| .{ .failed = err } else self.current,
         .directory_entries = directory_entries,
         .consumed = consumed,
+        .backend_preloaded = self.slot.existing and self.slot.value.backend_preloaded,
     };
 
     if (self.failure != null) return error.ObservationFailure;

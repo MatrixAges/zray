@@ -148,12 +148,6 @@ pub fn publishStagedBackend(handle: *const anyopaque) Error!void {
     self.staged.?.publish(context.io, context.allocator, context.options) catch |err| return self.failure.save(err);
 }
 
-pub fn prepareObservedNativeBuild(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.watch.?.prepareBackend(self.context.io) catch |err| return self.failure.save(err);
-}
-
 pub fn spawnObservedBackend(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
@@ -193,12 +187,6 @@ pub fn createObservedBindings(handle: *const anyopaque) Error!void {
     observed.bindings = @import("../node/bindings.zig").create(observed.response.arena.allocator(), self.bundle, self.context.options) catch |err| return self.failure.save(err);
 }
 
-pub fn finishObservedNativeInputs(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.watch.?.finishBackend(self.observed.?.input_paths) catch |err| return self.failure.save(err);
-}
-
 pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
     const response = &self.observed.?.response;
@@ -210,10 +198,12 @@ pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!bool {
     return response.succeeded;
 }
 
-pub fn requireObservedNativeInputs(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
+pub fn observedInputsComplete(handle: *const anyopaque) bool {
+    return State.get(handle).observed.?.response.inputs_complete;
+}
 
-    if (!self.observed.?.response.inputs_complete) return self.failure.save(error.IncompleteBackendInputs);
+pub fn rejectIncompleteBackendInputs(handle: *const anyopaque) Error!void {
+    return State.get(handle).failure.save(error.IncompleteBackendInputs);
 }
 
 pub fn publishObservedNativeBuild(handle: *const anyopaque) Error!bool {

@@ -1,0 +1,22 @@
+import host from "rx_execution_host"
+
+import type { NativeBuild as Input } from "./index"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const paths = host.previousBackendPaths(in)
+
+    const preloaded = loop(0, {
+        while: index => index < paths.length,
+        next: index => {
+            const path = paths[index]
+
+            if (!host.hasBackendObservation(in, path)) {
+                host.preloadBackendPath(in, path)
+            }
+
+            index += 1
+        }
+    })
+}

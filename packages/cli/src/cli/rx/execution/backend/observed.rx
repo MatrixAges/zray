@@ -4,7 +4,7 @@
 
     <Args in={Backend.Invocation} out={IO.Status} />
 
-    <Call fn="index.prepareObservedNativeBuild" in={$in.build} />
+    <Call fn="preload_dependencies" in={$in.build} />
 
     <Call
         fn="index.openBackendTranslation"
@@ -32,14 +32,20 @@
         <Call fn="index.createObservedBindings" in={$in.build} />
     </If>
 
-    <Call fn="index.finishObservedNativeInputs" in={$in.build} />
+    <Call fn="expire_dependencies" in={$in.build} />
+    <Call fn="index.publishBackendPaths" in={$in.build} />
     <Call fn="index.reportObservedNativeBuild" in={$in.build} />
 
     <If on={!$ctx.reportObservedNativeBuild}>
         <Return value={IO.Status.BackendFailed} />
     </If>
 
-    <Call fn="index.requireObservedNativeInputs" in={$in.build} />
+    <Call fn="index.observedInputsComplete" in={$in.build} />
+
+    <If on={!$ctx.observedInputsComplete}>
+        <Call fn="index.rejectIncompleteBackendInputs" in={$in.build} />
+    </If>
+
     <Call fn="index.publishObservedNativeBuild" in={$in.build} />
 
     <If on={!$ctx.publishObservedNativeBuild}>

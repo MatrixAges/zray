@@ -20,7 +20,6 @@ pub fn begin(handle: *const anyopaque, cache: bool, previous: ?*const anyopaque)
     if (previous) |snapshot| turn.inputs.previous = @ptrCast(@alignCast(snapshot));
 
     turn.attempt = .{
-        .allocator = temporary,
         .inputs = &turn.inputs,
         .previous_backend = self.backend_paths,
         .backend_owner = &turn.next_backend,

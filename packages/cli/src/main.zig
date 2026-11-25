@@ -46,6 +46,7 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("cli/rx/gateway/analyze.zig"),
     @import("cli/rx/gateway/compile.zig"),
     @import("cli/build/native.zig"),
+    @import("cli/build/dependencies/history.zig"),
     @import("cli/build/prepare.zig"),
     @import("cli/build/arguments.zig"),
     @import("cli/build/modules.zig"),

@@ -48,16 +48,15 @@ pub fn prefixAt(handle: *const anyopaque, row: u64) u8 {
     return @backingInt(self.batch.inputs[@intCast(row)].prefix);
 }
 
-pub fn registerPath(handle: *const anyopaque, row: u64, root: []const u8, known_new: bool) Error!bool {
+pub fn registerPath(handle: *const anyopaque, row: u64, root: []const u8) Error!bool {
     const self = Context.get(handle);
     const input = self.batch.inputs[@intCast(row)];
     const path = std.fs.path.resolve(self.owned, &.{ root, input.path }) catch |err| return self.fail(err);
-    const unseen = !known_new and !self.inputs.entries.contains(path);
+    const addition = watch.observation.registration.add(self.inputs, self.io, path, false) catch |err| return self.fail(err);
 
-    self.inputs.add(self.io, path) catch |err| return self.fail(err);
-
+    addition.entry.backend_preloaded = false;
     self.paths[self.written] = path;
     self.written += 1;
 
-    return unseen or known_new;
+    return addition.inserted;
 }

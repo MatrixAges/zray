@@ -6,6 +6,7 @@ pub const Observation = struct {
     state: Snapshot.State,
     consumed: bool = false,
     directory_entries: bool = false,
+    backend_preloaded: bool = false,
 };
 
 pub const Observations = std.StringHashMapUnmanaged(Observation);
@@ -38,11 +39,11 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn add(self: *Self, io: std.Io, path: []const u8) !void {
-    return registration.add(self, io, path, false);
+    _ = try registration.add(self, io, path, false);
 }
 
 pub fn addDirectory(self: *Self, io: std.Io, path: []const u8) !void {
-    return registration.add(self, io, path, true);
+    _ = try registration.add(self, io, path, true);
 }
 
 pub fn record(self: *Self, io: std.Io, path: []const u8, source: []const u8) !void {

@@ -28,12 +28,9 @@ export default function (in: Input): Output {
                 _ => roots.cwd
             }
 
-            state.new_inputs = host.registerPath(
-                dependencies,
-                state.row,
-                root,
-                state.new_inputs
-            )
+            const inserted = host.registerPath(dependencies, state.row, root)
+
+            state.new_inputs = state.new_inputs || inserted
             state.row += 1
         },
         return: state => state.new_inputs

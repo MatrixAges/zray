@@ -9,6 +9,5 @@ export declare function prefixAt(dependencies: Dependencies, row: u64): u8
 export declare function registerPath(
     dependencies: Dependencies,
     row: u64,
-    root: string,
-    known_new: bool
+    root: string
 ): bool throws { BackendInputFailure }
