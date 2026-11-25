@@ -1,0 +1,55 @@
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+import type { AstBlockRows, AstConditionalRows } from "ast_rows"
+import type { Guard, Plan } from "./model"
+
+export type Input = {
+    plan: Plan,
+    name: u8[],
+    guard?: Guard
+}
+
+export type Output = {
+    block: AstBlockRows,
+    conditionals?: AstConditionalRows
+}
+
+export default function (in: Input): Output {
+    const { plan, name, guard } = in
+
+    const block: AstBlockRows = {
+        tags: [ExpressionsKind.Block],
+        offsets: [0],
+        block_label: [name],
+        block_statements_start: [plan.statement_base],
+        block_statements_len: [plan.count]
+    }
+
+    if (guard == null) {
+        return {
+            block,
+            conditionals: null
+        }
+    }
+
+    return {
+        block: {
+            ...block,
+            tags: [
+                ExpressionsKind.Conditional,
+                ExpressionsKind.Block
+            ],
+            offsets: [
+                0,
+                0
+            ]
+        },
+        conditionals: {
+            conditional_condition: [guard.condition],
+            conditional_yes: [guard.yes],
+            conditional_no: [guard.no],
+            conditional_capture: [null],
+            conditional_error_capture: [null]
+        }
+    }
+}

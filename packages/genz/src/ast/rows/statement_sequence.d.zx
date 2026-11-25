@@ -1,0 +1,34 @@
+export declare function astStatementCount(writer: AstWriter): u32
+
+export declare function tailAstStatementRows(
+    writer: AstWriter,
+    starts: u32[],
+    counts: u32[]
+): u32 throws { OutOfMemory }
+
+export declare function tailAstPackedStatements(writer: AstWriter, spans: u64[]): u64
+    throws { OutOfMemory }
+
+export declare function appendAstCleanupRows(
+    writer: AstWriter,
+    tags: StatementsKind[],
+    offsets: u32[],
+    variables: StatementVariables?,
+    discards: u32[],
+    defer_starts: u32[],
+    defer_counts: u32[]
+): u64 throws { OutOfMemory }
+
+export declare function appendAstSequenceSpan(target: AstSequence, span: u64): void
+    throws { OutOfMemory }
+
+export declare function finishAstSequence(writer: AstWriter, target: AstSequence): u64
+    throws { OutOfMemory }
+
+export declare function publishAstScopedRows(
+    writer: AstWriter,
+    rows: StatementRows,
+    variables: StatementVariables,
+    starts: u32[],
+    counts: u32[]
+): u64 throws { OutOfMemory }

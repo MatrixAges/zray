@@ -235,7 +235,32 @@ fn appendRows(self: *Lower, target: anytype, source: anytype, mode: Ast.AstPaylo
     return result catch |err| failure(err);
 }
 
-pub fn appendAstBlockRows(writer: *const anyopaque, source: *const Ast.AstBlockRows) Lower.Error!void {
+pub fn appendAstBlockRows(writer: *const anyopaque, source: *const Ast.AstBlockRows, conditionals: ?*const Ast.AstConditionalRows) Lower.Error!void {
+    const self = borrow(writer);
+    const target = &self.builder.nodes.expressions;
+
+    if (conditionals) |extra| {
+        const joined = view.join(source.*, extra.*);
+
+        return appendRows(self, target, &joined, .Borrowed);
+    }
+
+    return appendRows(self, target, source, .Borrowed);
+}
+
+pub fn appendAstIdentifierRows(writer: *const anyopaque, source: *const Ast.AstIdentifierRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
+}
+
+pub fn appendAstObjectFields(writer: *const anyopaque, source: *const Ast.AstObjectFields) Lower.Error!void {
+    const self = borrow(writer);
+
+    return fields.appendObject(self.allocator, &self.builder.nodes.field_columns, source);
+}
+
+pub fn appendAstFieldAddresses(writer: *const anyopaque, source: *const Ast.AstFieldAddressRows) Lower.Error!void {
     const self = borrow(writer);
 
     return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);

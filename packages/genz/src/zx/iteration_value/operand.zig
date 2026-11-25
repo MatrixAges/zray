@@ -1,9 +1,8 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const rows = @import("../../node/import_rows.zig");
+const failure = @import("../construction/publication.zig").failure;
 const Self = @This();
 
 name: []const u8,
@@ -20,6 +19,8 @@ pub noinline fn bind(lowering: *Lower, value: node.ExpressionId) Lower.Error!Sel
     const Input = std.meta.Child(entry.Input);
 
     const input: Input = .{
+        .writer = @ptrCast(lowering),
+        .frame = @ptrCast(lowering),
         .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
         .serial = lowering.serial,
     };
@@ -30,26 +31,7 @@ pub noinline fn bind(lowering: *Lower, value: node.ExpressionId) Lower.Error!Sel
 
     defer scratch.deinit();
 
-    const output = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
+    const output = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
-    if (!output.valid) return error.OutOfMemory;
-
-    const name = try lowering.allocator.dupe(u8, output.name);
-    const names = [_][]const u8{name};
-    var expressions = zx.columns.view(std.meta.Child(@FieldType(std.meta.Child(entry.Output), "expressions")), output.expressions);
-
-    expressions.identifier = &names;
-
-    rows.appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-
-    lowering.serial = output.serial;
-
-    return .{ .name = name, .value = value, .reference = @fromBackingInt(output.root) };
-}
-
-fn failure(err: anyerror) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
-    };
+    return .{ .name = output.name, .value = value, .reference = @fromBackingInt(output.root) };
 }

@@ -1,0 +1,49 @@
+<Module>
+    <Type from="publication" as="Binding" />
+
+    <Args in={Binding.Reference} out={Binding.PublishedReference} />
+
+    <Call
+        fn="reference"
+        in={$in.pick([
+            "expression_base",
+            "serial"
+        ])}
+    />
+
+    <Call fn="rows.requireAllocation" in={$ctx.reference.valid} />
+
+    <Call
+        fn="rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.reference.name
+        ]}
+    />
+
+    <Call fn="identifier_rows" />
+
+    <Call
+        fn="rows.appendAstIdentifierRows"
+        in={[
+            $in.writer,
+            $ctx.identifier_rows
+        ]}
+    />
+
+    <Call
+        fn="rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            $ctx.reference.serial,
+            false
+        ]}
+    />
+
+    <Return
+        value={{
+            name: $ctx.retainLoweringText,
+            root: $ctx.reference.root
+        }}
+    />
+</Module>

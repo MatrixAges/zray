@@ -1,8 +1,7 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
-const rows = @import("../../node/import_rows.zig");
-const view = @import("../../node/view.zig");
+const failure = @import("../construction/publication.zig").failure;
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const Operand = @import("operand.zig");
@@ -64,6 +63,8 @@ pub noinline fn lower(context: *Context, args: Request) Lower.Error!node.Express
     comptime std.debug.assert(@typeInfo(ir.ExprId).@"enum".tag_type == u32);
 
     const input: Input = .{
+        .writer = @ptrCast(self),
+        .frame = @ptrCast(self),
         .mode = args.mode,
         .types = &types,
         .type_id = @backingInt(args.type_id),
@@ -84,38 +85,7 @@ pub noinline fn lower(context: *Context, args: Request) Lower.Error!node.Express
 
     defer scratch.deinit();
 
-    const output = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
-    const block = output.block orelse return error.OutOfMemory;
+    const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
-    if (!block.valid) return error.OutOfMemory;
-
-    const literal = output.literal;
-    const expressions = view.join(literal.expressions.*, literal.forms.*);
-
-    rows.appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-
-    try @import("../../node/import_fields.zig").appendObject(self.allocator, &self.builder.nodes.field_columns, literal.fields);
-
-    const label = try self.allocator.dupe(u8, block.name);
-    const labels = [_][]const u8{label};
-    var block_expressions = block.expressions.*;
-    var block_statements = block.statements.*;
-    block_expressions.block_label = &labels;
-    block_statements.break_value_label = &labels;
-
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.statements, literal.statements) catch |err| return failure(err);
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.statements, &block_statements) catch |err| return failure(err);
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.expressions, &block_expressions) catch |err| return failure(err);
-
-    self.uses_allocator = self.uses_allocator or literal.uses_allocator;
-    self.serial = block.serial;
-
-    return @fromBackingInt(block.root);
-}
-
-fn failure(err: anyerror) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
-    };
+    return @fromBackingInt(result);
 }

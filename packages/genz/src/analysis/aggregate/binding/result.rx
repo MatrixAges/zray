@@ -1,0 +1,38 @@
+<Module>
+    <Type from="publication" as="Binding" />
+
+    <Args in={Binding.Result} out={u32} />
+
+    <Call fn="result_input" in={$in} />
+
+    <Call fn="plan" />
+
+    <Call fn="rows.requireAllocation" in={$ctx.plan.valid} />
+
+    <Call
+        fn="rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.plan.name
+        ]}
+    />
+
+    <Call
+        module="publish"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "guard"
+            ]),
+            plan: {
+                ...$ctx.plan,
+                name: $ctx.retainLoweringText
+            },
+            body: null,
+            uses_allocator: false
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

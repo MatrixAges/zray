@@ -16,6 +16,33 @@ export type AstBlockRows = {
     block_statements_len: u32[]
 }
 
+export type AstConditionalRows = {
+    conditional_condition: u32[],
+    conditional_yes: u32[],
+    conditional_no: u32[],
+    conditional_capture: u8[]?[],
+    conditional_error_capture: u8[]?[]
+}
+
+export type AstIdentifierRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    identifier: u8[][]
+}
+
+export type AstObjectFields = {
+    name: string[],
+    value: u32[]
+}
+
+export type AstFieldAddressRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    field_target: u32[],
+    field_name: u8[][],
+    address_of: u32[]
+}
+
 export type AstLeafStatements = {
     tags: StatementsKind[],
     offsets: u32[],
@@ -64,7 +91,19 @@ export declare function appendStatementRows(
     ownership: AstPayloadOwnership
 ): void throws { OutOfMemory }
 
-export declare function appendAstBlockRows(writer: AstWriter, rows: AstBlockRows): void
+export declare function appendAstBlockRows(
+    writer: AstWriter,
+    rows: AstBlockRows,
+    conditionals: AstConditionalRows?
+): void throws { OutOfMemory }
+
+export declare function appendAstIdentifierRows(writer: AstWriter, rows: AstIdentifierRows): void
+    throws { OutOfMemory }
+
+export declare function appendAstObjectFields(writer: AstWriter, rows: AstObjectFields): void
+    throws { OutOfMemory }
+
+export declare function appendAstFieldAddresses(writer: AstWriter, rows: AstFieldAddressRows): void
     throws { OutOfMemory }
 
 export declare function appendAstLeafStatements(writer: AstWriter, rows: AstLeafStatements): void
@@ -168,38 +207,3 @@ export declare function releaseAstScratch(scratch: AstScratch): void
 
 export declare function appendOwnedAstFields(writer: AstWriter, rows: FieldRows): void
     throws { OutOfMemory }
-
-export declare function astStatementCount(writer: AstWriter): u32
-
-export declare function tailAstStatementRows(
-    writer: AstWriter,
-    starts: u32[],
-    counts: u32[]
-): u32 throws { OutOfMemory }
-
-export declare function tailAstPackedStatements(writer: AstWriter, spans: u64[]): u64
-    throws { OutOfMemory }
-
-export declare function appendAstCleanupRows(
-    writer: AstWriter,
-    tags: StatementsKind[],
-    offsets: u32[],
-    variables: StatementVariables?,
-    discards: u32[],
-    defer_starts: u32[],
-    defer_counts: u32[]
-): u64 throws { OutOfMemory }
-
-export declare function appendAstSequenceSpan(target: AstSequence, span: u64): void
-    throws { OutOfMemory }
-
-export declare function finishAstSequence(writer: AstWriter, target: AstSequence): u64
-    throws { OutOfMemory }
-
-export declare function publishAstScopedRows(
-    writer: AstWriter,
-    rows: StatementRows,
-    variables: StatementVariables,
-    starts: u32[],
-    counts: u32[]
-): u64 throws { OutOfMemory }

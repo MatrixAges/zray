@@ -1,0 +1,23 @@
+import { StatementsKind } from "../../../printer/model/statements"
+
+import type { AstLeafStatements as Output } from "ast_rows"
+
+export type Input = {
+    name: u8[],
+    value: u32
+}
+
+export default function (in: Input): Output {
+    return {
+        tags: [StatementsKind.BreakValue],
+        offsets: [0],
+        expression: [],
+        discard: [],
+        constant_name: [],
+        constant_type_expr: [],
+        constant_value: [],
+        constant_exported: [],
+        break_value_label: [in.name],
+        break_value_value: [in.value]
+    }
+}

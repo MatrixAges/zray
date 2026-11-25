@@ -1,0 +1,15 @@
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+import type { AstIdentifierRows } from "ast_rows"
+
+export type Input = u8[]
+
+export type Output = AstIdentifierRows
+
+export default function (in: Input): Output {
+    return {
+        tags: [ExpressionsKind.Identifier],
+        offsets: [0],
+        identifier: [in]
+    }
+}

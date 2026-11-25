@@ -9,6 +9,20 @@ export type Input = {
     serial: u64
 }
 
+export type Plan = Input.Pick("value", "statement_base") & {
+    name: u8[],
+    count: u32,
+    serial: u64,
+    root: u32,
+    valid: bool
+}
+
+export type Guard = {
+    condition: u32,
+    yes: u32,
+    no: u32
+}
+
 export type Expressions = {
     tags: ExpressionsKind[],
     offsets: u32[],

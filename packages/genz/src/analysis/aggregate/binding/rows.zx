@@ -1,0 +1,9 @@
+export {
+    appendAstBindingRows,
+    appendAstBlockRows,
+    appendAstFieldAddresses,
+    appendAstIdentifierRows,
+    appendAstLeafStatements
+} from "ast_rows"
+export { finishGeneratedAst, retainLoweringText } from "lowering_host"
+export { requireAllocation } from "memory"

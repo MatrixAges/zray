@@ -1,0 +1,30 @@
+import type { AstLeafStatements, AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Guard, Input, Plan } from "./model"
+
+export type Target = {
+    writer: AstWriter,
+    frame: Lowering
+}
+
+export type BlockBody = AstLeafStatements.Omit("break_value_label", "break_value_value")
+
+export type Publication = Target & {
+    plan: Plan,
+    body?: BlockBody,
+    guard?: Guard,
+    uses_allocator: bool
+}
+
+export type Result = Target & {
+    block: Input,
+    guard?: Guard
+}
+
+export type Operand = Target & Input.Pick("value", "expression_base", "serial") & {
+    sequence: AstSequence
+}
+
+export type Reference = Target & Input.Pick("expression_base", "serial")
+
+export type PublishedReference = Plan.Pick("name", "root")

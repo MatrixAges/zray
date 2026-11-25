@@ -1,18 +1,17 @@
 <Module>
-    <Type from="model" as="Literal" />
+    <Type from="publication" as="Publication" />
 
-    <Args in={Literal.Input} out={Literal.Output} />
+    <Args in={Publication.Input} out={u32} />
 
-    <Call module="emit" in={$in} />
+    <Call
+        module="emit"
+        in={$in.omit([
+            "frame",
+            "writer"
+        ])}
+    />
 
-    <If on={!$ctx.emit.valid}>
-        <Return
-            value={{
-                literal: $ctx.emit,
-                block: null
-            }}
-        />
-    </If>
+    <Call fn="publication.requireAllocation" in={$ctx.emit.valid} />
 
     <Call
         fn="block_input"
@@ -22,12 +21,55 @@
         }}
     />
 
-    <Call fn="../../aggregate/binding/finish" />
+    <Call fn="../../aggregate/binding/plan" />
 
-    <Return
-        value={{
-            literal: $ctx.emit,
-            block: $ctx.finish
+    <Call fn="publication.requireAllocation" in={$ctx.plan.valid} />
+
+    <Call
+        fn="publication.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.emit.expressions,
+            $ctx.emit.forms,
+            Publication.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="publication.appendAstObjectFields"
+        in={[
+            $in.writer,
+            $ctx.emit.fields
+        ]}
+    />
+
+    <Call
+        fn="../../aggregate/binding/rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.plan.name
+        ]}
+    />
+
+    <Call
+        module="../../aggregate/binding/publish"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer"
+            ]),
+            plan: {
+                ...$ctx.plan,
+                name: $ctx.retainLoweringText
+            },
+            body: {
+                ...$ctx.emit.statements,
+                expression: []
+            },
+            guard: null,
+            uses_allocator: $ctx.emit.uses_allocator
         }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>

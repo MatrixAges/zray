@@ -1,0 +1,59 @@
+<Module>
+    <Type from="publication" as="Binding" />
+
+    <Args in={Binding.Operand} out={u32} />
+
+    <Call
+        fn="reference"
+        in={$in.pick([
+            "expression_base",
+            "serial"
+        ])}
+    />
+
+    <Call fn="rows.requireAllocation" in={$ctx.reference.valid} />
+
+    <Call
+        fn="rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.reference.name
+        ]}
+    />
+
+    <Call
+        fn="operand_rows"
+        in={{
+            name: $ctx.retainLoweringText,
+            value: $in.value
+        }}
+    />
+
+    <Call
+        fn="rows.appendAstBindingRows"
+        in={[
+            $in.writer,
+            $in.sequence,
+            $ctx.operand_rows.statements
+        ]}
+    />
+
+    <Call
+        fn="rows.appendAstIdentifierRows"
+        in={[
+            $in.writer,
+            $ctx.operand_rows.expressions
+        ]}
+    />
+
+    <Call
+        fn="rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            $ctx.reference.serial,
+            false
+        ]}
+    />
+
+    <Return value={$ctx.reference.root} />
+</Module>

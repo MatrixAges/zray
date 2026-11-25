@@ -1,3 +1,4 @@
+import { ExpressionsKind } from "../../../printer/model/expressions"
 import { StatementsKind } from "../../../printer/model/statements"
 import reference from "./reference"
 
@@ -11,6 +12,14 @@ export default function (in: Input): Output {
 
     return {
         ...value,
+        expressions: {
+            tags: [ExpressionsKind.Identifier],
+            offsets: [0],
+            identifier: [value.name],
+            block_label: [],
+            block_statements_start: [],
+            block_statements_len: []
+        },
         statements: {
             tags: [StatementsKind.Constant],
             offsets: [0],

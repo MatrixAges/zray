@@ -6,7 +6,7 @@
     <Call fn="collect" in={$in.pick(["bindings"])} />
 
     <Call
-        fn="../../aggregate/binding/finish"
+        fn="../../aggregate/binding/plan"
         in={{
             ...$in.pick([
                 "expression_base",
@@ -18,59 +18,32 @@
         }}
     />
 
-    <Call fn="rows.requireAllocation" in={$ctx.finish.valid} />
+    <Call fn="../../aggregate/binding/rows.requireAllocation" in={$ctx.plan.valid} />
 
     <Call
-        fn="rows.retainLoweringText"
+        fn="../../aggregate/binding/rows.retainLoweringText"
         in={[
             $in.frame,
-            $ctx.finish.name
+            $ctx.plan.name
         ]}
     />
 
     <Call
-        fn="rows.appendAstLeafStatements"
-        in={[
-            $in.writer,
-            {
-                ...$ctx.collect,
-                break_value_label: [],
-                break_value_value: []
-            }
-        ]}
+        module="../../aggregate/binding/publish"
+        in={{
+            ...$in.pick([
+                "writer",
+                "frame"
+            ]),
+            plan: {
+                ...$ctx.plan,
+                name: $ctx.retainLoweringText
+            },
+            body: $ctx.collect,
+            guard: null,
+            uses_allocator: false
+        }}
     />
 
-    <Call
-        fn="rows.appendAstLeafStatements"
-        in={[
-            $in.writer,
-            {
-                ...$ctx.finish.statements,
-                expression: [],
-                discard: [],
-                break_value_label: [$ctx.retainLoweringText]
-            }
-        ]}
-    />
-
-    <Call
-        fn="rows.appendAstBlockRows"
-        in={[
-            $in.writer,
-            {
-                ...$ctx.finish.expressions.omit(["identifier"]),
-                block_label: [$ctx.retainLoweringText]
-            }
-        ]}
-    />
-
-    <Call
-        fn="rows.setLoweringSerial"
-        in={[
-            $in.frame,
-            $ctx.finish.serial
-        ]}
-    />
-
-    <Return value={$ctx.finish.root} />
+    <Return value={$ctx.publish} />
 </Module>

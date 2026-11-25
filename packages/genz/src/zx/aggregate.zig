@@ -131,9 +131,5 @@ pub fn finishStored(self: *Lower, body: node.Block, value: node.ExpressionId, gu
         return @import("aggregate/binding_seed.zig").finish(self, body, result);
     }
 
-    const binding = @import("aggregate/binding.zig");
-
-    if (guard) |check| return binding.finishGuarded(self, body, value, check);
-
-    return binding.finish(self, body, value);
+    return @import("aggregate/binding.zig").finish(self, body, value, guard);
 }

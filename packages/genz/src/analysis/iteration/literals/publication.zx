@@ -1,0 +1,11 @@
+import type { Target } from "../../aggregate/binding/publication"
+import type { Input as Literal } from "./model"
+
+export type Input = Target & Literal
+
+export {
+    AstPayloadOwnership,
+    appendAstObjectFields,
+    appendExpressionRows
+} from "ast_rows"
+export { requireAllocation } from "memory"

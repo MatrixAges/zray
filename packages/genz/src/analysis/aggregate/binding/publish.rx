@@ -1,0 +1,66 @@
+<Module>
+    <Type from="publication" as="Binding" />
+
+    <Args in={Binding.Publication} out={u32} />
+
+    <Call
+        fn="break_rows"
+        in={{
+            name: $in.plan.name,
+            value: $in.plan.value
+        }}
+    />
+
+    <Call
+        fn="block_rows"
+        in={{
+            ...$in.pick([
+                "plan",
+                "guard"
+            ]),
+            name: $in.plan.name
+        }}
+    />
+
+    <If on={$in.body != null}>
+        <Call
+            fn="rows.appendAstLeafStatements"
+            in={[
+                $in.writer,
+                {
+                    ...$in.body,
+                    break_value_label: [],
+                    break_value_value: []
+                }
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="rows.appendAstLeafStatements"
+        in={[
+            $in.writer,
+            $ctx.break_rows
+        ]}
+    />
+
+    <Call
+        fn="rows.appendAstBlockRows"
+        in={[
+            $in.writer,
+            $ctx.block_rows.block,
+            $ctx.block_rows.conditionals
+        ]}
+    />
+
+    <Call
+        fn="rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            $in.plan.serial,
+            $in.uses_allocator
+        ]}
+    />
+
+    <Return value={$in.plan.root} />
+</Module>

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Borrowed" />
 
-    <Args in={Borrowed.Input} out={Borrowed.Output} />
+    <Args in={Borrowed.Input} out={u32} />
 
     <Call
         fn="pointer"
@@ -20,21 +20,63 @@
     />
 
     <Call
-        fn="../../binding/finish"
+        fn="../../binding/plan"
         in={{
+            ...$in.pick([
+                "statement_base",
+                "serial"
+            ]),
             value: $ctx.pointer.root,
             expression_base: $ctx.pointer.next,
-            statement_base: $in.statement_base,
-            body_count: $ctx.discard.tags.length,
-            serial: $in.serial
+            body_count: $ctx.discard.tags.length
         }}
     />
 
-    <Return
-        value={{
-            pointer: $ctx.pointer.nodes,
-            discard: $ctx.discard,
-            block: $ctx.finish
+    <Call fn="../../binding/rows.requireAllocation" in={$ctx.plan.valid} />
+
+    <Call
+        fn="../../binding/rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.plan.name
+        ]}
+    />
+
+    <Call
+        fn="../../binding/rows.appendAstFieldAddresses"
+        in={[
+            $in.writer,
+            $ctx.pointer.nodes
+        ]}
+    />
+
+    <Call
+        module="../../binding/publish"
+        in={{
+            ...$in.pick([
+                "writer",
+                "frame"
+            ]),
+            plan: {
+                ...$ctx.plan,
+                name: $ctx.retainLoweringText
+            },
+            body: {
+                ...$ctx.discard.pick([
+                    "tags",
+                    "offsets",
+                    "discard"
+                ]),
+                expression: [],
+                constant_name: [],
+                constant_type_expr: [],
+                constant_value: [],
+                constant_exported: []
+            },
+            guard: null,
+            uses_allocator: false
         }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>

@@ -1,0 +1,37 @@
+import { StatementsKind } from "../../../printer/model/statements"
+import identifierRows from "./identifier_rows"
+
+import type { AstIdentifierRows, BindingRows } from "ast_rows"
+
+export type Input = {
+    name: u8[],
+    value: u32
+}
+
+export type Output = {
+    expressions: AstIdentifierRows,
+    statements: BindingRows
+}
+
+export default function (in: Input): Output {
+    const expressions = identifierRows(in.name)
+
+    return {
+        expressions,
+        statements: {
+            tags: [StatementsKind.Constant],
+            offsets: [0],
+            constant_name: expressions.identifier,
+            constant_type_expr: [null],
+            constant_value: [in.value],
+            constant_exported: [false],
+            variable_name: [],
+            variable_type_expr: [],
+            variable_value: [],
+            variable_exported: [],
+            discard: [],
+            break_value_label: [],
+            break_value_value: []
+        }
+    }
+}

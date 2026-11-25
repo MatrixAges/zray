@@ -42,7 +42,7 @@ pub fn lower(self: *Lower, scratch: std.mem.Allocator, request: Request) Lower.E
     const output = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
     const expression = zx.columns.view(Expression, output.expression);
 
-    try @import("../../node/import_fields.zig").appendObject(self.allocator, &self.builder.nodes.field_columns, &output.fields);
+    try @import("../../node/import_fields.zig").appendObject(self.allocator, &self.builder.nodes.field_columns, output.fields);
     @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expression) catch |err| return failure(err);
 
     return @fromBackingInt(@intCast(base));

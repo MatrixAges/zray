@@ -1,0 +1,20 @@
+import integers from "std:integer"
+
+import type { Input as Output } from "./model"
+import type { Result as Input } from "./publication"
+
+export default function (in: Input): Output {
+    const { block, guard } = in
+
+    if (guard == null) {
+        return block
+    }
+
+    return {
+        ...block,
+        value: block.expression_base,
+        expression_base: integers.narrow(
+            integers.widen(block.expression_base) + 1
+        )
+    }
+}

@@ -1,9 +1,7 @@
-import type { AstLeafStatements, AstWriter } from "ast_rows"
-import type { IterationScopeBindings as Bindings, Lowering } from "lowering_host"
+import type { IterationScopeBindings as Bindings } from "lowering_host"
+import type { BlockBody, Target } from "../../aggregate/binding/publication"
 
-export type Input = {
-    writer: AstWriter,
-    frame: Lowering,
+export type Input = Target & {
     bindings: Bindings,
     result: u32,
     expression_base: u32,
@@ -11,4 +9,4 @@ export type Input = {
     serial: u64
 }
 
-export type Rows = AstLeafStatements.Omit("break_value_label", "break_value_value")
+export type Rows = BlockBody
