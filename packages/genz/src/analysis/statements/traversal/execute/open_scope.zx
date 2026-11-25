@@ -38,9 +38,9 @@ export default function (in: Input): Output {
             "results"
         ]),
         values: {
-            kinds: context.expression_kinds,
-            types: context.expression_types,
-            type_kinds: context.type_kinds
+            kinds: context.expressions.kinds,
+            types: context.expressions.types,
+            type_kinds: context.types.kinds
         },
         first: integers.widen(first),
         count: integers.widen(count),

@@ -33,7 +33,7 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
     var result = if (layout) try values.expression(self, selection.fallback) else try self.expr(selection.fallback);
     var index = selection.arms.len;
 
-    if (try @import("../selection.zig").constantLabels(self, selection)) {
+    if (try @import("../selection/seed.zig").constantLabels(self, selection)) {
         index -= 1;
         const last = selection.arms.at(index);
         const condition = try self.binary(.{ .operator = .equal, .left = selection.subject.?, .right = last.condition });
@@ -47,7 +47,7 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
         while (index != 0) {
             index -= 1;
             const arm = selection.arms.at(index);
-            const label = try @import("../selection.zig").literal(self, arm.condition);
+            const label = try @import("../selection/seed.zig").literal(self, arm.condition);
             const value = if (layout) try values.expression(self, arm.result) else try self.expr(arm.result);
 
             arms[index] = .{ .value = label, .result = value };

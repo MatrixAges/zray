@@ -54,9 +54,19 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     var scope_yes_starts: []u32 = scope_u32[2 * depth ..][0..depth];
     var scope_yes_counts: []u32 = scope_u32[3 * depth ..][0..depth];
     var scope_placements: []u64 = try scratch.alloc(u64, depth);
+    const selection_depth: usize = if (plan.flat) 0 else @intCast(plan.selection_depth);
+    const selection_u32 = try scratch.alloc(u32, std.math.mul(usize, selection_depth, 4) catch return error.OutOfMemory);
+    var selection_payloads: []u32 = selection_u32[0..selection_depth];
+    var selection_subjects: []u32 = selection_u32[selection_depth..][0..selection_depth];
+    var selection_counts: []u32 = selection_u32[2 * selection_depth ..][0..selection_depth];
+    var selection_comparisons: []u32 = selection_u32[3 * selection_depth ..][0..selection_depth];
+    const selection_u8 = try scratch.alloc(u8, std.math.mul(usize, selection_depth, 2) catch return error.OutOfMemory);
+    var selection_selected: []u8 = selection_u8[0..selection_depth];
+    var selection_has_fallback: []u8 = selection_u8[selection_depth..][0..selection_depth];
+    var selection_fallbacks: []u64 = try scratch.alloc(u64, selection_depth);
     var flat_scope: [1]Scope = undefined;
     const scopes: []Scope = if (plan.flat) &flat_scope else try scratch.alloc(Scope, depth);
-    const selections: []Selection = if (plan.flat) &.{} else try scratch.alloc(Selection, @intCast(plan.selection_depth));
+    const selections: []Selection = if (plan.flat) &.{} else try scratch.alloc(Selection, selection_depth);
 
     for (scopes) |*scope| scope.active = false;
     for (selections) |*selection| selection.active = false;
@@ -98,7 +108,11 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const Context = std.meta.Child(@FieldType(Execution, "context"));
     const Control = std.meta.Child(@FieldType(Context, "control"));
     const Buffers = std.meta.Child(@FieldType(Execution, "buffers"));
+    const Expressions = std.meta.Child(@FieldType(Context, "expressions"));
+    const Types = std.meta.Child(@FieldType(Context, "types"));
     const control = zx.columns.borrow(Control, values.control);
+    const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
+    const types = ir.TypeTable.borrow(Types, self.program.types);
     const schedule = zx.columns.view(Schedule, plan);
     var origin: rows.OriginBuffer = .{};
     const reference = &frame;
@@ -109,9 +123,8 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .origin = @ptrCast(&origin),
         .sequence = @ptrCast(&frame.sequence),
         .control = &control,
-        .expression_kinds = zx.columns.slice(@FieldType(Context, "expression_kinds"), self.program.expressions.kinds),
-        .expression_types = self.program.expressions.types,
-        .type_kinds = self.program.types.kinds,
+        .expressions = &expressions,
+        .types = &types,
         .store_mode = @fromBackingInt(@backingInt(self.program.store_mode)),
         .store_count = self.program.stores.count(),
         .names = self.names,
@@ -128,6 +141,13 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .scope_conditions = @ptrCast(&scope_conditions),
         .scope_yes_starts = @ptrCast(&scope_yes_starts),
         .scope_yes_counts = @ptrCast(&scope_yes_counts),
+        .selection_payloads = @ptrCast(&selection_payloads),
+        .selection_subjects = @ptrCast(&selection_subjects),
+        .selection_counts = @ptrCast(&selection_counts),
+        .selection_comparisons = @ptrCast(&selection_comparisons),
+        .selection_selected = @ptrCast(&selection_selected),
+        .selection_has_fallback = @ptrCast(&selection_has_fallback),
+        .selection_fallbacks = @ptrCast(&selection_fallbacks),
     };
 
     const request: Execution = .{
@@ -172,68 +192,40 @@ pub fn finishStatementScope(handle: *const anyopaque, slot: u64) ?u64 {
     return rows.packSpan(frame.child);
 }
 
-pub fn openStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64) bool {
+pub fn openStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64, name: []const u8, subject: u32, reference: u32) bool {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
 
-    frame.selections[@intCast(placement)].enter(frame.lowering, scope.values.at(offset).switch_stmt) catch return false;
+    frame.selections[@intCast(placement)].enter(
+        frame.lowering,
+        scope.values.at(offset).switch_stmt,
+        name,
+        @fromBackingInt(subject),
+        @fromBackingInt(reference),
+    ) catch return false;
 
     return true;
 }
 
-pub fn saveStatementFallback(handle: *const anyopaque, placement: u64) bool {
+pub fn resolveStatementSelection(handle: *const anyopaque, placement: u64, count: u32, selected: bool) bool {
     const frame = Frame.borrow(handle);
 
-    frame.selections[@intCast(placement)].fallback = frame.child;
+    frame.selections[@intCast(placement)].resolve(count, selected) catch return false;
 
     return true;
 }
 
-pub fn resolveStatementSelection(handle: *const anyopaque, placement: u64, count: u32) bool {
+pub fn saveStatementCase(handle: *const anyopaque, placement: u64, index: u32, comparison: u32, literal: ?u32) void {
     const frame = Frame.borrow(handle);
 
-    frame.selections[@intCast(placement)].resolve(frame.lowering, count) catch return false;
-
-    return true;
+    frame.selections[@intCast(placement)].saveCase(index, frame.child, comparison, literal);
 }
 
-pub fn statementSelectionUsesSwitch(handle: *const anyopaque, placement: u64) bool {
-    return Frame.borrow(handle).selections[@intCast(placement)].selected;
-}
-
-pub fn statementSelectionCaseCount(handle: *const anyopaque, placement: u64) u64 {
-    return Frame.borrow(handle).selections[@intCast(placement)].starts.len;
-}
-
-pub fn resetStatementCase(handle: *const anyopaque, placement: u64, index: u32) void {
-    Frame.borrow(handle).selections[@intCast(placement)].resetCase(index);
-}
-
-pub fn saveStatementCase(handle: *const anyopaque, placement: u64, index: u32) void {
-    const frame = Frame.borrow(handle);
-
-    frame.selections[@intCast(placement)].saveCase(index, frame.child);
-}
-
-pub fn lowerStatementComparison(handle: *const anyopaque, placement: u64, index: u32, label: u32) bool {
-    const frame = Frame.borrow(handle);
-
-    frame.selections[@intCast(placement)].compareCase(frame.lowering, index, @fromBackingInt(label)) catch return false;
-
-    return true;
-}
-
-pub fn lowerStatementCaseLiteral(handle: *const anyopaque, placement: u64, index: u32, label: u32) bool {
-    const frame = Frame.borrow(handle);
-
-    frame.selections[@intCast(placement)].literalCase(frame.lowering, index, @fromBackingInt(label)) catch return false;
-
-    return true;
-}
-
-pub fn finishStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64) bool {
+pub fn finishStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64, fallback: ?u64) bool {
     const frame = Frame.borrow(handle);
     const selection = &frame.selections[@intCast(placement)];
+    selection.fallback = if (fallback) |value| rows.unpackSpan(value) else null;
+
     const block = selection.finish(frame.lowering) catch return false;
 
     frame.scopes[@intCast(slot)].put(offset, block);

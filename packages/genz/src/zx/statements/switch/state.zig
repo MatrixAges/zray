@@ -1,10 +1,7 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
-const labels_analysis = @import("../../selection.zig");
-const references = @import("references.zig");
 const Selection = @FieldType(ir.StatementRow, "switch_stmt");
 const Self = @This();
 
@@ -23,11 +20,15 @@ starts: []u32 = &.{},
 counts: []u32 = &.{},
 comparisons: []u32 = &.{},
 literals: []?u32 = &.{},
-pub fn enter(self: *Self, lowering: *Lower, selection: Selection) Lower.Error!void {
-    const name = try references.name(lowering);
-    const subject = try lowering.expr(selection.subject);
+pub fn enter(
+    self: *Self,
+    lowering: *Lower,
+    selection: Selection,
+    name: []const u8,
+    subject: node.ExpressionId,
+    reference: node.ExpressionId,
+) Lower.Error!void {
     const previous = lowering.cache.get(selection.subject);
-    const reference = try references.identifier(lowering, name);
 
     try lowering.cache.put(lowering.allocator, selection.subject, reference);
 
@@ -44,35 +45,21 @@ pub fn enter(self: *Self, lowering: *Lower, selection: Selection) Lower.Error!vo
     self.memory = .init(&self.inline_memory, self.scratch.allocator());
 }
 
-pub fn resolve(self: *Self, lowering: *Lower, named: usize) Lower.Error!void {
+pub fn resolve(self: *Self, named: usize, selected: bool) Lower.Error!void {
     const allocator = self.memory.allocator();
-    const labels = try allocator.alloc(u32, named);
 
-    try collectLabels(self.selection.cases.values[0..self.selection.cases.len], labels);
-
-    self.selected = try labels_analysis.labels(lowering, self.selection.subject, labels);
+    self.selected = selected;
     self.starts = try allocator.alloc(u32, named);
     self.counts = try allocator.alloc(u32, named);
     self.comparisons = try allocator.alloc(u32, named);
     self.literals = try allocator.alloc(?u32, named);
 }
 
-pub fn resetCase(self: *Self, index: usize) void {
-    self.comparisons[index] = 0;
-    self.literals[index] = null;
-}
-
-pub fn saveCase(self: *Self, index: usize, child: node.Block) void {
+pub fn saveCase(self: *Self, index: usize, child: node.Block, comparison: u32, literal: ?u32) void {
     self.starts[index] = child.start;
     self.counts[index] = child.len;
-}
-
-pub fn compareCase(self: *Self, lowering: *Lower, index: usize, label: ir.ExprId) Lower.Error!void {
-    self.comparisons[index] = @backingInt(try equal(self, lowering, label));
-}
-
-pub fn literalCase(self: *Self, lowering: *Lower, index: usize, label: ir.ExprId) Lower.Error!void {
-    self.literals[index] = @backingInt(try labels_analysis.literal(lowering, label));
+    self.comparisons[index] = comparison;
+    self.literals[index] = literal;
 }
 
 pub fn finish(self: *Self, lowering: *Lower) Lower.Error!node.Block {
@@ -86,20 +73,4 @@ pub fn leave(self: *Self, lowering: *Lower) void {
 
     self.scratch.deinit();
     lowering.cache.restoreEntry(lowering.allocator, self.selection.subject, self.previous);
-}
-
-fn equal(self: *const Self, lowering: *Lower, label: ir.ExprId) Lower.Error!node.ExpressionId {
-    return lowering.binary(.{ .operator = .equal, .left = self.selection.subject, .right = label });
-}
-
-fn collectLabels(values: []const ?u32, labels_arg: []u32) Lower.Error!void {
-    var labels = labels_arg;
-    const entry = @import("generated_switch_labels");
-    const input: std.meta.Child(entry.Input) = .{ .values = values, .labels = @ptrCast(&labels) };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
 }

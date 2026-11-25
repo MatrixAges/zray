@@ -1,34 +1,76 @@
 import integers from "std:integer"
+import { BinaryOperator } from "core/expression_table/kinds"
 import host from "lowering_host"
+import memory from "memory"
+
+import binary from "../../../expressions/evaluate/binary"
 
 import type { Case as Input } from "./model"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { traversal, placement, count, first } = in
+    const { traversal, context, buffers, placement, count, first } = in
 
-    const direct = host.statementSelectionUsesSwitch(traversal, placement)
+    const direct = memory.readU8(buffers.selection_selected, placement) != 0
+    const subject_ir = memory.readU32(buffers.selection_subjects, placement)
+
+    const binary_expressions = context.expressions.pick([
+        "kinds",
+        "types"
+    ])
 
     if (!in.after) {
-        host.resetStatementCase(traversal, placement, count)
+        if (direct) {
+            return true
+        }
 
-        return direct ||
-            host.lowerStatementComparison(traversal, placement, count, first)
-    }
+        const comparison = binary({
+            frame: context.frame,
+            writer: context.writer,
+            origin: context.origin,
+            expressions: binary_expressions,
+            types: context.types,
+            operator: BinaryOperator.Equal,
+            left_ir: subject_ir,
+            right_ir: first
+        })
 
-    host.saveStatementCase(traversal, placement, count)
+        memory.writeU32(buffers.selection_comparisons, placement, comparison)
 
-    if (!direct) {
         return true
     }
 
-    const last = integers.widen(count) + 1 ==
-        host.statementSelectionCaseCount(traversal, placement)
+    if (!direct) {
+        const comparison = memory.readU32(buffers.selection_comparisons, placement)
 
-    if (last) {
-        return host.lowerStatementComparison(traversal, placement, count, first)
+        host.saveStatementCase(traversal, placement, count, comparison, null)
+
+        return true
     }
 
-    return host.lowerStatementCaseLiteral(traversal, placement, count, first)
+    const case_count = memory.readU32(buffers.selection_counts, placement)
+
+    if (integers.widen(count) + 1 == integers.widen(case_count)) {
+        const comparison = binary({
+            frame: context.frame,
+            writer: context.writer,
+            origin: context.origin,
+            expressions: binary_expressions,
+            types: context.types,
+            operator: BinaryOperator.Equal,
+            left_ir: subject_ir,
+            right_ir: first
+        })
+
+        host.saveStatementCase(traversal, placement, count, comparison, null)
+
+        return true
+    }
+
+    const literal = host.lowerRegular(context.frame, first, true, null)
+
+    host.saveStatementCase(traversal, placement, count, 0, literal)
+
+    return true
 }

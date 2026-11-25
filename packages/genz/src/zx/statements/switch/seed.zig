@@ -33,7 +33,7 @@ pub fn lowerSwitch(self: *Lower, selection: @FieldType(ir.StatementRow, "switch_
         if (selection.cases.at(case_index).value) |value| try conditions.append(self.allocator, @backingInt(value));
     }
 
-    if (try @import("../../selection.zig").labels(self, selection.subject, conditions.items)) {
+    if (try @import("../../selection/seed.zig").labels(self, selection.subject, conditions.items)) {
         const arms = try self.allocator.alloc(node.SelectionArm, conditions.items.len);
         var remaining = conditions.items.len;
         var position = selection.cases.len;
@@ -52,7 +52,7 @@ pub fn lowerSwitch(self: *Lower, selection: @FieldType(ir.StatementRow, "switch_
 
                 arms[remaining] = .{ .result = try self.builder.expression(.{ .block = .{ .label = "", .statements = branch } }) };
             } else {
-                arms[remaining] = .{ .value = try @import("../../selection.zig").literal(self, label), .result = try self.builder.expression(.{ .block = .{ .label = "", .statements = body } }) };
+                arms[remaining] = .{ .value = try @import("../../selection/seed.zig").literal(self, label), .result = try self.builder.expression(.{ .block = .{ .label = "", .statements = body } }) };
             }
         }
 

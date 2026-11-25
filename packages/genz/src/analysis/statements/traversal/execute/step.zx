@@ -8,6 +8,8 @@ import branch from "../../basic/branch"
 import { Action } from "../model"
 import selectionCase from "./case"
 import openScope from "./open_scope"
+import selectionOpen from "./selection_open"
+import selectionResolve from "./selection_resolve"
 
 import type { Step as Input, StepResult as Output } from "./model"
 
@@ -111,13 +113,57 @@ export default function (in: Input): Output {
         }
     }
 
+    if (action == Action.Fallback) {
+        memory.writeU8(buffers.selection_has_fallback, placement, 1)
+        memory.writeU64(buffers.selection_fallbacks, placement, child)
+
+        return {
+            ok: true,
+            child
+        }
+    }
+
+    if (action == Action.EndSelection) {
+        const has_fallback =
+            memory.readU8(buffers.selection_has_fallback, placement) != 0
+
+        const fallback: u64? = match {
+            has_fallback => memory.readU64(buffers.selection_fallbacks, placement),
+            _ => null
+        }
+
+        return {
+            ok: host.finishStatementSelection(
+                traversal,
+                scope,
+                first,
+                placement,
+                fallback
+            ),
+            child
+        }
+    }
+
     const ok = match action {
-        Action.Selection =>
-            host.openStatementSelection(traversal, scope, first, placement),
-        Action.Fallback => host.saveStatementFallback(traversal, placement),
-        Action.Resolve => host.resolveStatementSelection(traversal, placement, count),
+        Action.Selection => selectionOpen({
+            traversal,
+            context,
+            buffers,
+            scope,
+            first,
+            placement
+        }),
+        Action.Resolve => selectionResolve({
+            traversal,
+            context,
+            buffers,
+            placement,
+            count
+        }),
         Action.Case => selectionCase({
             traversal,
+            context,
+            buffers,
             placement,
             count,
             first,
@@ -125,13 +171,13 @@ export default function (in: Input): Output {
         }),
         Action.SaveCase => selectionCase({
             traversal,
+            context,
+            buffers,
             placement,
             count,
             first,
             after: true
         }),
-        Action.EndSelection =>
-            host.finishStatementSelection(traversal, scope, first, placement),
         _ => false
     }
 

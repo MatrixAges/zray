@@ -45,7 +45,7 @@ export default function (in: Input): Output {
 
     host.setLoweringSerial(frame, generated.serial)
 
-    const capture = context.expression_kinds[integers.widen(value)] ==
+    const capture = context.expressions.kinds[integers.widen(value)] ==
         ExpressionKind.Capture
 
     const operand = match {

@@ -1,9 +1,12 @@
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { Control as ControlTable } from "core/control_table/model"
-import type { ExpressionKind } from "core/expression_table/kinds"
 import type { StoreMode } from "core/function_table/complete"
+import type { Table as TypeTable } from "core/type_table/model"
 import type { Lowering, StatementTraversal } from "lowering_host"
 import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
+import type {
+    Expressions as SelectionExpressions
+} from "../../../selection/labels/model"
 import type { Action, Schedule } from "../model"
 
 export type Control = ControlTable.Pick(
@@ -18,7 +21,11 @@ export type Control = ControlTable.Pick(
     "destructure_values",
     "destructure_first",
     "destructure_count",
-    "destructure_symbols"
+    "destructure_symbols",
+    "selection_subjects",
+    "selection_first",
+    "selection_count",
+    "case_values"
 )
 
 export type Buffers = {
@@ -29,7 +36,14 @@ export type Buffers = {
     scope_placements: U64Buffer,
     scope_conditions: U32Buffer,
     scope_yes_starts: U32Buffer,
-    scope_yes_counts: U32Buffer
+    scope_yes_counts: U32Buffer,
+    selection_payloads: U32Buffer,
+    selection_subjects: U32Buffer,
+    selection_counts: U32Buffer,
+    selection_comparisons: U32Buffer,
+    selection_selected: U8Buffer,
+    selection_has_fallback: U8Buffer,
+    selection_fallbacks: U64Buffer
 }
 
 export type Context = {
@@ -38,9 +52,8 @@ export type Context = {
     origin: AstOriginBuffer,
     sequence: AstSequence,
     control: Control,
-    expression_kinds: ExpressionKind[],
-    expression_types: u32[],
-    type_kinds: u8[],
+    expressions: SelectionExpressions,
+    types: TypeTable,
     store_mode: StoreMode,
     store_count: u64,
     names: u8[][],
@@ -82,7 +95,14 @@ export type Scope = Step.Pick(
     "scope"
 )
 
-export type Case = Step.Pick("traversal", "placement", "count", "first") & {
+export type Case = Step.Pick(
+    "traversal",
+    "context",
+    "buffers",
+    "placement",
+    "count",
+    "first"
+) & {
     after: bool
 }
 

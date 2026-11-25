@@ -1,0 +1,81 @@
+import integers from "std:integer"
+import {
+    AstPayloadOwnership,
+    appendExpressionRows,
+    astFieldCount,
+    readAstOrigin
+} from "ast_rows"
+import host from "lowering_host"
+import memory from "memory"
+import { requireAllocation } from "memory"
+
+import switchName from "../../switch/name"
+import switchReference from "../../switch/reference"
+
+import type { StatementTraversal } from "lowering_host"
+import type { Buffers, Context } from "./model"
+
+export type Input = {
+    traversal: StatementTraversal,
+    context: Context,
+    buffers: Buffers,
+    scope: u64,
+    first: u32,
+    placement: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { traversal, context, buffers, scope, first, placement } = in
+    const { frame, writer, origin, control } = context
+
+    const scope_first = memory.readU32(buffers.scope_firsts, scope)
+    const row = integers.widen(scope_first) + integers.widen(first)
+    const payload = control.statement_payloads[row]
+    const subject_ir = control.selection_subjects[integers.widen(payload)]
+    const current = readAstOrigin(writer, origin)
+
+    const generated = switchName({
+        serial: current.serial
+    })
+
+    const name = host.retainLoweringText(frame, generated.name)
+
+    host.setLoweringSerial(frame, generated.serial)
+
+    const subject = host.lowerExpression(frame, subject_ir, false, null)
+    const ref_origin = readAstOrigin(writer, origin)
+    const field_base = astFieldCount(writer)
+
+    const ref = switchReference({
+        name,
+        bases: {
+            ...ref_origin,
+            field_base
+        }
+    })
+
+    requireAllocation(ref.valid)
+
+    appendExpressionRows(
+        writer,
+        ref.expressions,
+        null,
+        AstPayloadOwnership.BorrowingText
+    )
+
+    memory.writeU32(buffers.selection_payloads, placement, payload)
+    memory.writeU32(buffers.selection_subjects, placement, subject_ir)
+    memory.writeU8(buffers.selection_has_fallback, placement, 0)
+
+    return host.openStatementSelection(
+        traversal,
+        scope,
+        first,
+        placement,
+        name,
+        subject,
+        ref.root
+    )
+}
