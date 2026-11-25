@@ -1,0 +1,25 @@
+import { storeAstIdPair } from "ast_rows"
+
+import type { AstWriter } from "ast_rows"
+
+export type Pair = {
+    first: u32,
+    second: u32
+}
+
+export type Input = {
+    writer: AstWriter,
+    arguments?: Pair
+}
+
+export type Output = u32[][]
+
+export default function (in: Input): Output {
+    const { writer, arguments } = in
+
+    if (arguments == null) {
+        return []
+    }
+
+    return [storeAstIdPair(writer, arguments.first, arguments.second)]
+}

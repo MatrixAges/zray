@@ -258,6 +258,37 @@ pub fn retainAstIds(writer: *const anyopaque, ids: []const u32) Lower.Error![]co
     return borrow(writer).allocator.dupe(u32, ids);
 }
 
+pub fn storeAstIdPair(writer: *const anyopaque, first: u32, second: u32) Lower.Error![]const u32 {
+    const ids = try borrow(writer).allocator.create([2]u32);
+
+    ids.* = .{ first, second };
+
+    return ids;
+}
+
+pub fn appendAstLiteralRows(writer: *const anyopaque, source: *const Ast.AstLiteralRows, arguments: []const []const u32) Lower.Error!void {
+    return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
+}
+
+pub fn appendAstAccessRows(writer: *const anyopaque, source: *const Ast.AstAccessRows, arguments: []const []const u32) Lower.Error!void {
+    return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
+}
+
+pub fn appendAstArrayRows(writer: *const anyopaque, source: *const Ast.AstArrayRows, arguments: []const []const u32) Lower.Error!void {
+    return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
+}
+
+pub fn appendAstAllocationCallRows(writer: *const anyopaque, source: *const Ast.AstAllocationCallRows, arguments: []const []const u32) Lower.Error!void {
+    return appendValueRows(writer, source, .{ .call_arguments = arguments });
+}
+
+fn appendValueRows(writer: *const anyopaque, source: anytype, arguments: anytype) Lower.Error!void {
+    const self = borrow(writer);
+    const rows = view.join(source.*, arguments);
+
+    return appendRows(self, &self.builder.nodes.expressions, &rows, .Borrowed);
+}
+
 pub fn appendAstOperandRows(writer: *const anyopaque, source: *const Ast.AstOperandRows) Lower.Error!void {
     const self = borrow(writer);
 

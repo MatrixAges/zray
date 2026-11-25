@@ -1,0 +1,47 @@
+export type AstLiteralRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    integer: u64[],
+    float: u64[],
+    string: u8[][],
+    boolean: bool[],
+    enum_literal: u8[][],
+    error_value: u8[][],
+    unary_operator: ExpressionsUnaryOperator[],
+    unary_operand: u32[],
+    builtin_name: ExpressionsBuiltinName[]
+}
+
+export type AstAccessRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    field_target: u32[],
+    field_name: u8[][],
+    dereference: u32[],
+    optional_unwrap: u32[],
+    builtin_name: ExpressionsBuiltinName[]
+}
+
+export type AstArrayRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    array_element_type: u32[],
+    array_values: u32[][],
+    address_of: u32[],
+    comptime_value: u32[],
+    builtin_name: ExpressionsBuiltinName[]
+}
+
+export type AstAllocationCallRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    identifier: u8[][],
+    field_target: u32[],
+    field_name: u8[][],
+    call_callee: u32[],
+    try_value: u32[],
+    catch_value_value: u32[],
+    catch_value_capture: u8[][],
+    catch_value_label: u8[][],
+    catch_value_result: u32[]
+}

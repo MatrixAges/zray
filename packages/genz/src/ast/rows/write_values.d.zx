@@ -1,0 +1,26 @@
+export declare function storeAstIdPair(writer: AstWriter, first: u32, second: u32): u32[]
+    throws { OutOfMemory }
+
+export declare function appendAstLiteralRows(
+    writer: AstWriter,
+    rows: AstLiteralRows,
+    arguments: u32[][]
+): void throws { OutOfMemory }
+
+export declare function appendAstAccessRows(
+    writer: AstWriter,
+    rows: AstAccessRows,
+    arguments: u32[][]
+): void throws { OutOfMemory }
+
+export declare function appendAstArrayRows(
+    writer: AstWriter,
+    rows: AstArrayRows,
+    arguments: u32[][]
+): void throws { OutOfMemory }
+
+export declare function appendAstAllocationCallRows(
+    writer: AstWriter,
+    rows: AstAllocationCallRows,
+    arguments: u32[][]
+): void throws { OutOfMemory }
