@@ -1,15 +1,20 @@
-export { readU64 } from "memory"
+export { readU64, selectAllocator, selectArena } from "memory"
 export {
+    Admission,
     closeNativeScope,
+    finishNativeScopeDeclarations,
     openNativeScope,
-    publishNativeScopeDeclarations,
-    publishNativeScopeSettings,
+    openNativeScopeArtifact,
+    prepareNativeScopeAliases,
+    publishNativeScopeModule,
     requireNativeScopeAdmission,
+    reserveNativeScopeDeclarations,
     reserveNativeScopeIndex,
     reserveNativeScopeInterfaces,
     reserveNativeScopeLibraryPaths,
     reserveNativeScopeModules,
-    reserveNativeScopeNames
+    reserveNativeScopeNames,
+    reserveNativeScopeSettings
 } from "native_scope_host"
 
 export { default as checkExternals } from "./rules/admission/externals"

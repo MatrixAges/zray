@@ -1,13 +1,13 @@
 import memory from "memory"
 import {
     Admission,
-    compiledNativeScopeIdentity,
     nativeScopeDeclaration,
     requireNativeScopeAdmission,
     writeNativeScopeDeclaration
 } from "native_scope_host"
 
 import backend from "./rules/naming/backend"
+import compiledIdentity from "./rules/naming/compiled"
 import declaration from "./rules/naming/declaration"
 import registered from "./rules/naming/registered"
 
@@ -30,7 +30,10 @@ export default function (in: Input): Output {
             const { specifier, module } = nativeScopeDeclaration(frame, row, external)
 
             const generated: string? = match scope.compiled {
-                true => compiledNativeScopeIdentity(frame, specifier),
+                true => compiledIdentity({
+                    binding: in,
+                    requested: specifier
+                }),
                 _ => declaration({
                     owner: scope.owner,
                     value: specifier

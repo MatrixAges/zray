@@ -1,11 +1,11 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const effects = @import("../../sources/effects.zig");
-const CompiledNative = @import("../compiled_native.zig");
+const aliases = @import("aliases.zig");
 const Inputs = @import("watch_inputs").Inputs;
 const model = @import("../../../package/manifest/model.zig");
 const memory = @import("zx").memory;
-const storage = @import("publish.zig");
+const projections = @import("projections.zig");
 const abi = @import("cli_abi").layouts.@"zig:native_scope_host";
 const Self = @This();
 const name_workspace_slots = 32;
@@ -13,7 +13,9 @@ const Request = std.meta.Child(@typeInfo(@import("cli_source").native_scope_load
 const Workspace = std.meta.Child(@FieldType(Request, "workspace"));
 const Modules = std.meta.Child(@FieldType(Workspace, "modules"));
 const Binding = std.meta.Child(@FieldType(Workspace, "binding"));
-pub const Result = struct { config: model.Manifest, interfaces: []const compiler.project.NativeInterface, settings: []const storage.NativeSettings };
+const Traversal = std.meta.Child(@FieldType(Workspace, "traversal"));
+pub const NativeSettings = projections.NativeSettings;
+pub const Result = struct { config: model.Manifest, interfaces: []const compiler.project.NativeInterface, settings: []const NativeSettings };
 
 io: std.Io,
 allocator: std.mem.Allocator,
@@ -27,12 +29,20 @@ modules: std.ArrayList(model.NativeModule) = .empty,
 declarations: std.ArrayList(model.NativeInterface) = .empty,
 interfaces: std.ArrayList(compiler.project.NativeInterface) = .empty,
 externals: std.ArrayList(compiler.project.External) = .empty,
-settings: std.ArrayList(storage.NativeSettings) = .empty,
+settings: std.ArrayList(NativeSettings) = .empty,
 libraries: std.ArrayList([]const u8) = .empty,
 library_paths: std.ArrayList([]const u8) = .empty,
 registry: compiler.project.source_index.Owned = .{},
 current: usize = undefined,
-compiled: ?CompiledNative = null,
+compiled: ?compiler.library.Result = null,
+compiled_modules: aliases.Modules = undefined,
+compiled_view: aliases.Compiled = undefined,
+alias_declarations: aliases.Declarations = undefined,
+alias_native: aliases.Rows = undefined,
+alias_external: aliases.Rows = undefined,
+alias_input: aliases.Input = undefined,
+alias_storage: aliases.Storage = undefined,
+alias_active: bool = false,
 native: []compiler.project.NativeInterface = undefined,
 legacy: []compiler.project.External = undefined,
 slots: [name_workspace_slots][]const u8 = undefined,
@@ -46,6 +56,11 @@ header_view: memory.ReadColumn = undefined,
 index: std.meta.Child(@FieldType(Modules, "index")) = undefined,
 workspace: Workspace = undefined,
 binding: Binding = undefined,
+traversal: Traversal = undefined,
+module_cursor: [1]u64 = .{0},
+module_index: []u64 = undefined,
+declaration_views: projections.Declarations = undefined,
+setting_views: projections.Settings = undefined,
 registry_view: std.meta.Child(@FieldType(Binding, "registry")) = undefined,
 external_rows: std.meta.Child(@FieldType(Workspace, "externals")) = undefined,
 module_rows: Modules = undefined,
@@ -69,6 +84,12 @@ pub fn scope(self: *const Self) *compiler.project.PackageScope {
 }
 
 pub fn close(self: *Self) void {
+    if (self.alias_active) {
+        aliases.discard(self.allocator, &self.alias_input, &self.alias_storage);
+
+        self.alias_active = false;
+    }
+
     if (self.names.len != 0 or self.buckets.len != 0) {
         const temporary = self.name_memory.allocator();
 

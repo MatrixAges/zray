@@ -19,6 +19,26 @@
         ]}
     />
 
+    <Call
+        fn="../library/consumption/native_artifact"
+        in={{
+            path: $ctx.openNativeScope.artifact,
+            modules: $ctx.openNativeScope.modules,
+            interfaces: $ctx.openNativeScope.declarations,
+            externals: $ctx.openNativeScope.externals
+        }}
+    />
+
+    <If on={$ctx.native_artifact != null}>
+        <Call
+            fn="index.openNativeScopeArtifact"
+            in={[
+                $in.frame,
+                $ctx.native_artifact
+            ]}
+        />
+    </If>
+
     <Call fn="index.checkExternals" in={$in.workspace.externals} />
 
     <Call
@@ -58,7 +78,11 @@
     />
 
     <Call fn="bind" in={$in.workspace.binding} />
-    <Call fn="index.publishNativeScopeDeclarations" in={$in.frame} />
+    <Call fn="index.reserveNativeScopeDeclarations" in={$in.frame} />
+
+    <Call module="publish" in={$in.workspace.declarations} />
+
+    <Call fn="index.finishNativeScopeDeclarations" in={$in.frame} />
     <Call fn="index.reserveNativeScopeLibraryPaths" in={$in.frame} />
 
     <Call
@@ -71,7 +95,13 @@
     />
 
     <Call fn="index.reserveNativeScopeModules" in={$in.frame} />
-    <Call fn="modules" in={$in.workspace.binding} />
-    <Call fn="index.publishNativeScopeSettings" in={$in.frame} />
+
+    <If on={$ctx.openNativeScope.modules != 0}>
+        <Call module="modules" in={$in.workspace.traversal} />
+
+        <Call fn="index.reserveNativeScopeSettings" in={$in.frame} />
+        <Call fn="settings" in={$in.workspace.settings} />
+    </If>
+
     <Call fn="index.closeNativeScope" in={$in.frame} />
 </Module>

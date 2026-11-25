@@ -1,0 +1,50 @@
+import find from "compiler_rules/compiled/identity/declaration"
+import own from "compiler_rules/compiled/identity/own_declaration"
+import memory from "memory"
+import { Admission, requireNativeScopeAdmission } from "native_scope_host"
+
+import type { Binding } from "../../workflow"
+
+export type Input = {
+    binding: Binding,
+    requested: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { binding, requested } = in
+    const { library, resources, window } = binding
+
+    const found = find({
+        modules: library.modules,
+        requested
+    })
+
+    if (found.conflict) {
+        requireNativeScopeAdmission(
+            window.frame,
+            Admission.ConflictingNativeAbiAlias
+        )
+    }
+
+    const identity = found.identity
+
+    if (identity == null) {
+        requireNativeScopeAdmission(window.frame, Admission.UnknownNativeAbiAlias)
+
+        return null
+    }
+
+    memory.selectAllocator(resources.active, resources.owner)
+
+    const published = own({
+        instance: library.instance,
+        value: identity,
+        shared: found.shared
+    })
+
+    memory.selectArena(resources.active, resources.scratch)
+
+    return published
+}

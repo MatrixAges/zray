@@ -258,10 +258,6 @@
             "name": "compiled_artifact_constants"
         },
         {
-            "path": "library/consumption/native_artifact.zx",
-            "name": "compiled_native_artifact"
-        },
-        {
             "path": "library/consumption/manifest.rx",
             "name": "compiled_manifest_selection"
         },
@@ -322,12 +318,8 @@
             "name": "native_scope_load"
         },
         {
-            "path": "scopes/publish.rx",
-            "name": "native_scope_publication"
-        },
-        {
-            "path": "scopes/settings.zx",
-            "name": "native_scope_settings"
+            "path": "compiler_rules/compiled/identity/aliases/release.zx",
+            "name": "native_scope_release_aliases"
         },
         {
             "path": "package/project/scope/build.rx",
@@ -492,8 +484,28 @@
             "entry": "core/bytes/index/borrowed/wide_slot.zx"
         },
         {
+            "specifier": "core/native_module_table/model",
+            "entry": "core/native_module_table/model.zx"
+        },
+        {
+            "specifier": "core/native_module_table/key",
+            "entry": "core/native_module_table/key.zx"
+        },
+        {
+            "specifier": "compiler_rules/compiled/identity/aliases/model",
+            "entry": "compiler_rules/compiled/identity/aliases/model.zx"
+        },
+        {
+            "specifier": "compiler_rules/compiled/identity/declaration",
+            "entry": "compiler_rules/compiled/identity/declaration.zx"
+        },
+        {
             "specifier": "compiler_rules/compiled/identity/native_name",
             "entry": "compiler_rules/compiled/identity/native_name.zx"
+        },
+        {
+            "specifier": "compiler_rules/compiled/identity/own_declaration",
+            "entry": "compiler_rules/compiled/identity/own_declaration.zx"
         },
         {
             "specifier": "compiler_rules/project/target/select",

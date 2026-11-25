@@ -6,7 +6,7 @@ const State = @import("scopes/state.zig");
 const rule = @import("cli_source").native_scope_load;
 const memory = @import("zx").memory;
 const name_workspace_size = 1024;
-pub const NativeSettings = @import("scopes/publish.zig").NativeSettings;
+pub const NativeSettings = State.NativeSettings;
 pub const Result = State.Result;
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project.PackageScope, manifests: []const model.Manifest, owner: usize, inputs: ?*Inputs) !Result {
@@ -44,8 +44,18 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
         .active = @ptrCast(&active),
     };
 
-    state.workspace = .{ .externals = &state.external_rows, .modules = &state.module_rows, .binding = &state.binding };
-    state.binding = .{ .window = &state.window, .registry = &state.registry_view, .resources = &resources };
+    state.workspace = .{
+        .externals = &state.external_rows,
+        .modules = &state.module_rows,
+        .binding = &state.binding,
+        .traversal = &state.traversal,
+        .declarations = &state.declaration_views.view,
+        .settings = &state.setting_views.view,
+    };
+
+    state.binding = .{ .window = &state.window, .registry = &state.registry_view, .resources = &resources, .library = &state.compiled_view };
+    state.module_index = &state.module_cursor;
+    state.traversal = .{ .binding = &state.binding, .index = @ptrCast(&state.module_index), .aliases = &state.alias_input };
 
     rule.executeIn(active.allocator(), &.{
         .frame = @ptrCast(&reference),
@@ -53,7 +63,11 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
         .index = @ptrCast(&index),
         .workspace = &state.workspace,
         .resources = &resources,
-    }) catch |err| return state.failure.unwrap(err);
+    }) catch |err| {
+        if (state.alias_active and (err == error.Overflow or err == error.IntegerOverflow)) return error.OutOfMemory;
+
+        return state.failure.unwrap(err);
+    };
 
     return state.take(manifests[owner]);
 }
