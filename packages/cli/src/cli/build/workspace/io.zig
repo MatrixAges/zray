@@ -25,9 +25,17 @@ pub const Context = struct {
 };
 
 pub fn matches(handle: *const anyopaque, path: []const u8, expected: []const u8) Error!bool {
+    return (try compare(handle, path, expected, false)) orelse false;
+}
+
+pub fn matchesPrefix(handle: *const anyopaque, path: []const u8, prefix: []const u8) Error!?bool {
+    return compare(handle, path, prefix, true);
+}
+
+fn compare(handle: *const anyopaque, path: []const u8, expected: []const u8, comptime prefix_only: bool) Error!?bool {
     const context = Context.get(handle);
 
-    return matchesFile(context.directory, context.io, path, expected) catch |err| {
+    return matchesFile(context.directory, context.io, path, expected, prefix_only) catch |err| {
         context.failure = err;
 
         return error.ArtifactIoFailure;
@@ -50,9 +58,9 @@ pub fn write(io: std.Io, path: []const u8, content: []const u8) !void {
     return context.writeFile(path, content);
 }
 
-fn matchesFile(directory: std.Io.Dir, io: std.Io, path: []const u8, expected: []const u8) !bool {
+fn matchesFile(directory: std.Io.Dir, io: std.Io, path: []const u8, expected: []const u8, comptime prefix_only: bool) !?bool {
     const file = directory.openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows }) catch |err| switch (err) {
-        error.FileNotFound => return false,
+        error.FileNotFound => return null,
         else => return err,
     };
 
@@ -69,10 +77,12 @@ fn matchesFile(directory: std.Io.Dir, io: std.Io, path: []const u8, expected: []
             error.ReadFailed => return reader.err.?,
         };
 
-        if (data.len > remaining.len) return false;
+        if (!prefix_only and data.len > remaining.len) return false;
 
-        equal = equal and std.mem.eql(u8, data, remaining[0..data.len]);
-        remaining = remaining[data.len..];
+        const width = if (prefix_only) @min(data.len, remaining.len) else data.len;
+
+        equal = equal and std.mem.eql(u8, data[0..width], remaining[0..width]);
+        remaining = remaining[width..];
 
         reader.interface.tossBuffered();
     }

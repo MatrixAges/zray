@@ -1,0 +1,24 @@
+import host from "publication_host"
+
+import type { OutputTarget } from "publication_host"
+import type { Ancestor } from "./model"
+
+export type Input = {
+    target: OutputTarget,
+    logical: string,
+    ancestor: Ancestor
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { target, logical, ancestor } = in
+
+    if (host.isDirectOutput(target, logical)) {
+        const physical = host.readOutputPath(target, logical, false)
+
+        return host.keepOutputPath(target, physical, "", 0)
+    }
+
+    return host.keepOutputPath(target, ancestor.path, logical, ancestor.prefix)
+}

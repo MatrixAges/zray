@@ -1,0 +1,41 @@
+import { pathParent } from "lexical_path"
+import host from "publication_host"
+
+import type { OutputTarget } from "publication_host"
+import type { Ancestor as Output } from "./model"
+
+export type Input = [OutputTarget, string]
+
+export default function (in: Input): Output {
+    const [target, logical] = in
+
+    const initial = pathParent(logical) ?? logical
+
+    return loop({
+        logical: initial,
+        physical: "",
+        searching: true
+    }, {
+        while: state => state.searching,
+        next: state => {
+            const physical = host.readOutputPath(target, state.logical, true)
+
+            if (physical.length != 0) {
+                state.physical = physical
+                state.searching = false
+            } else {
+                const parent = pathParent(state.logical)
+
+                if (parent == null) {
+                    state.searching = false
+                } else {
+                    state.logical = parent
+                }
+            }
+        },
+        return: state => ({
+            path: state.physical,
+            prefix: state.logical.length
+        })
+    })
+}

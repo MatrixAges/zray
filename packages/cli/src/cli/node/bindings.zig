@@ -19,7 +19,7 @@ pub fn create(allocator: std.mem.Allocator, bundle: *const Bundle, options: Opti
     return .{
         .module_path = try std.fmt.allocPrint(allocator, "{s}.cjs", .{stem}),
         .declaration_path = try std.fmt.allocPrint(allocator, "{s}.d.cts", .{stem}),
-        .module_source = try std.fmt.allocPrint(allocator, marker ++ "const binding = require({s});\n\nexports.execute = binding.execute;\nexports.executeAsync = (...args) => new Promise((resolve, reject) => binding.executeTask(...args, resolve, reject));\n", .{path_literal}),
+        .module_source = try std.fmt.allocPrint(allocator, "{s}const binding = require({s});\n\nexports.execute = binding.execute;\nexports.executeAsync = (...args) => new Promise((resolve, reject) => binding.executeTask(...args, resolve, reject));\n", .{ marker, path_literal }),
         .declarations = try @import("napi_declarations").render(allocator, signature.types, signature.input, signature.output),
     };
 }

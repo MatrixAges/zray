@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Output" />
+
+    <Args in={Output.Input} out={Output.Status} />
+
+    <Call
+        fn="index.resolvePathParts"
+        in={[
+            $in.cwd,
+            $in.path
+        ]}
+    />
+
+    <Call
+        fn="ancestor"
+        in={[
+            $in.target,
+            $ctx.resolvePathParts
+        ]}
+    />
+
+    <If on={$ctx.ancestor.path.length == 0}>
+        <Return value={Output.Status.MissingParent} />
+    </If>
+
+    <Call
+        fn="destination"
+        in={{
+            target: $in.target,
+            logical: $ctx.resolvePathParts,
+            ancestor: $ctx.ancestor
+        }}
+    />
+
+    <Call
+        fn="overlap"
+        in={{
+            target: $in.target,
+            logical: $ctx.resolvePathParts,
+            physical: $ctx.destination
+        }}
+    />
+
+    <If on={$ctx.overlap}>
+        <Return value={Output.Status.Overlap} />
+    </If>
+
+    <Return value={Output.Status.Ready} />
+</Module>

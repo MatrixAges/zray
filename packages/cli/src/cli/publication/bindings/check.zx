@@ -1,0 +1,57 @@
+import { matchesPrefix } from "artifact_io"
+import { resolvePathParts } from "lexical_path"
+
+import { binding_marker } from "../const"
+
+import type { FileSystem } from "artifact_io"
+
+export type Input = {
+    fs: FileSystem,
+    module: string,
+    declaration: string,
+    assembly?: string
+}
+
+export enum Status {
+    Ready,
+    ConflictingPaths,
+    ForeignFile
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const requested = in.assembly
+
+    const assembly: string? = match {
+        requested != null => resolvePathParts([requested]),
+        _ => null
+    }
+
+    return loop({
+        paths: [
+            in.module,
+            in.declaration
+        ],
+        index: 0,
+        status: Status.Ready
+    }, {
+        while: state => state.index < state.paths.length && state.status == Status.Ready,
+        next: state => {
+            const path = state.paths[state.index]
+
+            if (assembly != null && resolvePathParts([path]) == assembly) {
+                state.status = Status.ConflictingPaths
+            } else {
+                const generated = matchesPrefix(in.fs, path, binding_marker)
+
+                if (generated == false) {
+                    state.status = Status.ForeignFile
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.status
+    })
+}

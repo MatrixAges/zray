@@ -1,0 +1,18 @@
+import type { OutputTarget } from "publication_host"
+
+export type Input = {
+    target: OutputTarget,
+    cwd: string,
+    path: string
+}
+
+export type Ancestor = {
+    path: string,
+    prefix: u64
+}
+
+export enum Status {
+    Ready,
+    MissingParent,
+    Overlap
+}

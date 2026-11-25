@@ -1,0 +1,1 @@
+export { resolvePathParts } from "lexical_path"

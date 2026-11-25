@@ -1,83 +1,78 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
+const effects = @import("../publication/effects.zig");
+const rule = @import("cli_source").check_output_target;
+const Error = effects.Error;
 
-pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, path: []const u8) ![:0]u8 {
-    const absolute = try std.fs.path.resolve(allocator, &.{ inputs.cwd, path });
-
-    defer allocator.free(absolute);
-
-    const parent = try physicalDirectory(io, allocator, std.fs.path.dirname(absolute).?);
-
-    defer allocator.free(parent);
-
-    var target = try std.fs.path.joinZ(allocator, &.{ parent, std.fs.path.basename(absolute) });
-
-    errdefer allocator.free(target);
-
-    const existing = std.Io.Dir.cwd().statFile(io, absolute, .{ .follow_symlinks = false }) catch |err| switch (err) {
-        error.FileNotFound => null,
-        else => return err,
-    };
-
-    if (existing) |file| {
-        if (file.kind != .sym_link) {
-            const resolved = try std.Io.Dir.cwd().realPathFileAlloc(io, absolute, allocator);
-
-            allocator.free(target);
-
-            target = resolved;
-        }
-    }
-
-    var cursor: Cursor = .{ .entries = inputs.entries.iterator() };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const overlaps = @import("cli_source").publication_overlap.executeIn(empty.allocator(), &.{
-        .paths = @ptrCast(&cursor),
-        .logical = absolute,
-        .physical = target,
-    }) catch unreachable;
-
-    if (overlaps) return error.OutputOverlapsInput;
-
-    return target;
-}
-
-fn physicalDirectory(io: std.Io, allocator: std.mem.Allocator, path: []const u8) ![:0]u8 {
-    return std.Io.Dir.cwd().realPathFileAlloc(io, path, allocator) catch |err| {
-        if (err != error.FileNotFound) return err;
-
-        const parent = std.fs.path.dirname(path) orelse return err;
-        const physical = try physicalDirectory(io, allocator, parent);
-
-        defer allocator.free(physical);
-
-        return std.fs.path.joinZ(allocator, &.{ physical, std.fs.path.basename(path) });
-    };
-}
-
-const Cursor = struct {
+const Target = struct {
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    inputs: *const Inputs,
     entries: Inputs.Observations.Iterator,
-    current: Inputs.Observations.Entry = undefined,
-    fn get(handle: *const anyopaque) *Cursor {
-        return @ptrCast(@alignCast(@constCast(handle)));
-    }
+    failure: effects.Failure = .{},
+    physical: [std.Io.Dir.max_path_bytes]u8 = undefined,
+    result: ?[:0]u8 = null,
 };
 
-pub fn nextInput(handle: *const anyopaque) bool {
-    const self = Cursor.get(handle);
+pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, path: []const u8) ![:0]u8 {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    var target: Target = .{ .io = io, .allocator = allocator, .inputs = inputs, .entries = inputs.entries.iterator() };
 
-    self.current = self.entries.next() orelse return false;
+    defer arena.deinit();
+    errdefer if (target.result) |result| allocator.free(result);
 
-    return true;
+    const status = rule.executeIn(scratch.allocator(), &.{
+        .target = @ptrCast(&target),
+        .cwd = inputs.cwd,
+        .path = path,
+    }) catch |err| return target.failure.unwrap(err);
+
+    return switch (status) {
+        .Ready => target.result.?,
+        .MissingParent => error.FileNotFound,
+        .Overlap => error.OutputOverlapsInput,
+    };
 }
 
-pub fn logicalPath(handle: *const anyopaque) []const u8 {
-    return Cursor.get(handle).current.key_ptr.*;
+pub fn readOutputPath(handle: *const anyopaque, path: []const u8, allow_missing: bool) Error![]const u8 {
+    const self = effects.borrow(Target, handle);
+
+    const length = std.Io.Dir.cwd().realPathFile(self.io, path, &self.physical) catch |err| {
+        if (allow_missing and err == error.FileNotFound) return "";
+
+        return self.failure.save(err);
+    };
+
+    return self.physical[0..length];
 }
 
-pub fn physicalPath(handle: *const anyopaque) []const u8 {
-    const entry = Cursor.get(handle).current;
+pub fn isDirectOutput(handle: *const anyopaque, path: []const u8) Error!bool {
+    const self = effects.borrow(Target, handle);
+
+    const existing = std.Io.Dir.cwd().statFile(self.io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
+        error.FileNotFound => return false,
+        else => return self.failure.save(err),
+    };
+
+    return existing.kind != .sym_link;
+}
+
+pub fn keepOutputPath(handle: *const anyopaque, base: []const u8, logical: []const u8, prefix: u64) Error![]const u8 {
+    const self = effects.borrow(Target, handle);
+    const result = std.fs.path.joinZ(self.allocator, &.{ base, logical[@intCast(prefix)..] }) catch |err| return self.failure.save(err);
+    self.result = result;
+
+    return result;
+}
+
+pub fn observedLogicalOutput(handle: *const anyopaque, path: []const u8) bool {
+    return effects.borrow(Target, handle).inputs.entries.contains(path);
+}
+
+pub fn nextPhysicalInput(handle: *const anyopaque) ?[]const u8 {
+    const entry = effects.borrow(Target, handle).entries.next() orelse return null;
 
     return switch (entry.value_ptr.state) {
         .file => |file| file.physical_path,

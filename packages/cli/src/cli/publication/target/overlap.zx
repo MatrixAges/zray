@@ -1,0 +1,33 @@
+import host from "publication_host"
+
+import type { OutputTarget } from "publication_host"
+
+export type Input = {
+    target: OutputTarget,
+    logical: string,
+    physical: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { target, logical, physical } = in
+
+    if (host.observedLogicalOutput(target, logical)) {
+        return true
+    }
+
+    return loop({
+        searching: true,
+        found: false
+    }, {
+        while: state => state.searching,
+        next: state => {
+            const observed = host.nextPhysicalInput(target)
+
+            state.found = observed == physical
+            state.searching = observed != null && !state.found
+        },
+        return: state => state.found
+    })
+}

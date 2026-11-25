@@ -362,8 +362,12 @@
             "name": "publish_library"
         },
         {
-            "path": "publication/overlap.zx",
-            "name": "publication_overlap"
+            "path": "publication/target/check.rx",
+            "name": "check_output_target"
+        },
+        {
+            "path": "publication/bindings/check.zx",
+            "name": "check_binding_targets"
         },
         {
             "path": "sources/discovery/run.rx",

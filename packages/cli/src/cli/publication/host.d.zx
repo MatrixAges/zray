@@ -2,7 +2,7 @@ export type Directory = opaque
 export type Output = opaque
 export type Library = opaque
 export type Verification = opaque
-export type InputPaths = opaque
+export type OutputTarget = opaque
 
 export type ResourceWalk = opaque
 export type InventoryCollector = opaque
@@ -64,9 +64,21 @@ export declare function validatePublishedPath(library: Library, path: string): s
     throws { PublicationFailure }
 export declare function absolutePath(path: string): bool
 
-export declare function nextInput(paths: InputPaths): bool
-export declare function logicalPath(paths: InputPaths): string
-export declare function physicalPath(paths: InputPaths): string
+export declare function readOutputPath(
+    target: OutputTarget,
+    path: string,
+    allow_missing: bool
+): string throws { PublicationFailure }
+export declare function isDirectOutput(target: OutputTarget, path: string): bool
+    throws { PublicationFailure }
+export declare function keepOutputPath(
+    target: OutputTarget,
+    base: string,
+    logical: string,
+    prefix: u64
+): string throws { PublicationFailure }
+export declare function observedLogicalOutput(target: OutputTarget, path: string): bool
+export declare function nextPhysicalInput(target: OutputTarget): string?
 
 export declare function resourceRoot(walk: ResourceWalk): ResourceKind throws { PublicationFailure }
 export declare function openResources(walk: ResourceWalk): void throws { PublicationFailure }
