@@ -1,23 +1,44 @@
 import host from "lowering_host"
 
-import type { LoopFrame as Input } from "lowering_host"
+import finishBlock from "../../../aggregate/execute/finish_block"
+import { Guard } from "../../initial/model"
+
+import type { Finish as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const result = host.completeLoopResult(in)
+    const {
+        frame,
+        writer,
+        origin,
+        body_seq,
+        loop_frame,
+        initial_plan,
+        projected,
+        initial_value,
+        update
+    } = in
 
-    if (host.loopProjects(in)) {
-        const first = host.loopFirstTest(in)
+    const result = host.completeLoopResult(loop_frame, initial_value)
 
-        return match {
-            first != null => host.finishSkippedLoop(in, result, first),
-            _ => host.finishProjectedLoop(in, result)
+    if (projected) {
+        const first = update.first
+
+        if (first != null) {
+            return host.finishSkippedLoop(loop_frame, initial_value, result, first)
         }
+
+        return finishBlock({
+            frame,
+            writer,
+            origin,
+            sequence: body_seq,
+            value: result
+        })
     }
 
-    return match {
-        host.loopHasInitialGuard(in) => host.finishGuardedLoop(in, result),
-        _ => result
-    }
+    const guarded = initial_plan.guard != Guard.None
+
+    return guarded ? host.finishGuardedLoop(loop_frame, result) : result
 }

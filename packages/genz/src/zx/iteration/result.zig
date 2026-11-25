@@ -45,9 +45,14 @@ pub const Result = struct {
         if (generated) {
             const execute = @import("generated_publish_loop_result");
             const Input = std.meta.Child(execute.Input);
+            var origin: @import("../construction/publication.zig").OriginBuffer = .{};
 
             const input: Input = .{
                 .target = @ptrCast(&frame),
+                .frame = @ptrCast(self),
+                .writer = @ptrCast(self),
+                .origin = @ptrCast(&origin),
+                .changed_name = config.changed_name,
                 .state = @backingInt(state),
                 .facts = &.{
                     .consumer = config.consumer != null,
@@ -61,7 +66,7 @@ pub const Result = struct {
                 },
             };
 
-            return evaluation.invoke(execute, &input);
+            return evaluation.invokeWith(self, execute, &input);
         }
 
         const actions = config.seedPlan();
@@ -208,24 +213,12 @@ pub fn consumeLoopProjection(handle: *const anyopaque, converted: bool) Lower.Er
     return @backingInt(try Publication.borrow(handle).project(converted));
 }
 
-pub fn makeLoopResultUnit(handle: *const anyopaque) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).lowering.builder.expression(.unit));
-}
-
-pub fn reserveLoopResult(handle: *const anyopaque) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).reserve());
-}
-
 pub fn wrapLoopResult(handle: *const anyopaque, form: evaluation.Api.LoopResultWrap) Lower.Error!u32 {
     return @backingInt(try Publication.borrow(handle).wrap(switch (form) {
         .Block => .Block,
         .Layout => .Layout,
         .Pointer => .Pointer,
     }));
-}
-
-pub fn guardLoopResult(handle: *const anyopaque) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).guard());
 }
 
 pub fn convertLoopResult(handle: *const anyopaque, deep: bool) Lower.Error!u32 {

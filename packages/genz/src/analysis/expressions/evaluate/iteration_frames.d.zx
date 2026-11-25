@@ -50,12 +50,6 @@ export enum LoopAdmission {
     Reject
 }
 
-export enum LoopInitial {
-    Reference,
-    Value,
-    Deep
-}
-
 export type IterationResourceFrame = mutable_opaque
 
 export type IterationResourceStorage = mutable_opaque
@@ -84,15 +78,6 @@ export enum LoopNameStorage {
     Borrow,
     Own,
     Reuse
-}
-
-export enum LoopStorage {
-    Keep,
-    Dereference,
-    Deep,
-    State,
-    StateValue,
-    Clip
 }
 
 export type LoopFieldRebuild = mutable_opaque

@@ -1,0 +1,30 @@
+import { appendAstProjectionRows, astExpressionCount } from "ast_rows"
+
+import { ExpressionsKind } from "../../../../printer/model/expressions"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    value: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in.writer)
+
+    appendAstProjectionRows(in.writer, {
+        tags: [ExpressionsKind.Dereference],
+        offsets: [0],
+        identifier: [],
+        field_target: [],
+        field_name: [],
+        dereference: [in.value],
+        binary_operator: [],
+        binary_left: [],
+        binary_right: []
+    })
+
+    return base
+}

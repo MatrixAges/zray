@@ -1,28 +1,36 @@
 import host from "lowering_host"
-import { LoopAdmission, LoopInitial } from "lowering_host"
+import { LoopAdmission } from "lowering_host"
 
-import type { Admission, Input } from "./model"
+import bindOperand from "../../../aggregate/execute/bind_operand"
+import { Evaluation, Guard } from "../../initial/model"
 
-export type Output = Admission
+import type { InitialOutcome as Outcome, Input } from "./model"
+
+export type Output = Outcome
 
 export default function (in: Input): Output {
-    const { frame, loop_frame, initial } = in
+    const { frame, writer, origin, body_seq, loop_frame, initial } = in
 
     const admission = host.beginLoweredLoop(loop_frame)
 
     if (admission != LoopAdmission.Proceed) {
-        return admission
+        return {
+            admission,
+            name: "",
+            initial_value: 0
+        }
     }
 
-    const route = host.prepareLoopInitial(loop_frame)
-    const deep = route == LoopInitial.Deep
+    const name = host.prepareLoopInitial(loop_frame)
+    const route = in.initial_plan.evaluation
+    const deep = route == Evaluation.Deep
 
     if (deep) {
         host.setLoopInitialScope(loop_frame, true)
     }
 
     const value = match route {
-        LoopInitial.Value => host.lowerValueExpression(frame, initial),
+        Evaluation.Value => host.lowerValueExpression(frame, initial),
         _ => host.lowerExpression(frame, initial, false, null)
     }
 
@@ -31,15 +39,23 @@ export default function (in: Input): Output {
     }
 
     const saved = match {
-        host.loopBindsInitial(loop_frame) => host.bindLoopInitial(loop_frame, value),
+        in.initial_plan.local => bindOperand({
+            frame,
+            writer,
+            origin,
+            sequence: body_seq,
+            value
+        }),
         _ => value
     }
 
-    host.storeLoopInitial(loop_frame, saved)
-
-    if (host.loopGuardsInitial(loop_frame)) {
-        host.guardLoopInitial(loop_frame)
+    if (in.initial_plan.guard != Guard.None) {
+        host.guardLoopInitial(loop_frame, saved)
     }
 
-    return admission
+    return {
+        admission,
+        name,
+        initial_value: saved
+    }
 }

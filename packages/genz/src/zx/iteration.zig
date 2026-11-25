@@ -42,15 +42,21 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: result.
         return runSeed(&frame);
     }
 
+    defer frame.release();
+
     return run(&frame);
 }
 
 fn run(frame: *Frame) Lower.Error!?node.ExpressionId {
     if (frame.lowering.plan.renewals.keys.len != 0) return runWithRenewals(frame);
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(frame.lowering.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    return execute(frame, empty.allocator(), null);
+    defer scratch.deinit();
+
+    return execute(frame, memory.allocator(), null);
 }
 
 fn runWithRenewals(frame: *Frame) Lower.Error!?node.ExpressionId {
@@ -63,7 +69,6 @@ fn runWithRenewals(frame: *Frame) Lower.Error!?node.ExpressionId {
 }
 
 fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const RenewalSource) Lower.Error!?node.ExpressionId {
-    const release = @import("generated_release_loop");
     const Views = std.meta.Child(@FieldType(Input, "parameters"));
     const Index = std.meta.Child(@FieldType(Views, "state"));
     const self = frame.lowering;
@@ -74,6 +79,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     var flags: []bool = &frame.parameters.flags;
     var previous: [][]const u8 = &frame.parameters.previous;
     const initial_plan: *const @TypeOf(frame.initial) = &frame.initial;
+    var origin: @import("construction/publication.zig").OriginBuffer = .{};
 
     const state_view: Index = .{
         .count = @ptrCast(&state_count),
@@ -99,6 +105,9 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
 
     const input: Input = .{
         .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .body_seq = @ptrCast(&frame.body),
         .loop_frame = @ptrCast(frame),
         .id = @backingInt(frame.id),
         .initial = @backingInt(frame.iteration.initial),
@@ -111,12 +120,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .renewal_source = renewal_source,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const resources: std.meta.Child(release.Input) = .{ .loop_frame = input.loop_frame, .parameters = &parameters };
-
-    defer release.executeIn(empty.allocator(), &resources) catch unreachable;
-
-    const output = zx.columns.invoke(entry.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const output = entry.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -131,11 +135,13 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
 
     switch (try prepare.beginLoweredLoop(handle)) {
         .Reject => return null,
-        .Dereference => return @fromBackingInt(try prepare.dereferenceLoweredLoop(self, @backingInt(try lower(self, frame.id, frame.iteration)))),
+        .Dereference => return try self.builder.expression(.{ .dereference = try lower(self, frame.id, frame.iteration) }),
         .Proceed => {},
     }
 
-    const route = prepare.prepareLoopInitial(handle);
+    _ = prepare.prepareLoopInitial(handle);
+
+    const route = frame.initial.evaluation;
 
     if (route == .Deep) prepare.setLoopInitialScope(handle, true);
 
@@ -152,7 +158,7 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
     if (projected) {
         const mutable = @import("iteration/renewal_seed.zig").needsEntries(self, frame.id);
 
-        try emit.declareLoopState(handle, .State, true, mutable);
+        try emit.declareLoopState(handle, .State, true, mutable, @backingInt(frame.initial_state));
     }
 
     const first = try emit.lowerLoopFirstTest(handle);
@@ -164,12 +170,17 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
     const update = if (frame.schedule.by_value) try @import("value_call/root.zig").expression(self, body) else try self.expr(body);
 
     frame.restoreUpdate();
-    emit.saveLoopUpdate(handle, @backingInt(condition), @backingInt(update), first);
 
-    if (!projected) try emit.declareLoopState(handle, frame.initial.parameters, false, true);
+    frame.next = .{
+        .condition = condition,
+        .value = update,
+        .first = if (first) |id| @fromBackingInt(id) else null,
+    };
+
+    if (!projected) try emit.declareLoopState(handle, frame.initial.parameters, false, true, @backingInt(frame.initial_state));
     try emit.enterLoweredLoop(handle);
     try emit.writeLoopUpdate(handle);
-    try emit.frameLoweredLoop(handle, frame.schedule.after_step);
+    try emit.frameLoweredLoop(handle, @backingInt(frame.next.condition), frame.schedule.after_step);
     try emit.recoverLoweredLoop(handle);
 
     return @fromBackingInt(try emit.finishLoweredLoop(handle));

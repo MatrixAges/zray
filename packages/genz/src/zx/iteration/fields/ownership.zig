@@ -73,7 +73,9 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     const request_execution: std.meta.Child(execute.Input) = .{
         .target = @ptrCast(&work),
+        .frame = @ptrCast(lowering),
         .replaces = planned.requests.fields.len != 0,
+        .type_id = @backingInt(self.type_id),
         .layout = if (request.layout) |layout| @backingInt(layout) else null,
     };
 
@@ -115,12 +117,6 @@ pub fn replaceLoopFields(handle: *anyopaque) Lower.Error!void {
     try @import("../../expressions/evaluate.zig").execute(apply, &edits);
 
     work.replacements = replacements;
-}
-
-pub fn resolveLoopFieldLayout(handle: *anyopaque) Lower.Error!u32 {
-    const work = Rebuild.borrow(handle);
-
-    return @backingInt(try work.projection.lowering.layoutExpr(work.context.type_id));
 }
 
 pub fn rebuildLoopFields(handle: *anyopaque, layout: u32) Lower.Error!u32 {

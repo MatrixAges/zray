@@ -1,6 +1,8 @@
+import { readAstOrigin } from "ast_rows"
 import host from "lowering_host"
 import { LoopResultWrap } from "lowering_host"
 
+import emitUnit from "../../../../collections/workflow/emit_unit"
 import { Preparation } from "../model"
 
 import type { Actions as Input } from "./model"
@@ -8,15 +10,22 @@ import type { Actions as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { target } = in
+    const { target, frame, writer, origin } = in
+
+    if (in.preparation == Preparation.Reserve) {
+        const current = readAstOrigin(writer, origin)
+
+        host.setLoweringSerial(frame, current.serial + 1)
+
+        return in.state
+    }
 
     return match in.preparation {
         Preparation.BufferedConsumer => host.consumeDeepLoopResult(target, true),
         Preparation.DeepConsumer => host.consumeDeepLoopResult(target, false),
         Preparation.Consumer => host.consumeLoopProjection(target, false),
         Preparation.ConvertedConsumer => host.consumeLoopProjection(target, true),
-        Preparation.Unit => host.makeLoopResultUnit(target),
-        Preparation.Reserve => host.reserveLoopResult(target),
+        Preparation.Unit => emitUnit(writer),
         Preparation.Layout => host.wrapLoopResult(target, LoopResultWrap.Layout),
         Preparation.Pointer => host.wrapLoopResult(target, LoopResultWrap.Pointer),
         _ => host.wrapLoopResult(target, LoopResultWrap.Block)

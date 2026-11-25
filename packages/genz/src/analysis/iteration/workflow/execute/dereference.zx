@@ -1,5 +1,7 @@
 import host from "lowering_host"
 
+import emitDereference from "./emit_dereference"
+
 import type { Input } from "./model"
 
 export type Output = u32
@@ -7,5 +9,8 @@ export type Output = u32
 export default function (in: Input): Output {
     const value = host.lowerIteration(in.frame, in.id, false)
 
-    return host.dereferenceLoweredLoop(in.frame, value)
+    return emitDereference({
+        writer: in.writer,
+        value
+    })
 }

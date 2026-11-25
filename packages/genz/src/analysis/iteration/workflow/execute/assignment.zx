@@ -6,19 +6,20 @@ import type { LoopFrame } from "lowering_host"
 
 export type Input = {
     loop_frame: LoopFrame,
-    assignment: Assignment
+    assignment: Assignment,
+    value: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { loop_frame, assignment } = in
+    const { loop_frame, assignment, value } = in
 
-    const value = match assignment {
-        Assignment.Projected => host.projectLoopAssignment(loop_frame),
-        Assignment.State => host.clipLoopAssignment(loop_frame),
-        _ => host.loopNextValue(loop_frame)
+    const assigned = match assignment {
+        Assignment.Projected => host.projectLoopAssignment(loop_frame, value),
+        Assignment.State => host.clipLoopAssignment(loop_frame, value),
+        _ => value
     }
 
-    host.commitLoopUpdate(loop_frame, value, assignment == Assignment.State)
+    host.commitLoopUpdate(loop_frame, assigned, assignment == Assignment.State)
 }

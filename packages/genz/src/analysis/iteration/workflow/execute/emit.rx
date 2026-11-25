@@ -27,7 +27,8 @@
         fn="assignment"
         in={{
             loop_frame: $in.loop_frame,
-            assignment: $in.schedule.assignment
+            assignment: $in.schedule.assignment,
+            value: $in.update.value
         }}
     />
 
@@ -35,6 +36,7 @@
         fn="index.frameLoweredLoop"
         in={[
             $in.loop_frame,
+            $in.update.condition,
             $in.schedule.after_step
         ]}
     />
@@ -45,7 +47,13 @@
         <Call fn="index.restoreLoopFields" in={$in.loop_frame} />
     </If>
 
-    <Call fn="finish" in={$in.loop_frame} />
+    <Call
+        fn="finish"
+        in={$in.omit([
+            "schedule",
+            "renewals"
+        ])}
+    />
 
     <Return value={$ctx.finish} />
 </Module>

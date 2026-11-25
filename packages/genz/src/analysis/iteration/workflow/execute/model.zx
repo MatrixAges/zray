@@ -1,3 +1,4 @@
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
 import type {
     Output as RenewalPlan,
@@ -9,10 +10,11 @@ import type { Output as StepPlan } from "../../step/model"
 
 export type Admission = LoopAdmission
 
-export type Frame = LoopFrame
-
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    body_seq: AstSequence,
     loop_frame: LoopFrame,
     id: u32,
     initial: u32,
@@ -25,20 +27,55 @@ export type Input = {
     renewal_source?: RenewalSource
 }
 
-export type Parameters = Input.Pick("loop_frame", "parameters")
+export type InitialOutcome = {
+    admission: Admission,
+    name: string,
+    initial_value: u32
+}
+
+export type Parameters = Input.Pick("loop_frame", "parameters", "initial_plan") & {
+    name: string
+}
+
+export type ParametersOutcome = {
+    seed_name: string,
+    projected: bool
+}
+
+export type StorageInput = Input.Pick("loop_frame", "writer", "initial_plan") & {
+    initial_value: u32
+}
+
+export type Update = {
+    condition: u32,
+    value: u32,
+    first?: u32
+}
 
 export type Renewals = Input.Pick("loop_frame", "renewal_source") & {
     owner: u32,
     schedule: StepPlan
 }
 
-export type Emit = {
-    loop_frame: LoopFrame,
-    schedule: StepPlan,
-    renewals: RenewalPlan
-}
+export type Evaluate =
+    Input.Pick("frame", "loop_frame", "parameters", "initial_plan") & {
+        schedule: StepPlan,
+        renewals: RenewalPlan,
+        name: string,
+        seed_name: string,
+        initial_state: u32
+    }
 
-export type Evaluate = Emit & Input.Pick("frame", "parameters")
+export type Emit =
+    Input.Pick("frame", "writer", "origin", "body_seq", "loop_frame", "initial_plan") & {
+        schedule: StepPlan,
+        renewals: RenewalPlan,
+        projected: bool,
+        initial_value: u32,
+        update: Update
+    }
+
+export type Finish = Emit.Omit("schedule", "renewals")
 
 export type Output = {
     expression?: u32

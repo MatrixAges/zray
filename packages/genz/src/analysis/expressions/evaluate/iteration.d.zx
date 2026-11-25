@@ -19,16 +19,9 @@ export declare function loopDirectInitial(layout: LoopLayout): bool throws { Out
 export declare function beginLoweredLoop(loop_frame: LoopFrame): LoopAdmission
     throws { OutOfMemory }
 
-export declare function dereferenceLoweredLoop(frame: Lowering, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function prepareLoopInitial(loop_frame: LoopFrame): LoopInitial
+export declare function prepareLoopInitial(loop_frame: LoopFrame): string
 
 export declare function setLoopInitialScope(loop_frame: LoopFrame, active: bool): void
-
-export declare function loopParameterLayout(frame: LoopFrame): LoopParameterLayout
-
-export declare function loopParameterName(frame: LoopFrame): string
 
 export declare function addLoopParameterMembers(
     frame: LoopFrame,
@@ -38,15 +31,9 @@ export declare function addLoopParameterMembers(
 
 export declare function openLoopParameterContext(frame: LoopFrame): void
 
-export declare function restoreLoopParameterContext(frame: LoopFrame): void
-
-export declare function loopProjects(loop_frame: LoopFrame): bool
-
 export declare function loopForwardedCall(frame: LoopFrame): u32?
 
 export declare function releaseLoopPlanningScratch(frame: LoopFrame): void
-
-export declare function loopSeedName(frame: LoopFrame): string
 
 export declare function enterLoopUpdate(
     frame: LoopFrame,
@@ -54,35 +41,21 @@ export declare function enterLoopUpdate(
     delayed: bool
 ): void
 
-export declare function loopUpdateScope(frame: LoopFrame): LoopUpdateScope
-
 export declare function closeLoopUpdate(frame: LoopFrame, scope: LoopUpdateScope): void
-
-export declare function saveLoopUpdate(
-    loop_frame: LoopFrame,
-    condition: u32,
-    value: u32,
-    first: u32?
-): void
 
 export declare function declareLoopState(
     frame: LoopFrame,
     layout: LoopParameterLayout,
     projected: bool,
-    mutable: bool
-): void
-    throws { OutOfMemory }
+    mutable: bool,
+    initial: u32
+): void throws { OutOfMemory }
 
-export declare function closeLoopInitial(frame: LoopFrame): void
-
-export declare function releaseLoopScratch(frame: LoopFrame): void
-
-export declare function closeLoopRepresentation(frame: LoopFrame): void
-
-export declare function releaseLoopStatements(frame: LoopFrame): void
-
-export declare function frameLoweredLoop(loop_frame: LoopFrame, after_step: bool): void
-    throws { OutOfMemory }
+export declare function frameLoweredLoop(
+    loop_frame: LoopFrame,
+    condition: u32,
+    after_step: bool
+): void throws { OutOfMemory }
 
 export declare function projectLoopField(
     target: FieldProjection,
@@ -91,45 +64,28 @@ export declare function projectLoopField(
     slot: u32
 ): u32 throws { OutOfMemory }
 
-export declare function loopBindsInitial(frame: LoopFrame): bool
-
-export declare function bindLoopInitial(frame: LoopFrame, value: u32): u32
+export declare function guardLoopInitial(frame: LoopFrame, value: u32): void
     throws { OutOfMemory }
-
-export declare function storeLoopInitial(frame: LoopFrame, value: u32): void
-
-export declare function loopGuardsInitial(frame: LoopFrame): bool
-
-export declare function guardLoopInitial(frame: LoopFrame): void throws { OutOfMemory }
-
-export declare function loopUsesStateScope(frame: LoopFrame): bool
 
 export declare function enterLoopRepresentation(frame: LoopFrame): void throws { OutOfMemory }
 
-export declare function createLoopSeed(frame: LoopFrame): void throws { OutOfMemory }
+export declare function createLoopSeed(frame: LoopFrame): string throws { OutOfMemory }
 
-export declare function loopProjectsFields(frame: LoopFrame): bool
-
-export declare function prepareLoopFields(frame: LoopFrame): void throws { OutOfMemory }
-
-export declare function loopTracksChange(frame: LoopFrame): bool
+export declare function prepareLoopFields(frame: LoopFrame): bool throws { OutOfMemory }
 
 export declare function trackLoopChange(frame: LoopFrame): void throws { OutOfMemory }
 
-export declare function loopStorage(frame: LoopFrame): LoopStorage
-
-export declare function loopInitialValue(frame: LoopFrame): u32
-
-export declare function dereferenceLoopInitial(frame: LoopFrame): u32 throws { OutOfMemory }
-
-export declare function deepenLoopInitial(frame: LoopFrame): u32 throws { OutOfMemory }
-
-export declare function representLoopInitial(frame: LoopFrame, by_value: bool): u32
+export declare function deepenLoopInitial(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function clipLoopInitial(frame: LoopFrame): u32 throws { OutOfMemory }
+export declare function representLoopInitial(
+    frame: LoopFrame,
+    value: u32,
+    by_value: bool
+): u32 throws { OutOfMemory }
 
-export declare function storeLoopPreparedState(frame: LoopFrame, value: u32): void
+export declare function clipLoopInitial(frame: LoopFrame, value: u32): u32
+    throws { OutOfMemory }
 
 export declare function emitLoopRenewals(
     frame: LoopFrame,
@@ -144,11 +100,11 @@ export declare function declareProjectedLoopState(frame: LoopFrame): void throws
 
 export declare function publishLoopDeclarations(frame: LoopFrame): void throws { OutOfMemory }
 
-export declare function loopNextValue(frame: LoopFrame): u32
+export declare function projectLoopAssignment(frame: LoopFrame, value: u32): u32
+    throws { OutOfMemory }
 
-export declare function projectLoopAssignment(frame: LoopFrame): u32 throws { OutOfMemory }
-
-export declare function clipLoopAssignment(frame: LoopFrame): u32 throws { OutOfMemory }
+export declare function clipLoopAssignment(frame: LoopFrame, value: u32): u32
+    throws { OutOfMemory }
 
 export declare function commitLoopUpdate(frame: LoopFrame, value: u32, state: bool): void
     throws { OutOfMemory }
@@ -157,17 +113,15 @@ export declare function resetLoopResult(frame: LoopFrame): void
 
 export declare function restoreLoopFields(frame: LoopFrame): void throws { OutOfMemory }
 
-export declare function completeLoopResult(frame: LoopFrame): u32 throws { OutOfMemory }
-
-export declare function loopFirstTest(frame: LoopFrame): u32?
-
-export declare function finishSkippedLoop(frame: LoopFrame, value: u32, first: u32): u32
+export declare function completeLoopResult(frame: LoopFrame, initial: u32): u32
     throws { OutOfMemory }
 
-export declare function finishProjectedLoop(frame: LoopFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function loopHasInitialGuard(frame: LoopFrame): bool
+export declare function finishSkippedLoop(
+    frame: LoopFrame,
+    initial: u32,
+    value: u32,
+    first: u32
+): u32 throws { OutOfMemory }
 
 export declare function finishGuardedLoop(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
@@ -176,9 +130,6 @@ export declare function publishLoopFieldOperands(target: LoopFieldRebuild): void
     throws { OutOfMemory }
 
 export declare function replaceLoopFields(target: LoopFieldRebuild): void
-    throws { OutOfMemory }
-
-export declare function resolveLoopFieldLayout(target: LoopFieldRebuild): u32
     throws { OutOfMemory }
 
 export declare function rebuildLoopFields(target: LoopFieldRebuild, layout: u32): u32
@@ -190,18 +141,13 @@ export declare function consumeDeepLoopResult(target: LoopResultFrame, buffered:
 export declare function consumeLoopProjection(target: LoopResultFrame, converted: bool): u32
     throws { OutOfMemory }
 
-export declare function makeLoopResultUnit(target: LoopResultFrame): u32 throws { OutOfMemory }
-
-export declare function reserveLoopResult(target: LoopResultFrame): u32 throws { OutOfMemory }
-
 export declare function wrapLoopResult(target: LoopResultFrame, form: LoopResultWrap): u32
     throws { OutOfMemory }
-
-export declare function guardLoopResult(target: LoopResultFrame): u32 throws { OutOfMemory }
 
 export declare function convertLoopResult(target: LoopResultFrame, deep: bool): u32
     throws { OutOfMemory }
 
 export declare function publishLoopResult(target: LoopResultFrame, value: u32, guard: u32?): u32
     throws { OutOfMemory }
+
 export declare function requireLoopPath(valid: bool): void

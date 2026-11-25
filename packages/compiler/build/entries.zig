@@ -890,7 +890,6 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/iteration/fields/ownership/execute.rx", .name = "rebuild_loop_fields", .owner = .genz },
     .{ .path = "genz/analysis/iteration/result/finish/execute/run.rx", .name = "publish_loop_result", .owner = .genz },
     .{ .path = "genz/analysis/iteration/workflow/execute/run.rx", .name = "lower_loop", .owner = .genz },
-    .{ .path = "genz/analysis/iteration/workflow/execute/release.rx", .name = "release_loop", .owner = .genz },
     .{ .path = "genz/analysis/match/execute.rx", .name = "lower_match_result", .owner = .genz },
     .{ .path = "genz/analysis/scope/bindings/run.rx", .name = "lower_scope_bindings", .owner = .genz },
     .{ .path = "genz/analysis/iteration/scope/build.rx", .name = "iteration_scope", .owner = .genz },

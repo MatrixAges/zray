@@ -1,5 +1,7 @@
+import { appendAstIdentifierRows, astExpressionCount } from "ast_rows"
 import host from "lowering_host"
 
+import { ExpressionsKind } from "../../../../../printer/model/expressions"
 import { Completion } from "../model"
 
 import type { Complete as Input } from "./model"
@@ -7,12 +9,25 @@ import type { Complete as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { target, completion, state, prepared } = in
+    const { target, writer, changed_name, completion, state, prepared } = in
 
-    const guard: u32? = match completion {
-        Completion.Prepared => null,
-        Completion.State => null,
-        _ => host.guardLoopResult(target)
+    const needs_guard = match completion {
+        Completion.Prepared => false,
+        Completion.State => false,
+        _ => true
+    }
+
+    const guard: u32? = match {
+        needs_guard => astExpressionCount(writer),
+        _ => null
+    }
+
+    if (needs_guard) {
+        appendAstIdentifierRows(writer, {
+            tags: [ExpressionsKind.Identifier],
+            offsets: [0],
+            identifier: [changed_name]
+        })
     }
 
     const value = match completion {

@@ -7,7 +7,7 @@ import type { Evaluate as Input } from "./model"
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const { frame, loop_frame, parameters } = in
+    const { frame, parameters, name, seed_name } = in
     const { target, condition, step } = parameters
 
     const first = in.schedule.first_test
@@ -15,8 +15,6 @@ export default function (in: Input): Output {
     if (first == null) {
         return null
     }
-
-    const seed_name = host.loopSeedName(loop_frame)
 
     rename({
         target,
@@ -27,7 +25,6 @@ export default function (in: Input): Output {
     })
 
     const value = host.lowerExpression(frame, first, false, null)
-    const name = host.loopParameterName(loop_frame)
 
     rename({
         target,

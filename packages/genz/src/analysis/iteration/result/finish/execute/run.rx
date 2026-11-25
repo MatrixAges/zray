@@ -8,7 +8,13 @@
     <Call
         fn="prepare"
         in={{
-            ...$in.omit(["facts"]),
+            ...$in.pick([
+                "target",
+                "frame",
+                "writer",
+                "origin",
+                "state"
+            ]),
             ...$ctx.plan
         }}
     />
@@ -16,8 +22,12 @@
     <Call
         fn="complete"
         in={{
-            target: $in.target,
-            state: $in.state,
+            ...$in.pick([
+                "target",
+                "writer",
+                "changed_name",
+                "state"
+            ]),
             completion: $ctx.plan.completion,
             prepared: $ctx.prepare
         }}

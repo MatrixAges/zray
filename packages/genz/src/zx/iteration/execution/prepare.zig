@@ -14,7 +14,6 @@ const step = @import("../step.zig");
 const generated = @import("genz_options").generated_analysis;
 const Api = @import("../../expressions/evaluate.zig").Api;
 const Admission = if (generated) Api.LoopAdmission else enum { Proceed, Dereference, Reject };
-const Initial = if (generated) Api.LoopInitial else @FieldType(initial.Plan, "evaluation");
 const Error = Lower.Error;
 
 pub fn beginLoweredLoop(handle: *anyopaque) Error!Admission {
@@ -32,13 +31,7 @@ pub fn beginLoweredLoop(handle: *anyopaque) Error!Admission {
     };
 }
 
-pub fn dereferenceLoweredLoop(handle: *anyopaque, value: u32) Error!u32 {
-    const self: *Lower = @ptrCast(@alignCast(handle));
-
-    return @backingInt(try self.builder.expression(.{ .dereference = @fromBackingInt(value) }));
-}
-
-pub fn prepareLoopInitial(handle: *anyopaque) Initial {
+pub fn prepareLoopInitial(handle: *anyopaque) []const u8 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
@@ -57,7 +50,7 @@ pub fn prepareLoopInitial(handle: *anyopaque) Initial {
 
     frame.context = .{ .lowering = self, .declarations = &frame.body, .inline_lists = frame.initial.buffered };
 
-    return zx.columns.view(Initial, frame.initial.evaluation);
+    return frame.name;
 }
 
 pub fn setLoopInitialScope(handle: *anyopaque, active: bool) void {
@@ -73,69 +66,49 @@ pub fn setLoopInitialScope(handle: *anyopaque, active: bool) void {
 }
 
 pub fn saveLoopInitial(handle: *anyopaque, value: u32) Error!void {
-    storeLoopInitial(handle, if (loopBindsInitial(handle)) try bindLoopInitial(handle, value) else value);
-
-    if (loopGuardsInitial(handle)) try guardLoopInitial(handle);
-}
-
-pub fn loopBindsInitial(handle: *anyopaque) bool {
-    return Frame.borrow(handle).initial.local;
-}
-
-pub fn bindLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try aggregate.bind(frame.lowering, &frame.body, @fromBackingInt(value)));
+    frame.initial_value = if (frame.initial.local) try aggregate.bind(frame.lowering, &frame.body, @fromBackingInt(value)) else @fromBackingInt(value);
+
+    if (frame.initial.guard != .None) try guardLoopInitial(handle, @backingInt(frame.initial_value));
 }
 
-pub fn storeLoopInitial(handle: *anyopaque, value: u32) void {
-    Frame.borrow(handle).initial_value = @fromBackingInt(value);
-}
-
-pub fn loopGuardsInitial(handle: *anyopaque) bool {
-    return Frame.borrow(handle).initial.guard != .None;
-}
-
-pub fn guardLoopInitial(handle: *anyopaque) Error!void {
+pub fn guardLoopInitial(handle: *anyopaque, value: u32) Error!void {
     const frame = Frame.borrow(handle);
-    frame.guard = try @import("../../iteration_value/initial.zig").create(frame.lowering, &frame.body, frame.iteration, frame.consumer, frame.initial_value, frame.initial.guard);
+    frame.guard = try @import("../../iteration_value/initial.zig").create(frame.lowering, &frame.body, frame.iteration, frame.consumer, @fromBackingInt(value), frame.initial.guard);
 }
 
 pub fn prepareLoopState(handle: *anyopaque) Error!void {
-    if (loopUsesStateScope(handle)) try enterLoopRepresentation(handle);
+    const frame = Frame.borrow(handle);
 
-    try createLoopSeed(handle);
-    if (loopProjectsFields(handle)) try prepareLoopFields(handle);
-    if (loopTracksChange(handle)) try trackLoopChange(handle);
-}
+    if (frame.initial.state_scope) try enterLoopRepresentation(handle);
 
-pub fn loopUsesStateScope(handle: *anyopaque) bool {
-    return Frame.borrow(handle).initial.state_scope;
+    _ = try createLoopSeed(handle);
+
+    if (frame.initial.project_fields) _ = try prepareLoopFields(handle);
+    if (frame.initial.track) try trackLoopChange(handle);
 }
 
 pub fn enterLoopRepresentation(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
+
     frame.representation = try @import("../../state_value/root.zig").enter(frame.lowering);
 }
 
-pub fn createLoopSeed(handle: *anyopaque) Error!void {
+pub fn createLoopSeed(handle: *anyopaque) Error![]const u8 {
     const frame = Frame.borrow(handle);
     const lowering = frame.lowering;
+    const name = try lowering.fresh("loop_seed");
+    frame.seed = try lowering.builder.identifier(name);
 
-    frame.seed = try lowering.builder.identifier(try lowering.fresh("loop_seed"));
+    return name;
 }
 
-pub fn loopProjectsFields(handle: *anyopaque) bool {
-    return Frame.borrow(handle).initial.project_fields;
-}
-
-pub fn prepareLoopFields(handle: *anyopaque) Error!void {
+pub fn prepareLoopFields(handle: *anyopaque) Error!bool {
     const frame = Frame.borrow(handle);
     frame.fields = try @import("../fields/prepare.zig").prepare(frame.lowering, frame.iteration, frame.type_id, &frame.body, frame.seed);
-}
 
-pub fn loopTracksChange(handle: *anyopaque) bool {
-    return Frame.borrow(handle).initial.track;
+    return frame.fields != null;
 }
 
 pub fn trackLoopChange(handle: *anyopaque) Error!void {
@@ -148,14 +121,6 @@ pub fn openLoopParameters(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.parameters = try seed_parameters.enter(frame.lowering, frame.iteration, frame.initial.parameters, frame.name, &frame.context);
-}
-
-pub fn loopParameterLayout(handle: *anyopaque) Api.LoopParameterLayout {
-    return zx.columns.view(Api.LoopParameterLayout, Frame.borrow(handle).initial.parameters);
-}
-
-pub fn loopParameterName(handle: *anyopaque) []const u8 {
-    return Frame.borrow(handle).name;
 }
 
 pub fn addLoopParameterMembers(handle: *anyopaque, condition: bool, step_parameter: bool) Error!void {
@@ -182,18 +147,19 @@ pub fn openLoopParameterContext(handle: *anyopaque) void {
 }
 
 pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
-    const value = switch (Frame.borrow(handle).initial.storage) {
-        .Keep => loopInitialValue(handle),
-        .Dereference => try dereferenceLoopInitial(handle),
-        .Deep => try deepenLoopInitial(handle),
-        .State => try representLoopInitial(handle, false),
-        .StateValue => try representLoopInitial(handle, true),
-        .Clip => try clipLoopInitial(handle),
+    const frame = Frame.borrow(handle);
+    const initial_value = @backingInt(frame.initial_value);
+
+    const value = switch (frame.initial.storage) {
+        .Keep => initial_value,
+        .Dereference => @backingInt(try @import("../../access/emit.zig").dereference(frame.lowering, frame.initial_value)),
+        .Deep => try deepenLoopInitial(handle, initial_value),
+        .State => try representLoopInitial(handle, initial_value, false),
+        .StateValue => try representLoopInitial(handle, initial_value, true),
+        .Clip => try clipLoopInitial(handle, initial_value),
     };
 
-    storeLoopPreparedState(handle, value);
-
-    const frame = Frame.borrow(handle);
+    frame.initial_state = @fromBackingInt(value);
 
     frame.schedule = step.plan(.{
         .condition = @backingInt(frame.iteration.condition),
@@ -207,40 +173,22 @@ pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
     });
 }
 
-pub fn loopStorage(handle: *anyopaque) Api.LoopStorage {
-    return zx.columns.view(Api.LoopStorage, Frame.borrow(handle).initial.storage);
-}
-
-pub fn loopInitialValue(handle: *anyopaque) u32 {
-    return @backingInt(Frame.borrow(handle).initial_value);
-}
-
-pub fn dereferenceLoopInitial(handle: *anyopaque) Error!u32 {
+pub fn deepenLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try @import("../../access/emit.zig").dereference(frame.lowering, frame.initial_value));
+    return @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, @fromBackingInt(value), false));
 }
 
-pub fn deepenLoopInitial(handle: *anyopaque) Error!u32 {
+pub fn representLoopInitial(handle: *anyopaque, value: u32, by_value: bool) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, frame.initial_value, false));
+    return @backingInt(try @import("../../state_value/conversion.zig").convert(frame.lowering, &frame.body, frame.type_id, @fromBackingInt(value), if (by_value) .value_layout else .value));
 }
 
-pub fn representLoopInitial(handle: *anyopaque, by_value: bool) Error!u32 {
+pub fn clipLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try @import("../../state_value/conversion.zig").convert(frame.lowering, &frame.body, frame.type_id, frame.initial_value, if (by_value) .value_layout else .value));
-}
-
-pub fn clipLoopInitial(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, frame.initial_value));
-}
-
-pub fn storeLoopPreparedState(handle: *anyopaque, value: u32) void {
-    Frame.borrow(handle).initial_state = @fromBackingInt(value);
+    return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, @fromBackingInt(value)));
 }
 
 pub fn loopForwardedCall(handle: *anyopaque) ?u32 {

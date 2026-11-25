@@ -37,7 +37,7 @@ name: []const u8 = undefined,
 state: node.ExpressionId = undefined,
 selection: Selection = undefined,
 type_id: ir.TypeId = undefined,
-initial: Initial.Plan = undefined,
+initial: Initial.Plan = std.mem.zeroes(Initial.Plan),
 context: Context = undefined,
 initial_scope: ?state_scope.Frame(.Iteration) = null,
 initial_value: node.ExpressionId = undefined,
@@ -89,13 +89,7 @@ pub fn output(self: *Self) *Context.Statements {
 pub fn restoreUpdate(self: *Self) void {
     const active: UpdateScope = self.step_scope;
 
-    if (active != .None) {
-        closeLoopUpdate(self, active);
-
-        if (active == .Ordinary) {
-            restoreLoopParameterContext(self);
-        }
-    }
+    if (active != .None) closeLoopUpdate(self, active);
 }
 
 pub fn restoreSeed(self: *Self) void {
@@ -106,49 +100,49 @@ pub fn restoreSeed(self: *Self) void {
     if (self.representation) |saved| saved.restore();
 }
 
-pub fn loopUpdateScope(handle: *anyopaque) UpdateScope {
-    return borrow(handle).step_scope;
+pub fn release(self: *Self) void {
+    self.restoreUpdate();
+
+    if (self.initial_scope) |saved| saved.restore();
+
+    self.projected_body.deinit();
+    restoreParameterContext(self);
+
+    if (self.parameters.flags[0]) {
+        if (self.parameters.flags[1]) _ = self.lowering.state_symbols.remove(self.iteration.condition_parameter);
+        if (self.parameters.flags[2]) _ = self.lowering.state_symbols.remove(self.iteration.parameter);
+        if (self.parameters.flags[3]) _ = self.lowering.stack_symbols.remove(self.iteration.condition_parameter);
+        if (self.parameters.flags[4]) _ = self.lowering.stack_symbols.remove(self.iteration.parameter);
+
+        self.lowering.names[@backingInt(self.iteration.parameter)] = self.parameters.previous[1];
+        self.lowering.names[@backingInt(self.iteration.condition_parameter)] = self.parameters.previous[0];
+    }
+
+    if (self.representation) |saved| saved.restore();
+
+    self.loop.deinit();
+    self.body.deinit();
 }
 
 pub fn closeLoopUpdate(handle: *anyopaque, active: UpdateScope) void {
     const self = borrow(handle);
 
     switch (active) {
-        .None => unreachable,
+        .None => return,
         .Projected => self.step_scope.Projected.restore(),
-        .Ordinary => self.step_scope.Ordinary.restore(),
+        .Ordinary => {
+            self.step_scope.Ordinary.restore();
+            restoreParameterContext(self);
+        },
     }
 
     self.step_scope = .None;
 }
 
-pub fn restoreLoopParameterContext(handle: *anyopaque) void {
-    const self = borrow(handle);
-
+fn restoreParameterContext(self: *Self) void {
     if (generated) {
         if (self.parameters.context) |saved| saved.restore();
     } else if (self.parameters) |parameters| {
         parameters.restoreContext();
     }
-}
-
-pub fn closeLoopInitial(handle: *anyopaque) void {
-    if (borrow(handle).initial_scope) |saved| saved.restore();
-}
-
-pub fn releaseLoopScratch(handle: *anyopaque) void {
-    const self = borrow(handle);
-
-    self.projected_body.deinit();
-}
-
-pub fn closeLoopRepresentation(handle: *anyopaque) void {
-    if (borrow(handle).representation) |saved| saved.restore();
-}
-
-pub fn releaseLoopStatements(handle: *anyopaque) void {
-    const self = borrow(handle);
-
-    self.loop.deinit();
-    self.body.deinit();
 }

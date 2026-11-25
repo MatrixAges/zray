@@ -1,23 +1,25 @@
 import host from "lowering_host"
-import { LoopStorage } from "lowering_host"
 
-import type { LoopFrame } from "lowering_host"
+import { Storage } from "../../initial/model"
+import emitDereference from "./emit_dereference"
 
-export type Input = LoopFrame
+import type { StorageInput as Input } from "./model"
 
-export type Output = void
+export type Output = u32
 
 export default function (in: Input): Output {
-    const kind = host.loopStorage(in)
+    const { loop_frame, writer, initial_plan, initial_value } = in
 
-    const value = match kind {
-        LoopStorage.Dereference => host.dereferenceLoopInitial(in),
-        LoopStorage.Deep => host.deepenLoopInitial(in),
-        LoopStorage.State => host.representLoopInitial(in, false),
-        LoopStorage.StateValue => host.representLoopInitial(in, true),
-        LoopStorage.Clip => host.clipLoopInitial(in),
-        _ => host.loopInitialValue(in)
+    return match initial_plan.storage {
+        Storage.Dereference => emitDereference({
+            writer,
+            value: initial_value
+        }),
+        Storage.Deep => host.deepenLoopInitial(loop_frame, initial_value),
+        Storage.State => host.representLoopInitial(loop_frame, initial_value, false),
+        Storage.StateValue =>
+            host.representLoopInitial(loop_frame, initial_value, true),
+        Storage.Clip => host.clipLoopInitial(loop_frame, initial_value),
+        _ => initial_value
     }
-
-    host.storeLoopPreparedState(in, value)
 }

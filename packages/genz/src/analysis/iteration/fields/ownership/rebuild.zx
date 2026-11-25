@@ -5,7 +5,7 @@ import type { Input } from "./execute_model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const layout = in.layout ?? host.resolveLoopFieldLayout(in.target)
+    const layout = in.layout ?? host.lowerLayout(in.frame, in.type_id)
 
     return host.rebuildLoopFields(in.target, layout)
 }

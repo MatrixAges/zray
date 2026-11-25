@@ -1,19 +1,25 @@
-import type { LoopResultFrame } from "lowering_host"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { LoopResultFrame, Lowering } from "lowering_host"
 import type { Completion, Input as Facts, Preparation } from "../model"
 
 export type Input = {
     target: LoopResultFrame,
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    changed_name: u8[],
     state: u32,
     facts: Facts
 }
 
-export type Actions = {
-    target: LoopResultFrame,
-    state: u32,
-    preparation: Preparation,
-    completion: Completion
-}
+export type Actions =
+    Input.Pick("target", "frame", "writer", "origin", "state") & {
+        preparation: Preparation,
+        completion: Completion
+    }
 
-export type Complete = Actions.Pick("target", "state", "completion") & {
-    prepared: u32
-}
+export type Complete =
+    Input.Pick("target", "writer", "changed_name", "state") & {
+        completion: Completion,
+        prepared: u32
+    }
