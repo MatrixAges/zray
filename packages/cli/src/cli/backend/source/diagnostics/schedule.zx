@@ -1,0 +1,40 @@
+import child from "./child"
+import { finish_key } from "./const"
+
+import type { Children, Node } from "./model"
+
+export type Input = Node.Pick("words", "key") & {
+    children: Children,
+    pending: u64[]
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const { words, key, children } = in
+
+    const finish = in.pending.push(key + finish_key)[0]
+    const source = children.source
+    const pending = source == null ? finish : finish.push(source)[0]
+
+    return loop({
+        pending,
+        index: 0
+    }, {
+        while: state => state.index < children.count,
+        next: state => {
+            const next = child({
+                words,
+                children,
+                index: state.index
+            })
+
+            if (next != null) {
+                state.pending = state.pending.push(next)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.pending
+    })
+}

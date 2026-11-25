@@ -1,0 +1,12 @@
+export type U64U32Map = opaque
+
+export declare function findU64U32Entry(table: U64U32Map, key: u64): u32?
+
+export declare function readU64U32Entry(table: U64U32Map, key: u64): u32
+
+export declare function writeU64U32Entry(
+    allocator,
+    table: U64U32Map,
+    key: u64,
+    value: u32
+): void throws { OutOfMemory }

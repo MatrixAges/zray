@@ -2,15 +2,14 @@ const std = @import("std");
 const Server = std.zig.Server;
 const Protocol = @import("../../protocol.zig");
 const Error = error{BackendProtocolFailure};
-const word_range = @import("backend_source").diagnostic_constants.@"zx.constants".word_range;
 
 pub const Context = struct {
     owned: std.mem.Allocator,
     temporary: std.mem.Allocator,
     selected: ?[]const u8 = null,
-    path_count: usize = 0,
-    path_bytes: usize = 0,
-    inputs: []const Protocol.Input = &.{},
+    path_layout: u64 = 0,
+    path_bytes: []u8 = &.{},
+    inputs: []Protocol.Input = &.{},
     diagnostics: std.zig.ErrorBundle = .empty,
     digest: ?[std.Build.Cache.bin_digest_len]u8 = null,
     cached: bool = false,
@@ -29,8 +28,7 @@ pub fn commitInputs(handle: *const anyopaque, body: []const u8, layout: ?u64) vo
     const self = Context.get(handle);
 
     self.selected = body;
-    self.path_count = @intCast(layout.? / word_range);
-    self.path_bytes = @intCast(layout.? % word_range);
+    self.path_layout = layout.?;
 }
 
 pub fn commitDigest(handle: *const anyopaque, body: []const u8, cached: ?bool) void {
@@ -57,24 +55,25 @@ pub fn hasInputs(handle: *const anyopaque) bool {
     return Context.get(handle).selected != null;
 }
 
-pub fn materializeInputs(handle: *const anyopaque) Error!void {
+pub fn inputLayout(handle: *const anyopaque) u64 {
+    return Context.get(handle).path_layout;
+}
+
+pub fn selectedInputBytes(handle: *const anyopaque) []const u8 {
+    return Context.get(handle).selected.?;
+}
+
+pub fn reserveInputs(handle: *const anyopaque, count: u64, length: u64) Error!void {
     const self = Context.get(handle);
 
-    if (self.path_count == 0) return;
+    self.path_bytes = self.owned.alloc(u8, @intCast(length)) catch |err| return self.fail(err);
+    self.inputs = self.owned.alloc(Protocol.Input, @intCast(count)) catch |err| return self.fail(err);
+}
 
-    var bytes = self.owned.alloc(u8, self.path_bytes) catch |err| return self.fail(err);
-    const inputs = self.owned.alloc(Protocol.Input, self.path_count) catch |err| return self.fail(err);
-    var paths = std.mem.tokenizeScalar(u8, self.selected.?, 0);
+pub fn writeInput(handle: *const anyopaque, row: u64, prefix: u8, offset: u64, spelling: []const u8) void {
+    const self = Context.get(handle);
+    const path = self.path_bytes[@intCast(offset)..][0..spelling.len];
 
-    for (inputs) |*input| {
-        const encoded = paths.next().?;
-        const path = bytes[0 .. encoded.len - 1];
-
-        @memcpy(path, encoded[1..]);
-
-        input.* = .{ .prefix = @fromBackingInt(@intCast(encoded[0] - 1)), .path = path };
-        bytes = bytes[path.len..];
-    }
-
-    self.inputs = inputs;
+    @memcpy(path, spelling);
+    self.inputs[@intCast(row)] = .{ .prefix = @fromBackingInt(@intCast(prefix)), .path = path };
 }

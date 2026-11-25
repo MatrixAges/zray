@@ -1,4 +1,4 @@
-import type { Graph } from "backend_diagnostics"
+import type { U64U32Map } from "memory/maps"
 
 export enum Status {
     Valid,
@@ -7,7 +7,7 @@ export enum Status {
 }
 
 export type Input = {
-    graph: Graph,
+    metrics: U64U32Map,
     words: u32[],
     strings: u8[]
 }
@@ -16,7 +16,11 @@ export type Node = Input & {
     key: u64
 }
 
-export type Root = {
-    graph: Graph,
-    words: u32[]
+export type Root = Input.Omit("strings")
+
+export type Children = {
+    first: u64,
+    count: u64,
+    traces: bool,
+    source?: u64
 }

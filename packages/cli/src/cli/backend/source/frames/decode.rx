@@ -12,7 +12,7 @@
         <Return value={$ctx.read} />
     </If>
 
-    <Call fn="index.materializeInputs" in={$in.response} />
+    <Call fn="materialize" in={$in.response} />
     <Call fn="index.hasDiagnostics" in={$in.response} />
 
     <If

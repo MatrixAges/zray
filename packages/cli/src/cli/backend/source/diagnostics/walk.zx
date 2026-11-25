@@ -1,39 +1,100 @@
-import host from "backend_diagnostics"
+import integer from "std:integer"
+import { findU64U32Entry, writeU64U32Entry } from "memory/maps"
 
-import { finish_key } from "./const"
-import enter from "./enter"
+import children from "./children"
+import {
+    finish_key,
+    metric_stride,
+    root_length,
+    root_start,
+    source_key,
+    visiting
+} from "./const"
 import expand from "./expand"
+import location from "./location"
+import message from "./message"
 import { Status } from "./model"
+import schedule from "./schedule"
 
 import type { Input } from "./model"
 
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { graph, words, strings } = in
+    const { metrics, words, strings } = in
+
+    const first = integer.widen(words[root_start])
+    const end = first + integer.widen(words[root_length])
+    const pending: u64[] = []
+    const leaf = integer.narrow(metric_stride + 1)
 
     return loop({
-        active: true,
+        pending,
+        next_root: end,
         status: Status.Valid
     }, {
-        while: state => state.active && state.status == Status.Valid,
+        while: state => state.status == Status.Valid &&
+            (state.next_root > first || state.pending.length > 0),
         next: state => {
-            const node = host.pop(graph)
+            const [remaining, queued] = state.pending.pop()
 
-            if (node == null) {
-                state.active = false
-            } else if (node >= finish_key) {
-                state.status = expand({
-                    graph,
-                    key: node - finish_key
-                })
-            } else {
-                state.status = enter({
-                    graph,
+            state.pending = remaining
+
+            if (queued == null) {
+                state.next_root -= 1
+            }
+
+            const key = queued ?? integer.widen(words[state.next_root])
+
+            if (key >= finish_key) {
+                const node = key - finish_key
+
+                const value = expand({
+                    metrics,
                     words,
-                    strings,
                     key: node
                 })
+
+                if (value == null) {
+                    state.status = Status.BackendDiagnosticsTooComplex
+                } else {
+                    writeU64U32Entry(metrics, node, value)
+                }
+            } else {
+                const value = findU64U32Entry(metrics, key)
+
+                if (value == visiting) {
+                    state.status = Status.InvalidBackendProtocol
+                } else if (value == null) {
+                    const input = {
+                        metrics,
+                        words,
+                        strings,
+                        key
+                    }
+
+                    state.status = key >= source_key ? location(input) : message(input)
+
+                    if (state.status == Status.Valid) {
+                        const layout = children({
+                            words,
+                            key
+                        })
+
+                        if (layout.count == 0 && layout.source == null) {
+                            writeU64U32Entry(metrics, key, leaf)
+                        } else {
+                            writeU64U32Entry(metrics, key, visiting)
+
+                            state.pending = schedule({
+                                words,
+                                key,
+                                children: layout,
+                                pending: state.pending
+                            })
+                        }
+                    }
+                }
             }
         },
         return: state => state.status

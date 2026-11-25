@@ -1,0 +1,52 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import integer from "std:integer"
+import host from "backend_frames"
+
+import { word_range } from "../diagnostics/const"
+
+import type { Response as Input } from "backend_frames"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const layout = host.inputLayout(in)
+    const count = layout / word_range
+
+    if (count == 0) {
+        return
+    }
+
+    host.reserveInputs(in, count, layout % word_range)
+
+    const body = host.selectedInputBytes(in)
+    const data = bytes.fromText(body)
+    const start: u64 = 0
+
+    const materialized = loop({
+        at: start,
+        row: start,
+        offset: start
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const prefix = data[state.at]
+
+            if (prefix == 0) {
+                state.at += 1
+            } else {
+                const first = state.at + 1
+                const end = bytes.indexOfScalar(data, first, 0) ?? data.length
+                const path = encoding.sliceBytes(body, first, end)
+
+                const kind = integer.narrowByte(integer.widenByte(prefix) - 1)
+
+                host.writeInput(in, state.row, kind, state.offset, path)
+
+                state.offset += path.length
+                state.row += 1
+                state.at = end + 1
+            }
+        }
+    })
+}

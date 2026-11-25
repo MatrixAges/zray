@@ -1,7 +1,7 @@
 import integer from "std:integer"
-import host from "backend_diagnostics"
+import { readU64U32Entry } from "memory/maps"
 
-import { max_expanded, root_length, root_start, word_range } from "./const"
+import { max_expanded, metric_stride, root_length, root_start } from "./const"
 import { Status } from "./model"
 
 import type { Root as Input } from "./model"
@@ -9,7 +9,7 @@ import type { Root as Input } from "./model"
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { graph, words } = in
+    const { metrics, words } = in
 
     const start = integer.widen(words[root_start])
     const end = start + integer.widen(words[root_length])
@@ -22,7 +22,9 @@ export default function (in: Input): Output {
         while: state => !state.overflow && state.at < end,
         next: state => {
             const key = integer.widen(words[state.at])
-            const expanded = host.metrics(graph, key) % word_range
+            const metric = readU64U32Entry(metrics, key)
+
+            const expanded = integer.widen(metric) % metric_stride
 
             if (expanded > max_expanded - state.sum) {
                 state.overflow = true

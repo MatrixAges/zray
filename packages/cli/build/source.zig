@@ -237,6 +237,10 @@ pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/cli/backend/source"), "source", .{ .include_extensions = &.{ ".rx", ".zx" } });
 
+    const memory = b.dependency("core", .{ .target = target, .optimize = optimize });
+    _ = files.addCopyFile(memory.path("interfaces/memory/maps.d.zx"), "memory/maps.d.zx");
+
+    const maps = b.createModule(.{ .root_source_file = memory.path("src/memory/maps.zig"), .target = target, .optimize = optimize });
     const generated = generate(b, compiler, files, "build/backend.json", "backend");
     const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
 
@@ -247,6 +251,7 @@ pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.
         .imports = &.{
             .{ .name = "backend_abi", .module = abi },
             .{ .name = "zx", .module = core },
+            .{ .name = "memory/maps", .module = maps },
         },
     });
 
@@ -257,9 +262,9 @@ pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
+            .{ .name = "memory/maps", .module = maps },
             .{ .name = "backend_process", .module = protocol },
             .{ .name = "backend_frames", .module = protocol },
-            .{ .name = "backend_diagnostics", .module = protocol },
         },
     });
 

@@ -1,0 +1,38 @@
+import integer from "std:integer"
+
+import {
+    message_notes,
+    message_source,
+    message_words,
+    source_key,
+    source_trace_length,
+    source_words
+} from "./const"
+
+import type { Children as Output, Node } from "./model"
+
+export type Input = Node.Pick("words", "key")
+
+export default function (in: Input): Output {
+    const { words, key } = in
+
+    if (key >= source_key) {
+        const start = key - source_key
+
+        return {
+            first: start + source_words,
+            count: integer.widen(words[start + source_trace_length]),
+            traces: true,
+            source: null
+        }
+    }
+
+    const location = integer.widen(words[key + message_source])
+
+    return {
+        first: key + message_words,
+        count: integer.widen(words[key + message_notes]),
+        traces: false,
+        source: location == 0 ? null : source_key + location
+    }
+}

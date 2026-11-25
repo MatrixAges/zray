@@ -1,5 +1,4 @@
 import integer from "std:integer"
-import host from "backend_diagnostics"
 
 import {
     max_expanded,
@@ -16,7 +15,7 @@ import type { Input } from "./model"
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { graph, words, strings } = in
+    const { words, strings } = in
 
     if (words.length < root_words || strings.length == 0) {
         return Status.InvalidBackendProtocol
@@ -43,17 +42,6 @@ export default function (in: Input): Output {
     if (count > max_expanded) {
         return Status.BackendDiagnosticsTooComplex
     }
-
-    const queued = loop({
-        at: start
-    }, {
-        while: state => state.at < start + count,
-        next: state => {
-            host.schedule(graph, integer.widen(words[state.at]))
-
-            state.at += 1
-        }
-    })
 
     return Status.Valid
 }

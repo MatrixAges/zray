@@ -3,6 +3,5 @@ export {
     commitDigest,
     commitDiagnostics,
     hasDiagnostics,
-    hasInputs,
-    materializeInputs
+    hasInputs
 } from "backend_frames"

@@ -23,7 +23,7 @@ import type { Node as Input } from "./model"
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { graph, words, strings } = in
+    const { words, strings } = in
 
     const index = in.key - source_key
 
@@ -79,7 +79,6 @@ export default function (in: Input): Output {
     }
 
     return traces({
-        graph,
         words,
         strings,
         start,

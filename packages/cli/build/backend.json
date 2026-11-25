@@ -3,6 +3,10 @@
         {
             "path": "source",
             "prefix": "backend/"
+        },
+        {
+            "path": "memory",
+            "prefix": "memory/"
         }
     ],
     "entries": [
@@ -38,6 +42,10 @@
     "packages": [],
     "interfaces": [
         {
+            "path": "memory/maps.d.zx",
+            "module": "memory/maps"
+        },
+        {
             "path": "backend/process/host.d.zx",
             "module": "backend_process",
             "resolve_members": true
@@ -45,11 +53,6 @@
         {
             "path": "backend/frames/host.d.zx",
             "module": "backend_frames",
-            "resolve_members": true
-        },
-        {
-            "path": "backend/diagnostics/host.d.zx",
-            "module": "backend_diagnostics",
             "resolve_members": true
         }
     ]

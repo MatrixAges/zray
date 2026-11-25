@@ -47,7 +47,6 @@ pub const frames = @import("source/frames/storage.zig");
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
     frames,
-    diagnostics,
     process,
 }).resolve;
 

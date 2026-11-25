@@ -1,13 +1,12 @@
 import integer from "std:integer"
-import host from "backend_diagnostics"
 
-import { source_key, trace_source, trace_text, trace_words, word_range } from "./const"
+import { trace_source, trace_text, trace_words, word_range } from "./const"
 import { Status } from "./model"
 import validString from "./string"
 
 import type { Input as Bundle } from "./model"
 
-export type Input = Bundle & {
+export type Input = Bundle.Pick("words", "strings") & {
     start: u64,
     count: u64
 }
@@ -15,7 +14,7 @@ export type Input = Bundle & {
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { graph, words, strings, start, count } = in
+    const { words, strings, start, count } = in
 
     return loop({
         index: 0,
@@ -29,13 +28,11 @@ export default function (in: Input): Output {
 
             if (source == 0) {
                 state.valid = name < word_range - count
-            } else if (validString({
-                strings,
-                index: name
-            })) {
-                host.appendChild(graph, source_key + source)
             } else {
-                state.valid = false
+                state.valid = validString({
+                    strings,
+                    index: name
+                })
             }
 
             state.index += 1

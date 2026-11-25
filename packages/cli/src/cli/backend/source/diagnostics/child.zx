@@ -1,0 +1,25 @@
+import integer from "std:integer"
+
+import { source_key, trace_source, trace_words } from "./const"
+
+import type { Children, Node } from "./model"
+
+export type Input = Node.Pick("words") & {
+    children: Children,
+    index: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { words, children, index } = in
+
+    if (!children.traces) {
+        return integer.widen(words[children.first + index])
+    }
+
+    const offset = children.first + index * trace_words + trace_source
+    const source = integer.widen(words[offset])
+
+    return source == 0 ? null : source_key + source
+}

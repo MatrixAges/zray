@@ -1,53 +1,72 @@
-import host from "backend_diagnostics"
+import integer from "std:integer"
+import { readU64U32Entry } from "memory/maps"
 
-import { max_depth, max_expanded, word_range } from "./const"
-import { Status } from "./model"
+import child from "./child"
+import layout from "./children"
+import { max_depth, max_expanded, metric_stride, visiting } from "./const"
 
-import type { Graph } from "backend_diagnostics"
+import type { Node } from "./model"
 
-export type Input = {
-    graph: Graph,
-    key: u64
-}
+export type Input = Node.Omit("strings")
 
-export type Output = Status
+export type Output = u32?
 
 export default function (in: Input): Output {
-    const { graph, key } = in
+    const { metrics, words, key } = in
 
-    const children = host.finishChildren(graph, key)
+    const children = layout({
+        words,
+        key
+    })
+
+    const source = children.source
+
+    const inherited = match {
+        source != null => readU64U32Entry(metrics, source),
+        _ => visiting
+    }
+
+    const first = integer.widen(inherited)
+    const initial = first % metric_stride
 
     const record = loop({
         index: 0,
-        height: 1,
-        expanded: 1,
-        overflow: false
+        height: first / metric_stride + 1,
+        expanded: initial + 1,
+        overflow: initial >= max_expanded
     }, {
-        while: state => !state.overflow && state.index < children.length,
+        while: state => !state.overflow && state.index < children.count,
         next: state => {
-            const metrics = host.metrics(graph, children[state.index])
-            const expanded = metrics % word_range
-            const height = metrics / word_range + 1
+            const next = child({
+                words,
+                children,
+                index: state.index
+            })
 
-            if (height > state.height) {
-                state.height = height
-            }
+            if (next != null) {
+                const metric = integer.widen(readU64U32Entry(metrics, next))
 
-            if (expanded > max_expanded - state.expanded) {
-                state.overflow = true
-            } else {
-                state.expanded += expanded
+                const expanded = metric % metric_stride
+                const height = metric / metric_stride + 1
+
+                if (height > state.height) {
+                    state.height = height
+                }
+
+                if (expanded > max_expanded - state.expanded) {
+                    state.overflow = true
+                } else {
+                    state.expanded += expanded
+                }
             }
 
             state.index += 1
         }
     })
 
-    if (record.overflow || record.height > max_depth) {
-        return Status.BackendDiagnosticsTooComplex
+    return match {
+        record.overflow => null,
+        record.height > max_depth => null,
+        _ => integer.narrow(record.height * metric_stride + record.expanded)
     }
-
-    host.finish(graph, record.height * word_range + record.expanded)
-
-    return Status.Valid
 }

@@ -45,3 +45,7 @@ export const finish_key: u64 = 2 * word_range
 export const max_depth: u64 = 256
 
 export const max_expanded: u64 = 1048576
+
+export const metric_stride: u64 = 2097152
+
+export const visiting: u32 = 0

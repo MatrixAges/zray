@@ -1,13 +1,10 @@
 import integer from "std:integer"
-import host from "backend_diagnostics"
 
 import {
     max_expanded,
     message_notes,
-    message_source,
     message_text,
     message_words,
-    source_key,
     word_range
 } from "./const"
 import { Status } from "./model"
@@ -18,7 +15,7 @@ import type { Node as Input } from "./model"
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { graph, words, strings, key } = in
+    const { words, strings, key } = in
 
     if (key > words.length || message_words > words.length - key) {
         return Status.InvalidBackendProtocol
@@ -41,23 +38,6 @@ export default function (in: Input): Output {
     if (count > max_expanded) {
         return Status.BackendDiagnosticsTooComplex
     }
-
-    const source = words[key + message_source]
-
-    if (source != 0) {
-        host.appendChild(graph, source_key + integer.widen(source))
-    }
-
-    const appended = loop({
-        at: start
-    }, {
-        while: state => state.at < start + count,
-        next: state => {
-            host.appendChild(graph, integer.widen(words[state.at]))
-
-            state.at += 1
-        }
-    })
 
     return Status.Valid
 }
