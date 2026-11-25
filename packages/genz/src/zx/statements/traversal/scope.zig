@@ -11,7 +11,7 @@ values: ir.Block,
 starts: []u32,
 counts: []u32,
 routes: []const u8,
-registered: locals.Registered = .{},
+registered: ?locals.Registered = null,
 condition: node.ExpressionId = undefined,
 yes: node.Block = undefined,
 pub const Buffer = struct {
@@ -27,7 +27,7 @@ pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self
 
     scope.registered = try locals.register(lowering, values);
 
-    errdefer scope.registered.release(lowering);
+    errdefer scope.registered.?.release(lowering);
 
     try @import("../block.zig").fill(lowering, values, buffer.routes);
 
@@ -35,7 +35,7 @@ pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self
 }
 
 pub fn close(self: *const Self, lowering: *Lower) void {
-    self.registered.release(lowering);
+    if (self.registered) |registered| registered.release(lowering);
 }
 
 pub fn put(self: *const Self, offset: usize, span: node.Block) void {

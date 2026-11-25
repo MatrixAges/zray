@@ -16,7 +16,6 @@ const Active = struct {
     candidates: @FieldType(Plan, "candidates"),
     changes: []const ?u32,
     alias_symbols: []const u32,
-    alias_sources: []const u32,
     saved: [][]const u8,
 };
 
@@ -43,12 +42,15 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 
     var storage: @import("../object_update/matching.zig").Borrow = undefined;
     const matching = storage.view(lowering);
+    var saved: [][]const u8 = &.{};
 
     const input: Input = .{
         .matching = &matching,
         .bindings = scope.bindings.values,
         .symbols = scope.bindings.symbols,
         .result = @backingInt(scope.result),
+        .names = @ptrCast(&lowering.names),
+        .saved = @ptrCast(&saved),
     };
 
     const result = entry.executeIn(scratch, &input) catch |err| switch (err) {
@@ -58,17 +60,12 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 
     const plan = result orelse return null;
 
-    if (plan.alias_symbols.len == 0) return null;
-
     const state: Active = .{
         .candidates = plan.candidates,
         .changes = plan.changes,
         .alias_symbols = plan.alias_symbols,
-        .alias_sources = plan.alias_sources,
-        .saved = try scratch.alloc([]const u8, plan.alias_symbols.len),
+        .saved = saved,
     };
-
-    names(lowering, &state, false);
 
     return .{ .variables = plan.variables, .state = state };
 }
@@ -76,7 +73,9 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 pub fn restore(self: *const Self, lowering: *Lower) void {
     if (!generated) return self.state.restore(lowering);
 
-    names(lowering, &self.state, true);
+    const saved: Names = .{ .symbols = self.state.alias_symbols, .saved = self.state.saved };
+
+    saved.restore(lowering);
 }
 
 pub fn publish(self: *const Self, lowering: *Lower, index: usize) Lower.Error!?node.Block {
@@ -99,34 +98,30 @@ pub fn publishSeed(self: *const Self, lowering: *Lower, output: *std.ArrayList(n
     return try lowering.builder.statements(output.items);
 }
 
-fn names(lowering: *Lower, state: *const Active, restoring: bool) void {
-    applyNames(lowering, .{ .symbols = state.alias_symbols, .saved = state.saved }, state.alias_sources, &.{}, restoring);
-}
-
 pub const Names = struct {
     symbols: []const u32,
     saved: [][]const u8,
     pub fn restore(self: Names, lowering: *Lower) void {
-        applyNames(lowering, self, &.{}, &.{}, true);
+        applyNames(lowering, self, &.{}, true);
     }
 };
 
 pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: []const []const u8, saved: [][]const u8) Names {
     const binding: Names = .{ .symbols = view.slice([]const u32, symbols), .saved = saved };
 
-    applyNames(lowering, binding, &.{}, replacements, false);
+    applyNames(lowering, binding, replacements, false);
 
     return binding;
 }
 
-fn applyNames(lowering: *Lower, binding: Names, sources: []const u32, replacements: []const []const u8, restoring: bool) void {
+fn applyNames(lowering: *Lower, binding: Names, replacements: []const []const u8, restoring: bool) void {
     if (binding.symbols.len == 0) return;
 
     const install = @import("generated_scope_reuse_names");
 
     const input: std.meta.Child(install.Input) = .{
         .symbols = binding.symbols,
-        .sources = sources,
+        .sources = &.{},
         .replacements = replacements,
         .names = @ptrCast(&lowering.names),
         .saved = @ptrCast(&binding.saved),

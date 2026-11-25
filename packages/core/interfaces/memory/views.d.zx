@@ -85,6 +85,8 @@ export declare function u8Views(source: U8Buffer): u8[]
 
 export declare function u32Views(source: U32Buffer): u32[]
 
+export declare function bindU32Views(target: U32Buffer, source: u32[]): void
+
 export declare function appendU64(
     resource: Allocator,
     target: U64Storage,

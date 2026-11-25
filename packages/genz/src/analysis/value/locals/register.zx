@@ -1,4 +1,4 @@
-import attach from "../../members/attach"
+import add from "../../members/add"
 
 import type { Register as Input, Walk as Output } from "./model"
 
@@ -18,10 +18,9 @@ export default function (in: Input): Output {
 
     return {
         ...next,
-        ...attach(state.pick([
-            "index",
-            "added",
-            "symbol"
-        ]))
+        index: add({
+            index: state.index,
+            key: state.symbol
+        })
     }
 }

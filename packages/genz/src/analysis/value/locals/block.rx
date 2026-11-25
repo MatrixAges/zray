@@ -1,7 +1,7 @@
 <Module>
     <Type from="registration" as="Locals" />
 
-    <Args in={Locals.Block} out={Locals.Registered} />
+    <Args in={Locals.Block} out={Locals.Storage} />
 
     <Call
         fn="../../state/locals/statements"
@@ -39,7 +39,6 @@
                     keys: $in.storage.stack_keys,
                     buckets: $in.storage.stack_buckets
                 },
-                added: [],
                 cache: $in.storage.pick([
                     "aliases",
                     "projected"
@@ -54,17 +53,13 @@
 
     <Return
         value={{
-            storage: {
-                ...$ctx.advance.cache,
-                state_count: $ctx.statements.index.count,
-                state_keys: $ctx.statements.index.keys,
-                state_buckets: $ctx.statements.index.buckets,
-                stack_count: $ctx.advance.index.count,
-                stack_keys: $ctx.advance.index.keys,
-                stack_buckets: $ctx.advance.index.buckets
-            },
-            state_added: $ctx.statements.added,
-            stack_added: $ctx.advance.added
+            ...$ctx.advance.cache,
+            state_count: $ctx.statements.count,
+            state_keys: $ctx.statements.keys,
+            state_buckets: $ctx.statements.buckets,
+            stack_count: $ctx.advance.index.count,
+            stack_keys: $ctx.advance.index.keys,
+            stack_buckets: $ctx.advance.index.buckets
         }}
     />
 </Module>

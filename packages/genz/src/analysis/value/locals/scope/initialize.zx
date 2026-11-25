@@ -5,7 +5,6 @@ import type { Prepared as Input, State as Output } from "./model"
 export default function (in: Input): Output {
     return {
         index: in.source.index,
-        added: [],
         cache: in.cache,
         flags: in.flags,
         projected: in.projected,

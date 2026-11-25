@@ -2,6 +2,7 @@ import integers from "std:integer"
 import memory from "memory"
 
 import { max_u32 } from "../../const"
+import eraseSlot from "./erase_slot"
 import probe from "./probe"
 
 import type { Mutable } from "./model"
@@ -36,46 +37,25 @@ export default function (in: Input): Output {
 
     const position = integers.widen(entry)
     const last = in.count - 1
-    const moved = keys[last]
 
-    const replacement = probe({
-        keys,
-        buckets,
-        key: moved
+    if (position != last) {
+        const moved = keys[last]
+
+        const replacement = probe({
+            keys,
+            buckets,
+            key: moved
+        })
+
+        memory.writeU32(in.keys, position, moved)
+        memory.writeU32(in.buckets, replacement, entry)
+    }
+
+    eraseSlot({
+        keys: in.keys,
+        buckets: in.buckets,
+        slot
     })
-
-    memory.writeU32(in.keys, position, moved)
-    memory.writeU32(in.buckets, replacement, entry)
-
-    const hole = loop({
-        hole: slot,
-        scan: (slot + 1) % capacity,
-        done: false
-    }, {
-        while: state => !state.done,
-        next: state => {
-            const item = memory.readU32(in.buckets, state.scan)
-
-            if (item == max_u32) {
-                state.done = true
-            } else {
-                const key = memory.readU32(in.keys, integers.widen(item))
-                const home = integers.hash(integers.widen(key)) % capacity
-                const hole_distance = (state.hole + capacity - home) % capacity
-                const scan_distance = (state.scan + capacity - home) % capacity
-
-                if (hole_distance < scan_distance) {
-                    memory.writeU32(in.buckets, state.hole, item)
-                    state.hole = state.scan
-                }
-
-                state.scan = (state.scan + 1) % capacity
-            }
-        },
-        return: state => state.hole
-    })
-
-    memory.writeU32(in.buckets, hole, max_u32)
 
     return position
 }

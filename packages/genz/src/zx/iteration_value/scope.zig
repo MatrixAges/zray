@@ -18,15 +18,17 @@ pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
     defer scratch.deinit();
 
     const temporary = memory.allocator();
-    const entered = try locals(self, temporary, scope.bindings.symbols);
+    const before = self.symbols.checkpoint();
 
-    defer self.symbols.removeMany(entered);
+    try locals(self, temporary, scope.bindings.symbols);
+
+    defer self.symbols.restore(before);
 
     return @import("../scope/execute.zig").iteration(self, temporary, scope);
 }
 
-fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) Lower.Error![]const ir.SymbolId {
-    if (symbols.len == 0) return &.{};
+fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) Lower.Error!void {
+    if (symbols.len == 0) return;
 
     const entry = @import("generated_iteration_scope_locals");
     const Input = std.meta.Child(entry.Input);
@@ -48,9 +50,7 @@ fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) L
 
     const entered = @as([*]const ir.SymbolId, @ptrCast(keys.ptr))[0..keys.len];
 
-    try self.symbols.addMany(lowering.allocator, entered);
-
-    return entered;
+    return self.symbols.addMany(lowering.allocator, entered);
 }
 
 const scope_entry = @import("generated_iteration_scope");

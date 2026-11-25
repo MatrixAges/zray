@@ -2,15 +2,12 @@ import type { Control } from "core/control_table/model"
 import type { TransformKind } from "core/expression_table/kinds"
 import type { Index } from "core/integer/index/model"
 import type { Table } from "core/type_table/model"
-import type { Output as Membership } from "../../members/attach"
 import type { Query } from "../queries/model"
 
 export type Facts = {
     symbol_types: u32[],
     queries: Query[]
 }
-
-export type Registration = Membership
 
 export type Statements = {
     facts: Facts,
@@ -46,6 +43,6 @@ export type Parameters = {
 
 export type Candidate = {
     facts: Facts,
-    state: Registration,
+    index: Index,
     symbol: u32
 }

@@ -1,38 +1,58 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import probe from "core/integer/index/probe"
+import reserve from "core/integer/index/reserve"
 import memory from "memory"
 
-import type { Mutable } from "core/integer/index/model"
+import add from "./add"
+
+import type { Index as Output } from "core/integer/index/model"
+import type { U32Buffer } from "memory"
 
 export type Input = {
-    index: Mutable,
-    keys: u32[]
+    index: Output,
+    keys: u32[],
+    key_buffer: U32Buffer,
+    bucket_buffer: U32Buffer
 }
 
-export type Output = u64
-
 export default function (in: Input): Output {
-    const keys = memory.u32Views(in.index.keys)
-    const buckets = memory.u32Views(in.index.buckets)
+    if (in.keys.length == 0) {
+        return in.index
+    }
 
-    return loop({
-        count: in.index.count,
+    if (in.keys.length == 1) {
+        return add({
+            index: in.index,
+            key: in.keys[0]
+        })
+    }
+
+    const index = reserve({
+        ...in.index,
+        additional: in.keys.length
+    })
+
+    memory.bindU32Views(in.key_buffer, index.keys)
+    memory.bindU32Views(in.bucket_buffer, index.buckets)
+
+    const count = loop({
+        count: index.count,
         position: 0
     }, {
         while: state => state.position < in.keys.length,
         next: state => {
             const key = in.keys[state.position]
             const bucket = probe({
-                keys,
-                buckets,
+                keys: index.keys,
+                buckets: index.buckets,
                 key
             })
 
-            if (memory.readU32(in.index.buckets, bucket) == max_u32) {
-                memory.writeU32(in.index.keys, state.count, key)
+            if (memory.readU32(in.bucket_buffer, bucket) == max_u32) {
+                memory.writeU32(in.key_buffer, state.count, key)
                 memory.writeU32(
-                    in.index.buckets,
+                    in.bucket_buffer,
                     bucket,
                     integers.narrow(state.count)
                 )
@@ -43,4 +63,9 @@ export default function (in: Input): Output {
         },
         return: state => state.count
     })
+
+    return {
+        ...index,
+        count
+    }
 }

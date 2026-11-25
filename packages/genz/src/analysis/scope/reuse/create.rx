@@ -1,9 +1,15 @@
 <Module>
     <Type from="model" as="Reuse" />
 
-    <Args in={Reuse.Source} out={Reuse.Output} />
+    <Args in={Reuse.Job} out={Reuse.Output} />
 
-    <Call module="scan" in={$in} />
+    <Call
+        module="scan"
+        in={$in.omit([
+            "names",
+            "saved"
+        ])}
+    />
 
     <Call fn="has" />
 
@@ -26,6 +32,24 @@
         />
 
         <Call fn="plan" />
+
+        <If on={$ctx.plan.alias_symbols.length == 0}>
+            <Return value={null} />
+        </If>
+
+        <Call
+            fn="install"
+            in={{
+                ...$in.pick([
+                    "names",
+                    "saved"
+                ]),
+                ...$ctx.plan.pick([
+                    "alias_symbols",
+                    "alias_sources"
+                ])
+            }}
+        />
 
         <Return
             value={{

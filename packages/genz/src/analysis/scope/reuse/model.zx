@@ -1,4 +1,5 @@
 import type { Expressions } from "core/expression_table/model"
+import type { StringBuffer } from "memory"
 import type { Change, Environment } from "../../object_update/match/model"
 import type { Last } from "../reads/model"
 
@@ -20,6 +21,15 @@ export type Bindings = {
 export type Source = Bindings & {
     matching: Environment
 }
+
+export type NameBuffers = {
+    names: StringBuffer,
+    saved: StringBuffer
+}
+
+export type Job = Source & NameBuffers
+
+export type Aliases = NameBuffers & Plan.Pick("alias_symbols", "alias_sources")
 
 export type Input = Bindings & {
     expressions: Expressions,

@@ -8,34 +8,11 @@ const seed = @import("locals_seed.zig");
 const generated = @import("genz_options").generated_analysis;
 
 pub const Registered = struct {
-    state: []const ir.SymbolId = &.{},
-    stack: []const ir.SymbolId = &.{},
+    state: Members.Checkpoint,
+    stack: Members.Checkpoint,
     pub fn release(self: Registered, lowering: *Lower) void {
-        if (!generated) {
-            lowering.stack_symbols.removeMany(self.stack);
-            lowering.state_symbols.removeMany(self.state);
-
-            return;
-        }
-
-        if (self.stack.len == 0 and self.state.len == 0) return;
-
-        const entry = @import("generated_value_local_release");
-        const Input = std.meta.Child(entry.Input);
-        const stack = lowering.stack_symbols.current();
-        const state = lowering.state_symbols.current();
-        const Removal = std.meta.Child(@FieldType(Input, "stack"));
-        const Index = std.meta.Child(@FieldType(Removal, "index"));
-        const stack_buffer = Members.writable(Index, stack);
-        const state_buffer = Members.writable(Index, state);
-        const view = @import("../../node/view.zig");
-        const remove_stack: Removal = .{ .index = &stack_buffer, .keys = view.slice([]const u32, self.stack) };
-        const remove_state: Removal = .{ .index = &state_buffer, .keys = view.slice([]const u32, self.state) };
-        const input: Input = .{ .stack = &remove_stack, .state = &remove_state };
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-        const output = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
-        stack.count = output.stack;
-        state.count = output.state;
+        lowering.stack_symbols.restore(self.stack);
+        lowering.state_symbols.restore(self.state);
     }
 };
 
@@ -95,8 +72,9 @@ pub fn scope(self: *Lower, value: ir.ScopeRow, layout: bool) Lower.Error!Registe
 
 fn apply(self: *Lower, comptime execute: anytype, input: anytype) Lower.Error!Registered {
     const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
+    const before: Registered = .{ .state = self.state_symbols.checkpoint(), .stack = self.stack_symbols.checkpoint() };
 
-    const output = execute(self.allocator, if (@typeInfo(Parameter) == .pointer) input else input.*) catch |err| {
+    const value = execute(self.allocator, if (@typeInfo(Parameter) == .pointer) input else input.*) catch |err| {
         // Registration only appends keys. The old counts and key prefixes still define both indexes.
         self.stack_symbols.restoreBuckets();
         self.state_symbols.restoreBuckets();
@@ -104,15 +82,13 @@ fn apply(self: *Lower, comptime execute: anytype, input: anytype) Lower.Error!Re
         return failure(err);
     };
 
-    const value = output.storage;
-
     install(&self.state_symbols, value.state_count, value.state_keys, value.state_buckets);
     install(&self.stack_symbols, value.stack_count, value.stack_keys, value.stack_buckets);
 
     self.input_aliases = if (value.aliases) |items| items.items else null;
     self.projected_symbols = if (value.projected) |items| items.items else null;
 
-    return .{ .state = symbols(output.state_added.items), .stack = symbols(output.stack_added.items) };
+    return before;
 }
 
 fn install(members: *Members, count: u64, keys: anytype, buckets: @TypeOf(keys)) void {
@@ -195,12 +171,6 @@ fn facts(self: *const Lower, comptime Facts: type, types: anytype) Facts {
 
 fn Child(comptime Value: type) type {
     return if (@typeInfo(Value) == .pointer) std.meta.Child(Value) else Value;
-}
-
-fn symbols(items: []const u32) []const ir.SymbolId {
-    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
-
-    return @as([*]const ir.SymbolId, @ptrCast(items.ptr))[0..items.len];
 }
 
 fn failure(err: anyerror) Lower.Error {

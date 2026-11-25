@@ -59,7 +59,6 @@ export type Projection = {
 
 export type Walk = {
     index: Index,
-    added: u32[],
     cache: Cache,
     position: u64,
     pending: bool,

@@ -2,7 +2,7 @@
     <Type from="model" as="Scope" />
     <Type from="../registration" as="Locals" />
 
-    <Args in={Scope.Run} out={Locals.Registered} />
+    <Args in={Scope.Run} out={Locals.Storage} />
 
     <Call
         fn="../../../state/locals/scope"
@@ -49,17 +49,13 @@
 
     <Return
         value={{
-            storage: {
-                ...$ctx.step.state.cache,
-                state_count: $ctx.scope.index.count,
-                state_keys: $ctx.scope.index.keys,
-                state_buckets: $ctx.scope.index.buckets,
-                stack_count: $ctx.step.state.index.count,
-                stack_keys: $ctx.step.state.index.keys,
-                stack_buckets: $ctx.step.state.index.buckets
-            },
-            state_added: $ctx.scope.added,
-            stack_added: $ctx.step.state.added
+            ...$ctx.step.state.cache,
+            state_count: $ctx.scope.count,
+            state_keys: $ctx.scope.keys,
+            state_buckets: $ctx.scope.buckets,
+            stack_count: $ctx.step.state.index.count,
+            stack_keys: $ctx.step.state.index.keys,
+            stack_buckets: $ctx.step.state.index.buckets
         }}
     />
 </Module>

@@ -1,11 +1,11 @@
 import integers from "std:integer"
-import get from "core/integer/index/get"
 
-import attach from "../../members/attach"
+import insert from "../../members/add"
 import { Property } from "../queries/model"
 import read from "../queries/read"
 
-import type { Candidate as Input, Registration as Output } from "./model"
+import type { Index as Output } from "core/integer/index/model"
+import type { Candidate as Input } from "./model"
 
 export default function (in: Input): Output {
     const type_id = in.facts.symbol_types[integers.widen(in.symbol)]
@@ -16,20 +16,11 @@ export default function (in: Input): Output {
     })
 
     if (!represented) {
-        return in.state
+        return in.index
     }
 
-    const key = {
-        index: in.state.index,
+    return insert({
+        index: in.index,
         key: in.symbol
-    }
-
-    if (get(key) != null) {
-        return in.state
-    }
-
-    return attach({
-        ...in.state,
-        symbol: in.symbol
     })
 }

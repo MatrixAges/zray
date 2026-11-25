@@ -14,9 +14,3 @@ export type Storage = Indices & Cache
 export type Block = Input.Omit("state") & {
     storage: Storage
 }
-
-export type Registered = {
-    storage: Storage,
-    state_added: u32[],
-    stack_added: u32[]
-}

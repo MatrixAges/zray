@@ -45,7 +45,6 @@ export enum Phase {
 
 export type State = {
     index: Index,
-    added: u32[],
     cache: Cache,
     flags: Flags,
     projected: bool[],

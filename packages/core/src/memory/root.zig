@@ -238,6 +238,11 @@ pub inline fn u32Views(source: *const anyopaque) []const u32 {
     return view.*;
 }
 
+pub inline fn bindU32Views(target: *const anyopaque, source: []const u32) void {
+    const view: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+    view.* = @constCast(source);
+}
+
 pub inline fn u64Views(source: *const anyopaque) []const u64 {
     const view: *const []const u64 = @ptrCast(@alignCast(source));
 

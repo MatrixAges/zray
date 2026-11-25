@@ -1,4 +1,4 @@
-import attach from "../../../members/attach"
+import add from "../../../members/add"
 import { Phase } from "./model"
 
 import type { Resolved as Input, State as Output } from "./model"
@@ -17,10 +17,9 @@ export default function (in: Input): Output {
 
     return {
         ...next,
-        ...attach(in.state.pick([
-            "index",
-            "added",
-            "symbol"
-        ]))
+        index: add({
+            index: in.state.index,
+            key: in.state.symbol
+        })
     }
 }

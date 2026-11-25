@@ -5,7 +5,7 @@ const Lower = @import("../lower.zig");
 const seed = @import("locals_seed.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn parameters(self: *Lower, value: ir.Transform) Lower.Error![]const ir.SymbolId {
+pub fn parameters(self: *Lower, value: ir.Transform) Lower.Error!@import("../members.zig").Checkpoint {
     if (!generated) return seed.parameters(self, value);
 
     const entry = @import("generated_state_locals_parameters");
@@ -36,12 +36,17 @@ pub fn parameters(self: *Lower, value: ir.Transform) Lower.Error![]const ir.Symb
         .parameters = .{ .items = @as([*]const u32, @ptrCast(value.parameters.ptr))[0..value.parameters.len], .storage = .plain },
     };
 
-    const output = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+    const before = self.state_symbols.checkpoint();
 
-    self.state_symbols.current().* = output.index;
-    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
+    const index = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| {
+        self.state_symbols.restoreBuckets();
 
-    return @as([*]const ir.SymbolId, @ptrCast(output.added.items.ptr))[0..output.added.items.len];
+        return failure(err);
+    };
+
+    self.state_symbols.current().* = zx.columns.view(@TypeOf(self.state_symbols.current().*), index);
+
+    return before;
 }
 
 pub fn registerOwned(self: *Lower, symbols: []const ir.SymbolId) Lower.Error!void {

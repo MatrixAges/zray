@@ -1,38 +1,34 @@
 import add from "./add"
 
-import type { Scope as Input, Registration as Output } from "./model"
+import type { Index as Output } from "core/integer/index/model"
+import type { Scope as Input } from "./model"
 
 export default function (in: Input): Output {
-    const initial: Output = {
-        index: in.index,
-        added: []
-    }
-
     if (!in.active) {
-        return initial
+        return in.index
     }
 
     const facts = in.facts
     const symbols = in.symbols
 
     return loop({
-        state: initial,
-        index: 0
+        index: in.index,
+        position: 0
     }, {
-        while: current => current.index < symbols.length,
+        while: current => current.position < symbols.length,
         next: current => {
-            const symbol = symbols[current.index]
+            const symbol = symbols[current.position]
 
             if (symbol != null) {
-                current.state = add({
+                current.index = add({
                     facts,
-                    state: current.state,
+                    index: current.index,
                     symbol
                 })
             }
 
-            current.index += 1
+            current.position += 1
         },
-        return: current => current.state
+        return: current => current.index
     })
 }

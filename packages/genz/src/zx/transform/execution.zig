@@ -19,7 +19,7 @@ pub const Frame = struct {
     body: Sequence,
     loop: Sequence,
     binding: Sequence,
-    added: []const ir.SymbolId = &.{},
+    members: ?@import("../members.zig").Checkpoint = null,
     entered: node.Block = .{},
     renewal_workspace: *RenewalWorkspace = undefined,
     pub fn borrow(handle: *const anyopaque) *Frame {
@@ -35,7 +35,7 @@ pub const Frame = struct {
         self.binding.deinit();
         self.loop.deinit();
         self.body.deinit();
-        self.lowering.state_symbols.removeMany(self.added);
+        if (self.members) |before| self.lowering.state_symbols.restore(before);
     }
 };
 
@@ -102,7 +102,7 @@ pub fn lowerTransformSort(handle: *const anyopaque) Error!u32 {
 
 pub fn enterTransformParameters(handle: *const anyopaque) Error!void {
     const frame = Frame.borrow(handle);
-    frame.added = try @import("../state_value/locals.zig").parameters(frame.lowering, frame.transform);
+    frame.members = try @import("../state_value/locals.zig").parameters(frame.lowering, frame.transform);
 }
 
 pub fn tryTransformSimd(handle: *const anyopaque) Error!?u32 {

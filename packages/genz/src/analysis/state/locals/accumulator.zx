@@ -2,21 +2,17 @@ import { TransformKind } from "core/expression_table/kinds"
 
 import add from "./add"
 
-import type { Parameters as Input, Registration as Output } from "./model"
+import type { Index as Output } from "core/integer/index/model"
+import type { Parameters as Input } from "./model"
 
 export default function (in: Input): Output {
-    const state: Output = {
-        index: in.index,
-        added: []
-    }
-
     if (in.kind != TransformKind.Reduce) {
-        return state
+        return in.index
     }
 
     return add({
         facts: in.facts,
-        state,
+        index: in.index,
         symbol: in.parameters[0]
     })
 }

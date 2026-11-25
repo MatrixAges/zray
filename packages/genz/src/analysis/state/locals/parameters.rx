@@ -1,16 +1,12 @@
 <Module>
     <Type from="model" as="Locals" />
     <Type from="core/expression_table/kinds" as="Kinds" />
+    <Type from="core/integer/index/model" as="Membership" />
 
-    <Args in={Locals.Parameters} out={Locals.Registration} />
+    <Args in={Locals.Parameters} out={Membership.Index} />
 
     <If on={!$in.active}>
-        <Return
-            value={{
-                index: $in.index,
-                added: []
-            }}
-        />
+        <Return value={$in.index} />
     </If>
 
     <Call fn="accumulator" in={$in} />
@@ -21,7 +17,7 @@
             fn="add"
             in={{
                 facts: $in.facts,
-                state: $ctx.accumulator,
+                index: $ctx.accumulator,
                 symbol: $in.parameters[$in.kind == Kinds.TransformKind.Reduce ? 1 : 0]
             }}
         />

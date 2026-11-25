@@ -679,10 +679,10 @@ pub const growth = [_]Entry{
     .{ .path = "genz/analysis/consumer/projection.zx", .name = "consumer_projection", .owner = .genz },
     .{ .path = "genz/analysis/consumer/independent.zx", .name = "consumer_independent", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/optional.zx", .name = "value_local_optional", .owner = .genz },
-    .{ .path = "genz/analysis/value/locals/release.zx", .name = "value_local_release", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/scope/run.rx", .name = "value_scope_register", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/block.rx", .name = "value_block_register", .owner = .genz },
     .{ .path = "core/integer/index/restore.zx", .name = "members_restore", .owner = .genz },
+    .{ .path = "core/integer/index/trim.zx", .name = "members_trim", .owner = .genz },
     .{ .path = "genz/analysis/value/call/emit/build.rx", .name = "value_call_emit", .owner = .genz },
     .{ .path = "genz/analysis/value/call/argument/build.rx", .name = "value_argument_borrow", .owner = .genz },
     .{ .path = "genz/analysis/value/call/expression.zx", .name = "value_dispatch", .owner = .genz },
@@ -733,11 +733,9 @@ pub const collections = [_]Entry{
     .{ .path = "core/integer/map/snapshot.zx", .name = "cache_snapshot", .owner = .genz },
     .{ .path = "core/integer/map/restore.zx", .name = "cache_restore", .owner = .genz },
     .{ .path = "genz/analysis/members/add.zx", .name = "members_add", .owner = .genz },
-    .{ .path = "core/integer/index/reserve.zx", .name = "members_reserve", .owner = .genz },
     .{ .path = "genz/analysis/members/add_many.zx", .name = "members_add_many", .owner = .genz },
     .{ .path = "core/integer/index/get.zx", .name = "members_get", .owner = .genz },
     .{ .path = "core/integer/index/remove.zx", .name = "members_remove", .owner = .genz },
-    .{ .path = "genz/analysis/members/remove_many.zx", .name = "members_remove_many", .owner = .genz },
 };
 
 pub const execution = [_]Entry{

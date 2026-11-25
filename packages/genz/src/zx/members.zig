@@ -14,6 +14,31 @@ state: State = if (generated) .{
 
 borrowed: ?*State = null,
 pub const empty: Self = .{};
+pub const Checkpoint = if (generated) u64 else []const ir.SymbolId;
+
+pub fn checkpoint(self: *Self) Checkpoint {
+    return self.current().count;
+}
+
+pub fn restore(self: *Self, before: Checkpoint) void {
+    if (!generated) return self.removeMany(before);
+
+    const state = self.current();
+
+    std.debug.assert(before <= state.count);
+
+    if (state.count == before) return;
+
+    const entry = @import("generated_members_trim");
+    const Input = std.meta.Child(entry.Input);
+    const index = writable(std.meta.Child(@FieldType(Input, "index")), state);
+    const input: Input = .{ .index = &index, .first = before };
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+
+    state.count = before;
+}
 
 pub fn inherit(self: *Self) Self {
     if (!generated) return self.*;
@@ -71,42 +96,35 @@ pub fn addMany(self: *Self, allocator: std.mem.Allocator, keys: []const ir.Symbo
     }
 
     if (keys.len == 0) return;
-    if (keys.len == 1) return self.put(allocator, keys[0], {});
 
-    const entry = @import("generated_members_reserve");
+    const entry = @import("generated_members_add_many");
     const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const state = self.current();
+    var key_buffer: []u32 = undefined;
+    var bucket_buffer: []u32 = undefined;
 
     const input: Input = .{
-        .count = state.count,
-        .keys = zx.columns.view(@FieldType(Input, "keys"), state.keys),
-        .buckets = zx.columns.view(@FieldType(Input, "buckets"), state.buckets),
-        .additional = keys.len,
+        .index = zx.columns.view(@FieldType(Input, "index"), state.*),
+        .keys = .{ .items = @import("../node/view.zig").slice([]const u32, keys), .storage = .plain },
+        .key_buffer = @ptrCast(&key_buffer),
+        .bucket_buffer = @ptrCast(&bucket_buffer),
     };
 
-    const reserved = entry.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
+    const next = entry.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| {
+        self.restoreBuckets();
+
+        return switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+            else => unreachable,
+        };
     };
 
-    var next = zx.columns.view(State, reserved);
-
-    edit(&next, keys, @import("generated_members_add_many"));
-
-    state.* = next;
+    state.* = zx.columns.view(State, next);
 }
 
 pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
-    if (!generated) {
-        for (keys) |key| _ = self.remove(key);
-
-        return;
-    }
-
-    if (keys.len == 0) return;
-
-    edit(self.current(), keys, @import("generated_members_remove_many"));
+    for (keys) |key| _ = self.remove(key);
 }
 
 pub fn restoreBuckets(self: *Self) void {
@@ -117,21 +135,7 @@ pub fn restoreBuckets(self: *Self) void {
     zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 }
 
-fn edit(state: *State, keys: []const ir.SymbolId, comptime entry: type) void {
-    const Input = std.meta.Child(entry.Input);
-    const index = writable(std.meta.Child(@FieldType(Input, "index")), state);
-
-    const input: Input = .{
-        .index = &index,
-        .keys = @import("../node/view.zig").slice(@FieldType(Input, "keys"), keys),
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    state.count = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
-}
-
-pub fn writable(comptime Target: type, state: *State) Target {
+fn writable(comptime Target: type, state: *State) Target {
     return .{
         .count = state.count,
         .keys = @ptrCast(&state.keys.items),

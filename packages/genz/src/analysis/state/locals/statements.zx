@@ -3,16 +3,12 @@ import { StatementKind } from "core/control_table/model"
 
 import add from "./add"
 
-import type { Statements as Input, Registration as Output } from "./model"
+import type { Index as Output } from "core/integer/index/model"
+import type { Statements as Input } from "./model"
 
 export default function (in: Input): Output {
-    const initial: Output = {
-        index: in.index,
-        added: []
-    }
-
     if (!in.active) {
-        return initial
+        return in.index
     }
 
     const facts = in.facts
@@ -20,7 +16,7 @@ export default function (in: Input): Output {
     const end = in.first + in.count
 
     return loop({
-        state: initial,
+        index: in.index,
         position: in.first
     }, {
         while: current => current.position < end,
@@ -28,38 +24,38 @@ export default function (in: Input): Output {
             const position = current.position
             const payload = integers.widen(control.statement_payloads[position])
 
-            current.state = match control.statement_kinds[position] {
+            current.index = match control.statement_kinds[position] {
                 StatementKind.Constant => add({
                     facts,
-                    state: current.state,
+                    index: current.index,
                     symbol: control.constant_symbols[payload]
                 }),
                 StatementKind.Destructure => loop({
-                    state: current.state,
-                    index: integers.widen(control.destructure_first[payload]),
+                    index: current.index,
+                    position: integers.widen(control.destructure_first[payload]),
                     remaining: integers.widen(control.destructure_count[payload])
                 }, {
                     while: item => item.remaining != 0,
                     next: item => {
-                        const symbol = control.destructure_symbols[item.index]
+                        const symbol = control.destructure_symbols[item.position]
 
                         if (symbol != null) {
-                            item.state = add({
+                            item.index = add({
                                 facts,
-                                state: item.state,
+                                index: item.index,
                                 symbol
                             })
                         }
 
-                        item.index += 1
+                        item.position += 1
                         item.remaining -= 1
                     },
-                    return: item => item.state
+                    return: item => item.index
                 }),
-                _ => current.state
+                _ => current.index
             }
             current.position += 1
         },
-        return: current => current.state
+        return: current => current.index
     })
 }

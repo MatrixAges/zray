@@ -17,7 +17,7 @@ fn lowerSeed(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
 
     const state_symbols = try @import("state_value/locals.zig").parameters(self, value);
 
-    defer self.state_symbols.removeMany(state_symbols);
+    defer self.state_symbols.restore(state_symbols);
 
     if (value.kind == .every or value.kind == .some) return @import("predicates/seed.zig").lower(self, value);
     if (try @import("simd/root.zig").lower(self, id, value)) |result| return result;
