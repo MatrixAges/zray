@@ -6,7 +6,7 @@ const model = @import("../../install/model.zig");
 const host = @import("../host.zig");
 const store = @import("package_store");
 
-pub fn openLock(handle: *const anyopaque) host.Error!bool {
+pub fn openLock(handle: *anyopaque) host.Error!bool {
     const self = host.State.get(handle);
 
     self.locked = (files.load(self.io, self.allocator, self.result.root, self.inputs) catch |err| return self.fail(err)) orelse return false;
@@ -14,13 +14,13 @@ pub fn openLock(handle: *const anyopaque) host.Error!bool {
     return true;
 }
 
-pub fn lockMatches(handle: *const anyopaque) bool {
+pub fn lockMatches(handle: *anyopaque) bool {
     const self = host.State.get(handle);
 
     return model.matchesWorkspace(self.locked.lock, self.members);
 }
 
-pub fn openMapping(handle: *const anyopaque) host.Error!bool {
+pub fn openMapping(handle: *anyopaque) host.Error!bool {
     const self = host.State.get(handle);
 
     self.mapping = (files.readMapping(self.io, self.allocator, self.result.root, self.locked, self.inputs) catch |err| return self.fail(err)) orelse return false;
@@ -28,50 +28,50 @@ pub fn openMapping(handle: *const anyopaque) host.Error!bool {
     return true;
 }
 
-pub fn mappingVersion(handle: *const anyopaque) u32 {
+pub fn mappingVersion(handle: *anyopaque) u32 {
     return host.State.get(handle).mapping.value.format_version;
 }
 
-pub fn mappingDigest(handle: *const anyopaque) []const u8 {
+pub fn mappingDigest(handle: *anyopaque) []const u8 {
     return host.State.get(handle).mapping.value.lock_sha256;
 }
 
-pub fn expectedDigest(handle: *const anyopaque) []const u8 {
+pub fn expectedDigest(handle: *anyopaque) []const u8 {
     return &host.State.get(handle).mapping.expected;
 }
 
-pub fn mappedPaths(handle: *const anyopaque) []const []const u8 {
+pub fn mappedPaths(handle: *anyopaque) []const []const u8 {
     return host.State.get(handle).mapping.value.paths;
 }
 
-pub fn lockedCount(handle: *const anyopaque) u64 {
+pub fn lockedCount(handle: *anyopaque) u64 {
     return host.State.get(handle).locked.lock.packages.len;
 }
 
-pub fn prepareInstalled(handle: *const anyopaque) host.Error!void {
+pub fn prepareInstalled(handle: *anyopaque) host.Error!void {
     const self = host.State.get(handle);
     self.installed_packages = self.allocator.alloc(graph.Package, self.locked.lock.packages.len) catch |err| return self.fail(err);
 }
 
-pub fn isArchive(handle: *const anyopaque, index: u64) bool {
+pub fn isArchive(handle: *anyopaque, index: u64) bool {
     return host.State.get(handle).locked.lock.packages[@intCast(index)].source == .archive;
 }
 
-pub fn mappedPath(handle: *const anyopaque, index: u64) []const u8 {
+pub fn mappedPath(handle: *anyopaque, index: u64) []const u8 {
     return host.State.get(handle).mapping.value.paths[@intCast(index)];
 }
 
-pub fn archiveDigest(handle: *const anyopaque, index: u64) []const u8 {
+pub fn archiveDigest(handle: *anyopaque, index: u64) []const u8 {
     return host.State.get(handle).locked.lock.packages[@intCast(index)].source.archive.sha256;
 }
 
-pub fn canonical(handle: *const anyopaque, path: []const u8) host.Error![]const u8 {
+pub fn canonical(handle: *anyopaque, path: []const u8) host.Error![]const u8 {
     const self = host.State.get(handle);
 
     return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch |err| self.fail(err);
 }
 
-pub fn verifyReceipt(handle: *const anyopaque, parent: []const u8, digest: []const u8) host.Error!void {
+pub fn verifyReceipt(handle: *anyopaque, parent: []const u8, digest: []const u8) host.Error!void {
     const self = host.State.get(handle);
     const io = self.io;
     const allocator = self.allocator;
@@ -85,25 +85,25 @@ pub fn verifyReceipt(handle: *const anyopaque, parent: []const u8, digest: []con
     store.receipt.verify(io, allocator, directory, digest) catch |err| return self.fail(err);
 }
 
-pub fn readInstalledArchive(handle: *const anyopaque, path: []const u8) host.Error!void {
+pub fn readInstalledArchive(handle: *anyopaque, path: []const u8) host.Error!void {
     const self = host.State.get(handle);
 
     self.archive = model.read(self.io, self.allocator, path, self.inputs, self.manifests) catch |err| return self.fail(err);
 }
 
-pub fn archiveMatches(handle: *const anyopaque, index: u64) bool {
+pub fn archiveMatches(handle: *anyopaque, index: u64) bool {
     const self = host.State.get(handle);
 
     return model.matches(self.archive, self.locked.lock.packages[@intCast(index)]);
 }
 
-pub fn recordInstalledArchive(handle: *const anyopaque, index: u64, path: []const u8) void {
+pub fn recordInstalledArchive(handle: *anyopaque, index: u64, path: []const u8) void {
     const self = host.State.get(handle);
 
     self.installed_packages[@intCast(index)] = .{ .path = path, .manifest = self.archive };
 }
 
-pub fn installedWorkspacePath(handle: *const anyopaque, index: u64) host.Error![]const u8 {
+pub fn installedWorkspacePath(handle: *anyopaque, index: u64) host.Error![]const u8 {
     const self = host.State.get(handle);
     const relative = self.locked.lock.packages[@intCast(index)].source.workspace;
     const path = std.fs.path.resolve(self.allocator, &.{ self.result.root, relative }) catch |err| return self.fail(err);
@@ -111,7 +111,7 @@ pub fn installedWorkspacePath(handle: *const anyopaque, index: u64) host.Error![
     return canonical(handle, path);
 }
 
-pub fn recordMember(handle: *const anyopaque, index: u64, ordinal: u64, path: []const u8) bool {
+pub fn recordMember(handle: *anyopaque, index: u64, ordinal: u64, path: []const u8) bool {
     const self = host.State.get(handle);
     const relative = self.locked.lock.packages[@intCast(index)].source.workspace;
     const row = pkgs.workspace.manifest.memberAt(self.members, @intCast(ordinal), relative) orelse return false;

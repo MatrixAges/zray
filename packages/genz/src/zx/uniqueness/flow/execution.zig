@@ -26,8 +26,8 @@ const Frame = struct {
     plan: layers.Plan = undefined,
     remembered: ?Flow.Remembered = null,
     walkers: []Flow.Walker = &.{},
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -46,14 +46,14 @@ pub fn solve(request: Request) Error!Flow {
     return frame.result;
 }
 
-pub fn initializeFlow(handle: *const anyopaque) Error!void {
+pub fn initializeFlow(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 
     frame.result = try @import("initial.zig").create(input.allocator, input.program.*, input.slots, input.texts);
 }
 
-pub fn planFlow(handle: *const anyopaque) Error!Plan {
+pub fn planFlow(handle: *anyopaque) Error!Plan {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 
@@ -62,32 +62,32 @@ pub fn planFlow(handle: *const anyopaque) Error!Plan {
     return if (frame.plan.order.len == 0) .Empty else .Layered;
 }
 
-pub fn reserveFlowMemo(handle: *const anyopaque) Error!void {
+pub fn reserveFlowMemo(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 
     frame.remembered = try Flow.Remembered.init(input.temporary, input.memo.?, input.types, input.contents, input.program.functions.count());
 }
 
-pub fn flowLayerOrder(handle: *const anyopaque) []const u32 {
+pub fn flowLayerOrder(handle: *anyopaque) []const u32 {
     return Frame.borrow(handle).plan.order;
 }
 
-pub fn flowLayerEnds(handle: *const anyopaque) []const u64 {
+pub fn flowLayerEnds(handle: *anyopaque) []const u64 {
     return Frame.borrow(handle).plan.ends;
 }
 
-pub fn flowMemoHits(handle: *const anyopaque) []const bool {
+pub fn flowMemoHits(handle: *anyopaque) []const bool {
     const frame = Frame.borrow(handle);
 
     return if (frame.remembered) |saved| saved.found else &.{};
 }
 
-pub fn openFlowWorkers(handle: *const anyopaque) Error!void {
+pub fn openFlowWorkers(handle: *anyopaque) Error!void {
     Frame.borrow(handle).walkers = try Flow.Walker.open();
 }
 
-pub fn solveFlowLayer(handle: *const anyopaque, first: u64, end: u64) Error!void {
+pub fn solveFlowLayer(handle: *anyopaque, first: u64, end: u64) Error!void {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 
@@ -103,13 +103,13 @@ pub fn solveFlowLayer(handle: *const anyopaque, first: u64, end: u64) Error!void
     try layer.spread();
 }
 
-pub fn keepFlowMemo(handle: *const anyopaque, row: u64) void {
+pub fn keepFlowMemo(handle: *anyopaque, row: u64) void {
     const remembered = Frame.borrow(handle).remembered.?;
 
     remembered.memo.keepFlowed(remembered.keys[@intCast(row)]);
 }
 
-pub fn publishFlowMemo(handle: *const anyopaque, row: u64) Error!void {
+pub fn publishFlowMemo(handle: *anyopaque, row: u64) Error!void {
     const frame = Frame.borrow(handle);
     const kept = frame.remembered.?;
     const flow = &frame.result;
@@ -118,7 +118,7 @@ pub fn publishFlowMemo(handle: *const anyopaque, row: u64) Error!void {
     try kept.memo.putFlowed(kept.keys[index], flow.held[index], flow.text_held[index], flow.written[index]);
 }
 
-pub fn solveRecursiveFlow(handle: *const anyopaque) Error!void {
+pub fn solveRecursiveFlow(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 

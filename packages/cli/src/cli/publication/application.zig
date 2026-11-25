@@ -21,13 +21,13 @@ pub fn deinit(self: *Self) void {
     if (self.checked_binary) |path| self.allocator.free(path);
 }
 
-pub fn copyAssembly(handle: *const anyopaque) effects.Error!void {
+pub fn copyAssembly(handle: *anyopaque) effects.Error!void {
     const self = effects.borrow(Self, handle);
 
     return self.copy(self.assembly);
 }
 
-pub fn copyBinary(handle: *const anyopaque) effects.Error!void {
+pub fn copyBinary(handle: *anyopaque) effects.Error!void {
     const self = effects.borrow(Self, handle);
 
     return self.copy(self.binary);
@@ -37,7 +37,7 @@ fn copy(self: *Self, item: Artifact) effects.Error!void {
     std.Io.Dir.cwd().copyFile(item.source.?, .cwd(), item.destination.?, self.io, .{ .make_path = true }) catch |err| return self.failure.save(err);
 }
 
-pub fn checkBinary(handle: *const anyopaque) effects.Error![]const u8 {
+pub fn checkBinary(handle: *anyopaque) effects.Error![]const u8 {
     const self = effects.borrow(Self, handle);
     const path = output.check(self.io, self.allocator, self.inputs.?, self.binary.destination.?) catch |err| return self.failure.save(err);
 
@@ -46,7 +46,7 @@ pub fn checkBinary(handle: *const anyopaque) effects.Error![]const u8 {
     return path;
 }
 
-pub fn checkAssembly(handle: *const anyopaque) effects.Error![]const u8 {
+pub fn checkAssembly(handle: *anyopaque) effects.Error![]const u8 {
     const self = effects.borrow(Self, handle);
     const path = output.check(self.io, self.allocator, self.inputs.?, self.assembly.destination.?) catch |err| return self.failure.save(err);
 
@@ -55,7 +55,7 @@ pub fn checkAssembly(handle: *const anyopaque) effects.Error![]const u8 {
     return path;
 }
 
-pub fn checkBindings(handle: *const anyopaque) effects.Error!void {
+pub fn checkBindings(handle: *anyopaque) effects.Error!void {
     const self = effects.borrow(Self, handle);
     const files = self.bindings.?;
 
@@ -68,7 +68,7 @@ pub fn checkBindings(handle: *const anyopaque) effects.Error!void {
     }
 }
 
-pub fn writeBindings(handle: *const anyopaque) effects.Error!void {
+pub fn writeBindings(handle: *anyopaque) effects.Error!void {
     const self = effects.borrow(Self, handle);
 
     self.bindings.?.publish(self.io) catch |err| return self.failure.save(err);

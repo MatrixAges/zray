@@ -13,8 +13,8 @@ const Frame = struct {
     functions: *const zx.ir.FunctionTable,
     walk: Walk,
     bodies: []?*const Body.Facts,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -79,7 +79,7 @@ pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Alloc
     };
 }
 
-pub fn retainFlowFacts(handle: *const anyopaque, index: u32) Error!void {
+pub fn retainFlowFacts(handle: *anyopaque, index: u32) Error!void {
     const frame = Frame.borrow(handle);
 
     if (frame.bodies[index] == null) {
@@ -87,7 +87,7 @@ pub fn retainFlowFacts(handle: *const anyopaque, index: u32) Error!void {
     }
 }
 
-pub fn visitRecursiveFlow(handle: *const anyopaque, index: u32, retained: bool) Error!bool {
+pub fn visitRecursiveFlow(handle: *anyopaque, index: u32, retained: bool) Error!bool {
     const frame = Frame.borrow(handle);
 
     return frame.walk.visit(index, Body.View.at(frame.functions, index), if (retained) frame.bodies[index] else null);

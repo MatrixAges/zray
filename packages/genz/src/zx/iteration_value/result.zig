@@ -14,8 +14,8 @@ const Frame = struct {
     state: node.ExpressionId,
     temporary: std.mem.Allocator,
     slots: []u32 = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -89,13 +89,13 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     return @fromBackingInt(result);
 }
 
-pub fn reserveIterationTransferSlots(handle: *const anyopaque, count: u64) Lower.Error!void {
+pub fn reserveIterationTransferSlots(handle: *anyopaque, count: u64) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.slots = try frame.temporary.alloc(u32, @intCast(count));
 }
 
-pub fn projectIterationResult(handle: *const anyopaque, raw: u32) Lower.Error!u32 {
+pub fn projectIterationResult(handle: *anyopaque, raw: u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
     const id: ir.ExprId = @fromBackingInt(raw);
 
@@ -107,7 +107,7 @@ pub fn projectIterationResult(handle: *const anyopaque, raw: u32) Lower.Error!u3
     return @backingInt(value);
 }
 
-pub fn transferIterationResult(handle: *const anyopaque, id: u32, value: u32, slot: u64) Lower.Error!u32 {
+pub fn transferIterationResult(handle: *anyopaque, id: u32, value: u32, slot: u64) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
     const type_id: ir.TypeId = @fromBackingInt(frame.lowering.program.expressions.types[id]);
     const moved = try @import("transfer.zig").lower(frame.context.?, frame.body.?, type_id, @fromBackingInt(value));
@@ -117,7 +117,7 @@ pub fn transferIterationResult(handle: *const anyopaque, id: u32, value: u32, sl
     return @backingInt(moved.root);
 }
 
-pub fn cacheIterationResult(handle: *const anyopaque, id: u32, value: u32) Lower.Error!void {
+pub fn cacheIterationResult(handle: *anyopaque, id: u32, value: u32) Lower.Error!void {
     const lowering = Frame.borrow(handle).lowering;
 
     return lowering.cache.put(lowering.allocator, @fromBackingInt(id), @fromBackingInt(value));

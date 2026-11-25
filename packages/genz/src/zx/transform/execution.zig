@@ -22,8 +22,8 @@ pub const Frame = struct {
     members: ?@import("../members.zig").Checkpoint = null,
     entered: node.Block = .{},
     renewal_workspace: *RenewalWorkspace = undefined,
-    pub fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     pub fn typeId(self: *const Frame) ir.TypeId {
         return @fromBackingInt(self.lowering.program.expressions.types[@backingInt(self.id)]);
@@ -94,25 +94,25 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     return @fromBackingInt(value.?);
 }
 
-pub fn lowerTransformSort(handle: *const anyopaque) Error!u32 {
+pub fn lowerTransformSort(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../sorting/root.zig").lower(frame.lowering, frame.id, frame.transform));
 }
 
-pub fn enterTransformParameters(handle: *const anyopaque) Error!void {
+pub fn enterTransformParameters(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     frame.members = try @import("../state_value/locals.zig").parameters(frame.lowering, frame.transform);
 }
 
-pub fn tryTransformSimd(handle: *const anyopaque) Error!?u32 {
+pub fn tryTransformSimd(handle: *anyopaque) Error!?u32 {
     const frame = Frame.borrow(handle);
     const value = try @import("../simd/root.zig").lower(frame.lowering, frame.id, frame.transform) orelse return null;
 
     return @backingInt(value);
 }
 
-pub fn bindTransformSource(handle: *const anyopaque) Error!u32 {
+pub fn bindTransformSource(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const value = try @import("../state_value/list.zig").expression(self, frame.transform.target);
@@ -120,45 +120,45 @@ pub fn bindTransformSource(handle: *const anyopaque) Error!u32 {
     return @backingInt(try aggregate.bind(self, &frame.body, value));
 }
 
-pub fn resolveTransformResultType(handle: *const anyopaque) Error!u32 {
+pub fn resolveTransformResultType(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.lowering.typeExpr(frame.typeId()));
 }
 
-pub fn lowerTransformCallback(handle: *const anyopaque) Error!u32 {
+pub fn lowerTransformCallback(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.lowering.expr(frame.transform.body));
 }
 
-pub fn transformFreshName(handle: *const anyopaque, prefix: []const u8) Error![]const u8 {
+pub fn transformFreshName(handle: *anyopaque, prefix: []const u8) Error![]const u8 {
     return Frame.borrow(handle).lowering.fresh(prefix);
 }
 
-pub fn transformContextInitial(handle: *const anyopaque) ?u32 {
+pub fn transformContextInitial(handle: *anyopaque) ?u32 {
     const id = Frame.borrow(handle).transform.initial orelse return null;
 
     return @backingInt(id);
 }
 
-pub fn lowerTransformContextInitial(handle: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerTransformContextInitial(handle: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try Frame.borrow(handle).lowering.expr(@fromBackingInt(id)));
 }
 
-pub fn publishTransformContext(handle: *const anyopaque, value: u32) Error!void {
+pub fn publishTransformContext(handle: *anyopaque, value: u32) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("context.zig").publish(frame.lowering, &frame.body, frame.transform.parameters[1], @fromBackingInt(value));
 }
 
-pub fn bindTransformElement(handle: *const anyopaque) Error![]const u8 {
+pub fn bindTransformElement(handle: *anyopaque) Error![]const u8 {
     const frame = Frame.borrow(handle);
     const element = frame.transform.parameters[@intFromBool(frame.transform.kind == .reduce)];
 
     return @import("../state_value/elements.zig").captureName(frame.lowering, &frame.binding, frame.sourceType(), element);
 }
 
-pub fn transformStateActive(handle: *const anyopaque) bool {
+pub fn transformStateActive(handle: *anyopaque) bool {
     return Frame.borrow(handle).lowering.state_active;
 }

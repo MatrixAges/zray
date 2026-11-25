@@ -13,8 +13,8 @@ pub const State = struct {
     paths: std.StringHashMapUnmanaged(void) = .empty,
     files: std.ArrayList(File) = .empty,
     failure: ?anyerror = null,
-    fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -23,7 +23,7 @@ pub const State = struct {
     }
 };
 
-pub fn nextTar(handle: *const anyopaque) Error!bool {
+pub fn nextTar(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
 
     self.entry = (self.iterator.next() catch |err| return self.fail(err)) orelse return false;
@@ -31,23 +31,23 @@ pub fn nextTar(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn tarName(handle: *const anyopaque) []const u8 {
+pub fn tarName(handle: *anyopaque) []const u8 {
     return State.get(handle).entry.name;
 }
 
-pub fn tarDirectory(handle: *const anyopaque) bool {
+pub fn tarDirectory(handle: *anyopaque) bool {
     return State.get(handle).entry.kind == .directory;
 }
 
-pub fn tarFile(handle: *const anyopaque) bool {
+pub fn tarFile(handle: *anyopaque) bool {
     return State.get(handle).entry.kind == .file;
 }
 
-pub fn tarExecutable(handle: *const anyopaque) bool {
+pub fn tarExecutable(handle: *anyopaque) bool {
     return State.get(handle).entry.mode & 0o100 != 0;
 }
 
-pub fn claimTarPath(handle: *const anyopaque, name: []const u8) Error!bool {
+pub fn claimTarPath(handle: *anyopaque, name: []const u8) Error!bool {
     const self = State.get(handle);
     const path = self.allocator.dupe(u8, name) catch |err| return self.fail(err);
     const previous = self.paths.getOrPut(self.allocator, path) catch |err| return self.fail(err);
@@ -57,13 +57,13 @@ pub fn claimTarPath(handle: *const anyopaque, name: []const u8) Error!bool {
     return !previous.found_existing;
 }
 
-pub fn makeTarDirectory(handle: *const anyopaque) Error!void {
+pub fn makeTarDirectory(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     self.directory.createDirPath(self.io, self.path) catch |err| return self.fail(err);
 }
 
-pub fn writeTarFile(handle: *const anyopaque, executable: bool) Error!void {
+pub fn writeTarFile(handle: *anyopaque, executable: bool) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const directory = self.directory;

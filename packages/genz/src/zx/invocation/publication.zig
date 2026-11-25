@@ -24,8 +24,8 @@ pub const Publication = struct {
     request: ?Request,
     source: Source,
     name: []const u8 = &.{},
-    fn borrow(handle: *const anyopaque) *Publication {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Publication {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -59,14 +59,14 @@ pub fn write(self: *Lower, request: ?Request, source: Source) Error!NodeId {
     });
 }
 
-pub fn registerCallReference(handle: *const anyopaque) Error!void {
+pub fn registerCallReference(handle: *anyopaque) Error!void {
     const frame = Publication.borrow(handle);
     const request = frame.request.?;
 
     return frame.lowering.function_requests.add(frame.lowering.allocator, request.id, request.variant);
 }
 
-pub fn publishCallExpressions(handle: *const anyopaque, function_name: ?u64, operand_name: ?u64) Error!void {
+pub fn publishCallExpressions(handle: *anyopaque, function_name: ?u64, operand_name: ?u64) Error!void {
     const frame = Publication.borrow(handle);
     const self = frame.lowering;
 
@@ -97,7 +97,7 @@ fn publish(self: *Lower, source: anytype, function_name: ?u64, operand_name: ?u6
     if (operand_name) |index| names.items[first + @as(usize, @intCast(index))] = name;
 }
 
-pub fn publishCallBody(handle: *const anyopaque) Error!void {
+pub fn publishCallBody(handle: *anyopaque) Error!void {
     const frame = Publication.borrow(handle);
     const value = frame.source.value;
     const output = value.output;
@@ -110,7 +110,7 @@ pub fn publishCallBody(handle: *const anyopaque) Error!void {
     @import("../../node/import_statements.zig").appendSelectedBorrowingText(frame.lowering.allocator, value.body.?, &source) catch |err| return failure(err);
 }
 
-pub fn finishCallPublication(handle: *const anyopaque) void {
+pub fn finishCallPublication(handle: *anyopaque) void {
     const frame = Publication.borrow(handle);
     const self = frame.lowering;
 

@@ -16,8 +16,8 @@ const Frame = struct {
     iteration: ir.ExprId,
     cache: Api.LoopConsumerCache = undefined,
     facts: Api.LoopConsumerFacts = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -46,7 +46,7 @@ pub fn lower(self: *Lower, selected: Consumer, iteration: ir.ExprId) Error!?node
     return if (result) |id| @fromBackingInt(id) else null;
 }
 
-pub fn loopConsumerFacts(handle: *const anyopaque) *const Api.LoopConsumerFacts {
+pub fn loopConsumerFacts(handle: *anyopaque) *const Api.LoopConsumerFacts {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
@@ -56,14 +56,14 @@ pub fn loopConsumerFacts(handle: *const anyopaque) *const Api.LoopConsumerFacts 
     return &frame.facts;
 }
 
-pub fn consumeVectorLoop(handle: *const anyopaque) Error!?u32 {
+pub fn consumeVectorLoop(handle: *anyopaque) Error!?u32 {
     const frame = Frame.borrow(handle);
     const result = try @import("../simd/iteration.zig").lower(frame.lowering, frame.iteration, frame.selected);
 
     return if (result) |id| @backingInt(id) else null;
 }
 
-pub fn consumeLoop(handle: *const anyopaque, scalar: bool) Error!?u32 {
+pub fn consumeLoop(handle: *anyopaque, scalar: bool) Error!?u32 {
     const frame = Frame.borrow(handle);
     var selected = frame.selected;
 

@@ -19,8 +19,8 @@ const Frame = struct {
     body: *Sequence,
     operation: Operation,
     plan: union(enum) { regular: Regular, value: Value },
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn inputType(self: *const Frame) ir.TypeId {
         return @fromBackingInt(self.lowering.program.functions.input_types[@backingInt(self.operation.function)]);
@@ -83,7 +83,7 @@ pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: 
     return evaluation.invoke(entry, &input);
 }
 
-pub fn lowerCallTuple(handle: *const anyopaque) Error!u32 {
+pub fn lowerCallTuple(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const id = frame.operation.argument;
@@ -94,20 +94,20 @@ pub fn lowerCallTuple(handle: *const anyopaque) Error!u32 {
     return @backingInt(try self.builder.expression(.{ .address_of = argument }));
 }
 
-pub fn lowerCallBorrow(handle: *const anyopaque) Error!u32 {
+pub fn lowerCallBorrow(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../value_call/argument.zig").borrow(frame.lowering, frame.body, frame.operation.argument));
 }
 
-pub fn lowerCallStack(handle: *const anyopaque) Error!u32 {
+pub fn lowerCallStack(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const object = try aggregate.objectValue(frame.lowering, frame.operation.argument);
 
     return @backingInt(try @import("../value_call/borrowed_argument.zig").lower(frame.lowering, frame.body, .{ .value = object }));
 }
 
-pub fn adaptCallArgument(handle: *const anyopaque, value_id: u32) Error!u32 {
+pub fn adaptCallArgument(handle: *anyopaque, value_id: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const bound = try aggregate.bind(frame.lowering, frame.body, @fromBackingInt(value_id));
 
@@ -119,19 +119,19 @@ pub fn adaptCallArgument(handle: *const anyopaque, value_id: u32) Error!u32 {
     return @backingInt(try conversion.convert(frame.lowering, frame.body, frame.inputType(), bound, mode));
 }
 
-pub fn clipCallArgument(handle: *const anyopaque, value_id: u32) Error!u32 {
+pub fn clipCallArgument(handle: *anyopaque, value_id: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../state_value/ownership.zig").clip(frame.lowering, frame.body, frame.operation.argument, @fromBackingInt(value_id)));
 }
 
-pub fn lowerCallStore(handle: *const anyopaque) Error!u32 {
+pub fn lowerCallStore(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../store.zig").adapter(frame.lowering, frame.operation));
 }
 
-pub fn emitLoweredCall(handle: *const anyopaque, value_id: u32, store: ?u32) Error!u32 {
+pub fn emitLoweredCall(handle: *anyopaque, value_id: u32, store: ?u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const argument: node.ExpressionId = @fromBackingInt(value_id);
@@ -152,7 +152,7 @@ pub fn emitLoweredCall(handle: *const anyopaque, value_id: u32, store: ?u32) Err
     });
 }
 
-pub fn convertCallResult(handle: *const anyopaque, value_id: u32) Error!u32 {
+pub fn convertCallResult(handle: *anyopaque, value_id: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const output = frame.outputType();
@@ -172,7 +172,7 @@ pub fn convertCallResult(handle: *const anyopaque, value_id: u32) Error!u32 {
     return @backingInt(converted);
 }
 
-pub fn finishLoweredCall(handle: *const anyopaque, value_id: u32) Error!u32 {
+pub fn finishLoweredCall(handle: *anyopaque, value_id: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const result: node.ExpressionId = @fromBackingInt(value_id);
 

@@ -14,8 +14,8 @@ const Frame = struct {
     results: [][]const u8 = &.{},
     values: [][]const u8 = &.{},
     names: Api.TaskParallelNames = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -60,7 +60,7 @@ pub fn lower(self: *Lower, type_id: zx.ir.TypeId, branches: Branches) Lower.Erro
     return @fromBackingInt(result);
 }
 
-pub fn startParallelBranch(handle: *const anyopaque, index: u64, task: u32, future: []const u8) Lower.Error!u64 {
+pub fn startParallelBranch(handle: *anyopaque, index: u64, task: u32, future: []const u8) Lower.Error!u64 {
     const frame = Frame.borrow(handle);
 
     frame.futures[@intCast(index)] = future;
@@ -68,14 +68,14 @@ pub fn startParallelBranch(handle: *const anyopaque, index: u64, task: u32, futu
     return rows.packSpan(try @import("root.zig").bind(frame.lowering, future, @fromBackingInt(task), true));
 }
 
-pub fn reserveParallelNames(handle: *const anyopaque, count: u64) Lower.Error!void {
+pub fn reserveParallelNames(handle: *anyopaque, count: u64) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.results = try frame.temporary.alloc([]const u8, @intCast(count));
     frame.values = try frame.temporary.alloc([]const u8, @intCast(count));
 }
 
-pub fn readParallelNames(handle: *const anyopaque) *const Api.TaskParallelNames {
+pub fn readParallelNames(handle: *anyopaque) *const Api.TaskParallelNames {
     const frame = Frame.borrow(handle);
 
     frame.names = .{ .futures = frame.futures, .results = frame.results, .values = frame.values };
@@ -83,7 +83,7 @@ pub fn readParallelNames(handle: *const anyopaque) *const Api.TaskParallelNames 
     return &frame.names;
 }
 
-pub fn constructParallelResult(handle: *const anyopaque, value: u32) Lower.Error!u32 {
+pub fn constructParallelResult(handle: *anyopaque, value: u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.lowering.construct(frame.type_id, @fromBackingInt(value)));

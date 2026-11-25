@@ -56,8 +56,8 @@ const Conversion = struct {
     result: []u32,
 };
 
-pub fn convertRepresentedCache(handle: *const anyopaque, index: u64, slot: u64, layout: ?u32) Lower.Error!void {
-    const frame: *Conversion = @ptrCast(@alignCast(@constCast(handle)));
+pub fn convertRepresentedCache(handle: *anyopaque, index: u64, slot: u64, layout: ?u32) Lower.Error!void {
+    const frame: *Conversion = @ptrCast(@alignCast(handle));
     const id: ?ir.TypeId = if (layout) |row| @fromBackingInt(row) else null;
 
     frame.result[@intCast(index)] = @backingInt(try emit(frame.lowering, id, @fromBackingInt(frame.values[@intCast(slot)])));

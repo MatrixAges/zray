@@ -17,8 +17,8 @@ const Frame = struct {
     },
     name: ?[]const u8 = null,
     origin: ?[]const u8 = null,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -43,13 +43,13 @@ fn publish(frame: *Frame, valid: bool, origin: bool) Error!void {
     return evaluation.execute(entry, &input);
 }
 
-pub fn ownLoopBindingName(handle: *const anyopaque) Error!void {
+pub fn ownLoopBindingName(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.name = try frame.lowering.allocator.dupe(u8, frame.source.layout.statements.constant_name[0]);
 }
 
-pub fn ownLoopOriginName(handle: *const anyopaque) Error!void {
+pub fn ownLoopOriginName(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     const names = switch (frame.source) {
@@ -60,7 +60,7 @@ pub fn ownLoopOriginName(handle: *const anyopaque) Error!void {
     frame.origin = try frame.lowering.allocator.dupe(u8, names[names.len - 1]);
 }
 
-pub fn appendLoopFieldExpressions(handle: *const anyopaque) Error!void {
+pub fn appendLoopFieldExpressions(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const target = &self.builder.nodes.expressions;
@@ -83,7 +83,7 @@ pub fn appendLoopFieldExpressions(handle: *const anyopaque) Error!void {
     }
 }
 
-pub fn appendLoopFields(handle: *const anyopaque) Error!void {
+pub fn appendLoopFields(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const target = &self.builder.nodes.field_columns;
@@ -101,7 +101,7 @@ pub fn appendLoopFields(handle: *const anyopaque) Error!void {
     }
 }
 
-pub fn finishLoopFieldLayout(handle: *const anyopaque) Error!void {
+pub fn finishLoopFieldLayout(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const output = frame.source.layout;

@@ -18,8 +18,8 @@ const Frame = struct {
     worker: Lower = undefined,
     names: ?reuse.Names = null,
     usage: Api.TaskWorkerUsage = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -62,7 +62,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     return @fromBackingInt(result);
 }
 
-pub fn openTaskWorker(handle: *const anyopaque) Lower.Error!void {
+pub fn openTaskWorker(handle: *anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.worker = scope.inherit(frame.lowering, .Task);
@@ -70,14 +70,14 @@ pub fn openTaskWorker(handle: *const anyopaque) Lower.Error!void {
     try scope.reserve(&frame.worker, frame.temporary, .Task);
 }
 
-pub fn taskCaptureType(handle: *const anyopaque, symbol: u32) Lower.Error!u32 {
+pub fn taskCaptureType(handle: *anyopaque, symbol: u32) Lower.Error!u32 {
     const self = Frame.borrow(handle).lowering;
     const id: ir.TypeId = @fromBackingInt(self.program.symbols.types[symbol]);
 
     return @backingInt(try self.typeExpr(id));
 }
 
-pub fn bindTaskCaptureNames(handle: *const anyopaque, first: u32) Lower.Error!void {
+pub fn bindTaskCaptureNames(handle: *anyopaque, first: u32) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const saved = try frame.temporary.alloc([]const u8, frame.captures.len);
@@ -86,25 +86,25 @@ pub fn bindTaskCaptureNames(handle: *const anyopaque, first: u32) Lower.Error!vo
     frame.names = reuse.bindNames(self, frame.captures, names[first..][0..frame.captures.len], saved);
 }
 
-pub fn evaluateTaskWorker(handle: *const anyopaque) Lower.Error!u32 {
+pub fn evaluateTaskWorker(handle: *anyopaque) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.worker.expr(frame.body));
 }
 
-pub fn taskWorkerOutput(handle: *const anyopaque) Lower.Error!u32 {
+pub fn taskWorkerOutput(handle: *anyopaque) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.lowering.typeExpr(frame.result));
 }
 
-pub fn taskWorkerErrors(handle: *const anyopaque) ?[]const []const u8 {
+pub fn taskWorkerErrors(handle: *anyopaque) ?[]const []const u8 {
     const frame = Frame.borrow(handle);
 
     return frame.lowering.program.typeOf(frame.errors).error_set;
 }
 
-pub fn readTaskWorkerUsage(handle: *const anyopaque) *const Api.TaskWorkerUsage {
+pub fn readTaskWorkerUsage(handle: *anyopaque) *const Api.TaskWorkerUsage {
     const frame = Frame.borrow(handle);
     const worker = &frame.worker;
 
@@ -119,6 +119,6 @@ pub fn readTaskWorkerUsage(handle: *const anyopaque) *const Api.TaskWorkerUsage 
     return &frame.usage;
 }
 
-pub fn readTaskReferenceBody(handle: *const anyopaque) Lower.Error!u64 {
+pub fn readTaskReferenceBody(handle: *anyopaque) Lower.Error!u64 {
     return rows.packSpan(try Frame.borrow(handle).worker.referenceBlock());
 }

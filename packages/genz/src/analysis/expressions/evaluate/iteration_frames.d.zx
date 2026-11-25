@@ -1,4 +1,4 @@
-export type LoopConsumer = opaque
+export type LoopConsumer = mutable_opaque
 
 export type LoopConsumerCache = {
     count: u64,
@@ -15,7 +15,7 @@ export type LoopConsumerFacts = {
 
 export type LoopLayout = opaque
 
-export type LoopFrame = opaque
+export type LoopFrame = mutable_opaque
 
 export type IterationScopeBindings = {
     symbols: u32?[],
@@ -56,9 +56,9 @@ export enum LoopInitial {
     Deep
 }
 
-export type IterationResourceFrame = opaque
+export type IterationResourceFrame = mutable_opaque
 
-export type IterationResourceStorage = opaque
+export type IterationResourceStorage = mutable_opaque
 
 export enum IterationResource {
     None,
@@ -70,13 +70,13 @@ export enum IterationResource {
     Invalid
 }
 
-export type IterationPublication = opaque
+export type IterationPublication = mutable_opaque
 
 export type LoopStatePublication = opaque
 
 export type LoopFramePublication = opaque
 
-export type LoopFieldPublication = opaque
+export type LoopFieldPublication = mutable_opaque
 
 export type LoopAssignmentPublication = opaque
 
@@ -95,7 +95,7 @@ export enum LoopStorage {
     Clip
 }
 
-export type LoopFieldRebuild = opaque
+export type LoopFieldRebuild = mutable_opaque
 
 export type LoopResultFrame = opaque
 
@@ -105,9 +105,9 @@ export enum LoopResultWrap {
     Pointer
 }
 
-export type IterationMutationFrame = opaque
+export type IterationMutationFrame = mutable_opaque
 
-export type TransformFrame = opaque
+export type TransformFrame = mutable_opaque
 
 export enum IterationMutationMode {
     Push,
@@ -121,18 +121,18 @@ export enum IterationOperandSlot {
     Value
 }
 
-export type IterationProjectionFrame = opaque
+export type IterationProjectionFrame = mutable_opaque
 
-export type IterationResultApplication = opaque
+export type IterationResultApplication = mutable_opaque
 
 export type IterationProjectionStamp = {
     serial: u64,
     history_count: u64
 }
 
-export type SortFrame = opaque
+export type SortFrame = mutable_opaque
 
-export type SortWorkerFrame = opaque
+export type SortWorkerFrame = mutable_opaque
 
 export type SortComparator = {
     declaration: u32,
@@ -156,7 +156,7 @@ export type SortWorkerFacts = {
     right_count: u32
 }
 
-export type TaskWorker = opaque
+export type TaskWorker = mutable_opaque
 
 export type TaskWorkerUsage = {
     uses_allocator: bool,
@@ -172,7 +172,7 @@ export type TaskParallelNames = {
     values: u8[][]
 }
 
-export type ParallelRecords = opaque
+export type ParallelRecords = mutable_opaque
 
 export type ParallelRecord = {
     argument: u32,

@@ -6,8 +6,8 @@ const Context = struct {
     allocator: std.mem.Allocator,
     environment: *const std.process.Environ.Map,
     result: []const u8 = undefined,
-    fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *Context {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -31,15 +31,15 @@ pub fn root(allocator: std.mem.Allocator, environment: *const std.process.Enviro
     };
 }
 
-pub fn get(handle: *const anyopaque, key: []const u8) ?[]const u8 {
+pub fn get(handle: *anyopaque, key: []const u8) ?[]const u8 {
     return Context.get(handle).environment.get(key);
 }
 
-pub fn usePath(handle: *const anyopaque, path: []const u8) void {
+pub fn usePath(handle: *anyopaque, path: []const u8) void {
     Context.get(handle).result = path;
 }
 
-pub fn joinPath(handle: *const anyopaque, base: []const u8, first: []const u8, second: ?[]const u8, third: ?[]const u8) error{OutOfMemory}!void {
+pub fn joinPath(handle: *anyopaque, base: []const u8, first: []const u8, second: ?[]const u8, third: ?[]const u8) error{OutOfMemory}!void {
     const context = Context.get(handle);
     const parts = [_][]const u8{ base, first, second orelse "", third orelse "" };
     const count: usize = if (third != null) 4 else if (second != null) 3 else 2;

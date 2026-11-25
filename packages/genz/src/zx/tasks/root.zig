@@ -63,11 +63,11 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
     return .{ .value = @fromBackingInt(output.value), .block = .{ .start = output.first, .len = output.count } };
 }
 
-pub fn buildTaskWorker(handle: *const anyopaque, task: u32, process: bool) Lower.Error!u32 {
+pub fn buildTaskWorker(handle: *anyopaque, task: u32, process: bool) Lower.Error!u32 {
     return @backingInt(try @import("worker.zig").lower(evaluate.borrow(handle), @fromBackingInt(task), process));
 }
 
-pub fn publishTaskEffects(handle: *const anyopaque, allocator: bool, io: bool, process: bool) void {
+pub fn publishTaskEffects(handle: *anyopaque, allocator: bool, io: bool, process: bool) void {
     const self = evaluate.borrow(handle);
 
     self.uses_allocator = self.uses_allocator or allocator;
@@ -110,15 +110,15 @@ fn complete(self: *Lower, child: ir.ExprId, canceling: bool) Lower.Error!node.Ex
     return @fromBackingInt(result);
 }
 
-pub fn lowerTaskOperand(handle: *const anyopaque, expression: u32) Lower.Error!u32 {
+pub fn lowerTaskOperand(handle: *anyopaque, expression: u32) Lower.Error!u32 {
     return @backingInt(try evaluate.borrow(handle).expr(@fromBackingInt(expression)));
 }
 
-pub fn startInlineTask(handle: *const anyopaque, task: u32, name: []const u8) Lower.Error!u64 {
+pub fn startInlineTask(handle: *anyopaque, task: u32, name: []const u8) Lower.Error!u64 {
     return rows.packSpan(try bind(evaluate.borrow(handle), name, @fromBackingInt(task), false));
 }
 
-pub fn finishTaskBlock(handle: *const anyopaque, first: u32, count: u32, value: u32) Lower.Error!u32 {
+pub fn finishTaskBlock(handle: *anyopaque, first: u32, count: u32, value: u32) Lower.Error!u32 {
     const self = evaluate.borrow(handle);
     const result = try @import("../aggregate.zig").finishStored(self, .{ .start = first, .len = count }, @fromBackingInt(value), null);
 

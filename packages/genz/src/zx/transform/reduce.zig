@@ -46,32 +46,32 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     return @import("../aggregate.zig").finish(self, body, result);
 }
 
-pub fn reduceAccumulator(handle: *const anyopaque) []const u8 {
+pub fn reduceAccumulator(handle: *anyopaque) []const u8 {
     const frame = Frame.borrow(handle);
 
     return frame.lowering.names[@backingInt(frame.transform.parameters[0])];
 }
 
-pub fn lowerReduceInitial(handle: *const anyopaque) Lower.Error!u32 {
+pub fn lowerReduceInitial(handle: *anyopaque) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.lowering.expr(frame.transform.initial.?));
 }
 
-pub fn convertReduceValue(handle: *const anyopaque, value: u32, initial: bool) Lower.Error!u32 {
+pub fn convertReduceValue(handle: *anyopaque, value: u32, initial: bool) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
     const target = if (initial) &frame.body else &frame.loop;
 
     return @backingInt(try ownership.erase(frame.lowering, target, frame.typeId(), @fromBackingInt(value)));
 }
 
-pub fn reduceInlineLists(handle: *const anyopaque) bool {
+pub fn reduceInlineLists(handle: *anyopaque) bool {
     const context = Frame.borrow(handle).lowering.iteration_value orelse return false;
 
     return context.inline_lists;
 }
 
-pub fn emitReduceRenewals(handle: *const anyopaque, accumulator: []const u8, first: u64, end: u64, filtered_inline: bool) Lower.Error!void {
+pub fn emitReduceRenewals(handle: *anyopaque, accumulator: []const u8, first: u64, end: u64, filtered_inline: bool) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.entered = try @import("../growth/delivery.zig").entry(frame.lowering, .{
@@ -84,7 +84,7 @@ pub fn emitReduceRenewals(handle: *const anyopaque, accumulator: []const u8, fir
     });
 }
 
-pub fn reduceEntered(handle: *const anyopaque) u64 {
+pub fn reduceEntered(handle: *anyopaque) u64 {
     const span = Frame.borrow(handle).entered;
 
     return @import("../construction/publication.zig").packSpan(span);

@@ -20,8 +20,8 @@ const Frame = struct {
     selected: Lower = undefined,
     id: ir.FunctionId = undefined,
     prototypes: signature.Prototypes = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -40,7 +40,7 @@ pub fn lower(self: *Lower, output: *Output, names: []const []const u8, units: an
     try entry.executeIn(empty.allocator(), &input);
 }
 
-pub fn openSignatureUnit(handle: *const anyopaque, index: u64) (Lower.Error || error{InvalidFunction})!?workflow.FunctionForm {
+pub fn openSignatureUnit(handle: *anyopaque, index: u64) (Lower.Error || error{InvalidFunction})!?workflow.FunctionForm {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const row: usize = @intCast(index);
@@ -74,13 +74,13 @@ pub fn openSignatureUnit(handle: *const anyopaque, index: u64) (Lower.Error || e
     );
 }
 
-pub fn installSignatureBody(handle: *const anyopaque) Lower.Error!void {
+pub fn installSignatureBody(handle: *anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     try frame.selected.selectFunction(frame.id);
 }
 
-pub fn emitNativeSignature(handle: *const anyopaque) Lower.Error!void {
+pub fn emitNativeSignature(handle: *anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const row = @backingInt(frame.id);
     const declaration = ir.SignatureTable.read(&frame.selected.program.functions, row);
@@ -88,19 +88,19 @@ pub fn emitNativeSignature(handle: *const anyopaque) Lower.Error!void {
     frame.prototypes.regular = try @import("../../external.zig").prototype(&frame.selected, &declaration, row);
 }
 
-pub fn emitRegularSignature(handle: *const anyopaque) Lower.Error!void {
+pub fn emitRegularSignature(handle: *anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.prototypes.regular = try frame.selected.prototype("signature", false);
 }
 
-pub fn emitValueSignature(handle: *const anyopaque) Lower.Error!void {
+pub fn emitValueSignature(handle: *anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.prototypes.value = try frame.selected.valuePrototype("signature");
 }
 
-pub fn publishSignatureUnit(handle: *const anyopaque, parameter_name: []const u8) Lower.Error!void {
+pub fn publishSignatureUnit(handle: *anyopaque, parameter_name: []const u8) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     return signature.append(&frame.selected, frame.output, frame.prototypes, parameter_name);

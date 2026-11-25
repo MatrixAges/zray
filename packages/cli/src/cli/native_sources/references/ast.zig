@@ -3,7 +3,7 @@ const storage = @import("../storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;
 
-pub fn openAst(handle: *const anyopaque) Error!void {
+pub fn openAst(handle: *anyopaque) Error!void {
     const self = Context.get(handle);
 
     self.ast = std.zig.Ast.parse(self.allocator, self.bytes, .{}) catch |err| return self.fail(err);
@@ -14,7 +14,7 @@ pub fn openAst(handle: *const anyopaque) Error!void {
     if (self.ast.?.errors.len != 0) return self.fail(error.InvalidNativeSource);
 }
 
-pub fn closeAst(handle: *const anyopaque) void {
+pub fn closeAst(handle: *anyopaque) void {
     const self = Context.get(handle);
 
     if (self.ast) |*tree| tree.deinit(self.allocator);
@@ -22,7 +22,7 @@ pub fn closeAst(handle: *const anyopaque) void {
     self.ast = null;
 }
 
-pub fn nextBuiltin(handle: *const anyopaque) bool {
+pub fn nextBuiltin(handle: *anyopaque) bool {
     const self = Context.get(handle);
     const tree = &self.ast.?;
 
@@ -45,22 +45,22 @@ pub fn nextBuiltin(handle: *const anyopaque) bool {
     return false;
 }
 
-pub fn builtinName(handle: *const anyopaque) []const u8 {
+pub fn builtinName(handle: *anyopaque) []const u8 {
     return Context.get(handle).builtin.name;
 }
 
-pub fn builtinArguments(handle: *const anyopaque) u64 {
+pub fn builtinArguments(handle: *anyopaque) u64 {
     return Context.get(handle).builtin.count;
 }
 
-pub fn builtinHasLiteral(handle: *const anyopaque) bool {
+pub fn builtinHasLiteral(handle: *anyopaque) bool {
     const self = Context.get(handle);
     const parameter = self.builtin.parameter orelse return false;
 
     return self.ast.?.nodeTag(parameter) == .string_literal;
 }
 
-pub fn decodeLiteral(handle: *const anyopaque) Error![]const u8 {
+pub fn decodeLiteral(handle: *anyopaque) Error![]const u8 {
     const self = Context.get(handle);
     const tree = &self.ast.?;
     const text = tree.tokenSlice(tree.nodeMainToken(self.builtin.parameter.?));
@@ -68,11 +68,11 @@ pub fn decodeLiteral(handle: *const anyopaque) Error![]const u8 {
     return std.zig.string_literal.parseAlloc(self.allocator, text) catch |err| return self.fail(err);
 }
 
-pub fn discardLiteral(handle: *const anyopaque, text: []const u8) void {
+pub fn discardLiteral(handle: *anyopaque, text: []const u8) void {
     Context.get(handle).allocator.free(text);
 }
 
-pub fn recordReference(handle: *const anyopaque, path: []const u8, source: bool) Error!void {
+pub fn recordReference(handle: *anyopaque, path: []const u8, source: bool) Error!void {
     const self = Context.get(handle);
 
     self.references.append(self.allocator, .{
@@ -81,7 +81,7 @@ pub fn recordReference(handle: *const anyopaque, path: []const u8, source: bool)
     }) catch |err| return self.fail(err);
 }
 
-pub fn invalidBuiltin(handle: *const anyopaque, invalid_import: bool) Error!void {
+pub fn invalidBuiltin(handle: *anyopaque, invalid_import: bool) Error!void {
     const self = Context.get(handle);
 
     return self.fail(if (invalid_import) error.InvalidNativeImport else error.InvalidNativeSource);

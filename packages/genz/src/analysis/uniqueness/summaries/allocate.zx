@@ -1,17 +1,37 @@
-import bytes from "std:bytes"
+import memory from "memory"
 
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
 
-import type { Layout as Input, Cells as Output } from "./model"
+import type { Allocator } from "memory"
+import type { Buffers, Cells as Output, Layout } from "./model"
+
+export type Input = {
+    layout: Layout,
+    buffers: Buffers,
+    allocator: Allocator
+}
 
 export default function (in: Input): Output {
     const empty = encode(Knowledge.None)
-    const count = in.input_count + in.output_count
+    const count = in.layout.input_count + in.layout.output_count
+
+    const guarantees = memory.allocateU8Buffer(
+        in.allocator,
+        in.buffers.guarantees,
+        count
+    )
+
+    const demands = memory.allocateU8Buffer(in.allocator, in.buffers.demands, count)
+
+    if (count != 0) {
+        memory.fillByteRange(in.buffers.guarantees, 0, count, empty)
+        memory.fillByteRange(in.buffers.demands, 0, count, empty)
+    }
 
     return {
-        layout: in,
-        guarantees: bytes.repeat(count, empty),
-        demands: bytes.repeat(count, empty)
+        layout: in.layout,
+        guarantees,
+        demands
     }
 }

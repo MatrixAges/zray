@@ -1,4 +1,4 @@
-export type Document = opaque
+export type Document = mutable_opaque
 
 export type Node = opaque
 

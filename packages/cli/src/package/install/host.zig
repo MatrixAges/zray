@@ -49,8 +49,8 @@ pub const State = struct {
         if (self.fresh.archives) |*archives| archives.table.deinit();
     }
 
-    pub fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn get(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
 
     pub fn fail(self: *State, err: anyerror) Error {
@@ -67,14 +67,14 @@ pub const State = struct {
     }
 };
 
-pub fn currentWorkspaceMatches(handle: *const anyopaque) Error!bool {
+pub fn currentWorkspaceMatches(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
     const current = workspace.load(self.io, self.allocator, self.options.path) catch |err| return self.fail(err);
 
     return current.diagnostic == null and model.matchesWorkspace(self.prepared.lock, current.packages);
 }
 
-pub fn renderInstallation(handle: *const anyopaque) Error!bool {
+pub fn renderInstallation(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
 
     self.publication = files.render(self.allocator, self.prepared) catch |err| return self.fail(err);
@@ -82,19 +82,19 @@ pub fn renderInstallation(handle: *const anyopaque) Error!bool {
     return self.publication.fits();
 }
 
-pub fn publishMapping(handle: *const anyopaque) Error!void {
+pub fn publishMapping(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     files.writeMapping(self.io, self.allocator, self.root, &self.publication) catch |err| return self.fail(err);
 }
 
-pub fn lockUnchanged(handle: *const anyopaque) Error!bool {
+pub fn lockUnchanged(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
 
     return files.lockUnchanged(self.io, self.allocator, self.root, self.publication.lock) catch |err| self.fail(err);
 }
 
-pub fn publishLock(handle: *const anyopaque) Error!void {
+pub fn publishLock(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     files.writeLock(self.io, self.allocator, self.root, self.publication.lock) catch |err| return self.fail(err);

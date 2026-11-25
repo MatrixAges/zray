@@ -1,4 +1,4 @@
-export type Response = opaque
+export type Response = mutable_opaque
 
 export declare function commitInputs(response: Response, body: string, layout: u64?): void
 export declare function commitDigest(response: Response, body: string, cached: bool?): void

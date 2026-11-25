@@ -20,8 +20,8 @@ const Frame = struct {
     record: ?@FieldType(Transfer, "record"),
     cache: ?TypeCache,
     label: ?[]const u8 = null,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -34,7 +34,7 @@ pub fn write(self: *Lower, comptime mode: Mode, scope: Scope, output: anytype) E
     const result = if (mode == .Returned) output.result else output;
     const statements: ?Rows = if (mode != .Buffer) zx.columns.pointer(Rows, result.statements) else null;
 
-    const fragment: Fragment = .{
+    var fragment: Fragment = .{
         .lower = self,
         .targets = .{ .body = scope.body },
         .expressions = zx.columns.pointer(@FieldType(Fragment, "expressions"), result.expressions),
@@ -84,12 +84,12 @@ pub fn write(self: *Lower, comptime mode: Mode, scope: Scope, output: anytype) E
     return evaluation.execute(entry, &input);
 }
 
-pub fn ownIterationLabel(handle: *const anyopaque) Error!void {
+pub fn ownIterationLabel(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     frame.label = try frame.lowering.allocator.dupe(u8, frame.labels[frame.labels.len - 1]);
 }
 
-pub fn repairIterationBlockLabel(handle: *const anyopaque) void {
+pub fn repairIterationBlockLabel(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
     const expressions = &frame.lowering.builder.nodes.expressions;
     const labels = expressions.payloads.block.fields.label.values.items;
@@ -97,7 +97,7 @@ pub fn repairIterationBlockLabel(handle: *const anyopaque) void {
     labels[labels.len - 1] = frame.label.?;
 }
 
-pub fn repairIterationBreakLabel(handle: *const anyopaque) void {
+pub fn repairIterationBreakLabel(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
     const statements = &frame.lowering.builder.nodes.statements;
     const labels = statements.payloads.break_value.fields.label.values.items;
@@ -105,14 +105,14 @@ pub fn repairIterationBreakLabel(handle: *const anyopaque) void {
     labels[labels.len - 1] = frame.label.?;
 }
 
-pub fn cachePublishedIterationTypes(handle: *const anyopaque) Error!void {
+pub fn cachePublishedIterationTypes(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const cache = frame.cache.?;
 
     return @import("resources.zig").publish(frame.context.?, cache.ids, cache.values);
 }
 
-pub fn recordIterationTransfer(handle: *const anyopaque) Error!void {
+pub fn recordIterationTransfer(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return frame.context.?.transfers.retain(frame.lowering.allocator, frame.record.?);

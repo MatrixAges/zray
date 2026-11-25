@@ -126,8 +126,9 @@ const Hashing = struct {
 
         return combine(self.mode.memo.shared, &content_digest);
     }
-    fn borrow(handle: *const anyopaque) *Hashing {
-        return @ptrCast(@alignCast(@constCast(handle)));
+
+    fn borrow(handle: *anyopaque) *Hashing {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -140,13 +141,13 @@ pub fn bodies(allocator: std.mem.Allocator, program_view: *const ir.Program, act
     return Hashing.collect(allocator, program_view, .{ .memo = .{ .active = active, .shared = shared, .known = known } }, active.len);
 }
 
-pub fn claimOwnershipIdentity(handle: *const anyopaque) ?u64 {
+pub fn claimOwnershipIdentity(handle: *anyopaque) ?u64 {
     const row = Hashing.borrow(handle).claim() orelse return null;
 
     return @intCast(row);
 }
 
-pub fn writeOwnershipIdentity(handle: *const anyopaque, index: u64, action: @import("program/driver.zig").Api.IdentityRow) void {
+pub fn writeOwnershipIdentity(handle: *anyopaque, index: u64, action: @import("program/driver.zig").Api.IdentityRow) void {
     const work = Hashing.borrow(handle);
     const row: usize = @intCast(index);
 

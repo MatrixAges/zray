@@ -14,8 +14,8 @@ pub const Context = struct {
     digest: ?[std.Build.Cache.bin_digest_len]u8 = null,
     cached: bool = false,
     failure: ?anyerror = null,
-    fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *Context {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *Context, err: anyerror) Error {
         self.failure = err;
@@ -24,21 +24,21 @@ pub const Context = struct {
     }
 };
 
-pub fn commitInputs(handle: *const anyopaque, body: []const u8, layout: ?u64) void {
+pub fn commitInputs(handle: *anyopaque, body: []const u8, layout: ?u64) void {
     const self = Context.get(handle);
 
     self.selected = body;
     self.path_layout = layout.?;
 }
 
-pub fn commitDigest(handle: *const anyopaque, body: []const u8, cached: ?bool) void {
+pub fn commitDigest(handle: *anyopaque, body: []const u8, cached: ?bool) void {
     const self = Context.get(handle);
 
     self.digest = body[1..][0..std.Build.Cache.bin_digest_len].*;
     self.cached = cached.?;
 }
 
-pub fn commitDiagnostics(handle: *const anyopaque, body: []const u8) Error!void {
+pub fn commitDiagnostics(handle: *anyopaque, body: []const u8) Error!void {
     const self = Context.get(handle);
     const bundle = Server.allocErrorBundle(self.owned, body) catch |err| return self.fail(err);
 
@@ -47,30 +47,30 @@ pub fn commitDiagnostics(handle: *const anyopaque, body: []const u8) Error!void 
     self.diagnostics = bundle;
 }
 
-pub fn hasDiagnostics(handle: *const anyopaque) bool {
+pub fn hasDiagnostics(handle: *anyopaque) bool {
     return Context.get(handle).diagnostics.errorMessageCount() != 0;
 }
 
-pub fn hasInputs(handle: *const anyopaque) bool {
+pub fn hasInputs(handle: *anyopaque) bool {
     return Context.get(handle).selected != null;
 }
 
-pub fn inputLayout(handle: *const anyopaque) u64 {
+pub fn inputLayout(handle: *anyopaque) u64 {
     return Context.get(handle).path_layout;
 }
 
-pub fn selectedInputBytes(handle: *const anyopaque) []const u8 {
+pub fn selectedInputBytes(handle: *anyopaque) []const u8 {
     return Context.get(handle).selected.?;
 }
 
-pub fn reserveInputs(handle: *const anyopaque, count: u64, length: u64) Error!void {
+pub fn reserveInputs(handle: *anyopaque, count: u64, length: u64) Error!void {
     const self = Context.get(handle);
 
     self.path_bytes = self.owned.alloc(u8, @intCast(length)) catch |err| return self.fail(err);
     self.inputs = self.owned.alloc(Protocol.Input, @intCast(count)) catch |err| return self.fail(err);
 }
 
-pub fn writeInput(handle: *const anyopaque, row: u64, prefix: u8, offset: u64, spelling: []const u8) void {
+pub fn writeInput(handle: *anyopaque, row: u64, prefix: u8, offset: u64, spelling: []const u8) void {
     const self = Context.get(handle);
     const path = self.path_bytes[@intCast(offset)..][0..spelling.len];
 

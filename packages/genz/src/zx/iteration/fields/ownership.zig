@@ -87,19 +87,19 @@ const Rebuild = struct {
     value: node.ExpressionId,
     temporary: std.mem.Allocator,
     replacements: []const u32 = &.{},
-    fn borrow(handle: *const anyopaque) *Rebuild {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Rebuild {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn publishLoopFieldOperands(handle: *const anyopaque) Lower.Error!void {
+pub fn publishLoopFieldOperands(handle: *anyopaque) Lower.Error!void {
     const work = Rebuild.borrow(handle);
     const lowering = work.projection.lowering;
 
     @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, work.planned.expressions) catch |err| return failure(err);
 }
 
-pub fn replaceLoopFields(handle: *const anyopaque) Lower.Error!void {
+pub fn replaceLoopFields(handle: *anyopaque) Lower.Error!void {
     const work = Rebuild.borrow(handle);
     const apply = @import("generated_apply_loop_field_projection");
     const Apply = std.meta.Child(apply.Input);
@@ -117,13 +117,13 @@ pub fn replaceLoopFields(handle: *const anyopaque) Lower.Error!void {
     work.replacements = replacements;
 }
 
-pub fn resolveLoopFieldLayout(handle: *const anyopaque) Lower.Error!u32 {
+pub fn resolveLoopFieldLayout(handle: *anyopaque) Lower.Error!u32 {
     const work = Rebuild.borrow(handle);
 
     return @backingInt(try work.projection.lowering.layoutExpr(work.context.type_id));
 }
 
-pub fn rebuildLoopFields(handle: *const anyopaque, layout: u32) Lower.Error!u32 {
+pub fn rebuildLoopFields(handle: *anyopaque, layout: u32) Lower.Error!u32 {
     const work = Rebuild.borrow(handle);
 
     return @backingInt(try projection.rebuild(work.context, work.projection.lowering, work.value, @fromBackingInt(layout), .{

@@ -27,7 +27,7 @@ pub const State = struct {
     spelling: [std.crypto.hash.sha2.Sha256.digest_length * 2]u8 = undefined,
 };
 
-pub fn prepareIndex(handle: *const anyopaque) host.Error!void {
+pub fn prepareIndex(handle: *anyopaque) host.Error!void {
     const self = host.State.get(handle);
     const allocator = self.allocator;
     const options = self.options;
@@ -48,7 +48,7 @@ pub fn prepareIndex(handle: *const anyopaque) host.Error!void {
     self.fresh.paths.ensureTotalCapacity(allocator, self.members.len) catch |err| return self.fail(err);
 }
 
-pub fn seedMember(handle: *const anyopaque, index: u64) host.Error!void {
+pub fn seedMember(handle: *anyopaque, index: u64) host.Error!void {
     const self = host.State.get(handle);
     const member = &self.members[@intCast(index)];
     const path = std.fs.path.resolve(self.allocator, &.{ self.root, member.path }) catch |err| return self.fail(err);
@@ -63,11 +63,11 @@ pub fn seedMember(handle: *const anyopaque, index: u64) host.Error!void {
     self.fresh.paths.appendAssumeCapacity(self.physicalPath(path) catch |err| return self.fail(err));
 }
 
-pub fn packageCount(handle: *const anyopaque) u64 {
+pub fn packageCount(handle: *anyopaque) u64 {
     return host.State.get(handle).fresh.packages.items.len;
 }
 
-pub fn beginDependencies(handle: *const anyopaque, index: u64, local: bool) void {
+pub fn beginDependencies(handle: *anyopaque, index: u64, local: bool) void {
     const self = host.State.get(handle);
     const row: usize = @intCast(index);
 
@@ -84,7 +84,7 @@ pub fn beginDependencies(handle: *const anyopaque, index: u64, local: bool) void
     self.fresh.dependencies.init(declarations);
 }
 
-pub fn advanceDependency(handle: *const anyopaque, remaining: u64) host.Error!bool {
+pub fn advanceDependency(handle: *anyopaque, remaining: u64) host.Error!bool {
     const self = host.State.get(handle);
     const fresh = &self.fresh;
     fresh.pending = (fresh.dependencies.advance(self.allocator, &fresh.resolver, fresh.owner_path, @intCast(remaining)) catch |err| return self.fail(err)) orelse return false;
@@ -92,11 +92,11 @@ pub fn advanceDependency(handle: *const anyopaque, remaining: u64) host.Error!bo
     return true;
 }
 
-pub fn acceptArchive(handle: *const anyopaque, target: u64) void {
+pub fn acceptArchive(handle: *anyopaque, target: u64) void {
     host.State.get(handle).fresh.dependencies.accept(@intCast(target));
 }
 
-pub fn finishDependencies(handle: *const anyopaque, index: u64) u64 {
+pub fn finishDependencies(handle: *anyopaque, index: u64) u64 {
     const fresh = &host.State.get(handle).fresh;
     const rows = fresh.dependencies.output.rows();
 
@@ -105,7 +105,7 @@ pub fn finishDependencies(handle: *const anyopaque, index: u64) u64 {
     return rows.len;
 }
 
-pub fn finishFresh(handle: *const anyopaque) host.Error!void {
+pub fn finishFresh(handle: *anyopaque) host.Error!void {
     const self = host.State.get(handle);
     const allocator = self.allocator;
 

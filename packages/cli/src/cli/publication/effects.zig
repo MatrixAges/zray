@@ -12,8 +12,8 @@ pub const Failure = struct {
     }
 };
 
-pub fn borrow(comptime T: type, handle: *const anyopaque) *T {
-    return @ptrCast(@alignCast(@constCast(handle)));
+pub fn borrow(comptime T: type, handle: *anyopaque) *T {
+    return @ptrCast(@alignCast(handle));
 }
 
 pub fn state(comptime T: type, handle: *const anyopaque) *T {

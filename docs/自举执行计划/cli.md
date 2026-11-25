@@ -60,9 +60,10 @@
 
 ### Phase X2（大步 #1 · 预计净减 5,000+ 行 Zig）：`cli/rx/`、`cli/compilation/`、`cli/project/scopes/` 统一收口
 
+- **已完成进展（Wave 5 · 2026-11-25）**：提前完成 `packages/cli/src/` 全部 **17 处 `@constCast` UB 清零**——将 `cli/{backend/source/frames,build/dependencies,build/workspace,native_sources,publication,toolchain/cache,toolchain/workflow}` 及 `package/{archive/extract,graph,install,manifest/decode,manifest/layout,manifest/write,store/cache,store/download,store/receipt}` 共 14 份宿主 `.d.zx` 的可变句柄（及 26 份对应 `.zig` 桥接、`publication/effects.zig` `borrow`）切换为 `mutable_opaque`（`*anyopaque` / `*T`），并通过 `cli` `ReleaseSmall`/`ReleaseSafe` 构建与全部测试。
 - **由外向内直接从 `main.zig` 子命令入口收敛**：把 `cli/rx/compile.zig`、`load.zig`、`preparation/project.zig`、`compilation/state.zig`、`project/scopes/host.zig` 合并进少数几个顶层 RX 编排树；
 - **合并原生接口**：将 `cli/rx/execution/host.d.zx`（144 函数）、`checking/host.d.zx`（38 函数）等按真实 OS 边界（读文件、写文件、调用后端/编译器）收口到 **≤ 25 个粗粒度系统效应函数**，彻底删除中间层状态句柄和 `anyopaque` 传参；
-- 同步消除剩余 **17 处 `@constCast`**。
+- 剩余 **@constCast 已于 Wave 5 清零**，后续专注合并宿主入口与消灭 `anyopaque` 跳板。
 
 ### Phase X3（大步 #2 · 预计净减 4,500+ 行 Zig）：`cli/build/`、`cli/library/`、`cli/watch/`、`cli/lint/`、`package/` 消桥
 

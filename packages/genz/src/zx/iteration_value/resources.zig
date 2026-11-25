@@ -20,8 +20,8 @@ pub const Columns = struct {
     }
 };
 
-pub fn reserveIterationResources(handle: *const anyopaque, length: u64, with_operands: bool) Error!void {
-    const columns: *Columns = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveIterationResources(handle: *anyopaque, length: u64, with_operands: bool) Error!void {
+    const columns: *Columns = @ptrCast(@alignCast(handle));
     const count: usize = @intCast(length);
     columns.layouts = try columns.allocator.alloc(u32, count);
 
@@ -35,8 +35,8 @@ pub fn publish(context: *Context, types: []const u32, values: []const u32) Error
     return evaluation.execute(cache, &input);
 }
 
-pub fn materializeIterationResource(handle: *const anyopaque, id: u32, resource: evaluation.Api.IterationResource) Error!u32 {
-    const context: *Context = @ptrCast(@alignCast(@constCast(handle)));
+pub fn materializeIterationResource(handle: *anyopaque, id: u32, resource: evaluation.Api.IterationResource) Error!u32 {
+    const context: *Context = @ptrCast(@alignCast(handle));
     const self = context.lowering;
     const type_id: ir.TypeId = @fromBackingInt(id);
     const types = @import("types.zig");
@@ -51,8 +51,8 @@ pub fn materializeIterationResource(handle: *const anyopaque, id: u32, resource:
     });
 }
 
-pub fn cacheIterationType(handle: *const anyopaque, id: u32, value: u32) Error!void {
-    const context: *Context = @ptrCast(@alignCast(@constCast(handle)));
+pub fn cacheIterationType(handle: *anyopaque, id: u32, value: u32) Error!void {
+    const context: *Context = @ptrCast(@alignCast(handle));
 
     return context.types.put(context.lowering.allocator, @fromBackingInt(id), @fromBackingInt(value));
 }

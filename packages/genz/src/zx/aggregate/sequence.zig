@@ -64,8 +64,8 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
     return aggregate.finish(self, &body, result);
 }
 
-pub fn publishSequenceElement(handle: *const anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
-    const frame: *Frame = @ptrCast(@alignCast(@constCast(handle)));
+pub fn publishSequenceElement(handle: *anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
+    const frame: *Frame = @ptrCast(@alignCast(handle));
 
     return bindElement(frame, @intCast(index), @fromBackingInt(item), @fromBackingInt(value));
 }

@@ -19,8 +19,8 @@ const Frame = struct {
     list_type: ir.TypeId,
     body: blocks.Sequence,
     comparator: Api.SortComparator = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -60,19 +60,19 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
     return @fromBackingInt(result);
 }
 
-pub fn sortElementType(handle: *const anyopaque) Error!u32 {
+pub fn sortElementType(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../state_value/elements.zig").typeExpr(frame.lowering, frame.list_type));
 }
 
-pub fn sortErrors(handle: *const anyopaque) Error!?[]const []const u8 {
+pub fn sortErrors(handle: *anyopaque) Error!?[]const []const u8 {
     const frame = Frame.borrow(handle);
 
     return @import("../error_effects.zig").expression(frame.lowering, frame.id);
 }
 
-pub fn buildSortComparator(handle: *const anyopaque, child: u32, errors: ?[]const []const u8) Error!*const Api.SortComparator {
+pub fn buildSortComparator(handle: *anyopaque, child: u32, errors: ?[]const []const u8) Error!*const Api.SortComparator {
     const frame = Frame.borrow(handle);
     const result = try worker.build(frame.lowering, frame.value, @fromBackingInt(child), errors);
 
@@ -81,7 +81,7 @@ pub fn buildSortComparator(handle: *const anyopaque, child: u32, errors: ?[]cons
     return &frame.comparator;
 }
 
-pub fn publishSortEffects(handle: *const anyopaque, comparator: *const Api.SortComparator) void {
+pub fn publishSortEffects(handle: *anyopaque, comparator: *const Api.SortComparator) void {
     const self = Frame.borrow(handle).lowering;
 
     self.uses_allocator = true;
@@ -89,63 +89,63 @@ pub fn publishSortEffects(handle: *const anyopaque, comparator: *const Api.SortC
     self.uses_process = self.uses_process or comparator.process;
 }
 
-pub fn evaluateSortTarget(handle: *const anyopaque) Error!u32 {
+pub fn evaluateSortTarget(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.lowering.expr(frame.value.target));
 }
 
-pub fn sortSourceSelected(handle: *const anyopaque) bool {
+pub fn sortSourceSelected(handle: *anyopaque) bool {
     const frame = Frame.borrow(handle);
 
     return lists.selected(frame.lowering, frame.list_type);
 }
 
-pub fn clipSortTarget(handle: *const anyopaque, target: u32) Error!u32 {
+pub fn clipSortTarget(handle: *anyopaque, target: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const ownership = @import("../state_value/ownership.zig");
 
     return @backingInt(try ownership.clip(frame.lowering, &frame.body, frame.value.target, @fromBackingInt(target)));
 }
 
-pub fn bindSortValue(handle: *const anyopaque, value: u32) Error!u32 {
+pub fn bindSortValue(handle: *anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try aggregate.bind(frame.lowering, &frame.body, @fromBackingInt(value)));
 }
 
-pub fn readSortItems(handle: *const anyopaque, target: u32) Error!u32 {
+pub fn readSortItems(handle: *anyopaque, target: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try lists.items(frame.lowering, frame.list_type, @fromBackingInt(target)));
 }
 
-pub fn sortInputReusable(handle: *const anyopaque) bool {
+pub fn sortInputReusable(handle: *anyopaque) bool {
     const frame = Frame.borrow(handle);
 
     return frame.lowering.plan.get(frame.id).in_place;
 }
 
-pub fn sortWritable(handle: *const anyopaque, target: u32) Error!u32 {
+pub fn sortWritable(handle: *anyopaque, target: u32) Error!u32 {
     return @backingInt(try lists.writable(Frame.borrow(handle).lowering, @fromBackingInt(target)));
 }
 
-pub fn sortReuseFlag(handle: *const anyopaque, reuse: bool) Error!u32 {
+pub fn sortReuseFlag(handle: *anyopaque, reuse: bool) Error!u32 {
     return @backingInt(try Frame.borrow(handle).lowering.builder.expression(.{ .boolean = reuse }));
 }
 
-pub fn bindSortEnvironment(handle: *const anyopaque) Error!u32 {
+pub fn bindSortEnvironment(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const environment = try frame.lowering.expr(frame.value.initial.?);
 
     return bindSortValue(handle, @backingInt(environment));
 }
 
-pub fn readSortHeader(handle: *const anyopaque, target: u32) Error!u32 {
+pub fn readSortHeader(handle: *anyopaque, target: u32) Error!u32 {
     return @backingInt(try lists.headered(Frame.borrow(handle).lowering, @fromBackingInt(target)));
 }
 
-pub fn finishSortResult(handle: *const anyopaque, result: u32, headered: u32) Error!u32 {
+pub fn finishSortResult(handle: *anyopaque, result: u32, headered: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const value = try lists.owned(self, frame.list_type, @fromBackingInt(result), @fromBackingInt(headered));

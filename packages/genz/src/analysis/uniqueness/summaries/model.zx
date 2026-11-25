@@ -1,4 +1,4 @@
-import type { U8Buffer } from "memory"
+import type { Allocator, U8Buffer } from "memory"
 import type { RowBuffer } from "memory/columns"
 
 export type Shape = {
@@ -12,6 +12,11 @@ export type Layout = {
     output_first: u64[],
     input_count: u64,
     output_count: u64
+}
+
+export type Buffers = {
+    guarantees: U8Buffer,
+    demands: U8Buffer
 }
 
 export type Cells = {
@@ -29,7 +34,9 @@ export type Views = {
 
 export type Create = {
     shape: Shape,
-    views: Views
+    views: Views,
+    buffers: Buffers,
+    allocator: Allocator
 }
 
 export enum Mode {

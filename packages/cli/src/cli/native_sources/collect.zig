@@ -5,7 +5,7 @@ const storage = @import("storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;
 
-pub fn openCollection(handle: *const anyopaque) Error!void {
+pub fn openCollection(handle: *anyopaque) Error!void {
     const self = Context.get(handle);
 
     if (self.entry) |path| if (self.inputs) |inputs| inputs.add(self.io, path) catch |err| return self.fail(err);
@@ -13,11 +13,11 @@ pub fn openCollection(handle: *const anyopaque) Error!void {
     self.canonical_root = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.root, self.allocator) catch |err| return self.fail(err);
 }
 
-pub fn entryPath(handle: *const anyopaque) ?[]const u8 {
+pub fn entryPath(handle: *anyopaque) ?[]const u8 {
     return Context.get(handle).entry;
 }
 
-pub fn readBundle(handle: *const anyopaque, path: []const u8) Error![]const []const u8 {
+pub fn readBundle(handle: *anyopaque, path: []const u8) Error![]const []const u8 {
     const self = Context.get(handle);
     const absolute = referencedPath(self.allocator, self.root, self.root, path) catch |err| return self.fail(err);
 
@@ -26,7 +26,7 @@ pub fn readBundle(handle: *const anyopaque, path: []const u8) Error![]const []co
     return resources.files(self.io, self.allocator, absolute, self.inputs) catch |err| return self.fail(err);
 }
 
-pub fn enqueue(handle: *const anyopaque, path: []const u8, source: bool) Error!void {
+pub fn enqueue(handle: *anyopaque, path: []const u8, source: bool) Error!void {
     const self = Context.get(handle);
 
     self.pending.append(self.allocator, .{
@@ -36,11 +36,11 @@ pub fn enqueue(handle: *const anyopaque, path: []const u8, source: bool) Error!v
     }) catch |err| return self.fail(err);
 }
 
-pub fn pendingCount(handle: *const anyopaque) u64 {
+pub fn pendingCount(handle: *anyopaque) u64 {
     return Context.get(handle).pending.items.len;
 }
 
-pub fn selectPending(handle: *const anyopaque, index: u64) Error!?bool {
+pub fn selectPending(handle: *anyopaque, index: u64) Error!?bool {
     const self = Context.get(handle);
 
     self.current = self.pending.items[@intCast(index)];
@@ -50,11 +50,11 @@ pub fn selectPending(handle: *const anyopaque, index: u64) Error!?bool {
     return if (self.previous) |row| row.parsed else null;
 }
 
-pub fn sourcePending(handle: *const anyopaque) bool {
+pub fn sourcePending(handle: *anyopaque) bool {
     return Context.get(handle).current.kind == .zig;
 }
 
-pub fn checkPending(handle: *const anyopaque) Error!void {
+pub fn checkPending(handle: *anyopaque) Error!void {
     const self = Context.get(handle);
 
     checkPhysical(self, self.current.path) catch |err| return self.fail(err);
@@ -68,25 +68,25 @@ fn checkPhysical(self: *Context, path: []const u8) !void {
     _ = try relativePath(self.allocator, self.canonical_root, canonical);
 }
 
-pub fn readPending(handle: *const anyopaque) Error!void {
+pub fn readPending(handle: *anyopaque) Error!void {
     const self = Context.get(handle);
 
     self.bytes = std.Io.Dir.cwd().readFileAllocOptions(self.io, self.current.path, self.allocator, .unlimited, .of(u8), 0) catch |err| return self.fail(err);
 }
 
-pub fn reusePending(handle: *const anyopaque) void {
+pub fn reusePending(handle: *anyopaque) void {
     const self = Context.get(handle);
 
     self.bytes = self.sources.items[self.previous.?.index].bytes;
 }
 
-pub fn observePending(handle: *const anyopaque) Error!void {
+pub fn observePending(handle: *anyopaque) Error!void {
     const self = Context.get(handle);
 
     if (self.inputs) |inputs| inputs.record(self.io, self.current.path, self.bytes) catch |err| return self.fail(err);
 }
 
-pub fn addPending(handle: *const anyopaque) Error!void {
+pub fn addPending(handle: *anyopaque) Error!void {
     const self = Context.get(handle);
 
     self.seen.put(self.allocator, self.relative, .{ .index = self.sources.items.len, .parsed = self.current.kind == .zig }) catch |err| return self.fail(err);
@@ -99,7 +99,7 @@ pub fn addPending(handle: *const anyopaque) Error!void {
     }) catch |err| return self.fail(err);
 }
 
-pub fn promotePending(handle: *const anyopaque) void {
+pub fn promotePending(handle: *anyopaque) void {
     const self = Context.get(handle);
     const row = self.previous.?;
 
@@ -107,11 +107,11 @@ pub fn promotePending(handle: *const anyopaque) void {
     row.parsed = true;
 }
 
-pub fn referenceCount(handle: *const anyopaque) u64 {
+pub fn referenceCount(handle: *anyopaque) u64 {
     return Context.get(handle).references.items.len;
 }
 
-pub fn enqueueReference(handle: *const anyopaque, index: u64) Error!void {
+pub fn enqueueReference(handle: *anyopaque, index: u64) Error!void {
     const self = Context.get(handle);
     const reference = self.references.items[@intCast(index)];
     const parent = std.fs.path.dirname(self.current.path).?;

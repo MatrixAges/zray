@@ -6,9 +6,9 @@ const Flow = @import("../flow.zig");
 const Memo = @import("../memo.zig");
 
 pub fn adopt(flow: Flow, index: u32, value: Memo.Flowed) bool {
-    const held = @constCast(flow.held[index]);
-    const text_held = @constCast(flow.text_held[index]);
-    const written = @constCast(flow.written[index]);
+    const held = flow.mutable.held[index];
+    const text_held = flow.mutable.text_held[index];
+    const written = flow.mutable.written[index];
 
     if (held.len != value.held.len or text_held.len != value.text_held.len or written.len != value.written.len) return false;
 

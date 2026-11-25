@@ -37,8 +37,8 @@ pub const State = struct {
         self.directory = null;
     }
 
-    fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -47,7 +47,7 @@ pub const State = struct {
     }
 };
 
-pub fn cached(handle: *const anyopaque) Error!bool {
+pub fn cached(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
     const io = self.io;
 
@@ -62,7 +62,7 @@ pub fn cached(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn readBlob(handle: *const anyopaque) Error!bool {
+pub fn readBlob(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
     const path = std.fmt.allocPrint(self.temporary, "{s}/{s}/{s}.tar.gz", .{ self.root, constants.archive_directory, self.hex }) catch |err| return self.fail(err);
 
@@ -76,19 +76,19 @@ pub fn readBlob(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn download(handle: *const anyopaque) Error!void {
+pub fn download(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     self.bytes = @import("../download.zig").read(self.io, self.allocator, self.source, self.source_base) catch |err| return self.fail(err);
 }
 
-pub fn verifyBlob(handle: *const anyopaque) Error!void {
+pub fn verifyBlob(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     self.verified = archive.verify(self.bytes.?, self.digest) catch |err| return self.fail(err);
 }
 
-pub fn createStaging(handle: *const anyopaque) Error!void {
+pub fn createStaging(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const temporary = self.temporary;
@@ -105,7 +105,7 @@ pub fn createStaging(handle: *const anyopaque) Error!void {
     self.staging = staging;
 }
 
-pub fn unpack(handle: *const anyopaque) Error!void {
+pub fn unpack(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const directory = std.Io.Dir.cwd().openDir(io, self.staging.?, .{}) catch |err| return self.fail(err);
@@ -121,7 +121,7 @@ pub fn unpack(handle: *const anyopaque) Error!void {
     self.extracted = archive.unpack(io, self.allocator, self.verified, package) catch |err| return self.fail(err);
 }
 
-pub fn writeReceipt(handle: *const anyopaque) Error!void {
+pub fn writeReceipt(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const temporary = self.temporary;
     const text = std.json.Stringify.valueAlloc(temporary, receipt.Receipt{ .archive_sha256 = self.hex, .files = self.extracted.?.files }, .{}) catch |err| return self.fail(err);
@@ -130,23 +130,23 @@ pub fn writeReceipt(handle: *const anyopaque) Error!void {
     write(self.io, path, text) catch |err| return self.fail(err);
 }
 
-pub fn checkStaging(handle: *const anyopaque) Error!void {
+pub fn checkStaging(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     receipt.verify(self.io, self.allocator, self.directory.?, self.hex) catch |err| return self.fail(err);
 }
 
-pub fn closeStaging(handle: *const anyopaque) void {
+pub fn closeStaging(handle: *anyopaque) void {
     State.get(handle).close();
 }
 
-pub fn publishBlob(handle: *const anyopaque) Error!void {
+pub fn publishBlob(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     write(self.io, self.blob_path, self.bytes.?) catch |err| return self.fail(err);
 }
 
-pub fn publishStaging(handle: *const anyopaque) Error!bool {
+pub fn publishStaging(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
     const io = self.io;
     const staging = self.staging.?;

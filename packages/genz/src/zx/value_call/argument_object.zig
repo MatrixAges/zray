@@ -20,8 +20,8 @@ const Frame = struct {
     evaluated: []node.ExpressionId,
     field_names: []const []const u8,
     fields: []object_fields.Field = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -64,12 +64,12 @@ pub fn materializeBorrowedObject(handle: *const anyopaque) Error!u32 {
     return @backingInt(try evaluation.invoke(entry, &input));
 }
 
-pub fn prepareBorrowedFields(handle: *const anyopaque) Error!void {
+pub fn prepareBorrowedFields(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     frame.fields = try object_fields.allocate(frame.argument.lowering, frame.temporary, frame.source.fields.len);
 }
 
-pub fn observeBorrowedOperand(handle: *const anyopaque, index: u64, id: u32, value: u32) Error!u32 {
+pub fn observeBorrowedOperand(handle: *anyopaque, index: u64, id: u32, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.argument.lowering;
     const ordinal: usize = @intCast(index);
@@ -95,13 +95,13 @@ pub fn cacheBorrowedOperand(handle: *const anyopaque, id: u32, value: u32) Error
     try self.cache.put(self.allocator, @fromBackingInt(id), @fromBackingInt(value));
 }
 
-pub fn publishBorrowedField(handle: *const anyopaque, index: u64, value: u32) void {
+pub fn publishBorrowedField(handle: *anyopaque, index: u64, value: u32) void {
     const frame = Frame.borrow(handle);
     const ordinal: usize = @intCast(index);
     frame.fields[ordinal] = object_fields.operand(frame.field_names, frame.source.fields.indices[ordinal], @fromBackingInt(value));
 }
 
-pub fn retireBorrowedOperands(handle: *const anyopaque) Error!void {
+pub fn retireBorrowedOperands(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     try operands.retire(frame.argument.lowering, frame.temporary, frame.argument.body, .{
@@ -111,7 +111,7 @@ pub fn retireBorrowedOperands(handle: *const anyopaque) Error!void {
     });
 }
 
-pub fn finishBorrowedObject(handle: *const anyopaque) Error!u32 {
+pub fn finishBorrowedObject(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.argument.lowering;
     const object_type = try @import("../types.zig").get(self, self.abi_layouts, frame.type_id);

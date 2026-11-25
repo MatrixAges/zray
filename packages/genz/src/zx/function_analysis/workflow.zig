@@ -12,8 +12,8 @@ const Frame = struct {
     output: *Analysis,
     thread: ?std.Thread = null,
     facts_result: Error!void = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn collect(self: *Frame) Error!void {
         const work = &self.basis;
@@ -78,7 +78,7 @@ pub fn reentry(work: Analysis.BasisBuild, output: *Analysis) Error!void {
     try evaluation.execute(entry, @ptrCast(&frame));
 }
 
-pub fn startAnalysisBasis(handle: *const anyopaque) bool {
+pub fn startAnalysisBasis(handle: *anyopaque) bool {
     const frame = Frame.borrow(handle);
 
     frame.thread = std.Thread.spawn(.{}, Analysis.BasisBuild.run, .{&frame.basis}) catch return false;
@@ -86,37 +86,37 @@ pub fn startAnalysisBasis(handle: *const anyopaque) bool {
     return true;
 }
 
-pub fn buildAnalysisBasis(handle: *const anyopaque) void {
+pub fn buildAnalysisBasis(handle: *anyopaque) void {
     Frame.borrow(handle).basis.run();
 }
 
-pub fn collectAnalysisFacts(handle: *const anyopaque) void {
+pub fn collectAnalysisFacts(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.facts_result = frame.collect();
 }
 
-pub fn joinAnalysisBasis(handle: *const anyopaque) void {
+pub fn joinAnalysisBasis(handle: *anyopaque) void {
     Frame.borrow(handle).join();
 }
 
-pub fn checkAnalysisFacts(handle: *const anyopaque) Error!void {
+pub fn checkAnalysisFacts(handle: *anyopaque) Error!void {
     return Frame.borrow(handle).facts_result;
 }
 
-pub fn checkAnalysisBasis(handle: *const anyopaque) Error!void {
+pub fn checkAnalysisBasis(handle: *anyopaque) Error!void {
     return Frame.borrow(handle).basis.result;
 }
 
-pub fn planAnalysis(handle: *const anyopaque) Error!void {
+pub fn planAnalysis(handle: *anyopaque) Error!void {
     return Frame.borrow(handle).plan(false);
 }
 
-pub fn planAnalysisConcurrent(handle: *const anyopaque) Error!void {
+pub fn planAnalysisConcurrent(handle: *anyopaque) Error!void {
     return Frame.borrow(handle).plan(true);
 }
 
-pub fn analyzeEntryFlags(handle: *const anyopaque) Error!void {
+pub fn analyzeEntryFlags(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const value = frame.output;
 
@@ -129,7 +129,7 @@ pub fn analyzeEntryFlags(handle: *const anyopaque) Error!void {
     });
 }
 
-pub fn analyzeIndependentEntry(handle: *const anyopaque) Error!void {
+pub fn analyzeIndependentEntry(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const work = &frame.basis;
     frame.output.uniqueness.entry = try Uniqueness.analyzeEntry(work.allocator, work.workspace, work.program.*, frame.output.basis);

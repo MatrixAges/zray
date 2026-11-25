@@ -8,7 +8,7 @@ yaml: *c.yaml_document_t,
 diagnostic: ?Diagnostic = null,
 scratch: std.heap.ArenaAllocator = .init(std.heap.smp_allocator),
 keys: Map = .empty,
-pub fn node(document: *const anyopaque, id: i32, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+pub fn node(document: *anyopaque, id: i32, shape: anytype) std.meta.Child(@TypeOf(shape)) {
     return @ptrCast(c.yaml_document_get_node(get(document).yaml, id));
 }
 
@@ -63,18 +63,18 @@ pub fn booleanTag(value: *const anyopaque) bool {
     return isTag(input, "tag:yaml.org,2002:str") or isTag(input, "tag:yaml.org,2002:bool");
 }
 
-pub fn prepareKeys(document: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn prepareKeys(document: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const self = get(document);
 
     _ = self.scratch.reset(.retain_capacity);
     self.keys = try Map.init(self.scratch.allocator(), @intCast(count));
 }
 
-pub fn claimKey(document: *const anyopaque, row: u64, key: []const u8) bool {
+pub fn claimKey(document: *anyopaque, row: u64, key: []const u8) bool {
     return get(document).keys.claim(@intCast(row), key);
 }
 
-pub fn reject(document: *const anyopaque, value: *const anyopaque, message: []const u8) error{InvalidManifest}!void {
+pub fn reject(document: *anyopaque, value: *const anyopaque, message: []const u8) error{InvalidManifest}!void {
     const position = asNode(value).start_mark;
 
     get(document).diagnostic = .{ .line = position.line + 1, .column = position.column + 1, .message = message };
@@ -100,6 +100,6 @@ fn asNode(value: *const anyopaque) *const c.yaml_node_t {
     return @ptrCast(@alignCast(value));
 }
 
-fn get(document: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(document)));
+fn get(document: *anyopaque) *Self {
+    return @ptrCast(@alignCast(document));
 }

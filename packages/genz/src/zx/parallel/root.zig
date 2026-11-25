@@ -11,8 +11,8 @@ const Records = struct {
     allocator: std.mem.Allocator,
     references: []*const Record = &.{},
     values: []Record = &.{},
-    fn borrow(handle: *const anyopaque) *Records {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Records {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -44,35 +44,35 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     return rows.unpackSpan(result);
 }
 
-pub fn markParallelStatement(handle: *const anyopaque) void {
+pub fn markParallelStatement(handle: *anyopaque) void {
     const self = evaluate.borrow(handle);
 
     self.uses_parallel = true;
     self.uses_allocator = true;
 }
 
-pub fn lowerParallelArgument(handle: *const anyopaque, expression: u32) Lower.Error!u32 {
+pub fn lowerParallelArgument(handle: *anyopaque, expression: u32) Lower.Error!u32 {
     const self = evaluate.borrow(handle);
     const call = self.program.expression(@fromBackingInt(expression)).value.call;
 
     return @backingInt(try self.expr(call.argument));
 }
 
-pub fn buildParallelWorker(handle: *const anyopaque, expression: u32) Lower.Error!u32 {
+pub fn buildParallelWorker(handle: *anyopaque, expression: u32) Lower.Error!u32 {
     const self = evaluate.borrow(handle);
     const call = self.program.expression(@fromBackingInt(expression)).value.call;
 
     return @backingInt(try @import("worker.zig").lower(self, call.function));
 }
 
-pub fn reserveParallelRecords(handle: *const anyopaque, count: u64) Lower.Error!void {
+pub fn reserveParallelRecords(handle: *anyopaque, count: u64) Lower.Error!void {
     const records = Records.borrow(handle);
     records.references = try records.allocator.alloc(*const Record, @intCast(count));
     records.values = try records.allocator.alloc(Record, @intCast(count));
 }
 
 pub fn storeParallelRecord(
-    handle: *const anyopaque,
+    handle: *anyopaque,
     row: u64,
     argument: u32,
     worker_type: u32,
@@ -98,6 +98,6 @@ pub fn storeParallelRecord(
     records.references[index] = &records.values[index];
 }
 
-pub fn readParallelRecords(handle: *const anyopaque) []const *const Record {
+pub fn readParallelRecords(handle: *anyopaque) []const *const Record {
     return Records.borrow(handle).references;
 }

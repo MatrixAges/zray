@@ -74,6 +74,10 @@
             first: $ctx.plan.first,
             second: $ctx.plan.second,
             frame: $in.frame,
+            writer: $in.writer,
+            origin: $in.origin,
+            binary_expressions: $in.binary_expressions,
+            types: $in.source.types,
             values: $ctx.createU32Buffer
         }}
     />

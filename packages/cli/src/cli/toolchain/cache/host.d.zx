@@ -1,4 +1,4 @@
-export type Environment = opaque
+export type Environment = mutable_opaque
 
 export declare function get(environment: Environment, key: string): string?
 

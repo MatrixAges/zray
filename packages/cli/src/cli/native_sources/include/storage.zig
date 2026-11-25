@@ -5,7 +5,7 @@ const storage = @import("../storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;
 
-pub fn selectInclude(handle: *const anyopaque, path: []const u8) Error!?[]const u8 {
+pub fn selectInclude(handle: *anyopaque, path: []const u8) Error!?[]const u8 {
     const self = Context.get(handle);
     const allocator = self.allocator;
 
@@ -15,20 +15,20 @@ pub fn selectInclude(handle: *const anyopaque, path: []const u8) Error!?[]const 
     return if (paths.within(self.include_relative)) self.include_relative else null;
 }
 
-pub fn includeFiles(handle: *const anyopaque) Error![]const []const u8 {
+pub fn includeFiles(handle: *anyopaque) Error![]const []const u8 {
     const self = Context.get(handle);
 
     return resources.files(self.io, self.allocator, self.include_absolute, self.inputs) catch |err| return self.fail(err);
 }
 
-pub fn includesFile(handle: *const anyopaque, path: []const u8) Error!bool {
+pub fn includesFile(handle: *anyopaque, path: []const u8) Error!bool {
     const self = Context.get(handle);
     const relative = std.fs.path.relative(self.allocator, self.root, null, self.root, path) catch |err| return self.fail(err);
 
     return self.seen.contains(relative);
 }
 
-pub fn writeInclude(handle: *const anyopaque, index: u64, bundled: bool) Error!void {
+pub fn writeInclude(handle: *anyopaque, index: u64, bundled: bool) Error!void {
     const self = Context.get(handle);
 
     if (!bundled) {

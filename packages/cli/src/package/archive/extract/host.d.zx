@@ -1,4 +1,4 @@
-export type Archive = opaque
+export type Archive = mutable_opaque
 
 export declare function nextTar(archive: Archive): bool throws { ArchiveHostFailure }
 export declare function tarName(archive: Archive): string

@@ -63,5 +63,20 @@ fn seed(allocator: std.mem.Allocator, program: ir.Program, slots: Slots, texts: 
         for (held[index], 0..) |*value, slot| value.* = value.* or std.mem.indexOfScalar(ir.TypeId, outputs, slots.listType(function.input_type, @intCast(slot))) != null;
     }
 
-    return .{ .held = held, .text_held = text_held, .written = written };
+    const held_views = try allocator.alloc([]const bool, count);
+    const text_held_views = try allocator.alloc([]const bool, count);
+    const written_views = try allocator.alloc([]const bool, count);
+
+    for (0..count) |index| {
+        held_views[index] = held[index];
+        text_held_views[index] = text_held[index];
+        written_views[index] = written[index];
+    }
+
+    return .{
+        .held = held_views,
+        .text_held = text_held_views,
+        .written = written_views,
+        .mutable = .{ .held = held, .text_held = text_held, .written = written },
+    };
 }

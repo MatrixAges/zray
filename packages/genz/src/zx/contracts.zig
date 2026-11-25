@@ -14,8 +14,8 @@ const Frame = struct {
     predicate: Lower = undefined,
     expression: zx.ir.ExprId = undefined,
     value: node.ExpressionId = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -39,7 +39,7 @@ pub fn preconditions(self: *Lower) Error!node.Block {
     return self.builder.finishStatements(&frame.statements);
 }
 
-pub fn openPreconditionScope(handle: *const anyopaque, index: u64) Error!void {
+pub fn openPreconditionScope(handle: *anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const contracts = &self.program.contracts;
@@ -56,19 +56,19 @@ pub fn openPreconditionScope(handle: *const anyopaque, index: u64) Error!void {
     frame.expression = @fromBackingInt(contracts.predicates[row]);
 }
 
-pub fn evaluatePrecondition(handle: *const anyopaque) Error!void {
+pub fn evaluatePrecondition(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.value = try frame.predicate.expr(frame.expression);
 }
 
-pub fn emitPrecondition(handle: *const anyopaque) Error!void {
+pub fn emitPrecondition(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     try @import("intrinsics/guard.zig").precondition(frame.lowering, &frame.statements, frame.value);
 }
 
-pub fn publishPreconditionScope(handle: *const anyopaque) void {
+pub fn publishPreconditionScope(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     scope.publish(frame.lowering, &frame.predicate, .Predicate);

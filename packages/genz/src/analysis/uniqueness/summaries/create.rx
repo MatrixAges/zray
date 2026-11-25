@@ -1,11 +1,18 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Create} out={State.Cells} />
+    <Args in={State.Create} out={State.Layout} />
 
     <Call fn="layout" in={$in.shape} />
 
-    <Call fn="allocate" />
+    <Call
+        fn="allocate"
+        in={{
+            layout: $ctx.layout,
+            buffers: $in.buffers,
+            allocator: $in.allocator
+        }}
+    />
 
     <Call
         fn="views"
@@ -15,5 +22,5 @@
         }}
     />
 
-    <Return value={$ctx.allocate} />
+    <Return value={$ctx.layout} />
 </Module>

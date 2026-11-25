@@ -1,4 +1,4 @@
-export type Scanner = opaque
+export type Scanner = mutable_opaque
 
 export declare function next(scanner: Scanner): i32 throws {
     InvalidYamlLayout,

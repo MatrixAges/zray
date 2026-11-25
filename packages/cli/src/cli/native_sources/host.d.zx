@@ -1,4 +1,4 @@
-export type Context = opaque
+export type Context = mutable_opaque
 
 export declare function absoluteHeader(collection: Context): bool
 export declare function prepareBundle(collection: Context): void throws { NativeResourceFailure }

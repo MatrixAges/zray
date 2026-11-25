@@ -1,4 +1,4 @@
-export type FileSystem = opaque
+export type FileSystem = mutable_opaque
 
 export declare function quoteJsonString(allocator, value: string): string throws {
     OutOfMemory

@@ -7,8 +7,13 @@ const Basis = @import("../basis.zig");
 const creating = @import("generated_uniqueness_prepare_program");
 const lifecycle = @import("lifecycle.zig");
 const Calls = @import("../topology.zig").Calls;
-const Output = @typeInfo(@typeInfo(@TypeOf(creating.executeValue)).@"fn".return_type.?).error_union.payload;
-pub const Model = @FieldType(Output, "storage");
+const Prepared = std.meta.Child(creating.Output);
+
+pub const Model = struct {
+    layout: @FieldType(Prepared, "layout"),
+    guarantees: []u8,
+    demands: []u8,
+};
 
 pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, program: *const ir.Program, basis: *const Basis) std.mem.Allocator.Error!struct { calls: Calls, summaries: Summaries } {
     comptime {
@@ -23,6 +28,8 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
     var output_rows: zx.memory.RowBuffer = .empty([]Level);
     var input_wants: zx.memory.RowBuffer = .empty([]Level);
     var output_wants: zx.memory.RowBuffer = .empty([]Level);
+    var guarantees: []u8 = &.{};
+    var demands: []u8 = &.{};
 
     const input: Input = .{
         .bodies = &.{
@@ -42,6 +49,10 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
             .inputs = @ptrCast(&input_wants),
             .outputs = @ptrCast(&output_wants),
         },
+        .buffers = &.{
+            .guarantees = @ptrCast(&guarantees),
+            .demands = @ptrCast(&demands),
+        },
         .arenas = &.{
             .scope = @ptrCast(&scope),
             .temporary = @ptrCast(&temporary),
@@ -49,9 +60,15 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
         },
     };
 
-    const prepared = creating.executeValue(scope.allocator(), &input) catch |err| switch (err) {
+    const prepared = creating.executeIn(scope.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("ownership preparation failed: {s}", .{@errorName(err)}),
+    };
+
+    const model: Model = .{
+        .layout = prepared.layout,
+        .guarantees = guarantees,
+        .demands = demands,
     };
 
     const result = Summaries{
@@ -63,7 +80,7 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
         .written = basis.flow.written,
         .return_only = basis.return_only,
         .effects = basis.effects,
-        .storage = prepared.storage,
+        .storage = model,
     };
 
     const topology = prepared.topology;

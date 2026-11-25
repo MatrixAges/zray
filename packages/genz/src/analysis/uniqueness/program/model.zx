@@ -1,5 +1,5 @@
 import type { Allocator, ArenaScope } from "memory"
-import type { Cells, Create } from "../summaries/model"
+import type { Create, Layout } from "../summaries/model"
 import type { Bodies, Calls, Input as Graph } from "../topology/model"
 import type { Buffers } from "../work/allocate"
 
@@ -9,14 +9,14 @@ export type Arenas = {
     summaries: Allocator
 }
 
-export type Prepare = Create & {
+export type Prepare = Create.Omit("allocator") & {
     bodies: Bodies,
     arenas: Arenas
 }
 
 export type Prepared = {
     topology: Calls,
-    storage: Cells
+    layout: Layout
 }
 
 export type Open = Graph & {

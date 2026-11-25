@@ -85,16 +85,16 @@ const Timeline = struct {
     stamp: Api.IterationProjectionStamp = undefined,
 };
 
-pub fn reserveIterationProjectionColumns(handle: *const anyopaque, length: u64) Lower.Error!void {
-    const timeline: *Timeline = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveIterationProjectionColumns(handle: *anyopaque, length: u64) Lower.Error!void {
+    const timeline: *Timeline = @ptrCast(@alignCast(handle));
     const count: usize = @intCast(length);
     timeline.prepared = try timeline.temporary.alloc(u32, count);
     timeline.serials = try timeline.temporary.alloc(u64, count);
     timeline.history_count = try timeline.temporary.alloc(u64, count);
 }
 
-pub fn reserveIterationProjection(handle: *const anyopaque, fresh: u64) Lower.Error!*const Api.IterationProjectionStamp {
-    const timeline: *Timeline = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveIterationProjection(handle: *anyopaque, fresh: u64) Lower.Error!*const Api.IterationProjectionStamp {
+    const timeline: *Timeline = @ptrCast(@alignCast(handle));
     const self = timeline.context.lowering;
 
     timeline.stamp = .{ .serial = self.serial, .history_count = timeline.context.transfers.len() };

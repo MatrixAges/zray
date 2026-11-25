@@ -15,8 +15,8 @@ const Frame = struct {
     previous: @FieldType(Context, "argument"),
     body: Context.Statements,
     cached: ?Cache.Binding = null,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn restore(self: *Frame) void {
         if (self.cached) |saved| saved.restore();
@@ -62,7 +62,7 @@ pub fn lower(self: *Context, id: ir.ExprId, row: ir.ExpressionRow, value_call: b
     return evaluation.invoke(entry, &input);
 }
 
-pub fn openIterationCall(handle: *const anyopaque, value: u32) Lower.Error!void {
+pub fn openIterationCall(handle: *anyopaque, value: u32) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.context.lowering;
     const argument = frame.row.value.call.argument;
@@ -74,19 +74,19 @@ pub fn openIterationCall(handle: *const anyopaque, value: u32) Lower.Error!void 
     frame.cached = try self.cache.bind(self.allocator, argument, input);
 }
 
-pub fn invokeIterationValue(handle: *const anyopaque) Lower.Error!u32 {
+pub fn invokeIterationValue(handle: *anyopaque) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../value_call/root.zig").invocation(frame.context.lowering, frame.row.value.call));
 }
 
-pub fn invokeIterationRegular(handle: *const anyopaque) Lower.Error!u32 {
+pub fn invokeIterationRegular(handle: *anyopaque) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.context.lowering.regular(frame.call_id));
 }
 
-pub fn convertIterationCall(handle: *const anyopaque, value: u32) Lower.Error!u32 {
+pub fn convertIterationCall(handle: *anyopaque, value: u32) Lower.Error!u32 {
     return convertResult(Frame.borrow(handle), value);
 }
 

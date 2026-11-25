@@ -35,8 +35,15 @@ pub fn build(self: *Lower, declarations: ?*@import("../../node/declarations.zig"
     if (!output.valid) return error.OutOfMemory;
     try @import("import.zig").append(self, declarations, Output, output, result.fields, .borrowed);
 
-    // The three vectors are built in the owning AST allocator and never borrow the ABI vectors.
-    self.state_types = @as([*]node.ExpressionId, @ptrCast(@constCast(output.values.ptr)))[0..output.values.len];
-    self.state_layouts = @as([*]node.ExpressionId, @ptrCast(@constCast(output.layouts.ptr)))[0..output.layouts.len];
-    self.view_types = @as([*]node.ExpressionId, @ptrCast(@constCast(output.views.ptr)))[0..output.views.len];
+    self.state_types = try copyIds(allocator, output.values);
+    self.state_layouts = try copyIds(allocator, output.layouts);
+    self.view_types = try copyIds(allocator, output.views);
+}
+
+fn copyIds(allocator: std.mem.Allocator, source: []const u32) std.mem.Allocator.Error![]node.ExpressionId {
+    const result = try allocator.alloc(node.ExpressionId, source.len);
+
+    for (result, source) |*target, item| target.* = @fromBackingInt(item);
+
+    return result;
 }

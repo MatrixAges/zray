@@ -13,8 +13,8 @@ pub const Context = struct {
     paths: [][]const u8 = &.{},
     written: usize = 0,
     failure: ?anyerror = null,
-    fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *Context {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *Context, err: anyerror) Error {
         self.failure = err;
@@ -23,7 +23,7 @@ pub const Context = struct {
     }
 };
 
-pub fn selectBatch(handle: *const anyopaque, index: u64) u64 {
+pub fn selectBatch(handle: *anyopaque, index: u64) u64 {
     const self = Context.get(handle);
 
     self.batch = if (index == self.translations.len) self.response else &self.translations[@intCast(index)];
@@ -31,24 +31,24 @@ pub fn selectBatch(handle: *const anyopaque, index: u64) u64 {
     return self.batch.inputs.len;
 }
 
-pub fn completeBatch(handle: *const anyopaque) bool {
+pub fn completeBatch(handle: *anyopaque) bool {
     return Context.get(handle).batch.inputs_complete;
 }
 
-pub fn reserve(handle: *const anyopaque, count: u64) Error!void {
+pub fn reserve(handle: *anyopaque, count: u64) Error!void {
     const self = Context.get(handle);
     const capacity = std.math.cast(usize, count) orelse return self.fail(error.OutOfMemory);
 
     self.paths = self.owned.alloc([]const u8, capacity) catch |err| return self.fail(err);
 }
 
-pub fn prefixAt(handle: *const anyopaque, row: u64) u8 {
+pub fn prefixAt(handle: *anyopaque, row: u64) u8 {
     const self = Context.get(handle);
 
     return @backingInt(self.batch.inputs[@intCast(row)].prefix);
 }
 
-pub fn registerPath(handle: *const anyopaque, row: u64, root: []const u8) Error!bool {
+pub fn registerPath(handle: *anyopaque, row: u64, root: []const u8) Error!bool {
     const self = Context.get(handle);
     const input = self.batch.inputs[@intCast(row)];
     const path = std.fs.path.resolve(self.owned, &.{ root, input.path }) catch |err| return self.fail(err);

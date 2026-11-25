@@ -8,7 +8,7 @@ const generated = @import("genz_options").generated_analysis;
 const Form = if (generated) Api.ModuleRequestForm else Requests.Form;
 const Error = Lower.Error;
 
-pub fn takeModuleFunction(handle: *const anyopaque) Form {
+pub fn takeModuleFunction(handle: *anyopaque) Form {
     const frame = Frame.borrow(handle);
     const state = frame.requests.?;
     const request = state.queue.next(frame.lowering.program.functions.native_modules) orelse return .Done;
@@ -18,39 +18,39 @@ pub fn takeModuleFunction(handle: *const anyopaque) Form {
     return zx.columns.view(Form, request.form);
 }
 
-pub fn emitRequestedNative(handle: *const anyopaque) Error!void {
+pub fn emitRequestedNative(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return emit.native(frame.lowering, &frame.output, frame.requests.?.current.id);
 }
 
-pub fn openRequestedFunction(handle: *const anyopaque) Error!void {
+pub fn openRequestedFunction(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const state = frame.requests.?;
 
     return emit.open(frame.lowering, &state.selected, state.current.id);
 }
 
-pub fn emitRequestedStore(handle: *const anyopaque) Error!void {
+pub fn emitRequestedStore(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../../store.zig").declaration(&frame.requests.?.selected, &frame.output);
 }
 
-pub fn emitRequestedBody(handle: *const anyopaque, value: bool) Error!void {
+pub fn emitRequestedBody(handle: *anyopaque, value: bool) Error!void {
     const frame = Frame.borrow(handle);
     const state = frame.requests.?;
 
     return emit.body(&state.selected, &frame.output, state.current.id, if (value) .value else .regular);
 }
 
-pub fn publishRequestedFunction(handle: *const anyopaque) void {
+pub fn publishRequestedFunction(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     emit.publish(frame.lowering, &frame.requests.?.selected);
 }
 
-pub fn drainSeed(handle: *const anyopaque) Error!void {
+pub fn drainSeed(handle: *anyopaque) Error!void {
     while (true) {
         const form = takeModuleFunction(handle);
 

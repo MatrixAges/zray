@@ -3,7 +3,7 @@ const host = @import("../host.zig");
 const model = @import("../model.zig");
 const pkgs = @import("pkgs");
 
-pub fn findArchive(handle: *const anyopaque, first: u64) host.Error!?u64 {
+pub fn findArchive(handle: *anyopaque, first: u64) host.Error!?u64 {
     const self = host.State.get(handle);
     const fresh = &self.fresh;
     const release = fresh.pending.release;
@@ -20,15 +20,15 @@ pub fn findArchive(handle: *const anyopaque, first: u64) host.Error!?u64 {
     };
 }
 
-pub fn localArchive(handle: *const anyopaque) bool {
+pub fn localArchive(handle: *anyopaque) bool {
     return host.State.get(handle).fresh.archive_is_local;
 }
 
-pub fn indexedArchive(handle: *const anyopaque) []const u8 {
+pub fn indexedArchive(handle: *anyopaque) []const u8 {
     return host.State.get(handle).fresh.pending.release.archive;
 }
 
-pub fn relativeArchive(handle: *const anyopaque) host.Error![]const u8 {
+pub fn relativeArchive(handle: *anyopaque) host.Error![]const u8 {
     const self = host.State.get(handle);
     const allocator = self.allocator;
     const absolute = std.fs.path.resolve(allocator, &.{ self.fresh.index_base, self.fresh.pending.release.archive }) catch |err| return self.fail(err);
@@ -39,7 +39,7 @@ pub fn relativeArchive(handle: *const anyopaque) host.Error![]const u8 {
     return relative;
 }
 
-pub fn fetchArchive(handle: *const anyopaque, source: []const u8) host.Error![]const u8 {
+pub fn fetchArchive(handle: *anyopaque, source: []const u8) host.Error![]const u8 {
     const self = host.State.get(handle);
     const fresh = &self.fresh;
     const release = fresh.pending.release;
@@ -51,20 +51,20 @@ pub fn fetchArchive(handle: *const anyopaque, source: []const u8) host.Error![]c
     return self.fetch(.{ .version = release.version, .archive = source, .sha256 = digest }, self.root) catch |err| self.fail(err);
 }
 
-pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!void {
+pub fn readArchive(handle: *anyopaque, path: []const u8) host.Error!void {
     const self = host.State.get(handle);
     const allocator = self.allocator;
     self.fresh.archive_manifest = model.read(self.io, allocator, path, null, allocator) catch |err| return self.fail(err);
 }
 
-pub fn verifyArchive(handle: *const anyopaque) host.Error!void {
+pub fn verifyArchive(handle: *anyopaque) host.Error!void {
     const self = host.State.get(handle);
     const fresh = &self.fresh;
 
     pkgs.install.verify(fresh.pending.name, fresh.pending.release.version, &fresh.archive_manifest) catch |err| return self.fail(err);
 }
 
-pub fn recordArchive(handle: *const anyopaque, source: []const u8, path: []const u8) host.Error!u64 {
+pub fn recordArchive(handle: *anyopaque, source: []const u8, path: []const u8) host.Error!u64 {
     const self = host.State.get(handle);
     const fresh = &self.fresh;
     const allocator = self.allocator;

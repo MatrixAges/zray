@@ -40,7 +40,7 @@ pub fn requireLoopPath(valid: bool) void {
     std.debug.assert(valid);
 }
 
-pub fn projectLoopPath(handle: *const anyopaque, row: u32, target: u32, length_type: ?u32) Lower.Error!u32 {
+pub fn projectLoopPath(handle: *anyopaque, row: u32, target: u32, length_type: ?u32) Lower.Error!u32 {
     const self = evaluation.borrow(handle);
     const current: node.ExpressionId = @fromBackingInt(target);
     const value = self.program.expression(@fromBackingInt(row));
@@ -54,7 +54,7 @@ pub fn projectLoopPath(handle: *const anyopaque, row: u32, target: u32, length_t
     });
 }
 
-pub fn convertLoopPath(handle: *const anyopaque, row: u32, id: u32, conversion: evaluation.Api.PathConversion) Lower.Error!u32 {
+pub fn convertLoopPath(handle: *anyopaque, row: u32, id: u32, conversion: evaluation.Api.PathConversion) Lower.Error!u32 {
     const self = evaluation.borrow(handle);
     const value = self.program.expression(@fromBackingInt(row));
     const projected: node.ExpressionId = @fromBackingInt(id);

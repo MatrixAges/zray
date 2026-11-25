@@ -1,4 +1,4 @@
-export type Host = opaque
+export type Host = mutable_opaque
 
 export enum WorkspaceStatus {
     Valid,

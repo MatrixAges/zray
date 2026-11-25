@@ -14,8 +14,8 @@ const slot_count = @typeInfo(Slot).@"enum".field_names.len;
 const Frame = struct {
     context: *Context,
     operands: [slot_count]Operand = @splat(.empty),
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -33,13 +33,13 @@ pub fn lower(context: *Context, id: zx.ir.ExprId) Lower.Error!node.ExpressionId 
     });
 }
 
-pub fn bindIterationMutationOperand(handle: *const anyopaque, slot: Slot, id: u32) Lower.Error!void {
+pub fn bindIterationMutationOperand(handle: *anyopaque, slot: Slot, id: u32) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.operands[@intFromEnum(slot)] = try Operand.lower(frame.context.lowering, @fromBackingInt(id));
 }
 
-pub fn publishIterationMutation(handle: *const anyopaque, mode: Api.IterationMutationMode, list_layout: u32, result_layout: u32) Lower.Error!u32 {
+pub fn publishIterationMutation(handle: *anyopaque, mode: Api.IterationMutationMode, list_layout: u32, result_layout: u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try emission.lower(frame.context, .{

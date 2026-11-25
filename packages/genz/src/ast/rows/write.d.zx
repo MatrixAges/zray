@@ -1,10 +1,10 @@
-export type AstWriter = opaque
+export type AstWriter = mutable_opaque
 
-export type AstDeclarations = opaque
+export type AstDeclarations = mutable_opaque
 
-export type AstOriginBuffer = opaque
+export type AstOriginBuffer = mutable_opaque
 
-export type AstSequence = opaque
+export type AstSequence = mutable_opaque
 
 export type AstScratch = opaque
 

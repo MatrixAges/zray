@@ -1,4 +1,4 @@
-export type Host = opaque
+export type Host = mutable_opaque
 
 export declare function prepareIndex(host: Host): void throws { InstallHostFailure }
 export declare function seedMember(host: Host, row: u64): void throws { InstallHostFailure }

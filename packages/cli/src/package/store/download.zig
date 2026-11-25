@@ -12,8 +12,8 @@ const State = struct {
     redirect_buffer: [8192]u8 = undefined,
     body: ?[]u8 = null,
     failure: ?anyerror = null,
-    fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -56,14 +56,14 @@ pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: 
     return state.body.?;
 }
 
-pub fn local(handle: *const anyopaque) Error!bool {
+pub fn local(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
     const transport = @import("pkgs").install.archiveTransport(self.client.allocator, self.source) catch |err| return self.fail(err);
 
     return transport == .Local;
 }
 
-pub fn readLocal(handle: *const anyopaque, limit: u64) Error!u64 {
+pub fn readLocal(handle: *anyopaque, limit: u64) Error!u64 {
     const self = State.get(handle);
     const allocator = self.client.allocator;
     const path = std.fs.path.resolve(allocator, &.{ self.base, self.source }) catch |err| return self.fail(err);
@@ -77,7 +77,7 @@ pub fn readLocal(handle: *const anyopaque, limit: u64) Error!u64 {
     return bytes.len;
 }
 
-pub fn receiveHead(handle: *const anyopaque) Error!void {
+pub fn receiveHead(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const uri = std.Uri.parse(self.source) catch |err| return self.fail(err);
 
@@ -93,19 +93,19 @@ pub fn receiveHead(handle: *const anyopaque) Error!void {
     self.response = request.receiveHead(&self.redirect_buffer) catch |err| return self.fail(err);
 }
 
-pub fn ok(handle: *const anyopaque) bool {
+pub fn ok(handle: *anyopaque) bool {
     return State.get(handle).response.head.status == .ok;
 }
 
-pub fn identityEncoding(handle: *const anyopaque) bool {
+pub fn identityEncoding(handle: *anyopaque) bool {
     return State.get(handle).response.head.content_encoding == .identity;
 }
 
-pub fn declaredLength(handle: *const anyopaque) ?u64 {
+pub fn declaredLength(handle: *anyopaque) ?u64 {
     return State.get(handle).response.head.content_length;
 }
 
-pub fn readBody(handle: *const anyopaque, limit: u64) Error!void {
+pub fn readBody(handle: *anyopaque, limit: u64) Error!void {
     const self = State.get(handle);
     var buffer: [65536]u8 = undefined;
 

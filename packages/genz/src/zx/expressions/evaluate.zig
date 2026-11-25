@@ -12,8 +12,8 @@ const binary_entry = @import("generated_lower_binary");
 
 pub const Api = @import("execution_abi").layouts.@"zig:lowering_host";
 
-pub inline fn borrow(frame: *const anyopaque) *Lower {
-    return @ptrCast(@alignCast(@constCast(frame)));
+pub inline fn borrow(frame: *anyopaque) *Lower {
+    return @ptrCast(@alignCast(frame));
 }
 
 pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {

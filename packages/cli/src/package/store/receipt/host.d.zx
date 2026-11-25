@@ -1,4 +1,4 @@
-export type Receipt = opaque
+export type Receipt = mutable_opaque
 
 export declare function receiptIsFile(receipt: Receipt): bool throws { ReceiptHostFailure }
 export declare function loadReceipt(receipt: Receipt): void throws { ReceiptHostFailure }

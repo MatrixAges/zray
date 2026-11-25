@@ -126,7 +126,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
 
 fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
     const self = frame.lowering;
-    const handle: *const anyopaque = @ptrCast(frame);
+    const handle: *anyopaque = @ptrCast(frame);
     const operand = frame.iteration.initial;
 
     switch (try prepare.beginLoweredLoop(handle)) {

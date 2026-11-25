@@ -64,37 +64,37 @@ const Frame = struct {
     memo: ?*Memo,
     result: *Self,
     texts: []const bool = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn buildBasisSlots(handle: *const anyopaque) Error!void {
+pub fn buildBasisSlots(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const built = try Slots.init(frame.allocator, frame.program.types);
     frame.result.slots = built.slots;
     frame.texts = built.texts;
 }
 
-pub fn hashBasis(handle: *const anyopaque) Error!void {
+pub fn hashBasis(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     frame.result.contents = try identity.contents(frame.allocator, frame.program);
     frame.result.types = identity.types(frame.program.types);
 }
 
-pub fn buildBasisFlow(handle: *const anyopaque) Error!void {
+pub fn buildBasisFlow(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const result = frame.result;
 
     result.flow = try Flow.create(frame.allocator, frame.workspace, frame.program.*, result.slots, frame.texts, result.contents, result.types, frame.memo);
 }
 
-pub fn buildBasisReturns(handle: *const anyopaque) Error!void {
+pub fn buildBasisReturns(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     frame.result.return_only = try @import("return_only.zig").create(frame.allocator, frame.program.*);
 }
 
-pub fn buildBasisEffects(handle: *const anyopaque) Error!void {
+pub fn buildBasisEffects(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const result = frame.result;
 

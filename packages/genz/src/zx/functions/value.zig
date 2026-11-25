@@ -18,8 +18,8 @@ const Frame = struct {
     argument_scope: bool = false,
     output: ?scope.Frame(.Value) = null,
     declaration: node.Declaration = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn restore(self: *Frame) void {
         if (self.output) |saved| saved.restore();
@@ -31,7 +31,7 @@ const Frame = struct {
 pub fn lower(self: *Lower, name: []const u8, comptime signature: bool) Error!node.Declaration {
     const mode = policy.value(self);
     var frame: Frame = .{ .lowering = self, .name = name };
-    const body: *const anyopaque = @ptrCast(&frame);
+    const body: *anyopaque = @ptrCast(&frame);
 
     defer frame.restore();
 
@@ -59,13 +59,13 @@ pub fn lower(self: *Lower, name: []const u8, comptime signature: bool) Error!nod
     return frame.declaration;
 }
 
-pub fn enterFunctionRepresentation(handle: *const anyopaque) Error!void {
+pub fn enterFunctionRepresentation(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.representation = try state.enter(frame.lowering);
 }
 
-pub fn bindFunctionArgument(handle: *const anyopaque, bind: bool) Error!void {
+pub fn bindFunctionArgument(handle: *anyopaque, bind: bool) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
@@ -74,19 +74,19 @@ pub fn bindFunctionArgument(handle: *const anyopaque, bind: bool) Error!void {
     frame.argument_scope = true;
 }
 
-pub fn setFunctionOutput(handle: *const anyopaque, value: bool) void {
+pub fn setFunctionOutput(handle: *anyopaque, value: bool) void {
     const frame = Frame.borrow(handle);
 
     frame.output = scope.enter(frame.lowering, .Value, .{ .value_output = value });
 }
 
-pub fn emitValuePrototype(handle: *const anyopaque) Error!void {
+pub fn emitValuePrototype(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.declaration = .{ .function = try frame.lowering.prototype(frame.name, false) };
 }
 
-pub fn emitValueBody(handle: *const anyopaque) Error!void {
+pub fn emitValueBody(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.declaration = try frame.lowering.function(frame.name, false);

@@ -19,7 +19,7 @@ pub fn lower(self: *Lower, id: ir.FunctionId, form: Form) Lower.Error!Stored {
 
     self.local_regular_function = form != .Value;
 
-    const handle: *const anyopaque = @ptrCast(&frame);
+    const handle: *anyopaque = @ptrCast(&frame);
 
     if (generated) {
         const entry = @import("generated_lower_function_declarations");
@@ -35,7 +35,7 @@ pub fn lower(self: *Lower, id: ir.FunctionId, form: Form) Lower.Error!Stored {
     return frame.result;
 }
 
-pub fn openFunctionModule(handle: *const anyopaque) Lower.Error!void {
+pub fn openFunctionModule(handle: *anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const id = frame.function.?;
@@ -48,12 +48,12 @@ pub fn openFunctionModule(handle: *const anyopaque) Lower.Error!void {
     try context.reserve(self);
 }
 
-pub fn openNativeFunctionModule(handle: *const anyopaque) void {
+pub fn openNativeFunctionModule(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
     @import("../../functions/scope.zig").installFunction(&frame.lowering.program, @backingInt(frame.function.?), .Native);
 }
 
-fn seed(handle: *const anyopaque, form: Form) Lower.Error!void {
+fn seed(handle: *anyopaque, form: Form) Lower.Error!void {
     try publication.emitModuleStandard(handle);
     try publication.emitModuleTypes(handle);
     try publication.emitModuleStore(handle);
@@ -69,7 +69,7 @@ fn seed(handle: *const anyopaque, form: Form) Lower.Error!void {
     try publication.suffixSeed(handle);
 }
 
-pub fn emitFunctionModuleBody(handle: *const anyopaque, form: Form) Lower.Error!void {
+pub fn emitFunctionModuleBody(handle: *anyopaque, form: Form) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const id = frame.function.?;

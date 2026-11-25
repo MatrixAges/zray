@@ -27,8 +27,8 @@ const Frame = struct {
     plan: layout.Plan = undefined,
     field_names: []const []const u8 = undefined,
     fields: []object.Field = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -60,13 +60,13 @@ pub fn lower(self: *Lower, temporary: std.mem.Allocator, id: ir.ExprId, source: 
     return evaluation.invoke(entry, &input);
 }
 
-pub fn reserveObjectOperand(handle: *const anyopaque, index: u64) Error!void {
+pub fn reserveObjectOperand(handle: *anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.names[@intCast(index)] = try frame.lowering.fresh("operand");
 }
 
-pub fn publishObjectOperand(handle: *const anyopaque, index: u64, item: u32, value: u32) Error!void {
+pub fn publishObjectOperand(handle: *anyopaque, index: u64, item: u32, value: u32) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const ordinal: usize = @intCast(index);
@@ -77,13 +77,13 @@ pub fn publishObjectOperand(handle: *const anyopaque, index: u64, item: u32, val
     frame.count[ordinal] = try self.cache.observe(self.allocator, @fromBackingInt(item), reference, self.cache_reads, null);
 }
 
-pub fn publishObjectOperands(handle: *const anyopaque) Error!void {
+pub fn publishObjectOperands(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return operands.bind(frame.lowering, frame.temporary, &frame.body, frame.names, frame.values);
 }
 
-pub fn prepareObjectFields(handle: *const anyopaque) Error!?u32 {
+pub fn prepareObjectFields(handle: *anyopaque) Error!?u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const source = frame.source;
@@ -106,7 +106,7 @@ pub fn prepareObjectFields(handle: *const anyopaque) Error!?u32 {
     return null;
 }
 
-pub fn publishObjectField(handle: *const anyopaque, index: u64, item: u32, value: u32) Error!void {
+pub fn publishObjectField(handle: *anyopaque, index: u64, item: u32, value: u32) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const ordinal: usize = @intCast(index);
@@ -122,7 +122,7 @@ pub fn publishObjectField(handle: *const anyopaque, index: u64, item: u32, value
     frame.fields[ordinal] = object.operand(frame.field_names, field, represented);
 }
 
-pub fn finishObject(handle: *const anyopaque, updated: ?u32) Error!u32 {
+pub fn finishObject(handle: *anyopaque, updated: ?u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 

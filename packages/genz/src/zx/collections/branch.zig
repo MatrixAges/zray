@@ -7,7 +7,7 @@ const publication = @import("../construction/publication.zig");
 const entry = @import("generated_emit_collection_rows");
 const Error = Lower.Error;
 
-pub fn collectionCompare(handle: *const anyopaque) Error![]const u8 {
+pub fn collectionCompare(handle: *anyopaque) Error![]const u8 {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
     const child = self.program.typeOf(frame.source_type).list;
@@ -22,7 +22,7 @@ pub fn collectionCompare(handle: *const anyopaque) Error![]const u8 {
     return @import("../comparison.zig").name(self, child);
 }
 
-pub fn collectionMinimum(handle: *const anyopaque) Error!?u32 {
+pub fn collectionMinimum(handle: *anyopaque) Error!?u32 {
     const frame = Frame.borrow(handle);
     const context = frame.lower.loop_fields orelse return null;
     const value = try context.minimum(frame.lower, frame.id) orelse return null;
@@ -30,7 +30,7 @@ pub fn collectionMinimum(handle: *const anyopaque) Error!?u32 {
     return @backingInt(value);
 }
 
-pub fn emitCollectionRows(handle: *const anyopaque, rows: *const Api.CollectionRows, minimum: ?u32, compare: ?[]const u8) Error!u32 {
+pub fn emitCollectionRows(handle: *anyopaque, rows: *const Api.CollectionRows, minimum: ?u32, compare: ?[]const u8) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
     const Input = std.meta.Child(entry.Input);
@@ -72,7 +72,7 @@ pub fn emitCollectionRows(handle: *const anyopaque, rows: *const Api.CollectionR
     return output.root;
 }
 
-pub fn emitCollectionPop(handle: *const anyopaque, items: u32, value: u32, header: u32, element: u32, length: u32) Error!u32 {
+pub fn emitCollectionPop(handle: *anyopaque, items: u32, value: u32, header: u32, element: u32, length: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("pop.zig").lower(frame.lower, &frame.body, .{

@@ -51,8 +51,8 @@ pub const Context = struct {
     include_absolute: []const u8 = undefined,
     include_relative: []const u8 = undefined,
     files: []File = &.{},
-    pub fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn get(handle: *anyopaque) *Context {
+        return @ptrCast(@alignCast(handle));
     }
     pub fn fail(self: *Context, err: anyerror) Error {
         self.failure = err;

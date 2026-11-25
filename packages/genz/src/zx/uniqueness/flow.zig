@@ -16,6 +16,7 @@ const Walk = if (generated_analysis) @import("flow/walk.zig") else Seed.Walk;
 held: []const []const bool,
 text_held: []const []const bool,
 written: []const []const bool,
+mutable: if (generated_analysis) void else struct { held: [][]bool, text_held: [][]bool, written: [][]bool } = if (generated_analysis) {} else undefined,
 /// `memo` keeps the summaries of each body by its `contents` and its callees' summaries, so a later program walks only
 /// the bodies whose content or callees changed.
 pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, slots: Slots, texts: []const bool, contents: []const [32]u8, types: [32]u8, memo: ?*Memo) std.mem.Allocator.Error!Self {
@@ -234,7 +235,7 @@ pub const Layer = struct {
         const body = try Body.create(walker.bodies.allocator(), function, self.slots);
         const walk = &walker.walk.?;
 
-        _ = try walk.analyze(index, &body, @constCast(self.flow.held[index]), @constCast(self.flow.text_held[index]), @constCast(self.flow.written[index]));
+        _ = try walk.analyze(index, &body, self.flow.mutable.held[index], self.flow.mutable.text_held[index], self.flow.mutable.written[index]);
     }
 };
 
@@ -302,9 +303,9 @@ fn settleSeed(self: Self, allocator: std.mem.Allocator, program: ir.Program, slo
     while (queue.pop()) |index| {
         queued[index] = false;
         const body = &bodies[index].?;
-        const text_held = @constCast(self.text_held[index]);
+        const text_held = self.mutable.text_held[index];
 
-        if (!try walk.analyze(index, body, @constCast(self.held[index]), text_held, @constCast(self.written[index]))) continue;
+        if (!try walk.analyze(index, body, self.mutable.held[index], text_held, self.mutable.written[index])) continue;
 
         for (callers[index].items) |caller| {
             if (queued[caller]) continue;

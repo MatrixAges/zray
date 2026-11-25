@@ -68,8 +68,8 @@ const Frame = struct {
     body: *Sequence,
     decision: *const Decision,
     name: []const u8,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -91,7 +91,7 @@ fn run(comptime entry: type, self: *Lower, body: *Sequence, list: ir.TypeId, ope
     return entry.executeIn(fixed.allocator(), &input) catch |err| return failure(err);
 }
 
-pub fn elementStoredLayout(handle: *const anyopaque) Lower.Error!u32 {
+pub fn elementStoredLayout(handle: *anyopaque) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return storedLayout(frame.lower, frame.decision.*);
@@ -134,11 +134,11 @@ pub fn prepare(self: *Lower, temporary: std.mem.Allocator, decision: Decision, v
     };
 }
 
-pub fn elementCaptureName(handle: *const anyopaque) []const u8 {
+pub fn elementCaptureName(handle: *anyopaque) []const u8 {
     return Frame.borrow(handle).name;
 }
 
-pub fn emitElement(handle: *const anyopaque, value: u32, layout: ?u32) Lower.Error!u32 {
+pub fn emitElement(handle: *anyopaque, value: u32, layout: ?u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
     var scratch = std.heap.ArenaAllocator.init(self.workspace);

@@ -15,8 +15,8 @@ pub const Borrowed = struct {
 
         return .{
             .layout = zx.columns.view(Layout, storage.layout),
-            .guarantees = @constCast(storage.guarantees),
-            .demands = @constCast(storage.demands),
+            .guarantees = storage.guarantees,
+            .demands = storage.demands,
         };
     }
 

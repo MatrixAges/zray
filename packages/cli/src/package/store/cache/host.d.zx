@@ -1,4 +1,4 @@
-export type Cache = opaque
+export type Cache = mutable_opaque
 
 export declare function cached(cache: Cache): bool throws { PackageCacheFailure }
 export declare function readBlob(cache: Cache): bool throws { PackageCacheFailure }

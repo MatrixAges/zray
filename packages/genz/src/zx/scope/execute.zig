@@ -101,7 +101,7 @@ pub fn reuseScopeBinding(handle: *const anyopaque, position: u64) Error!u64 {
     return packSpan(block);
 }
 
-pub fn emitScopeTask(handle: *const anyopaque, symbol: ?u32, value: u32) Error!u64 {
+pub fn emitScopeTask(handle: *anyopaque, symbol: ?u32, value: u32) Error!u64 {
     const lowering = evaluation.borrow(handle);
 
     return packSpan(try @import("../tasks/root.zig").bind(lowering, lowering.names[symbol.?], @fromBackingInt(value), false));
@@ -119,7 +119,7 @@ pub fn prepareScopeBinding(handle: *const anyopaque, symbol: ?u32, value: u32, t
     return if (borrowed) |id| @backingInt(id) else null;
 }
 
-pub fn discardScopeOperand(handle: *const anyopaque, operand: u32) Error!u32 {
+pub fn discardScopeOperand(handle: *anyopaque, operand: u32) Error!u32 {
     return @backingInt(try @import("../iteration.zig").discard(evaluation.borrow(handle), @fromBackingInt(operand)));
 }
 
@@ -142,7 +142,7 @@ pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32
     return packSpan(block);
 }
 
-pub fn completeScopeBlock(handle: *const anyopaque, span: u64, result: u32) Error!u32 {
+pub fn completeScopeBlock(handle: *anyopaque, span: u64, result: u32) Error!u32 {
     return @backingInt(try @import("../aggregate.zig").finishStored(evaluation.borrow(handle), unpackSpan(span), @fromBackingInt(result), null));
 }
 

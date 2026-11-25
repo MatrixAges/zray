@@ -36,7 +36,7 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
     };
 }
 
-pub fn readOutputPath(handle: *const anyopaque, path: []const u8, allow_missing: bool) Error![]const u8 {
+pub fn readOutputPath(handle: *anyopaque, path: []const u8, allow_missing: bool) Error![]const u8 {
     const self = effects.borrow(Target, handle);
 
     const length = std.Io.Dir.cwd().realPathFile(self.io, path, &self.physical) catch |err| {
@@ -48,7 +48,7 @@ pub fn readOutputPath(handle: *const anyopaque, path: []const u8, allow_missing:
     return self.physical[0..length];
 }
 
-pub fn isDirectOutput(handle: *const anyopaque, path: []const u8) Error!bool {
+pub fn isDirectOutput(handle: *anyopaque, path: []const u8) Error!bool {
     const self = effects.borrow(Target, handle);
 
     const existing = std.Io.Dir.cwd().statFile(self.io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
@@ -59,7 +59,7 @@ pub fn isDirectOutput(handle: *const anyopaque, path: []const u8) Error!bool {
     return existing.kind != .sym_link;
 }
 
-pub fn keepOutputPath(handle: *const anyopaque, base: []const u8, logical: []const u8, prefix: u64) Error![]const u8 {
+pub fn keepOutputPath(handle: *anyopaque, base: []const u8, logical: []const u8, prefix: u64) Error![]const u8 {
     const self = effects.borrow(Target, handle);
     const result = std.fs.path.joinZ(self.allocator, &.{ base, logical[@intCast(prefix)..] }) catch |err| return self.failure.save(err);
     self.result = result;
@@ -67,11 +67,11 @@ pub fn keepOutputPath(handle: *const anyopaque, base: []const u8, logical: []con
     return result;
 }
 
-pub fn observedLogicalOutput(handle: *const anyopaque, path: []const u8) bool {
+pub fn observedLogicalOutput(handle: *anyopaque, path: []const u8) bool {
     return effects.borrow(Target, handle).inputs.entries.contains(path);
 }
 
-pub fn nextPhysicalInput(handle: *const anyopaque) ?[]const u8 {
+pub fn nextPhysicalInput(handle: *anyopaque) ?[]const u8 {
     const entry = effects.borrow(Target, handle).entries.next() orelse return null;
 
     return switch (entry.value_ptr.state) {

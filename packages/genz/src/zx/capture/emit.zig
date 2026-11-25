@@ -4,35 +4,16 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-pub const Names = struct { name: []const u8, label: []const u8 };
-pub const Prepared = struct { value: node.ExpressionId, is_void: bool };
 
-pub fn names(self: *Lower) Lower.Error!Names {
-    const entry = @import("generated_capture_names");
-    const Input = std.meta.Child(entry.Input);
-    const input: Input = .{ .serial = self.serial };
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+pub const Prepared = struct { name: []const u8, label: []const u8, value: node.ExpressionId, is_void: bool };
 
-    defer scratch.deinit();
-
-    const output = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
-    const name = try self.allocator.dupe(u8, output.name);
-    const label = try self.allocator.dupe(u8, output.label);
-
-    self.serial = @intCast(output.serial);
-
-    return .{ .name = name, .label = label };
-}
-
-pub fn prepare(self: *Lower, name: []const u8, payload: ir.TypeId) Lower.Error!Prepared {
+pub fn prepare(self: *Lower, payload: ir.TypeId) Lower.Error!Prepared {
     const entry = @import("generated_capture_prepare");
     const Input = std.meta.Child(entry.Input);
     const Output = std.meta.Child(entry.Output);
 
     const input: Input = .{
-        .name = name,
+        .serial = self.serial,
         .payload_kind = self.program.types.kinds[@backingInt(payload)],
         .payload_scalar = self.program.types.first[@backingInt(payload)],
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
@@ -48,10 +29,13 @@ pub fn prepare(self: *Lower, name: []const u8, payload: ir.TypeId) Lower.Error!P
 
     if (!output.valid) return error.OutOfMemory;
 
+    const name = try self.allocator.dupe(u8, output.name);
+    const label = try self.allocator.dupe(u8, output.label);
+    self.serial = @intCast(output.serial);
     const rows = zx.columns.view(std.meta.Child(@FieldType(Output, "nodes")), output.nodes);
-    @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &rows) catch |err| return failure(err);
+    @import("../../node/import_rows.zig").append(self.allocator, &self.builder.nodes.expressions, &rows) catch |err| return failure(err);
 
-    return .{ .value = @fromBackingInt(output.root), .is_void = output.is_void };
+    return .{ .name = name, .label = label, .value = @fromBackingInt(output.root), .is_void = output.is_void };
 }
 
 pub fn result(self: *Lower, body: *Sequence, value: node.ExpressionId, type_expr: node.ExpressionId, is_void: bool) Lower.Error!node.ExpressionId {

@@ -26,8 +26,8 @@ pub const State = struct {
     failed_owner: usize = undefined,
     failed_edge: usize = undefined,
     failure: ?anyerror = null,
-    pub fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn get(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
 
     pub fn fail(self: *State, err: anyerror) Error {
@@ -40,7 +40,7 @@ pub const State = struct {
     }
 };
 
-pub fn reportMissing(handle: *const anyopaque, message: []const u8) Error!void {
+pub fn reportMissing(handle: *anyopaque, message: []const u8) Error!void {
     const self = State.get(handle);
     const location = self.location;
     const member = &self.members[@intCast(location.row)];

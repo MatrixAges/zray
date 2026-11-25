@@ -28,18 +28,18 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     return @fromBackingInt(result);
 }
 
-pub fn parallelWorkerInput(handle: *const anyopaque, index: u32) Lower.Error!u32 {
+pub fn parallelWorkerInput(handle: *anyopaque, index: u32) Lower.Error!u32 {
     const self = evaluate.borrow(handle);
 
     return @backingInt(try self.typeExpr(@fromBackingInt(self.program.functions.input_types[index])));
 }
 
-pub fn parallelWorkerOutput(handle: *const anyopaque, index: u32) Lower.Error!u32 {
+pub fn parallelWorkerOutput(handle: *anyopaque, index: u32) Lower.Error!u32 {
     const self = evaluate.borrow(handle);
 
     return @backingInt(try self.typeExpr(@fromBackingInt(self.program.functions.output_types[index])));
 }
 
-pub fn parallelWorkerCallee(handle: *const anyopaque, index: u32) Lower.Error!u32 {
+pub fn parallelWorkerCallee(handle: *anyopaque, index: u32) Lower.Error!u32 {
     return @backingInt(try evaluate.borrow(handle).functionReference(@fromBackingInt(index)));
 }

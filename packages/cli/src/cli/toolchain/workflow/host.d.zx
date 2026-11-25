@@ -1,4 +1,4 @@
-export type Toolchain = opaque
+export type Toolchain = mutable_opaque
 
 export declare function resolveExecutable(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function prepareCache(toolchain: Toolchain, resources_only: bool): void throws {

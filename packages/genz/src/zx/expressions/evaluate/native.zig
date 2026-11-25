@@ -13,23 +13,23 @@ const iteration = @import("../../iteration.zig");
 const mode_types = @import("../../iteration_value/types.zig");
 const value_call = @import("../../value_call/root.zig");
 
-pub fn lowerExpression(frame: *const anyopaque, id: u32, checked: bool, cached: ?u32) Error!u32 {
+pub fn lowerExpression(frame: *anyopaque, id: u32, checked: bool, cached: ?u32) Error!u32 {
     return @backingInt(try borrow(frame).exprWithCache(@fromBackingInt(id), .{ .checked = checked, .value = cached }));
 }
 
-pub fn lowerDiscardedExpression(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerDiscardedExpression(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try iteration.discard(borrow(frame), @fromBackingInt(id)));
 }
 
-pub fn lowerRegular(frame: *const anyopaque, id: u32, checked: bool, cached: ?u32) Error!u32 {
+pub fn lowerRegular(frame: *anyopaque, id: u32, checked: bool, cached: ?u32) Error!u32 {
     return @backingInt(try borrow(frame).regularWithCache(@fromBackingInt(id), .{ .checked = checked, .value = cached }));
 }
 
-pub fn lowerValueExpression(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerValueExpression(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try value_call.expression(borrow(frame), @fromBackingInt(id)));
 }
 
-pub fn lowerType(frame: *const anyopaque, id: u32, in_iteration: bool) Error!u32 {
+pub fn lowerType(frame: *anyopaque, id: u32, in_iteration: bool) Error!u32 {
     const self = borrow(frame);
 
     return @backingInt(if (in_iteration)
@@ -38,31 +38,31 @@ pub fn lowerType(frame: *const anyopaque, id: u32, in_iteration: bool) Error!u32
         try self.typeExpr(@fromBackingInt(id)));
 }
 
-pub fn requireLoweringContext(frame: *const anyopaque) void {
+pub fn requireLoweringContext(frame: *anyopaque) void {
     borrow(frame).uses_context = true;
 }
 
-pub fn materializeType(frame: *const anyopaque, id: u32, representation: evaluate.Api.StoredType) Error!u32 {
+pub fn materializeType(frame: *anyopaque, id: u32, representation: evaluate.Api.StoredType) Error!u32 {
     return @backingInt(try @import("../../types.zig").resource(borrow(frame), @fromBackingInt(id), representation));
 }
 
-pub fn lowerLayout(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerLayout(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try borrow(frame).layoutExpr(@fromBackingInt(id)));
 }
 
-pub fn loweringOrigin(frame: *const anyopaque, id: u32) Error![]const u8 {
+pub fn loweringOrigin(frame: *anyopaque, id: u32) Error![]const u8 {
     return @import("../../state_value/origin.zig").name(borrow(frame), @fromBackingInt(id));
 }
 
-pub fn retainLoweringText(frame: *const anyopaque, text: []const u8) Error![]const u8 {
+pub fn retainLoweringText(frame: *anyopaque, text: []const u8) Error![]const u8 {
     return borrow(frame).allocator.dupe(u8, text);
 }
 
-pub fn setLoweringSerial(frame: *const anyopaque, serial: u64) void {
+pub fn setLoweringSerial(frame: *anyopaque, serial: u64) void {
     borrow(frame).serial = @intCast(serial);
 }
 
-pub fn finishGeneratedAst(frame: *const anyopaque, serial: ?u64, uses_allocator: bool) void {
+pub fn finishGeneratedAst(frame: *anyopaque, serial: ?u64, uses_allocator: bool) void {
     const self = borrow(frame);
 
     if (serial) |value| self.serial = @intCast(value);
@@ -70,39 +70,39 @@ pub fn finishGeneratedAst(frame: *const anyopaque, serial: ?u64, uses_allocator:
     self.uses_allocator = self.uses_allocator or uses_allocator;
 }
 
-pub fn lowerStore(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerStore(frame: *anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
     const table = &self.program.expressions;
 
     return @backingInt(try @import("../../access/store.zig").lower(self, table.stores[table.payloads[id]], @fromBackingInt(table.types[id])));
 }
 
-pub fn lowerTask(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerTask(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try tasks.start(borrow(frame), @fromBackingInt(id), false));
 }
 
-pub fn lowerWait(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerWait(frame: *anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
     const table = &self.program.expressions;
 
     return @backingInt(try tasks.wait(self, @fromBackingInt(table.awaits[table.payloads[id]])));
 }
 
-pub fn lowerCancel(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerCancel(frame: *anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
     const table = &self.program.expressions;
 
     return @backingInt(try tasks.cancel(self, @fromBackingInt(table.cancellations[table.payloads[id]])));
 }
 
-pub fn lowerParallel(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerParallel(frame: *anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
     const row = self.program.expression(@fromBackingInt(id));
 
     return @backingInt(try tasks.parallel(self, row.type_id, row.value.parallel));
 }
 
-pub fn lowerCapture(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
+pub fn lowerCapture(frame: *anyopaque, id: u32, value: bool) Error!u32 {
     const self = borrow(frame);
     const row = self.program.expression(@fromBackingInt(id));
     const capture = @import("../../capture.zig");
@@ -110,7 +110,7 @@ pub fn lowerCapture(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
     return @backingInt(if (value) try capture.lowerValue(self, row.type_id, row.value.capture) else try capture.lower(self, row.type_id, row.value.capture));
 }
 
-pub fn lowerMatch(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
+pub fn lowerMatch(frame: *anyopaque, id: u32, value: bool) Error!u32 {
     const self = borrow(frame);
     const selected = self.program.expression(@fromBackingInt(id)).value.match_expr;
     const selection = @import("../../match.zig");
@@ -118,7 +118,7 @@ pub fn lowerMatch(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
     return @backingInt(if (value) try selection.lowerValue(self, selected) else try selection.lower(self, selected));
 }
 
-pub fn lowerAggregate(frame: *const anyopaque, id: u32, mode: Mode) Error!u32 {
+pub fn lowerAggregate(frame: *anyopaque, id: u32, mode: Mode) Error!u32 {
     const self = borrow(frame);
     const expression: ir.ExprId = @fromBackingInt(id);
     const row = self.program.expression(expression);
@@ -135,7 +135,7 @@ pub fn lowerAggregate(frame: *const anyopaque, id: u32, mode: Mode) Error!u32 {
     });
 }
 
-pub fn lowerCollection(frame: *const anyopaque, id: u32, mode: Mode) Error!u32 {
+pub fn lowerCollection(frame: *anyopaque, id: u32, mode: Mode) Error!u32 {
     const self = borrow(frame);
     const expression: ir.ExprId = @fromBackingInt(id);
     const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[id]);
@@ -147,14 +147,14 @@ pub fn lowerCollection(frame: *const anyopaque, id: u32, mode: Mode) Error!u32 {
     });
 }
 
-pub fn lowerTransform(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerTransform(frame: *anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
     const expression: ir.ExprId = @fromBackingInt(id);
 
     return @backingInt(try @import("../../transform.zig").lower(self, expression, self.program.expression(expression).value.transform));
 }
 
-pub fn lowerScope(frame: *const anyopaque, id: u32, mode: Mode) Error!u32 {
+pub fn lowerScope(frame: *anyopaque, id: u32, mode: Mode) Error!u32 {
     const self = borrow(frame);
     const value = self.program.expression(@fromBackingInt(id)).value.scope;
 
@@ -165,7 +165,7 @@ pub fn lowerScope(frame: *const anyopaque, id: u32, mode: Mode) Error!u32 {
     });
 }
 
-pub fn lowerIteration(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
+pub fn lowerIteration(frame: *anyopaque, id: u32, value: bool) Error!u32 {
     const self = borrow(frame);
     const expression: ir.ExprId = @fromBackingInt(id);
     const loop = self.program.expression(expression).value.iteration;
@@ -173,7 +173,7 @@ pub fn lowerIteration(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
     return @backingInt(if (value) try iteration.lowerValue(self, expression, loop) else try iteration.lower(self, expression, loop));
 }
 
-pub fn lowerCall(frame: *const anyopaque, id: u32, mode: Mode, value: bool) Error!u32 {
+pub fn lowerCall(frame: *anyopaque, id: u32, mode: Mode, value: bool) Error!u32 {
     const self = borrow(frame);
     const expression: ir.ExprId = @fromBackingInt(id);
     const row = self.program.expression(expression);
@@ -185,29 +185,29 @@ pub fn lowerCall(frame: *const anyopaque, id: u32, mode: Mode, value: bool) Erro
     });
 }
 
-pub fn lowerUpdate(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerUpdate(frame: *anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
 
     return @backingInt(try @import("../../list_update.zig").lower(self, @fromBackingInt(id)));
 }
 
-pub fn lowerMutation(frame: *const anyopaque, id: u32) Error!u32 {
+pub fn lowerMutation(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try @import("../../iteration_value/mutation.zig").lower(borrow(frame).iteration_value.?, @fromBackingInt(id)));
 }
 
-pub fn reuseIteration(frame: *const anyopaque, id: u32) Error!void {
+pub fn reuseIteration(frame: *anyopaque, id: u32) Error!void {
     const self = borrow(frame);
 
     return self.iteration_value.?.reads.increment(self.allocator, @fromBackingInt(id));
 }
 
-pub fn lowerUnpack(frame: *const anyopaque, id: u32, value: u32) Error!u32 {
+pub fn lowerUnpack(frame: *anyopaque, id: u32, value: u32) Error!u32 {
     const self = borrow(frame);
 
     return @backingInt(try @import("../../iteration_value/evaluation.zig").unpack(self.iteration_value.?, @fromBackingInt(id), @fromBackingInt(value)));
 }
 
-pub fn lowerDereference(frame: *const anyopaque, value: u32) Error!u32 {
+pub fn lowerDereference(frame: *anyopaque, value: u32) Error!u32 {
     return @backingInt(try @import("../../value_call/emission.zig").emit(borrow(frame), null, .{ .value = @fromBackingInt(value) }));
 }
 

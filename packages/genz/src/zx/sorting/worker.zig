@@ -21,8 +21,8 @@ const Frame = struct {
     helpers: [2]node.Block = @splat(.{}),
     facts: Api.SortWorkerFacts = undefined,
     helper: @import("../../node/blocks.zig").Sequence,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -64,7 +64,7 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
     return .{ .declaration = declaration, .io = worker.uses_io, .process = worker.uses_process };
 }
 
-pub fn bindSortWorkerNames(handle: *const anyopaque, left: u32, right: u32, names: []const []const u8) void {
+pub fn bindSortWorkerNames(handle: *anyopaque, left: u32, right: u32, names: []const []const u8) void {
     const frame = Frame.borrow(handle);
 
     frame.raw = .{ @fromBackingInt(left), @fromBackingInt(right) };
@@ -72,25 +72,25 @@ pub fn bindSortWorkerNames(handle: *const anyopaque, left: u32, right: u32, name
     frame.names = reuse.bindNames(frame.lowering, frame.value.parameters, names, &frame.saved);
 }
 
-pub fn registerSortParameters(handle: *const anyopaque) Error!void {
+pub fn registerSortParameters(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     try @import("../state_value/locals.zig").registerOwned(frame.worker, frame.value.parameters);
 }
 
-pub fn evaluateSortComparator(handle: *const anyopaque) Error!u32 {
+pub fn evaluateSortComparator(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.worker.expr(frame.value.body));
 }
 
-pub fn sortOperandUsed(handle: *const anyopaque, index: u64) bool {
+pub fn sortOperandUsed(handle: *anyopaque, index: u64) bool {
     const frame = Frame.borrow(handle);
 
     return frame.worker.used[@backingInt(frame.value.parameters[@intCast(index)])];
 }
 
-pub fn readSortOperand(handle: *const anyopaque, index: u64) Error!void {
+pub fn readSortOperand(handle: *anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
     const slot: usize = @intCast(index);
     const list_type = frame.lowering.program.expression(frame.value.target).type_id;
@@ -101,14 +101,14 @@ pub fn readSortOperand(handle: *const anyopaque, index: u64) Error!void {
     frame.helper.clearRetainingCapacity();
 }
 
-pub fn sortWorkerOutputType(handle: *const anyopaque) Error!u32 {
+pub fn sortWorkerOutputType(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const output_type = frame.lowering.program.expression(frame.value.body).type_id;
 
     return @backingInt(try frame.lowering.typeExpr(output_type));
 }
 
-pub fn readSortWorkerFacts(handle: *const anyopaque) Error!*const Api.SortWorkerFacts {
+pub fn readSortWorkerFacts(handle: *anyopaque) Error!*const Api.SortWorkerFacts {
     const frame = Frame.borrow(handle);
     const worker = frame.worker;
     const environment = frame.value.parameters[2];

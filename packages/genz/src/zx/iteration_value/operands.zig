@@ -15,8 +15,8 @@ const Frame = struct {
     bindings: Bindings,
     observation: ?Observation,
     values: []u32 = &.{},
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -35,7 +35,7 @@ pub fn lower(lowering: *Lower, allocator: std.mem.Allocator, bindings: Bindings,
     return frame.values;
 }
 
-pub fn publishIterationOperand(handle: *const anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
+pub fn publishIterationOperand(handle: *anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const operand = try Operand.bind(frame.lowering, @fromBackingInt(value));
     const ordinal: usize = @intCast(index);
@@ -48,12 +48,12 @@ pub fn publishIterationOperand(handle: *const anyopaque, index: u64, item: u32, 
     }
 }
 
-pub fn prepareIterationFields(handle: *const anyopaque, length: u64) Lower.Error!void {
+pub fn prepareIterationFields(handle: *anyopaque, length: u64) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.values = try frame.allocator.alloc(u32, @intCast(length));
 }
 
-pub fn publishIterationField(handle: *const anyopaque, index: u64, value: u32) void {
+pub fn publishIterationField(handle: *anyopaque, index: u64, value: u32) void {
     Frame.borrow(handle).values[@intCast(index)] = value;
 }

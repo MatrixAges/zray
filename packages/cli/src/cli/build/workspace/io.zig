@@ -23,20 +23,20 @@ pub const Context = struct {
         try file.file.writeStreamingAll(self.io, content);
         try file.replace(self.io);
     }
-    fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *Context {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn matches(handle: *const anyopaque, path: []const u8, expected: []const u8) Error!bool {
+pub fn matches(handle: *anyopaque, path: []const u8, expected: []const u8) Error!bool {
     return (try compare(handle, path, expected, false)) orelse false;
 }
 
-pub fn matchesPrefix(handle: *const anyopaque, path: []const u8, prefix: []const u8) Error!?bool {
+pub fn matchesPrefix(handle: *anyopaque, path: []const u8, prefix: []const u8) Error!?bool {
     return compare(handle, path, prefix, true);
 }
 
-fn compare(handle: *const anyopaque, path: []const u8, expected: []const u8, comptime prefix_only: bool) Error!?bool {
+fn compare(handle: *anyopaque, path: []const u8, expected: []const u8, comptime prefix_only: bool) Error!?bool {
     const context = Context.get(handle);
 
     return matchesFile(context.directory, context.io, path, expected, prefix_only) catch |err| {
@@ -46,7 +46,7 @@ fn compare(handle: *const anyopaque, path: []const u8, expected: []const u8, com
     };
 }
 
-pub fn writeAtomic(handle: *const anyopaque, path: []const u8, source: []const u8) Error!void {
+pub fn writeAtomic(handle: *anyopaque, path: []const u8, source: []const u8) Error!void {
     const context = Context.get(handle);
 
     context.writeFile(path, source) catch |err| {

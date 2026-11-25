@@ -78,8 +78,8 @@ pub fn statements(lowering: *Lower) Context.Statements {
     return if (generated) lowering.builder.statementSequence(lowering.workspace) else .empty;
 }
 
-pub fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+pub fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 pub fn output(self: *Self) *Context.Statements {
@@ -106,11 +106,11 @@ pub fn restoreSeed(self: *Self) void {
     if (self.representation) |saved| saved.restore();
 }
 
-pub fn loopUpdateScope(handle: *const anyopaque) UpdateScope {
+pub fn loopUpdateScope(handle: *anyopaque) UpdateScope {
     return borrow(handle).step_scope;
 }
 
-pub fn closeLoopUpdate(handle: *const anyopaque, active: UpdateScope) void {
+pub fn closeLoopUpdate(handle: *anyopaque, active: UpdateScope) void {
     const self = borrow(handle);
 
     switch (active) {
@@ -122,7 +122,7 @@ pub fn closeLoopUpdate(handle: *const anyopaque, active: UpdateScope) void {
     self.step_scope = .None;
 }
 
-pub fn restoreLoopParameterContext(handle: *const anyopaque) void {
+pub fn restoreLoopParameterContext(handle: *anyopaque) void {
     const self = borrow(handle);
 
     if (generated) {
@@ -132,21 +132,21 @@ pub fn restoreLoopParameterContext(handle: *const anyopaque) void {
     }
 }
 
-pub fn closeLoopInitial(handle: *const anyopaque) void {
+pub fn closeLoopInitial(handle: *anyopaque) void {
     if (borrow(handle).initial_scope) |saved| saved.restore();
 }
 
-pub fn releaseLoopScratch(handle: *const anyopaque) void {
+pub fn releaseLoopScratch(handle: *anyopaque) void {
     const self = borrow(handle);
 
     self.projected_body.deinit();
 }
 
-pub fn closeLoopRepresentation(handle: *const anyopaque) void {
+pub fn closeLoopRepresentation(handle: *anyopaque) void {
     if (borrow(handle).representation) |saved| saved.restore();
 }
 
-pub fn releaseLoopStatements(handle: *const anyopaque) void {
+pub fn releaseLoopStatements(handle: *anyopaque) void {
     const self = borrow(handle);
 
     self.loop.deinit();

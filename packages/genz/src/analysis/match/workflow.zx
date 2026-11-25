@@ -1,9 +1,14 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering, MatchFrame } from "lowering_host"
 import type { Allocator, ColumnLengths } from "memory"
+import type { BinaryExpressions } from "../expressions/evaluate/model"
 import type { Input as PlanInput } from "./model"
 
 export type Input = PlanInput.Omit("result") & {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    binary_expressions: BinaryExpressions,
     selection: MatchFrame,
     fallback: u32,
     layout: bool,

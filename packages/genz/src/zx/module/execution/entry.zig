@@ -21,7 +21,7 @@ pub fn lower(self: *Lower) Lower.Error!Stored {
 
     frame.install();
 
-    const handle: *const anyopaque = @ptrCast(&frame);
+    const handle: *anyopaque = @ptrCast(&frame);
 
     if (generated) {
         const entry = @import("generated_lower_entry_declarations");
@@ -37,7 +37,7 @@ pub fn lower(self: *Lower) Lower.Error!Stored {
     return frame.result;
 }
 
-fn seed(handle: *const anyopaque, type_only: bool, local: bool) Lower.Error!void {
+fn seed(handle: *anyopaque, type_only: bool, local: bool) Lower.Error!void {
     try emission.emitModuleStandard(handle);
     if (local) try emission.emitModuleImports(handle);
     try emission.emitModuleTypes(handle);

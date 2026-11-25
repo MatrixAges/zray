@@ -21,8 +21,8 @@ const Frame = struct {
     previous: ?node.ExpressionId,
     body: Sequence,
     installed: bool = false,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn restore(self: *Frame) void {
         if (self.installed) self.lowering.cache.restoreEntry(self.lowering.allocator, self.subject.?, self.previous);
@@ -53,10 +53,13 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
     const entry = @import("generated_lower_match_result");
     const Input = std.meta.Child(entry.Input);
     const Labels = std.meta.Child(@FieldType(Input, "source"));
+    const Binary = std.meta.Child(@FieldType(Input, "binary_expressions"));
     const expressions = zx.columns.borrow(std.meta.Child(@FieldType(Labels, "expressions")), @as(*const ir.ExpressionTable, &self.program.expressions));
+    const binary_expressions = zx.columns.borrow(Binary, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Labels, "types")), self.program.types);
     const nodes = self.builder.nodes;
     const positions: zx.memory.ColumnLengths = &.{ &nodes.expressions.tags.items.len, &nodes.arm_columns.fields.value.values.items.len };
+    var origin: @import("construction/publication.zig").OriginBuffer = undefined;
 
     const labels: Labels = .{
         .expressions = &expressions,
@@ -67,6 +70,9 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
 
     const input: Input = .{
         .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .binary_expressions = &binary_expressions,
         .selection = @ptrCast(&frame),
         .source = &labels,
         .results = selection.arms.results[0..selection.arms.len],
@@ -76,7 +82,7 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
         .resource = @ptrCast(&allocator),
     };
 
-    const output = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
+    const output = zx.columns.invoke(entry.executeIn, allocator, &input) catch |err| return failure(err);
 
     if (!output.valid) return error.OutOfMemory;
 
@@ -100,7 +106,7 @@ fn failure(err: anyerror) Lower.Error {
     };
 }
 
-pub fn publishMatchSubject(handle: *const anyopaque, value: u32, discard: bool) Lower.Error!void {
+pub fn publishMatchSubject(handle: *anyopaque, value: u32, discard: bool) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const binding = try aggregate.bind(self, &frame.body, @fromBackingInt(value));
@@ -110,12 +116,4 @@ pub fn publishMatchSubject(handle: *const anyopaque, value: u32, discard: bool) 
     frame.installed = true;
 
     if (discard) try frame.body.append(try self.builder.statements(&.{.{ .discard = binding }}));
-}
-
-pub fn lowerMatchEquality(handle: *const anyopaque, left: u32, right: u32) Lower.Error!u32 {
-    return @backingInt(try evaluation.borrow(handle).binary(.{ .operator = .equal, .left = @fromBackingInt(left), .right = @fromBackingInt(right) }));
-}
-
-pub fn lowerMatchLiteral(handle: *const anyopaque, id: u32) Lower.Error!u32 {
-    return @backingInt(try @import("selection.zig").literal(evaluation.borrow(handle), @fromBackingInt(id)));
 }

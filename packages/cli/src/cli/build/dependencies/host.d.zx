@@ -1,4 +1,4 @@
-export type Dependencies = opaque
+export type Dependencies = mutable_opaque
 
 export declare function selectBatch(dependencies: Dependencies, index: u64): u64
 export declare function completeBatch(dependencies: Dependencies): bool

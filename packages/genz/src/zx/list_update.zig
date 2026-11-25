@@ -31,7 +31,7 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
     return @fromBackingInt(entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err));
 }
 
-pub fn checkCollectionIndex(handle: *const anyopaque, items: u32, index: u32) Error!void {
+pub fn checkCollectionIndex(handle: *anyopaque, items: u32, index: u32) Error!void {
     const frame = Frame.borrow(handle);
     const entry = @import("generated_list_update_bounds");
     const Input = std.meta.Child(entry.Input);
@@ -42,7 +42,7 @@ pub fn checkCollectionIndex(handle: *const anyopaque, items: u32, index: u32) Er
     return publication.write(frame.lower, .{ .body = &frame.body }, output, .Guard);
 }
 
-pub fn emitCollectionUpdate(handle: *const anyopaque, request: *const Api.CollectionUpdate) Error!u32 {
+pub fn emitCollectionUpdate(handle: *anyopaque, request: *const Api.CollectionUpdate) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
     const entry = @import("generated_list_update");

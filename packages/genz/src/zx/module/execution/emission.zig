@@ -3,7 +3,7 @@ const Frame = @import("frame.zig");
 const emission = @import("../emitting.zig");
 const Error = Lower.Error;
 
-pub fn emitModuleStandard(handle: *const anyopaque) Error!void {
+pub fn emitModuleStandard(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
@@ -14,7 +14,7 @@ pub fn emitModuleStandard(handle: *const anyopaque) Error!void {
     try frame.output.append(self.allocator, .{ .constant = .{ .name = "std", .value = std_import } });
 }
 
-pub fn emitModuleImports(handle: *const anyopaque) Error!void {
+pub fn emitModuleImports(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
@@ -39,70 +39,70 @@ pub fn emitModuleImports(handle: *const anyopaque) Error!void {
     try frame.output.append(self.allocator, .{ .constant = .{ .name = "zx_native", .value = value } });
 }
 
-pub fn emitModuleTypes(handle: *const anyopaque) Error!void {
+pub fn emitModuleTypes(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../../types.zig").lower(frame.lowering, &frame.output, false);
 }
 
-pub fn emitModuleExports(handle: *const anyopaque) Error!void {
+pub fn emitModuleExports(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return emission.exports(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleConstants(handle: *const anyopaque) Error!void {
+pub fn emitModuleConstants(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../constants.zig").append(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleShape(handle: *const anyopaque) Error!void {
+pub fn emitModuleShape(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../../shape.zig").lower(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleAliases(handle: *const anyopaque) Error!void {
+pub fn emitModuleAliases(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return emission.contracts(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleStore(handle: *const anyopaque) Error!void {
+pub fn emitModuleStore(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../../store.zig").declaration(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleEntry(handle: *const anyopaque) Error!void {
+pub fn emitModuleEntry(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../../entry.zig").declarations(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleValueEntry(handle: *const anyopaque) Error!void {
+pub fn emitModuleValueEntry(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     return @import("../../entry_values.zig").declarations(frame.lowering, &frame.output);
 }
 
-pub fn moduleUsesParallel(handle: *const anyopaque) bool {
+pub fn moduleUsesParallel(handle: *anyopaque) bool {
     return Frame.borrow(handle).lowering.uses_parallel;
 }
 
-pub fn emitModuleParallelAllocator(handle: *const anyopaque) Error!void {
+pub fn emitModuleParallelAllocator(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const output = if (frame.function == null) &frame.suffix else &frame.output;
 
     return @import("../../parallel/allocator.zig").append(frame.lowering, output);
 }
 
-pub fn moduleComparisonCount(handle: *const anyopaque) u64 {
+pub fn moduleComparisonCount(handle: *anyopaque) u64 {
     return Frame.borrow(handle).comparisons.items.len;
 }
 
-pub fn emitModuleComparison(handle: *const anyopaque, index: u64) Error!void {
+pub fn emitModuleComparison(handle: *anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const type_id = frame.comparisons.items[@intCast(index)];
@@ -110,7 +110,7 @@ pub fn emitModuleComparison(handle: *const anyopaque, index: u64) Error!void {
     try frame.suffix.append(self.allocator, try @import("../../comparison.zig").ordering(self, type_id));
 }
 
-pub fn suffixSeed(handle: *const anyopaque) Error!void {
+pub fn suffixSeed(handle: *anyopaque) Error!void {
     if (moduleUsesParallel(handle)) try emitModuleParallelAllocator(handle);
     for (0..moduleComparisonCount(handle)) |index| try emitModuleComparison(handle, index);
 }

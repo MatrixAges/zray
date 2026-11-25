@@ -4,9 +4,10 @@ import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
 import { ExpressionsKind } from "../../printer/model/expressions"
+import names from "./names"
 
 export type Input = {
-    name: u8[],
+    serial: u64,
     payload_kind: u8,
     payload_scalar: u32,
     expression_base: u32
@@ -20,6 +21,9 @@ export type Nodes = {
 }
 
 export type Output = {
+    name: u8[],
+    label: u8[],
+    serial: u64,
     nodes: Nodes,
     root: u32,
     is_void: bool,
@@ -30,10 +34,17 @@ export default function (in: Input): Output {
     const is_void =
         kind(in.payload_kind) == Kind.Scalar && in.payload_scalar == scalar_void
 
+    const generated_names = names({
+        serial: in.serial
+    })
+
     const base = in.expression_base
 
     if (base > max_u32 - 3) {
         return {
+            name: generated_names.name,
+            label: generated_names.label,
+            serial: generated_names.serial,
             nodes: {
                 tags: [],
                 offsets: [],
@@ -47,6 +58,9 @@ export default function (in: Input): Output {
     }
 
     return {
+        name: generated_names.name,
+        label: generated_names.label,
+        serial: generated_names.serial,
         nodes: {
             tags: [
                 is_void ? ExpressionsKind.Unit : ExpressionsKind.NullValue,
@@ -58,7 +72,7 @@ export default function (in: Input): Output {
                 0,
                 0
             ],
-            identifier: [in.name],
+            identifier: [generated_names.name],
             tuple: [[
                 base + 1,
                 base

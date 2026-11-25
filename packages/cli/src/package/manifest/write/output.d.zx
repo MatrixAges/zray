@@ -1,4 +1,4 @@
-export type OutputWriter = opaque
+export type OutputWriter = mutable_opaque
 
 export declare function raw(writer: OutputWriter, text: string): void throws { WriteFailed }
 

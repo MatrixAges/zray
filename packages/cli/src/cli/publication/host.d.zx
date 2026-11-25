@@ -1,8 +1,8 @@
 export type Directory = opaque
-export type Output = opaque
-export type Library = opaque
-export type Verification = opaque
-export type OutputTarget = opaque
+export type Output = mutable_opaque
+export type Library = mutable_opaque
+export type Verification = mutable_opaque
+export type OutputTarget = mutable_opaque
 
 export type ResourceWalk = opaque
 export type InventoryCollector = opaque

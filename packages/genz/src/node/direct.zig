@@ -46,8 +46,8 @@ pub fn append(storage: *Storage, allocator: std.mem.Allocator, comptime field: [
     };
 }
 
-pub fn prepareDirectAstRow(handle: *const anyopaque, position: u64) Error!u64 {
-    const frame: *Frame = @ptrCast(@alignCast(@constCast(handle)));
+pub fn prepareDirectAstRow(handle: *anyopaque, position: u64) Error!u64 {
+    const frame: *Frame = @ptrCast(@alignCast(handle));
 
     return switch (frame.rows) {
         inline else => |values, field| row: {

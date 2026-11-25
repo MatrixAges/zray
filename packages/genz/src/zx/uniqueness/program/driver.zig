@@ -46,8 +46,8 @@ pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
     return frame.result;
 }
 
-fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 fn close(self: *Self) void {
@@ -60,7 +60,7 @@ fn close(self: *Self) void {
     self.active = .none;
 }
 
-pub fn prepareOwnershipStorage(handle: *const anyopaque) Error!void {
+pub fn prepareOwnershipStorage(handle: *anyopaque) Error!void {
     const self = borrow(handle);
     const input = &self.preparation;
     const ctx = self.ctx;
@@ -71,7 +71,7 @@ pub fn prepareOwnershipStorage(handle: *const anyopaque) Error!void {
     ctx.summaries.return_allocations = input.return_allocations;
 }
 
-pub fn prepareOwnershipIdentities(handle: *const anyopaque) Error!void {
+pub fn prepareOwnershipIdentities(handle: *anyopaque) Error!void {
     const self = borrow(handle);
     const input = &self.preparation;
     const ctx = self.ctx;
@@ -80,7 +80,7 @@ pub fn prepareOwnershipIdentities(handle: *const anyopaque) Error!void {
     self.identities = try Identity.bodies(ctx.temporary, input.program, ctx.calls.active, &self.shared_identity, input.basis.contents);
 }
 
-pub fn prepareOwnershipReplay(handle: *const anyopaque) Error!void {
+pub fn prepareOwnershipReplay(handle: *anyopaque) Error!void {
     const self = borrow(handle);
     const ctx = self.ctx;
     const memo = ctx.memo;
@@ -89,41 +89,41 @@ pub fn prepareOwnershipReplay(handle: *const anyopaque) Error!void {
     ctx.replay.* = try .init(ctx.temporary, memo.arena.child_allocator, previous, key, self.identities, ctx.calls.callees);
 }
 
-pub fn prepareOwnershipBodies(handle: *const anyopaque) Error!void {
+pub fn prepareOwnershipBodies(handle: *anyopaque) Error!void {
     const self = borrow(handle);
     const ctx = self.ctx;
 
     ctx.bodies.* = try Bodies.init(ctx.temporary, self.preparation.program, ctx.calls.callees, self.identities);
 }
 
-pub fn prepareOwnershipWorkers(handle: *const anyopaque) Error!void {
+pub fn prepareOwnershipWorkers(handle: *anyopaque) Error!void {
     const self = borrow(handle);
 
     self.ahead = try self.ctx.prepareWorkers();
 }
 
-pub fn prepareOwnershipQueue(handle: *const anyopaque) Error!void {
+pub fn prepareOwnershipQueue(handle: *anyopaque) Error!void {
     const self = borrow(handle);
     const ctx = self.ctx;
     const prepared = try Analysis.Work.open(ctx.workspace, ctx.roundMemory(), ctx.calls.callees, ctx.exported);
     ctx.rounds = .{ .work = prepared.work, .reverse = prepared.reverse, .ahead = self.ahead };
 }
 
-pub fn bindOwnershipMemoRows(handle: *const anyopaque) void {
+pub fn bindOwnershipMemoRows(handle: *anyopaque) void {
     const ctx = borrow(handle).ctx;
 
     ctx.rounds.?.ahead.memo_rows.init(ctx.bodies);
 }
 
-pub fn releaseOwnership(handle: *const anyopaque) void {
+pub fn releaseOwnership(handle: *anyopaque) void {
     borrow(handle).ctx.release();
 }
 
-pub fn commitOwnership(handle: *const anyopaque) Error!void {
+pub fn commitOwnership(handle: *anyopaque) Error!void {
     try borrow(handle).ctx.commit();
 }
 
-pub fn beginOwnershipRound(handle: *const anyopaque, kind: Api.RoundKind, exhausted: bool) Error!void {
+pub fn beginOwnershipRound(handle: *anyopaque, kind: Api.RoundKind, exhausted: bool) Error!void {
     const self = borrow(handle);
 
     self.active = .{ .round = .{ .arena = .init(self.ctx.workspace) } };
@@ -131,19 +131,19 @@ pub fn beginOwnershipRound(handle: *const anyopaque, kind: Api.RoundKind, exhaus
     try self.active.round.open(self.ctx, kind, exhausted);
 }
 
-pub fn claimOwnershipBody(handle: *const anyopaque, kind: Api.RoundKind) Error!?u64 {
+pub fn claimOwnershipBody(handle: *anyopaque, kind: Api.RoundKind) Error!?u64 {
     const self = borrow(handle);
 
     return self.active.round.claim(self.ctx, kind);
 }
 
-pub fn visitOwnershipBody(handle: *const anyopaque, kind: Api.RoundKind, body: u64) Error!void {
+pub fn visitOwnershipBody(handle: *anyopaque, kind: Api.RoundKind, body: u64) Error!void {
     const self = borrow(handle);
 
     return self.active.round.visit(self.ctx, kind, @intCast(body));
 }
 
-pub fn finishOwnershipRound(handle: *const anyopaque, publish: bool) void {
+pub fn finishOwnershipRound(handle: *anyopaque, publish: bool) void {
     const self = borrow(handle);
 
     if (publish) self.result = self.active.round.plans.result();
@@ -151,11 +151,11 @@ pub fn finishOwnershipRound(handle: *const anyopaque, publish: bool) void {
     self.close();
 }
 
-pub fn ownershipRoundOutcome(handle: *const anyopaque) Api.RoundOutcome {
+pub fn ownershipRoundOutcome(handle: *anyopaque) Api.RoundOutcome {
     return borrow(handle).active.round.outcome;
 }
 
-pub fn beginOwnershipReplay(handle: *const anyopaque) bool {
+pub fn beginOwnershipReplay(handle: *anyopaque) bool {
     const self = borrow(handle);
 
     if (self.ctx.replay.trace == null) return false;
@@ -165,24 +165,24 @@ pub fn beginOwnershipReplay(handle: *const anyopaque) bool {
     return true;
 }
 
-pub fn scanOwnershipReplay(handle: *const anyopaque, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {
+pub fn scanOwnershipReplay(handle: *anyopaque, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {
     const self = borrow(handle);
 
     return self.active.replay.advance(self.ctx, phase, recovered);
 }
 
-pub fn recoverOwnershipVisit(handle: *const anyopaque, phase: Api.ReplayPhase) Error!u32 {
+pub fn recoverOwnershipVisit(handle: *anyopaque, phase: Api.ReplayPhase) Error!u32 {
     const self = borrow(handle);
 
     return self.active.replay.recover(self.ctx, phase);
 }
 
-pub fn publishOwnershipReplay(handle: *const anyopaque) Error!void {
+pub fn publishOwnershipReplay(handle: *anyopaque) Error!void {
     const self = borrow(handle);
 
     self.result = try self.active.replay.publish(self.ctx);
 }
 
-pub fn finishOwnershipReplay(handle: *const anyopaque) void {
+pub fn finishOwnershipReplay(handle: *anyopaque) void {
     borrow(handle).close();
 }

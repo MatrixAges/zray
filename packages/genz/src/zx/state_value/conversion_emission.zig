@@ -67,8 +67,8 @@ pub fn captureBoundary(self: *const Lower, storage: *Capture) ?*const Capture {
     return storage;
 }
 
-pub fn reserveConversionResources(handle: *const anyopaque, length: u64) Lower.Error!void {
-    const columns: *Columns = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveConversionResources(handle: *anyopaque, length: u64) Lower.Error!void {
+    const columns: *Columns = @ptrCast(@alignCast(handle));
     const count: usize = @intCast(length);
     const capacity = std.math.mul(usize, count, 3) catch return error.OutOfMemory;
     const buffer = try columns.allocator.alloc(u32, capacity);

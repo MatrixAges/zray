@@ -40,7 +40,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
     const stored_plans = zx.memory.borrowNestedColumn(Memo.Planned, &.{}, ctx.memo.planned.values.items);
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
     var key: []u8 = &ctx.memo.key;
-    const demands = &ctx.summaries.storage.?.demands;
+    var demands = ctx.summaries.storage.?.demands;
     var scope = zx.memory.ArenaScope{ .active = staged };
     var output: zx.memory.RowOutput(Row, Columns, .{ .positions = &.{"visit"}, .values = &.{"value"} }) = undefined;
     var normalized: rows.Normalized(Recovery) = undefined;
@@ -61,7 +61,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
             .planned = trace.planned.starts,
             .changed = ctx.replay.changed,
             .agreed = cursor.phase == .start,
-            .demands = &.{ .cells = @ptrCast(demands), .count = demands.len },
+            .demands = &.{ .cells = @ptrCast(&demands), .count = demands.len },
             .cursor = &.{ .body = cursor.body, .visit = cursor.visit, .phase = @fromBackingInt(@intCast(@backingInt(cursor.phase))) },
         },
         .tables = &.{

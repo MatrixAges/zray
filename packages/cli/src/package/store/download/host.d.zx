@@ -1,4 +1,4 @@
-export type Download = opaque
+export type Download = mutable_opaque
 
 export declare function local(download: Download): bool throws { PackageDownloadHostFailure }
 export declare function readLocal(download: Download, limit: u64): u64 throws {

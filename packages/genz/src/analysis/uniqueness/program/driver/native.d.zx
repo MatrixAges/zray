@@ -1,12 +1,12 @@
-export type Execution = opaque
+export type Execution = mutable_opaque
 
-export type IdentityWorker = opaque
+export type IdentityWorker = mutable_opaque
 
-export type FlowExecution = opaque
+export type FlowExecution = mutable_opaque
 
 export type FlowWorker = opaque
 
-export type FlowFixpoint = opaque
+export type FlowFixpoint = mutable_opaque
 
 export enum IdentityRow {
     Zero,

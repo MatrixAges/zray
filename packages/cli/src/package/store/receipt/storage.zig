@@ -19,8 +19,8 @@ pub const State = struct {
     stat: std.Io.File.Stat = undefined,
     digest: [64]u8 = undefined,
     failure: ?anyerror = null,
-    fn get(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn get(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -50,14 +50,14 @@ pub const State = struct {
     }
 };
 
-pub fn receiptIsFile(handle: *const anyopaque) Error!bool {
+pub fn receiptIsFile(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
     const stat = self.directory.statFile(self.io, constants.receipt_file, .{ .follow_symlinks = false }) catch |err| return self.fail(err);
 
     return stat.kind == .file;
 }
 
-pub fn loadReceipt(handle: *const anyopaque) Error!void {
+pub fn loadReceipt(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const file = self.directory.openFile(io, constants.receipt_file, .{ .follow_symlinks = false }) catch |err| return self.fail(err);
@@ -72,35 +72,35 @@ pub fn loadReceipt(handle: *const anyopaque) Error!void {
     self.parsed = std.json.parseFromSlice(Receipt, self.allocator, source, .{}) catch |err| return self.fail(err);
 }
 
-pub fn formatVersion(handle: *const anyopaque) u32 {
+pub fn formatVersion(handle: *anyopaque) u32 {
     return State.get(handle).parsed.?.value.format_version;
 }
 
-pub fn archiveHash(handle: *const anyopaque) []const u8 {
+pub fn archiveHash(handle: *anyopaque) []const u8 {
     return State.get(handle).parsed.?.value.archive_sha256;
 }
 
-pub fn requiredHash(handle: *const anyopaque) []const u8 {
+pub fn requiredHash(handle: *anyopaque) []const u8 {
     return State.get(handle).expected;
 }
 
-pub fn fileCount(handle: *const anyopaque) u64 {
+pub fn fileCount(handle: *anyopaque) u64 {
     return State.get(handle).parsed.?.value.files.len;
 }
 
-pub fn filePath(handle: *const anyopaque, row: u64) []const u8 {
+pub fn filePath(handle: *anyopaque, row: u64) []const u8 {
     return State.get(handle).parsed.?.value.files[@intCast(row)].path;
 }
 
-pub fn fileHash(handle: *const anyopaque, row: u64) []const u8 {
+pub fn fileHash(handle: *anyopaque, row: u64) []const u8 {
     return State.get(handle).parsed.?.value.files[@intCast(row)].sha256;
 }
 
-pub fn expectedExecutable(handle: *const anyopaque, row: u64) bool {
+pub fn expectedExecutable(handle: *anyopaque, row: u64) bool {
     return State.get(handle).parsed.?.value.files[@intCast(row)].executable;
 }
 
-pub fn claimFile(handle: *const anyopaque, row: u64, path: []const u8) Error!bool {
+pub fn claimFile(handle: *anyopaque, row: u64, path: []const u8) Error!bool {
     const self = State.get(handle);
     const entry = self.names.getOrPut(self.allocator, path) catch |err| return self.fail(err);
 
@@ -111,14 +111,14 @@ pub fn claimFile(handle: *const anyopaque, row: u64, path: []const u8) Error!boo
     return true;
 }
 
-pub fn openTree(handle: *const anyopaque) Error!void {
+pub fn openTree(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const package = self.directory.openDir(self.io, constants.package_directory, .{ .iterate = true, .follow_symlinks = false }) catch |err| return self.fail(err);
     self.package = package;
     self.walker = package.walk(self.allocator) catch |err| return self.fail(err);
 }
 
-pub fn nextTreeEntry(handle: *const anyopaque) Error!bool {
+pub fn nextTreeEntry(handle: *anyopaque) Error!bool {
     const self = State.get(handle);
 
     self.entry = (self.walker.?.next(self.io) catch |err| return self.fail(err)) orelse return false;
@@ -126,15 +126,15 @@ pub fn nextTreeEntry(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn treeDirectory(handle: *const anyopaque) bool {
+pub fn treeDirectory(handle: *anyopaque) bool {
     return State.get(handle).entry.kind == .directory;
 }
 
-pub fn treeFile(handle: *const anyopaque) bool {
+pub fn treeFile(handle: *anyopaque) bool {
     return State.get(handle).entry.kind == .file;
 }
 
-pub fn lookupFile(handle: *const anyopaque) Error!?u64 {
+pub fn lookupFile(handle: *anyopaque) Error!?u64 {
     const self = State.get(handle);
 
     if (comptime std.fs.path.sep == '/') return self.names.get(self.entry.path);
@@ -147,7 +147,7 @@ pub fn lookupFile(handle: *const anyopaque) Error!?u64 {
     return self.names.get(path);
 }
 
-pub fn openTreeFile(handle: *const anyopaque) Error!void {
+pub fn openTreeFile(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const file = self.package.?.openFile(self.io, self.entry.path, .{}) catch |err| return self.fail(err);
 
@@ -155,13 +155,13 @@ pub fn openTreeFile(handle: *const anyopaque) Error!void {
     self.stat = file.stat(self.io) catch |err| return self.fail(err);
 }
 
-pub fn permissionsMatch(handle: *const anyopaque, expected: bool) bool {
+pub fn permissionsMatch(handle: *anyopaque, expected: bool) bool {
     if (comptime !std.Io.File.Permissions.has_executable_bit) return true;
 
     return (State.get(handle).stat.permissions.toMode() & 0o100 != 0) == expected;
 }
 
-pub fn hashTreeFile(handle: *const anyopaque, remaining: u64) Error!?u64 {
+pub fn hashTreeFile(handle: *anyopaque, remaining: u64) Error!?u64 {
     const self = State.get(handle);
     var buffer: [65536]u8 = undefined;
     var reader_buffer: [65536]u8 = undefined;
@@ -185,10 +185,10 @@ pub fn hashTreeFile(handle: *const anyopaque, remaining: u64) Error!?u64 {
     return length;
 }
 
-pub fn currentHash(handle: *const anyopaque) []const u8 {
+pub fn currentHash(handle: *anyopaque) []const u8 {
     return &State.get(handle).digest;
 }
 
-pub fn closeTreeFile(handle: *const anyopaque) void {
+pub fn closeTreeFile(handle: *anyopaque) void {
     State.get(handle).closeFile();
 }

@@ -516,7 +516,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/access/reference.zx", .name = "reference_access", .owner = .genz },
     .{ .path = "genz/analysis/access/field.zx", .name = "field_access", .owner = .genz },
     .{ .path = "genz/analysis/access/dereference.zx", .name = "dereference_access", .owner = .genz },
-    .{ .path = "genz/analysis/capture/names.zx", .name = "capture_names", .owner = .genz },
     .{ .path = "genz/analysis/capture/prepare.zx", .name = "capture_prepare", .owner = .genz },
     .{ .path = "genz/analysis/capture/result.zx", .name = "capture_result", .owner = .genz },
     .{ .path = "genz/analysis/capture/finish.zx", .name = "capture_finish", .owner = .genz },

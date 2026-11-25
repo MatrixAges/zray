@@ -41,8 +41,8 @@ pub fn install(self: *Self) void {
     if (self.requests) |requests| lowering.function_requests = &requests.queue;
 }
 
-pub fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+pub fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 pub fn deinit(self: *Self) void {
@@ -60,20 +60,20 @@ pub fn finishSeed(self: *Self, type_only: bool) Lower.Error!Stored {
     return self.tasks.assembleSeed(lowering.allocator, lowering.builder.nodes, &self.output, &self.suffix);
 }
 
-pub fn appendModuleAuxiliary(handle: *const anyopaque) Lower.Error!void {
+pub fn appendModuleAuxiliary(handle: *anyopaque) Lower.Error!void {
     const frame = borrow(handle);
     const lowering = frame.lowering;
 
     try frame.output.spans.append(try frame.tasks.store(lowering.allocator, lowering.builder.nodes));
 }
 
-pub fn appendModuleSuffix(handle: *const anyopaque) Lower.Error!void {
+pub fn appendModuleSuffix(handle: *anyopaque) Lower.Error!void {
     const frame = borrow(handle);
 
     try frame.output.spans.extend(&frame.suffix.spans);
 }
 
-pub fn finishModuleDeclarations(handle: *const anyopaque) Lower.Error!void {
+pub fn finishModuleDeclarations(handle: *anyopaque) Lower.Error!void {
     const frame = borrow(handle);
     const lowering = frame.lowering;
 

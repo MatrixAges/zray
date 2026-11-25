@@ -15,10 +15,14 @@
 
     <Call
         module="../summaries/create"
-        in={$in.omit([
-            "bodies",
-            "arenas"
-        ])}
+        in={{
+            ...$in.pick([
+                "shape",
+                "views",
+                "buffers"
+            ]),
+            allocator: $in.arenas.summaries
+        }}
     />
 
     <Call
@@ -32,7 +36,7 @@
     <Return
         value={{
             topology: $ctx.collect,
-            storage: $ctx.create
+            layout: $ctx.create
         }}
     />
 </Module>

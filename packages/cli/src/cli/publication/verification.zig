@@ -13,19 +13,19 @@ pub fn deinit(self: *Self) void {
     if (self.snapshot) |*value| value.deinit();
 }
 
-pub fn capture(handle: *const anyopaque) effects.Error!void {
+pub fn capture(handle: *anyopaque) effects.Error!void {
     const self = effects.borrow(Self, handle);
 
     self.snapshot = self.inputs.observed(self.snapshot_allocator) catch |err| return self.failure.save(err);
 }
 
-pub fn verify(handle: *const anyopaque) effects.Error!bool {
+pub fn verify(handle: *anyopaque) effects.Error!bool {
     const self = effects.borrow(Self, handle);
 
     return self.inputs.verify(self.io, self.allocator, self.snapshot.?) catch |err| return self.failure.save(err);
 }
 
-pub fn retain(handle: *const anyopaque) void {
+pub fn retain(handle: *anyopaque) void {
     const self = effects.borrow(Self, handle);
 
     if (self.inputs.retainPublished(self.snapshot.?)) self.snapshot = null;
