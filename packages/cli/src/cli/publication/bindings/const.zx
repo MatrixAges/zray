@@ -1,0 +1,7 @@
+export const addon_extension: string = ".node"
+
+export const module_extension: string = ".cjs"
+
+export const declaration_extension: string = ".d.cts"
+
+export const relative_prefix: string = "./"

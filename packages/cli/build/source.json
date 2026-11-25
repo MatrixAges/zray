@@ -338,6 +338,10 @@
             "name": "backend_cache_path"
         },
         {
+            "path": "backend_dependencies/artifacts.zx",
+            "name": "backend_cached_artifacts"
+        },
+        {
             "path": "backend_dependencies/const.zx",
             "name": "backend_cache_constants"
         },
@@ -352,6 +356,22 @@
         {
             "path": "publication/staged/publish.rx",
             "name": "publish_staged"
+        },
+        {
+            "path": "publication/staged/place.zx",
+            "name": "place_staged_output"
+        },
+        {
+            "path": "publication/staged/const.zx",
+            "name": "staged_output_constants"
+        },
+        {
+            "path": "publication/bindings/paths.zx",
+            "name": "node_binding_paths"
+        },
+        {
+            "path": "publication/bindings/const.zx",
+            "name": "node_binding_constants"
         },
         {
             "path": "publication/library/publish.rx",
@@ -522,6 +542,10 @@
         {
             "specifier": "compiler_rules/project/target/select",
             "entry": "compiler_rules/project/target/select.zx"
+        },
+        {
+            "specifier": "compiler_rules/path/const",
+            "entry": "compiler_rules/path/const.zx"
         },
         {
             "specifier": "compiler_rules/specifier/check",

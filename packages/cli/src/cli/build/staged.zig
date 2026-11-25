@@ -1,34 +1,30 @@
 const std = @import("std");
 const Options = @import("../options.zig").Options;
 const Self = @This();
+const source = @import("cli_source");
+const constants = source.staged_output_constants.@"zx.constants";
 
 directory: []const u8,
 binary: []const u8,
 assembly: ?[]const u8,
 pub fn init(io: std.Io, allocator: std.mem.Allocator, options: Options) !Self {
-    if (options.assembly) |path| {
-        const binary = try std.fs.path.resolve(allocator, &.{options.output.?});
-        const assembly = try std.fs.path.resolve(allocator, &.{path});
-
-        if (std.mem.eql(u8, binary, assembly)) return error.ConflictingOutputPaths;
-    }
-
     var random: [16]u8 = undefined;
 
     std.Io.random(io, &random);
 
-    const directory = try std.fmt.allocPrint(allocator, ".zxc/build/pending/{s}", .{std.fmt.bytesToHex(random, .lower)});
+    const nonce = std.fmt.bytesToHex(random, .lower);
 
-    try std.Io.Dir.cwd().createDirPath(io, ".zxc/build/pending");
-    try std.Io.Dir.cwd().createDir(io, directory, .default_dir);
+    const files = (try source.place_staged_output.executeValue(allocator, &.{
+        .binary = options.output.?,
+        .assembly = options.assembly,
+        .separator = &.{std.fs.path.sep},
+        .nonce = &nonce,
+    })) orelse return error.ConflictingOutputPaths;
 
-    errdefer std.Io.Dir.cwd().deleteTree(io, directory) catch {};
+    try std.Io.Dir.cwd().createDirPath(io, constants.pending_directory);
+    try std.Io.Dir.cwd().createDir(io, files.directory, .default_dir);
 
-    return .{
-        .directory = directory,
-        .binary = try std.fs.path.join(allocator, &.{ directory, "binary", std.fs.path.basename(options.output.?) }),
-        .assembly = if (options.assembly) |path| try std.fs.path.join(allocator, &.{ directory, "assembly", std.fs.path.basename(path) }) else null,
-    };
+    return .{ .directory = files.directory, .binary = files.binary, .assembly = files.assembly };
 }
 
 pub fn deinit(self: Self, io: std.Io) void {
@@ -59,7 +55,7 @@ pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Op
 
     const cursor = &directory;
 
-    const published = @import("cli_source").publish_staged.executeIn(allocator, &.{
+    const published = source.publish_staged.executeIn(allocator, &.{
         .publication = @ptrCast(&publication),
         .directory = @ptrCast(&cursor),
         .primary = std.fs.path.basename(self.binary),

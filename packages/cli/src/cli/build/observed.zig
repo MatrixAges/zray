@@ -69,18 +69,18 @@ pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Res
     if (response.succeeded) {
         const target = if (options.target) |triple| try std.zig.system.resolveTargetQuery(io, try std.Target.Query.parse(.{ .arch_os_abi = triple })) else builtin.target;
         const name = try std.zig.binNameAlloc(allocator, .{ .root_name = artifact_name, .cpu_arch = target.cpu.arch, .os_tag = target.os.tag, .ofmt = target.ofmt, .abi = target.abi, .output_mode = if (options.host == .node) .Lib else .Exe, .link_mode = if (options.host == .node) .dynamic else .static });
+        const hash = std.fmt.bytesToHex(response.digest.?, .lower);
 
-        const location = try source.backend_cache_path.executeIn(allocator, &.{
-            .digest = &response.digest.?,
-            .stem = null,
+        const files = try source.backend_cached_artifacts.executeValue(allocator, &.{
+            .root = cache.local,
+            .hash = &hash,
+            .executable = name,
             .separator = &.{std.fs.path.sep},
+            .assembly = options.assembly != null,
         });
 
-        const directory = try std.fs.path.join(allocator, &.{ cache.local, location });
-
-        binary = try std.fs.path.join(allocator, &.{ directory, name });
-
-        if (options.assembly != null) assembly = try std.fs.path.join(allocator, &.{ directory, constants.assembly_name });
+        binary = files.binary;
+        assembly = files.assembly;
     }
 
     var result = response.*;

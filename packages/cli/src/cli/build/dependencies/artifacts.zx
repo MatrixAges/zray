@@ -1,0 +1,49 @@
+import bytes from "std:bytes"
+import { directory_separator as slash } from "compiler_rules/path/const"
+import { ascii_backslash, ascii_slash } from "core/ascii/const"
+
+import { assembly_name, cached_objects } from "./const"
+
+export type Input = {
+    root: string,
+    hash: string,
+    executable: string,
+    separator: string,
+    assembly: bool
+}
+
+export type Output = {
+    binary: string,
+    assembly?: string
+}
+
+export default function (in: Input): Output {
+    const { root, hash, executable } = in
+
+    const sep = in.separator
+    const spelling = bytes.fromText(root)
+
+    const tail = match {
+        spelling.length == 0 => ascii_slash,
+        _ => spelling[spelling.length - 1]
+    }
+
+    const gap = match tail {
+        ascii_slash => "",
+        ascii_backslash => sep == slash ? sep : "",
+        _ => sep
+    }
+
+    const binary = `${root}${gap}${cached_objects}${sep}${hash}${sep}${executable}`
+
+    const assembly: string? = match {
+        in.assembly =>
+            `${root}${gap}${cached_objects}${sep}${hash}${sep}${assembly_name}`,
+        _ => null
+    }
+
+    return {
+        binary,
+        assembly
+    }
+}

@@ -1,0 +1,5 @@
+export const pending_directory: string = ".zxc/build/pending"
+
+export const binary_directory: string = "binary"
+
+export const assembly_directory: string = "assembly"

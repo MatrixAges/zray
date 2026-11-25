@@ -1,0 +1,54 @@
+import { directory_separator as slash } from "compiler_rules/path/const"
+import { pathBasename, resolvePathFrom } from "lexical_path"
+
+import { assembly_directory, binary_directory, pending_directory } from "./const"
+
+export type Input = {
+    binary: string,
+    assembly?: string,
+    separator: string,
+    nonce: string
+}
+
+export type Files = {
+    directory: string,
+    binary: string,
+    assembly?: string
+}
+
+export type Output = Files?
+
+export default function (in: Input): Output {
+    const target = in.assembly
+    const sep = in.separator
+
+    if (
+        target != null &&
+            resolvePathFrom("", in.binary) == resolvePathFrom("", target)
+    ) {
+        return null
+    }
+
+    const directory = `${pending_directory}${slash}${in.nonce}`
+    const primary = pathBasename(in.binary)
+    const binary_sep = primary == "" ? "" : sep
+    const binary = `${directory}${sep}${binary_directory}${binary_sep}${primary}`
+
+    const name = match {
+        target != null => pathBasename(target),
+        _ => ""
+    }
+
+    const assembly_sep = name == "" ? "" : sep
+
+    const assembly: string? = match {
+        target != null => `${directory}${sep}${assembly_directory}${assembly_sep}${name}`,
+        _ => null
+    }
+
+    return {
+        directory,
+        binary,
+        assembly
+    }
+}

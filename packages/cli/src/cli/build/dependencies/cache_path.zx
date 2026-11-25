@@ -1,23 +1,17 @@
-import encoding from "std:encoding"
+import { directory_separator as slash } from "compiler_rules/path/const"
 
 import { cached_objects, zig_extension } from "./const"
 
 export type Input = {
-    digest: u8[],
-    stem?: string,
-    separator: string
+    root: string,
+    hash: string,
+    stem: string
 }
 
 export type Output = string
 
 export default function (in: Input): Output {
-    const { separator, stem } = in
+    const { root, hash, stem } = in
 
-    const hash = encoding.encodeHex(in.digest)
-
-    if (stem != null) {
-        return `${cached_objects}/${hash}/${stem}${zig_extension}`
-    }
-
-    return `${cached_objects}${separator}${hash}`
+    return `${root}${slash}${cached_objects}${slash}${hash}${slash}${stem}${zig_extension}`
 }

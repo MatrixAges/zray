@@ -49,11 +49,11 @@ pub fn execute(self: *Self, io: std.Io, arguments: []const []const u8, environme
         .Release => {},
     }
 
-    const location = try source.backend_cache_path.executeIn(allocator, &.{
-        .digest = &response.digest.?,
-        .stem = stem,
-        .separator = "/",
-    });
+    const hash = std.fmt.bytesToHex(response.digest.?, .lower);
 
-    return try std.fmt.allocPrint(allocator, "{s}/{s}", .{ self.cache.local, location });
+    return try source.backend_cache_path.executeIn(allocator, &.{
+        .root = self.cache.local,
+        .hash = &hash,
+        .stem = stem,
+    });
 }

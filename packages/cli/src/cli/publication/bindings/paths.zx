@@ -1,0 +1,28 @@
+import encoding from "std:encoding"
+import { pathBasename } from "lexical_path"
+
+import {
+    addon_extension,
+    declaration_extension,
+    module_extension,
+    relative_prefix
+} from "./const"
+
+export type Input = string
+
+export type Output = {
+    module: string,
+    declaration: string,
+    relative: string
+}
+
+export default function (in: Input): Output {
+    const stem = encoding.sliceBytes(in, 0, in.length - addon_extension.length)
+    const base = pathBasename(in)
+
+    return {
+        module: `${stem}${module_extension}`,
+        declaration: `${stem}${declaration_extension}`,
+        relative: `${relative_prefix}${base}`
+    }
+}
