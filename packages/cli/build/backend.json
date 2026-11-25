@@ -7,6 +7,18 @@
     ],
     "entries": [
         {
+            "path": "backend/process/capture.zx",
+            "name": "capture"
+        },
+        {
+            "path": "backend/process/request.zx",
+            "name": "request"
+        },
+        {
+            "path": "backend/process/const.zx",
+            "name": "process_constants"
+        },
+        {
             "path": "backend/frames/decode.rx",
             "name": "decode"
         },
@@ -25,6 +37,11 @@
     ],
     "packages": [],
     "interfaces": [
+        {
+            "path": "backend/process/host.d.zx",
+            "module": "backend_process",
+            "resolve_members": true
+        },
         {
             "path": "backend/frames/host.d.zx",
             "module": "backend_frames",

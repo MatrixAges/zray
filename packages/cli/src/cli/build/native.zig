@@ -1,4 +1,5 @@
 const std = @import("std");
+const backend = @import("backend_protocol");
 const compiler = @import("compiler");
 const Compile = @import("../compile.zig");
 const Loaded = @import("../project.zig").Loaded;
@@ -88,17 +89,13 @@ pub fn openStagedOutput(handle: *const anyopaque) Error!void {
 pub fn openBackendEnvironment(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
-    var environment = std.process.Environ.Map.init(context.allocator);
+    const allocator = context.allocator;
+    var entries = context.environment.array_hash_map.clone(allocator) catch |err| return self.failure.save(err);
 
-    errdefer environment.deinit();
+    errdefer entries.deinit(allocator);
+    entries.put(allocator, backend.constants.library_environment_key, self.toolchain.library) catch |err| return self.failure.save(err);
 
-    for (context.environment.keys(), context.environment.values()) |key, value| {
-        environment.put(key, value) catch |err| return self.failure.save(err);
-    }
-
-    environment.put("ZIG_LIB_DIR", self.toolchain.library) catch |err| return self.failure.save(err);
-
-    self.environment = environment;
+    self.environment = .{ .allocator = allocator, .array_hash_map = entries };
 }
 
 pub fn openBackendTranslation(handle: *const anyopaque) Error!void {
@@ -114,8 +111,7 @@ pub fn reportStagedTranslationFailure(handle: *const anyopaque) Error!void {
     var buffer: [4096]u8 = undefined;
     var stderr = std.Io.File.stderr().writer(self.context.io, &buffer);
 
-    stderr.interface.writeAll(failure.stderr) catch |err| return self.failure.save(err);
-    failure.diagnostics.renderToWriter(.{}, &stderr.interface) catch |err| return self.failure.save(err);
+    failure.report(&stderr.interface) catch |err| return self.failure.save(err);
     stderr.interface.flush() catch |err| return self.failure.save(err);
 }
 
@@ -153,7 +149,7 @@ pub fn spawnObservedBackend(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
 
-    self.response = @import("../backend/process.zig").run(context.io, context.allocator, self.command.arguments.items, &self.environment.?, .application) catch |err| return self.failure.save(err);
+    self.response = backend.process.run(context.io, context.allocator, self.command.arguments.items, &self.environment.?, .application) catch |err| return self.failure.save(err);
 }
 
 pub fn takeTranslationFailure(handle: *const anyopaque) void {
@@ -176,9 +172,7 @@ pub fn resolveObservedNativeInputs(handle: *const anyopaque) Error!void {
 
     self.translation = null;
 
-    self.environment.?.deinit();
-
-    self.environment = null;
+    self.releaseEnvironment();
 }
 
 pub fn createObservedBindings(handle: *const anyopaque) Error!void {
@@ -193,8 +187,7 @@ pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!bool {
     const response = &self.observed.?.response;
     const writer = self.context.stderr;
 
-    writer.writeAll(response.stderr) catch |err| return self.failure.save(err);
-    response.diagnostics.renderToWriter(.{}, writer) catch |err| return self.failure.save(err);
+    response.report(writer) catch |err| return self.failure.save(err);
 
     return response.succeeded;
 }

@@ -2,6 +2,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Message = std.zig.Server.Message;
 pub const Input = struct { prefix: Message.PathPrefix, path: []const u8 };
+pub const Mode = enum { application, translation };
+pub const process = @import("process.zig");
+pub const constants = source.process_constants.@"zx.constants";
 
 pub const Result = struct {
     arena: std.heap.ArenaAllocator,
@@ -12,20 +15,28 @@ pub const Result = struct {
     succeeded: bool,
     inputs_complete: bool,
     termination: std.process.Child.Term,
-    stderr: []const u8,
+    stderr: []const u8 = "",
+    captured_stderr: []u8 = &.{},
     pub fn deinit(self: *Result) void {
+        self.arena.child_allocator.free(self.captured_stderr);
         self.arena.deinit();
 
         self.* = undefined;
     }
+    pub fn report(self: *const Result, writer: *std.Io.Writer) !void {
+        try writer.writeAll(self.stderr);
+        try self.diagnostics.renderToWriter(.{}, writer);
+    }
 };
 
 pub fn decode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const u8, termination: std.process.Child.Term) !Result {
-    return decodeMode(allocator, stdout, stderr, termination, false);
-}
+    var result = try decodeFrames(allocator, stdout, termination, .application);
 
-pub fn decodeTranslation(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const u8, termination: std.process.Child.Term) !Result {
-    return decodeMode(allocator, stdout, stderr, termination, true);
+    errdefer result.deinit();
+
+    result.stderr = try result.arena.allocator().dupe(u8, stderr);
+
+    return result;
 }
 
 const source = @import("backend_source");
@@ -37,6 +48,7 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
     frames,
     diagnostics,
+    process,
 }).resolve;
 
 comptime {
@@ -61,7 +73,7 @@ comptime {
     }
 }
 
-fn decodeMode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const u8, termination: std.process.Child.Term, translation: bool) !Result {
+pub fn decodeFrames(allocator: std.mem.Allocator, stdout: []const u8, termination: std.process.Child.Term, mode: Mode) !Result {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
@@ -75,7 +87,7 @@ fn decodeMode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const 
         .version = builtin.zig_version_string,
         .config_size = @sizeOf(Message.Config),
         .digest_size = std.Build.Cache.bin_digest_len,
-        .translation = translation,
+        .translation = mode == .translation,
         .exited = termination == .exited and termination.exited == 0,
     }) catch |err| return if (err == error.BackendProtocolFailure) context.failure.? else err;
 
@@ -96,6 +108,5 @@ fn decodeMode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const 
         .succeeded = outcome != .BackendFailed,
         .inputs_complete = outcome == .SuccessWithInputs,
         .termination = termination,
-        .stderr = try owned.dupe(u8, stderr),
     };
 }

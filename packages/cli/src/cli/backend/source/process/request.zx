@@ -1,0 +1,14 @@
+import { writeU32Le } from "std:bytes"
+
+import { empty_payload, exit_tag, update_tag } from "./const"
+
+import type { Writer as Input } from "std:bytes"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    writeU32Le(in, update_tag)
+    writeU32Le(in, empty_payload)
+    writeU32Le(in, exit_tag)
+    writeU32Le(in, empty_payload)
+}

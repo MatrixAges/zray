@@ -1,0 +1,7 @@
+export type Pipes = opaque
+
+export declare function readChunk(pipes: Pipes, reserve: u64): u64? throws {
+    Canceled,
+    ConcurrencyUnavailable,
+    Timeout
+}

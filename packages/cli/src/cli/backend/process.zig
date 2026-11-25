@@ -1,9 +1,19 @@
 const std = @import("std");
-const protocol = @import("backend_protocol");
+const protocol = @import("protocol.zig");
+const source = @import("backend_source");
+const constants = protocol.constants;
+const Message = std.zig.Client.Message;
 
-pub const Mode = enum { application, translation };
+comptime {
+    if (@sizeOf(Message.Header) != 2 * @sizeOf(u32) or
+        @backingInt(Message.Tag.update) != constants.update_tag or
+        @backingInt(Message.Tag.exit) != constants.exit_tag)
+    {
+        @compileError("Unexpected Zig client frame layout");
+    }
+}
 
-pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const u8, environment: *const std.process.Environ.Map, mode: Mode) !protocol.Result {
+pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const u8, environment: *const std.process.Environ.Map, mode: protocol.Mode) !protocol.Result {
     var child = try std.process.spawn(io, .{
         .argv = arguments,
         .environ_map = environment,
@@ -14,13 +24,11 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const 
 
     defer child.kill(io);
 
-    const Header = std.zig.Client.Message.Header;
-    var request_buffer: [2 * @sizeOf(Header)]u8 = undefined;
-    var request = child.stdin.?.writer(io, &request_buffer);
+    var request: [2 * @sizeOf(Message.Header)]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&request);
 
-    try request.interface.writeStruct(Header{ .tag = .update, .bytes_len = 0 }, .little);
-    try request.interface.writeStruct(Header{ .tag = .exit, .bytes_len = 0 }, .little);
-    try request.interface.flush();
+    try source.request.executeIn(allocator, @ptrCast(&writer));
+    try child.stdin.?.writeStreamingAll(io, writer.buffered());
 
     child.stdin.?.close(io);
 
@@ -31,18 +39,33 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const 
     reader.init(allocator, io, buffer.toStreams(), &.{ child.stdout.?, child.stderr.? });
     defer reader.deinit();
 
-    while (reader.fill(4096, .none)) |_| {
-        if (reader.reader(0).buffered().len > 128 * 1024 * 1024 or reader.reader(1).buffered().len > 128 * 1024 * 1024) return error.BackendOutputTooLarge;
-    } else |err| switch (err) {
-        error.EndOfStream => {},
-        else => return err,
-    }
+    const pipes = &reader;
+
+    if (!try source.capture.executeIn(allocator, @ptrCast(&pipes))) return error.BackendOutputTooLarge;
 
     try reader.checkAnyError();
 
-    const termination = try child.wait(io);
+    var result = try protocol.decodeFrames(allocator, reader.reader(0).buffered(), try child.wait(io), mode);
+    const stderr = reader.reader(1);
 
-    if (mode == .translation) return protocol.decodeTranslation(allocator, reader.reader(0).buffered(), reader.reader(1).buffered(), termination);
+    if (stderr.bufferedLen() != 0) {
+        const storage = stderr.buffer;
+        result.stderr = stderr.buffered();
+        result.captured_stderr = if (allocator.resize(storage, stderr.end)) storage[0..stderr.end] else storage;
+        stderr.buffer = &.{};
+    }
 
-    return protocol.decode(allocator, reader.reader(0).buffered(), reader.reader(1).buffered(), termination);
+    return result;
+}
+
+pub fn readChunk(handle: *const anyopaque, reserve: u64) error{ Canceled, ConcurrencyUnavailable, Timeout }!?u64 {
+    const pipes: *const *std.Io.File.MultiReader = @ptrCast(@alignCast(handle));
+    const reader = pipes.*;
+
+    reader.fill(@intCast(reserve), .none) catch |err| switch (err) {
+        error.EndOfStream => return null,
+        else => |failure| return failure,
+    };
+
+    return @max(reader.reader(0).bufferedLen(), reader.reader(1).bufferedLen());
 }

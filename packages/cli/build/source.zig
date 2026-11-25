@@ -257,6 +257,7 @@ pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
+            .{ .name = "backend_process", .module = protocol },
             .{ .name = "backend_frames", .module = protocol },
             .{ .name = "backend_diagnostics", .module = protocol },
         },

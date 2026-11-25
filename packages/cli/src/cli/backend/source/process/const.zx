@@ -1,0 +1,11 @@
+export const library_environment_key: string = "ZIG_LIB_DIR"
+
+export const exit_tag: u32 = 0
+
+export const update_tag: u32 = 1
+
+export const empty_payload: u32 = 0
+
+export const reserve_bytes: u64 = 4096
+
+export const output_limit: u64 = 134217728

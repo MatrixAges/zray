@@ -54,13 +54,21 @@ pub const State = struct {
         self.node_sources = null;
     }
 
+    pub fn releaseEnvironment(self: *State) void {
+        if (self.environment) |*environment| environment.array_hash_map.deinit(environment.allocator);
+
+        self.environment = null;
+    }
+
     pub fn deinit(self: *State) void {
         self.releaseSources();
 
         if (self.observed) |*observed| observed.deinit();
         if (self.response) |*response| response.deinit();
         if (self.translation) |*translation| translation.deinit();
-        if (self.environment) |*environment| environment.deinit();
+
+        self.releaseEnvironment();
+
         if (self.staged) |staged| staged.deinit(self.context.io);
     }
 };
