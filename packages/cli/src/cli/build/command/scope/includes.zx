@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import paths from "./paths"
+
+import type { Selection } from "./model"
+
+export type Input = Selection & {
+    root: string
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const { setup, index, explicit, root } = in
+
+    const source = explicit ?? match {
+        index != null => memory.readTextListColumn(setup.settings.includes, index),
+        _ => setup.includes
+    }
+
+    return paths({
+        owner: setup.owner,
+        root,
+        paths: source
+    })
+}

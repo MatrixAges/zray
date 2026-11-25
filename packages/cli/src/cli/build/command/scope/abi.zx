@@ -1,0 +1,29 @@
+import memory from "memory"
+
+import locate from "./locate"
+
+import type { Views } from "./model"
+
+export type Input = {
+    views: Views,
+    name: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { views, name } = in
+
+    const found = locate({
+        count: views.count,
+        names: views.targets,
+        name,
+        last: false
+    })
+
+    if (found == null) {
+        return null
+    }
+
+    return memory.readTextColumn(views.names, found)
+}

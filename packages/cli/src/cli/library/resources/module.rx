@@ -3,7 +3,6 @@
 
     <Args in={Resources.Input} out={void} />
 
-    <Call fn="resolve_paths" in={$in} />
     <Call fn="index.hasNativeHeader" in={$in} />
     <Call fn="index.hasBundleInput" in={$in} />
 

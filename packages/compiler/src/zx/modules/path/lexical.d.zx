@@ -9,6 +9,12 @@ export declare function resolvePathParts(
     parts: string[]
 ): string throws { OutOfMemory } concurrent
 
+export declare function resolvePathFrom(
+    allocator,
+    root: string,
+    path: string
+): string throws { OutOfMemory } concurrent
+
 export declare function resolveOwnedPathParts(
     resource: PathAllocator,
     parts: string[]

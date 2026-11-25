@@ -1,9 +1,12 @@
+import type { U64Buffer } from "memory"
 import type { NativeBuild } from "rx_execution_host"
+import type { Setup, Views } from "../../../command/scope/model"
 
 export type Invocation = {
     build: NativeBuild,
     node: bool,
-    observed: bool
+    observed: bool,
+    native: NativeWalk
 }
 
 export type Modules = {
@@ -11,13 +14,8 @@ export type Modules = {
     count: u64
 }
 
-export type Row = {
-    build: NativeBuild,
-    index: u64
-}
-
 export type NativeWalk = Modules & {
-    index: u64,
-    ready: bool,
-    running: bool
+    cursor: U64Buffer,
+    setup: Setup,
+    abi_views: Views
 }

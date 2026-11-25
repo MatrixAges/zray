@@ -30,6 +30,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(compiler.path("src/zx/modules/compiled/identity/aliases"), "compiler_rules/compiled/identity/aliases", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
     _ = files.addCopyFile(compiler.namedLazyPath("memory_columns_interface"), "memory/columns.d.zx");
+    _ = files.addCopyFile(compiler.path("src/zx/modules/path/lexical.d.zx"), "memory/lexical.d.zx");
 
     for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/index/slot.zx", "bytes/index/borrowed/wide_slot.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
@@ -75,6 +76,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
             .{ .name = "zxc_string", .module = compiler.module("generated_string") },
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "memory/columns", .module = core.module("memory") },
+            .{ .name = "lexical_path", .module = compiler.module("generated_standard") },
             .{ .name = "manifest_output", .module = manifest_output },
             .{ .name = "artifact_io", .module = artifact_io },
         },

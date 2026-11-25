@@ -22,6 +22,13 @@ export enum Status {
 }
 
 
+export type NativeBackendModule = {
+    name: string,
+    includes?: string[],
+    path?: string
+}
+
+
 export declare function reportRxLibraryEntry(check: RxApplication): void throws { SourceLoadFailure }
 export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
 export declare function buildRxGateway(check: RxApplication): Status throws { SourceLoadFailure }
@@ -150,7 +157,11 @@ export declare function reserveNativeNames(build: NativeBuild): u64 throws {
     SourceLoadFailure
 }
 export declare function recordNativeName(build: NativeBuild, index: u64): bool
-export declare function appendBackendPrefix(build: NativeBuild, libc: bool): void throws {
+export declare function appendBackendPrefix(
+    build: NativeBuild,
+    libc: bool,
+    library_paths: string[]
+): void throws {
     SourceLoadFailure
 }
 export declare function appendBackendEntry(build: NativeBuild): void throws {
@@ -164,12 +175,14 @@ export declare function generatedModuleCount(build: NativeBuild): u64
 export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
     SourceLoadFailure
 }
-export declare function prepareNativeModule(build: NativeBuild, index: u64): bool throws {
-    SourceLoadFailure
-}
-export declare function resolveNativeModulePath(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
+export declare function nativeBackendModule(build: NativeBuild, index: u64): NativeBackendModule
+export declare function bindBackendModule(
+    build: NativeBuild,
+    index: u64,
+    includes: string[],
+    abi: string?,
+    path: string?
+): void
 export declare function writeNativeHeader(build: NativeBuild): void throws {
     SourceLoadFailure
 }

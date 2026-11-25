@@ -8,6 +8,12 @@ export enum FileGroup {
     Public
 }
 
+export type LibraryNativeModule = {
+    name: string,
+    includes?: string[]
+}
+
+
 export declare function prepareStageAbi(stage: Stage): void throws { PublicationFailure }
 export declare function prepareStageLayout(stage: Stage): void throws { PublicationFailure }
 export declare function collectStageInventory(stage: Stage): void throws { PublicationFailure }
@@ -20,11 +26,13 @@ export declare function writeStageBuild(stage: Stage): void throws { Publication
 export declare function writeStageInventory(stage: Stage): void throws { PublicationFailure }
 
 export declare function allocateNativeRows(resources: NativeResources): void throws { PublicationFailure }
-export declare function selectLibraryPaths(resources: NativeResources): void throws { PublicationFailure }
-export declare function pathCount(resources: NativeResources): u64
-export declare function resolveResourcePath(resources: NativeResources, index: u64): void throws { PublicationFailure }
-export declare function nativeModuleCount(resources: NativeResources): u64
-export declare function selectNativeModule(resources: NativeResources, index: u64): void throws { PublicationFailure }
+export declare function bindLibraryPaths(resources: NativeResources, paths: string[]): void
+export declare function libraryNativeModule(resources: NativeResources, index: u64): LibraryNativeModule
+export declare function bindLibraryModule(
+    resources: NativeResources,
+    root: string,
+    includes: string[]
+): void
 export declare function hasBundleInput(resources: NativeResources): bool
 export declare function hasNativeHeader(resources: NativeResources): bool
 export declare function bundleNativeModule(resources: NativeResources): void throws { PublicationFailure }

@@ -1,10 +1,10 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const State = @import("../build.zig").State;
-const project = @import("../project.zig");
 const Command = @import("command.zig");
 const artifacts = @import("../artifacts.zig");
 const Error = @import("../sources/effects.zig").Error;
+const NativeModule = @import("cli_abi").layouts.@"zig:rx_execution_host".NativeBackendModule;
 
 pub fn generatedModuleCount(handle: *const anyopaque) u64 {
     return State.get(handle).bundle.modules.len;
@@ -27,34 +27,30 @@ pub fn appendGeneratedModule(handle: *const anyopaque, index: u64) Error!void {
     }) catch |err| return self.failure.save(err);
 }
 
-pub fn prepareNativeModule(handle: *const anyopaque, index: u64) Error!bool {
+pub fn nativeBackendModule(handle: *const anyopaque, index: u64) *const NativeModule {
     const self = State.get(handle);
-    const allocator = self.context.allocator;
+    const module = &self.project.config.native_modules[@intCast(index)];
+
+    self.module = .{ .name = module.name, .includes = module.include_paths, .path = module.path };
+
+    return &self.module;
+}
+
+pub fn bindBackendModule(handle: *const anyopaque, index: u64, includes: []const []const u8, abi: ?[]const u8, path: ?[]const u8) void {
+    const self = State.get(handle);
     const row: usize = @intCast(index);
     const module = &self.project.config.native_modules[row];
-    const abi_index = project.nativeIndex("module", self.abi.views, module.name, false);
-    const scope = project.nativeScope(self.project.*, module.*);
-    const includes = @import("arguments.zig").resolvePaths(allocator, scope.root, scope.paths) catch |err| return self.failure.save(err);
 
     self.native = .{ .row = row, .spec = .{
         .settings = self.settings,
         .name = module.name,
-        .path = undefined,
+        .path = path orelse undefined,
         .imports = module.dependencies,
         .includes = includes,
         .canonical = true,
-        .abi = if (abi_index) |selected| self.abi.views[selected].name else null,
+        .abi = abi,
         .translated = null,
     } };
-
-    return module.path != null;
-}
-
-pub fn resolveNativeModulePath(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const path = self.project.config.native_modules[self.native.row].path.?;
-
-    self.native.spec.path = std.fs.path.resolve(self.context.allocator, &.{ self.project.project.root_dir, path }) catch |err| return self.failure.save(err);
 }
 
 pub fn writeNativeHeader(handle: *const anyopaque) Error!void {

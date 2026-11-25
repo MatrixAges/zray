@@ -23,11 +23,23 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
 
     const entry = @import("cli_source").build_native_application;
     const reference = &state;
+    var paths: @import("../project/native_paths.zig").Paths = undefined;
+    var position = [1]u64{0};
+    const cursor: []u64 = &position;
+
+    paths.init(project, &context.allocator);
 
     const invocation: std.meta.Child(entry.Input) = .{
         .build = @ptrCast(&reference),
         .node = context.options.host == .node,
         .observed = context.watch != null,
+        .native = &.{
+            .build = @ptrCast(&reference),
+            .count = project.config.native_modules.len,
+            .cursor = @ptrCast(&cursor),
+            .setup = &paths.setup,
+            .abi_views = &state.abi_views.view,
+        },
     };
 
     defer state.deinit();

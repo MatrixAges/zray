@@ -8,6 +8,7 @@ pub const path_posix = @import("path/root.zig").Module(false, @import("zxc_abi")
 pub const path_win32 = @import("path/root.zig").Module(true, @import("zxc_abi").native.@"std:path/win32");
 pub const path = @import("path/root.zig").Module(@import("builtin").os.tag == .windows, @import("zxc_abi").native.@"std:path");
 pub const resolvePathParts = @import("std").fs.path.resolve;
+pub const resolvePathFrom = @import("path/root.zig").resolveFrom;
 pub const resolveOwnedPathParts = @import("path/root.zig").resolveOwnedParts;
 pub const resolvePortablePath = @import("path/root.zig").resolvePortable;
 pub const resolvePathSuffix = @import("path/root.zig").resolveSuffix;

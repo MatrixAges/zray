@@ -1,23 +1,74 @@
 <Module>
     <Type from="model" as="Step" />
 
-    <Args in={Step.Modules} out={Step.Modules} />
+    <Args in={Step.Preparation?} out={Step.Preparation?} />
 
-    <Call
-        fn="index.selectNativeModule"
-        in={[
-            $in.resources,
-            $in.index
-        ]}
-    />
+    <If on={$in != null}>
+        <Call
+            fn="index.readU64"
+            in={[
+                $in.cursor,
+                0
+            ]}
+        />
 
-    <Call module="module" in={$in.resources} />
+        <Call
+            fn="index.libraryNativeModule"
+            in={[
+                $in.resources,
+                $ctx.readU64
+            ]}
+        />
 
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1,
-            running: $in.index + 1 < $in.count
-        }}
-    />
+        <Call
+            fn="../../command/scope/select"
+            in={{
+                setup: $in.setup,
+                name: $ctx.libraryNativeModule.name
+            }}
+        />
+
+        <Call
+            fn="../../command/scope/root"
+            in={{
+                setup: $in.setup,
+                index: $ctx.select
+            }}
+        />
+
+        <Call
+            fn="../../command/scope/includes"
+            in={{
+                setup: $in.setup,
+                index: $ctx.select,
+                explicit: $ctx.libraryNativeModule.includes,
+                root: $ctx.root
+            }}
+        />
+
+        <Call
+            fn="index.bindLibraryModule"
+            in={[
+                $in.resources,
+                $ctx.root,
+                $ctx.includes
+            ]}
+        />
+
+        <Call module="module" in={$in.resources} />
+
+        <Call
+            fn="../../command/scope/advance"
+            in={$in.pick([
+                "cursor",
+                "count"
+            ])}
+        />
+
+        <If on={$ctx.advance}>
+            <Return value={$in} />
+        </If>
+    </If>
+
+    <Return value={null} />
 </Module>

@@ -14,30 +14,39 @@
     />
 
     <Call
+        fn="../../../command/scope/paths"
+        in={{
+            owner: $in.native.setup.owner,
+            root: $in.native.setup.root,
+            paths: $in.native.setup.libraries
+        }}
+    />
+
+    <Call
         fn="index.appendBackendPrefix"
         in={[
             $in.build,
-            $ctx.names
+            $ctx.names,
+            $ctx.paths
         ]}
     />
 
     <Call fn="index.appendBackendEntry" in={$in.build} />
     <Call fn="modules/generated" in={$in.build} />
 
-    <Loop on={$in.running}>
-        <Call
-            module="modules/native"
-            in={{
-                build: $in.build,
-                count: $ctx.reserveNativeNames,
-                index: 0,
-                ready: true,
-                running: $ctx.reserveNativeNames != 0
-            }}
-        />
-    </Loop>
+    <If on={$in.native.count != 0}>
+        <Call module="modules/walk" in={$in.native} />
+    </If>
 
-    <If on={!$ctx.native.ready}>
+    <Call
+        fn="index.readU64"
+        in={[
+            $in.native.cursor,
+            0
+        ]}
+    />
+
+    <If on={$ctx.readU64 != $in.native.count}>
         <Return value={false} />
     </If>
 

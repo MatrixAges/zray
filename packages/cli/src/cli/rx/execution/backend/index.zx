@@ -1,3 +1,4 @@
+export { readU64 } from "memory"
 export {
     createStagedBindings,
     openStagedOutput,
@@ -31,8 +32,8 @@ export {
     appendBackendPrefix,
     appendBackendEntry,
     writeBackendCommand,
-    prepareNativeModule,
-    resolveNativeModulePath,
+    nativeBackendModule,
+    bindBackendModule,
     writeNativeHeader,
     translateNativeHeader,
     writeNativeAdapter,

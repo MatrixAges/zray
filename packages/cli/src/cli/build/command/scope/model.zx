@@ -1,19 +1,27 @@
-import type { ReadColumn, TextColumn } from "memory"
+import type { Allocator, ReadColumn, TextColumn } from "memory"
 import type { Input as Locator } from "./locate"
 
-export type Input = Locator.Omit("last") & {
+export type Columns = Locator.Omit("last", "name") & {
     roots: TextColumn,
-    includes: ReadColumn,
-    default_root: string,
-    default_paths: string[],
+    includes: ReadColumn
+}
+
+export type Setup = {
+    owner: Allocator,
+    root: string,
+    includes: string[],
+    libraries: string[],
+    settings: Columns
+}
+
+export type Selection = {
+    setup: Setup,
+    index?: u64,
     explicit?: string[]
 }
 
-export type Selection = Input & {
-    index?: u64
-}
-
-export type Output = {
-    root: string,
-    paths: string[]
+export type Views = {
+    names: TextColumn,
+    targets: TextColumn,
+    count: u64
 }

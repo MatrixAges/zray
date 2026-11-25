@@ -48,6 +48,8 @@ pub fn prepareBackendAbi(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
     self.abi = @import("../abi.zig").create(self.context.allocator, self.bundle, self.project.*) catch |err| return self.failure.save(err);
+
+    self.abi_views.init(self.abi.views);
 }
 
 pub fn resolveNativeTarget(handle: *const anyopaque) Error!bool {

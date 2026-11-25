@@ -24,10 +24,20 @@ pub fn write(request: Request) ![]const inventory.File {
     var state: storage.State = .{ .request = request, .resources = &native, .failure = &failure };
     const stage_ref = &state;
     const native_ref = &native;
+    var paths: @import("../project/native_paths.zig").Paths = undefined;
+    var position = [1]u64{0};
+    const cursor: []u64 = &position;
+
+    paths.init(request.loaded, &request.allocator);
 
     rule.executeIn(request.allocator, &.{
         .stage = @ptrCast(&stage_ref),
-        .resources = @ptrCast(&native_ref),
+        .resources = &.{
+            .resources = @ptrCast(&native_ref),
+            .setup = &paths.setup,
+            .count = request.loaded.config.native_modules.len,
+            .cursor = @ptrCast(&cursor),
+        },
     }) catch |err| return failure.unwrap(err);
 
     return state.managed;

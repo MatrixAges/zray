@@ -1,0 +1,16 @@
+import memory from "memory"
+
+import type { Selection } from "./model"
+
+export type Input = Selection.Pick("setup", "index")
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { setup, index } = in
+
+    return match {
+        index != null => memory.readTextColumn(setup.settings.roots, index),
+        _ => setup.root
+    }
+}

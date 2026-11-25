@@ -302,14 +302,6 @@
             "name": "backend_translation_command"
         },
         {
-            "path": "command/scope/build.rx",
-            "name": "native_include_scope"
-        },
-        {
-            "path": "command/scope/locate.zx",
-            "name": "native_module_lookup"
-        },
-        {
             "path": "standard/plan.rx",
             "name": "standard_linkage"
         },
@@ -528,6 +520,10 @@
         {
             "path": "memory/index.d.zx",
             "module": "memory"
+        },
+        {
+            "path": "memory/lexical.d.zx",
+            "module": "lexical_path"
         },
         {
             "path": "memory/columns.d.zx",

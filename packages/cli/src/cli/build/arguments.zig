@@ -24,12 +24,11 @@ pub fn recordNativeName(handle: *const anyopaque, index: u64) bool {
     return module.header != null;
 }
 
-pub fn appendBackendPrefix(handle: *const anyopaque, libc: bool) Error!void {
+pub fn appendBackendPrefix(handle: *const anyopaque, libc: bool, library_paths: []const []const u8) Error!void {
     const self = State.get(handle);
     const context = self.context;
     const loaded = self.project;
     const cache = self.translation.?.cache;
-    const library_paths = resolvePaths(context.allocator, loaded.project.root_dir, loaded.config.library_paths) catch |err| return self.failure.save(err);
 
     self.command.prefix(.{
         .tool = self.toolchain.executable,
@@ -84,12 +83,4 @@ fn targetOptions(allocator: std.mem.Allocator, options: Options) !Command.Settin
     const target = options.target orelse if (!std.mem.eql(u8, host, @import("bundle").zig_host)) try builtin.target.zigTriple(allocator) else null;
 
     return .{ .optimize = @tagName(options.optimize), .target = target, .cpu = options.cpu };
-}
-
-pub fn resolvePaths(allocator: std.mem.Allocator, root: []const u8, paths: []const []const u8) ![]const []const u8 {
-    const result = try allocator.alloc([]const u8, paths.len);
-
-    for (paths, result) |path, *resolved| resolved.* = try std.fs.path.resolve(allocator, &.{ root, path });
-
-    return result;
 }

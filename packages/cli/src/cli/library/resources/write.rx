@@ -1,22 +1,28 @@
 <Module>
     <Type from="model" as="Resources" />
 
-    <Args in={Resources.Input} out={void} />
+    <Args in={Resources.Preparation} out={void} />
 
-    <Call fn="index.allocateNativeRows" in={$in} />
-    <Call fn="index.selectLibraryPaths" in={$in} />
-    <Call fn="resolve_paths" in={$in} />
-    <Call fn="index.nativeModuleCount" in={$in} />
+    <Call fn="index.allocateNativeRows" in={$in.resources} />
 
-    <Loop on={$in.running}>
-        <Call
-            module="modules"
-            in={{
-                resources: $in,
-                count: $ctx.nativeModuleCount,
-                index: 0,
-                running: $ctx.nativeModuleCount != 0
-            }}
-        />
-    </Loop>
+    <Call
+        fn="../../command/scope/paths"
+        in={{
+            owner: $in.setup.owner,
+            root: $in.setup.root,
+            paths: $in.setup.libraries
+        }}
+    />
+
+    <Call
+        fn="index.bindLibraryPaths"
+        in={[
+            $in.resources,
+            $ctx.paths
+        ]}
+    />
+
+    <If on={$in.count != 0}>
+        <Call module="walk" in={$in} />
+    </If>
 </Module>

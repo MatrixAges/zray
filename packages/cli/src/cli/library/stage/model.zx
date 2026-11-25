@@ -1,6 +1,7 @@
-import type { NativeResources, Stage } from "library_stage_host"
+import type { Stage } from "library_stage_host"
+import type { Preparation } from "../resources/model"
 
 export type Input = {
     stage: Stage,
-    resources: NativeResources
+    resources: Preparation
 }

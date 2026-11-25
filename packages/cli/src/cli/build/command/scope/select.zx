@@ -1,24 +1,22 @@
-import memory from "memory"
+import locate from "./locate"
 
-import type { Selection as Input, Output } from "./model"
+import type { Setup } from "./model"
+
+export type Input = {
+    setup: Setup,
+    name: string
+}
+
+export type Output = u64?
 
 export default function (in: Input): Output {
-    const { index, explicit } = in
+    const { setup, name } = in
+    const { settings } = setup
 
-    if (index == null) {
-        return {
-            root: in.default_root,
-            paths: explicit ?? in.default_paths
-        }
-    }
-
-    const resolved = match {
-        explicit == null => memory.readTextListColumn(in.includes, index),
-        _ => explicit
-    }
-
-    return {
-        root: memory.readTextColumn(in.roots, index),
-        paths: resolved
-    }
+    return locate({
+        count: settings.count,
+        names: settings.names,
+        name,
+        last: false
+    })
 }

@@ -6,6 +6,7 @@ const native_sources = @import("native_resource_host");
 const Inputs = @import("watch_inputs").Inputs;
 const effects = @import("publication_host").effects;
 const Error = effects.Error;
+const Module = @import("cli_abi").layouts.@"zig:library_stage_host".LibraryNativeModule;
 
 pub const Dependency = struct {
     name: []const u8,
@@ -31,19 +32,8 @@ pub const State = struct {
     dependency: *Dependency = undefined,
     bundle: native_sources.Result = undefined,
     bundle_paths: [][]const u8 = &.{},
-    paths: Paths = undefined,
-    const Paths = struct {
-        root: []const u8,
-        source: []const []const u8,
-        output: [][]const u8,
-    };
-    fn preparePaths(self: *State, root: []const u8, paths: []const []const u8) Error![][]const u8 {
-        const resolved = self.allocator.alloc([]const u8, paths.len) catch |err| return self.failure.save(err);
-
-        self.paths = .{ .root = root, .source = paths, .output = resolved };
-
-        return resolved;
-    }
+    root: []const u8 = undefined,
+    module: Module = undefined,
 };
 
 pub fn allocateNativeRows(handle: *const anyopaque) Error!void {
@@ -53,38 +43,28 @@ pub fn allocateNativeRows(handle: *const anyopaque) Error!void {
     self.dependencies = self.allocator.alloc(Dependency, modules.len) catch |err| return self.failure.save(err);
 }
 
-pub fn selectLibraryPaths(handle: *const anyopaque) Error!void {
-    const self = effects.state(State, handle);
-
-    self.library_paths = try self.preparePaths(self.loaded.project.root_dir, self.loaded.config.library_paths);
+pub fn bindLibraryPaths(handle: *const anyopaque, paths: []const []const u8) void {
+    effects.state(State, handle).library_paths = paths;
 }
 
-pub fn pathCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).paths.source.len;
-}
-
-pub fn resolveResourcePath(handle: *const anyopaque, index: u64) Error!void {
-    const self = effects.state(State, handle);
-    const row: usize = @intCast(index);
-    const paths = self.paths;
-
-    paths.output[row] = std.fs.path.resolve(self.allocator, &.{ paths.root, paths.source[row] }) catch |err| return self.failure.save(err);
-}
-
-pub fn nativeModuleCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).native_modules.len;
-}
-
-pub fn selectNativeModule(handle: *const anyopaque, index: u64) Error!void {
+pub fn libraryNativeModule(handle: *const anyopaque, index: u64) *const Module {
     const self = effects.state(State, handle);
     const row: usize = @intCast(index);
     const native = &self.native_modules[row];
-    const scope = project.nativeScope(self.loaded.*, native.*);
 
     self.current = native;
     self.dependency = &self.dependencies[row];
     self.dependency.* = .{ .name = native.name, .header = native.header, .c_imports = native.header != null };
-    native.include_paths = try self.preparePaths(scope.root, scope.paths);
+    self.module = .{ .name = native.name, .includes = native.include_paths };
+
+    return &self.module;
+}
+
+pub fn bindLibraryModule(handle: *const anyopaque, root: []const u8, includes: []const []const u8) void {
+    const self = effects.state(State, handle);
+
+    self.root = root;
+    self.current.include_paths = includes;
 }
 
 pub fn hasBundleInput(handle: *const anyopaque) bool {
@@ -101,7 +81,7 @@ pub fn bundleNativeModule(handle: *const anyopaque) Error!void {
     const self = effects.state(State, handle);
     const native = self.current;
 
-    const bundled = native_sources.write(self.io, self.allocator, self.directory, self.paths.root, .{
+    const bundled = native_sources.write(self.io, self.allocator, self.directory, self.root, .{
         .name = native.name,
         .path = native.path,
         .header = native.header,

@@ -1,8 +1,8 @@
 export {
     allocateNativeRows,
-    nativeModuleCount,
-    selectNativeModule,
-    selectLibraryPaths,
+    libraryNativeModule,
+    bindLibraryModule,
+    bindLibraryPaths,
     hasBundleInput,
     hasNativeHeader,
     bundleNativeModule,
@@ -10,3 +10,4 @@ export {
     writeLibraryNativeHeader,
     writeLibraryNativeAdapter
 } from "library_stage_host"
+export { readU64 } from "memory"
