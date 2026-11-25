@@ -3,11 +3,32 @@
 
     <Args in={Snapshot.Registration} out={void} />
 
+    <Call fn="index.openRegistration" in={$in} />
     <Call fn="index.recordFile" in={$in} />
 
-    <If on={$ctx.recordFile}>
+    <If on={$ctx.recordFile && $ctx.openRegistration.consumed}>
         <Call fn="index.compareRecorded" in={$in} />
-    </If>
 
-    <Call fn="index.commitRecorded" in={$in} />
+        <Call
+            fn="index.publishObservation"
+            in={[
+                $in,
+                false,
+                true,
+                $ctx.compareRecorded
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="index.publishObservation"
+                in={[
+                    $in,
+                    false,
+                    $ctx.recordFile,
+                    $ctx.recordFile
+                ]}
+            />
+        </Else>
+    </If>
 </Module>

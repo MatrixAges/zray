@@ -4,13 +4,12 @@ export {
     fullDirectory,
     workspaceDirectory,
     readFile,
-    admit,
+    openRegistration,
     reusePrior,
     readCurrent,
     comparePrevious,
-    commit,
     recordFile,
     compareRecorded,
-    commitRecorded,
+    publishObservation,
     sortCapture
 } from "snapshot_host"

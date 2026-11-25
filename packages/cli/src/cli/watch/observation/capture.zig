@@ -1,7 +1,8 @@
 const std = @import("std");
 const Inputs = @import("../inputs.zig");
 const Snapshot = @import("../snapshot.zig");
-const Error = @import("storage.zig").Error;
+const storage = @import("storage.zig");
+const Error = storage.Error;
 const source = @import("watch_observation").capture;
 
 const Context = struct {
@@ -10,7 +11,7 @@ const Context = struct {
     iterator: Inputs.Observations.Iterator,
     failure: ?anyerror = null,
     fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+        return storage.context(Context, handle);
     }
 };
 
@@ -27,7 +28,9 @@ pub fn capture(inputs: *const Inputs, allocator: std.mem.Allocator) !Snapshot {
         .iterator = inputs.entries.iterator(),
     };
 
-    source.executeValue(owned, @ptrCast(&context)) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
+    const handle = &context;
+
+    source.executeValue(owned, @ptrCast(&handle)) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 
     return .{ .arena = arena, .entries = context.entries, .consistent = inputs.consistent };
 }
@@ -48,11 +51,18 @@ pub fn captureEntry(handle: *const anyopaque, index: u64) Error!void {
 
 fn fill(self: *Context, index: usize) !void {
     const entry = self.iterator.next().?;
-    const path = try self.allocator.dupe(u8, entry.key_ptr.*);
+    const logical = entry.key_ptr.*;
+    const path = try self.allocator.dupe(u8, logical);
     var state = entry.value_ptr.state;
 
     switch (state) {
-        .directory, .file => |*content| content.physical_path = try self.allocator.dupe(u8, content.physical_path),
+        .directory, .file => |*content| {
+            content.physical_path = if (std.mem.eql(u8, logical, content.physical_path))
+                path
+
+            else
+                try self.allocator.dupe(u8, content.physical_path);
+        },
         else => {},
     }
 

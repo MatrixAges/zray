@@ -35,7 +35,8 @@
     "interfaces": [
         {
             "path": "observation/host.d.zx",
-            "module": "snapshot_host"
+            "module": "snapshot_host",
+            "resolve_members": true
         }
     ]
 }

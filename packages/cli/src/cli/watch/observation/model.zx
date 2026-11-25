@@ -1,4 +1,4 @@
-export { Admission, PathKind } from "snapshot_host"
+export { PathKind, Reuse } from "snapshot_host"
 
 import type { Observation, Registration, Scan } from "snapshot_host"
 
@@ -6,6 +6,7 @@ export type { Capture, Registration, Scan } from "snapshot_host"
 
 export type ScanInput = {
     scan: Scan,
+    count: u64,
     consistent: bool,
     versioned: bool,
     reuse_versions: bool
@@ -21,4 +22,10 @@ export type ReadInput = {
 export type AddInput = {
     registration: Registration,
     directory_entries: bool
+}
+
+export enum Admission {
+    Unchanged,
+    New,
+    Upgrade
 }

@@ -3,10 +3,12 @@
 
     <Args in={Snapshot.AddInput} out={Snapshot.Admission} />
 
+    <Call fn="index.openRegistration" in={$in.registration} />
+
     <Call
-        fn="index.admit"
+        fn="admit"
         in={[
-            $in.registration,
+            $ctx.openRegistration,
             $in.directory_entries
         ]}
     />
@@ -18,7 +20,17 @@
     <If on={!$in.directory_entries && $ctx.admit == Snapshot.Admission.New}>
         <Call fn="index.reusePrior" in={$in.registration} />
 
-        <If on={$ctx.reusePrior}>
+        <If on={$ctx.reusePrior != Snapshot.Reuse.Unavailable}>
+            <Call
+                fn="index.publishObservation"
+                in={[
+                    $in.registration,
+                    false,
+                    false,
+                    true
+                ]}
+            />
+
             <Return value={$ctx.admit} />
         </If>
     </If>
@@ -31,15 +43,29 @@
         ]}
     />
 
-    <If on={$ctx.admit == Snapshot.Admission.Upgrade}>
+    <If on={$ctx.readCurrent && $ctx.admit == Snapshot.Admission.Upgrade}>
         <Call fn="index.comparePrevious" in={$in.registration} />
+
+        <Call
+            fn="index.publishObservation"
+            in={[
+                $in.registration,
+                $in.directory_entries,
+                $ctx.openRegistration.consumed,
+                $ctx.comparePrevious
+            ]}
+        />
+
+        <Return value={$ctx.admit} />
     </If>
 
     <Call
-        fn="index.commit"
+        fn="index.publishObservation"
         in={[
             $in.registration,
-            $in.directory_entries
+            $in.directory_entries,
+            false,
+            $ctx.readCurrent || !$ctx.openRegistration.existing
         ]}
     />
 

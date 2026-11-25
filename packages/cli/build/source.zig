@@ -220,14 +220,8 @@ pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "cli_source", .module = cli_source },
             .{ .name = "watch_observation_abi", .module = abi },
+            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
         },
-    });
-
-    const effects = b.createModule(.{
-        .root_source_file = b.path("src/cli/watch/observation/bindings.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "watch_inputs", .module = observations_module }},
     });
 
     observations_module.addAnonymousImport("watch_observation", .{
@@ -237,7 +231,7 @@ pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
-            .{ .name = "snapshot_host", .module = effects },
+            .{ .name = "snapshot_host", .module = observations_module },
         },
     });
 

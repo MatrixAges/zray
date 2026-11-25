@@ -1,6 +1,7 @@
 const std = @import("std");
 const Inputs = @import("../inputs.zig");
 const Snapshot = @import("../snapshot.zig");
+const reader = @import("read.zig");
 const storage = @import("storage.zig");
 const Error = storage.Error;
 const source = @import("watch_observation");
@@ -17,10 +18,11 @@ const Context = struct {
     path: []const u8,
     bytes: []const u8 = &.{},
     slot: Slot = undefined,
+    flags: storage.Slot = undefined,
     current: Snapshot.State = undefined,
     failure: ?anyerror = null,
     fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+        return storage.context(Context, handle);
     }
     fn fail(self: *Context, err: anyerror) Error {
         self.failure = err;
@@ -32,6 +34,9 @@ const Context = struct {
 fn lookup(inputs: *Inputs, path: []const u8) !Slot {
     const allocator = inputs.arena.allocator();
     const normalized = try std.fs.path.resolve(allocator, &.{ inputs.cwd, path });
+
+    errdefer allocator.free(normalized);
+
     const entry = try inputs.entries.getOrPut(allocator, normalized);
 
     if (entry.found_existing) allocator.free(normalized);
@@ -41,87 +46,90 @@ fn lookup(inputs: *Inputs, path: []const u8) !Slot {
 
 pub fn add(inputs: *Inputs, io: std.Io, path: []const u8, directory_entries: bool) !void {
     var context: Context = .{ .io = io, .inputs = inputs, .path = path };
+    const handle = &context;
 
-    _ = source.add.executeValue(inputs.arena.allocator(), &.{
-        .registration = @ptrCast(&context),
+    _ = source.add.executeIn(inputs.arena.allocator(), &.{
+        .registration = @ptrCast(&handle),
         .directory_entries = directory_entries,
     }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 }
 
 pub fn record(inputs: *Inputs, io: std.Io, path: []const u8, bytes: []const u8) !void {
     var context: Context = .{ .io = io, .inputs = inputs, .path = path, .bytes = bytes };
+    const handle = &context;
 
-    source.record.executeValue(inputs.arena.allocator(), @ptrCast(&context)) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
+    source.record.executeIn(inputs.arena.allocator(), @ptrCast(&handle)) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 }
 
-pub fn admit(handle: *const anyopaque, directory_entries: bool) Error!storage.Admission {
+pub fn openRegistration(handle: *const anyopaque) Error!*const storage.Slot {
     const self = Context.get(handle);
 
-    const slot: Slot = if (self.inputs.entries.getPtr(self.path)) |existing|
-        .{ .path = self.path, .value = existing, .existing = true }
+    self.slot = if (self.inputs.entries.getEntry(self.path)) |entry|
+        .{ .path = entry.key_ptr.*, .value = entry.value_ptr, .existing = true }
 
     else
         lookup(self.inputs, self.path) catch |err| return self.fail(err);
 
-    self.slot = slot;
+    const slot = self.slot;
 
-    if (!slot.existing) return .New;
-
-    return if (!directory_entries or slot.value.directory_entries) .Unchanged else .Upgrade;
-}
-
-pub fn reusePrior(handle: *const anyopaque) Error!bool {
-    const self = Context.get(handle);
-    const previous = self.inputs.previous orelse return false;
-    const prior = previous.find(self.slot.path) orelse return false;
-
-    const matched = prior.stillMatches(self.io) catch |err| {
-        self.slot.value.* = .{ .state = .{ .failed = err } };
-
-        return self.fail(err);
+    self.flags = .{
+        .existing = slot.existing,
+        .consumed = slot.existing and slot.value.consumed,
+        .directory_entries = slot.existing and slot.value.directory_entries,
     };
 
-    if (matched) self.slot.value.* = .{ .state = prior.state };
-
-    return matched;
+    return &self.flags;
 }
 
-pub fn readCurrent(handle: *const anyopaque, directory_entries: bool) Error!void {
+pub fn reusePrior(handle: *const anyopaque) storage.Reuse {
+    const self = Context.get(handle);
+    const previous = self.inputs.previous orelse return .Unavailable;
+    const prior = previous.find(self.slot.path) orelse return .Unavailable;
+
+    const matched = prior.stillMatches(self.io) catch |err| {
+        self.failure = err;
+
+        return .Failed;
+    };
+
+    if (!matched) return .Unavailable;
+
+    self.current = prior.state;
+
+    return .Read;
+}
+
+pub fn readCurrent(handle: *const anyopaque, directory_entries: bool) bool {
     const self = Context.get(handle);
 
     self.current = Snapshot.readWithDirectoryEntries(self.io, self.inputs.arena.allocator(), self.slot.path, directory_entries) catch |err| {
-        if (self.slot.existing) self.inputs.consistent = false;
+        self.failure = err;
 
-        self.slot.value.* = .{ .state = .{ .failed = err }, .directory_entries = directory_entries };
-
-        return self.fail(err);
+        return false;
     };
+
+    return true;
 }
 
-pub fn comparePrevious(handle: *const anyopaque) Error!void {
+pub fn comparePrevious(handle: *const anyopaque) Error!bool {
     const self = Context.get(handle);
-    const prior = Snapshot.readWithDirectoryEntries(self.io, self.inputs.arena.allocator(), self.slot.path, self.slot.value.directory_entries) catch |err| return self.fail(err);
+    var scratch = std.heap.ArenaAllocator.init(self.inputs.arena.child_allocator);
 
-    self.inputs.consistent = self.inputs.consistent and Snapshot.sameState(&self.slot.value.state, &prior);
+    defer scratch.deinit();
+
+    const entry = self.slot.value;
+    const prior = Snapshot.readWithDirectoryEntries(self.io, scratch.allocator(), self.slot.path, entry.directory_entries) catch |err| return self.fail(err);
+
+    return self.inputs.consistent and Snapshot.sameState(&entry.state, &prior);
 }
 
-pub fn commit(handle: *const anyopaque, directory_entries: bool) void {
+pub fn recordFile(handle: *const anyopaque) bool {
     const self = Context.get(handle);
-    const consumed = self.slot.existing and self.slot.value.consumed;
 
-    self.slot.value.* = .{ .state = self.current, .directory_entries = directory_entries, .consumed = consumed };
-}
+    const physical = reader.physicalPath(self.io, self.inputs.arena.allocator(), self.slot.path) catch |err| {
+        self.failure = err;
 
-pub fn recordFile(handle: *const anyopaque) Error!bool {
-    const self = Context.get(handle);
-    const slot = lookup(self.inputs, self.path) catch |err| return self.fail(err);
-    self.slot = slot;
-
-    const physical = std.Io.Dir.cwd().realPathFileAlloc(self.io, slot.path, self.inputs.arena.allocator()) catch |err| {
-        self.inputs.consistent = false;
-        self.slot.value.* = .{ .state = .{ .failed = err } };
-
-        return self.fail(err);
+        return false;
     };
 
     var digest: [32]u8 = undefined;
@@ -130,17 +138,25 @@ pub fn recordFile(handle: *const anyopaque) Error!bool {
 
     self.current = .{ .file = .{ .digest = digest, .physical_path = physical } };
 
-    return self.slot.existing and self.slot.value.consumed;
+    return true;
 }
 
-pub fn compareRecorded(handle: *const anyopaque) void {
+pub fn compareRecorded(handle: *const anyopaque) bool {
     const self = Context.get(handle);
 
-    self.inputs.consistent = self.inputs.consistent and Snapshot.sameState(&self.slot.value.state, &self.current);
+    return self.inputs.consistent and Snapshot.sameState(&self.slot.value.state, &self.current);
 }
 
-pub fn commitRecorded(handle: *const anyopaque) void {
+pub fn publishObservation(handle: *const anyopaque, directory_entries: bool, consumed: bool, consistent: bool) Error!void {
     const self = Context.get(handle);
 
-    self.slot.value.* = .{ .state = self.current, .consumed = true };
+    self.inputs.consistent = self.inputs.consistent and consistent;
+
+    self.slot.value.* = .{
+        .state = if (self.failure) |err| .{ .failed = err } else self.current,
+        .directory_entries = directory_entries,
+        .consumed = consumed,
+    };
+
+    if (self.failure != null) return error.ObservationFailure;
 }

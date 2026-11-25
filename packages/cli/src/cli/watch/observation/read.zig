@@ -15,7 +15,7 @@ pub const Context = struct {
     result: Snapshot.State = undefined,
     failure: ?anyerror = null,
     fn get(handle: *const anyopaque) *Context {
-        return @ptrCast(@alignCast(@constCast(handle)));
+        return storage.context(Context, handle);
     }
     fn fail(self: *Context, err: anyerror) Error {
         self.failure = err;
@@ -25,7 +25,9 @@ pub const Context = struct {
 };
 
 pub fn observe(self: *Context, directory_entries: bool) !void {
-    rule.executeValue(self.allocator, &.{ .observation = @ptrCast(self), .directory_entries = directory_entries }) catch |err| return if (err == error.ObservationFailure) self.failure.? else err;
+    const handle = self;
+
+    rule.executeValue(self.allocator, &.{ .observation = @ptrCast(&handle), .directory_entries = directory_entries }) catch |err| return if (err == error.ObservationFailure) self.failure.? else err;
 }
 
 pub fn classify(handle: *const anyopaque) Error!storage.PathKind {
@@ -63,7 +65,7 @@ pub fn workspaceDirectory(handle: *const anyopaque) Error!void {
 }
 
 fn completeDirectory(self: *Context, digest: [32]u8) Error!void {
-    const path = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.path, self.allocator) catch |err| return self.fail(err);
+    const path = physicalPath(self.io, self.allocator, self.path) catch |err| return self.fail(err);
 
     self.result = .{ .directory = .{ .digest = digest, .physical_path = path } };
 }
@@ -102,7 +104,7 @@ fn observeFile(self: *Context) !void {
     }
 
     const digest = hash.finalResult();
-    const physical = try std.Io.Dir.cwd().realPathFileAlloc(self.io, self.path, self.allocator);
+    const physical = try physicalPath(self.io, self.allocator, self.path);
 
     if (self.save_version) {
         const after = try file.stat(self.io);
@@ -114,6 +116,14 @@ fn observeFile(self: *Context) !void {
     }
 
     self.result = .{ .file = .{ .digest = digest, .physical_path = physical } };
+}
+
+pub fn physicalPath(io: std.Io, allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const length = try std.Io.Dir.cwd().realPathFile(io, path, &buffer);
+    const resolved = buffer[0..length];
+
+    return if (std.mem.eql(u8, resolved, path)) path else allocator.dupe(u8, resolved);
 }
 
 pub fn statPath(io: std.Io, path: []const u8) !?std.Io.File.Stat {

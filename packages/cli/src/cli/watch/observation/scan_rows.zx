@@ -5,9 +5,7 @@ import type { ScanRows as Input } from "./model"
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { scan, versioned, reuse_versions } = in
-
-    const count = host.scanCount(scan)
+    const { scan, count, versioned, reuse_versions } = in
 
     return loop({
         index: 0,
@@ -20,6 +18,10 @@ export default function (in: Input): Output {
 
             if (!reused) {
                 current.same = host.readRow(scan, index, versioned)
+
+                if (current.same && versioned) {
+                    host.acceptVersion(scan, index)
+                }
             }
 
             current.index += 1
