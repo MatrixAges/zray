@@ -1,0 +1,57 @@
+<Module>
+    <Type from="workflow" as="Abi" />
+    <Type from="plan/model" as="Plan" />
+    <Type from="index" as="Host" />
+
+    <Args in={Abi.Input} out={string} />
+
+    <Call fn="../compiler_rules/source_abi/scoped" in={$in.identities} />
+
+    <If on={!$ctx.scoped}>
+        <Return value={$in.source} />
+    </If>
+
+    <Call fn="index.borrowAbiInputs" in={$in.frame} />
+
+    <Call module="plan/build" in={$in.plan} />
+
+    <Switch on={$ctx.build.status}>
+        <Case value={Plan.Status.ConflictingAlias}>
+            <Call fn="index.rejectAbiPlan" in={Host.AbiConflict.Alias} />
+        </Case>
+
+        <Case value={Plan.Status.NameConflict}>
+            <Call fn="index.rejectAbiPlan" in={Host.AbiConflict.Name} />
+        </Case>
+    </Switch>
+
+    <If on={$ctx.build.views.length != 0}>
+        <Call
+            fn="index.reserveAbiFiles"
+            in={[
+                $in.frame,
+                $ctx.build.views.length
+            ]}
+        />
+
+        <Call
+            fn="files"
+            in={[
+                $in.frame,
+                $in.owner,
+                $in.files,
+                $ctx.build.views
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.renderAbiRoot"
+        in={[
+            $in.frame,
+            $ctx.build.aliases
+        ]}
+    />
+
+    <Return value={$ctx.renderAbiRoot} />
+</Module>

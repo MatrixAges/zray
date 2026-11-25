@@ -3,11 +3,9 @@ import type {
     ExpressionsKind,
     ExpressionsBuiltinName
 } from "../../../printer/model/expressions"
+import type { Alias } from "./alias"
 
-export type Alias = {
-    name: string,
-    identity: string
-}
+export type { Alias } from "./alias"
 
 export type Input = {
     names: string[],

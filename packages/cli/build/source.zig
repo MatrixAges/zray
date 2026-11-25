@@ -25,6 +25,8 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/cli/watch/diagnostics"), "watch_diagnostics", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyDirectory(b.path("src/cli/standard"), "standard", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/project/scopes"), "scopes", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/abi"), "abi", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyFile(compiler.namedLazyPath("abi_alias_type"), "abi/alias.zx");
     _ = files.addCopyDirectory(core.path("src/row_buffer"), "core/row_buffer", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyDirectory(core.path("src/native_module_table"), "core/native_module_table", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyDirectory(compiler.path("src/zx/modules/compiled/identity/aliases"), "compiler_rules/compiled/identity/aliases", .{ .include_extensions = &.{ ".rx", ".zx" } });
@@ -50,6 +52,10 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
         "specifier/model.zx",
     }) |file| {
         _ = files.addCopyFile(compiler.path(b.fmt("src/zx/modules/{s}", .{file})), b.fmt("compiler_rules/{s}", .{file}));
+    }
+
+    for ([_][]const u8{ "contains.zx", "model.zx", "scoped.zx" }) |file| {
+        _ = files.addCopyFile(compiler.path(b.fmt("src/backends/zig/source_abi/{s}", .{file})), b.fmt("compiler_rules/source_abi/{s}", .{file}));
     }
 
     const generated = generate(b, compiler, files, "build/source.json", "cli");

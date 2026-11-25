@@ -10,12 +10,7 @@
         <Return
             value={{
                 status: $ctx.resolve.status,
-                view: {
-                    module: $in.native.name,
-                    name: "",
-                    path: "",
-                    aliases: []
-                },
+                view: null,
                 roots: []
             }}
         />
@@ -23,11 +18,21 @@
 
     <Call fn="name" in={$in} />
 
+    <If on={$ctx.name.status != Plan.Status.Valid}>
+        <Return
+            value={{
+                status: $ctx.name.status,
+                view: null,
+                roots: []
+            }}
+        />
+    </If>
+
     <Return
         value={{
             status: $ctx.name.status,
             view: {
-                module: $in.native.name,
+                module: $in.module,
                 name: $ctx.name.name,
                 path: $ctx.name.path,
                 aliases: $ctx.resolve.aliases

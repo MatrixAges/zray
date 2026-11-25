@@ -1,0 +1,32 @@
+import bytes from "std:bytes"
+import { renderAbiFile } from "bundle_abi_host"
+import memory from "memory"
+
+import type { AbiFrame } from "bundle_abi_host"
+import type { Allocator } from "memory"
+import type { View } from "./plan/model"
+import type { Files } from "./workflow"
+
+export type Input = [AbiFrame, Allocator, Files, View[]]
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop(0, {
+        while: row => row < in[3].length,
+        next: row => {
+            const [frame, owner, files, views] = in
+            const { module, name, path, aliases } = views[row]
+            const owned_name = memory.copyColumnText(owner, name)
+            const owned_path = memory.copyColumnText(owner, path)
+            const source = renderAbiFile(frame, aliases)
+
+            memory.writeColumnBytes(files.modules, row, bytes.fromText(module))
+            memory.writeColumnBytes(files.names, row, bytes.fromText(owned_name))
+            memory.writeColumnBytes(files.paths, row, bytes.fromText(owned_path))
+            memory.writeColumnBytes(files.sources, row, bytes.fromText(source))
+
+            row += 1
+        }
+    })
+}

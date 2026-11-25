@@ -21,6 +21,9 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
     const standard_abi = standard.addOutputFileArg("standard_abi.zig");
     const genz_dependency = b.dependency("genz", .{ .target = target, .optimize = generator_optimize });
+
+    b.addNamedLazyPath("abi_alias_type", genz_dependency.path("src/analysis/abi/view/alias.zx"));
+
     const roots = [_]std.Build.LazyPath{ b.path("src"), lint_dependency.path("src"), core_dependency.path("src"), genz_dependency.path("src") };
 
     const directories = [_][]const u8{

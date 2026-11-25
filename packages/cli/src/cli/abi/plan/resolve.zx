@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
+import contains from "compiler_rules/source_abi/contains"
 import memory from "memory"
 
-import contains from "../source_abi/contains"
 import { Status } from "./model"
 
 import type { Alias } from "genz/abi/model"
@@ -13,20 +13,29 @@ export default function (in: Input): Output {
     const explicit = loop({
         source: in,
         aliases,
-        count: in.aliases.count,
+        count: in.count,
         index: 0
     }, {
         while: current => current.index < current.count,
         next: current => {
-            const names = current.source.aliases
-            const identity = memory.readTextColumn(names.identities, current.index)
+            const { natives } = current.source.source
+            const row = current.source.row
+            const identity = memory.readOptionalTextListItem(
+                natives.alias_identities,
+                row,
+                current.index
+            )
 
             if (contains({
                 modules: current.source.source.modules,
                 identity
             })) {
                 current.aliases = current.aliases.push({
-                    name: memory.readTextColumn(names.names, current.index),
+                    name: memory.readOptionalTextListItem(
+                        natives.alias_names,
+                        row,
+                        current.index
+                    ),
                     identity
                 })[0]
             }

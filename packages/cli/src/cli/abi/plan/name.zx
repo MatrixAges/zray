@@ -1,8 +1,7 @@
 import bytes from "std:bytes"
-import strings from "std:string"
 import memory from "memory"
 
-import { view_prefix, view_directory, source_suffix, empty_separator } from "./const"
+import { view_prefix, view_directory, source_suffix } from "./const"
 import { Status } from "./model"
 
 import type { ViewInput as Input } from "./model"
@@ -14,10 +13,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const name = strings.join(empty_separator, [
-        view_prefix,
-        in.native.name
-    ])
+    const name = `${view_prefix}${in.module}`
 
     const natives = loop({
         source: in.source.natives,
@@ -25,11 +21,16 @@ export default function (in: Input): Output {
         index: 0,
         conflict: false
     }, {
-        while: current => !current.conflict && current.index < current.source.length,
+        while: current => !current.conflict && current.index < current.source.count,
         next: current => {
             current.conflict =
                 bytes.equals(
-                    bytes.fromText(current.source[current.index].name),
+                    bytes.fromText(
+                        memory.readTextColumn(
+                            current.source.names,
+                            current.index
+                        )
+                    ),
                     current.name
                 )
             current.index += 1
@@ -39,7 +40,7 @@ export default function (in: Input): Output {
     const files = loop({
         source: in.source.files,
         name: bytes.fromText(name),
-        module: bytes.fromText(in.native.name),
+        module: bytes.fromText(in.module),
         index: 0,
         count: in.source.file_count,
         conflict: natives.conflict
@@ -63,11 +64,7 @@ export default function (in: Input): Output {
         name,
         path: match {
             files.conflict => "",
-            _ => strings.join(empty_separator, [
-                view_directory,
-                name,
-                source_suffix
-            ])
+            _ => `${view_directory}${name}${source_suffix}`
         }
     }
 }

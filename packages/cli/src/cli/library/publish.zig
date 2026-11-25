@@ -47,7 +47,7 @@ pub fn prepareStageAbi(handle: *const anyopaque) Error!void {
     const self = storage.State.get(handle);
     const request = self.request;
 
-    self.abi = @import("../abi.zig").createLibrary(request.allocator, request.bundle.*, request.loaded.*) catch |err| return self.failure.save(err);
+    self.abi = @import("../abi.zig").create(request.allocator, request.bundle, request.loaded) catch |err| return self.failure.save(err);
 }
 
 pub fn prepareStageLayout(handle: *const anyopaque) Error!void {

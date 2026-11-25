@@ -1,6 +1,6 @@
+import type { Bindings, Scopes } from "compiler_rules/source_abi/model"
 import type { Alias } from "genz/abi/model"
-import type { TextColumn } from "memory"
-import type { Bindings, Scopes } from "../source_abi/model"
+import type { OptionalListColumn, TextColumn } from "memory"
 
 export enum Status {
     Valid,
@@ -8,15 +8,11 @@ export enum Status {
     NameConflict
 }
 
-export type AliasRows = {
+export type Natives = {
     count: u64,
     names: TextColumn,
-    identities: TextColumn
-}
-
-export type Native = {
-    name: string,
-    aliases?: AliasRows
+    alias_names: OptionalListColumn,
+    alias_identities: OptionalListColumn
 }
 
 export type Settings = {
@@ -29,7 +25,7 @@ export type Input = {
     modules: Bindings,
     root: string,
     scopes: Scopes,
-    natives: Native[],
+    natives: Natives,
     settings: Settings,
     file_count: u64,
     files: TextColumn
@@ -37,8 +33,9 @@ export type Input = {
 
 export type ViewInput = {
     source: Input,
-    native: Native,
-    aliases: AliasRows
+    module: string,
+    row: u64,
+    count: u64
 }
 
 export type Resolved = {
@@ -56,7 +53,7 @@ export type View = {
 
 export type ViewResult = {
     status: Status,
-    view: View,
+    view?: View,
     roots: Alias[]
 }
 

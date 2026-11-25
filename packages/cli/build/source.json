@@ -52,6 +52,10 @@
             "prefix": "scopes/"
         },
         {
+            "path": "abi",
+            "prefix": "abi/"
+        },
+        {
             "path": "compiler_rules",
             "prefix": "compiler_rules/"
         },
@@ -310,6 +314,10 @@
             "name": "native_scope_load"
         },
         {
+            "path": "abi/run.rx",
+            "name": "render_bundle_abi"
+        },
+        {
             "path": "compiler_rules/compiled/identity/aliases/release.zx",
             "name": "native_scope_release_aliases"
         },
@@ -460,6 +468,18 @@
     ],
     "packages": [
         {
+            "specifier": "genz/abi/model",
+            "entry": "abi/alias.zx"
+        },
+        {
+            "specifier": "compiler_rules/source_abi/contains",
+            "entry": "compiler_rules/source_abi/contains.zx"
+        },
+        {
+            "specifier": "compiler_rules/source_abi/model",
+            "entry": "compiler_rules/source_abi/model.zx"
+        },
+        {
             "specifier": "core/row_buffer",
             "entry": "core/row_buffer/index.zx"
         },
@@ -582,6 +602,11 @@
         {
             "path": "scopes/host.d.zx",
             "module": "native_scope_host",
+            "resolve_members": true
+        },
+        {
+            "path": "abi/host.d.zx",
+            "module": "bundle_abi_host",
             "resolve_members": true
         },
         {

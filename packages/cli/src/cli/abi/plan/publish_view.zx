@@ -1,5 +1,4 @@
 import append from "./append"
-import { Status } from "./model"
 
 import type { ViewWrite as Input, Traversal as Output } from "./model"
 
@@ -7,8 +6,9 @@ export default function (in: Input): Output {
     const { state, selected } = in
 
     const index = state.index + 1
+    const view = selected.view
 
-    if (selected.status != Status.Valid) {
+    if (view == null) {
         return {
             ...state,
             status: selected.status,
@@ -17,7 +17,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const views = state.views.push(selected.view)[0]
+    const views = state.views.push(view)[0]
 
     const defaults = loop({
         state: state.defaults,
@@ -39,6 +39,6 @@ export default function (in: Input): Output {
         views,
         defaults,
         index,
-        running: index < state.source.natives.length
+        running: index < state.source.natives.count
     }
 }

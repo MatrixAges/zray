@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import type { Traversal as Input, ViewInput } from "./model"
+
+export type Output = ViewInput?
+
+export default function (in: Input): Output {
+    const { natives } = in.source
+
+    const count = memory.optionalListLength(natives.alias_names, in.index)
+
+    if (count == null) {
+        return null
+    }
+
+    return {
+        source: in.source,
+        module: memory.readTextColumn(natives.names, in.index),
+        row: in.index,
+        count
+    }
+}

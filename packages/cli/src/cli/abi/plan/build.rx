@@ -3,18 +3,6 @@
 
     <Args in={Plan.Input} out={Plan.Output} />
 
-    <Call fn="../source_abi/scoped" in={$in.modules.identities} />
-
-    <If on={!$ctx.scoped}>
-        <Return
-            value={{
-                status: Plan.Status.Valid,
-                aliases: [],
-                views: []
-            }}
-        />
-    </If>
-
     <Call fn="defaults" in={$in} />
 
     <Call

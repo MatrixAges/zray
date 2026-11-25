@@ -11,7 +11,7 @@
                 views: [],
                 status: Bundle.Status.Valid,
                 index: 0,
-                running: $in.source.natives.length != 0
+                running: $in.source.natives.count != 0
             }}
         />
     </Loop>

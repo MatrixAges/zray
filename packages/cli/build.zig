@@ -91,6 +91,7 @@ pub fn build(b: *std.Build) void {
         "source_loader_host",
         "package_workspace_host",
         "native_scope_host",
+        "bundle_abi_host",
         "rx_collection_host",
         "rx_preparation_host",
         "rx_checking_host",

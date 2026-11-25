@@ -1,0 +1,21 @@
+export type AbiFrame = opaque
+
+export type AbiAlias = {
+    name: string,
+    identity: string
+}
+
+export enum AbiConflict {
+    Alias,
+    Name
+}
+
+export declare function borrowAbiInputs(frame: AbiFrame): void
+export declare function rejectAbiPlan(conflict: AbiConflict): void
+    throws { ConflictingNativeAbiAlias, NativeModuleNameConflict }
+export declare function reserveAbiFiles(frame: AbiFrame, count: u64): void
+    throws { OutOfMemory }
+export declare function renderAbiFile(frame: AbiFrame, aliases: AbiAlias[]): string
+    throws { OutOfMemory }
+export declare function renderAbiRoot(frame: AbiFrame, aliases: AbiAlias[]): string
+    throws { OutOfMemory }

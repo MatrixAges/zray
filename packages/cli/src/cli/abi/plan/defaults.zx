@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
+import contains from "compiler_rules/source_abi/contains"
 import memory from "memory"
 
-import contains from "../source_abi/contains"
 import append from "./append"
 
 import type { Alias } from "genz/abi/model"
