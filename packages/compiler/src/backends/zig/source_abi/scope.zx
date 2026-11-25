@@ -1,7 +1,11 @@
 import bytes from "std:bytes"
 import memory from "memory"
 
-import type { PlanInput as Input } from "./model"
+import type { ScopeRoots } from "./model"
+
+export type Input = ScopeRoots & {
+    root: string
+}
 
 export type Output = u64?
 

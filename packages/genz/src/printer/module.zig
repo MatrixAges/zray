@@ -5,8 +5,18 @@ const generated = @import("generated_printer_module_range");
 const Input = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 
-/// Source AST payloads stay borrowed until the unified printer has finished.
 pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, comptime Module: type, module: anytype) std.mem.Allocator.Error![]u8 {
+    var output: zx.memory.ByteWriter = .{ .allocator = allocator };
+
+    defer output.deinit();
+
+    try write(&output, workspace, Module, module);
+
+    return output.finish();
+}
+
+/// Source AST payloads stay borrowed until the unified printer has finished.
+pub fn write(output: *zx.memory.ByteWriter, workspace: std.mem.Allocator, comptime Module: type, module: anytype) std.mem.Allocator.Error!void {
     const expression_views = if (@hasField(Module, "context")) legacy: {
         const Context = std.meta.Child(@FieldType(Module, "context"));
         const expressions = zx.columns.view(std.meta.Child(@FieldType(Context, "expressions")), module.context.expressions);
@@ -46,13 +56,9 @@ pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, compti
         .count = 0,
     };
 
-    var output: zx.memory.ByteWriter = .{ .allocator = allocator };
-
-    defer output.deinit();
-
     const input: Input = .{
         .source = &source,
-        .writer = @ptrCast(&output),
+        .writer = @ptrCast(output),
         .count = if (@hasField(Module, "count")) module.count else null,
     };
 
@@ -62,8 +68,6 @@ pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, compti
     };
 
     if (!valid) return error.OutOfMemory;
-
-    return output.finish();
 }
 
 fn project(comptime Target: type, sources: anytype) Target {

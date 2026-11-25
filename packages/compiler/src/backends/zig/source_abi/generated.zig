@@ -7,7 +7,10 @@ const view = @import("genz").zx.modules.abi_view;
 const generated = @import("generated_source_abi");
 const Input = std.meta.Child(generated.Input);
 const Bindings = std.meta.Child(@FieldType(Input, "modules"));
-const Sources = std.meta.Child(@FieldType(Input, "sources"));
+const Sources = std.meta.Child(@FieldType(Input, "fallback"));
+const Scopes = std.meta.Child(@FieldType(Input, "scopes"));
+const Lists = std.meta.Child(@FieldType(Sources, "interfaces"));
+const fields = .{ .specifiers = "specifier", .identities = "identity" };
 
 pub fn render(allocator: std.mem.Allocator, modules: ir.NativeModuleTable, options: project.Options) ![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -17,51 +20,37 @@ pub fn render(allocator: std.mem.Allocator, modules: ir.NativeModuleTable, optio
     defer arena.deinit();
 
     const temporary = buffered.allocator();
-    const roots = memory.borrowTextColumn("root", options.package_scopes);
-    const planner = @import("generated_source_abi_plan");
-    const plan: std.meta.Child(planner.Input) = .{ .identities = modules.identities, .count = options.package_scopes.len, .roots = @ptrCast(&roots), .root = options.root_dir };
+    const scopes = options.package_scopes;
+    const roots = memory.borrowTextColumn("root", scopes);
+    const interfaces = memory.borrowListFields(&.{"native_interfaces"}, fields, scopes);
+    const externals = memory.borrowListFields(&.{"externals"}, fields, scopes);
 
-    const selected = planner.executeIn(temporary, &plan) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    if (!selected.scoped) return allocator.dupe(u8, "");
-
-    const configured = if (selected.scope) |index| options.package_scopes[index] else project.PackageScope{
+    const defaults: []const project.PackageScope = &.{.{
         .root = options.root_dir,
         .packages = &.{},
         .native_interfaces = options.native_interfaces,
         .externals = options.externals,
+    }};
+
+    const default_interfaces = memory.borrowListFields(&.{"native_interfaces"}, fields, defaults);
+    const default_externals = memory.borrowListFields(&.{"externals"}, fields, defaults);
+
+    const input: Input = .{
+        .modules = &Bindings{ .specifiers = modules.specifiers, .identities = modules.identities },
+        .scopes = &Scopes{
+            .count = scopes.len,
+            .roots = @ptrCast(&roots),
+            .interfaces = &interfaces.bind(Lists),
+            .externals = &externals.bind(Lists),
+        },
+        .fallback = &Sources{ .interfaces = &default_interfaces.bind(Lists), .externals = &default_externals.bind(Lists) },
+        .root = options.root_dir,
     };
 
-    const module_bindings: Bindings = .{ .specifiers = modules.specifiers, .identities = modules.identities };
-    const interfaces = Columns.init(configured.native_interfaces);
-    const externals = Columns.init(configured.externals);
-    const interface_view = interfaces.view();
-    const external_view = externals.view();
-    const configured_sources: Sources = .{ .interfaces = &interface_view, .externals = &external_view };
-    const input: Input = .{ .modules = &module_bindings, .sources = &configured_sources };
-
-    const output = generated.executeIn(temporary, &input) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+    const output = generated.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return view.renderBorrowed(allocator, &.{}, output, false);
+    return if (output) |aliases| view.renderBorrowed(allocator, &.{}, aliases, false) else allocator.dupe(u8, "");
 }
-
-const Columns = struct {
-    specifiers: memory.TextColumn,
-    identities: memory.ReadColumn,
-    fn init(values: anytype) Columns {
-        return .{
-            .specifiers = memory.borrowTextColumn("specifier", values),
-            .identities = memory.borrowReadColumn(?[]const u8, "identity", values),
-        };
-    }
-
-    fn view(self: *const Columns) std.meta.Child(@FieldType(Sources, "interfaces")) {
-        return .{ .count = self.specifiers.count, .specifiers = @ptrCast(&self.specifiers), .identities = @ptrCast(&self.identities) };
-    }
-};

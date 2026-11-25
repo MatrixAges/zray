@@ -49,6 +49,7 @@
         fn="index.renderAbiRoot"
         in={[
             $in.frame,
+            $in.source,
             $ctx.build.aliases
         ]}
     />

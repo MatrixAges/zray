@@ -9,13 +9,16 @@ const Natives = std.meta.Child(@FieldType(Input, "natives"));
 const Loaded = @import("../project.zig").Loaded;
 const Settings = std.meta.Child(@FieldType(Input, "settings"));
 const BindingLists = std.meta.Child(@FieldType(Scopes, "interfaces"));
+const fields = .{ .specifiers = "specifier", .identities = "identity" };
 
 pub const Borrowed = struct {
     modules: Bindings,
     scopes: Scopes,
     scope_roots: memory.TextColumn,
-    interfaces: Lists,
-    externals: Lists,
+    interfaces: memory.ListFields(fields),
+    externals: memory.ListFields(fields),
+    interface_lists: BindingLists,
+    external_lists: BindingLists,
     settings: Settings,
     setting_names: memory.TextColumn,
     setting_roots: memory.TextColumn,
@@ -28,10 +31,11 @@ pub const Borrowed = struct {
         const scopes = loaded.project.package_scopes;
         self.modules = .{ .specifiers = modules.specifiers, .identities = modules.identities };
         self.scope_roots = memory.borrowTextColumn("root", scopes);
-
-        self.interfaces.init("native_interfaces", scopes);
-        self.externals.init("externals", scopes);
-        self.scopes = .{ .count = scopes.len, .roots = @ptrCast(&self.scope_roots), .interfaces = &self.interfaces.view, .externals = &self.externals.view };
+        self.interfaces = memory.borrowListFields(&.{"native_interfaces"}, fields, scopes);
+        self.externals = memory.borrowListFields(&.{"externals"}, fields, scopes);
+        self.interface_lists = self.interfaces.bind(BindingLists);
+        self.external_lists = self.externals.bind(BindingLists);
+        self.scopes = .{ .count = scopes.len, .roots = @ptrCast(&self.scope_roots), .interfaces = &self.interface_lists, .externals = &self.external_lists };
         self.setting_names = memory.borrowTextColumn("name", loaded.native_settings);
         self.setting_roots = memory.borrowTextColumn("root", loaded.native_settings);
         self.settings = .{ .count = loaded.native_settings.len, .names = @ptrCast(&self.setting_names), .roots = @ptrCast(&self.setting_roots) };
@@ -51,16 +55,5 @@ pub const Borrowed = struct {
         };
 
         return .{ .modules = &self.modules, .root = loaded.project.root_dir, .scopes = &self.scopes, .natives = &self.natives, .settings = &self.settings, .file_count = self.files.count, .files = @ptrCast(&self.files) };
-    }
-};
-
-const Lists = struct {
-    specifiers: memory.ListColumn,
-    identities: memory.ListColumn,
-    view: BindingLists,
-    fn init(self: *Lists, comptime field: []const u8, scopes: []const compiler.project.PackageScope) void {
-        self.specifiers = memory.borrowListColumn([]const u8, field, "specifier", scopes);
-        self.identities = memory.borrowListColumn(?[]const u8, field, "identity", scopes);
-        self.view = .{ .specifiers = @ptrCast(&self.specifiers), .identities = @ptrCast(&self.identities) };
     }
 };

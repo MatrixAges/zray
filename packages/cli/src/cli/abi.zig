@@ -17,7 +17,6 @@ pub const Result = struct { source: []const u8, views: []const File = &.{} };
 const State = struct {
     owner: std.mem.Allocator,
     temporary: std.mem.Allocator,
-    types: []const u8,
     type_names: []const []const u8,
     native_modules: compiler.ir.NativeModuleTable,
     modules: []const compiler.zig.ModuleFile,
@@ -39,7 +38,6 @@ pub fn create(allocator: std.mem.Allocator, bundle: anytype, loaded: *const Load
     var state: State = .{
         .owner = allocator,
         .temporary = buffered.allocator(),
-        .types = bundle.types,
         .type_names = bundle.type_names,
         .native_modules = bundle.native_modules,
         .modules = bundle.modules,
@@ -90,9 +88,8 @@ pub fn renderAbiFile(handle: *const anyopaque, aliases: []const host.AbiAlias) s
     return view.renderBorrowed(state.owner, state.type_names, aliases, true);
 }
 
-pub fn renderAbiRoot(handle: *const anyopaque, aliases: []const host.AbiAlias) std.mem.Allocator.Error![]const u8 {
+pub fn renderAbiRoot(handle: *const anyopaque, canonical: []const u8, aliases: []const host.AbiAlias) std.mem.Allocator.Error![]const u8 {
     const state = effects.state(State, handle);
-    const root = try view.renderBorrowed(state.temporary, &.{}, aliases, false);
 
-    return std.mem.concat(state.owner, u8, &.{ state.types, "\n", root });
+    return view.renderRootBorrowed(state.owner, canonical, aliases);
 }

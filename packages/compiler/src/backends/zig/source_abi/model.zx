@@ -1,15 +1,9 @@
 import type { Alias } from "genz/abi/model"
-import type { ListColumn, ReadColumn, TextColumn } from "memory"
+import type { ListColumn, TextColumn } from "memory"
 
 export type Bindings = {
     specifiers: string[],
     identities: string?[]
-}
-
-export type BindingRows = {
-    count: u64,
-    specifiers: TextColumn,
-    identities: ReadColumn
 }
 
 export type BindingLists = {
@@ -17,33 +11,23 @@ export type BindingLists = {
     identities: ListColumn
 }
 
-export type Scopes = {
-    count: u64,
-    roots: TextColumn,
+export type Sources = {
     interfaces: BindingLists,
     externals: BindingLists
 }
 
-export type Sources = {
-    interfaces: BindingRows,
-    externals: BindingRows
-}
-
-export type PlanInput = {
+export type ScopeRoots = {
     count: u64,
-    identities: string?[],
-    roots: TextColumn,
-    root: string
+    roots: TextColumn
 }
 
-export type Plan = {
-    scoped: bool,
-    scope?: u64
-}
+export type Scopes = ScopeRoots & Sources
 
 export type Input = {
     modules: Bindings,
-    sources: Sources
+    scopes: Scopes,
+    fallback: Sources,
+    root: string
 }
 
 export type Candidates = {
@@ -51,4 +35,4 @@ export type Candidates = {
     identities: string[]
 }
 
-export type Output = Alias[]
+export type Output = Alias[]?

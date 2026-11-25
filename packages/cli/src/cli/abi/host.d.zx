@@ -17,5 +17,9 @@ export declare function reserveAbiFiles(frame: AbiFrame, count: u64): void
     throws { OutOfMemory }
 export declare function renderAbiFile(frame: AbiFrame, aliases: AbiAlias[]): string
     throws { OutOfMemory }
-export declare function renderAbiRoot(frame: AbiFrame, aliases: AbiAlias[]): string
+export declare function renderAbiRoot(
+    frame: AbiFrame,
+    canonical: string,
+    aliases: AbiAlias[]
+): string
     throws { OutOfMemory }

@@ -361,7 +361,6 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/fingerprint/members.zx", .name = "generation_key_members", .owner = .compiler },
     .{ .path = "backends/zig/native_catalog/size.zx", .name = "native_catalog_size", .owner = .compiler },
     .{ .path = "backends/zig/native_catalog/write.zx", .name = "native_catalog_write", .owner = .compiler },
-    .{ .path = "backends/zig/source_abi/plan.rx", .name = "source_abi_plan", .owner = .compiler },
     .{ .path = "backends/zig/source_abi/select.rx", .name = "source_abi", .owner = .compiler },
     .{ .path = "backends/zig/gateway/bindings/build.rx", .name = "gateway_bindings", .owner = .compiler },
     .{ .path = "backends/zig/gateway/routes/services.zx", .name = "gateway_route_services", .owner = .compiler },

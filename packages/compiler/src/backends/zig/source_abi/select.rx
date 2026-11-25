@@ -3,7 +3,32 @@
 
     <Args in={Aliases.Input} out={Aliases.Output} />
 
-    <Call fn="candidates" in={$in} />
+    <Call fn="scoped" in={$in.modules.identities} />
+
+    <If on={!$ctx.scoped}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="scope"
+        in={{
+            root: $in.root,
+            count: $in.scopes.count,
+            roots: $in.scopes.roots
+        }}
+    />
+
+    <Call
+        fn="candidates"
+        in={{
+            modules: $in.modules,
+            interfaces: $ctx.scope == null ? $in.fallback.interfaces :
+                $in.scopes.interfaces,
+            externals: $ctx.scope == null ? $in.fallback.externals :
+                $in.scopes.externals,
+            scope: $ctx.scope ?? 0
+        }}
+    />
 
     <Call fn="unique" />
 

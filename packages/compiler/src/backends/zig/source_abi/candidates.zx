@@ -4,9 +4,9 @@ import contains from "./contains"
 
 import type { Bindings, Sources, Candidates } from "./model"
 
-export type Input = {
+export type Input = Sources & {
     modules: Bindings,
-    sources: Sources
+    scope: u64
 }
 
 export type Output = Candidates
@@ -34,12 +34,14 @@ export default function (in: Input): Output {
         }
     })
 
-    const first = in.sources.interfaces.count
-    const last = in.sources.externals.count
+    const first = memory.listLength(in.interfaces.specifiers, in.scope)
+    const last = memory.listLength(in.externals.specifiers, in.scope)
 
     const result = loop({
         modules: in.modules,
-        sources: in.sources,
+        interfaces: in.interfaces,
+        externals: in.externals,
+        scope: in.scope,
         names: defaults.names,
         identities: defaults.identities,
         index: 0,
@@ -51,13 +53,14 @@ export default function (in: Input): Output {
             const { first } = current
             const external = current.index >= first
             const source = match {
-                external => current.sources.externals,
-                _ => current.sources.interfaces
+                external => current.externals,
+                _ => current.interfaces
             }
             const index = external ? current.index - first : current.index
-            const name = memory.readTextColumn(source.specifiers, index)
+            const name = memory.readListText(source.specifiers, current.scope, index)
             const identity =
-                memory.readOptionalTextColumn(source.identities, index) ?? name
+                memory.readListOptionalText(source.identities, current.scope, index) ??
+                name
 
             if (contains({
                 modules: current.modules,
