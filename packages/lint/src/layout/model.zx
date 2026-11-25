@@ -46,3 +46,21 @@ export type Break = {
     level: u64,
     count: u64
 }
+
+export type Edit = {
+    start: u64,
+    end: u64,
+    newline: bool,
+    count: u64
+}
+
+export type EntryInput = {
+    source: u8[],
+    layout: Input,
+    check_attribute: bool
+}
+
+export type EntryOutput = {
+    required: bool,
+    edits: Edit[]
+}

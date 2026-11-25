@@ -1,5 +1,4 @@
-import type { AtomicRows } from "std:bytes"
-import type { Allocator, Arena, ArenaScope, ListColumn } from "memory"
+import type { Allocator, Arena, ArenaScope, AtomicRows, ListColumn } from "memory"
 import type { Probe } from "../../../memo/encoding/body/model"
 import type { Step } from "../../../replay/model"
 import type { Input as Take } from "../../../work/ahead/take"

@@ -1,0 +1,43 @@
+import lineCheck from "../indentation/line/check"
+import lineScan from "../indentation/line/scan"
+
+import type { Edit } from "./model"
+
+export type Input = {
+    source: u8[],
+    offset: u64,
+    level: u64
+}
+
+export type Output = Edit?
+
+export default function (in: Input): Output {
+    const scanned = lineScan({
+        source: in.source,
+        offset: in.offset,
+        level: in.level
+    })
+
+    if (!scanned.at_line_start) {
+        return null
+    }
+
+    const checked = lineCheck({
+        scanned,
+        offset: in.offset,
+        level: in.level
+    })
+
+    if (!checked.needs_edit) {
+        return null
+    }
+
+    return {
+        kind: 0,
+        start: checked.start,
+        end: checked.end,
+        count: checked.count,
+        crlf: false,
+        separate: false
+    }
+}

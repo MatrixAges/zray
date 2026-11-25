@@ -1,0 +1,90 @@
+import type { Input as LayoutInput, Token } from "../layout/model"
+
+export type Attribute = {
+    name: string,
+    offset: u64,
+    value_offset: u64,
+    raw_len: u64
+}
+
+export type Node = {
+    name: string,
+    offset: u64,
+    column: u64,
+    whitespace_only: bool,
+    attr_start: u64,
+    attr_count: u64,
+    child_start: u64,
+    child_count: u64
+}
+
+export type Edit = {
+    kind: u8,
+    start: u64,
+    end: u64,
+    count: u64,
+    crlf: bool,
+    separate: bool
+}
+
+export type EntryInput = {
+    mode: u8,
+    source: u8[],
+    source_text: string,
+    width: u64,
+    nodes: Node[],
+    attributes: Attribute[]
+}
+
+export type EntryOutput = Edit[]
+
+export type TagFrame = {
+    node: u64,
+    level: u64
+}
+
+export type TagState = {
+    input: EntryInput,
+    stack: TagFrame[],
+    edits: Edit[],
+    crlf: bool
+}
+
+export type PreparedTag = {
+    tokens: Token[],
+    layout: LayoutInput,
+    level: u64,
+    source: u8[],
+    crlf: bool
+}
+
+export type TagStep = {
+    state: TagState,
+    frame: TagFrame,
+    run: bool
+}
+
+export type NodePair = {
+    left: u64,
+    right: u64
+}
+
+export type CommentSpan = {
+    start: u64,
+    end: u64
+}
+
+export type StructureFrame = {
+    node: u64,
+    level: u64,
+    structural: bool,
+    started: bool,
+    open_end: u64,
+    child_index: u64,
+    previous_end: u64,
+    previous_span_start: u64,
+    previous_span_end: u64,
+    previous_child: u64,
+    has_previous: bool,
+    awaiting_child: bool
+}

@@ -1,4 +1,4 @@
-import type { AtomicRows } from "std:bytes"
+import type { AtomicRows } from "memory"
 import type { Context, Knowledge, Read } from "../levels/model"
 import type { Seen } from "./seen/model"
 

@@ -1,0 +1,103 @@
+import opening from "./bounds/opening"
+import tagEnd from "./bounds/tag_end"
+import indent from "./indent"
+
+import type { Attribute, Edit, Node } from "./model"
+
+export type Input = {
+    source: u8[],
+    node: Node,
+    attributes: Attribute[],
+    edits: Edit[],
+    level: u64,
+    structural: bool
+}
+
+export type Output = {
+    edits: Edit[],
+    end: u64,
+    self_closing: bool
+}
+
+export default function (in: Input): Output {
+    const start_edits = loop({
+        edits: in.edits,
+        added: false
+    }, {
+        while: state => !state.added,
+        next: state => {
+            if (in.structural) {
+                const edit = indent({
+                    source: in.source,
+                    offset: in.node.offset,
+                    level: in.level
+                })
+
+                if (edit != null) {
+                    state.edits = state.edits.push(edit)[0]
+                }
+            }
+
+            state.added = true
+        },
+        return: state => state.edits
+    })
+
+    const attr_edits = loop({
+        edits: start_edits,
+        index: 0
+    }, {
+        while: state => state.index < in.node.attr_count,
+        next: state => {
+            const attr = in.attributes[in.node.attr_start + state.index]
+
+            const edit = indent({
+                source: in.source,
+                offset: attr.offset,
+                level: in.level + 1
+            })
+
+            if (edit != null) {
+                state.edits = state.edits.push(edit)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+
+    const after_attributes = match {
+        in.node.attr_count == 0 => in.node.offset,
+        _ =>
+            in.attributes[in.node.attr_start + in.node.attr_count - 1].value_offset +
+            in.attributes[in.node.attr_start + in.node.attr_count - 1].raw_len +
+            1
+    }
+
+    const open_tag_end = tagEnd({
+        source: in.source,
+        start: after_attributes
+    })
+
+    const open = opening({
+        source: in.source,
+        end: open_tag_end
+    })
+
+    const open_edit = indent({
+        source: in.source,
+        offset: open.start,
+        level: in.level
+    })
+
+    const final_edits = match {
+        open_edit == null => attr_edits,
+        _ => attr_edits.push(open_edit)[0]
+    }
+
+    return {
+        edits: final_edits,
+        end: open.end,
+        self_closing: open.self_closing
+    }
+}

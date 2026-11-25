@@ -1,5 +1,4 @@
-import type { AtomicRows } from "std:bytes"
-import type { WriteColumn } from "memory"
+import type { AtomicRows, WriteColumn } from "memory"
 import type { Phase } from "../../program/model"
 import type { Lifecycle } from "../../summaries/model"
 import type { Input as Prefetch, Output as Offered } from "../ahead/request/model"

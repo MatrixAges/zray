@@ -1,0 +1,145 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import opening from "./bounds/opening"
+import tagEnd from "./bounds/tag_end"
+
+import type { Token } from "../layout/model"
+import type { EntryInput, PreparedTag, TagFrame } from "./model"
+
+export type Input = {
+    input: EntryInput,
+    frame: TagFrame,
+    crlf: bool
+}
+
+export type Output = PreparedTag
+
+export default function (in: Input): Output {
+    const node = in.input.nodes[in.frame.node]
+    const start = node.offset
+    const head_end = start + node.name.length + 1
+    const attr_tokens: Token[] = []
+
+    const scanned = loop({
+        tokens: attr_tokens,
+        index: 0,
+        previous_end: head_end,
+        force: false
+    }, {
+        while: state => state.index < node.attr_count,
+        next: state => {
+            const attr = in.input.attributes[node.attr_start + state.index]
+            const end = attr.value_offset + attr.raw_len + 1
+            const text = memory.borrowTextRange(in.input.source_text, attr.offset, end - attr.offset)
+            const nl_attr = bytes.indexOfScalar(in.input.source, attr.offset, 10)
+            const has_nl_attr = nl_attr != null && nl_attr < end
+            const nl_gap = bytes.indexOfScalar(in.input.source, state.previous_end, 10)
+            const has_nl_gap = nl_gap != null && nl_gap < attr.offset
+
+            state.force = state.force || has_nl_attr || has_nl_gap
+            state.tokens = state.tokens.push({
+                text,
+                start: attr.offset,
+                end,
+                gap: 1,
+                object: false,
+                multiline: false,
+                opening: false,
+                closing: false,
+                separator: state.index + 1 < node.attr_count,
+                block: false,
+                comment: false,
+                boundary: false,
+                newline: false
+            })[0]
+            state.previous_end = end
+            state.index += 1
+        }
+    })
+
+    const last_end = scanned.previous_end
+
+    const open_tag_end = tagEnd({
+        source: in.input.source,
+        start: last_end
+    })
+
+    const open = opening({
+        source: in.input.source,
+        end: open_tag_end
+    })
+
+    const head_text = memory.borrowTextRange(in.input.source_text, start, head_end - start)
+
+    const initial: Token[] = [
+        {
+            text: head_text,
+            start,
+            end: head_end,
+            gap: 0,
+            object: scanned.force,
+            multiline: false,
+            opening: true,
+            closing: false,
+            separator: false,
+            block: false,
+            comment: false,
+            boundary: false,
+            newline: false
+        }
+    ]
+
+    const with_attrs = loop({
+        tokens: initial,
+        index: 0
+    }, {
+        while: state => state.index < scanned.tokens.length,
+        next: state => {
+            state.tokens = state.tokens.push(scanned.tokens[state.index])[0]
+            state.index += 1
+        },
+        return: state => state.tokens
+    })
+
+    const close_text = memory.borrowTextRange(
+        in.input.source_text,
+        open.start,
+        open.end - open.start
+    )
+
+    const tokens = with_attrs.push({
+        text: close_text,
+        start: open.start,
+        end: open.end,
+        gap: open.start > last_end ? 1 : 0,
+        object: false,
+        multiline: false,
+        opening: false,
+        closing: true,
+        separator: false,
+        block: false,
+        comment: false,
+        boundary: false,
+        newline: false
+    })[0]
+
+    const col0 = node.column > 0 ? node.column - 1 : 0
+    const indent_cols = in.frame.level * 4
+    const prefix = col0 > indent_cols ? col0 - indent_cols : 0
+
+    return {
+        tokens,
+        layout: {
+            tokens,
+            width: in.input.width,
+            level: in.frame.level,
+            indent_only: false,
+            prefix,
+            suffix: 0
+        },
+        level: in.frame.level,
+        source: in.input.source,
+        crlf: in.crlf
+    }
+}

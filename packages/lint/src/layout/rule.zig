@@ -17,7 +17,7 @@ pub const Token = struct {
     text: []const u8,
 };
 
-pub const Break = struct { index: usize, level: usize, count: usize };
+pub const Edit = struct { start: usize, end: usize, newline: bool, count: usize };
 
 pub const Options = struct {
     width: usize = 0,
@@ -27,9 +27,23 @@ pub const Options = struct {
     suffix: usize = 0,
 };
 
-pub fn plan(allocator: std.mem.Allocator, tokens: []const Token, options: Options) std.mem.Allocator.Error![]const Break {
+pub fn attributeRequired(source: []const u8, level: usize, prefix: usize) bool {
+    var storage: [0]u8 = undefined;
+    var fixed = std.heap.FixedBufferAllocator.init(&storage);
+
+    const output = generated.executeIn(fixed.allocator(), &.{
+        .source = source,
+        .layout = &.{ .tokens = &.{}, .width = 0, .level = level, .indent_only = false, .prefix = prefix, .suffix = 0 },
+        .check_attribute = true,
+    }) catch unreachable;
+
+    return output.required;
+}
+
+pub fn edits(allocator: std.mem.Allocator, source: []const u8, tokens: []const Token, options: Options) std.mem.Allocator.Error![]const Edit {
     const Input = std.meta.Child(generated.Input);
-    const Item = std.meta.Child(std.meta.Child(@FieldType(Input, "tokens")));
+    const Layout = std.meta.Child(@FieldType(Input, "layout"));
+    const Item = std.meta.Child(std.meta.Child(@FieldType(Layout, "tokens")));
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -45,14 +59,18 @@ pub fn plan(allocator: std.mem.Allocator, tokens: []const Token, options: Option
         slot.* = value;
     }
 
-    const output = generated.executeIn(temporary, &.{ .tokens = values, .width = options.width, .level = options.level, .indent_only = options.indent_only, .prefix = options.prefix, .suffix = options.suffix }) catch |err| switch (err) {
+    const output = generated.executeIn(temporary, &.{
+        .source = source,
+        .layout = &.{ .tokens = values, .width = options.width, .level = options.level, .indent_only = options.indent_only, .prefix = options.prefix, .suffix = options.suffix },
+        .check_attribute = false,
+    }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const result = try allocator.alloc(Break, output.len);
+    const result = try allocator.alloc(Edit, output.edits.len);
 
-    for (result, output) |*item, value| item.* = .{ .index = @intCast(value.index), .level = @intCast(value.level), .count = @intCast(value.count) };
+    for (result, output.edits) |*item, value| item.* = .{ .start = @intCast(value.start), .end = @intCast(value.end), .newline = value.newline, .count = @intCast(value.count) };
 
     return result;
 }

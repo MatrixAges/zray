@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Rx" />
+
+    <Args in={Rx.EntryInput} out={Rx.EntryOutput} />
+
+    <If on={$in.nodes.length == 0}>
+        <Return value={[]} />
+
+        <Else>
+            <Call fn="crlf" in={$in.source} />
+
+            <Loop on={$in.stack.length > 0}>
+                <Call
+                    module="tag"
+                    in={{
+                        input: $in,
+                        stack: [
+                            {
+                                node: 0,
+                                level: 0
+                            }
+                        ],
+                        edits: [],
+                        crlf: $ctx.crlf
+                    }}
+                />
+            </Loop>
+
+            <Return value={$ctx.tag.edits} />
+        </Else>
+    </If>
+</Module>

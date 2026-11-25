@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
 import get from "core/bytes/index/fixed"
+import memory from "memory"
 
 import { call_marker, quote, marked } from "./const"
 
@@ -44,7 +45,7 @@ export default function (in: Input): Output {
                     })
 
                     if (id != null) {
-                        bytes.storeAtomicCell(
+                        memory.storeAtomicCell(
                             in.wanted,
                             0,
                             id,

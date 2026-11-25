@@ -1,4 +1,3 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
@@ -21,7 +20,7 @@ export default function (in: Input): Output {
             const kind = integers.widenByte(memory.readListU8(in.kinds, 0, index))
             const body = integers.widen(memory.readListU32(in.functions, 0, index))
             const slot = integers.widen(memory.readListU32(in.slots, 0, index))
-            const current = bytes.loadAtomicCell(in.tables[kind], body, slot)
+            const current = memory.loadAtomicCell(in.tables[kind], body, slot)
 
             state.same =
                 decode(current) == decode(memory.readListU8(in.values, 0, index))

@@ -1,5 +1,5 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import memory from "memory"
 
 import encode from "../levels/encode"
 import query from "../levels/query"
@@ -35,7 +35,7 @@ export default function (in: Input): Output {
             const payload = integers.widen(expressions.payloads[node])
             const callee = expressions.call_functions[payload]
             const count =
-                bytes.atomicRowLength(readonly_source.inputs, integers.widen(callee))
+                memory.atomicRowLength(readonly_source.inputs, integers.widen(callee))
             const levels: u8[] = []
 
             const row_initial = {

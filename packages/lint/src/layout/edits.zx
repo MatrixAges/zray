@@ -1,0 +1,81 @@
+import lineCheck from "../indentation/line/check"
+import lineScan from "../indentation/line/scan"
+
+import type { Break, Edit, Token } from "./model"
+
+export type Input = {
+    source: u8[],
+    tokens: Token[],
+    breaks: Break[]
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const edits: Edit[] = []
+
+    return loop({
+        edits,
+        index: 0
+    }, {
+        while: state => state.index < in.breaks.length,
+        next: state => {
+            const planned = in.breaks[state.index]
+            const token = in.tokens[planned.index]
+            const offset = token.start
+
+            if (planned.index == 0 || token.newline) {
+                const scanned = lineScan({
+                    source: in.source,
+                    offset,
+                    level: planned.level
+                })
+
+                if (scanned.at_line_start) {
+                    const checked = lineCheck({
+                        scanned,
+                        offset,
+                        level: planned.level
+                    })
+
+                    if (checked.needs_edit) {
+                        state.edits = state.edits.push({
+                            start: checked.start,
+                            end: checked.end,
+                            newline: false,
+                            count: planned.count
+                        })[0]
+                    }
+                }
+            } else {
+                const start = in.tokens[planned.index - 1].end
+
+                const inline_gap = loop({
+                    offset: start,
+                    valid: true
+                }, {
+                    while: gap => gap.valid && gap.offset < offset,
+                    next: gap => {
+                        const byte = in.source[gap.offset]
+
+                        gap.valid = byte == 32 || byte == 9 || byte == 13
+                        gap.offset += 1
+                    },
+                    return: gap => gap.valid
+                })
+
+                if (inline_gap) {
+                    state.edits = state.edits.push({
+                        start,
+                        end: offset,
+                        newline: true,
+                        count: planned.count
+                    })[0]
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+}

@@ -1,0 +1,45 @@
+import indent from "./indent"
+
+import type { Edit } from "./model"
+
+export type Input = {
+    source: u8[],
+    left: u64,
+    right: u64,
+    edits: Edit[],
+    append: Edit[],
+    close_offset: u64?,
+    level: u64
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const merged = loop({
+        edits: in.edits,
+        index: 0
+    }, {
+        while: state => state.index < in.append.length,
+        next: state => {
+            state.edits = state.edits.push(in.append[state.index])[0]
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+
+    if (in.close_offset == null) {
+        return merged
+    }
+
+    const close_edit = indent({
+        source: in.source,
+        offset: in.close_offset,
+        level: in.level
+    })
+
+    if (close_edit == null) {
+        return merged
+    }
+
+    return merged.push(close_edit)[0]
+}

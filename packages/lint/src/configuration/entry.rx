@@ -1,0 +1,44 @@
+<Module>
+    <Type from="yaml/model" as="Config" />
+
+    <Args in={Config.EntryInput} out={Config.EntryOutput} />
+
+    <If on={$in.check_length}>
+        <Call fn="../length/count" in={$in.source} />
+
+        <If on={$in.maximum == null || $ctx.count > $in.maximum}>
+            <Return
+                value={{
+                    lines: $ctx.count,
+                    edits: []
+                }}
+            />
+
+            <Else>
+                <Return
+                    value={{
+                        lines: null,
+                        edits: []
+                    }}
+                />
+            </Else>
+        </If>
+
+        <Else>
+            <Call
+                fn="yaml/edits"
+                in={{
+                    source: $in.source,
+                    fields: $in.fields
+                }}
+            />
+
+            <Return
+                value={{
+                    lines: null,
+                    edits: $ctx.edits
+                }}
+            />
+        </Else>
+    </If>
+</Module>

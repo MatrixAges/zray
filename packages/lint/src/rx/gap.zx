@@ -1,0 +1,131 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import boundaryCheck from "../spacing/boundary/check"
+import boundaryScan from "../spacing/boundary/scan"
+import commentEnd from "./bounds/comment_end"
+import indent from "./indent"
+
+import type { CommentSpan, Edit } from "./model"
+
+export type Input = {
+    source: u8[],
+    left: u64,
+    right: u64,
+    separate: bool,
+    level: u64
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const edits: Edit[] = []
+    const comments: CommentSpan[] = []
+
+    const scanned = loop({
+        offset: in.left,
+        edits,
+        comments,
+        aborted: false
+    }, {
+        while: state => !state.aborted && state.offset < in.right,
+        next: state => {
+            const has_comment =
+                state.offset + 4 <= in.right &&
+                bytes.startsWithText(in.source, state.offset, "<!--")
+
+            if (has_comment) {
+                const end = commentEnd({
+                    source: in.source,
+                    start: state.offset
+                })
+
+                const indent_edit = indent({
+                    source: in.source,
+                    offset: state.offset,
+                    level: in.level
+                })
+
+                if (indent_edit != null) {
+                    state.edits = state.edits.push(indent_edit)[0]
+                }
+
+                state.comments = state.comments.push({
+                    start: state.offset,
+                    end
+                })[0]
+                state.offset = end
+            } else {
+                const byte = in.source[state.offset]
+                const blank = byte == 32 || byte == 9
+                const newline = byte == 10 || byte == 13
+                const space = blank || newline
+
+                if (space) {
+                    state.offset += 1
+                } else {
+                    state.aborted = true
+                }
+            }
+        }
+    })
+
+    if (scanned.aborted) {
+        return scanned.edits
+    }
+
+    const bounds = loop({
+        index: 0,
+        start: in.left,
+        end: in.right,
+        done: false
+    }, {
+        while: state => !state.done && state.index < scanned.comments.length,
+        next: state => {
+            const comment = scanned.comments[state.index]
+
+            if (comment.start >= in.left && comment.end <= in.right) {
+                const nl = bytes.indexOfScalar(in.source, state.start, 10)
+
+                if (nl == null || nl >= comment.start) {
+                    state.start = comment.end
+                } else {
+                    state.end = comment.start
+                    state.done = true
+                }
+            }
+
+            state.index += 1
+        }
+    })
+
+    const gap = memory.borrowU8Range(in.source, bounds.start, bounds.end - bounds.start)
+
+    const gap_scan = boundaryScan({
+        gap,
+        start: 0,
+        separate: in.separate
+    })
+
+    if (!gap_scan.has_newline) {
+        return scanned.edits
+    }
+
+    const checked = boundaryCheck({
+        gap,
+        scanned: gap_scan
+    })
+
+    if (!checked.needs_edit) {
+        return scanned.edits
+    }
+
+    return scanned.edits.push({
+        kind: 1,
+        start: bounds.start + checked.start,
+        end: bounds.start + checked.end,
+        count: 0,
+        crlf: checked.crlf,
+        separate: checked.separate
+    })[0]
+}

@@ -1,13 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
-pub const attribute_required = @import("attribute_required").check;
+pub const attribute_required = @import("lint_layout").attributeRequired;
 pub const layout = @import("layout/root.zig");
 pub const spacing = @import("spacing.zig");
 pub const indentation = @import("indentation/root.zig");
 pub const header = zx.syntax.header;
 pub const source = @import("source.zig");
-pub const length = @import("length");
+pub const length = @import("length/root.zig");
 pub const rx = @import("rx/root.zig");
 pub const configuration = @import("configuration/root.zig");
 pub const NameKind = @import("naming").NameKind;

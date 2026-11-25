@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Rx" />
+
+    <Args in={Rx.EntryInput} out={Rx.EntryOutput} />
+
+    <If on={$in.mode == 0}>
+        <Call fn="structure" in={$in} />
+
+        <Return value={$ctx.structure} />
+
+        <Else>
+            <Call module="layout" in={$in} />
+
+            <Return value={$ctx.layout} />
+        </Else>
+    </If>
+</Module>

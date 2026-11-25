@@ -1,0 +1,50 @@
+import type { TagFrame, TagState, TagStep } from "./model"
+
+export type Input = TagState
+
+export type Output = TagStep
+
+export default function (in: Input): Output {
+    const popped = in.stack.pop()
+    const frame = popped[1]
+
+    if (frame == null) {
+        return {
+            state: {
+                ...in,
+                stack: popped[0]
+            },
+            frame: {
+                node: 0,
+                level: 0
+            },
+            run: false
+        }
+    }
+
+    const node = in.input.nodes[frame.node]
+
+    const next_stack = loop({
+        stack: popped[0],
+        remaining: node.child_count
+    }, {
+        while: state => state.remaining > 0,
+        next: state => {
+            state.remaining -= 1
+            state.stack = state.stack.push({
+                node: node.child_start + state.remaining,
+                level: frame.level + 1
+            })[0]
+        },
+        return: state => state.stack
+    })
+
+    return {
+        state: {
+            ...in,
+            stack: next_stack
+        },
+        frame,
+        run: node.attr_count != 0
+    }
+}

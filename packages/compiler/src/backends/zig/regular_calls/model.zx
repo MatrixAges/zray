@@ -1,6 +1,5 @@
-import type { AtomicRows } from "std:bytes"
 import type { Table } from "core/bytes/index/fixed"
-import type { StringBuffer, TextColumn, U64Buffer, WriteColumn } from "memory"
+import type { AtomicRows, StringBuffer, TextColumn, U64Buffer, WriteColumn } from "memory"
 import type { View } from "../function_units/model"
 
 export type Candidates = {

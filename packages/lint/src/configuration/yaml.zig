@@ -1,6 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const spacing = @import("../spacing.zig");
+const rule = @import("lint_config");
 
 pub const Field = struct { span: zx.Span, preserve_trailing: bool };
 
@@ -11,18 +12,20 @@ pub fn format(allocator: std.mem.Allocator, source: []const u8, fields: []const 
 pub fn formatEdits(allocator: std.mem.Allocator, source: []const u8, fields: []const Field) std.mem.Allocator.Error!?[]u8 {
     if (fields.len < 2) return null;
 
-    var edits: std.ArrayList(spacing.Edit) = .empty;
+    const planned = try rule.yamlEdits(allocator, source, fields);
 
-    defer edits.deinit(allocator);
+    defer allocator.free(planned);
 
-    for (fields[0 .. fields.len - 1], fields[1..]) |left, right| {
-        if (@import("yaml_gap").resolve(source, left.span, right.span, left.preserve_trailing)) |edit| {
-            try edits.append(allocator, .{
-                .span = .{ .start = edit.span.start, .end = edit.span.end },
-                .replacement = edit.replacement,
-            });
-        }
-    }
+    if (planned.len == 0) return null;
 
-    return if (edits.items.len == 0) null else try spacing.format(allocator, source, edits.items);
+    const edits = try allocator.alloc(spacing.Edit, planned.len);
+
+    defer allocator.free(edits);
+
+    for (planned, edits) |item, *edit| edit.* = .{
+        .span = .{ .start = item.start, .end = item.end },
+        .replacement = item.replacement,
+    };
+
+    return try spacing.format(allocator, source, edits);
 }

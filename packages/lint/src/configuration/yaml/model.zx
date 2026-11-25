@@ -1,0 +1,24 @@
+export type Field = {
+    start: u64,
+    end: u64,
+    preserve_trailing: bool
+}
+
+export type BoundaryEdit = {
+    start: u64,
+    end: u64,
+    crlf: bool,
+    separate: bool
+}
+
+export type EntryInput = {
+    check_length: bool,
+    source: u8[],
+    maximum?: u64,
+    fields: Field[]
+}
+
+export type EntryOutput = {
+    lines?: u64,
+    edits: BoundaryEdit[]
+}

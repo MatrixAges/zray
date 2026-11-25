@@ -54,3 +54,12 @@ flowchart TD
 3. **禁止“活体双轨”继续生长**：停止新增 `*_seed.zig` 与 `if (generated)` 分支；阶段收口切换固定 `stage0` 引导器，旧实现直接物理删除。
 4. **禁止 UB 换通过**：严禁使用 `*const anyopaque` + `@constCast` 写入宿主内存，严禁以 `noinline` 掩盖 `ReleaseSmall` 优化错误。
 5. **1,500–3,000 行大步垂直收口与分层验证**：开发期仅跑受影响包/最小复现；禁止每微批跑全量 17,560 文件对照与三轮交错计时，仅在大阶段收口时集中验收并更新本目录各分包计划与总览。
+
+---
+
+## 四、阶段进展记录（随批更新）
+
+- **Wave 1 前半程（2026-11-25）**：
+    - 完成 `std` Phase S2：`AtomicRows` 及相关行读写原语已从 `std:bytes` 剥离并迁入内部 `core/memory`，全部 16 个 `compiler`/`genz` `.zx` 消费者已切换至 `"memory"`。
+    - 完成 `lint` Phase L1/L2 首轮收口：删除 `packages/lint/bootstrap/` 6 份死快照（−3,341 行 Zig），将 6 个分散格式化/长度/边界规则合并为 `lint_layout`、`lint_rx`、`lint_config` 三个入口（`entries.zig` `.lint` 条目 **11 → 8**），通过 `compiler` 全量测试及无 `stage0` 的 `bootstrap-stage` 构建。
+    - 待续：继续推进 Wave 1 后半程（消除 `verification` / `hardware` / `verilog` / `gateway` / `genz/host` 非自举 `*_seed.zig` 与双轨分支，完成三阶段与 ReleaseSmall 性能验收）及 Wave 2 主题迁移。

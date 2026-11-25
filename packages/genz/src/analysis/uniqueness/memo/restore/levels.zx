@@ -1,9 +1,9 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import memory from "memory"
 
 import row from "./row"
 
-import type { AtomicRows } from "std:bytes"
+import type { AtomicRows } from "memory"
 import type { Cursor as Output } from "./model"
 
 export type Input = {
@@ -36,8 +36,8 @@ export default function (in: Input): Output {
                 _ => integers.widen(in.callees[state.index - 1])
             }
             const length = match {
-                own && selected == bytes.atomicRowsCount(target) => 0,
-                _ => bytes.atomicRowLength(target, selected)
+                own && selected == memory.atomicRowsCount(target) => 0,
+                _ => memory.atomicRowLength(target, selected)
             }
 
             const offset = row({

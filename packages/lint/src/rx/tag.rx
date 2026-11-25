@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Rx" />
+
+    <Args in={Rx.TagState} out={Rx.TagState} />
+
+    <Call fn="tag_step" in={$in} />
+
+    <If on={!$ctx.tag_step.run}>
+        <Return value={$ctx.tag_step.state} />
+
+        <Else>
+            <Call
+                fn="tag_input"
+                in={{
+                    input: $in.input,
+                    frame: $ctx.tag_step.frame,
+                    crlf: $in.crlf
+                }}
+            />
+
+            <Call module="../layout/layout" in={$ctx.tag_input.layout} />
+
+            <Call
+                fn="tag_edits"
+                in={{
+                    state: $ctx.tag_step.state,
+                    prepared: $ctx.tag_input,
+                    breaks: $ctx.layout
+                }}
+            />
+
+            <Return value={$ctx.tag_edits} />
+        </Else>
+    </If>
+</Module>

@@ -5,12 +5,6 @@ pub fn join(allocator: std.mem.Allocator, separator: []const u8, values: []const
     return std.mem.join(allocator, separator, values);
 }
 
-pub const AtomicRows = @import("bytes/atomic_rows.zig");
-pub const atomicRowsCount = AtomicRows.count;
-pub const atomicRowLength = AtomicRows.rowLength;
-pub const loadAtomicCell = AtomicRows.load;
-pub const storeAtomicCell = AtomicRows.store;
-pub const fillAtomicRow = AtomicRows.fill;
 const writer = @import("bytes/writer.zig");
 pub const write = writer.write;
 pub const writeMasked = writer.writeMasked;

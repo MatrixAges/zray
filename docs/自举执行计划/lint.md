@@ -41,18 +41,16 @@
 
 ## 四、分阶段大步执行计划（1~2 批整包清零）
 
-### Phase L1（Phase 2 试点 · 单批大步迁移）：剩余规则统一迁入 RX/ZX 并合并为粗粒度入口
+### 已完成进展（Wave 1 · 2026-11-25）
 
-- **前置依赖**：固定 `stage0` 引导器就绪（不再需要 `lint` 运行 `-Dseed=true` 从 `bootstrap/` 重生）。
-- **执行内容**：
-    1. 将 `src/` 剩余规则（`spacing.zig`、`layout/projection.zig`、`rx/layout.zig`、`rx/root.zig`、`imports/`、`configuration/`、`source.zig`）与 `src/root.zig` 总控调度一次迁入 `packages/lint/src/` 的统一 RX 入口（例如 `lint/check.rx` + `lint/format.rx`）；
-    2. 在 `compiler/build/entries.zig` 中将 11 个分散的 `.lint` 条目**合并为 1~2 个统一入口**（净减 **9~10** 个入口），**禁止新增任何 `.d.zx` 宿主函数**；
-    3. 同步消除 15 处 `@constCast` 与 12 处 `@ptrCast`/`anyopaque`。
-- **门禁**：`packages/lint/src/*.zig` 净减 **≥ 85%**，Zig 换手率 **≤ 0.15**。
+1. **清理 `bootstrap/` 死快照（−3,341 行 Zig）**：删除 `bootstrap/layout.zig`（3,004L）及 `attribute_required.zig`、`indentation_line.zig`、`rx_bounds.zig`、`yaml_gap.zig`、`length.zig` 共 6 份 `generate-parser` 未调用的快照；保留 `stage0 == ""` 检查实际所需的 5 份小规则（`condition_policy`、`import_order`、`loop_postfix`、`naming`、`spacing_boundary`，合计 115L）。
+2. **收口为 3 个统一 RX/ZX 入口**：将原分散的 6 个规则入口收口为 `lint_layout`（`src/layout/entry.rx` + `edits.zx`）、`lint_rx`（`src/rx/entry.rx` + 迭代结构遍历与 `<Loop>` 标签排版，收薄 `rx/root.zig` 与 `rx/layout.zig`）和 `lint_config`（`src/configuration/entry.rx` + `yaml/edits.zx`），并删除对应旧 Zig/RX 包装文件；`packages/compiler/build/entries.zig` 中的 `.owner = .lint` 条目由 **11 个净降至 8 个**，`packages/lint/build.zig` 规则总数降至 **8 个**。
+3. **验证通过**：`-Doptimize=ReleaseSmall -Dgenerated-partitions=4` 下 `stage0` 全量 `packages/compiler` 测试与无 `stage0` 的 `bootstrap-stage` 构建均通过。
 
-### Phase L2（收口清理）：退役 `packages/lint/bootstrap/` 与 `build.zig` 双轨逻辑
+### 后续收口计划（Wave 1+）
 
-- 使用固定 `stage0` 切掉 `seed_path` 逻辑，删除 `packages/lint/bootstrap/` 下 11 份静态快照（直接净减 **3,456** 行 Zig，其中 `bootstrap/layout.zig` 3,004 行）。
+- **Phase L1 剩余**：将 `src/root.zig`、`spacing.zig`、`layout/projection.zig`、`imports/` 与 AST 检查调度继续合并为单一检查/格式化入口；消除剩余 `@constCast` / `@ptrCast`；
+- **Phase L2**：随全局切掉 `-Dseed` 后清理 `bootstrap/` 剩余 5 份 115L 小规则与 `build.zig` 双轨分支。
 
 ---
 

@@ -3,8 +3,7 @@ import memory from "memory"
 
 import cell from "./cell"
 
-import type { AtomicRows } from "std:bytes"
-import type { ReadColumn } from "memory"
+import type { AtomicRows, ReadColumn } from "memory"
 
 export type Marks = {
     output: ReadColumn,

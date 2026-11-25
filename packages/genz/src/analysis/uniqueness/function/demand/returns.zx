@@ -1,5 +1,5 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import memory from "memory"
 
 import { Knowledge, Table } from "../levels/model"
 import read from "./read"
@@ -24,7 +24,7 @@ export default function (in: Input): Output {
 
     const outputs = exchange.outputs
 
-    const count = bytes.atomicRowLength(
+    const count = memory.atomicRowLength(
         outputs,
         integers.widen(in.function_index)
     )

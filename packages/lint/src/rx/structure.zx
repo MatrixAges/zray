@@ -1,0 +1,196 @@
+import appendEdits from "./append_edits"
+import closingStart from "./bounds/closing_start"
+import tagEnd from "./bounds/tag_end"
+import gap from "./gap"
+import multiline from "./multiline"
+import openTag from "./open_tag"
+import sameShape from "./same_shape"
+
+import type { Edit, EntryInput, StructureFrame } from "./model"
+
+export type Input = EntryInput
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const edits: Edit[] = []
+
+    if (in.nodes.length == 0) {
+        return edits
+    }
+
+    const stack: StructureFrame[] = [
+        {
+            node: 0,
+            level: 0,
+            structural: true,
+            started: false,
+            open_end: 0,
+            child_index: 0,
+            previous_end: 0,
+            previous_span_start: 0,
+            previous_span_end: 0,
+            previous_child: 0,
+            has_previous: false,
+            awaiting_child: false
+        }
+    ]
+
+    return loop({
+        stack,
+        edits,
+        last_start: 0,
+        last_end: 0
+    }, {
+        while: state => state.stack.length > 0,
+        next: state => {
+            const popped = state.stack.pop()
+            const top = popped[1]
+
+            state.stack = popped[0]
+
+            if (top != null) {
+                const node = in.nodes[top.node]
+
+                if (!top.started) {
+                    const opened = openTag({
+                        source: in.source,
+                        node,
+                        attributes: in.attributes,
+                        edits: state.edits,
+                        level: top.level,
+                        structural: top.structural
+                    })
+
+                    state.edits = opened.edits
+
+                    if (opened.self_closing) {
+                        state.last_start = node.offset
+                        state.last_end = opened.end
+                    } else {
+                        state.stack = state.stack.push({
+                            ...top,
+                            started: true,
+                            open_end: opened.end,
+                            previous_end: opened.end
+                        })[0]
+                    }
+                } else if (top.awaiting_child) {
+                    const child = node.child_start + top.child_index
+
+                    if (node.whitespace_only) {
+                        const prev_multi =
+                            top.has_previous &&
+                            multiline({
+                                source: in.source,
+                                start: top.previous_span_start,
+                                end: top.previous_span_end
+                            })
+
+                        const cur_multi =
+                            top.has_previous &&
+                            multiline({
+                                source: in.source,
+                                start: state.last_start,
+                                end: state.last_end
+                            })
+
+                        const shape_diff =
+                            top.has_previous &&
+                            !sameShape({
+                                nodes: in.nodes,
+                                attributes: in.attributes,
+                                left: top.previous_child,
+                                right: child
+                            })
+
+                        const separate = prev_multi || cur_multi || shape_diff
+
+                        const gap_edits = gap({
+                            source: in.source,
+                            left: top.previous_end,
+                            right: state.last_start,
+                            separate,
+                            level: top.level + 1
+                        })
+
+                        state.edits = appendEdits({
+                            source: in.source,
+                            left: top.previous_end,
+                            right: state.last_start,
+                            edits: state.edits,
+                            append: gap_edits,
+                            close_offset: null,
+                            level: top.level
+                        })
+                    }
+
+                    state.stack = state.stack.push({
+                        ...top,
+                        previous_end: state.last_end,
+                        previous_span_start: state.last_start,
+                        previous_span_end: state.last_end,
+                        previous_child: child,
+                        has_previous: true,
+                        child_index: top.child_index + 1,
+                        awaiting_child: false
+                    })[0]
+                } else if (top.child_index < node.child_count) {
+                    state.stack = state.stack.push({
+                        ...top,
+                        awaiting_child: true
+                    })[0]
+
+                    state.stack = state.stack.push({
+                        node: node.child_start + top.child_index,
+                        level: top.level + 1,
+                        structural: node.whitespace_only,
+                        started: false,
+                        open_end: 0,
+                        child_index: 0,
+                        previous_end: 0,
+                        previous_span_start: 0,
+                        previous_span_end: 0,
+                        previous_child: 0,
+                        has_previous: false,
+                        awaiting_child: false
+                    })[0]
+                } else {
+                    const close_start = closingStart({
+                        source: in.source,
+                        start: top.previous_end
+                    })
+
+                    const close_end = tagEnd({
+                        source: in.source,
+                        start: close_start
+                    })
+
+                    if (node.whitespace_only) {
+                        const gap_edits = gap({
+                            source: in.source,
+                            left: top.previous_end,
+                            right: close_start,
+                            separate: false,
+                            level: top.level + 1
+                        })
+
+                        state.edits = appendEdits({
+                            source: in.source,
+                            left: top.previous_end,
+                            right: close_start,
+                            edits: state.edits,
+                            append: gap_edits,
+                            close_offset: close_start,
+                            level: top.level
+                        })
+                    }
+
+                    state.last_start = node.offset
+                    state.last_end = close_end
+                }
+            }
+        },
+        return: state => state.edits
+    })
+}

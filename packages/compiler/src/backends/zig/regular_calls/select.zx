@@ -1,4 +1,3 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
 import { marked } from "./const"
@@ -18,7 +17,7 @@ export default function (in: Input): Output {
         next: current => {
             const position = memory.readU64(pending, current.read)
             const group = memory.readU64(groups, position)
-            const wanted = bytes.loadAtomicCell(in.wanted, 0, group)
+            const wanted = memory.loadAtomicCell(in.wanted, 0, group)
 
             if (wanted == marked) {
                 memory.writeColumnBool(in.regular, position, true)

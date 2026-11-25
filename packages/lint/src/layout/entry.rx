@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="Layout" />
+
+    <Args in={Layout.EntryInput} out={Layout.EntryOutput} />
+
+    <If on={$in.check_attribute}>
+        <Call
+            fn="attribute_required"
+            in={{
+                source: $in.source,
+                level: $in.layout.level,
+                prefix: $in.layout.prefix
+            }}
+        />
+
+        <Return
+            value={{
+                required: $ctx.attribute_required,
+                edits: []
+            }}
+        />
+
+        <Else>
+            <Call module="layout" in={$in.layout} />
+
+            <Call
+                fn="edits"
+                in={{
+                    source: $in.source,
+                    tokens: $in.layout.tokens,
+                    breaks: $ctx.layout
+                }}
+            />
+
+            <Return
+                value={{
+                    required: false,
+                    edits: $ctx.edits
+                }}
+            />
+        </Else>
+    </If>
+</Module>

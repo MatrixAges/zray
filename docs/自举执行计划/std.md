@@ -42,10 +42,10 @@
 
 - 检查 `packages/std/src/` 全部 3 处 `@constCast` 与 36 处 `@ptrCast`/`anyopaque`，对涉及可变写入的接口改为显式可变指针/切片。
 
-### Phase S2（P1 · 随 `genz/uniqueness` 收口）：剥离 `std:bytes` 的编译器私有契约
+### Phase S2（P1 · 随 `genz/uniqueness` 收口 · **已完成**）：剥离 `std:bytes` 的编译器私有契约
 
-- 核查仓库全量引用 `AtomicRows` / `fillAtomicRow` 的生产调用点（主要在 `genz/analysis/uniqueness/function/entry/analyze.rx` 与 `core`）；
-- 若无独立应用消费者，将 `AtomicRows` 能力从 `packages/std/interfaces/bytes.d.zx` 移至 `core/interfaces` 或引导器私有绑定，恢复 `std:bytes` 纯净面向用户的 API 边界。
+- 已核查全部引用并将 `AtomicRows` 及 `atomicRowsCount`、`atomicRowLength`、`loadAtomicCell`、`storeAtomicCell`、`fillAtomicRow` 从 `packages/std/interfaces/bytes.d.zx`、`packages/std/src/bytes.zig`、`packages/std/src/bytes/atomic_rows.zig` 迁至编译器内部 `core/memory`（`packages/core/src/memory/atomic_rows.zig`、`packages/core/interfaces/memory/atomic_rows.d.zx`、`packages/core/interfaces/memory/types.d.zx`、`packages/core/src/memory/root.zig`、`packages/compiler/build/memory_interfaces.zig`）；
+- 已更新 `packages/compiler/src/backends/zig/regular_calls/` 与 `packages/genz/src/analysis/uniqueness/` 中全部 16 个内部 `.zx` 消费者从 `"memory"` 导入，恢复 `std:bytes` 面向普通应用开发者的纯净边界。
 
 ---
 

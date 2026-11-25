@@ -1,4 +1,4 @@
-import bytes from "std:bytes"
+import memory from "memory"
 
 import join from "../../level/join"
 import decode from "../levels/decode"
@@ -7,7 +7,7 @@ import knowledge from "../levels/knowledge"
 import meet from "../levels/meet"
 import value from "../levels/value"
 
-import type { AtomicRows } from "std:bytes"
+import type { AtomicRows } from "memory"
 
 export type Input = {
     rows: AtomicRows,
@@ -22,7 +22,7 @@ export type Output = bool
 export default function (in: Input): Output {
     const { rows, row, slot, level, joining } = in
 
-    const before = decode(bytes.loadAtomicCell(rows, row, slot))
+    const before = decode(memory.loadAtomicCell(rows, row, slot))
     const incoming = decode(level)
 
     const next = match {
@@ -40,7 +40,7 @@ export default function (in: Input): Output {
         return false
     }
 
-    bytes.storeAtomicCell(rows, row, slot, encode(next))
+    memory.storeAtomicCell(rows, row, slot, encode(next))
 
     return true
 }

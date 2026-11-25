@@ -1,0 +1,83 @@
+import memory from "memory"
+
+import checkBoundary from "../../spacing/boundary/check"
+import multiline from "./gap/multiline"
+import scan from "./gap/scan"
+
+import type { BoundaryEdit, Field } from "./model"
+
+export type Input = {
+    source: u8[],
+    fields: Field[]
+}
+
+export type Output = BoundaryEdit[]
+
+export default function (in: Input): Output {
+    const edits: BoundaryEdit[] = []
+
+    if (in.fields.length < 2) {
+        return edits
+    }
+
+    return loop({
+        edits,
+        index: 0
+    }, {
+        while: state => state.index + 1 < in.fields.length,
+        next: state => {
+            const left = in.fields[state.index]
+            const right = in.fields[state.index + 1]
+
+            if (!left.preserve_trailing) {
+                const gap = memory.borrowU8Range(in.source, left.end, right.start - left.end)
+                const scanned = scan(gap)
+
+                if (scanned.valid && scanned.has_newline) {
+                    const left_slice = memory.borrowU8Range(
+                        in.source,
+                        left.start,
+                        left.end - left.start
+                    )
+
+                    const right_slice = memory.borrowU8Range(
+                        in.source,
+                        right.start,
+                        right.end - right.start
+                    )
+
+                    const separate = multiline({
+                        gap,
+                        left: left_slice,
+                        right: right_slice,
+                        preserve_trailing: false
+                    })
+
+                    const checked = checkBoundary({
+                        gap,
+                        scanned: {
+                            has_newline: true,
+                            start: 0,
+                            newline_start: scanned.newline_start,
+                            last_end: scanned.last_end,
+                            crlf: scanned.crlf,
+                            separate
+                        }
+                    })
+
+                    if (checked.needs_edit) {
+                        state.edits = state.edits.push({
+                            start: left.end + checked.start,
+                            end: left.end + checked.end,
+                            crlf: checked.crlf,
+                            separate: checked.separate
+                        })[0]
+                    }
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+}

@@ -1,0 +1,84 @@
+import type { Attribute, Node, NodePair } from "./model"
+
+export type Input = {
+    nodes: Node[],
+    attributes: Attribute[],
+    left: u64,
+    right: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const stack: NodePair[] = [
+        {
+            left: in.left,
+            right: in.right
+        }
+    ]
+
+    return loop({
+        stack,
+        equal: true
+    }, {
+        while: state => state.equal && state.stack.length > 0,
+        next: state => {
+            const popped = state.stack.pop()
+            const pair = popped[1]
+
+            state.stack = popped[0]
+
+            if (pair != null) {
+                const left = in.nodes[pair.left]
+                const right = in.nodes[pair.right]
+
+                const same_name = left.name == right.name
+                const same_attrs = left.attr_count == right.attr_count
+                const same_children = left.child_count == right.child_count
+                const header_same = same_name && same_attrs && same_children
+
+                if (!header_same) {
+                    state.equal = false
+                } else {
+                    const attrs_same = loop({
+                        index: 0,
+                        valid: true
+                    }, {
+                        while: attr => attr.valid && attr.index < left.attr_count,
+                        next: attr => {
+                            const a = in.attributes[left.attr_start + attr.index].name
+                            const b = in.attributes[right.attr_start + attr.index].name
+
+                            if (a != b) {
+                                attr.valid = false
+                            } else {
+                                attr.index += 1
+                            }
+                        },
+                        return: attr => attr.valid
+                    })
+
+                    if (!attrs_same) {
+                        state.equal = false
+                    } else {
+                        state.stack = loop({
+                            items: state.stack,
+                            index: 0
+                        }, {
+                            while: child => child.index < left.child_count,
+                            next: child => {
+                                child.items = child.items.push({
+                                    left: left.child_start + child.index,
+                                    right: right.child_start + child.index
+                                })[0]
+                                child.index += 1
+                            },
+                            return: child => child.items
+                        })
+                    }
+                }
+            }
+        },
+        return: state => state.equal
+    })
+}

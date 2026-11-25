@@ -1,7 +1,6 @@
 const std = @import("std");
-const rule = @import("layout_rule");
+const rule = @import("lint_layout");
 const spacing = @import("../spacing.zig");
-const line_rule = @import("indentation_line");
 pub const Token = rule.Token;
 pub const Projection = @import("projection.zig").Projection;
 pub const use_default_width = 0;
@@ -30,35 +29,19 @@ fn apply(allocator: std.mem.Allocator, source: []const u8, tokens: []const Token
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    const planned = try rule.plan(temporary, tokens, options);
-    var edits: std.ArrayList(spacing.Edit) = .empty;
+    const planned = try rule.edits(temporary, source, tokens, options);
+    const edits = try temporary.alloc(spacing.Edit, planned.len);
 
-    for (planned) |item| {
-        const offset: usize = @intCast(tokens[item.index].start);
+    for (planned, edits) |item, *edit| {
+        const prefix_len = if (item.newline) newline.len else 0;
+        const replacement = try temporary.alloc(u8, prefix_len + item.count);
 
-        if (item.index == 0 or tokens[item.index].newline) {
-            const change = line_rule.plan(source, offset, item.level) orelse continue;
-            const replacement = try temporary.alloc(u8, item.count);
+        if (item.newline) @memcpy(replacement[0..prefix_len], newline);
 
-            @memset(replacement, ' ');
+        @memset(replacement[prefix_len..], ' ');
 
-            try edits.append(temporary, .{ .span = .{ .start = change.start, .end = change.end }, .replacement = replacement });
-
-            continue;
-        }
-
-        const start: usize = @intCast(tokens[item.index - 1].end);
-        const gap = source[start..offset];
-
-        if (std.mem.trim(u8, gap, " \t\r\n").len != 0 or std.mem.indexOfScalar(u8, gap, '\n') != null) continue;
-
-        const replacement = try temporary.alloc(u8, newline.len + item.count);
-
-        @memcpy(replacement[0..newline.len], newline);
-        @memset(replacement[newline.len..], ' ');
-
-        try edits.append(temporary, .{ .span = .{ .start = start, .end = offset }, .replacement = replacement });
+        edit.* = .{ .span = .{ .start = item.start, .end = item.end }, .replacement = replacement };
     }
 
-    return spacing.format(allocator, source, edits.items);
+    return spacing.format(allocator, source, edits);
 }

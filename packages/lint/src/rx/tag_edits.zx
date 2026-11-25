@@ -1,0 +1,52 @@
+import bytes from "std:bytes"
+
+import type { Break } from "../layout/model"
+import type { PreparedTag, TagState } from "./model"
+
+export type Input = {
+    state: TagState,
+    prepared: PreparedTag,
+    breaks: Break[]
+}
+
+export type Output = TagState
+
+export default function (in: Input): Output {
+    const edits = loop({
+        edits: in.state.edits,
+        index: 0
+    }, {
+        while: cursor => cursor.index < in.breaks.length,
+        next: cursor => {
+            const item = in.breaks[cursor.index]
+
+            if (item.index != 0) {
+                const left = in.prepared.tokens[item.index - 1].end
+                const right = in.prepared.tokens[item.index].start
+                const nl = bytes.indexOfScalar(in.prepared.source, left, 10)
+
+                if (nl == null || nl >= right) {
+                    const extra = item.index + 1 < in.prepared.tokens.length ? 1 : 0
+                    const target = in.prepared.level + extra
+
+                    cursor.edits = cursor.edits.push({
+                        kind: 2,
+                        start: left,
+                        end: right,
+                        count: target * 4,
+                        crlf: in.prepared.crlf,
+                        separate: false
+                    })[0]
+                }
+            }
+
+            cursor.index += 1
+        },
+        return: cursor => cursor.edits
+    })
+
+    return {
+        ...in.state,
+        edits
+    }
+}

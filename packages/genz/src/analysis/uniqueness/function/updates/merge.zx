@@ -2,7 +2,7 @@ import integers from "std:integer"
 
 import cell from "./cell"
 
-import type { AtomicRows } from "std:bytes"
+import type { AtomicRows } from "memory"
 
 export type Input = {
     rows: AtomicRows,
