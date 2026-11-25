@@ -6,7 +6,7 @@ import read from "../read/evaluate"
 import { ReadAction } from "../read/model"
 import conditional from "./conditional"
 
-import type { AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Output as Plan } from "../../iteration/evaluation/model"
 import type { IterationExpressions } from "./model"
@@ -14,6 +14,7 @@ import type { IterationExpressions } from "./model"
 export type Input = Plan & {
     frame: Lowering,
     writer: AstWriter,
+    origin: AstOriginBuffer,
     expressions: IterationExpressions,
     id: u32,
     argument?: u32
@@ -22,7 +23,7 @@ export type Input = Plan & {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, expressions, id, probe } = in
+    const { frame, writer, origin, expressions, id, probe } = in
 
     const read_expressions = expressions.omit([
         "conditional_conditions",
@@ -64,6 +65,8 @@ export default function (in: Input): Output {
         case Route.Reference: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Reference,
@@ -73,6 +76,8 @@ export default function (in: Input): Output {
         case Route.Field: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Field,
@@ -82,6 +87,8 @@ export default function (in: Input): Output {
         case Route.Unwrap: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Unwrap,
@@ -91,6 +98,8 @@ export default function (in: Input): Output {
         case Route.TupleField: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.TupleField,
@@ -100,6 +109,8 @@ export default function (in: Input): Output {
         case Route.Index: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Index,
@@ -109,6 +120,8 @@ export default function (in: Input): Output {
         case Route.Length: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Length,
@@ -118,6 +131,8 @@ export default function (in: Input): Output {
         case Route.Some: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Wrap,
@@ -127,6 +142,8 @@ export default function (in: Input): Output {
         case Route.None: return read({
             frame,
             writer,
+            origin,
+            state: null,
             expressions: read_expressions,
             row: id,
             action: ReadAction.Empty,

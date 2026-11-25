@@ -68,10 +68,6 @@ pub fn wrapLoweredList(frame: *anyopaque, subject: u32, items: u32) Error!u32 {
     return @backingInt(try list.wrap(self, type_id, @fromBackingInt(items), false));
 }
 
-pub fn readIndex(frame: *anyopaque, source: u32, key: u32) Error!u32 {
-    return @backingInt(try @import("../intrinsics.zig").index(borrow(frame), @fromBackingInt(source), @fromBackingInt(key)));
-}
-
-pub fn readIndexResult(frame: *anyopaque, result_type: u32, operand: u32, value: u32, raw: bool) Error!u32 {
-    return @backingInt(try projection.resolvedIndex(borrow(frame), @fromBackingInt(result_type), @fromBackingInt(operand), @fromBackingInt(value), raw));
+pub fn readElement(frame: *anyopaque, target_type: u32, value: u32) Error!u32 {
+    return @backingInt(try @import("../state_value/elements.zig").expression(borrow(frame), @fromBackingInt(target_type), @fromBackingInt(value)));
 }

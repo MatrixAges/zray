@@ -18,6 +18,7 @@ pub inline fn borrow(frame: *anyopaque) *Lower {
 
 pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const Input = std.meta.Child(regular_entry.Input);
+    const Store = std.meta.Child(@FieldType(Input, "store"));
     const Expressions = std.meta.Child(@FieldType(Input, "expressions"));
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const row = @backingInt(id);
@@ -26,10 +27,21 @@ pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const types = ir.TypeTable.borrow(Types, self.program.types);
     var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
+    const store: Store = .{
+        .queries = zx.columns.slice(@FieldType(Store, "queries"), self.state_plan.queries),
+        .active = self.state_active,
+        .count = self.program.stores.count(),
+        .mode = switch (self.program.store_mode) {
+            .transaction => .transaction,
+            .orchestration => .orchestration,
+        },
+    };
+
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
+        .store = &store,
         .expressions = &expressions,
         .types = &types,
         .id = row,
@@ -70,10 +82,12 @@ pub fn iteration(self: *Iteration, id: ir.ExprId, plan: anytype) Lower.Error!nod
     comptime view.compatible(@TypeOf(plan.route), @FieldType(Input, "route"));
 
     const probe: std.meta.Child(@FieldType(Input, "probe")) = .{ .checked = plan.probe.checked, .value = plan.probe.value };
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
     const input: Input = .{
         .frame = @ptrCast(self.lowering),
         .writer = @ptrCast(self.lowering),
+        .origin = @ptrCast(&origin),
         .expressions = &expressions,
         .id = @backingInt(id),
         .route = @fromBackingInt(@backingInt(plan.route)),

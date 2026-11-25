@@ -227,14 +227,14 @@ fn lowerUncached(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
 
     return switch (value.value) {
         .task => @import("tasks/root.zig").start(self, id, false),
-        .await_task => |child| @import("tasks/root.zig").wait(self, child),
-        .cancel_task => |child| @import("tasks/root.zig").cancel(self, child),
+        .await_task => |child| @import("tasks/root_seed.zig").wait(self, child),
+        .cancel_task => |child| @import("tasks/root_seed.zig").cancel(self, child),
         .parallel => |branches| @import("tasks/root.zig").parallel(self, value.type_id, branches),
         .capture => |child| @import("capture.zig").lower(self, value.type_id, child),
         .optional_value => |child| access.optional(self, null, try self.expr(child)),
         .integer, .negative_integer, .float, .boolean, .string, .unit, .none, .enum_value, .error_value => @import("literals/seed.zig").lower(self, value, value_type),
         .some => |child| access.optional(self, value_type, try self.expr(child)),
-        .store_get => |slot| @import("access/store.zig").lower(self, slot, value.type_id),
+        .store_get => |slot| @import("access/store_seed.zig").lower(self, slot, value.type_id),
         .reference => |symbol| @import("access/reference.zig").lower(self, symbol, value.type_id),
         .field => |item| projection_read.field(self, value.type_id, item, false),
         .tuple_field => |item| projection_read.tuple(self, value.type_id, item, false),

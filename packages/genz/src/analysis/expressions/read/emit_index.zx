@@ -1,0 +1,76 @@
+import {
+    AstPayloadOwnership,
+    appendExpressionRows,
+    appendStatementRows,
+    readAstOrigin
+} from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import failure from "../../intrinsics/guard/failure"
+import bind from "../../intrinsics/index/bind"
+import check from "../../intrinsics/index/check"
+import finish from "../../intrinsics/index/finish"
+import indexValue from "../../intrinsics/index/value"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    values: u32,
+    position: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, values, position } = in
+
+    const current = readAstOrigin(writer, origin)
+
+    const bound = bind({
+        values,
+        position,
+        capture: current.capture,
+        expression_base: current.expression_base,
+        statement_base: current.statement_base,
+        serial: current.serial
+    })
+
+    const checked = check(bound)
+
+    const failed = failure({
+        context: checked.context,
+        name: checked.error_name
+    })
+
+    const indexed = indexValue({
+        state: checked,
+        failure: failed
+    })
+
+    const output = finish(indexed)
+
+    requireAllocation(output.valid)
+
+    appendExpressionRows(
+        writer,
+        output.expressions,
+        output.forms,
+        AstPayloadOwnership.Owned
+    )
+
+    appendStatementRows(
+        writer,
+        output.statements,
+        null,
+        AstPayloadOwnership.Owned
+    )
+
+    host.setLoweringSerial(frame, output.serial)
+
+    return output.root
+}

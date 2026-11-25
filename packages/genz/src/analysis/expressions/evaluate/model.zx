@@ -4,9 +4,18 @@ import type {
     ExpressionKind,
     UnaryOperator
 } from "core/expression_table/kinds"
+import type { StoreMode } from "core/function_table/complete"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
+import type { Query } from "../../state/queries/model"
 import type { ReadExpressions } from "../read/model"
+
+export type StoreContext = {
+    queries: Query[],
+    active: bool,
+    count: u64,
+    mode: StoreMode
+}
 
 export type ConditionalExpressions = {
     payloads: u32[],
@@ -34,7 +43,10 @@ export type Expressions = IterationExpressions & {
     unary_operands: u32[],
     binary_operators: BinaryOperator[],
     binary_left: u32[],
-    binary_right: u32[]
+    binary_right: u32[],
+    stores: u32[],
+    awaits: u32[],
+    cancellations: u32[]
 }
 
 export type BinaryExpressions = {

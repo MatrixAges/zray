@@ -26,13 +26,7 @@ export declare function lowerType(
     iteration: bool
 ): u32 throws { OutOfMemory }
 
-export declare function lowerStore(frame: Lowering, id: u32): u32 throws { OutOfMemory }
-
 export declare function lowerTask(frame: Lowering, id: u32): u32 throws { OutOfMemory }
-
-export declare function lowerWait(frame: Lowering, id: u32): u32 throws { OutOfMemory }
-
-export declare function lowerCancel(frame: Lowering, id: u32): u32 throws { OutOfMemory }
 
 export declare function lowerParallel(frame: Lowering, id: u32): u32 throws { OutOfMemory }
 

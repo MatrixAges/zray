@@ -3,24 +3,26 @@ import host from "lowering_host"
 import emitFieldPath from "./emit_field_path"
 import segment from "./segment"
 
-import type { AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Input as PlanInput, Path } from "../../access/projection/model"
 
 export type ProjectionInput = PlanInput & {
     frame: Lowering,
-    writer: AstWriter
+    writer: AstWriter,
+    origin: AstOriginBuffer
 }
 
 export type Input = Path & {
     frame: Lowering,
-    writer: AstWriter
+    writer: AstWriter,
+    origin: AstOriginBuffer
 }
 
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const { frame, writer, anchor, fields, keys, starts, ends } = in
+    const { frame, writer, origin, anchor, fields, keys, starts, ends } = in
 
     if (anchor == null) {
         return null
@@ -36,6 +38,7 @@ export default function (in: Input): Output {
         _ => segment({
             frame,
             writer,
+            origin,
             value: base,
             fields,
             start: in.first_start,
@@ -55,6 +58,7 @@ export default function (in: Input): Output {
             state.node = segment({
                 frame,
                 writer,
+                origin,
                 value: state.node,
                 fields,
                 start: starts[position],

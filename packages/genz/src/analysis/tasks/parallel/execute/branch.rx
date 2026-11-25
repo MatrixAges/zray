@@ -1,15 +1,39 @@
 <Module>
     <Type from="model" as="Parallel" />
+    <Type from="../../future/label" as="Label" />
 
     <Args in={Parallel.Branch} out={Parallel.Branch} />
 
     <Call
-        module="../../future/execute/open_inline"
-        in={$in.pick([
-            "frame",
-            "writer",
-            "origin"
-        ])}
+        fn="../../rows.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        fn="../../future/label"
+        in={{
+            kind: Label.Kind.Future,
+            serial: $ctx.readAstOrigin.serial
+        }}
+    />
+
+    <Call
+        fn="../../rows.retainLoweringText"
+        in={[
+            $in.frame,
+            $ctx.label.name
+        ]}
+    />
+
+    <Call
+        fn="../../rows.setLoweringSerial"
+        in={[
+            $in.frame,
+            $ctx.label.serial
+        ]}
     />
 
     <Call
@@ -18,7 +42,7 @@
             $in.group,
             $in.index,
             $in.tasks[$in.index],
-            $ctx.open_inline
+            $ctx.retainLoweringText
         ]}
     />
 

@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
+const rows = @import("../../construction/publication.zig");
 const rules = @import("rules.zig");
 
 pub fn nested(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
@@ -26,6 +27,7 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
     const Input = std.meta.Child(evaluation.Input);
     const table = &self.program.expressions;
     const cache = self.cache.view(std.meta.Child(@FieldType(Input, "cache")));
+    var origin: rows.OriginBuffer = .{};
 
     const input: Input = .{
         .kinds = zx.columns.slice(@FieldType(Input, "kinds"), table.kinds),
@@ -44,6 +46,7 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         .id = @backingInt(id),
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -52,10 +55,7 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
 
     defer scratch.deinit();
 
-    const result = evaluation.executeIn(memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const result = evaluation.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
     return if (result) |value| @fromBackingInt(value) else null;
 }

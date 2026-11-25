@@ -5,14 +5,16 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const lists = @import("../state_value/list.zig");
+const rows = @import("../construction/publication.zig");
 const entry = @import("generated_consumer_read");
 const Input = std.meta.Child(entry.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 
 pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     var arena = std.heap.ArenaAllocator.init(self.workspace);
-    var storage: [256]u8 = undefined;
+    var storage: [1024]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&storage, arena.allocator());
+    var origin: rows.OriginBuffer = .{};
 
     defer arena.deinit();
 
@@ -30,8 +32,15 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.Exp
         .symbol = @backingInt(symbol),
     };
 
-    const input: Input = .{ .frame = @ptrCast(self), .source = &source, .state = @backingInt(state) };
-    const output = entry.executeIn(scratch.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
+    const input: Input = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .source = &source,
+        .state = @backingInt(state),
+    };
+
+    const output = entry.executeIn(scratch.allocator(), &input) catch |err| return rows.failure(err);
 
     return @fromBackingInt(output);
 }
@@ -48,7 +57,7 @@ pub fn projectLoopPath(handle: *anyopaque, row: u32, target: u32, length_type: ?
     return @backingInt(switch (value.value) {
         .field => |field| try self.field(current, self.program.typeOf(self.program.expression(field.target).type_id).object.at(field.index).name),
         .tuple_field => |field| try self.field(current, try std.fmt.allocPrint(self.allocator, "{d}", .{field.index})),
-        .index => |item| try @import("../intrinsics.zig").index(self, try lists.items(self, self.program.expression(item.target).type_id, current), try self.expr(item.index)),
+        .index => |item| try lists.items(self, self.program.expression(item.target).type_id, current),
         .length => |child| try self.cast(@fromBackingInt(length_type.?), try self.field(try lists.items(self, self.program.expression(child).type_id, current), "len")),
         else => unreachable,
     });

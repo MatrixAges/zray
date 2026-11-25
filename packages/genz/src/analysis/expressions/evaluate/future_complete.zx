@@ -1,0 +1,106 @@
+import {
+    AstPayloadOwnership,
+    appendAstCleanupRows,
+    appendExpressionRows,
+    astFieldCount,
+    readAstOrigin,
+    tailAstStatementRows
+} from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import futureCall from "../../tasks/future/call"
+import cancelResult from "../../tasks/future/cancel_result"
+import unpackSpan from "../../tasks/worker/execute/reference"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    started: u64,
+    value?: u32,
+    name?: u8[],
+    cancel: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, started, value, name, cancel: canceling } = in
+
+    const field_base = astFieldCount(writer)
+    const current = readAstOrigin(writer, origin)
+
+    const called = futureCall({
+        value,
+        name,
+        cancel: canceling,
+        bases: {
+            ...current,
+            field_base
+        }
+    })
+
+    const built = match {
+        canceling => cancelResult(called),
+        _ => {
+            expressions: called.result.state.expressions,
+            statements: {
+                tags: [],
+                offsets: [],
+                discard_error: []
+            },
+            root: called.result.id,
+            wrap: called.needs_block,
+            valid: called.result.state.valid
+        }
+    }
+
+    requireAllocation(built.valid)
+
+    appendExpressionRows(
+        writer,
+        built.expressions,
+        null,
+        AstPayloadOwnership.BorrowingText
+    )
+
+    if (!built.wrap) {
+        return built.root
+    }
+
+    const completed = appendAstCleanupRows(
+        writer,
+        built.statements.tags,
+        built.statements.offsets,
+        null,
+        built.statements.discard_error,
+        [],
+        []
+    )
+
+    const started_span = unpackSpan(started)
+    const completed_span = unpackSpan(completed)
+
+    const first = tailAstStatementRows(
+        writer,
+        [
+            started_span.start,
+            completed_span.start
+        ],
+        [
+            started_span.count,
+            completed_span.count
+        ]
+    )
+
+    return host.finishTaskBlock(
+        frame,
+        first,
+        started_span.count + completed_span.count,
+        built.root
+    )
+}

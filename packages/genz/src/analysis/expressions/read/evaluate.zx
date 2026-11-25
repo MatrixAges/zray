@@ -11,7 +11,7 @@ import type { Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, expressions, row, action, iteration } = in
+    const { frame, writer, origin, state, expressions, row, action, iteration } = in
 
     const index = integers.widen(row)
 
@@ -79,22 +79,31 @@ export default function (in: Input): Output {
                 operand: expressions.projection_targets[payload],
                 index: expressions.projection_indices[payload]
             })
-        case ReadAction.Index: return list({
-            frame,
-            writer,
-            action,
-            iteration,
-            type_id,
-            result_type: in.result_type,
-            operand: expressions.index_targets[payload],
-            detail: expressions.index_values[payload]
-        })
+        case ReadAction.Index:
+            const target = expressions.index_targets[payload]
+
+            return list({
+                frame,
+                writer,
+                origin,
+                state,
+                action,
+                iteration,
+                type_id,
+                target_type: expressions.types[integers.widen(target)],
+                result_type: in.result_type,
+                operand: target,
+                detail: expressions.index_values[payload]
+            })
         case ReadAction.Length: return list({
             frame,
             writer,
+            origin,
+            state,
             action,
             iteration,
             type_id,
+            target_type: null,
             result_type: in.result_type,
             operand: expressions.lengths[payload],
             detail: null

@@ -2,9 +2,7 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 
 pub fn index(self: *Lower, values: node.ExpressionId, position: node.ExpressionId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("intrinsics/seed.zig").index(self, values, position);
-
-    return @import("intrinsics/index.zig").lower(self, values, position);
+    return @import("intrinsics/seed.zig").index(self, values, position);
 }
 
 pub const failIf = @import("intrinsics/seed.zig").failIf;

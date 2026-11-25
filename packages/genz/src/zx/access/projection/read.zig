@@ -10,8 +10,7 @@ const rules = @import("rules.zig");
 const seed = @import("seed.zig");
 const generated = @import("genz_options").generated_analysis;
 const entry = @import("generated_projection_read");
-const result_entry = @import("generated_projection_result");
-const Result = if (generated) @typeInfo(@typeInfo(@TypeOf(result_entry.executeValue)).@"fn".return_type.?).error_union.payload else seed.Result;
+const Result = if (generated) @FieldType(std.meta.Child(entry.Output), "result") else seed.Result;
 
 pub fn field(self: *Lower, id: ir.TypeId, item: ir.Projection, iteration: bool) Lower.Error!node.ExpressionId {
     return member(self, id, item, false, iteration);
@@ -34,7 +33,7 @@ pub fn index(self: *Lower, id: ir.TypeId, target: ir.ExprId, key: ir.ExprId, ite
     const source = raw orelse try list.expression(self, target);
     const indexed = try @import("../../intrinsics.zig").index(self, source, try self.expr(key));
 
-    return resolvedIndex(self, id, target, indexed, raw != null);
+    return finish(self, id, typeOf(self, target), indexed, seed.result(self, id, typeOf(self, target), raw != null, false));
 }
 
 pub fn length(self: *Lower, child: ir.ExprId, type_expr: node.ExpressionId, iteration: bool) Lower.Error!node.ExpressionId {
@@ -66,20 +65,13 @@ fn member(self: *Lower, id: ir.TypeId, item: ir.Projection, tuple_member: bool, 
     return resolvedMember(self, id, target_type, item, source, raw != null, tuple_member, iteration);
 }
 
-pub fn resolvedIndex(self: *Lower, id: ir.TypeId, target: ir.ExprId, value: node.ExpressionId, raw: bool) Lower.Error!node.ExpressionId {
-    const target_type = typeOf(self, target);
-    const result = indexResult(self, id, target_type, raw);
-
-    return finish(self, id, target_type, value, result);
-}
-
 pub fn resolvedMember(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, item: ir.Projection, source: node.ExpressionId, raw: bool, tuple_member: bool, iteration: bool) Lower.Error!node.ExpressionId {
     const read = try emitMember(self, id, target_type, item, source, raw, tuple_member, iteration);
 
     return finish(self, id, target_type, read.value, read.result);
 }
 
-fn finish(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, value: node.ExpressionId, result: Result) Lower.Error!node.ExpressionId {
+fn finish(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, value: node.ExpressionId, result: anytype) Lower.Error!node.ExpressionId {
     return switch (result) {
         .Direct => value,
         .Borrowed => list.borrowed(self, id, value),
@@ -150,17 +142,6 @@ fn emitMember(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, item: ir.Proj
     @import("../../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &rows) catch |err| return failure(err);
 
     return .{ .value = @fromBackingInt(output.root), .result = @fromBackingInt(@backingInt(output.result)) };
-}
-
-fn indexResult(self: *const Lower, id: ir.TypeId, target_type: ir.TypeId, raw: bool) Result {
-    if (!generated) return seed.result(self, id, target_type, raw, false);
-
-    const Input = std.meta.Child(result_entry.Input);
-    const storage = rules.storage(std.meta.Child(@FieldType(Input, "storage")), self);
-    const input = facts(Input, self, &storage, .{ .id = id, .target_type = target_type, .raw = raw, .field = false });
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(result_entry.executeValue, memory.allocator(), &input) catch unreachable;
 }
 
 fn facts(comptime Value: type, self: *const Lower, storage: @FieldType(Value, "storage"), request: Request) Value {

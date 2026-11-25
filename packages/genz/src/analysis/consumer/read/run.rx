@@ -11,8 +11,11 @@
         in={{
             ...$in.pick([
                 "frame",
+                "writer",
+                "origin",
                 "state"
             ]),
+            table: $in.source.table,
             plan: $ctx.walk
         }}
     />

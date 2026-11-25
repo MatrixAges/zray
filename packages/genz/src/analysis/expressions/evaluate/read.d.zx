@@ -33,19 +33,8 @@ export declare function readList(frame: Lowering, operand: u32): u32 throws { Ou
 export declare function wrapLoweredList(frame: Lowering, subject: u32, items: u32): u32
     throws { OutOfMemory }
 
-export declare function readIndex(
-    frame: Lowering,
-    source: u32,
-    key: u32
-): u32 throws { OutOfMemory }
-
-export declare function readIndexResult(
-    frame: Lowering,
-    result_type: u32,
-    operand: u32,
-    value: u32,
-    raw: bool
-): u32 throws { OutOfMemory }
+export declare function readElement(frame: Lowering, target_type: u32, value: u32): u32
+    throws { OutOfMemory }
 
 export declare function readBorrowedList(frame: Lowering, type_id: u32, value: u32): u32
     throws { OutOfMemory }

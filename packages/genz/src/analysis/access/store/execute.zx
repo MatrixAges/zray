@@ -1,7 +1,0 @@
-import type { AstWriter } from "ast_rows"
-import type { Input as Expression } from "../store"
-
-export type Input = Expression.Omit("expression_base") & {
-    writer: AstWriter,
-    type_id: u32
-}

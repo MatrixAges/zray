@@ -37,12 +37,12 @@ fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Fil
     const paths = try allocator.alloc([]const u8, count);
     const inodes = try allocator.alloc(u64, count);
     const sizes = try allocator.alloc(u64, count);
-    const mtime_high = try allocator.alloc(i64, count);
-    const mtime_low = try allocator.alloc(u32, count);
-    const ctime_high = try allocator.alloc(i64, count);
-    const ctime_low = try allocator.alloc(u32, count);
-    const read_high = try allocator.alloc(i64, read_count);
-    const read_low = try allocator.alloc(u32, read_count);
+    const mtime_high = try allocator.alloc(i32, count);
+    const mtime_low = try allocator.alloc(u64, count);
+    const ctime_high = try allocator.alloc(i32, count);
+    const ctime_low = try allocator.alloc(u64, count);
+    const read_high = try allocator.alloc(i32, read_count);
+    const read_low = try allocator.alloc(u64, read_count);
 
     for (facts, 0..) |fact, index| {
         const version = if (files) |cache| cache.version(fact.key) orelse return null else null;

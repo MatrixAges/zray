@@ -75,45 +75,6 @@ pub fn publishTaskEffects(handle: *anyopaque, allocator: bool, io: bool, process
     self.uses_process = self.uses_process or process;
 }
 
-pub fn wait(self: *Lower, child: ir.ExprId) Lower.Error!node.ExpressionId {
-    if (!generated) return seed.wait(self, child);
-
-    return complete(self, child, false);
-}
-
-pub fn cancel(self: *Lower, child: ir.ExprId) Lower.Error!node.ExpressionId {
-    if (!generated) return seed.cancel(self, child);
-
-    return complete(self, child, true);
-}
-
-fn complete(self: *Lower, child: ir.ExprId, canceling: bool) Lower.Error!node.ExpressionId {
-    const entry = @import("generated_execute_task_future");
-    var scratch: std.heap.ArenaAllocator = .init(self.workspace);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
-
-    defer scratch.deinit();
-
-    const input: std.meta.Child(entry.Input) = .{
-        .frame = @ptrCast(self),
-        .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
-        .child = @backingInt(child),
-        .cancel = canceling,
-        .inline_task = self.program.expression(child).value == .task,
-    };
-
-    const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
-
-    return @fromBackingInt(result);
-}
-
-pub fn lowerTaskOperand(handle: *anyopaque, expression: u32) Lower.Error!u32 {
-    return @backingInt(try evaluate.borrow(handle).expr(@fromBackingInt(expression)));
-}
-
 pub fn startInlineTask(handle: *anyopaque, task: u32, name: []const u8) Lower.Error!u64 {
     return rows.packSpan(try bind(evaluate.borrow(handle), name, @fromBackingInt(task), false));
 }

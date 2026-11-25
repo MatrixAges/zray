@@ -70,29 +70,8 @@ pub fn finishGeneratedAst(frame: *anyopaque, serial: ?u64, uses_allocator: bool)
     self.uses_allocator = self.uses_allocator or uses_allocator;
 }
 
-pub fn lowerStore(frame: *anyopaque, id: u32) Error!u32 {
-    const self = borrow(frame);
-    const table = &self.program.expressions;
-
-    return @backingInt(try @import("../../access/store.zig").lower(self, table.stores[table.payloads[id]], @fromBackingInt(table.types[id])));
-}
-
 pub fn lowerTask(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try tasks.start(borrow(frame), @fromBackingInt(id), false));
-}
-
-pub fn lowerWait(frame: *anyopaque, id: u32) Error!u32 {
-    const self = borrow(frame);
-    const table = &self.program.expressions;
-
-    return @backingInt(try tasks.wait(self, @fromBackingInt(table.awaits[table.payloads[id]])));
-}
-
-pub fn lowerCancel(frame: *anyopaque, id: u32) Error!u32 {
-    const self = borrow(frame);
-    const table = &self.program.expressions;
-
-    return @backingInt(try tasks.cancel(self, @fromBackingInt(table.cancellations[table.payloads[id]])));
 }
 
 pub fn lowerParallel(frame: *anyopaque, id: u32) Error!u32 {

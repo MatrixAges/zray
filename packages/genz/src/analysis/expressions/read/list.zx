@@ -1,20 +1,28 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
 import host from "lowering_host"
 
 import { items_field } from "../../iteration/types/const"
+import { Property } from "../../state/queries/model"
+import query from "../../state/queries/read"
 import emitField from "./emit_field"
+import emitIndex from "./emit_index"
 import emitLength from "./emit_length"
 import { ReadAction } from "./model"
 
-import type { AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
+import type { StateQueries } from "./model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
+    origin: AstOriginBuffer,
+    state?: StateQueries,
     action: ReadAction,
     iteration: bool,
     type_id: u32,
+    target_type?: u32,
     result_type?: u32,
     operand: u32,
     detail?: u32
@@ -23,7 +31,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, operand, iteration } = in
+    const { frame, writer, origin, operand, iteration } = in
 
     if (in.action == ReadAction.Length) {
         const result_type = match {
@@ -67,7 +75,13 @@ export default function (in: Input): Output {
 
         const position = host.lowerExpression(frame, key, false, null)
 
-        return host.readIndex(frame, items, position)
+        return emitIndex({
+            frame,
+            writer,
+            origin,
+            values: items,
+            position
+        })
     }
 
     const raw = host.readRawList(frame, operand)
@@ -76,7 +90,30 @@ export default function (in: Input): Output {
 
     const position = host.lowerExpression(frame, key, false, null)
 
-    const value = host.readIndex(frame, target, position)
+    const value = emitIndex({
+        frame,
+        writer,
+        origin,
+        values: target,
+        position
+    })
 
-    return host.readIndexResult(frame, in.type_id, operand, value, raw != null)
+    const state = in.state
+
+    if (state == null || !state.active) {
+        return value
+    }
+
+    if (!query({
+        value: state.queries[integers.widen(in.type_id)],
+        property: Property.Represented
+    })) {
+        return value
+    }
+
+    if (raw != null) {
+        return host.readRepresentedValue(frame, in.type_id, value)
+    }
+
+    return host.readElement(frame, in.target_type ?? host.invalidLowering(), value)
 }

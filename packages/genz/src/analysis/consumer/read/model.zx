@@ -1,3 +1,4 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
 import type { Lowering, PathConversion as Representation } from "lowering_host"
@@ -25,10 +26,13 @@ export type Output = {
 
 export type Request = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
     source: Input,
     state: u32
 }
 
-export type Prepare = Request.Pick("frame", "state") & {
+export type Prepare = Request.Pick("frame", "writer", "origin", "state") & {
+    table: Expressions,
     plan: Output
 }

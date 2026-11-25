@@ -85,9 +85,6 @@ export declare function publishTaskEffects(
 export declare function buildTaskWorker(frame: Lowering, task: u32, process: bool): u32
     throws { OutOfMemory }
 
-export declare function lowerTaskOperand(frame: Lowering, expression: u32): u32
-    throws { OutOfMemory }
-
 export declare function startInlineTask(frame: Lowering, task: u32, name: u8[]): u64
     throws { OutOfMemory }
 

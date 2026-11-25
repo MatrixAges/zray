@@ -1,0 +1,49 @@
+import integers from "std:integer"
+import { appendAstProjectionRows, astExpressionCount } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import { Result } from "../../access/model"
+import storeAccess from "../../access/store"
+
+import type { AstWriter } from "ast_rows"
+import type { Table } from "core/type_table/model"
+import type { Lowering } from "lowering_host"
+import type { StoreContext } from "./model"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    store: StoreContext,
+    types: Table,
+    slot: u32,
+    type_id: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, store: store_context, types, slot, type_id } = in
+
+    host.requireLoweringContext(frame)
+
+    const emitted = storeAccess({
+        frame,
+        slot: integers.widen(slot),
+        type_kind: types.kinds[integers.widen(type_id)],
+        query: store_context.queries[integers.widen(type_id)],
+        active: store_context.active,
+        store_count: store_context.count,
+        store_mode: store_context.mode,
+        expression_base: astExpressionCount(writer)
+    })
+
+    requireAllocation(emitted.valid)
+    appendAstProjectionRows(writer, emitted.nodes)
+
+    return match emitted.result {
+        Result.Direct => emitted.root,
+        Result.BorrowedList => host.readBorrowedList(frame, type_id, emitted.root),
+        _ => host.readRepresentedValue(frame, type_id, emitted.root)
+    }
+}

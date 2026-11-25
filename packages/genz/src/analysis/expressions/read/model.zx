@@ -1,5 +1,11 @@
-import type { AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
+import type { Query } from "../../state/queries/model"
+
+export type StateQueries = {
+    queries: Query[],
+    active: bool
+}
 
 export enum ReadAction {
     Empty,
@@ -28,6 +34,8 @@ export type ReadExpressions = {
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
+    origin: AstOriginBuffer,
+    state?: StateQueries,
     expressions: ReadExpressions,
     row: u32,
     action: ReadAction,

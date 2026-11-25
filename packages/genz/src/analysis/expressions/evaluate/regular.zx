@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
 import host from "lowering_host"
 import { Representation } from "lowering_host"
@@ -5,18 +6,21 @@ import { Representation } from "lowering_host"
 import read from "../read/evaluate"
 import { ReadAction } from "../read/model"
 import conditional from "./conditional"
+import future from "./future"
 import literal from "./literal"
 import operator from "./operator"
+import store from "./store"
 
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
-import type { Expressions } from "./model"
+import type { Expressions, StoreContext } from "./model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
+    store: StoreContext,
     expressions: Expressions,
     types: Table,
     id: u32,
@@ -29,7 +33,13 @@ export type Output = u32
 export default function (in: Input): Output {
     const { frame, writer, origin, expressions, types, id, kind, type_id } = in
 
+    const payload = integers.widen(expressions.payloads[integers.widen(id)])
     const result_type = host.lowerType(frame, type_id, false)
+
+    const state = {
+        queries: in.store.queries,
+        active: in.store.active
+    }
 
     const read_expressions = expressions.pick([
         "types",
@@ -64,74 +74,79 @@ export default function (in: Input): Output {
         "errors"
     ])
 
+    const read_base = {
+        frame,
+        writer,
+        origin,
+        state,
+        expressions: read_expressions,
+        row: id,
+        iteration: false,
+        result_type
+    }
+
+    const literal_input = {
+        writer,
+        expressions: literal_expressions,
+        types,
+        id,
+        type_expr: result_type
+    }
+
     return match kind {
         ExpressionKind.Some => read({
-            frame,
-            writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.Wrap,
-            iteration: false,
-            result_type
+            ...read_base,
+            action: ReadAction.Wrap
         }),
         ExpressionKind.OptionalValue => read({
-            frame,
-            writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.Unwrap,
-            iteration: false,
-            result_type
+            ...read_base,
+            action: ReadAction.Unwrap
         }),
         ExpressionKind.Reference => read({
-            frame,
-            writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.Reference,
-            iteration: false,
-            result_type
+            ...read_base,
+            action: ReadAction.Reference
         }),
         ExpressionKind.Field => read({
-            frame,
-            writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.Field,
-            iteration: false,
-            result_type
+            ...read_base,
+            action: ReadAction.Field
         }),
         ExpressionKind.TupleField => read({
-            frame,
-            writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.TupleField,
-            iteration: false,
-            result_type
+            ...read_base,
+            action: ReadAction.TupleField
         }),
         ExpressionKind.Index => read({
-            frame,
-            writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.Index,
-            iteration: false,
-            result_type
+            ...read_base,
+            action: ReadAction.Index
         }),
         ExpressionKind.Length => read({
+            ...read_base,
+            action: ReadAction.Length
+        }),
+        ExpressionKind.StoreGet => store({
             frame,
             writer,
-            expressions: read_expressions,
-            row: id,
-            action: ReadAction.Length,
-            iteration: false,
-            result_type
+            store: in.store,
+            types,
+            slot: expressions.stores[payload],
+            type_id
         }),
-        ExpressionKind.StoreGet => host.lowerStore(frame, id),
         ExpressionKind.Task => host.lowerTask(frame, id),
-        ExpressionKind.AwaitTask => host.lowerWait(frame, id),
-        ExpressionKind.CancelTask => host.lowerCancel(frame, id),
+        ExpressionKind.AwaitTask => future({
+            frame,
+            writer,
+            origin,
+            kinds: expressions.kinds,
+            child: expressions.awaits[payload],
+            cancel: false
+        }),
+        ExpressionKind.CancelTask => future({
+            frame,
+            writer,
+            origin,
+            kinds: expressions.kinds,
+            child: expressions.cancellations[payload],
+            cancel: true
+        }),
         ExpressionKind.Parallel => host.lowerParallel(frame, id),
         ExpressionKind.Capture => host.lowerCapture(frame, id, false),
         ExpressionKind.Unary => operator({
@@ -172,69 +187,15 @@ export default function (in: Input): Output {
         ExpressionKind.Iteration => host.lowerIteration(frame, id, false),
         ExpressionKind.ListUpdate => host.lowerUpdate(frame, id),
         ExpressionKind.Call => host.lowerCall(frame, id, Representation.Regular, false),
-        ExpressionKind.Integer => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.NegativeInteger => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.Float => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.String => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.Boolean => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.None => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.Unit => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.EnumValue => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
-        ExpressionKind.ErrorValue => literal({
-            writer,
-            expressions: literal_expressions,
-            types,
-            id,
-            type_expr: result_type
-        }),
+        ExpressionKind.Integer => literal(literal_input),
+        ExpressionKind.NegativeInteger => literal(literal_input),
+        ExpressionKind.Float => literal(literal_input),
+        ExpressionKind.String => literal(literal_input),
+        ExpressionKind.Boolean => literal(literal_input),
+        ExpressionKind.None => literal(literal_input),
+        ExpressionKind.Unit => literal(literal_input),
+        ExpressionKind.EnumValue => literal(literal_input),
+        ExpressionKind.ErrorValue => literal(literal_input),
         _ => host.invalidLowering()
     }
 }

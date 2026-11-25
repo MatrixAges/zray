@@ -1,10 +1,19 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
 import host from "lowering_host"
 import { PathConversion } from "lowering_host"
 
+import emitIndex from "../../expressions/read/emit_index"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Expressions } from "core/expression_table/model"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    table: Expressions,
     rows: u32[],
     representations: PathConversion[],
     length_type?: u32,
@@ -14,7 +23,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, rows, representations, length_type } = in
+    const { frame, writer, origin, table, rows, representations, length_type } = in
 
     return loop({
         index: rows.length,
@@ -24,7 +33,29 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.index - 1
             const row = rows[index]
-            const value = host.projectLoopPath(frame, row, state.value, length_type)
+            const projected = host.projectLoopPath(frame, row, state.value, length_type)
+
+            const value = match {
+                table.kinds[integers.widen(row)] == ExpressionKind.Index => emitIndex({
+                    frame,
+                    writer,
+                    origin,
+                    values: projected,
+                    position: host.lowerExpression(
+                        frame,
+                        table
+                            .index_values[integers.widen(
+                                table.payloads[integers.widen(
+                                    row
+                                )]
+                            )],
+                        false,
+                        null
+                    )
+                }),
+                _ => projected
+            }
+
             const conversion = representations[index]
 
             state.value = match conversion {
