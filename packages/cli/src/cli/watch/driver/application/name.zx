@@ -1,0 +1,17 @@
+import { run_extension, run_marker } from "../const"
+
+export type Input = {
+    basename: string,
+    nonce: string,
+    windows: bool
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { basename, nonce } = in
+
+    const extension = in.windows ? run_extension : ""
+
+    return `.${basename}${run_marker}${nonce}${extension}`
+}

@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { StringBuffer } from "memory"
+
+export type Input = {
+    target: StringBuffer,
+    path: string,
+    tail: string[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, tail } = in
+
+    memory.allocateStringViews(target, tail.length + 1)
+    memory.writeString(target, 0, in.path)
+    memory.copyStringViewsAt(target, 1, tail)
+}

@@ -3,3 +3,11 @@ export const retry_delay_ms: u64 = 200
 export const poll_delay_ms: u64 = 500
 
 export const backend_retry_polls: u64 = 4
+
+export const run_marker: string = ".zxc-run-"
+
+export const run_extension: string = ".exe"
+
+export const run_stop_polls: u64 = 10
+
+export const run_stop_delay_ms: u64 = 50

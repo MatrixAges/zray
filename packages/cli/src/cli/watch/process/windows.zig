@@ -17,7 +17,7 @@ pub fn start(io: std.Io, argv: []const []const u8, environment: *const std.proce
 
     if (SetInformationJobObject(job, extended_limit_information, &limits, @sizeOf(Limits)) == 0) return error.ConfigureJobFailed;
 
-    var child = try std.process.spawn(io, .{ .argv = argv, .environ_map = environment, .stdin = .ignore, .start_suspended = true });
+    var child = try std.process.spawn(io, .{ .exe = .{ .path = .cwd() }, .argv = argv, .environ_map = environment, .stdin = .ignore, .start_suspended = true });
 
     errdefer child.kill(io);
 
@@ -36,9 +36,6 @@ pub fn finished(self: *Self) !bool {
 }
 
 pub fn stop(self: *Self, io: std.Io) !std.process.Child.Term {
-    const protection = io.swapCancelProtection(.blocked);
-    defer _ = io.swapCancelProtection(protection);
-
     windows.CloseHandle(self.job);
 
     return self.child.wait(io);

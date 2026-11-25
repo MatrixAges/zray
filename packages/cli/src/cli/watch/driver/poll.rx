@@ -12,7 +12,9 @@
     />
 
     <Call fn="index.checkCanceled" in={$in.watch} />
-    <Call fn="index.pollApplication" in={$in.watch} />
+
+    <Call module="application/poll" in={$in.watch} />
+
     <Call fn="next_poll" in={$in} />
 
     <If

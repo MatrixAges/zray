@@ -91,7 +91,11 @@ pub fn adoptPublishedSnapshot(handle: *const anyopaque) bool {
 pub fn restart(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
-    self.application.restart(self.io, self.options, self.environment) catch |err| {
+    @import("cli_watch").restart_application.executeIn(self.turn.?.arena.allocator(), @ptrCast(handle)) catch |cause| {
+        const err = if (cause == error.WatchFailure) self.failure.? else cause;
+
+        storage.process.discardPending(self);
+
         if (err == error.OutOfMemory or err == error.Canceled) return self.fail(err);
 
         self.stderr.print("zxc watch: application start: {s}\n", .{@errorName(err)}) catch |failure| return self.fail(failure);

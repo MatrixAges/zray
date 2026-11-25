@@ -57,6 +57,7 @@ pub const resolveNative = native_lookup.Resolver(&.{
     watch.driver,
     watch.driver.build,
     watch.driver.wait,
+    watch.driver.process,
 }).resolve;
 
 pub const watch = @import("cli/watch.zig");

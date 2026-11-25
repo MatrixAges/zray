@@ -1,0 +1,12 @@
+<Module>
+    <Type from="../model" as="Driver" />
+
+    <Args in={Driver.Watch} out={void} />
+
+    <Call fn="../index.applicationFinished" in={$in} />
+
+    <If on={$ctx.applicationFinished}>
+        <Call fn="../index.stopApplication" in={$in} />
+        <Call fn="../index.reportApplicationExit" in={$in} />
+    </If>
+</Module>

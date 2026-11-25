@@ -57,7 +57,11 @@ export declare function announce(watch: Watch): void throws { WatchFailure }
 export declare function interrupted(watch: Watch): bool
 export declare function delay(watch: Watch, interval: Delay): void throws { WatchFailure }
 export declare function checkCanceled(watch: Watch): void throws { WatchFailure }
-export declare function pollApplication(watch: Watch): void throws { WatchFailure }
+export declare function applicationFinished(watch: Watch): bool throws { WatchFailure }
+export declare function prepareApplication(watch: Watch): void throws { WatchFailure }
+export declare function stopApplication(watch: Watch): void throws { WatchFailure }
+export declare function startApplication(watch: Watch): void throws { WatchFailure }
+export declare function reportApplicationExit(watch: Watch): void throws { WatchFailure }
 export declare function scanInputs(watch: Watch, slot: SnapshotSlot): ScanResult throws {
     WatchFailure
 }

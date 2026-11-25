@@ -24,12 +24,6 @@ pub fn checkCanceled(handle: *const anyopaque) Error!void {
     if (interrupted(handle)) return State.get(handle).fail(error.Canceled);
 }
 
-pub fn pollApplication(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.application.poll(self.io, self.stderr) catch |err| return self.fail(err);
-}
-
 pub fn scanInputs(handle: *const anyopaque, slot: storage.SnapshotSlot) Error!*const storage.ScanResult {
     const self = State.get(handle);
     const baseline = &self.snapshotSlot(slot).*.?;

@@ -3,7 +3,7 @@ const Options = @import("../../options.zig").Options;
 const Inputs = @import("watch_inputs").Inputs;
 const Snapshot = @import("watch_inputs").Snapshot;
 const Attempt = @import("../attempt.zig");
-const Process = @import("../process.zig");
+pub const process = @import("../process.zig");
 const ParseCache = @import("compiler").project.ParseCache;
 const abi = @import("cli_watch_abi");
 pub const Status = abi.native.@"zig:watch_host".Status;
@@ -36,7 +36,7 @@ pub const State = struct {
     environment: *const std.process.Environ.Map,
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
-    application: Process,
+    application: process = .{},
     backend_arena: std.heap.ArenaAllocator,
     parse_cache: ParseCache,
     last_success: ?Snapshot = null,
@@ -56,7 +56,6 @@ pub const State = struct {
             .environment = environment,
             .stdout = stdout,
             .stderr = stderr,
-            .application = .{ .allocator = allocator },
             .backend_arena = .init(allocator),
             .parse_cache = .{ .allocator = allocator, .keeps_replaced = true },
         };
@@ -70,7 +69,7 @@ pub const State = struct {
         self.backend_arena.deinit();
         self.replaceSnapshot(.Failure, null);
         self.replaceSnapshot(.Success, null);
-        self.application.deinit(self.io);
+        process.stopApplication(@ptrCast(&self)) catch {};
     }
 
     pub fn get(handle: *const anyopaque) *State {

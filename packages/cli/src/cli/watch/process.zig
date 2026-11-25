@@ -1,85 +1,89 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Backend = if (builtin.os.tag == .windows) @import("process/windows.zig") else @import("process/posix.zig");
-const Options = @import("../options.zig").Options;
-const Self = @This();
+const State = @import("driver/storage.zig").State;
+const Error = @import("driver/storage.zig").Error;
+const source = @import("cli_watch");
+const Run = struct { path: []const u8, process: Backend };
+const Launch = struct { path: []const u8, argv: [][]const u8 = &.{} };
 
-allocator: std.mem.Allocator,
-process: ?Backend = null,
-path: ?[]const u8 = null,
-pub fn deinit(self: *Self, io: std.Io) void {
-    _ = self.stop(io) catch null;
-}
+active: ?Run = null,
+pending: ?Launch = null,
+termination: std.process.Child.Term = undefined,
+pub fn prepareApplication(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const temporary = self.turn.?.arena.allocator();
+    const output = self.options.output.?;
 
-pub fn restart(self: *Self, io: std.Io, options: Options, environment: *const std.process.Environ.Map) !void {
     var random: [16]u8 = undefined;
 
-    std.Io.random(io, &random);
+    std.Io.random(self.io, &random);
 
-    const name = try std.fmt.allocPrint(self.allocator, ".{s}.zxc-run-{s}{s}", .{ std.fs.path.basename(options.output.?), std.fmt.bytesToHex(random, .lower), if (builtin.os.tag == .windows) ".exe" else "" });
+    const nonce = std.fmt.bytesToHex(random, .lower);
+    const name = source.application_name.executeIn(temporary, &.{ .basename = std.fs.path.basename(output), .nonce = &nonce, .windows = builtin.os.tag == .windows }) catch |err| return self.fail(err);
+    const path = std.fs.path.resolve(self.allocator, &.{ std.fs.path.dirname(output) orelse ".", name }) catch |err| return self.fail(err);
 
-    defer self.allocator.free(name);
+    std.Io.Dir.cwd().copyFile(output, .cwd(), path, self.io, .{ .replace = false }) catch |err| {
+        self.allocator.free(path);
 
-    const path = try std.fs.path.resolve(self.allocator, &.{ std.fs.path.dirname(options.output.?) orelse ".", name });
+        return self.fail(err);
+    };
 
-    errdefer self.allocator.free(path);
+    self.application.pending = .{ .path = path };
 
-    try std.Io.Dir.cwd().copyFile(options.output.?, .cwd(), path, io, .{ .replace = false });
-
-    errdefer {
-        const protection = io.swapCancelProtection(.blocked);
-        defer _ = io.swapCancelProtection(protection);
-
-        std.Io.Dir.cwd().deleteFile(io, path) catch {};
-    }
-
-    const argv = try self.allocator.alloc([]const u8, options.run_args.len + 1);
-
-    defer self.allocator.free(argv);
-
-    argv[0] = path;
-
-    @memcpy(argv[1..], options.run_args);
-
-    _ = try self.stop(io);
-    self.process = try Backend.start(io, argv, environment);
-    self.path = path;
+    source.application_arguments.executeIn(temporary, &.{ .path = path, .tail = self.options.run_args, .target = @ptrCast(&self.application.pending.?.argv) }) catch |err| return self.fail(err);
 }
 
-pub fn poll(self: *Self, io: std.Io, stderr: *std.Io.Writer) !void {
-    const process = if (self.process) |*value| value else return;
+pub fn startApplication(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const launch = self.application.pending.?;
+    const child = Backend.start(self.io, launch.argv, self.environment) catch |err| return self.fail(err);
 
-    if (!try process.finished()) return;
-
-    const termination = (try self.stop(io)).?;
-
-    try stderr.print("zxc watch: application {f}; waiting for changes\n", .{termination});
-    try stderr.flush();
+    self.application.active = .{ .path = launch.path, .process = child };
+    self.application.pending = null;
 }
 
-fn stop(self: *Self, io: std.Io) !?std.process.Child.Term {
-    const protection = io.swapCancelProtection(.blocked);
-    defer _ = io.swapCancelProtection(protection);
-    var termination: ?std.process.Child.Term = null;
+pub fn applicationFinished(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const running = if (self.application.active) |*application| application else return false;
 
-    if (self.process) |*process| {
-        termination = try process.stop(io);
-        self.process = null;
-    }
-
-    try self.remove(io);
-
-    return termination;
+    return running.process.finished() catch |err| return self.fail(err);
 }
 
-fn remove(self: *Self, io: std.Io) !void {
-    const path = self.path orelse return;
+pub fn stopApplication(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const running = if (self.application.active) |*application| application else return;
+    const protection = self.io.swapCancelProtection(.blocked);
+    defer _ = self.io.swapCancelProtection(protection);
+    const path = running.path;
 
-    self.path = null;
+    self.application.termination = running.process.stop(self.io) catch |err| return self.fail(err);
+    self.application.active = null;
 
+    removeCopy(self, path) catch |err| return self.fail(err);
+}
+
+pub fn reportApplicationExit(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+
+    self.stderr.print("zxc watch: application {f}; waiting for changes\n", .{self.application.termination}) catch |err| return self.fail(err);
+    self.stderr.flush() catch |err| return self.fail(err);
+}
+
+pub fn discardPending(self: *State) void {
+    const launch = self.application.pending orelse return;
+    const protection = self.io.swapCancelProtection(.blocked);
+    defer _ = self.io.swapCancelProtection(protection);
+
+    self.application.pending = null;
+
+    removeCopy(self, launch.path) catch {};
+}
+
+fn removeCopy(self: *State, path: []const u8) !void {
     defer self.allocator.free(path);
 
-    std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
+    std.Io.Dir.cwd().deleteFile(self.io, path) catch |err| switch (err) {
         error.FileNotFound => {},
         else => return err,
     };

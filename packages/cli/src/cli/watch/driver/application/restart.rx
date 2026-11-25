@@ -1,0 +1,9 @@
+<Module>
+    <Type from="../model" as="Driver" />
+
+    <Args in={Driver.Watch} out={void} />
+
+    <Call fn="../index.prepareApplication" in={$in} />
+    <Call fn="../index.stopApplication" in={$in} />
+    <Call fn="../index.startApplication" in={$in} />
+</Module>

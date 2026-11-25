@@ -3,6 +3,10 @@
         {
             "path": "driver",
             "prefix": "driver/"
+        },
+        {
+            "path": "memory",
+            "prefix": "memory/"
         }
     ],
     "entries": [
@@ -13,10 +17,26 @@
         {
             "path": "driver/run.rx",
             "name": "run"
+        },
+        {
+            "path": "driver/application/restart.rx",
+            "name": "restart_application"
+        },
+        {
+            "path": "driver/application/name.zx",
+            "name": "application_name"
+        },
+        {
+            "path": "driver/application/arguments.zx",
+            "name": "application_arguments"
         }
     ],
     "packages": [],
     "interfaces": [
+        {
+            "path": "memory/index.d.zx",
+            "module": "memory"
+        },
         {
             "path": "driver/host.d.zx",
             "module": "watch_host",

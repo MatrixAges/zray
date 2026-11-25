@@ -181,6 +181,7 @@ pub fn toolchain(b: *std.Build, compiler: *std.Build.Dependency, target: std.Bui
 pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/cli/watch/driver"), "driver", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
 
     const generated = generate(b, compiler, files, "build/watch.json", "watch");
     const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
@@ -194,6 +195,7 @@ pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "watch_host", .module = host },
+            .{ .name = "memory", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory") },
         },
     });
 }

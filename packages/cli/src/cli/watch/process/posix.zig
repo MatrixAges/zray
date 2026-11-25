@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Self = @This();
+const constants = @import("cli_watch").constants.@"zx.constants";
 
 const Wait = if (builtin.os.tag == .linux) std.os.linux.W else struct {
     const EXITED = 0x04;
@@ -14,7 +15,7 @@ child: std.process.Child,
 pub fn start(io: std.Io, argv: []const []const u8, environment: *const std.process.Environ.Map) !Self {
     if (builtin.os.tag != .linux and builtin.os.tag != .macos) return error.UnsupportedWatchRunPlatform;
 
-    return .{ .child = try std.process.spawn(io, .{ .argv = argv, .environ_map = environment, .pgid = 0, .stdin = .ignore }) };
+    return .{ .child = try std.process.spawn(io, .{ .exe = .{ .path = .cwd() }, .argv = argv, .environ_map = environment, .pgid = 0, .stdin = .ignore }) };
 }
 
 pub fn finished(self: *Self) !bool {
@@ -29,14 +30,11 @@ pub fn finished(self: *Self) !bool {
 }
 
 pub fn stop(self: *Self, io: std.Io) !std.process.Child.Term {
-    const protection = io.swapCancelProtection(.blocked);
-    defer _ = io.swapCancelProtection(protection);
-
     try self.signal(.TERM);
 
-    for (0..10) |_| {
+    for (0..constants.run_stop_polls) |_| {
         if (try self.finished()) break;
-        try std.Io.sleep(io, .fromMilliseconds(50), .awake);
+        try std.Io.sleep(io, .fromMilliseconds(constants.run_stop_delay_ms), .awake);
     }
 
     try self.signal(.KILL);
