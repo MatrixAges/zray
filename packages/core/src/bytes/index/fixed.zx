@@ -21,7 +21,7 @@ export type Output = u64?
 export default function (in: Input): Output {
     const found = probe({
         keys: in.keys,
-        buckets: in.buckets,
+        buckets: memory.u64View(in.buckets, null),
         capacity: in.capacity,
         key: in.key
     })

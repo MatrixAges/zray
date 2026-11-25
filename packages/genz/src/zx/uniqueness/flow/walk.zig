@@ -23,10 +23,10 @@ pub fn deinit(self: *Self) void {
 pub fn adopt(self: *const Self, index: u32, cached: Memo.Flowed) bool {
     const entry = @import("generated_uniqueness_flow_adopt");
     const Adoption = std.meta.Child(entry.Input);
-    const current = self.row(index);
+    var current = self.row(index);
 
     const input: Adoption = .{
-        .current = zx.columns.pointer(@FieldType(Adoption, "current"), &current),
+        .current = zx.columns.pointer(@FieldType(Adoption, "current"), @as(*const Current, &current)),
         .target = &target(std.meta.Child(@FieldType(Adoption, "target")), &current),
         .cached = &.{ .held = cached.held, .text_held = cached.text_held, .written = cached.written },
     };
@@ -42,7 +42,7 @@ fn row(self: *const Self, index: u32) Current {
     return .{ .held = flow.held[index], .text_held = flow.text_held[index], .written = flow.written[index] };
 }
 
-fn target(comptime Target: type, current: *const Current) Target {
+fn target(comptime Target: type, current: *Current) Target {
     return .{
         .held = @ptrCast(&current.held),
         .text_held = @ptrCast(&current.text_held),
@@ -69,7 +69,7 @@ pub fn visit(self: *Self, index: u32, view: Body.View, saved: ?*const Body.Facts
     const layout = Layout{ .offsets = slots.offsets, .members = @ptrCast(slots.members), .unwrapped = @ptrCast(slots.unwrapped) };
     const environment = Environment{ .layout = &layout, .type_kinds = slots.types.kinds, .type_first = slots.types.first, .counts = slots.counts };
     const source = Body.source(std.meta.Child(@FieldType(Input, "source")), view);
-    const current = self.row(index);
+    var current = self.row(index);
 
     const input: Input = .{
         .function_index = index,

@@ -67,7 +67,7 @@ pub inline fn firstLength(target: *const anyopaque) u64 {
     return storageAt(target, 0).items.len;
 }
 
-const Grow = *const fn (*anyopaque, std.mem.Allocator, usize) std.mem.Allocator.Error!void;
+const Grow = *const fn (*anyopaque, std.mem.Allocator, usize) bool;
 
 pub fn growth(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
     const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
@@ -87,8 +87,10 @@ fn growers(comptime Row: type) [@typeInfo(Row).@"struct".field_names.len]Grow {
         const Item = @FieldType(Row, name);
 
         const Typed = struct {
-            fn grow(column: *anyopaque, allocator: std.mem.Allocator, additional: usize) std.mem.Allocator.Error!void {
-                try list(Item, column).ensureUnusedCapacity(allocator, additional);
+            fn grow(column: *anyopaque, allocator: std.mem.Allocator, additional: usize) bool {
+                list(Item, column).ensureUnusedCapacity(allocator, additional) catch return false;
+
+                return true;
             }
         };
 
@@ -103,7 +105,7 @@ pub fn reserveCell(resource: *const anyopaque, target: *const anyopaque, layout:
     const index: usize = @intCast(slot);
     const items = std.math.cast(usize, additional) orelse return error.OutOfMemory;
 
-    try operations.*[index](slots(target)[index], borrowAllocator(resource), items);
+    if (!operations.*[index](slots(target)[index], borrowAllocator(resource), items)) return error.OutOfMemory;
 }
 
 pub fn viewLayout(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
@@ -131,13 +133,13 @@ fn viewOffsets(comptime View: type) [@typeInfo(View).@"struct".field_names.len]u
     return result;
 }
 
-pub inline fn readCell(source: *const anyopaque, buffer: *const anyopaque, layout: *const anyopaque, slot: u64) void {
+pub inline fn readCell(source: *const anyopaque, buffer: *anyopaque, layout: *const anyopaque, slot: u64) void {
     writeViewCell(buffer, layout, slot, &storageAt(source, slot).items);
 }
 
-pub inline fn writeViewCell(buffer: *const anyopaque, layout: *const anyopaque, slot: u64, items: *const []const u8) void {
+pub inline fn writeViewCell(buffer: *anyopaque, layout: *const anyopaque, slot: u64, items: *const []const u8) void {
     const offsets: *const []const usize = @ptrCast(@alignCast(layout));
-    const destination: [*]u8 = @ptrCast(@constCast(buffer));
+    const destination: [*]u8 = @ptrCast(buffer);
     const offset = offsets.*[@intCast(slot)];
     const bytes = std.mem.asBytes(items);
 
@@ -228,18 +230,18 @@ fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
     return @ptrCast(@alignCast(storage));
 }
 
-pub fn appendU64(resource: *const anyopaque, target: *const anyopaque, value: u64) std.mem.Allocator.Error!void {
-    try list(u64, @constCast(target)).append(borrowAllocator(resource), value);
+pub fn appendU64(resource: *const anyopaque, target: *anyopaque, value: u64) std.mem.Allocator.Error!void {
+    try list(u64, target).append(borrowAllocator(resource), value);
 }
 
-pub fn reserveTail(comptime Item: type, resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
-    const column = list(Item, @constCast(storage));
+pub fn reserveTail(comptime Item: type, resource: *const anyopaque, storage: *anyopaque, source: *anyopaque, tail: *anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
+    const column = list(Item, storage);
 
     if (column.items.len > limit or count > limit - column.items.len) return error.OutOfMemory;
 
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
-    const existing: *[]const Item = @ptrCast(@alignCast(@constCast(source)));
-    const writable: *[]Item = @ptrCast(@alignCast(@constCast(tail)));
+    const existing: *[]const Item = @ptrCast(@alignCast(source));
+    const writable: *[]Item = @ptrCast(@alignCast(tail));
 
     try column.ensureUnusedCapacity(borrowAllocator(resource), length);
 
@@ -251,8 +253,8 @@ pub fn copyText(resource: *const anyopaque, source: []const u8) std.mem.Allocato
     return borrowAllocator(resource).dupe(u8, source);
 }
 
-pub fn allocateU32s(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error![]const u32 {
-    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+pub fn allocateU32s(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error![]const u32 {
+    const output: *[]u32 = @ptrCast(@alignCast(target));
     const size = std.math.cast(usize, count) orelse return error.OutOfMemory;
     const items = try borrowAllocator(resource).alloc(u32, size);
 

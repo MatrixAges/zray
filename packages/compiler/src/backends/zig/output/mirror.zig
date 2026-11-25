@@ -318,7 +318,7 @@ const Hashing = struct {
     files: Files,
     paths: [][]const u8,
     hashes: []u64,
-    fn publish(self: *const Hashing, arenas: parallel.Arenas, head_blocks: usize, count: usize) !void {
+    fn publish(self: *Hashing, arenas: parallel.Arenas, head_blocks: usize, count: usize) !void {
         var columns: FileColumns = undefined;
         const view = columns.bind(self.files);
 

@@ -51,6 +51,10 @@ export default function (in: Input): Output {
     )[0]
 
     if (kind(in.source.types.kinds[in.index]) != Kind.Enumeration) {
+        if (in.source.types.first[in.index] != 0) {
+            return with_name.push(bytes.fromText("mutable"))[0]
+        }
+
         return with_name
     }
 

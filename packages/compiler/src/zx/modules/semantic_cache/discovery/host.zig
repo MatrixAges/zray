@@ -36,7 +36,7 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
     var scope: @TypeOf(standard) = undefined;
     var scope_view: Registry = undefined;
     var keys: [2 * batch_size][]const u8 = undefined;
-    const output: [][]const u8 = &keys;
+    var output: [][]const u8 = &keys;
     var batch: Batch = .{ .paths = &paths, .first = 0, .count = 0 };
 
     var request: Input = .{

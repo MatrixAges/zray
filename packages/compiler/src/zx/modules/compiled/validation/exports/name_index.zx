@@ -34,7 +34,7 @@ export default function (in: Input): Output {
             const row = state.row
             const found = slot({
                 names,
-                buckets,
+                buckets: memory.u64View(buckets, null),
                 capacity,
                 name: memory.readTextColumn(names, row)
             })

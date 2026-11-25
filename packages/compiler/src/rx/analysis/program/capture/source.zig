@@ -194,7 +194,7 @@ fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStor
 
         zx.columns.invoke(argument_rule.executeValue, empty.allocator(), &input) catch unreachable;
     } else {
-        const captured = symbols.names.items[1..];
+        var captured = symbols.names.items[1..];
 
         const input: Binding = .{
             .prefix = &prefix_input,

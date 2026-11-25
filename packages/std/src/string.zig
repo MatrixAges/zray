@@ -36,14 +36,14 @@ pub fn copyList(allocator: std.mem.Allocator, values: []const []const u8) std.me
     return output;
 }
 
-pub fn setAdd(allocator: std.mem.Allocator, set: *const anyopaque, value: []const u8) std.mem.Allocator.Error!void {
-    const keys: *StringSet = @ptrCast(@alignCast(@constCast(set)));
+pub fn setAdd(allocator: std.mem.Allocator, set: *anyopaque, value: []const u8) std.mem.Allocator.Error!void {
+    const keys: *StringSet = @ptrCast(@alignCast(set));
 
     try keys.put(allocator, value, {});
 }
 
-pub fn setAddAll(allocator: std.mem.Allocator, set: *const anyopaque, values: []const []const u8) std.mem.Allocator.Error!void {
-    const keys: *StringSet = @ptrCast(@alignCast(@constCast(set)));
+pub fn setAddAll(allocator: std.mem.Allocator, set: *anyopaque, values: []const []const u8) std.mem.Allocator.Error!void {
+    const keys: *StringSet = @ptrCast(@alignCast(set));
 
     for (values) |value| try keys.put(allocator, value, {});
 }

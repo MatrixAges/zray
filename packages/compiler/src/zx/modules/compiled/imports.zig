@@ -57,7 +57,7 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
     frame.rows.bytes = std.mem.sliceAsBytes(initializers.allocatedSlice());
     const first = frame.first;
     var published = [1]u64{first};
-    const used: []u64 = &published;
+    var used: []u64 = &published;
 
     defer frame.pending.deinit(allocator);
 

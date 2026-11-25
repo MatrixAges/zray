@@ -87,7 +87,7 @@ const Load = struct {
         if (comptime generated) {
             const rule = @import("generated_rx_load_store_registry");
             const data: []Data = @as(*[1]Data, @ptrCast(&work.data));
-            const shared = zx.memory.borrowNestedWriteColumn(zx.ir.TypeTable, &.{ "context", "types" }, data);
+            var shared = zx.memory.borrowNestedWriteColumn(zx.ir.TypeTable, &.{ "context", "types" }, data);
 
             return rule.executeIn(.failing, &.{
                 .state = @ptrCast(work),

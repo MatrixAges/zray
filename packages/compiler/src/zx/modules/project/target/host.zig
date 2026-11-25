@@ -229,7 +229,7 @@ fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8,
         .owner = scope.owner,
         .windows = builtin.os.tag == .windows,
         .index = &.{ .keys = table.keys, .buckets = @ptrCast(&table.buckets), .capacity = table.buckets.len },
-        .output = &output,
+        .output = @ptrCast(&output),
     };
 
     const selected = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -307,7 +307,7 @@ fn resolvePackage(memory: Memory, root: []const u8, package: ?*const scopes.Pack
         .allow_rx = allow_rx,
         .root = root,
         .release = @ptrCast(&allocator),
-        .output = &output,
+        .output = @ptrCast(&output),
     };
 
     const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {

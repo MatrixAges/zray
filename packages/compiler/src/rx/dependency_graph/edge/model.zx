@@ -1,4 +1,4 @@
-import type { Table } from "core/bytes/index/fixed"
+import type { Table } from "core/bytes/index/slot"
 import type { Rows as Packages } from "../../../zx/modules/project/target/select"
 import type { Workspace } from "../../path_segments/reference/model"
 import type { Issue } from "../model"

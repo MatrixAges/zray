@@ -26,8 +26,8 @@ comptime {
 pub fn convert(comptime rules: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype) !Document {
     const tree = input.tree;
     const slots = try temporary.alloc(u64, tree.nodes.len + tree.text.len);
-    const node_slots = slots[0..tree.nodes.len];
-    const text_slots = slots[tree.nodes.len..];
+    var node_slots = slots[0..tree.nodes.len];
+    var text_slots = slots[tree.nodes.len..];
     const decoded = try values.materialize(rules.decode, allocator, source, tree.parts, input.control.decoded_length);
     const nodes = try allocator.alloc(ast.Node, tree.nodes.len);
     const attributes = try allocator.alloc(ast.Attribute, tree.attributes.len);

@@ -107,8 +107,12 @@ pub const RowGrowth = struct {
     }
 };
 
-inline fn rowBuffer(target: *const anyopaque) *RowBuffer {
-    return @ptrCast(@alignCast(@constCast(target)));
+inline fn rowBuffer(target: *anyopaque) *RowBuffer {
+    return @ptrCast(@alignCast(target));
+}
+
+inline fn rowBufferConst(target: *const anyopaque) *const RowBuffer {
+    return @ptrCast(@alignCast(target));
 }
 
 inline fn rowGrowth(target: *const anyopaque) *const RowGrowth {
@@ -116,11 +120,11 @@ inline fn rowGrowth(target: *const anyopaque) *const RowGrowth {
 }
 
 pub inline fn rowFieldCount(target: *const anyopaque) u64 {
-    return rowBuffer(target).fields.len;
+    return rowBufferConst(target).fields.len;
 }
 
 pub inline fn rowStorageCount(target: *const anyopaque) u64 {
-    const buffer = rowBuffer(target);
+    const buffer = rowBufferConst(target);
 
     return buffer.bytes.len / buffer.stride;
 }
@@ -132,14 +136,14 @@ pub inline fn rowCapacityLimit() u64 {
 pub inline fn rowGrowthBase(target: *const anyopaque, used: u64) u64 {
     std.debug.assert(used == rowStorageCount(target));
 
-    return @max(1, std.atomic.cache_line / rowBuffer(target).stride);
+    return @max(1, std.atomic.cache_line / rowBufferConst(target).stride);
 }
 
 pub inline fn rowGrowthBuffer(target: *const anyopaque, output: anytype) std.meta.Child(@TypeOf(output)) {
     return @ptrCast(rowGrowth(target).target);
 }
 
-pub inline fn refreshRowWrite(target: *const anyopaque, slot: u64, count: u64) void {
+pub inline fn refreshRowWrite(target: *anyopaque, slot: u64, count: u64) void {
     rowBuffer(target).refreshCell(@intCast(slot), @intCast(count));
 }
 
@@ -147,11 +151,11 @@ pub inline fn refreshRowRead(target: *const anyopaque, slot: u64, count: u64) vo
     rowGrowth(target).refreshCell(@intCast(slot), @intCast(count));
 }
 
-pub inline fn clearRowStorage(target: *const anyopaque) void {
+pub inline fn clearRowStorage(target: *anyopaque) void {
     rowBuffer(target).bytes = &.{};
 }
 
-pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *const anyopaque, used: u64, count: u64) std.mem.Allocator.Error!bool {
+pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *anyopaque, used: u64, count: u64) std.mem.Allocator.Error!bool {
     const buffer = rowBuffer(target);
     const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
     const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
@@ -170,7 +174,7 @@ pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const
     return true;
 }
 
-pub fn trimRowStorage(allocator: std.mem.Allocator, target: *const anyopaque, used: u64) std.mem.Allocator.Error!void {
+pub fn trimRowStorage(allocator: std.mem.Allocator, target: *anyopaque, used: u64) std.mem.Allocator.Error!void {
     const buffer = rowBuffer(target);
     const count: usize = @intCast(used);
 
@@ -215,7 +219,7 @@ pub inline fn rowBufferBytes(target: *const anyopaque) []const u8 {
     return buffer.bytes;
 }
 
-pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!bool {
+pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!bool {
     const buffer = rowBuffer(target);
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
     const size = std.math.mul(usize, length, buffer.stride) catch return error.OutOfMemory;
@@ -232,27 +236,27 @@ pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopa
     return true;
 }
 
-pub fn writeRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
+pub fn writeRowList(column: *anyopaque, index: u64, source: *const anyopaque) IndexError!void {
     const output: *const RowBuffer = @ptrCast(@alignCast(source));
     const count = if (output.bytes.len == 0) 0 else output.bytes.len / output.stride;
 
     try writeRowListCount(column, index, source, count);
 }
 
-pub inline fn writeRowListCount(column: *const anyopaque, index: u64, source: *const anyopaque, count: u64) IndexError!void {
-    const output = rowBuffer(source);
+pub inline fn writeRowListCount(column: *anyopaque, index: u64, source: *const anyopaque, count: u64) IndexError!void {
+    const output = rowBufferConst(source);
 
     try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
 }
 
-pub fn writeNamedRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
+pub fn writeNamedRowList(column: *anyopaque, index: u64, source: *const anyopaque) IndexError!void {
     const output: *const []@import("rows.zig").NamedId = @ptrCast(@alignCast(source));
 
     try write([]const u8, column, index, @as([*]const u8, @ptrCast(output.ptr))[0..output.len]);
 }
 
-pub fn copyRow(target: *const anyopaque, source: u64, destination: u64) IndexError!void {
-    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+pub fn copyRow(target: *anyopaque, source: u64, destination: u64) IndexError!void {
+    const output: *RowBuffer = @ptrCast(@alignCast(target));
     const count = output.bytes.len / output.stride;
 
     if (source >= count or destination >= count or source == destination) return error.IndexOutOfBounds;
@@ -263,8 +267,8 @@ pub fn copyRow(target: *const anyopaque, source: u64, destination: u64) IndexErr
     @memcpy(output.bytes[next..][0..output.stride], output.bytes[first..][0..output.stride]);
 }
 
-pub fn copyRowPrefix(target: *const anyopaque, source: []const u8, count: u64) IndexError!void {
-    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+pub fn copyRowPrefix(target: *anyopaque, source: []const u8, count: u64) IndexError!void {
+    const output: *RowBuffer = @ptrCast(@alignCast(target));
     const length = std.math.cast(usize, count) orelse return error.IndexOutOfBounds;
     const size = std.math.mul(usize, length, output.stride) catch return error.IndexOutOfBounds;
 
@@ -273,8 +277,8 @@ pub fn copyRowPrefix(target: *const anyopaque, source: []const u8, count: u64) I
     @memcpy(output.bytes[0..size], source[0..size]);
 }
 
-pub fn writeRow(target: *const anyopaque, index: u64, source: []const u8) IndexError!void {
-    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+pub fn writeRow(target: *anyopaque, index: u64, source: []const u8) IndexError!void {
+    const output: *RowBuffer = @ptrCast(@alignCast(target));
     const width = output.stride;
 
     if (index >= output.bytes.len / width or source.len != width) return error.IndexOutOfBounds;
@@ -284,18 +288,18 @@ pub fn writeRow(target: *const anyopaque, index: u64, source: []const u8) IndexE
     @memcpy(output.bytes[offset..][0..width], source);
 }
 
-pub inline fn writeRowByteView(target: *const anyopaque, index: u64, source: []const u8) IndexError!void {
+pub inline fn writeRowByteView(target: *anyopaque, index: u64, source: []const u8) IndexError!void {
     try writeRow(target, index, std.mem.asBytes(&source));
 }
 
-pub inline fn writeRowIndex(target: *const anyopaque, index: u64, value: u64) IndexError!void {
+pub inline fn writeRowIndex(target: *anyopaque, index: u64, value: u64) IndexError!void {
     const converted = std.math.cast(usize, value) orelse return error.IndexOutOfBounds;
 
     try writeRow(target, index, std.mem.asBytes(&converted));
 }
 
-pub fn writeRowByteField(target: *const anyopaque, index: u64, offset: u64, source: []const u8) IndexError!void {
-    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+pub fn writeRowByteField(target: *anyopaque, index: u64, offset: u64, source: []const u8) IndexError!void {
+    const output: *RowBuffer = @ptrCast(@alignCast(target));
     const width = @sizeOf([]const u8);
 
     if (index >= output.bytes.len / output.stride or offset > output.stride or width > output.stride - offset) return error.IndexOutOfBounds;
@@ -331,67 +335,67 @@ pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8
     };
 }
 
-pub inline fn writeU8(target: *const anyopaque, index: u64, value: u8) IndexError!void {
+pub inline fn writeU8(target: *anyopaque, index: u64, value: u8) IndexError!void {
     return write(u8, target, index, value);
 }
 
-pub inline fn writeU32(target: *const anyopaque, index: u64, value: u32) IndexError!void {
+pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) IndexError!void {
     return write(u32, target, index, value);
 }
 
-pub inline fn writeU64(target: *const anyopaque, index: u64, value: u64) IndexError!void {
+pub inline fn writeU64(target: *anyopaque, index: u64, value: u64) IndexError!void {
     return write(u64, target, index, value);
 }
 
-pub inline fn writeIndex(target: *const anyopaque, index: u64, value: u64) IndexError!void {
+pub inline fn writeIndex(target: *anyopaque, index: u64, value: u64) IndexError!void {
     return write(usize, target, index, std.math.cast(usize, value) orelse return error.IndexOutOfBounds);
 }
 
-pub inline fn writeBool(target: *const anyopaque, index: u64, value: bool) IndexError!void {
+pub inline fn writeBool(target: *anyopaque, index: u64, value: bool) IndexError!void {
     return write(bool, target, index, value);
 }
 
-pub inline fn writeOptionalBool(target: *const anyopaque, index: u64, value: ?bool) IndexError!void {
+pub inline fn writeOptionalBool(target: *anyopaque, index: u64, value: ?bool) IndexError!void {
     return write(?bool, target, index, value);
 }
 
-pub inline fn writeBytes(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
+pub inline fn writeBytes(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
     return write([]const u8, target, index, value);
 }
 
-pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) IndexError!void {
+pub inline fn writeU32List(target: *anyopaque, index: u64, value: []const u32) IndexError!void {
     return write([]const u32, target, index, value);
 }
 
-pub inline fn writeU64List(target: *const anyopaque, index: u64, value: []const u64) IndexError!void {
+pub inline fn writeU64List(target: *anyopaque, index: u64, value: []const u64) IndexError!void {
     return write([]const u64, target, index, value);
 }
 
-pub inline fn writeU32Lists(target: *const anyopaque, index: u64, value: []const []const u32) IndexError!void {
+pub inline fn writeU32Lists(target: *anyopaque, index: u64, value: []const []const u32) IndexError!void {
     return write([]const []const u32, target, index, value);
 }
 
-pub inline fn writeOptionalU32(target: *const anyopaque, index: u64, value: ?u32) IndexError!void {
+pub inline fn writeOptionalU32(target: *anyopaque, index: u64, value: ?u32) IndexError!void {
     return write(?u32, target, index, value);
 }
 
-pub inline fn writeOptionalU8(target: *const anyopaque, index: u64, value: ?u8) IndexError!void {
+pub inline fn writeOptionalU8(target: *anyopaque, index: u64, value: ?u8) IndexError!void {
     return write(?u8, target, index, value);
 }
 
-pub inline fn writeText(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
+pub inline fn writeText(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
     return write([]const u8, target, index, value);
 }
 
-pub inline fn writeOptionalText(target: *const anyopaque, index: u64, value: ?[]const u8) IndexError!void {
+pub inline fn writeOptionalText(target: *anyopaque, index: u64, value: ?[]const u8) IndexError!void {
     return write(?[]const u8, target, index, value);
 }
 
-pub inline fn writeTextList(target: *const anyopaque, index: u64, value: []const []const u8) IndexError!void {
+pub inline fn writeTextList(target: *anyopaque, index: u64, value: []const []const u8) IndexError!void {
     return write([]const []const u8, target, index, value);
 }
 
-pub inline fn writeRowRange(target: *const anyopaque, index: u64, storage: []const u8, width: u64, first: u64, count: u64) IndexError!void {
+pub inline fn writeRowRange(target: *anyopaque, index: u64, storage: []const u8, width: u64, first: u64, count: u64) IndexError!void {
     const rows = storage.len / width;
 
     if (first > rows or count > rows - first) return error.IndexOutOfBounds;
@@ -402,7 +406,7 @@ pub inline fn writeRowRange(target: *const anyopaque, index: u64, storage: []con
     try write([]const u8, target, index, storage[start..][0..@intCast(count)]);
 }
 
-pub inline fn writeRowReference(target: *const anyopaque, index: u64, storage: []const u8, width: u64, row: ?u64) IndexError!void {
+pub inline fn writeRowReference(target: *anyopaque, index: u64, storage: []const u8, width: u64, row: ?u64) IndexError!void {
     const address: ?[*]const u8 = if (row) |position| block: {
         if (position >= storage.len / width) return error.IndexOutOfBounds;
 
@@ -412,7 +416,7 @@ pub inline fn writeRowReference(target: *const anyopaque, index: u64, storage: [
     try write(?[*]const u8, target, index, address);
 }
 
-pub inline fn writeListReference(target: *const anyopaque, index: u64, source: *const anyopaque, row: u64, member: u64) IndexError!void {
+pub inline fn writeListReference(target: *anyopaque, index: u64, source: *const anyopaque, row: u64, member: u64) IndexError!void {
     const column = try @import("rows.zig").listColumn(source, row);
 
     if (member >= column.count) return error.IndexOutOfBounds;
@@ -422,17 +426,17 @@ pub inline fn writeListReference(target: *const anyopaque, index: u64, source: *
     try write(?[*]const u8, target, index, address);
 }
 
-pub inline fn writeOptionalTextList(target: *const anyopaque, index: u64, value: ?[]const []const u8) IndexError!void {
+pub inline fn writeOptionalTextList(target: *anyopaque, index: u64, value: ?[]const []const u8) IndexError!void {
     return write(?[]const []const u8, target, index, value);
 }
 
-pub fn clearOptionalRowList(target: *const anyopaque, index: u64) IndexError!void {
+pub fn clearOptionalRowList(target: *anyopaque, index: u64) IndexError!void {
     return write(?[]const u8, target, index, null);
 }
 
 /// Transfers a single cell's representation between compatible, disjoint borrowed fields.
-pub inline fn copyValue(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
-    const column: *const Column = @ptrCast(@alignCast(target));
+pub inline fn copyValue(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
+    const column: *Column = @ptrCast(@alignCast(target));
 
     if (index >= column.count or value.len != column.width) return error.IndexOutOfBounds;
 
@@ -441,8 +445,8 @@ pub inline fn copyValue(target: *const anyopaque, index: u64, value: []const u8)
     @memcpy(column.items[offset..][0..column.width], value);
 }
 
-pub inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) IndexError!void {
-    const column: *const Column = @ptrCast(@alignCast(target));
+pub inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) IndexError!void {
+    const column: *Column = @ptrCast(@alignCast(target));
 
     if (index >= column.count or column.width != @sizeOf(T)) return error.IndexOutOfBounds;
 

@@ -18,11 +18,12 @@ const Frame = struct {
     }
 };
 
-pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!void {
+pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!void {
+    var owner = owner_arg;
     const size = functions.count();
-    const indices = try owner.alloc(u32, size);
-    const queued = try owner.alloc(u8, size);
-    const first = try owner.alloc(u64, size + 1);
+    var indices = try owner.alloc(u32, size);
+    var queued = try owner.alloc(u8, size);
+    var first = try owner.alloc(u64, size + 1);
 
     @memset(first, 0);
 

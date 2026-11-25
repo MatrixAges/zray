@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
-import fixed from "core/bytes/index/fixed"
+import probe from "core/bytes/index/slot"
 
-import type { Table } from "core/bytes/index/fixed"
+import type { Table } from "core/bytes/index/slot"
 
 export type Input = {
     path: string,
@@ -15,9 +15,10 @@ export default function (in: Input): Output {
         return null
     }
 
-    return fixed({
+    const found = probe({
         ...in.index,
-        key: bytes.fromText(in.path),
-        insert: null
+        key: bytes.fromText(in.path)
     })
+
+    return found.entry == 0 ? null : found.entry - 1
 }

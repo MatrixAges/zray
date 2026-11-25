@@ -97,7 +97,7 @@ pub fn scope(allocator: std.mem.Allocator, types: ir.TypeTable, bindings: Expres
 
     const rule = @import("generated_rx_task_capture_narrow");
     const Input = std.meta.Child(rule.Input);
-    const output: []u32 = @ptrCast(selected_types);
+    var output: []u32 = @ptrCast(selected_types);
 
     const input: Input = .{
         .names = bindings.names,

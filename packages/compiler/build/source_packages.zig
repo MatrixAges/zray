@@ -21,6 +21,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "core/bytes/index/fixed_capacity", .entry = "core/bytes/index/fixed_capacity.zx" },
     .{ .specifier = "core/bytes/index/slot", .entry = "core/bytes/index/slot.zx" },
     .{ .specifier = "core/bytes/index/digest/model", .entry = "core/bytes/index/digest/model.zx" },
+    .{ .specifier = "core/bytes/index/digest/slot", .entry = "core/bytes/index/digest/slot.zx" },
     .{ .specifier = "core/bytes/index/digest/exchange", .entry = "core/bytes/index/digest/exchange.zx" },
     .{ .specifier = "core/bytes/index/digest/rebuild", .entry = "core/bytes/index/digest/rebuild.zx" },
     .{ .specifier = "core/bytes/map/capacity", .entry = "core/bytes/map/capacity.zx" },

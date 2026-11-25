@@ -29,7 +29,7 @@ pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
     const entry = @import("generated_type_scratch_prepare");
     const Input = std.meta.Child(entry.Input);
     const Table = std.meta.Child(@FieldType(Input, "tables"));
-    const count_view = self.touchedCount();
+    var count_view = self.touchedCount();
     var touched: Touched(Table) = undefined;
     const tables = self.borrow(Table, &count_view, &touched);
 
@@ -56,7 +56,7 @@ fn Touched(comptime Table: type) type {
     return std.meta.Child(@FieldType(Table, "touched"));
 }
 
-fn borrow(self: *Self, comptime Table: type, count: *const []u32, touched: *Touched(Table)) Table {
+fn borrow(self: *Self, comptime Table: type, count: *[]u32, touched: *Touched(Table)) Table {
     touched.* = .{ .rows = @ptrCast(&self.columns.touched), .count = @ptrCast(count) };
 
     return .{
@@ -78,7 +78,7 @@ pub fn reset(self: *Self) void {
 
     const entry = @import("generated_type_scratch_reset");
     const Input = std.meta.Child(entry.Input);
-    const count = self.touchedCount();
+    var count = self.touchedCount();
     var touched: Touched(Input) = undefined;
     const input = self.borrow(Input, &count, &touched);
     var fixed = std.heap.FixedBufferAllocator.init(&.{});

@@ -50,15 +50,13 @@
 
 ## 四、分阶段大步执行计划
 
-### Phase C1（P0 · 紧急止血 · **Wave 2 已完成 Hop 1，待 Wave 3 收口**）：根除 `core/memory` `@constCast` UB
+### Phase C1（P0 · **Wave 2 + Wave 3 已完成**）：根除 `core/memory` `@constCast` UB
 
 - **目标**：消除 `packages/core/src/memory/` 全部 **36 处 `@constCast`** 及 `noinline` 补丁。
-- **进展（Wave 2 Hop 1 已完成）**：已在 `core/src/type_table/structure.zig`、`compiler` 与 `genz`（`ExpressionsKind.Pointer` / `Expressions.pointer`）落地 `mutable_opaque` 可变原生句柄类型，能够区分 `*const T`（`opaque`）与 `*T`（`mutable_opaque`）。
-- **方案（Hop 2 待 Wave 3 执行）**：
-    1. 将 `core/memory` 与 `std` 中承担写入职责的 `.d.zx` 原生句柄切换为 `mutable_opaque`（传递显式 `*T`，而非 `*const anyopaque`）；
-    2. 将 `root.zig`、`rows.zig`、`write_column.zig`、`column_set.zig`、`column_transfer.zig`、`atomic.zig`、`arena_scope.zig`、`text_storage.zig` 等文件中的写入目标全部改为正确可变类型；
-    3. 删除 `root.zig:784` 和 `rows.zig:279,393` 的 `noinline` 掩盖声明。
-- **阶段门禁**：`packages/core/src/memory/` 中 `@constCast == 0`；`ReleaseSmall` 与 `ReleaseSafe` 下无探针直接编译并运行全部目录扫描与观测回归通过。
+- **进展**：
+    1. **Wave 2（Hop 1）**：已在 `core/src/type_table/structure.zig`、`compiler` 与 `genz`（`ExpressionsKind.Pointer` / `Expressions.pointer`）落地 `mutable_opaque` 可变原生句柄类型，区分 `*const T`（`opaque`）与 `*T`（`mutable_opaque`）。
+    2. **Wave 3（Hop 2 收口）**：已将 `core/memory` 与 `std` 全部写入句柄切换为 `mutable_opaque`，新增只读 `U32View`/`U64View`/`StringViews`（`opaque`），重构 `WriteFields` 与 `columns.zig` 可变指针校验，移除 `packages/core/src/memory/` 全部 **36 处 `@constCast` 与 3 处 `noinline`**（`ZERO_UB_CLEAN`），并修复 `column_range`/`column_set`/`column_transfer` 跨分区函数指针错误标签 ABI 问题（改为返回 `bool`）。
+- **阶段门禁（已通过）**：`packages/core/src/memory/` `@constCast == 0` 且 `noinline == 0`；Zig `0.17.1` 下 `ReleaseSmall` 与 `ReleaseSafe` 构建及 `compiler`/`cli` 全量测试全部通过。
 
 ### Phase C2（P1 · 配合 `genz`）：从 341 个微原语收敛为泛型/类型化独占缓冲原语
 

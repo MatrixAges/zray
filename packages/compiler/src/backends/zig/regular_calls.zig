@@ -13,9 +13,12 @@ const ScanInput = std.meta.Child(scanning.Input);
 const Sources = std.meta.Child(@FieldType(ScanInput, "sources"));
 const Ranges = std.meta.Child(@FieldType(ScanInput, "ranges"));
 const Table = std.meta.Child(@FieldType(BuildInput, "table"));
+const ReadTable = std.meta.Child(@FieldType(ScanInput, "table"));
 const Candidates = std.meta.Child(@FieldType(BuildInput, "candidates"));
 
-pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, initializers: []const @import("modules.zig").File, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
+pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, initializers: []const @import("modules.zig").File, units: []generating.FunctionUnit, sources_arg: [][]const u8) generating.Error!void {
+    var sources = sources_arg;
+
     if (comptime !@import("parser_options").generated_parser) return @import("regular_calls_seed.zig").complete(owned, batch, roots, initializers, units, sources);
     if (units.len == 0) return;
 
@@ -27,17 +30,18 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
     const values = batch.analysis.value.value.values;
     const ids = zx.memory.borrowReadColumn(zx.ir.FunctionId, "id", units);
     const regular = zx.memory.borrowReadColumn(bool, "regular", units);
-    const flags = zx.memory.borrowWriteColumn(bool, "regular", units);
+    var flags = zx.memory.borrowWriteColumn(bool, "regular", units);
     const minimum = std.math.mul(usize, units.len, 2) catch return error.OutOfMemory;
     const capacity = std.math.ceilPowerOfTwo(usize, minimum) catch return error.OutOfMemory;
-    const buckets = try temporary.alloc(u64, capacity);
-    const pending = try temporary.alloc(u64, units.len);
-    const groups = try temporary.alloc(u64, units.len);
+    var buckets = try temporary.alloc(u64, capacity);
+    var pending = try temporary.alloc(u64, units.len);
+    var groups = try temporary.alloc(u64, units.len);
 
     @memset(buckets, 0);
 
-    const table: Table = .{ .keys = batch.names.functions, .capacity = capacity, .buckets = @ptrCast(&buckets) };
-    const candidates: Candidates = .{ .pending = @ptrCast(&pending), .groups = @ptrCast(&groups) };
+    var table: Table = .{ .keys = batch.names.functions, .capacity = capacity, .buckets = @ptrCast(&buckets) };
+    const read_table: ReadTable = .{ .keys = batch.names.functions, .capacity = capacity, .buckets = @ptrCast(&buckets) };
+    var candidates: Candidates = .{ .pending = @ptrCast(&pending), .groups = @ptrCast(&groups) };
     const input: BuildInput = .{ .table = &table, .candidates = &candidates, .units = &.{ .ids = @ptrCast(&ids), .regular = @ptrCast(&regular), .count = units.len }, .values = values };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const fixed = empty.allocator();
@@ -46,12 +50,12 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
     if (count == 0) return;
 
     const wanted = try temporary.alloc(u8, values.len);
-    const positions = try temporary.alloc(u64, @intCast(count));
+    var positions = try temporary.alloc(u64, @intCast(count));
 
     @memset(wanted, 0);
 
     var rows: [1][]u8 = .{wanted};
-    const cells: [][]u8 = &rows;
+    var cells: [][]u8 = &rows;
     const initial_sources = zx.memory.borrowTextColumn("source", initializers);
     var inputs: Sources = .{ .roots = roots, .initializers = @ptrCast(&initial_sources), .initializer_count = initializers.len, .functions = sources };
     var first = true;
@@ -59,7 +63,7 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
     while (true) {
         const range_request: std.meta.Child(ranging.Input) = .{ .sources = &inputs, .first = first };
         const ranges = zx.columns.invoke(ranging.executeValue, fixed, &range_request) catch |err| return failure(err);
-        var scan = Scan{ .sources = &inputs, .ranges = zx.columns.view(Ranges, ranges), .table = &table, .wanted = @ptrCast(&cells) };
+        var scan = Scan{ .sources = &inputs, .ranges = zx.columns.view(Ranges, ranges), .table = &read_table, .wanted = @ptrCast(&cells) };
 
         try scan.run();
 
@@ -85,8 +89,8 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 const Scan = struct {
     sources: *const Sources,
     ranges: Ranges,
-    table: *const Table,
-    wanted: *const anyopaque,
+    table: *const ReadTable,
+    wanted: *anyopaque,
     next: std.atomic.Value(usize) = .init(0),
     error_code: std.atomic.Value(u16) = .init(0),
     fn run(self: *Scan) std.mem.Allocator.Error!void {

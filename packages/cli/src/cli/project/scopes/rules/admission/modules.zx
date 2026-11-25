@@ -30,7 +30,8 @@ export default function (in: Input): Output {
 
             if (current.status == Status.Valid) {
                 const previous = slot({
-                    ...index,
+                    ...index.omit(["buckets"]),
+                    buckets: memory.u64View(index.buckets, null),
                     name
                 })
 

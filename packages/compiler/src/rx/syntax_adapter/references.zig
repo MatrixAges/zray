@@ -184,7 +184,7 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
     const Parameter = @typeInfo(@TypeOf(scan)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     var storage: [xml_nesting_limit]u64 = undefined;
-    const parents: []u64 = &storage;
+    var parents: []u64 = &storage;
     const project_flow = nodes[0].children.len != 0 and std.mem.eql(u8, nodes[0].name, "Module");
     const count = if (project_flow) nodes.len else 0;
 
@@ -195,11 +195,11 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
     const length = std.math.add(usize, column_words, event_capacity) catch return error.OutOfMemory;
     const data = try allocator.alloc(u64, length);
     const flow = std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(data[0..column_words]));
-    const facts = flow[0..count];
-    const unit_firsts = flow[count..][0..count];
-    const unit_counts = flow[2 * count ..][0..count];
-    const step_rows = flow[3 * count ..];
-    const events = data[column_words..];
+    var facts = flow[0..count];
+    var unit_firsts = flow[count..][0..count];
+    var unit_counts = flow[2 * count ..][0..count];
+    var step_rows = flow[3 * count ..];
+    var events = data[column_words..];
 
     const scan_input: Input = .{
         .source = source,

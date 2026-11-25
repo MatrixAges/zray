@@ -3,9 +3,10 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Lower = @import("../lower.zig");
 
-pub fn fill(self: *const Lower, values: ir.Block, target: []u8) Lower.Error!void {
+pub fn fill(self: *const Lower, values: ir.Block, target_arg: []u8) Lower.Error!void {
     if (values.len == 0) return;
 
+    var target = target_arg;
     const rule = @import("generated_statement_block_plan");
     const Input = std.meta.Child(rule.Input);
     const Control = std.meta.Child(@FieldType(Input, "control"));

@@ -153,8 +153,8 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
         const generated = @import("generated_project_load_source");
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const Input = std.meta.Child(generated.Input);
-        const marks = std.mem.sliceAsBytes(state_column);
-        const cursor: []u64 = @as(*[1]u64, @ptrCast(request.cursor));
+        var marks = std.mem.sliceAsBytes(state_column);
+        var cursor: []u64 = @as(*[1]u64, @ptrCast(request.cursor));
 
         const input: Input = .{
             .path = request.path,

@@ -16,7 +16,7 @@ const Verification = struct {
         self.functions = &self.slot;
         self.native = @as(*[1]u8, @ptrCast(&verified.native));
     }
-    fn input(self: *const Verification, comptime Input: type) Input {
+    fn input(self: *Verification, comptime Input: type) Input {
         return .{ .functions = @ptrCast(&self.functions), .native = @ptrCast(&self.native) };
     }
 };

@@ -27,8 +27,8 @@ fn writeSource(cache: *const project.ParseCache, paths: []const []const u8, sour
     const Retained = std.meta.Child(@typeInfo(@FieldType(Input, "retained")).optional.child);
     const entries = &cache.entries;
     const digests = memory.borrowReferenceColumn("digest", entries.values.items);
-    const data = std.mem.sliceAsBytes(target.words);
-    const present = std.mem.sliceAsBytes(target.present);
+    var data = std.mem.sliceAsBytes(target.words);
+    var present = std.mem.sliceAsBytes(target.present);
     const current = memory.borrowTextColumn("source", sources);
     const earlier = if (retained) |previous| memory.borrowTextColumn("source", previous.sources) else undefined;
 
@@ -77,8 +77,8 @@ pub fn publish(digests: []const History.Digest, paths: []const []const u8, targe
 
     const rule = @import("generated_rx_history_digest_publish");
     const names = memory.borrowTextColumn("path", digests);
-    const data = std.mem.sliceAsBytes(target.words);
-    const present = std.mem.sliceAsBytes(target.present);
+    var data = std.mem.sliceAsBytes(target.words);
+    var present = std.mem.sliceAsBytes(target.present);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     rule.executeValue(empty.allocator(), &.{

@@ -15,8 +15,8 @@ pub fn create(owned: std.mem.Allocator, backing: std.mem.Allocator, functions: *
 
     defer backing.free(indices);
 
-    const buckets = indices[0..capacity];
-    const selected = indices[capacity..];
+    var buckets = indices[0..capacity];
+    var selected = indices[capacity..];
 
     @memset(buckets, 0);
 

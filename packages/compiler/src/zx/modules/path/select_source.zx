@@ -3,11 +3,12 @@ import memory from "memory"
 import alias from "./alias/select"
 import named from "./named/resolve"
 
+import type { TextSlots } from "memory"
 import type { Input as Lookup } from "./alias/model"
 
 export type Input = Lookup & {
     member_width?: u64,
-    output: string[]
+    output: TextSlots
 }
 
 export type Output = {

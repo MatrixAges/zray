@@ -1,4 +1,4 @@
-import type { Allocator } from "memory"
+import type { Allocator, TextSlots } from "memory"
 
 export type Allocation = {
     allocator: Allocator,
@@ -6,7 +6,7 @@ export type Allocation = {
 }
 
 export type Fill = Allocation & {
-    target: string[]
+    target: TextSlots
 }
 
 export type Release = {

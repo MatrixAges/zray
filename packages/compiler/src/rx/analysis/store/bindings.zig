@@ -86,7 +86,9 @@ pub fn typed(scope: *Typed, allocator: std.mem.Allocator, getters: []const Bindi
     scope.len = rows.len;
 }
 
-fn write(columns: *const Columns, graph: ?*Graph, first: usize, names: [][]const u8, values: []u32) usize {
+fn write(columns: *const Columns, graph: ?*Graph, first: usize, names_arg: [][]const u8, values_arg: []u32) usize {
+    var names = names_arg;
+    var values = values_arg;
     const rule = @import("generated_rx_store_scope_bindings");
     const Input = std.meta.Child(rule.Input);
     const Known = std.meta.Child(@typeInfo(@FieldType(Input, "known")).optional.child);

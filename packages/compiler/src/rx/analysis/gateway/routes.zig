@@ -135,7 +135,8 @@ fn writePaths(parts: []const []const u8, groups: []const bool, parents: []const 
 
     const rule = @import("generated_rx_gateway_write_routes");
     const Input = std.meta.Child(rule.Input);
-    const input: Input = .{ .parts = parts, .groups = groups, .parents = parents, .lengths = lengths, .target = @ptrCast(&target_buffer) };
+    var buffer = target_buffer;
+    const input: Input = .{ .parts = parts, .groups = groups, .parents = parents, .lengths = lengths, .target = @ptrCast(&buffer) };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const written = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| return generatedError(err);
 

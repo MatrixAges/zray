@@ -213,7 +213,7 @@ const DocumentReader = struct {
             .retained = "retain",
         }, entries);
 
-        const output = memory.borrowWriteFields(.{ .paths = "path", .texts = "text", .kinds = "kind" }, target);
+        var output = memory.borrowWriteFields(.{ .paths = "path", .texts = "text", .kinds = "kind" }, target);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         rule.executeIn(empty.allocator(), &.{

@@ -9,16 +9,16 @@ pub fn allocator(self: *Self) Allocator {
     return .{ .ptr = self, .vtable = &.{ .alloc = allocate, .resize = resize, .remap = remap, .free = free } };
 }
 
-pub fn select(source: *const anyopaque, arena: *const anyopaque) void {
+pub fn select(source: *anyopaque, arena: *anyopaque) void {
     // After switching arenas, allocations from the preceding phase are read-only.
-    const next: *Arena = @ptrCast(@alignCast(@constCast(arena)));
-    const self: *Self = @ptrCast(@alignCast(@constCast(source)));
+    const next: *Arena = @ptrCast(@alignCast(arena));
+    const self: *Self = @ptrCast(@alignCast(source));
 
     self.active = next.allocator();
 }
 
-pub fn selectAllocator(source: *const anyopaque, resource: *const anyopaque) void {
-    const self: *Self = @ptrCast(@alignCast(@constCast(source)));
+pub fn selectAllocator(source: *anyopaque, resource: *const anyopaque) void {
+    const self: *Self = @ptrCast(@alignCast(source));
     const next: *const Allocator = @ptrCast(@alignCast(resource));
     self.active = next.*;
 }

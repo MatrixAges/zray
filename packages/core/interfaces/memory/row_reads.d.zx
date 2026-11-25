@@ -13,7 +13,16 @@ export declare function readTextColumn(
     index: u64
 ): string throws { IndexOutOfBounds }
 
-export declare function bindTextView(target: TextColumn, source: StringBuffer): void
+export declare function bindTextView(
+    target: TextColumnBuffer,
+    source: StringBuffer,
+    shape: TextColumn?
+): TextColumn
+
+export declare function textColumnView(
+    source: TextColumnBuffer,
+    shape: TextColumn?
+): TextColumn
 
 export declare function readOptionalTextColumn(
     source: ReadColumn,

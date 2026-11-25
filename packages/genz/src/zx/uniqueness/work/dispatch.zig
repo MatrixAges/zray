@@ -16,9 +16,9 @@ pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const
     const pool = ahead.pool;
     const workers = pool.count();
     const table = &@field(memo, @tagName(kind));
-    const counters: []u32 = &pool.ring.counters;
-    const flags = std.mem.sliceAsBytes(ahead.dirty);
-    const target: []u8 = &memo.key;
+    var counters: []u32 = &pool.ring.counters;
+    var flags = std.mem.sliceAsBytes(ahead.dirty);
+    var target: []u8 = &memo.key;
     const allocator = memo.arena.allocator();
     var views: BodyRows.Views(Body) = undefined;
     const use_memo = workers != 0 and !advance.following and (kind != .planned or memo.persistent);

@@ -43,7 +43,7 @@ export default function (in: Input): Output {
         grouping != null && owner != in.owner => {
             ...state.context,
             aliases: {
-                rows: grouping.rows,
+                rows: memory.namedRowsView(grouping.rows, null),
                 row_count: memory.bindNamedRowView(
                     grouping.imports,
                     grouping.owners[row],

@@ -60,7 +60,7 @@ pub fn rawLocation(raw: []const u8, start: ast.Location, offset: usize, xml_newl
     if (!generated) return rawSeed(raw, start, offset, xml_newlines);
 
     var result: [2]u64 = undefined;
-    const destination: []u64 = &result;
+    var destination: []u64 = &result;
     var buffer: [@sizeOf([8]u64) + @alignOf(u64)]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 

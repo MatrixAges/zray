@@ -21,7 +21,7 @@ pub const Publication = struct {
             .revision = (&graph.revision)[0..1],
         };
     }
-    pub fn borrow(self: *const Publication, comptime Storage: type) Storage {
+    pub fn borrow(self: *Publication, comptime Storage: type) Storage {
         return .{
             .allowed = @ptrCast(&self.allowed),
             .fallback = @ptrCast(&self.fallback),
@@ -30,7 +30,7 @@ pub const Publication = struct {
     }
 };
 
-pub fn borrow(graph: *const Graph, parents: *const []u32) View {
+pub fn borrow(graph: *const Graph, parents: *[]u32) View {
     const rows = graph.nodes.slice();
     const types = &graph.types.items;
 
@@ -47,8 +47,8 @@ pub fn borrow(graph: *const Graph, parents: *const []u32) View {
 pub fn restrict(graph: *Graph, id: Graph.Id, allowed: Scalar.Mask, span: zx.Span) zx.Error!void {
     if (!enabled) return restrictSeed(graph, id, allowed, span);
 
-    const parents: []u32 = graph.parents();
-    const publication = Publication.init(graph, graph.nodes.slice());
+    var parents: []u32 = graph.parents();
+    var publication = Publication.init(graph, graph.nodes.slice());
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{

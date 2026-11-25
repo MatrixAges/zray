@@ -17,12 +17,12 @@ pub const zx_type_15 = struct {
 };
 
 pub const zx_type_16 = struct {
-    *const zx_type_11,
+    *zx_type_11,
     []const u8,
 };
 
 pub const zx_type_17 = struct {
-    *const zx_type_11,
+    *zx_type_11,
     []const []const u8,
 };
 
@@ -196,7 +196,7 @@ pub fn zxRenew(allocator: ((@import("std")).mem).Allocator, target: anytype, com
 
 pub const native_by_identity = struct {
     pub const @"zig:zxc_native_c234b07d5d68a443ba8b017e2bf8bb882e8a62a1141f44f127a7bd1cfa5846ed" = struct {
-        pub const StringSet = *const zx_type_11;
+        pub const StringSet = *zx_type_11;
         pub const join = struct {
             pub const Input = *const zx_type_13;
             pub const Output = []const u8;
@@ -240,7 +240,7 @@ pub const native_by_identity = struct {
             pub const OutputValue = void;
         };
         pub const setKeys = struct {
-            pub const Input = *const zx_type_11;
+            pub const Input = *zx_type_11;
             pub const Output = []const []const u8;
             pub const InputValue = zx_type_11;
             pub const OutputValue = []const []const u8;

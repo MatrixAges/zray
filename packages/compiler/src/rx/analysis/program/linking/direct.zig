@@ -19,7 +19,7 @@ pub fn unit(builder: *Builder, span: zx.Span) Builder.Error!ir.ExprId {
 
     try storage.reserveHeaders(builder.allocator, 1);
 
-    const columns = headers.Tail.init(storage, 1);
+    var columns = headers.Tail.init(storage, 1);
     const slots = headers.lengthSlots(storage);
     const lengths: zx.memory.ColumnLengths = &slots;
 

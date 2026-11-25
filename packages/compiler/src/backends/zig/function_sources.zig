@@ -87,7 +87,7 @@ fn runWorker(task: anytype, context: anytype, count: usize, pending: ?[]const u6
         .selected = jobs.positions,
     };
 
-    const failure: []u32 = @as(*[1]u32, @ptrCast(&task.failure.raw));
+    var failure: []u32 = @as(*[1]u32, @ptrCast(&task.failure.raw));
 
     const input: Input = .{
         .jobs = &view,

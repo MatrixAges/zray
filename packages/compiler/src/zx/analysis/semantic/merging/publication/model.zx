@@ -5,6 +5,7 @@ import type {
     Allocator,
     ColumnRanges,
     StringBuffer,
+    StringViews,
     U8Buffer,
     U32Buffer,
     U64Buffer
@@ -47,7 +48,7 @@ export type Target = {
     target: TypeTail,
     nominal: NominalTail,
     offsets?: Offsets,
-    base_labels: StringBuffer,
+    base_labels: StringViews,
     text_mode: TextMode,
     native_owner?: string,
     progress: U64Buffer,

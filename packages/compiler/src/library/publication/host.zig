@@ -74,12 +74,12 @@ pub fn publish(allocator: std.mem.Allocator, exports: []model.Export, index: usi
 
     member_output.init(source.analysis, program.file_name, nodes);
 
-    const names = memory.borrowWriteColumn([]const u8, "name", exports);
-    const paths = memory.borrowWriteColumn([]const u8, "path", exports);
-    const functions = memory.borrowWriteColumn(?ir.FunctionId, "function", exports);
-    const type_lists = memory.borrowWriteColumn([]const ir.Export, "types", exports);
-    const constant_lists = memory.borrowWriteColumn([]const ir.Constant, "constants", exports);
-    const member_lists = memory.borrowWriteColumn(@FieldType(model.Export, "members"), "members", exports);
+    var names = memory.borrowWriteColumn([]const u8, "name", exports);
+    var paths = memory.borrowWriteColumn([]const u8, "path", exports);
+    var functions = memory.borrowWriteColumn(?ir.FunctionId, "function", exports);
+    var type_lists = memory.borrowWriteColumn([]const ir.Export, "types", exports);
+    var constant_lists = memory.borrowWriteColumn([]const ir.Constant, "constants", exports);
+    var member_lists = memory.borrowWriteColumn(@FieldType(model.Export, "members"), "members", exports);
 
     const target: Target = .{
         .name = @ptrCast(&names),

@@ -28,19 +28,19 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
     try builder.bindings.ensureUnusedCapacity(builder.allocator, count);
 
     const getters_view = Columns.init(getters);
-    const header = headers.Tail.init(expressions, count);
+    var header = headers.Tail.init(expressions, count);
 
     const length_slots = zx.memory.borrowColumnLengths(symbols) ++
         .{ &builder.bindings.items.len, &expressions.stores.items.len } ++ headers.lengthSlots(expressions);
 
-    const lengths: zx.memory.ColumnLengths = &length_slots;
-    const names = symbols.names.unusedCapacitySlice()[0..count];
-    const types = symbols.types.unusedCapacitySlice()[0..count];
-    const starts = symbols.span_start.unusedCapacitySlice()[0..count];
-    const ends = symbols.span_end.unusedCapacitySlice()[0..count];
-    const ownership = std.mem.sliceAsBytes(symbols.ownership.unusedCapacitySlice()[0..count]);
-    const bindings = builder.bindings.unusedCapacitySlice()[0..count];
-    const cells = cursor.cells();
+    var lengths: zx.memory.ColumnLengths = &length_slots;
+    var names = symbols.names.unusedCapacitySlice()[0..count];
+    var types = symbols.types.unusedCapacitySlice()[0..count];
+    var starts = symbols.span_start.unusedCapacitySlice()[0..count];
+    var ends = symbols.span_end.unusedCapacitySlice()[0..count];
+    var ownership = std.mem.sliceAsBytes(symbols.ownership.unusedCapacitySlice()[0..count]);
+    var bindings = builder.bindings.unusedCapacitySlice()[0..count];
+    var cells = cursor.cells();
     const Expression = std.meta.Child(@FieldType(Input, "expressions"));
     const Constants = std.meta.Child(@FieldType(Input, "constants"));
     const Cursor = std.meta.Child(@FieldType(Constants, "writer"));

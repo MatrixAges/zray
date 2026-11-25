@@ -26,7 +26,7 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
     const reference = &state;
     var paths: @import("../project/native_paths.zig").Paths = undefined;
     var position = [1]u64{0};
-    const cursor: []u64 = &position;
+    var cursor: []u64 = &position;
 
     paths.init(project, &context.allocator);
 

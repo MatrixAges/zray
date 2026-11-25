@@ -13,7 +13,7 @@ const not_executable_rx = "Call.module requires an executable source module";
 const not_executable_zx = "Call requires an executable source module";
 
 pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, module: Prepared.Module) State.Error![]const ir.FunctionId {
-    const ids = try allocator.alloc(ir.FunctionId, module.calls.len);
+    var ids = try allocator.alloc(ir.FunctionId, module.calls.len);
 
     errdefer allocator.free(ids);
 

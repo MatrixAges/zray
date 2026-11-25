@@ -8,6 +8,7 @@ pub fn check(comptime program: type, input: program.Input, expected: union(enum)
     var left = (input.left orelse input.fallback).*;
     var right = (input.right orelse input.fallback).*;
     var fallback = input.fallback.*;
+
     const actual_input: program.Input = &.{
         .left = if (input.left != null) &left else null,
         .right = if (input.right != null) &right else null,

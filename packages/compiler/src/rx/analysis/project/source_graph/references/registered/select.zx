@@ -60,7 +60,7 @@ export default function (in: Input): Output {
         output: owned.selected
     })
 
-    const path = owned.selected[0]
+    const path = memory.readTextSlot(owned.selected, 0)
 
     return {
         path: path.length == 0 ? absolute : path,

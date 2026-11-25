@@ -24,6 +24,7 @@ fn check(allocator: std.mem.Allocator, scenario: Scenario) !void {
             var right = original_right.*;
 
             right.value = 77;
+
             try std.testing.expectError(error.MultipleStoreObjects, state.commit(.{ .store_0 = &candidate, .store_1 = &right }));
         },
         .execution => {

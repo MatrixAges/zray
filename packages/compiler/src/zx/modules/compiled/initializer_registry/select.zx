@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import probe from "core/bytes/index/borrowed/probe"
+import memory from "memory"
 import columns from "memory/columns"
 
 import decide from "../../../ir/compare/initializer/linked_action"
@@ -39,7 +40,7 @@ export default function (in: Input): Output {
 
     const found = probe({
         keys: published.identity,
-        buckets: in.buckets,
+        buckets: memory.u32View(in.buckets, null),
         capacity: in.capacity,
         text: in.identity
     })

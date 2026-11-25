@@ -1,5 +1,5 @@
-import type { Table } from "core/bytes/index/fixed"
-import type { Allocator, BoolBuffer, U64Storage } from "memory"
+import type { Table } from "core/bytes/index/slot"
+import type { Allocator, BoolBuffer, TextSlots, U64Storage } from "memory"
 import type { GraphEdgePublication } from "rx_graph_host"
 import type {
     Input as Scope
@@ -27,8 +27,8 @@ export type Resources = {
 
 export type PathStorage = {
     allocator: Allocator,
-    resolved: string[],
-    selected: string[]
+    resolved: TextSlots,
+    selected: TextSlots
 }
 
 export type Input = {

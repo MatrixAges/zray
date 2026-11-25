@@ -143,6 +143,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests/rx/root.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = if (optimize == .safe) true else null,
         .imports = &.{.{ .name = "rx", .module = rx }},
     }) });
 
@@ -177,6 +178,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/root.zig"),
             .target = target,
             .optimize = optimize,
+            .strip = if (optimize == .safe) true else null,
             .imports = &.{
                 .{ .name = "compiler", .module = frontend },
                 .{ .name = "zx", .module = core },
@@ -196,6 +198,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests/integration_root.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = if (optimize == .safe) true else null,
         .imports = &.{.{ .name = "compiler", .module = module }},
     }) });
 

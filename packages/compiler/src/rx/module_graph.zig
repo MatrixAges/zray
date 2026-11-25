@@ -18,7 +18,7 @@ pub fn validate(allocator: std.mem.Allocator, backing: std.mem.Allocator, regist
     const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
     const native_width = @sizeOf(usize) == @sizeOf(u64) and @alignOf(u64) >= @alignOf(usize);
     const owner = if (native_width) allocator else temporary;
-    const rows = try owner.alloc(u64, sources.len);
+    var rows = try owner.alloc(u64, sources.len);
 
     errdefer owner.free(rows);
 
@@ -31,7 +31,7 @@ pub fn validate(allocator: std.mem.Allocator, backing: std.mem.Allocator, regist
     };
 
     const entry = if (selection) |request| requestedEntry(registry, sources, request.path) else null;
-    const marks = if (entry != null) try allocator.alloc(u32, sources.len) else null;
+    var marks = if (entry != null) try allocator.alloc(u32, sources.len) else null;
 
     if (marks) |membership| @memset(membership, 0);
 

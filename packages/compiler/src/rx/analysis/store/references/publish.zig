@@ -19,9 +19,9 @@ pub fn append(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: [
     const names = memory.borrowTextColumn("name", objects);
     const identities = memory.borrowTextColumn("identity", objects);
     const ids = memory.borrowNestedColumn(zx.ir.TypeId, &.{ "initial", "output_type" }, objects);
-    const published_names = output.items(.name)[start..];
-    const published_paths = output.items(.path)[start..];
-    const published_ids = output.items(.type_id)[start..];
+    var published_names = output.items(.name)[start..];
+    var published_paths = output.items(.path)[start..];
+    var published_ids = output.items(.type_id)[start..];
 
     const input: Input = .{
         .scope = scope,

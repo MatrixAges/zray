@@ -114,7 +114,9 @@ pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: [
     return binding;
 }
 
-fn applyNames(lowering: *Lower, binding: Names, replacements: []const []const u8, restoring: bool) void {
+fn applyNames(lowering: *Lower, binding_arg: Names, replacements: []const []const u8, restoring: bool) void {
+    var binding = binding_arg;
+
     if (binding.symbols.len == 0) return;
 
     const install = @import("generated_scope_reuse_names");

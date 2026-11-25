@@ -1,5 +1,4 @@
 const std = @import("std");
-
 const lanes = 32;
 const Lanes = @Vector(lanes, u8);
 

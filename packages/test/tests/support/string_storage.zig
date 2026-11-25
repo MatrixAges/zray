@@ -14,7 +14,6 @@ pub fn check(comptime program: type, input: program.Input, expected: union(enum)
     const right_storage = try std.testing.allocator.alloc(u8, right.len + 1);
 
     defer std.testing.allocator.free(right_storage);
-
     @memcpy(left_storage[0..left.len], left);
     @memcpy(right_storage[0..right.len], right);
 
@@ -24,6 +23,7 @@ pub fn check(comptime program: type, input: program.Input, expected: union(enum)
         .left = if (input.left != null) left_storage[0..left.len] else null,
         .right = if (input.right != null) right_storage[0..right.len] else null,
     };
+
     const actual = try program.execute(&arena, actual_input);
 
     try std.testing.expectEqualDeep(expected.value, actual);

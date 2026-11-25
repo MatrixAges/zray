@@ -1,5 +1,6 @@
 import type { Modules } from "core/native_module_table/model"
 import type {
+    OptionalTextSlots,
     ReadColumn,
     TextColumn,
     U64Buffer,
@@ -74,7 +75,7 @@ export type Rows = {
 
 export type Output = {
     rows: Rows,
-    pending: string?[]
+    pending: OptionalTextSlots
 }
 
 export type Request = {

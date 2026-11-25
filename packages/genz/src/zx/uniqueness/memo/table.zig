@@ -3,7 +3,6 @@ const zx = @import("zx");
 const columns = zx.columns;
 const generated = @import("genz_options").generated_analysis;
 const Digest = @import("../memo.zig").Digest;
-const exchange = @import("generated_uniqueness_memo_exchange");
 const touching = @import("generated_uniqueness_memo_touch");
 const unused = @import("generated_uniqueness_memo_unused");
 const publication = @import("table/publication.zig");
@@ -57,7 +56,7 @@ pub fn Table(comptime Value: type) type {
             return columns.invoke(unused.executeValue, scratch.allocator(), &input) catch unreachable;
         }
         fn touch(self: *Self, key: Digest) ?u32 {
-            const used = self.useColumn();
+            var used = self.useColumn();
 
             const input: std.meta.Child(touching.Input) = .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
@@ -74,7 +73,7 @@ pub fn Table(comptime Value: type) type {
         pub fn useColumn(self: *Self) zx.memory.WriteColumn {
             return publication.writeColumn(self.values.items, "used");
         }
-        pub fn probe(self: *const Self, comptime View: type, used: ?*const zx.memory.WriteColumn) View {
+        pub fn probe(self: *const Self, comptime View: type, used: ?*zx.memory.WriteColumn) View {
             return .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
                 .buckets = @ptrCast(&self.buckets),
@@ -83,17 +82,17 @@ pub fn Table(comptime Value: type) type {
             };
         }
         fn rowFor(self: *const Self, key: *const Digest) ?u32 {
-            const input: std.meta.Child(exchange.Input) = .{
+            const input: std.meta.Child(touching.Input) = .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
                 .buckets = @ptrCast(&self.buckets),
                 .capacity = self.buckets.len,
                 .key = key,
-                .insert = null,
+                .used = null,
             };
 
             var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-            return columns.invoke(exchange.executeValue, scratch.allocator(), &input) catch unreachable;
+            return columns.invoke(touching.executeValue, scratch.allocator(), &input) catch unreachable;
         }
     };
 }

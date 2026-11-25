@@ -17,6 +17,7 @@ test "duplicate exported name is invalid" {
     defer fixture.deinit();
 
     const exports = [_]@TypeOf(fixture.modules[0].exports[0]){ fixture.modules[0].exports[0], fixture.modules[0].exports[0] };
+
     fixture.modules[0].exports = &exports;
 
     try fixture.expectError(error.InvalidModule);

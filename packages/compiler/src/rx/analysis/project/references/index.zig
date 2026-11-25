@@ -47,7 +47,7 @@ pub fn publish(allocator: std.mem.Allocator, modules: []const Module, indices: [
         .paths = @ptrCast(&deferred_paths),
     };
 
-    const index_words: []u64 = @ptrCast(indices);
+    var index_words: []u64 = @ptrCast(indices);
 
     var input: Input = .{
         .modules = &input_rows,
@@ -67,7 +67,7 @@ pub fn publish(allocator: std.mem.Allocator, modules: []const Module, indices: [
 
     if (first == modules.len) return &.{};
 
-    const forwards = try allocator.alloc(u64, modules.len);
+    var forwards = try allocator.alloc(u64, modules.len);
 
     @memset(forwards, 0);
 

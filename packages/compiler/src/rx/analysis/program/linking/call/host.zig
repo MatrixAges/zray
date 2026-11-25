@@ -35,19 +35,19 @@ pub fn publish(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, 
     const Input = std.meta.Child(generated.Input);
     const Row = std.meta.Child(@FieldType(Input, "row"));
     const Header = std.meta.Child(@FieldType(Row, "header"));
-    const header = headers.Tail.init(storage, 1);
-    const functions: []u32 = storage.call_functions.unusedCapacitySlice()[0..1];
-    const arguments: []u32 = storage.call_arguments.unusedCapacitySlice()[0..1];
-    const firsts: []u32 = storage.call_store_first.unusedCapacitySlice()[0..1];
-    const counts: []u32 = storage.call_store_count.unusedCapacitySlice()[0..1];
+    var header = headers.Tail.init(storage, 1);
+    var functions: []u32 = storage.call_functions.unusedCapacitySlice()[0..1];
+    var arguments: []u32 = storage.call_arguments.unusedCapacitySlice()[0..1];
+    var firsts: []u32 = storage.call_store_first.unusedCapacitySlice()[0..1];
+    var counts: []u32 = storage.call_store_count.unusedCapacitySlice()[0..1];
     var operand_slots: [operands.len]*usize = undefined;
 
     inline for (operands, &operand_slots) |name, *slot| slot.* = &@field(storage, name).items.len;
 
     const header_slots = headers.lengthSlots(storage);
-    const operand_lengths: zx.memory.ColumnLengths = &operand_slots;
-    const store_lengths: zx.memory.ColumnLengths = &.{&storage.call_stores.items.len};
-    const header_lengths: zx.memory.ColumnLengths = &header_slots;
+    var operand_lengths: zx.memory.ColumnLengths = &operand_slots;
+    var store_lengths: zx.memory.ColumnLengths = &.{&storage.call_stores.items.len};
+    var header_lengths: zx.memory.ColumnLengths = &header_slots;
 
     const input: Input = .{
         .row = &.{

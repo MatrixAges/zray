@@ -21,7 +21,7 @@ export default function (in: Input): Output {
 
     if (index != null && capacity != 0) {
         return find({
-            buckets: index,
+            buckets: memory.u64View(index, null),
             capacity,
             names: source.names,
             count: source.count,

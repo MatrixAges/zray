@@ -56,7 +56,7 @@ pub fn plan(allocator: std.mem.Allocator, workspace: std.mem.Allocator, function
 
     comptime std.debug.assert(@sizeOf(bool) == 1);
 
-    const flags = std.mem.sliceAsBytes(needed);
+    var flags = std.mem.sliceAsBytes(needed);
 
     const input = Input{
         .needed = @ptrCast(&flags),

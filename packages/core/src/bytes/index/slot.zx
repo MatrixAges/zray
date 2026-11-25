@@ -2,13 +2,16 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import type { ReadColumn, U64Buffer } from "memory"
+import type { ReadColumn, U64View } from "memory"
 
 // The caller lends a power-of-two table with at least one vacant bucket.
-export type Lookup = {
+export type Table = {
     keys: u8[][],
-    buckets: U64Buffer,
-    capacity: u64,
+    buckets: U64View,
+    capacity: u64
+}
+
+export type Lookup = Table & {
     key: u8[]
 }
 
@@ -33,7 +36,7 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.done,
         next: state => {
-            const row = memory.readU64(buckets, state.slot)
+            const row = memory.readU64View(buckets, state.slot)
 
             if (row == 0) {
                 state.done = true

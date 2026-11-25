@@ -44,10 +44,18 @@
         />
 
         <Call
+            fn="index.u64View"
+            in={[
+                $in.buckets,
+                null
+            ]}
+        />
+
+        <Call
             fn="index.probe"
             in={{
                 keys: $ctx.u8ListViews,
-                buckets: $in.buckets,
+                buckets: $ctx.u64View,
                 capacity: $ctx.next_capacity,
                 key: $in.key,
                 rows: null

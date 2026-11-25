@@ -31,7 +31,8 @@ export default function (in: Input): Output {
     }
 
     const result = probe({
-        ...index,
+        keys: memory.textColumnView(index.keys, null),
+        buckets: memory.u32View(index.buckets, null),
         text: name,
         capacity
     })

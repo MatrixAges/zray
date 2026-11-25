@@ -16,7 +16,7 @@ pub fn render(allocator: std.mem.Allocator, config: Config, public_modules: []co
 
     if (native.len != 0) {
         const modules = memory.borrowReadFields(input_fields, config.native_modules);
-        const target = memory.borrowWriteFields(output_fields, native);
+        var target = memory.borrowWriteFields(output_fields, native);
         const names = memory.borrowTextColumn("module", views);
         const paths = memory.borrowTextColumn("path", views);
         var fixed = std.heap.FixedBufferAllocator.init(&.{});

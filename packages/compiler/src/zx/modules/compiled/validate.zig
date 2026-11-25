@@ -56,8 +56,8 @@ pub fn validateLinked(allocator: std.mem.Allocator, library: model.Graph) LinkEr
 
     var ir_started = [_]u8{0};
     var surface_started = [_]u8{0};
-    const ir_mark: []u8 = &ir_started;
-    const surface_mark: []u8 = &surface_started;
+    var ir_mark: []u8 = &ir_started;
+    var surface_mark: []u8 = &surface_started;
     const input: Input = .{ .graph = &graph.input, .ir_started = @ptrCast(&ir_mark), .surface_started = @ptrCast(&surface_mark) };
 
     const status = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {

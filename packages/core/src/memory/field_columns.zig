@@ -38,13 +38,16 @@ fn Fields(comptime Column: type, comptime Mapping: type) type {
 
     return struct {
         const Self = @This();
+        const Receiver = if (Column == write.Column) *Self else *const Self;
+        const ColumnPtr = if (Column == write.Column) *Column else *const Column;
+
         columns: [fields.len]Column,
         count: usize,
-        pub inline fn column(self: *const Self, comptime field: []const u8) *const Column {
+        pub inline fn column(self: Receiver, comptime field: []const u8) ColumnPtr {
             return &self.columns[std.meta.fieldIndex(Mapping, field).?];
         }
         /// The ABI value refers to the descriptors in this borrow.
-        pub inline fn bind(self: *const Self, comptime Shape: type) Shape {
+        pub inline fn bind(self: Receiver, comptime Shape: type) Shape {
             var result: Shape = undefined;
             const count: usize = @intFromBool(@hasField(Shape, "count") and !maps_count);
 
@@ -53,7 +56,7 @@ fn Fields(comptime Column: type, comptime Mapping: type) type {
 
             return result;
         }
-        pub inline fn fill(self: *const Self, target: anytype) void {
+        pub inline fn fill(self: Receiver, target: anytype) void {
             const Shape = std.meta.Child(@TypeOf(target));
 
             inline for (fields, 0..) |field, index| {

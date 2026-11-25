@@ -47,7 +47,9 @@ pub const Cursor = struct {
 
         return if (step.reference) |item| fromWire(item) else null;
     }
-    pub fn batch(self: *Cursor, allocator: std.mem.Allocator, references: [][]const u8, packages: []u8) std.mem.Allocator.Error!?usize {
+    pub fn batch(self: *Cursor, allocator: std.mem.Allocator, references_arg: [][]const u8, packages_arg: []u8) std.mem.Allocator.Error!?usize {
+        var references = references_arg;
+        var packages = packages_arg;
         const entry = @import("generated_rx_ast_reference_batch");
         const Request = std.meta.Child(entry.Input);
         var empty = std.heap.FixedBufferAllocator.init(&.{});

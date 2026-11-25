@@ -18,8 +18,8 @@ pub fn readNamedColumnId(source: *const anyopaque, index: u64) error{IndexOutOfB
     return columns.ids[@intCast(index)];
 }
 
-pub fn allocateNamedRows(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const output: *[]NamedId = @ptrCast(@alignCast(@constCast(target)));
+pub fn allocateNamedRows(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const output: *[]NamedId = @ptrCast(@alignCast(target));
 
     std.debug.assert(output.len == 0);
 
@@ -77,12 +77,15 @@ pub inline fn readId(source: *const anyopaque, index: u64) error{IndexOutOfBound
     return (try read(source, index)).id;
 }
 
-pub fn bindNamedRowView(source: *const anyopaque, index: u64, target: *const anyopaque) error{IndexOutOfBounds}!u64 {
-    const rows: *[]const NamedId = @ptrCast(@alignCast(@constCast(target)));
-
+pub fn bindNamedRowView(source: *const anyopaque, index: u64, target: *anyopaque) error{IndexOutOfBounds}!u64 {
+    const rows: *[]const NamedId = @ptrCast(@alignCast(target));
     rows.* = try readColumn([]const NamedId, source, index);
 
     return rows.len;
+}
+
+pub inline fn namedRowsView(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return @ptrCast(source);
 }
 
 pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn {
@@ -214,7 +217,7 @@ pub inline fn sliceColumnCount(source: *const anyopaque) u64 {
     return sliceColumns(source).len;
 }
 
-pub inline fn readSliceCell(source: *const anyopaque, buffer: *const anyopaque, layout: *const anyopaque, slot: u64, row: u64) error{IndexOutOfBounds}!void {
+pub inline fn readSliceCell(source: *const anyopaque, buffer: *anyopaque, layout: *const anyopaque, slot: u64, row: u64) error{IndexOutOfBounds}!void {
     const items = try readColumn([]const u8, &sliceColumns(source)[@intCast(slot)], row);
 
     @import("column_set.zig").writeViewCell(buffer, layout, slot, &items);
@@ -276,7 +279,7 @@ pub inline fn readOptionalText(source: *const anyopaque, index: u64) error{Index
     return readColumn(?[]const u8, source, index);
 }
 
-pub noinline fn readTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u8 {
+pub inline fn readTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u8 {
     return readColumn([]const []const u8, source, index);
 }
 
@@ -390,7 +393,7 @@ pub inline fn columnLength(source: *const anyopaque) u64 {
     return column.count;
 }
 
-pub noinline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
+pub inline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
     const column: *const ListColumn = @ptrCast(@alignCast(source));
 
     return (try readColumn([]const u8, &column.lists, index)).len;

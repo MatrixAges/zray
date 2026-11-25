@@ -18,7 +18,6 @@ fn check(items: ?[]const u64, groups: []const []const u64, index: u64, expected:
     } else try std.testing.expectError(error.IndexOutOfBounds, program.execute(&arena, &input));
 
     for (groups, before) |group, copy| try std.testing.expectEqualSlices(u64, copy, group);
-
     if (items_before) |copy| try std.testing.expectEqualSlices(u64, copy, items.?);
 }
 

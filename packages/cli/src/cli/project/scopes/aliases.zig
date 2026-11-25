@@ -58,7 +58,7 @@ pub const Storage = struct {
             .progress = @ptrCast(&self.count),
         };
 
-        self.output = .{ .rows = &self.destination, .pending = &self.pending_text };
+        self.output = .{ .rows = &self.destination, .pending = @ptrCast(&self.pending_text) };
 
         if (configured) |entries| {
             self.configured_columns = memory.borrowReadFields(configured_fields, entries);

@@ -10,7 +10,7 @@ pub const Column = struct {
     width: usize,
     stride: u32 = 0,
     kind: Kind,
-    grow: *const fn (*anyopaque, std.mem.Allocator, usize) std.mem.Allocator.Error!void,
+    grow: *const fn (*anyopaque, std.mem.Allocator, usize) bool,
 };
 
 pub const Groups = []const []const Column;
@@ -25,10 +25,12 @@ pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comp
         .width = @sizeOf(Value),
         .kind = comptime kind(Value, copy_payloads, borrow_text),
         .grow = struct {
-            fn ensure(storage: *anyopaque, allocator: std.mem.Allocator, additional: usize) std.mem.Allocator.Error!void {
+            fn ensure(storage: *anyopaque, allocator: std.mem.Allocator, additional: usize) bool {
                 const column: *std.ArrayList(Value) = @ptrCast(@alignCast(storage));
 
-                return column.ensureUnusedCapacity(allocator, additional);
+                column.ensureUnusedCapacity(allocator, additional) catch return false;
+
+                return true;
             }
         }.ensure,
     };
@@ -188,7 +190,7 @@ pub fn reserveOne(resource: *const anyopaque, target: *const anyopaque, index: u
 
 fn reserveColumn(allocator: std.mem.Allocator, column: Column, count: usize) std.mem.Allocator.Error!usize {
     if (count > column.storage.capacity - column.storage.items.len) {
-        try column.grow(column.storage, allocator, count);
+        if (!column.grow(column.storage, allocator, count)) return error.OutOfMemory;
     }
 
     return column.storage.items.len;

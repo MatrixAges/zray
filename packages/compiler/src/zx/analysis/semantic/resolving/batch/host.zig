@@ -61,7 +61,7 @@ pub fn resolve(arena: *std.heap.ArenaAllocator, request: Request, text: []const 
         .expressions = fields.expressions,
     } else null;
 
-    const ids = request.ids;
+    var ids = request.ids;
 
     const input: Input = .{
         .source = &source,

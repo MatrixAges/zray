@@ -2,12 +2,12 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import type { TextColumn, U64Buffer } from "memory"
+import type { TextColumn, U64View } from "memory"
 import type { Output } from "../slot"
 
 export type Table = {
     names: TextColumn,
-    buckets: U64Buffer,
+    buckets: U64View,
     capacity: u64
 }
 
@@ -28,7 +28,7 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.done,
         next: state => {
-            const entry = memory.readU64(buckets, state.slot)
+            const entry = memory.readU64View(buckets, state.slot)
 
             if (entry == 0) {
                 state.done = true

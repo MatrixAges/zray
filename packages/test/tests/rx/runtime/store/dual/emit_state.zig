@@ -25,7 +25,6 @@ pub fn write(init: std.process.Init, contract: Contract, directory: []const u8) 
     try compiler.zig.store_initializers.append(&bundle, .{ .analysis = &analyzed, .initializers = initializers.items });
     try compiler.zig.state.append(&bundle, .{ .analysis = &analyzed });
     if (!std.mem.eql(u8, bundle.state_module orelse return error.MissingState, "zxc_state")) return error.UnexpectedState;
-
     try std.Io.Dir.cwd().createDirPath(init.io, directory);
     try save(init, directory, "application.zig", bundle.entry.source);
     try save(init, directory, "types.zig", bundle.types);
@@ -37,6 +36,7 @@ pub fn write(init: std.process.Init, contract: Contract, directory: []const u8) 
 
     for (bundle.modules, modules[1..]) |file, *module| {
         try save(init, directory, try std.fmt.allocPrint(allocator, "{s}.zig", .{file.name}), file.source);
+
         module.* = .{ .name = file.name, .imports = file.imports };
     }
 

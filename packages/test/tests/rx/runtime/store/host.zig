@@ -4,8 +4,8 @@ const Self = @This();
 
 store_0: *initial.Output,
 commits: usize = 0,
-conflict_at: ?usize = null,
 
+conflict_at: ?usize = null,
 pub fn commit(self: *Self, pending: program.zx_pending) !void {
     const next = pending.store_0 orelse return error.UnexpectedEmptyCommit;
 

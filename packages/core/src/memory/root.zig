@@ -140,43 +140,61 @@ pub const requireTextSlots = text_storage.require;
 pub const requireOptionalTextSlots = text_storage.require;
 pub const checkTextSlotCount = text_storage.checkLength;
 
-pub inline fn allocateTextSlots(resource: *const anyopaque, count: u64) ?[]const []const u8 {
-    return text_storage.allocate([]const u8, resource, count);
+pub inline fn allocateTextSlots(resource: *const anyopaque, count: u64, shape: anytype) ?std.meta.Child(@TypeOf(shape)) {
+    return text_storage.allocate([]const u8, resource, count, shape);
 }
 
-pub inline fn allocateOptionalTextSlots(resource: *const anyopaque, count: u64) ?[]const ?[]const u8 {
-    return text_storage.allocate(?[]const u8, resource, count);
+pub inline fn allocateOptionalTextSlots(resource: *const anyopaque, count: u64, shape: anytype) ?std.meta.Child(@TypeOf(shape)) {
+    return text_storage.allocate(?[]const u8, resource, count, shape);
 }
 
-pub inline fn writeTextSlot(target: []const []const u8, index: u64, value: []const u8) void {
+pub inline fn writeTextSlot(target: *anyopaque, index: u64, value: []const u8) void {
     text_storage.write([]const u8, target, index, value);
 }
 
-pub inline fn writeOptionalTextSlot(target: []const ?[]const u8, index: u64, value: ?[]const u8) void {
+pub inline fn writeOptionalTextSlot(target: *anyopaque, index: u64, value: ?[]const u8) void {
     text_storage.write(?[]const u8, target, index, value);
+}
+
+pub inline fn readTextSlot(source: *const anyopaque, index: u64) []const u8 {
+    return text_storage.read([]const u8, source, index);
+}
+
+pub inline fn borrowTextSlots(source: *const anyopaque, count: u64) []const []const u8 {
+    return text_storage.borrow([]const u8, source, count);
+}
+
+pub inline fn borrowOptionalTextSlots(source: *const anyopaque, count: u64) []const ?[]const u8 {
+    return text_storage.borrow(?[]const u8, source, count);
+}
+
+pub inline fn stringBufferSlots(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    const view: *[][]const u8 = @ptrCast(@alignCast(source));
+
+    return @ptrCast(view.ptr);
 }
 
 pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
     if (!success) return error.OutOfMemory;
 }
 
-pub fn resetArena(source: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn resetArena(source: *anyopaque) std.mem.Allocator.Error!void {
     if (!resetArenaRetainingCapacity(source)) return error.OutOfMemory;
 }
 
-pub fn resetArenaRetainingCapacity(source: *const anyopaque) bool {
-    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@constCast(source)));
+pub fn resetArenaRetainingCapacity(source: *anyopaque) bool {
+    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(source));
 
     return arena.reset(.retain_capacity);
 }
 
-pub fn releaseArena(source: *const anyopaque) void {
-    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@constCast(source)));
+pub fn releaseArena(source: *anyopaque) void {
+    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(source));
     _ = arena.reset(.free_all);
 }
 
-pub fn rewindScratchArena(source: *const anyopaque) void {
-    const arena: *ScratchArena = @ptrCast(@alignCast(@constCast(source)));
+pub fn rewindScratchArena(source: *anyopaque) void {
+    const arena: *ScratchArena = @ptrCast(@alignCast(source));
 
     arena.rewindRetainingCapacity(.{ .chunk = null, .end = 0 });
 }
@@ -187,36 +205,46 @@ pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
     return view.*;
 }
 
-pub fn allocateStringViews(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub const readStringViews = stringViews;
+
+pub inline fn u32View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return @ptrCast(source);
+}
+
+pub inline fn u64View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return @ptrCast(source);
+}
+
+pub fn allocateStringViews(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews([]const u8, allocator, target, count);
 }
 
 pub const allocateU8ListViews = allocateStringViews;
 
-pub fn allocateBoolViews(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn allocateBoolViews(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(bool, allocator, target, count);
 }
 
-pub fn allocateU32Views(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn allocateU32Views(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(u32, allocator, target, count);
 }
 
-pub fn allocateU64Views(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn allocateU64Views(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(u64, allocator, target, count);
 }
 
-pub inline fn allocateU64Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub inline fn allocateU64Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateU64Views(column_set.borrowAllocator(resource), target, count);
 }
 
-pub inline fn allocateU8Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error![]const u8 {
+pub inline fn allocateU8Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error![]const u8 {
     try allocateViews(u8, column_set.borrowAllocator(resource), target, count);
 
     return u8Views(target);
 }
 
-fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
+fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const output: *[]T = @ptrCast(@alignCast(target));
     output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
 }
 
@@ -232,11 +260,11 @@ pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {
     return view.*;
 }
 
-pub inline fn reserveU8Tail(resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
+pub inline fn reserveU8Tail(resource: *const anyopaque, storage: *anyopaque, source: *anyopaque, tail: *anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
     try column_set.reserveTail(u8, resource, storage, source, tail, count, limit);
 }
 
-pub inline fn reserveU32Tail(resource: *const anyopaque, storage: *const anyopaque, source: *const anyopaque, tail: *const anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
+pub inline fn reserveU32Tail(resource: *const anyopaque, storage: *anyopaque, source: *anyopaque, tail: *anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
     try column_set.reserveTail(u32, resource, storage, source, tail, count, limit);
 }
 
@@ -246,16 +274,13 @@ pub inline fn u32Views(source: *const anyopaque) []const u32 {
     return view.*;
 }
 
-pub inline fn bindU32Views(target: *const anyopaque, source: []const u32) void {
-    const view: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
-    view.* = @constCast(source);
-}
-
 pub inline fn u64Views(source: *const anyopaque) []const u64 {
     const view: *const []const u64 = @ptrCast(@alignCast(source));
 
     return view.*;
 }
+
+pub const u64ViewSlice = u64Views;
 
 pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
     const view: *const []const ?u32 = @ptrCast(@alignCast(source));
@@ -263,8 +288,8 @@ pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
     return view.*;
 }
 
-pub inline fn refreshOptionalU32View(target: *const anyopaque, source: *const anyopaque) void {
-    const view: *[]const ?u32 = @ptrCast(@alignCast(@constCast(target)));
+pub inline fn refreshOptionalU32View(target: *anyopaque, source: *const anyopaque) void {
+    const view: *[]const ?u32 = @ptrCast(@alignCast(target));
     view.* = optionalU32Views(source);
 }
 
@@ -279,6 +304,7 @@ pub const readNamedColumnName = rows.readNamedColumnName;
 pub const readNamedColumnId = rows.readNamedColumnId;
 pub const borrowNamedRows = rows.borrow;
 pub const bindNamedRowView = rows.bindNamedRowView;
+pub const namedRowsView = rows.namedRowsView;
 pub const TextColumn = rows.TextColumn;
 const references = @import("reference_column.zig");
 pub const borrowReferenceColumn = references.borrow;
@@ -318,10 +344,15 @@ pub const borrowProjectedText = rows.borrowProjectedText;
 pub const borrowTextColumn = rows.borrowText;
 pub const borrowTextSlice = rows.borrowTextSlice;
 
-pub fn bindTextView(target: *const anyopaque, source: *const anyopaque) void {
-    const view: *TextColumn = @ptrCast(@alignCast(@constCast(target)));
-
+pub fn bindTextView(target: *anyopaque, source: *const anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    const view: *TextColumn = @ptrCast(@alignCast(target));
     view.* = borrowTextSlice(stringViews(source));
+
+    return @ptrCast(view);
+}
+
+pub inline fn textColumnView(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
+    return @ptrCast(source);
 }
 
 pub const borrowIndirectTextColumn = rows.borrowIndirectText;
@@ -499,15 +530,15 @@ inline fn borrowRange(comptime T: type, source: []const T, first: u64, count: u6
     return source[@intCast(first)..][0..@intCast(count)];
 }
 
-pub inline fn copyBytes(target: *const anyopaque, offset: u64, source: []const u8, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
+pub inline fn copyBytes(target: *anyopaque, offset: u64, source: []const u8, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
     return copyRange(u8, target, offset, source, start, end);
 }
 
-pub inline fn copyU32Range(target: *const anyopaque, offset: u64, source: []const u32, start: u64, end: u64) error{IndexOutOfBounds}!void {
+pub inline fn copyU32Range(target: *anyopaque, offset: u64, source: []const u32, start: u64, end: u64) error{IndexOutOfBounds}!void {
     _ = try copyRange(u32, target, offset, source, start, end);
 }
 
-inline fn copyRange(comptime T: type, target: *const anyopaque, offset: u64, source: []const T, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
+inline fn copyRange(comptime T: type, target: *anyopaque, offset: u64, source: []const T, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
     const output: *const []T = @ptrCast(@alignCast(target));
 
     if (start > end or end > source.len or offset > output.len) return error.IndexOutOfBounds;
@@ -521,11 +552,11 @@ inline fn copyRange(comptime T: type, target: *const anyopaque, offset: u64, sou
     return count;
 }
 
-pub inline fn copyU8s(target: *const anyopaque, source: []const u8) error{IndexOutOfBounds}!void {
+pub inline fn copyU8s(target: *anyopaque, source: []const u8) error{IndexOutOfBounds}!void {
     return copySlice(u8, target, source);
 }
 
-pub inline fn copyBools(target: *const anyopaque, source: []const bool) error{IndexOutOfBounds}!void {
+pub inline fn copyBools(target: *anyopaque, source: []const bool) error{IndexOutOfBounds}!void {
     const buffer: *const []bool = @ptrCast(@alignCast(target));
 
     if (buffer.len != source.len) return error.IndexOutOfBounds;
@@ -534,23 +565,23 @@ pub inline fn copyBools(target: *const anyopaque, source: []const bool) error{In
     @memmove(buffer.*, source);
 }
 
-pub inline fn copyU32s(target: *const anyopaque, source: []const u32) error{IndexOutOfBounds}!void {
+pub inline fn copyU32s(target: *anyopaque, source: []const u32) error{IndexOutOfBounds}!void {
     return copySlice(u32, target, source);
 }
 
-pub inline fn copyU64s(target: *const anyopaque, source: []const u64) error{IndexOutOfBounds}!void {
+pub inline fn copyU64s(target: *anyopaque, source: []const u64) error{IndexOutOfBounds}!void {
     return copySlice(u64, target, source);
 }
 
-pub inline fn copyU32sAt(target: *const anyopaque, offset: u64, source: []const u32) error{IndexOutOfBounds}!void {
+pub inline fn copyU32sAt(target: *anyopaque, offset: u64, source: []const u32) error{IndexOutOfBounds}!void {
     return copySliceAt(u32, target, offset, source);
 }
 
-pub inline fn copyStringViewsAt(target: *const anyopaque, offset: u64, source: []const []const u8) error{IndexOutOfBounds}!void {
+pub inline fn copyStringViewsAt(target: *anyopaque, offset: u64, source: []const []const u8) error{IndexOutOfBounds}!void {
     return copySliceAt([]const u8, target, offset, source);
 }
 
-inline fn copySliceAt(comptime T: type, target: *const anyopaque, offset: u64, source: []const T) error{IndexOutOfBounds}!void {
+inline fn copySliceAt(comptime T: type, target: *anyopaque, offset: u64, source: []const T) error{IndexOutOfBounds}!void {
     const buffer: *const []T = @ptrCast(@alignCast(target));
 
     if (offset > buffer.len or source.len > buffer.len - offset) return error.IndexOutOfBounds;
@@ -558,7 +589,7 @@ inline fn copySliceAt(comptime T: type, target: *const anyopaque, offset: u64, s
     @memmove(buffer.*[@intCast(offset)..][0..source.len], source);
 }
 
-pub inline fn copyStringViews(target: *const anyopaque, source: []const []const u8) error{IndexOutOfBounds}!void {
+pub inline fn copyStringViews(target: *anyopaque, source: []const []const u8) error{IndexOutOfBounds}!void {
     return copySlice([]const u8, target, source);
 }
 
@@ -566,7 +597,7 @@ pub inline fn copyText(allocator: std.mem.Allocator, value: []const u8) std.mem.
     return allocator.dupe(u8, value);
 }
 
-inline fn copySlice(comptime T: type, target: *const anyopaque, source: []const T) error{IndexOutOfBounds}!void {
+inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) error{IndexOutOfBounds}!void {
     const buffer: *const []T = @ptrCast(@alignCast(target));
 
     if (buffer.len != source.len) return error.IndexOutOfBounds;
@@ -574,7 +605,7 @@ inline fn copySlice(comptime T: type, target: *const anyopaque, source: []const 
     @memmove(buffer.*, source);
 }
 
-pub inline fn writeUtf8Scalar(target: *const anyopaque, offset: u64, codepoint: u64) error{ IndexOutOfBounds, InvalidUnicodeScalar }!u64 {
+pub inline fn writeUtf8Scalar(target: *anyopaque, offset: u64, codepoint: u64) error{ IndexOutOfBounds, InvalidUnicodeScalar }!u64 {
     const output: *const []u8 = @ptrCast(@alignCast(target));
     const scalar = std.math.cast(u21, codepoint) orelse return error.InvalidUnicodeScalar;
     const count = std.unicode.utf8CodepointSequenceLength(scalar) catch return error.InvalidUnicodeScalar;
@@ -584,7 +615,7 @@ pub inline fn writeUtf8Scalar(target: *const anyopaque, offset: u64, codepoint: 
     return std.unicode.utf8Encode(scalar, output.*[@intCast(offset)..]) catch return error.InvalidUnicodeScalar;
 }
 
-pub inline fn writeU32(target: *const anyopaque, index: u64, value: u32) error{IndexOutOfBounds}!void {
+pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) error{IndexOutOfBounds}!void {
     return write(u32, target, index, value);
 }
 
@@ -594,11 +625,11 @@ pub inline fn u32BufferLength(source: *const anyopaque) u64 {
     return view.len;
 }
 
-pub inline fn clearU32Buffer(target: *const anyopaque, count: u64) error{IndexOutOfBounds}!void {
+pub inline fn clearU32Buffer(target: *anyopaque, count: u64) error{IndexOutOfBounds}!void {
     return fillU32Buffer(target, count, 0);
 }
 
-pub inline fn fillU32Buffer(target: *const anyopaque, count: u64, value: u32) error{IndexOutOfBounds}!void {
+pub inline fn fillU32Buffer(target: *anyopaque, count: u64, value: u32) error{IndexOutOfBounds}!void {
     const view: *const []u32 = @ptrCast(@alignCast(target));
 
     if (count > view.len) return error.IndexOutOfBounds;
@@ -619,8 +650,8 @@ pub const U32Scratch = struct {
     }
 };
 
-pub fn growU32Scratch(scratch: *const anyopaque, count: u64, precise: bool) std.mem.Allocator.Error!void {
-    const workspace: *U32Scratch = @ptrCast(@alignCast(@constCast(scratch)));
+pub fn growU32Scratch(scratch: *anyopaque, count: u64, precise: bool) std.mem.Allocator.Error!void {
+    const workspace: *U32Scratch = @ptrCast(@alignCast(scratch));
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
 
     if (precise) {
@@ -632,13 +663,13 @@ pub fn growU32Scratch(scratch: *const anyopaque, count: u64, precise: bool) std.
     workspace.items = workspace.backing.allocatedSlice();
 }
 
-pub fn allocateU32Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn allocateU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     return allocateFilledU32Buffer(resource, target, count, 0);
 }
 
-pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64, value: u32) std.mem.Allocator.Error!void {
+pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64, value: u32) std.mem.Allocator.Error!void {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+    const output: *[]u32 = @ptrCast(@alignCast(target));
 
     std.debug.assert(output.len == 0);
 
@@ -649,48 +680,48 @@ pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *const anyopa
     output.* = items;
 }
 
-pub inline fn swapU32Buffers(left: *const anyopaque, right: *const anyopaque) void {
+pub inline fn swapU32Buffers(left: *anyopaque, right: *anyopaque) void {
     swapBuffers(u32, left, right);
 }
 
-pub inline fn swapU64Buffers(left: *const anyopaque, right: *const anyopaque) void {
+pub inline fn swapU64Buffers(left: *anyopaque, right: *anyopaque) void {
     swapBuffers(u64, left, right);
 }
 
-pub inline fn releaseU32Buffer(resource: *const anyopaque, target: *const anyopaque) void {
+pub inline fn releaseU32Buffer(resource: *const anyopaque, target: *anyopaque) void {
     releaseBuffer(u32, resource, target);
 }
 
-pub inline fn releaseU64Buffer(resource: *const anyopaque, target: *const anyopaque) void {
+pub inline fn releaseU64Buffer(resource: *const anyopaque, target: *anyopaque) void {
     releaseBuffer(u64, resource, target);
 }
 
-inline fn swapBuffers(comptime T: type, left: *const anyopaque, right: *const anyopaque) void {
-    const first: *[]T = @ptrCast(@alignCast(@constCast(left)));
-    const second: *[]T = @ptrCast(@alignCast(@constCast(right)));
+inline fn swapBuffers(comptime T: type, left: *anyopaque, right: *anyopaque) void {
+    const first: *[]T = @ptrCast(@alignCast(left));
+    const second: *[]T = @ptrCast(@alignCast(right));
 
     std.mem.swap([]T, first, second);
 }
 
-inline fn releaseBuffer(comptime T: type, resource: *const anyopaque, target: *const anyopaque) void {
-    const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
+inline fn releaseBuffer(comptime T: type, resource: *const anyopaque, target: *anyopaque) void {
+    const output: *[]T = @ptrCast(@alignCast(target));
 
     column_set.borrowAllocator(resource).free(output.*);
 
     output.* = &.{};
 }
 
-pub inline fn writeStatementKind(target: *const anyopaque, index: u64, kind: anytype) error{IndexOutOfBounds}!void {
+pub inline fn writeStatementKind(target: *anyopaque, index: u64, kind: anytype) error{IndexOutOfBounds}!void {
     comptime std.debug.assert(@sizeOf(@TypeOf(kind)) == @sizeOf(u8));
 
     return writeU8(target, index, @backingInt(kind));
 }
 
-pub inline fn writeU8(target: *const anyopaque, index: u64, value: u8) error{IndexOutOfBounds}!void {
+pub inline fn writeU8(target: *anyopaque, index: u64, value: u8) error{IndexOutOfBounds}!void {
     return write(u8, target, index, value);
 }
 
-pub inline fn writeBool(target: *const anyopaque, index: u64, value: bool) error{IndexOutOfBounds}!void {
+pub inline fn writeBool(target: *anyopaque, index: u64, value: bool) error{IndexOutOfBounds}!void {
     return write(bool, target, index, value);
 }
 
@@ -700,7 +731,7 @@ pub inline fn boolViews(source: *const anyopaque) []const bool {
     return view.*;
 }
 
-pub inline fn fillByteRange(target: *const anyopaque, first: u64, count: u64, value: u8) error{IndexOutOfBounds}!void {
+pub inline fn fillByteRange(target: *anyopaque, first: u64, count: u64, value: u8) error{IndexOutOfBounds}!void {
     const output: *const []u8 = @ptrCast(@alignCast(target));
 
     if (first > output.len or count > output.len - first) return error.IndexOutOfBounds;
@@ -708,19 +739,19 @@ pub inline fn fillByteRange(target: *const anyopaque, first: u64, count: u64, va
     @memset(output.*[@intCast(first)..][0..@intCast(count)], value);
 }
 
-pub inline fn writeU64(target: *const anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
+pub inline fn writeU64(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
     return write(u64, target, index, value);
 }
 
-pub inline fn writeIndex(target: *const anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
+pub inline fn writeIndex(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
     return write(usize, target, index, std.math.cast(usize, value) orelse return error.IndexOutOfBounds);
 }
 
-pub inline fn clearOptionalU8Range(target: *const anyopaque, first: u64, end: u64) error{IndexOutOfBounds}!void {
+pub inline fn clearOptionalU8Range(target: *anyopaque, first: u64, end: u64) error{IndexOutOfBounds}!void {
     return fillRange(?u8, target, first, end, null);
 }
 
-pub inline fn clearOptionalU16Range(target: *const anyopaque, first: u64, end: u64) error{IndexOutOfBounds}!void {
+pub inline fn clearOptionalU16Range(target: *anyopaque, first: u64, end: u64) error{IndexOutOfBounds}!void {
     return fillRange(?u16, target, first, end, null);
 }
 
@@ -729,14 +760,14 @@ pub const SourceSpan = struct {
     end: usize,
 };
 
-pub inline fn fillSourceSpanRange(target: *const anyopaque, first: u64, end: u64, start_offset: u64, end_offset: u64) error{IndexOutOfBounds}!void {
+pub inline fn fillSourceSpanRange(target: *anyopaque, first: u64, end: u64, start_offset: u64, end_offset: u64) error{IndexOutOfBounds}!void {
     return fillRange(SourceSpan, target, first, end, .{
         .start = std.math.cast(usize, start_offset) orelse return error.IndexOutOfBounds,
         .end = std.math.cast(usize, end_offset) orelse return error.IndexOutOfBounds,
     });
 }
 
-inline fn fillRange(comptime T: type, target: *const anyopaque, first: u64, end: u64, value: T) error{IndexOutOfBounds}!void {
+inline fn fillRange(comptime T: type, target: *anyopaque, first: u64, end: u64, value: T) error{IndexOutOfBounds}!void {
     const view: *const []T = @ptrCast(@alignCast(target));
 
     if (first > end or end > view.len) return error.IndexOutOfBounds;
@@ -744,26 +775,26 @@ inline fn fillRange(comptime T: type, target: *const anyopaque, first: u64, end:
     @memset(view.*[@intCast(first)..@intCast(end)], value);
 }
 
-pub inline fn clearU64Buffer(target: *const anyopaque) void {
+pub inline fn clearU64Buffer(target: *anyopaque) void {
     const output: *const []u64 = @ptrCast(@alignCast(target));
 
     @memset(output.*, 0);
 }
 
-pub inline fn writeOptionalU32(target: *const anyopaque, index: u64, value: ?u32) error{IndexOutOfBounds}!void {
+pub inline fn writeOptionalU32(target: *anyopaque, index: u64, value: ?u32) error{IndexOutOfBounds}!void {
     return write(?u32, target, index, value);
 }
 
-pub inline fn writeOptionalU16(target: *const anyopaque, index: u64, value: ?u16) error{IndexOutOfBounds}!void {
+pub inline fn writeOptionalU16(target: *anyopaque, index: u64, value: ?u16) error{IndexOutOfBounds}!void {
     return write(?u16, target, index, value);
 }
 
-pub inline fn writeOptionalU8(target: *const anyopaque, index: u64, value: ?u8) error{IndexOutOfBounds}!void {
+pub inline fn writeOptionalU8(target: *anyopaque, index: u64, value: ?u8) error{IndexOutOfBounds}!void {
     return write(?u8, target, index, value);
 }
 
-pub fn allocateOptionalU32Buffer(allocator: std.mem.Allocator, target: *const anyopaque, count: u64, clear: bool) std.mem.Allocator.Error!void {
-    const output: *[]?u32 = @ptrCast(@alignCast(@constCast(target)));
+pub fn allocateOptionalU32Buffer(allocator: std.mem.Allocator, target: *anyopaque, count: u64, clear: bool) std.mem.Allocator.Error!void {
+    const output: *[]?u32 = @ptrCast(@alignCast(target));
     const size = std.math.cast(usize, count) orelse return error.OutOfMemory;
     const items = try allocator.alloc(?u32, size);
 
@@ -774,28 +805,28 @@ pub fn allocateOptionalU32Buffer(allocator: std.mem.Allocator, target: *const an
     output.* = items;
 }
 
-pub inline fn allocateOptionalU32WithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64, clear: bool) std.mem.Allocator.Error!void {
+pub inline fn allocateOptionalU32WithAllocator(resource: *const anyopaque, target: *anyopaque, count: u64, clear: bool) std.mem.Allocator.Error!void {
     return allocateOptionalU32Buffer(column_set.borrowAllocator(resource), target, count, clear);
 }
 
-pub inline fn bindU32Range(source: *const anyopaque, target: *const anyopaque, first: u64, count: u64) error{IndexOutOfBounds}!void {
+pub inline fn bindU32Range(source: *const anyopaque, target: *anyopaque, first: u64, count: u64) error{IndexOutOfBounds}!void {
     const input: *const []u32 = @ptrCast(@alignCast(source));
-    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+    const output: *[]u32 = @ptrCast(@alignCast(target));
 
     if (first > input.len or count > input.len - first) return error.IndexOutOfBounds;
 
     output.* = input.*[@intCast(first)..][0..@intCast(count)];
 }
 
-pub noinline fn writeString(target: *const anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
+pub inline fn writeString(target: *anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
     return write([]const u8, target, index, value);
 }
 
-pub inline fn writeOptionalString(target: *const anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
+pub inline fn writeOptionalString(target: *anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
     return write(?[]const u8, target, index, value);
 }
 
-pub inline fn initializeU32ListSlot(target: *const anyopaque, index: u64, shape: anytype) error{IndexOutOfBounds}!std.meta.Child(@TypeOf(shape)) {
+pub inline fn initializeU32ListSlot(target: *anyopaque, index: u64, shape: anytype) error{IndexOutOfBounds}!std.meta.Child(@TypeOf(shape)) {
     const output: *const [][]const u32 = @ptrCast(@alignCast(target));
 
     if (index >= output.len) return error.IndexOutOfBounds;
@@ -807,28 +838,28 @@ pub inline fn initializeU32ListSlot(target: *const anyopaque, index: u64, shape:
     return @ptrCast(slot);
 }
 
-pub inline fn writeU8List(target: *const anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
+pub inline fn writeU8List(target: *anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
     return write([]const u8, target, index, value);
 }
 
-pub inline fn writeBoolList(target: *const anyopaque, index: u64, value: []const bool) error{IndexOutOfBounds}!void {
+pub inline fn writeBoolList(target: *anyopaque, index: u64, value: []const bool) error{IndexOutOfBounds}!void {
     return write([]const bool, target, index, value);
 }
 
-pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {
+pub inline fn writeU32List(target: *anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {
     return write([]const u32, target, index, value);
 }
 
-pub inline fn writeU64List(target: *const anyopaque, index: u64, value: []const u64) error{IndexOutOfBounds}!void {
+pub inline fn writeU64List(target: *anyopaque, index: u64, value: []const u64) error{IndexOutOfBounds}!void {
     return write([]const u64, target, index, value);
 }
 
-pub inline fn writeStringList(target: *const anyopaque, index: u64, value: []const []const u8) error{IndexOutOfBounds}!void {
+pub inline fn writeStringList(target: *anyopaque, index: u64, value: []const []const u8) error{IndexOutOfBounds}!void {
     return write([]const []const u8, target, index, value);
 }
 
 // The caller exclusively lends a descriptor for a mutable slice for the duration of the call.
-inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) error{IndexOutOfBounds}!void {
+inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) error{IndexOutOfBounds}!void {
     const buffer: *const []T = @ptrCast(@alignCast(target));
 
     if (index >= buffer.len) return error.IndexOutOfBounds;
@@ -844,9 +875,13 @@ pub inline fn readU32(target: *const anyopaque, index: u64) error{IndexOutOfBoun
     return read(u32, target, index);
 }
 
+pub const readU32View = readU32;
+
 pub inline fn readU64(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
     return read(u64, target, index);
 }
+
+pub const readU64View = readU64;
 
 inline fn read(comptime T: type, target: *const anyopaque, index: u64) error{IndexOutOfBounds}!T {
     const buffer: *const []T = @ptrCast(@alignCast(target));

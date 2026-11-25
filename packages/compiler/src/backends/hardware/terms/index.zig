@@ -20,7 +20,7 @@ pub const View = struct {
         return .{ .keys = self.keys, .values = self.values };
     }
 
-    pub fn target(self: *const View) std.meta.Child(@FieldType(std.meta.Child(rehash.Input), "target")) {
+    pub fn target(self: *View) std.meta.Child(@FieldType(std.meta.Child(rehash.Input), "target")) {
         return .{ .keys = @ptrCast(&self.keys), .values = @ptrCast(&self.values) };
     }
 };
@@ -46,7 +46,7 @@ pub fn ensureTotalCapacity(self: *Self, allocator: std.mem.Allocator, count: u32
 
     next.rows.len = length;
 
-    const dest = next.view();
+    var dest = next.view();
 
     @memset(dest.keys, null);
 

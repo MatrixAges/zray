@@ -5,6 +5,7 @@ export {
     allocateU64Buffer,
     clearU64Buffer,
     releaseU64Buffer,
-    swapU64Buffers
+    swapU64Buffers,
+    u64View,
+    u8ListViews
 } from "memory"
-export { u8ListViews } from "memory"

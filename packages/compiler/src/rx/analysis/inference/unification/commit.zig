@@ -8,13 +8,13 @@ pub const Constraints = struct { allowed: ?u16, fallback: ?u8 };
 
 pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constraints, second: Constraints, shape: Nodes.Encoded, span: zx.Span) zx.Error!void {
     const generated = @import("generated_rx_unification_commit");
-    const parents: []u32 = graph.parents();
+    var parents: []u32 = graph.parents();
     const Input = std.meta.Child(generated.Input);
     const Columns = std.meta.Child(@FieldType(Input, "columns"));
     const rows = graph.nodes.slice();
-    const topology = Nodes.writable(rows);
-    const publication = Restriction.Publication.init(graph, rows);
-    const object_revision: []u64 = (&graph.object_revision)[0..1];
+    var topology = Nodes.writable(rows);
+    var publication = Restriction.Publication.init(graph, rows);
+    var object_revision: []u64 = (&graph.object_revision)[0..1];
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const message = generated.executeIn(scratch.allocator(), &.{

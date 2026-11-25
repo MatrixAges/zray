@@ -23,7 +23,8 @@ export default function (in: Input): Output {
         const capacity = memory.u32Views(index.buckets).length
 
         const prepared = refresh({
-            ...index,
+            keys: memory.bindTextView(index.keys, destination.committed, null),
+            buckets: index.buckets,
             scratch,
             count: first,
             indexed: capacity == 0 ? 0 : first,

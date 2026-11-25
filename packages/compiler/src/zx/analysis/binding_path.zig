@@ -109,7 +109,7 @@ pub fn indexedView(allocator: std.mem.Allocator, source: []const u8, nodes: Inde
 }
 
 pub fn renderIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: IndexedNodes, index: u64, length: u64) std.mem.Allocator.Error!Path {
-    const text = try allocator.alloc(u8, @intCast(length));
+    var text = try allocator.alloc(u8, @intCast(length));
     const rule = @import("generated_binding_path_write");
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 

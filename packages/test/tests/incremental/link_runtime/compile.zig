@@ -6,10 +6,9 @@ const slots = @import("slots_fixture");
 pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
     var heap: std.heap.DebugAllocator(.{}) = .init;
-
     defer _ = heap.deinit();
-
     const allocator = heap.allocator();
+
     var linked = block: {
         const artifacts = extracted: {
             var analysis = if (std.mem.eql(u8, args[1], "plain")) try plain.analyze(allocator) else try slots.analyze(allocator);

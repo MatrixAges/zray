@@ -17,8 +17,8 @@ pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, ind
     const after = &reuse.boundaries[position + 1];
     var storage: Snapshot = undefined;
     const capture = storage.bind(state, after);
-    const aligned: []bool = @as(*[1]bool, @ptrCast(&reuse.aligned));
-    const counter = columns.wordTarget(std.mem.asBytes(&owner.analyzed));
+    var aligned: []bool = @as(*[1]bool, @ptrCast(&reuse.aligned));
+    var counter = columns.wordTarget(std.mem.asBytes(&owner.analyzed));
     var borrowed: alignment.Borrowed = undefined;
     var types: std.meta.Child(@FieldType(Analysis, "alignment")) = undefined;
     var edges_input: std.meta.Child(@FieldType(Analysis, "dependencies")) = undefined;

@@ -16,7 +16,7 @@ export type Output = void
 export default function (in: Input): Output {
     bindNames({
         origin_ids: in.ids,
-        base_labels: memory.stringViews(in.base_labels),
+        base_labels: memory.readStringViews(in.base_labels),
         delta_labels: memory.stringViews(in.delta_labels),
         origin_names_out: in.names
     })

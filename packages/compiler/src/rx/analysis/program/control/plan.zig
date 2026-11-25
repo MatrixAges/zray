@@ -39,7 +39,8 @@ rows: []const Row,
 blocks: []const bool,
 size: Counts,
 implicit_return: bool,
-pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks: Blocks, capture_count: usize, void_output: bool) Error!Self {
+pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks_arg: Blocks, capture_count: usize, void_output: bool) Error!Self {
+    var blocks = blocks_arg;
     const rows = try allocator.alloc(Row, shape.units.len);
 
     if (comptime !enabled) return @import("seed.zig").plan(shape, rows, blocks, capture_count, void_output);
@@ -48,7 +49,7 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks: Blocks, c
     const Input = std.meta.Child(rule.Input);
     const Columns = std.meta.Child(@FieldType(Input, "shape"));
     const Steps = std.meta.Child(@FieldType(Columns, "steps"));
-    const items: []u32 = @as([*]u32, @ptrCast(rows.ptr))[0 .. rows.len * (@sizeOf(Row) / @sizeOf(u32))];
+    var items: []u32 = @as([*]u32, @ptrCast(rows.ptr))[0 .. rows.len * (@sizeOf(Row) / @sizeOf(u32))];
 
     const input: Input = .{
         .shape = &.{

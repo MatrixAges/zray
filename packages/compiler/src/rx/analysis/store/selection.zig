@@ -50,7 +50,7 @@ fn select(allocator: std.mem.Allocator, definitions: []const Store.Definition, p
     var output: memory.RowOutput(Initializer, Fields, .{}) = undefined;
     const batch_size = 32;
     var batch: [batch_size]u32 = undefined;
-    const selected: []u32 = &batch;
+    var selected: []u32 = &batch;
 
     output.init();
     errdefer allocator.free(output.rows());

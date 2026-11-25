@@ -48,7 +48,7 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
     var input: Input = undefined;
     var installation: Installation = undefined;
     var preparing = [1]bool{false};
-    const progress: []bool = &preparing;
+    var progress: []bool = &preparing;
     var scope: zx.memory.ArenaScope = .{ .active = temporary };
 
     input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);

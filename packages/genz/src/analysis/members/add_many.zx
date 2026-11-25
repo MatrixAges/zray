@@ -1,7 +1,12 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
+import {
+    capacity_growth,
+    initial_capacity,
+    load_denominator,
+    load_numerator
+} from "core/integer/index/const"
 import probe from "core/integer/index/probe"
-import reserve from "core/integer/index/reserve"
 import memory from "memory"
 
 import add from "./add"
@@ -28,24 +33,56 @@ export default function (in: Input): Output {
         })
     }
 
-    const index = reserve({
-        ...in.index,
-        additional: in.keys.length
+    const required = integers.widen(integers.narrow(in.index.count + in.keys.length))
+    const previous = in.index.buckets.length
+    const first = previous == 0 ? initial_capacity : previous
+
+    const capacity = loop(first, {
+        while: size => required > size * load_numerator / load_denominator,
+        next: size => {
+            size *= capacity_growth
+        }
     })
 
-    memory.bindU32Views(in.key_buffer, index.keys)
-    memory.bindU32Views(in.bucket_buffer, index.buckets)
+    if (required > in.index.keys.length) {
+        memory.allocateU32Views(in.key_buffer, required)
+
+        if (in.index.count != 0) {
+            memory.copyU32Range(in.key_buffer, 0, in.index.keys, 0, in.index.count)
+        }
+    }
+
+    if (capacity != previous) {
+        memory.allocateU32Views(in.bucket_buffer, capacity)
+        memory.fillU32Buffer(in.bucket_buffer, capacity, max_u32)
+
+        const rehashed = loop(0, {
+            while: pos => pos < in.index.count,
+            next: pos => {
+                const slot = probe({
+                    keys: in.index.keys,
+                    buckets: memory.u32Views(in.bucket_buffer),
+                    key: in.index.keys[pos]
+                })
+
+                memory.writeU32(in.bucket_buffer, slot, integers.narrow(pos))
+                pos += 1
+            }
+        })
+    }
+
+    const keys = memory.u32Views(in.key_buffer)
 
     const count = loop({
-        count: index.count,
+        count: in.index.count,
         position: 0
     }, {
         while: state => state.position < in.keys.length,
         next: state => {
             const key = in.keys[state.position]
             const bucket = probe({
-                keys: index.keys,
-                buckets: index.buckets,
+                keys,
+                buckets: memory.u32Views(in.bucket_buffer),
                 key
             })
 
@@ -65,7 +102,8 @@ export default function (in: Input): Output {
     })
 
     return {
-        ...index,
-        count
+        count,
+        keys: memory.u32Views(in.key_buffer),
+        buckets: memory.u32Views(in.bucket_buffer)
     }
 }

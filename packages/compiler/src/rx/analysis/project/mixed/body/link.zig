@@ -26,9 +26,9 @@ pub fn publish(state: *State, body: *const Source.Input, prepared: Boundary, flo
 
     if (comptime generated) {
         const rule = @import("generated_rx_mixed_body_link");
-        const present: ?[]bool = if (destination.present) |cell| @as(*[1]bool, @ptrCast(cell)) else null;
+        var present: ?[]bool = if (destination.present) |cell| @as(*[1]bool, @ptrCast(cell)) else null;
 
-        const verified: memory.WriteColumn = .{
+        var verified: memory.WriteColumn = .{
             .items = std.mem.asBytes(&state.verified),
             .count = 1,
             .stride = @sizeOf(usize),

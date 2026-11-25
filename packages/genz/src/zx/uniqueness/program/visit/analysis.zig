@@ -127,8 +127,8 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     };
 
     const target: []Growth.Rows = @as(*[1]Growth.Rows, @ptrCast(growth));
-    const install_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", target);
-    const install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
+    var install_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", target);
+    var install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
     var stored: record.Frame(kind, rows.Target(Input, "memo")) = undefined;
 
     if (frame.memo) |memo| stored.open(memo, &scope, &frame.scratch, switch (kind) {

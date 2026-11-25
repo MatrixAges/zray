@@ -32,7 +32,8 @@ export default function (in: Input): Output {
         text: memory.requireTextSlots(
             memory.allocateTextSlots(
                 allocator,
-                in.count
+                in.count,
+                null
             )
         )
     }

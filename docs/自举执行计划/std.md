@@ -38,9 +38,9 @@
 
 ## 四、分阶段执行计划
 
-### Phase S1（P0 · 随 `core` C1 同步清理）：消除 3 处 `@constCast` 与边界核查
+### Phase S1（P0 · **Wave 3 已完成**）：消除 3 处 `@constCast` 与边界核查
 
-- 检查 `packages/std/src/` 全部 3 处 `@constCast` 与 36 处 `@ptrCast`/`anyopaque`，对涉及可变写入的接口改为显式可变指针/切片。
+- **已完成**：已将 `packages/std/interfaces/{bytes,string}.d.zx` 中的 `Writer` 与 `StringSet` 切换为 `mutable_opaque`，并移除 `packages/std/src/bytes/writer.zig` 与 `packages/std/src/string.zig` 全部 **3 处 `@constCast`**；Zig `0.17.1` 下 `packages/std` 的 `ReleaseSmall` 与 `ReleaseSafe` 构建及全仓 `compiler`/`cli` 回归全部通过，`packages/std/src/` `@constCast == 0`。
 
 ### Phase S2（P1 · 随 `genz/uniqueness` 收口 · **已完成**）：剥离 `std:bytes` 的编译器私有契约
 

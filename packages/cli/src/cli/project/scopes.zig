@@ -32,7 +32,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
     var scratch = std.heap.ArenaAllocator.init(first.allocator());
     var active: memory.ArenaScope = .{ .active = scratch.allocator() };
     var position = [1]u64{0};
-    const index: []u64 = &position;
+    var index: []u64 = &position;
 
     defer scratch.deinit();
 

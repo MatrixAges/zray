@@ -126,13 +126,14 @@ pub fn reserveNativeScopeIndex(handle: *const anyopaque) effects.Error!void {
     };
 }
 
-pub fn reserveNativeScopeNames(handle: *const anyopaque) std.mem.Allocator.Error![]const []const u8 {
+pub fn reserveNativeScopeNames(handle: *const anyopaque) std.mem.Allocator.Error!*abi.ScopeTextSlots {
     const self = State.get(handle);
 
     self.names = try self.name_memory.allocator().alloc([]const u8, self.config().native_modules.len);
-    self.registry_view = .{ .index = &self.index, .names = self.names };
+    self.naming_index = .{ .names = @ptrCast(&self.names_view), .buckets = @ptrCast(&self.buckets), .capacity = self.buckets.len };
+    self.registry_view = .{ .index = &self.naming_index, .names = self.names };
 
-    return self.names;
+    return @ptrCast(self.names.ptr);
 }
 
 pub fn nativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool) *const abi.DeclarationBinding {
@@ -196,10 +197,17 @@ pub fn finishNativeScopeDeclarations(handle: *const anyopaque) effects.Error!voi
     self.libraries.appendSlice(owner, self.config().libraries) catch |err| return self.failure.save(err);
 }
 
-pub fn reserveNativeScopeLibraryPaths(handle: *const anyopaque) std.mem.Allocator.Error![]const []const u8 {
+pub fn reserveNativeScopeLibraryPaths(handle: *const anyopaque) std.mem.Allocator.Error!*abi.ScopeTextSlots {
     const self = State.get(handle);
+    const items = try self.library_paths.addManyAsSlice(self.allocator, self.config().library_paths.len);
 
-    return self.library_paths.addManyAsSlice(self.allocator, self.config().library_paths.len);
+    return @ptrCast(items.ptr);
+}
+
+pub fn writeNativeScopeText(target: *anyopaque, index: u64, value: []const u8) void {
+    const items: [*][]const u8 = @ptrCast(@alignCast(target));
+
+    items[@intCast(index)] = value;
 }
 
 pub fn resolveNativeScopePath(handle: *const anyopaque, path: []const u8) std.mem.Allocator.Error![]const u8 {
@@ -231,7 +239,7 @@ pub fn nativeScopeModulePaths(handle: *const anyopaque, row: u64) *const abi.Mod
     return &self.paths;
 }
 
-pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []const u8, path: ?[]const u8, dependencies: []const []const u8, includes: u64) std.mem.Allocator.Error![]const []const u8 {
+pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []const u8, path: ?[]const u8, dependencies: []const []const u8, includes: u64) std.mem.Allocator.Error!*abi.ScopeTextSlots {
     const self = State.get(handle);
     const index: usize = @intCast(row);
 
@@ -239,9 +247,12 @@ pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []cons
     self.module.name = name;
     self.module.path = path;
     self.module.dependencies = dependencies;
-    self.module.include_paths = try self.allocator.alloc([]const u8, @intCast(includes));
 
-    return self.module.include_paths.?;
+    const allocated = try self.allocator.alloc([]const u8, @intCast(includes));
+
+    self.module.include_paths = allocated;
+
+    return @ptrCast(allocated.ptr);
 }
 
 pub fn prepareNativeScopeAliases(handle: *const anyopaque) void {

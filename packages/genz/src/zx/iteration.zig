@@ -69,10 +69,10 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const self = frame.lowering;
     const state = self.state_symbols.current();
     const stack = self.stack_symbols.current();
-    const state_count: []u64 = @as(*[1]u64, @ptrCast(&state.count));
-    const stack_count: []u64 = @as(*[1]u64, @ptrCast(&stack.count));
-    const flags: []bool = &frame.parameters.flags;
-    const previous: [][]const u8 = &frame.parameters.previous;
+    var state_count: []u64 = @as(*[1]u64, @ptrCast(&state.count));
+    var stack_count: []u64 = @as(*[1]u64, @ptrCast(&stack.count));
+    var flags: []bool = &frame.parameters.flags;
+    var previous: [][]const u8 = &frame.parameters.previous;
     const initial_plan: *const @TypeOf(frame.initial) = &frame.initial;
 
     const state_view: Index = .{

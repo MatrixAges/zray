@@ -6,7 +6,9 @@ const Mode = @import("types").PublishedMode;
 
 test "published diamond dependencies share nominal enum identity and preserve calls" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+
     defer arena.deinit();
+
     const modes = [_]Mode{ .First, .Second, .Third };
 
     for (modes, 0..) |mode, index| {

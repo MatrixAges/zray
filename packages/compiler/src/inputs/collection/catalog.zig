@@ -72,13 +72,13 @@ pub fn publish(files: []const Document, plan: Plan, output: anytype, packages: a
     const Input = std.meta.Child(rule.Input);
     const Text = std.meta.Child(@FieldType(Input, "templates"));
     const text = .{ .paths = "path", .bodies = "source" };
-    const source_text = memory.borrowWriteFields(text, output.sources);
-    const module_text = memory.borrowWriteFields(text, output.modules);
-    const resource_text = memory.borrowWriteFields(text, output.templates);
-    const source_templates = memory.borrowWriteColumn(@TypeOf(templates), "templates", output.sources);
-    const source_original = memory.borrowWriteColumn(?[]const u8, "original", output.sources);
-    const source_origins = memory.borrowWriteColumn(@TypeOf(origins), "template_origins", output.sources);
-    const module_packages = memory.borrowWriteColumn(@FieldType(Module, "packages"), "packages", output.modules);
+    var source_text = memory.borrowWriteFields(text, output.sources);
+    var module_text = memory.borrowWriteFields(text, output.modules);
+    var resource_text = memory.borrowWriteFields(text, output.templates);
+    var source_templates = memory.borrowWriteColumn(@TypeOf(templates), "templates", output.sources);
+    var source_original = memory.borrowWriteColumn(?[]const u8, "original", output.sources);
+    var source_origins = memory.borrowWriteColumn(@TypeOf(origins), "template_origins", output.sources);
+    var module_packages = memory.borrowWriteColumn(@FieldType(Module, "packages"), "packages", output.modules);
     const attached_packages: @FieldType(Module, "packages") = packages;
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 

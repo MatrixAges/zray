@@ -15,7 +15,7 @@ export default function (in: Input): Output {
     const { owner, paths } = in
 
     const resolved = memory.requireTextSlots(
-        memory.allocateTextSlots(owner, paths.length)
+        memory.allocateTextSlots(owner, paths.length, null)
     )
 
     const written = loop(0, {
@@ -28,5 +28,5 @@ export default function (in: Input): Output {
         }
     })
 
-    return resolved
+    return memory.borrowTextSlots(resolved, paths.length)
 }

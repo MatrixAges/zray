@@ -10,7 +10,7 @@ export default function (in: Input): Output {
         second: null,
         first_row: 0,
         second_row: 0,
-        text: [],
+        text: null,
         capacity: 0
     }
 }

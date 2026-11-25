@@ -87,7 +87,7 @@ pub fn next(self: *Self, native_modules: []const ?u32) ?Request {
         return .{ .id = item.id, .form = form };
     }
 
-    const cursor: []u64 = @as(*[1]u64, @ptrCast(&self.state.next));
+    var cursor: []u64 = @as(*[1]u64, @ptrCast(&self.state.next));
 
     const input: std.meta.Child(taking.Input) = .{
         .ids = self.state.ids.items,

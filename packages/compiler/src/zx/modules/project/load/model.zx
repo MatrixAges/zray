@@ -1,4 +1,4 @@
-import type { U8Buffer, U64Buffer } from "memory"
+import type { U8Buffer, U64Buffer, U64View } from "memory"
 import type { Import as Interface, Selection } from "../interface/model"
 import type { Route } from "../target/model"
 import type { Rows } from "../target/select"
@@ -45,7 +45,7 @@ export type Source = {
     import_row: u64,
     cursor: U64Buffer,
     keys: u8[][],
-    buckets: U64Buffer,
+    buckets: U64View,
     capacity: u64,
     states: u8[],
     marks: U8Buffer

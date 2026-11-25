@@ -126,6 +126,7 @@ pub const Archives = struct {
             .versions = @ptrCast(&versions),
             .digests = @ptrCast(&digests),
             .buckets = @ptrCast(&self.table.items),
+            .bucket_view = @ptrCast(&self.table.items),
             .scratch = @ptrCast(&self.table),
             .capacity = self.table.items.len,
             .indexed = self.indexed,

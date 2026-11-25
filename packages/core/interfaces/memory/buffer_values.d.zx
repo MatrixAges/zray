@@ -24,8 +24,13 @@ export declare function allocateNamedRows(
 export declare function bindNamedRowView(
     source: ReadColumn,
     index: u64,
-    target: NamedRows
+    target: NamedRowViewBuffer
 ): u64 throws { IndexOutOfBounds }
+
+export declare function namedRowsView(
+    source: NamedRowViewBuffer,
+    shape: NamedRows?
+): NamedRows
 
 export declare function u8ListViews(source: U8ListBuffer): u8[][]
 

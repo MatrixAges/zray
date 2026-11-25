@@ -140,9 +140,9 @@ const Graph = struct {
         try self.issues.ensureUnusedCapacity(allocator, capacity);
         try self.references.ensureUnusedCapacity(allocator, capacity);
 
-        const targets = self.targets.unusedCapacitySlice()[0..capacity];
-        const issues = self.issues.unusedCapacitySlice()[0..capacity];
-        const references = self.references.unusedCapacitySlice()[0..capacity];
+        var targets = self.targets.unusedCapacitySlice()[0..capacity];
+        var issues = self.issues.unusedCapacitySlice()[0..capacity];
+        var references = self.references.unusedCapacitySlice()[0..capacity];
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
         input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };

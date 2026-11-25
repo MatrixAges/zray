@@ -28,7 +28,7 @@ const Frame = struct {
 };
 
 pub fn run(graph: *Graph, rows: Scope.Storage.Slice, facts: []const []const u8, name: []const u8, identifier: bool, span: zx.Span) zx.Error!Scope.Reference {
-    const parents = graph.parents();
+    var parents = graph.parents();
     var frame: Frame = .{ .graph = graph, .span = span };
     var candidates: zx.memory.U32Scratch = .{ .allocator = graph.pending.allocator };
 

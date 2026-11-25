@@ -26,7 +26,7 @@ pub fn buildWithRoots(allocator: std.mem.Allocator, options: Options, roots: any
 pub fn orderedRows(allocator: std.mem.Allocator, graph: *const Graph, kind: enum { zx, rx }) std.mem.Allocator.Error![]const u64 {
     const first = if (kind == .zx) 0 else graph.sources.zx_count;
     const end = if (kind == .zx) graph.sources.zx_count else graph.sources.rx_end;
-    const entries = try allocator.alloc(u64, @min(end - first, graph.order.len));
+    var entries = try allocator.alloc(u64, @min(end - first, graph.order.len));
 
     if (entries.len == 0) return entries;
 

@@ -20,7 +20,7 @@ const Writable = struct {
     fn from(rows: Buckets.Slice) Writable {
         return .{ .metadata = rows.items(.metadata), .keys = rows.items(.keys), .values = rows.items(.values) };
     }
-    fn borrow(self: *const Writable, comptime Target: type) Target {
+    fn borrow(self: *Writable, comptime Target: type) Target {
         return .{ .metadata = @ptrCast(&self.metadata), .keys = @ptrCast(&self.keys), .values = @ptrCast(&self.values) };
     }
 };
@@ -108,7 +108,7 @@ pub fn reserveKnownIndex(handle: *const anyopaque, capacity: u64) std.mem.Alloca
 
     fresh.len = size;
     const rows = fresh.toOwnedSlice();
-    const storage = Writable.from(rows);
+    var storage = Writable.from(rows);
 
     const input: RehashInput = .{
         .previous = &table.borrow(std.meta.Child(@FieldType(RehashInput, "previous"))),

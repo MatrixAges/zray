@@ -2,12 +2,13 @@ import encoding from "std:encoding"
 import strings from "std:string"
 import memory from "memory"
 
+import type { TextSlots } from "memory"
 import type { Names } from "./model"
 
 export type Input = {
     names: Names,
-    locals: string[],
-    originals?: string[],
+    locals: TextSlots,
+    originals?: TextSlots,
     specifier: string,
     identity?: string
 }

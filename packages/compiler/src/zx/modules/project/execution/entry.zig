@@ -47,7 +47,7 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const length_slots = zx.memory.borrowSliceLengths(&program.functions);
         const lengths: zx.memory.ColumnLengths = &length_slots;
         const result_row: []Analysis.Result = @as(*[1]Analysis.Result, @ptrCast(&state.result));
-        const recursive = zx.memory.borrowWriteColumn(?u32, "entry_function", result_row);
+        var recursive = zx.memory.borrowWriteColumn(?u32, "entry_function", result_row);
         const records = project.cache_records.items;
 
         const record_column: zx.memory.ReadColumn = .{

@@ -67,7 +67,7 @@ pub fn updateObjectReadiness(handle: *const anyopaque, rebuild: bool, position: 
     const constructions = graph.pending.constructions.slice();
     const parts = graph.pending.construction_parts.slice();
     const selections = graph.pending.selections.slice();
-    const parents = graph.parents();
+    var parents = graph.parents();
 
     const input: Update = .{
         .cache = @ptrCast(&session.cache),

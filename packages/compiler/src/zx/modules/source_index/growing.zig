@@ -120,7 +120,7 @@ pub fn Map(comptime Value: type) type {
                 self.values.unusedCapacitySlice()[0] = entry;
 
                 const rule = @import("generated_source_index_publish");
-                const row: [][]const u8 = self.keys.unusedCapacitySlice()[0..1];
+                var row: [][]const u8 = self.keys.unusedCapacitySlice()[0..1];
                 const pointers = self.lengths();
                 const counts: zx.memory.ColumnLengths = &pointers;
 

@@ -21,7 +21,7 @@ pub fn group(allocator: std.mem.Allocator, modules: []const ModuleFile) !Groups 
 fn split(allocator: std.mem.Allocator, modules: []const ModuleFile, files: []File) !usize {
     const entry = @import("generated_output_inventory");
     const source = memory.borrowReadFields(.{ .names = "name", .bodies = "source" }, modules);
-    const target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
+    var target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
     const Input = std.meta.Child(entry.Input);
     var input: Input = undefined;
 
@@ -59,9 +59,9 @@ fn seedSplit(modules: []const ModuleFile, files: []File) usize {
 }
 
 pub fn originals(allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: []const File, files: []File) !FunctionFiles {
-    const function_paths = try workspace.alloc([]const u8, functions.len);
-    const function_names = try workspace.alloc([]const u8, functions.len);
-    const function_sizes = try workspace.alloc(u64, functions.len);
+    var function_paths = try workspace.alloc([]const u8, functions.len);
+    var function_names = try workspace.alloc([]const u8, functions.len);
+    var function_sizes = try workspace.alloc(u64, functions.len);
     const inventory: FunctionFiles = .{ .paths = function_paths, .names = function_names, .sizes = function_sizes };
 
     if (comptime !available) {
@@ -77,7 +77,7 @@ pub fn originals(allocator: std.mem.Allocator, workspace: std.mem.Allocator, fun
 
     const entry = @import("generated_output_originals");
     const source = memory.borrowReadFields(.{ .names = "path", .bodies = "source" }, functions);
-    const target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
+    var target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
     const Input = std.meta.Child(entry.Input);
     var input: Input = undefined;
 

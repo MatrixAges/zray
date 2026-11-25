@@ -1,12 +1,11 @@
-import memory from "memory"
-import { resolveNativeScopePath } from "native_scope_host"
+import { resolveNativeScopePath, writeNativeScopeText } from "native_scope_host"
 
-import type { NativeScopeLoad } from "native_scope_host"
+import type { NativeScopeLoad, ScopeTextSlots } from "native_scope_host"
 
 export type Input = {
     frame: NativeScopeLoad,
     source: string[],
-    target: string[]
+    target: ScopeTextSlots
 }
 
 export type Output = void
@@ -19,7 +18,7 @@ export default function (in: Input): Output {
         next: row => {
             const path = resolveNativeScopePath(frame, source[row])
 
-            memory.writeTextSlot(target, row, path)
+            writeNativeScopeText(target, row, path)
             row += 1
         }
     })

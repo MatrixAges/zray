@@ -15,12 +15,12 @@ pub fn apply(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.R
     const recorded = Reads.init(&.{"value"}, trace.planned.entries);
     const replacement = Reads.init(&.{"value"}, replacements);
     const View = std.meta.Child(@FieldType(Plans, "recorded"));
-    const functions = Writes.init(output.rows);
-    const entry = Writes.init(@as(*[1]Plan, @ptrCast(&output.entry)));
+    var functions = Writes.init(output.rows);
+    var entry = Writes.init(@as(*[1]Plan, @ptrCast(&output.entry)));
     const positions = memory.borrowReadColumn(u32, "visit", replacements);
     const values = memory.borrowReadColumn(Planned, "value", replacements);
-    const records = memory.borrowWriteColumn(Planned, "value", trace.planned.entries);
-    const identities = std.mem.sliceAsBytes(trace.identities);
+    var records = memory.borrowWriteColumn(Planned, "value", trace.planned.entries);
+    var identities = std.mem.sliceAsBytes(trace.identities);
 
     const input: Input = .{
         .plans = &.{
@@ -65,7 +65,7 @@ const Writes = struct {
             .slot_first = memory.borrowWriteColumn([]const u32, "slot_first", rows),
         };
     }
-    fn view(self: *const Writes) View {
+    fn view(self: *Writes) View {
         var result: View = undefined;
 
         inline for (@typeInfo(View).@"struct".field_names) |name| @field(result, name) = @ptrCast(&@field(self, name));

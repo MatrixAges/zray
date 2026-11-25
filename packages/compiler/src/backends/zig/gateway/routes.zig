@@ -47,7 +47,7 @@ fn publish(rows: anytype, routes: []Route) void {
     };
 
     const source = memory.borrowReadFields(.{ .paths = "path", .services = "service_index" }, rows);
-    const target = memory.borrowWriteFields(.{ .output_paths = "path", .output_methods = "method", .output_services = "service" }, routes);
+    var target = memory.borrowWriteFields(.{ .output_paths = "path", .output_methods = "method", .output_services = "service" }, routes);
     const methods = memory.borrowOptionalU8Column("method", rows);
     var input: std.meta.Child(rule.Input) = undefined;
 

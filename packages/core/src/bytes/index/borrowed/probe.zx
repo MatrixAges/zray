@@ -2,11 +2,11 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import type { TextColumn, U32Buffer } from "memory"
+import type { TextColumn, U32View } from "memory"
 
 export type Table = {
     keys: TextColumn,
-    buckets: U32Buffer
+    buckets: U32View
 }
 
 export type Input = Table & {
@@ -39,7 +39,7 @@ export default function (in: Input): Output {
     }, {
         while: s => !s.done,
         next: s => {
-            const entry = memory.readU32(buckets, s.slot)
+            const entry = memory.readU32View(buckets, s.slot)
             const matches = match entry {
                 0 => true,
                 _ => bytes.equals(

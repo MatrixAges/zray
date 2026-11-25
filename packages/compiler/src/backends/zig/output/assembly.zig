@@ -43,8 +43,8 @@ pub fn prepare(allocator: std.mem.Allocator, bundle: *const Bundle, groups: Grou
 
     const entry = @import("generated_output_assembly");
     const Input = std.meta.Child(entry.Input);
-    const files_view = memory.borrowWriteFields(.{ .paths = "path", .bodies = "source" }, files);
-    const modules_view = memory.borrowWriteFields(.{ .names = "name", .files = "file" }, modules);
+    var files_view = memory.borrowWriteFields(.{ .paths = "path", .bodies = "source" }, files);
+    var modules_view = memory.borrowWriteFields(.{ .names = "name", .files = "file" }, modules);
     const support = memory.borrowReadFields(.{ .paths = "path", .bodies = "source" }, groups.support);
     const public_paths = memory.borrowNestedColumn([]const u8, &.{ "file", "name" }, bundle.public_modules);
     const public_bodies = memory.borrowNestedColumn([]const u8, &.{ "file", "source" }, bundle.public_modules);

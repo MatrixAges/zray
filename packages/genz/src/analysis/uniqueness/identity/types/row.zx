@@ -68,7 +68,5 @@ export default function (in: Input): Output {
         return
     }
 
-    if (target != Kind.NativeReference) {
-        crypto.updateSha256U64Le(in.hash, first)
-    }
+    crypto.updateSha256U64Le(in.hash, first)
 }

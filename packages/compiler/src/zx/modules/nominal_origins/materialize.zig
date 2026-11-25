@@ -20,12 +20,12 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
     try target.members.ensureUnusedCapacity(allocator, source.members.len);
     try target.names.ensureUnusedCapacity(allocator, name_count);
 
-    const owners = target.owners.unusedCapacitySlice()[0..source.owners.len];
-    const members = target.members.unusedCapacitySlice()[0..source.members.len];
-    const names = target.names.unusedCapacitySlice()[0..name_count];
+    var owners = target.owners.unusedCapacitySlice()[0..source.owners.len];
+    var members = target.members.unusedCapacitySlice()[0..source.members.len];
+    var names = target.names.unusedCapacitySlice()[0..name_count];
     const origins = data.Table.borrow(std.meta.Child(@FieldType(Input, "source")), source);
     var completed: [1]u64 = .{0};
-    const progress: []u64 = &completed;
+    var progress: []u64 = &completed;
 
     const input: Input = .{
         .allocator = @ptrCast(&allocator),

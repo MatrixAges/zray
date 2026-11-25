@@ -32,8 +32,8 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     const selection = if (history) |rows| ctx.replay.control.visit(target(Input, "history"), kind, index, rows.starts, false) else undefined;
     const Body = target(Probe, "rows");
     var views: BodyRows.Views(Body) = undefined;
-    const bytes: []u8 = &memo.key;
-    const marked = table.useColumn();
+    var bytes: []u8 = &memo.key;
+    var marked = table.useColumn();
     const encoding = memo.encoding.binding(target(Probe, "state"));
 
     const probe: Probe = if (persistent) .{
@@ -49,7 +49,7 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
 
     const worker = ahead.pool.count() != 0;
     const slot = if (worker) ahead.resultSlot(kind, index) else null;
-    const flags = std.mem.sliceAsBytes(ahead.dirty);
+    var flags = std.mem.sliceAsBytes(ahead.dirty);
     var reads: ReadColumns = undefined;
 
     const pending: Pending = if (worker) .{

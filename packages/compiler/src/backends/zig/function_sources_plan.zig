@@ -25,9 +25,9 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, cach
     const count = fetched.len;
     const capacity = std.math.mul(usize, count, 3) catch return error.OutOfMemory;
     const rows = try allocator.alloc(u64, capacity);
-    const reused = rows[0..count];
-    const pending = rows[count..][0..count];
-    const offsets = rows[count * 2 ..];
+    var reused = rows[0..count];
+    var pending = rows[count..][0..count];
+    var offsets = rows[count * 2 ..];
     const sources = zx.memory.borrowReadColumn(?[]const u8, "source", fetched);
     const kinds = zx.memory.borrowReadColumn(Cache.Fetched.Kind, "kind", fetched);
     const Disk = std.meta.Child(@typeInfo(@FieldType(Lookup, "disk")).optional.child);
@@ -63,7 +63,8 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, cach
     };
 }
 
-pub fn layout(sources: *const zx.memory.ReadColumn, offsets: []u64) std.mem.Allocator.Error!usize {
+pub fn layout(sources: *const zx.memory.ReadColumn, offsets_arg: []u64) std.mem.Allocator.Error!usize {
+    var offsets = offsets_arg;
     const output = try run(.{ .count = offsets.len, .sources = @ptrCast(sources), .offsets = @ptrCast(&offsets), .lookup = null });
 
     if (output.pending != 0) unreachable;

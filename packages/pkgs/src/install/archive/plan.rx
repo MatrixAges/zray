@@ -22,7 +22,7 @@
         fn="../../core/bytes/index/borrowed/probe"
         in={{
             keys: $in.digests,
-            buckets: $in.buckets,
+            buckets: $in.bucket_view,
             text: $in.digest,
             capacity: $ctx.refresh
         }}

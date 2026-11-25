@@ -33,8 +33,8 @@ pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.R
     const exports = try owned.alloc(compiler.library.PublicReference, config.exports.len);
     const names = zx.memory.borrowTextColumn("path", config.exports);
     const modules = zx.memory.borrowReadColumn(?[]const u8, "module", config.exports);
-    const target_names = zx.memory.borrowWriteColumn([]const u8, "name", exports);
-    const target_modules = zx.memory.borrowWriteColumn([]const u8, "module", exports);
+    var target_names = zx.memory.borrowWriteColumn([]const u8, "name", exports);
+    var target_modules = zx.memory.borrowWriteColumn([]const u8, "module", exports);
     const Selection = std.meta.Child(selection.Input);
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 

@@ -24,7 +24,7 @@ pub fn decode(buffer: []const u8, offset: usize, rows: []Record, endian: std.bui
     const Input = std.meta.Child(rule.Input);
     const Rows = std.meta.Child(@FieldType(Input, "rows"));
 
-    const metadata = memory.borrowWriteFields(.{
+    var metadata = memory.borrowWriteFields(.{
         .inode = "inode",
         .size = "size",
         .modified_seconds = "modified_seconds",
@@ -33,8 +33,8 @@ pub fn decode(buffer: []const u8, offset: usize, rows: []Record, endian: std.bui
         .changed_nanos = "changed_nanos",
     }, rows);
 
-    const columns = memory.borrowWriteFields(.{ .names = "name", .kinds = "kind", .has_metadata = "has_metadata" }, rows);
-    const measurements = metadata.bind(std.meta.Child(@FieldType(Rows, "metadata")));
+    var columns = memory.borrowWriteFields(.{ .names = "name", .kinds = "kind", .has_metadata = "has_metadata" }, rows);
+    var measurements = metadata.bind(std.meta.Child(@FieldType(Rows, "metadata")));
     var target: Rows = undefined;
 
     columns.fill(&target);

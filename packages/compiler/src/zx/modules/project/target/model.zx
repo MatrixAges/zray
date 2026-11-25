@@ -1,5 +1,5 @@
-import type { Table } from "core/bytes/index/fixed"
-import type { Allocator } from "memory"
+import type { Table } from "core/bytes/index/slot"
+import type { Allocator, TextSlots } from "memory"
 import type { Input as Scope } from "./scope/check"
 
 export enum Route {
@@ -88,7 +88,7 @@ export type PackageRequest = {
     allow_rx: bool,
     root: string,
     release: Allocator,
-    output: string[]
+    output: TextSlots
 }
 
 export type PackageTarget = {

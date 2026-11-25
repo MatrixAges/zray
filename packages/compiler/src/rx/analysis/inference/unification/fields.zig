@@ -22,7 +22,7 @@ const AlignFrame = struct {
 };
 
 pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, incoming: []const []const u8, closed: bool) std.mem.Allocator.Error!Alignment {
-    const positions = try allocator.alloc(u64, incoming.len);
+    var positions = try allocator.alloc(u64, incoming.len);
 
     errdefer allocator.free(positions);
 

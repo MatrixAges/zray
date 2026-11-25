@@ -48,7 +48,7 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.slots);
 }
 
-fn queue(self: *const Self, positions: *const []const u64) Queue {
+fn queue(self: *Self, positions: *[]const u64) Queue {
     return .{
         .slots = @ptrCast(&self.slots),
         .queued = @ptrCast(&self.queued),
@@ -58,9 +58,9 @@ fn queue(self: *const Self, positions: *const []const u64) Queue {
 }
 
 pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
-    const state = SummaryState.Borrowed.init(summaries);
+    var state = SummaryState.Borrowed.init(summaries);
     const facts = state.input(.Reset, active, known);
-    const positions: []const u64 = &self.positions;
+    var positions: []const u64 = &self.positions;
 
     const input: std.meta.Child(preparing.Input) = .{
         .queue = &.{ .state = &self.queue(&positions), .active = active },
@@ -74,16 +74,16 @@ pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, k
     return invoke(preparing, empty.allocator(), &input);
 }
 
-pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, following: bool, ahead: *Ahead, memo: *Memo) std.mem.Allocator.Error!Round.Claim {
-    const flags = std.mem.sliceAsBytes(frame.dirty);
-    const positions: []const u64 = &self.positions;
+pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame: *Round.Frame, previous: ?Round.Feedback, following: bool, ahead: *Ahead, memo: *Memo) std.mem.Allocator.Error!Round.Claim {
+    var flags = std.mem.sliceAsBytes(frame.dirty);
+    var positions: []const u64 = &self.positions;
     const Input = dispatch.Advance;
     const Feedback = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
     const Plan = std.meta.Child(@typeInfo(@FieldType(Feedback, "plan")).optional.child);
     const fields = if (previous) |value| value.plan else null;
 
     const plan: Plan = if (fields) |bytes| planned: {
-        const target = if (frame.plans) |*value| value else unreachable;
+        var target = if (frame.plans) |*value| value else unreachable;
 
         break :planned .{
             .plans = @ptrCast(&target.functions),

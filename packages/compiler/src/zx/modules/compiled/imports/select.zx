@@ -15,6 +15,6 @@ export default function (in: Input): Output {
     return find({
         ...in.member,
         count: in.count,
-        capacity: memory.u64Views(in.member.buckets).length
+        capacity: memory.u64ViewSlice(in.member.buckets).length
     })
 }

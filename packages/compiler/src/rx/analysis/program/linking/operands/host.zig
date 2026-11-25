@@ -92,9 +92,9 @@ pub fn bindExpressionOperands(handle: *const anyopaque, index: u32, route: Route
     };
 }
 
-const empty: zx.memory.ColumnRanges = &.{};
+var empty: zx.memory.ColumnRanges = &.{};
 
-fn ranges(group: anytype) *const anyopaque {
+fn ranges(group: anytype) *anyopaque {
     return @ptrCast(group.freeze() orelse &empty);
 }
 

@@ -36,7 +36,7 @@ pub fn file(allocator: std.mem.Allocator, base: []const u8, name: []const u8, pr
     const output: []File = &storage;
     const Input = std.meta.Child(rule.Input);
 
-    const columns = memory.borrowWriteFields(.{
+    var columns = memory.borrowWriteFields(.{
         .paths = "path",
         .relatives = "relative",
         .lookup = "lookup",

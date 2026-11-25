@@ -106,8 +106,8 @@ fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *
     var functions = memory.RowBuffer.empty(Binding);
     var published = memory.RowBuffer.empty(Binding);
     var used = [_]u64{ 0, 0 };
-    const function_used: []u64 = used[0..1];
-    const published_used: []u64 = used[1..2];
+    var function_used: []u64 = used[0..1];
+    var published_used: []u64 = used[1..2];
     const symbols: *const @TypeOf(bindings.request.input) = &bindings.request.input;
 
     const input: Input = .{

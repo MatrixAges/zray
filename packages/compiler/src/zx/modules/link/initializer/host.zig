@@ -65,7 +65,7 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
     });
 }
 
-fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, registry: *const Registry, initial: Initializer.Borrowed, origins: Origins.Table, mapping: *[]u32) Error!std.meta.Child(plan.Output) {
+fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, registry: *Registry, initial: Initializer.Borrowed, origins: Origins.Table, mapping: *[]u32) Error!std.meta.Child(plan.Output) {
     const program = initial.program;
     var validation: Validation = undefined;
 
@@ -92,7 +92,7 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
     const rows = Registry.readRows(registry.rows.items);
     const keys = rows.bind(std.meta.Child(@FieldType(Lookup, "source")));
     var started: [1]u8 = .{0};
-    const marker: []u8 = &started;
+    var marker: []u8 = &started;
 
     const input: Input = .{
         .eligibility = &.{

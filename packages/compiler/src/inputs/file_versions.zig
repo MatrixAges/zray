@@ -51,13 +51,14 @@ pub fn update(read: Read) Update {
     };
 }
 
-pub fn retire(pending: anytype, kept: [][]u8, published: bool) Retired {
+pub fn retire(pending: anytype, kept_arg: [][]u8, published: bool) Retired {
     if (pending.len == 0) return .{};
-    if (comptime !generated) return seed.retire(pending, kept, published);
+    if (comptime !generated) return seed.retire(pending, kept_arg, published);
 
+    var kept = kept_arg;
     const rule = @import("generated_input_file_retire");
     const texts = memory.borrowReadColumn([]u8, "text", pending);
-    const clear = memory.borrowWriteColumn([]const u8, "text", pending);
+    var clear = memory.borrowWriteColumn([]const u8, "text", pending);
     const publish = memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_publish" }, pending);
     const abort = memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, pending);
 

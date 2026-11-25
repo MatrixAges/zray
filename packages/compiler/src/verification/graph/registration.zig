@@ -59,7 +59,7 @@ pub fn writeSymbolicDefinition(handle: *const anyopaque, position: u64, resized:
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
     const rows = graph.definitions.slice();
-    const buckets = frame.staged orelse graph.index;
+    var buckets = frame.staged orelse graph.index;
 
     const request: std.meta.Child(publication.Input) = .{
         .origin = &.{

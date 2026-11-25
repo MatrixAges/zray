@@ -3,6 +3,7 @@ const program = @import("program");
 
 fn check(input: []const u8) !void {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+
     const output = program.execute(&arena, input) catch |err| {
         arena.deinit();
 

@@ -126,6 +126,7 @@ pub fn typeNamesIn(allocator: std.mem.Allocator, program: ir.Program, origins: a
 
                 field(&hash, value.nominalName().?);
 
+                if (value == .native_reference and program.types.first[index] != 0) field(&hash, "mutable");
                 if (value == .enumeration) for (value.enumeration.members) |member| field(&hash, member);
             },
         }

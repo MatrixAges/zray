@@ -24,9 +24,9 @@ pub fn append(graph: *Graph, payload: ?Graph.Id, kind: Kind, count: usize, span:
     const reservation = try Nodes.reserve(graph, rows_count);
     const writer = @import("generated_rx_inference_containers");
     const Input = std.meta.Child(writer.Input);
-    const rows = Nodes.writable(reservation.rows);
-    const parents = reservation.rows.items(.parent);
-    const publication = Nodes.Publication.init(graph, reservation.rows);
+    var rows = Nodes.writable(reservation.rows);
+    var parents = reservation.rows.items(.parent);
+    var publication = Nodes.Publication.init(graph, reservation.rows);
 
     const container: Nodes.Kind = switch (kind) {
         .list => .List,

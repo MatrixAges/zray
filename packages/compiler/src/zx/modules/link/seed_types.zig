@@ -12,7 +12,7 @@ pub fn appendPrepared(self: anytype, temporary: std.mem.Allocator, values: ir.Ty
         if (value.nominalName() != null) {
             if (origins[index] == 0) return error.MissingNominalOrigin;
 
-            mapping[index] = try nominal(self, mapped, nominal_types.at(@intCast(origins[index] - 1)).origin);
+            mapping[index] = try nominal(self, mapped, values.first[index], nominal_types.at(@intCast(origins[index] - 1)).origin);
         } else {
             mapping[index] = try structural(self, mapped);
         }
@@ -27,11 +27,16 @@ fn structural(self: anytype, value: ir.TypeValue) Error!ir.TypeId {
     return insert(self, value);
 }
 
-fn nominal(self: anytype, value: ir.TypeValue, origin: Origins.Origin) Error!ir.TypeId {
-    if (try @import("../../analysis/semantic/nominal.zig").find(self.items.view(), self.origins.items.view(), origin, value)) |id| return id;
+fn nominal(self: anytype, value: ir.TypeValue, first_value: u32, origin: Origins.Origin) Error!ir.TypeId {
+    if (try @import("../../analysis/semantic/nominal.zig").find(self.items.view(), self.origins.items.view(), origin, value)) |id| {
+        if (value == .native_reference and self.items.first.items[@backingInt(id)] != first_value) return error.ConflictingNominalType;
+
+        return id;
+    }
 
     const id = try insert(self, value);
 
+    if (value == .native_reference) self.items.first.items[@backingInt(id)] = first_value;
     try self.origins.append(self.items.view(), @backingInt(id), origin);
 
     return id;

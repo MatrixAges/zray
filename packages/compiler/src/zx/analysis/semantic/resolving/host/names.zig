@@ -60,8 +60,8 @@ pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, t
 
     var keys = memory.borrowTextSlice(self.columns.names.items);
     var tails: Cache = .{ .names = &.{}, .ids = &.{} };
-    const slots = memory.bindColumnRanges(&self.columns, cache.*, &tails);
-    const ranges: memory.ColumnRanges = &slots;
+    var slots = memory.bindColumnRanges(&self.columns, cache.*, &tails);
+    var ranges: memory.ColumnRanges = &slots;
     const index: Index = .{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets.items) };
 
     const target: Destination = .{

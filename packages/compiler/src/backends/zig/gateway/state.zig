@@ -39,13 +39,13 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
 
     try descriptors.resize(allocator, library.exports.len);
 
-    const input_types = descriptors.items(.input_type);
-    const output_types = descriptors.items(.output_type);
+    var input_types = descriptors.items(.input_type);
+    var output_types = descriptors.items(.output_type);
     const requires_io = descriptors.items(.requires_io);
     const requires_process = descriptors.items(.requires_process);
-    const io_bytes = std.mem.sliceAsBytes(requires_io);
-    const process_bytes = std.mem.sliceAsBytes(requires_process);
-    const initializers = try InitializerView.init(temporary, bundle.store_initializers);
+    var io_bytes = std.mem.sliceAsBytes(requires_io);
+    var process_bytes = std.mem.sliceAsBytes(requires_process);
+    var initializers = try InitializerView.init(temporary, bundle.store_initializers);
     const types = zx.ir.TypeTable.borrow(Types, library.program.types);
     const functions = zx.columns.borrow(Functions, &library.program.functions);
     const export_names = memory.borrowTextColumn("name", library.exports);

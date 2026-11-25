@@ -52,8 +52,8 @@ pub fn allocate(self: *Lower, allocator: std.mem.Allocator, names: @FieldType(st
 
 pub fn clear(self: *Lower) Lower.Error!void {
     const entry = @import("generated_function_context_clear");
-    const used = std.mem.sliceAsBytes(self.used);
-    const reads = std.mem.sliceAsBytes(self.cache_reads);
+    var used = std.mem.sliceAsBytes(self.used);
+    var reads = std.mem.sliceAsBytes(self.cache_reads);
 
     const input: std.meta.Child(entry.Input) = .{
         .used = @ptrCast(&used),
@@ -75,9 +75,9 @@ pub fn prepare(self: *Lower, errors: ?[]const []const u8) Lower.Error!void {
     if (!generated) return seed(self, errors);
 
     const entry = @import("generated_function_context_prepare");
-    const names = self.names;
-    const used = std.mem.sliceAsBytes(self.used);
-    const reads = std.mem.sliceAsBytes(self.cache_reads);
+    var names = self.names;
+    var used = std.mem.sliceAsBytes(self.used);
+    var reads = std.mem.sliceAsBytes(self.cache_reads);
 
     const input: std.meta.Child(entry.Input) = .{
         .errors = errors,

@@ -44,9 +44,9 @@ pub fn entries(source: anytype, roots: [][]const u8, exports: anytype) void {
     const memory = zx.memory;
     const paths = memory.borrowTextColumn("path", source);
     const names = memory.borrowTextColumn("name", source);
-    const root_paths = memory.borrowNestedWriteColumn([]const u8, &.{}, roots);
-    const export_paths = memory.borrowWriteColumn([]const u8, "path", exports);
-    const export_names = memory.borrowWriteColumn([]const u8, "name", exports);
+    var root_paths = memory.borrowNestedWriteColumn([]const u8, &.{}, roots);
+    var export_paths = memory.borrowWriteColumn([]const u8, "path", exports);
+    var export_names = memory.borrowWriteColumn([]const u8, "name", exports);
     const rule = @import("generated_generation_entries");
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 

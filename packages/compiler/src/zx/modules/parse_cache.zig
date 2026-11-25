@@ -113,7 +113,7 @@ fn retire(self: *Self, published: bool) void {
         else
             memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, self.transient.items);
 
-        const target: memory.WriteColumn = .{
+        var target: memory.WriteColumn = .{
             .items = @ptrCast(&self.retained_capacity),
             .count = 1,
             .stride = @sizeOf(usize),
@@ -398,8 +398,8 @@ const ParseWork = struct {
         const cached_digest = memory.borrowReferenceColumn("digest", entries.values.items);
         var hits: [max_parse_batch]u64 = undefined;
         var digests: [max_parse_batch]Digest = undefined;
-        const hit_rows: []u64 = &hits;
-        const digest_bytes = std.mem.sliceAsBytes(digests[0..]);
+        var hit_rows: []u64 = &hits;
+        var digest_bytes = std.mem.sliceAsBytes(digests[0..]);
 
         const input: std.meta.Child(rule.Input) = .{
             .worker = @ptrCast(&worker),

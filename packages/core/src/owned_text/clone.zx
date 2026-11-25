@@ -11,7 +11,7 @@ export type Output = string[]?
 export default function (in: Input): Output {
     const { allocator, source } = in
 
-    const target = memory.allocateTextSlots(allocator, source.length)
+    const target = memory.allocateTextSlots(allocator, source.length, null)
 
     if (target == null) {
         return null
@@ -22,10 +22,10 @@ export default function (in: Input): Output {
         source,
         target
     })) {
-        return target
+        return memory.borrowTextSlots(target, source.length)
     }
 
-    memory.freeTextSlots(allocator, target)
+    memory.freeTextSlots(allocator, memory.borrowTextSlots(target, source.length))
 
     return null
 }

@@ -9,5 +9,13 @@ export type Input = Allocation
 export type Output = string[]
 
 export default function (in: Input): Output {
-    return memory.requireTextSlots(clone(in))
+    const cloned = clone(in)
+
+    if (cloned != null) {
+        return cloned
+    }
+
+    const failed = memory.requireTextSlots(null)
+
+    return memory.borrowTextSlots(failed, 0)
 }

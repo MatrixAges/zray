@@ -1,15 +1,16 @@
 import memory from "memory"
+import { writeNativeScopeText } from "native_scope_host"
 
 import backend from "./rules/naming/backend"
 
 import type { Rows } from "compiler_rules/project/target/select"
-import type { ScopeWindow } from "native_scope_host"
+import type { ScopeTextSlots, ScopeWindow } from "native_scope_host"
 import type { Resources } from "./workflow"
 
 export type Input = {
     window: ScopeWindow,
     local: Rows,
-    resolved: string[],
+    resolved: ScopeTextSlots,
     resources: Resources
 }
 
@@ -27,7 +28,7 @@ export default function (in: Input): Output {
                 value
             })
 
-            memory.writeTextSlot(
+            writeNativeScopeText(
                 resolved,
                 row,
                 memory.copyColumnText(resources.owner, name)

@@ -22,7 +22,7 @@ pub fn create(workspace: std.mem.Allocator, exports: []const Export, function_co
 
     @memset(regular, 0);
 
-    const target: Plan = .{
+    var target: Plan = .{
         .roots = try workspace.alloc(FunctionId, total),
         .member_ids = try workspace.alloc(FunctionId, capacity_members),
         .members = try workspace.alloc(PublicMember, capacity_members),
@@ -38,9 +38,9 @@ pub fn create(workspace: std.mem.Allocator, exports: []const Export, function_co
     const Buffers = std.meta.Child(@FieldType(Input, "target"));
     const defaults = memory.borrowOptionalU32Column("function", exports);
     const names = memory.borrowListColumn([]const u8, "members", "name", exports);
-    const roots = primitive(target.roots);
-    const member_ids = primitive(target.member_ids);
-    const members = memory.borrowNamedRows("function", target.members);
+    var roots = primitive(target.roots);
+    var member_ids = primitive(target.member_ids);
+    var members = memory.borrowNamedRows("function", target.members);
 
     const input: Input = .{
         .source = &Source{
@@ -117,8 +117,8 @@ pub fn complete(exports: []const Export, type_only: bool, modules: []@import("li
     const types = memory.borrowListColumn([]const u8, "types", "name", exports);
     const constants = memory.borrowListColumn([]const u8, "constants", "name", exports);
     const defaults = memory.borrowOptionalU32Column("function", exports);
-    const file_sources = memory.borrowNestedWriteColumn([]const u8, &.{ "file", "source" }, modules);
-    const constants_only = memory.borrowWriteColumn(bool, "constant_only", modules);
+    var file_sources = memory.borrowNestedWriteColumn([]const u8, &.{ "file", "source" }, modules);
+    var constants_only = memory.borrowWriteColumn(bool, "constant_only", modules);
 
     const input: std.meta.Child(rule.Input) = .{
         .count = exports.len,
@@ -140,7 +140,7 @@ pub fn complete(exports: []const Export, type_only: bool, modules: []@import("li
 pub fn fileNames(allocator: std.mem.Allocator, names: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
     if (names.len == 0) return &.{};
 
-    const target = try allocator.alloc([]const u8, names.len);
+    var target = try allocator.alloc([]const u8, names.len);
 
     errdefer allocator.free(target);
 
@@ -159,7 +159,7 @@ pub fn fileNames(allocator: std.mem.Allocator, names: []const []const u8) std.me
         else => unreachable,
     };
 
-    const data = try allocator.alloc(u8, std.math.cast(usize, bytes) orelse return error.OutOfMemory);
+    var data = try allocator.alloc(u8, std.math.cast(usize, bytes) orelse return error.OutOfMemory);
 
     errdefer allocator.free(data);
 

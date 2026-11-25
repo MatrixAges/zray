@@ -101,8 +101,8 @@ pub fn addMany(self: *Self, allocator: std.mem.Allocator, keys: []const ir.Symbo
     const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const state = self.current();
-    var key_buffer: []u32 = undefined;
-    var bucket_buffer: []u32 = undefined;
+    var key_buffer: []const u32 = state.keys.items;
+    var bucket_buffer: []const u32 = state.buckets.items;
 
     const input: Input = .{
         .index = zx.columns.view(@FieldType(Input, "index"), state.*),

@@ -5,11 +5,12 @@ import memory from "memory"
 import select from "../alias/select"
 import { module_extension } from "../const"
 
+import type { TextSlots } from "memory"
 import type { Input as Lookup } from "../alias/model"
 
 export type Input = Lookup & {
     member_width: u64,
-    output: string[]
+    output: TextSlots
 }
 
 export type Output = {

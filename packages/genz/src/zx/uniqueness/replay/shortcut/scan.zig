@@ -39,7 +39,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
     var current_binding: DemandBinding = undefined;
     const stored_plans = zx.memory.borrowNestedColumn(Memo.Planned, &.{}, ctx.memo.planned.values.items);
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
-    const key: []u8 = &ctx.memo.key;
+    var key: []u8 = &ctx.memo.key;
     const demands = &ctx.summaries.storage.?.demands;
     var scope = zx.memory.ArenaScope{ .active = staged };
     var output: zx.memory.RowOutput(Row, Columns, .{ .positions = &.{"visit"}, .values = &.{"value"} }) = undefined;

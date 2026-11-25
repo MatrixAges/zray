@@ -33,7 +33,7 @@ fn visit(comptime kind: Kind, self: *Expression, items: anytype, hints: if (kind
         const context = items.context;
         const width = if (kind == .Template) 1 else 2;
         var values: [batch_size * width]u64 = undefined;
-        const target: []u64 = &values;
+        var target: []u64 = &values;
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         var position = items.first;
         const end = position + items.len;

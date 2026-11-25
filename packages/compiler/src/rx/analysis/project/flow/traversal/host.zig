@@ -50,8 +50,8 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
 
     const cursor_length: memory.ColumnLengths = state.slots[0..1];
     const lengths: memory.ColumnLengths = state.slots[1..];
-    const returned: []bool = if (inference) (&target.walker.returned)[0..1] else &.{};
-    const output: []u32 = if (inference) @ptrCast((&target.walker.output)[0..1]) else &.{};
+    var returned: []bool = if (inference) (&target.walker.returned)[0..1] else &.{};
+    var output: []u32 = if (inference) @ptrCast((&target.walker.output)[0..1]) else &.{};
     const returns: Returns = .{ .output = @ptrCast(&output), .returned = @ptrCast(&returned), .saved = &state.parent_return };
     const result_slots: memory.ColumnLengths = if (inference) &.{} else &.{&target.compiler.next_binding};
     const results: ResultRows = .{ .cursor = @ptrCast(&result_slots), .types = if (inference) &.{} else @ptrCast(target.compiler.results.types) };

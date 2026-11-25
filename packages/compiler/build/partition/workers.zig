@@ -57,7 +57,7 @@ const Work = struct {
 
         const allocator = arena.allocator();
         const argv = try allocator.alloc([]const u8, self.arguments.len + 1);
-        const target = argv[1..];
+        var target = argv[1..];
 
         argv[0] = self.zig;
 

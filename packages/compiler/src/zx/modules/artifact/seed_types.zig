@@ -60,6 +60,8 @@ pub fn include(self: anytype, id: ir.TypeId) Error!ir.TypeId {
 
         try self.items.append(self.allocator, try copy(self, current));
 
+        if (value == .native_reference) self.items.first.items[@backingInt(mapped)] = self.source.first[current];
+
         self.mapping[current] = mapped;
 
         if (value.nominalName()) |name| {

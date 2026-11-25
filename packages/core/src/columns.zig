@@ -179,8 +179,9 @@ fn compatible(comptime Target: type, comptime Source: type) void {
     if (target == .pointer and source == .pointer) {
         const left = target.pointer;
         const right = source.pointer;
+        const mutable_opaque = left.size == .one and !left.attrs.@"const" and !right.attrs.@"const" and @typeInfo(left.child) == .@"opaque" and @typeInfo(right.child) == .@"opaque";
 
-        if ((left.size != .slice and left.size != .one) or left.size != right.size or left.sentinel_ptr != null or right.sentinel_ptr != null or !left.attrs.@"const" or !right.attrs.@"const" or !std.meta.eql(left.attrs, right.attrs)) @compileError("Incompatible column pointer");
+        if ((left.size != .slice and left.size != .one) or left.size != right.size or left.sentinel_ptr != null or right.sentinel_ptr != null or (!mutable_opaque and (!left.attrs.@"const" or !right.attrs.@"const")) or !std.meta.eql(left.attrs, right.attrs)) @compileError("Incompatible column pointer");
 
         return compatible(left.child, right.child);
     }

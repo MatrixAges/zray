@@ -10,13 +10,11 @@ fn Host(comptime program: type) type {
         conflict: bool = false,
         attempts: usize = 0,
         commits: usize = 0,
-
         pub fn commit(self: *@This(), pending: program.zx_pending) !void {
             self.attempts += 1;
 
             try std.testing.expect(pending.store_0 != null);
             try std.testing.expect(pending.store_1 == null);
-
             if (self.conflict) return error.Conflict;
 
             self.current.* = pending.store_0.?;

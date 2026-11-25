@@ -46,8 +46,8 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
 
     var signatures: ir.SignatureStorage = .{};
     var signature_tails: ir.SignatureTable = .{};
-    const ranges = zx.memory.bindColumnRanges(&signatures, @as(ir.SignatureTable, .{}), &signature_tails);
-    const signature_ranges: zx.memory.ColumnRanges = &ranges;
+    var ranges = zx.memory.bindColumnRanges(&signatures, @as(ir.SignatureTable, .{}), &signature_tails);
+    var signature_ranges: zx.memory.ColumnRanges = &ranges;
     const slots = zx.memory.bindColumnSet(SignatureRow, true, &signatures);
     const signature_target: zx.memory.ColumnSet = &slots;
 

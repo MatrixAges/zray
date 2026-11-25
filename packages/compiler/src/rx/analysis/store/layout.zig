@@ -49,7 +49,7 @@ fn source(allocator: std.mem.Allocator, fragments: []const rx.ast.Node, offsets:
     const rule = @import("generated_rx_store_layout");
     const Input = std.meta.Child(rule.Input);
     const layout = comptime rx.astLayout(std.meta.Child(@FieldType(Input, "layout")));
-    const references = zx.memory.borrowNestedWriteColumn(?[*]const u8, &.{}, fields);
+    var references = zx.memory.borrowNestedWriteColumn(?[*]const u8, &.{}, fields);
 
     const input: Input = .{
         .fragments = std.mem.sliceAsBytes(fragments),

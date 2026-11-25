@@ -23,7 +23,7 @@ pub fn apply(conditions: *Conditions, mode: Mode, path: []const u8, value: ?term
 
     var frame: Frame = .{ .conditions = conditions, .value = value };
     var values = [_][]const u8{path};
-    const slot: [][]const u8 = &values;
+    var slot: [][]const u8 = &values;
     const Input = std.meta.Child(clauses.Input);
 
     const input: Input = .{

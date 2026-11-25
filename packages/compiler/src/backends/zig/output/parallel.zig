@@ -34,7 +34,7 @@ const Work = struct {
     failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
         const allocator = arena.allocator();
-        const failure: []u32 = @as(*[1]u32, @ptrCast(&self.failure.raw));
+        var failure: []u32 = @as(*[1]u32, @ptrCast(&self.failure.raw));
 
         const input: Input = .{
             .jobs = &self.request,

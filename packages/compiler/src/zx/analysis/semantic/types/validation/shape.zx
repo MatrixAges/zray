@@ -127,7 +127,7 @@ export default function (in: Input): Output {
             } else if (type_kind == Kind.Optional || type_kind == Kind.List) {
                 current.valid = count == 0
             } else if (type_kind == Kind.NativeReference) {
-                current.valid = first == 0 && count == 0
+                current.valid = first <= 1 && count == 0
             }
 
             current.index += 1

@@ -9,12 +9,12 @@ const Input = std.meta.Child(rule.Input);
 pub fn run(state: *State, previous: *const History.Retained, prefix: *const Borrowed, boundaries: []History.Checkpoint, first: usize, end: usize, reused: *usize) std.mem.Allocator.Error!usize {
     const graph = &state.graph;
     const order = columns.words(std.mem.sliceAsBytes(graph.order));
-    const surfaces = std.mem.sliceAsBytes(state.finished.surfaces);
-    const functions = std.mem.sliceAsBytes(state.finished.functions);
-    const present = std.mem.sliceAsBytes(state.finished.present);
-    const checkpoints = std.mem.sliceAsBytes(boundaries);
-    const verified = columns.wordTarget(std.mem.asBytes(&state.verified));
-    const replayed = columns.wordTarget(std.mem.asBytes(reused));
+    var surfaces = std.mem.sliceAsBytes(state.finished.surfaces);
+    var functions = std.mem.sliceAsBytes(state.finished.functions);
+    var present = std.mem.sliceAsBytes(state.finished.present);
+    var checkpoints = std.mem.sliceAsBytes(boundaries);
+    var verified = columns.wordTarget(std.mem.asBytes(&state.verified));
+    var replayed = columns.wordTarget(std.mem.asBytes(reused));
 
     const input: Input = .{
         .window = &.{

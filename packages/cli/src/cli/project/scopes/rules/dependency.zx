@@ -25,7 +25,8 @@ export default function (in: Input): Output {
     const output = memory.requireTextSlots(
         memory.allocateTextSlots(
             resources.owner,
-            dependencies.length
+            dependencies.length,
+            null
         )
     )
 
@@ -74,5 +75,5 @@ export default function (in: Input): Output {
         )
     }
 
-    return output
+    return memory.borrowTextSlots(output, dependencies.length)
 }

@@ -16,11 +16,9 @@ export default function (in: Input): Output {
             const { index } = current
             const id = memory.readColumnU32(in.ids, index)
             const found = probe({
-                ...in.pick([
-                    "keys",
-                    "buckets",
-                    "capacity"
-                ]),
+                keys: in.keys,
+                buckets: memory.u64View(in.buckets, null),
+                capacity: in.capacity,
                 rows: in.ids,
                 key: in.keys[integers.widen(id)]
             })

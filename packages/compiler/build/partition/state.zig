@@ -9,7 +9,7 @@ pub const Keys = struct {
     hex: []const []const u8,
     /// Replaces presence with the entries safe to record before spawning any worker.
     pub fn plan(self: Keys, allocator: std.mem.Allocator, previous: []const u8, present: []bool, options: *const Options) !Schedule {
-        const bytes = std.mem.sliceAsBytes(present);
+        var bytes = std.mem.sliceAsBytes(present);
 
         return scheduling.executeValue(allocator, &.{
             .state = &.{
@@ -43,7 +43,7 @@ pub const Keys = struct {
 };
 
 pub fn complete(pending: []const u32, failures: []const ?[]const u8, valid: []bool) !bool {
-    const bytes = std.mem.sliceAsBytes(valid);
+    var bytes = std.mem.sliceAsBytes(valid);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return rules.partition_cache_complete.executeValue(empty.allocator(), &.{

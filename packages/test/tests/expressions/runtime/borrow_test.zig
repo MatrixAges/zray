@@ -6,6 +6,7 @@ fn check(choose: bool) !void {
     var right = "right value".*;
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     const input: std.meta.Child(program.Input) = .{ &right, choose, &left };
+
     const output = program.execute(&arena, &input) catch |err| {
         arena.deinit();
 

@@ -41,7 +41,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     const types: *[]u32 = @ptrCast(&mapped_types.dense);
     const natives: *[]?ir.NativeModuleId = @ptrCast(&mapped_natives.sparse);
     var reserved = [_]bool{false};
-    const published: []bool = &reserved;
+    var published: []bool = &reserved;
 
     errdefer if (!reserved[0]) {
         type_allocator.free(types.*);
@@ -99,7 +99,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     }
 
     var started: [1]u8 = .{0};
-    const marker: []u8 = &started;
+    var marker: []u8 = &started;
     const registration_view = view.bind(Types);
     const range: std.meta.Child(@FieldType(Check, "range")) = .{ .first = first, .count = count, .prefix = base, .types = source_first + source_types.count(), .native_modules = native_count };
 

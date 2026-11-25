@@ -165,7 +165,9 @@ pub fn Map(comptime Key: type) type {
 
             return if (value) |id| @fromBackingInt(id) else null;
         }
-        pub fn read(self: *const Self, key: Key, reads: []u64) ?node.ExpressionId {
+        pub fn read(self: *const Self, key: Key, reads_arg: []u64) ?node.ExpressionId {
+            var reads = reads_arg;
+
             if (!generated) {
                 const value = self.state.get(key) orelse return null;
 
@@ -185,7 +187,9 @@ pub fn Map(comptime Key: type) type {
 
             return if (value) |id| @fromBackingInt(id) else null;
         }
-        pub fn countRead(key: Key, reads: []u64) void {
+        pub fn countRead(key: Key, reads_arg: []u64) void {
+            var reads = reads_arg;
+
             if (!generated) {
                 reads[@backingInt(key)] += 1;
 

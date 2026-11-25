@@ -7,7 +7,7 @@ const inputs = @import("generated_hardware_bind_inputs");
 const definition = @import("generated_hardware_publish_definition");
 
 pub fn bindInputs(terms: *Terms, symbols: []const Conditions.Input) Terms.Error!void {
-    const table = terms.variables.view();
+    var table = terms.variables.view();
     const names = zx.memory.borrowTextColumn("symbol", symbols);
 
     const input: std.meta.Child(inputs.Input) = .{
@@ -19,7 +19,7 @@ pub fn bindInputs(terms: *Terms, symbols: []const Conditions.Input) Terms.Error!
 }
 
 pub fn publish(terms: *Terms, name: []const u8, width: u16, id: ir.Id, sort: ir.Sort) Terms.Error!void {
-    const table = terms.variables.view();
+    var table = terms.variables.view();
 
     const input: std.meta.Child(definition.Input) = .{
         .current = &table.read(), .target = &table.target(),

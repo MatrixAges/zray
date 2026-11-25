@@ -6,9 +6,10 @@ const binding = @import("generated_rx_bind_attributes");
 const BindOutput = @typeInfo(@TypeOf(binding.executeValue(undefined, undefined))).error_union.payload;
 pub const supports = rows.supports;
 
-pub fn bind(node: anytype, fields: []const []const u8, required: []const u64, slots: []u64) struct { issue: @FieldType(BindOutput, "issue"), row: usize } {
+pub fn bind(node: anytype, fields: []const []const u8, required: []const u64, slots_arg: []u64) struct { issue: @FieldType(BindOutput, "issue"), row: usize } {
     if (node.attributeCount() == 0 and required.len == 0) return .{ .issue = .None, .row = 0 };
 
+    var slots = slots_arg;
     const Input = std.meta.Child(binding.Input);
     const Columns = std.meta.Child(@FieldType(Input, "rows"));
     const borrowed = rows.bind(node);

@@ -19,7 +19,7 @@ pub const Hash = struct {
 
         return result;
     }
-    fn out(self: *Hash) *const anyopaque {
+    fn out(self: *Hash) *anyopaque {
         return &self.state.writer;
     }
 };

@@ -26,9 +26,9 @@ pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, funct
     errdefer temporary.free(jobs);
 
     const bodies = memory.borrowTextColumn("source", functions);
-    const target = memory.borrowWriteFields(.{ .target_paths = "path", .target_sources = "source" }, files);
+    var target = memory.borrowWriteFields(.{ .target_paths = "path", .target_sources = "source" }, files);
 
-    const publications = memory.borrowWriteFields(.{
+    var publications = memory.borrowWriteFields(.{
         .destinations = "destination",
         .indices = "index",
         .roots = "root",

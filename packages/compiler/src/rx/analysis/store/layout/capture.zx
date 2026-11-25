@@ -17,7 +17,8 @@ export default function (in: Input): Output {
     const expressions = memory.requireTextSlots(
         memory.allocateTextSlots(
             resource,
-            offsets[objects]
+            offsets[objects],
+            null
         )
     )
 
@@ -73,5 +74,5 @@ export default function (in: Input): Output {
         }
     })
 
-    return expressions
+    return memory.borrowTextSlots(expressions, offsets[objects])
 }

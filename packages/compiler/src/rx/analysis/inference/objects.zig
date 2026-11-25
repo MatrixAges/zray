@@ -61,7 +61,7 @@ fn inferFields(self: *Expression, fields: anytype, expected: ?Graph.Id, first: u
 }
 
 fn markHints(allocator: std.mem.Allocator, fields: anytype, buffer: []u32) std.mem.Allocator.Error![]u32 {
-    const hints = if (fields.len <= buffer.len) buffer[0..fields.len] else try allocator.alloc(u32, fields.len);
+    var hints = if (fields.len <= buffer.len) buffer[0..fields.len] else try allocator.alloc(u32, fields.len);
     const context = fields.context;
 
     @memset(hints, 0);

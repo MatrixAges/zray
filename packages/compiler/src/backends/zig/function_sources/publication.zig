@@ -41,10 +41,11 @@ const Sources = struct {
     offsets: []const u64,
 };
 
-fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target: [][]const u8) std.mem.Allocator.Error!void {
+fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target_arg: [][]const u8) std.mem.Allocator.Error!void {
     if (sources.offsets.len == 0) return;
 
-    const data = try owned.alloc(u8, size);
+    var target = target_arg;
+    var data = try owned.alloc(u8, size);
 
     errdefer owned.free(data);
 

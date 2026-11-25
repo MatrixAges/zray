@@ -1,4 +1,4 @@
-export type StringSet = opaque
+export type StringSet = mutable_opaque
 
 export declare function join(allocator, separator: string, values: string[]): string throws { OutOfMemory } concurrent
 

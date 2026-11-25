@@ -1,4 +1,5 @@
 import type { Table } from "core/bytes/index/fixed"
+import type { Table as ReadTable } from "core/bytes/index/slot"
 import type { AtomicRows, StringBuffer, TextColumn, U64Buffer, WriteColumn } from "memory"
 import type { View } from "../function_units/model"
 
@@ -29,7 +30,7 @@ export type Ranges = {
 
 export type Scan = {
     source: string,
-    table: Table,
+    table: ReadTable,
     wanted: AtomicRows
 }
 

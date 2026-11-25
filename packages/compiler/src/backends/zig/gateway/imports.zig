@@ -11,7 +11,7 @@ pub fn prefixedColumns(allocator: std.mem.Allocator, prefix: []const u8, modules
     if (count == 0) return output;
 
     const rule = @import("generated_gateway_imports");
-    const imports = output[1..];
+    var imports = output[1..];
 
     const input: std.meta.Child(rule.Input) = .{
         .modules = @ptrCast(&modules),

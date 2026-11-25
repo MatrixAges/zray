@@ -10,7 +10,6 @@ arena: *std.heap.ArenaAllocator,
 begins: usize = 0,
 commits: usize = 0,
 fail_at: ?usize = null,
-
 pub fn begin(self: *Self, comptime slots: anytype) !void {
     const expected: []const u32 = switch (self.begins) {
         0 => &.{0},
@@ -20,6 +19,7 @@ pub fn begin(self: *Self, comptime slots: anytype) !void {
     };
 
     try std.testing.expectEqualSlices(u32, expected, &slots);
+
     self.begins += 1;
 
     if (self.fail_at == self.begins) return error.RefreshFailed;
@@ -27,7 +27,6 @@ pub fn begin(self: *Self, comptime slots: anytype) !void {
     inline for (slots) |slot| {
         const target = if (slot == 0) self.store_0 else self.store_1;
         const next = try self.arena.allocator().create(std.meta.Child(@TypeOf(target.*)));
-
         next.* = target.*.*;
         next.value += 100;
         target.* = next;
@@ -36,7 +35,6 @@ pub fn begin(self: *Self, comptime slots: anytype) !void {
 
 pub fn commit(self: *Self, pending: program.zx_pending) !void {
     if (pending.store_0 != null or pending.store_1 == null) return error.InvalidPendingSlots;
-
     if (pending.store_0) |next| self.store_0.* = next;
     if (pending.store_1) |next| self.store_1.* = next;
 

@@ -21,7 +21,7 @@ pub fn reserve(self: *Self) ?u32 {
 }
 
 pub fn publish(self: *Self, position: u32, index: u32) void {
-    const counters: []u32 = &self.counters;
+    var counters: []u32 = &self.counters;
 
     const input: std.meta.Child(submitting.Input) = .{
         .counters = @ptrCast(&counters),
@@ -34,7 +34,7 @@ pub fn publish(self: *Self, position: u32, index: u32) void {
 }
 
 pub fn take(self: *Self) ?u32 {
-    const counters: []u32 = &self.counters;
+    var counters: []u32 = &self.counters;
     const input: std.meta.Child(taking.Input) = .{ .counters = @ptrCast(&counters), .ring = @ptrCast(&self.ring) };
 
     return invoke(taking, &input);
@@ -49,14 +49,14 @@ pub fn drain(self: *Self) void {
 }
 
 pub fn stop(self: *Self) void {
-    const counters: []u32 = &self.counters;
+    var counters: []u32 = &self.counters;
     const input: std.meta.Child(stopping.Input) = .{ .counters = @ptrCast(&counters) };
 
     invoke(stopping, &input);
 }
 
 inline fn countersCall(self: *Self, comptime entry: type) entry.Output {
-    const counters: []u32 = &self.counters;
+    var counters: []u32 = &self.counters;
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return entry.executeValue(empty.allocator(), @ptrCast(&counters)) catch unreachable;

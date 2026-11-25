@@ -9,9 +9,9 @@ snapshots: [3]u64,
 begins: usize = 0,
 commits: usize = 0,
 fail_at: ?usize = null,
-
 pub fn begin(self: *Self, comptime slots: anytype) !void {
     try std.testing.expectEqualSlices(u32, &.{0}, &slots);
+
     self.begins += 1;
 
     if (self.fail_at == self.begins) return error.RefreshFailed;

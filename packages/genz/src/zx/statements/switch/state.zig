@@ -86,7 +86,8 @@ fn equal(self: *const Self, lowering: *Lower, label: ir.ExprId) Lower.Error!node
     return lowering.binary(.{ .operator = .equal, .left = self.selection.subject, .right = label });
 }
 
-fn collectLabels(values: []const ?u32, labels: []u32) Lower.Error!void {
+fn collectLabels(values: []const ?u32, labels_arg: []u32) Lower.Error!void {
+    var labels = labels_arg;
     const entry = @import("generated_switch_labels");
     const input: std.meta.Child(entry.Input) = .{ .values = values, .labels = @ptrCast(&labels) };
     var empty = std.heap.FixedBufferAllocator.init(&.{});

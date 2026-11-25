@@ -33,7 +33,7 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
     const Input = std.meta.Child(entry.Input);
     const captures = self.program.expression(id).value.task.captures;
     const stack = self.stack_symbols.view(std.meta.Child(@FieldType(Input, "stack")));
-    const used = std.mem.sliceAsBytes(self.used);
+    var used = std.mem.sliceAsBytes(self.used);
 
     comptime std.debug.assert(@sizeOf(bool) == 1);
 

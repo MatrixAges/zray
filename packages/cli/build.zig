@@ -188,6 +188,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests/runtime/generate_external.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = if (optimize == .safe) true else null,
         .imports = &.{.{ .name = "compiler", .module = module }},
     }) });
 
@@ -233,6 +234,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests/runtime/generate_store.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = if (optimize == .safe) true else null,
         .imports = &.{.{ .name = "compiler", .module = module }},
     }) });
 

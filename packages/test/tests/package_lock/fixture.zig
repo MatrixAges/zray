@@ -4,16 +4,18 @@ const Fixture = @This();
 
 arena: std.heap.ArenaAllocator,
 packages: []Lock.Package,
-
 pub fn init(edges: []const []const usize) !Fixture {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+
     errdefer arena.deinit();
+
     const allocator = arena.allocator();
     const packages = try allocator.alloc(Lock.Package, edges.len);
 
     for (packages, edges, 0..) |*package, targets, index| {
         const name = try std.fmt.allocPrint(allocator, "pkg{d}", .{index});
         const dependencies = try allocator.alloc(Lock.Dependency, targets.len);
+
         for (dependencies, targets) |*edge, target| edge.* = .{
             .name = try std.fmt.allocPrint(allocator, "pkg{d}", .{target}),
             .requirement = "workspace:*",
@@ -30,8 +32,11 @@ pub fn init(edges: []const []const usize) !Fixture {
 pub fn chain(count: usize, reversed: bool, shortcut_first: ?bool) !Fixture {
     const allocator = std.testing.allocator;
     const edges = try allocator.alloc([]const usize, count);
+
     defer allocator.free(edges);
+
     const targets = try allocator.alloc(usize, count);
+
     defer allocator.free(targets);
 
     for (edges, targets, 0..) |*edge, *target, index| {
@@ -41,6 +46,7 @@ pub fn chain(count: usize, reversed: bool, shortcut_first: ?bool) !Fixture {
 
     const early = [_]usize{ 128, 1 };
     const late = [_]usize{ 1, 128 };
+
     if (shortcut_first) |first| edges[0] = if (first) &early else &late;
 
     return init(edges);

@@ -18,7 +18,7 @@ const Frame = struct {
 
 pub fn run(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
     var frame: Frame = .{ .graph = graph };
-    const parents = graph.parents();
+    var parents = graph.parents();
     const source: []const zx.Span = &.{span};
 
     const input: Input = .{

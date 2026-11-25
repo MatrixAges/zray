@@ -42,8 +42,8 @@ pub fn parse(allocator: std.mem.Allocator, source: []const u8, comptime schema: 
     const temporary = parsed.arena.allocator();
     const count = input.tree.nodes.len;
     const links = try temporary.alloc(u64, count * 2);
-    const first = links[0..count];
-    const next = links[count..];
+    var first = links[0..count];
+    var next = links[count..];
     const execute = layout.executeValue;
     const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;

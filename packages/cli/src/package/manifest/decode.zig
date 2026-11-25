@@ -121,7 +121,7 @@ fn Destination(comptime name: []const u8, comptime Row: type, comptime fields: a
         const Self = @This();
 
         rows: memory.RowOutput(Row, Columns, fields),
-        fn view(self: *const Self) View {
+        fn view(self: *Self) View {
             return .{ .buffer = @ptrCast(&self.rows.buffer), .columns = &self.rows.view };
         }
     };

@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn materialize(comptime decode: anytype, allocator: std.mem.Allocator, source: []const u8, parts: anytype, length: u64) std.mem.Allocator.Error![]const u8 {
     if (length == 0) return &.{};
 
-    const output = try allocator.alloc(u8, @intCast(length));
+    var output = try allocator.alloc(u8, @intCast(length));
     const Parameter = @typeInfo(@TypeOf(decode)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const input: Input = .{ .source = source, .parts = parts, .target = @ptrCast(&output) };

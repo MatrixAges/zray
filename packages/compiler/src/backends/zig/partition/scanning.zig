@@ -28,7 +28,9 @@ pub fn init(allocator: std.mem.Allocator, paths: []const []const u8) Error!Self 
     return .{ .index = try path_index.build(allocator, paths) };
 }
 
-pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, output: Columns) Error!void {
+pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, output_arg: Columns) Error!void {
+    var output = output_arg;
+
     if (comptime !generated) {
         const seed = @import("scanning_seed.zig");
 
@@ -47,8 +49,8 @@ pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, out
     const entry = @import("generated_partition_scan_batch");
     const Input = std.meta.Child(entry.Input);
     const sources = zx.memory.borrowTextColumn("source", files);
-    const variants = zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, output.variants);
-    const inline_names = if (output.inline_names) |names| zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, names) else null;
+    var variants = zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, output.variants);
+    var inline_names = if (output.inline_names) |names| zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, names) else null;
 
     const input: Input = .{
         .sources = @ptrCast(&sources),

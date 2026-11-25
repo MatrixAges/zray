@@ -320,9 +320,9 @@ const WriteBatch = struct {
         if (comptime !generated_parser) return self.runSeed(participant);
 
         const rule = @import("generated_generation_cache_writer_worker");
-        const written: []u64 = &self.written;
-        const failures: []u64 = &self.failures;
-        const error_word: []u32 = &self.last_io_error;
+        var written: []u64 = &self.written;
+        var failures: []u64 = &self.failures;
+        var error_word: []u32 = &self.last_io_error;
 
         const input: std.meta.Child(rule.Input) = .{
             .files = @ptrCast(self),
@@ -463,7 +463,7 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
         const prior: Prior = if (previous) |entry| .{ .pending = entry.pending, .source = entry.source, .owner = @ptrCast(&owner) } else undefined;
         const sources = memory.borrowReadColumn([]u8, "source", self.unwritten.records.items);
         var retired = memory.borrowWriteColumn(bool, "retired", self.unwritten.records.items);
-        const has_retired: []bool = @as(*[1]bool, @ptrCast(&self.unwritten.has_retired));
+        var has_retired: []bool = @as(*[1]bool, @ptrCast(&self.unwritten.has_retired));
         var ranges: memory.ColumnRangeGroup(1) = .{};
         const tail = ranges.bind(&self.unwritten.records, 1, true);
 

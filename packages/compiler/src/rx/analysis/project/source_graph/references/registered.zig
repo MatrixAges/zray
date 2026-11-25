@@ -24,7 +24,7 @@ const Publication = struct {
     fn publish(self: *const Publication, selection: ?*const Source, compiled: bool) Collector.Error!void {
         const collector = self.collector;
         const temporary = collector.temporary.allocator();
-        const flag: []bool = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
+        var flag: []bool = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
         var paths = [_][]const u8{ "", "" };
 
         defer {
@@ -40,7 +40,7 @@ const Publication = struct {
                 .targets = @ptrCast(&collector.targets),
                 .compiled = if (compiled) @ptrCast(&flag) else null,
             },
-            .owned = &.{ .allocator = @ptrCast(&temporary), .resolved = paths[0..1], .selected = paths[1..] },
+            .owned = &.{ .allocator = @ptrCast(&temporary), .resolved = @ptrCast(&paths[0]), .selected = @ptrCast(&paths[1]) },
         };
 
         zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {

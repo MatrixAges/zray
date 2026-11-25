@@ -20,11 +20,11 @@ pub fn create(owned: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.A
         else => unreachable,
     };
 
-    const data = try owned.alloc(u8, std.math.cast(usize, total) orelse return error.OutOfMemory);
+    var data = try owned.alloc(u8, std.math.cast(usize, total) orelse return error.OutOfMemory);
 
     errdefer owned.free(data);
 
-    const identities = try owned.alloc(?[]const u8, count);
+    var identities = try owned.alloc(?[]const u8, count);
 
     errdefer owned.free(identities);
 
@@ -33,8 +33,8 @@ pub fn create(owned: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.A
 
     errdefer owned.free(views);
 
-    const specifiers = views[0..count];
-    const import_names = views[count..];
+    var specifiers = views[0..count];
+    var import_names = views[count..];
     const empty_names = try owned.alloc([]const []const u8, count);
 
     errdefer owned.free(empty_names);

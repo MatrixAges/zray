@@ -10,7 +10,7 @@ pub const Frames = struct {
     cursor_storage: [depth_limit]u64 = undefined,
     nodes: []u64 = undefined,
     cursors: []u64 = undefined,
-    pub fn input(self: *Frames, targets: *const memory.ListColumn, marks: *const []u8, heights: *const []u8, ranked: bool) Input {
+    pub fn input(self: *Frames, targets: *const memory.ListColumn, marks: *[]u8, heights: *[]u8, ranked: bool) Input {
         self.nodes = &self.node_storage;
         self.cursors = &self.cursor_storage;
 
@@ -45,8 +45,8 @@ pub fn check(allocator: std.mem.Allocator, packages: anytype, comptime mode: Mod
     defer allocator.free(storage);
     prepare(storage, packages, mode);
 
-    const marks = storage[0..packages.len];
-    const heights = storage[packages.len..];
+    var marks = storage[0..packages.len];
+    var heights = storage[packages.len..];
     const targets = memory.borrowListColumn(usize, "dependencies", "target", packages);
     var frames: Frames = .{};
     var empty = std.heap.FixedBufferAllocator.init(&.{});
@@ -62,24 +62,24 @@ pub fn assemble(allocator: std.mem.Allocator, root: []const u8, packages: anytyp
     const manifests = @import("workspace/manifest.zig").Manifests.borrow(&.{"manifest"}, packages);
     const paths = memory.borrowTextColumn("path", packages);
     const keys = memory.borrowTextColumn("name", edges);
-    const names = memory.borrowWriteColumn([]const u8, "name", edges);
-    const targets = memory.borrowWriteColumn(usize, "target", edges);
-    const development = memory.borrowWriteColumn(bool, "development", edges);
+    var names = memory.borrowWriteColumn([]const u8, "name", edges);
+    var targets = memory.borrowWriteColumn(usize, "target", edges);
+    var development = memory.borrowWriteColumn(bool, "development", edges);
     const adjacency = memory.borrowListColumn(usize, "dependencies", "target", packages);
     var temporary: std.heap.ArenaAllocator = .init(allocator);
 
     defer temporary.deinit();
 
     const scratch = temporary.allocator();
-    const buckets = try scratch.alloc(u64, @intCast(capacity));
+    var buckets = try scratch.alloc(u64, @intCast(capacity));
 
     @memset(buckets, 0);
 
-    const marks = try scratch.alloc(u8, packages.len);
+    var marks = try scratch.alloc(u8, packages.len);
 
     @memset(marks, 1);
 
-    const heights = marks[marks.len..];
+    var heights = marks[marks.len..];
 
     const portable_root = if (comptime std.fs.path.sep == '/') root else path: {
         const native = try std.fs.path.resolve(scratch, &.{root});

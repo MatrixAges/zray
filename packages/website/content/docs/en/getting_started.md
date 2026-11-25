@@ -1,6 +1,6 @@
 ### Obtain the compiler
 
-The current documented setup builds from source. Install Zig **0.17.0** for this revision, then:
+The current documented setup builds from source. Install Zig **0.17.1** for this revision, then:
 
 ```sh
 git clone https://github.com/MatrixAges/zray.git

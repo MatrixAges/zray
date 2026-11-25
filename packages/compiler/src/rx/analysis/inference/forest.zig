@@ -3,7 +3,8 @@ const Id = @import("types.zig").Id;
 const enabled = @import("rx_options").generated_graph;
 
 /// Parent compression changes the cache without changing the equivalence relation.
-pub fn root(parents: []u32, id: Id) Id {
+pub fn root(parents_arg: []u32, id: Id) Id {
+    var parents = parents_arg;
     const index = @backingInt(id);
     const first = parents[index];
 

@@ -68,8 +68,8 @@ pub inline fn spinHint() void {
     std.atomic.spinLoopHint();
 }
 
-pub inline fn fetchAddIndexRelaxed(target: *const anyopaque, amount: u64) u64 {
-    const index: *std.atomic.Value(usize) = @ptrCast(@alignCast(@constCast(target)));
+pub inline fn fetchAddIndexRelaxed(target: *anyopaque, amount: u64) u64 {
+    const index: *std.atomic.Value(usize) = @ptrCast(@alignCast(target));
 
     return index.fetchAdd(@intCast(amount), .monotonic);
 }

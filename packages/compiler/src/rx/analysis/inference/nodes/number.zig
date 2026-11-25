@@ -9,10 +9,10 @@ pub fn append(graph: *Graph, text: []const u8, negative: bool, span: zx.Span) zx
     const reservation = try Nodes.reserve(graph, 1);
     const Input = std.meta.Child(rule.Input);
     const Rows = std.meta.Child(@FieldType(Input, "rows"));
-    const parents = reservation.rows.items(.parent);
-    const topology = Nodes.writable(reservation.rows);
-    const publication = Publication.init(graph, reservation.rows);
-    const visibility = Nodes.Publication.init(graph, reservation.rows);
+    var parents = reservation.rows.items(.parent);
+    var topology = Nodes.writable(reservation.rows);
+    var publication = Publication.init(graph, reservation.rows);
+    var visibility = Nodes.Publication.init(graph, reservation.rows);
 
     const input: Input = .{
         .rows = &.{

@@ -87,11 +87,15 @@ export declare function requireAllocation(success: bool): void throws { OutOfMem
 
 export declare function stringViews(source: StringBuffer): string[]
 
+export declare function readStringViews(source: StringViews): string[]
+
+export declare function u32View(source: U32Buffer, shape: U32View?): U32View
+
+export declare function u64View(source: U64Buffer, shape: U64View?): U64View
+
 export declare function u8Views(source: U8Buffer): u8[]
 
 export declare function u32Views(source: U32Buffer): u32[]
-
-export declare function bindU32Views(target: U32Buffer, source: u32[]): void
 
 export declare function appendU64(
     resource: Allocator,

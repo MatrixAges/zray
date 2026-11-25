@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import exchange from "core/bytes/index/digest/exchange"
+import slot from "core/bytes/index/digest/slot"
 import memory from "memory"
 
 import type { Hit as Input } from "./model"
@@ -7,10 +7,7 @@ import type { Hit as Input } from "./model"
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const row = exchange({
-        ...in.omit(["used"]),
-        insert: null
-    })
+    const row = slot(in.omit(["used"])).found
 
     if (row != null && in.used != null) {
         memory.writeColumnBool(in.used, integers.widen(row), true)

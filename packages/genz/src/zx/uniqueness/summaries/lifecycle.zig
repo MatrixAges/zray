@@ -20,7 +20,7 @@ pub const Borrowed = struct {
         };
     }
 
-    pub fn input(self: *const Borrowed, mode: Mode, active: []const bool, known: []const bool) Input {
+    pub fn input(self: *Borrowed, mode: Mode, active: []const bool, known: []const bool) Input {
         return .{
             .mode = mode,
             .layout = &self.layout,
@@ -33,7 +33,7 @@ pub const Borrowed = struct {
 };
 
 pub fn apply(summaries: Summaries, mode: Mode, active: []const bool, known: []const bool) void {
-    const state = Borrowed.init(&summaries);
+    var state = Borrowed.init(&summaries);
     const input = state.input(mode, active, known);
     var memory = std.heap.FixedBufferAllocator.init(&.{});
 

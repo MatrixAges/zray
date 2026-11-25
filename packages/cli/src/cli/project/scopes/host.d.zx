@@ -1,4 +1,5 @@
 export type NativeScopeLoad = opaque
+export type ScopeTextSlots = mutable_opaque
 
 export enum Admission {
     Valid,
@@ -57,7 +58,7 @@ export declare function readNativeScopeInterface(frame: NativeScopeLoad, row: u6
     throws { SourceLoadFailure }
 export declare function reserveNativeScopeIndex(frame: NativeScopeLoad): void
     throws { SourceLoadFailure }
-export declare function reserveNativeScopeNames(frame: NativeScopeLoad): string[]
+export declare function reserveNativeScopeNames(frame: NativeScopeLoad): ScopeTextSlots
     throws { OutOfMemory }
 export declare function nativeScopeDeclaration(
     frame: NativeScopeLoad,
@@ -75,8 +76,14 @@ export declare function reserveNativeScopeDeclarations(frame: NativeScopeLoad): 
     throws { OutOfMemory }
 export declare function finishNativeScopeDeclarations(frame: NativeScopeLoad): void
     throws { SourceLoadFailure }
-export declare function reserveNativeScopeLibraryPaths(frame: NativeScopeLoad): string[]
-    throws { OutOfMemory }
+export declare function reserveNativeScopeLibraryPaths(
+    frame: NativeScopeLoad
+): ScopeTextSlots throws { OutOfMemory }
+export declare function writeNativeScopeText(
+    target: ScopeTextSlots,
+    index: u64,
+    value: string
+): void
 export declare function resolveNativeScopePath(frame: NativeScopeLoad, path: string): string
     throws { OutOfMemory }
 export declare function reserveNativeScopeModules(frame: NativeScopeLoad): void
@@ -89,7 +96,7 @@ export declare function prepareNativeScopeModule(
     path: string?,
     dependencies: string[],
     includes: u64
-): string[] throws { OutOfMemory }
+): ScopeTextSlots throws { OutOfMemory }
 export declare function prepareNativeScopeAliases(frame: NativeScopeLoad): void
 export declare function publishNativeScopeModule(frame: NativeScopeLoad): void
     throws { SourceLoadFailure }

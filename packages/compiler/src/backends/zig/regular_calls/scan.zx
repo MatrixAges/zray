@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
-import get from "core/bytes/index/fixed"
+import probe from "core/bytes/index/slot"
 import memory from "memory"
 
 import { call_marker, quote, marked } from "./const"
@@ -37,18 +37,18 @@ export default function (in: Input): Output {
                             open + 1,
                             at
                         ))
-                    const id = get({
+                    const found = probe({
                         keys,
                         buckets,
                         capacity,
                         key
                     })
 
-                    if (id != null) {
+                    if (found.entry != 0) {
                         memory.storeAtomicCell(
                             in.wanted,
                             0,
-                            id,
+                            found.entry - 1,
                             marked
                         )
                     }

@@ -30,7 +30,7 @@ pub const Walk = struct {
 pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
     const entry = @import("generated_project_execute_load");
     const Input = std.meta.Child(entry.Input);
-    const marks = std.mem.sliceAsBytes(project.load_states);
+    var marks = std.mem.sliceAsBytes(project.load_states);
     var walk: Walk = .{ .project = project, .phase = phase, .paths = .init(project.arena.child_allocator) };
 
     defer walk.paths.deinit();

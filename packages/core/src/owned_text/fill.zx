@@ -35,7 +35,7 @@ export default function (in: Input): Output {
 
     freePrefix({
         allocator,
-        slots: target,
+        slots: memory.borrowTextSlots(target, copied),
         count: copied
     })
 

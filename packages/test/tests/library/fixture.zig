@@ -5,7 +5,9 @@ pub const declaration = "export enum Mode { First, Second }\nexport type Maybe =
 
 pub fn analyze(path: []const u8, source: []const u8) !compiler.AnalysisResult {
     var result = try compiler.project.analyze(std.testing.allocator, &.{.{ .path = path, .source = source }}, .{ .entry = path, .root_dir = "/project" });
+
     errdefer result.deinit();
+
     try std.testing.expect(result.value == .ir);
 
     return result;

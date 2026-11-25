@@ -21,7 +21,7 @@ export default function (in: Input): Output {
     const spans = in.members
 
     const members = memory.requireTextSlots(
-        memory.allocateTextSlots(resource, spans.length)
+        memory.allocateTextSlots(resource, spans.length, null)
     )
 
     const filled = loop(0, {
@@ -46,7 +46,7 @@ export default function (in: Input): Output {
                 native_module: implementation.module
             },
             external: {
-                members,
+                members: memory.borrowTextSlots(members, spans.length),
                 errors: errors == null ? null : strings.copyList(errors),
                 export_name: export_name == null ? null : strings.copy(export_name),
                 parameters: null

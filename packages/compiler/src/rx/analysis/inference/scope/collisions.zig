@@ -66,7 +66,7 @@ pub fn parallel(graph: *Graph, scope: *Scope.Storage, allocator: std.mem.Allocat
 
 fn register(graph: *Graph, active: Active, incoming: Active, spans: []const zx.Span, message: []const u8, batch: ?Parallel) zx.Error!void {
     const pairs = &graph.pending.binding_collisions;
-    const parents = graph.parents();
+    var parents = graph.parents();
     const topology: Topology = .{ .graph = &rules.view(Topology, graph), .parents = @ptrCast(&parents) };
     var frame: Frame = .{ .graph = graph, .spans = spans, .message = message, .batch = batch };
     frame.pair_length = (&pairs.len)[0..1];

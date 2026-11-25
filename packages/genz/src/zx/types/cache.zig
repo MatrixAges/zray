@@ -29,11 +29,11 @@ pub fn Touched(comptime Columns: type) type {
     return std.meta.Child(@typeInfo(@FieldType(Columns, "touched")).optional.child);
 }
 
-pub fn touch(self: *const Self, comptime T: type) T {
+pub fn touch(self: *Self, comptime T: type) T {
     return .{ .rows = @ptrCast(&self.rows), .count = @ptrCast(&self.count) };
 }
 
-pub fn columns(self: *const Self, comptime T: type, tracked: *const Touched(T)) T {
+pub fn columns(self: *Self, comptime T: type, tracked: *Touched(T)) T {
     return .{
         .abi_types = @ptrCast(&self.abi_types),
         .abi_layouts = @ptrCast(&self.abi_layouts),
@@ -57,8 +57,8 @@ pub fn publish(lower: *Lower, comptime Output: type, output: anytype, comptime b
     const target = &lower.builder.nodes.expressions;
     var binding: payloads.Binding(@TypeOf(target), Expressions, .dense) = .{};
     const ast = binding.bind(Bound, &lower.allocator, target, &expressions, true, borrow_text);
-    const cache = borrow(lower);
-    const touched = cache.touch(Touched(Columns));
+    var cache = borrow(lower);
+    var touched = cache.touch(Touched(Columns));
     const rows = cache.columns(Columns, &touched);
     const state = @hasField(Output, "entries");
 

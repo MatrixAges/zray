@@ -7,6 +7,7 @@ const types = @import("types");
 
 test "published ZX RX and same-source public aliases execute independently" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+
     defer arena.deinit();
 
     for ([_]u8{ 0, 1, 127, 255 }) |value| {
@@ -18,6 +19,7 @@ test "published ZX RX and same-source public aliases execute independently" {
 
 test "published separate boolean module keeps its own public signature" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+
     defer arena.deinit();
 
     try std.testing.expectEqual(true, try toggle.execute(&arena, false));

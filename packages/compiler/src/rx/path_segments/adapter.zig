@@ -30,7 +30,7 @@ fn plan(request: Request) Error!Plan {
 pub fn resolve(allocator: std.mem.Allocator, directory: []const u8, path: []const u8, kind: Kind, suffix: []const u8) Error![]const u8 {
     const result = try plan(.{ .directory = directory, .path = path, .kind = kind, .suffix = suffix });
     const length = std.math.cast(usize, result.length) orelse return error.OutOfMemory;
-    const output = try allocator.alloc(u8, length);
+    var output = try allocator.alloc(u8, length);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const emit: Input(write) = .{

@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import probe from "core/bytes/index/borrowed/probe"
 import { max_u32 } from "core/const"
+import memory from "memory"
 import columns from "memory/columns"
 
 import { Status } from "./model"
@@ -10,7 +11,7 @@ import type { Plan as Output, Registry as Input } from "./model"
 export default function (in: Input): Output {
     const found = probe({
         keys: in.source.identity,
-        buckets: in.buckets,
+        buckets: memory.u32View(in.buckets, null),
         capacity: in.capacity,
         text: in.identity
     })

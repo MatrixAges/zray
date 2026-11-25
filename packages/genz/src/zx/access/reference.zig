@@ -17,7 +17,7 @@ pub fn lowerMode(self: *Lower, symbol: ir.SymbolId, type_id: ir.TypeId, iteratio
     const stack = self.stack_symbols.view(std.meta.Child(@FieldType(Input, "stack")));
     const state = self.state_symbols.view(std.meta.Child(@FieldType(Input, "state")));
     const index = @backingInt(symbol);
-    const used: []bool = self.used[index..][0..1];
+    var used: []bool = self.used[index..][0..1];
 
     const input: Input = .{
         .name = self.names[index],

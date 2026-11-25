@@ -18,7 +18,7 @@ export default function (in: Input): Output {
 
         const located = probe({
             keys,
-            buckets,
+            buckets: memory.u64View(buckets, null),
             capacity,
             key
         })

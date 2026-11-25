@@ -66,8 +66,15 @@ export default function (in: Input): Output {
     const hash = bytes.hashSeeded(family, bytes.fromText(key))
     const mask = table.capacity - 1
     const buckets = workspace.buckets
-
+    const slots = table.text
     const absent: u64? = null
+
+    if (slots == null) {
+        return {
+            seen: table,
+            previous: absent
+        }
+    }
 
     const previous = loop({
         slot: integers.andBits(hash, mask),
@@ -79,7 +86,7 @@ export default function (in: Input): Output {
             const stored = memory.readU64(buckets, state.slot)
 
             if (stored == 0) {
-                memory.writeTextSlot(table.text, row, key)
+                memory.writeTextSlot(slots, row, key)
                 memory.writeU64(
                     buckets,
                     state.slot,
@@ -89,8 +96,10 @@ export default function (in: Input): Output {
             } else {
                 const entry = stored - 1
                 const same_family = entry % key_families == family
+                const matched =
+                    same_family && memory.readTextSlot(slots, entry / key_families) == key
 
-                if (same_family && table.text[entry / key_families] == key) {
+                if (matched) {
                     state.done = true
                     state.previous = entry / key_families
                 } else {

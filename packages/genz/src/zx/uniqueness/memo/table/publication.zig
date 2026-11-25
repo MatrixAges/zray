@@ -74,7 +74,7 @@ pub fn Write(comptime Table: type) type {
                 .limit = &self.published,
             };
         }
-        pub fn view(self: *const Self, comptime View: type, digest: []const u8) View {
+        pub fn view(self: *Self, comptime View: type, digest: []const u8) View {
             return .{
                 .keys = @ptrCast(&self.keys),
                 .values = @ptrCast(&self.values),

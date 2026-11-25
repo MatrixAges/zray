@@ -10,16 +10,23 @@ temporary: std.testing.TmpDir,
 root: [:0]u8,
 cache: []u8,
 digest: [64]u8,
-
 pub fn init(source: []const u8) !Fixture {
     var temporary = std.testing.tmpDir(.{});
+
     errdefer temporary.cleanup();
+
     const root = try temporary.dir.realPathFileAlloc(io, ".", allocator);
+
     errdefer allocator.free(root);
+
     const cache = try std.fs.path.join(allocator, &.{ root, "cache" });
+
     errdefer allocator.free(cache);
+
     try temporary.dir.writeFile(io, .{ .sub_path = "source.tgz", .data = source });
+
     var digest: [32]u8 = undefined;
+
     std.crypto.hash.sha2.Sha256.hash(source, &digest, .{});
 
     return .{ .temporary = temporary, .root = root, .cache = cache, .digest = std.fmt.bytesToHex(digest, .lower) };
@@ -52,7 +59,9 @@ pub fn expectNoStaging(self: *Fixture) !void {
         error.FileNotFound => return,
         else => return err,
     };
+
     defer directory.close(io);
+
     var iterator = directory.iterate();
 
     while (try iterator.next(io)) |entry| try std.testing.expect(!std.mem.startsWith(u8, entry.name, ".prepare-"));
@@ -60,8 +69,11 @@ pub fn expectNoStaging(self: *Fixture) !void {
 
 pub fn expectContent(path: []const u8) !void {
     var directory = try std.Io.Dir.cwd().openDir(io, path, .{});
+
     defer directory.close(io);
+
     const source = try directory.readFileAlloc(io, "src/main.zx", allocator, .limited(1024));
+
     defer allocator.free(source);
 
     try std.testing.expectEqualStrings("export const value = 7\n", source);

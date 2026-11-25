@@ -51,7 +51,7 @@ export default function (in: Input): Output {
         capacity == in.capacity => in.slot,
         _ => probe({
             keys: published.identity,
-            buckets,
+            buckets: memory.u32View(buckets, null),
             capacity,
             text: identity
         }).slot

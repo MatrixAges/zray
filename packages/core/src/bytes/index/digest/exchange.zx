@@ -1,7 +1,6 @@
-import bytes from "std:bytes"
-import integers from "std:integer"
-import { sha256_digest_width } from "core/const"
 import memory from "memory"
+
+import slot from "./slot"
 
 import type { Exchange as Input } from "./model"
 
@@ -14,39 +13,16 @@ export default function (in: Input): Output {
 
     const { keys, key, buckets, insert } = in
 
-    const mask = in.capacity - 1
-    const hash = memory.readU64Bytes(key, 0, true)
-    const missing: u32? = null
-
-    return loop({
-        slot: integers.andBits(hash, mask),
-        found: missing,
-        done: false
-    }, {
-        while: state => !state.done,
-        next: state => {
-            const entry = memory.readU32(buckets, state.slot)
-
-            if (entry == 0) {
-                if (insert != null) {
-                    memory.writeU32(buckets, state.slot, insert + 1)
-                }
-
-                state.done = true
-            } else {
-                const row = entry - 1
-                const offset = integers.widen(row) * sha256_digest_width
-                const candidate =
-                    memory.borrowU8Range(keys, offset, sha256_digest_width)
-
-                if (bytes.equals(candidate, key)) {
-                    state.found = row
-                    state.done = true
-                } else {
-                    state.slot = integers.andBits(state.slot + 1, mask)
-                }
-            }
-        },
-        return: state => state.found
+    const located = slot({
+        keys,
+        buckets: memory.u32View(buckets, null),
+        capacity: in.capacity,
+        key
     })
+
+    if (located.found == null && insert != null) {
+        memory.writeU32(buckets, located.slot, insert + 1)
+    }
+
+    return located.found
 }

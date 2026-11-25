@@ -100,10 +100,10 @@ fn bind(loader: *Prepare.Loader, index: *const Index, tree: *const Tree, capacit
     try loader.calls.setCapacity(allocator, capacity.calls);
 
     const headers = loader.plan.rows.slice();
-    const kinds = std.mem.sliceAsBytes(headers.items(.kind));
-    const items = headers.items(.item);
+    var kinds = std.mem.sliceAsBytes(headers.items(.kind));
+    var items = headers.items(.item);
     var counters: [payload_lanes]u32 = @splat(0);
-    const cursors: []u32 = &counters;
+    var cursors: []u32 = &counters;
     const Rows = std.meta.Child(@FieldType(Input, "rows"));
 
     const rows: Rows = .{

@@ -6,10 +6,10 @@ pub const Range = struct {
     storage: *std.ArrayList(u8),
     tail: *anyopaque,
     count: usize,
-    reserve: *const fn (*const Range, std.mem.Allocator, usize, bool) Error!void,
+    reserve: *const fn (*const Range, std.mem.Allocator, usize, bool) bool,
 };
 
-pub const Ranges = []const Range;
+pub const Ranges = []Range;
 
 pub fn bind(storage: anytype, source: anytype, views: anytype) [@typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names.len]Range {
     const names = @typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names;
@@ -32,19 +32,21 @@ pub fn bindOne(column: anytype, size: usize, tail_view: *anyopaque, comptime byt
     const View = if (bytes) u8 else Item;
 
     const Typed = struct {
-        fn reserve(slot: *const Range, allocator: std.mem.Allocator, additional: usize, precise: bool) Error!void {
+        fn reserve(slot: *const Range, allocator: std.mem.Allocator, additional: usize, precise: bool) bool {
             const typed: *std.ArrayList(Item) = @ptrCast(@alignCast(slot.storage));
             const tail: *[]const View = @ptrCast(@alignCast(slot.tail));
 
             if (precise) {
-                try typed.ensureTotalCapacityPrecise(allocator, typed.items.len + additional);
+                typed.ensureTotalCapacityPrecise(allocator, typed.items.len + additional) catch return false;
             } else {
-                try typed.ensureUnusedCapacity(allocator, additional);
+                typed.ensureUnusedCapacity(allocator, additional) catch return false;
             }
 
             const items = typed.unusedCapacitySlice()[0..slot.count];
 
             tail.* = if (bytes) std.mem.sliceAsBytes(items) else items;
+
+            return true;
         }
     };
 
@@ -53,6 +55,12 @@ pub fn bindOne(column: anytype, size: usize, tail_view: *anyopaque, comptime byt
 
 fn view(target: *const anyopaque) Ranges {
     const ranges: *const Ranges = @ptrCast(@alignCast(target));
+
+    return ranges.*;
+}
+
+fn viewMut(target: *anyopaque) Ranges {
+    const ranges: *Ranges = @ptrCast(@alignCast(target));
 
     return ranges.*;
 }
@@ -73,19 +81,19 @@ pub inline fn count(target: *const anyopaque, index: u64) u64 {
     return view(target)[@intCast(index)].count;
 }
 
-pub inline fn setCount(target: *const anyopaque, index: u64, value: u64) void {
-    @constCast(view(target))[@intCast(index)].count = @intCast(value);
+pub inline fn setCount(target: *anyopaque, index: u64, value: u64) void {
+    viewMut(target)[@intCast(index)].count = @intCast(value);
 }
 
-pub fn reserveOne(resource: *const anyopaque, target: *const anyopaque, index: u64, uniform: ?u64, precise: bool) Error!void {
-    const range = &view(target)[@intCast(index)];
+pub fn reserveOne(resource: *const anyopaque, target: *anyopaque, index: u64, uniform: ?u64, precise: bool) Error!void {
+    const range = &viewMut(target)[@intCast(index)];
     const additional = if (uniform) |value| @as(usize, @intCast(value)) else range.count;
 
-    try range.reserve(range, column_set.borrowAllocator(resource), additional, precise);
+    if (!range.reserve(range, column_set.borrowAllocator(resource), additional, precise)) return error.OutOfMemory;
 }
 
-pub inline fn publishOne(target: *const anyopaque, index: u64) void {
-    const range = &view(target)[@intCast(index)];
+pub inline fn publishOne(target: *anyopaque, index: u64) void {
+    const range = &viewMut(target)[@intCast(index)];
     const storage = range.storage;
 
     std.debug.assert(range.count <= storage.capacity - storage.items.len);
@@ -93,9 +101,9 @@ pub inline fn publishOne(target: *const anyopaque, index: u64) void {
     storage.items.len += range.count;
 }
 
-pub fn bindWriteColumn(source: *const anyopaque, index: u64, target: *const anyopaque, offset: u64) void {
+pub fn bindWriteColumn(source: *const anyopaque, index: u64, target: *anyopaque, offset: u64) void {
     const storage = view(source)[@intCast(index)].storage;
-    const column: *@import("write_column.zig").Column = @ptrCast(@alignCast(@constCast(target)));
+    const column: *@import("write_column.zig").Column = @ptrCast(@alignCast(target));
     column.items = if (storage.items.len == 0) storage.items.ptr else storage.items.ptr + @as(usize, @intCast(offset));
     column.count = storage.items.len;
 }
@@ -117,7 +125,7 @@ pub fn Group(comptime capacity: usize) type {
             return @ptrCast(tail);
         }
 
-        pub fn freeze(self: *Self) ?*const Ranges {
+        pub fn freeze(self: *Self) ?*Ranges {
             if (self.len == 0) return null;
 
             self.active = self.descriptors[0..self.len];

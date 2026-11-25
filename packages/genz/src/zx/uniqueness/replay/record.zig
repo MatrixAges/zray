@@ -28,7 +28,7 @@ pub fn Log(comptime Value: type) type {
         pub fn append(self: *@This(), comptime kind: Memo.Kind, allocator: std.mem.Allocator, recording: std.mem.Allocator, owner: u32, value: Value, state: []const u8, history: ?*const History) std.mem.Allocator.Error!bool {
             const entry: Entry = .{ .value = value, .state = &.{} };
             var committed = [_]u64{self.used};
-            const count: []u64 = &committed;
+            var count: []u64 = &committed;
             const active = if (history) |previous| previous.selection.changed else false;
             var comparison: CompareRows(kind) = undefined;
             const before = if (active) &comparison.bind(history.?.entries, &value) else null;
@@ -92,7 +92,7 @@ fn CompareRows(comptime kind: Memo.Kind) type {
     };
 }
 
-fn view(comptime Row: type, buffer: *const RowBuffer) Rows {
+fn view(comptime Row: type, buffer: *RowBuffer) Rows {
     return .{
         .rows = @ptrCast(buffer),
         .available = buffer.bytes.len / @sizeOf(Row),

@@ -24,10 +24,10 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
     var normalized = zx.memory.RowBuffer.empty(Growth.Normalized);
     var renewed = zx.memory.RowBuffer.empty(Growth.Renewed);
     const output_rows: []Growth.Rows = @as(*[1]Growth.Rows, @ptrCast(target));
-    const result_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", output_rows);
-    const result_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", output_rows);
+    var result_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", output_rows);
+    var result_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", output_rows);
 
-    const column: zx.memory.WriteColumn = .{
+    var column: zx.memory.WriteColumn = .{
         .items = @ptrCast(target),
         .count = 1,
         .stride = @sizeOf(Growth.Rows),

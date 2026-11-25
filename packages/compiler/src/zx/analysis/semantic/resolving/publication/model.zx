@@ -2,7 +2,7 @@ import type {
     Allocator,
     ColumnRanges,
     StringBuffer,
-    TextColumn,
+    TextColumnBuffer,
     U32Buffer,
     U32Scratch
 } from "memory"
@@ -10,7 +10,7 @@ import type { Input as TypePublication } from "../../merging/publication/model"
 import type { Cache } from "../model"
 
 export type Index = {
-    keys: TextColumn,
+    keys: TextColumnBuffer,
     buckets: U32Buffer
 }
 

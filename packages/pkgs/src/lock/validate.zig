@@ -20,8 +20,8 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
 
     defer allocator.free(storage);
 
-    const marks = storage[0..packages.len];
-    const heights = storage[packages.len..];
+    var marks = storage[0..packages.len];
+    var heights = storage[packages.len..];
 
     graph.prepare(storage, packages, .lock);
 

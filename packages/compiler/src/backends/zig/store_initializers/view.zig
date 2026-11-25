@@ -19,7 +19,7 @@ pub fn init(allocator: std.mem.Allocator, rows: []const Initializer) std.mem.All
     };
 }
 
-pub fn input(self: *const Self, comptime Target: type) Target {
+pub fn input(self: *Self, comptime Target: type) Target {
     return .{
         .keys = @ptrCast(&self.keys),
         .modules = @ptrCast(&self.modules),

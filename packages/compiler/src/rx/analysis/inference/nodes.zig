@@ -49,7 +49,7 @@ pub const Publication = struct {
             .spans = rows.items(.span),
         };
     }
-    pub fn storage(self: *const Publication, comptime View: type) View {
+    pub fn storage(self: *Publication, comptime View: type) View {
         return .{
             .length = @ptrCast(&self.length),
             .allowed = @ptrCast(&self.allowed),
@@ -57,7 +57,7 @@ pub const Publication = struct {
         };
     }
 
-    pub fn span(self: *const Publication, comptime View: type, source: zx.Span) View {
+    pub fn span(self: *Publication, comptime View: type, source: zx.Span) View {
         return .{ .rows = @ptrCast(&self.spans), .start = source.start, .end = source.end };
     }
 };
@@ -140,7 +140,7 @@ pub const Writable = struct {
     kinds: []u8,
     arguments: []u32,
     members: [][]const u32,
-    pub fn borrow(self: *const Writable, comptime Columns: type) Columns {
+    pub fn borrow(self: *Writable, comptime Columns: type) Columns {
         return .{
             .kinds = @ptrCast(&self.kinds),
             .arguments = @ptrCast(&self.arguments),

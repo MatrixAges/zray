@@ -1,5 +1,5 @@
 import bytes from "std:bytes"
-import fixed from "core/bytes/index/fixed"
+import probe from "core/bytes/index/slot"
 
 import type { Source } from "./model"
 
@@ -18,17 +18,18 @@ export default function (in: Input): Output {
         return null
     }
 
-    const row = fixed({
+    const found = probe({
         keys: in.keys,
         buckets: in.buckets,
         capacity: in.capacity,
-        key: bytes.fromText(in.path),
-        insert: null
+        key: bytes.fromText(in.path)
     })
 
-    if (row == null) {
+    if (found.entry == 0) {
         return null
     }
+
+    const row = found.entry - 1
 
     return row < in.states.length ? row : null
 }

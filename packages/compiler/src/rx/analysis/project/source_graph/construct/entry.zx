@@ -21,7 +21,11 @@ export default function (in: Input): Output {
 
     const row = find({
         path,
-        index: in.index
+        index: {
+            keys: in.index.keys,
+            buckets: memory.u64View(in.index.buckets, null),
+            capacity: in.index.capacity
+        }
     })
 
     if (row == null) {

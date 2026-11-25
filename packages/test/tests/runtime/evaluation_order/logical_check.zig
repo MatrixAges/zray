@@ -8,6 +8,7 @@ pub fn check(args: struct {
     expected: union(enum) { value: program.Output, failure: anyerror },
 }) !void {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+
     defer arena.deinit();
 
     probe.count = 0;

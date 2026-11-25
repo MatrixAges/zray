@@ -341,7 +341,7 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
     const graph = &state.graph;
     const order = @import("../history/columns.zig").words(std.mem.sliceAsBytes(graph.order));
     var slots: [Candidates.chunk_size]u64 = undefined;
-    const positions: []u64 = &slots;
+    var positions: []u64 = &slots;
     const previous = if (reuse.aligned) reuse.prefix else null;
 
     const input: Input = .{

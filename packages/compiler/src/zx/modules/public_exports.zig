@@ -89,7 +89,7 @@ pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.All
     const names = memory.borrowTextColumn("name", roots);
     const unused_names = memory.borrowTextColumn("name", empty);
     const ids = memory.borrowOptionalU32Column("id", empty);
-    const buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, roots.len);
+    var buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, roots.len);
 
     defer allocator.free(buckets);
 

@@ -29,15 +29,16 @@ pub fn sort(comptime Row: type, backing: std.mem.Allocator, rows: []Row) !void {
     try apply(Row, rows, @constCast(order));
 }
 
-fn apply(comptime Row: type, rows: []Row, order: []u64) !void {
+fn apply(comptime Row: type, rows: []Row, order_arg: []u64) !void {
+    var order = order_arg;
     const memory = zx.memory;
     const rule = @import("generated_input_path_apply");
     const source = memory.borrowNestedColumn(Row, &.{}, rows);
-    const target = memory.borrowNestedWriteColumn(Row, &.{}, rows);
+    var target = memory.borrowNestedWriteColumn(Row, &.{}, rows);
     var scratch: [1]Row = undefined;
     const slot: []Row = &scratch;
     const saved = memory.borrowNestedColumn(Row, &.{}, slot);
-    const temporary = memory.borrowNestedWriteColumn(Row, &.{}, slot);
+    var temporary = memory.borrowNestedWriteColumn(Row, &.{}, slot);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(rule.Input) = .{
@@ -63,7 +64,7 @@ pub fn select(comptime Row: type, source: []const Row, indices: []const u64, tar
     const memory = zx.memory;
     const rule = @import("generated_input_row_selection");
     const from = memory.borrowNestedColumn(Row, &.{}, source);
-    const to = memory.borrowNestedWriteColumn(Row, &.{}, target);
+    var to = memory.borrowNestedWriteColumn(Row, &.{}, target);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(rule.Input) = .{

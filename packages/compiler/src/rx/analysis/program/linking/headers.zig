@@ -17,7 +17,7 @@ pub const Tail = struct {
             .payloads = storage.payloads.unusedCapacitySlice()[0..count],
         };
     }
-    pub fn view(self: *const Tail, comptime Target: type) Target {
+    pub fn view(self: *Tail, comptime Target: type) Target {
         return .{
             .kinds = @ptrCast(&self.kinds),
             .types = @ptrCast(&self.types),

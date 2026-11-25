@@ -5,10 +5,11 @@ import capacityFor from "../../map/capacity"
 import { load_denominator, load_numerator } from "../const"
 import probe from "./probe"
 
-import type { U32Scratch } from "memory"
-import type { Table } from "./probe"
+import type { TextColumn, U32Buffer, U32Scratch } from "memory"
 
-export type Input = Table & {
+export type Input = {
+    keys: TextColumn,
+    buckets: U32Buffer,
     scratch: U32Scratch,
     count: u64,
     indexed: u64,
@@ -43,7 +44,7 @@ export default function (in: Input): Output {
         while: i => i < count,
         next: i => {
             const location = probe({
-                buckets,
+                buckets: memory.u32View(buckets, null),
                 keys,
                 text: memory.readTextColumn(keys, i),
                 capacity: size

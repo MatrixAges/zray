@@ -38,11 +38,11 @@ pub fn close(self: *const Self, lowering: *Lower) void {
     if (self.registered) |registered| registered.release(lowering);
 }
 
-pub fn put(self: *const Self, offset: usize, span: node.Block) void {
+pub fn put(self: *Self, offset: usize, span: node.Block) void {
     _ = self.publish(offset + 1, span, false);
 }
 
-pub fn publish(self: *const Self, cursor: usize, span: node.Block, consumed_previous: bool) usize {
+pub fn publish(self: *Self, cursor: usize, span: node.Block, consumed_previous: bool) usize {
     const input: std.meta.Child(entry.Input) = .{
         .starts = @ptrCast(&self.starts),
         .counts = @ptrCast(&self.counts),

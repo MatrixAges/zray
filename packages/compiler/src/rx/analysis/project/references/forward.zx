@@ -1,15 +1,15 @@
 import bytes from "std:bytes"
-import fixed from "core/bytes/index/fixed"
+import probe from "core/bytes/index/slot"
 
 import source from "../source_graph/source"
 import { Kind } from "../source_graph/source"
 
-import type { U64Buffer } from "memory"
+import type { U64View } from "memory"
 import type { Ranges } from "../source_graph/source"
 
 export type Input = {
     keys: u8[][],
-    buckets: U64Buffer,
+    buckets: U64View,
     capacity: u64,
     path: string,
     sources: Ranges
@@ -22,21 +22,20 @@ export default function (in: Input): Output {
         return null
     }
 
-    const row = fixed({
+    const found = probe({
         keys: in.keys,
         buckets: in.buckets,
         capacity: in.capacity,
-        key: bytes.fromText(in.path),
-        insert: null
+        key: bytes.fromText(in.path)
     })
 
-    if (row == null) {
+    if (found.entry == 0) {
         return null
     }
 
     const target = source({
         sources: in.sources,
-        owner: row
+        owner: found.entry - 1
     })
 
     return target.kind == Kind.RX ? target.row : null

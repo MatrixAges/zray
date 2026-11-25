@@ -1,4 +1,4 @@
-export type StatementKindBuffer = opaque
+export type StatementKindBuffer = mutable_opaque
 
 export enum Ownership {
     Copy,

@@ -29,7 +29,7 @@ pub fn append(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator, 
     if (exports.len == 0) return;
 
     const rows = memory.borrowNamedRows("type_id", exports);
-    const destination: []memory.NamedId = if (target) |output| memory.borrowNamedRows("type_id", output.rows) else &.{};
+    var destination: []memory.NamedId = if (target) |output| memory.borrowNamedRows("type_id", output.rows) else &.{};
 
     const qualified: Qualified = .{
         .alias = if (target) |output| output.alias else "",

@@ -42,9 +42,10 @@ pub fn reads(builder: *Builder, getters: []const Binding, target: []u32) Builder
     return bind(builder, &.{ .slots = &empty, .getters = &incoming }, target);
 }
 
-fn bind(builder: *Builder, source: *const Source, target: []u32) Builder.Error!void {
-    if (target.len == 0) return;
+fn bind(builder: *Builder, source: *const Source, target_arg: []u32) Builder.Error!void {
+    if (target_arg.len == 0) return;
 
+    var target = target_arg;
     var frame: Frame = .{ .builder = builder };
     const storage = &builder.stores;
     const slots = zx.memory.borrowColumnLengths(storage);

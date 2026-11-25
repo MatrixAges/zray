@@ -1,4 +1,4 @@
-import fixed from "core/bytes/index/fixed"
+import probe from "core/bytes/index/slot"
 import memory from "memory"
 
 import { Issue } from "../model"
@@ -16,16 +16,15 @@ export type Output = Edge
 export default function (in: Input): Output {
     const key = memory.borrowU8Range(in.bytes, 0, in.length)
 
-    const row = fixed({
+    const found = probe({
         ...in.registry,
-        key,
-        insert: null
+        key
     })
 
     return {
         included: true,
-        target: row ?? 0,
-        issue: row == null ? Issue.Missing : Issue.None,
+        target: found.entry == 0 ? 0 : found.entry - 1,
+        issue: found.entry == 0 ? Issue.Missing : Issue.None,
         required: 0
     }
 }

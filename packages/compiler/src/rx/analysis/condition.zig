@@ -69,7 +69,7 @@ fn assumeIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: fronte
 
     var inline_stack: [inline_pending]u64 = undefined;
     const limit: usize = @intCast(node.depth);
-    const pending = if (limit <= inline_stack.len) inline_stack[0..limit] else try allocator.alloc(u64, limit);
+    var pending = if (limit <= inline_stack.len) inline_stack[0..limit] else try allocator.alloc(u64, limit);
 
     defer if (limit > inline_stack.len) allocator.free(pending);
 

@@ -6,7 +6,6 @@ const artifact = compiler.project.artifact;
 pub const Fixture = struct {
     results: [4]artifact.Result,
     modules: [4]artifact.Module,
-
     pub fn init(allocator: std.mem.Allocator) !Fixture {
         var analysis = try source.analyze(allocator);
 

@@ -1,22 +1,22 @@
 export type ReferenceColumn = opaque
 export type ReferenceRows = opaque
 export type ReferenceRow = opaque
-export type ByteViewStorage = opaque
+export type ByteViewStorage = mutable_opaque
 export type IndirectTextColumn = opaque
 export type ReadColumn = opaque
-export type WriteColumn = opaque
+export type WriteColumn = mutable_opaque
 export type ListColumn = opaque
 export type ListProjection = opaque
-export type RowBuffer = opaque
+export type RowBuffer = mutable_opaque
 export type RowGrowth = opaque
 export type ColumnSet = opaque
-export type ColumnView = opaque
+export type ColumnView = mutable_opaque
 export type ColumnViewLayout = opaque
 export type ColumnGrowth = opaque
 export type ColumnRecord = opaque
 export type ColumnRowLayout = opaque
 export type ColumnAllocator = opaque
-export type ColumnU32s = opaque
+export type ColumnU32s = mutable_opaque
 export type SliceColumns = opaque
 
 export enum ColumnOwnership {

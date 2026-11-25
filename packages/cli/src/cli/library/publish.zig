@@ -30,7 +30,7 @@ pub fn write(request: Request) ![]const inventory.File {
     const native_ref = &native;
     var paths: @import("../project/native_paths.zig").Paths = undefined;
     var position = [1]u64{0};
-    const cursor: []u64 = &position;
+    var cursor: []u64 = &position;
 
     paths.init(request.loaded, &request.allocator);
 

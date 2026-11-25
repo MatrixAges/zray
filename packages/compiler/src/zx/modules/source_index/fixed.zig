@@ -54,7 +54,7 @@ pub fn claim(self: *Self, row: usize, key: []const u8) bool {
 pub fn registerPaths(self: *Self, paths: *const @import("zx").memory.TextColumn) ?usize {
     const generated = @import("generated_byte_index_unique");
 
-    const target: @import("zx").memory.WriteColumn = .{
+    var target: @import("zx").memory.WriteColumn = .{
         .items = @ptrCast(self.keys.ptr),
         .count = self.keys.len,
         .stride = @sizeOf([]const u8),
@@ -77,10 +77,27 @@ pub fn registerPaths(self: *Self, paths: *const @import("zx").memory.TextColumn)
 }
 
 pub fn get(self: *const Self, key: []const u8) ?usize {
-    return @intCast(self.find(key, null) orelse return null);
+    if (self.buckets.len == 0) return null;
+
+    const rule = @import("generated_byte_index_slot");
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const SlotParameter = @typeInfo(@TypeOf(rule.executeValue)).@"fn".param_types[1].?;
+    const SlotInput = if (@typeInfo(SlotParameter) == .pointer) std.meta.Child(SlotParameter) else SlotParameter;
+
+    const input: SlotInput = .{
+        .keys = self.keys,
+        .buckets = @ptrCast(&self.buckets),
+        .capacity = self.buckets.len,
+        .key = key,
+        .rows = null,
+    };
+
+    const found = rule.executeValue(scratch.allocator(), if (@typeInfo(SlotParameter) == .pointer) &input else input) catch unreachable;
+
+    return if (found.entry == 0) null else @intCast(found.entry - 1);
 }
 
-fn find(self: *const Self, key: []const u8, insert: ?u64) ?u64 {
+fn find(self: *Self, key: []const u8, insert: ?u64) ?u64 {
     if (self.buckets.len == 0) return null;
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});

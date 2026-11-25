@@ -1,10 +1,15 @@
-import type { Table } from "core/bytes/index/borrowed/wide_slot"
-import type { ReadColumn } from "memory"
+import type { ReadColumn, TextColumn, U64Buffer } from "memory"
 
 export { Admission as Status } from "native_scope_host"
 
+export type Index = {
+    names: TextColumn,
+    buckets: U64Buffer,
+    capacity: u64
+}
+
 export type Modules = {
-    index: Table,
+    index: Index,
     count: u64,
     paths: ReadColumn,
     headers: ReadColumn

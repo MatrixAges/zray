@@ -11,8 +11,8 @@ pub fn plan(scratch: std.mem.Allocator, application: *const zx.ir.Program, initi
     const paths = application.stores.paths;
     const counts: std.meta.Child(strategy.Input) = .{ .paths = paths.len, .initializers = initializers.len };
     const size = zx.columns.invoke(strategy.executeValue, scratch, &counts) catch unreachable;
-    const buckets = try frontend.project.source_index.Map.bucketsFor(scratch, @intCast(size.indexed));
-    const marks = try scratch.alloc(u8, @intCast(size.marks));
+    var buckets = try frontend.project.source_index.Map.bucketsFor(scratch, @intCast(size.indexed));
+    var marks = try scratch.alloc(u8, @intCast(size.marks));
 
     @memset(marks, 0);
 

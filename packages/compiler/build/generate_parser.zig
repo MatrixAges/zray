@@ -144,7 +144,7 @@ const Generation = struct {
             const Input = std.meta.Child(rule.Input);
             const fields = .{ .specifiers = "specifier", .entries = "entry" };
             const source = memory.borrowReadFields(fields, self.project.packages);
-            const destination = memory.borrowWriteFields(fields, packages);
+            var destination = memory.borrowWriteFields(fields, packages);
 
             try rule.executeIn(self.owned, &.{
                 .fields = &source.bind(std.meta.Child(@FieldType(Input, "fields"))),
@@ -194,7 +194,7 @@ const Generation = struct {
         const Input = std.meta.Child(rule.Input);
         const Modules = std.meta.Child(@FieldType(Input, "modules"));
         const rows = memory.borrowReadFields(source_fields, self.inputs.modules);
-        const destination = memory.borrowWriteFields(.{ .paths = "path", .digests = "digest" }, digests);
+        var destination = memory.borrowWriteFields(.{ .paths = "path", .digests = "digest" }, digests);
         const interfaces = memory.borrowTextColumn("source", self.interfaces.bindings);
         var cache = FileDigest{ .files = &self.resident.files };
         var content_buffer: [1024]u8 = undefined;

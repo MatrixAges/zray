@@ -145,7 +145,7 @@ const Build = struct {
             .root = opts.project.root_dir,
             .index = &.{ .keys = self.paths.keys, .buckets = @ptrCast(&self.paths.buckets), .capacity = self.paths.buckets.len },
             .paths = &.{ .zx = @ptrCast(&zx_paths), .rx = @ptrCast(&rx_paths), .stores = @ptrCast(&stores) },
-            .normalized = self.paths.keys,
+            .normalized = @ptrCast(self.paths.keys.ptr),
             .path_allocator = @ptrCast(&self.allocator),
             .ranges = &.{
                 .zx_count = self.sources.zx_count,

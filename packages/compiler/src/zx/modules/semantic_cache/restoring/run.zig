@@ -33,10 +33,10 @@ pub const Frame = struct {
         const origins: memory.ColumnLengths = &origin_slots;
         const functions: memory.ColumnLengths = &function_slots;
         var counts: [type_fields.len]u64 = undefined;
-        const count_view: []u64 = &counts;
-        const saved_functions = slot(&self.function_count);
-        const saved_origins = slot(&self.origin_count);
-        const saved_columns = slot(&self.saved);
+        var count_view: []u64 = &counts;
+        var saved_functions = slot(&self.function_count);
+        var saved_origins = slot(&self.origin_count);
+        var saved_columns = slot(&self.saved);
         const payload_position = current.payloads.checkpoint();
 
         self.publication.bind(self);

@@ -4,10 +4,11 @@ import { path_slot } from "../const"
 import resolve from "../file"
 import select from "./select"
 
+import type { TextSlots } from "memory"
 import type { FileProbe, FileRequest, FileSelection } from "../model"
 
 export type Input = FileRequest & FileProbe.Omit("path") & {
-    output: string[]
+    output: TextSlots
 }
 
 export type Output = FileSelection.Pick("row", "issue")
