@@ -189,6 +189,12 @@ pub fn tailAstStatementRows(writer: *const anyopaque, starts: []const u32, count
     return block.start;
 }
 
+pub fn tailAstPackedStatements(writer: *const anyopaque, spans: []const u64) Lower.Error!u64 {
+    const self = borrow(writer);
+
+    return packSpan(try blocks.joinStatementSpans(self.allocator, self.builder.nodes, spans, true));
+}
+
 pub fn appendAstFunctions(writer: *const anyopaque, source: *const Ast.FunctionRows) Lower.Error!void {
     const self = borrow(writer);
     const target = &self.builder.nodes.declaration_rows;
@@ -227,6 +233,18 @@ fn appendRows(self: *Lower, target: anytype, source: anytype, mode: Ast.AstPaylo
     };
 
     return result catch |err| failure(err);
+}
+
+pub fn appendAstBlockRows(writer: *const anyopaque, source: *const Ast.AstBlockRows) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
+}
+
+pub fn appendAstLeafStatements(writer: *const anyopaque, source: *const Ast.AstLeafStatements) Lower.Error!void {
+    const self = borrow(writer);
+
+    return appendRows(self, &self.builder.nodes.statements, source, .Borrowed);
 }
 
 const Span = packed struct(u64) { count: u32, start: u32 };

@@ -185,6 +185,8 @@ pub fn allocateStringViews(allocator: std.mem.Allocator, target: *const anyopaqu
     try allocateViews([]const u8, allocator, target, count);
 }
 
+pub const allocateU8ListViews = allocateStringViews;
+
 pub fn allocateBoolViews(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(bool, allocator, target, count);
 }
@@ -779,7 +781,7 @@ pub inline fn bindU32Range(source: *const anyopaque, target: *const anyopaque, f
     output.* = input.*[@intCast(first)..][0..@intCast(count)];
 }
 
-pub inline fn writeString(target: *const anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
+pub noinline fn writeString(target: *const anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
     return write([]const u8, target, index, value);
 }
 

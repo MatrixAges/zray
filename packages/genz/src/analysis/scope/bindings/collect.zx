@@ -1,6 +1,5 @@
 import memory from "memory"
 
-import { span_count_slot, span_start_slot } from "./const"
 import execute from "./execute"
 import iteration from "./iteration"
 import { Action } from "./model"
@@ -26,11 +25,16 @@ export default function (in: Input): Output {
                 remaining
             })
 
-            if (spans != null) {
-                const skip = binding.action == Action.Skip
-
-                if (!skip) {
-                    execute({
+            if (selection.iteration) {
+                iteration({
+                    scope: source,
+                    binding,
+                    output: values
+                })
+            } else {
+                const span = match binding.action {
+                    Action.Skip => 0,
+                    _ => execute({
                         frame,
                         scope,
                         binding,
@@ -38,23 +42,7 @@ export default function (in: Input): Output {
                     })
                 }
 
-                const start = match {
-                    skip => 0,
-                    _ => memory.readU32(spans.current, span_start_slot)
-                }
-                const length = match {
-                    skip => 0,
-                    _ => memory.readU32(spans.current, span_count_slot)
-                }
-
-                memory.writeU32(spans.starts, binding.position, start)
-                memory.writeU32(spans.counts, binding.position, length)
-            } else if (values != null) {
-                iteration({
-                    scope: source,
-                    binding,
-                    output: values
-                })
+                memory.writeU64(spans, binding.position, span)
             }
 
             remaining = binding.position

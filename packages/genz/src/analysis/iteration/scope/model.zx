@@ -1,25 +1,9 @@
-import type { Index } from "core/integer/index/model"
-import type { StatementsKind } from "../../../printer/model/statements"
-import type { Output as Block } from "../../aggregate/binding/model"
-import type { Layout } from "../../types/layout"
-
-export type Locals = {
-    symbols: u32?[],
-    symbol_types: u32[],
-    type_kinds: u8[],
-    layouts: Layout[],
-    inline_lists: bool,
-    index: Index
-}
-
-export type Bindings = {
-    symbols: u32?[],
-    values: u32?[],
-    types: u32?[],
-    names: u8[][]
-}
+import type { AstLeafStatements, AstWriter } from "ast_rows"
+import type { IterationScopeBindings as Bindings, Lowering } from "lowering_host"
 
 export type Input = {
+    writer: AstWriter,
+    frame: Lowering,
     bindings: Bindings,
     result: u32,
     expression_base: u32,
@@ -27,18 +11,4 @@ export type Input = {
     serial: u64
 }
 
-export type Rows = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    expression: u32[],
-    discard: u32[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[]
-}
-
-export type Output = {
-    rows: Rows,
-    block: Block
-}
+export type Rows = AstLeafStatements.Omit("break_value_label", "break_value_value")

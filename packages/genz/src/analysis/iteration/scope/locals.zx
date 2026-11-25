@@ -6,7 +6,17 @@ import { Kind } from "core/type_table/model"
 import { Property } from "../../types/layout/query"
 import query from "../../types/layout/query"
 
-import type { Locals as Input } from "./model"
+import type { Index } from "core/integer/index/model"
+import type { Layout } from "../../types/layout"
+
+export type Input = {
+    symbols: u32?[],
+    symbol_types: u32[],
+    type_kinds: u8[],
+    layouts: Layout[],
+    inline_lists: bool,
+    index: Index
+}
 
 export type Output = u32[]
 

@@ -1,6 +1,7 @@
+import type { AstWriter } from "ast_rows"
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Lowering, ScopeFrame } from "lowering_host"
-import type { OptionalU32Buffer, U32Buffer, U8ListBuffer } from "memory"
+import type { OptionalU32Buffer, U32Buffer, U64Buffer, U8ListBuffer } from "memory"
 
 export enum Action {
     Reuse,
@@ -32,12 +33,6 @@ export type Binding = {
     action: Action
 }
 
-export type Spans = {
-    starts: U32Buffer,
-    counts: U32Buffer,
-    current: U32Buffer
-}
-
 export type Values = {
     values: OptionalU32Buffer,
     types: OptionalU32Buffer,
@@ -47,11 +42,12 @@ export type Values = {
 export type Input = {
     frame: Lowering,
     scope: ScopeFrame,
+    writer: AstWriter,
     result: u32,
     layout: bool,
     selection: Selection,
-    spans?: Spans,
-    values?: Values,
+    spans: U64Buffer,
+    values: Values,
     names: u8[][],
     symbol_types: u32[]
 }
@@ -61,5 +57,3 @@ export type Prepared = {
     type_id: u32,
     count: u64
 }
-
-export type Output = Prepared.Pick("value")

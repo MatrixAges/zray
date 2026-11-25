@@ -4,7 +4,6 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
-const rows = @import("../../node/import_rows.zig");
 const recursive_scratch_bytes = 1024;
 
 pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
@@ -55,11 +54,13 @@ fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) L
 
 const scope_entry = @import("generated_iteration_scope");
 const ScopeInput = std.meta.Child(scope_entry.Input);
-const Bindings = std.meta.Child(@FieldType(ScopeInput, "bindings"));
+const Bindings = @import("../expressions/evaluate.zig").Api.IterationScopeBindings;
 
 pub noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: node.ExpressionId, bindings: *const Bindings) Lower.Error!node.ExpressionId {
     const input: ScopeInput = .{
-        .bindings = bindings,
+        .writer = @ptrCast(lowering),
+        .frame = @ptrCast(lowering),
+        .bindings = zx.columns.pointer(@FieldType(ScopeInput, "bindings"), bindings),
         .result = @backingInt(result),
         .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(lowering.builder.nodes.statements.tags.items.len),
@@ -68,25 +69,9 @@ pub noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: nod
 
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, temporary);
-    const output = scope_entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
-    const block = output.block;
+    const root = scope_entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
-    if (!block.valid) return error.OutOfMemory;
-
-    const name = try lowering.allocator.dupe(u8, block.name);
-    const names = [_][]const u8{name};
-    var expressions = block.expressions.*;
-    var statements = block.statements.*;
-    expressions.block_label = &names;
-    statements.break_value_label = &names;
-
-    rows.appendBorrowed(lowering.allocator, &lowering.builder.nodes.statements, output.rows) catch |err| return failure(err);
-    rows.appendBorrowed(lowering.allocator, &lowering.builder.nodes.statements, &statements) catch |err| return failure(err);
-    rows.appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-
-    lowering.serial = @intCast(block.serial);
-
-    return @fromBackingInt(block.root);
+    return @fromBackingInt(root);
 }
 
 fn failure(err: anyerror) Lower.Error {

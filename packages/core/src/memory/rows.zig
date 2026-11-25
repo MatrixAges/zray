@@ -276,7 +276,7 @@ pub inline fn readOptionalText(source: *const anyopaque, index: u64) error{Index
     return readColumn(?[]const u8, source, index);
 }
 
-pub inline fn readTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u8 {
+pub noinline fn readTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u8 {
     return readColumn([]const []const u8, source, index);
 }
 
@@ -390,7 +390,7 @@ pub inline fn columnLength(source: *const anyopaque) u64 {
     return column.count;
 }
 
-pub inline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
+pub noinline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
     const column: *const ListColumn = @ptrCast(@alignCast(source));
 
     return (try readColumn([]const u8, &column.lists, index)).len;

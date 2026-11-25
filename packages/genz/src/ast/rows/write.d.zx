@@ -8,6 +8,27 @@ export type AstSequence = opaque
 
 export type AstScratch = opaque
 
+export type AstBlockRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    block_label: u8[][],
+    block_statements_start: u32[],
+    block_statements_len: u32[]
+}
+
+export type AstLeafStatements = {
+    tags: StatementsKind[],
+    offsets: u32[],
+    expression: u32[],
+    discard: u32[],
+    constant_name: u8[][],
+    constant_type_expr: u32?[],
+    constant_value: u32[],
+    constant_exported: bool[],
+    break_value_label: u8[][],
+    break_value_value: u32[]
+}
+
 export enum AstPayloadOwnership {
     Owned,
     BorrowingText,
@@ -42,6 +63,12 @@ export declare function appendStatementRows(
     variables: StatementVariables?,
     ownership: AstPayloadOwnership
 ): void throws { OutOfMemory }
+
+export declare function appendAstBlockRows(writer: AstWriter, rows: AstBlockRows): void
+    throws { OutOfMemory }
+
+export declare function appendAstLeafStatements(writer: AstWriter, rows: AstLeafStatements): void
+    throws { OutOfMemory }
 
 export declare function appendStatementSequence(
     writer: AstWriter,
@@ -149,6 +176,9 @@ export declare function tailAstStatementRows(
     starts: u32[],
     counts: u32[]
 ): u32 throws { OutOfMemory }
+
+export declare function tailAstPackedStatements(writer: AstWriter, spans: u64[]): u64
+    throws { OutOfMemory }
 
 export declare function appendAstCleanupRows(
     writer: AstWriter,

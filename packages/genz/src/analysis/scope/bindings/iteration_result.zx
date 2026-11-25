@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { IterationScopeBindings as Output } from "lowering_host"
+import type { Values } from "./model"
+
+export type Input = Output.Pick("symbols") & {
+    buffers: Values
+}
+
+export default function (in: Input): Output {
+    const { buffers, symbols } = in
+
+    return {
+        symbols,
+        values: memory.optionalU32Views(buffers.values),
+        types: memory.optionalU32Views(buffers.types),
+        names: memory.u8ListViews(buffers.names)
+    }
+}

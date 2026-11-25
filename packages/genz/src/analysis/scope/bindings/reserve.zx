@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import type { Input as Scope } from "./model"
+
+export type Input = Scope.Pick("spans", "values") & {
+    iteration: bool,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { count, spans, values } = in
+
+    if (in.iteration) {
+        memory.allocateOptionalU32Buffer(values.values, count, false)
+        memory.allocateOptionalU32Buffer(values.types, count, false)
+        memory.allocateU8ListViews(values.names, count)
+
+        return
+    }
+
+    memory.allocateU64Views(spans, count)
+}

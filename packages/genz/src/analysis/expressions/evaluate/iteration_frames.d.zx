@@ -17,6 +17,13 @@ export type LoopLayout = opaque
 
 export type LoopFrame = opaque
 
+export type IterationScopeBindings = {
+    symbols: u32?[],
+    values: u32?[],
+    types: u32?[],
+    names: u8[][]
+}
+
 export enum LoopParameterLayout {
     Plain,
     Stack,

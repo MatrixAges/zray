@@ -28,7 +28,7 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer if (reuse) |*aliases| aliases.restore(self);
 
-    if (generated) return @import("scope/execute.zig").regular(self, scope, layout, &reuse);
+    if (generated) return @import("scope/execute.zig").regular(self, scratch.allocator(), scope, layout, if (reuse) |*active| active else null);
 
     const plan = schedule.result(self, scope);
 

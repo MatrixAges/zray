@@ -9,9 +9,8 @@ export type Input = LayoutRequest.Pick(
 )
 
 export default function (in: Input): Output {
-    const start = in.parts[0] / word_radix
-
     const range = loop({
+        start: 0,
         count: 0,
         contiguous: true,
         index: 0
@@ -19,19 +18,37 @@ export default function (in: Input): Output {
         while: state => state.index < in.parts.length,
         next: state => {
             const part = in.parts[state.index]
-            const adjacent = part / word_radix == start + state.count
+            const count = part % word_radix
 
-            state.contiguous = state.contiguous && adjacent
-            state.count += part % word_radix
+            if (count != 0) {
+                const start = part / word_radix
+
+                if (state.count == 0) {
+                    state.start = start
+                } else if (start != state.start + state.count) {
+                    state.contiguous = false
+                }
+
+                state.count += count
+            }
+
             state.index += 1
         }
     })
 
-    const at_end = start + range.count == in.end
+    if (range.count == 0) {
+        return {
+            start: in.at_tail ? in.end : 0,
+            count: 0,
+            append: false
+        }
+    }
+
+    const at_end = range.start + range.count == in.end
     const borrow = range.contiguous && (at_end || !in.at_tail)
 
     return {
-        start: borrow ? start : in.end,
+        start: borrow ? range.start : in.end,
         count: range.count,
         append: !borrow
     }

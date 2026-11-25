@@ -12,22 +12,18 @@ export type Input = {
     type_id: u32
 }
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
     const { frame, scope, binding, type_id } = in
     const { action, position, symbol, value } = binding
 
     if (action == Action.Reuse) {
-        host.reuseScopeBinding(scope, position)
-
-        return
+        return host.reuseScopeBinding(scope, position)
     }
 
     if (action == Action.Task) {
-        host.emitScopeTask(scope, symbol, value)
-
-        return
+        return host.emitScopeTask(frame, symbol, value)
     }
 
     const borrowed = host.prepareScopeBinding(scope, symbol, value, type_id)
@@ -38,7 +34,7 @@ export default function (in: Input): Output {
         _ => host.lowerExpression(frame, value, false, null)
     }
 
-    host.publishScopeBinding(
+    return host.publishScopeBinding(
         scope,
         position,
         symbol,

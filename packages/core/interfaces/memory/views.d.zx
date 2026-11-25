@@ -19,6 +19,12 @@ export declare function allocateStringViews(
     count: u64
 ): void throws { OutOfMemory }
 
+export declare function allocateU8ListViews(
+    allocator,
+    target: U8ListBuffer,
+    count: u64
+): void throws { OutOfMemory }
+
 export declare function allocateBoolViews(
     allocator,
     target: BoolBuffer,

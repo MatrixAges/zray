@@ -5,13 +5,10 @@ export declare function consumeScopeResult(
     layout: bool
 ): u32? throws { OutOfMemory }
 
-export declare function beginScopeBindings(scope: ScopeFrame, count: u64): void
+export declare function reuseScopeBinding(scope: ScopeFrame, position: u64): u64
     throws { OutOfMemory }
 
-export declare function reuseScopeBinding(scope: ScopeFrame, position: u64): void
-    throws { OutOfMemory }
-
-export declare function emitScopeTask(scope: ScopeFrame, symbol: u32?, value: u32): void
+export declare function emitScopeTask(frame: Lowering, symbol: u32?, value: u32): u64
     throws { OutOfMemory }
 
 export declare function prepareScopeBinding(
@@ -30,7 +27,16 @@ export declare function publishScopeBinding(
     symbol: u32?,
     value: u32,
     layout: bool
-): void throws { OutOfMemory }
+): u64 throws { OutOfMemory }
 
-export declare function finishScopeBindings(scope: ScopeFrame, result: u32): u32
-    throws { OutOfMemory }
+export declare function completeScopeBlock(
+    frame: Lowering,
+    span: u64,
+    result: u32
+): u32 throws { OutOfMemory }
+
+export declare function completeIterationScope(
+    scope: ScopeFrame,
+    bindings: IterationScopeBindings,
+    result: u32
+): u32 throws { OutOfMemory }

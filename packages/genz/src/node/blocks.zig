@@ -116,8 +116,8 @@ pub fn join(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32
         collectSeed(node.Block, allocator, &storage.statements, starts, counts, false);
 }
 
-pub fn joinStatementSpans(allocator: std.mem.Allocator, storage: *Storage, spans: []const u64) std.mem.Allocator.Error!node.Block {
-    return collectSource(node.Block, allocator, &storage.statements, &.{}, &.{}, spans, 0, false);
+pub fn joinStatementSpans(allocator: std.mem.Allocator, storage: *Storage, spans: []const u64, at_tail: bool) std.mem.Allocator.Error!node.Block {
+    return collectSource(node.Block, allocator, &storage.statements, &.{}, &.{}, spans, 0, at_tail);
 }
 
 pub fn joinDeclarations(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!Declarations {

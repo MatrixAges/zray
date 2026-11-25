@@ -163,7 +163,7 @@ pub fn referenceBatches(self: *const Self) usize {
 pub fn referenceBlock(self: *const Self) Error!node.Block {
     if (!generated) return self.builder.statements(self.reference_storage.items);
 
-    return blocks.joinStatementSpans(self.allocator, self.builder.nodes, self.reference_storage.items);
+    return blocks.joinStatementSpans(self.allocator, self.builder.nodes, self.reference_storage.items, false);
 }
 
 pub fn prototype(self: *Self, name: []const u8, exported: bool) Error!node.Function {
