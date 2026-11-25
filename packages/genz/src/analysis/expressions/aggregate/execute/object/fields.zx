@@ -1,0 +1,92 @@
+import integers from "std:integer"
+import host from "lowering_host"
+
+import bindOperand from "../../../../aggregate/execute/bind_operand"
+import borrowedField from "../../../../aggregate/execute/borrowed_field"
+import { Route } from "../../../../aggregate/layout/fields"
+
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { Lowering, ObjectFrame } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
+    batch: ObjectFrame,
+    fields: u32[],
+    field_indices: u32[],
+    field_names: string[],
+    plain: Route,
+    routes: Route[],
+    projection_seed?: u32
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const {
+        frame,
+        writer,
+        origin,
+        sequence,
+        batch,
+        fields,
+        field_indices,
+        field_names,
+        plain,
+        routes,
+        projection_seed
+    } = in
+
+    const initial: u32[] = []
+
+    return loop({
+        values: initial,
+        index: 0
+    }, {
+        while: state => state.index < fields.length,
+        next: state => {
+            const item = fields[state.index]
+            const value = host.lowerExpression(frame, item, false, null)
+
+            const route = match routes.length {
+                0 => plain,
+                _ => routes[state.index]
+            }
+
+            if (route == Route.Direct) {
+                state.values = state.values.push(value)[0]
+            } else if (route == Route.Borrowed) {
+                const name = field_names[integers.widen(field_indices[state.index])]
+                const seed = projection_seed ?? host.invalidLowering()
+
+                const borrowed = borrowedField({
+                    frame,
+                    writer,
+                    origin,
+                    seed,
+                    name,
+                    evaluated: value
+                })
+
+                state.values = state.values.push(borrowed)[0]
+            } else {
+                const bound = bindOperand({
+                    frame,
+                    writer,
+                    origin,
+                    sequence,
+                    value
+                })
+
+                const pointer = host.publishObjectField(batch, item, bound)
+
+                state.values = state.values.push(pointer)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.values
+    })
+}

@@ -1,0 +1,91 @@
+import bytes from "std:bytes"
+import {
+    appendAstBlockRows,
+    appendAstFieldAddresses,
+    appendAstLeafStatements,
+    readAstOrigin
+} from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import discard from "../../statements/basic/discard"
+import blockRows from "../binding/block_rows"
+import breakRows from "../binding/break_rows"
+import plan from "../binding/plan"
+import pointer from "../layout/borrowed/pointer"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    seed: u32,
+    name: string,
+    evaluated: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, seed, name, evaluated } = in
+
+    const current = readAstOrigin(writer, origin)
+
+    const address = pointer({
+        seed,
+        name: bytes.fromText(name),
+        base: current.expression_base
+    })
+
+    const discarded = discard({
+        value: evaluated
+    })
+
+    const planned = plan({
+        statement_base: current.statement_base,
+        serial: current.serial,
+        value: address.root,
+        expression_base: address.next,
+        body_count: discarded.tags.length
+    })
+
+    requireAllocation(planned.valid)
+
+    const label = host.retainLoweringText(frame, planned.name)
+
+    appendAstFieldAddresses(writer, address.nodes)
+
+    const break_statements = breakRows({
+        name: label,
+        value: planned.value
+    })
+
+    const block_expressions = blockRows({
+        plan: planned,
+        name: label,
+        guard: null
+    })
+
+    appendAstLeafStatements(writer, {
+        ...discarded.pick([
+            "tags",
+            "offsets",
+            "discard"
+        ]),
+        expression: [],
+        constant_name: [],
+        constant_type_expr: [],
+        constant_value: [],
+        constant_exported: [],
+        break_value_label: [],
+        break_value_value: []
+    })
+
+    appendAstLeafStatements(writer, break_statements)
+    appendAstBlockRows(writer, block_expressions.block, block_expressions.conditionals)
+    host.finishGeneratedAst(frame, planned.serial, false)
+
+    return planned.root
+}

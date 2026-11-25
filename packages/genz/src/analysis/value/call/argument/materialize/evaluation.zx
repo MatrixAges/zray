@@ -1,25 +1,46 @@
+import integers from "std:integer"
 import host from "lowering_host"
+import memory from "memory"
 
-import type { Object as Input } from "./model"
+import bindOperand from "../../../../aggregate/execute/bind_operand"
 
-export type Output = void
+import type { Object as Input, Observed as Output } from "./model"
 
 export default function (in: Input): Output {
-    const evaluated = loop(0, {
-        while: index => index < in.evaluation.length,
-        next: index => {
-            const id = in.evaluation[index]
+    const evaluated: u32[] = []
+    const counts: u64[] = []
+
+    return loop({
+        evaluated,
+        counts,
+        index: 0
+    }, {
+        while: state => state.index < in.evaluation.length,
+        next: state => {
+            const id = in.evaluation[state.index]
             const value = host.lowerBorrowedOperand(in.frame, id)
-            const reference = host.observeBorrowedOperand(in.object, index, id, value)
+
+            const bound = bindOperand({
+                frame: in.lowering,
+                writer: in.writer,
+                origin: in.origin,
+                sequence: in.sequence,
+                value
+            })
+
+            const prior = memory.readU64(in.cache_reads, integers.widen(id))
 
             const cached = match {
-                in.convert => host.borrowedOperandCacheValue(in.frame, id, reference),
-                _ => reference
+                in.convert => host.borrowedOperandCacheValue(in.frame, id, bound),
+                _ => bound
             }
 
             host.cacheBorrowedOperand(in.frame, id, cached)
 
-            index += 1
-        }
+            state.evaluated = state.evaluated.push(bound)[0]
+            state.counts = state.counts.push(prior)[0]
+            state.index += 1
+        },
+        return: state => state.omit(["index"])
     })
 }

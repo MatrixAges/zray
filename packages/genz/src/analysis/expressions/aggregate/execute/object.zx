@@ -1,55 +1,94 @@
+import integers from "std:integer"
 import host from "lowering_host"
 
-import type { Lowering, ObjectFrame } from "lowering_host"
+import finishBlock from "../../../aggregate/execute/finish_block"
+import objectLiteral from "../../../aggregate/execute/object_literal"
+import retireOperands from "../../../aggregate/execute/retire_operands"
+import layoutPlan from "../../../aggregate/layout/plan"
+import lowerFields from "./object/fields"
+import lowerOperands from "./object/operands"
 
-export type Input = {
-    frame: Lowering,
-    batch: ObjectFrame,
-    evaluation: u32[],
-    fields: u32[]
-}
+import type { Input as ObjectInput } from "./object/model"
+
+export type Input = ObjectInput
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, batch, evaluation, fields } = in
+    const { frame, writer, origin, sequence, batch } = in
 
-    const operands = loop({
-        index: 0
-    }, {
-        while: state => state.index < evaluation.length,
-        next: state => {
-            const item = evaluation[state.index]
-
-            host.reserveObjectOperand(batch, state.index)
-
-            const value = host.lowerExpression(frame, item, false, null)
-
-            host.publishObjectOperand(batch, state.index, item, value)
-            state.index = state.index + 1
-        },
-        return: state => state.index
-    })
-
-    host.publishObjectOperands(batch)
+    const observed = lowerOperands(
+        in.pick([
+            "frame",
+            "writer",
+            "origin",
+            "sequence",
+            "evaluation"
+        ])
+    )
 
     const updated = host.prepareObjectFields(batch)
 
-    if (updated == null) {
-        const lowered = loop({
-            index: 0
-        }, {
-            while: state => state.index < fields.length,
-            next: state => {
-                const item = fields[state.index]
-                const value = host.lowerExpression(frame, item, false, null)
+    const layout = layoutPlan({
+        expression: integers.widen(in.id),
+        loop_states: in.loop_states,
+        state_active: in.state_active,
+        selected: in.selected,
+        layout_only: in.layout_only,
+        updated: updated != null,
+        indices: in.field_indices,
+        borrowed: in.borrowed
+    })
 
-                host.publishObjectField(batch, state.index, item, value)
-                state.index = state.index + 1
-            },
-            return: state => state.index
+    const field_values: u32[] = match {
+        updated != null => [],
+        _ => lowerFields({
+            ...in.pick([
+                "frame",
+                "writer",
+                "origin",
+                "sequence",
+                "batch",
+                "fields",
+                "field_indices",
+                "field_names",
+                "projection_seed"
+            ]),
+            plain: layout.plain,
+            routes: layout.routes
         })
     }
 
-    return host.finishObject(batch, updated)
+    retireOperands({
+        writer,
+        sequence,
+        evaluation: in.evaluation,
+        prior: observed.prior,
+        references: observed.references,
+        cache_reads: in.cache_reads
+    })
+
+    const result = updated ?? objectLiteral({
+        writer,
+        type_expr: match {
+            layout.project => in.projection_layout ?? host.invalidLowering(),
+            _ => host.lowerLayout(frame, in.type_id)
+        },
+        names: in.field_names,
+        indices: in.field_indices,
+        values: field_values
+    })
+
+    const constructed = match {
+        layout.construct => host.finishObject(frame, in.type_id, result),
+        _ => result
+    }
+
+    return finishBlock({
+        frame,
+        writer,
+        origin,
+        sequence,
+        value: constructed
+    })
 }

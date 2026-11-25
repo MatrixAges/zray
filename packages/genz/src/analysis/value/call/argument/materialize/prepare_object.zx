@@ -1,0 +1,51 @@
+import { astFieldCount, readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import retireOperands from "../../../../aggregate/execute/retire_operands"
+
+import type { Publication as Output } from "../model"
+import type { ObjectBorrow as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { source, observed, values } = in
+
+    retireOperands({
+        writer: source.writer,
+        sequence: source.sequence,
+        evaluation: source.evaluation,
+        prior: observed.counts,
+        references: observed.evaluated,
+        cache_reads: source.cache_reads
+    })
+
+    const object_type =
+        host.materializeType(source.lowering, source.type_id, StoredType.AbiLayout)
+
+    const current = readAstOrigin(source.writer, source.origin)
+    const first = astFieldCount(source.writer)
+    const empty: u32[] = []
+
+    const publication: Output = {
+        writer: source.writer,
+        frame: source.lowering,
+        sequence: source.sequence,
+        value: 0,
+        layout: null,
+        values: empty,
+        expression_base: current.expression_base,
+        serial: current.serial,
+        object: {
+            type_expr: object_type,
+            first,
+            selection: {
+                names: source.field_names,
+                first: 0,
+                indices: source.field_indices,
+                values
+            }
+        }
+    }
+
+    return publication
+}

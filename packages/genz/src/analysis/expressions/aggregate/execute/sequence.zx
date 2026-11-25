@@ -1,29 +1,100 @@
+import { appendAstOperandRows, astExpressionCount } from "ast_rows"
 import host from "lowering_host"
+import memory from "memory"
 
+import { ExpressionsKind } from "../../../../printer/model/expressions"
+import bindOperand from "../../../aggregate/execute/bind_operand"
+import policy from "../../../aggregate/sequence"
+import { Element, Result } from "../../../aggregate/sequence"
+
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Lowering, SequenceFrame } from "lowering_host"
+import type { U32Buffer } from "memory"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
     batch: SequenceFrame,
-    items: u32[]
+    kind: ExpressionKind,
+    layout: bool,
+    state_active: bool,
+    selected: bool,
+    items: u32[],
+    expressions: U32Buffer
 }
 
-export type Output = void
+export type Output = {
+    result: Result,
+    tuple?: u32
+}
 
 export default function (in: Input): Output {
-    const { frame, batch, items } = in
+    const { frame, writer, origin, sequence, batch, items, expressions } = in
 
-    const traversed = loop({
-        index: 0
-    }, {
-        while: state => state.index < items.length,
-        next: state => {
-            const item = items[state.index]
+    const plan = policy({
+        kind: in.kind,
+        layout: in.layout,
+        state_active: in.state_active,
+        selected: in.selected
+    })
+
+    const lowered = loop(0, {
+        while: index => index < items.length,
+        next: index => {
+            const item = items[index]
             const value = host.lowerExpression(frame, item, false, null)
 
-            host.publishSequenceElement(batch, state.index, item, value)
-            state.index = state.index + 1
-        },
-        return: state => state.index
+            const bound = bindOperand({
+                frame,
+                writer,
+                origin,
+                sequence,
+                value
+            })
+
+            const element = match plan.element {
+                Element.Direct => bound,
+                Element.List => host.publishSequenceElement(batch, item, bound, true),
+                _ => host.publishSequenceElement(batch, item, bound, false)
+            }
+
+            memory.writeU32(expressions, index, element)
+
+            index += 1
+        }
     })
+
+    if (plan.result == Result.Tuple || plan.result == Result.LayoutTuple) {
+        const base = astExpressionCount(writer)
+
+        appendAstOperandRows(writer, {
+            tags: [ExpressionsKind.Tuple],
+            offsets: [0],
+            tuple: [memory.u32Views(expressions)],
+            builtin_name: [],
+            builtin_arguments: [],
+            identifier: [],
+            address_of: [],
+            object_type_expr: [],
+            object_fields_start: [],
+            object_fields_len: []
+        })
+
+        const output: Output = {
+            result: plan.result,
+            tuple: base
+        }
+
+        return output
+    }
+
+    const output: Output = {
+        result: plan.result,
+        tuple: null
+    }
+
+    return output
 }

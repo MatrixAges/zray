@@ -1,4 +1,6 @@
-import type { BorrowedArgument, BorrowedObject, BorrowedTuple } from "lowering_host"
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { BorrowedArgument, Lowering } from "lowering_host"
+import type { U64Buffer } from "memory"
 import type { Input as Routing } from "../route"
 
 export type Input = {
@@ -10,14 +12,36 @@ export type Output = u32
 
 export type Object = {
     frame: BorrowedArgument,
-    object: BorrowedObject,
+    lowering: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
+    type_id: u32,
     evaluation: u32[],
     fields: u32[],
-    convert: bool
+    field_indices: u32[],
+    field_names: string[],
+    convert: bool,
+    cache_reads: U64Buffer
+}
+
+export type Observed = {
+    evaluated: u32[],
+    counts: u64[]
+}
+
+export type ObjectBorrow = {
+    source: Object,
+    observed: Observed,
+    values: u32[]
 }
 
 export type Tuple = {
     frame: BorrowedArgument,
-    tuple: BorrowedTuple,
+    lowering: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
+    type_id: u32,
     items: u32[]
 }

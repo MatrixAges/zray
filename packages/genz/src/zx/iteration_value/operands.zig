@@ -1,59 +1,51 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
-const evaluation = @import("../expressions/evaluate.zig");
-const Operand = @import("operand.zig");
+const publication = @import("../construction/publication.zig");
 const entry = @import("generated_lower_iteration_elements");
 const Bindings = @import("literals.zig").Bindings;
 pub const Observation = struct { context: *Context, counts: []u64 };
 
 const Frame = struct {
     lowering: *Lower,
-    allocator: std.mem.Allocator,
-    bindings: Bindings,
     observation: ?Observation,
-    values: []u32 = &.{},
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
 };
 
 pub fn lower(lowering: *Lower, allocator: std.mem.Allocator, bindings: Bindings, operands: []const ir.ExprId, fields: ?[]const u32, observation: ?Observation) Lower.Error![]const u32 {
-    var frame: Frame = .{ .lowering = lowering, .allocator = allocator, .bindings = bindings, .observation = observation };
+    var names = bindings.names;
+    var values = bindings.values;
+    var references = bindings.references;
+    var field_values: []u32 = if (fields) |items| try allocator.alloc(u32, items.len) else &.{};
+    var origin: publication.OriginBuffer = undefined;
+    var frame: Frame = .{ .lowering = lowering, .observation = observation };
 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
+        .origin = @ptrCast(&origin),
         .batch = @ptrCast(&frame),
         .operands = @ptrCast(operands),
         .fields = fields,
+        .observe = observation != null,
+        .names = @ptrCast(&names),
+        .values = @ptrCast(&values),
+        .references = @ptrCast(&references),
+        .field_values = @ptrCast(&field_values),
     };
 
-    try evaluation.execute(entry, &input);
+    entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
 
-    return frame.values;
+    return field_values;
 }
 
-pub fn publishIterationOperand(handle: *anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
+pub fn publishIterationOperand(handle: *anyopaque, index: u64, item: u32, reference: u32) Lower.Error!void {
     const frame = Frame.borrow(handle);
-    const operand = try Operand.bind(frame.lowering, @fromBackingInt(value));
-    const ordinal: usize = @intCast(index);
+    const source = frame.observation.?;
+    const context = source.context;
 
-    frame.bindings.set(ordinal, operand);
-
-    if (frame.observation) |source| {
-        const context = source.context;
-        source.counts[ordinal] = try context.cache.observe(frame.lowering.allocator, @fromBackingInt(item), operand.reference, null, &context.reads);
-    }
-}
-
-pub fn prepareIterationFields(handle: *anyopaque, length: u64) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.values = try frame.allocator.alloc(u32, @intCast(length));
-}
-
-pub fn publishIterationField(handle: *anyopaque, index: u64, value: u32) void {
-    Frame.borrow(handle).values[@intCast(index)] = value;
+    source.counts[@intCast(index)] = try context.cache.observe(frame.lowering.allocator, @fromBackingInt(item), @fromBackingInt(reference), null, &context.reads);
 }

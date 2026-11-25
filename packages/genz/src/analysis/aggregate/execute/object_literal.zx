@@ -1,0 +1,46 @@
+import {
+    appendAstObjectFields,
+    appendAstObjectRows,
+    astExpressionCount,
+    astFieldCount
+} from "ast_rows"
+
+import objectExpression from "../object/expression"
+import selectFields from "../object/fields"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    type_expr: u32,
+    names: string[],
+    indices: u32[],
+    values: u32[]
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { writer, type_expr, names, indices, values } = in
+
+    const base = astExpressionCount(writer)
+    const first = astFieldCount(writer)
+
+    const fields = selectFields({
+        names,
+        first: 0,
+        indices,
+        values
+    })
+
+    const expression = objectExpression({
+        type_expr,
+        first,
+        count: fields.name.length
+    })
+
+    appendAstObjectFields(writer, fields)
+    appendAstObjectRows(writer, expression)
+
+    return base
+}

@@ -1,48 +1,86 @@
+import { appendAstIdentifierRows, readAstOrigin } from "ast_rows"
 import host from "lowering_host"
+import memory from "memory"
+import { requireAllocation } from "memory"
 
+import identifierRows from "../../../aggregate/binding/identifier_rows"
+import reference from "../../../aggregate/binding/reference"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { IterationOperands, Lowering } from "lowering_host"
+import type { U32Buffer, U8ListBuffer } from "memory"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
     batch: IterationOperands,
     operands: u32[],
-    fields?: u32[]
+    fields?: u32[],
+    observe: bool,
+    names: U8ListBuffer,
+    values: U32Buffer,
+    references: U32Buffer,
+    field_values: U32Buffer
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, batch, operands, fields } = in
+    const {
+        frame,
+        writer,
+        origin,
+        batch,
+        operands,
+        fields,
+        observe,
+        names,
+        values,
+        references,
+        field_values
+    } = in
 
-    const bound = loop({
-        index: 0
-    }, {
-        while: state => state.index < operands.length,
-        next: state => {
-            const item = operands[state.index]
+    const bound_operands = loop(0, {
+        while: index => index < operands.length,
+        next: index => {
+            const item = operands[index]
             const value = host.lowerExpression(frame, item, false, null)
+            const current = readAstOrigin(writer, origin)
 
-            host.publishIterationOperand(batch, state.index, item, value)
-            state.index = state.index + 1
-        },
-        return: state => state.index
+            const bound = reference({
+                expression_base: current.expression_base,
+                serial: current.serial
+            })
+
+            requireAllocation(bound.valid)
+
+            const name = host.retainLoweringText(frame, bound.name)
+
+            appendAstIdentifierRows(writer, identifierRows(name))
+            host.finishGeneratedAst(frame, bound.serial, false)
+            memory.writeU8List(names, index, name)
+            memory.writeU32(values, index, value)
+            memory.writeU32(references, index, bound.root)
+
+            if (observe) {
+                host.publishIterationOperand(batch, index, item, bound.root)
+            }
+
+            index += 1
+        }
     })
 
     if (fields != null) {
-        host.prepareIterationFields(batch, fields.length)
+        const lowered = loop(0, {
+            while: index => index < fields.length,
+            next: index => {
+                const value = host.lowerExpression(frame, fields[index], false, null)
 
-        const lowered = loop({
-            index: 0
-        }, {
-            while: state => state.index < fields.length,
-            next: state => {
-                const value =
-                    host.lowerExpression(frame, fields[state.index], false, null)
+                memory.writeU32(field_values, index, value)
 
-                host.publishIterationField(batch, state.index, value)
-                state.index = state.index + 1
-            },
-            return: state => state.index
+                index += 1
+            }
         })
     }
 }

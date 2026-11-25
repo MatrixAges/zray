@@ -2,18 +2,23 @@ import host from "lowering_host"
 
 import type { Object as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const published = loop(0, {
-        while: index => index < in.fields.length,
-        next: index => {
+    const initial: u32[] = []
+
+    return loop({
+        values: initial,
+        index: 0
+    }, {
+        while: state => state.index < in.fields.length,
+        next: state => {
             const value =
-                host.lowerExistingBorrowedOperand(in.frame, in.fields[index])
+                host.lowerExistingBorrowedOperand(in.frame, in.fields[state.index])
 
-            host.publishBorrowedField(in.object, index, value)
-
-            index += 1
-        }
+            state.values = state.values.push(value)[0]
+            state.index += 1
+        },
+        return: state => state.values
     })
 }

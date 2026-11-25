@@ -1,0 +1,52 @@
+import { readAstOrigin, retainAstIds } from "ast_rows"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import bindOperand from "../../../../aggregate/execute/bind_operand"
+
+import type { Publication as Output } from "../model"
+import type { Tuple as Input } from "./model"
+
+export default function (in: Input): Output {
+    const initial: u32[] = []
+
+    const values = loop({
+        values: initial,
+        index: 0
+    }, {
+        while: state => state.index < in.items.length,
+        next: state => {
+            const value = host.lowerBorrowedOperand(in.frame, in.items[state.index])
+
+            const bound = bindOperand({
+                frame: in.lowering,
+                writer: in.writer,
+                origin: in.origin,
+                sequence: in.sequence,
+                value
+            })
+
+            state.values = state.values.push(bound)[0]
+            state.index += 1
+        },
+        return: state => state.values
+    })
+
+    const retained = retainAstIds(in.writer, values)
+    const layout = host.materializeType(in.lowering, in.type_id, StoredType.AbiLayout)
+    const current = readAstOrigin(in.writer, in.origin)
+
+    const publication: Output = {
+        writer: in.writer,
+        frame: in.lowering,
+        sequence: in.sequence,
+        value: 0,
+        layout,
+        values: retained,
+        expression_base: current.expression_base,
+        serial: current.serial,
+        object: null
+    }
+
+    return publication
+}

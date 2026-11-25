@@ -1,0 +1,30 @@
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { Lowering, ObjectFrame } from "lowering_host"
+import type { U64Buffer } from "memory"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
+    batch: ObjectFrame,
+    id: u32,
+    type_id: u32,
+    layout_only: bool,
+    state_active: bool,
+    selected: bool,
+    loop_states?: bool[],
+    borrowed?: bool[],
+    projection_seed?: u32,
+    projection_layout?: u32,
+    evaluation: u32[],
+    field_indices: u32[],
+    fields: u32[],
+    field_names: string[],
+    cache_reads: U64Buffer
+}
+
+export type Observed = {
+    references: u32[],
+    prior: u64[]
+}

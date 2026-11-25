@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Argument" />
+
+    <Args in={Argument.Tuple} out={Argument.Output} />
+
+    <Call fn="prepare_tuple" in={$in} />
+
+    <Call module="../build" />
+
+    <Return value={$ctx.build} />
+</Module>

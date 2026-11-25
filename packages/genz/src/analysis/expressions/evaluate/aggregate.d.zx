@@ -1,48 +1,34 @@
 export declare function publishSequenceElement(
     batch: SequenceFrame,
-    index: u64,
     item: u32,
-    value: u32
-): void throws { OutOfMemory }
-
-export declare function reserveObjectOperand(batch: ObjectFrame, index: u64): void
-    throws { OutOfMemory }
+    bound: u32,
+    list: bool
+): u32 throws { OutOfMemory }
 
 export declare function publishObjectOperand(
-    batch: ObjectFrame,
-    index: u64,
+    frame: Lowering,
     item: u32,
-    value: u32
-): void throws { OutOfMemory }
-
-export declare function publishObjectOperands(batch: ObjectFrame): void
-    throws { OutOfMemory }
+    reference: u32
+): u64 throws { OutOfMemory }
 
 export declare function prepareObjectFields(batch: ObjectFrame): u32?
     throws { OutOfMemory }
 
 export declare function publishObjectField(
     batch: ObjectFrame,
-    index: u64,
     item: u32,
-    value: u32
-): void throws { OutOfMemory }
+    bound: u32
+): u32 throws { OutOfMemory }
 
-export declare function finishObject(batch: ObjectFrame, updated: u32?): u32
-    throws { OutOfMemory }
+export declare function finishObject(
+    frame: Lowering,
+    type_id: u32,
+    value: u32
+): u32 throws { OutOfMemory }
 
 export declare function publishIterationOperand(
     batch: IterationOperands,
     index: u64,
     item: u32,
-    value: u32
+    reference: u32
 ): void throws { OutOfMemory }
-
-export declare function prepareIterationFields(batch: IterationOperands, length: u64): void
-    throws { OutOfMemory }
-
-export declare function publishIterationField(
-    batch: IterationOperands,
-    index: u64,
-    value: u32
-): void

@@ -1,0 +1,92 @@
+import {
+    appendAstBindingRows,
+    appendAstIdentifierRows,
+    astExpressionCount,
+    readAstOrigin
+} from "ast_rows"
+import host from "lowering_host"
+
+import { operand_prefix } from "../../../../../ast/context/const"
+import fresh from "../../../../../ast/fresh"
+import identifierRows from "../../../../aggregate/binding/identifier_rows"
+import bindings from "../../../../aggregate/operands/bindings"
+
+import type { Input as ObjectInput, Observed } from "./model"
+
+export type Input = ObjectInput.Pick(
+    "frame",
+    "writer",
+    "origin",
+    "sequence",
+    "evaluation"
+)
+
+export type Output = Observed
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, sequence, evaluation } = in
+
+    const names: u8[][] = []
+    const values: u32[] = []
+    const references: u32[] = []
+    const prior: u64[] = []
+
+    const observed = loop({
+        names,
+        values,
+        references,
+        prior,
+        index: 0
+    }, {
+        while: state => state.index < evaluation.length,
+        next: state => {
+            const current = readAstOrigin(writer, origin)
+
+            const reserved = fresh({
+                serial: current.serial,
+                prefix: operand_prefix
+            })
+
+            const name = host.retainLoweringText(frame, reserved.name)
+
+            host.setLoweringSerial(frame, reserved.serial)
+
+            const item = evaluation[state.index]
+            const value = host.lowerExpression(frame, item, false, null)
+            const reference = astExpressionCount(writer)
+
+            appendAstIdentifierRows(writer, identifierRows(name))
+
+            const count = host.publishObjectOperand(frame, item, reference)
+
+            state.names = state.names.push(name)[0]
+            state.values = state.values.push(value)[0]
+            state.references = state.references.push(reference)[0]
+            state.prior = state.prior.push(count)[0]
+            state.index += 1
+        },
+        return: state => state.omit(["index"])
+    })
+
+    if (observed.names.length != 0) {
+        const bound = bindings({
+            names: observed.names,
+            values: observed.values
+        })
+
+        appendAstBindingRows(writer, sequence, {
+            ...bound,
+            variable_name: [],
+            variable_type_expr: [],
+            variable_value: [],
+            variable_exported: [],
+            break_value_label: [],
+            break_value_value: []
+        })
+    }
+
+    return {
+        references: observed.references,
+        prior: observed.prior
+    }
+}

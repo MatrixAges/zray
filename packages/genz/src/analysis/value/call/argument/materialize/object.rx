@@ -4,10 +4,18 @@
     <Args in={Argument.Object} out={Argument.Output} />
 
     <Call fn="evaluation" in={$in} />
-    <Call fn="index.prepareBorrowedFields" in={$in.object} />
     <Call fn="fields" in={$in} />
-    <Call fn="index.retireBorrowedOperands" in={$in.object} />
-    <Call fn="index.finishBorrowedObject" in={$in.object} />
 
-    <Return value={$ctx.finishBorrowedObject} />
+    <Call
+        fn="prepare_object"
+        in={{
+            source: $in,
+            observed: $ctx.evaluation,
+            values: $ctx.fields
+        }}
+    />
+
+    <Call module="../build" />
+
+    <Return value={$ctx.build} />
 </Module>

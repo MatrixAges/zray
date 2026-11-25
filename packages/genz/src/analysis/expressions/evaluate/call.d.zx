@@ -69,13 +69,6 @@ export declare function borrowedCallOperand(frame: BorrowedArgument): u32
 export declare function emitBorrowedCall(frame: BorrowedArgument, value: u32): u32
     throws { OutOfMemory }
 
-export declare function observeBorrowedOperand(
-    object: BorrowedObject,
-    index: u64,
-    id: u32,
-    value: u32
-): u32 throws { OutOfMemory }
-
 export declare function borrowedOperandCacheValue(
     frame: BorrowedArgument,
     id: u32,
@@ -87,30 +80,6 @@ export declare function cacheBorrowedOperand(
     id: u32,
     value: u32
 ): void throws { OutOfMemory }
-
-export declare function prepareBorrowedFields(object: BorrowedObject): void
-    throws { OutOfMemory }
-
-export declare function publishBorrowedField(
-    object: BorrowedObject,
-    index: u64,
-    value: u32
-): void
-
-export declare function retireBorrowedOperands(object: BorrowedObject): void
-    throws { OutOfMemory }
-
-export declare function finishBorrowedObject(object: BorrowedObject): u32
-    throws { OutOfMemory }
-
-export declare function publishBorrowedTupleElement(
-    tuple: BorrowedTuple,
-    index: u64,
-    value: u32
-): void throws { OutOfMemory }
-
-export declare function finishBorrowedTuple(tuple: BorrowedTuple): u32
-    throws { OutOfMemory }
 
 export declare function startParallelBranch(
     group: ParallelFrame,

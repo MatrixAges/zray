@@ -1,0 +1,86 @@
+import integers from "std:integer"
+import { appendAstBindingRows } from "ast_rows"
+import memory from "memory"
+import { requireAllocation } from "memory"
+
+import header from "../../../ast/statements/header"
+import { StatementsKind } from "../../../printer/model/statements"
+
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { U64Buffer } from "memory"
+
+export type Input = {
+    writer: AstWriter,
+    sequence: AstSequence,
+    evaluation: u32[],
+    prior: u64[],
+    references: u32[],
+    cache_reads: U64Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, sequence, evaluation, prior, references, cache_reads } = in
+
+    if (evaluation.length == 0) {
+        return
+    }
+
+    const tags: StatementsKind[] = []
+    const offsets: u32[] = []
+    const discard: u32[] = []
+
+    const retired = loop({
+        tags,
+        offsets,
+        discard,
+        valid: true,
+        index: 0
+    }, {
+        while: state => state.valid && state.index < evaluation.length,
+        next: state => {
+            const index = state.index
+            const count =
+                memory.readU64(cache_reads, integers.widen(evaluation[index]))
+
+            if (count == prior[index]) {
+                const next = header({
+                    tags: state.tags,
+                    offsets: state.offsets,
+                    base: 0,
+                    kind: StatementsKind.Discard,
+                    offset: state.discard.length
+                })
+
+                state.tags = next.tags
+                state.offsets = next.offsets
+                state.valid = next.valid
+                state.discard = state.discard.push(references[index])[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.omit(["index"])
+    })
+
+    requireAllocation(retired.valid)
+
+    if (retired.tags.length != 0) {
+        appendAstBindingRows(writer, sequence, {
+            tags: retired.tags,
+            offsets: retired.offsets,
+            discard: retired.discard,
+            constant_name: [],
+            constant_type_expr: [],
+            constant_value: [],
+            constant_exported: [],
+            variable_name: [],
+            variable_type_expr: [],
+            variable_value: [],
+            variable_exported: [],
+            break_value_label: [],
+            break_value_value: []
+        })
+    }
+}

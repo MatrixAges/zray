@@ -1,6 +1,5 @@
 const std = @import("std");
 const node = @import("../../node.zig");
-const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const object_fields = @import("../aggregate/object.zig");
@@ -25,47 +24,26 @@ pub fn lower(self: *Lower, body: anytype, source: Source) Lower.Error!node.Expre
         return self.builder.expression(.{ .address_of = reference });
     }
 
+    std.debug.assert(source == .value);
+
     const entry = @import("generated_value_argument_borrow");
     const Input = std.meta.Child(entry.Input);
-    const Object = std.meta.Child(@typeInfo(@FieldType(Input, "object")).optional.child);
-    const Selection = std.meta.Child(@FieldType(Object, "selection"));
-
-    const selection: Selection = if (source == .object) .{
-        .names = source.object.request.names,
-        .first = 0,
-        .indices = source.object.request.indices,
-        .values = source.object.request.fields,
-    } else undefined;
-
-    const object: Object = if (source == .object) .{
-        .type_expr = @backingInt(source.object.request.type_expr),
-        .first = @intCast(self.builder.nodes.field_columns.count()),
-        .selection = &selection,
-    } else undefined;
 
     const input: Input = .{
         .writer = @ptrCast(self),
         .frame = @ptrCast(self),
         .sequence = @ptrCast(body),
-        .value = if (source == .value) @backingInt(source.value) else 0,
-        .layout = if (source == .tuple) @backingInt(source.tuple.layout) else null,
-        .values = if (source == .tuple) view.slice(@FieldType(Input, "values"), source.tuple.values) else &.{},
+        .value = @backingInt(source.value),
+        .layout = null,
+        .values = &.{},
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .serial = self.serial,
-        .object = if (source == .object) &object else null,
+        .object = null,
     };
 
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
-    var buffered: std.heap.BufferFirstAllocator = undefined;
-
-    const temporary = if (source == .object) object_allocator: {
-        buffered = .init(&buffer, source.object.scratch);
-
-        break :object_allocator buffered.allocator();
-    } else memory.allocator();
-
-    const root = entry.executeIn(temporary, &input) catch |err| return failure(err);
+    const root = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
     return @fromBackingInt(root);
 }

@@ -1,9 +1,0 @@
-import type { AstWriter } from "ast_rows"
-import type { Input as Object } from "./model"
-
-export type Input = Object & {
-    writer: AstWriter,
-    base: u32
-}
-
-export { appendAstObjectFields, appendAstObjectRows } from "ast_rows"

@@ -1,106 +1,124 @@
 const std = @import("std");
 const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
+const publication = @import("../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const Statements = if (generated) Sequence else std.ArrayList(node.Statement);
-const entry = @import("generated_aggregate_sequence");
-
-const Policy = if (generated) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload else struct {
-    element: enum { Direct, List, Pointer },
-    result: enum { List, Tuple, LayoutTuple, Template },
-};
 
 const Frame = struct {
     lowering: *Lower,
-    body: *Statements,
-    expressions: []node.ExpressionId,
+    body: *Sequence,
     type_id: ir.TypeId,
-    element: @FieldType(Policy, "element"),
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
+    }
 };
 
 pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []const ir.ExprId, layout: bool) Lower.Error!node.ExpressionId {
-    const plan = policy(self, id, value, layout);
+    if (!generated) return seedLower(self, id, value, items, layout);
 
-    if (plan.result == .List) {
+    if (value.value == .list) {
         if (try @import("../static_list.zig").lower(self, value, items)) |literal| {
             return @import("../state_value/list.zig").wrap(self, value.type_id, literal, false);
         }
     }
 
-    var body: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+    var body = self.builder.statementSequence(self.workspace);
 
-    defer if (generated) body.deinit();
+    defer body.deinit();
 
     const expressions = try self.allocator.alloc(node.ExpressionId, items.len);
-    var frame: Frame = .{ .lowering = self, .body = &body, .expressions = expressions, .type_id = value.type_id, .element = plan.element };
+    var raw_expressions: []u32 = @as([*]u32, @ptrCast(expressions.ptr))[0..expressions.len];
+    var frame: Frame = .{ .lowering = self, .body = &body, .type_id = value.type_id };
+    var origin: publication.OriginBuffer = undefined;
+    const execute = @import("generated_lower_sequence_elements");
+    const Input = std.meta.Child(execute.Input);
+    const selected = value.value == .tuple and self.state_active and self.state_plan.selected[@backingInt(value.type_id)];
 
-    if (generated) {
-        const execute = @import("generated_lower_sequence_elements");
-        const input: std.meta.Child(execute.Input) = .{ .frame = @ptrCast(self), .batch = @ptrCast(&frame), .items = @ptrCast(items) };
+    const input: Input = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .sequence = @ptrCast(&body),
+        .batch = @ptrCast(&frame),
+        .kind = zx.columns.view(@FieldType(Input, "kind"), self.program.expressions.kinds[@backingInt(id)]),
+        .layout = layout,
+        .state_active = self.state_active,
+        .selected = selected,
+        .items = @ptrCast(items),
+        .expressions = @ptrCast(&raw_expressions),
+    };
 
-        try @import("../expressions/evaluate.zig").execute(execute, &input);
-    } else {
-        for (items, 0..) |item, index| try bindElement(&frame, index, item, try self.expr(item));
-    }
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    const result = switch (plan.result) {
-        .Tuple, .LayoutTuple => tuple: {
-            const tuple = try @import("literals.zig").tuple(self, expressions);
+    defer scratch.deinit();
 
-            break :tuple if (plan.result == .LayoutTuple) try @import("../state_value/origin.zig").tuple(self, value.type_id, tuple) else try self.construct(value.type_id, tuple);
-        },
-        .List => list: {
-            const list = try @import("list.zig").literal(self, value.type_id, expressions);
+    const output = execute.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err);
 
-            break :list try @import("../state_value/list.zig").wrap(self, value.type_id, list, false);
-        },
+    const result = switch (output.result) {
+        .Tuple => try self.construct(value.type_id, @fromBackingInt(output.tuple.?)),
+        .LayoutTuple => try @import("../state_value/origin.zig").tuple(self, value.type_id, @fromBackingInt(output.tuple.?)),
+        .List => try @import("../state_value/list.zig").wrap(self, value.type_id, try @import("list.zig").literal(self, value.type_id, expressions), false),
         .Template => try @import("../templates.zig").lower(self, items, expressions),
     };
 
     return aggregate.finish(self, &body, result);
 }
 
-pub fn publishSequenceElement(handle: *anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
-    const frame: *Frame = @ptrCast(@alignCast(handle));
-
-    return bindElement(frame, @intCast(index), @fromBackingInt(item), @fromBackingInt(value));
-}
-
-fn bindElement(frame: *Frame, index: usize, item: ir.ExprId, value: node.ExpressionId) Lower.Error!void {
+pub fn publishSequenceElement(handle: *anyopaque, item: u32, bound: u32, is_list: bool) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
     const self = frame.lowering;
-    const bound = try aggregate.bind(self, frame.body, value);
+    const expression: node.ExpressionId = @fromBackingInt(bound);
 
-    frame.expressions[index] = switch (frame.element) {
-        .Direct => bound,
-        .List => try @import("../state_value/elements.zig").write(self, frame.body, frame.type_id, bound),
-        .Pointer => try @import("../state_value/conversion.zig").convert(self, frame.body, self.program.expression(item).type_id, bound, .pointer),
-    };
+    return @backingInt(if (is_list)
+        try @import("../state_value/elements.zig").write(self, frame.body, frame.type_id, expression)
+    else
+        try @import("../state_value/conversion.zig").convert(self, frame.body, self.program.expression(@fromBackingInt(item)).type_id, expression, .pointer));
 }
 
-fn policy(self: *const Lower, id: ir.ExprId, value: ir.ExpressionRow, layout: bool) Policy {
+fn seedLower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []const ir.ExprId, layout: bool) Lower.Error!node.ExpressionId {
+    _ = id;
+
     const selected = value.value == .tuple and self.state_active and self.state_plan.selected[@backingInt(value.type_id)];
 
-    if (!generated) return switch (value.value) {
-        .list => .{ .element = .List, .result = .List },
-        .tuple => .{ .element = if (self.state_active and !selected) .Pointer else .Direct, .result = if (layout) .LayoutTuple else .Tuple },
-        .template => .{ .element = .Direct, .result = .Template },
+    if (value.value == .list) {
+        if (try @import("../static_list.zig").lower(self, value, items)) |literal| {
+            return @import("../state_value/list.zig").wrap(self, value.type_id, literal, false);
+        }
+    }
+
+    var body: std.ArrayList(node.Statement) = .empty;
+    const expressions = try self.allocator.alloc(node.ExpressionId, items.len);
+
+    for (items, 0..) |item, index| {
+        const bound = try aggregate.bind(self, &body, try self.expr(item));
+
+        expressions[index] = switch (value.value) {
+            .list => try @import("../state_value/elements.zig").write(self, &body, value.type_id, bound),
+            .tuple => if (self.state_active and !selected)
+                try @import("../state_value/conversion.zig").convert(self, &body, self.program.expression(item).type_id, bound, .pointer)
+            else
+                bound,
+            .template => bound,
+            else => unreachable,
+        };
+    }
+
+    const result = switch (value.value) {
+        .tuple => tuple: {
+            const tuple = try self.builder.expression(.{ .tuple = expressions });
+
+            break :tuple if (layout) try @import("../state_value/origin.zig").tuple(self, value.type_id, tuple) else try self.construct(value.type_id, tuple);
+        },
+        .list => try @import("../state_value/list.zig").wrap(self, value.type_id, try @import("list.zig").literal(self, value.type_id, expressions), false),
+        .template => try @import("../templates.zig").lower(self, items, expressions),
         else => unreachable,
     };
 
-    const Input = std.meta.Child(entry.Input);
-
-    const input: Input = .{
-        .kind = zx.columns.view(@FieldType(Input, "kind"), self.program.expressions.kinds[@backingInt(id)]),
-        .layout = layout,
-        .state_active = self.state_active,
-        .selected = selected,
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+    return aggregate.finish(self, &body, result);
 }

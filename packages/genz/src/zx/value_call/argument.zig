@@ -7,7 +7,6 @@ const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const conversion = @import("../state_value/conversion.zig");
 const evaluation = @import("../expressions/evaluate.zig");
-const borrowed_argument = @import("borrowed_argument.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
 
@@ -16,15 +15,6 @@ pub const Frame = struct {
     body: *Sequence,
     id: ir.ExprId,
     pub fn borrow(handle: *const anyopaque) *const Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-const Tuple = struct {
-    context: *const Frame,
-    values: []node.ExpressionId,
-    type_id: ir.TypeId,
-    fn borrow(handle: *const anyopaque) *const Tuple {
         return @ptrCast(@alignCast(handle));
     }
 };
@@ -114,29 +104,18 @@ pub fn materializeBorrowedTuple(handle: *const anyopaque) Error!u32 {
     const self = context.lowering;
     const expression = self.program.expression(context.id);
     const items = expression.value.tuple;
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
+    const entry = @import("generated_materialize_borrowed_tuple");
 
-    const tuple: Tuple = .{
-        .context = context,
-        .values = try self.allocator.alloc(node.ExpressionId, items.len),
-        .type_id = expression.type_id,
+    const input: std.meta.Child(entry.Input) = .{
+        .frame = @ptrCast(handle),
+        .lowering = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .sequence = @ptrCast(context.body),
+        .type_id = @backingInt(expression.type_id),
+        .items = @ptrCast(items),
     };
 
-    const entry = @import("generated_materialize_borrowed_tuple");
-    const input: std.meta.Child(entry.Input) = .{ .frame = @ptrCast(handle), .tuple = @ptrCast(&tuple), .items = @ptrCast(items) };
-
-    return @backingInt(try evaluation.invoke(entry, &input));
-}
-
-pub fn publishBorrowedTupleElement(handle: *const anyopaque, index: u64, value: u32) Error!void {
-    const frame = Tuple.borrow(handle);
-
-    frame.values[@intCast(index)] = try aggregate.bind(frame.context.lowering, frame.context.body, @fromBackingInt(value));
-}
-
-pub fn finishBorrowedTuple(handle: *const anyopaque) Error!u32 {
-    const frame = Tuple.borrow(handle);
-    const self = frame.context.lowering;
-    const layout = try @import("../types.zig").get(self, self.abi_layouts, frame.type_id);
-
-    return @backingInt(try borrowed_argument.lower(self, frame.context.body, .{ .tuple = .{ .layout = layout, .values = frame.values } }));
+    return @backingInt(try evaluation.invokeWith(self, entry, &input));
 }
