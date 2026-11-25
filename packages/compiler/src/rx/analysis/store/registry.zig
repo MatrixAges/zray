@@ -111,12 +111,12 @@ const Load = struct {
         }
     }
 
-    fn borrow(handle: *const anyopaque) *Load {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Load {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn bindStoreRegistryAliases(handle: *const anyopaque, row: u64) Error!void {
+pub fn bindStoreRegistryAliases(handle: *anyopaque, row: u64) Error!void {
     const work = Load.borrow(handle);
     const index: usize = @intCast(row);
 
@@ -126,7 +126,7 @@ pub fn bindStoreRegistryAliases(handle: *const anyopaque, row: u64) Error!void {
     };
 }
 
-pub fn compileStoreRegistryEntry(handle: *const anyopaque, row: u64) Error![]const u8 {
+pub fn compileStoreRegistryEntry(handle: *anyopaque, row: u64) Error![]const u8 {
     const work = Load.borrow(handle);
     const index: usize = @intCast(row);
     const source = &work.sources[index];
@@ -161,7 +161,7 @@ const Publication = struct {
     natives: zx.memory.WriteColumn = undefined,
     fn open(work: *Publication, row: usize) std.mem.Allocator.Error![]Store.Object {
         const definition = &work.definitions[row];
-        const objects = if (work.retained) try work.allocator.dupe(Store.Object, definition.objects) else @constCast(definition.objects);
+        const objects = if (work.retained) try work.allocator.dupe(Store.Object, definition.objects) else definition.objects;
 
         definition.types = work.contract.types;
         definition.objects = objects;
@@ -170,8 +170,8 @@ const Publication = struct {
     }
 };
 
-pub fn openStoreRegistryPublication(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!u64 {
-    const work: *Publication = @ptrCast(@alignCast(@constCast(handle)));
+pub fn openStoreRegistryPublication(handle: *anyopaque, row: u64) std.mem.Allocator.Error!u64 {
+    const work: *Publication = @ptrCast(@alignCast(handle));
     const objects = try work.open(@intCast(row));
 
     work.types = zx.memory.borrowNestedWriteColumn(zx.ir.TypeTable, &.{ "initial", "types" }, objects);

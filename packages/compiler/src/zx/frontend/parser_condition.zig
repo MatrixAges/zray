@@ -46,22 +46,17 @@ pub fn parse(parser: *Parser) zx.Error!*const Expression {
         if (connector == .nand_value or connector == .nor_value) result = try negate(parser, result);
     }
 
-    const value = @constCast(result);
+    result.span.start = start;
 
-    value.span.start = start;
-
-    return value;
+    return result;
 }
 
-fn negate(parser: *Parser, value: *const Expression) zx.Error!*const Expression {
+fn negate(parser: *Parser, value: *const Expression) zx.Error!*Expression {
     return mark(parser, try parser.make(value.span.start, .{ .unary = .{ .operator = .not, .operand = value } }), value.condition_terms);
 }
 
-fn mark(parser: *Parser, value: *const Expression, terms: u16) zx.Error!*const Expression {
+fn mark(parser: *Parser, result: *Expression, terms: u16) zx.Error!*Expression {
     _ = parser;
-
-    const result = @constCast(value);
-
     result.condition_list = true;
     result.condition_terms = terms;
 

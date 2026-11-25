@@ -2,17 +2,17 @@ export type SelectionGraph = opaque
 
 export type SymbolicValue = opaque
 
-export type SymbolicTarget = opaque
+export type SymbolicTarget = mutable_opaque
 
-export type SymbolicSession = opaque
+export type SymbolicSession = mutable_opaque
 
-export type SymbolicBlock = opaque
+export type SymbolicBlock = mutable_opaque
 
-export type SymbolicExpression = opaque
+export type SymbolicExpression = mutable_opaque
 
-export type SymbolicInvocation = opaque
+export type SymbolicInvocation = mutable_opaque
 
-export type SymbolicCallKey = opaque
+export type SymbolicCallKey = mutable_opaque
 
 export enum SymbolicOperand {
     First,

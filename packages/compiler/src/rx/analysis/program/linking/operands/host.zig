@@ -58,7 +58,7 @@ pub const Frame = struct {
     }
 };
 
-pub fn bindExpressionOperands(handle: *const anyopaque, index: u32, route: Route, count: u32, evaluation_count: u32) error{InvalidModule}!void {
+pub fn bindExpressionOperands(handle: *anyopaque, index: u32, route: Route, count: u32, evaluation_count: u32) error{InvalidModule}!void {
     const state = State.borrow(handle);
     const frame = &state.operands;
     const builder = state.builder;
@@ -109,7 +109,7 @@ fn bind(group: anytype, storage: *zx.ir.ExpressionStorage, key: Column, count: u
     }
 }
 
-pub fn expressionOperandWords(handle: *const anyopaque, key: Column) []const u32 {
+pub fn expressionOperandWords(handle: *anyopaque, key: Column) []const u32 {
     const data = &State.borrow(handle).program.expressions;
 
     return switch (key) {
@@ -120,7 +120,7 @@ pub fn expressionOperandWords(handle: *const anyopaque, key: Column) []const u32
     };
 }
 
-pub fn expressionOperandBytes(handle: *const anyopaque, key: Column) []const u8 {
+pub fn expressionOperandBytes(handle: *anyopaque, key: Column) []const u8 {
     const data = &State.borrow(handle).program.expressions;
 
     return switch (key) {

@@ -91,7 +91,7 @@ pub const Frame = struct {
         };
     }
 
-    pub fn bindValidation(self: *Frame, graph: *Graph, handle: *const anyopaque, resolver: @FieldType(Validation, "resolver")) void {
+    pub fn bindValidation(self: *Frame, graph: *Graph, handle: *anyopaque, resolver: @FieldType(Validation, "resolver")) void {
         const edges = graph.pending.assignments.slice();
 
         self.spans = edges.items(.span);
@@ -130,8 +130,8 @@ pub const Frame = struct {
         };
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -139,11 +139,11 @@ fn child(comptime T: type, comptime field: []const u8) type {
     return std.meta.Child(@FieldType(T, field));
 }
 
-pub fn assignmentRevision(handle: *const anyopaque) u64 {
+pub fn assignmentRevision(handle: *anyopaque) u64 {
     return Frame.borrow(handle).graph.revision;
 }
 
-pub fn beginInitialAssignmentPayloads(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
+pub fn beginInitialAssignmentPayloads(handle: *anyopaque) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
     frame.initial = try frame.workspace.allocator().alloc(u32, frame.graph.nodes.len);
     frame.active = frame.initial;
@@ -151,7 +151,7 @@ pub fn beginInitialAssignmentPayloads(handle: *const anyopaque) std.mem.Allocato
     return frame.initial.len;
 }
 
-pub fn beginRegisteredAssignmentPayloads(handle: *const anyopaque, first: u64) std.mem.Allocator.Error!u64 {
+pub fn beginRegisteredAssignmentPayloads(handle: *anyopaque, first: u64) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
     const count = frame.graph.nodes.len;
     frame.registered = try frame.workspace.allocator().alloc(u32, count - @as(usize, @intCast(first)));
@@ -160,7 +160,7 @@ pub fn beginRegisteredAssignmentPayloads(handle: *const anyopaque, first: u64) s
     return count;
 }
 
-pub fn reserveAssignmentClasses(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveAssignmentClasses(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const allocator = frame.workspace.allocator();
     const count = frame.graph.nodes.len;
@@ -174,20 +174,20 @@ pub fn reserveAssignmentClasses(handle: *const anyopaque) std.mem.Allocator.Erro
     frame.classes = .{ .groups = frame.groups, .representatives = frame.representatives, .ranks = frame.ranks, .storage = &frame.storage };
 }
 
-pub fn releaseAssignmentRanks(handle: *const anyopaque) void {
+pub fn releaseAssignmentRanks(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.workspace.allocator().free(frame.ranks);
 }
 
-pub fn reserveAssignmentDepths(handle: *const anyopaque) std.mem.Allocator.Error![]const u64 {
+pub fn reserveAssignmentDepths(handle: *anyopaque) std.mem.Allocator.Error![]const u64 {
     const frame = Frame.borrow(handle);
     frame.depths = try frame.workspace.allocator().alloc(u64, frame.graph.nodes.len);
 
     return frame.depths;
 }
 
-pub fn reserveDeferredAssignments(handle: *const anyopaque, words: u64) std.mem.Allocator.Error![]const u64 {
+pub fn reserveDeferredAssignments(handle: *anyopaque, words: u64) std.mem.Allocator.Error![]const u64 {
     const frame = Frame.borrow(handle);
 
     frame.deferred = try frame.workspace.allocator().alloc(u64, @intCast(words));
@@ -197,7 +197,7 @@ pub fn reserveDeferredAssignments(handle: *const anyopaque, words: u64) std.mem.
     return frame.deferred;
 }
 
-pub fn registerAssignmentPayload(handle: *const anyopaque, node: u32, value: u32, remaining: u64) zx.Error!u32 {
+pub fn registerAssignmentPayload(handle: *anyopaque, node: u32, value: u32, remaining: u64) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const registered = try Known.registerPayload(frame.graph, value, remaining, frame.node_spans[node]);
 
@@ -208,17 +208,17 @@ pub fn registerAssignmentPayload(handle: *const anyopaque, node: u32, value: u32
     return @backingInt(registered.node);
 }
 
-pub fn remainingAssignmentDepth(handle: *const anyopaque) u64 {
+pub fn remainingAssignmentDepth(handle: *anyopaque) u64 {
     return Frame.borrow(handle).remaining;
 }
 
-pub fn rejectAssignmentDepth(handle: *const anyopaque, node: u32) zx.Error!void {
+pub fn rejectAssignmentDepth(handle: *anyopaque, node: u32) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     return frame.graph.reporter.fail(.unsupported, frame.node_spans[node], "type inference nesting exceeds 256 levels");
 }
 
-pub fn mergeAssignmentClass(handle: *const anyopaque, row: u64, other: u32) zx.Error!void {
+pub fn mergeAssignmentClass(handle: *anyopaque, row: u64, other: u32) zx.Error!void {
     const frame = Frame.borrow(handle);
     const index: u32 = @intCast(row);
 
@@ -227,7 +227,7 @@ pub fn mergeAssignmentClass(handle: *const anyopaque, row: u64, other: u32) zx.E
     frame.refresh();
 }
 
-pub fn reserveAssignmentOptional(handle: *const anyopaque, node: u32, payload: u32, layers: u64) zx.Error!u32 {
+pub fn reserveAssignmentOptional(handle: *anyopaque, node: u32, payload: u32, layers: u64) zx.Error!u32 {
     const graph = Frame.borrow(handle).graph;
     const span = graph.nodes.items(.span)[node];
     const count = std.math.cast(usize, layers) orelse return error.OutOfMemory;

@@ -79,8 +79,8 @@ const Application = struct {
     candidate: Candidate = undefined,
     linked_source: Initializer = undefined,
     current: Initializer.Borrowed = undefined,
-    fn fromHandle(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn fromHandle(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
     fn prepare(self: *@This()) (names.Error || error{InvalidInitializer})!void {
         const options = self.options;
@@ -114,7 +114,7 @@ const Application = struct {
     }
 };
 
-pub fn readApplicationInitializer(handle: *const anyopaque, origin: Origin, index: u64) names.Error!?*const Candidate {
+pub fn readApplicationInitializer(handle: *anyopaque, origin: Origin, index: u64) names.Error!?*const Candidate {
     const frame = Application.fromHandle(handle);
     const options = frame.options;
     const position: usize = @intCast(index);
@@ -141,7 +141,7 @@ pub fn readApplicationInitializer(handle: *const anyopaque, origin: Origin, inde
     return &frame.candidate;
 }
 
-pub fn emitApplicationInitializer(handle: *const anyopaque, row: u64) modules.Error!void {
+pub fn emitApplicationInitializer(handle: *anyopaque, row: u64) modules.Error!void {
     const frame = Application.fromHandle(handle);
     const current = frame.current;
     const index: usize = @intCast(row);

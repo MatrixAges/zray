@@ -137,7 +137,7 @@ pub fn reusableSeed(self: *const Self, state: *const State, index: usize, positi
 }
 
 /// Records that `index` was analyzed, and whether the tables still match the earlier analysis after it.
-pub fn analyzed(self: *Self, state: *const State, index: usize, position: usize) void {
+pub fn analyzed(self: *Self, state: *State, index: usize, position: usize) void {
     const owner = self.record orelse return;
 
     if (comptime generated) return @import("history/record.zig").analyzed(self, state, owner, index, position);

@@ -42,7 +42,7 @@ pub fn at(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, spa
     const type_id = rows.items(.argument)[index];
     const type_kind = if (known) types.kinds.items[type_id] else 0;
     const type_argument = if (known) types.first.items[type_id] else 0;
-    const inferred = if (kind == .Object) Graph.Fields.fromValues(@ptrCast(rows.items(.members)[index])) else Graph.Fields{};
+    const inferred = if (kind == .Object) Graph.Fields.viewFromValues(@ptrCast(rows.items(.members)[index])) else Graph.Fields.View{};
 
     const members: Members = if (known and type_kind == @backingInt(TypeKind.object)) object: {
         const length = types.second.items[type_id];
@@ -94,14 +94,14 @@ fn fail(graph: *const Graph, route: anytype, span: zx.Span) zx.Error {
     });
 }
 
-fn append(graph: *Graph, index: usize, fields: Graph.Fields, name: []const u8, span: zx.Span) zx.Error!Graph.Id {
+fn append(graph: *Graph, index: usize, fields: Graph.Fields.View, name: []const u8, span: zx.Span) zx.Error!Graph.Id {
     const result = try graph.add(.unknown, span);
     const retained = try graph.types.allocator.dupe(u8, name);
-    const extended = try Graph.Fields.init(graph.allocator, fields.len + 1);
+    const extended = try Graph.Fields.init(&graph.field_buffers, graph.allocator, fields.len + 1);
 
     fields.copyTo(extended);
     extended.set(fields.len, retained, result);
-    graph.setShape(index, .{ .object = extended });
+    graph.setShape(index, .{ .object = extended.view() });
 
     graph.revision += 1;
 

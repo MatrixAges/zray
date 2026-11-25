@@ -102,8 +102,8 @@ const Build = struct {
     roots: []u64 = &.{},
     adjacency: model.Adjacency = .{ .starts = &.{}, .ends = &.{} },
     diagnostic: ?@FieldType(model.Value, "diagnostic") = null,
-    fn borrow(handle: *const anyopaque) *Build {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Build {
+        return @ptrCast(@alignCast(handle));
     }
     fn deinit(self: *Build) void {
         if (self.opts.retain_source_dependencies) return;
@@ -331,15 +331,15 @@ const Build = struct {
     }
 };
 
-pub fn rejectSourceGraphPath(handle: *const anyopaque, row: u64, normalized: bool, message: []const u8) Error!void {
+pub fn rejectSourceGraphPath(handle: *anyopaque, row: u64, normalized: bool, message: []const u8) Error!void {
     return Build.borrow(handle).rejectRegistration(@intCast(row), normalized, message);
 }
 
-pub fn rejectSourceGraphRoot(handle: *const anyopaque, path: []const u8, missing: []const u8) Error!u64 {
+pub fn rejectSourceGraphRoot(handle: *anyopaque, path: []const u8, missing: []const u8) Error!u64 {
     return Build.borrow(handle).reject(path, root_location, missing);
 }
 
-pub fn rejectSourceGraphCycle(handle: *const anyopaque, owner: u64, edge: u64) error{InvalidGraph}!void {
+pub fn rejectSourceGraphCycle(handle: *anyopaque, owner: u64, edge: u64) error{InvalidGraph}!void {
     const state = Build.borrow(handle);
     const row: usize = @intCast(owner);
     const module = state.modules.get(row);

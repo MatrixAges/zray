@@ -68,22 +68,28 @@ pub fn compileParsed(allocator: std.mem.Allocator, parsed: *const frontend.Expre
 
     if (analyzed.value == .diagnostic) return .{ .arena = analyzed.arena, .value = .{ .diagnostic = diagnostic(attribute, analyzed.value.diagnostic) } };
 
-    const program = analyzed.value.ir;
+    var program = analyzed.value.ir;
 
     // The expression analyzer publishes its own span columns, even when borrowing types.
-    relocate(attribute, @constCast(program.expressions.span_start), @constCast(program.expressions.span_end));
-    relocate(attribute, @constCast(program.symbols.span_start), @constCast(program.symbols.span_end));
+    try relocate(analyzed.arena.allocator(), attribute, &program.expressions.span_start, &program.expressions.span_end);
+    try relocate(analyzed.arena.allocator(), attribute, &program.symbols.span_start, &program.symbols.span_end);
 
     return .{ .arena = analyzed.arena, .value = .{ .ir = program } };
 }
 
-fn relocate(attribute: rx.ast.Attribute, starts: []u64, ends: []u64) void {
-    for (starts, ends) |*start, *end| {
-        const span = sourceSpan(attribute, .{ .start = @intCast(start.*), .end = @intCast(end.*) });
+fn relocate(arena: std.mem.Allocator, attribute: rx.ast.Attribute, starts: *[]const u64, ends: *[]const u64) std.mem.Allocator.Error!void {
+    const next_starts = try arena.alloc(u64, starts.*.len);
+    const next_ends = try arena.alloc(u64, ends.*.len);
 
-        start.* = span.start;
-        end.* = span.end;
+    for (starts.*, ends.*, next_starts, next_ends) |start, end, *target_start, *target_end| {
+        const span = sourceSpan(attribute, .{ .start = @intCast(start), .end = @intCast(end) });
+
+        target_start.* = span.start;
+        target_end.* = span.end;
     }
+
+    starts.* = next_starts;
+    ends.* = next_ends;
 }
 
 fn diagnostic(attribute: rx.ast.Attribute, issue: zx.Diagnostic) Diagnostic {

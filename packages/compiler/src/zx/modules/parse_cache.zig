@@ -473,8 +473,8 @@ fn stageResult(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, 
 const Batch = struct {
     adoption: Adoption,
     output: BatchOutput,
-    fn borrow(handle: *const anyopaque) *Batch {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Batch {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -495,7 +495,7 @@ fn publishPrefetched(self: *Self, paths: *const zx.memory.TextColumn, results: [
     if (!(rule.executeIn(scratch.allocator(), &input) catch unreachable)) return error.OutOfMemory;
 }
 
-pub fn preparePrefetchedParse(handle: *const anyopaque, path: []const u8) Native.preparePrefetchedParse.Output {
+pub fn preparePrefetchedParse(handle: *anyopaque, path: []const u8) Native.preparePrefetchedParse.Output {
     const batch = Batch.borrow(handle);
     batch.adoption.path = path;
     batch.adoption.found = batch.adoption.cache.entries.probe(path);
@@ -503,15 +503,15 @@ pub fn preparePrefetchedParse(handle: *const anyopaque, path: []const u8) Native
     return @ptrCast(&batch.adoption);
 }
 
-pub fn bindPrefetchedParse(handle: *const anyopaque, index: u64, handle_entry: *const anyopaque) void {
+pub fn bindPrefetchedParse(handle: *anyopaque, index: u64, handle_entry: *anyopaque) void {
     const batch = Batch.borrow(handle);
     const entry: *const Entry = @ptrCast(@alignCast(handle_entry));
 
     batch.output.bind(@intCast(index), entry);
 }
 
-pub fn discardStagedParse(handle: *const anyopaque) void {
-    const entry: *Entry = @ptrCast(@alignCast(@constCast(handle)));
+pub fn discardStagedParse(handle: *anyopaque) void {
+    const entry: *Entry = @ptrCast(@alignCast(handle));
 
     entry.result.deinit();
 }
@@ -556,19 +556,19 @@ pub fn existingParseEntry(handle: *const anyopaque) Native.existingParseEntry.Ou
     return @ptrCast(entry);
 }
 
-pub fn insertParseEntry(handle: *const anyopaque, candidate: *const anyopaque) Native.insertParseEntry.Output {
+pub fn insertParseEntry(handle: *const anyopaque, candidate: *anyopaque) Native.insertParseEntry.Output {
     const entry = Adoption.borrow(handle).insert(@ptrCast(@alignCast(candidate))) catch return null;
 
     return @ptrCast(entry);
 }
 
-pub fn replaceParseEntry(handle: *const anyopaque, existing: *const anyopaque, candidate: *const anyopaque) bool {
-    Adoption.borrow(handle).replace(@ptrCast(@alignCast(@constCast(existing))), @ptrCast(@alignCast(candidate))) catch return false;
+pub fn replaceParseEntry(handle: *const anyopaque, existing: *anyopaque, candidate: *anyopaque) bool {
+    Adoption.borrow(handle).replace(@ptrCast(@alignCast(existing)), @ptrCast(@alignCast(candidate))) catch return false;
 
     return true;
 }
 
-fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) std.mem.Allocator.Error!*Entry {
+fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *Entry) std.mem.Allocator.Error!*Entry {
     const adoption: Adoption = .{ .cache = self, .path = path, .found = found };
 
     if (comptime generated) {
@@ -577,7 +577,7 @@ fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) 
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
         const entry = (rule.executeIn(scratch.allocator(), &input) catch unreachable) orelse return error.OutOfMemory;
 
-        return @ptrCast(@alignCast(@constCast(entry)));
+        return @ptrCast(@alignCast(entry));
     }
 
     if (found.existing) |entry| {
@@ -653,8 +653,8 @@ pub fn queueParseReplacement(handle: *const anyopaque, keep_on_publish: bool, ke
     return Replacement.borrow(handle).queue(.{ .keep_on_publish = keep_on_publish, .keep_on_abort = keep_on_abort });
 }
 
-pub fn retainPendingParse(handle: *const anyopaque, row: u64) u64 {
-    const self: *Self = @ptrCast(@alignCast(@constCast(handle)));
+pub fn retainPendingParse(handle: *anyopaque, row: u64) u64 {
+    const self: *Self = @ptrCast(@alignCast(handle));
     const result = &self.transient.items[@intCast(row)].result;
 
     self.replaced.appendAssumeCapacity(result.*);
@@ -662,8 +662,8 @@ pub fn retainPendingParse(handle: *const anyopaque, row: u64) u64 {
     return result.queryCapacity();
 }
 
-pub fn discardPendingParse(handle: *const anyopaque, row: u64) void {
-    const self: *Self = @ptrCast(@alignCast(@constCast(handle)));
+pub fn discardPendingParse(handle: *anyopaque, row: u64) void {
+    const self: *Self = @ptrCast(@alignCast(handle));
 
     self.transient.items[@intCast(row)].result.deinit();
 }

@@ -92,8 +92,8 @@ const Frame = struct {
     walker: ?std.Io.Dir.Walker = null,
     walk_entry: DirectoryEntry = undefined,
     failure: Failure = .{},
-    fn fromHandle(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn fromHandle(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
     fn deinit(self: *Frame) void {
         if (self.walker) |*walker| {
@@ -206,13 +206,13 @@ const Frame = struct {
     }
 };
 
-pub fn hashBootstrapFiles(handle: *const anyopaque) Failure.Error!void {
+pub fn hashBootstrapFiles(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
     frame.hash() catch |err| return frame.failure.save(err);
 }
 
-pub fn compareBootstrapFiles(handle: *const anyopaque) Failure.Error!*const Plan {
+pub fn compareBootstrapFiles(handle: *anyopaque) Failure.Error!*const Plan {
     const frame = Frame.fromHandle(handle);
 
     frame.compare() catch |err| return frame.failure.save(err);
@@ -230,25 +230,25 @@ pub fn compareBootstrapFiles(handle: *const anyopaque) Failure.Error!*const Plan
     return &frame.plan;
 }
 
-pub fn createBootstrapFolder(handle: *const anyopaque, folder: []const u8) Failure.Error!void {
+pub fn createBootstrapFolder(handle: *anyopaque, folder: []const u8) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
     frame.directory.createDirPath(frame.io, folder) catch |err| return frame.failure.save(err);
 }
 
-pub fn writeBootstrapChanges(handle: *const anyopaque) Failure.Error!void {
+pub fn writeBootstrapChanges(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
     frame.writeChanged() catch |err| return frame.failure.save(err);
 }
 
-pub fn openBootstrapWalk(handle: *const anyopaque) Failure.Error!void {
+pub fn openBootstrapWalk(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
     frame.walker = frame.directory.walk(frame.allocator) catch |err| return frame.failure.save(err);
 }
 
-pub fn nextBootstrapEntry(handle: *const anyopaque) Failure.Error!?*const DirectoryEntry {
+pub fn nextBootstrapEntry(handle: *anyopaque) Failure.Error!?*const DirectoryEntry {
     const frame = Frame.fromHandle(handle);
     const walker = &frame.walker.?;
     const entry = (walker.next(frame.io) catch |err| return frame.failure.save(err)) orelse return null;
@@ -258,13 +258,13 @@ pub fn nextBootstrapEntry(handle: *const anyopaque) Failure.Error!?*const Direct
     return &frame.walk_entry;
 }
 
-pub fn deleteBootstrapFile(handle: *const anyopaque, path: []const u8) Failure.Error!void {
+pub fn deleteBootstrapFile(handle: *anyopaque, path: []const u8) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
     remove(frame.io, frame.directory, path) catch |err| return frame.failure.save(err);
 }
 
-pub fn commitBootstrapManifest(handle: *const anyopaque) Failure.Error!void {
+pub fn commitBootstrapManifest(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
     frame.commit() catch |err| return frame.failure.save(err);

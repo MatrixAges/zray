@@ -1,6 +1,6 @@
-export type SymbolicProgram = opaque
+export type SymbolicProgram = mutable_opaque
 
-export type ParameterTarget = opaque
+export type ParameterTarget = mutable_opaque
 
 export declare function symbolicParameterField(
     target: ParameterTarget,

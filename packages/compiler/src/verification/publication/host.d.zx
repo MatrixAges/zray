@@ -1,6 +1,6 @@
-export type GraphRegistration = opaque
+export type GraphRegistration = mutable_opaque
 
-export type QueryAssembly = opaque
+export type QueryAssembly = mutable_opaque
 
 export declare function reserveSymbolicDefinition(graph: GraphRegistration): void
     throws { OutOfMemory }

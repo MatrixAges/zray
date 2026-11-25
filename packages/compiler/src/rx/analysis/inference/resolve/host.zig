@@ -95,12 +95,12 @@ pub const Frame = struct {
         if (self.scratch.previous != null) self.scratch.close(self.scope);
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn reserveResolveFrames(handle: *const anyopaque, used: u64, added: u64) std.mem.Allocator.Error!u64 {
+pub fn reserveResolveFrames(handle: *anyopaque, used: u64, added: u64) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
 
     frame.frames = try grow(u64, frame.graph.scratch, &frame.workspace.extra_frames, frame.frames, @intCast(used), @intCast(added));
@@ -109,7 +109,7 @@ pub fn reserveResolveFrames(handle: *const anyopaque, used: u64, added: u64) std
     return frame.view.frame_capacity;
 }
 
-pub fn reserveResolveValues(handle: *const anyopaque, used: u64, added: u64) std.mem.Allocator.Error!u64 {
+pub fn reserveResolveValues(handle: *anyopaque, used: u64, added: u64) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
 
     frame.values = try grow(u32, frame.graph.scratch, &frame.workspace.extra_values, frame.values, @intCast(used), @intCast(added));
@@ -132,30 +132,30 @@ fn grow(comptime T: type, allocator: std.mem.Allocator, storage: *std.ArrayList(
     return storage.allocatedSlice();
 }
 
-pub fn reportResolveFailure(handle: *const anyopaque, node: u32, code: []const u8, message: []const u8) zx.Error!void {
+pub fn reportResolveFailure(handle: *anyopaque, node: u32, code: []const u8, message: []const u8) zx.Error!void {
     const frame = Frame.borrow(handle);
     const tag = std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), code) orelse unreachable;
 
     return frame.graph.reporter.fail(tag, frame.rows.items(.span)[node], message);
 }
 
-pub fn prepareResolveConstruction(handle: *const anyopaque, node: u32, first: u64, count: u64, object: bool) void {
+pub fn prepareResolveConstruction(handle: *anyopaque, node: u32, first: u64, count: u64, object: bool) void {
     const frame = Frame.borrow(handle);
-    const names = if (object) Graph.Fields.fromValues(@ptrCast(frame.rows.items(.members)[node])).names() else &.{};
+    const names = if (object) Graph.Fields.viewFromValues(@ptrCast(frame.rows.items(.members)[node])).names() else &.{};
 
     frame.base = zx.ir.TypeTable.borrow(Table, frame.graph.types.items.view());
     frame.payload = .{ .members = frame.values[@intCast(first)..][0..@intCast(count)], .names = names };
     _ = frame.scratch.open(frame.scope, frame.graph.scratch);
 }
 
-pub fn reportResolveConstruction(handle: *const anyopaque, code: []const u8, message: []const u8) zx.Error!void {
+pub fn reportResolveConstruction(handle: *anyopaque, code: []const u8, message: []const u8) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     return frontend.reportTypeConstruction(&frame.graph.types, .{ .start = 0, .end = 0 }, code, message);
 }
 
 pub fn bindResolvedType(
-    handle: *const anyopaque,
+    handle: *anyopaque,
     kind: u8,
     first: u32,
     second: u32,
@@ -197,6 +197,6 @@ pub fn bindResolvedType(
     frame.write = frame.writer.request(TypeWrite, &frame.delta, &no_origins);
 }
 
-pub fn finishResolveConstruction(handle: *const anyopaque) void {
+pub fn finishResolveConstruction(handle: *anyopaque) void {
     Frame.borrow(handle).close();
 }

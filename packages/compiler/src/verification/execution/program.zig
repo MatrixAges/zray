@@ -17,8 +17,8 @@ const Frame = struct {
     prefix: usize = undefined,
     query: Conditions.Query = undefined,
     result: terms.Evaluation = undefined,
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
     fn release(frame: *@This()) void {
         if (frame.checkpoint) |checkpoint| frame.conditions.scratch.rewindRetainingCapacity(checkpoint);
@@ -77,33 +77,33 @@ fn runEntry(comptime rule: type, frame: *Frame) zx.Error!void {
     rule.executeIn(frame.result_allocator, &request) catch |err| return execution.failure(err);
 }
 
-pub fn ensureSymbolicGraph(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn ensureSymbolicGraph(handle: *anyopaque) std.mem.Allocator.Error!void {
     try Frame.borrow(handle).conditions.ensureGraph();
 }
 
-pub fn beginSymbolicCall(handle: *const anyopaque) void {
+pub fn beginSymbolicCall(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.checkpoint = frame.conditions.scratch.checkpoint();
 }
 
-pub fn rejectSymbolicProgram(handle: *const anyopaque, message: []const u8) error{InvalidSource}!void {
+pub fn rejectSymbolicProgram(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
     return @errorCast(Frame.borrow(handle).conditions.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, message));
 }
 
-pub fn symbolicProgramPreconditions(handle: *const anyopaque, is_called: bool) zx.Error![]const u8 {
+pub fn symbolicProgramPreconditions(handle: *anyopaque, is_called: bool) zx.Error![]const u8 {
     const conditions = Frame.borrow(handle).conditions;
 
     return execution.apply(conditions, if (is_called) .Called else .Entry, "true", null);
 }
 
-pub fn markSymbolicQueryPrefix(handle: *const anyopaque) void {
+pub fn markSymbolicQueryPrefix(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.prefix = frame.conditions.graph.?.definitions.len;
 }
 
-pub fn runSymbolicProgramBody(handle: *const anyopaque, path: []const u8) zx.Error![]const u8 {
+pub fn runSymbolicProgramBody(handle: *anyopaque, path: []const u8) zx.Error![]const u8 {
     const conditions = Frame.borrow(handle).conditions;
     const environment = try conditions.scratch.allocator().alloc(?terms.Value, conditions.program.symbols.count());
 
@@ -114,24 +114,24 @@ pub fn runSymbolicProgramBody(handle: *const anyopaque, path: []const u8) zx.Err
     return block.execute(conditions, conditions.program.body.block(), environment, path);
 }
 
-pub fn symbolicProgramReturnsUnit(handle: *const anyopaque) bool {
+pub fn symbolicProgramReturnsUnit(handle: *anyopaque) bool {
     const program = &Frame.borrow(handle).conditions.program;
     const target = program.typeOf(program.output_type);
 
     return target == .scalar and target.scalar == .void;
 }
 
-pub fn checkSymbolicUnit(handle: *const anyopaque, path: []const u8) zx.Error!void {
+pub fn checkSymbolicUnit(handle: *anyopaque, path: []const u8) zx.Error!void {
     _ = try execution.apply(Frame.borrow(handle).conditions, .Returned, path, unit);
 }
 
-pub fn appendSymbolicUnit(handle: *const anyopaque, path: []const u8) std.mem.Allocator.Error!void {
+pub fn appendSymbolicUnit(handle: *anyopaque, path: []const u8) std.mem.Allocator.Error!void {
     const conditions = Frame.borrow(handle).conditions;
 
     try conditions.returns.append(conditions.allocator, .{ .path = path, .value = unit });
 }
 
-pub fn publishSymbolicQuery(handle: *const anyopaque, path: []const u8) zx.Error!void {
+pub fn publishSymbolicQuery(handle: *anyopaque, path: []const u8) zx.Error!void {
     const frame = Frame.borrow(handle);
     const conditions = frame.conditions;
 
@@ -149,27 +149,27 @@ pub fn publishSymbolicQuery(handle: *const anyopaque, path: []const u8) zx.Error
     );
 }
 
-pub fn hasSymbolicReturns(handle: *const anyopaque) bool {
+pub fn hasSymbolicReturns(handle: *anyopaque) bool {
     return Frame.borrow(handle).conditions.returns.items.len != 0;
 }
 
-pub fn rejectSymbolicReturn(handle: *const anyopaque, message: []const u8) error{InvalidSource}!void {
+pub fn rejectSymbolicReturn(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
     return @errorCast(Frame.borrow(handle).conditions.reporter.fail(.contract, .{ .start = 0, .end = 0 }, message));
 }
 
-pub fn publishSymbolicProgramResult(handle: *const anyopaque) zx.Error!void {
+pub fn publishSymbolicProgramResult(handle: *anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
     frame.result = try execution.merge(frame.conditions);
 }
 
-pub fn reserveSymbolicParameter(handle: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reserveSymbolicParameter(handle: *anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const conditions = Frame.borrow(handle).conditions;
     const fields = try conditions.allocator.alloc(terms.Value, @intCast(count));
 
     targetValue(target).* = .{ .fields = fields };
 }
 
-pub fn symbolicParameterField(target: *const anyopaque, index: u64) *const native.ParameterTarget {
+pub fn symbolicParameterField(target: *anyopaque, index: u64) *native.ParameterTarget {
     return @ptrCast(&targetValue(target).fields[@intCast(index)]);
 }
 
@@ -183,17 +183,17 @@ pub fn symbolicScalarWidth(scalar: u32) u64 {
     return width;
 }
 
-pub fn symbolicPortCount(handle: *const anyopaque) u64 {
+pub fn symbolicPortCount(handle: *anyopaque) u64 {
     return Frame.borrow(handle).conditions.inputs.items.len;
 }
 
-pub fn appendSymbolicDeclaration(handle: *const anyopaque, text: []const u8) std.mem.Allocator.Error!void {
+pub fn appendSymbolicDeclaration(handle: *anyopaque, text: []const u8) std.mem.Allocator.Error!void {
     const conditions = Frame.borrow(handle).conditions;
 
     try conditions.declarations.append(conditions.allocator, text);
 }
 
-pub fn publishSymbolicParameter(handle: *const anyopaque, target: *const anyopaque, type_id: u32, path: []const u8, symbol: []const u8) std.mem.Allocator.Error!void {
+pub fn publishSymbolicParameter(handle: *anyopaque, target: *anyopaque, type_id: u32, path: []const u8, symbol: []const u8) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     try frame.conditions.inputs.append(frame.result_allocator, .{ .symbol = symbol, .path = path, .type_id = @fromBackingInt(type_id) });
@@ -201,6 +201,6 @@ pub fn publishSymbolicParameter(handle: *const anyopaque, target: *const anyopaq
     targetValue(target).* = .{ .scalar = symbol };
 }
 
-fn targetValue(target: *const anyopaque) *terms.Value {
-    return @ptrCast(@alignCast(@constCast(target)));
+fn targetValue(target: *anyopaque) *terms.Value {
+    return @ptrCast(@alignCast(target));
 }

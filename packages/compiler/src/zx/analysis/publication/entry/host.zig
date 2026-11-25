@@ -13,8 +13,8 @@ const Frame = struct {
     verified: ?*const ir.FunctionTable,
     issue: ?zx.Diagnostic = null,
     suffix: ?*const ir.FunctionTable = null,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -66,7 +66,7 @@ pub fn finish(allocator: std.mem.Allocator, program: *ir.Program, resolved: ?*co
     };
 }
 
-pub fn registerAnalysisBody(handle: *const anyopaque, split: bool) std.mem.Allocator.Error!void {
+pub fn registerAnalysisBody(handle: *anyopaque, split: bool) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const program = frame.program;
     const row = try function_body.single(frame.allocator, program.*);
@@ -81,13 +81,13 @@ pub fn registerAnalysisBody(handle: *const anyopaque, split: bool) std.mem.Alloc
     }
 }
 
-pub fn ownAnalysisNatives(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn ownAnalysisNatives(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.program.native_modules = try native_context.copy(frame.allocator, frame.program.native_modules);
 }
 
-pub fn validateAnalysisPrefix(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn validateAnalysisPrefix(handle: *anyopaque) std.mem.Allocator.Error!bool {
     const frame = Frame.borrow(handle);
     var checked = frame.program.*;
     var temporary = std.heap.ArenaAllocator.init(frame.allocator);
@@ -101,6 +101,6 @@ pub fn validateAnalysisPrefix(handle: *const anyopaque) std.mem.Allocator.Error!
     return frame.issue == null;
 }
 
-pub fn rejectAnalysisInitializer(handle: *const anyopaque, message: []const u8) void {
+pub fn rejectAnalysisInitializer(handle: *anyopaque, message: []const u8) void {
     Frame.borrow(handle).issue = .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message };
 }

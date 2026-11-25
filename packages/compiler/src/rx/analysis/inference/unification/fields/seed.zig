@@ -5,7 +5,7 @@ const Plan = @import("../plan.zig");
 const merge = @import("../../unify.zig").merge;
 const missing_message = @import("../fields.zig").missing_message;
 
-pub fn combine(graph: *Graph, left: Graph.Fields, right: Graph.Fields, span: zx.Span, depth: usize) zx.Error!Graph.Fields {
+pub fn combine(graph: *Graph, left: Graph.Fields.View, right: Graph.Fields.View, span: zx.Span, depth: usize) zx.Error!Graph.Fields.View {
     if (left.len == 0) return right;
     if (right.len == 0) return left;
 
@@ -30,16 +30,16 @@ pub fn combine(graph: *Graph, left: Graph.Fields, right: Graph.Fields, span: zx.
 
     if (additions.items.len == 0) return left;
 
-    const result = try Graph.Fields.init(graph.allocator, left.len + additions.items.len);
+    const result = try Graph.Fields.init(&graph.field_buffers, graph.allocator, left.len + additions.items.len);
 
     left.copyTo(result);
 
     for (additions.items, left.len..) |field, index| result.set(index, field.name, field.value);
 
-    return result;
+    return result.view();
 }
 
-pub fn applyKnown(graph: *Graph, inferred: Graph.Fields, known: zx.ir.TypeFields, span: zx.Span, depth: usize) zx.Error!void {
+pub fn applyKnown(graph: *Graph, inferred: Graph.Fields.View, known: zx.ir.TypeFields, span: zx.Span, depth: usize) zx.Error!void {
     const names = known.names[0..known.len];
 
     for (inferred.names(), inferred.values()) |name, field| {

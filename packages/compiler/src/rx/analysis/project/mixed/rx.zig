@@ -70,8 +70,8 @@ const Serial = struct {
     prepared: Prepared = undefined,
     result: Compilation.Value = undefined,
     metadata: ?*Compilation.Metadata = null,
-    fn borrow(handle: *const anyopaque) *Serial {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Serial {
+        return @ptrCast(@alignCast(handle));
     }
     fn bind(self: *Serial) State.Error!void {
         self.ids = try @import("callees.zig").load(self.state, self.temporary, self.cache, self.sources, self.module);
@@ -103,19 +103,19 @@ const Serial = struct {
     }
 };
 
-pub fn bindMixedRXBody(handle: *const anyopaque) State.Error!void {
+pub fn bindMixedRXBody(handle: *anyopaque) State.Error!void {
     try Serial.borrow(handle).bind();
 }
 
-pub fn lowerMixedRXBody(handle: *const anyopaque, entry: bool) State.Error!bool {
+pub fn lowerMixedRXBody(handle: *anyopaque, entry: bool) State.Error!bool {
     return Serial.borrow(handle).run(entry);
 }
 
-pub fn reportMixedRXBody(handle: *const anyopaque) State.Error!void {
+pub fn reportMixedRXBody(handle: *anyopaque) State.Error!void {
     return Serial.borrow(handle).report();
 }
 
-pub fn linkMixedRXBody(handle: *const anyopaque) State.Error!void {
+pub fn linkMixedRXBody(handle: *anyopaque) State.Error!void {
     try Serial.borrow(handle).finish();
 }
 

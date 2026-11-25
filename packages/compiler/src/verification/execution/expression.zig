@@ -17,9 +17,10 @@ pub const Frame = struct {
     id: ir.ExprId,
     target: ir.TypeId,
     span: zx.Span,
+    aggregate_fields: []Value = &.{},
     slots: [std.enums.values(Operand).len]Evaluation = undefined,
-    pub fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
     pub fn at(frame: *@This(), slot: Operand) *Evaluation {
         return &frame.slots[@backingInt(slot)];
@@ -51,13 +52,13 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
     return frame.at(.Result).*;
 }
 
-pub fn rejectSymbolicExpression(handle: *const anyopaque, message: []const u8) error{InvalidSource}!void {
+pub fn rejectSymbolicExpression(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
     const frame = Frame.borrow(handle);
 
     return @errorCast(frame.evaluator.reporter.fail(.unsupported, frame.span, message));
 }
 
-pub fn loadSymbolicReference(handle: *const anyopaque, symbol: u32) error{InvalidSource}!void {
+pub fn loadSymbolicReference(handle: *anyopaque, symbol: u32) error{InvalidSource}!void {
     const frame = Frame.borrow(handle);
 
     const value = frame.evaluator.environment[symbol] orelse
@@ -66,18 +67,18 @@ pub fn loadSymbolicReference(handle: *const anyopaque, symbol: u32) error{Invali
     frame.at(.Result).* = .{ .value = value };
 }
 
-pub fn symbolicLiteralWidth(handle: *const anyopaque, enumeration: bool) u64 {
+pub fn symbolicLiteralWidth(handle: *anyopaque, enumeration: bool) u64 {
     const frame = Frame.borrow(handle);
     const target = frame.evaluator.program.typeOf(frame.target);
 
     return if (enumeration) terms.enumWidth(target) else terms.integer(target).?.width;
 }
 
-pub fn writeSymbolicLiteral(handle: *const anyopaque, text: []const u8) void {
+pub fn writeSymbolicLiteral(handle: *anyopaque, text: []const u8) void {
     Frame.borrow(handle).at(.Result).* = .{ .value = .{ .scalar = text } };
 }
 
-pub fn evaluateSymbolicOperand(handle: *const anyopaque, slot: Operand, expression: u32) zx.Error![]const u8 {
+pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u32) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
     const value = try frame.evaluator.evaluate(@fromBackingInt(expression));
 
@@ -86,22 +87,22 @@ pub fn evaluateSymbolicOperand(handle: *const anyopaque, slot: Operand, expressi
     return value.safe;
 }
 
-pub fn symbolicOperandText(handle: *const anyopaque, slot: Operand) []const u8 {
+pub fn symbolicOperandText(handle: *anyopaque, slot: Operand) []const u8 {
     return Frame.borrow(handle).at(slot).value.scalar;
 }
 
-pub fn symbolicOperandSafety(handle: *const anyopaque, slot: Operand) []const u8 {
+pub fn symbolicOperandSafety(handle: *anyopaque, slot: Operand) []const u8 {
     return Frame.borrow(handle).at(slot).safe;
 }
 
-pub fn projectSymbolicOperand(handle: *const anyopaque, index: u32) void {
+pub fn projectSymbolicOperand(handle: *anyopaque, index: u32) void {
     const frame = Frame.borrow(handle);
     const source = frame.at(.First);
 
     frame.at(.Result).* = .{ .value = source.value.fields[index], .safe = source.safe };
 }
 
-pub fn writeSymbolicUnary(handle: *const anyopaque, invert: bool) zx.Error!bool {
+pub fn writeSymbolicUnary(handle: *anyopaque, invert: bool) zx.Error!bool {
     const frame = Frame.borrow(handle);
     const evaluator = frame.evaluator;
     const target = evaluator.program.typeOf(frame.target);
@@ -112,7 +113,7 @@ pub fn writeSymbolicUnary(handle: *const anyopaque, invert: bool) zx.Error!bool 
     return true;
 }
 
-pub fn writeSymbolicBinary(handle: *const anyopaque, left: u32) zx.Error!bool {
+pub fn writeSymbolicBinary(handle: *anyopaque, left: u32) zx.Error!bool {
     const frame = Frame.borrow(handle);
     const evaluator = frame.evaluator;
     const expressions = &evaluator.program.expressions;
@@ -124,39 +125,41 @@ pub fn writeSymbolicBinary(handle: *const anyopaque, left: u32) zx.Error!bool {
     return true;
 }
 
-pub fn selectSymbolicExpression(handle: *const anyopaque, condition: []const u8, yes: Operand, no: Operand) zx.Error!void {
+pub fn selectSymbolicExpression(handle: *anyopaque, condition: []const u8, yes: Operand, no: Operand) zx.Error!void {
     const frame = Frame.borrow(handle);
     const evaluator = frame.evaluator;
 
     frame.at(.Result).value = try evaluator.graph.select(evaluator.program, frame.target, condition, frame.at(yes).value, frame.at(no).value, frame.span);
 }
 
-pub fn retainSymbolicExpression(handle: *const anyopaque) zx.Error!void {
+pub fn retainSymbolicExpression(handle: *anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
     const result = frame.at(.Result);
 
     result.* = try frame.evaluator.retainAt(frame.target, frame.span, result.*);
 }
 
-pub fn bindSymbolicExpressionSafety(handle: *const anyopaque, safe: []const u8) zx.Error![]const u8 {
+pub fn bindSymbolicExpressionSafety(handle: *anyopaque, safe: []const u8) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
 
     return frame.evaluator.boolean(safe, frame.span);
 }
 
-pub fn writeSymbolicSafety(handle: *const anyopaque, safe: []const u8) void {
+pub fn writeSymbolicSafety(handle: *anyopaque, safe: []const u8) void {
     Frame.borrow(handle).at(.Result).safe = safe;
 }
 
-pub fn reserveSymbolicAggregate(handle: *const anyopaque, count: u32) std.mem.Allocator.Error!void {
+pub fn reserveSymbolicAggregate(handle: *anyopaque, count: u32) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const fields = try frame.evaluator.allocator.alloc(Value, count);
+
+    frame.aggregate_fields = fields;
 
     frame.at(.Result).* = .{ .value = .{ .fields = fields } };
 }
 
-pub fn writeSymbolicAggregateField(handle: *const anyopaque, index: u32) void {
+pub fn writeSymbolicAggregateField(handle: *anyopaque, index: u32) void {
     const frame = Frame.borrow(handle);
 
-    @constCast(frame.at(.Result).value.fields)[index] = frame.at(.First).value;
+    frame.aggregate_fields[index] = frame.at(.First).value;
 }

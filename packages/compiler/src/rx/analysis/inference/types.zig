@@ -13,7 +13,7 @@ pub const Id = enum(u32) { _ };
 pub const Mask = Scalar.Mask;
 pub const Fields = @import("fields.zig");
 pub const Field = Fields.Field;
-pub const Shape = union(enum) { unknown, sequence, known: zx.ir.TypeId, object: Fields, list: Id, optional: Id, tuple: []const Id };
+pub const Shape = union(enum) { unknown, sequence, known: zx.ir.TypeId, object: Fields.View, list: Id, optional: Id, tuple: []const Id };
 pub const Node = struct { shape: Shape, span: zx.Span, allowed: ?Mask = null, fallback: ?zx.ir.Scalar = null };
 
 const Bindings = @import("bindings.zig");
@@ -25,6 +25,7 @@ scratch: std.mem.Allocator,
 reporter: *zx.Reporter,
 types: Types,
 nodes: Nodes.Storage = .empty,
+field_buffers: Fields.Buffers = .empty,
 pending: Constraints,
 revision: u64 = 0,
 /// Changes that affect the roots or known types seen by object rules.
@@ -63,6 +64,10 @@ pub fn init(memory: Memory, reporter: *zx.Reporter, existing: zx.ir.TypeTable) z
     try types.initialize();
 
     return .{ .allocator = memory.graph, .scratch = memory.backing, .pending = .{ .allocator = memory.pending }, .reporter = reporter, .types = types };
+}
+
+pub fn mutableFields(self: *const Self, column: []const u32) Fields {
+    return Fields.fromValues(&self.field_buffers, @ptrCast(column));
 }
 
 pub const add = Nodes.append;

@@ -10,8 +10,8 @@ const Batch = struct {
     registered: bool,
     modules: []project.Module = undefined,
     result: project.Data = undefined,
-    fn read(handle: *const anyopaque) *Batch {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn read(handle: *anyopaque) *Batch {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -52,12 +52,12 @@ pub fn run(state: *Project, entries: project.Entries, registered: bool) std.mem.
         .{ .diagnostic = project.missing_entry };
 }
 
-pub fn reserveProjectSignatures(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reserveProjectSignatures(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const batch = Batch.read(handle);
     batch.modules = try batch.state.allocator.alloc(project.Module, @intCast(count));
 }
 
-pub fn findProjectSignature(handle: *const anyopaque, name: []const u8) std.mem.Allocator.Error!?u64 {
+pub fn findProjectSignature(handle: *anyopaque, name: []const u8) std.mem.Allocator.Error!?u64 {
     const batch = Batch.read(handle);
     const state = batch.state;
     const path = if (batch.registered) name else try std.fs.path.resolve(state.allocator, &.{ state.options.root_dir, name });
@@ -65,11 +65,11 @@ pub fn findProjectSignature(handle: *const anyopaque, name: []const u8) std.mem.
     return if (state.options.source_index.?.get(path)) |row| row else null;
 }
 
-pub fn loadProjectSignature(handle: *const anyopaque, row: u64) zx.Error!void {
+pub fn loadProjectSignature(handle: *anyopaque, row: u64) zx.Error!void {
     return Batch.read(handle).state.loadFrames(@intCast(row), .signature);
 }
 
-pub fn writeProjectSignature(handle: *const anyopaque, slot: u64, row: u64) void {
+pub fn writeProjectSignature(handle: *anyopaque, slot: u64, row: u64) void {
     const batch = Batch.read(handle);
     const unit = &batch.state.units[@intCast(row)];
 
@@ -84,7 +84,7 @@ pub fn writeProjectSignature(handle: *const anyopaque, slot: u64, row: u64) void
     };
 }
 
-pub fn finishProjectSignatures(handle: *const anyopaque) void {
+pub fn finishProjectSignatures(handle: *anyopaque) void {
     const batch = Batch.read(handle);
     const state = batch.state;
 

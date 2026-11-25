@@ -202,7 +202,7 @@ pub fn shape(rows: Storage.Slice, index: usize) Graph.Shape {
         .Unknown => .unknown,
         .Sequence => .sequence,
         .Known => .{ .known = @fromBackingInt(rows.items(.argument)[index]) },
-        .Object => .{ .object = Graph.Fields.fromValues(@ptrCast(rows.items(.members)[index])) },
+        .Object => .{ .object = Graph.Fields.viewFromValues(@ptrCast(rows.items(.members)[index])) },
         .List => .{ .list = @fromBackingInt(rows.items(.argument)[index]) },
         .Optional => .{ .optional = @fromBackingInt(rows.items(.argument)[index]) },
         .Tuple => .{ .tuple = @ptrCast(rows.items(.members)[index]) },

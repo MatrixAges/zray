@@ -100,8 +100,8 @@ const FactWriter = struct {
     tail: [][]const u8,
 };
 
-pub fn publishConditionFacts(handle: *const anyopaque, written: u64, node: ?u64, start: ?u64, length: u64) zx.Error!void {
-    const facts: *FactWriter = @ptrCast(@alignCast(@constCast(handle)));
+pub fn publishConditionFacts(handle: *anyopaque, written: u64, node: ?u64, start: ?u64, length: u64) zx.Error!void {
+    const facts: *FactWriter = @ptrCast(@alignCast(handle));
     const scope = facts.scope;
 
     scope.facts.items.len += @intCast(written);

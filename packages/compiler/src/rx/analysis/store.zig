@@ -18,7 +18,7 @@ pub const Binding = struct {
 };
 
 pub const Object = struct { name: []const u8, identity: []const u8, initial: zx.ir.Program };
-pub const Definition = struct { source_path: []const u8, name: []const u8, version: u32, types: zx.ir.TypeTable, objects: []const Object };
+pub const Definition = struct { source_path: []const u8, name: []const u8, version: u32, types: zx.ir.TypeTable, objects: []Object };
 pub const Value = union(enum) { definition: Definition, diagnostic: target.Diagnostic };
 
 pub const Result = struct {

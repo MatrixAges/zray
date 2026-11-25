@@ -44,8 +44,8 @@ const Frame = struct {
         self.pair_spans = std.mem.sliceAsBytes(rows.items(.span));
         self.columns.capacity = rows.len;
     }
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -110,7 +110,7 @@ fn register(graph: *Graph, active: Active, incoming: Active, spans: []const zx.S
     entry.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn reserveScopeCollisions(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveScopeCollisions(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = &frame.graph.pending;
 
@@ -119,7 +119,7 @@ pub fn reserveScopeCollisions(handle: *const anyopaque) std.mem.Allocator.Error!
     frame.bindPairs();
 }
 
-pub fn reserveScopeBindings(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!u64 {
+pub fn reserveScopeBindings(handle: *anyopaque, count: u64) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
     const batch = frame.batch.?;
     const first = batch.scope.len;
@@ -137,7 +137,7 @@ pub fn reserveScopeBindings(handle: *const anyopaque, count: u64) std.mem.Alloca
     return first;
 }
 
-pub fn rejectScopeCollision(handle: *const anyopaque, row: u64) zx.Error!void {
+pub fn rejectScopeCollision(handle: *anyopaque, row: u64) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     return frame.graph.reporter.fail(.name, frame.spans[@intCast(row)], frame.message);

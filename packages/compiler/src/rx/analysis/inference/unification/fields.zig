@@ -43,8 +43,8 @@ pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, i
     return .{ .positions = positions, .scanned = @intCast(result.scanned), .length = @intCast(result.length) };
 }
 
-pub fn publish(allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {
-    var resize: Graph.Fields.Resize = .{ .allocator = allocator, .fields = left };
+pub fn publish(buffers: *Graph.Fields.Buffers, allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields.View, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {
+    var resize: Graph.Fields.Resize = .{ .buffers = buffers, .allocator = allocator, .fields = left };
 
     const input: Merge = .{
         .storage = &resize.borrow(std.meta.Child(@FieldType(Merge, "storage"))),
@@ -66,8 +66,8 @@ pub fn publish(allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fi
     return resize.fields;
 }
 
-pub fn reserveFieldAlignmentIndex(handle: *const anyopaque, minimum: u64) std.mem.Allocator.Error!void {
-    const frame: *AlignFrame = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveFieldAlignmentIndex(handle: *anyopaque, minimum: u64) std.mem.Allocator.Error!void {
+    const frame: *AlignFrame = @ptrCast(@alignCast(handle));
     const required = std.math.cast(usize, minimum) orelse return error.OutOfMemory;
     const capacity = std.math.ceilPowerOfTwo(usize, required) catch return error.OutOfMemory;
     frame.buckets = try frame.allocator.alloc(u64, capacity);

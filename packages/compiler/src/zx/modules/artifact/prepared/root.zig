@@ -75,8 +75,8 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
     };
 }
 
-pub fn bindArtifactMaterialization(handle: *const anyopaque, function: ?u32, use_entry: bool, copy_entry_stores: bool, types: []const u64, functions: []const u64, natives: []const u64) void {
-    const frame: *Frame = @ptrCast(@alignCast(@constCast(handle)));
+pub fn bindArtifactMaterialization(handle: *anyopaque, function: ?u32, use_entry: bool, copy_entry_stores: bool, types: []const u64, functions: []const u64, natives: []const u64) void {
+    const frame: *Frame = @ptrCast(@alignCast(handle));
     const program = frame.program;
 
     const source = if (function) |row|

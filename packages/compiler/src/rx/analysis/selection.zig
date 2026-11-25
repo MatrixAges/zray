@@ -58,8 +58,8 @@ pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attrib
     return .{ .exhaustive = result.coverage.exhaustive };
 }
 
-pub fn borrowFlowSelectionLabel(handle: *const anyopaque, row: u64) bool {
-    const reader: *Reader = @ptrCast(@alignCast(@constCast(handle)));
+pub fn borrowFlowSelectionLabel(handle: *anyopaque, row: u64) bool {
+    const reader: *Reader = @ptrCast(@alignCast(handle));
     const program = reader.cases[@intCast(row)] orelse return false;
 
     reader.current = .{

@@ -1,4 +1,4 @@
-export type GatewayBundle = opaque
+export type GatewayBundle = mutable_opaque
 
 export declare function bindGatewayState(frame: GatewayBundle): void throws {
     OutOfMemory,

@@ -26,7 +26,7 @@ pub fn sort(comptime Row: type, backing: std.mem.Allocator, rows: []Row) !void {
     const input: std.meta.Child(rule.Input) = .{ .paths = @ptrCast(&paths), .rows = indices };
     const order = try zx.columns.invoke(rule.executeValue, allocator, &input);
 
-    try apply(Row, rows, @constCast(order));
+    try apply(Row, rows, try allocator.dupe(u64, order));
 }
 
 fn apply(comptime Row: type, rows: []Row, order_arg: []u64) !void {

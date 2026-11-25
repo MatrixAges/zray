@@ -22,8 +22,8 @@ const Frame = struct {
     values: []u32 = undefined,
     spans: []zx.Span = undefined,
     length: []usize = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -57,14 +57,14 @@ pub fn run(graph: *Graph, rows: Scope.Storage.Slice, facts: []const []const u8, 
     };
 }
 
-pub fn reserveScopeLookupNode(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveScopeLookupNode(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const reservation = try Nodes.reserve(frame.graph, 1);
 
     frame.append.bind(&frame.node, frame.graph, reservation, .unknown, frame.span);
 }
 
-pub fn reserveScopeLookupRow(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveScopeLookupRow(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = &frame.graph.pending;
     const lookups = &pending.binding_lookups;

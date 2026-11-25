@@ -63,8 +63,8 @@ const Target = struct {
             .fallback = rows.items(.fallback),
         };
     }
-    fn borrow(handle: *const anyopaque) *Target {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Target {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -105,7 +105,7 @@ pub fn merge(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, dept
     merge_rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn prepareUnificationFrame(handle: *const anyopaque, left: u32, right: u32, depth: u64, rooted: bool) std.mem.Allocator.Error!void {
+pub fn prepareUnificationFrame(handle: *anyopaque, left: u32, right: u32, depth: u64, rooted: bool) std.mem.Allocator.Error!void {
     const target = Target.borrow(handle);
 
     const input: std.meta.Child(plan_rule.Input) = .{
@@ -128,7 +128,7 @@ pub fn prepareUnificationFrame(handle: *const anyopaque, left: u32, right: u32, 
     target.pending = zx.columns.view(Frame, captured);
 }
 
-pub noinline fn walkUnificationFrames(handle: *const anyopaque, depth: u64) zx.Error!void {
+pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!void {
     const target = Target.borrow(handle);
     const allocator = target.graph.scratch;
     var frame_buffer: [inline_frames]Stored = undefined;
@@ -164,7 +164,7 @@ pub noinline fn walkUnificationFrames(handle: *const anyopaque, depth: u64) zx.E
     walk_rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn appendUnificationFrame(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn appendUnificationFrame(handle: *anyopaque) std.mem.Allocator.Error!void {
     const target = Target.borrow(handle);
     const state = target.walk;
 
@@ -173,16 +173,16 @@ pub fn appendUnificationFrame(handle: *const anyopaque) std.mem.Allocator.Error!
     state.bind();
 }
 
-pub fn alignUnificationFields(handle: *const anyopaque, existing_names: ?[]const []const u8, existing_values: []const u32, incoming_values: []const u32, closed: bool) std.mem.Allocator.Error!void {
+pub fn alignUnificationFields(handle: *anyopaque, existing_names: ?[]const []const u8, existing_values: []const u32, incoming_values: []const u32, closed: bool) std.mem.Allocator.Error!void {
     const state = Target.borrow(handle).walk;
-    const existing = existing_names orelse Graph.Fields.fromValues(@ptrCast(existing_values)).names();
-    const incoming = Graph.Fields.fromValues(@ptrCast(incoming_values)).names();
+    const existing = existing_names orelse Graph.Fields.viewFromValues(@ptrCast(existing_values)).names();
+    const incoming = Graph.Fields.viewFromValues(@ptrCast(incoming_values)).names();
 
     state.current().fields = try Fields.alignFields(state.fields, existing, incoming, closed);
     state.bind();
 }
 
-pub fn popUnificationFrame(handle: *const anyopaque) void {
+pub fn popUnificationFrame(handle: *anyopaque) void {
     const state = Target.borrow(handle).walk;
     const frame = state.stack.pop().?;
 
@@ -191,17 +191,17 @@ pub fn popUnificationFrame(handle: *const anyopaque) void {
     if (state.stack.items.len != 0) state.bind();
 }
 
-pub fn mergeUnificationFields(handle: *const anyopaque) std.mem.Allocator.Error![]const u32 {
+pub fn mergeUnificationFields(handle: *anyopaque) std.mem.Allocator.Error![]const u32 {
     const target = Target.borrow(handle);
     const frame = target.walk.current();
-    const left = Graph.Fields.fromValues(@ptrCast(frame.snapshot.left_members));
-    const right = Graph.Fields.fromValues(@ptrCast(frame.snapshot.right_members));
-    const published = try Fields.publish(target.graph.allocator, left, right, frame.fields);
+    const left = target.graph.mutableFields(frame.snapshot.left_members);
+    const right = Graph.Fields.viewFromValues(@ptrCast(frame.snapshot.right_members));
+    const published = try Fields.publish(&target.graph.field_buffers, target.graph.allocator, left, right, frame.fields);
 
     return @ptrCast(published.values());
 }
 
-pub fn commitUnification(handle: *const anyopaque, parent: u32, child: u32, first_allowed: ?u16, second_allowed: ?u16, first_fallback: ?u8, second_fallback: ?u8, kind: u8, argument: u32, members: []const u32) zx.Error!void {
+pub fn commitUnification(handle: *anyopaque, parent: u32, child: u32, first_allowed: ?u16, second_allowed: ?u16, first_fallback: ?u8, second_fallback: ?u8, kind: u8, argument: u32, members: []const u32) zx.Error!void {
     const target = Target.borrow(handle);
 
     try Commit.publish(
@@ -215,7 +215,7 @@ pub fn commitUnification(handle: *const anyopaque, parent: u32, child: u32, firs
     );
 }
 
-pub fn internUnificationType(handle: *const anyopaque, type_id: u32) zx.Error!u32 {
+pub fn internUnificationType(handle: *anyopaque, type_id: u32) zx.Error!u32 {
     const target = Target.borrow(handle);
     const result = try target.graph.known(@fromBackingInt(type_id), target.span);
 
@@ -226,7 +226,7 @@ pub fn internUnificationType(handle: *const anyopaque, type_id: u32) zx.Error!u3
     return @backingInt(result);
 }
 
-pub fn reportUnification(handle: *const anyopaque, message: []const u8, depth: bool) zx.Error!void {
+pub fn reportUnification(handle: *anyopaque, message: []const u8, depth: bool) zx.Error!void {
     const target = Target.borrow(handle);
 
     return target.graph.reporter.fail(if (depth) .unsupported else .type_mismatch, target.span, message);

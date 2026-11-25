@@ -28,7 +28,7 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, cach
     var reused = rows[0..count];
     var pending = rows[count..][0..count];
     var offsets = rows[count * 2 ..];
-    const sources = zx.memory.borrowReadColumn(?[]const u8, "source", fetched);
+    const sources = zx.memory.borrowReadColumn(?[]u8, "source", fetched);
     const kinds = zx.memory.borrowReadColumn(Cache.Fetched.Kind, "kind", fetched);
     const Disk = std.meta.Child(@typeInfo(@FieldType(Lookup, "disk")).optional.child);
 

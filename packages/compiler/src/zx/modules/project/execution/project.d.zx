@@ -1,6 +1,3 @@
-export declare function publishSyntaxOrder(output: SyntaxOrders, constant: u64?): void
-    throws { OutOfMemory }
-
 export declare function initializeAnalysisTypes(
     publication: AnalysisPublication,
     borrowed: bool

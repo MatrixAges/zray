@@ -27,8 +27,8 @@ const Frame = struct {
     module: zx.ir.NativeModuleId,
     span: zx.Span,
     result: Loaded.Result = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -58,8 +58,8 @@ pub fn register(project: *Project, source: []const u8, identity: ?[]const u8, na
     return @fromBackingInt(selected.id orelse return error.OutOfMemory);
 }
 
-pub fn appendProjectNativeModule(handle: *const anyopaque, specifier: []const u8, identity: ?[]const u8, name: []const u8) std.mem.Allocator.Error!void {
-    const project: *Project = @ptrCast(@alignCast(@constCast(handle)));
+pub fn appendProjectNativeModule(handle: *anyopaque, specifier: []const u8, identity: ?[]const u8, name: []const u8) std.mem.Allocator.Error!void {
+    const project: *Project = @ptrCast(@alignCast(handle));
 
     try project.native_modules.append(project.allocator, .{ .specifier = specifier, .identity = identity, .import_name = name });
 }
@@ -88,7 +88,7 @@ pub fn load(project: *Project, native: *const Native, module: zx.ir.NativeModule
     return frame.result;
 }
 
-pub fn loadCachedProjectNative(handle: *const anyopaque) zx.Error!void {
+pub fn loadCachedProjectNative(handle: *anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
     const project = frame.project;
 
@@ -104,7 +104,7 @@ pub fn loadCachedProjectNative(handle: *const anyopaque) zx.Error!void {
     frame.result = try project.semantic_cache.?.native.load(project.allocator, frame.native.*, current, project.reporter, frame.span);
 }
 
-pub fn loadFreshProjectNative(handle: *const anyopaque) zx.Error!void {
+pub fn loadFreshProjectNative(handle: *anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
     const project = frame.project;
 

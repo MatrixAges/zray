@@ -2,21 +2,53 @@ const std = @import("std");
 const Graph = @import("types.zig");
 const Self = @This();
 pub const Field = struct { name: []const u8, value: Graph.Id };
+pub const Buffers = std.AutoHashMapUnmanaged([*]const Graph.Id, [*]u8);
 const Name = []const u8;
 const Header = extern struct { capacity: u32, published: u32 };
 const row_bytes = @sizeOf(Name) + @sizeOf(Graph.Id);
 
+pub const View = struct {
+    bytes: [*]const u8 = undefined,
+    len: usize = 0,
+    pub fn names(self: View) []const []const u8 {
+        if (self.len == 0) return &.{};
+
+        const start = self.bytes - @as(usize, self.header().capacity) * @sizeOf(Name);
+
+        return @as([*]const Name, @ptrCast(@alignCast(start)))[0..self.len];
+    }
+
+    pub fn values(self: View) []const Graph.Id {
+        if (self.len == 0) return &.{};
+
+        return @as([*]const Graph.Id, @ptrCast(@alignCast(self.bytes + @sizeOf(Header))))[0..self.len];
+    }
+
+    pub fn copyTo(self: View, destination: Self) void {
+        @memcpy(destination.nameColumn()[0..self.len], self.names());
+        @memcpy(destination.valueColumn()[0..self.len], self.values());
+    }
+
+    pub fn at(self: View, index: usize) Field {
+        return .{ .name = self.names()[index], .value = self.values()[index] };
+    }
+
+    fn header(self: View) *const Header {
+        return @ptrCast(@alignCast(self.bytes));
+    }
+};
+
 bytes: [*]u8 = undefined,
 len: usize = 0,
-pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
-    const fields = try allocate(allocator, count, count);
+pub fn init(buffers: *Buffers, allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
+    const fields = try allocate(buffers, allocator, count, count);
 
     if (count != 0) fields.header().published = @intCast(count);
 
     return fields;
 }
 
-fn allocate(allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem.Allocator.Error!Self {
+fn allocate(buffers: *Buffers, allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem.Allocator.Error!Self {
     if (capacity == 0) return .{};
 
     const reserved = std.math.cast(u32, capacity) orelse return error.OutOfMemory;
@@ -27,16 +59,19 @@ fn allocate(allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem
 
     fields.header().capacity = reserved;
 
+    try buffers.put(allocator, fields.valuePtr(), fields.bytes);
+
     return fields;
 }
 
 pub const Resize = struct {
+    buffers: *Buffers,
     allocator: std.mem.Allocator,
     fields: Self,
     names: []Name = undefined,
     values: []u32 = undefined,
     extent: []u32 = undefined,
-    pub fn borrow(self: *Resize, comptime View: type) View {
+    pub fn borrow(self: *Resize, comptime ShapeView: type) ShapeView {
         const fields = self.fields;
         const layout = if (fields.len == 0) Header{ .capacity = 0, .published = 0 } else fields.header().*;
 
@@ -53,14 +88,14 @@ pub const Resize = struct {
     }
 };
 
-pub fn bindFieldColumns(handle: *const anyopaque, count: u64, capacity: ?u64) std.mem.Allocator.Error!void {
-    const frame: *Resize = @ptrCast(@alignCast(@constCast(handle)));
+pub fn bindFieldColumns(handle: *anyopaque, count: u64, capacity: ?u64) std.mem.Allocator.Error!void {
+    const frame: *Resize = @ptrCast(@alignCast(handle));
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
 
     if (capacity) |size| {
         const reserved = std.math.cast(usize, size) orelse return error.OutOfMemory;
 
-        frame.fields = try allocate(frame.allocator, length, reserved);
+        frame.fields = try allocate(frame.buffers, frame.allocator, length, reserved);
     } else {
         frame.fields.len = length;
     }
@@ -70,13 +105,23 @@ pub fn bindFieldColumns(handle: *const anyopaque, count: u64, capacity: ?u64) st
     frame.extent = (&frame.fields.header().published)[0..1];
 }
 
-/// Reconstruct the descriptor from the complete value column of this layout.
-pub fn fromValues(column: []const Graph.Id) Self {
+/// Reconstruct a read-only descriptor from the complete value column of this layout.
+pub fn viewFromValues(column: []const Graph.Id) View {
     if (column.len == 0) return .{};
 
     const data: [*]const u8 = @ptrCast(column.ptr);
 
-    return .{ .bytes = @constCast(data - @sizeOf(Header)), .len = column.len };
+    return .{ .bytes = data - @sizeOf(Header), .len = column.len };
+}
+
+pub fn fromValues(buffers: *const Buffers, column: []const Graph.Id) Self {
+    if (column.len == 0) return .{};
+
+    return .{ .bytes = buffers.get(column.ptr).?, .len = column.len };
+}
+
+pub fn view(self: Self) View {
+    return .{ .bytes = self.bytes, .len = self.len };
 }
 
 pub fn names(self: Self) []const []const u8 {
@@ -108,7 +153,11 @@ pub fn nameColumn(self: Self) []Name {
 pub fn valueColumn(self: Self) []Graph.Id {
     if (self.len == 0) return &.{};
 
-    return @as([*]Graph.Id, @ptrCast(@alignCast(self.bytes + @sizeOf(Header))))[0..self.len];
+    return self.valuePtr()[0..self.len];
+}
+
+fn valuePtr(self: Self) [*]Graph.Id {
+    return @ptrCast(@alignCast(self.bytes + @sizeOf(Header)));
 }
 
 fn header(self: Self) *Header {

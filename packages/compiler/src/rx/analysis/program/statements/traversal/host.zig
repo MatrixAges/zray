@@ -51,12 +51,12 @@ pub const State = struct {
         };
     }
 
-    pub fn borrow(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn borrow(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn reserveBodyStatements(handle: *const anyopaque, slots: u64) Error!void {
+pub fn reserveBodyStatements(handle: *anyopaque, slots: u64) Error!void {
     const state = State.borrow(handle);
     var scopes: std.MultiArrayList(Scope) = .empty;
 
@@ -68,7 +68,7 @@ pub fn reserveBodyStatements(handle: *const anyopaque, slots: u64) Error!void {
     state.writers = try state.allocator.alloc(Writer.Cursor, state.statements.plan.rows[state.root].tag);
 }
 
-pub fn selectBodyWriter(handle: *const anyopaque, block: u32) void {
+pub fn selectBodyWriter(handle: *anyopaque, block: u32) void {
     const state = State.borrow(handle);
 
     state.row = &state.statements.plan.rows[block];
@@ -76,28 +76,28 @@ pub fn selectBodyWriter(handle: *const anyopaque, block: u32) void {
     state.cells = state.writer.cells();
 }
 
-pub fn evaluateBodyValue(handle: *const anyopaque, row: u32, borrowed: bool) Error!u32 {
+pub fn evaluateBodyValue(handle: *anyopaque, row: u32, borrowed: bool) Error!u32 {
     return @backingInt(try State.borrow(handle).statements.evaluateValue(row, borrowed));
 }
 
-pub fn defineBodyTaskBinding(handle: *const anyopaque, row: u32, value: u32) Error!u32 {
+pub fn defineBodyTaskBinding(handle: *anyopaque, row: u32, value: u32) Error!u32 {
     const state = State.borrow(handle);
 
     return @backingInt(try state.statements.taskSymbol(row, @fromBackingInt(value)));
 }
 
-pub fn publishBodyBinding(handle: *const anyopaque, symbol: u32) Error!void {
+pub fn publishBodyBinding(handle: *anyopaque, symbol: u32) Error!void {
     try State.borrow(handle).statements.publishBinding(@fromBackingInt(symbol));
 }
 
-pub fn evaluateBodyCaseLabel(handle: *const anyopaque, row: u32) Error!?u32 {
+pub fn evaluateBodyCaseLabel(handle: *anyopaque, row: u32) Error!?u32 {
     const state = State.borrow(handle);
     const program = state.statements.flow.cases.items(.value)[row] orelse return null;
 
     return @backingInt(try inlineValue(state.statements.builder, program.*, false));
 }
 
-pub fn initializeBodyCase(handle: *const anyopaque) void {
+pub fn initializeBodyCase(handle: *anyopaque) void {
     const state = State.borrow(handle);
 
     state.writer.* = Writer.Cursor.init(state.row.first);

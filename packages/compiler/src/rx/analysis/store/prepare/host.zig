@@ -27,8 +27,8 @@ pub const Frame = struct {
     output_types: zx.memory.WriteColumn = undefined,
     complete: zx.ir.TypeTable = undefined,
     result: Store.Value = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn diagnostic(self: *Frame, issue: @import("../../expression.zig").Diagnostic) Error {
         self.result = try Store.failure(self.allocator, self.path, issue.location, @tagName(issue.issue.code), issue.issue.message);
@@ -73,19 +73,19 @@ pub fn run(frame: *Frame) std.mem.Allocator.Error!Store.Value {
     return frame.result;
 }
 
-pub fn collectStoreDefinitionLayout(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn collectStoreDefinitionLayout(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.layout = try Layout.build(frame.temporary, frame.options.node, frame.groups);
 }
 
-pub fn rejectStoreDefinitionContext(handle: *const anyopaque, message: []const u8) Error!void {
+pub fn rejectStoreDefinitionContext(handle: *anyopaque, message: []const u8) Error!void {
     const frame = Frame.borrow(handle);
 
     return frame.diagnostic(try Types.contextDiagnostic(frame.temporary, frame.layout, message));
 }
 
-pub fn resolveStoreDefinitionTypes(handle: *const anyopaque) Error!void {
+pub fn resolveStoreDefinitionTypes(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const result = try Types.resolve(frame.allocator, frame.temporary, frame.path, frame.layout, frame.options.types, frame.options.aliases);
 
@@ -95,7 +95,7 @@ pub fn resolveStoreDefinitionTypes(handle: *const anyopaque) Error!void {
     frame.field_types = result.resolved.fields;
 }
 
-pub fn reserveStoreDefinitionObjects(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
+pub fn reserveStoreDefinitionObjects(handle: *anyopaque) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
 
     frame.values = frame.value_imports orelse try @import("../../project/type_imports.zig").values(frame.temporary, frame.types.view(), frame.options.aliases);
@@ -107,7 +107,7 @@ pub fn reserveStoreDefinitionObjects(handle: *const anyopaque) std.mem.Allocator
     return frame.objects.len;
 }
 
-pub fn compileStoreDefinitionObject(handle: *const anyopaque, row: u64) Error!void {
+pub fn compileStoreDefinitionObject(handle: *anyopaque, row: u64) Error!void {
     const frame = Frame.borrow(handle);
     const first = frame.layout.starts[@intCast(row)];
 
@@ -132,7 +132,7 @@ pub fn compileStoreDefinitionObject(handle: *const anyopaque, row: u64) Error!vo
     };
 }
 
-pub fn freezeStoreDefinitionTypes(handle: *const anyopaque) []const u8 {
+pub fn freezeStoreDefinitionTypes(handle: *anyopaque) []const u8 {
     const frame = Frame.borrow(handle);
 
     frame.complete = frame.types.view();
@@ -140,7 +140,7 @@ pub fn freezeStoreDefinitionTypes(handle: *const anyopaque) []const u8 {
     return std.mem.asBytes(&frame.complete);
 }
 
-pub fn publishStoreDefinition(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishStoreDefinition(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.result = .{ .definition = .{

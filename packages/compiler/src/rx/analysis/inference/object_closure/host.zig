@@ -34,12 +34,12 @@ pub const Session = struct {
         };
     }
 
-    fn borrow(handle: *const anyopaque) *Session {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Session {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn updateObjectReadiness(handle: *const anyopaque, rebuild: bool, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
+pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
     const session = Session.borrow(handle);
     const closure = session.closure;
     const graph = session.graph;

@@ -53,9 +53,8 @@ pub fn append(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator, 
     };
 }
 
-pub fn advanceTypeBindingTail(handle: *const anyopaque, used: u64, grow: bool) std.mem.Allocator.Error!void {
-    const tail: *Tail = @ptrCast(@alignCast(@constCast(handle)));
-
+pub fn advanceTypeBindingTail(handle: *anyopaque, used: u64, grow: bool) std.mem.Allocator.Error!void {
+    const tail: *Tail = @ptrCast(@alignCast(handle));
     tail.visible.len += @intCast(used);
 
     if (grow) {

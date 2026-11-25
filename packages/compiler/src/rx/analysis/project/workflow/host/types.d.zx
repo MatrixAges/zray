@@ -1,78 +1,78 @@
-export type StoreInitializer = opaque
+export type StoreInitializer = mutable_opaque
 
-export type StoreDefinitionWork = opaque
+export type StoreDefinitionWork = mutable_opaque
 
-export type StoreRegistryLoad = opaque
+export type StoreRegistryLoad = mutable_opaque
 
-export type StoreRegistryPublication = opaque
+export type StoreRegistryPublication = mutable_opaque
 
-export type Inference = opaque
+export type Inference = mutable_opaque
 
-export type Derivation = opaque
+export type Derivation = mutable_opaque
 
-export type Solver = opaque
+export type Solver = mutable_opaque
 
-export type ConstraintRound = opaque
+export type ConstraintRound = mutable_opaque
 
-export type TypeResolver = opaque
+export type TypeResolver = mutable_opaque
 
-export type AssignmentApplication = opaque
+export type AssignmentApplication = mutable_opaque
 
-export type AssignmentRegistration = opaque
+export type AssignmentRegistration = mutable_opaque
 
-export type ScopeRegistration = opaque
+export type ScopeRegistration = mutable_opaque
 
-export type ScopeLookup = opaque
+export type ScopeLookup = mutable_opaque
 
-export type KnownRegistration = opaque
+export type KnownRegistration = mutable_opaque
 
-export type UnificationTarget = opaque
+export type UnificationTarget = mutable_opaque
 
-export type ObjectReadiness = opaque
+export type ObjectReadiness = mutable_opaque
 
-export type ObjectReplay = opaque
+export type ObjectReplay = mutable_opaque
 
-export type ObjectFieldReplay = opaque
+export type ObjectFieldReplay = mutable_opaque
 
-export type FieldAccess = opaque
+export type FieldAccess = mutable_opaque
 
-export type FieldAlignment = opaque
+export type FieldAlignment = mutable_opaque
 
-export type FieldColumnStorage = opaque
+export type FieldColumnStorage = mutable_opaque
 
-export type ObjectConstructionRow = opaque
+export type ObjectConstructionRow = mutable_opaque
 
-export type BindingReplay = opaque
+export type BindingReplay = mutable_opaque
 
-export type BindingUse = opaque
+export type BindingUse = mutable_opaque
 
-export type BindingReporter = opaque
+export type BindingReporter = mutable_opaque
 
 export type BindingSpans = opaque
 
-export type NonNullReplay = opaque
+export type NonNullReplay = mutable_opaque
 
-export type NonNullRead = opaque
+export type NonNullRead = mutable_opaque
 
-export type OptionalQuery = opaque
+export type OptionalQuery = mutable_opaque
 
-export type ProjectionGraph = opaque
+export type ProjectionGraph = mutable_opaque
 
 export type ProjectionSpans = opaque
 
-export type PortGraph = opaque
+export type PortGraph = mutable_opaque
 
-export type ConstraintCollection = opaque
+export type ConstraintCollection = mutable_opaque
 
-export type ConditionFacts = opaque
+export type ConditionFacts = mutable_opaque
 
-export type FlowTraversal = opaque
+export type FlowTraversal = mutable_opaque
 
-export type SelectionLabels = opaque
+export type SelectionLabels = mutable_opaque
 
-export type DeclarationTarget = opaque
+export type DeclarationTarget = mutable_opaque
 
-export type TypeBindingTail = opaque
+export type TypeBindingTail = mutable_opaque
 
 export enum ReferenceTarget {
     Source,
@@ -96,13 +96,13 @@ export enum FlowPublish {
     Constant
 }
 
-export type ParallelTaskWork = opaque
+export type ParallelTaskWork = mutable_opaque
 
-export type BodyStatements = opaque
+export type BodyStatements = mutable_opaque
 
-export type ExpressionLink = opaque
+export type ExpressionLink = mutable_opaque
 
-export type ProgramStoreBinding = opaque
+export type ProgramStoreBinding = mutable_opaque
 
 export enum OperandColumn {
     binary_left,
@@ -178,7 +178,7 @@ export enum OperandRoute {
     Object
 }
 
-export type Mixed = opaque
+export type Mixed = mutable_opaque
 
 export type MixedState = opaque
 
@@ -190,17 +190,17 @@ export type MixedObservationCapture = opaque
 
 export type MixedObservationPublish = opaque
 
-export type MixedPreparation = opaque
+export type MixedPreparation = mutable_opaque
 
-export type MixedWorkspace = opaque
+export type MixedWorkspace = mutable_opaque
 
 export type MixedCandidate = opaque
 
 export type MixedWorker = opaque
 
-export type MixedCallees = opaque
+export type MixedCallees = mutable_opaque
 
-export type MixedImports = opaque
+export type MixedImports = mutable_opaque
 
 export type MixedImportRows = {
     named: u8[],
@@ -209,13 +209,13 @@ export type MixedImportRows = {
 }
 
 
-export type MixedZXPreparation = opaque
+export type MixedZXPreparation = mutable_opaque
 
 export type MixedZXParse = opaque
 
-export type MixedZXBody = opaque
+export type MixedZXBody = mutable_opaque
 
-export type MixedRXBody = opaque
+export type MixedRXBody = mutable_opaque
 
 export type ImportedCallee = {
     function_id?: u32,
@@ -224,7 +224,7 @@ export type ImportedCallee = {
     orchestration: bool
 }
 
-export type HistoryParseCache = opaque
+export type HistoryParseCache = mutable_opaque
 
 export type HistoryModuleLink = opaque
 

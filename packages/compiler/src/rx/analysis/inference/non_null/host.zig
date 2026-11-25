@@ -36,25 +36,25 @@ pub const Frame = struct {
         };
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn refreshNonNullTopology(handle: *const anyopaque) void {
+pub fn refreshNonNullTopology(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.topology.bind(frame.graph);
 }
 
-pub fn registerNonNullPayload(handle: *const anyopaque, row: u64, value: u32) zx.Error!u32 {
+pub fn registerNonNullPayload(handle: *anyopaque, row: u64, value: u32) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const span = frame.spans[@intCast(row)];
 
     return @backingInt(try frame.graph.known(@fromBackingInt(value), span));
 }
 
-pub fn reserveNonNullSource(handle: *const anyopaque, row: u64, payload: u32) std.mem.Allocator.Error!u32 {
+pub fn reserveNonNullSource(handle: *anyopaque, row: u64, payload: u32) std.mem.Allocator.Error!u32 {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
     const reservation = try Nodes.reserve(graph, 1);
@@ -64,7 +64,7 @@ pub fn reserveNonNullSource(handle: *const anyopaque, row: u64, payload: u32) st
     return @intCast(reservation.first);
 }
 
-pub fn mergeNonNullProjection(handle: *const anyopaque, row: u64, left: u32, right: u32) zx.Error!void {
+pub fn mergeNonNullProjection(handle: *anyopaque, row: u64, left: u32, right: u32) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     try frame.graph.unify(@fromBackingInt(left), @fromBackingInt(right), frame.spans[@intCast(row)]);

@@ -47,8 +47,8 @@ const Bindings = struct {
     members: Selection.Members = undefined,
     request: if (enabled) Selection.Request.Storage else void = undefined,
     rows: Rows = undefined,
-    fn borrow(handle: *const anyopaque) *Bindings {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Bindings {
+        return @ptrCast(@alignCast(handle));
     }
     fn dependency(self: *Bindings, index: usize) State.Error!?Selection.Symbols {
         const state = self.state;
@@ -146,7 +146,7 @@ fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *
     };
 }
 
-pub fn openMixedImport(handle: *const anyopaque, row: u64) State.Error!?*const Rows {
+pub fn openMixedImport(handle: *anyopaque, row: u64) State.Error!?*const Rows {
     const bindings = Bindings.borrow(handle);
     const index: usize = @intCast(row);
 
@@ -156,7 +156,7 @@ pub fn openMixedImport(handle: *const anyopaque, row: u64) State.Error!?*const R
     };
 }
 
-pub fn rejectMixedImport(handle: *const anyopaque, row: u64, message: []const u8) State.Error!void {
+pub fn rejectMixedImport(handle: *anyopaque, row: u64, message: []const u8) State.Error!void {
     return Bindings.borrow(handle).reject(@intCast(row), message);
 }
 

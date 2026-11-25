@@ -102,8 +102,8 @@ const Work = struct {
             .out = result.name,
         });
     }
-    fn borrow(handle: *const anyopaque) *Work {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Work {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -142,7 +142,7 @@ pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressi
         };
     }
 
-    const handle: *const anyopaque = &work;
+    const handle: *anyopaque = &work;
 
     try compileParallelTaskBody(handle);
     try checkParallelTaskCalls(handle);
@@ -156,7 +156,7 @@ pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressi
     return work.publish(parent.seedResult());
 }
 
-pub fn compileParallelTaskBody(handle: *const anyopaque) Flow.Error!void {
+pub fn compileParallelTaskBody(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
 
     _ = work.nested.root(work.branch.body) catch |err| {
@@ -168,7 +168,7 @@ pub fn compileParallelTaskBody(handle: *const anyopaque) Flow.Error!void {
     work.parent.next_binding = work.nested.next_binding;
 }
 
-pub fn checkParallelTaskCalls(handle: *const anyopaque) Flow.Error!void {
+pub fn checkParallelTaskCalls(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
 
     for (work.nested.calls.items) |*call| {
@@ -179,7 +179,7 @@ pub fn checkParallelTaskCalls(handle: *const anyopaque) Flow.Error!void {
     }
 }
 
-pub fn resolveParallelTaskCaptures(handle: *const anyopaque) Flow.Error!void {
+pub fn resolveParallelTaskCaptures(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
 
     work.types.items = try work.nested.takeTypeStorage();
@@ -197,7 +197,7 @@ pub fn resolveParallelTaskCaptures(handle: *const anyopaque) Flow.Error!void {
     work.parent.types = work.parent.type_storage.view();
 }
 
-pub fn lowerParallelTaskProgram(handle: *const anyopaque) Flow.Error!void {
+pub fn lowerParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
     const parent = work.parent;
     const allocator = parent.allocator;
@@ -234,19 +234,19 @@ pub fn lowerParallelTaskProgram(handle: *const anyopaque) Flow.Error!void {
     }
 }
 
-pub fn checkParallelTaskProgram(handle: *const anyopaque) Flow.Error!void {
+pub fn checkParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
 
     if (!try frontend.isParallelSafeWithSuffix(work.parent.allocator, work.program, work.suffix)) return work.rejectEffects();
 }
 
-pub fn analyzeParallelTaskOwnership(handle: *const anyopaque) Flow.Error!void {
+pub fn analyzeParallelTaskOwnership(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
     const suffix: zx.ir.FunctionTable = if (work.suffix) |tail| tail.* else .{};
     work.program.output_ownership = frontend.analyzeOwnershipWithSuffix(work.parent.allocator, work.program, suffix, &work.reporter) catch |err| return work.diagnostic(err);
 }
 
-pub fn validateParallelTaskProgram(handle: *const anyopaque) Flow.Error!void {
+pub fn validateParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
     if (comptime !frontend.checks_internal_ir) return;
 
     const work = Work.borrow(handle);
@@ -254,7 +254,7 @@ pub fn validateParallelTaskProgram(handle: *const anyopaque) Flow.Error!void {
     if (try frontend.validateIrExtending(work.parent.allocator, work.program, work.parent.verified_functions)) |issue| return work.fail(issue);
 }
 
-pub fn buildParallelTaskArgument(handle: *const anyopaque) Flow.Error!void {
+pub fn buildParallelTaskArgument(handle: *anyopaque) Flow.Error!void {
     const work = Work.borrow(handle);
     const parent = work.parent;
 
@@ -263,7 +263,7 @@ pub fn buildParallelTaskArgument(handle: *const anyopaque) Flow.Error!void {
     if (parent.captures) |outer| outer.observeMapped(work.argument.expressions.references, work.selected.positions);
 }
 
-pub fn publishParallelTask(handle: *const anyopaque, row: u64, visible: bool) Flow.Error!u32 {
+pub fn publishParallelTask(handle: *anyopaque, row: u64, visible: bool) Flow.Error!u32 {
     const work = Work.borrow(handle);
 
     return work.publish(work.parent.selectedResult(row, visible));

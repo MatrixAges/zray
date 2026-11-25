@@ -27,8 +27,8 @@ const Body = struct {
     program: ir.Program = undefined,
     installation: if (generated) @import("body_install/host.zig") else void = undefined,
     exports: if (generated) @import("body_exports/host.zig") else void = undefined,
-    fn borrow(handle: *const anyopaque) *Body {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Body {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -142,12 +142,12 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
     if (body.entry) moveProjectEntryBody(body);
 }
 
-pub fn hashProjectCacheContext(handle: *const anyopaque, root: bool) std.mem.Allocator.Error!void {
+pub fn hashProjectCacheContext(handle: *anyopaque, root: bool) std.mem.Allocator.Error!void {
     const project = Body.borrow(handle).project;
     _ = try project.cache_context.compute(project.allocator, if (root) project.options.context else null);
 }
 
-pub fn restoreCachedProjectBody(handle: *const anyopaque, entry: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn restoreCachedProjectBody(handle: *anyopaque, entry: *anyopaque) std.mem.Allocator.Error!bool {
     const self = Body.borrow(handle);
     const project = self.project;
     const frame = self.frame;
@@ -182,7 +182,7 @@ pub fn restoreCachedProjectBody(handle: *const anyopaque, entry: *const anyopaqu
     return false;
 }
 
-pub fn analyzeProjectBody(handle: *const anyopaque) zx.Error!void {
+pub fn analyzeProjectBody(handle: *anyopaque) zx.Error!void {
     const body = Body.borrow(handle);
 
     try switch (body.frame.parsed.result.*) {
@@ -237,19 +237,19 @@ fn preparePlan(body: *Body) void {
     };
 }
 
-pub fn materializeProjectFunction(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn materializeProjectFunction(handle: *anyopaque) std.mem.Allocator.Error!void {
     const body = Body.borrow(handle);
 
     try body.installation.ownFunction(body.project.allocator, &body.program);
 }
 
-pub fn bindProjectBodyExports(handle: *const anyopaque, id: ?u32) void {
+pub fn bindProjectBodyExports(handle: *anyopaque, id: ?u32) void {
     const body = Body.borrow(handle);
 
     body.exports.bind(&body.program, body.frame, if (id) |value| @fromBackingInt(value) else null);
 }
 
-pub fn checkProjectOwnership(handle: *const anyopaque, count: u64, id: ?u32) zx.Error!void {
+pub fn checkProjectOwnership(handle: *anyopaque, count: u64, id: ?u32) zx.Error!void {
     const body = Body.borrow(handle);
     const project = body.project;
     const program = &body.program;
@@ -278,7 +278,7 @@ fn publishSeedExports(body: *Body) zx.Error!void {
     }
 }
 
-pub fn writeProjectModuleRecord(handle: *const anyopaque, row: u64, types: []const u8, constants: []const u8, members: []const u8, entry: ?u32, entry_record: bool, function_id: ?u32, recursive: ?u32) void {
+pub fn writeProjectModuleRecord(handle: *anyopaque, row: u64, types: []const u8, constants: []const u8, members: []const u8, entry: ?u32, entry_record: bool, function_id: ?u32, recursive: ?u32) void {
     const body = Body.borrow(handle);
     const rows = @import("../exports/publication/rows.zig");
     const unit = body.unit;
@@ -319,7 +319,7 @@ inline fn record(body: *const Body, kind: @FieldType(ModuleRecord, "body"), recu
     };
 }
 
-pub fn moveProjectEntryBody(handle: *const anyopaque) void {
+pub fn moveProjectEntryBody(handle: *anyopaque) void {
     const body = Body.borrow(handle);
     const program = &body.program;
     program.types = .{};

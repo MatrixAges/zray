@@ -38,8 +38,7 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         .signature_indices = signature_indices,
     };
 
-    self.initializers.items = @constCast(signatures.store_initializers);
-    self.initializers.capacity = signatures.store_initializers.len;
+    try self.initializers.appendSlice(allocator, signatures.store_initializers);
 
     const opening: Opening = .{ .state = &self, .types = &types };
 

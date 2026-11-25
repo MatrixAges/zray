@@ -64,22 +64,22 @@ const Probe = struct {
     cache: *Source,
     allocator: Allocator,
     result: Lookup(Source.Key) = undefined,
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn appendSymbolicCallKey(handle: *const anyopaque, text: []const u8) Allocator.Error!void {
+pub fn appendSymbolicCallKey(handle: *anyopaque, text: []const u8) Allocator.Error!void {
     const probe = Probe.borrow(handle);
 
     try probe.cache.leaves.append(probe.allocator, text);
 }
 
-pub fn symbolicCallKeyTerms(handle: *const anyopaque, start: u64) []const []const u8 {
+pub fn symbolicCallKeyTerms(handle: *anyopaque, start: u64) []const []const u8 {
     return Probe.borrow(handle).cache.leaves.items[@intCast(start)..];
 }
 
-pub fn probeSymbolicCallKey(handle: *const anyopaque, target: u32, start: u64, count: u64, digest: u64) bool {
+pub fn probeSymbolicCallKey(handle: *anyopaque, target: u32, start: u64, count: u64, digest: u64) bool {
     const probe = Probe.borrow(handle);
     // Offsets survive pool growth while a nested call evaluates this miss.
     const key: Source.Key = .{ .target = target, .start = @intCast(start), .length = @intCast(count), .digest = digest };
@@ -95,6 +95,6 @@ pub fn probeSymbolicCallKey(handle: *const anyopaque, target: u32, start: u64, c
     return false;
 }
 
-pub fn rewindSymbolicCallKey(handle: *const anyopaque, start: u64) void {
+pub fn rewindSymbolicCallKey(handle: *anyopaque, start: u64) void {
     Probe.borrow(handle).cache.leaves.shrinkRetainingCapacity(@intCast(start));
 }

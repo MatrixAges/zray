@@ -31,9 +31,11 @@ pub fn parameters(arena: *std.heap.ArenaAllocator, view: anytype, values: anytyp
 
     if (!result.valid) return reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "native arrays of objects, tuples or enums require a named element type exported by the native module");
 
-    for (@constCast(result.names)) |*name| {
-        if (name.*) |text| name.* = try allocator.dupe(u8, text);
+    const names = try allocator.alloc(?[]const u8, result.names.len);
+
+    for (result.names, names) |source_name, *target| {
+        target.* = if (source_name) |text| try allocator.dupe(u8, text) else null;
     }
 
-    return .{ .names = result.names };
+    return .{ .names = names };
 }

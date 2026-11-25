@@ -48,8 +48,8 @@ pub fn execute(self: *Self) !bool {
     return entry.executeIn(fixed.allocator(), &input) catch |err| return self.failure orelse err;
 }
 
-fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 fn fail(self: *Self, err: anyerror) Failure {
@@ -58,7 +58,7 @@ fn fail(self: *Self, err: anyerror) Failure {
     return error.PartitionHost;
 }
 
-pub fn startPartitionHash(handle: *const anyopaque) Failure!void {
+pub fn startPartitionHash(handle: *anyopaque) Failure!void {
     const self = borrow(handle);
     const stat = std.Io.Dir.cwd().statFile(self.io, self.request.zig, .{}) catch |err| return self.fail(err);
     const selected = self.selected;
@@ -74,25 +74,25 @@ pub fn startPartitionHash(handle: *const anyopaque) Failure!void {
     );
 }
 
-pub fn hashExternalInput(handle: *const anyopaque, path: []const u8) Failure!void {
+pub fn hashExternalInput(handle: *anyopaque, path: []const u8) Failure!void {
     const self = borrow(handle);
 
     self.shared.input(self.io, self.workspace, path) catch |err| return self.fail(err);
 }
 
-pub fn allocatePartitionKeys(handle: *const anyopaque, count: u64) Failure!void {
+pub fn allocatePartitionKeys(handle: *anyopaque, count: u64) Failure!void {
     const self = borrow(handle);
 
     self.keys = cache_key.Partitions.init(self.allocator, self.shared.state(), @intCast(count)) catch |err| return self.fail(err);
 }
 
-pub fn hashPartitionMembers(handle: *const anyopaque, row: u64, first: u64, end: u64) void {
+pub fn hashPartitionMembers(handle: *anyopaque, row: u64, first: u64, end: u64) void {
     const self = borrow(handle);
 
     self.keys.hash(@intCast(row), self.listed, self.selected.members[@intCast(first)..@intCast(end)]);
 }
 
-pub fn loadPartitionObjects(handle: *const anyopaque, state_file: []const u8) Failure!*const native.PartitionObjects {
+pub fn loadPartitionObjects(handle: *anyopaque, state_file: []const u8) Failure!*const native.PartitionObjects {
     const self = borrow(handle);
 
     self.load(state_file) catch |err| return self.fail(err);
@@ -119,13 +119,13 @@ fn load(self: *Self, state_file: []const u8) !void {
     self.objects = .{ .target = @ptrCast(self), .paths = paths };
 }
 
-pub fn recordPartitionPresence(handle: *const anyopaque, row: u64, path: []const u8) void {
+pub fn recordPartitionPresence(handle: *anyopaque, row: u64, path: []const u8) void {
     const self = borrow(handle);
 
     self.present[@intCast(row)] = if (std.Io.Dir.cwd().access(self.io, path, .{})) true else |_| false;
 }
 
-pub fn schedulePartitionObjects(handle: *const anyopaque) Failure!*const native.PartitionSchedule {
+pub fn schedulePartitionObjects(handle: *anyopaque) Failure!*const native.PartitionSchedule {
     const self = borrow(handle);
     const keys: state.Keys = .{ .hex = self.keys.hex };
 
@@ -140,20 +140,20 @@ pub fn schedulePartitionObjects(handle: *const anyopaque) Failure!*const native.
     return &self.scheduled;
 }
 
-pub fn publishPartitionState(handle: *const anyopaque) Failure!void {
+pub fn publishPartitionState(handle: *anyopaque) Failure!void {
     const self = borrow(handle);
     const keys: state.Keys = .{ .hex = self.keys.hex };
 
     keys.write(self.io, self.allocator, self.state_path, self.present) catch |err| return self.fail(err);
 }
 
-pub fn compilePartitionObjects(handle: *const anyopaque) Failure!void {
+pub fn compilePartitionObjects(handle: *anyopaque) Failure!void {
     const self = borrow(handle);
 
     self.diagnostics = workers.compile(self.io, self.allocator, self.request.zig, self.schedule) catch |err| return self.fail(err);
 }
 
-pub fn completePartitionObjects(handle: *const anyopaque) Failure!*const native.PartitionResults {
+pub fn completePartitionObjects(handle: *anyopaque) Failure!*const native.PartitionResults {
     const self = borrow(handle);
     const failed = state.complete(self.schedule.pending, self.diagnostics, self.present) catch |err| return self.fail(err);
 
@@ -162,7 +162,7 @@ pub fn completePartitionObjects(handle: *const anyopaque) Failure!*const native.
     return &self.completed;
 }
 
-pub fn reportPartitionDiagnostic(handle: *const anyopaque, diagnostic: []const u8) Failure!void {
+pub fn reportPartitionDiagnostic(handle: *anyopaque, diagnostic: []const u8) Failure!void {
     const self = borrow(handle);
 
     std.Io.File.stderr().writeStreamingAll(self.io, diagnostic) catch |err| return self.fail(err);

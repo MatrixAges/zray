@@ -97,12 +97,12 @@ pub const Frame = struct {
         };
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn reservePortNodes(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reservePortNodes(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.reservation = try Nodes.reserve(frame.graph, std.math.cast(usize, count) orelse return error.OutOfMemory);
@@ -110,7 +110,7 @@ pub fn reservePortNodes(handle: *const anyopaque, count: u64) std.mem.Allocator.
     frame.bindNodes();
 }
 
-pub fn internPortType(handle: *const anyopaque, type_id: u32, offset: u64) zx.Error!u32 {
+pub fn internPortType(handle: *anyopaque, type_id: u32, offset: u64) zx.Error!u32 {
     const graph = Frame.borrow(handle).graph;
     const start: usize = @intCast(offset);
 

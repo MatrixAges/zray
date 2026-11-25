@@ -58,12 +58,12 @@ const Binding = struct {
     calls: Prepared.Calls.Slice,
     owner: usize,
     imported: Imported = undefined,
-    fn borrow(handle: *const anyopaque) *Binding {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Binding {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn importMixedCallee(handle: *const anyopaque, row: u64, edge: u64) State.Error!*const Imported {
+pub fn importMixedCallee(handle: *anyopaque, row: u64, edge: u64) State.Error!*const Imported {
     const binding = Binding.borrow(handle);
     const position: usize = @intCast(row);
     const location = binding.calls.items(.node)[position].location;
@@ -81,20 +81,20 @@ pub fn importMixedCallee(handle: *const anyopaque, row: u64, edge: u64) State.Er
     return &binding.imported;
 }
 
-pub fn compileMixedSetter(handle: *const anyopaque, row: u64, target: u64) State.Error!?u32 {
+pub fn compileMixedSetter(handle: *anyopaque, row: u64, target: u64) State.Error!?u32 {
     const binding = Binding.borrow(handle);
     const setter = binding.calls.items(.setter)[@intCast(row)].?;
 
     return compileAuthorized(binding.state, binding.cache, binding.sources, @intCast(target), setter);
 }
 
-pub fn restoreMixedCalleeOwner(handle: *const anyopaque) void {
+pub fn restoreMixedCalleeOwner(handle: *anyopaque) void {
     const binding = Binding.borrow(handle);
 
     binding.state.owner = binding.owner;
 }
 
-pub fn rejectMixedCallee(handle: *const anyopaque, row: u64, name: bool, message: []const u8) State.Error!void {
+pub fn rejectMixedCallee(handle: *anyopaque, row: u64, name: bool, message: []const u8) State.Error!void {
     const binding = Binding.borrow(handle);
     const position: usize = @intCast(row);
     const location = if (name) binding.calls.items(.name_source)[position].value_location else binding.calls.items(.node)[position].location;

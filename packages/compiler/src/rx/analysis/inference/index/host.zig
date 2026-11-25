@@ -31,8 +31,8 @@ pub fn register(graph: *Graph, pending: Projection) zx.Error!void {
     _ = rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn appendIndexProjection(handle: *const anyopaque, spans: *const anyopaque, index_spans: *const anyopaque, target: u32, value: u32, position: ?u64) std.mem.Allocator.Error!void {
-    const graph: *Graph = @ptrCast(@alignCast(@constCast(handle)));
+pub fn appendIndexProjection(handle: *anyopaque, spans: *const anyopaque, index_spans: *const anyopaque, target: u32, value: u32, position: ?u64) std.mem.Allocator.Error!void {
+    const graph: *Graph = @ptrCast(@alignCast(handle));
     const span: *const []const zx.Span = @ptrCast(@alignCast(spans));
     const index_span: *const []const zx.Span = @ptrCast(@alignCast(index_spans));
 

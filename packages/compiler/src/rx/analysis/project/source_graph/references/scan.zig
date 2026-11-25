@@ -50,8 +50,8 @@ const Scan = struct {
 
         return .{ .collector = collector, .discovery = Adapter.publish };
     }
-    fn borrow(handle: *const anyopaque) *Scan {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Scan {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -168,7 +168,7 @@ fn apply(collector: anytype, delivery: *const Delivery) @TypeOf(collector.*).Err
 }
 
 pub fn deliverSourceGraphReference(
-    handle: *const anyopaque,
+    handle: *anyopaque,
     kind: Kind,
     borrowed_location: ?[]const u8,
     offset: u64,
@@ -206,7 +206,7 @@ pub fn deliverSourceGraphReference(
     };
 }
 
-pub fn sourceGraphInternal(handle: *const anyopaque, specifier: []const u8) ?[]const u8 {
+pub fn sourceGraphInternal(handle: *anyopaque, specifier: []const u8) ?[]const u8 {
     const collector = Scan.borrow(handle).graph.?;
 
     return if (collector.options.internalModule(specifier)) |entry| entry.key() else null;

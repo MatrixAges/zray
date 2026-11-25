@@ -58,22 +58,22 @@ pub fn symbolicField(handle: *const anyopaque, index: u64) *const Source {
     return @ptrCast(&read(handle).fields[@intCast(index)]);
 }
 
-pub fn targetSymbolicField(handle: *const anyopaque, index: u64) *const Target {
-    return @ptrCast(&read(handle).fields[@intCast(index)]);
+pub fn targetSymbolicField(handle: *anyopaque, index: u64) *Target {
+    return @ptrCast(&write(handle).fields[@intCast(index)]);
 }
 
-pub fn reuseSymbolicFields(target: *const anyopaque, source: *const anyopaque) void {
+pub fn reuseSymbolicFields(target: *anyopaque, source: *const anyopaque) void {
     write(target).* = read(source).*;
 }
 
-pub fn reserveSymbolicFields(graph: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reserveSymbolicFields(graph: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const frame: *const Frame = @ptrCast(@alignCast(graph));
     const fields = try frame.graph.allocator.alloc(Value, @intCast(count));
 
     write(target).* = .{ .fields = fields };
 }
 
-pub fn publishSymbolicText(graph: *const anyopaque, target: *const anyopaque, type_id: u32, text: []const u8) zx.Error!void {
+pub fn publishSymbolicText(graph: *const anyopaque, target: *anyopaque, type_id: u32, text: []const u8) zx.Error!void {
     const frame: *const Frame = @ptrCast(@alignCast(graph));
 
     write(target).* = try frame.graph.retain(frame.program.*, @fromBackingInt(type_id), .{ .scalar = text }, frame.span);
@@ -83,6 +83,6 @@ fn read(handle: *const anyopaque) *const Value {
     return @ptrCast(@alignCast(handle));
 }
 
-fn write(handle: *const anyopaque) *Value {
-    return @constCast(read(handle));
+fn write(handle: *anyopaque) *Value {
+    return @ptrCast(@alignCast(handle));
 }

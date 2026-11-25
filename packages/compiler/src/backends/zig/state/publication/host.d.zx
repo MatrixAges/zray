@@ -1,4 +1,4 @@
-export type StatePublication = opaque
+export type StatePublication = mutable_opaque
 
 export type Lookup = {
     frame: StatePublication,

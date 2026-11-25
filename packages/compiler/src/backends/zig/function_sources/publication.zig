@@ -6,10 +6,10 @@ const Plan = planning.Plan;
 const copying = @import("generated_function_sources_copy_worker");
 const Copy = std.meta.Child(copying.Input);
 const chunk_size = 16;
-pub const Result = struct { source: ?[]const u8 };
+pub const Result = struct { source: ?[]const u8, owned: ?[]u8 = null };
 
 pub fn restore(owned: std.mem.Allocator, fetched: []const Cache.Fetched, plan: Plan, target: [][]const u8) std.mem.Allocator.Error!void {
-    const items = zx.memory.borrowReadColumn(?[]const u8, "source", fetched);
+    const items = zx.memory.borrowReadColumn(?[]u8, "source", fetched);
 
     try publish(owned, .{
         .items = @ptrCast(&items),

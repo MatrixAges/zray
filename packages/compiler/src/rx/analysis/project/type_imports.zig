@@ -115,13 +115,13 @@ const Work = struct {
     }
 };
 
-fn borrow(handle: *const anyopaque) *Work {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Work {
+    return @ptrCast(@alignCast(handle));
 }
 
 const ReferenceTarget = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".ReferenceTarget else void;
 
-pub fn typeDeclarationTarget(handle: *const anyopaque, row: ?u64) ReferenceTarget {
+pub fn typeDeclarationTarget(handle: *anyopaque, row: ?u64) ReferenceTarget {
     return switch (borrow(handle).references.edges[@intCast(row.?)].target) {
         .source => .Source,
         .compiled => .Compiled,
@@ -129,17 +129,17 @@ pub fn typeDeclarationTarget(handle: *const anyopaque, row: ?u64) ReferenceTarge
     };
 }
 
-pub fn typeDeclarationOwner(handle: *const anyopaque, row: ?u64) u64 {
+pub fn typeDeclarationOwner(handle: *anyopaque, row: ?u64) u64 {
     const edge = &borrow(handle).references.edges[@intCast(row.?)];
 
     return if (edge.target == .source) edge.target.source else 0;
 }
 
-pub fn publishTypeDeclaration(handle: *const anyopaque, index: ?u64, alias: []const u8) std.mem.Allocator.Error!void {
+pub fn publishTypeDeclaration(handle: *anyopaque, index: ?u64, alias: []const u8) std.mem.Allocator.Error!void {
     try borrow(handle).publish(@intCast(index.?), Declarations.attribute(alias));
 }
 
-pub fn rejectTypeDeclaration(handle: *const anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
+pub fn rejectTypeDeclaration(handle: *anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
     return borrow(handle).fail(Declarations.attribute(at), message);
 }
 

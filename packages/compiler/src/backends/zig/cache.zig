@@ -75,7 +75,7 @@ pub fn get(self: *Self, name: []const u8, key: [32]u8) std.mem.Allocator.Error!?
 
 /// What `fetch` found for one unit, before `record` accounts for it.
 pub const Fetched = struct {
-    source: ?[]const u8 = null,
+    source: ?[]u8 = null,
     failure: ?anyerror = null,
     kind: Kind = .absent,
     owner: Owner = .cache,
@@ -122,7 +122,7 @@ pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: *Fetched) std
             return fetched.source.?;
         },
         .stored => {
-            const source = @constCast(fetched.source.?);
+            const source = fetched.source.?;
 
             try self.store(name, .{ .key = key, .source = source, .owner = fetched.owner }, false);
 
@@ -211,14 +211,14 @@ fn runWriter(self: *Self, mode: policy.Mode) void {
     if (!startCacheWriting(@ptrCast(self), plan.start == .Spawn)) self.completeWrites(.Drain);
 }
 
-pub fn finishCacheWriting(target: *const anyopaque, join: bool) void {
-    const self: *Self = @ptrCast(@alignCast(@constCast(target)));
+pub fn finishCacheWriting(target: *anyopaque, join: bool) void {
+    const self: *Self = @ptrCast(@alignCast(target));
 
     self.completeWrites(if (join) .Join else .Drain);
 }
 
-pub fn startCacheWriting(target: *const anyopaque, background: bool) bool {
-    const self: *Self = @ptrCast(@alignCast(@constCast(target)));
+pub fn startCacheWriting(target: *anyopaque, background: bool) bool {
+    const self: *Self = @ptrCast(@alignCast(target));
 
     self.writing = .{ .queue = self.unwritten };
     self.unwritten = .{};

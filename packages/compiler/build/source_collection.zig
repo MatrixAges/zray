@@ -156,8 +156,8 @@ const Scan = struct {
     }
 };
 
-pub fn listGenerationLevel(handle: *const anyopaque, level: []const []const u8) Error!bool {
-    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+pub fn listGenerationLevel(handle: *anyopaque, level: []const []const u8) Error!bool {
+    const self: *Scan = @ptrCast(@alignCast(handle));
 
     const listings = self.prepareLevel(level) catch |err| {
         self.failure = err;
@@ -172,8 +172,8 @@ pub fn listGenerationLevel(handle: *const anyopaque, level: []const []const u8) 
     return self.copyPaths(level.len);
 }
 
-pub fn reserveGenerationFiles(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveGenerationFiles(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const self: *Scan = @ptrCast(@alignCast(handle));
     const rows = try self.extend(@intCast(count));
 
     self.views.bytes = std.mem.sliceAsBytes(rows);
@@ -181,14 +181,14 @@ pub fn reserveGenerationFiles(handle: *const anyopaque, count: u64) std.mem.Allo
     self.views.relatives = memory.borrowWriteColumn([]const u8, "relative", rows);
 }
 
-pub fn selectGenerationAllocator(handle: *const anyopaque, frontier: ?u8) void {
-    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+pub fn selectGenerationAllocator(handle: *anyopaque, frontier: ?u8) void {
+    const self: *Scan = @ptrCast(@alignCast(handle));
 
     self.scope.active = if (frontier) |index| self.frontier[index].allocator() else self.paths;
 }
 
-pub fn retireGenerationLevel(handle: *const anyopaque, frontier: u8) void {
-    const self: *Scan = @ptrCast(@alignCast(@constCast(handle)));
+pub fn retireGenerationLevel(handle: *anyopaque, frontier: u8) void {
+    const self: *Scan = @ptrCast(@alignCast(handle));
 
     self.retire(frontier);
 }
@@ -224,8 +224,8 @@ const DocumentReader = struct {
     }
 };
 
-pub fn readGenerationDocument(handle: *const anyopaque, relative: []const u8, path: []const u8, retain: bool) Error![]const u8 {
-    const self: *DocumentReader = @ptrCast(@alignCast(@constCast(handle)));
+pub fn readGenerationDocument(handle: *anyopaque, relative: []const u8, path: []const u8, retain: bool) Error![]const u8 {
+    const self: *DocumentReader = @ptrCast(@alignCast(handle));
 
     return self.read(relative, path, retain) catch |err| {
         self.failure = err;

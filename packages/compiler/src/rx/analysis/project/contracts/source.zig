@@ -58,8 +58,8 @@ const Ports = struct {
     }
 };
 
-pub fn publishArgumentDeclaration(handle: *const anyopaque, node: []const u8, first: []const u8, second: []const u8) std.mem.Allocator.Error!void {
-    const ports: *Ports = @ptrCast(@alignCast(@constCast(handle)));
+pub fn publishArgumentDeclaration(handle: *anyopaque, node: []const u8, first: []const u8, second: []const u8) std.mem.Allocator.Error!void {
+    const ports: *Ports = @ptrCast(@alignCast(handle));
 
     try ports.append(@ptrCast(@alignCast(node.ptr)), .{
         .first = Declarations.attribute(first),

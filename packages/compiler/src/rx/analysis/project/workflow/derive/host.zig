@@ -252,47 +252,47 @@ pub const State = struct {
     }
 };
 
-fn borrow(handle: *const anyopaque) *State {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *State {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn prepareDerivedModules(handle: *const anyopaque) Error!void {
+pub fn prepareDerivedModules(handle: *anyopaque) Error!void {
     return borrow(handle).modules();
 }
 
-pub fn collectDerivedGraph(handle: *const anyopaque) Error!void {
+pub fn collectDerivedGraph(handle: *anyopaque) Error!void {
     return borrow(handle).graph();
 }
 
-pub fn orderDerivedSignatures(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn orderDerivedSignatures(handle: *anyopaque) std.mem.Allocator.Error!void {
     return borrow(handle).orderSignatures();
 }
 
-pub fn restoreDerivedSignatures(handle: *const anyopaque) bool {
+pub fn restoreDerivedSignatures(handle: *anyopaque) bool {
     return borrow(handle).restoreSignatures();
 }
 
-pub fn analyzeDerivedSignatures(handle: *const anyopaque) Error!void {
+pub fn analyzeDerivedSignatures(handle: *anyopaque) Error!void {
     return borrow(handle).analyzeSignatures();
 }
 
-pub fn indexDerivedSignatures(handle: *const anyopaque) Error!void {
+pub fn indexDerivedSignatures(handle: *anyopaque) Error!void {
     return borrow(handle).index();
 }
 
-pub fn loadDerivedStores(handle: *const anyopaque) Error!void {
+pub fn loadDerivedStores(handle: *anyopaque) Error!void {
     return borrow(handle).stores();
 }
 
-pub fn prepareDerivedFlow(handle: *const anyopaque) Error!void {
+pub fn prepareDerivedFlow(handle: *anyopaque) Error!void {
     return borrow(handle).prepare();
 }
 
-pub fn solveDerivedFlow(handle: *const anyopaque) Error!void {
+pub fn solveDerivedFlow(handle: *anyopaque) Error!void {
     return @import("../solve/host.zig").run(borrow(handle));
 }
 
-pub fn completeDerivedShortcut(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!void {
+pub fn completeDerivedShortcut(handle: *anyopaque, index: u64) std.mem.Allocator.Error!void {
     const state = borrow(handle);
     const row: usize = @intCast(index);
     const module = &state.prepared.?.modules[row];
@@ -306,6 +306,6 @@ pub fn completeDerivedShortcut(handle: *const anyopaque, index: u64) std.mem.All
     module.plan = plan.flow;
 }
 
-pub fn publishDerivedFrame(handle: *const anyopaque) void {
+pub fn publishDerivedFrame(handle: *anyopaque) void {
     borrow(handle).publish();
 }

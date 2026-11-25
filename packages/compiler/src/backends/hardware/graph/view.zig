@@ -78,18 +78,18 @@ pub fn init(self: *Self, module: anytype) void {
     self.graph = .{ .inputs = &self.inputs, .outputs = &self.outputs, .sorts = &self.sorts, .count = module.nodes.len, .safe = @backingInt(module.safe) };
 }
 
-pub fn scan(self: *const Self) Scan {
+pub fn scan(self: *Self) Scan {
     return .{ .graph = &self.graph, .nodes = @ptrCast(&self.nodes) };
 }
 
-pub fn validate(self: *const Self) bool {
+pub fn validate(self: *Self) bool {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return validate_graph.executeIn(empty.allocator(), &self.scan()) catch unreachable;
 }
 
-pub fn readHardwareGraphNode(handle: *const anyopaque, index: u64) *const node.Node {
-    const nodes: *Nodes = @ptrCast(@alignCast(@constCast(handle)));
+pub fn readHardwareGraphNode(handle: *anyopaque, index: u64) *const node.Node {
+    const nodes: *Nodes = @ptrCast(@alignCast(handle));
     const row: usize = @intCast(index);
 
     return switch (nodes.*) {

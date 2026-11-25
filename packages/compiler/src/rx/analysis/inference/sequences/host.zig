@@ -6,14 +6,14 @@ const Solve = @import("../../project/workflow/solve/abi.zig").Solve;
 const View = std.meta.Child(@FieldType(Solve, "sequences"));
 const Spans = @FieldType(View, "spans");
 
-pub fn borrowSequenceElementSpans(handle: *const anyopaque, row: u64) Spans {
+pub fn borrowSequenceElementSpans(handle: *anyopaque, row: u64) Spans {
     const graph: *const Graph = @ptrCast(@alignCast(handle));
 
     return @ptrCast(&graph.pending.sequences.items(.spans)[@intCast(row)]);
 }
 
-pub fn expectSequenceMembers(handle: *const anyopaque, row: u64, members: []const u32, repeated: ?u32, declared: bool) zx.Error!void {
-    const graph: *Graph = @ptrCast(@alignCast(@constCast(handle)));
+pub fn expectSequenceMembers(handle: *anyopaque, row: u64, members: []const u32, repeated: ?u32, declared: bool) zx.Error!void {
+    const graph: *Graph = @ptrCast(@alignCast(handle));
     const sequence = graph.pending.sequences.get(@intCast(row));
 
     const targets: Registration.Targets = if (repeated) |child|

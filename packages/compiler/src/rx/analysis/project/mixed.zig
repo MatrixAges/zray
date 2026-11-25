@@ -208,25 +208,25 @@ const Transaction = struct {
     }
 };
 
-fn borrow(handle: *const anyopaque) *Transaction {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Transaction {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn mixedBatchEnd(handle: *const anyopaque, batch: u64) u64 {
+pub fn mixedBatchEnd(handle: *anyopaque, batch: u64) u64 {
     return borrow(handle).derived.dependencies.batch_ends[@intCast(batch)];
 }
 
-pub fn prefetchMixedWindow(handle: *const anyopaque, first: u64, end: u64) std.mem.Allocator.Error!u64 {
+pub fn prefetchMixedWindow(handle: *anyopaque, first: u64, end: u64) std.mem.Allocator.Error!u64 {
     return try borrow(handle).prefetch(.{ .first = @intCast(first), .end = @intCast(end) });
 }
 
-pub fn restoreMixedPrefix(handle: *const anyopaque, first: u64, limit: u64) std.mem.Allocator.Error!u64 {
+pub fn restoreMixedPrefix(handle: *anyopaque, first: u64, limit: u64) std.mem.Allocator.Error!u64 {
     const self = borrow(handle);
 
     return try self.reuse.reuse(self.state, @intCast(first), @intCast(limit));
 }
 
-pub fn selectMixedBody(handle: *const anyopaque, first: u64, limit: u64) Action {
+pub fn selectMixedBody(handle: *anyopaque, first: u64, limit: u64) Action {
     const self = borrow(handle);
     const next = self.ahead.next(self.state, @intCast(first), @intCast(limit), self.keep_skipped) orelse return .Exhausted;
 
@@ -241,13 +241,13 @@ pub fn selectMixedBody(handle: *const anyopaque, first: u64, limit: u64) Action 
     };
 }
 
-pub fn rejectMixedBody(handle: *const anyopaque) error{InvalidSourceGraph}!u64 {
+pub fn rejectMixedBody(handle: *anyopaque) error{InvalidSourceGraph}!u64 {
     const self = borrow(handle);
 
     return self.reject(self.pending.index);
 }
 
-pub fn analyzeMixedZX(handle: *const anyopaque) State.Error!u64 {
+pub fn analyzeMixedZX(handle: *anyopaque) State.Error!u64 {
     const self = borrow(handle);
 
     try self.analyzeAtTurn(self.pending);
@@ -255,7 +255,7 @@ pub fn analyzeMixedZX(handle: *const anyopaque) State.Error!u64 {
     return self.pending.following;
 }
 
-pub fn lowerMixedRX(handle: *const anyopaque) State.Error!u64 {
+pub fn lowerMixedRX(handle: *anyopaque) State.Error!u64 {
     const self = borrow(handle);
 
     try self.lowerAtTurn(self.pending);
@@ -263,23 +263,23 @@ pub fn lowerMixedRX(handle: *const anyopaque) State.Error!u64 {
     return self.pending.following;
 }
 
-pub fn preparedMixedZXRow(handle: *const anyopaque) ?u64 {
+pub fn preparedMixedZXRow(handle: *anyopaque) ?u64 {
     const self = borrow(handle);
 
     return if (self.ahead.zxRow(self.pending.prepared_row)) |row| row else null;
 }
 
-pub fn acceptsPreparedMixedZX(handle: *const anyopaque, row: u64) bool {
+pub fn acceptsPreparedMixedZX(handle: *anyopaque, row: u64) bool {
     const self = borrow(handle);
 
     return self.ahead.acceptsZX(self.state, @intCast(row));
 }
 
-pub fn retirePreparedMixedZX(handle: *const anyopaque, row: u64) void {
+pub fn retirePreparedMixedZX(handle: *anyopaque, row: u64) void {
     borrow(handle).ahead.retireZX(@intCast(row));
 }
 
-pub fn linkPreparedMixedZX(handle: *const anyopaque, row: u64) State.Error!u64 {
+pub fn linkPreparedMixedZX(handle: *anyopaque, row: u64) State.Error!u64 {
     const self = borrow(handle);
 
     try self.ahead.linkZX(self.state, @intCast(row), self.pending.index);
@@ -287,13 +287,13 @@ pub fn linkPreparedMixedZX(handle: *const anyopaque, row: u64) State.Error!u64 {
     return self.pending.following;
 }
 
-pub fn acceptedPreparedMixedRX(handle: *const anyopaque) ?u64 {
+pub fn acceptedPreparedMixedRX(handle: *anyopaque) ?u64 {
     const self = borrow(handle);
 
     return if (self.ahead.acceptedRX(self.state, self.pending.prepared_row)) |row| row else null;
 }
 
-pub fn linkPreparedMixedRX(handle: *const anyopaque, row: u64) State.Error!u64 {
+pub fn linkPreparedMixedRX(handle: *anyopaque, row: u64) State.Error!u64 {
     const self = borrow(handle);
 
     if (try self.ahead.linkRX(self.state, @intCast(row))) |metadata| self.entry = metadata;
@@ -301,30 +301,30 @@ pub fn linkPreparedMixedRX(handle: *const anyopaque, row: u64) State.Error!u64 {
     return self.pending.following;
 }
 
-pub fn skipMixedBody(handle: *const anyopaque) u64 {
+pub fn skipMixedBody(handle: *anyopaque) u64 {
     return borrow(handle).pending.following;
 }
 
-pub fn recordMixedBody(handle: *const anyopaque) void {
+pub fn recordMixedBody(handle: *anyopaque) void {
     const self = borrow(handle);
     const next = self.pending;
 
     self.reuse.analyzed(self.state, next.index, next.position);
 }
 
-pub fn materializeMixedModule(handle: *const anyopaque) State.Error!void {
+pub fn materializeMixedModule(handle: *anyopaque) State.Error!void {
     try borrow(handle).materialize();
 }
 
-pub fn publishMixedObservations(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishMixedObservations(handle: *anyopaque) std.mem.Allocator.Error!void {
     try borrow(handle).publishObservations();
 }
 
-pub fn publishMixedExports(handle: *const anyopaque) State.Error!void {
+pub fn publishMixedExports(handle: *anyopaque) State.Error!void {
     try borrow(handle).publishExports();
 }
 
-pub fn retainMixedHistory(handle: *const anyopaque) void {
+pub fn retainMixedHistory(handle: *anyopaque) void {
     const self = borrow(handle);
 
     self.reuse.finish(self.state, self.selected, self.sources);

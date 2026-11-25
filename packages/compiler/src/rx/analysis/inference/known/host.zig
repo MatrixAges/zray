@@ -58,8 +58,8 @@ const Frame = struct {
         self.visibility = self.node_publication.storage(@TypeOf(self.visibility));
         self.spans = self.node_publication.span(@TypeOf(self.spans), self.span);
     }
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -88,11 +88,11 @@ pub fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span
     return .{ .node = @fromBackingInt(result.value), .remaining = result.remaining orelse 0 };
 }
 
-pub fn reserveKnownNodes(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveKnownNodes(handle: *anyopaque) std.mem.Allocator.Error!void {
     _ = try Nodes.reserve(Frame.borrow(handle).graph, 1);
 }
 
-pub fn reserveKnownIndex(handle: *const anyopaque, capacity: u64) std.mem.Allocator.Error!void {
+pub fn reserveKnownIndex(handle: *anyopaque, capacity: u64) std.mem.Allocator.Error!void {
     const graph = Frame.borrow(handle).graph;
     const table = &graph.pending.known_types;
     const allocator = graph.pending.allocator;
@@ -125,11 +125,11 @@ pub fn reserveKnownIndex(handle: *const anyopaque, capacity: u64) std.mem.Alloca
     table.state.buckets = rows;
 }
 
-pub fn refreshKnownRegistry(handle: *const anyopaque) void {
+pub fn refreshKnownRegistry(handle: *anyopaque) void {
     Frame.borrow(handle).bind();
 }
 
-pub fn rejectKnownType(handle: *const anyopaque) zx.Error!void {
+pub fn rejectKnownType(handle: *anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     return Known.invalid(frame.graph, frame.span);

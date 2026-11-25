@@ -63,24 +63,24 @@ pub const Frame = struct {
         self.parents = self.graph.parents();
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn refreshBindingTopology(handle: *const anyopaque) void {
+pub fn refreshBindingTopology(handle: *anyopaque) void {
     Frame.borrow(handle).bindTopology();
 }
 
-pub fn unifyBindingReplay(handle: *const anyopaque, index: u64, value: u32) zx.Error!void {
+pub fn unifyBindingReplay(handle: *anyopaque, index: u64, value: u32) zx.Error!void {
     const frame = Frame.borrow(handle);
     const row: usize = @intCast(index);
 
     try frame.graph.unify(@fromBackingInt(frame.view.values[row]), @fromBackingInt(value), frame.lookup_spans[row]);
 }
 
-pub fn reportBindingName(handle: *const anyopaque, source: *const anyopaque, row: u64, message: []const u8) zx.Error!void {
-    const reporter: *zx.Reporter = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reportBindingName(handle: *anyopaque, source: *const anyopaque, row: u64, message: []const u8) zx.Error!void {
+    const reporter: *zx.Reporter = @ptrCast(@alignCast(handle));
     const spans: *const []const zx.Span = @ptrCast(@alignCast(source));
 
     return reporter.fail(.name, spans.*[@intCast(row)], message);

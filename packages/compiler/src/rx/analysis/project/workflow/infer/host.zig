@@ -103,26 +103,26 @@ pub const State = struct {
     }
 };
 
-fn state(handle: *const anyopaque) *State {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn state(handle: *anyopaque) *State {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn normalizeProjectSources(handle: *const anyopaque) Error!void {
+pub fn normalizeProjectSources(handle: *anyopaque) Error!void {
     return state(handle).normalize();
 }
 
-pub fn restoreDerivedFrame(handle: *const anyopaque) void {
+pub fn restoreDerivedFrame(handle: *anyopaque) void {
     state(handle).restore();
 }
 
-pub fn deriveProjectFrame(handle: *const anyopaque, signatures: bool) Error!void {
+pub fn deriveProjectFrame(handle: *anyopaque, signatures: bool) Error!void {
     return state(handle).derive(signatures);
 }
 
-pub fn compileProjectBodies(handle: *const anyopaque) Error!void {
+pub fn compileProjectBodies(handle: *anyopaque) Error!void {
     return state(handle).compile();
 }
 
-pub fn publishInferredStores(handle: *const anyopaque, retained: bool) Error!void {
+pub fn publishInferredStores(handle: *anyopaque, retained: bool) Error!void {
     return state(handle).publishStores(retained);
 }

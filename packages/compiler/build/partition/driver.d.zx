@@ -1,4 +1,4 @@
-export type PartitionDriver = opaque
+export type PartitionDriver = mutable_opaque
 
 export type PartitionInputs = {
     target: PartitionDriver,

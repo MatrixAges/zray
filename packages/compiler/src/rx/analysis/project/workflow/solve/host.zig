@@ -162,11 +162,11 @@ const State = struct {
     }
 };
 
-fn borrow(handle: *const anyopaque) *State {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *State {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn openFlowPorts(handle: *const anyopaque) Error!void {
+pub fn openFlowPorts(handle: *anyopaque) Error!void {
     const state = borrow(handle);
     const stages = state.stages;
     const modules = state.derivation.prepared.?.modules;
@@ -180,11 +180,11 @@ pub fn openFlowPorts(handle: *const anyopaque) Error!void {
     stages.ports.bind(&state.graph, state.ports, modules, state.source_map, declared);
 }
 
-pub fn releaseFlowDeclarations(handle: *const anyopaque) void {
+pub fn releaseFlowDeclarations(handle: *anyopaque) void {
     borrow(handle).stages.declarations.reset(0);
 }
 
-pub fn openFlowCollection(handle: *const anyopaque) void {
+pub fn openFlowCollection(handle: *anyopaque) void {
     const state = borrow(handle);
     const stages = state.stages;
 
@@ -196,20 +196,20 @@ pub fn openFlowCollection(handle: *const anyopaque) void {
     stages.collection.bind(&stages.body, &stages.ports.port_columns);
 }
 
-pub fn releaseFlowCollection(handle: *const anyopaque) void {
+pub fn releaseFlowCollection(handle: *anyopaque) void {
     const stages = borrow(handle).stages;
 
     stages.scope.active = stages.empty;
     _ = stages.collection_scratch.reset(.free_all);
 }
 
-pub fn openFlowSolver(handle: *const anyopaque) void {
+pub fn openFlowSolver(handle: *anyopaque) void {
     const state = borrow(handle);
 
     state.stages.inference.bind(&state.graph, &state.resolver, &state.stages.scope);
 }
 
-pub fn releaseFlowPending(handle: *const anyopaque) void {
+pub fn releaseFlowPending(handle: *anyopaque) void {
     const state = borrow(handle);
     const stages = state.stages;
 
@@ -219,7 +219,7 @@ pub fn releaseFlowPending(handle: *const anyopaque) void {
     state.releasePending();
 }
 
-pub fn bindFlowSignatures(handle: *const anyopaque) void {
+pub fn bindFlowSignatures(handle: *anyopaque) void {
     const state = borrow(handle);
     const stages = state.stages;
     const resolution = &stages.inference.resolution;
@@ -229,7 +229,7 @@ pub fn bindFlowSignatures(handle: *const anyopaque) void {
     stages.signatures.bind(&state.graph, table, &resolution.view);
 }
 
-pub fn publishFlowSignatures(handle: *const anyopaque) void {
+pub fn publishFlowSignatures(handle: *anyopaque) void {
     const state = borrow(handle);
 
     state.publish(state.stages.signatures.table);

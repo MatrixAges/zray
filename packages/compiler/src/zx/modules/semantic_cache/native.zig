@@ -28,8 +28,8 @@ const Request = struct {
     fingerprint: [32]u8,
     slot: entries.Pending,
     result: Loaded.Result = undefined,
-    fn borrow(handle: *const anyopaque) *Request {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Request {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -96,7 +96,7 @@ fn seed(request: *Request) zx.Error!void {
     entries.commitSeed(&request.slot, position);
 }
 
-pub fn restoreCachedNative(handle: *const anyopaque, candidate: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn restoreCachedNative(handle: *anyopaque, candidate: *anyopaque) std.mem.Allocator.Error!bool {
     const request = Request.borrow(handle);
     const entry = request.native.*;
     const cached: *const entries.Entry = @ptrCast(@alignCast(candidate));
@@ -109,12 +109,12 @@ pub fn restoreCachedNative(handle: *const anyopaque, candidate: *const anyopaque
     return true;
 }
 
-pub fn admitCachedNative(candidate: *const anyopaque) void {
-    const cached: *entries.Entry = @ptrCast(@alignCast(@constCast(candidate)));
+pub fn admitCachedNative(candidate: *anyopaque) void {
+    const cached: *entries.Entry = @ptrCast(@alignCast(candidate));
     cached.native_admitted = true;
 }
 
-pub fn buildNativeCacheEntry(handle: *const anyopaque) zx.Error!void {
+pub fn buildNativeCacheEntry(handle: *anyopaque) zx.Error!void {
     const request = Request.borrow(handle);
     const artifact = try @import("native_artifact.zig").create(request.cache.allocator, request.native.*, request.fingerprint, request.allocator, request.reporter, request.span);
 
@@ -125,7 +125,7 @@ pub fn buildNativeCacheEntry(handle: *const anyopaque) zx.Error!void {
     };
 }
 
-pub fn validateNativeCacheEntry(handle: *const anyopaque) zx.Error!void {
+pub fn validateNativeCacheEntry(handle: *anyopaque) zx.Error!void {
     const request = Request.borrow(handle);
     const artifact = &request.slot.value.?.result.value;
 

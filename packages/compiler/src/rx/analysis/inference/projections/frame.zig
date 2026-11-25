@@ -22,7 +22,7 @@ length_spans: []const zx.Span,
 index_spans: []const zx.Span,
 position_spans: []const zx.Span,
 resolution: []bool,
-pub fn bindSequences(self: *Self, graph: *Graph, handle: *const anyopaque) void {
+pub fn bindSequences(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const rows = graph.pending.sequences.slice();
 
     self.parents = graph.parents();
@@ -40,7 +40,7 @@ pub fn bindSequences(self: *Self, graph: *Graph, handle: *const anyopaque) void 
     };
 }
 
-pub fn bindLengths(self: *Self, graph: *Graph, handle: *const anyopaque) void {
+pub fn bindLengths(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const rows = graph.pending.lengths.slice();
     const nodes = graph.nodes.slice();
     const types = &graph.types.items;
@@ -73,7 +73,7 @@ pub fn bindLengths(self: *Self, graph: *Graph, handle: *const anyopaque) void {
     };
 }
 
-pub fn bindIndexes(self: *Self, graph: *Graph, handle: *const anyopaque) void {
+pub fn bindIndexes(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const rows = graph.pending.indexes.slice();
 
     self.parents = graph.parents();

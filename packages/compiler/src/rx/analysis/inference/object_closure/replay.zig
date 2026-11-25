@@ -84,11 +84,11 @@ fn refresh(self: *Self) void {
     self.selections.revision = self.context.revision;
 }
 
-pub fn from(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+pub fn from(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn finishObjectRow(handle: *const anyopaque) void {
+pub fn finishObjectRow(handle: *anyopaque) void {
     const frame = from(handle);
 
     frame.memory.close(frame.scope);

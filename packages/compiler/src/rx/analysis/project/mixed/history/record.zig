@@ -9,7 +9,7 @@ const linked = @import("linked.zig");
 const Snapshot = @import("snapshot.zig").Storage;
 const columns = @import("../../history/columns.zig");
 
-pub fn analyzed(reuse: *Reuse, state: *const State, owner: *History.History, index: usize, position: usize) void {
+pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: usize, position: usize) void {
     const rule = @import("generated_rx_mixed_history_record");
     const Input = std.meta.Child(rule.Input);
     const Analysis = std.meta.Child(@typeInfo(@FieldType(Input, "analysis")).optional.child);

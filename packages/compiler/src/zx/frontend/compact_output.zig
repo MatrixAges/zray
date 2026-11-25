@@ -47,7 +47,11 @@ fn retainTables(allocator: std.mem.Allocator, syntax: anytype) Error!void {
         @field(syntax.*, name) = target;
     }
 
-    syntax.type_order = try allocator.create(std.meta.Child(@TypeOf(syntax.type_order)));
+    const order = try allocator.create(std.meta.Child(@TypeOf(syntax.type_order)));
+
+    try @import("retention/order.zig").fill(allocator, syntax.types, order);
+
+    syntax.type_order = order;
 }
 
 fn retainIndices(allocator: std.mem.Allocator, target: anytype, comptime fields: anytype) Error!void {

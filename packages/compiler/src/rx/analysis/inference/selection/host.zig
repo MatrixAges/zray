@@ -2,7 +2,7 @@ const zx = @import("zx");
 const Replay = @import("../object_closure/replay.zig");
 const View = @import("../fields/view.zig");
 
-pub fn openSelectionRow(handle: *const anyopaque, row: u64, root: u32) void {
+pub fn openSelectionRow(handle: *anyopaque, row: u64, root: u32) void {
     const frame = Replay.from(handle);
     const graph = frame.graph;
     const selection = graph.pending.selections.get(@intCast(row));

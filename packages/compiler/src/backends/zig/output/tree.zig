@@ -64,8 +64,8 @@ const Frame = struct {
     partitions: u32,
     original: partition.layout.FunctionFiles = undefined,
     failure: Failure = .{},
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
     fn adapter(self: *const Frame, index: usize) !void {
         const module = &self.bundle.public_modules[index];
@@ -96,25 +96,25 @@ const Frame = struct {
     }
 };
 
-pub fn renderBootstrapAdapter(handle: *const anyopaque, index: u64) Failure.Error!void {
+pub fn renderBootstrapAdapter(handle: *anyopaque, index: u64) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.adapter(@intCast(index)) catch |err| return frame.failure.save(err);
 }
 
-pub fn renderBootstrapOriginals(handle: *const anyopaque) Failure.Error!void {
+pub fn renderBootstrapOriginals(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.originals() catch |err| return frame.failure.save(err);
 }
 
-pub fn renderBootstrapRoot(handle: *const anyopaque, partitioned: bool) Failure.Error!void {
+pub fn renderBootstrapRoot(handle: *anyopaque, partitioned: bool) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.root(partitioned) catch |err| return frame.failure.save(err);
 }
 
-pub fn placeBootstrapPartitions(handle: *const anyopaque) Failure.Error!void {
+pub fn placeBootstrapPartitions(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.place() catch |err| return frame.failure.save(err);

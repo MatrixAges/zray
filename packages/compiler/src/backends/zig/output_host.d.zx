@@ -4,15 +4,15 @@ export type CachedSourceRows = opaque
 
 export type GeneratedSourceRows = opaque
 
-export type CacheWriter = opaque
+export type CacheWriter = mutable_opaque
 
 export type GenerationCacheRecord = opaque
 
 export type GenerationCacheFiles = opaque
 
-export type FunctionSources = opaque
+export type FunctionSources = mutable_opaque
 
-export type FunctionSourceWorker = opaque
+export type FunctionSourceWorker = mutable_opaque
 
 export enum FunctionSourceKind {
     Entry,
@@ -21,7 +21,7 @@ export enum FunctionSourceKind {
     Regular
 }
 
-export type ApplicationInitializers = opaque
+export type ApplicationInitializers = mutable_opaque
 
 export type LibraryInitializers = opaque
 
@@ -50,9 +50,9 @@ export type SourceReuse = {
     pending: u64
 }
 
-export type BootstrapTree = opaque
+export type BootstrapTree = mutable_opaque
 
-export type BootstrapMirror = opaque
+export type BootstrapMirror = mutable_opaque
 
 export type BootstrapPartitionJobs = opaque
 
@@ -81,7 +81,7 @@ export type BootstrapDirectoryEntry = {
     file: bool
 }
 
-export type BootstrapPartition = opaque
+export type BootstrapPartition = mutable_opaque
 
 export type BootstrapPartitionPlan = {
     target: BootstrapPartition,

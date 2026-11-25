@@ -63,8 +63,8 @@ const Frame = struct {
     publication: generation.placement.Publication = undefined,
     result: Plan = undefined,
     failure: Failure = .{},
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
     fn scanBodies(self: *Frame) !void {
         self.scanning = try Scanning.run(self.temporary, self.arenas, self.functions, self.scanner);
@@ -93,25 +93,25 @@ const Frame = struct {
     }
 };
 
-pub fn scanPartitionBodies(handle: *const anyopaque) Failure.Error!void {
+pub fn scanPartitionBodies(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.scanBodies() catch |err| return frame.failure.save(err);
 }
 
-pub fn scanPartitionSupport(handle: *const anyopaque) Failure.Error!void {
+pub fn scanPartitionSupport(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.scanSupport() catch |err| return frame.failure.save(err);
 }
 
-pub fn planPartitionLayout(handle: *const anyopaque) Failure.Error!void {
+pub fn planPartitionLayout(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.layout() catch |err| return frame.failure.save(err);
 }
 
-pub fn placePartitionFiles(handle: *const anyopaque) Failure.Error!*const Plan {
+pub fn placePartitionFiles(handle: *anyopaque) Failure.Error!*const Plan {
     const frame = Frame.borrow(handle);
 
     frame.place() catch |err| return frame.failure.save(err);
@@ -121,7 +121,7 @@ pub fn placePartitionFiles(handle: *const anyopaque) Failure.Error!*const Plan {
     return &frame.result;
 }
 
-pub fn emitPartitionJobs(handle: *const anyopaque) Failure.Error!void {
+pub fn emitPartitionJobs(handle: *anyopaque) Failure.Error!void {
     const frame = Frame.borrow(handle);
 
     const render: Rendering = .{

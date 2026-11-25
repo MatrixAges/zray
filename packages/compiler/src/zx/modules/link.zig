@@ -33,8 +33,8 @@ const Frame = struct {
     types: Types = undefined,
     builder: Builder = undefined,
     binding: Binding = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -64,12 +64,12 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     return .{ .arena = frame.owned, .program = program, .nominal_types = frame.types.origins.items.view() };
 }
 
-pub fn orderArtifactLink(handle: *const anyopaque) graph.Error!void {
+pub fn orderArtifactLink(handle: *anyopaque) graph.Error!void {
     const frame = Frame.borrow(handle);
     frame.plan = try graph.prepare(frame.temporary.allocator(), frame.modules, frame.entry);
 }
 
-pub fn registerArtifactTypes(handle: *const anyopaque) Types.Error!void {
+pub fn registerArtifactTypes(handle: *anyopaque) Types.Error!void {
     const frame = Frame.borrow(handle);
     const owned = frame.owned.allocator();
     const workspace = frame.workspace.allocator();
@@ -103,7 +103,7 @@ pub fn registerArtifactTypes(handle: *const anyopaque) Types.Error!void {
     };
 }
 
-pub fn openArtifactBinding(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
+pub fn openArtifactBinding(handle: *anyopaque) std.mem.Allocator.Error!u64 {
     const frame = Frame.borrow(handle);
 
     try frame.binding.init(&frame.builder, frame.temporary.allocator(), &frame.workspace, &frame.owned);
@@ -111,11 +111,11 @@ pub fn openArtifactBinding(handle: *const anyopaque) std.mem.Allocator.Error!u64
     return frame.plan.registration.len;
 }
 
-pub fn artifactWindowCapacity(handle: *const anyopaque) u64 {
+pub fn artifactWindowCapacity(handle: *anyopaque) u64 {
     return Frame.borrow(handle).binding.capacity();
 }
 
-pub fn bindArtifactWindow(handle: *const anyopaque, first: u64, count: u64) Builder.Error!void {
+pub fn bindArtifactWindow(handle: *anyopaque, first: u64, count: u64) Builder.Error!void {
     const frame = Frame.borrow(handle);
 
     try frame.binding.bind(&frame.builder, @intCast(first), @intCast(count));

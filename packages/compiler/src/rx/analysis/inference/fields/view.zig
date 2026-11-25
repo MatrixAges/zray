@@ -48,7 +48,7 @@ pub fn readMode(graph: *const Graph, root: Graph.Id, mode: Mode) Self {
     switch (mode) {
         .Inferred => {
             const members = graph.nodes.items(.members)[@backingInt(root)];
-            const fields = Graph.Fields.fromValues(@ptrCast(members));
+            const fields = Graph.Fields.viewFromValues(@ptrCast(members));
 
             return .{ .mode = mode, .names = fields.names(), .values = members };
         },

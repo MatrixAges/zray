@@ -51,13 +51,15 @@ pub fn borrow(ports: Ports, requests: Requests) Table {
 }
 
 pub fn resolveSeed(graph: *Graph, ports: Ports, requests: Requests) zx.Error!Table {
-    const table = borrow(ports, requests);
-    const inputs = @constCast(table.inputs);
-    const outputs = @constCast(table.outputs);
-    const binding_ends = table.binding_ends;
-    const task_ends = table.task_ends;
-    const binding_types = @constCast(table.binding_types);
-    const task_types = @constCast(table.task_types);
+    if (ports.len == 0) return .{};
+
+    const inputs: []u32 = @ptrCast(ports.items(.input));
+    const outputs: []u32 = @ptrCast(ports.items(.output));
+    const binding_ends = ports.items(.binding_end);
+    const task_ends = ports.items(.task_end);
+    const bindings = requests.bindings.slice();
+    const binding_types: []u32 = @ptrCast(bindings.items(.value));
+    const task_types = requests.tasks.items;
     const resolveNode = @import("../inference/resolve/seed.zig").resolve;
     var binding_start: usize = 0;
     var task_start: usize = 0;
@@ -75,5 +77,5 @@ pub fn resolveSeed(graph: *Graph, ports: Ports, requests: Requests) zx.Error!Tab
         task_start = task_end;
     }
 
-    return table;
+    return borrow(ports, requests);
 }

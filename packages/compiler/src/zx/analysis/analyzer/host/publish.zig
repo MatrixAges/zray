@@ -11,8 +11,8 @@ const Frame = struct {
     output: *const model.Output,
     exports: []const ir.Export = &.{},
     constants: []const ir.Constant = &.{},
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -57,7 +57,7 @@ pub fn apply(analyzer: *Context, mode: @FieldType(model.Context, "mode"), output
     };
 }
 
-pub fn initializeAnalysisTypes(handle: *const anyopaque, borrowed: bool) std.mem.Allocator.Error!void {
+pub fn initializeAnalysisTypes(handle: *anyopaque, borrowed: bool) std.mem.Allocator.Error!void {
     const analyzer = Frame.borrow(handle).analyzer;
     const allocator = analyzer.allocator;
     const table = @import("../../type_table.zig");
@@ -68,7 +68,7 @@ pub fn initializeAnalysisTypes(handle: *const anyopaque, borrowed: bool) std.mem
     try analyzer.origins.copyValidated(analyzer.types.view(), analyzer.base_origins);
 }
 
-pub fn appendAnalysisTypes(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn appendAnalysisTypes(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const analyzer = frame.analyzer;
     const output = frame.output;
@@ -81,14 +81,14 @@ pub fn appendAnalysisTypes(handle: *const anyopaque) std.mem.Allocator.Error!voi
     }
 }
 
-pub fn publishAnalysisExports(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishAnalysisExports(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const output = frame.output;
 
     frame.exports = try interface.types(frame.analyzer.allocator, output.export_names, output.export_types);
 }
 
-pub fn publishAnalysisConstants(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishAnalysisConstants(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const output = frame.output;
 

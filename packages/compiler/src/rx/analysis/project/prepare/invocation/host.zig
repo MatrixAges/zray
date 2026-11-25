@@ -60,8 +60,8 @@ pub const Invocation = struct {
     type_only: if (generated) memory.ReadColumn else void = undefined,
     members: MembersView = undefined,
     member_columns: if (generated) MemberColumns else void = undefined,
-    inline fn borrow(handle: *const anyopaque) *Invocation {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    inline fn borrow(handle: *anyopaque) *Invocation {
+        return @ptrCast(@alignCast(handle));
     }
     pub fn view(self: *Invocation) *const Input {
         self.reference = self.loader.references.view(Reference, .call);
@@ -163,14 +163,14 @@ pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Err
     return index;
 }
 
-pub fn beginPreparedCall(handle: *const anyopaque, bytes: []const u8, item: u32, previous_end: u32) void {
+pub fn beginPreparedCall(handle: *anyopaque, bytes: []const u8, item: u32, previous_end: u32) void {
     const state = Invocation.borrow(handle);
 
     std.debug.assert(state.loader.calls.len == item);
     state.open(borrowNode(bytes).*, previous_end);
 }
 
-pub fn rejectPreparedFlow(handle: *const anyopaque, bytes: []const u8, at_output: bool, code: []const u8, message: []const u8) Error!void {
+pub fn rejectPreparedFlow(handle: *anyopaque, bytes: []const u8, at_output: bool, code: []const u8, message: []const u8) Error!void {
     const node = borrowNode(bytes);
     const location = if (at_output) target.attribute(node.*, "out").value_location else node.location;
 
@@ -181,7 +181,7 @@ fn borrowNode(bytes: []const u8) *const rx.ast.Node {
     return @ptrCast(@alignCast(bytes.ptr));
 }
 
-pub fn readPreparedCall(handle: *const anyopaque, argument: ?u64, function: ?u64, module: ?u64, setter: ?u64) Error!bool {
+pub fn readPreparedCall(handle: *anyopaque, argument: ?u64, function: ?u64, module: ?u64, setter: ?u64) Error!bool {
     const state = Invocation.borrow(handle);
     const nodes = state.node.attributes;
     state.attributes = .{ .argument = at(nodes, argument), .function = at(nodes, function), .module = at(nodes, module), .setter = at(nodes, setter) };
@@ -206,7 +206,7 @@ fn readArgument(state: *Invocation) Error!void {
     state.getters = try StoreCall.reads(loader.allocator, loader.backing, parsed, loader.stores);
 }
 
-pub fn authorizePreparedSetter(handle: *const anyopaque) Error!void {
+pub fn authorizePreparedSetter(handle: *anyopaque) Error!void {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const attribute = state.attributes.setter.?;
@@ -222,13 +222,13 @@ pub fn authorizePreparedSetter(handle: *const anyopaque) Error!void {
     }
 }
 
-pub fn readPreparedCallTarget(handle: *const anyopaque, row: ?u64) void {
+pub fn readPreparedCallTarget(handle: *anyopaque, row: ?u64) void {
     const state = Invocation.borrow(handle);
 
     state.admission = admission(state, &state.loader.references.edges[@intCast(row.?)]);
 }
 
-pub fn resolvePreparedLibrary(handle: *const anyopaque, row: ?u64) Error!u64 {
+pub fn resolvePreparedLibrary(handle: *anyopaque, row: ?u64) Error!u64 {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const edge = &loader.references.edges[@intCast(row.?)];
@@ -240,7 +240,7 @@ pub fn resolvePreparedLibrary(handle: *const anyopaque, row: ?u64) Error!u64 {
     };
 }
 
-pub fn findPreparedLibrary(handle: *const anyopaque, index: u64) bool {
+pub fn findPreparedLibrary(handle: *anyopaque, index: u64) bool {
     const state = Invocation.borrow(handle);
 
     state.compiled.binding = state.loader.libraries.bound.get(@intCast(index)) orelse return false;
@@ -248,7 +248,7 @@ pub fn findPreparedLibrary(handle: *const anyopaque, index: u64) bool {
     return true;
 }
 
-pub fn linkPreparedLibrary(handle: *const anyopaque, index: u64) Error!void {
+pub fn linkPreparedLibrary(handle: *anyopaque, index: u64) Error!void {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
 
@@ -258,7 +258,7 @@ pub fn linkPreparedLibrary(handle: *const anyopaque, index: u64) Error!void {
     };
 }
 
-pub fn readPreparedLibraryMembers(handle: *const anyopaque, index: u64, row: ?u64) void {
+pub fn readPreparedLibraryMembers(handle: *anyopaque, index: u64, row: ?u64) void {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const name = loader.references.edges[@intCast(row.?)].target.compiled.name;
@@ -267,7 +267,7 @@ pub fn readPreparedLibraryMembers(handle: *const anyopaque, index: u64, row: ?u6
     state.compiled_members = state.compiled.binding.exports.borrow(CompiledMembers, &state.compiled_names, name);
 }
 
-pub fn selectPreparedLibraryMember(handle: *const anyopaque, index: u64, row: ?u64) void {
+pub fn selectPreparedLibraryMember(handle: *anyopaque, index: u64, row: ?u64) void {
     const state = Invocation.borrow(handle);
     const exported = &state.loader.project.compiled_libraries[@intCast(index)].exports[@intCast(row.?)];
 
@@ -285,7 +285,7 @@ pub fn selectPreparedLibraryMember(handle: *const anyopaque, index: u64, row: ?u
     }
 }
 
-pub fn rejectPreparedLibrary(handle: *const anyopaque, status: CompiledStatus) Error!void {
+pub fn rejectPreparedLibrary(handle: *anyopaque, status: CompiledStatus) Error!void {
     return libraryError(Invocation.borrow(handle), switch (status) {
         inline else => |kind| @field(wrapper.Status, @tagName(kind)),
     });
@@ -297,7 +297,7 @@ fn libraryError(state: *const Invocation, status: wrapper.Status) Error {
     return state.loader.fail(state.attributes.module.?.value_location, issue.code, issue.message);
 }
 
-pub fn validatePreparedLibrary(handle: *const anyopaque, verified_prefix: bool) Error!void {
+pub fn validatePreparedLibrary(handle: *anyopaque, verified_prefix: bool) Error!void {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const location = state.attributes.module.?.value_location;
@@ -354,7 +354,7 @@ fn admission(state: *const Invocation, edge: *const Graph.Edge) Admission {
     };
 }
 
-pub fn publishPreparedCall(handle: *const anyopaque, row: ?u64, route: Route, kind: Callee, module_row: ?u64, signature: ?u64, member: ?u64, local: bool) Error!bool {
+pub fn publishPreparedCall(handle: *anyopaque, row: ?u64, route: Route, kind: Callee, module_row: ?u64, signature: ?u64, member: ?u64, local: bool) Error!bool {
     const state = Invocation.borrow(handle);
     const loader = state.loader;
     const index = loader.calls.len;
@@ -414,11 +414,11 @@ fn loadSource(state: *const Invocation, edge: rx.ast.Location, named: bool, kind
     };
 }
 
-pub fn preparedPreviousName(handle: *const anyopaque, row: u32, task: bool) ?[]const u8 {
+pub fn preparedPreviousName(handle: *anyopaque, row: u32, task: bool) ?[]const u8 {
     return previous.name(Invocation.borrow(handle).loader, row, task);
 }
 
-pub fn publishPreparedPrevious(handle: *const anyopaque, value: []const u8) std.mem.Allocator.Error!void {
+pub fn publishPreparedPrevious(handle: *anyopaque, value: []const u8) std.mem.Allocator.Error!void {
     const state = Invocation.borrow(handle);
 
     try previous.publish(state.loader, state.loader.calls.len - 1, value);

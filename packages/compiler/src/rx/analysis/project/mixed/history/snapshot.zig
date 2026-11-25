@@ -15,9 +15,9 @@ pub const Storage = struct {
     origins: memory.ColumnLengths,
     extent: Extent,
     target: memory.WriteColumn,
-    pub fn bind(self: *Storage, state: *const State, target: *Checkpoint) Input {
-        self.type_slots = memory.borrowColumnLengths(@constCast(&state.types.items));
-        self.origin_slots = memory.borrowColumnLengths(@constCast(&state.types.origins.items));
+    pub fn bind(self: *Storage, state: *State, target: *Checkpoint) Input {
+        self.type_slots = memory.borrowColumnLengths(&state.types.items);
+        self.origin_slots = memory.borrowColumnLengths(&state.types.origins.items);
         self.types = &self.type_slots;
         self.origins = &self.origin_slots;
 

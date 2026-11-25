@@ -43,8 +43,8 @@ pub fn run(self: *Self) Error!void {
     };
 }
 
-fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 pub fn lookupStateSource(in: *const native.Lookup) Error!?[]const u8 {
@@ -58,7 +58,7 @@ pub fn lookupStateSource(in: *const native.Lookup) Error!?[]const u8 {
     return try self.bundle.arena.allocator().dupe(u8, source);
 }
 
-pub fn renderStateSource(handle: *const anyopaque) Error![]const u8 {
+pub fn renderStateSource(handle: *anyopaque) Error![]const u8 {
     const self = borrow(handle);
     const allocator = self.bundle.arena.allocator();
     const names = self.imports[1..];

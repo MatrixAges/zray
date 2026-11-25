@@ -1,6 +1,6 @@
 export type VerificationPublication = opaque
 
-export type EvidenceOutput = opaque
+export type EvidenceOutput = mutable_opaque
 
 export type EvidenceSources = opaque
 

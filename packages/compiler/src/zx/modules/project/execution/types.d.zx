@@ -1,34 +1,32 @@
-export type ProjectWalk = opaque
+export type ProjectWalk = mutable_opaque
 
-export type ProjectState = opaque
+export type ProjectState = mutable_opaque
 
-export type ProjectSignatures = opaque
+export type ProjectSignatures = mutable_opaque
 
-export type ProjectBody = opaque
+export type ProjectBody = mutable_opaque
 
-export type ProjectEntry = opaque
+export type ProjectEntry = mutable_opaque
 
-export type ProgramEntry = opaque
+export type ProgramEntry = mutable_opaque
 
-export type ProjectNative = opaque
+export type ProjectNative = mutable_opaque
 
-export type ProjectNativeRegistry = opaque
+export type ProjectNativeRegistry = mutable_opaque
 
-export type ProjectExternalBindings = opaque
+export type ProjectExternalBindings = mutable_opaque
 
 
 
-export type CompiledImport = opaque
+export type CompiledImport = mutable_opaque
 
-export type ArtifactLink = opaque
+export type ArtifactLink = mutable_opaque
 
-export type ArtifactExtraction = opaque
+export type ArtifactExtraction = mutable_opaque
 
-export type AnalysisPublication = opaque
+export type AnalysisPublication = mutable_opaque
 
-export type AnalysisEntry = opaque
-
-export type SyntaxOrders = opaque
+export type AnalysisEntry = mutable_opaque
 
 export enum CacheWrite {
     Ready,
@@ -36,7 +34,7 @@ export enum CacheWrite {
     Invalid
 }
 
-export type ProjectImport = opaque
+export type ProjectImport = mutable_opaque
 
 export enum ProjectImportRoute {
     Native,
@@ -64,23 +62,23 @@ export enum ProjectSourceAction {
 
 export type ParseReplacement = opaque
 
-export type ParseRetirement = opaque
+export type ParseRetirement = mutable_opaque
 
 export type ParseAdoption = opaque
 
-export type ParseCacheEntry = opaque
+export type ParseCacheEntry = mutable_opaque
 
-export type ParseCacheBatch = opaque
+export type ParseCacheBatch = mutable_opaque
 
 export type ParseWorker = opaque
 
-export type NativeCacheLoad = opaque
+export type NativeCacheLoad = mutable_opaque
 
-export type CacheSlot = opaque
+export type CacheSlot = mutable_opaque
 
 export type CacheEntries = opaque
 
-export type CacheEntry = opaque
+export type CacheEntry = mutable_opaque
 
 export type SourceEntry = opaque
 

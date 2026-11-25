@@ -793,7 +793,6 @@ pub const execution = [_]Entry{
     .{ .path = "zx/modules/parse_cache/adopt.zx", .name = "parse_cache_adopt" },
     .{ .path = "zx/modules/parse_cache/publication/run.rx", .name = "parse_cache_publish" },
     .{ .path = "zx/modules/parse_cache/worker/run.zx", .name = "parse_cache_worker" },
-    .{ .path = "zx/frontend/retention/order.zx", .name = "parser_publish_orders" },
     .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
     .{ .path = "zx/analysis/publication/entry/finish.rx", .name = "analysis_finish_entry" },
     .{ .path = "rx/dependency_graph/registration/run.rx", .name = "rx_register_graph_modules", .owner = .rx },

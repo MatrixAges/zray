@@ -10,8 +10,8 @@ const Frame = struct {
     sources: []const modules.Source,
     source_index: *usize,
     reporter: *dsl.Reporter,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -56,7 +56,7 @@ pub fn run(allocator: std.mem.Allocator, schemas: std.mem.Allocator, data: ?[]mo
     };
 }
 
-pub fn rejectGraphModuleRegistration(handle: *const anyopaque, index: u64, message: []const u8) dsl.Error!void {
+pub fn rejectGraphModuleRegistration(handle: *anyopaque, index: u64, message: []const u8) dsl.Error!void {
     const frame = Frame.borrow(handle);
     const row: usize = @intCast(index);
     const node = frame.sources[row].node;
@@ -66,7 +66,7 @@ pub fn rejectGraphModuleRegistration(handle: *const anyopaque, index: u64, messa
     return frame.reporter.fail(.{ .code = .context, .location = node.location, .element = node.name, .message = message });
 }
 
-pub fn validateRegisteredGraphModule(handle: *const anyopaque, index: u64, path: []const u8) dsl.Error!void {
+pub fn validateRegisteredGraphModule(handle: *anyopaque, index: u64, path: []const u8) dsl.Error!void {
     const frame = Frame.borrow(handle);
     const row: usize = @intCast(index);
     const source = &frame.sources[row];

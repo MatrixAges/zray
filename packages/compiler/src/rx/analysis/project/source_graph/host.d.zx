@@ -1,12 +1,12 @@
-export type GraphConstruction = opaque
+export type GraphConstruction = mutable_opaque
 
-export type GraphModuleRegistration = opaque
+export type GraphModuleRegistration = mutable_opaque
 
-export type GraphVisit = opaque
+export type GraphVisit = mutable_opaque
 
 export type GraphEdgePublication = opaque
 
-export type GraphEdgeScan = opaque
+export type GraphEdgeScan = mutable_opaque
 
 export enum GraphReferenceKind {
     Diagnostic,

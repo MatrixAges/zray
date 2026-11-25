@@ -71,8 +71,8 @@ const Frame = struct {
         self.known = self.graph.pending.known_types.borrow(Known);
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -133,7 +133,7 @@ pub fn expectMany(graph: *Graph, values: []const Graph.Id, spans: []const zx.Spa
     series.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn growAssignmentRows(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn growAssignmentRows(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = &frame.graph.pending;
 
@@ -142,7 +142,7 @@ pub fn growAssignmentRows(handle: *const anyopaque) std.mem.Allocator.Error!void
     frame.bindRows();
 }
 
-pub fn registerAssignmentTarget(handle: *const anyopaque, type_id: u32, row: u64) zx.Error!void {
+pub fn registerAssignmentTarget(handle: *anyopaque, type_id: u32, row: u64) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     _ = try frame.graph.known(@fromBackingInt(type_id), frame.source_spans[@intCast(row)]);

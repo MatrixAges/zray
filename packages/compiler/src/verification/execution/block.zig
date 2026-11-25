@@ -16,8 +16,8 @@ const Frame = struct {
     evaluator: Expressions,
     outcome: terms.Evaluation = undefined,
     completed: []terms.Evaluation = &.{},
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -68,7 +68,7 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Va
     return walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
 }
 
-pub fn evaluateSymbolicStatement(handle: *const anyopaque, expression: ?u32) zx.Error![]const u8 {
+pub fn evaluateSymbolicStatement(handle: *anyopaque, expression: ?u32) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
 
     frame.outcome = if (expression) |id| try frame.evaluator.evaluate(@fromBackingInt(id)) else .{ .value = .{ .fields = &.{} } };
@@ -76,23 +76,23 @@ pub fn evaluateSymbolicStatement(handle: *const anyopaque, expression: ?u32) zx.
     return frame.outcome.safe;
 }
 
-pub fn symbolicStatementText(handle: *const anyopaque) []const u8 {
+pub fn symbolicStatementText(handle: *anyopaque) []const u8 {
     return Frame.borrow(handle).outcome.value.scalar;
 }
 
-pub fn bindSymbolicStatement(handle: *const anyopaque, symbol: u32) void {
+pub fn bindSymbolicStatement(handle: *anyopaque, symbol: u32) void {
     const frame = Frame.borrow(handle);
 
     frame.evaluator.environment[symbol] = frame.outcome.value;
 }
 
-pub fn bindSymbolicStatementField(handle: *const anyopaque, symbol: u32, field: u64) void {
+pub fn bindSymbolicStatementField(handle: *anyopaque, symbol: u32, field: u64) void {
     const frame = Frame.borrow(handle);
 
     frame.evaluator.environment[symbol] = frame.outcome.value.fields[@intCast(field)];
 }
 
-pub fn publishSymbolicStatementReturn(handle: *const anyopaque, path: []const u8) zx.Error!void {
+pub fn publishSymbolicStatementReturn(handle: *anyopaque, path: []const u8) zx.Error!void {
     const frame = Frame.borrow(handle);
     const conditions = frame.session.conditions;
     const value = frame.outcome.value;
@@ -101,7 +101,7 @@ pub fn publishSymbolicStatementReturn(handle: *const anyopaque, path: []const u8
     try conditions.returns.append(conditions.allocator, .{ .path = path, .value = value });
 }
 
-pub fn runSymbolicChild(handle: *const anyopaque, body: u32, path: []const u8) zx.Error![]const u8 {
+pub fn runSymbolicChild(handle: *anyopaque, body: u32, path: []const u8) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
     const control = frame.evaluator.program.body.control;
 
@@ -115,7 +115,7 @@ pub fn runSymbolicChild(handle: *const anyopaque, body: u32, path: []const u8) z
     );
 }
 
-pub fn runSymbolicParallel(handle: *const anyopaque, payload: u64, path: []const u8) zx.Error![]const u8 {
+pub fn runSymbolicParallel(handle: *anyopaque, payload: u64, path: []const u8) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
     const allocator = frame.evaluator.allocator;
 
@@ -136,25 +136,25 @@ pub fn runSymbolicParallel(handle: *const anyopaque, payload: u64, path: []const
     return parallel.executeIn(allocator, &input) catch |err| return Session.failure(err);
 }
 
-pub fn reserveSymbolicParallel(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reserveSymbolicParallel(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.completed = try frame.evaluator.allocator.alloc(terms.Evaluation, @intCast(count));
 }
 
-pub fn saveSymbolicParallel(handle: *const anyopaque, index: u64) void {
+pub fn saveSymbolicParallel(handle: *anyopaque, index: u64) void {
     const frame = Frame.borrow(handle);
 
     frame.completed[@intCast(index)] = frame.outcome;
 }
 
-pub fn bindSymbolicParallel(handle: *const anyopaque, index: u64, symbol: u32) void {
+pub fn bindSymbolicParallel(handle: *anyopaque, index: u64, symbol: u32) void {
     const frame = Frame.borrow(handle);
 
     frame.evaluator.environment[symbol] = frame.completed[@intCast(index)].value;
 }
 
-pub fn rejectSymbolicStatement(handle: *const anyopaque) error{InvalidSource}!?[]const u8 {
+pub fn rejectSymbolicStatement(handle: *anyopaque) error{InvalidSource}!?[]const u8 {
     const reporter = Frame.borrow(handle).evaluator.reporter;
 
     return @errorCast(reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification does not yet model this statement"));

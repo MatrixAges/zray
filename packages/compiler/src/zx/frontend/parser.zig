@@ -109,7 +109,7 @@ pub fn range(self: *const Self, start: usize) zx.Span {
     return .{ .start = start, .end = self.tokens[self.index - 1].span.end };
 }
 
-pub fn make(self: *Self, start: usize, value: @FieldType(ast.Expression, "value")) zx.Error!*const ast.Expression {
+pub fn make(self: *Self, start: usize, value: @FieldType(ast.Expression, "value")) zx.Error!*ast.Expression {
     var child_depth: u16 = 0;
 
     switch (value) {

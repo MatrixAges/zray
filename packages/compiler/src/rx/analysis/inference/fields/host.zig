@@ -33,12 +33,12 @@ pub const Frame = struct {
         const argument = if (known) types.first.items[shape.argument] else 0;
 
         const inferred = if (shape.kind == .Object)
-            Graph.Fields.fromValues(@ptrCast(graph.nodes.items(.members)[@backingInt(self.root)]))
+            graph.mutableFields(graph.nodes.items(.members)[@backingInt(self.root)])
 
         else
             Graph.Fields{};
 
-        self.resize = .{ .allocator = graph.allocator, .fields = inferred };
+        self.resize = .{ .buffers = &graph.field_buffers, .allocator = graph.allocator, .fields = inferred };
         self.storage = self.resize.borrow(Storage);
         self.revision = (&graph.revision)[0..1];
 
@@ -72,8 +72,8 @@ pub const Frame = struct {
 
         return shape;
     }
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -88,7 +88,7 @@ pub fn read(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, s
     return @fromBackingInt(value);
 }
 
-pub fn addFieldNode(handle: *const anyopaque) zx.Error!u32 {
+pub fn addFieldNode(handle: *anyopaque) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
     const result = try graph.add(.unknown, frame.span);
@@ -98,19 +98,19 @@ pub fn addFieldNode(handle: *const anyopaque) zx.Error!u32 {
     return @backingInt(result);
 }
 
-pub fn registerFieldType(handle: *const anyopaque, type_id: u32) zx.Error!u32 {
+pub fn registerFieldType(handle: *anyopaque, type_id: u32) zx.Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try frame.graph.known(@fromBackingInt(type_id), frame.span));
 }
 
-pub fn requireFieldList(handle: *const anyopaque) zx.Error!void {
+pub fn requireFieldList(handle: *anyopaque) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     _ = try frame.graph.payload(frame.target, .list, frame.span);
 }
 
-pub fn appendLengthProjection(handle: *const anyopaque, value: u32) std.mem.Allocator.Error!void {
+pub fn appendLengthProjection(handle: *anyopaque, value: u32) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = &frame.graph.pending;
 
@@ -121,7 +121,7 @@ pub fn appendLengthProjection(handle: *const anyopaque, value: u32) std.mem.Allo
     });
 }
 
-pub fn rejectFieldAccess(handle: *const anyopaque, message: []const u8) zx.Error!void {
+pub fn rejectFieldAccess(handle: *anyopaque, message: []const u8) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     return frame.graph.reporter.fail(.type_mismatch, frame.span, message);

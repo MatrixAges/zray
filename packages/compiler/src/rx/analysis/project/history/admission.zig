@@ -58,8 +58,8 @@ pub fn bodies(history: *const History.History, earlier: *const History.Retained,
     };
 }
 
-pub fn historyBodyOpening(handle: *const anyopaque, path: []const u8, text: []const u8) std.mem.Allocator.Error!?u64 {
-    const cache: *ParseCache = @ptrCast(@alignCast(@constCast(handle)));
+pub fn historyBodyOpening(handle: *anyopaque, path: []const u8, text: []const u8) std.mem.Allocator.Error!?u64 {
+    const cache: *ParseCache = @ptrCast(@alignCast(handle));
     const parsed = try cache.getModule(text, path);
 
     return parsed.bodyStart();

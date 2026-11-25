@@ -9,7 +9,7 @@ const Input = std.meta.Child(rule.Input);
 const Earlier = std.meta.Child(@typeInfo(@FieldType(Input, "earlier")).optional.child);
 const Range = std.meta.Child(@FieldType(Earlier, "functions"));
 
-pub fn begin(state: *const State, previous: ?*const History.Retained, shape: *const [32]u8, initial: *History.Checkpoint) bool {
+pub fn begin(state: *State, previous: ?*const History.Retained, shape: *const [32]u8, initial: *History.Checkpoint) bool {
     var storage: Snapshot = undefined;
     const capture = storage.bind(state, initial);
     const checkpoint = std.mem.asBytes(initial);

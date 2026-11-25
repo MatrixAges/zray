@@ -104,14 +104,14 @@ const Loader = struct {
     }
 };
 
-pub fn loadNativeText(handle: *const anyopaque, path: []const u8) Error![]const u8 {
-    const self: *Loader = @ptrCast(@alignCast(@constCast(handle)));
+pub fn loadNativeText(handle: *anyopaque, path: []const u8) Error![]const u8 {
+    const self: *Loader = @ptrCast(@alignCast(handle));
 
     return self.read(path);
 }
 
-pub fn writeNativeBinding(handle: *const anyopaque, input: *const Binding) Error!void {
-    const self: *Loader = @ptrCast(@alignCast(@constCast(handle)));
+pub fn writeNativeBinding(handle: *anyopaque, input: *const Binding) Error!void {
+    const self: *Loader = @ptrCast(@alignCast(handle));
 
     return self.write(input);
 }

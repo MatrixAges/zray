@@ -130,8 +130,8 @@ const SearchWorker = struct {
     }
 };
 
-pub fn findFunctionSource(handle: *const anyopaque, row: u64, kind: Kind, index: u64) u32 {
-    const worker: *SearchWorker = @ptrCast(@alignCast(@constCast(handle)));
+pub fn findFunctionSource(handle: *anyopaque, row: u64, kind: Kind, index: u64) u32 {
+    const worker: *SearchWorker = @ptrCast(@alignCast(handle));
 
     worker.step(@intCast(row), locate(worker.task.jobs, kind, @intCast(index))) catch |err| return @intFromError(err);
 
@@ -169,13 +169,19 @@ const RenderWorker = struct {
         const backing = if (generated and job.unit == .types) job.batch.backing else scratch;
         const cache_owned = generated and job.batch.cache != null;
         const source = try job.batch.generate(if (cache_owned) scratch else self.output, backing, job.unit, &self.types);
-        self.task.results[row].source = if (cache_owned) try std.heap.smp_allocator.dupe(u8, source) else source;
+
+        self.task.results[row] = if (cache_owned) blk: {
+            const copy = try std.heap.smp_allocator.dupe(u8, source);
+
+            break :blk .{ .source = copy, .owned = copy };
+        } else .{ .source = source };
+
         _ = self.scratch.reset(.{ .retain_with_limit = 32 << 20 });
     }
 };
 
-pub fn renderFunctionSource(handle: *const anyopaque, row: u64, kind: Kind, index: u64) u32 {
-    const worker: *RenderWorker = @ptrCast(@alignCast(@constCast(handle)));
+pub fn renderFunctionSource(handle: *anyopaque, row: u64, kind: Kind, index: u64) u32 {
+    const worker: *RenderWorker = @ptrCast(@alignCast(handle));
 
     worker.step(@intCast(row), locate(worker.task.jobs, kind, @intCast(index))) catch |err| return @intFromError(err);
 
@@ -281,8 +287,8 @@ const Frame = struct {
     sources: [][]const u8,
     cached: ?CacheWork = null,
     results: []publication.Result = &.{},
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
     fn release(self: *const Frame) void {
         if (self.cached) |*cached| {
@@ -295,7 +301,7 @@ const Frame = struct {
     }
 };
 
-pub fn readFunctionSources(handle: *const anyopaque) generating.Error!*const SourceReuse {
+pub fn readFunctionSources(handle: *anyopaque) generating.Error!*const SourceReuse {
     const frame = Frame.borrow(handle);
     const count = frame.sources.len;
     const cache = frame.jobs.batch.cache.?;
@@ -332,14 +338,14 @@ pub fn readFunctionSources(handle: *const anyopaque) generating.Error!*const Sou
     return &cached.view;
 }
 
-pub fn restoreFunctionSources(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn restoreFunctionSources(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const cached = &frame.cached.?;
 
     return publication.restore(frame.owned, cached.rows.fetched, cached.plan, frame.sources);
 }
 
-pub fn generateFunctionSources(handle: *const anyopaque) generating.Error!void {
+pub fn generateFunctionSources(handle: *anyopaque) generating.Error!void {
     const frame = Frame.borrow(handle);
     const pending = if (frame.cached) |*cached| cached.plan.pending else null;
     const count = if (pending) |positions| positions.len else frame.sources.len;
@@ -354,7 +360,7 @@ pub fn generateFunctionSources(handle: *const anyopaque) generating.Error!void {
     return spread(Work, &work, frame.arenas[0..@min(frame.arenas.len, count)]);
 }
 
-pub fn publishFunctionSources(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishFunctionSources(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = if (frame.cached) |*cached| cached.plan.pending else null;
 

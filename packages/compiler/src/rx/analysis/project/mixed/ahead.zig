@@ -93,23 +93,23 @@ fn clearSeed(self: *Self) void {
     self.items.clearRetainingCapacity();
 }
 
-fn borrowWorkspace(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrowWorkspace(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn mixedResultIsZX(handle: *const anyopaque, row: u64) bool {
+pub fn mixedResultIsZX(handle: *anyopaque, row: u64) bool {
     return borrowWorkspace(handle).items.items(.result)[@intCast(row)] == .zx;
 }
 
-pub fn releaseMixedZXResult(handle: *const anyopaque, row: u64) void {
+pub fn releaseMixedZXResult(handle: *anyopaque, row: u64) void {
     borrowWorkspace(handle).items.items(.result)[@intCast(row)].zx.release();
 }
 
-pub fn clearMixedResults(handle: *const anyopaque) void {
+pub fn clearMixedResults(handle: *anyopaque) void {
     borrowWorkspace(handle).items.clearRetainingCapacity();
 }
 
-pub fn resetMixedWorker(handle: *const anyopaque, index: u64) void {
+pub fn resetMixedWorker(handle: *anyopaque, index: u64) void {
     _ = borrowWorkspace(handle).arenas[@intCast(index)].reset(.retain_capacity);
 }
 
@@ -118,7 +118,7 @@ fn resetBindings(self: *Self) void {
     self.next_item = 0;
 }
 
-pub fn resetMixedBindings(handle: *const anyopaque) void {
+pub fn resetMixedBindings(handle: *anyopaque) void {
     borrowWorkspace(handle).resetBindings();
 }
 
@@ -233,8 +233,8 @@ const Preparation = struct {
     arguments: *const Inputs,
     issue: ?Diagnostic = null,
     candidate: Result = undefined,
-    fn borrow(handle: *const anyopaque) *Preparation {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Preparation {
+        return @ptrCast(@alignCast(handle));
     }
     fn open(self: *Preparation, index: usize) void {
         self.issue = self.state.issue;
@@ -277,7 +277,7 @@ const Preparation = struct {
     }
 };
 
-pub fn reserveMixedWorkers(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
+pub fn reserveMixedWorkers(handle: *anyopaque) std.mem.Allocator.Error!u64 {
     const frame = Preparation.borrow(handle);
 
     try frame.ahead.initArenas(frame.state.allocator);
@@ -285,11 +285,11 @@ pub fn reserveMixedWorkers(handle: *const anyopaque) std.mem.Allocator.Error!u64
     return frame.ahead.arenas.len;
 }
 
-pub fn openMixedCandidate(handle: *const anyopaque, index: u64) void {
+pub fn openMixedCandidate(handle: *anyopaque, index: u64) void {
     Preparation.borrow(handle).open(@intCast(index));
 }
 
-pub fn prepareMixedZXCandidate(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
+pub fn prepareMixedZXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
     const frame = Preparation.borrow(handle);
 
     const prepared = frame.prepareZX(@intCast(index)) catch |err| switch (err) {
@@ -302,7 +302,7 @@ pub fn prepareMixedZXCandidate(handle: *const anyopaque, index: u64) std.mem.All
     return @ptrCast(&frame.candidate);
 }
 
-pub fn prepareMixedRXCandidate(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
+pub fn prepareMixedRXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
     const frame = Preparation.borrow(handle);
 
     const prepared = frame.prepareRX(@intCast(index)) catch |err| switch (err) {
@@ -315,19 +315,19 @@ pub fn prepareMixedRXCandidate(handle: *const anyopaque, index: u64) std.mem.All
     return @ptrCast(&frame.candidate);
 }
 
-pub fn recordMixedCandidate(handle: *const anyopaque, position: u64, candidate: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn recordMixedCandidate(handle: *anyopaque, position: u64, candidate: *const anyopaque) std.mem.Allocator.Error!void {
     try Preparation.borrow(handle).append(position, @ptrCast(@alignCast(candidate)));
 }
 
-pub fn restoreMixedCandidateDiagnostic(handle: *const anyopaque) void {
+pub fn restoreMixedCandidateDiagnostic(handle: *anyopaque) void {
     Preparation.borrow(handle).restore();
 }
 
-pub fn preparedMixedPositions(handle: *const anyopaque) []const u64 {
+pub fn preparedMixedPositions(handle: *anyopaque) []const u64 {
     return Preparation.borrow(handle).ahead.items.items(.position);
 }
 
-pub fn executeMixedWorkers(handle: *const anyopaque, participants: u64) void {
+pub fn executeMixedWorkers(handle: *anyopaque, participants: u64) void {
     const frame = Preparation.borrow(handle);
 
     frame.ahead.execute(frame.state, @intCast(participants));

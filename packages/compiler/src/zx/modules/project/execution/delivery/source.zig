@@ -5,7 +5,7 @@ const Frame = @import("frame.zig");
 const Loading = @import("../../load/host.zig");
 const Action = @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceAction;
 
-pub fn selectProjectSource(handle: *const anyopaque) Action {
+pub fn selectProjectSource(handle: *anyopaque) Action {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
 
@@ -27,11 +27,11 @@ pub fn selectProjectSource(handle: *const anyopaque) Action {
     return zx.columns.view(Action, plan.action);
 }
 
-pub fn projectImportSourceRow(handle: *const anyopaque) u64 {
+pub fn projectImportSourceRow(handle: *anyopaque) u64 {
     return Frame.borrow(handle).source_row;
 }
 
-pub fn prepareProjectSource(handle: *const anyopaque, row: u64) void {
+pub fn prepareProjectSource(handle: *anyopaque, row: u64) void {
     const frame = Frame.borrow(handle);
     const index: usize = @intCast(row);
     const project = frame.walk.project;
@@ -43,7 +43,7 @@ pub fn prepareProjectSource(handle: *const anyopaque, row: u64) void {
     frame.dependency = .{ .source = unit.path };
 }
 
-pub fn prepareDeferredProjectSignature(handle: *const anyopaque) error{OutOfMemory}!void {
+pub fn prepareDeferredProjectSignature(handle: *anyopaque) error{OutOfMemory}!void {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
     const path = try project.allocator.dupe(u8, frame.resolved.target.source);
@@ -51,7 +51,7 @@ pub fn prepareDeferredProjectSignature(handle: *const anyopaque) error{OutOfMemo
     frame.imported = .{ .exports = &.{}, .signatures = @as(*[1]@TypeOf(frame.deferred), @ptrCast(&frame.deferred)) };
 }
 
-pub fn rejectProjectSource(handle: *const anyopaque, action: Action) error{InvalidSource}!void {
+pub fn rejectProjectSource(handle: *anyopaque, action: Action) error{InvalidSource}!void {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
 

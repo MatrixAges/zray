@@ -1,13 +1,13 @@
-export type GenerationRequest = opaque
+export type GenerationRequest = mutable_opaque
 
 export type PreparedGeneration = {
     digest: u8[],
     interfaces_loaded: bool
 }
 
-export type GenerationFileCache = opaque
+export type GenerationFileCache = mutable_opaque
 
-export type SnapshotVersions = opaque
+export type SnapshotVersions = mutable_opaque
 
 export type SnapshotVersion = {
     inode: u64,
@@ -20,7 +20,7 @@ export type SnapshotVersion = {
     read_high: i32
 }
 
-export type InterfaceLoader = opaque
+export type InterfaceLoader = mutable_opaque
 
 export type NativeBinding = {
     index: u64,
@@ -31,11 +31,11 @@ export type NativeBinding = {
     resolve_members: bool
 }
 
-export type DirectoryScan = opaque
+export type DirectoryScan = mutable_opaque
 
-export type DocumentReader = opaque
+export type DocumentReader = mutable_opaque
 
-export type InterfaceObservations = opaque
+export type InterfaceObservations = mutable_opaque
 
 export declare function observeGenerationInputs(request: GenerationRequest): u8[]?
     throws { GenerationRequestFailed }

@@ -37,8 +37,8 @@ const Load = struct {
     exports: []const compiled.Export = &.{},
     names: memory.TextColumn = undefined,
     buckets: []u64 = &.{},
-    fn borrow(handle: *const anyopaque) *Load {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Load {
+        return @ptrCast(@alignCast(handle));
     }
     fn useExports(self: *Load, exports: []const compiled.Export, buckets: []u64) u64 {
         self.exports = exports;
@@ -99,13 +99,13 @@ pub fn resolve(allocator: std.mem.Allocator, project: *const Project, target: co
     };
 }
 
-pub fn resolveCompiledImport(handle: *const anyopaque) ResolutionError!u64 {
+pub fn resolveCompiledImport(handle: *anyopaque) ResolutionError!u64 {
     const frame = Load.borrow(handle);
 
     return resolve(frame.allocator, frame.project, frame.target.*);
 }
 
-pub fn findCompiledLibrary(handle: *const anyopaque, index: u64, inherited: bool) ?u64 {
+pub fn findCompiledLibrary(handle: *anyopaque, index: u64, inherited: bool) ?u64 {
     const frame = Load.borrow(handle);
     const cache = if (inherited) &frame.cache.inherited else &frame.cache.added;
     const unit = cache.getPtr(@intCast(index)) orelse return null;
@@ -113,7 +113,7 @@ pub fn findCompiledLibrary(handle: *const anyopaque, index: u64, inherited: bool
     return frame.useExports(unit.exports, unit.names.storage);
 }
 
-pub fn reserveCompiledUnit(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!u64 {
+pub fn reserveCompiledUnit(handle: *anyopaque, index: u64) std.mem.Allocator.Error!u64 {
     const frame = Load.borrow(handle);
 
     try frame.cache.added.ensureUnusedCapacity(frame.allocator, 1);
@@ -121,11 +121,11 @@ pub fn reserveCompiledUnit(handle: *const anyopaque, index: u64) std.mem.Allocat
     return frame.project.compiled_libraries[@intCast(index)].exports.len;
 }
 
-pub fn compiledInitializerCount(handle: *const anyopaque, index: u64) u64 {
+pub fn compiledInitializerCount(handle: *anyopaque, index: u64) u64 {
     return Load.borrow(handle).project.compiled_libraries[@intCast(index)].store_initializers.len;
 }
 
-pub fn bindCompiledImport(handle: *const anyopaque, index: u64) (std.mem.Allocator.Error || error{InvalidLibrary})!u64 {
+pub fn bindCompiledImport(handle: *anyopaque, index: u64) (std.mem.Allocator.Error || error{InvalidLibrary})!u64 {
     const frame = Load.borrow(handle);
     const library = frame.project.compiled_libraries[@intCast(index)];
     const rows = frame.rows.rows(compiled.StoreInitializer);
@@ -139,7 +139,7 @@ pub fn bindCompiledImport(handle: *const anyopaque, index: u64) (std.mem.Allocat
     return frame.useExports(linked.exports, frame.pending.storage);
 }
 
-pub fn rememberCompiledLibrary(handle: *const anyopaque, index: u64) void {
+pub fn rememberCompiledLibrary(handle: *anyopaque, index: u64) void {
     const frame = Load.borrow(handle);
 
     frame.cache.added.putAssumeCapacityNoClobber(@intCast(index), .{ .exports = frame.exports, .names = frame.pending });

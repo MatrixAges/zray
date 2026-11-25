@@ -66,7 +66,6 @@ pub const isParallelSafeWithSuffix = @import("ir/parallel.zig").programPureWithS
 pub const analyzeWithContext = @import("analysis/analyze.zig").analyzeWithContext;
 pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
-pub const publishSyntaxOrder = @import("frontend/retention/order.zig").publishSyntaxOrder;
 pub const SourceIndex = @import("modules/source_index/growing.zig").Map;
 pub const cache_retention = @import("modules/cache_retention.zig");
 pub const types = @import("analysis/types.zig");

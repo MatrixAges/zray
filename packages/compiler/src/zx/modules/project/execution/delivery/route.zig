@@ -5,7 +5,7 @@ const Loading = @import("../../load/host.zig");
 const Target = @import("../../target/host.zig");
 const Route = @import("project_execution_abi").layouts.@"zig:project_host".ProjectImportRoute;
 
-pub fn routeProjectImport(handle: *const anyopaque) std.mem.Allocator.Error!Route {
+pub fn routeProjectImport(handle: *anyopaque) std.mem.Allocator.Error!Route {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
     const active = frame.active;
@@ -49,7 +49,7 @@ pub fn routeProjectImport(handle: *const anyopaque) std.mem.Allocator.Error!Rout
     };
 }
 
-pub fn rejectProjectRoute(handle: *const anyopaque, route: Route, message: []const u8) error{InvalidSource}!void {
+pub fn rejectProjectRoute(handle: *anyopaque, route: Route, message: []const u8) error{InvalidSource}!void {
     const frame = Frame.borrow(handle);
     const reporter = frame.walk.project.reporter;
 
@@ -64,7 +64,7 @@ pub fn rejectProjectRoute(handle: *const anyopaque, route: Route, message: []con
     return @errorCast(reporter.fail(if (route == .MissingLegacy) .capability else .module, span, message));
 }
 
-pub fn resolveProjectImport(handle: *const anyopaque) zx.Error!bool {
+pub fn resolveProjectImport(handle: *anyopaque) zx.Error!bool {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
     const path = project.units[frame.active.index].path;

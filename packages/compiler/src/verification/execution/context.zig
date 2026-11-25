@@ -11,8 +11,8 @@ pub const Frame = struct {
     conditions: *Conditions,
     value: ?terms.Value,
     clause: native.ClauseTerm = undefined,
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -52,7 +52,7 @@ pub fn merge(conditions: *Conditions) zx.Error!terms.Evaluation {
     return .{ .value = frame.value.?, .safe = safe };
 }
 
-pub fn evaluateClause(handle: *const anyopaque, row: u64) zx.Error!*const native.ClauseTerm {
+pub fn evaluateClause(handle: *anyopaque, row: u64) zx.Error!*const native.ClauseTerm {
     const frame = Frame.borrow(handle);
     const conditions = frame.conditions;
     const clause = conditions.program.contracts.at(@intCast(row));
@@ -63,17 +63,17 @@ pub fn evaluateClause(handle: *const anyopaque, row: u64) zx.Error!*const native
     return &frame.clause;
 }
 
-pub fn bindSymbolicBoolean(handle: *const anyopaque, term: []const u8) zx.Error![]const u8 {
+pub fn bindSymbolicBoolean(handle: *anyopaque, term: []const u8) zx.Error![]const u8 {
     return Frame.borrow(handle).conditions.boolean(term);
 }
 
-pub fn publishClauseViolation(handle: *const anyopaque, term: []const u8) std.mem.Allocator.Error!void {
+pub fn publishClauseViolation(handle: *anyopaque, term: []const u8) std.mem.Allocator.Error!void {
     const conditions = Frame.borrow(handle).conditions;
 
     try conditions.violations.append(conditions.allocator, term);
 }
 
-pub fn selectSymbolicReturn(handle: *const anyopaque, row: u64) zx.Error![]const u8 {
+pub fn selectSymbolicReturn(handle: *anyopaque, row: u64) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
     const conditions = frame.conditions;
     const current = &conditions.returns.items[@intCast(row)];

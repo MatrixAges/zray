@@ -20,8 +20,8 @@ const Frame = struct {
     values: []u32 = undefined,
     spans: []zx.Span = undefined,
     length: []usize = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -47,21 +47,21 @@ pub fn run(graph: *Graph, source: Graph.Id, span: zx.Span) zx.Error!Graph.Id {
     return @fromBackingInt(value);
 }
 
-pub fn registerGuardedPayload(handle: *const anyopaque, value: u32, remaining: u64) zx.Error!u32 {
+pub fn registerGuardedPayload(handle: *anyopaque, value: u32, remaining: u64) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const result = try Known.registerPayload(frame.graph, value, remaining, frame.span);
 
     return @backingInt(result.node);
 }
 
-pub fn reserveNonNullNode(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveNonNullNode(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const reservation = try Nodes.reserve(frame.graph, 1);
 
     frame.append.bind(&frame.node, frame.graph, reservation, .unknown, frame.span);
 }
 
-pub fn reserveNonNullProjection(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveNonNullProjection(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const pending = &frame.graph.pending;
     const projections = &pending.nonnull;

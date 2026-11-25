@@ -101,8 +101,8 @@ const Generation = struct {
     sources: []const compiler.project.Source = undefined,
     modules: []const @import("rx").ModuleSource = undefined,
     failure: ?anyerror = null,
-    fn borrow(handle: *const anyopaque) *Generation {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Generation {
+        return @ptrCast(@alignCast(handle));
     }
     fn fail(self: *Generation, err: anyerror) Error {
         self.failure = err;
@@ -350,7 +350,7 @@ const Generation = struct {
         const Output = @typeInfo(Return).error_union.payload;
 
         return struct {
-            fn invoke(handle: *const anyopaque) Error!Output {
+            fn invoke(handle: *anyopaque) Error!Output {
                 const self = borrow(handle);
 
                 return method(self) catch |err| self.fail(err);
@@ -370,13 +370,13 @@ const Generation = struct {
     pub const writeGenerationStamp = effect(writeStamp).invoke;
     pub const saveGenerationSnapshot = effect(saveSnapshot).invoke;
 
-    pub fn loadGenerationRoot(handle: *const anyopaque, row: u64, observed: bool) Error!void {
+    pub fn loadGenerationRoot(handle: *anyopaque, row: u64, observed: bool) Error!void {
         const self = borrow(handle);
 
         self.loadRoot(@intCast(row), observed) catch |err| return self.fail(err);
     }
 
-    pub fn fingerprintGenerationInputs(handle: *const anyopaque) Error!*const Prepared {
+    pub fn fingerprintGenerationInputs(handle: *anyopaque) Error!*const Prepared {
         const self = borrow(handle);
 
         self.prepareFingerprints() catch |err| return self.fail(err);
@@ -386,19 +386,19 @@ const Generation = struct {
         return &self.prepared;
     }
 
-    pub fn lookupGenerationAnalysis(handle: *const anyopaque) bool {
+    pub fn lookupGenerationAnalysis(handle: *anyopaque) bool {
         const self = borrow(handle);
 
         self.previous = self.resident.exactAnalysis(&self.digest);
 
         return self.previous != null;
     }
-    pub fn restoreGenerationAnalysis(handle: *const anyopaque) Error![]const u8 {
+    pub fn restoreGenerationAnalysis(handle: *anyopaque) Error![]const u8 {
         const self = borrow(handle);
 
         return generation.restore(self.target(), self.previous.?, self.project.entries.len) catch |err| self.fail(err);
     }
-    pub fn checkGenerationInterfaces(handle: *const anyopaque) Error!void {
+    pub fn checkGenerationInterfaces(handle: *anyopaque) Error!void {
         const self = borrow(handle);
 
         if (self.interfaces.failure) |err| return self.fail(err);
@@ -410,8 +410,8 @@ const FileDigest = struct {
     digest: fingerprint.Digest = undefined,
 };
 
-pub fn readGenerationFileDigest(cache: *const anyopaque, key: []const u8, source: []const u8) []const u8 {
-    const self: *FileDigest = @ptrCast(@alignCast(@constCast(cache)));
+pub fn readGenerationFileDigest(cache: *anyopaque, key: []const u8, source: []const u8) []const u8 {
+    const self: *FileDigest = @ptrCast(@alignCast(cache));
 
     self.digest = self.files.digest(key, source);
 

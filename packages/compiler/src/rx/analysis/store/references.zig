@@ -97,21 +97,21 @@ const Work = struct {
     }
 };
 
-fn borrow(handle: *const anyopaque) *Work {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Work {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn storeDeclarationName(handle: *const anyopaque, row: ?u64) []const u8 {
+pub fn storeDeclarationName(handle: *anyopaque, row: ?u64) []const u8 {
     return borrow(handle).definition(@intCast(row.?)).name;
 }
 
-pub fn publishStoreDeclaration(handle: *const anyopaque, row: ?u64, from: []const u8, namespace: []const u8) Declarations.Error!void {
+pub fn publishStoreDeclaration(handle: *anyopaque, row: ?u64, from: []const u8, namespace: []const u8) Declarations.Error!void {
     const work = borrow(handle);
 
     try work.publish(work.definition(@intCast(row.?)), Declarations.attribute(from), namespace);
 }
 
-pub fn rejectStoreDeclaration(handle: *const anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
+pub fn rejectStoreDeclaration(handle: *anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
     return borrow(handle).fail(Declarations.attribute(at).value_location, message);
 }
 

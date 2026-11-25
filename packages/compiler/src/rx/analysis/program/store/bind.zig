@@ -18,8 +18,8 @@ const Frame = struct {
     handles: [][]const u8 = undefined,
     readable: []bool = undefined,
     writable: []bool = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -80,13 +80,13 @@ fn bind(builder: *Builder, source: *const Source, target_arg: []u32) Builder.Err
     };
 }
 
-pub fn borrowProgramStoreSlots(handle: *const anyopaque) void {
+pub fn borrowProgramStoreSlots(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.registered = zx.columns.view(Slots, frame.builder.stores.view());
 }
 
-pub fn reserveProgramStoreSlot(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveProgramStoreSlot(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const builder = frame.builder;
     const storage = &builder.stores;

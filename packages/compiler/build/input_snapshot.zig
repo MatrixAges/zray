@@ -132,8 +132,8 @@ const SnapshotVersions = struct {
     row: Version = undefined,
 };
 
-pub fn readSnapshotVersion(cache: *const anyopaque, key: []const u8) ?*const Version {
-    const self: *SnapshotVersions = @ptrCast(@alignCast(@constCast(cache)));
+pub fn readSnapshotVersion(cache: *anyopaque, key: []const u8) ?*const Version {
+    const self: *SnapshotVersions = @ptrCast(@alignCast(cache));
     const version = self.files.version(key) orelse return null;
     const modified = source.timestamp(version.metadata.mtime);
     const changed = source.timestamp(version.metadata.ctime);
@@ -205,8 +205,8 @@ const InterfaceObservations = struct {
     }
 };
 
-pub fn recordInputInterface(handle: *const anyopaque, path: []const u8, matching: ?u64) error{OutOfMemory}!bool {
-    const self: *InterfaceObservations = @ptrCast(@alignCast(@constCast(handle)));
+pub fn recordInputInterface(handle: *anyopaque, path: []const u8, matching: ?u64) error{OutOfMemory}!bool {
+    const self: *InterfaceObservations = @ptrCast(@alignCast(handle));
 
     return self.append(if (matching) |row| @intCast(row) else null, path);
 }

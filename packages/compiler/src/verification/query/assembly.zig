@@ -12,8 +12,8 @@ const Frame = struct {
     output: std.Io.Writer.Allocating,
     correctness: ?[]u8 = null,
     feasibility: []u8 = undefined,
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -50,19 +50,19 @@ pub fn write(result: Allocator, graph: *Graph, precondition_count: usize, sectio
     return .{ .feasibility = frame.feasibility, .correctness = frame.correctness.?, .inputs = inputs };
 }
 
-pub fn appendQueryDefinitions(handle: *const anyopaque, first: u64, end: u64) zx.Error!void {
+pub fn appendQueryDefinitions(handle: *anyopaque, first: u64, end: u64) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     try frame.graph.writeDeclarations(&frame.output.writer, @intCast(first), @intCast(end));
 }
 
-pub fn publishCorrectnessQuery(handle: *const anyopaque) Allocator.Error!void {
+pub fn publishCorrectnessQuery(handle: *anyopaque) Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.correctness = try frame.output.toOwnedSlice();
 }
 
-pub fn publishFeasibilityQuery(handle: *const anyopaque, prefix: u64, suffix: []const u8) Allocator.Error!void {
+pub fn publishFeasibilityQuery(handle: *anyopaque, prefix: u64, suffix: []const u8) Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const shared = frame.correctness.?[0..@intCast(prefix)];
 

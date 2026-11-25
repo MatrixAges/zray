@@ -29,8 +29,8 @@ identity: ?[]const u8 = null,
 path_buffer: [512]u8 = undefined,
 path_memory: std.heap.BufferFirstAllocator = undefined,
 path_started: bool = false,
-pub fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+pub fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 pub fn run(walk: *load.Walk, row: usize, completed: ?u64) zx.Error!?u64 {

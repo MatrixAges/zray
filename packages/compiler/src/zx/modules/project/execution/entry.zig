@@ -16,8 +16,8 @@ const Entry = struct {
     scratch: zx.Arena,
     result: Analysis.Result = undefined,
     pending: ?cache_entries.Pending = null,
-    fn borrow(handle: *const anyopaque) *Entry {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Entry {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -145,7 +145,7 @@ fn prepare(entry: *Entry) void {
     };
 }
 
-pub fn validateProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn validateProjectEntry(handle: *anyopaque) std.mem.Allocator.Error!bool {
     const entry = Entry.borrow(handle);
     const project = entry.project;
 
@@ -160,7 +160,7 @@ pub fn validateProjectEntry(handle: *const anyopaque) std.mem.Allocator.Error!bo
     return true;
 }
 
-pub fn extractProjectCacheArtifact(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!ABI.CacheWrite {
+pub fn extractProjectCacheArtifact(handle: *anyopaque, row: u64) std.mem.Allocator.Error!ABI.CacheWrite {
     const entry = Entry.borrow(handle);
     const cache = entry.project.semantic_cache.?;
     const index: usize = @intCast(row);
@@ -182,14 +182,14 @@ pub fn extractProjectCacheArtifact(handle: *const anyopaque, row: u64) std.mem.A
     return .Ready;
 }
 
-pub fn projectCacheSlot(handle: *const anyopaque, digest: []const u8) *const ABI.CacheSlot {
+pub fn projectCacheSlot(handle: *anyopaque, digest: []const u8) *ABI.CacheSlot {
     const slot = &Entry.borrow(handle).pending.?;
     slot.value.?.context_digest = digest[0..slot.value.?.context_digest.len].*;
 
     return @ptrCast(slot);
 }
 
-pub fn rejectProjectCacheArtifact(handle: *const anyopaque) void {
+pub fn rejectProjectCacheArtifact(handle: *anyopaque) void {
     const entry = Entry.borrow(handle);
 
     entry.result = .{ .arena = entry.project.arena.*, .value = .{ .diagnostic = cache_publication.invalid } };

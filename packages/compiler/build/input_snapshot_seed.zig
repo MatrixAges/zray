@@ -32,35 +32,47 @@ pub fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const 
 }
 
 fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Files) !?source.Files {
-    var result: source.Files = undefined;
-
-    inline for (@typeInfo(source.Files).@"struct".field_names) |field| {
-        const Child = std.meta.Child(@FieldType(source.Files, field));
-
-        @field(result, field) = try allocator.alloc(Child, if (files == null and std.mem.startsWith(u8, field, "read_")) 0 else facts.len);
-    }
+    const count = facts.len;
+    const read_count = if (files == null) 0 else count;
+    const paths = try allocator.alloc([]const u8, count);
+    const inodes = try allocator.alloc(u64, count);
+    const sizes = try allocator.alloc(u64, count);
+    const mtime_high = try allocator.alloc(i64, count);
+    const mtime_low = try allocator.alloc(u32, count);
+    const ctime_high = try allocator.alloc(i64, count);
+    const ctime_low = try allocator.alloc(u32, count);
+    const read_high = try allocator.alloc(i64, read_count);
+    const read_low = try allocator.alloc(u32, read_count);
 
     for (facts, 0..) |fact, index| {
         const version = if (files) |cache| cache.version(fact.key) orelse return null else null;
         const selected = if (version) |value| Fact.init(fact.path, fact.key, value.metadata) else fact;
 
-        @constCast(result.paths)[index] = selected.path;
-        @constCast(result.inodes)[index] = selected.inode;
-        @constCast(result.sizes)[index] = selected.size;
-        @constCast(result.mtime_high)[index] = selected.mtime_high;
-        @constCast(result.mtime_low)[index] = selected.mtime_low;
-        @constCast(result.ctime_high)[index] = selected.ctime_high;
-        @constCast(result.ctime_low)[index] = selected.ctime_low;
+        paths[index] = selected.path;
+        inodes[index] = selected.inode;
+        sizes[index] = selected.size;
+        mtime_high[index] = selected.mtime_high;
+        mtime_low[index] = selected.mtime_low;
+        ctime_high[index] = selected.ctime_high;
+        ctime_low[index] = selected.ctime_low;
 
-        if (version) |value| timestamp(&result, "read", index, value.read);
+        if (version) |value| {
+            const parts = source.timestamp(value.read);
+
+            read_low[index] = parts.low;
+            read_high[index] = parts.high;
+        }
     }
 
-    return result;
-}
-
-fn timestamp(columns_value: *source.Files, comptime field: []const u8, index: usize, value: i96) void {
-    const parts = source.timestamp(value);
-
-    @constCast(@field(columns_value, field ++ "_low"))[index] = parts.low;
-    @constCast(@field(columns_value, field ++ "_high"))[index] = parts.high;
+    return .{
+        .paths = paths,
+        .inodes = inodes,
+        .sizes = sizes,
+        .mtime_high = mtime_high,
+        .mtime_low = mtime_low,
+        .ctime_high = ctime_high,
+        .ctime_low = ctime_low,
+        .read_high = read_high,
+        .read_low = read_low,
+    };
 }

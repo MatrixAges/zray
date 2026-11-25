@@ -11,8 +11,8 @@ const Frame = struct {
     origin: Graph.Origin,
     width: u16,
     staged: ?[]u64 = null,
-    fn borrow(handle: *const anyopaque) *@This() {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -40,13 +40,13 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
     return workflow.executeIn(graph.allocator, &input) catch |err| return execution.failure(err);
 }
 
-pub fn reserveSymbolicDefinition(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn reserveSymbolicDefinition(handle: *anyopaque) std.mem.Allocator.Error!void {
     const graph = Frame.borrow(handle).graph;
 
     try graph.definitions.ensureUnusedCapacity(graph.allocator, 1);
 }
 
-pub fn allocateSymbolicIndex(handle: *const anyopaque, capacity: u64) std.mem.Allocator.Error!void {
+pub fn allocateSymbolicIndex(handle: *anyopaque, capacity: u64) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const buckets = try frame.graph.allocator.alloc(u64, @intCast(capacity));
 
@@ -55,7 +55,7 @@ pub fn allocateSymbolicIndex(handle: *const anyopaque, capacity: u64) std.mem.Al
     frame.staged = buckets;
 }
 
-pub fn writeSymbolicDefinition(handle: *const anyopaque, position: u64, resized: bool) std.mem.Allocator.Error![]const u8 {
+pub fn writeSymbolicDefinition(handle: *anyopaque, position: u64, resized: bool) std.mem.Allocator.Error![]const u8 {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
     const rows = graph.definitions.slice();
@@ -92,7 +92,7 @@ pub fn writeSymbolicDefinition(handle: *const anyopaque, position: u64, resized:
     return identity.name;
 }
 
-pub fn installSymbolicIndex(handle: *const anyopaque) void {
+pub fn installSymbolicIndex(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
 
@@ -102,7 +102,7 @@ pub fn installSymbolicIndex(handle: *const anyopaque) void {
     frame.staged = null;
 }
 
-pub fn rejectSymbolicDefinition(handle: *const anyopaque, message: ?[]const u8) error{InvalidSource}![]const u8 {
+pub fn rejectSymbolicDefinition(handle: *anyopaque, message: ?[]const u8) error{InvalidSource}![]const u8 {
     const frame = Frame.borrow(handle);
 
     if (message) |text| {

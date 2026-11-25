@@ -36,24 +36,24 @@ pub const Frame = struct {
         };
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn openConstraintModule(handle: *const anyopaque, row: u64) bool {
+pub fn openConstraintModule(handle: *anyopaque, row: u64) bool {
     return Frame.borrow(handle).state.open(@intCast(row));
 }
 
-pub fn releaseConstraintScope(handle: *const anyopaque) void {
+pub fn releaseConstraintScope(handle: *anyopaque) void {
     Frame.borrow(handle).state.scope.reset(0);
 }
 
-pub fn forwardConstraintShortcut(handle: *const anyopaque) zx.Error!void {
+pub fn forwardConstraintShortcut(handle: *anyopaque) zx.Error!void {
     try Frame.borrow(handle).state.walker.forwardShortcut();
 }
 
-pub fn inferConstraintBody(handle: *const anyopaque) zx.Error!bool {
+pub fn inferConstraintBody(handle: *anyopaque) zx.Error!bool {
     const walker = &Frame.borrow(handle).state.walker;
 
     try walker.inferBody();
@@ -61,25 +61,25 @@ pub fn inferConstraintBody(handle: *const anyopaque) zx.Error!bool {
     return walker.returned;
 }
 
-pub fn defaultConstraintOutput(handle: *const anyopaque) zx.Error!void {
+pub fn defaultConstraintOutput(handle: *anyopaque) zx.Error!void {
     const state = Frame.borrow(handle).state;
 
     try Defaults.default(state.graph, state.walker.output);
 }
 
-pub fn constraintInputUsed(handle: *const anyopaque) bool {
+pub fn constraintInputUsed(handle: *anyopaque) bool {
     return Frame.borrow(handle).state.expression.input_used;
 }
 
-pub fn constraintBindingEnd(handle: *const anyopaque) u64 {
+pub fn constraintBindingEnd(handle: *anyopaque) u64 {
     return Frame.borrow(handle).state.requests.bindings.len;
 }
 
-pub fn constraintTaskEnd(handle: *const anyopaque) u64 {
+pub fn constraintTaskEnd(handle: *anyopaque) u64 {
     return Frame.borrow(handle).state.requests.tasks.items.len;
 }
 
-pub fn openConstraintDefaults(handle: *const anyopaque) void {
+pub fn openConstraintDefaults(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
     const state = frame.state;
     const graph = state.graph;
@@ -99,7 +99,7 @@ pub fn openConstraintDefaults(handle: *const anyopaque) void {
     };
 }
 
-pub fn constraintVoidNode(handle: *const anyopaque) ?u32 {
+pub fn constraintVoidNode(handle: *anyopaque) ?u32 {
     const graph = Frame.borrow(handle).state.graph;
     const void_type = @import("frontend").types.scalarId(.void);
     const node = graph.pending.known_types.get(void_type) orelse return null;
@@ -107,7 +107,7 @@ pub fn constraintVoidNode(handle: *const anyopaque) ?u32 {
     return @backingInt(node);
 }
 
-pub fn defaultConstraintInput(handle: *const anyopaque, input: u32) zx.Error!void {
+pub fn defaultConstraintInput(handle: *anyopaque, input: u32) zx.Error!void {
     const frame = Frame.borrow(handle);
     const graph = frame.state.graph;
 

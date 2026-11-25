@@ -31,8 +31,8 @@ pub const State = struct {
     kind_view: []u8 = undefined,
     target_payloads: []u32 = undefined,
     header_views: [4][]u8 = undefined,
-    pub fn borrow(handle: *const anyopaque) *State {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    pub fn borrow(handle: *anyopaque) *State {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -92,7 +92,7 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
     return @fromBackingInt(result);
 }
 
-pub fn reserveExpressionLink(handle: *const anyopaque, returned: ?u32, rows: []const u32, bindings: []const u32, count: u64) Error!u32 {
+pub fn reserveExpressionLink(handle: *anyopaque, returned: ?u32, rows: []const u32, bindings: []const u32, count: u64) Error!u32 {
     const result = returned orelse return error.InvalidModule;
 
     if (result == missing) return error.InvalidModule;
@@ -156,13 +156,13 @@ pub fn reserveExpressionLink(handle: *const anyopaque, returned: ?u32, rows: []c
     return result;
 }
 
-pub fn prepareLinkSymbols(handle: *const anyopaque) Error!bool {
+pub fn prepareLinkSymbols(handle: *anyopaque) Error!bool {
     const state = State.borrow(handle);
 
     return state.symbols.prepare(state.builder, &state.program.symbols, state.mapping.bindings.len + 1, state.borrow_text);
 }
 
-pub fn prepareLinkLiterals(handle: *const anyopaque) Error!bool {
+pub fn prepareLinkLiterals(handle: *anyopaque) Error!bool {
     const state = State.borrow(handle);
 
     return state.literals.prepare(state.builder, &state.program.expressions, state.borrow_text);

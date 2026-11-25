@@ -36,8 +36,8 @@ pub fn run(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
     entry.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
-pub fn reserveBindingUse(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    const frame: *Frame = @ptrCast(@alignCast(@constCast(handle)));
+pub fn reserveBindingUse(handle: *anyopaque) std.mem.Allocator.Error!void {
+    const frame: *Frame = @ptrCast(@alignCast(handle));
     const pending = &frame.graph.pending;
     const uses = &pending.value_uses;
 

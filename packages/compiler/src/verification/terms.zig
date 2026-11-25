@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-pub const Value = union(enum) { scalar: []const u8, fields: []const Value };
+pub const Value = union(enum) { scalar: []const u8, fields: []Value };
 pub const Evaluation = struct { value: Value, safe: []const u8 = "true" };
 pub const Integer = struct { width: u16, signed: bool };
 

@@ -20,14 +20,14 @@ const Frame = struct {
     allocator: std.mem.Allocator,
     context: *const Context,
     state: State = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
 pub fn open(allocator: std.mem.Allocator, context: *const Context) std.mem.Allocator.Error!Open {
     var frame: Frame = .{ .allocator = allocator, .context = context };
-    const handle: *const anyopaque = @ptrCast(&frame);
+    const handle: *anyopaque = @ptrCast(&frame);
 
     if (comptime enabled) {
         const generated = @import("generated_project_state_open");
@@ -71,17 +71,17 @@ pub fn open(allocator: std.mem.Allocator, context: *const Context) std.mem.Alloc
     return .{ .state = frame.state };
 }
 
-pub fn copyProjectTypes(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn copyProjectTypes(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     frame.state.types = try @import("../../../analysis/type_table.zig").storage(frame.allocator, frame.context.types);
 }
 
-pub fn copyProjectNatives(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn copyProjectNatives(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     frame.state.native_modules = try @import("../../native_context.zig").storage(frame.allocator, frame.context.native_modules);
 }
 
-pub fn copyProjectOrigins(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn copyProjectOrigins(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.state.origins = .{ .allocator = frame.allocator };

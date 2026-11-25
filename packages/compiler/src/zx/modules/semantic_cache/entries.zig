@@ -39,19 +39,19 @@ pub fn find(entries: *const Map, path: []const u8, source_digest: *const [32]u8,
     return entry;
 }
 
-pub fn openCachedEntry(handle: *const anyopaque, path: []const u8) ?*const ABI.CacheEntry {
+pub fn openCachedEntry(handle: *const anyopaque, path: []const u8) ?*ABI.CacheEntry {
     const entries: *const Map = @ptrCast(@alignCast(handle));
 
     return @ptrCast(entries.get(path));
 }
 
-pub fn cachedSourceDigest(handle: *const anyopaque) []const u8 {
+pub fn cachedSourceDigest(handle: *anyopaque) []const u8 {
     const entry: *const Entry = @ptrCast(@alignCast(handle));
 
     return &entry.result.value.source_digest;
 }
 
-pub fn cachedContextDigest(handle: *const anyopaque) []const u8 {
+pub fn cachedContextDigest(handle: *anyopaque) []const u8 {
     const entry: *const Entry = @ptrCast(@alignCast(handle));
 
     return &entry.context_digest;
@@ -81,8 +81,8 @@ pub const Pending = struct {
     added: ?NewSlot = null,
     const NewSlot = struct { entry: *Entry, key: []const u8 };
 
-    fn borrow(handle: *const anyopaque) *Pending {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Pending {
+        return @ptrCast(@alignCast(handle));
     }
     pub fn cancel(self: *Pending) void {
         if (self.added) |added| {
@@ -92,26 +92,26 @@ pub const Pending = struct {
     }
 };
 
-pub fn probeCacheSlot(handle: *const anyopaque) u64 {
+pub fn probeCacheSlot(handle: *anyopaque) u64 {
     const slot = Pending.borrow(handle);
 
     return slot.entries.position(slot.value.?.result.value.path).slot;
 }
 
-pub fn readCacheBucket(handle: *const anyopaque, bucket: u64) u64 {
+pub fn readCacheBucket(handle: *anyopaque, bucket: u64) u64 {
     const entries = Pending.borrow(handle).entries;
 
     return if (entries.buckets.len == 0) 0 else entries.buckets[@intCast(bucket)];
 }
 
-pub fn reserveCacheSlot(handle: *const anyopaque, previous: u64) std.mem.Allocator.Error!u64 {
+pub fn reserveCacheSlot(handle: *anyopaque, previous: u64) std.mem.Allocator.Error!u64 {
     const slot = Pending.borrow(handle);
     const path = slot.value.?.result.value.path;
 
     return try slot.entries.prepare(slot.allocator, path, @intCast(previous));
 }
 
-pub fn stageCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn stageCacheSlot(handle: *anyopaque) std.mem.Allocator.Error!void {
     const slot = Pending.borrow(handle);
     const key = try slot.allocator.dupe(u8, slot.value.?.result.value.path);
 
@@ -121,7 +121,7 @@ pub fn stageCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!void {
     slot.added = .{ .entry = entry, .key = key };
 }
 
-pub fn appendCacheSlot(handle: *const anyopaque, bucket: u64) void {
+pub fn appendCacheSlot(handle: *anyopaque, bucket: u64) void {
     const slot = Pending.borrow(handle);
     const added = slot.added.?;
 
@@ -133,7 +133,7 @@ pub fn appendCacheSlot(handle: *const anyopaque, bucket: u64) void {
     slot.added = null;
 }
 
-pub fn replaceCacheSlot(handle: *const anyopaque, row: u64) void {
+pub fn replaceCacheSlot(handle: *anyopaque, row: u64) void {
     const slot = Pending.borrow(handle);
     const entry = slot.entries.values.items[@intCast(row)];
 

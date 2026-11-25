@@ -23,13 +23,19 @@ pub fn resolve(allocator: std.mem.Allocator, entry: External, span: zx.Span, exi
         };
 
         if (output.diagnostic != null or output.body != null or output.imports.len != 0 or output.constants.len != 0) return invalid(reporter, span);
-        try @import("../frontend/retention/order.zig").publish(scratch.allocator(), output, .temporary);
 
-        const View = @import("type_views").Indexed(@TypeOf(output));
+        var resolved = output.*;
+        var type_order: std.meta.Child(@TypeOf(resolved.type_order)) = undefined;
+
+        try @import("../frontend/retention/order.zig").fill(scratch.allocator(), resolved.types, &type_order);
+
+        resolved.type_order = &type_order;
+
+        const View = @import("type_views").Indexed(@TypeOf(&resolved));
 
         const view = View{
             .source = entry.signature,
-            .storage = output,
+            .storage = &resolved,
         };
 
         return analyze(allocator, view, span, existing, shared, reporter);

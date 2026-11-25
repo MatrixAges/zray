@@ -105,8 +105,8 @@ const Preparation = struct {
     source: []const u8 = undefined,
     signature: Signature = undefined,
     result: Prepared = undefined,
-    fn borrow(handle: *const anyopaque) *Preparation {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Preparation {
+        return @ptrCast(@alignCast(handle));
     }
     fn open(self: *Preparation) State.Error!*const Parse {
         const state = self.state;
@@ -147,8 +147,8 @@ const Serial = struct {
     setter: ?target.Setter,
     destination: Finished.Destination,
     outcome: Outcome = undefined,
-    fn borrow(handle: *const anyopaque) *Serial {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Serial {
+        return @ptrCast(@alignCast(handle));
     }
     fn run(self: *Serial) std.mem.Allocator.Error!bool {
         const preparation = &self.preparation;
@@ -179,43 +179,43 @@ const Serial = struct {
     }
 };
 
-pub fn openMixedZXPreparation(handle: *const anyopaque) State.Error!*const ParseHandle {
+pub fn openMixedZXPreparation(handle: *anyopaque) State.Error!*const ParseHandle {
     return @ptrCast(try Preparation.borrow(handle).open());
 }
 
-pub fn checkMixedZXPreparation(handle: *const anyopaque, parsed: *const anyopaque) State.Error!void {
+pub fn checkMixedZXPreparation(handle: *anyopaque, parsed: *const anyopaque) State.Error!void {
     try Preparation.borrow(handle).check(@ptrCast(@alignCast(parsed)));
 }
 
-pub fn bindMixedZXPreparation(handle: *const anyopaque, parsed: *const anyopaque, checked: bool) State.Error!void {
+pub fn bindMixedZXPreparation(handle: *anyopaque, parsed: *const anyopaque, checked: bool) State.Error!void {
     try Preparation.borrow(handle).bind(@ptrCast(@alignCast(parsed)), checked);
 }
 
-pub fn analyzeMixedZXBody(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+pub fn analyzeMixedZXBody(handle: *anyopaque) std.mem.Allocator.Error!bool {
     return Serial.borrow(handle).run();
 }
 
-pub fn reportMixedZXBody(handle: *const anyopaque) State.Error!void {
+pub fn reportMixedZXBody(handle: *anyopaque) State.Error!void {
     return Serial.borrow(handle).report();
 }
 
-pub fn mixedZXSetterDeclared(handle: *const anyopaque) bool {
+pub fn mixedZXSetterDeclared(handle: *anyopaque) bool {
     return Serial.borrow(handle).preparation.signature.signature.has_store;
 }
 
-pub fn mixedZXSetterSlots(handle: *const anyopaque) u64 {
+pub fn mixedZXSetterSlots(handle: *anyopaque) u64 {
     return Serial.borrow(handle).outcome.analyzed.result.value.ir.stores.count();
 }
 
-pub fn rejectMixedZXSetter(handle: *const anyopaque, message: []const u8) State.Error!void {
+pub fn rejectMixedZXSetter(handle: *anyopaque, message: []const u8) State.Error!void {
     return Serial.borrow(handle).preparation.state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
 }
 
-pub fn installMixedZXSetter(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn installMixedZXSetter(handle: *anyopaque) std.mem.Allocator.Error!void {
     try Serial.borrow(handle).installSetter();
 }
 
-pub fn linkMixedZXBody(handle: *const anyopaque) State.Error!void {
+pub fn linkMixedZXBody(handle: *anyopaque) State.Error!void {
     try Serial.borrow(handle).finish();
 }
 

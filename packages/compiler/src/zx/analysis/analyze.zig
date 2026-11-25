@@ -181,11 +181,15 @@ fn finishSeed(allocator: std.mem.Allocator, program: *zx.ir.Program, declared: b
     };
 
     if (recursive != null) {
-        @constCast(program.functions.ownership)[functions.count()] = switch (program.output_ownership) {
+        const ownership = try allocator.dupe(std.meta.Child(@TypeOf(program.functions.ownership)), program.functions.ownership);
+
+        ownership[functions.count()] = switch (program.output_ownership) {
             .copy => .Copy,
             .borrowed => .Borrowed,
             .owned => .Owned,
         };
+
+        program.functions.ownership = ownership;
     }
 
     if (resolved) |bindings| {

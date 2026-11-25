@@ -56,9 +56,10 @@ pub fn commitGeneratedSource(handle: *const anyopaque, position: u64, index: u64
     const cache = frame.cache;
     cache.generated += 1;
 
-    try cache.putShared(found.name, found.key, @constCast(result.source.?));
+    try cache.putShared(found.name, found.key, result.owned.?);
 
     result.source = null;
+    result.owned = null;
 }
 
 fn failure(err: anyerror) Error {

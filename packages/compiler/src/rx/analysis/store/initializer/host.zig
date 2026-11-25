@@ -43,15 +43,15 @@ pub fn run(state: *State) Error!Value {
     return if (state.diagnostic) |issue| .{ .diagnostic = issue } else .{ .program = state.program };
 }
 
-fn borrow(handle: *const anyopaque) *Frame {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Frame {
+    return @ptrCast(@alignCast(handle));
 }
 
-pub fn prepareStoreInitializer(handle: *const anyopaque, count: u64) Error!void {
+pub fn prepareStoreInitializer(handle: *anyopaque, count: u64) Error!void {
     try borrow(handle).state.prepare(@intCast(count), false);
 }
 
-pub fn evaluateStoreField(handle: *const anyopaque, row: u64, name: []const u8, value: []const u8) Error!bool {
+pub fn evaluateStoreField(handle: *anyopaque, row: u64, name: []const u8, value: []const u8) Error!bool {
     const state = borrow(handle).state;
 
     try state.openField(@intCast(row), Declarations.attribute(name), Declarations.attribute(value));
@@ -59,19 +59,19 @@ pub fn evaluateStoreField(handle: *const anyopaque, row: u64, name: []const u8, 
     return state.compileField();
 }
 
-pub fn recordStoreField(handle: *const anyopaque, position: u64) Error!void {
+pub fn recordStoreField(handle: *anyopaque, position: u64) Error!void {
     try borrow(handle).state.recordField(@intCast(position), false);
 }
 
-pub fn linkStoreField(handle: *const anyopaque, position: u64) Error!bool {
+pub fn linkStoreField(handle: *anyopaque, position: u64) Error!bool {
     return borrow(handle).state.linkField(@intCast(position));
 }
 
-pub fn releaseStoreField(handle: *const anyopaque) void {
+pub fn releaseStoreField(handle: *anyopaque) void {
     borrow(handle).state.releaseField();
 }
 
-pub fn resolveStoreInitializer(handle: *const anyopaque, invalid: bool) zx.Error!void {
+pub fn resolveStoreInitializer(handle: *anyopaque, invalid: bool) zx.Error!void {
     const frame = borrow(handle);
     const state = frame.state;
 
@@ -81,7 +81,7 @@ pub fn resolveStoreInitializer(handle: *const anyopaque, invalid: bool) zx.Error
     frame.object.bind(state);
 }
 
-pub fn finishStoreInitializer(handle: *const anyopaque, root: u32) zx.Error!void {
+pub fn finishStoreInitializer(handle: *anyopaque, root: u32) zx.Error!void {
     const state = borrow(handle).state;
 
     try state.finishProgram(@fromBackingInt(root));

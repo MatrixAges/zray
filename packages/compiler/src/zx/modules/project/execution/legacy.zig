@@ -11,8 +11,8 @@ const Frame = struct {
     imports: *std.ArrayList(Function),
     span: zx.Span,
     function: Function = undefined,
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -43,14 +43,14 @@ pub fn bind(project: *Project, registry: []const External, first: usize, item: a
     if (!valid) return project.externalCollision(item.span);
 }
 
-pub fn materializeProjectExternal(handle: *const anyopaque, row: u64) zx.Error!void {
+pub fn materializeProjectExternal(handle: *anyopaque, row: u64) zx.Error!void {
     const frame = Frame.borrow(handle);
     const entry = &frame.registry[@intCast(row)];
     const id = try Native.register(frame.project, entry.specifier, entry.identity, entry.implementation.module, frame.span);
     frame.function = try @import("../../external/host.zig").load(frame.project, entry, id, frame.span);
 }
 
-pub fn appendProjectExternal(handle: *const anyopaque, name: []const u8, namespace: ?[]const u8) std.mem.Allocator.Error!void {
+pub fn appendProjectExternal(handle: *anyopaque, name: []const u8, namespace: ?[]const u8) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
 
     frame.function.name = name;

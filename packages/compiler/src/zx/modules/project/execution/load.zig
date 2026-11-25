@@ -17,8 +17,8 @@ pub const Walk = struct {
     phase: Phase,
     paths: std.heap.ArenaAllocator,
     header: Header = undefined,
-    fn borrow(handle: *const anyopaque) *Walk {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Walk {
+        return @ptrCast(@alignCast(handle));
     }
     pub fn active(self: *Walk) *Frame {
         const frames = self.project.load_frames.items;
@@ -50,7 +50,7 @@ pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
     };
 }
 
-pub fn openProjectFrame(handle: *const anyopaque, row: u64) zx.Error!void {
+pub fn openProjectFrame(handle: *anyopaque, row: u64) zx.Error!void {
     const walk = Walk.borrow(handle);
 
     _ = walk.paths.reset(.free_all);
@@ -58,7 +58,7 @@ pub fn openProjectFrame(handle: *const anyopaque, row: u64) zx.Error!void {
     try walk.project.pushFrame(@intCast(row));
 }
 
-pub fn readProjectFrame(handle: *const anyopaque) u64 {
+pub fn readProjectFrame(handle: *anyopaque) u64 {
     const walk = Walk.borrow(handle);
     const frame = walk.active();
 
@@ -84,21 +84,21 @@ pub fn readProjectFrame(handle: *const anyopaque) u64 {
     }
 }
 
-pub fn suspendedProjectImport(handle: *const anyopaque) u64 {
+pub fn suspendedProjectImport(handle: *anyopaque) u64 {
     return Walk.borrow(handle).active().suspended_import;
 }
 
-pub fn resumeProjectImport(handle: *const anyopaque, row: u64, child: u64) zx.Error!void {
+pub fn resumeProjectImport(handle: *anyopaque, row: u64, child: u64) zx.Error!void {
     const walk = Walk.borrow(handle);
 
     _ = try @import("delivery/frame.zig").run(walk, @intCast(row), child);
 }
 
-pub fn visitProjectImport(handle: *const anyopaque, row: u64) zx.Error!?u64 {
+pub fn visitProjectImport(handle: *anyopaque, row: u64) zx.Error!?u64 {
     return @import("delivery/frame.zig").run(Walk.borrow(handle), @intCast(row), null);
 }
 
-pub fn finishProjectFrame(handle: *const anyopaque) zx.Error!void {
+pub fn finishProjectFrame(handle: *anyopaque) zx.Error!void {
     const walk = Walk.borrow(handle);
     const frame = walk.active();
 
@@ -117,7 +117,7 @@ fn finish(walk: *Walk, frame: *Frame, input: anytype) zx.Error!void {
     };
 }
 
-pub fn closeProjectFrame(handle: *const anyopaque) u64 {
+pub fn closeProjectFrame(handle: *anyopaque) u64 {
     const walk = Walk.borrow(handle);
     const frames = &walk.project.load_frames;
 

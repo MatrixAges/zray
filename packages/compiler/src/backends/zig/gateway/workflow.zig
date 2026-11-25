@@ -38,32 +38,32 @@ pub fn build(self: *Self) !void {
     };
 }
 
-fn borrow(handle: *const anyopaque) *Self {
-    return @ptrCast(@alignCast(@constCast(handle)));
+fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 fn bindState(self: *Self) State.Error!void {
     self.mapped = try State.create(self.allocator, self.library.?, self.bundle.?.*);
 }
 
-pub fn bindGatewayState(handle: *const anyopaque) State.Error!void {
+pub fn bindGatewayState(handle: *anyopaque) State.Error!void {
     return borrow(handle).bindState();
 }
 
-pub fn reserveGatewayFiles(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reserveGatewayFiles(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const self = borrow(handle);
     const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
 
     try self.files.ensureTotalCapacityPrecise(self.allocator, capacity);
 }
 
-pub fn appendGatewayModules(handle: *const anyopaque) void {
+pub fn appendGatewayModules(handle: *anyopaque) void {
     const self = borrow(handle);
 
     self.files.appendSliceAssumeCapacity(self.bundle.?.modules);
 }
 
-pub fn appendGatewayFacade(handle: *const anyopaque, index: u64) void {
+pub fn appendGatewayFacade(handle: *anyopaque, index: u64) void {
     const self = borrow(handle);
 
     self.files.appendAssumeCapacity(self.bundle.?.public_modules[@intCast(index)].file);
@@ -86,7 +86,7 @@ fn publishContract(self: *Self) std.mem.Allocator.Error!void {
     self.files.appendAssumeCapacity(.{ .name = "gateway_storage_contract", .source = source, .imports = initial_imports });
 }
 
-pub fn publishGatewayContract(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishGatewayContract(handle: *anyopaque) std.mem.Allocator.Error!void {
     return borrow(handle).publishContract();
 }
 
@@ -101,7 +101,7 @@ fn publishState(self: *Self) std.mem.Allocator.Error!void {
     self.files.appendAssumeCapacity(.{ .name = "zxc_gateway_state", .source = source, .imports = self.state_imports });
 }
 
-pub fn publishGatewayState(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishGatewayState(handle: *anyopaque) std.mem.Allocator.Error!void {
     return borrow(handle).publishState();
 }
 
@@ -128,6 +128,6 @@ fn publishApplication(self: *Self) std.mem.Allocator.Error!void {
     self.entry = .{ .name = "application", .imports = imports, .source = source };
 }
 
-pub fn publishGatewayApplication(handle: *const anyopaque) std.mem.Allocator.Error!void {
+pub fn publishGatewayApplication(handle: *anyopaque) std.mem.Allocator.Error!void {
     return borrow(handle).publishApplication();
 }

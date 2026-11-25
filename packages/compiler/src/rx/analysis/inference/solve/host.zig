@@ -57,65 +57,65 @@ pub const Frame = struct {
         self.closure.deinit();
     }
 
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn solveRevision(handle: *const anyopaque) u64 {
+pub fn solveRevision(handle: *anyopaque) u64 {
     return Frame.borrow(handle).graph.revision;
 }
 
-pub fn refreshSolverBindings(handle: *const anyopaque) void {
+pub fn refreshSolverBindings(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.bindings.bind(frame.graph);
 }
 
-pub fn refreshSolverNonNull(handle: *const anyopaque) void {
+pub fn refreshSolverNonNull(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.non_null.bind(frame.graph);
 }
 
-pub fn refreshSolverLengths(handle: *const anyopaque) void {
+pub fn refreshSolverLengths(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.projections.bindLengths(frame.graph, handle);
 }
 
-pub fn refreshSolverIndexes(handle: *const anyopaque) void {
+pub fn refreshSolverIndexes(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.projections.bindIndexes(frame.graph, handle);
 }
 
-pub fn refreshSolverSequences(handle: *const anyopaque) void {
+pub fn refreshSolverSequences(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.projections.bindSequences(frame.graph, handle);
 }
 
-pub fn refreshSolverObjects(handle: *const anyopaque) void {
+pub fn refreshSolverObjects(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.objects.bind(frame.graph, &frame.closure, frame.scope);
 }
 
-pub fn refreshSolverAssignments(handle: *const anyopaque) void {
+pub fn refreshSolverAssignments(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.assignments.bind(frame.graph, &frame.workspace);
 }
 
-pub fn refreshSolverValidation(handle: *const anyopaque) void {
+pub fn refreshSolverValidation(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.resolution.bind(frame.graph, frame.resolver, frame.scope);
     frame.assignments.bindValidation(frame.graph, handle, &frame.resolution.view);
 }
 
-pub fn refreshAssignmentTypes(handle: *const anyopaque) void {
+pub fn refreshAssignmentTypes(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.assignments.topology.bindTypes(frame.graph);

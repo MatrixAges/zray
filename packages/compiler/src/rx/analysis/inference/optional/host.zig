@@ -28,8 +28,8 @@ const Frame = struct {
             .allowed = rows.items(.allowed),
         };
     }
-    fn borrow(handle: *const anyopaque) *Frame {
-        return @ptrCast(@alignCast(@constCast(handle)));
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
     }
 };
 
@@ -51,7 +51,7 @@ pub fn run(comptime mode: @FieldType(Input, "mode"), graph: *Graph, source: Grap
     return if (result) |id| @fromBackingInt(id) else null;
 }
 
-pub fn registerOptionalPayload(handle: *const anyopaque, root: u32, value: u32, remaining: u64) zx.Error!u32 {
+pub fn registerOptionalPayload(handle: *anyopaque, root: u32, value: u32, remaining: u64) zx.Error!u32 {
     const frame = Frame.borrow(handle);
     const result = try Known.registerPayload(frame.graph, value, remaining, frame.spans[root]);
 
@@ -60,15 +60,15 @@ pub fn registerOptionalPayload(handle: *const anyopaque, root: u32, value: u32, 
     return @backingInt(result.node);
 }
 
-pub fn remainingOptionalDepth(handle: *const anyopaque) u64 {
+pub fn remainingOptionalDepth(handle: *anyopaque) u64 {
     return Frame.borrow(handle).remaining;
 }
 
-pub fn refreshOptionalQuery(handle: *const anyopaque) void {
+pub fn refreshOptionalQuery(handle: *anyopaque) void {
     Frame.borrow(handle).bind();
 }
 
-pub fn reportOptionalDepth(handle: *const anyopaque, root: u32, message: []const u8) zx.Error!void {
+pub fn reportOptionalDepth(handle: *anyopaque, root: u32, message: []const u8) zx.Error!void {
     const frame = Frame.borrow(handle);
 
     return frame.graph.reporter.fail(.unsupported, frame.spans[root], message);
