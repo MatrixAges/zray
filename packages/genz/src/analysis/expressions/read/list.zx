@@ -1,18 +1,29 @@
+import bytes from "std:bytes"
 import host from "lowering_host"
-import { ReadAction } from "lowering_host"
 
 import { items_field } from "../../iteration/types/const"
+import emitField from "./emit_field"
+import emitLength from "./emit_length"
+import { ReadAction } from "./model"
 
-import type { Input as Read } from "./model"
+import type { AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
 
-export type Input = Read.Omit("operand") & {
-    operand: u32
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    action: ReadAction,
+    iteration: bool,
+    type_id: u32,
+    result_type?: u32,
+    operand: u32,
+    detail?: u32
 }
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, operand, iteration } = in
+    const { frame, writer, operand, iteration } = in
 
     if (in.action == ReadAction.Length) {
         const result_type = match {
@@ -23,28 +34,48 @@ export default function (in: Input): Output {
         if (iteration) {
             const value = host.lowerExpression(frame, operand, false, null)
 
-            return host.readLength(frame, value, result_type, true)
+            return emitLength({
+                writer,
+                source: value,
+                type_expr: result_type,
+                buffered: true
+            })
         }
 
         const raw = host.readRawList(frame, operand)
+
         const value = raw ?? host.readList(frame, operand)
 
-        return host.readLength(frame, value, result_type, false)
+        return emitLength({
+            writer,
+            source: value,
+            type_expr: result_type,
+            buffered: false
+        })
     }
 
     const key = in.detail ?? host.invalidLowering()
 
     if (iteration) {
         const target = host.lowerExpression(frame, operand, false, null)
-        const items = host.readField(frame, target, items_field)
+
+        const items = emitField({
+            writer,
+            target,
+            name: bytes.fromText(items_field)
+        })
+
         const position = host.lowerExpression(frame, key, false, null)
 
         return host.readIndex(frame, items, position)
     }
 
     const raw = host.readRawList(frame, operand)
+
     const target = raw ?? host.readList(frame, operand)
+
     const position = host.lowerExpression(frame, key, false, null)
+
     const value = host.readIndex(frame, target, position)
 
     return host.readIndexResult(frame, in.type_id, operand, value, raw != null)

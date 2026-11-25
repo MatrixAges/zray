@@ -72,7 +72,7 @@ const Layout = struct {
 
         projection.multilineEnding(text.len);
 
-        const formatted = try lint.layout.formatWithLineEnding(self.allocator, text, projection.tokens, lint.layout.use_default_width, 0, self.newline);
+        const formatted = try lint.layout.formatWithLineEnding(self.allocator, text, &projection, lint.layout.use_default_width, 0, self.newline);
 
         if (!std.mem.eql(u8, text, formatted)) try self.edits.append(self.allocator, .{ .span = span, .replacement = formatted });
     }

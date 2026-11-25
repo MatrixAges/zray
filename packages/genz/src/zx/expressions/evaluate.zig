@@ -18,21 +18,32 @@ pub inline fn borrow(frame: *const anyopaque) *Lower {
 
 pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const Input = std.meta.Child(regular_entry.Input);
+    const Expressions = std.meta.Child(@FieldType(Input, "expressions"));
+    const Types = std.meta.Child(@FieldType(Input, "types"));
     const row = @backingInt(id);
-    const table = &self.program.expressions;
+    const table: *const ir.ExpressionTable = &self.program.expressions;
+    const expressions = zx.columns.borrow(Expressions, table);
+    const types = ir.TypeTable.borrow(Types, self.program.types);
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
     const input: Input = .{
         .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .expressions = &expressions,
+        .types = &types,
         .id = row,
         .kind = @fromBackingInt(@backingInt(table.kinds[row])),
         .type_id = table.types[row],
     };
 
-    return invoke(regular_entry, &input);
+    return invokeWith(self, regular_entry, &input);
 }
 
 pub fn value(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const Input = std.meta.Child(value_entry.Input);
+    const Expressions = std.meta.Child(@FieldType(Input, "expressions"));
+    const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const plan = @import("../value_call/policy.zig").dispatch(self, id);
 
     comptime view.compatible(@TypeOf(plan.route), @FieldType(Input, "route"));
@@ -41,16 +52,20 @@ pub fn value(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
 
     const input: Input = .{
         .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .expressions = &expressions,
         .id = @backingInt(id),
         .route = @fromBackingInt(@backingInt(plan.route)),
         .probe = &probe,
     };
 
-    return invoke(value_entry, &input);
+    return invokeWith(self, value_entry, &input);
 }
 
 pub fn iteration(self: *Iteration, id: ir.ExprId, plan: anytype) Lower.Error!node.ExpressionId {
     const Input = std.meta.Child(iteration_entry.Input);
+    const Expressions = std.meta.Child(@FieldType(Input, "expressions"));
+    const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.lowering.program.expressions));
 
     comptime view.compatible(@TypeOf(plan.route), @FieldType(Input, "route"));
 
@@ -58,6 +73,8 @@ pub fn iteration(self: *Iteration, id: ir.ExprId, plan: anytype) Lower.Error!nod
 
     const input: Input = .{
         .frame = @ptrCast(self.lowering),
+        .writer = @ptrCast(self.lowering),
+        .expressions = &expressions,
         .id = @backingInt(id),
         .route = @fromBackingInt(@backingInt(plan.route)),
         .probe = &probe,
@@ -66,24 +83,47 @@ pub fn iteration(self: *Iteration, id: ir.ExprId, plan: anytype) Lower.Error!nod
         .argument = if (self.argument) |argument| @backingInt(argument.value) else null,
     };
 
-    return invoke(iteration_entry, &input);
+    return invokeWith(self.lowering, iteration_entry, &input);
 }
 
 pub fn binary(self: *Lower, term: @FieldType(@FieldType(ir.ExpressionRow, "value"), "binary")) Lower.Error!node.ExpressionId {
-    const input: std.meta.Child(binary_entry.Input) = .{
+    const Input = std.meta.Child(binary_entry.Input);
+    const Expressions = std.meta.Child(@FieldType(Input, "expressions"));
+    const Types = std.meta.Child(@FieldType(Input, "types"));
+    const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
+    const types = ir.TypeTable.borrow(Types, self.program.types);
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
+
+    comptime view.compatible(@TypeOf(term.operator), @FieldType(Input, "operator"));
+
+    const input: Input = .{
         .frame = @ptrCast(self),
-        .operator = @backingInt(term.operator),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .expressions = &expressions,
+        .types = &types,
+        .operator = @fromBackingInt(@intCast(@backingInt(term.operator))),
         .left_ir = @backingInt(term.left),
         .right_ir = @backingInt(term.right),
     };
 
-    return invoke(binary_entry, &input);
+    return invokeWith(self, binary_entry, &input);
 }
 
 pub fn invoke(comptime entry: type, input: entry.Input) Lower.Error!node.ExpressionId {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return @fromBackingInt(entry.executeIn(empty.allocator(), input) catch |err| return executionFailure(err));
+}
+
+pub fn invokeWith(self: *Lower, comptime entry: type, input: entry.Input) Lower.Error!node.ExpressionId {
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    defer scratch.deinit();
+
+    return @fromBackingInt(entry.executeIn(memory.allocator(), input) catch |err| return executionFailure(err));
 }
 
 pub fn invokeOptional(comptime entry: type, input: entry.Input) Lower.Error!?node.ExpressionId {
@@ -101,7 +141,7 @@ pub fn execute(comptime entry: type, input: entry.Input) Lower.Error!void {
 
 fn executionFailure(err: anyerror) Lower.Error {
     return switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         error.IndexOutOfBounds => unreachable,
         else => unreachable,
     };

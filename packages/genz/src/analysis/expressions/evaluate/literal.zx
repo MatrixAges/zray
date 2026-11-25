@@ -1,0 +1,62 @@
+import {
+    appendAstLiteralRows,
+    astExpressionCount
+} from "ast_rows"
+import { requireAllocation } from "memory"
+
+import decode from "../../literals/decode"
+import emit from "../../literals/emit"
+import operandIds from "../operand_ids"
+
+import type { AstWriter } from "ast_rows"
+import type { Input as DecodeInput } from "../../literals/model"
+import type { Pair } from "../operand_ids"
+
+export type Input = DecodeInput.Omit("base") & {
+    writer: AstWriter
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in.writer)
+
+    const literal = decode({
+        expressions: in.expressions,
+        types: in.types,
+        id: in.id,
+        type_expr: in.type_expr,
+        base
+    })
+
+    const emitted = emit({
+        literal,
+        type_expr: in.type_expr,
+        base
+    })
+
+    requireAllocation(emitted.valid)
+
+    const nodes = emitted.nodes
+
+    const arguments: Pair? = match {
+        nodes.builtin_arguments.length == 0 => null,
+        _ => {
+            first: nodes.builtin_arguments[0][0],
+            second: nodes.builtin_arguments[0][1]
+        }
+    }
+
+    const ids = operandIds({
+        writer: in.writer,
+        arguments
+    })
+
+    appendAstLiteralRows(
+        in.writer,
+        nodes.omit(["builtin_arguments"]),
+        ids
+    )
+
+    return emitted.root
+}

@@ -47,6 +47,11 @@
 2. **收口为 3 个统一 RX/ZX 入口**：将原分散的 6 个规则入口收口为 `lint_layout`（`src/layout/entry.rx` + `edits.zx`）、`lint_rx`（`src/rx/entry.rx` + 迭代结构遍历与 `<Loop>` 标签排版，收薄 `rx/root.zig` 与 `rx/layout.zig`）和 `lint_config`（`src/configuration/entry.rx` + `yaml/edits.zx`），并删除对应旧 Zig/RX 包装文件；`packages/compiler/build/entries.zig` 中的 `.owner = .lint` 条目由 **11 个净降至 8 个**，`packages/lint/build.zig` 规则总数降至 **8 个**。
 3. **验证通过**：`-Doptimize=ReleaseSmall -Dgenerated-partitions=4` 下 `stage0` 全量 `packages/compiler` 测试与无 `stage0` 的 `bootstrap-stage` 构建均通过。
 
+### 已完成进展（Wave 4 · 2026-11-25）
+
+1. **完成 `layout/projection` 算法自举**：将 [projection.zig](../../packages/lint/src/layout/projection.zig) 收薄为 `RawSpan`/`Op` 记录器（带 OOM `failed` 状态传播），将词法流合并与 7 类布局投影操作迁入 [projection.zx](../../packages/lint/src/layout/projection.zx) 与 `projection/{init,find,opening_at_end,condition,exclude_range,list,set_token}.zx`，并在 [entry.rx](../../packages/lint/src/layout/entry.rx) 与 [rule.zig](../../packages/lint/src/layout/rule.zig) / [root.zig](../../packages/lint/src/layout/root.zig) 间通过 `ProjectionData` 隔离模块边界。
+2. **修复静态缓冲 OOM 隐患**：将 `layout/rule.zig` `attributeRequired` 与 `configuration/rule.zig` `checkLength` 中残留的 `[0]u8` `FixedBufferAllocator` 改为 `[256]u8`，通过 `packages/test` `test-rx-formatting`（含 `allocation_test.zig` OOM 全路径）与 `test-configuration-formatting` 及全仓格式化/lint 检查。
+
 ### 后续收口计划（Wave 1+）
 
 - **Phase L1 剩余**：将 `src/root.zig`、`spacing.zig`、`layout/projection.zig`、`imports/` 与 AST 检查调度继续合并为单一检查/格式化入口；消除剩余 `@constCast` / `@ptrCast`；

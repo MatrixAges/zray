@@ -70,10 +70,6 @@ pub fn finishGeneratedAst(frame: *const anyopaque, serial: ?u64, uses_allocator:
     self.uses_allocator = self.uses_allocator or uses_allocator;
 }
 
-pub fn lowerLiteral(frame: *const anyopaque, id: u32, value_type: u32) Error!u32 {
-    return @backingInt(try @import("../../literals.zig").lower(borrow(frame), @fromBackingInt(id), @fromBackingInt(value_type)));
-}
-
 pub fn lowerStore(frame: *const anyopaque, id: u32) Error!u32 {
     const self = borrow(frame);
     const table = &self.program.expressions;
@@ -112,61 +108,6 @@ pub fn lowerCapture(frame: *const anyopaque, id: u32, value: bool) Error!u32 {
     const capture = @import("../../capture.zig");
 
     return @backingInt(if (value) try capture.lowerValue(self, row.type_id, row.value.capture) else try capture.lower(self, row.type_id, row.value.capture));
-}
-
-pub fn readOperatorOperand(frame: *const anyopaque, id: u32, right: bool) u32 {
-    const table = &borrow(frame).program.expressions;
-    const payload = table.payloads[id];
-
-    if (table.kinds[id] == .Unary) return table.unary_operands[payload];
-
-    return if (right) table.binary_right[payload] else table.binary_left[payload];
-}
-
-pub fn readExpressionType(frame: *const anyopaque, id: u32) u32 {
-    return borrow(frame).program.expressions.types[id];
-}
-
-pub fn writeUnary(frame: *const anyopaque, id: u32, operand: u32) Error!u32 {
-    const self = borrow(frame);
-    const table = &self.program.expressions;
-
-    return @backingInt(try @import("../../operators/unary.zig").emit(self, table.unary_operators[table.payloads[id]], @fromBackingInt(operand)));
-}
-
-pub fn readBinaryOperator(frame: *const anyopaque, id: u32) u8 {
-    const table = &borrow(frame).program.expressions;
-
-    return @backingInt(table.binary_operators[table.payloads[id]]);
-}
-
-pub fn writeBinary(frame: *const anyopaque, operator: u8, left_ir: u32, right_ir: u32, left: u32, right: u32, operand_type: u32) Error!u32 {
-    const Operator = std.meta.Child(@FieldType(ir.ExpressionTable, "binary_operators"));
-    const emission = @import("../../operators/binary.zig");
-
-    const values: emission.Operands = .{
-        .left_ir = @fromBackingInt(left_ir),
-        .right_ir = @fromBackingInt(right_ir),
-        .left = @fromBackingInt(left),
-        .right = @fromBackingInt(right),
-        .type_expr = @fromBackingInt(operand_type),
-    };
-
-    return @backingInt(try emission.emit(borrow(frame), @as(Operator, @fromBackingInt(@intCast(operator))), values));
-}
-
-pub fn readConditionalOperand(frame: *const anyopaque, id: u32, part: evaluate.Api.ConditionalPart) u32 {
-    const row = borrow(frame).program.expression(@fromBackingInt(id)).value.conditional;
-
-    return @backingInt(switch (part) {
-        .Condition => row.condition,
-        .Yes => row.yes,
-        .No => row.no,
-    });
-}
-
-pub fn writeConditional(frame: *const anyopaque, condition: u32, yes: u32, no: u32) Error!u32 {
-    return @backingInt(try @import("../../selection/conditional.zig").construct(borrow(frame), @fromBackingInt(condition), @fromBackingInt(yes), @fromBackingInt(no)));
 }
 
 pub fn lowerMatch(frame: *const anyopaque, id: u32, value: bool) Error!u32 {

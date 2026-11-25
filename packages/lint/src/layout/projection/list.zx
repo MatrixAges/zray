@@ -1,0 +1,62 @@
+import { open_call, open_list } from "../const"
+import find from "./find"
+
+import type { Token } from "../model"
+
+export type Input = {
+    tokens: Token[],
+    start: u64,
+    count: u64
+}
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    if (in.count < 2) {
+        return in.tokens
+    }
+
+    const first = find({
+        tokens: in.tokens,
+        offset: in.start
+    })
+
+    if (first == null) {
+        return in.tokens
+    }
+
+    const limit = in.tokens.length
+
+    const index = loop({
+        index: first
+    }, {
+        while: state => state.index < limit &&
+            (
+                in.tokens[state.index].comment ||
+                    in.tokens[state.index].text == open_call
+            ),
+        next: state => {
+            state.index += 1
+        },
+        return: state => state.index
+    })
+
+    if (index >= limit || in.tokens[index].text != open_list) {
+        return in.tokens
+    }
+
+    return loop({
+        tokens: in.tokens,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            state.tokens[index] = {
+                ...state.tokens[index],
+                multiline: true
+            }
+            state.done = true
+        },
+        return: state => state.tokens
+    })
+}

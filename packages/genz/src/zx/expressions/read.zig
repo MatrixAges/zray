@@ -1,61 +1,12 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
-const node = @import("../../node.zig");
+const ir = @import("zx").ir;
 const Lower = @import("../lower.zig");
 const evaluate = @import("evaluate.zig");
 const borrow = evaluate.borrow;
-const Action = evaluate.Api.ReadAction;
-const emitter = @import("generated_lower_read");
-const layout = @import("generated_lower_read_columns");
 const projection = @import("../access/projection/read.zig");
 const path = @import("../access/projection/path.zig");
-const emit = @import("../access/emit.zig");
 const list = @import("../state_value/list.zig");
 const Error = Lower.Error;
-const Input = std.meta.Child(emitter.Input);
-
-pub fn lowerRead(frame: *const anyopaque, row: u32, action: Action, iteration: bool, result_type: ?u32) Error!u32 {
-    const self = borrow(frame);
-    const table = &self.program.expressions;
-
-    const input: Input = switch (action) {
-        inline else => |kind| bound(table, frame, row, kind, iteration, result_type),
-    };
-
-    return @backingInt(try evaluate.invoke(emitter, &input));
-}
-
-fn bound(table: *const ir.ExpressionTable, frame: *const anyopaque, row: u32, comptime action: Action, iteration: bool, result_type: ?u32) Input {
-    const columns = comptime columnsFor(action);
-    const payload = table.payloads[row];
-
-    return .{
-        .frame = @ptrCast(frame),
-        .row = row,
-        .action = action,
-        .iteration = iteration,
-        .type_id = table.types[row],
-        .result_type = result_type,
-        .operand = if (columns.operand) |field| @field(table, field)[payload] else null,
-        .detail = if (columns.index) |field| @field(table, field)[payload] else null,
-    };
-}
-
-fn columnsFor(comptime action: Action) @typeInfo(@typeInfo(@TypeOf(layout.executeValue)).@"fn".return_type.?).error_union.payload {
-    @setEvalBranchQuota(50_000);
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return layout.executeValue(empty.allocator(), action) catch unreachable;
-}
-
-pub fn readOptional(frame: *const anyopaque, result_type: ?u32, value: ?u32) Error!u32 {
-    const cast = if (result_type) |id| @as(node.ExpressionId, @fromBackingInt(id)) else null;
-    const source = if (value) |id| @as(node.ExpressionId, @fromBackingInt(id)) else null;
-
-    return @backingInt(try emit.optional(borrow(frame), cast, source));
-}
 
 pub fn readReference(frame: *const anyopaque, symbol: u32, result_type: u32, iteration: bool) Error!u32 {
     return @backingInt(try @import("../access/reference.zig").lowerMode(borrow(frame), @fromBackingInt(symbol), @fromBackingInt(result_type), iteration));
@@ -117,22 +68,10 @@ pub fn wrapLoweredList(frame: *const anyopaque, subject: u32, items: u32) Error!
     return @backingInt(try list.wrap(self, type_id, @fromBackingInt(items), false));
 }
 
-pub fn readField(frame: *const anyopaque, source: u32, name: []const u8) Error!u32 {
-    return @backingInt(try emit.field(borrow(frame), @fromBackingInt(source), name));
-}
-
 pub fn readIndex(frame: *const anyopaque, source: u32, key: u32) Error!u32 {
     return @backingInt(try @import("../intrinsics.zig").index(borrow(frame), @fromBackingInt(source), @fromBackingInt(key)));
 }
 
 pub fn readIndexResult(frame: *const anyopaque, result_type: u32, operand: u32, value: u32, raw: bool) Error!u32 {
     return @backingInt(try projection.resolvedIndex(borrow(frame), @fromBackingInt(result_type), @fromBackingInt(operand), @fromBackingInt(value), raw));
-}
-
-pub fn readLength(frame: *const anyopaque, source: u32, result_type: u32, iteration: bool) Error!u32 {
-    return @backingInt(try emit.length(borrow(frame), @fromBackingInt(source), @fromBackingInt(result_type), iteration));
-}
-
-pub fn readFieldPath(frame: *const anyopaque, source: u32, fields: []const []const u8, start: u64, end: u64) Error!u32 {
-    return @backingInt(try emit.fieldPath(borrow(frame), @fromBackingInt(source), fields[@intCast(start)..@intCast(end)]));
 }

@@ -1,0 +1,43 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type {
+    BinaryOperator,
+    ExpressionKind,
+    UnaryOperator
+} from "core/expression_table/kinds"
+import type { Table } from "core/type_table/model"
+import type { Lowering } from "lowering_host"
+import type { ReadExpressions } from "../read/model"
+
+export type ConditionalExpressions = {
+    payloads: u32[],
+    conditional_conditions: u32[],
+    conditional_yes: u32[],
+    conditional_no: u32[]
+}
+
+export type IterationExpressions = ReadExpressions & {
+    conditional_conditions: u32[],
+    conditional_yes: u32[],
+    conditional_no: u32[]
+}
+
+export type Expressions = IterationExpressions & {
+    kinds: ExpressionKind[],
+    integers: u64[],
+    negative_integers: u64[],
+    floats: f64[],
+    strings: string[],
+    booleans: bool[],
+    enumerations: u32[],
+    errors: u32[],
+    unary_operators: UnaryOperator[],
+    unary_operands: u32[],
+    binary_operators: BinaryOperator[],
+    binary_left: u32[],
+    binary_right: u32[]
+}
+
+export type BinaryExpressions = {
+    kinds: ExpressionKind[],
+    types: u32[]
+}

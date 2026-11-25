@@ -1,0 +1,94 @@
+import { OpKind } from "./model"
+import condition from "./projection/condition"
+import excludeRange from "./projection/exclude_range"
+import find from "./projection/find"
+import init from "./projection/init"
+import list from "./projection/list"
+import openingAtEnd from "./projection/opening_at_end"
+import setToken from "./projection/set_token"
+
+import type { ProjectionInput, Token } from "./model"
+
+export type Input = {
+    source: u8[],
+    input: ProjectionInput
+}
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    const initial = init({
+        source: in.source,
+        source_text: in.input.source_text,
+        raw_tokens: in.input.raw_tokens,
+        raw_comments: in.input.raw_comments
+    })
+
+    const count = in.input.ops.length
+
+    return loop({
+        tokens: initial,
+        index: 0
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const op = in.input.ops[state.index]
+
+            state.tokens = match op.kind {
+                OpKind.ExcludeStart => setToken({
+                    tokens: state.tokens,
+                    index: find({
+                        tokens: state.tokens,
+                        offset: op.start
+                    }),
+                    flag: op.flag,
+                    mode: OpKind.ExcludeStart
+                }),
+                OpKind.ExcludeEnding => setToken({
+                    tokens: state.tokens,
+                    index: openingAtEnd({
+                        tokens: state.tokens,
+                        end: op.end
+                    }),
+                    flag: op.flag,
+                    mode: OpKind.ExcludeEnding
+                }),
+                OpKind.MultilineEnding => setToken({
+                    tokens: state.tokens,
+                    index: openingAtEnd({
+                        tokens: state.tokens,
+                        end: op.end
+                    }),
+                    flag: false,
+                    mode: OpKind.MultilineEnding
+                }),
+                OpKind.Boundary => setToken({
+                    tokens: state.tokens,
+                    index: find({
+                        tokens: state.tokens,
+                        offset: op.start
+                    }),
+                    flag: false,
+                    mode: OpKind.Boundary
+                }),
+                OpKind.List => list({
+                    tokens: state.tokens,
+                    start: op.start,
+                    count: op.count
+                }),
+                OpKind.Condition => condition({
+                    tokens: state.tokens,
+                    start: op.start,
+                    end: op.end
+                }),
+                _ => excludeRange({
+                    tokens: state.tokens,
+                    start: op.start,
+                    end: op.end
+                })
+            }
+            state.index += 1
+        },
+        return: state => state.tokens
+    })
+}

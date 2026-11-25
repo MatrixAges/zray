@@ -1,11 +1,24 @@
+import integers from "std:integer"
+import {
+    appendAstLiteralRows,
+    astExpressionCount
+} from "ast_rows"
 import host from "lowering_host"
 
+import emitUnary from "../../operators/unary"
 import binary from "./binary"
 
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
+import type { Expressions } from "./model"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    expressions: Expressions,
+    types: Table,
     id: u32,
     binary: bool
 }
@@ -13,20 +26,54 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, id } = in
+    const { frame, writer, origin, expressions, types, id } = in
 
-    const first = host.readOperatorOperand(frame, id, false)
+    const payload = integers.widen(expressions.payloads[integers.widen(id)])
 
     if (in.binary) {
         return binary({
             frame,
-            operator: host.readBinaryOperator(frame, id),
-            left_ir: first,
-            right_ir: host.readOperatorOperand(frame, id, true)
+            writer,
+            origin,
+            expressions: expressions.pick([
+                "kinds",
+                "types"
+            ]),
+            types,
+            operator: expressions.binary_operators[payload],
+            left_ir: expressions.binary_left[payload],
+            right_ir: expressions.binary_right[payload]
         })
     }
 
-    const value = host.lowerExpression(frame, first, false, null)
+    const value = host.lowerExpression(
+        frame,
+        expressions.unary_operands[payload],
+        false,
+        null
+    )
 
-    return host.writeUnary(frame, id, value)
+    const root = astExpressionCount(writer)
+
+    const emitted = emitUnary({
+        operator: expressions.unary_operators[payload],
+        operand: value
+    })
+
+    appendAstLiteralRows(
+        writer,
+        {
+            ...emitted,
+            integer: [],
+            float: [],
+            string: [],
+            boolean: [],
+            enum_literal: [],
+            error_value: [],
+            builtin_name: []
+        },
+        []
+    )
+
+    return root
 }

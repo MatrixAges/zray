@@ -1,0 +1,35 @@
+import type { Token } from "../model"
+
+export type Input = {
+    tokens: Token[],
+    offset: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const count = in.tokens.length
+
+    const first = loop({
+        first: 0,
+        end: count
+    }, {
+        while: state => state.first < state.end,
+        next: state => {
+            const middle = state.first + (state.end - state.first) / 2
+
+            if (in.tokens[middle].start < in.offset) {
+                state.first = middle + 1
+            } else {
+                state.end = middle
+            }
+        },
+        return: state => state.first
+    })
+
+    if (first < count && in.tokens[first].start == in.offset) {
+        return first
+    }
+
+    return null
+}

@@ -1,17 +1,36 @@
-import type { Lowering, ReadAction } from "lowering_host"
+import type { AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export enum ReadAction {
+    Empty,
+    Wrap,
+    Unwrap,
+    Reference,
+    Field,
+    TupleField,
+    Index,
+    Length
+}
+
+export type ReadExpressions = {
+    types: u32[],
+    payloads: u32[],
+    some: u32[],
+    optional_values: u32[],
+    references: u32[],
+    projection_targets: u32[],
+    projection_indices: u32[],
+    index_targets: u32[],
+    index_values: u32[],
+    lengths: u32[]
+}
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    expressions: ReadExpressions,
     row: u32,
     action: ReadAction,
     iteration: bool,
-    type_id: u32,
-    result_type?: u32,
-    operand?: u32,
-    detail?: u32
-}
-
-export type Columns = {
-    operand?: string,
-    index?: string
+    result_type?: u32
 }

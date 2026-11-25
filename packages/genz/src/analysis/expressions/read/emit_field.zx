@@ -1,0 +1,38 @@
+import {
+    appendAstAccessRows,
+    astExpressionCount
+} from "ast_rows"
+
+import field from "../../access/field"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    target: u32,
+    name: u8[]
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const root = astExpressionCount(in.writer)
+
+    const rows = field({
+        target: in.target,
+        name: in.name
+    })
+
+    appendAstAccessRows(
+        in.writer,
+        {
+            ...rows,
+            dereference: [],
+            optional_unwrap: [],
+            builtin_name: []
+        },
+        []
+    )
+
+    return root
+}

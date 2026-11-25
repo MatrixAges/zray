@@ -54,10 +54,41 @@ export type Edit = {
     count: u64
 }
 
+export type RawSpan = {
+    start: u64,
+    end: u64
+}
+
+export enum OpKind {
+    ExcludeStart,
+    ExcludeEnding,
+    MultilineEnding,
+    Boundary,
+    List,
+    Condition,
+    ExcludeRange
+}
+
+export type Op = {
+    kind: OpKind,
+    start: u64,
+    end: u64,
+    count: u64,
+    flag: bool
+}
+
+export type ProjectionInput = {
+    source_text: string,
+    raw_tokens: RawSpan[],
+    raw_comments: RawSpan[],
+    ops: Op[]
+}
+
 export type EntryInput = {
     source: u8[],
     layout: Input,
-    check_attribute: bool
+    check_attribute: bool,
+    projection: ProjectionInput
 }
 
 export type EntryOutput = {

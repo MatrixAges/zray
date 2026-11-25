@@ -1,3 +1,21 @@
+export type StatementTraversal = opaque
+
+export type SequenceFrame = opaque
+
+export type ObjectFrame = opaque
+
+export type IterationOperands = opaque
+
+export type ScopeFrame = opaque
+
+export type Lowering = opaque
+
+export enum Representation {
+    Regular,
+    Value,
+    Iteration
+}
+
 export type RegularCallFrame = opaque
 
 export enum RegularCallArgument {

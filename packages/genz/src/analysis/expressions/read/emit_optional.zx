@@ -1,0 +1,55 @@
+import {
+    appendAstAccessRows,
+    astExpressionCount
+} from "ast_rows"
+import { requireAllocation } from "memory"
+
+import optional from "../../access/optional"
+import operandIds from "../operand_ids"
+
+import type { AstWriter } from "ast_rows"
+import type { Pair } from "../operand_ids"
+
+export type Input = {
+    writer: AstWriter,
+    type_expr?: u32,
+    value?: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const output = optional({
+        base: astExpressionCount(in.writer),
+        type_expr: in.type_expr,
+        value: in.value
+    })
+
+    requireAllocation(output.valid)
+
+    const arguments: Pair? = match {
+        output.rows.builtin_arguments.length == 0 => null,
+        _ => {
+            first: output.rows.builtin_arguments[0][0],
+            second: output.rows.builtin_arguments[0][1]
+        }
+    }
+
+    const ids = operandIds({
+        writer: in.writer,
+        arguments
+    })
+
+    appendAstAccessRows(
+        in.writer,
+        {
+            ...output.rows.omit(["builtin_arguments"]),
+            field_target: [],
+            field_name: [],
+            dereference: []
+        },
+        ids
+    )
+
+    return output.root
+}

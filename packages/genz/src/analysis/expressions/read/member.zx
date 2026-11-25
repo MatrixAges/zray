@@ -1,9 +1,14 @@
 import host from "lowering_host"
-import { ReadAction } from "lowering_host"
 
-import type { Input as Read } from "./model"
+import { ReadAction } from "./model"
 
-export type Input = Read.Pick("frame", "row", "action", "iteration") & {
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    row: u32,
+    action: ReadAction,
+    iteration: bool,
     operand: u32,
     index: u32
 }

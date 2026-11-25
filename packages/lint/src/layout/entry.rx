@@ -21,13 +21,31 @@
         />
 
         <Else>
-            <Call module="layout" in={$in.layout} />
+            <Call
+                fn="projection"
+                in={{
+                    source: $in.source,
+                    input: $in.projection
+                }}
+            />
+
+            <Call
+                module="layout"
+                in={{
+                    tokens: $ctx.projection,
+                    width: $in.layout.width,
+                    level: $in.layout.level,
+                    indent_only: $in.layout.indent_only,
+                    prefix: $in.layout.prefix,
+                    suffix: $in.layout.suffix
+                }}
+            />
 
             <Call
                 fn="edits"
                 in={{
                     source: $in.source,
-                    tokens: $in.layout.tokens,
+                    tokens: $ctx.projection,
                     breaks: $ctx.layout
                 }}
             />

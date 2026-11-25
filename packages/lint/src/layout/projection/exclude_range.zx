@@ -1,0 +1,44 @@
+import find from "./find"
+
+import type { Token } from "../model"
+
+export type Input = {
+    tokens: Token[],
+    start: u64,
+    end: u64
+}
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    const first = find({
+        tokens: in.tokens,
+        offset: in.start
+    })
+
+    if (first == null) {
+        return in.tokens
+    }
+
+    const count = in.tokens.length
+
+    return loop({
+        tokens: in.tokens,
+        index: first,
+        marked: false
+    }, {
+        while: state => state.index < count && state.tokens[state.index].end <= in.end,
+        next: state => {
+            const token = state.tokens[state.index]
+
+            state.tokens[state.index] = {
+                ...token,
+                object: false,
+                boundary: !state.marked ? true : token.boundary
+            }
+            state.marked = true
+            state.index += 1
+        },
+        return: state => state.tokens
+    })
+}

@@ -231,6 +231,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "verification");
                 addSources(run, tracked[2]);
                 addSubtree(run, tracked[3], "analysis");
+                addSubtree(run, tracked[3], "ast");
+                addSubtree(run, tracked[3], "printer");
             },
             .host => {
                 run.addFileInput(b.path(partition_interface));

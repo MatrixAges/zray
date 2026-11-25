@@ -1,0 +1,58 @@
+import { open_object } from "../const"
+import { OpKind } from "../model"
+
+import type { Token } from "../model"
+
+export type Input = {
+    tokens: Token[],
+    index: u64?,
+    flag: bool,
+    mode: OpKind
+}
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    if (in.index == null) {
+        return in.tokens
+    }
+
+    const index = in.index
+
+    return loop({
+        tokens: in.tokens,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const token = state.tokens[index]
+
+            if (in.mode == OpKind.ExcludeStart) {
+                state.tokens[index] = {
+                    ...token,
+                    object: token.text == open_object ? false : token.object,
+                    block: token.text == open_object ? in.flag : token.block
+                }
+            } else if (in.mode == OpKind.ExcludeEnding) {
+                state.tokens[index] = {
+                    ...token,
+                    object: false,
+                    block: in.flag
+                }
+            } else if (in.mode == OpKind.MultilineEnding) {
+                state.tokens[index] = {
+                    ...token,
+                    multiline: true
+                }
+            } else {
+                state.tokens[index] = {
+                    ...token,
+                    boundary: true
+                }
+            }
+
+            state.done = true
+        },
+        return: state => state.tokens
+    })
+}

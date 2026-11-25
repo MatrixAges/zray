@@ -1,14 +1,20 @@
 import host from "lowering_host"
-import { ReadAction, Representation } from "lowering_host"
+import { Representation } from "lowering_host"
 
 import { Route } from "../../iteration/evaluation/model"
+import read from "../read/evaluate"
+import { ReadAction } from "../read/model"
 import conditional from "./conditional"
 
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Output as Plan } from "../../iteration/evaluation/model"
+import type { IterationExpressions } from "./model"
 
 export type Input = Plan & {
     frame: Lowering,
+    writer: AstWriter,
+    expressions: IterationExpressions,
     id: u32,
     argument?: u32
 }
@@ -16,7 +22,20 @@ export type Input = Plan & {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, id, probe } = in
+    const { frame, writer, expressions, id, probe } = in
+
+    const read_expressions = expressions.omit([
+        "conditional_conditions",
+        "conditional_yes",
+        "conditional_no"
+    ])
+
+    const conditional_expressions = expressions.pick([
+        "payloads",
+        "conditional_conditions",
+        "conditional_yes",
+        "conditional_no"
+    ])
 
     switch (in.route) {
         case Route.Argument: return in.argument ?? host.invalidLowering()
@@ -42,38 +61,78 @@ export default function (in: Input): Output {
             const value = host.lowerRegular(frame, id, probe.checked, probe.value)
 
             return host.lowerUnpack(frame, id, value)
-        case Route.Reference: return host.lowerRead(
+        case Route.Reference: return read({
             frame,
-            id,
-            ReadAction.Reference,
-            true,
-            null
-        )
-        case Route.Field: return host.lowerRead(frame, id, ReadAction.Field, true, null)
-        case Route.Unwrap: return host.lowerRead(
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Reference,
+            iteration: true,
+            result_type: null
+        })
+        case Route.Field: return read({
             frame,
-            id,
-            ReadAction.Unwrap,
-            true,
-            null
-        )
-        case Route.TupleField: return host.lowerRead(
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Field,
+            iteration: true,
+            result_type: null
+        })
+        case Route.Unwrap: return read({
             frame,
-            id,
-            ReadAction.TupleField,
-            true,
-            null
-        )
-        case Route.Index: return host.lowerRead(frame, id, ReadAction.Index, true, null)
-        case Route.Length: return host.lowerRead(
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Unwrap,
+            iteration: true,
+            result_type: null
+        })
+        case Route.TupleField: return read({
             frame,
-            id,
-            ReadAction.Length,
-            true,
-            null
-        )
-        case Route.Some: return host.lowerRead(frame, id, ReadAction.Wrap, true, null)
-        case Route.None: return host.lowerRead(frame, id, ReadAction.Empty, true, null)
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.TupleField,
+            iteration: true,
+            result_type: null
+        })
+        case Route.Index: return read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Index,
+            iteration: true,
+            result_type: null
+        })
+        case Route.Length: return read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Length,
+            iteration: true,
+            result_type: null
+        })
+        case Route.Some: return read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Wrap,
+            iteration: true,
+            result_type: null
+        })
+        case Route.None: return read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Empty,
+            iteration: true,
+            result_type: null
+        })
         case Route.Update: return host.lowerMutation(frame, id)
         case Route.Mutation: return host.lowerMutation(frame, id)
         case Route.Aggregate: return host.lowerAggregate(
@@ -96,6 +155,8 @@ export default function (in: Input): Output {
         )
         case Route.Conditional: return conditional({
             frame,
+            writer,
+            expressions: conditional_expressions,
             id,
             value: false
         })

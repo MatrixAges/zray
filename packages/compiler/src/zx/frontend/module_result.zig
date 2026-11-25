@@ -147,7 +147,7 @@ pub const Result = union(enum) {
             .indexed => |result| if (indexed_enabled) try @import("layout.zig").indexed(arena.allocator(), result.source, result.output) else unreachable,
         };
 
-        return lint.layout.format(allocator, self.text().?, projection.tokens, lint.layout.use_default_width, 0);
+        return lint.layout.format(allocator, self.text().?, &projection, lint.layout.use_default_width, 0);
     }
     fn formatSpacing(self: *const Self, allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
         return switch (self.*) {

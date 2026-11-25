@@ -4,18 +4,22 @@ import { Representation } from "lowering_host"
 import { Expression } from "../../value/call/model"
 import conditional from "./conditional"
 
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { DispatchResult } from "../../value/call/model"
+import type { ConditionalExpressions } from "./model"
 
 export type Input = DispatchResult & {
     frame: Lowering,
+    writer: AstWriter,
+    expressions: ConditionalExpressions,
     id: u32
 }
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, id, probe } = in
+    const { frame, writer, expressions, id, probe } = in
 
     switch (in.route) {
         case Expression.Value: return host.lowerExpression(
@@ -49,6 +53,8 @@ export default function (in: Input): Output {
         case Expression.Match: return host.lowerMatch(frame, id, true)
         case Expression.Conditional: return conditional({
             frame,
+            writer,
+            expressions,
             id,
             value: true
         })

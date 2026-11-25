@@ -22,8 +22,8 @@ pub fn anchor(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
 pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("seed.zig").path(self, id);
 
-    const entry = @import("generated_projection_path");
-    const Input = std.meta.Child(entry.Input);
+    const evaluation = @import("generated_lower_projection_path");
+    const Input = std.meta.Child(evaluation.Input);
     const table = &self.program.expressions;
     const cache = self.cache.view(std.meta.Child(@FieldType(Input, "cache")));
 
@@ -42,6 +42,8 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         .flags = std.mem.sliceAsBytes(self.plan.flags),
         .cache = &cache,
         .id = @backingInt(id),
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -50,33 +52,9 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
 
     defer scratch.deinit();
 
-    const plan = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = evaluation.executeIn(memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
-    };
-
-    const evaluation = @import("generated_lower_projection_path");
-    const Path = std.meta.Child(evaluation.Input);
-
-    const walk: Path = .{
-        .frame = @ptrCast(self),
-        .anchor = plan.anchor,
-        .fields = plan.fields,
-        .keys = plan.keys,
-        .starts = plan.starts,
-        .ends = plan.ends,
-        .first_key = plan.first_key,
-        .first_start = plan.first_start,
-        .first_end = plan.first_end,
-        .prefix = plan.prefix,
-        .managed = plan.managed,
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const result = evaluation.executeIn(empty.allocator(), &walk) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.IndexOutOfBounds => unreachable,
     };
 
     return if (result) |value| @fromBackingInt(value) else null;

@@ -1,14 +1,24 @@
 import { ExpressionKind } from "core/expression_table/kinds"
 import host from "lowering_host"
-import { ReadAction, Representation } from "lowering_host"
+import { Representation } from "lowering_host"
 
+import read from "../read/evaluate"
+import { ReadAction } from "../read/model"
 import conditional from "./conditional"
+import literal from "./literal"
 import operator from "./operator"
 
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
+import type { Expressions } from "./model"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    expressions: Expressions,
+    types: Table,
     id: u32,
     kind: ExpressionKind,
     type_id: u32
@@ -17,25 +27,107 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, id, kind, type_id } = in
+    const { frame, writer, origin, expressions, types, id, kind, type_id } = in
 
     const result_type = host.lowerType(frame, type_id, false)
 
+    const read_expressions = expressions.pick([
+        "types",
+        "payloads",
+        "some",
+        "optional_values",
+        "references",
+        "projection_targets",
+        "projection_indices",
+        "index_targets",
+        "index_values",
+        "lengths"
+    ])
+
+    const conditional_expressions = expressions.pick([
+        "payloads",
+        "conditional_conditions",
+        "conditional_yes",
+        "conditional_no"
+    ])
+
+    const literal_expressions = expressions.pick([
+        "kinds",
+        "types",
+        "payloads",
+        "integers",
+        "negative_integers",
+        "floats",
+        "strings",
+        "booleans",
+        "enumerations",
+        "errors"
+    ])
+
     return match kind {
-        ExpressionKind.Some =>
-            host.lowerRead(frame, id, ReadAction.Wrap, false, result_type),
-        ExpressionKind.OptionalValue =>
-            host.lowerRead(frame, id, ReadAction.Unwrap, false, result_type),
-        ExpressionKind.Reference =>
-            host.lowerRead(frame, id, ReadAction.Reference, false, result_type),
-        ExpressionKind.Field =>
-            host.lowerRead(frame, id, ReadAction.Field, false, result_type),
-        ExpressionKind.TupleField =>
-            host.lowerRead(frame, id, ReadAction.TupleField, false, result_type),
-        ExpressionKind.Index =>
-            host.lowerRead(frame, id, ReadAction.Index, false, result_type),
-        ExpressionKind.Length =>
-            host.lowerRead(frame, id, ReadAction.Length, false, result_type),
+        ExpressionKind.Some => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Wrap,
+            iteration: false,
+            result_type
+        }),
+        ExpressionKind.OptionalValue => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Unwrap,
+            iteration: false,
+            result_type
+        }),
+        ExpressionKind.Reference => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Reference,
+            iteration: false,
+            result_type
+        }),
+        ExpressionKind.Field => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Field,
+            iteration: false,
+            result_type
+        }),
+        ExpressionKind.TupleField => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.TupleField,
+            iteration: false,
+            result_type
+        }),
+        ExpressionKind.Index => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Index,
+            iteration: false,
+            result_type
+        }),
+        ExpressionKind.Length => read({
+            frame,
+            writer,
+            expressions: read_expressions,
+            row: id,
+            action: ReadAction.Length,
+            iteration: false,
+            result_type
+        }),
         ExpressionKind.StoreGet => host.lowerStore(frame, id),
         ExpressionKind.Task => host.lowerTask(frame, id),
         ExpressionKind.AwaitTask => host.lowerWait(frame, id),
@@ -44,16 +136,26 @@ export default function (in: Input): Output {
         ExpressionKind.Capture => host.lowerCapture(frame, id, false),
         ExpressionKind.Unary => operator({
             frame,
+            writer,
+            origin,
+            expressions,
+            types,
             id,
             binary: false
         }),
         ExpressionKind.Binary => operator({
             frame,
+            writer,
+            origin,
+            expressions,
+            types,
             id,
             binary: true
         }),
         ExpressionKind.Conditional => conditional({
             frame,
+            writer,
+            expressions: conditional_expressions,
             id,
             value: false
         }),
@@ -70,15 +172,69 @@ export default function (in: Input): Output {
         ExpressionKind.Iteration => host.lowerIteration(frame, id, false),
         ExpressionKind.ListUpdate => host.lowerUpdate(frame, id),
         ExpressionKind.Call => host.lowerCall(frame, id, Representation.Regular, false),
-        ExpressionKind.Integer => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.NegativeInteger => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.Float => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.String => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.Boolean => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.None => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.Unit => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.EnumValue => host.lowerLiteral(frame, id, result_type),
-        ExpressionKind.ErrorValue => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.Integer => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.NegativeInteger => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.Float => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.String => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.Boolean => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.None => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.Unit => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.EnumValue => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
+        ExpressionKind.ErrorValue => literal({
+            writer,
+            expressions: literal_expressions,
+            types,
+            id,
+            type_expr: result_type
+        }),
         _ => host.invalidLowering()
     }
 }

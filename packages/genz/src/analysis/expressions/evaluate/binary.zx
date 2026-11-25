@@ -1,10 +1,28 @@
+import integers from "std:integer"
+import {
+    AstPayloadOwnership,
+    appendExpressionRows,
+    appendStatementRows,
+    readAstOrigin
+} from "ast_rows"
 import host from "lowering_host"
+import { requireAllocation } from "memory"
 
+import emitBinary from "../../operators/emit"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { BinaryOperator } from "core/expression_table/kinds"
+import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
+import type { BinaryExpressions } from "./model"
 
 export type Input = {
     frame: Lowering,
-    operator: u8,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    expressions: BinaryExpressions,
+    types: Table,
+    operator: BinaryOperator,
     left_ir: u32,
     right_ir: u32
 }
@@ -12,20 +30,48 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, operator, left_ir, right_ir } = in
+    const { frame, writer, origin, expressions, types, operator, left_ir, right_ir } = in
 
     const left = host.lowerExpression(frame, left_ir, false, null)
     const right = host.lowerExpression(frame, right_ir, false, null)
-    const type_id = host.readExpressionType(frame, left_ir)
+
+    const type_id = expressions.types[integers.widen(left_ir)]
+
     const operand_type = host.lowerType(frame, type_id, false)
 
-    return host.writeBinary(
-        frame,
+    const current = readAstOrigin(writer, origin)
+
+    const output = emitBinary({
+        expressions,
+        types,
         operator,
         left_ir,
         right_ir,
         left,
         right,
-        operand_type
+        type_expr: operand_type,
+        expression_base: current.expression_base,
+        statement_base: current.statement_base,
+        serial: current.serial
+    })
+
+    requireAllocation(output.valid)
+
+    appendExpressionRows(
+        writer,
+        output.expressions,
+        output.forms,
+        AstPayloadOwnership.Owned
     )
+
+    appendStatementRows(
+        writer,
+        output.statements,
+        output.variables,
+        AstPayloadOwnership.Owned
+    )
+
+    host.finishGeneratedAst(frame, output.serial, false)
+
+    return output.root
 }

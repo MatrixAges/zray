@@ -1,0 +1,84 @@
+import integers from "std:integer"
+import {
+    appendAstAccessRows,
+    astExpressionCount
+} from "ast_rows"
+import { max_u32 } from "core/const"
+import { requireAllocation } from "memory"
+
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+import type { AstAccessRows, AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    target: u32,
+    fields: u8[][],
+    start: u64,
+    end: u64
+}
+
+export type Output = u32
+
+export type Emitted = {
+    rows: AstAccessRows,
+    root: u32
+}
+
+export default function (in: Input): Output {
+    const { writer, target, fields, start, end } = in
+
+    if (start >= end) {
+        return target
+    }
+
+    const base = astExpressionCount(writer)
+    const count = end - start
+
+    requireAllocation(count <= integers.widen(max_u32 - base))
+
+    const initial: u32[] = []
+    const empty_names: u8[][] = []
+    const kinds: ExpressionsKind[] = []
+
+    const emitted: Emitted = loop({
+        tags: kinds,
+        offsets: initial,
+        field_target: initial,
+        field_name: empty_names,
+        root: target,
+        remaining: count
+    }, {
+        while: current => current.remaining != 0,
+        next: current => {
+            current.remaining -= 1
+
+            const offset = integers.narrow(current.tags.length)
+
+            current.tags = current.tags.push(ExpressionsKind.Field)[0]
+            current.offsets = current.offsets.push(offset)[0]
+            current.field_target = current.field_target.push(current.root)[0]
+            current.field_name =
+                current.field_name.push(fields[start + current.remaining])[0]
+            current.root = base + offset
+        },
+        return: current => {
+            return {
+                rows: {
+                    tags: current.tags,
+                    offsets: current.offsets,
+                    field_target: current.field_target,
+                    field_name: current.field_name,
+                    dereference: [],
+                    optional_unwrap: [],
+                    builtin_name: []
+                },
+                root: current.root
+            }
+        }
+    })
+
+    appendAstAccessRows(writer, emitted.rows, [])
+
+    return emitted.root
+}

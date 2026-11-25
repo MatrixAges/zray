@@ -5,13 +5,10 @@ const FieldItem = std.meta.Child(std.meta.Child(@FieldType(Input, "fields")));
 pub const Edit = struct { start: usize, end: usize, replacement: []const u8 };
 
 pub fn checkLength(text: []const u8, maximum: ?usize) ?usize {
-    var storage: [0]u8 = undefined;
+    var storage: [256]u8 = undefined;
     var fixed = std.heap.FixedBufferAllocator.init(&storage);
-    var arena = std.heap.ArenaAllocator.init(fixed.allocator());
 
-    defer arena.deinit();
-
-    const output = generated.executeIn(arena.allocator(), &.{
+    const output = generated.executeIn(fixed.allocator(), &.{
         .check_length = true,
         .source = text,
         .maximum = if (maximum) |limit| @intCast(limit) else null,

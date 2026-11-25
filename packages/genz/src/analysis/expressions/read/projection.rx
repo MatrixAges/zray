@@ -1,0 +1,24 @@
+<Module>
+    <Type from="path" as="Path" />
+
+    <Args in={Path.ProjectionInput} out={u32?} />
+
+    <Call
+        module="../../access/projection/plan"
+        in={$in.omit([
+            "frame",
+            "writer"
+        ])}
+    />
+
+    <Call
+        fn="path"
+        in={{
+            ...$ctx.plan,
+            frame: $in.frame,
+            writer: $in.writer
+        }}
+    />
+
+    <Return value={$ctx.path} />
+</Module>

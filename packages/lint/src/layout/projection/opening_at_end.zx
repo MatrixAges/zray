@@ -1,0 +1,81 @@
+import {
+    close_list,
+    close_object,
+    open_list,
+    open_object
+} from "../const"
+
+import type { Token } from "../model"
+
+export type Input = {
+    tokens: Token[],
+    end: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const first = loop({
+        first: 0,
+        limit: in.tokens.length
+    }, {
+        while: state => state.first < state.limit,
+        next: state => {
+            const middle = state.first + (state.limit - state.first) / 2
+
+            if (in.tokens[middle].end <= in.end) {
+                state.first = middle + 1
+            } else {
+                state.limit = middle
+            }
+        },
+        return: state => state.first
+    })
+
+    if (first == 0) {
+        return null
+    }
+
+    const closer = in.tokens[first - 1].text
+
+    if (closer != close_object && closer != close_list) {
+        return null
+    }
+
+    const opener = closer == close_object ? open_object : open_list
+    const empty: u64? = null
+
+    return loop({
+        index: first,
+        depth: 0,
+        result: empty,
+        running: true
+    }, {
+        while: state => state.running && state.index != 0,
+        next: state => {
+            state.index -= 1
+
+            const token = in.tokens[state.index]
+
+            if (token.end <= in.end) {
+                if (token.text == closer) {
+                    state.depth += 1
+                }
+
+                if (token.text == opener) {
+                    if (state.depth == 0) {
+                        state.running = false
+                    } else {
+                        state.depth -= 1
+
+                        if (state.depth == 0) {
+                            state.result = state.index
+                            state.running = false
+                        }
+                    }
+                }
+            }
+        },
+        return: state => state.result
+    })
+}

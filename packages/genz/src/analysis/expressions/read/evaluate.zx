@@ -1,23 +1,33 @@
+import integers from "std:integer"
 import host from "lowering_host"
-import { ReadAction } from "lowering_host"
 
+import emitOptional from "./emit_optional"
 import list from "./list"
 import member from "./member"
+import { ReadAction } from "./model"
 
 import type { Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, action, iteration, type_id } = in
+    const { frame, writer, expressions, row, action, iteration } = in
+
+    const index = integers.widen(row)
+
+    const type_id = expressions.types[index]
 
     if (action == ReadAction.Empty) {
         const result_type = host.lowerType(frame, type_id, true)
 
-        return host.readOptional(frame, result_type, null)
+        return emitOptional({
+            writer,
+            type_expr: result_type,
+            value: null
+        })
     }
 
-    const operand = in.operand ?? host.invalidLowering()
+    const payload = integers.widen(expressions.payloads[index])
 
     switch (action) {
         case ReadAction.Wrap:
@@ -26,44 +36,68 @@ export default function (in: Input): Output {
                 _ => in.result_type ?? host.invalidLowering()
             }
 
+            const operand = expressions.some[payload]
+
             const value = host.lowerExpression(frame, operand, false, null)
 
-            return host.readOptional(frame, result_type, value)
+            return emitOptional({
+                writer,
+                type_expr: result_type,
+                value
+            })
         case ReadAction.Unwrap:
+            const operand = expressions.optional_values[payload]
+
             const value = host.lowerExpression(frame, operand, false, null)
 
-            return host.readOptional(frame, null, value)
+            return emitOptional({
+                writer,
+                type_expr: null,
+                value
+            })
         case ReadAction.Reference: return host.readReference(
             frame,
-            operand,
+            expressions.references[payload],
             type_id,
             iteration
         )
         case ReadAction.Field:
             return member({
                 frame,
-                row: in.row,
+                row,
                 action,
                 iteration,
-                operand,
-                index: in.detail ?? host.invalidLowering()
+                operand: expressions.projection_targets[payload],
+                index: expressions.projection_indices[payload]
             })
         case ReadAction.TupleField:
             return member({
                 frame,
-                row: in.row,
+                row,
                 action,
                 iteration,
-                operand,
-                index: in.detail ?? host.invalidLowering()
+                operand: expressions.projection_targets[payload],
+                index: expressions.projection_indices[payload]
             })
         case ReadAction.Index: return list({
-            ...in,
-            operand
+            frame,
+            writer,
+            action,
+            iteration,
+            type_id,
+            result_type: in.result_type,
+            operand: expressions.index_targets[payload],
+            detail: expressions.index_values[payload]
         })
         case ReadAction.Length: return list({
-            ...in,
-            operand
+            frame,
+            writer,
+            action,
+            iteration,
+            type_id,
+            result_type: in.result_type,
+            operand: expressions.lengths[payload],
+            detail: null
         })
         case ReadAction.Empty: return host.invalidLowering()
     }

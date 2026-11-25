@@ -1,0 +1,61 @@
+import bindEquality from "../comparison/equality/bind"
+import compareEquality from "../comparison/equality/compare"
+import finishEquality from "../comparison/equality/finish"
+import initializeEquality from "../comparison/equality/initialize"
+import builtin from "./builtin"
+import classify from "./classify"
+import direct from "./direct"
+import initialize from "./initialize"
+import { Mode } from "./model"
+import negate from "./negate"
+import publish from "./publish"
+import remainder from "./remainder"
+
+import type { Input as EqualityInput } from "../comparison/equality/model"
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const policy = classify(in)
+
+    if (policy.mode == Mode.Equal || policy.mode == Mode.NotEqual) {
+        const equality_input: EqualityInput = {
+            ...in.pick([
+                "types",
+                "left",
+                "right",
+                "expression_base",
+                "statement_base",
+                "serial"
+            ]),
+            type_id: policy.type_id
+        }
+
+        const equal = equality_input
+            -> initializeEquality(_)
+            -> bindEquality(_)
+            -> compareEquality(_)
+            -> finishEquality(_)
+
+        if (policy.mode == Mode.NotEqual) {
+            return negate({
+                output: equal,
+                base: in.expression_base
+            })
+        }
+
+        return equal
+    }
+
+    const state = initialize({
+        source: in,
+        policy
+    })
+
+    const node = match policy.mode {
+        Mode.SignedRemainder => remainder(state),
+        Mode.Builtin => builtin(state),
+        _ => direct(state)
+    }
+
+    return publish(node)
+}

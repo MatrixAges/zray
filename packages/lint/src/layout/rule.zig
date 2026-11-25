@@ -1,23 +1,26 @@
 const std = @import("std");
 const generated = @import("generated");
+const Input = std.meta.Child(generated.Input);
+const ProjectionInput = std.meta.Child(@FieldType(Input, "projection"));
+const Span = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "raw_tokens")));
+const AbiOp = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "ops")));
+pub const Edit = struct { start: usize, end: usize, newline: bool, count: usize };
+pub const RawSpan = struct { start: u64, end: u64 };
+pub const OpKind = @FieldType(AbiOp, "kind");
 
-pub const Token = struct {
-    block: bool = false,
-    boundary: bool = false,
-    closing: bool = false,
-    comment: bool = false,
-    end: u64,
-    gap: u64 = 0,
-    newline: bool = false,
-    object: bool = false,
-    multiline: bool = false,
-    opening: bool = false,
-    separator: bool = false,
-    start: u64,
-    text: []const u8,
+pub const Op = struct {
+    kind: OpKind,
+    start: u64 = 0,
+    end: u64 = 0,
+    count: u64 = 0,
+    flag: bool = false,
 };
 
-pub const Edit = struct { start: usize, end: usize, newline: bool, count: usize };
+pub const ProjectionData = struct {
+    raw_tokens: []const RawSpan,
+    raw_comments: []const RawSpan,
+    ops: []const Op,
+};
 
 pub const Options = struct {
     width: usize = 0,
@@ -28,41 +31,47 @@ pub const Options = struct {
 };
 
 pub fn attributeRequired(source: []const u8, level: usize, prefix: usize) bool {
-    var storage: [0]u8 = undefined;
+    var storage: [256]u8 = undefined;
     var fixed = std.heap.FixedBufferAllocator.init(&storage);
 
     const output = generated.executeIn(fixed.allocator(), &.{
         .source = source,
         .layout = &.{ .tokens = &.{}, .width = 0, .level = level, .indent_only = false, .prefix = prefix, .suffix = 0 },
         .check_attribute = true,
+        .projection = &.{ .source_text = "", .raw_tokens = &.{}, .raw_comments = &.{}, .ops = &.{} },
     }) catch unreachable;
 
     return output.required;
 }
 
-pub fn edits(allocator: std.mem.Allocator, source: []const u8, tokens: []const Token, options: Options) std.mem.Allocator.Error![]const Edit {
-    const Input = std.meta.Child(generated.Input);
-    const Layout = std.meta.Child(@FieldType(Input, "layout"));
-    const Item = std.meta.Child(std.meta.Child(@FieldType(Layout, "tokens")));
+pub fn edits(allocator: std.mem.Allocator, source: []const u8, projection: ProjectionData, options: Options) std.mem.Allocator.Error![]const Edit {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    const values = try temporary.alloc(*const Item, tokens.len);
+    const raw_tokens = try wrapSpans(temporary, projection.raw_tokens);
+    const raw_comments = try wrapSpans(temporary, projection.raw_comments);
+    const op_values = try temporary.alloc(AbiOp, projection.ops.len);
+    const ops = try temporary.alloc(*const AbiOp, projection.ops.len);
 
-    for (tokens, values) |token, *slot| {
-        const value = try temporary.create(Item);
-
-        inline for (@typeInfo(Item).@"struct".field_names) |name| @field(value, name) = @field(token, name);
-
+    for (projection.ops, op_values, ops) |op, *value, *slot| {
+        value.* = .{ .kind = op.kind, .start = op.start, .end = op.end, .count = op.count, .flag = op.flag };
         slot.* = value;
     }
 
+    const request: ProjectionInput = .{
+        .source_text = source,
+        .raw_tokens = raw_tokens,
+        .raw_comments = raw_comments,
+        .ops = ops,
+    };
+
     const output = generated.executeIn(temporary, &.{
         .source = source,
-        .layout = &.{ .tokens = values, .width = options.width, .level = options.level, .indent_only = options.indent_only, .prefix = options.prefix, .suffix = options.suffix },
+        .layout = &.{ .tokens = &.{}, .width = options.width, .level = options.level, .indent_only = options.indent_only, .prefix = options.prefix, .suffix = options.suffix },
         .check_attribute = false,
+        .projection = &request,
     }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
@@ -73,4 +82,16 @@ pub fn edits(allocator: std.mem.Allocator, source: []const u8, tokens: []const T
     for (result, output.edits) |*item, value| item.* = .{ .start = @intCast(value.start), .end = @intCast(value.end), .newline = value.newline, .count = @intCast(value.count) };
 
     return result;
+}
+
+fn wrapSpans(allocator: std.mem.Allocator, items: []const RawSpan) std.mem.Allocator.Error![]const *const Span {
+    const values = try allocator.alloc(Span, items.len);
+    const pointers = try allocator.alloc(*const Span, items.len);
+
+    for (items, values, pointers) |item, *value, *slot| {
+        value.* = .{ .start = item.start, .end = item.end };
+        slot.* = value;
+    }
+
+    return pointers;
 }

@@ -136,7 +136,7 @@ fn attributes(allocator: std.mem.Allocator, source: []const u8, node: anytype, l
             if (parsed.value == .parsed) @import("layout.zig").expression(&projection, parsed.value.parsed.expression);
         }
 
-        const structured = try lint.layout.formatAttribute(allocator, raw, projection.tokens, level + 1, attribute.name.len + 2, newline);
+        const structured = try lint.layout.formatAttribute(allocator, raw, &projection, level + 1, attribute.name.len + 2, newline);
         const text = std.mem.trimStart(u8, structured, " ");
 
         if (std.mem.eql(u8, raw, text)) continue;

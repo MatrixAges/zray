@@ -1,0 +1,123 @@
+import {
+    close_call,
+    close_list,
+    close_object,
+    condition_bullet,
+    open_call,
+    open_list,
+    open_object
+} from "../const"
+import find from "./find"
+
+import type { Token } from "../model"
+
+export type Input = {
+    tokens: Token[],
+    start: u64,
+    end: u64
+}
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    const first = find({
+        tokens: in.tokens,
+        offset: in.start
+    })
+
+    if (first == null || first == 0) {
+        return in.tokens
+    }
+
+    if (in.tokens[first].text != condition_bullet) {
+        return in.tokens
+    }
+
+    const opening = loop({
+        index: first,
+        running: true
+    }, {
+        while: state => state.running && state.index > 0,
+        next: state => {
+            state.index -= 1
+
+            if (!in.tokens[state.index].comment) {
+                state.running = false
+            }
+        },
+        return: state => state.index
+    })
+
+    if (in.tokens[opening].text != open_call || in.tokens[opening].multiline) {
+        return in.tokens
+    }
+
+    const count = in.tokens.length
+
+    return loop({
+        tokens: in.tokens,
+        index: first,
+        depth: 0,
+        opened: false,
+        running: true
+    }, {
+        while: state => state.running,
+        next: state => {
+            if (!state.opened) {
+                state.tokens[opening] = {
+                    ...state.tokens[opening],
+                    multiline: true
+                }
+                state.opened = true
+            } else if (
+                state.index >= count || state.tokens[state.index].end > in.end
+            ) {
+                state.running = false
+            } else {
+                const token = state.tokens[state.index]
+
+                if (!token.comment) {
+                    const top_bullet = (
+                        - state.depth == 0
+                        - and token.text == condition_bullet
+                        - and token.newline
+                    )
+
+                    if (top_bullet) {
+                        state.tokens[state.index] = {
+                            ...token,
+                            boundary: true
+                        }
+                    }
+
+                    const nested_open = (
+                        - token.text == open_call
+                        - or token.text == open_list
+                        - or token.text == open_object
+                    )
+
+                    if (nested_open) {
+                        state.depth += 1
+                    }
+
+                    const nested_close = (
+                        - token.text == close_call
+                        - or token.text == close_list
+                        - or token.text == close_object
+                    )
+
+                    if (nested_close) {
+                        if (state.depth == 0) {
+                            state.running = false
+                        } else {
+                            state.depth -= 1
+                        }
+                    }
+                }
+
+                state.index += 1
+            }
+        },
+        return: state => state.tokens
+    })
+}

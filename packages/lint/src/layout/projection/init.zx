@@ -1,0 +1,81 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { line_feed, open_object } from "../const"
+
+import type { RawSpan, Token } from "../model"
+
+export type Input = {
+    source: u8[],
+    source_text: string,
+    raw_tokens: RawSpan[],
+    raw_comments: RawSpan[]
+}
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    const token_count = in.raw_tokens.length
+    const comment_count = in.raw_comments.length
+    const empty: Token[] = []
+
+    return loop({
+        tokens: empty,
+        token_index: 0,
+        comment_index: 0,
+        previous: 0
+    }, {
+        while: state =>
+            state.token_index < token_count || state.comment_index < comment_count,
+        next: state => {
+            const comment = match {
+                state.comment_index >= comment_count => false,
+                state.token_index == token_count => true,
+                _ => in.raw_comments[state.comment_index].start <
+                    in.raw_tokens[state.token_index].start
+            }
+
+            const span = match {
+                comment => in.raw_comments[state.comment_index],
+                _ => in.raw_tokens[state.token_index]
+            }
+
+            if (comment) {
+                state.comment_index += 1
+            } else {
+                state.token_index += 1
+            }
+
+            if (span.start != span.end && span.start >= state.previous) {
+                const text = memory.borrowTextRange(
+                    in.source_text,
+                    span.start,
+                    span.end - span.start
+                )
+
+                const nl = bytes.indexOfScalar(in.source, state.previous, line_feed)
+                const gap: u64 = span.start > state.previous ? 1 : 0
+                const object = !comment && text == open_object
+                const newline = nl != null && nl < span.start
+
+                state.tokens = state.tokens.push({
+                    text,
+                    start: span.start,
+                    end: span.end,
+                    gap,
+                    object,
+                    multiline: false,
+                    opening: false,
+                    closing: false,
+                    separator: false,
+                    block: false,
+                    comment,
+                    boundary: false,
+                    newline
+                })[0]
+                state.previous = span.end
+            }
+        },
+        return: state => state.tokens
+    })
+}

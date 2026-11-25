@@ -12,5 +12,5 @@ pub fn formatAt(allocator: std.mem.Allocator, source: []const u8, tokens: anytyp
 
     const projection = try layout.Projection.init(arena.allocator(), source, tokens, comments);
 
-    return layout.indent(allocator, source, projection.tokens, base_level);
+    return layout.indent(allocator, source, &projection, base_level);
 }

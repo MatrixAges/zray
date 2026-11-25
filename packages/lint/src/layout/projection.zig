@@ -1,164 +1,68 @@
 const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
-const Token = @import("root.zig").Token;
+const rule = @import("lint_layout");
 
 pub const Projection = struct {
-    source: []const u8,
-    tokens: []Token,
-    pub fn init(allocator: std.mem.Allocator, source: []const u8, tokens: anytype, comments: anytype) std.mem.Allocator.Error!Projection {
-        var result: std.ArrayList(Token) = .empty;
-        var token_index: usize = 0;
-        var comment_index: usize = 0;
-        var previous: usize = 0;
+    allocator: std.mem.Allocator,
+    raw_tokens: []const rule.RawSpan,
+    raw_comments: []const rule.RawSpan,
+    ops: std.ArrayList(rule.Op) = .empty,
+    failed: bool = false,
+    pub fn init(allocator: std.mem.Allocator, _: []const u8, tokens: anytype, comments: anytype) std.mem.Allocator.Error!Projection {
+        const raw_tokens = try allocator.alloc(rule.RawSpan, tokens.len);
 
-        while (token_index < tokens.len or comment_index < comments.len) {
-            const comment = comment_index < comments.len and (token_index == tokens.len or zx.syntax.header.span(syntax.item(comments, comment_index)).start < syntax.item(tokens, token_index).span.start);
-            const span = if (comment) zx.syntax.header.span(syntax.item(comments, comment_index)) else zx.syntax.header.span(syntax.item(tokens, token_index).span);
+        errdefer allocator.free(raw_tokens);
 
-            if (comment) comment_index += 1 else token_index += 1;
-            if (span.start == span.end or span.start < previous) continue;
+        const raw_comments = try allocator.alloc(rule.RawSpan, comments.len);
 
-            const text = source[span.start..span.end];
+        for (0..tokens.len, raw_tokens) |index, *target| {
+            const span = zx.syntax.header.span(syntax.item(tokens, index).span);
 
-            try result.append(allocator, .{
-                .text = text,
-                .start = span.start,
-                .end = span.end,
-                .gap = @intFromBool(span.start > previous),
-                .object = !comment and std.mem.eql(u8, text, "{"),
-                .comment = comment,
-                .newline = std.mem.indexOfScalar(u8, source[previous..span.start], '\n') != null,
-            });
-
-            previous = span.end;
+            target.* = .{ .start = @intCast(span.start), .end = @intCast(span.end) };
         }
 
-        return .{ .source = source, .tokens = try result.toOwnedSlice(allocator) };
+        for (0..comments.len, raw_comments) |index, *target| {
+            const span = zx.syntax.header.span(syntax.item(comments, index));
+
+            target.* = .{ .start = @intCast(span.start), .end = @intCast(span.end) };
+        }
+
+        return .{ .allocator = allocator, .raw_tokens = raw_tokens, .raw_comments = raw_comments };
     }
+
     pub fn excludeStart(self: *Projection, offset: usize, block: bool) void {
-        const index = self.find(offset) orelse return;
-        const token = &self.tokens[index];
-
-        if (!std.mem.eql(u8, token.text, "{")) return;
-
-        token.object = false;
-        token.block = block;
+        self.record(.{ .kind = .ExcludeStart, .start = offset, .flag = block });
     }
 
     pub fn excludeEnding(self: *Projection, end: usize, block: bool) void {
-        const index = self.openingAtEnd(end) orelse return;
-        const token = &self.tokens[index];
-        token.object = false;
-        token.block = block;
+        self.record(.{ .kind = .ExcludeEnding, .end = end, .flag = block });
     }
 
     pub fn multilineEnding(self: *Projection, end: usize) void {
-        const index = self.openingAtEnd(end) orelse return;
-
-        self.tokens[index].multiline = true;
+        self.record(.{ .kind = .MultilineEnding, .end = end });
     }
-    fn openingAtEnd(self: *const Projection, end: usize) ?usize {
-        var first: usize = 0;
-        var limit = self.tokens.len;
 
-        while (first < limit) {
-            const middle = first + (limit - first) / 2;
-
-            if (self.tokens[middle].end <= end) first = middle + 1 else limit = middle;
-        }
-
-        if (first == 0) return null;
-
-        const closer = self.tokens[first - 1].text;
-        const opener: []const u8 = if (std.mem.eql(u8, closer, "}")) "{" else if (std.mem.eql(u8, closer, "]")) "[" else return null;
-        var index = first;
-        var depth: usize = 0;
-
-        while (index != 0) {
-            index -= 1;
-            const token = self.tokens[index];
-
-            if (token.end > end) continue;
-            if (std.mem.eql(u8, token.text, closer)) depth += 1;
-            if (!std.mem.eql(u8, token.text, opener)) continue;
-            if (depth == 0) return null;
-
-            depth -= 1;
-
-            if (depth != 0) continue;
-
-            return index;
-        }
-
-        return null;
-    }
     pub fn boundary(self: *Projection, offset: usize) void {
-        const index = self.find(offset) orelse return;
-
-        self.tokens[index].boundary = true;
+        self.record(.{ .kind = .Boundary, .start = offset });
     }
+
     pub fn list(self: *Projection, start: usize, count: usize) void {
-        if (count < 2) return;
-
-        var index = self.find(start) orelse return;
-
-        while (index < self.tokens.len and (self.tokens[index].comment or std.mem.eql(u8, self.tokens[index].text, "("))) : (index += 1) {}
-        if (index < self.tokens.len and std.mem.eql(u8, self.tokens[index].text, "[")) self.tokens[index].multiline = true;
+        if (count >= 2) self.record(.{ .kind = .List, .start = start, .count = count });
     }
     pub fn condition(self: *Projection, span: zx.Span) void {
-        const first = self.find(span.start) orelse return;
-
-        if (first == 0 or !std.mem.eql(u8, self.tokens[first].text, "-")) return;
-
-        var opening = first;
-
-        while (opening > 0) {
-            opening -= 1;
-
-            if (!self.tokens[opening].comment) break;
-        }
-
-        if (!std.mem.eql(u8, self.tokens[opening].text, "(") or self.tokens[opening].multiline) return;
-
-        self.tokens[opening].multiline = true;
-        var depth: usize = 0;
-        var index = first;
-
-        while (index < self.tokens.len and self.tokens[index].end <= span.end) : (index += 1) {
-            const token = &self.tokens[index];
-
-            if (token.comment) continue;
-            if (depth == 0 and std.mem.eql(u8, token.text, "-") and token.newline) token.boundary = true;
-            if (std.mem.eql(u8, token.text, "(") or std.mem.eql(u8, token.text, "[") or std.mem.eql(u8, token.text, "{")) depth += 1;
-
-            if (std.mem.eql(u8, token.text, ")") or std.mem.eql(u8, token.text, "]") or std.mem.eql(u8, token.text, "}")) {
-                if (depth == 0) break;
-
-                depth -= 1;
-            }
-        }
+        self.record(.{ .kind = .Condition, .start = span.start, .end = span.end });
     }
 
     pub fn excludeRange(self: *Projection, span: zx.Span) void {
-        self.boundary(span.start);
-
-        var index = self.find(span.start) orelse return;
-
-        while (index < self.tokens.len and self.tokens[index].end <= span.end) : (index += 1) {
-            self.tokens[index].object = false;
-        }
+        self.record(.{ .kind = .ExcludeRange, .start = span.start, .end = span.end });
     }
-    fn find(self: *const Projection, offset: usize) ?usize {
-        var first: usize = 0;
-        var end = self.tokens.len;
 
-        while (first < end) {
-            const middle = first + (end - first) / 2;
+    fn record(self: *Projection, op: rule.Op) void {
+        if (self.failed) return;
 
-            if (self.tokens[middle].start < offset) first = middle + 1 else end = middle;
-        }
-
-        return if (first < self.tokens.len and self.tokens[first].start == offset) first else null;
+        self.ops.append(self.allocator, op) catch {
+            self.failed = true;
+        };
     }
 };

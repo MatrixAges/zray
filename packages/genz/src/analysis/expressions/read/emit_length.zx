@@ -1,0 +1,52 @@
+import {
+    appendAstAccessRows,
+    astExpressionCount
+} from "ast_rows"
+import { requireAllocation } from "memory"
+
+import length from "../../access/length"
+import operandIds from "../operand_ids"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    source: u32,
+    type_expr: u32,
+    buffered: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const output = length({
+        source: in.source,
+        type_expr: in.type_expr,
+        base: astExpressionCount(in.writer),
+        buffered: in.buffered
+    })
+
+    requireAllocation(output.valid)
+
+    const pair = output.rows.builtin_arguments[0]
+
+    const ids = operandIds({
+        writer: in.writer,
+        arguments: {
+            first: pair[0],
+            second: pair[1]
+        }
+    })
+
+    appendAstAccessRows(
+        in.writer,
+        {
+            ...output.rows.omit(["builtin_arguments"]),
+            dereference: [],
+            optional_unwrap: []
+        },
+        ids
+    )
+
+    return output.root
+}

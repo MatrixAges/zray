@@ -1,10 +1,20 @@
+import integers from "std:integer"
+import {
+    appendAstBlockRows,
+    astExpressionCount
+} from "ast_rows"
 import host from "lowering_host"
-import { ConditionalPart } from "lowering_host"
 
+import emitConditional from "../../selection/conditional"
+
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
+import type { ConditionalExpressions } from "./model"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
+    expressions: ConditionalExpressions,
     id: u32,
     value: bool
 }
@@ -12,22 +22,53 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, id } = in
+    const { frame, writer, expressions, id } = in
 
-    const test = host.readConditionalOperand(frame, id, ConditionalPart.Condition)
-    const yes = host.readConditionalOperand(frame, id, ConditionalPart.Yes)
-    const no = host.readConditionalOperand(frame, id, ConditionalPart.No)
+    const payload = integers.widen(expressions.payloads[integers.widen(id)])
+
+    const test = expressions.conditional_conditions[payload]
+    const yes = expressions.conditional_yes[payload]
+    const no = expressions.conditional_no[payload]
+
     const condition = host.lowerExpression(frame, test, false, null)
 
-    if (in.value) {
-        const accepted = host.lowerValueExpression(frame, yes)
-        const declined = host.lowerValueExpression(frame, no)
-
-        return host.writeConditional(frame, condition, accepted, declined)
+    const accepted = match {
+        in.value => host.lowerValueExpression(frame, yes),
+        _ => host.lowerExpression(frame, yes, false, null)
     }
 
-    const accepted = host.lowerExpression(frame, yes, false, null)
-    const declined = host.lowerExpression(frame, no, false, null)
+    const declined = match {
+        in.value => host.lowerValueExpression(frame, no),
+        _ => host.lowerExpression(frame, no, false, null)
+    }
 
-    return host.writeConditional(frame, condition, accepted, declined)
+    const root = astExpressionCount(writer)
+
+    const emitted = emitConditional({
+        condition,
+        yes: accepted,
+        no: declined
+    })
+
+    appendAstBlockRows(
+        writer,
+        {
+            ...emitted.pick([
+                "tags",
+                "offsets"
+            ]),
+            block_label: [],
+            block_statements_start: [],
+            block_statements_len: []
+        },
+        emitted.pick([
+            "conditional_condition",
+            "conditional_yes",
+            "conditional_no",
+            "conditional_capture",
+            "conditional_error_capture"
+        ])
+    )
+
+    return root
 }

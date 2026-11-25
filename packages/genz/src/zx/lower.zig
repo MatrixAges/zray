@@ -232,7 +232,7 @@ fn lowerUncached(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
         .parallel => |branches| @import("tasks/root.zig").parallel(self, value.type_id, branches),
         .capture => |child| @import("capture.zig").lower(self, value.type_id, child),
         .optional_value => |child| access.optional(self, null, try self.expr(child)),
-        .integer, .negative_integer, .float, .boolean, .string, .unit, .none, .enum_value, .error_value => @import("literals.zig").lower(self, id, value_type),
+        .integer, .negative_integer, .float, .boolean, .string, .unit, .none, .enum_value, .error_value => @import("literals/seed.zig").lower(self, value, value_type),
         .some => |child| access.optional(self, value_type, try self.expr(child)),
         .store_get => |slot| @import("access/store.zig").lower(self, slot, value.type_id),
         .reference => |symbol| @import("access/reference.zig").lower(self, symbol, value.type_id),
