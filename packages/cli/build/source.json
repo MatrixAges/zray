@@ -102,6 +102,38 @@
         {
             "path": "configuration_workflow",
             "prefix": "configuration/"
+        },
+        {
+            "path": "package_install",
+            "prefix": "package/install/"
+        },
+        {
+            "path": "package_graph",
+            "prefix": "package/graph/"
+        },
+        {
+            "path": "store",
+            "prefix": "store/"
+        },
+        {
+            "path": "extract",
+            "prefix": "extract/"
+        },
+        {
+            "path": "toolchain",
+            "prefix": "toolchain/"
+        },
+        {
+            "path": "driver",
+            "prefix": "driver/"
+        },
+        {
+            "path": "observation",
+            "prefix": "observation/"
+        },
+        {
+            "path": "backend_source",
+            "prefix": "backend/"
         }
     ],
     "entries": [
@@ -492,6 +524,126 @@
         {
             "path": "configuration/run.rx",
             "name": "configuration_workflow"
+        },
+        {
+            "path": "package/install/run.rx",
+            "name": "workflow"
+        },
+        {
+            "path": "package/graph/load.rx",
+            "name": "graph_load"
+        },
+        {
+            "path": "package/graph/const.zx",
+            "name": "graph_constants"
+        },
+        {
+            "path": "store/const.zx",
+            "name": "store_constants"
+        },
+        {
+            "path": "store/cache/prepare.rx",
+            "name": "prepare"
+        },
+        {
+            "path": "store/receipt/verify.rx",
+            "name": "receipt"
+        },
+        {
+            "path": "extract/unpack.zx",
+            "name": "unpack"
+        },
+        {
+            "path": "store/download/read.rx",
+            "name": "download"
+        },
+        {
+            "path": "toolchain/const.zx",
+            "name": "toolchain_constants"
+        },
+        {
+            "path": "toolchain/cache/root.zx",
+            "name": "cache_root"
+        },
+        {
+            "path": "toolchain/workflow/resolve.rx",
+            "name": "resolve"
+        },
+        {
+            "path": "driver/const.zx",
+            "name": "watch_constants"
+        },
+        {
+            "path": "driver/run.rx",
+            "name": "run"
+        },
+        {
+            "path": "driver/application/restart.rx",
+            "name": "restart_application"
+        },
+        {
+            "path": "driver/application/name.zx",
+            "name": "application_name"
+        },
+        {
+            "path": "driver/application/arguments.zx",
+            "name": "application_arguments"
+        },
+        {
+            "path": "observation/add.rx",
+            "name": "add"
+        },
+        {
+            "path": "observation/record.rx",
+            "name": "record"
+        },
+        {
+            "path": "observation/capture.rx",
+            "name": "observation_capture"
+        },
+        {
+            "path": "observation/scan.rx",
+            "name": "scan"
+        },
+        {
+            "path": "observation/read.rx",
+            "name": "read"
+        },
+        {
+            "path": "observation/directory/digest.rx",
+            "name": "directory_digest"
+        },
+        {
+            "path": "observation/same.zx",
+            "name": "same"
+        },
+        {
+            "path": "backend/process/capture.zx",
+            "name": "backend_capture"
+        },
+        {
+            "path": "backend/process/request.zx",
+            "name": "request"
+        },
+        {
+            "path": "backend/process/const.zx",
+            "name": "process_constants"
+        },
+        {
+            "path": "backend/frames/decode.rx",
+            "name": "decode"
+        },
+        {
+            "path": "backend/frames/const.zx",
+            "name": "frame_constants"
+        },
+        {
+            "path": "backend/diagnostics/validate.rx",
+            "name": "validate"
+        },
+        {
+            "path": "backend/diagnostics/const.zx",
+            "name": "diagnostic_constants"
         }
     ],
     "packages": [
@@ -566,6 +718,10 @@
         {
             "specifier": "cli/native_module_lookup",
             "entry": "command/scope/locate.zx"
+        },
+        {
+            "specifier": "workspace/ignored",
+            "entry": "package/workspace/ignored.zx"
         }
     ],
     "interfaces": [
@@ -664,6 +820,68 @@
         {
             "path": "lint/host.d.zx",
             "module": "lint_workflow_host",
+            "resolve_members": true
+        },
+        {
+            "path": "package_install/host.d.zx",
+            "module": "installation_host",
+            "resolve_members": true
+        },
+        {
+            "path": "package_graph/host.d.zx",
+            "module": "package_graph_host",
+            "resolve_members": true
+        },
+        {
+            "path": "store/cache/host.d.zx",
+            "module": "package_cache_host",
+            "resolve_members": true
+        },
+        {
+            "path": "store/receipt/host.d.zx",
+            "module": "package_receipt_host",
+            "resolve_members": true
+        },
+        {
+            "path": "extract/host.d.zx",
+            "module": "package_extract_host",
+            "resolve_members": true
+        },
+        {
+            "path": "store/download/host.d.zx",
+            "module": "package_download_host",
+            "resolve_members": true
+        },
+        {
+            "path": "toolchain/cache/host.d.zx",
+            "module": "toolchain_environment"
+        },
+        {
+            "path": "toolchain/workflow/host.d.zx",
+            "module": "toolchain_host"
+        },
+        {
+            "path": "driver/host.d.zx",
+            "module": "watch_host",
+            "resolve_members": true
+        },
+        {
+            "path": "observation/host.d.zx",
+            "module": "snapshot_host",
+            "resolve_members": true
+        },
+        {
+            "path": "memory/maps.d.zx",
+            "module": "memory/maps"
+        },
+        {
+            "path": "backend_source/process/host.d.zx",
+            "module": "backend_process",
+            "resolve_members": true
+        },
+        {
+            "path": "backend_source/frames/host.d.zx",
+            "module": "backend_frames",
             "resolve_members": true
         }
     ]

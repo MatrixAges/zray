@@ -1,5 +1,5 @@
 const std = @import("std");
-const rule = @import("package_cache").download;
+const rule = @import("cli_source").download;
 const constants = @import("../store.zig").constants;
 const Error = error{PackageDownloadHostFailure};
 

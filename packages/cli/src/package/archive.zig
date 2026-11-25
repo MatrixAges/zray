@@ -12,7 +12,7 @@ pub const Result = struct {
     }
 };
 
-const constants = @import("package_cache").constants.@"zx.constants";
+const constants = @import("cli_source").store_constants.@"zx.constants";
 pub const maximum_archive: usize = constants.maximum_archive;
 pub const maximum_unpacked: usize = constants.maximum_unpacked;
 pub const maximum_entries: usize = constants.maximum_entries;
@@ -55,7 +55,7 @@ pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, dire
         .iterator = &iterator,
     };
 
-    const status = @import("package_cache").unpack.executeValue(state.allocator, @ptrCast(&state)) catch |err| switch (err) {
+    const status = @import("cli_source").unpack.executeValue(state.allocator, @ptrCast(&state)) catch |err| switch (err) {
         error.ArchiveHostFailure => return state.failure.?,
         else => |failure| return failure,
     };

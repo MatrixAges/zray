@@ -47,7 +47,7 @@ export default function (in: Input): Output {
     }
 
     if (source.kind == Kind.NativeReference) {
-        return source.label == target.label
+        return source.label == target.label && source.first == target.first
     }
 
     if (source.kind == Kind.Enumeration && source.label != target.label) {

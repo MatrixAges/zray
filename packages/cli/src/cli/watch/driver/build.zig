@@ -5,7 +5,7 @@ const compiler = @import("../../compile.zig");
 const storage = @import("storage.zig");
 const State = storage.State;
 const Error = storage.Error;
-const SnapshotReference = @import("cli_watch_abi").native.@"zig:watch_host".Snapshot;
+const SnapshotReference = @import("cli_abi").native.@"zig:watch_host".Snapshot;
 
 pub fn begin(handle: *const anyopaque, cache: bool, previous: ?*const anyopaque) Error!void {
     const self = State.get(handle);
@@ -91,7 +91,7 @@ pub fn adoptPublishedSnapshot(handle: *const anyopaque) bool {
 pub fn restart(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
-    @import("cli_watch").restart_application.executeIn(self.turn.?.arena.allocator(), @ptrCast(handle)) catch |cause| {
+    @import("cli_source").restart_application.executeIn(self.turn.?.arena.allocator(), @ptrCast(handle)) catch |cause| {
         const err = if (cause == error.WatchFailure) self.failure.? else cause;
 
         storage.process.discardPending(self);

@@ -33,7 +33,7 @@ fn install(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
     defer state.deinit();
 
-    const result = @import("cli_packages").workflow.executeValue(allocator, &.{
+    const result = @import("cli_source").workflow.executeValue(allocator, &.{
         .host = @ptrCast(&state),
         .members = state.members.len,
         .maximum_edges = pkgs.Lock.maximum_dependencies,

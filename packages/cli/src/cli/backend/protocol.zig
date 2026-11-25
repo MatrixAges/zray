@@ -39,7 +39,7 @@ pub fn decode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const 
     return result;
 }
 
-const source = @import("backend_source");
+const source = @import("cli_source");
 const frame_constants = source.frame_constants.@"zx.constants";
 pub const diagnostics = @import("error_bundle.zig");
 pub const frames = @import("source/frames/storage.zig");

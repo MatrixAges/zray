@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const Backend = if (builtin.os.tag == .windows) @import("process/windows.zig") else @import("process/posix.zig");
 const State = @import("driver/storage.zig").State;
 const Error = @import("driver/storage.zig").Error;
-const source = @import("cli_watch");
+const source = @import("cli_source");
 const Run = struct { path: []const u8, process: Backend };
 const Launch = struct { path: []const u8, argv: [][]const u8 = &.{} };
 

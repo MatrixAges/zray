@@ -66,11 +66,15 @@ pub fn named(self: *Types, view: anytype, raw_name: zx.ast.Name) zx.Error!ir.Typ
 
         defer _ = self.visiting.swapRemove(name.text);
         const kind = view.kind(declaration.value);
+        const named_text = if (self.native_interface and kind == .named) view.name(declaration.value).text else "";
+        const is_mutable = std.mem.eql(u8, named_text, "mutable_opaque");
 
-        const id = if (self.native_interface and kind == .named and std.mem.eql(u8, view.name(declaration.value).text, "opaque")) blk: {
+        const id = if (is_mutable or std.mem.eql(u8, named_text, "opaque")) blk: {
             const id: ir.TypeId = @fromBackingInt(@intCast(self.items.view().count()));
 
             try self.items.append(self.allocator, .{ .native_reference = try self.allocator.dupe(u8, declaration.name.text) });
+
+            if (is_mutable) self.items.first.items[@backingInt(id)] = 1;
 
             break :blk id;
         } else if (kind == .enumeration) try enumeration(self, declaration.name, view.members(declaration.value)) else try node(self, view, declaration.value);

@@ -153,10 +153,13 @@ export default function (in: Input): Output {
         reference: declared.value
     })
 
+    const mutable = value.name.text == "mutable_opaque"
+    const opaque_type = value.name.text == "opaque" || mutable
+
     const condition = (
         - in.context.native_interface
         - and value.kind == NodeKind.Named
-        - and value.name.text == "opaque"
+        - and opaque_type
     )
 
     if (condition) {
@@ -164,7 +167,7 @@ export default function (in: Input): Output {
             state: entered,
             candidate: {
                 kind: Kind.NativeReference,
-                first: 0,
+                first: mutable ? 1 : 0,
                 second: 0,
                 label: declared.name.text,
                 children: [],

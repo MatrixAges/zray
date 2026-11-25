@@ -72,7 +72,13 @@ fn seedDefinitions(self: *Lower, output: *std.ArrayList(node.Declaration), expor
 
                 self.layouts[index] = try self.builder.identifier(name);
 
-                break :blk if (value == .enumeration) self.layouts[index] else try self.builder.expression(.{ .const_pointer = self.layouts[index] });
+                break :blk if (value == .enumeration)
+                    self.layouts[index]
+
+                else if (value == .native_reference and self.program.types.first[index] != 0)
+                    try self.builder.expression(.{ .pointer = self.layouts[index] })
+                else
+                    try self.builder.expression(.{ .const_pointer = self.layouts[index] });
             },
             else => try plain(self, value, self.types),
         };
@@ -141,7 +147,14 @@ fn seedAbi(self: *Lower, index: usize) Lower.Error!void {
             const layout = try self.field(try self.builder.identifier("zx_abi"), try typeName(self, index));
 
             self.abi_layouts[index] = layout;
-            self.abi_types[index] = if (value == .enumeration) layout else try self.builder.expression(.{ .const_pointer = layout });
+
+            self.abi_types[index] = if (value == .enumeration)
+                layout
+
+            else if (value == .native_reference and self.program.types.first[index] != 0)
+                try self.builder.expression(.{ .pointer = layout })
+            else
+                try self.builder.expression(.{ .const_pointer = layout });
         },
         else => {
             const expression = try plain(self, value, self.abi_types);

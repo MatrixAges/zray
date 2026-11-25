@@ -59,6 +59,7 @@ export type Build = {
     primitive: ExpressionsPrimitive[],
     field_target: u32[],
     field_name: u8[][],
+    pointer: u32[],
     const_pointer: u32[],
     optional_type: u32[],
     const_slice: u32[],

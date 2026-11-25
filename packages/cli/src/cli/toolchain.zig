@@ -1,9 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const source = @import("cli_toolchain");
+const source = @import("cli_source");
 pub const cache = @import("toolchain_cache");
 pub const workflow = @import("toolchain/workflow/storage.zig");
-pub const constants = source.constants.@"zx.constants";
+pub const constants = source.toolchain_constants.@"zx.constants";
 pub const Paths = struct { root: []const u8, executable: []const u8, library: []const u8, standard: []const u8 };
 
 pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std.process.Environ.Map) !Paths {

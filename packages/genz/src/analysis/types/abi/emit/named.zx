@@ -10,7 +10,8 @@ export type Input = {
     table: Expressions,
     name: u8[],
     start: u32,
-    pointer: bool
+    pointer: bool,
+    mutable: bool
 }
 
 export type Output = Expressions
@@ -32,6 +33,15 @@ export default function (in: Input): Output {
 
     if (!in.pointer) {
         return selected
+    }
+
+    if (in.mutable) {
+        return {
+            ...selected,
+            tags: selected.tags.push(ExpressionsKind.Pointer)[0],
+            offsets: selected.offsets.push(integers.narrow(selected.pointer.length))[0],
+            pointer: selected.pointer.push(start + named_layout_offset)[0]
+        }
     }
 
     return {

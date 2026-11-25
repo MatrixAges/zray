@@ -119,7 +119,16 @@ export default function (in: Input): Output {
                         identifier: current.identifier.push(name)[0]
                     }
 
-                    if (target != Kind.Enumeration) {
+                    if (target == Kind.NativeReference && first != 0) {
+                        current = {
+                            ...current,
+                            tags: current.tags.push(ExpressionsKind.Pointer)[0],
+                            offsets: current.offsets.push(
+                                integers.narrow(current.pointer.length)
+                            )[0],
+                            pointer: current.pointer.push(start + 1)[0]
+                        }
+                    } else if (target != Kind.Enumeration) {
                         current = {
                             ...current,
                             tags: current.tags.push(ExpressionsKind.ConstPointer)[0],

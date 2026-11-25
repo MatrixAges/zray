@@ -53,10 +53,10 @@
 
 ## 四、分阶段大步执行计划
 
-### Phase X1（P0 · 构建加速 + 确定缺陷修复）：合并 7 次冷生成 & 修 `cache_identity`
+### Phase X1（P0 · 构建加速 + 确定缺陷修复 · **Wave 2 已完成**）：合并 7 次冷生成 & 复核 `cache_identity`
 
-1. **合并 `build/source.zig` 生成管线**：将 `source/packages/store/toolchain/watch/observation/backend` 7 份清单合并为 **1~2 次统一生成**（共享 `memory` 与 `compiler` 类型视图），直接砍掉 5~6 次重复的 `source_generator` 进程启动和冷构建解析时间；
-2. **修复 `cache_identity`（复核报告 G 项）**：用“固定 32 字节二进制/数据写入 + 仓库静态 Zig 模板读取”替代字符串拼接完整 Zig 声明，并为多输入错误收集分配独立槽位消除并发写入竞态。
+1. **已合并 `build/source.zig` 生成管线**：删除 `packages`/`store`/`toolchain`/`watch`/`observation`/`backend.json` 6 份清单，全部并入 [source.json](../../packages/cli/build/source.json) 并合并为单次 `generate CLI source modules (cli)` 进程（更新 `build.zig` 与 26 处 CLI Zig 调用方，`75/75` 构建步骤与 `104/104` 测试步骤全通过）；
+2. **已复核 `cache_identity`（复核报告 G 项）**：[cache_identity.zig](../../packages/cli/build/cache_identity.zig) 与 [digest.zig](../../packages/cli/build/cache_identity/digest.zig) 已改为写入 `digest.bin` + `cache_identity.s`，并发任务按独立索引写入 `digests: []anyerror!Digest`，无字符串拼接 Zig 与并发写入竞态。
 
 ### Phase X2（大步 #1 · 预计净减 5,000+ 行 Zig）：`cli/rx/`、`cli/compilation/`、`cli/project/scopes/` 统一收口
 

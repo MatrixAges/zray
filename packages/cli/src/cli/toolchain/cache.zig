@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const rule = @import("cli_toolchain").cache_root;
+const rule = @import("cli_source").cache_root;
 
 const Context = struct {
     allocator: std.mem.Allocator,

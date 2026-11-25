@@ -40,7 +40,7 @@ pub fn valid(table: Table) bool {
             },
             .scalar => if (first >= @typeInfo(model.Scalar).@"enum".field_names.len or second != 0) return false,
             .optional, .list => if (second != 0) return false,
-            .native_reference => if (first != 0 or second != 0) return false,
+            .native_reference => if (first > 1 or second != 0) return false,
             .task => {},
         }
     }

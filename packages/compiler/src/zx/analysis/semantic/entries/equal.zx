@@ -35,7 +35,7 @@ export default function (in: Input): Output {
     }
 
     if (left.kind == Kind.NativeReference) {
-        return left.label == right.label
+        return left.label == right.label && left.first == right.first
     }
 
     if (left.kind == Kind.Enumeration && left.label != right.label) {

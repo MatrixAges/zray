@@ -1,6 +1,6 @@
 const std = @import("std");
 const protocol = @import("protocol.zig");
-const source = @import("backend_source");
+const source = @import("cli_source");
 const constants = protocol.constants;
 const Message = std.zig.Client.Message;
 
@@ -41,7 +41,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const 
 
     const pipes = &reader;
 
-    if (!try source.capture.executeIn(allocator, @ptrCast(&pipes))) return error.BackendOutputTooLarge;
+    if (!try source.backend_capture.executeIn(allocator, @ptrCast(&pipes))) return error.BackendOutputTooLarge;
 
     try reader.checkAnyError();
 

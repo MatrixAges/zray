@@ -11,6 +11,7 @@ export default function (in: Input): Output {
             primitive: in.primitive,
             field_target: in.field_target,
             field_name: in.field_name,
+            pointer: in.pointer,
             const_pointer: in.const_pointer,
             optional_type: in.optional_type,
             const_slice: in.const_slice,

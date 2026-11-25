@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Self = @This();
-const constants = @import("cli_watch").constants.@"zx.constants";
+const constants = @import("cli_source").watch_constants.@"zx.constants";
 
 const Wait = if (builtin.os.tag == .linux) std.os.linux.W else struct {
     const EXITED = 0x04;

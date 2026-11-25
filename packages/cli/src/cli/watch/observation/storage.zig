@@ -1,4 +1,4 @@
-const abi = @import("watch_observation_abi");
+const abi = @import("cli_abi");
 pub const Slot = abi.layouts.@"zig:snapshot_host".Slot;
 pub const PathKind = abi.native.@"zig:snapshot_host".PathKind;
 pub const Reuse = abi.native.@"zig:snapshot_host".Reuse;

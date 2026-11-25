@@ -38,7 +38,8 @@ export default function (in: Input): Output {
                 index
             }),
             start,
-            pointer: target != Kind.Enumeration
+            pointer: target != Kind.Enumeration,
+            mutable: target == Kind.NativeReference && first != 0
         })
     }
 

@@ -10,6 +10,8 @@ pub fn build(b: *std.Build) void {
     const module = compiler.module("compiler");
     const standard = compiler.module("standard");
     const generated_objects = compiler.builder.modules.get("generated_objects");
+    const core = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core");
+    const cli_source = @import("build/source.zig").create(b, compiler, target, optimize);
 
     const host = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -17,7 +19,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .strip = if (optimize == .safe) true else null,
         .imports = &.{
-            .{ .name = "cli_source", .module = @import("build/source.zig").create(b, compiler, target, optimize) },
+            .{ .name = "cli_source", .module = cli_source },
             .{ .name = "rx", .module = compiler.module("rx") },
             .{ .name = "rx_analysis", .module = compiler.module("rx_analysis") },
             .{ .name = "lint", .module = compiler.module("lint") },
@@ -25,16 +27,15 @@ pub fn build(b: *std.Build) void {
             .{ .name = "compiler", .module = module },
             .{ .name = "napi_resources", .module = b.dependency("napi", .{ .target = target, .optimize = optimize }).module("resources") },
             .{ .name = "napi_declarations", .module = b.dependency("napi", .{ .target = target, .optimize = optimize }).module("declarations") },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
         },
     });
 
-    host.addImport("cli_packages", @import("build/source.zig").packages(b, compiler, target, optimize, host));
-    host.addImport("package_store", @import("build/source.zig").store(b, compiler, target, optimize, pkgs.module("pkgs"), host.import_table.get("cli_source").?));
-    host.addImport("cli_toolchain", @import("build/source.zig").toolchain(b, compiler, target, optimize, host));
-    host.addImport("backend_protocol", @import("build/source.zig").backend(b, compiler, host.import_table.get("zx").?, target, optimize));
-    host.addImport("watch_inputs", @import("build/source.zig").observations(b, compiler, target, optimize));
-    host.addImport("cli_watch", @import("build/source.zig").watch(b, compiler, target, optimize, host));
+    host.addImport("package_store", @import("build/source.zig").store(b, target, optimize, core, pkgs.module("pkgs"), cli_source));
+    @import("build/source.zig").toolchain(b, target, optimize, host, cli_source);
+
+    host.addImport("backend_protocol", @import("build/source.zig").backend(b, core, target, optimize, cli_source));
+    host.addImport("watch_inputs", @import("build/source.zig").observations(b, compiler, core, target, optimize, cli_source));
     host.addImport("manifest_output", b.modules.get("manifest_output").?);
     host.addImport("artifact_io", b.modules.get("artifact_io").?);
 
@@ -83,9 +84,10 @@ pub fn build(b: *std.Build) void {
     host.addImport("native_resource_host", native_resources);
     host.import_table.get("cli_source").?.addImport("native_resource_host", native_resources);
 
-    const cli_source = host.import_table.get("cli_source").?;
-
     for ([_][]const u8{
+        "installation_host",
+        "package_graph_host",
+        "watch_host",
         "library_stage_host",
         "library_workflow_host",
         "source_loader_host",

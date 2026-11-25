@@ -1,7 +1,7 @@
 const std = @import("std");
 const archive = @import("../../archive.zig");
 const Receipt = @import("../receipt.zig").Receipt;
-const constants = @import("package_cache").constants.@"zx.constants";
+const constants = @import("cli_source").store_constants.@"zx.constants";
 pub const Error = error{ReceiptHostFailure};
 
 pub const State = struct {

@@ -3,7 +3,7 @@ const versions = @import("compiler").input_snapshot;
 const Self = @This();
 const scan = @import("observation/scan.zig").scan;
 const reader = @import("observation/read.zig");
-const equality = @import("watch_observation").same;
+const equality = @import("cli_source").same;
 const Fact = std.meta.Child(@FieldType(std.meta.Child(equality.Input), "left"));
 
 pub const State = union(enum) {

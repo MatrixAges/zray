@@ -9,5 +9,5 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
     const handle = &state;
 
-    @import("cli_watch").run.executeIn(allocator, @ptrCast(&handle)) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
+    @import("cli_source").run.executeIn(allocator, @ptrCast(&handle)) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
 }

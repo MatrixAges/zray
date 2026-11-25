@@ -50,11 +50,12 @@
 
 ## 四、分阶段大步执行计划
 
-### Phase C1（P0 · 紧急止血）：根除 `core/memory` `@constCast` UB
+### Phase C1（P0 · 紧急止血 · **Wave 2 已完成 Hop 1，待 Wave 3 收口**）：根除 `core/memory` `@constCast` UB
 
 - **目标**：消除 `packages/core/src/memory/` 全部 **36 处 `@constCast`** 及 `noinline` 补丁。
-- **方案**：
-    1. 在 ZX/genz 原生 ABI 层明确区分“只读借用视图”与“可写独占句柄”（传递显式 `*T` / 可变指针包装结构体，而非 `*const anyopaque`）；
+- **进展（Wave 2 Hop 1 已完成）**：已在 `core/src/type_table/structure.zig`、`compiler` 与 `genz`（`ExpressionsKind.Pointer` / `Expressions.pointer`）落地 `mutable_opaque` 可变原生句柄类型，能够区分 `*const T`（`opaque`）与 `*T`（`mutable_opaque`）。
+- **方案（Hop 2 待 Wave 3 执行）**：
+    1. 将 `core/memory` 与 `std` 中承担写入职责的 `.d.zx` 原生句柄切换为 `mutable_opaque`（传递显式 `*T`，而非 `*const anyopaque`）；
     2. 将 `root.zig`、`rows.zig`、`write_column.zig`、`column_set.zig`、`column_transfer.zig`、`atomic.zig`、`arena_scope.zig`、`text_storage.zig` 等文件中的写入目标全部改为正确可变类型；
     3. 删除 `root.zig:784` 和 `rows.zig:279,393` 的 `noinline` 掩盖声明。
 - **阶段门禁**：`packages/core/src/memory/` 中 `@constCast == 0`；`ReleaseSmall` 与 `ReleaseSafe` 下无探针直接编译并运行全部目录扫描与观测回归通过。

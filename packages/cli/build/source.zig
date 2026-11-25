@@ -8,9 +8,17 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/package/workspace"), "workspace", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/package/project"), "package_project", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/package/manifest"), "package_manifest", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/install"), "package_install", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/graph"), "package_graph", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/store"), "store", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/archive/extract"), "extract", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/native_sources"), "native_sources", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/library"), "library", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/sources"), "sources", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/toolchain"), "toolchain", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/watch/driver"), "driver", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/watch/observation"), "observation", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/backend/source"), "backend_source", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/rx/collection"), "rx_collection", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/rx/preparation"), "rx_preparation", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/rx/checking"), "rx_checking", .{ .include_extensions = &.{ ".rx", ".zx" } });
@@ -33,6 +41,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
     _ = files.addCopyFile(compiler.namedLazyPath("memory_columns_interface"), "memory/columns.d.zx");
     _ = files.addCopyFile(compiler.path("src/zx/modules/path/lexical.d.zx"), "memory/lexical.d.zx");
+    _ = files.addCopyFile(core.path("interfaces/memory/maps.d.zx"), "memory/maps.d.zx");
 
     for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/index/slot.zx", "bytes/index/borrowed/wide_slot.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
@@ -72,6 +81,12 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
         .optimize = optimize,
     });
 
+    const maps = b.addModule("memory_maps", .{
+        .root_source_file = core.path("src/memory/maps.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     return b.addModule("cli_source", .{
         .root_source_file = generated.path(b, "root.zig"),
         .target = target,
@@ -82,6 +97,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
             .{ .name = "zxc_string", .module = compiler.module("generated_string") },
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "memory/columns", .module = core.module("memory") },
+            .{ .name = "memory/maps", .module = maps },
             .{ .name = "lexical_path", .module = compiler.module("generated_standard") },
             .{ .name = "manifest_output", .module = manifest_output },
             .{ .name = "artifact_io", .module = artifact_io },
@@ -89,65 +105,29 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     });
 }
 
-pub fn packages(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
-    const files = b.addWriteFiles();
-    _ = files.addCopyDirectory(b.path("src/package/install"), "package_install", .{ .include_extensions = &.{ ".rx", ".zx" } });
-    _ = files.addCopyDirectory(b.path("src/package/graph"), "package_graph", .{ .include_extensions = &.{ ".rx", ".zx" } });
-
-    const generated = generate(b, compiler, files, "build/packages.json", "packages");
-
-    return b.createModule(.{
-        .root_source_file = generated.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
-            .{ .name = "installation_host", .module = host },
-            .{ .name = "package_graph_host", .module = host },
-        },
-    });
-}
-
-pub fn store(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, pkgs: *std.Build.Module, cli_source: *std.Build.Module) *std.Build.Module {
-    const files = b.addWriteFiles();
-    _ = files.addCopyDirectory(b.path("src/package/store"), "store", .{ .include_extensions = &.{ ".rx", ".zx" } });
-    _ = files.addCopyDirectory(b.path("src/package/archive/extract"), "extract", .{ .include_extensions = &.{ ".rx", ".zx" } });
-
-    const generated = generate(b, compiler, files, "build/store.json", "store");
-
-    const host = b.addModule("package_store", .{
+pub fn store(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, core: *std.Build.Module, pkgs: *std.Build.Module, cli_source: *std.Build.Module) *std.Build.Module {
+    const module = b.addModule("package_store", .{
         .root_source_file = b.path("src/package/store.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
             .{ .name = "pkgs", .module = pkgs },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "zx", .module = core },
             .{ .name = "cli_source", .module = cli_source },
         },
     });
 
-    host.addAnonymousImport("package_cache", .{
-        .root_source_file = generated.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
-            .{ .name = "package_cache_host", .module = host },
-            .{ .name = "package_extract_host", .module = host },
-            .{ .name = "package_receipt_host", .module = host },
-            .{ .name = "package_download_host", .module = host },
-        },
-    });
+    for ([_][]const u8{
+        "package_cache_host",
+        "package_extract_host",
+        "package_receipt_host",
+        "package_download_host",
+    }) |name| cli_source.addImport(name, module);
 
-    return host;
+    return module;
 }
 
-pub fn toolchain(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
-    const files = b.addWriteFiles();
-    _ = files.addCopyDirectory(b.path("src/cli/toolchain"), "toolchain", .{ .include_extensions = &.{ ".rx", ".zx" } });
-
-    const generated = generate(b, compiler, files, "build/toolchain.json", "toolchain");
-
+pub fn toolchain(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module, cli_source: *std.Build.Module) void {
     const effects = b.createModule(.{
         .root_source_file = b.path("src/cli/toolchain/bindings.zig"),
         .target = target,
@@ -155,120 +135,52 @@ pub fn toolchain(b: *std.Build, compiler: *std.Build.Dependency, target: std.Bui
         .imports = &.{.{ .name = "cli_host", .module = host }},
     });
 
-    const source = b.createModule(.{
-        .root_source_file = generated.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
-            .{ .name = "toolchain_environment", .module = effects },
-            .{ .name = "toolchain_host", .module = effects },
-        },
-    });
+    cli_source.addImport("toolchain_environment", effects);
+    cli_source.addImport("toolchain_host", effects);
 
     const cache = b.addModule("toolchain_cache", .{
         .root_source_file = b.path("src/cli/toolchain/cache.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "cli_toolchain", .module = source }},
+        .imports = &.{.{ .name = "cli_source", .module = cli_source }},
     });
 
     host.addImport("toolchain_cache", cache);
-
-    return source;
 }
 
-pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
-    const files = b.addWriteFiles();
-    _ = files.addCopyDirectory(b.path("src/cli/watch/driver"), "driver", .{ .include_extensions = &.{ ".rx", ".zx" } });
-    _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
-
-    const generated = generate(b, compiler, files, "build/watch.json", "watch");
-    const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
-
-    host.addImport("cli_watch_abi", abi);
-
-    return b.createModule(.{
-        .root_source_file = generated.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = abi },
-            .{ .name = "watch_host", .module = host },
-            .{ .name = "memory", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory") },
-        },
-    });
-}
-
-pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
-    const files = b.addWriteFiles();
-    _ = files.addCopyDirectory(b.path("src/cli/watch/observation"), "observation", .{ .include_extensions = &.{ ".rx", ".zx" } });
-    _ = files.addCopyFile(b.path("src/package/workspace/ignored.zx"), "workspace/ignored.zx");
-    _ = files.addCopyFile(b.path("src/package/workspace/const.zx"), "workspace/const.zx");
-
-    const generated = generate(b, compiler, files, "build/observation.json", "observation");
-    const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
-
-    const observations_module = b.addModule("watch_inputs", .{
+pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, cli_source: *std.Build.Module) *std.Build.Module {
+    const module = b.addModule("watch_inputs", .{
         .root_source_file = b.path("src/watch_inputs.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "artifact_io", .module = b.modules.get("artifact_io").? },
-            .{ .name = "watch_observation_abi", .module = abi },
-            .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
+            .{ .name = "cli_abi", .module = cli_source.import_table.get("zxc_abi").? },
+            .{ .name = "cli_source", .module = cli_source },
+            .{ .name = "zx", .module = core },
         },
     });
 
-    observations_module.addAnonymousImport("watch_observation", .{
-        .root_source_file = generated.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = abi },
-            .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
-            .{ .name = "snapshot_host", .module = observations_module },
-        },
-    });
+    cli_source.addImport("snapshot_host", module);
 
-    return observations_module;
+    return module;
 }
 
-pub fn backend(b: *std.Build, compiler: *std.Build.Dependency, core: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
-    const files = b.addWriteFiles();
-    _ = files.addCopyDirectory(b.path("src/cli/backend/source"), "source", .{ .include_extensions = &.{ ".rx", ".zx" } });
-
-    const memory = b.dependency("core", .{ .target = target, .optimize = optimize });
-    _ = files.addCopyFile(memory.path("interfaces/memory/maps.d.zx"), "memory/maps.d.zx");
-
-    const maps = b.createModule(.{ .root_source_file = memory.path("src/memory/maps.zig"), .target = target, .optimize = optimize });
-    const generated = generate(b, compiler, files, "build/backend.json", "backend");
-    const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
-
+pub fn backend(b: *std.Build, core: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, cli_source: *std.Build.Module) *std.Build.Module {
     const protocol = b.addModule("backend_protocol", .{
         .root_source_file = b.path("src/cli/backend/protocol.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
-            .{ .name = "backend_abi", .module = abi },
+            .{ .name = "cli_source", .module = cli_source },
             .{ .name = "zx", .module = core },
-            .{ .name = "memory/maps", .module = maps },
+            .{ .name = "memory/maps", .module = b.modules.get("memory_maps").? },
         },
     });
 
-    protocol.addAnonymousImport("backend_source", .{
-        .root_source_file = generated.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = abi },
-            .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
-            .{ .name = "memory/maps", .module = maps },
-            .{ .name = "backend_process", .module = protocol },
-            .{ .name = "backend_frames", .module = protocol },
-        },
-    });
+    cli_source.addImport("backend_process", protocol);
+    cli_source.addImport("backend_frames", protocol);
 
     return protocol;
 }

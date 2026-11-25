@@ -20,6 +20,7 @@ export default function (in: Input): Output {
             primitive: in.primitive,
             field_target: empty_ids,
             field_name: empty_text,
+            pointer: empty_ids,
             const_pointer: in.const_pointer,
             optional_type: in.optional_type,
             const_slice: in.const_slice,

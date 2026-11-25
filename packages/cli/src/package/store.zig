@@ -4,7 +4,7 @@ pub const archive = @import("archive.zig");
 pub const receipt = @import("store/receipt.zig");
 const cache = @import("store/cache/storage.zig");
 pub const transfer = @import("store/download.zig");
-pub const constants = @import("package_cache").constants.@"zx.constants";
+pub const constants = @import("cli_source").store_constants.@"zx.constants";
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
@@ -48,7 +48,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Rel
 
     defer state.deinit();
 
-    const status = @import("package_cache").prepare.executeValue(allocator, &.{
+    const status = @import("cli_source").prepare.executeValue(allocator, &.{
         .cache = @ptrCast(&state),
         .offline = offline,
     }) catch |err| switch (err) {

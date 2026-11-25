@@ -1,7 +1,7 @@
 const std = @import("std");
 const Memory = @import("memory/maps");
 const Bundle = std.zig.ErrorBundle;
-const source = @import("backend_source");
+const source = @import("cli_source");
 const rule = source.validate;
 const layout = source.diagnostic_constants.@"zx.constants";
 

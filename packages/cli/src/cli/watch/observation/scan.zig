@@ -3,7 +3,7 @@ const Snapshot = @import("../snapshot.zig");
 const reader = @import("read.zig");
 const storage = @import("storage.zig");
 const Error = storage.Error;
-const rule = @import("watch_observation").scan;
+const rule = @import("cli_source").scan;
 
 const Context = struct {
     entries: []Snapshot.Entry,

@@ -47,7 +47,7 @@ pub const Publication = struct {
 pub fn render(allocator: std.mem.Allocator, prepared: @import("model.zig").Prepared) !Publication {
     const source = prepared.source orelse try std.json.Stringify.valueAlloc(allocator, prepared.lock, .{ .whitespace = .indent_2 });
     const digest = hash(source);
-    const mapping = try std.json.Stringify.valueAlloc(allocator, Installation{ .format_version = @import("cli_packages").graph_constants.@"zx.constants".mapping_version, .lock_sha256 = &digest, .paths = prepared.paths }, .{ .whitespace = .indent_2 });
+    const mapping = try std.json.Stringify.valueAlloc(allocator, Installation{ .format_version = @import("cli_source").graph_constants.@"zx.constants".mapping_version, .lock_sha256 = &digest, .paths = prepared.paths }, .{ .whitespace = .indent_2 });
 
     return .{ .lock = source, .mapping = mapping, .digest = digest };
 }

@@ -43,6 +43,7 @@ export default function (in: Input): Output {
         table: in.table,
         name: bytes.fromText(name),
         start: in.step.base,
-        pointer: in.step.request.mode == Mode.State && in.source.borrowed[index]
+        pointer: in.step.request.mode == Mode.State && in.source.borrowed[index],
+        mutable: false
     })
 }

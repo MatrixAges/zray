@@ -46,6 +46,7 @@ pub fn prepare(allocator: std.mem.Allocator, temporary: std.mem.Allocator, value
 
     if (complete or @import("../../ir/validate.zig").internal) for (0..first) |index| {
         if (!sameType(values.at(index), target.at(index))) return error.InvalidModule;
+        if (values.at(index) == .native_reference and values.first[index] != target.first[index]) return error.InvalidModule;
     };
 
     for (mapping[0..first], 0..) |*id, index| id.* = @fromBackingInt(@intCast(index));

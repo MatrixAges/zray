@@ -3,7 +3,7 @@ const Snapshot = @import("../snapshot.zig");
 const versions = @import("compiler").input_snapshot;
 const storage = @import("storage.zig");
 const Error = storage.Error;
-const rule = @import("watch_observation").read;
+const rule = @import("cli_source").read;
 
 pub const Context = struct {
     io: std.Io,

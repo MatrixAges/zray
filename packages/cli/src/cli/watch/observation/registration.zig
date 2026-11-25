@@ -4,7 +4,7 @@ const Snapshot = @import("../snapshot.zig");
 const reader = @import("read.zig");
 const storage = @import("storage.zig");
 const Error = storage.Error;
-const source = @import("watch_observation");
+const source = @import("cli_source");
 
 const Slot = struct {
     path: []const u8,

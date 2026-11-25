@@ -1,8 +1,8 @@
 const std = @import("std");
 const storage = @import("../storage.zig");
-const source = @import("watch_observation").directory_digest;
+const source = @import("cli_source").directory_digest;
 const Hash = std.crypto.hash.sha2.Sha256;
-const View = @import("watch_observation_abi").layouts.@"zig:snapshot_host".DirectoryEntry;
+const View = @import("cli_abi").layouts.@"zig:snapshot_host".DirectoryEntry;
 
 const Cursor = struct {
     io: std.Io,
@@ -51,7 +51,7 @@ pub fn retainDirectoryEntry(handle: *const anyopaque, separator: u8, suffix_widt
     const self = storage.context(Cursor, handle);
     const name = self.view.name;
     const row = self.allocator.alloc(u8, name.len + suffix_width) catch |err| return self.fail(err);
-    const suffix = [_]u8{ separator, @intFromEnum(self.kind) };
+    const suffix = [_]u8{ separator, @backingInt(self.kind) };
 
     @memcpy(row[0..name.len], name);
     @memcpy(row[name.len..], suffix[0..suffix_width]);

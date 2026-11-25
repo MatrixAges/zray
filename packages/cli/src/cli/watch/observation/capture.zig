@@ -3,7 +3,7 @@ const Inputs = @import("../inputs.zig");
 const Snapshot = @import("../snapshot.zig");
 const storage = @import("storage.zig");
 const Error = storage.Error;
-const source = @import("watch_observation").capture;
+const source = @import("cli_source").observation_capture;
 
 const Context = struct {
     allocator: std.mem.Allocator,

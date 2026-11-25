@@ -1,6 +1,6 @@
 const std = @import("std");
 const archive = @import("../archive.zig");
-const constants = @import("package_cache").constants.@"zx.constants";
+const constants = @import("cli_source").store_constants.@"zx.constants";
 pub const storage = @import("receipt/storage.zig");
 
 pub const Receipt = struct {
@@ -14,7 +14,7 @@ pub fn verify(io: std.Io, allocator: std.mem.Allocator, directory: std.Io.Dir, e
 
     defer state.deinit();
 
-    const status = @import("package_cache").receipt.executeValue(allocator, @ptrCast(&state)) catch |err| switch (err) {
+    const status = @import("cli_source").receipt.executeValue(allocator, @ptrCast(&state)) catch |err| switch (err) {
         error.ReceiptHostFailure => return state.failure.?,
         else => |failure| return failure,
     };
