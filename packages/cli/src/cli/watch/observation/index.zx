@@ -1,8 +1,7 @@
 export {
     startVersions,
     classify,
-    fullDirectory,
-    workspaceDirectory,
+    readDirectory,
     readFile,
     openRegistration,
     reusePrior,

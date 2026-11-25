@@ -58,6 +58,22 @@ pub fn write(io: std.Io, path: []const u8, content: []const u8) !void {
     return context.writeFile(path, content);
 }
 
+pub fn digestFile(io: std.Io, file: std.Io.File) std.Io.File.Reader.Error![32]u8 {
+    var buffer: [8192]u8 = undefined;
+    var reader = file.reader(io, &buffer);
+    var hash = std.crypto.hash.sha2.Sha256.init(.{});
+
+    while (true) {
+        const chunk = reader.interface.peekGreedy(1) catch |err| switch (err) {
+            error.EndOfStream => return hash.finalResult(),
+            error.ReadFailed => return reader.err.?,
+        };
+
+        hash.update(chunk);
+        reader.interface.tossBuffered();
+    }
+}
+
 fn matchesFile(directory: std.Io.Dir, io: std.Io, path: []const u8, expected: []const u8, comptime prefix_only: bool) !?bool {
     const file = directory.openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows }) catch |err| switch (err) {
         error.FileNotFound => return null,

@@ -205,9 +205,11 @@ pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
     });
 }
 
-pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, cli_source: *std.Build.Module) *std.Build.Module {
+pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/cli/watch/observation"), "observation", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyFile(b.path("src/package/workspace/ignored.zx"), "workspace/ignored.zx");
+    _ = files.addCopyFile(b.path("src/package/workspace/const.zx"), "workspace/const.zx");
 
     const generated = generate(b, compiler, files, "build/observation.json", "observation");
     const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
@@ -218,7 +220,7 @@ pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.
         .optimize = optimize,
         .imports = &.{
             .{ .name = "compiler", .module = compiler.module("compiler") },
-            .{ .name = "cli_source", .module = cli_source },
+            .{ .name = "artifact_io", .module = b.modules.get("artifact_io").? },
             .{ .name = "watch_observation_abi", .module = abi },
             .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
         },

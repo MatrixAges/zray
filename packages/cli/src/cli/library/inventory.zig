@@ -42,19 +42,5 @@ pub fn digest(io: std.Io, dir: std.Io.Dir, path: []const u8) ![Sha256.digest_len
 
     defer file.close(io);
 
-    var buffer: [8192]u8 = undefined;
-    var reader = file.reader(io, &buffer);
-    var hash = Sha256.init(.{});
-
-    while (true) {
-        const chunk = reader.interface.peekGreedy(1) catch |err| switch (err) {
-            error.EndOfStream => break,
-            error.ReadFailed => return reader.err.?,
-        };
-
-        hash.update(chunk);
-        reader.interface.tossBuffered();
-    }
-
-    return hash.finalResult();
+    return @import("artifact_io").digestFile(io, file);
 }

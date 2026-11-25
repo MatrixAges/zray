@@ -142,10 +142,6 @@
             "name": "workspace_directory"
         },
         {
-            "path": "package/workspace/ignored.zx",
-            "name": "workspace_ignored"
-        },
-        {
             "path": "package/workspace/paths/within.zx",
             "name": "workspace_manifest_within"
         },

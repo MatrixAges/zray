@@ -5,6 +5,7 @@ pub const observation = @import("cli/watch/observation/storage.zig");
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     observation.registration,
     observation.read,
+    observation.directory,
     observation.scan,
     observation.capture,
 }).resolve;

@@ -1,0 +1,8 @@
+import type { Directory } from "snapshot_host"
+
+export type Collect = {
+    directory: Directory,
+    all_entries: bool
+}
+
+export type Feed = [Directory, u64]

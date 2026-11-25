@@ -1,0 +1,36 @@
+import host from "snapshot_host"
+import ignored from "workspace/ignored"
+
+import { tagged_width, separator, name_width } from "./const"
+
+import type { Collect as Input } from "./model"
+
+export type Output = u8
+
+export default function (in: Input): Output {
+    const collected = loop(true, {
+        while: more => more,
+        next: more => {
+            const entry = host.nextDirectoryEntry(in.directory)
+
+            more = entry != null
+
+            if (entry != null) {
+                const matches =
+                    in.all_entries || (entry.is_directory && !ignored(entry.name))
+
+                if (matches) {
+                    const width = in.all_entries ? tagged_width : name_width
+
+                    host.retainDirectoryEntry(
+                        in.directory,
+                        separator,
+                        width
+                    )
+                }
+            }
+        }
+    })
+
+    return in.all_entries ? tagged_width : name_width
+}

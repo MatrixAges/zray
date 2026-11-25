@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Digest" />
+
+    <Args in={Digest.Collect} out={void} />
+
+    <Call fn="collect" in={$in} />
+
+    <Call
+        fn="index.sortDirectoryEntries"
+        in={[
+            $in.directory,
+            $ctx.collect
+        ]}
+    />
+
+    <Call
+        fn="feed"
+        in={[
+            $in.directory,
+            $ctx.sortDirectoryEntries
+        ]}
+    />
+</Module>

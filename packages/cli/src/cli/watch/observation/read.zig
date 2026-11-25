@@ -50,21 +50,9 @@ pub fn classify(handle: *const anyopaque) Error!storage.PathKind {
     };
 }
 
-pub fn fullDirectory(handle: *const anyopaque) Error!void {
+pub fn readDirectory(handle: *const anyopaque, all_entries: bool) Error!void {
     const self = Context.get(handle);
-    const digest = @import("../directory.zig").digest(self.io, self.allocator, self.path) catch |err| return self.fail(err);
-
-    return completeDirectory(self, digest);
-}
-
-pub fn workspaceDirectory(handle: *const anyopaque) Error!void {
-    const self = Context.get(handle);
-    const digest = @import("../../../package/workspace/directory.zig").digest(self.io, self.allocator, self.path) catch |err| return self.fail(err);
-
-    return completeDirectory(self, digest);
-}
-
-fn completeDirectory(self: *Context, digest: [32]u8) Error!void {
+    const digest = storage.directory.digest(self.io, self.allocator, self.path, all_entries) catch |err| return self.fail(err);
     const path = physicalPath(self.io, self.allocator, self.path) catch |err| return self.fail(err);
 
     self.result = .{ .directory = .{ .digest = digest, .physical_path = path } };
@@ -89,21 +77,7 @@ fn observeFile(self: *Context) !void {
     defer file.close(self.io);
 
     const before = if (self.save_version) try file.stat(self.io) else undefined;
-    var buffer: [8192]u8 = undefined;
-    var reader = file.reader(self.io, &buffer);
-    var hash = std.crypto.hash.sha2.Sha256.init(.{});
-
-    while (true) {
-        const data = reader.interface.peekGreedy(1) catch |err| switch (err) {
-            error.EndOfStream => break,
-            else => return err,
-        };
-
-        hash.update(data);
-        reader.interface.tossBuffered();
-    }
-
-    const digest = hash.finalResult();
+    const digest = @import("artifact_io").digestFile(self.io, file) catch return error.ReadFailed;
     const physical = try physicalPath(self.io, self.allocator, self.path);
 
     if (self.save_version) {

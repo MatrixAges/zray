@@ -2,6 +2,12 @@ export type Scan = opaque
 export type Observation = opaque
 export type Registration = opaque
 export type Capture = opaque
+export type Directory = opaque
+
+export type DirectoryEntry = {
+    name: string,
+    is_directory: bool
+}
 
 export type Slot = {
     existing: bool,
@@ -29,9 +35,22 @@ export declare function readRow(scan: Scan, index: u64, versioned: bool): bool t
 export declare function acceptVersion(scan: Scan, index: u64): void
 
 export declare function classify(observation: Observation): PathKind throws { ObservationFailure }
-export declare function fullDirectory(observation: Observation): void throws { ObservationFailure }
-export declare function workspaceDirectory(observation: Observation): void throws { ObservationFailure }
+export declare function readDirectory(
+    observation: Observation,
+    all_entries: bool
+): void throws { ObservationFailure }
 export declare function readFile(observation: Observation): void throws { ObservationFailure }
+
+export declare function nextDirectoryEntry(directory: Directory): DirectoryEntry? throws {
+    ObservationFailure
+}
+export declare function retainDirectoryEntry(
+    directory: Directory,
+    separator: u8,
+    suffix_width: u8
+): void throws { ObservationFailure }
+export declare function sortDirectoryEntries(directory: Directory, suffix_width: u8): u64
+export declare function feedDirectoryEntry(directory: Directory, index: u64): void
 
 export declare function openRegistration(registration: Registration): Slot throws {
     ObservationFailure
