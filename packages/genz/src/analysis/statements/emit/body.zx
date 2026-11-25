@@ -1,6 +1,8 @@
 import integers from "std:integer"
+import { publishAstBasicStatements } from "ast_rows"
 import host from "lowering_host"
 
+import discard from "../basic/discard"
 import {
     bind_operation,
     destructure_operation,
@@ -11,28 +13,92 @@ import {
     write_operation
 } from "../block/const"
 import binding from "./binding"
+import destructure from "./destructure"
 import result from "./result"
+import storeWrite from "./store_write"
 
-import type { Input } from "./model"
+import type { Body, Input } from "./model"
 
-export type Output = bool
+export type Output = Body?
 
 export default function (in: Input): Output {
-    const { traversal, scope, index, route } = in
+    const { traversal, context, scope, index, statement, route } = in
 
     const operation = integers.andBits(integers.widenByte(route), operation_mask)
+    const control = context.control
 
-    return match operation {
-        integers.widenByte(evaluate_operation) =>
-            host.emitEvaluation(traversal, scope, index),
-        integers.widenByte(bind_operation) => binding(in),
-        integers.widenByte(parallel_operation) =>
-            host.emitParallelStatement(traversal, scope, index),
-        integers.widenByte(destructure_operation) =>
-            host.emitDestructureStatement(traversal, scope, index),
-        integers.widenByte(write_operation) =>
-            host.emitStoreWriteStatement(traversal, scope, index),
-        integers.widenByte(return_operation) => result(in),
-        _ => false
+    if (operation == integers.widenByte(evaluate_operation)) {
+        const value = control
+            .evaluations[integers.widen(
+                control.statement_payloads[statement]
+            )]
+
+        const lowered = host.lowerDiscardedExpression(context.frame, value)
+
+        return {
+            span: publishAstBasicStatements(
+                context.writer,
+                discard({
+                    value: lowered
+                })
+            ),
+            consumed_previous: false
+        }
     }
+
+    if (operation == integers.widenByte(bind_operation)) {
+        const span = binding(in)
+
+        if (span == null) {
+            return null
+        }
+
+        return {
+            span,
+            consumed_previous: false
+        }
+    }
+
+    if (operation == integers.widenByte(parallel_operation)) {
+        const span = host.emitParallelStatement(traversal, scope, index)
+
+        if (span == null) {
+            return null
+        }
+
+        return {
+            span,
+            consumed_previous: false
+        }
+    }
+
+    if (operation == integers.widenByte(destructure_operation)) {
+        return {
+            span: destructure({
+                context,
+                statement
+            }),
+            consumed_previous: false
+        }
+    }
+
+    if (operation == integers.widenByte(write_operation)) {
+        const payload = integers.widen(control.statement_payloads[statement])
+
+        return {
+            span: storeWrite({
+                frame: context.frame,
+                writer: context.writer,
+                slot: control.setter_slots[payload],
+                value: control.setter_values[payload]
+            }),
+            consumed_previous: false
+        }
+    }
+
+    if (operation == integers.widenByte(return_operation)) {
+        return result(in)
+    }
+
+    return null
 }

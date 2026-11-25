@@ -4,21 +4,26 @@
     <Args in={Execution.ScopeWalk} out={Execution.ScopeWalk} />
 
     <Call
-        fn="host.statementRoute"
+        fn="host.readU8"
         in={[
-            $in.traversal,
-            $in.scope,
-            $in.cursor - 1
+            $in.buffers.routes,
+            $in.scope_placement + $in.cursor - 1
         ]}
     />
 
     <Call
         module="../../emit/run"
         in={{
-            traversal: $in.traversal,
-            scope: $in.scope,
+            ...$in.pick([
+                "traversal",
+                "context",
+                "buffers",
+                "scope"
+            ]),
             index: $in.cursor - 1,
-            route: $ctx.statementRoute
+            statement: $in.scope_first + $in.cursor - 1,
+            placement: $in.scope_placement,
+            route: $ctx.readU8
         }}
     />
 

@@ -83,7 +83,7 @@ export default function (in: Input): Output {
 
             memory.writeU8(
                 in.target,
-                state.index,
+                in.offset + state.index,
                 operation + before + binding + returned
             )
             state.previous_store = expression == ExpressionKind.StoreGet

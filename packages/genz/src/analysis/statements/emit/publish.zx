@@ -1,13 +1,30 @@
-import host from "lowering_host"
+import { tailAstPackedStatements } from "ast_rows"
+
+import unpackSpan from "../../tasks/worker/execute/reference"
+import commit from "../traversal/commit"
 
 import type { Publication as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { traversal, scope, index } = in
+    const prefix = unpackSpan(in.prefix)
 
-    if (in.prefix == true && !host.joinStatementSpans(traversal)) {
-        return null
+    const combined = match {
+        prefix.count != 0 => tailAstPackedStatements(in.context.writer, [
+            in.prefix,
+            in.span
+        ]),
+        _ => in.span
     }
 
-    return host.commitStatementSpan(traversal, scope, index + 1)
+    const span = unpackSpan(combined)
+
+    return commit({
+        starts: in.buffers.starts,
+        counts: in.buffers.counts,
+        base: in.placement,
+        cursor: in.index + 1,
+        start: span.start,
+        count: span.count,
+        consumed_previous: in.consumed_previous
+    })
 }

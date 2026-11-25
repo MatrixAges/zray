@@ -4,7 +4,7 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
-const publication = @import("../statements/publication.zig");
+const publication = @import("../construction/publication.zig");
 
 pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.Block {
     if (!@import("genz_options").generated_analysis) {
@@ -49,5 +49,5 @@ pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.
         .index = index,
     };
 
-    return publication.span(self, entry, &input);
+    return publication.executeSpan(self, entry, &input);
 }

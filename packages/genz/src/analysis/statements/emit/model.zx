@@ -1,14 +1,26 @@
 import type { StatementTraversal } from "lowering_host"
+import type { Buffers, Context } from "../traversal/execute/model"
 
 export type Input = {
     traversal: StatementTraversal,
+    context: Context,
+    buffers: Buffers,
     scope: u64,
     index: u64,
+    statement: u64,
+    placement: u64,
     route: u8
 }
 
 export type Output = u64?
 
-export type Publication = Input.Omit("route") & {
-    prefix: bool?
+export type Body = {
+    span: u64,
+    consumed_previous: bool
+}
+
+export type Publication = Input.Pick("context", "buffers", "placement", "index") & {
+    prefix: u64,
+    span: u64,
+    consumed_previous: bool
 }

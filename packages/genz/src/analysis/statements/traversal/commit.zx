@@ -5,6 +5,7 @@ import type { U32Buffer } from "memory"
 export type Input = {
     starts: U32Buffer,
     counts: U32Buffer,
+    base: u64,
     cursor: u64,
     start: u32,
     count: u32,
@@ -16,8 +17,8 @@ export type Output = u64
 export default function (in: Input): Output {
     const row = in.cursor - 1
 
-    memory.writeU32(in.starts, row, in.start)
-    memory.writeU32(in.counts, row, in.count)
+    memory.writeU32(in.starts, in.base + row, in.start)
+    memory.writeU32(in.counts, in.base + row, in.count)
 
     if (!in.consumed_previous) {
         return row
@@ -25,8 +26,8 @@ export default function (in: Input): Output {
 
     const previous = row - 1
 
-    memory.writeU32(in.starts, previous, 0)
-    memory.writeU32(in.counts, previous, 0)
+    memory.writeU32(in.starts, in.base + previous, 0)
+    memory.writeU32(in.counts, in.base + previous, 0)
 
     return previous
 }

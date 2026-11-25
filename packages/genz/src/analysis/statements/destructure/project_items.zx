@@ -10,9 +10,12 @@ export default function (in: Input): Output {
         index: 0
     }, {
         while: current => current.state.valid &&
-            current.index < current.state.source.symbols.length,
+            current.index < current.state.source.count,
         next: current => {
-            const symbol = current.state.source.symbols[current.index]
+            const symbol = current.state.source
+                .symbols[
+                    current.state.source.first + current.index
+                ]
 
             if (symbol != null) {
                 if (current.state.source.used[integers.widen(

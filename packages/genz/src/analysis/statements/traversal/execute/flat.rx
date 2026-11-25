@@ -4,51 +4,49 @@
     <Args in={Execution.Input} out={bool} />
 
     <Call
-        fn="host.openStatementScope"
-        in={[
-            $in.traversal,
-            0,
-            $in.first,
-            $in.count,
-            0
-        ]}
+        fn="open_scope"
+        in={{
+            ...$in.pick([
+                "traversal",
+                "context",
+                "buffers",
+                "first",
+                "count"
+            ]),
+            scope: 0,
+            placement: 0
+        }}
     />
 
-    <If on={!$ctx.openStatementScope}>
+    <If on={!$ctx.open_scope}>
         <Return value={false} />
     </If>
 
     <Call
         module="scope"
         in={{
-            traversal: $in.traversal,
-            scope: 0,
-            first: 0,
-            count: $in.count
+            ...$in.pick([
+                "traversal",
+                "context",
+                "buffers",
+                "first",
+                "count"
+            ]),
+            scope: 0
         }}
     />
 
-    <If on={$ctx.scope}>
-        <Call
-            fn="host.finishStatementScope"
-            in={[
-                $in.traversal,
-                0
-            ]}
-        />
-
-        <If on={$ctx.finishStatementScope}>
-            <Return value={true} />
-        </If>
+    <If on={!$ctx.scope}>
+        <Return value={false} />
     </If>
 
     <Call
-        fn="host.releaseStatementScope"
+        fn="host.finishStatementScope"
         in={[
             $in.traversal,
             0
         ]}
     />
 
-    <Return value={false} />
+    <Return value={$ctx.finishStatementScope != null} />
 </Module>

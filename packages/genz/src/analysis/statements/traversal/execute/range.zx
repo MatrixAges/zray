@@ -1,15 +1,29 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import type { Scope as Input, ScopeWalk as Output } from "./model"
 
 export default function (in: Input): Output {
     const first = integers.widen(in.first)
 
+    const scope_first = integers.widen(
+        memory.readU32(in.buffers.scope_firsts, in.scope)
+    )
+
+    const scope_placement = memory.readU64(
+        in.buffers.scope_placements,
+        in.scope
+    )
+
     return {
         traversal: in.traversal,
+        context: in.context,
+        buffers: in.buffers,
         scope: in.scope,
         first,
         cursor: first + integers.widen(in.count),
+        scope_first,
+        scope_placement,
         valid: true,
         running: in.count != 0
     }

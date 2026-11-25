@@ -6,43 +6,23 @@ export declare function openStatementScope(
     placement: u64
 ): bool
 
-export declare function statementRoute(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): u8
-
-export declare function commitStatementSpan(
-    traversal: StatementTraversal,
-    scope: u64,
-    cursor: u64
-): u64
-
 export declare function beginStatementStore(
     traversal: StatementTraversal,
     scope: u64,
     index: u64
-): bool?
-
-export declare function joinStatementSpans(traversal: StatementTraversal): bool
-
-export declare function emitEvaluation(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): bool
+): u64?
 
 export declare function emitParallelStatement(
     traversal: StatementTraversal,
     scope: u64,
     index: u64
-): bool
+): u64?
 
 export declare function emitTaskStatement(
     traversal: StatementTraversal,
     scope: u64,
     index: u64
-): bool
+): u64?
 
 export declare function statementBinding(
     traversal: StatementTraversal,
@@ -65,19 +45,7 @@ export declare function lowerStatementExpression(
 export declare function emitStatementBinding(
     traversal: StatementTraversal,
     lowered: u32
-): bool
-
-export declare function emitDestructureStatement(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): bool
-
-export declare function emitStoreWriteStatement(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): bool
+): u64?
 
 export declare function statementResult(
     traversal: StatementTraversal,
@@ -108,29 +76,7 @@ export declare function viewStatementResult(
     value: u32
 ): u32?
 
-export declare function emitStatementResult(
-    traversal: StatementTraversal,
-    value: u32?,
-    consumed_previous: bool
-): bool
-
-export declare function finishStatementScope(traversal: StatementTraversal, scope: u64): bool
-
-export declare function releaseStatementScope(traversal: StatementTraversal, scope: u64): void
-
-export declare function lowerStatementCondition(
-    traversal: StatementTraversal,
-    scope: u64,
-    offset: u32
-): bool
-
-export declare function saveStatementBranch(traversal: StatementTraversal, scope: u64): bool
-
-export declare function joinStatementBranch(
-    traversal: StatementTraversal,
-    scope: u64,
-    offset: u32
-): bool
+export declare function finishStatementScope(traversal: StatementTraversal, scope: u64): u64?
 
 export declare function openStatementSelection(
     traversal: StatementTraversal,
@@ -192,8 +138,3 @@ export declare function finishStatementSelection(
     offset: u32,
     placement: u64
 ): bool
-
-export declare function releaseStatementSelection(
-    traversal: StatementTraversal,
-    placement: u64
-): void

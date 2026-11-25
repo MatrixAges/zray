@@ -18,6 +18,7 @@ inline_memory: [512]u8 = undefined,
 memory: std.heap.BufferFirstAllocator = undefined,
 fallback: ?node.Block = null,
 selected: bool = false,
+active: bool = false,
 starts: []u32 = &.{},
 counts: []u32 = &.{},
 comparisons: []u32 = &.{},
@@ -37,6 +38,7 @@ pub fn enter(self: *Self, lowering: *Lower, selection: Selection) Lower.Error!vo
         .reference = reference,
         .previous = previous,
         .scratch = .init(lowering.workspace),
+        .active = true,
     };
 
     self.memory = .init(&self.inline_memory, self.scratch.allocator());
@@ -78,6 +80,10 @@ pub fn finish(self: *Self, lowering: *Lower) Lower.Error!node.Block {
 }
 
 pub fn leave(self: *Self, lowering: *Lower) void {
+    if (!self.active) return;
+
+    self.active = false;
+
     self.scratch.deinit();
     lowering.cache.restoreEntry(lowering.allocator, self.selection.subject, self.previous);
 }

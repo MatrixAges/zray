@@ -1,21 +1,117 @@
+import integers from "std:integer"
+import { publishAstBasicStatements } from "ast_rows"
 import host from "lowering_host"
+import memory from "memory"
 
+import unpackSpan from "../../../tasks/worker/execute/reference"
+import branch from "../../basic/branch"
 import { Action } from "../model"
 import selectionCase from "./case"
+import openScope from "./open_scope"
 
-import type { Step as Input } from "./model"
-
-export type Output = bool
+import type { Step as Input, StepResult as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { action, traversal, scope, first, count, placement } = in
+    const {
+        action,
+        traversal,
+        context,
+        buffers,
+        scope,
+        first,
+        count,
+        placement,
+        child
+    } =
+        in
 
-    return match action {
-        Action.Open =>
-            host.openStatementScope(traversal, scope, first, count, placement),
-        Action.Condition => host.lowerStatementCondition(traversal, scope, first),
-        Action.SaveYes => host.saveStatementBranch(traversal, scope),
-        Action.Join => host.joinStatementBranch(traversal, scope, first),
+    if (action == Action.Open) {
+        return {
+            ok: openScope({
+                traversal,
+                context,
+                buffers,
+                scope,
+                first,
+                count,
+                placement
+            }),
+            child
+        }
+    }
+
+    if (action == Action.Condition) {
+        const scope_first = memory.readU32(buffers.scope_firsts, scope)
+        const row = integers.widen(scope_first) + integers.widen(first)
+        const payload = integers.widen(context.control.statement_payloads[row])
+
+        const cond = host.lowerExpression(
+            context.frame,
+            context.control.branch_conditions[payload],
+            false,
+            null
+        )
+
+        memory.writeU32(buffers.scope_conditions, scope, cond)
+
+        return {
+            ok: true,
+            child
+        }
+    }
+
+    if (action == Action.SaveYes) {
+        const yes = unpackSpan(child)
+
+        memory.writeU32(buffers.scope_yes_starts, scope, yes.start)
+        memory.writeU32(buffers.scope_yes_counts, scope, yes.count)
+
+        return {
+            ok: true,
+            child
+        }
+    }
+
+    if (action == Action.Join) {
+        const condition = memory.readU32(buffers.scope_conditions, scope)
+        const yes_start = memory.readU32(buffers.scope_yes_starts, scope)
+        const yes_count = memory.readU32(buffers.scope_yes_counts, scope)
+        const scope_placement = memory.readU64(buffers.scope_placements, scope)
+        const no = unpackSpan(child)
+
+        const span = publishAstBasicStatements(
+            context.writer,
+            branch({
+                condition,
+                yes_start,
+                yes_count,
+                no_start: no.start,
+                no_count: no.count
+            })
+        )
+
+        const joined = unpackSpan(span)
+        const offset = scope_placement + integers.widen(first)
+
+        memory.writeU32(buffers.starts, offset, joined.start)
+        memory.writeU32(buffers.counts, offset, joined.count)
+
+        return {
+            ok: true,
+            child
+        }
+    }
+
+    if (action == Action.Close) {
+        const finished = host.finishStatementScope(traversal, scope)
+
+        return {
+            ok: finished != null,
+            child: finished ?? child
+        }
+    }
+
+    const ok = match action {
         Action.Selection =>
             host.openStatementSelection(traversal, scope, first, placement),
         Action.Fallback => host.saveStatementFallback(traversal, placement),
@@ -36,7 +132,11 @@ export default function (in: Input): Output {
         }),
         Action.EndSelection =>
             host.finishStatementSelection(traversal, scope, first, placement),
-        Action.Close => host.finishStatementScope(traversal, scope),
         _ => false
+    }
+
+    return {
+        ok,
+        child
     }
 }

@@ -1,60 +1,42 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const locals = @import("../../value_call/locals.zig");
-const entry = @import("generated_statement_run_commit");
 const Self = @This();
 
 values: ir.Block,
 starts: []u32,
 counts: []u32,
-routes: []const u8,
 registered: ?locals.Registered = null,
-condition: node.ExpressionId = undefined,
-yes: node.Block = undefined,
+
+active: bool = false,
 pub const Buffer = struct {
     starts: []u32,
     counts: []u32,
-    routes: []u8,
 };
 
 pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self {
-    var scope: Self = .{ .values = values, .starts = buffer.starts, .counts = buffer.counts, .routes = buffer.routes };
+    var scope: Self = .{ .values = values, .starts = buffer.starts, .counts = buffer.counts, .active = true };
 
     if (values.len == 0) return scope;
 
     scope.registered = try locals.register(lowering, values);
 
-    errdefer scope.registered.?.release(lowering);
-
-    try @import("../block.zig").fill(lowering, values, buffer.routes);
-
     return scope;
 }
 
-pub fn close(self: *const Self, lowering: *Lower) void {
+pub fn close(self: *Self, lowering: *Lower) void {
+    if (!self.active) return;
+
+    self.active = false;
+
     if (self.registered) |registered| registered.release(lowering);
 }
 
 pub fn put(self: *Self, offset: usize, span: node.Block) void {
-    _ = self.publish(offset + 1, span, false);
-}
-
-pub fn publish(self: *Self, cursor: usize, span: node.Block, consumed_previous: bool) usize {
-    const input: std.meta.Child(entry.Input) = .{
-        .starts = @ptrCast(&self.starts),
-        .counts = @ptrCast(&self.counts),
-        .cursor = cursor,
-        .start = span.start,
-        .count = span.len,
-        .consumed_previous = consumed_previous,
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return @intCast(zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable);
+    self.starts[offset] = span.start;
+    self.counts[offset] = span.len;
 }
 
 pub fn finish(self: *const Self, lowering: *Lower) Lower.Error!node.Block {

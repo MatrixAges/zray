@@ -42,5 +42,5 @@ pub fn publish(self: *Lower, output: anytype, declaration: Declaration) Lower.Er
         .value = @backingInt(declaration.value),
     };
 
-    return @import("statements/publication.zig").span(self, entry, &input);
+    return @import("construction/publication.zig").executeSpan(self, entry, &input);
 }

@@ -5,7 +5,7 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Scope = @import("scope.zig");
 const Selection = @import("../switch/state.zig");
-const publication = @import("../publication.zig");
+const rows = @import("../../construction/publication.zig");
 const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
@@ -18,9 +18,6 @@ pub const Frame = struct {
     scopes: []Scope,
     selections: []Selection,
     sequence: @import("../../../node/blocks.zig").Sequence,
-    prefix: node.Block = undefined,
-    body: node.Block = undefined,
-    consumed_previous: bool = undefined,
     binding: @FieldType(ir.StatementRow, "constant") = undefined,
     borrowed: ?node.ExpressionId = null,
     child: node.Block = .{},
@@ -32,13 +29,6 @@ pub const Frame = struct {
     pub fn block(self: *const Frame, slot: u64) ir.Block {
         return self.scopes[@intCast(slot)].values;
     }
-
-    pub fn emitted(self: *Frame, span: node.Block, consumed_previous: bool) bool {
-        self.body = span;
-        self.consumed_previous = consumed_previous;
-
-        return true;
-    }
 };
 
 pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
@@ -49,43 +39,107 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     defer arena.deinit();
 
     const scratch = buffer.allocator();
-    const rows = zx.columns.borrow(Rows, values.control);
-    const input: Input = .{ .rows = &rows, .first = values.first, .count = values.len };
+    const row_inputs = zx.columns.borrow(Rows, values.control);
+    const input: Input = .{ .rows = &row_inputs, .first = values.first, .count = values.len };
     const plan = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| return failure(err);
     const capacity: usize = @intCast(plan.capacity);
+    const depth: usize = @intCast(plan.depth);
     const spans = try scratch.alloc(u32, std.math.mul(usize, capacity, 2) catch return error.OutOfMemory);
-    const routes = try scratch.alloc(u8, capacity);
+    var starts: []u32 = spans[0..capacity];
+    var counts: []u32 = spans[capacity..];
+    var routes: []u8 = try scratch.alloc(u8, capacity);
+    const scope_u32 = try scratch.alloc(u32, std.math.mul(usize, depth, 4) catch return error.OutOfMemory);
+    var scope_firsts: []u32 = scope_u32[0..depth];
+    var scope_conditions: []u32 = scope_u32[depth..][0..depth];
+    var scope_yes_starts: []u32 = scope_u32[2 * depth ..][0..depth];
+    var scope_yes_counts: []u32 = scope_u32[3 * depth ..][0..depth];
+    var scope_placements: []u64 = try scratch.alloc(u64, depth);
     var flat_scope: [1]Scope = undefined;
+    const scopes: []Scope = if (plan.flat) &flat_scope else try scratch.alloc(Scope, depth);
+    const selections: []Selection = if (plan.flat) &.{} else try scratch.alloc(Selection, @intCast(plan.selection_depth));
+
+    for (scopes) |*scope| scope.active = false;
+    for (selections) |*selection| selection.active = false;
 
     var frame: Frame = .{
         .lowering = self,
         .control = values.control,
         .workspace = .{
-            .starts = spans[0..capacity],
-            .counts = spans[capacity..],
-            .routes = routes,
+            .starts = starts,
+            .counts = counts,
         },
-        .scopes = if (plan.flat) &flat_scope else try scratch.alloc(Scope, @intCast(plan.depth)),
-        .selections = if (plan.flat) &.{} else try scratch.alloc(Selection, @intCast(plan.selection_depth)),
+        .scopes = scopes,
+        .selections = selections,
         .sequence = self.builder.statementSequence(self.workspace),
     };
 
     defer frame.sequence.deinit();
 
+    defer {
+        var index = selections.len;
+
+        while (index != 0) {
+            index -= 1;
+
+            selections[index].leave(self);
+        }
+
+        index = scopes.len;
+
+        while (index != 0) {
+            index -= 1;
+
+            scopes[index].close(self);
+        }
+    }
+
     const Execution = std.meta.Child(execute.Input);
     const Schedule = std.meta.Child(@FieldType(Execution, "plan"));
+    const Context = std.meta.Child(@FieldType(Execution, "context"));
+    const Control = std.meta.Child(@FieldType(Context, "control"));
+    const Buffers = std.meta.Child(@FieldType(Execution, "buffers"));
+    const control = zx.columns.borrow(Control, values.control);
     const schedule = zx.columns.view(Schedule, plan);
+    var origin: rows.OriginBuffer = .{};
     const reference = &frame;
+
+    const context: Context = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .sequence = @ptrCast(&frame.sequence),
+        .control = &control,
+        .expression_kinds = zx.columns.slice(@FieldType(Context, "expression_kinds"), self.program.expressions.kinds),
+        .expression_types = self.program.expressions.types,
+        .type_kinds = self.program.types.kinds,
+        .store_mode = @fromBackingInt(@backingInt(self.program.store_mode)),
+        .store_count = self.program.stores.count(),
+        .names = self.names,
+        .used = self.used,
+        .transaction = self.transaction(),
+    };
+
+    const buffers: Buffers = .{
+        .starts = @ptrCast(&starts),
+        .counts = @ptrCast(&counts),
+        .routes = @ptrCast(&routes),
+        .scope_firsts = @ptrCast(&scope_firsts),
+        .scope_placements = @ptrCast(&scope_placements),
+        .scope_conditions = @ptrCast(&scope_conditions),
+        .scope_yes_starts = @ptrCast(&scope_yes_starts),
+        .scope_yes_counts = @ptrCast(&scope_yes_counts),
+    };
 
     const request: Execution = .{
         .traversal = @ptrCast(&reference),
+        .context = &context,
+        .buffers = &buffers,
         .plan = &schedule,
         .first = @intCast(values.first),
         .count = @intCast(values.len),
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const valid = execute.executeIn(fixed.allocator(), &request) catch |err| return failure(err);
+    const valid = execute.executeIn(scratch, &request) catch |err| return failure(err);
 
     if (!valid) return error.OutOfMemory;
 
@@ -102,72 +156,20 @@ pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count
     scope.* = Scope.open(frame.lowering, range, .{
         .starts = workspace.starts[start..][0..count],
         .counts = workspace.counts[start..][0..count],
-        .routes = workspace.routes[start..][0..count],
     }) catch return false;
 
     return true;
 }
 
-pub fn statementRoute(handle: *const anyopaque, slot: u64, index: u64) u8 {
-    return Frame.borrow(handle).scopes[@intCast(slot)].routes[@intCast(index)];
-}
-
-pub fn commitStatementSpan(handle: *const anyopaque, slot: u64, cursor: u64) u64 {
+pub fn finishStatementScope(handle: *const anyopaque, slot: u64) ?u64 {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
 
-    return scope.publish(@intCast(cursor), frame.body, frame.consumed_previous);
-}
-
-pub fn finishStatementScope(handle: *const anyopaque, slot: u64) bool {
-    const frame = Frame.borrow(handle);
-    const scope = &frame.scopes[@intCast(slot)];
-
-    frame.child = scope.finish(frame.lowering) catch return false;
+    frame.child = scope.finish(frame.lowering) catch return null;
 
     scope.close(frame.lowering);
 
-    return true;
-}
-
-pub fn releaseStatementScope(handle: *const anyopaque, slot: u64) void {
-    const frame = Frame.borrow(handle);
-
-    frame.scopes[@intCast(slot)].close(frame.lowering);
-}
-
-pub fn lowerStatementCondition(handle: *const anyopaque, slot: u64, offset: u32) bool {
-    const frame = Frame.borrow(handle);
-    const scope = &frame.scopes[@intCast(slot)];
-    scope.condition = frame.lowering.expr(scope.values.at(offset).branch.condition) catch return false;
-
-    return true;
-}
-
-pub fn saveStatementBranch(handle: *const anyopaque, slot: u64) bool {
-    const frame = Frame.borrow(handle);
-
-    frame.scopes[@intCast(slot)].yes = frame.child;
-
-    return true;
-}
-
-pub fn joinStatementBranch(handle: *const anyopaque, slot: u64, offset: u32) bool {
-    const frame = Frame.borrow(handle);
-    const scope = &frame.scopes[@intCast(slot)];
-
-    const branch = publication.span(frame.lowering, @import("generated_statement_branch"), &.{
-        .writer = @ptrCast(frame.lowering),
-        .condition = @backingInt(scope.condition),
-        .yes_start = scope.yes.start,
-        .yes_count = scope.yes.len,
-        .no_start = frame.child.start,
-        .no_count = frame.child.len,
-    }) catch return false;
-
-    scope.put(offset, branch);
-
-    return true;
+    return rows.packSpan(frame.child);
 }
 
 pub fn openStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64) bool {
@@ -238,12 +240,6 @@ pub fn finishStatementSelection(handle: *const anyopaque, slot: u64, offset: u32
     selection.leave(frame.lowering);
 
     return true;
-}
-
-pub fn releaseStatementSelection(handle: *const anyopaque, placement: u64) void {
-    const frame = Frame.borrow(handle);
-
-    frame.selections[@intCast(placement)].leave(frame.lowering);
 }
 
 fn failure(err: anyerror) Lower.Error {

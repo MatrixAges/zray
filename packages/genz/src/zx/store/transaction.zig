@@ -3,7 +3,7 @@ const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
-const publication = @import("../statements/publication.zig");
+const publication = @import("../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
 const seed = @import("transaction_seed.zig");
 
@@ -84,7 +84,7 @@ pub fn initialize(self: *Lower) Lower.Error!node.Block {
         .count = block.len,
     };
 
-    return publication.span(self, entry, &input);
+    return publication.executeSpan(self, entry, &input);
 }
 
 pub fn finish(self: *Lower) Lower.Error!node.Block {
@@ -119,5 +119,5 @@ pub fn finish(self: *Lower) Lower.Error!node.Block {
         .origin = @ptrCast(&origin),
     };
 
-    return publication.span(self, entry, &input);
+    return publication.executeSpan(self, entry, &input);
 }

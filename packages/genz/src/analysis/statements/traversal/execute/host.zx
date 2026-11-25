@@ -1,6 +1,2 @@
-export {
-    openStatementScope,
-    finishStatementScope,
-    releaseStatementScope,
-    statementRoute
-} from "lowering_host"
+export { finishStatementScope } from "lowering_host"
+export { readU8 } from "memory"

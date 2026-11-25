@@ -5,7 +5,7 @@ import { task_route } from "../block/const"
 
 import type { Input } from "./model"
 
-export type Output = bool
+export type Output = u64?
 
 export default function (in: Input): Output {
     const { traversal, scope, index, route } = in
@@ -20,7 +20,7 @@ export default function (in: Input): Output {
     const value = host.statementBinding(traversal, scope, index)
 
     if (!host.borrowStatementBinding(traversal)) {
-        return false
+        return null
     }
 
     const borrowed = host.borrowedStatementValue(traversal)
@@ -31,5 +31,9 @@ export default function (in: Input): Output {
         _ => host.lowerStatementExpression(traversal, value, by_value)
     }
 
-    return lowered != null && host.emitStatementBinding(traversal, lowered)
+    if (lowered == null) {
+        return null
+    }
+
+    return host.emitStatementBinding(traversal, lowered)
 }

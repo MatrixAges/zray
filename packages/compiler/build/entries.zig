@@ -497,9 +497,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/statements/switch/reference.zx", .name = "switch_reference", .owner = .genz },
     .{ .path = "genz/analysis/statements/switch/build.rx", .name = "switch_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/switch/labels.zx", .name = "switch_labels", .owner = .genz },
-    .{ .path = "genz/analysis/statements/block/plan.zx", .name = "statement_block_plan", .owner = .genz },
     .{ .path = "genz/analysis/statements/traversal/build.rx", .name = "statement_traversal", .owner = .genz },
-    .{ .path = "genz/analysis/statements/traversal/commit.zx", .name = "statement_run_commit", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/block/build.rx", .name = "node_block_build", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/block/sequence/append.zx", .name = "node_span_append", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/block/sequence/extend.zx", .name = "node_span_extend", .owner = .genz },
@@ -714,13 +712,8 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
-    .{ .path = "genz/analysis/statements/basic/evaluation.rx", .name = "statement_evaluation", .owner = .genz },
-    .{ .path = "genz/analysis/statements/basic/branch.rx", .name = "statement_branch", .owner = .genz },
-    .{ .path = "genz/analysis/statements/basic/store_write.rx", .name = "statement_store_write", .owner = .genz },
     .{ .path = "genz/analysis/store/adapter/build.rx", .name = "store_adapter", .owner = .genz },
     .{ .path = "genz/analysis/binding/execute/run.rx", .name = "publish_binding", .owner = .genz },
-    .{ .path = "genz/analysis/statements/destructure/execute/run.rx", .name = "publish_destructure", .owner = .genz },
-    .{ .path = "genz/analysis/statements/result/execute/run.rx", .name = "publish_statement_result", .owner = .genz },
     .{ .path = "genz/analysis/store/begin/build.rx", .name = "store_begin", .owner = .genz },
     .{ .path = "genz/analysis/store/transaction/declare.rx", .name = "store_pending_type", .owner = .genz },
     .{ .path = "genz/analysis/store/transaction/initialize.rx", .name = "store_pending_initial", .owner = .genz },

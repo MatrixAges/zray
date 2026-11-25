@@ -5,24 +5,27 @@
 
     <Call fn="prefix" in={$in} />
 
-    <If on={$ctx.prefix == null}>
-        <Return value={null} />
-    </If>
+    <If on={$ctx.prefix != null}>
+        <Call fn="body" in={$in} />
 
-    <Call fn="body" in={$in} />
+        <If on={$ctx.body != null}>
+            <Call
+                fn="publish"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "buffers",
+                        "placement",
+                        "index"
+                    ]),
+                    prefix: $ctx.prefix,
+                    span: $ctx.body.span,
+                    consumed_previous: $ctx.body.consumed_previous
+                }}
+            />
 
-    <If on={$ctx.body}>
-        <Call
-            fn="publish"
-            in={{
-                traversal: $in.traversal,
-                scope: $in.scope,
-                index: $in.index,
-                prefix: $ctx.prefix
-            }}
-        />
-
-        <Return value={$ctx.publish} />
+            <Return value={$ctx.publish} />
+        </If>
     </If>
 
     <Return value={null} />

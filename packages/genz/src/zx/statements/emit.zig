@@ -1,57 +1,29 @@
 const Frame = @import("traversal/host.zig").Frame;
 const Api = @import("../expressions/evaluate.zig").Api;
-const publication = @import("publication.zig");
+const rows = @import("../construction/publication.zig");
 
-pub fn beginStatementStore(handle: *const anyopaque, slot: u64, index: u64) ?bool {
+pub fn beginStatementStore(handle: *const anyopaque, slot: u64, index: u64) ?u64 {
     const frame = Frame.borrow(handle);
-    frame.prefix = @import("../store/begin.zig").lower(frame.lowering, frame.block(slot), @intCast(index)) catch return null;
+    const span = @import("../store/begin.zig").lower(frame.lowering, frame.block(slot), @intCast(index)) catch return null;
 
-    return frame.prefix.len != 0;
+    return rows.packSpan(span);
 }
 
-pub fn joinStatementSpans(handle: *const anyopaque) bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    frame.body = @import("../../node/blocks.zig").join(
-        self.allocator,
-        self.builder.nodes,
-        &.{ frame.prefix.start, frame.body.start },
-        &.{ frame.prefix.len, frame.body.len },
-    ) catch return false;
-
-    return true;
-}
-
-pub fn emitEvaluation(handle: *const anyopaque, slot: u64, index: u64) bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const id = frame.block(slot).at(@intCast(index)).evaluate;
-
-    const span = publication.span(self, @import("generated_statement_evaluation"), &.{
-        .writer = @ptrCast(self),
-        .frame = @ptrCast(self),
-        .value = @backingInt(id),
-    }) catch return false;
-
-    return frame.emitted(span, false);
-}
-
-pub fn emitParallelStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
+pub fn emitParallelStatement(handle: *const anyopaque, slot: u64, index: u64) ?u64 {
     const frame = Frame.borrow(handle);
     const invocations = frame.block(slot).at(@intCast(index)).parallel;
-    const span = @import("../parallel/root.zig").lower(frame.lowering, invocations) catch return false;
+    const span = @import("../parallel/root.zig").lower(frame.lowering, invocations) catch return null;
 
-    return frame.emitted(span, false);
+    return rows.packSpan(span);
 }
 
-pub fn emitTaskStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
+pub fn emitTaskStatement(handle: *const anyopaque, slot: u64, index: u64) ?u64 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const binding = frame.block(slot).at(@intCast(index)).constant;
-    const span = @import("../tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false) catch return false;
+    const span = @import("../tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false) catch return null;
 
-    return frame.emitted(span, false);
+    return rows.packSpan(span);
 }
 
 pub fn statementBinding(handle: *const anyopaque, slot: u64, index: u64) u32 {
@@ -97,39 +69,16 @@ pub fn lowerStatementExpression(handle: *const anyopaque, value: u32, by_value: 
     return @backingInt(result);
 }
 
-pub fn emitStatementBinding(handle: *const anyopaque, value: u32) bool {
+pub fn emitStatementBinding(handle: *const anyopaque, value: u32) ?u64 {
     const frame = Frame.borrow(handle);
 
     const span = @import("../binding.zig").publish(frame.lowering, &frame.sequence, .{
         .symbol = frame.binding.symbol,
         .value = @fromBackingInt(value),
         .by_value = frame.lowering.stack_symbols.contains(frame.binding.symbol),
-    }) catch return false;
+    }) catch return null;
 
-    return frame.emitted(span, false);
-}
-
-pub fn emitDestructureStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
-    const frame = Frame.borrow(handle);
-    const binding = frame.block(slot).at(@intCast(index)).destructure;
-    const span = @import("destructure/lower.zig").publish(frame.lowering, binding) catch return false;
-
-    return frame.emitted(span, false);
-}
-
-pub fn emitStoreWriteStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const setter = frame.block(slot).at(@intCast(index)).store_set;
-
-    const span = publication.span(self, @import("generated_statement_store_write"), &.{
-        .writer = @ptrCast(self),
-        .frame = @ptrCast(self),
-        .slot = setter.slot,
-        .value = @backingInt(setter.value),
-    }) catch return false;
-
-    return frame.emitted(span, false);
+    return rows.packSpan(span);
 }
 
 pub fn statementResult(handle: *const anyopaque, slot: u64, index: u64) ?u32 {
@@ -175,11 +124,4 @@ pub fn viewStatementResult(handle: *const anyopaque, value: u32) ?u32 {
     const result = @import("../state_value/conversion.zig").convert(self, &frame.sequence, self.program.output_type, boundary, .view_layout) catch return null;
 
     return @backingInt(result);
-}
-
-pub fn emitStatementResult(handle: *const anyopaque, value: ?u32, consumed_previous: bool) bool {
-    const frame = Frame.borrow(handle);
-    const span = @import("result/lower.zig").emit(frame.lowering, &frame.sequence, if (value) |id| @fromBackingInt(id) else null) catch return false;
-
-    return frame.emitted(span, consumed_previous);
 }

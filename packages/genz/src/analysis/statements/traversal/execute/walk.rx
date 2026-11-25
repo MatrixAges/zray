@@ -9,6 +9,7 @@
             in={{
                 ...$in,
                 index: 0,
+                child: 0,
                 running: $in.plan.actions.length != 0
             }}
         />

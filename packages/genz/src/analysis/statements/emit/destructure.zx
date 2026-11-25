@@ -1,0 +1,99 @@
+import integers from "std:integer"
+import {
+    AstPayloadOwnership,
+    appendExpressionRows,
+    appendStatementRows,
+    astExpressionCount,
+    astStatementCount,
+    readAstOrigin
+} from "ast_rows"
+import { ExpressionKind } from "core/expression_table/kinds"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import packSpan from "../../node_headers/block/span"
+import discard from "../destructure/discard"
+import finish from "../destructure/finish"
+import initialize from "../destructure/initialize"
+import destructureName from "../destructure/name"
+import projectItems from "../destructure/project_items"
+
+import type { Context } from "../traversal/execute/model"
+
+export type Input = {
+    context: Context,
+    statement: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { context, statement } = in
+    const { frame, writer, origin, control } = context
+
+    const payload = integers.widen(control.statement_payloads[statement])
+    const value = control.destructure_values[payload]
+    const first = integers.widen(control.destructure_first[payload])
+    const count = integers.widen(control.destructure_count[payload])
+    const current = readAstOrigin(writer, origin)
+
+    const generated = destructureName({
+        serial: current.serial
+    })
+
+    const retained = host.retainLoweringText(frame, generated.name)
+
+    host.setLoweringSerial(frame, generated.serial)
+
+    const capture = context.expression_kinds[integers.widen(value)] ==
+        ExpressionKind.Capture
+
+    const operand = match {
+        capture => host.lowerCapture(frame, value, true),
+        _ => host.lowerExpression(frame, value, false, null)
+    }
+
+    const state = initialize({
+        frame,
+        name: retained,
+        value: operand,
+        symbols: control.destructure_symbols,
+        first,
+        count,
+        names: context.names,
+        used: context.used,
+        expression_base: astExpressionCount(writer)
+    })
+
+    const projected = projectItems(state)
+
+    const ready = match {
+        !projected.bound => discard(projected),
+        _ => projected
+    }
+
+    const built = finish(ready)
+
+    requireAllocation(built.valid)
+
+    appendExpressionRows(
+        writer,
+        built.expressions,
+        null,
+        AstPayloadOwnership.Borrowed
+    )
+
+    const start = astStatementCount(writer)
+
+    appendStatementRows(
+        writer,
+        built.statements,
+        null,
+        AstPayloadOwnership.Borrowed
+    )
+
+    return packSpan({
+        start,
+        count: built.statements.tags.length
+    })
+}

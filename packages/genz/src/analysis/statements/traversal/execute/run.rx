@@ -13,22 +13,11 @@
         module="walk"
         in={$in.pick([
             "traversal",
+            "context",
+            "buffers",
             "plan"
         ])}
     />
 
-    <If on={$ctx.walk != $in.plan.actions.length}>
-        <Call
-            fn="rollback"
-            in={{
-                traversal: $in.traversal,
-                plan: $in.plan,
-                failed: $ctx.walk
-            }}
-        />
-
-        <Return value={false} />
-    </If>
-
-    <Return value={true} />
+    <Return value={$ctx.walk == $in.plan.actions.length} />
 </Module>

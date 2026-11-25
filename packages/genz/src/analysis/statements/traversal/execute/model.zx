@@ -1,41 +1,102 @@
-import type { StatementTraversal } from "lowering_host"
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { Control as ControlTable } from "core/control_table/model"
+import type { ExpressionKind } from "core/expression_table/kinds"
+import type { StoreMode } from "core/function_table/complete"
+import type { Lowering, StatementTraversal } from "lowering_host"
+import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type { Action, Schedule } from "../model"
+
+export type Control = ControlTable.Pick(
+    "statement_kinds",
+    "statement_payloads",
+    "evaluations",
+    "constant_values",
+    "results",
+    "branch_conditions",
+    "setter_slots",
+    "setter_values",
+    "destructure_values",
+    "destructure_first",
+    "destructure_count",
+    "destructure_symbols"
+)
+
+export type Buffers = {
+    starts: U32Buffer,
+    counts: U32Buffer,
+    routes: U8Buffer,
+    scope_firsts: U32Buffer,
+    scope_placements: U64Buffer,
+    scope_conditions: U32Buffer,
+    scope_yes_starts: U32Buffer,
+    scope_yes_counts: U32Buffer
+}
+
+export type Context = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    sequence: AstSequence,
+    control: Control,
+    expression_kinds: ExpressionKind[],
+    expression_types: u32[],
+    type_kinds: u8[],
+    store_mode: StoreMode,
+    store_count: u64,
+    names: u8[][],
+    used: bool[],
+    transaction: bool
+}
 
 export type Input = {
     traversal: StatementTraversal,
+    context: Context,
+    buffers: Buffers,
     plan: Schedule,
     first: u32,
     count: u32
 }
 
-export type Run = Input.Pick("traversal", "plan")
+export type Run = Input.Pick("traversal", "context", "buffers", "plan")
 
-export type Rollback = Run & {
-    failed: u64
-}
-
-export type Step = Input.Pick("traversal") & {
+export type Step = Input.Pick("traversal", "context", "buffers") & {
     action: Action,
     first: u32,
     count: u32,
     scope: u64,
-    placement: u64
+    placement: u64,
+    child: u64
 }
 
-export type Scope = Step.Pick("traversal", "first", "count", "scope")
+export type StepResult = {
+    ok: bool,
+    child: u64
+}
+
+export type Scope = Step.Pick(
+    "traversal",
+    "context",
+    "buffers",
+    "first",
+    "count",
+    "scope"
+)
 
 export type Case = Step.Pick("traversal", "placement", "count", "first") & {
     after: bool
 }
 
-export type ScopeWalk = Scope.Pick("traversal", "scope") & {
+export type ScopeWalk = Scope.Pick("traversal", "context", "buffers", "scope") & {
     first: u64,
     cursor: u64,
+    scope_first: u64,
+    scope_placement: u64,
     valid: bool,
     running: bool
 }
 
 export type ScheduleWalk = Run & {
     index: u64,
+    child: u64,
     running: bool
 }
