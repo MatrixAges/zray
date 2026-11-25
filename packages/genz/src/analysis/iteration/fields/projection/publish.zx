@@ -1,0 +1,84 @@
+import { appendAstFields, appendExpressionRows, AstPayloadOwnership } from "ast_rows"
+import { requireAllocation } from "memory"
+
+import type { AstWriter, ExpressionForms, ExpressionRows } from "ast_rows"
+import type { Result } from "./model"
+
+export type Input = {
+    writer: AstWriter,
+    result: Result
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { result, writer } = in
+    const { expressions } = result
+
+    requireAllocation(result.valid)
+
+    const rows: ExpressionRows = {
+        tags: expressions.tags,
+        offsets: expressions.offsets,
+        unary_operator: [],
+        unary_operand: [],
+        binary_operator: [],
+        binary_left: [],
+        binary_right: [],
+        builtin_name: [],
+        builtin_arguments: [],
+        identifier: [],
+        integer: [],
+        field_target: expressions.field_target,
+        field_name: expressions.field_name,
+        call_callee: [],
+        call_arguments: [],
+        try_value: [],
+        comptime_value: [],
+        dereference: expressions.dereference,
+        catch_value_value: [],
+        catch_value_capture: [],
+        catch_value_label: [],
+        catch_value_result: [],
+        slice_target: [],
+        slice_start: [],
+        slice_end: [],
+        range_start: [],
+        range_end: [],
+        index_target: [],
+        index_index: [],
+        block_label: [],
+        block_statements_start: [],
+        block_statements_len: []
+    }
+
+    const forms: ExpressionForms = {
+        boolean: [],
+        string: [],
+        enum_literal: [],
+        error_value: [],
+        primitive: [],
+        object_type_expr: expressions.object_type_expr,
+        object_fields_start: expressions.object_fields_start,
+        object_fields_len: expressions.object_fields_len,
+        tuple: [],
+        array_element_type: [],
+        array_values: [],
+        address_of: expressions.address_of,
+        optional_unwrap: [],
+        const_slice: [],
+        pointer: [],
+        fixed_array_type_length: [],
+        fixed_array_type_element: [],
+        conditional_condition: [],
+        conditional_yes: [],
+        conditional_no: [],
+        conditional_capture: [],
+        conditional_error_capture: []
+    }
+
+    appendExpressionRows(writer, rows, forms, AstPayloadOwnership.Borrowed)
+    appendAstFields(writer, result.fields)
+
+    return result.root
+}

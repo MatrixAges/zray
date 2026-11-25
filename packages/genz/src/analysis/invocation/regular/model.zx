@@ -1,6 +1,5 @@
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Lookup } from "core/integer/map/model"
-import type { RegularCallFrame } from "lowering_host"
 import type { Query } from "../../state/queries/model"
 
 export enum Route {
@@ -8,6 +7,14 @@ export enum Route {
     RegularRepresented,
     Value,
     Pointer
+}
+
+export enum Argument {
+    Value,
+    ExternalTuple,
+    ScalarBorrow,
+    StateBorrow,
+    StatePointer
 }
 
 export type Types = {
@@ -42,9 +49,11 @@ export type Ordinary = {
     represented: bool
 }
 
-export type Invocation = {
-    frame: RegularCallFrame,
-    source: Input
+export type Output = {
+    route: Route,
+    argument: Argument,
+    convert_output: bool,
+    stores: bool,
+    io: bool,
+    process: bool
 }
-
-export type Output = u32

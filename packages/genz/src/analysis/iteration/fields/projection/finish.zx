@@ -3,7 +3,7 @@ import integers from "std:integer"
 import header from "../../../../ast/expressions/header"
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 
-import type { State as Input, Output } from "./model"
+import type { Result as Output, State as Input } from "./model"
 
 export default function (in: Input): Output {
     const value = header({
@@ -33,7 +33,6 @@ export default function (in: Input): Output {
                 )[0]
         },
         fields: in.fields,
-        origin_owned: in.origin_owned,
         root: value.id,
         valid: in.valid && value.valid
     }

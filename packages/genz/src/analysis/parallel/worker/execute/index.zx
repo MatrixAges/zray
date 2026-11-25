@@ -1,5 +1,4 @@
 export {
     lowerType as lowerInputType,
-    lowerType as lowerOutputType,
-    parallelWorkerCallee
+    lowerType as lowerOutputType
 } from "lowering_host"

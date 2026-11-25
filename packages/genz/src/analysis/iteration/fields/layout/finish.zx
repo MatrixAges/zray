@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import host from "lowering_host"
 
 import header from "../../../../ast/expressions/header"
 import fresh from "../../../../ast/fresh"
@@ -6,13 +7,15 @@ import { ExpressionsKind } from "../../../../printer/model/expressions"
 import { StatementsKind } from "../../../../printer/model/statements"
 import { layout_prefix } from "./const"
 
-import type { State as Input, Output } from "./model"
+import type { Built as Output, State as Input } from "./model"
 
 export default function (in: Input): Output {
     const name = fresh({
         serial: in.source.serial,
         prefix: layout_prefix
     })
+
+    const binding_name = host.retainLoweringText(in.source.frame, name.name)
 
     const layout = header({
         ...in.expressions.pick([
@@ -51,18 +54,17 @@ export default function (in: Input): Output {
                         in.fields.name.length
                     )
                 )[0],
-            identifier: in.expressions.identifier.push(name.name)[0]
+            identifier: in.expressions.identifier.push(binding_name)[0]
         },
         fields: in.fields,
         statements: {
             tags: [StatementsKind.Constant],
             offsets: [0],
-            constant_name: [name.name],
+            constant_name: [binding_name],
             constant_type_expr: [null],
             constant_value: [layout.id],
             constant_exported: [false]
         },
-        origin_owned: in.origin_owned,
         serial: name.serial,
         root: reference.id,
         valid

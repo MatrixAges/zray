@@ -7,7 +7,7 @@ import { items_field } from "../../../types/state/const"
 import field from "./field"
 
 import type { Capacity } from "../model"
-import type { State, Output } from "./model"
+import type { Result as Output, State } from "./model"
 
 export type Input = {
     state: State,

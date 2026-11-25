@@ -1,26 +1,30 @@
 <Module>
     <Type from="model" as="Invocation" />
 
-    <Args in={Invocation.Invocation} out={Invocation.Output} />
+    <Args in={Invocation.Input} out={Invocation.Output} />
 
-    <Call fn="route" in={$in.source} />
+    <Call fn="route" in={$in} />
 
-    <If on={$ctx.route == Invocation.Route.Value}>
-        <Call fn="index.invokePlannedValueCall" in={$in.frame} />
-
-        <Return value={$ctx.invokePlannedValueCall} />
-    </If>
-
-    <If on={$ctx.route == Invocation.Route.Pointer}>
-        <Call fn="index.invokePlannedPointerCall" in={$in.frame} />
-
-        <Return value={$ctx.invokePlannedPointerCall} />
+    <If
+        on={$ctx.route == Invocation.Route.Value ||
+            $ctx.route == Invocation.Route.Pointer}
+    >
+        <Return
+            value={{
+                route: $ctx.route,
+                argument: Invocation.Argument.Value,
+                convert_output: false,
+                stores: false,
+                io: false,
+                process: false
+            }}
+        />
     </If>
 
     <Call
         fn="argument"
         in={{
-            source: $in.source,
+            source: $in,
             represented: $ctx.route == Invocation.Route.RegularRepresented
         }}
     />
@@ -28,8 +32,8 @@
     <Call
         fn="plan"
         in={{
-            call: $in.frame,
-            source: $in.source,
+            source: $in,
+            route: $ctx.route,
             argument: $ctx.argument,
             represented: $ctx.route == Invocation.Route.RegularRepresented
         }}

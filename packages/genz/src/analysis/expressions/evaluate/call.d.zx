@@ -1,18 +1,3 @@
-export declare function invokePlannedRegularCall(
-    call: RegularCallFrame,
-    argument: RegularCallArgument,
-    convert_output: bool,
-    stores: bool,
-    io: bool,
-    process: bool
-): u32 throws { OutOfMemory }
-
-export declare function invokePlannedValueCall(call: RegularCallFrame): u32
-    throws { OutOfMemory }
-
-export declare function invokePlannedPointerCall(call: RegularCallFrame): u32
-    throws { OutOfMemory }
-
 export declare function lowerCallBorrow(call: CallFrame): u32 throws { OutOfMemory }
 
 export declare function adaptCallArgument(call: CallFrame, value: u32): u32

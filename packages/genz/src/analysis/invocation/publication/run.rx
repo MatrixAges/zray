@@ -13,5 +13,26 @@
         <Call fn="index.publishCallBody" in={$in.target} />
     </If>
 
-    <Call fn="index.finishCallPublication" in={$in.target} />
+    <If on={$in.regular}>
+        <Call
+            fn="index.publishTaskEffects"
+            in={[
+                $in.lower,
+                true,
+                $in.io,
+                $in.process
+            ]}
+        />
+    </If>
+
+    <If on={$in.value_call}>
+        <Call
+            fn="index.finishGeneratedAst"
+            in={[
+                $in.lower,
+                $in.serial,
+                $in.uses_allocator
+            ]}
+        />
+    </If>
 </Module>

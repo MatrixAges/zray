@@ -23,14 +23,6 @@
     />
 
     <Call
-        fn="index.parallelWorkerCallee"
-        in={[
-            $in.frame,
-            $in.function_id
-        ]}
-    />
-
-    <Call
         fn="../../../tasks/rows.readAstOrigin"
         in={[
             $in.writer,
@@ -46,7 +38,7 @@
         in={{
             input_type: $ctx.lowerInputType,
             output_type: $ctx.lowerOutputType,
-            callee: $ctx.parallelWorkerCallee,
+            callee: $in.callee,
             declaration_base: $ctx.astDeclarationCount,
             bases: {
                 ...$ctx.readAstOrigin,

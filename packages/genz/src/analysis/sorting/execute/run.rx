@@ -50,10 +50,12 @@
     <Call fn="../rows.releaseDeclarations" in={$in.scratch} />
 
     <Call
-        fn="index.publishSortEffects"
+        fn="index.publishTaskEffects"
         in={[
-            $in.frame,
-            $ctx.buildSortComparator
+            $in.lower,
+            true,
+            $ctx.buildSortComparator.io,
+            $ctx.buildSortComparator.process
         ]}
     />
 

@@ -1,0 +1,39 @@
+import { appendAstBindingRows, appendAstFields } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Built, Output } from "./model"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    body: AstSequence,
+    built: Built
+}
+
+export default function (in: Input): Output {
+    const { body, built, frame, writer } = in
+
+    requireAllocation(built.valid)
+    appendAstFields(writer, built.fields)
+
+    appendAstBindingRows(writer, body, {
+        ...built.statements,
+        variable_name: [],
+        variable_type_expr: [],
+        variable_value: [],
+        variable_exported: [],
+        discard: [],
+        break_value_label: [],
+        break_value_value: []
+    })
+
+    host.setLoweringSerial(frame, built.serial)
+
+    return {
+        expressions: built.expressions,
+        root: built.root
+    }
+}

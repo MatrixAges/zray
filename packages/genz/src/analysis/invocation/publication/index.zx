@@ -1,5 +1,6 @@
 export {
     registerCallReference,
     publishCallBody,
-    finishCallPublication
+    publishTaskEffects,
+    finishGeneratedAst
 } from "lowering_host"

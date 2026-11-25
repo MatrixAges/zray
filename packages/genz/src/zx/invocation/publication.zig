@@ -35,12 +35,16 @@ pub fn write(self: *Lower, request: ?Request, source: Source) Error!NodeId {
 
     const input: std.meta.Child(entry.Input) = .{
         .target = @ptrCast(&frame),
+        .lower = @ptrCast(self),
         .request = switch (source) {
             .reference => |output| output.request,
             .regular => |regular| regular.output.request,
             .value => |value| value.output.request,
         },
+        .regular = source == .regular,
         .value_call = source == .value,
+        .io = if (source == .regular) source.regular.io else false,
+        .process = if (source == .regular) source.regular.process else false,
         .identifiers = switch (source) {
             .reference => |output| output.nodes.identifier.len,
             .regular => |regular| regular.output.nodes.identifier.len,
@@ -48,6 +52,8 @@ pub fn write(self: *Lower, request: ?Request, source: Source) Error!NodeId {
         },
         .operand = if (source == .value and source.value.output.name.len != 0) source.value.output.name_index else null,
         .body = source == .value and source.value.output.body.tags.len != 0,
+        .serial = if (source == .value) source.value.output.context.serial else null,
+        .uses_allocator = if (source == .value) source.value.output.uses_allocator else false,
     };
 
     try evaluation.execute(entry, &input);
@@ -108,24 +114,6 @@ pub fn publishCallBody(handle: *anyopaque) Error!void {
 
     const source = view.join(body, output.context.variables.*);
     @import("../../node/import_statements.zig").appendSelectedBorrowingText(frame.lowering.allocator, value.body.?, &source) catch |err| return failure(err);
-}
-
-pub fn finishCallPublication(handle: *anyopaque) void {
-    const frame = Publication.borrow(handle);
-    const self = frame.lowering;
-
-    switch (frame.source) {
-        .reference => {},
-        .regular => |regular| {
-            self.uses_allocator = true;
-            self.uses_io = self.uses_io or regular.io;
-            self.uses_process = self.uses_process or regular.process;
-        },
-        .value => |value| {
-            self.serial = @intCast(value.output.context.serial);
-            self.uses_allocator = self.uses_allocator or value.output.uses_allocator;
-        },
-    }
 }
 
 fn failure(err: rows.Error) Error {

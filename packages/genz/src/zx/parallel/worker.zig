@@ -3,7 +3,6 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const rows = @import("../construction/publication.zig");
-const evaluate = @import("../expressions/evaluate.zig");
 
 pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("worker_seed.zig").lower(self, id);
@@ -14,6 +13,7 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
     var origin: rows.OriginBuffer = .{};
     const index = @backingInt(id);
+    const callee = try self.functionReference(id);
 
     defer scratch.deinit();
 
@@ -21,7 +21,7 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .function_id = index,
+        .callee = @backingInt(callee),
         .input_type = self.program.functions.input_types[index],
         .output_type = self.program.functions.output_types[index],
     };
@@ -29,8 +29,4 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
     return @fromBackingInt(result);
-}
-
-pub fn parallelWorkerCallee(handle: *anyopaque, index: u32) Lower.Error!u32 {
-    return @backingInt(try evaluate.borrow(handle).functionReference(@fromBackingInt(index)));
 }

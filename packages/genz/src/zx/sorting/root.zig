@@ -83,14 +83,6 @@ pub fn buildSortComparator(handle: *anyopaque, child: u32, errors: ?[]const []co
     return &frame.comparator;
 }
 
-pub fn publishSortEffects(handle: *anyopaque, comparator: *const Api.SortComparator) void {
-    const self = Frame.borrow(handle).lowering;
-
-    self.uses_allocator = true;
-    self.uses_io = self.uses_io or comparator.io;
-    self.uses_process = self.uses_process or comparator.process;
-}
-
 pub fn clipSortTarget(handle: *anyopaque, target: u32) Error!u32 {
     const frame = Frame.borrow(handle);
     const ownership = @import("../state_value/ownership.zig");

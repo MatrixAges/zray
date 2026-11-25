@@ -1,4 +1,6 @@
+import type { AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
+import type { Lowering } from "lowering_host"
 import type { Columns as Fields } from "../../../../ast/fields/model"
 import type { ExpressionsKind } from "../../../../printer/model/expressions"
 import type { Capacity } from "../model"
@@ -11,6 +13,8 @@ export enum Mode {
 }
 
 export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
     types: Table,
     type_id: u32,
     borrowed: bool[],
@@ -44,7 +48,6 @@ export type State = {
     source: Input,
     expressions: Expressions,
     fields: Fields,
-    origin_owned: bool,
     valid: bool
 }
 
@@ -56,9 +59,8 @@ export type Node = {
 export type Result = {
     expressions: Expressions,
     fields: Fields,
-    origin_owned: bool,
     root: u32,
     valid: bool
 }
 
-export type Output = Result?
+export type Output = u32?

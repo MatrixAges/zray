@@ -9,5 +9,17 @@
     <Call fn="origin" />
     <Call fn="finish" />
 
-    <Return value={$ctx.finish} />
+    <Call
+        fn="publish"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body"
+            ]),
+            built: $ctx.finish
+        }}
+    />
+
+    <Return value={$ctx.publish} />
 </Module>

@@ -2,34 +2,30 @@ const std = @import("std");
 const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const evaluation = @import("../expressions/evaluate.zig");
 const seed = @import("seed.zig");
 const value = @import("../value_call/root.zig");
 const Operation = seed.Operation;
 const Error = Lower.Error;
 
+pub const Argument = if (@import("genz_options").generated_analysis)
+    @FieldType(std.meta.Child(@import("generated_lower_planned_call").Output), "argument")
+
+else
+    enum { Value, ExternalTuple, ScalarBorrow, StateBorrow, StatePointer };
+
 pub const Plan = struct {
-    argument: evaluation.Api.RegularCallArgument,
+    argument: Argument,
     convert_output: bool,
     stores: bool,
     io: bool,
     process: bool,
 };
 
-const Frame = struct {
-    lowering: *Lower,
-    invocation: Operation,
-    fn borrow(handle: *const anyopaque) *const Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
 pub fn lower(self: *Lower, invocation: Operation) Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return seed.lower(self, invocation);
 
     const entry = @import("generated_lower_planned_call");
-    const Request = std.meta.Child(entry.Input);
-    const Input = std.meta.Child(@FieldType(Request, "source"));
+    const Input = std.meta.Child(entry.Input);
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Cache = std.meta.Child(@FieldType(Input, "cache"));
     const index = @backingInt(invocation.function);
@@ -67,39 +63,26 @@ pub fn lower(self: *Lower, invocation: Operation) Error!node.ExpressionId {
         .stores = invocation.stores.len,
     };
 
-    const frame: Frame = .{ .lowering = self, .invocation = invocation };
-    const request: Request = .{ .frame = @ptrCast(&frame), .source = &source };
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    return evaluation.invoke(entry, &request);
-}
+    defer scratch.deinit();
 
-pub fn invokePlannedRegularCall(
-    handle: *const anyopaque,
-    argument: evaluation.Api.RegularCallArgument,
-    convert_output: bool,
-    stores: bool,
-    io: bool,
-    process: bool,
-) Error!u32 {
-    const frame = Frame.borrow(handle);
+    const planned = entry.executeValue(memory.allocator(), &source) catch |err| return switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => unreachable,
+    };
 
-    return @backingInt(try @import("../invocation/execute.zig").regular(frame.lowering, frame.invocation, .{
-        .argument = argument,
-        .convert_output = convert_output,
-        .stores = stores,
-        .io = io,
-        .process = process,
-    }));
-}
-
-pub fn invokePlannedValueCall(handle: *const anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try value.invocation(frame.lowering, frame.invocation));
-}
-
-pub fn invokePlannedPointerCall(handle: *const anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try value.pointerInvocation(frame.lowering, frame.invocation));
+    return switch (planned.route) {
+        .Value => value.invocation(self, invocation),
+        .Pointer => value.pointerInvocation(self, invocation),
+        .Regular, .RegularRepresented => @import("../invocation/execute.zig").regular(self, invocation, .{
+            .argument = planned.argument,
+            .convert_output = planned.convert_output,
+            .stores = planned.stores,
+            .io = planned.io,
+            .process = planned.process,
+        }),
+    };
 }

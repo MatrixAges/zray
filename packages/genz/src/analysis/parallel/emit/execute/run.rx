@@ -5,8 +5,6 @@
 
     <Args in={Parallel.Input} out={Parallel.Output} />
 
-    <Call fn="index.markParallelStatement" in={$in.frame} />
-
     <Call
         module="name"
         in={{

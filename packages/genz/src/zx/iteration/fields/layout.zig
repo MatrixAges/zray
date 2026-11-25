@@ -17,6 +17,9 @@ pub fn build(self: *Lower, body: anytype, args: Input) Lower.Error!node.Expressi
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Parameters, "types")), args.types);
 
     const input: Parameters = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(body),
         .types = &types,
         .type_id = @backingInt(args.type_id),
         .borrowed = args.borrowed,
@@ -34,8 +37,7 @@ pub fn build(self: *Lower, body: anytype, args: Input) Lower.Error!node.Expressi
     defer scratch.deinit();
 
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
-
-    try @import("publication.zig").layout(self, body, result);
+    @import("../../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, result.expressions) catch |err| return failure(err);
 
     return @fromBackingInt(result.root);
 }
@@ -43,6 +45,7 @@ pub fn build(self: *Lower, body: anytype, args: Input) Lower.Error!node.Expressi
 fn failure(err: anyerror) Lower.Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        error.InvalidAst => unreachable,
         else => unreachable,
     };
 }

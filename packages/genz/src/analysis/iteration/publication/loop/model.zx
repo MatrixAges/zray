@@ -1,16 +1,7 @@
-import type {
-    LoopFieldPublication,
-    LoopFramePublication
-} from "lowering_host"
+import type { LoopFramePublication } from "lowering_host"
 
 export type Frame = {
     target: LoopFramePublication,
     guarded: bool,
     entry: bool
-}
-
-export type Fields = {
-    target: LoopFieldPublication,
-    layout: bool,
-    origin: bool
 }

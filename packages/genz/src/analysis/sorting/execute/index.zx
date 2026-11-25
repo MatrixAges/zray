@@ -1,7 +1,7 @@
 export {
     sortElementType,
     buildSortComparator,
-    publishSortEffects,
+    publishTaskEffects,
     readSortItems,
     readSortHeader,
     finishSortResult

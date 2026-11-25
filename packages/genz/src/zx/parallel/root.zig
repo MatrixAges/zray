@@ -26,6 +26,9 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
         function.* = @backingInt(call.function);
     }
 
+    self.uses_parallel = true;
+    self.uses_allocator = true;
+
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
@@ -40,13 +43,6 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     const result = entry.executeIn(allocator, &input) catch |err| return rows.failure(err);
 
     return rows.unpackSpan(result);
-}
-
-pub fn markParallelStatement(handle: *anyopaque) void {
-    const self = evaluate.borrow(handle);
-
-    self.uses_parallel = true;
-    self.uses_allocator = true;
 }
 
 pub fn buildParallelWorker(handle: *anyopaque, function_id: u32) Lower.Error!u32 {

@@ -1,26 +1,21 @@
-import host from "lowering_host"
-
-import type { RegularCallArgument, RegularCallFrame } from "lowering_host"
-import type { Input as Source } from "./model"
+import type { Argument, Input as Source, Output, Route } from "./model"
 
 export type Input = {
-    call: RegularCallFrame,
     source: Source,
-    argument: RegularCallArgument,
+    route: Route,
+    argument: Argument,
     represented: bool
 }
 
-export type Output = u32
-
 export default function (in: Input): Output {
-    const { argument, call, represented, source } = in
+    const { argument, represented, route, source } = in
 
-    return host.invokePlannedRegularCall(
-        call,
+    return {
+        route,
         argument,
-        source.active && represented,
-        source.stores > 0,
-        source.io_functions[source.function],
-        source.process_functions[source.function]
-    )
+        convert_output: source.active && represented,
+        stores: source.stores > 0,
+        io: source.io_functions[source.function],
+        process: source.process_functions[source.function]
+    }
 }

@@ -16,16 +16,6 @@ export enum Representation {
     Iteration
 }
 
-export type RegularCallFrame = opaque
-
-export enum RegularCallArgument {
-    Value,
-    ExternalTuple,
-    ScalarBorrow,
-    StateBorrow,
-    StatePointer
-}
-
 export type CallFrame = mutable_opaque
 
 export type IterationCallFrame = mutable_opaque

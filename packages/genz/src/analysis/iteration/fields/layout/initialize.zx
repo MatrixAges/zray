@@ -15,7 +15,6 @@ export default function (in: Input): Output {
             identifier: []
         },
         fields: empty({}),
-        origin_owned: false,
         valid: true
     }
 }

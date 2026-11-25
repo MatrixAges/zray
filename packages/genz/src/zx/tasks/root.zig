@@ -44,12 +44,19 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
 
     defer scratch.deinit();
 
+    const process = self.entry_flags.body_process;
+
+    self.uses_allocator = true;
+    self.uses_io = true;
+    self.uses_process = self.uses_process or process;
+
+    const worker = try @import("worker.zig").lower(self, id, process);
+
     const input: Input = .{
-        .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .id = @backingInt(id),
-        .process = self.entry_flags.body_process,
+        .worker = @backingInt(worker),
+        .process = process,
         .concurrent = concurrent,
         .symbols = view.slice(@FieldType(Input, "symbols"), captures),
         .names = self.names,
@@ -61,10 +68,6 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
     const output = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
     return .{ .value = @fromBackingInt(output.value), .block = .{ .start = output.first, .len = output.count } };
-}
-
-pub fn buildTaskWorker(handle: *anyopaque, task: u32, process: bool) Lower.Error!u32 {
-    return @backingInt(try @import("worker.zig").lower(evaluate.borrow(handle), @fromBackingInt(task), process));
 }
 
 pub fn publishTaskEffects(handle: *anyopaque, allocator: bool, io: bool, process: bool) void {

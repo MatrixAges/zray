@@ -4,25 +4,6 @@
 
     <Args in={Start.Input} out={Start.Output} />
 
-    <Call
-        fn="index.publishTaskEffects"
-        in={[
-            $in.frame,
-            true,
-            true,
-            $in.process
-        ]}
-    />
-
-    <Call
-        fn="index.buildTaskWorker"
-        in={[
-            $in.frame,
-            $in.id,
-            $in.process
-        ]}
-    />
-
     <Call fn="../../rows.astFieldCount" in={$in.writer} />
 
     <Call
@@ -37,12 +18,9 @@
         module="../build"
         in={{
             ...$in.omit([
-                "frame",
-                "id",
                 "writer",
                 "origin"
             ]),
-            worker: $ctx.buildTaskWorker,
             bases: {
                 ...$ctx.readAstOrigin,
                 field_base: $ctx.astFieldCount

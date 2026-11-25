@@ -16,7 +16,15 @@
                     }}
                 />
 
-                <Return value={$ctx.minimum} />
+                <Call
+                    fn="publish"
+                    in={{
+                        writer: $in.writer,
+                        result: $ctx.minimum
+                    }}
+                />
+
+                <Return value={$ctx.publish} />
             </If>
         </If>
 
@@ -29,5 +37,13 @@
     <Call fn="origin" />
     <Call fn="finish" />
 
-    <Return value={$ctx.finish} />
+    <Call
+        fn="publish"
+        in={{
+            writer: $in.writer,
+            result: $ctx.finish
+        }}
+    />
+
+    <Return value={$ctx.publish} />
 </Module>

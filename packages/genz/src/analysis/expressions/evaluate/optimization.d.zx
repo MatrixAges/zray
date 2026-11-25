@@ -6,8 +6,6 @@ export declare function buildSortComparator(
     errors: u8[][]?
 ): SortComparator throws { OutOfMemory }
 
-export declare function publishSortEffects(frame: SortFrame, comparator: SortComparator): void
-
 export declare function clipSortTarget(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
 
 export declare function readSortItems(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
@@ -49,9 +47,6 @@ export declare function publishTaskEffects(
     process: bool
 ): void
 
-export declare function buildTaskWorker(frame: Lowering, task: u32, process: bool): u32
-    throws { OutOfMemory }
-
 export declare function startInlineTask(
     frame: Lowering,
     task: u32,
@@ -59,10 +54,5 @@ export declare function startInlineTask(
     concurrent: bool
 ): u64 throws { OutOfMemory }
 
-export declare function markParallelStatement(frame: Lowering): void
-
 export declare function buildParallelWorker(frame: Lowering, function_id: u32): u32
-    throws { OutOfMemory }
-
-export declare function parallelWorkerCallee(frame: Lowering, function_id: u32): u32
     throws { OutOfMemory }

@@ -1,9 +1,14 @@
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
+import type { Lowering } from "lowering_host"
 import type { Columns as Fields } from "../../../../ast/fields/model"
 import type { ExpressionsKind } from "../../../../printer/model/expressions"
 import type { StatementsKind } from "../../../../printer/model/statements"
 
 export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    body: AstSequence,
     types: Table,
     type_id: u32,
     borrowed: bool[],
@@ -28,18 +33,21 @@ export type State = {
     source: Input,
     expressions: Expressions,
     fields: Fields,
-    origin_owned: bool,
+    valid: bool
+}
+
+export type Built = {
+    expressions: Expressions,
+    fields: Fields,
+    statements: Statements,
+    serial: u64,
+    root: u32,
     valid: bool
 }
 
 export type Output = {
     expressions: Expressions,
-    fields: Fields,
-    statements: Statements,
-    origin_owned: bool,
-    serial: u64,
-    root: u32,
-    valid: bool
+    root: u32
 }
 
 export type Statements = {

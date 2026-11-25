@@ -43,6 +43,8 @@ fn build(context: *const Context, lowering: *Lower, request: Request) Lower.Erro
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), lowering.program.types);
 
     const input: Input = .{
+        .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
         .types = &types,
         .type_id = @backingInt(context.type_id),
         .borrowed = context.borrowed,
@@ -66,11 +68,9 @@ fn build(context: *const Context, lowering: *Lower, request: Request) Lower.Erro
 
     defer scratch.deinit();
 
-    const result = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return null;
+    const root = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return null;
 
-    try @import("publication.zig").projection(lowering, result);
-
-    return @fromBackingInt(result.root);
+    return @fromBackingInt(root);
 }
 
 fn failure(err: anyerror) Lower.Error {
