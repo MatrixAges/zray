@@ -1,9 +1,45 @@
 <Module>
     <Type from="model" as="Contract" />
 
-    <Args in={Contract.Frame} out={void} />
+    <Args in={Contract.Lower} out={void} />
 
-    <Call fn="index.evaluatePrecondition" in={$in} />
-    <Call fn="index.emitPrecondition" in={$in} />
-    <Call fn="index.publishPreconditionScope" in={$in} />
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.predicate,
+            $in.expression,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="index.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        module="../build"
+        in={{
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: 0
+            },
+            predicate: $ctx.lowerExpression
+        }}
+    />
+
+    <Call
+        fn="publish"
+        in={{
+            writer: $in.writer,
+            body: $in.body,
+            fragment: $ctx.build
+        }}
+    />
+
+    <Call fn="index.publishPreconditionScope" in={$in.frame} />
 </Module>

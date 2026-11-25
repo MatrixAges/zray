@@ -1,8 +1,9 @@
-import type { ElementRepresentation } from "lowering_host"
+import type { ElementRepresentation, Lowering } from "lowering_host"
 import type { Choice } from "./model"
 
 export type Input = {
     frame: ElementRepresentation,
+    lower: Lowering,
     choice: Choice,
     value: u32
 }

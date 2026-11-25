@@ -1,0 +1,22 @@
+import ast from "ast_rows"
+
+import type { AstWriter } from "ast_rows"
+import type { Expressions } from "./model"
+
+export type Input = {
+    writer: AstWriter,
+    expressions: Expressions
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    ast.appendAstProjectionRows(in.writer, {
+        ...in.expressions,
+        identifier: [],
+        dereference: [],
+        binary_operator: [],
+        binary_left: [],
+        binary_right: []
+    })
+}

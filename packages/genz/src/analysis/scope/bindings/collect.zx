@@ -15,7 +15,7 @@ export type Output = void
 
 export default function (in: Input): Output {
     const { source, count, type_id } = in
-    const { frame, scope, selection, spans, values } = source
+    const { frame, scope, selection, spans, values, names } = source
 
     const remaining = loop(count, {
         while: remaining => remaining != 0,
@@ -38,7 +38,8 @@ export default function (in: Input): Output {
                         frame,
                         scope,
                         binding,
-                        type_id
+                        type_id,
+                        names
                     })
                 }
 

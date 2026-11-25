@@ -6,7 +6,6 @@ export type Output = FragmentStatements
 
 export default function (in: Input): Output {
     return match in {
-        FragmentKind.Guard => FragmentStatements.BorrowingText,
         FragmentKind.Update => FragmentStatements.Sparse,
         FragmentKind.Collection => FragmentStatements.SparseWithVariables,
         FragmentKind.Conversion => FragmentStatements.SparseWithVariables,

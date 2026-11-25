@@ -61,25 +61,34 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     if (!planned.valid) return error.OutOfMemory;
 
+    const execute = @import("generated_rebuild_loop_fields");
+    const ExecInput = std.meta.Child(execute.Input);
+    var replacements = if (planned.requests.fields.len != 0) try temporary.alloc(u32, planned.requests.fields.len) else &.{};
+
     var work: Rebuild = .{
         .context = self,
         .projection = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) },
         .planned = planned,
         .value = request.value,
-        .temporary = temporary,
+        .replacements = replacements,
     };
 
-    const execute = @import("generated_rebuild_loop_fields");
-
-    const request_execution: std.meta.Child(execute.Input) = .{
+    const request_execution: ExecInput = .{
         .target = @ptrCast(&work),
         .frame = @ptrCast(lowering),
-        .replaces = planned.requests.fields.len != 0,
+        .writer = @ptrCast(lowering),
+        .projection = @ptrCast(&work.projection),
+        .expressions = zx.columns.pointer(@FieldType(ExecInput, "expressions"), planned.expressions),
+        .requests = zx.columns.pointer(@FieldType(ExecInput, "requests"), planned.requests),
+        .values = planned.values,
+        .replacements = @ptrCast(&replacements),
         .type_id = @backingInt(self.type_id),
         .layout = if (request.layout) |layout| @backingInt(layout) else null,
     };
 
-    return try @import("../../expressions/evaluate.zig").invoke(execute, &request_execution);
+    const result = execute.executeIn(temporary, &request_execution) catch |err| return failure(err);
+
+    return @fromBackingInt(result);
 }
 
 const Rebuild = struct {
@@ -87,37 +96,11 @@ const Rebuild = struct {
     projection: Frame,
     planned: @typeInfo(entry.Output).optional.child,
     value: node.ExpressionId,
-    temporary: std.mem.Allocator,
-    replacements: []const u32 = &.{},
+    replacements: []const u32,
     fn borrow(handle: *anyopaque) *Rebuild {
         return @ptrCast(@alignCast(handle));
     }
 };
-
-pub fn publishLoopFieldOperands(handle: *anyopaque) Lower.Error!void {
-    const work = Rebuild.borrow(handle);
-    const lowering = work.projection.lowering;
-
-    @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, work.planned.expressions) catch |err| return failure(err);
-}
-
-pub fn replaceLoopFields(handle: *anyopaque) Lower.Error!void {
-    const work = Rebuild.borrow(handle);
-    const apply = @import("generated_apply_loop_field_projection");
-    const Apply = std.meta.Child(apply.Input);
-    var replacements = try work.temporary.alloc(u32, work.planned.requests.fields.len);
-
-    const edits: Apply = .{
-        .target = @ptrCast(&work.projection),
-        .requests = zx.columns.pointer(@FieldType(Apply, "requests"), work.planned.requests),
-        .values = work.planned.values,
-        .replacements = @ptrCast(&replacements),
-    };
-
-    try @import("../../expressions/evaluate.zig").execute(apply, &edits);
-
-    work.replacements = replacements;
-}
 
 pub fn rebuildLoopFields(handle: *anyopaque, layout: u32) Lower.Error!u32 {
     const work = Rebuild.borrow(handle);

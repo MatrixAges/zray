@@ -12,8 +12,7 @@ const Frame = struct {
     body: ?*Context.Statements,
     selected: consumer.Consumer,
     state: node.ExpressionId,
-    temporary: std.mem.Allocator,
-    slots: []u32 = undefined,
+    slots: []u32,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -65,13 +64,18 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     const application = @import("generated_apply_iteration_result");
     const Input = std.meta.Child(application.Input);
 
+    const slots: []u32 = if (@TypeOf(body) != void and !plan.primitive and plan.transfer_count != 0)
+        try temporary.alloc(u32, @intCast(plan.transfer_count))
+    else
+        &.{};
+
     var frame: Frame = .{
         .lowering = lowering,
         .context = context,
         .body = if (@TypeOf(body) == void) null else body,
         .selected = selected,
         .state = state,
-        .temporary = temporary,
+        .slots = slots,
     };
 
     const input: Input = .{
@@ -87,12 +91,6 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     const result = application.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
     return @fromBackingInt(result);
-}
-
-pub fn reserveIterationTransferSlots(handle: *anyopaque, count: u64) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.slots = try frame.temporary.alloc(u32, @intCast(count));
 }
 
 pub fn projectIterationResult(handle: *anyopaque, raw: u32) Lower.Error!u32 {

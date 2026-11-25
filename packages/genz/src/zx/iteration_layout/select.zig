@@ -65,7 +65,7 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
         .deep = null,
         .abi = null,
         .shallow = null,
-        .projection = null,
+        .projection = if (consumer) |selected| consumers.projection(self.program, selected.result, selected.symbol) else false,
         .initial = null,
     };
 
@@ -136,13 +136,6 @@ pub fn loopShallowLayout(handle: *const anyopaque) Lower.Error!bool {
     const self = frame.lowering;
 
     return layout.shallow(self.allocator, self.program, frame.iteration);
-}
-
-pub fn loopConsumerProjection(handle: *const anyopaque) bool {
-    const frame = Frame.borrow(handle);
-    const consumer = frame.consumer.?;
-
-    return consumers.projection(frame.lowering.program, consumer.result, consumer.symbol);
 }
 
 pub fn loopDirectInitial(handle: *const anyopaque) Lower.Error!bool {

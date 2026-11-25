@@ -11,6 +11,8 @@
         <Call
             fn="publish"
             in={{
+                frame: $in.frame,
+                writer: $in.writer,
                 state: $ctx.direct,
                 mark: $in.mark
             }}
@@ -41,6 +43,8 @@
     <Call
         fn="publish"
         in={{
+            frame: $in.frame,
+            writer: $in.writer,
             state: $ctx.collect,
             mark: $in.mark
         }}

@@ -12,13 +12,20 @@
     <Call fn="layout" in={$in.request.operation} />
 
     <If on={$ctx.layout}>
-        <Call fn="workflow.listRepresentationLayout" in={$in.frame} />
+        <Call
+            fn="workflow.materializeType"
+            in={[
+                $in.lower,
+                $in.type_id,
+                List.StoredType.StateType
+            ]}
+        />
 
         <Call
             fn="workflow.emitListRepresentation"
             in={[
                 $in.frame,
-                $ctx.listRepresentationLayout
+                $ctx.materializeType
             ]}
         />
 

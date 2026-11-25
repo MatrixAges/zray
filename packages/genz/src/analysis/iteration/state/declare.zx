@@ -1,14 +1,26 @@
+import ast from "ast_rows"
+
 import { StatementsKind } from "../../../printer/model/statements"
 import binding from "../../binding/emit"
 
-import type { Output } from "../../binding/emit"
-import type { Declaration as Input } from "./model"
+import type { Declare as Input } from "./model"
+
+export type Output = void
 
 export default function (in: Input): Output {
-    return binding({
-        kind: in.mutable ? StatementsKind.Variable : StatementsKind.Constant,
-        name: in.name,
-        type_expr: in.layout,
-        value: in.initial
+    const { declaration } = in
+
+    const kind = match {
+        declaration.mutable => StatementsKind.Variable,
+        _ => StatementsKind.Constant
+    }
+
+    const rows = binding({
+        kind,
+        name: declaration.name,
+        type_expr: declaration.layout,
+        value: declaration.initial
     })
+
+    ast.appendAstBindingRows(in.writer, in.body, rows)
 }

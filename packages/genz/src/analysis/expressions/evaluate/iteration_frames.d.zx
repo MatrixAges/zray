@@ -66,19 +66,9 @@ export enum IterationResource {
 
 export type IterationPublication = mutable_opaque
 
-export type LoopStatePublication = opaque
-
 export type LoopFramePublication = opaque
 
 export type LoopFieldPublication = mutable_opaque
-
-export type LoopAssignmentPublication = opaque
-
-export enum LoopNameStorage {
-    Borrow,
-    Own,
-    Reuse
-}
 
 export type LoopFieldRebuild = mutable_opaque
 

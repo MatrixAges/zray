@@ -52,12 +52,6 @@ export declare function convertRepresentedCache(
 export declare function openPreconditionScope(frame: PreconditionFrame, index: u64): void
     throws { OutOfMemory }
 
-export declare function evaluatePrecondition(frame: PreconditionFrame): void
-    throws { OutOfMemory }
-
-export declare function emitPrecondition(frame: PreconditionFrame): void
-    throws { OutOfMemory }
-
 export declare function publishPreconditionScope(frame: PreconditionFrame): void
 export declare function startAnalysisBasis(work: AnalysisWork): bool
 

@@ -3,10 +3,24 @@
 
     <Args in={Projection.Input} out={u32} />
 
-    <Call fn="index.publishLoopFieldOperands" in={$in.target} />
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "writer",
+            "expressions"
+        ])}
+    />
 
-    <If on={$in.replaces}>
-        <Call fn="index.replaceLoopFields" in={$in.target} />
+    <If on={$in.requests.fields.length != 0}>
+        <Call
+            fn="apply"
+            in={{
+                target: $in.projection,
+                requests: $in.requests,
+                values: $in.values,
+                replacements: $in.replacements
+            }}
+        />
     </If>
 
     <Call fn="rebuild" in={$in} />

@@ -12,8 +12,6 @@ export declare function loopAbiLayout(layout: LoopLayout): bool throws { OutOfMe
 
 export declare function loopShallowLayout(layout: LoopLayout): bool throws { OutOfMemory }
 
-export declare function loopConsumerProjection(layout: LoopLayout): bool
-
 export declare function loopDirectInitial(layout: LoopLayout): bool throws { OutOfMemory }
 
 export declare function beginLoweredLoop(loop_frame: LoopFrame): LoopAdmission
@@ -124,12 +122,6 @@ export declare function finishSkippedLoop(
 ): u32 throws { OutOfMemory }
 
 export declare function finishGuardedLoop(frame: LoopFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function publishLoopFieldOperands(target: LoopFieldRebuild): void
-    throws { OutOfMemory }
-
-export declare function replaceLoopFields(target: LoopFieldRebuild): void
     throws { OutOfMemory }
 
 export declare function rebuildLoopFields(target: LoopFieldRebuild, layout: u32): u32

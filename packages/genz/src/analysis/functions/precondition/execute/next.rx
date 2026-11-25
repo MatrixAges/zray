@@ -13,7 +13,19 @@
             ]}
         />
 
-        <Call module="lower" in={$in.frame} />
+        <Call
+            module="lower"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "predicate",
+                    "writer",
+                    "origin",
+                    "body"
+                ]),
+                expression: $in.predicates[$in.index]
+            }}
+        />
     </If>
 
     <Return

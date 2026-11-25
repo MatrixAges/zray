@@ -57,7 +57,7 @@ const Frame = struct {
             .selection = &selection,
             .spans = @ptrCast(&spans),
             .values = &values,
-            .names = if (iteration_mode) lowering.names else &.{},
+            .names = lowering.names,
             .symbol_types = if (iteration_mode) lowering.program.symbols.types else &.{},
         };
 
@@ -101,12 +101,6 @@ pub fn reuseScopeBinding(handle: *const anyopaque, position: u64) Error!u64 {
     const block = (try frame.aliases.?.publish(frame.lowering, @intCast(position))).?;
 
     return packSpan(block);
-}
-
-pub fn emitScopeTask(handle: *anyopaque, symbol: ?u32, value: u32) Error!u64 {
-    const lowering = evaluation.borrow(handle);
-
-    return packSpan(try @import("../tasks/root.zig").bind(lowering, lowering.names[symbol.?], @fromBackingInt(value), false));
 }
 
 pub fn prepareScopeBinding(handle: *const anyopaque, symbol: ?u32, value: u32, type_id: u32) Error!?u32 {

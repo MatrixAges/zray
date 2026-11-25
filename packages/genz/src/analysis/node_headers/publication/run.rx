@@ -9,8 +9,7 @@
         fn="host.appendFragmentExpressions"
         in={[
             $in.target,
-            $in.kind == Fragment.FragmentKind.Guard ||
-                $in.kind == Fragment.FragmentKind.List
+            $in.kind == Fragment.FragmentKind.List
         ]}
     />
 
@@ -82,8 +81,7 @@
     </If>
 
     <If
-        on={$in.kind != Fragment.FragmentKind.Guard &&
-            $in.kind != Fragment.FragmentKind.List &&
+        on={$in.kind != Fragment.FragmentKind.List &&
             $in.kind != Fragment.FragmentKind.Origin}
     >
         <Call

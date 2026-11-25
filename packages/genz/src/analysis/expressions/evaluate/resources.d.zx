@@ -56,11 +56,6 @@ export declare function reserveIterationProjection(
     fresh: u64
 ): IterationProjectionStamp throws { OutOfMemory }
 
-export declare function reserveIterationTransferSlots(
-    frame: IterationResultApplication,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function projectIterationResult(frame: IterationResultApplication, id: u32): u32
     throws { OutOfMemory }
 
@@ -77,13 +72,7 @@ export declare function cacheIterationResult(
     value: u32
 ): void throws { OutOfMemory }
 
-export declare function listRepresentationLayout(frame: ListRepresentation): u32
-    throws { OutOfMemory }
-
 export declare function emitListRepresentation(frame: ListRepresentation, layout: u32?): u32
-    throws { OutOfMemory }
-
-export declare function elementStoredLayout(frame: ElementRepresentation): u32
     throws { OutOfMemory }
 
 export declare function emitElement(

@@ -57,11 +57,7 @@
             $ctx.representation != Layout.Action.Deep &&
             $ctx.representation != Layout.Action.Buffered}
     >
-        <If on={$in.projection == null}>
-            <Return value={Layout.Action.CheckProjection} />
-        </If>
-
-        <If on={$in.projection == false}>
+        <If on={!$in.projection}>
             <Return value={Layout.Action.Reject} />
         </If>
     </If>

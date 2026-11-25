@@ -494,7 +494,6 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         },
         .roots = switch (kind) {
             .Growth => columns.pointer(Rows, data.body),
-            .Guard => columns.pointer(Rows, output.roots),
             .Construction, .Conversion => columns.pointer(Rows, data.storage),
             else => null,
         },
@@ -516,10 +515,10 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         .valid = if (kind == .Growth) data.valid else output.valid,
         .serial = switch (kind) {
             .Growth => data.serial,
-            .Guard, .List, .Origin => 0,
+            .List, .Origin => 0,
             else => output.serial,
         },
-        .uses_allocator = kind != .Guard and kind != .List and kind != .Origin and output.uses_allocator,
+        .uses_allocator = kind != .List and kind != .Origin and output.uses_allocator,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
@@ -578,7 +577,6 @@ pub fn appendFragmentBody(handle: *anyopaque, mode: Api.FragmentBody) Lower.Erro
 
             statements.append(allocator, frame.targets.body.?, &source) catch |err| return failure(err);
         },
-        .BorrowedRoots => statements.appendBorrowingText(allocator, frame.targets.body.?, frame.roots.?) catch |err| return failure(err),
         .Selected, .SelectedWithVariables => {
             var roots = frame.statements.?.*;
             roots.tags = frame.subset.?.tags;

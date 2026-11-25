@@ -1,11 +1,21 @@
 import integers from "std:integer"
+import ast from "ast_rows"
+import { AstPayloadOwnership } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
 
+import emptyStatements from "../../../ast/statements/empty"
 import { StatementsKind } from "../../../printer/model/statements"
 
-import type { Assignments, Output, Publication as Input } from "./model"
+import type { Assignments, Publication as Input } from "./model"
+
+export type Output = u32
 
 export default function (in: Input): Output {
-    const { state, mark } = in
+    const { frame, writer, state, mark } = in
+
+    requireAllocation(state.valid)
+
     const { snapshots, assignments } = state
 
     const writes: Assignments = match {
@@ -32,18 +42,75 @@ export default function (in: Input): Output {
         _ => snapshots.offsets.concat(writes.offsets)[0]
     }
 
-    return {
-        ...state.pick([
-            "expressions",
-            "field_name_source",
-            "serial",
-            "valid"
-        ]),
-        statements: {
-            ...snapshots,
-            ...writes,
+    const empty_names: u8[][] = []
+
+    const names = loop({
+        items: empty_names,
+        row: 0
+    }, {
+        while: current => current.row < state.expressions.identifier.length,
+        next: current => {
+            const retained = host.retainLoweringText(
+                frame,
+                state.expressions.identifier[current.row]
+            )
+
+            current.items = current.items.push(retained)[0]
+            current.row += 1
+        },
+        return: current => current.items
+    })
+
+    const fields = loop({
+        items: empty_names,
+        row: 0
+    }, {
+        while: current => current.row < state.field_name_source.length,
+        next: current => {
+            const origin = state.field_name_source[current.row]
+            const raw = state.expressions.field_name[current.row]
+            const retained: u8[] = match {
+                origin == null => raw,
+                origin == current.row => host.retainLoweringText(frame, raw),
+                _ => current.items[origin ?? current.row]
+            }
+
+            current.items = current.items.push(retained)[0]
+            current.row += 1
+        },
+        return: current => current.items
+    })
+
+    ast.appendAstProjectionRows(writer, {
+        tags: state.expressions.tags,
+        offsets: state.expressions.offsets,
+        identifier: names,
+        field_target: state.expressions.field_target,
+        field_name: fields,
+        dereference: [],
+        binary_operator: [],
+        binary_left: [],
+        binary_right: []
+    })
+
+    ast.appendStatementRows(
+        writer,
+        {
+            ...emptyStatements({}),
             tags,
-            offsets
-        }
-    }
+            offsets,
+            constant_name: names,
+            constant_type_expr: snapshots.constant_type_expr,
+            constant_value: snapshots.constant_value,
+            constant_exported: snapshots.constant_exported,
+            assignment_target: writes.assignment_target,
+            assignment_value: writes.assignment_value
+        },
+        null,
+        AstPayloadOwnership.Borrowed
+    )
+
+    host.setLoweringSerial(frame, state.serial)
+
+    return integers.narrow(tags.length)
 }

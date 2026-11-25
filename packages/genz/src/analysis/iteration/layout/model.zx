@@ -13,7 +13,6 @@ export enum Action {
     CheckDeep,
     CheckAbi,
     CheckShallow,
-    CheckProjection,
     CheckInitial,
     Dereference,
     Reject,
@@ -42,6 +41,6 @@ export type Input = {
     deep?: bool,
     abi?: bool,
     shallow?: bool,
-    projection?: bool,
+    projection: bool,
     initial?: bool
 }

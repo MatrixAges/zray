@@ -49,12 +49,6 @@ export declare function cachePublishedIterationTypes(target: IterationPublicatio
 export declare function recordIterationTransfer(target: IterationPublication): void
     throws { OutOfMemory }
 
-export declare function appendLoopState(target: LoopStatePublication): void
-    throws { OutOfMemory }
-
-export declare function appendLoopTracker(target: LoopStatePublication): void
-    throws { OutOfMemory }
-
 export declare function appendLoopGuard(target: LoopFramePublication): void
     throws { OutOfMemory }
 
@@ -81,26 +75,6 @@ export declare function appendLoopFields(target: LoopFieldPublication): void
 
 export declare function finishLoopFieldLayout(target: LoopFieldPublication): void
     throws { OutOfMemory }
-
-export declare function appendLoopAssignmentExpressions(target: LoopAssignmentPublication): void
-    throws { OutOfMemory }
-
-export declare function appendLoopAssignmentStatements(target: LoopAssignmentPublication): void
-    throws { OutOfMemory }
-
-export declare function ownLoopAssignmentIdentifier(
-    target: LoopAssignmentPublication,
-    row: u64
-): void throws { OutOfMemory }
-
-export declare function writeLoopAssignmentField(
-    target: LoopAssignmentPublication,
-    row: u64,
-    origin: u64,
-    storage: LoopNameStorage
-): void throws { OutOfMemory }
-
-export declare function finishLoopAssignment(target: LoopAssignmentPublication): void
 
 export declare function appendFragmentExpressions(target: FragmentPublication, borrow_text: bool): void
     throws { OutOfMemory }

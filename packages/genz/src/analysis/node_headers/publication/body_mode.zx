@@ -13,7 +13,6 @@ export default function (in: Input): Output {
 
     return match in.kind {
         FragmentKind.Growth => FragmentBody.Roots,
-        FragmentKind.Guard => FragmentBody.BorrowedRoots,
         FragmentKind.Collection => FragmentBody.SelectedWithVariables,
         _ => FragmentBody.Selected
     }

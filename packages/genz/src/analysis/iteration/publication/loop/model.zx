@@ -1,14 +1,7 @@
 import type {
-    LoopAssignmentPublication,
     LoopFieldPublication,
-    LoopFramePublication,
-    LoopStatePublication
+    LoopFramePublication
 } from "lowering_host"
-
-export type State = {
-    target: LoopStatePublication,
-    tracked: bool
-}
 
 export type Frame = {
     target: LoopFramePublication,
@@ -20,10 +13,4 @@ export type Fields = {
     target: LoopFieldPublication,
     layout: bool,
     origin: bool
-}
-
-export type Assignment = {
-    target: LoopAssignmentPublication,
-    identifiers: u64,
-    field_origins: u64?[]
 }

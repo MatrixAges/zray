@@ -1,4 +1,6 @@
+import type { AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
+import type { Lowering } from "lowering_host"
 import type { ExpressionsKind } from "../../../printer/model/expressions"
 import type { StatementsKind } from "../../../printer/model/statements"
 import type { Output as Name } from "../../types/state/origin"
@@ -14,6 +16,8 @@ export type Write = {
 }
 
 export type Input = Write & {
+    frame: Lowering,
+    writer: AstWriter,
     facts: Facts,
     active: bool,
     type_id: u32,
@@ -89,15 +93,10 @@ export type Bound = {
 export type Statements = Snapshots & Assignments
 
 export type Publication = {
+    frame: Lowering,
+    writer: AstWriter,
     state: State,
     mark?: Write
 }
 
-export type Output = State.Pick(
-    "expressions",
-    "field_name_source",
-    "serial",
-    "valid"
-) & {
-    statements: Statements
-}
+export type Output = u32

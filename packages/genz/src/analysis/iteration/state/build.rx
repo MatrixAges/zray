@@ -3,29 +3,28 @@
 
     <Args in={State.Input} out={State.Output} />
 
-    <Call fn="declare" in={$in.declaration} />
+    <Call
+        fn="declare"
+        in={$in.pick([
+            "writer",
+            "body",
+            "declaration"
+        ])}
+    />
 
     <If on={$in.tracking != null}>
         <Call
             fn="track"
             in={{
+                writer: $in.writer,
+                body: $in.body,
                 name: $in.tracking,
                 expression_base: $in.expression_base
             }}
         />
 
-        <Return
-            value={{
-                declaration: $ctx.declare,
-                tracker: $ctx.track
-            }}
-        />
+        <Return value={$ctx.track} />
     </If>
 
-    <Return
-        value={{
-            declaration: $ctx.declare,
-            tracker: null
-        }}
-    />
+    <Return value={null} />
 </Module>

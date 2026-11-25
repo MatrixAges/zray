@@ -1,9 +1,11 @@
 import host from "lowering_host"
+import { StoredType } from "lowering_host"
 
-import type { ElementRepresentation } from "lowering_host"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
-    frame: ElementRepresentation,
+    lower: Lowering,
+    type_id: u32,
     stored: bool
 }
 
@@ -11,7 +13,7 @@ export type Output = u32?
 
 export default function (in: Input): Output {
     if (in.stored) {
-        return host.elementStoredLayout(in.frame)
+        return host.materializeType(in.lower, in.type_id, StoredType.StateType)
     }
 
     return null

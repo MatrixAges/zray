@@ -1,10 +1,12 @@
 import integers from "std:integer"
+import ast from "ast_rows"
 
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import { StatementsKind } from "../../../printer/model/statements"
 import binding from "../../binding/emit"
 
-import type { Tracking as Input, Tracker as Output } from "./model"
+import type { AstLiteralRows } from "ast_rows"
+import type { Tracker as Output, Tracking as Input } from "./model"
 
 export default function (in: Input): Output {
     const base = integers.widen(in.expression_base)
@@ -16,25 +18,42 @@ export default function (in: Input): Output {
         value: in.expression_base
     })
 
-    return {
-        declaration,
-        expressions: {
-            tags: [
-                ExpressionsKind.Boolean,
-                ExpressionsKind.Identifier,
-                ExpressionsKind.Boolean
-            ],
-            offsets: [
-                0,
-                0,
-                1
-            ],
-            identifier: [in.name],
-            boolean: [
-                false,
-                true
-            ]
+    ast.appendAstBindingRows(in.writer, in.body, declaration)
+
+    const empty_arguments: u32[][] = []
+
+    const empty_literal: AstLiteralRows = {
+        tags: [ExpressionsKind.Boolean],
+        offsets: [0],
+        integer: [],
+        float: [],
+        string: [],
+        boolean: [false],
+        enum_literal: [],
+        error_value: [],
+        unary_operator: [],
+        unary_operand: [],
+        builtin_name: []
+    }
+
+    ast.appendAstLiteralRows(in.writer, empty_literal, empty_arguments)
+
+    ast.appendAstIdentifierRows(in.writer, {
+        tags: [ExpressionsKind.Identifier],
+        offsets: [0],
+        identifier: [in.name]
+    })
+
+    ast.appendAstLiteralRows(
+        in.writer,
+        {
+            ...empty_literal,
+            boolean: [true]
         },
+        empty_arguments
+    )
+
+    return {
         target: integers.narrow(base + 1),
         value: integers.narrow(base + 2)
     }

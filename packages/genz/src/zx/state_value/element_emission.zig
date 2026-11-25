@@ -82,6 +82,7 @@ fn run(comptime entry: type, self: *Lower, body: *Sequence, list: ir.TypeId, ope
 
     const input: Request = .{
         .frame = @ptrCast(&frame),
+        .lower = @ptrCast(self),
         .choice = &bound,
         .value = value,
     };
@@ -89,12 +90,6 @@ fn run(comptime entry: type, self: *Lower, body: *Sequence, list: ir.TypeId, ope
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     return entry.executeIn(fixed.allocator(), &input) catch |err| return failure(err);
-}
-
-pub fn elementStoredLayout(handle: *anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return storedLayout(frame.lower, frame.decision.*);
 }
 
 pub fn storedLayout(self: *Lower, decision: Decision) Lower.Error!u32 {

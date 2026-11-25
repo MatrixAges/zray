@@ -1,9 +1,11 @@
-import type { ListRepresentation } from "lowering_host"
+import type { ListRepresentation, Lowering } from "lowering_host"
 import type { Query } from "./model"
 
 export type Input = {
     frame: ListRepresentation,
+    lower: Lowering,
+    type_id: u32,
     request: Query
 }
 
-export { listRepresentationLayout, emitListRepresentation } from "lowering_host"
+export { emitListRepresentation, materializeType, StoredType } from "lowering_host"

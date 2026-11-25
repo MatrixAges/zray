@@ -11,7 +11,8 @@
         <Call
             fn="layout"
             in={{
-                frame: $in.frame,
+                lower: $in.lower,
+                type_id: $in.choice.type_id,
                 stored: $in.choice.stored
             }}
         />

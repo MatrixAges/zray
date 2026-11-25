@@ -1,5 +1,4 @@
-import type { ExpressionsKind } from "../../../printer/model/expressions"
-import type { Output as Binding } from "../../binding/emit"
+import type { AstSequence, AstWriter } from "ast_rows"
 
 export type Declaration = {
     name: u8[],
@@ -9,31 +8,29 @@ export type Declaration = {
 }
 
 export type Input = {
+    writer: AstWriter,
+    body: AstSequence,
     declaration: Declaration,
     tracking?: u8[],
     expression_base: u32
 }
 
+export type Declare = {
+    writer: AstWriter,
+    body: AstSequence,
+    declaration: Declaration
+}
+
 export type Tracking = {
+    writer: AstWriter,
+    body: AstSequence,
     name: u8[],
     expression_base: u32
 }
 
-export type Expressions = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    identifier: u8[][],
-    boolean: bool[]
-}
-
 export type Tracker = {
-    declaration: Binding,
-    expressions: Expressions,
     target: u32,
     value: u32
 }
 
-export type Output = {
-    declaration: Binding,
-    tracker?: Tracker
-}
+export type Output = Tracker?

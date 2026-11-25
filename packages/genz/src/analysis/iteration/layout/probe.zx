@@ -65,13 +65,6 @@ export default function (in: Input): Output {
                 shallow: host.loopShallowLayout(frame)
             }
         }
-        case Action.CheckProjection: return {
-            ...in,
-            facts: {
-                ...facts,
-                projection: host.loopConsumerProjection(frame)
-            }
-        }
         case Action.CheckInitial: return {
             ...in,
             facts: {

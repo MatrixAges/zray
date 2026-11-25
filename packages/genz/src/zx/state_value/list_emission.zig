@@ -22,7 +22,6 @@ const Request = struct {
 
 const Frame = struct {
     lower: *Lower,
-    id: ?ir.TypeId,
     query: *const Query,
     request: Request,
     fn borrowHandle(handle: *const anyopaque) *const Frame {
@@ -40,18 +39,18 @@ pub fn lower(self: *Lower, id: ?ir.TypeId, operation: Operation, request: Reques
         .ast = &ast,
     };
 
-    const frame: Frame = .{ .lower = self, .id = id, .query = &query, .request = request };
-    const input: std.meta.Child(runner.Input) = .{ .frame = @ptrCast(&frame), .request = @import("zx").columns.pointer(@FieldType(std.meta.Child(runner.Input), "request"), &query) };
+    const frame: Frame = .{ .lower = self, .query = &query, .request = request };
+
+    const input: std.meta.Child(runner.Input) = .{
+        .frame = @ptrCast(&frame),
+        .lower = @ptrCast(self),
+        .type_id = if (id) |type_id| @backingInt(type_id) else 0,
+        .request = @import("zx").columns.pointer(@FieldType(std.meta.Child(runner.Input), "request"), &query),
+    };
+
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     return @fromBackingInt(runner.executeIn(fixed.allocator(), &input) catch |err| return publication.failure(err));
-}
-
-pub fn listRepresentationLayout(handle: *const anyopaque) Lower.Error!u32 {
-    const frame = Frame.borrowHandle(handle);
-    const self = frame.lower;
-
-    return @backingInt(try @import("../types.zig").get(self, self.state_types, frame.id.?));
 }
 
 pub fn emitListRepresentation(handle: *const anyopaque, layout: ?u32) Lower.Error!u32 {

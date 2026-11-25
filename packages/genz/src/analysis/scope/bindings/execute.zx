@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import host from "lowering_host"
 
 import { Action } from "./model"
@@ -9,13 +10,14 @@ export type Input = {
     frame: Lowering,
     scope: ScopeFrame,
     binding: Binding,
-    type_id: u32
+    type_id: u32,
+    names: u8[][]
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { frame, scope, binding, type_id } = in
+    const { frame, scope, binding, type_id, names } = in
     const { action, position, symbol, value } = binding
 
     if (action == Action.Reuse) {
@@ -23,7 +25,12 @@ export default function (in: Input): Output {
     }
 
     if (action == Action.Task) {
-        return host.emitScopeTask(frame, symbol, value)
+        return host.startInlineTask(
+            frame,
+            value,
+            names[integers.widen(symbol ?? 0)],
+            false
+        )
     }
 
     const borrowed = host.prepareScopeBinding(scope, symbol, value, type_id)

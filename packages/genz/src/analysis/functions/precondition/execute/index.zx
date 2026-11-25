@@ -1,6 +1,6 @@
+export { readAstOrigin } from "ast_rows"
 export {
     openPreconditionScope,
-    evaluatePrecondition,
-    emitPrecondition,
-    publishPreconditionScope
+    publishPreconditionScope,
+    lowerExpression
 } from "lowering_host"
