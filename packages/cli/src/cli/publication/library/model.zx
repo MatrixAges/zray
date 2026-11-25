@@ -1,3 +1,4 @@
+import type { TextColumn } from "memory"
 import type { Directory, Library, Verification } from "publication_host"
 
 export type Inventory = {
@@ -7,7 +8,14 @@ export type Inventory = {
 
 export type Input = Inventory & {
     verification: Verification,
+    observed: TextColumn,
     separator: u8
+}
+
+export type Files = {
+    targets: string[],
+    manifest: string,
+    prefix: u64
 }
 
 export enum Output {

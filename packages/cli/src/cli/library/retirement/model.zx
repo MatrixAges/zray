@@ -1,9 +1,5 @@
+import type { TextColumn } from "memory"
 import type { Retirement } from "publication_host"
-import type { Input as InventoryPath } from "../../native_sources/inventory/model"
-
-export type Input = InventoryPath & {
-    retained: bool
-}
 
 export enum Selection {
     Invalid,
@@ -17,12 +13,21 @@ export enum Inspection {
     Modified
 }
 
-export type Plan = Retirement
-
-export type Candidate = {
-    retirement: Retirement,
-    index: u64,
+export type Entries = {
+    paths: TextColumn,
+    digests: TextColumn,
+    count: u64,
     native_only: bool
+}
+
+export type Plan = {
+    retirement: Retirement,
+    previous: Entries,
+    separator: u8
+}
+
+export type Candidate = Plan & {
+    index: u64
 }
 
 export enum Status {
@@ -33,7 +38,6 @@ export enum Status {
 }
 
 export type Walk = Candidate & {
-    count: u64,
     status: Status,
     running: bool
 }

@@ -3,27 +3,23 @@
 
     <Args in={Retirement.Plan} out={Retirement.Status} />
 
-    <Call fn="index.readRetirement" in={$in} />
+    <Call fn="index.readRetirement" in={$in.retirement} />
 
     <If on={!$ctx.readRetirement}>
         <Return value={Retirement.Status.Ready} />
     </If>
 
-    <Call fn="index.reserveTargets" in={$in} />
-    <Call fn="targets" in={$in} />
-    <Call fn="index.retirementOldCount" in={$in} />
-    <Call fn="index.retirementNativeOnly" in={$in} />
+    <Call fn="index.reserveTargets" in={$in.retirement} />
+    <Call fn="targets" in={$in.retirement} />
 
     <Loop on={$in.running}>
         <Call
             module="walk"
             in={{
-                retirement: $in,
-                native_only: $ctx.retirementNativeOnly,
-                count: $ctx.retirementOldCount,
+                ...$in,
                 index: 0,
                 status: Retirement.Status.Ready,
-                running: $ctx.retirementOldCount != 0
+                running: $in.previous.count != 0
             }}
         />
     </Loop>

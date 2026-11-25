@@ -9,7 +9,8 @@ export {
     checkAssembly,
     checkBindings,
     writeBindings,
+    captureLibraryInputs,
     prepareRetirement,
-    copyInventory,
+    copyStagedFile,
     absolutePath
 } from "publication_host"

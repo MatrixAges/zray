@@ -49,6 +49,10 @@ pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!u8 {
     return effects.state(Self, handle).nextNamed(name);
 }
 
+pub fn entryPath(handle: *const anyopaque) []const u8 {
+    return effects.state(Self, handle).path;
+}
+
 pub fn nextNamed(self: *Self, name: []const u8) effects.Error!u8 {
     const kind = (try self.advance()) orelse return constants.end_of_directory;
     const named = std.mem.eql(u8, self.path, name);
@@ -71,4 +75,19 @@ pub fn copyEntry(handle: *const anyopaque) effects.Error!void {
 
 pub fn copy(self: *Self, relative: []const u8, target: []const u8) effects.Error!void {
     self.directory.copyFile(relative, .cwd(), target, self.io, .{ .make_path = true }) catch |err| return self.failure.save(err);
+}
+
+pub fn copyStagedFile(handle: *const anyopaque, target: []const u8, prefix: u64) effects.Error!void {
+    const self = effects.state(Self, handle);
+
+    return self.copy(target[@intCast(prefix)..], target);
+}
+
+pub fn removeRetiredFile(handle: *const anyopaque, target: []const u8) effects.Error!void {
+    const self = effects.state(Self, handle);
+
+    std.Io.Dir.cwd().deleteFile(self.io, target) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => return self.failure.save(err),
+    };
 }

@@ -7,8 +7,9 @@
         module="check"
         in={$in.pick([
             "retirement",
-            "index",
-            "native_only"
+            "previous",
+            "separator",
+            "index"
         ])}
     />
 
@@ -17,7 +18,8 @@
             ...$in,
             index: $in.index + 1,
             status: $ctx.check,
-            running: $ctx.check == Step.Status.Ready && $in.index + 1 < $in.count
+            running: $ctx.check == Step.Status.Ready &&
+                $in.index + 1 < $in.previous.count
         }}
     />
 </Module>

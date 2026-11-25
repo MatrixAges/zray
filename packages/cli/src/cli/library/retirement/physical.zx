@@ -1,0 +1,31 @@
+import host from "publication_host"
+
+import within from "../../native_sources/path/within"
+
+import type { Retirement } from "publication_host"
+
+export type Input = {
+    retirement: Retirement,
+    path: string,
+    separator: u8
+}
+
+export type Output = {
+    path: string,
+    inside: bool
+}
+
+export default function (in: Input): Output {
+    const { path, relative } = host.retirementPhysical(in.retirement, in.path)
+
+    const inside = within({
+        path: relative,
+        absolute: host.absolutePath(relative),
+        separator: in.separator
+    })
+
+    return {
+        path,
+        inside
+    }
+}

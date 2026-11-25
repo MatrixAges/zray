@@ -3,37 +3,23 @@
 
     <Args in={Retirement.Candidate} out={Retirement.Status} />
 
-    <Call
-        fn="index.selectRetirementRow"
-        in={[
-            $in.retirement,
-            $in.index
-        ]}
-    />
+    <Call fn="candidate" in={$in} />
 
-    <Call fn="../../publication/index.absolutePath" />
-
-    <Call fn="index.retirementSpellingMatches" in={$in.retirement} />
-
-    <Call
-        module="select"
-        in={{
-            path: $ctx.selectRetirementRow,
-            absolute: $ctx.absolutePath,
-            native_only: $in.native_only,
-            retained: $ctx.retirementSpellingMatches
-        }}
-    />
-
-    <If on={$ctx.select == Retirement.Selection.Invalid}>
+    <If on={$ctx.candidate.selection == Retirement.Selection.Invalid}>
         <Return value={Retirement.Status.InvalidInventory} />
     </If>
 
-    <If on={$ctx.select == Retirement.Selection.Retain}>
+    <If on={$ctx.candidate.selection == Retirement.Selection.Retain}>
         <Return value={Retirement.Status.Ready} />
     </If>
 
-    <Call fn="index.retirementOldKind" in={$in.retirement} />
+    <Call
+        fn="index.retirementFileKind"
+        in={[
+            $in.retirement,
+            $ctx.candidate.path
+        ]}
+    />
 
     <Call fn="inspect" />
 
@@ -45,27 +31,46 @@
         <Return value={Retirement.Status.Modified} />
     </If>
 
-    <Call fn="index.resolveRetirementRow" in={$in.retirement} />
+    <Call
+        fn="physical"
+        in={{
+            retirement: $in.retirement,
+            path: $ctx.candidate.path,
+            separator: $in.separator
+        }}
+    />
 
-    <If on={!$ctx.resolveRetirementRow}>
+    <If on={!$ctx.physical.inside}>
         <Return value={Retirement.Status.OutsideOutput} />
     </If>
 
-    <Call fn="search" in={$in.retirement} />
+    <Call
+        fn="search"
+        in={[
+            $in.retirement,
+            $ctx.physical.path
+        ]}
+    />
 
     <If on={$ctx.search}>
         <Return value={Retirement.Status.Ready} />
     </If>
 
-    <Call fn="index.checkRetirementInput" in={$in.retirement} />
-    <Call fn="index.retirementDigest" in={$in.retirement} />
-    <Call fn="index.retirementExpectedDigest" in={$in.retirement} />
+    <Call
+        fn="index.checkRetirementInput"
+        in={[
+            $in.retirement,
+            $ctx.candidate.path
+        ]}
+    />
 
     <Call
         fn="verify"
         in={{
-            actual: $ctx.retirementDigest,
-            expected: $ctx.retirementExpectedDigest
+            retirement: $in.retirement,
+            previous: $in.previous,
+            index: $in.index,
+            path: $ctx.candidate.path
         }}
     />
 
@@ -73,7 +78,13 @@
         <Return value={Retirement.Status.Modified} />
     </If>
 
-    <Call fn="index.keepRetirement" in={$in.retirement} />
+    <Call
+        fn="index.keepRetirement"
+        in={[
+            $in.retirement,
+            $ctx.candidate.path
+        ]}
+    />
 
     <Return value={Retirement.Status.Ready} />
 </Module>

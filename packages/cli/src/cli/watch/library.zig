@@ -25,6 +25,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
         .library = @ptrCast(&library),
         .directory = @ptrCast(&cursor),
         .verification = @ptrCast(&verification),
+        .observed = @ptrCast(&library.observed),
         .separator = std.fs.path.sep,
     }) catch |err| return failure.unwrap(err);
 

@@ -1,22 +1,19 @@
 import host from "publication_host"
 
-import type { Library as Input } from "publication_host"
+import type { Directory } from "publication_host"
+
+export type Input = [Directory, string[], u64]
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const first: u64 = 0
-    const count = host.contentCount(in)
+    const [directory, targets, prefix] = in
 
-    loop({
-        library: in,
-        count,
-        index: first
-    }, {
-        while: row => row.index < row.count,
-        next: row => {
-            host.copyContent(row.library, row.index)
-            row.index += 1
+    const copied = loop(0, {
+        while: index => index < targets.length,
+        next: index => {
+            host.copyStagedFile(directory, targets[index], prefix)
+            index += 1
         }
     })
 }

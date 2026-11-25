@@ -1,13 +1,7 @@
 export {
     readRetirement,
     reserveTargets,
-    selectRetirementRow,
-    retirementSpellingMatches,
-    retirementOldKind,
-    resolveRetirementRow,
+    retirementFileKind,
     checkRetirementInput,
-    retirementDigest,
-    retirementExpectedDigest,
     keepRetirement
 } from "publication_host"
-export { retirementOldCount, retirementNativeOnly } from "publication_host"

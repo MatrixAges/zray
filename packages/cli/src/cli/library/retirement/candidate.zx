@@ -1,0 +1,37 @@
+import memory from "memory"
+import host from "publication_host"
+
+import admit from "../../native_sources/inventory/admit"
+import { Selection } from "./model"
+
+import type { Candidate as Input } from "./model"
+
+export type Output = {
+    path: string,
+    selection: Selection
+}
+
+export default function (in: Input): Output {
+    const { retirement, previous, index } = in
+
+    const entry = memory.readTextColumn(previous.paths, index)
+
+    const { path, relative } = host.retirementSpelling(retirement, entry)
+
+    const valid = admit({
+        path: relative,
+        absolute: host.absolutePath(relative),
+        native_only: previous.native_only
+    })
+
+    const selection = match {
+        !valid => Selection.Invalid,
+        host.retirementSpellingMatches(retirement, path) => Selection.Retain,
+        _ => Selection.Inspect
+    }
+
+    return {
+        path,
+        selection
+    }
+}

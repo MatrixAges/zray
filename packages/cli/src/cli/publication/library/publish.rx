@@ -3,14 +3,16 @@
 
     <Args in={Library.Input} out={Library.Output} />
 
-    <Call fn="../index.capture" in={$in.verification} />
+    <Call fn="../index.captureLibraryInputs" in={$in.library} />
 
     <Call
         fn="disjoint"
-        in={$in.pick([
-            "library",
-            "separator"
-        ])}
+        in={{
+            library: $in.library,
+            observed: $in.observed,
+            separator: $in.separator,
+            count: $ctx.captureLibraryInputs
+        }}
     />
 
     <If on={!$ctx.disjoint}>
@@ -34,13 +36,36 @@
         ])}
     />
 
-    <If on={!$ctx.preflight}>
+    <If on={$ctx.preflight.manifest.length == 0}>
         <Return value={Library.Output.MissingInventory} />
     </If>
 
-    <Call fn="copy_content" in={$in.library} />
-    <Call fn="retire" in={$in.library} />
-    <Call fn="../index.copyInventory" in={$in.library} />
+    <Call
+        fn="copy_content"
+        in={[
+            $in.directory,
+            $ctx.preflight.targets,
+            $ctx.preflight.prefix
+        ]}
+    />
+
+    <Call
+        fn="retire"
+        in={[
+            $in.directory,
+            $ctx.prepareRetirement
+        ]}
+    />
+
+    <Call
+        fn="../index.copyStagedFile"
+        in={[
+            $in.directory,
+            $ctx.preflight.manifest,
+            $ctx.preflight.prefix
+        ]}
+    />
+
     <Call fn="../index.retain" in={$in.verification} />
 
     <Return value={Library.Output.Published} />
