@@ -16,8 +16,6 @@ pub const ServiceColumns = struct {
 };
 
 pub fn render(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("entry_seed.zig").render(allocator, options);
-
     return renderGenerated(allocator, options, null);
 }
 

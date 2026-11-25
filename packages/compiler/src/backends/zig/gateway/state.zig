@@ -14,12 +14,11 @@ pub const Result = struct {
     bound: ?generating.gateway.entry.ServiceColumns = null,
 };
 
-pub const Error = @import("state_seed.zig").Error;
+pub const Error = names.Error || error{ UnsupportedHostReference, InvalidModule, ConflictingStore, MissingInitializer, InvalidInitializer };
 
 const Descriptor = struct { input_type: u32, output_type: u32, requires_io: bool, requires_process: bool };
 
 pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bundle) Error!Result {
-    if (comptime !@import("parser_options").generated_parser) return @import("state_seed.zig").create(allocator, library, bundle);
     if (library.exports.len != bundle.public_modules.len) return error.InvalidModule;
 
     const independent = try @import("frontend").storesOwnValues(bundle.arena.child_allocator, library.program);

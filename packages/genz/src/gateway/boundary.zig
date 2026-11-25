@@ -4,12 +4,6 @@ const node = @import("../node.zig");
 const Builder = @import("../builder.zig");
 
 pub fn lower(builder: Builder) std.mem.Allocator.Error![3]node.Declaration {
-    if (comptime !@import("genz_options").generated_analysis) return .{
-        try @import("http_seed.zig").readBody(builder),
-        try @import("http_seed.zig").respond(builder),
-        try @import("head_seed.zig").lower(builder),
-    };
-
     const selected = try lowerStored(builder);
     var result: [3]node.Declaration = undefined;
 
@@ -19,12 +13,6 @@ pub fn lower(builder: Builder) std.mem.Allocator.Error![3]node.Declaration {
 }
 
 pub fn lowerStored(builder: Builder) std.mem.Allocator.Error!@import("../node/stored.zig").Declarations {
-    if (comptime !@import("genz_options").generated_analysis) {
-        const declarations = try lower(builder);
-
-        return builder.nodes.declarations(builder.allocator, &declarations);
-    }
-
     const entry = @import("generated_gateway_http");
     const Input = std.meta.Child(entry.Input);
 

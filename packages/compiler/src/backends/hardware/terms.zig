@@ -1,13 +1,7 @@
 const std = @import("std");
 const ir = @import("ir.zig");
-const generated = @import("parser_options").generated_parser;
-
-const limits = if (generated) @import("generated_hardware_limits").@"zx.constants" else struct {
-    const maximum_nodes = 100000;
-    const maximum_bit_width = 256;
-};
-
-const Index = if (generated) @import("terms/index.zig") else std.StringHashMapUnmanaged(ir.Id);
+const limits = @import("generated_hardware_limits").@"zx.constants";
+const Index = @import("terms/index.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidHardwareTerm};
 pub const max_nodes: usize = limits.maximum_nodes;
@@ -45,8 +39,6 @@ pub fn intern(self: *Self, key: []const u8, node: ir.Node) Error!ir.Id {
 
     return id;
 }
-
-pub const parse = @import("terms/seed.zig").parse;
 
 pub fn fromSourceError(err: error{ OutOfMemory, IndexOutOfBounds, IntegerOverflow }) Error {
     return switch (err) {

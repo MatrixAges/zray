@@ -105,5 +105,6 @@
 
 ## 五、验收与回测口径
 
+- **已完成进展（Wave 1 · 2026-11-25）**：已物理删除 `verification`、`backends/hardware`、`backends/verilog`、`backends/zig/gateway`、`rx/analysis/gateway` 下 12 份非自举 `*seed*.zig`（含 `verilog/seed/*`、`hardware/*/seed.zig`、`verification/*/seed.zig`、`gateway/state_seed.zig`、`rx/analysis/gateway/routes/seed.zig`）并移除对应 `parser_options.generated_parser` / `rx_options.generated_graph` 双轨退路分支；通过 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译与全量 `compiler`/`cli` 测试。
 - **开发期**：`cd packages/compiler && zig build test-rx` / `zig build test-frontend` 或单文件测试复现，不跑全仓 17,560 文件比较。
 - **阶段收口（每个 M1–M6 结束时）**：`ReleaseSmall` 16 分区构建 `zxc-bootstrap`、372+ 编译器全测试、冻结清单生成产物字节一致性与冷/热/RSS 基准对比。

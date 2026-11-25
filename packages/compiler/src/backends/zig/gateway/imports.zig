@@ -2,15 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 
 pub fn prefixed(allocator: std.mem.Allocator, prefix: []const u8, comptime field: []const u8, rows: anytype) std.mem.Allocator.Error![]const []const u8 {
-    if (comptime @import("parser_options").generated_parser) {
-        return prefixedColumns(allocator, prefix, zx.memory.borrowTextColumn(field, rows), rows.len);
-    }
-
-    const output = try reserve(allocator, prefix, rows.len);
-
-    for (rows, output[1..]) |*row, *name| name.* = @field(row, field);
-
-    return output;
+    return prefixedColumns(allocator, prefix, zx.memory.borrowTextColumn(field, rows), rows.len);
 }
 
 pub fn prefixedColumns(allocator: std.mem.Allocator, prefix: []const u8, modules: zx.memory.TextColumn, count: usize) std.mem.Allocator.Error![]const []const u8 {

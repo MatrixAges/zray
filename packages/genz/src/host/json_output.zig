@@ -10,8 +10,6 @@ pub fn lower(builder: Builder, output: Output) std.mem.Allocator.Error!node.Bloc
 }
 
 pub fn lowerFailure(builder: Builder, output: Output, failure: []const node.Statement) std.mem.Allocator.Error!node.Block {
-    if (comptime !@import("genz_options").generated_analysis) return @import("json_output_seed.zig").lowerFailure(builder, .{ .types = output.types, .id = output.id }, failure);
-
     const entry = @import("generated_json_output");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));

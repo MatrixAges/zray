@@ -93,5 +93,6 @@ flowchart LR
 
 ## 五、验收与回测口径
 
+- **已完成进展（Wave 1 · 2026-11-25）**：已物理删除 `genz/src/gateway/*_seed.zig`（8 份）与 `genz/src/host/` 非自举 `*seed*.zig` / `seed/*.zig`（27 份，保留 `catalog_seed.zig` 与 `bindings_seed.zig` 的 `bootstrapReexports` 供 `stage0 == ""` 使用），并移除对应 `genz_options.generated_analysis` 双轨退路分支；通过 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译与 `compiler`/`cli` 全量测试。
 - **Phase G0**：独立验证 `<Loop>` 块体与独占原地栈的 IR/生成 Zig 零拷贝形态及 `DebugAllocator` 无泄漏。
 - **Phase G1–G3**：开发期只跑 `packages/genz` 与受影响生成的编译器测试用例；每完成一个大阶段（G1/G2/G3），运行一次 `ReleaseSmall` 16 分区编译 + 冻结清单冷/热生成计时与 RSS 对照，确保相比基线性能不退化、内存峰值不反弹。

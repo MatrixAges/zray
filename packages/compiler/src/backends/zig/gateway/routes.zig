@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const memory = zx.memory;
-const generated = @import("parser_options").generated_parser;
 const Route = @import("genz").gateway.Route;
 const Export = @import("../../../library/root.zig").Export;
 const Error = std.mem.Allocator.Error || error{MissingGatewayService};
@@ -12,34 +11,12 @@ pub fn bind(allocator: std.mem.Allocator, definition: anytype, exports: []const 
 
     const routes = try allocator.alloc(Route, definition.routes.len);
 
-    if (comptime generated) {
-        publish(definition.routes, routes);
-
-        return routes;
-    }
-
-    for (definition.routes, routes) |*route, *target| {
-        target.* = .{
-            .path = route.path,
-            .method = if (route.method) |method| @tagName(method) else null,
-            .service = route.service_index,
-        };
-    }
+    publish(definition.routes, routes);
 
     return routes;
 }
 
 fn ordered(definition: anytype, exports: []const Export) bool {
-    if (comptime !generated) {
-        if (definition.service_routes.len != exports.len) return false;
-
-        for (definition.service_routes, exports) |route, *entry| {
-            if (!std.mem.eql(u8, definition.routes[route].service, entry.name)) return false;
-        }
-
-        return true;
-    }
-
     const rule = @import("generated_gateway_route_services");
     const route_names = memory.borrowTextColumn("service", definition.routes);
     const export_names = memory.borrowTextColumn("name", exports);

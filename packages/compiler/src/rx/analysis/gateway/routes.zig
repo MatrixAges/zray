@@ -24,7 +24,6 @@ const Row = struct {
 
 pub fn collect(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: []const u8, node: rx.ast.Node, reporter: *dsl.Reporter) dsl.Error!Collected {
     if (node.children.len == 0) return .{};
-    if (comptime !@import("rx_options").generated_graph) return @import("routes/seed.zig").collect(allocator, owner, node, reporter);
 
     var scratch = std.heap.ArenaAllocator.init(backing);
 

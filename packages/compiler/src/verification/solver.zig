@@ -3,7 +3,6 @@ const zx = @import("zx");
 const frontend = @import("frontend");
 const Conditions = @import("conditions.zig");
 const Evidence = @import("solver/publication/evidence/output.zig");
-const generated_parser = @import("parser_options").generated_parser;
 
 const Context = struct {
     hash: *zx.Sha256,
@@ -29,8 +28,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     var generated = try @import("root.zig").generate(backing_allocator, program);
 
     defer generated.deinit();
-
-    if (comptime !generated_parser) return checkSeed(io, allocator, &program, sources, entry, options, writer, &generated);
 
     const proof = @import("generated_publish_verification_proof");
     const settings = @import("generated_verification_proof_constants").@"zx.constants";
@@ -106,28 +103,4 @@ pub fn verificationPathText(handle: *const anyopaque) []const u8 {
 
 pub fn writeVerificationOutput(handle: *const anyopaque, content: []const u8) std.Io.Writer.Error!void {
     return Context.borrow(handle).output.writeAll(content);
-}
-
-fn checkSeed(io: std.Io, allocator: std.mem.Allocator, program: *const zx.ir.Program, sources: []const frontend.project.Source, entry: []const u8, options: Options, writer: *std.Io.Writer, generated: *const @import("root.zig").Result) !bool {
-    if (generated.value == .diagnostic) {
-        try writer.print("verification: {s}\n", .{generated.value.diagnostic.message});
-
-        return false;
-    }
-
-    const query = generated.value.query;
-    const seed = @import("solver/seed.zig");
-    const evidence = try seed.serialize(allocator, program, sources, entry, query.inputs);
-    var hash: [32]u8 = undefined;
-    var fingerprint = std.crypto.hash.sha2.Sha256.init(.{});
-
-    fingerprint.update(evidence);
-    fingerprint.update(query.feasibility);
-    fingerprint.update(query.correctness);
-    fingerprint.final(&hash);
-
-    const correctness_path = options.output orelse try std.fmt.allocPrint(allocator, ".zxc/proofs/{s}/correctness.smt2", .{std.fmt.bytesToHex(hash, .lower)});
-    const solver = options.solver orelse "z3";
-
-    return seed.check(io, allocator, query, evidence, correctness_path, solver, writer);
 }

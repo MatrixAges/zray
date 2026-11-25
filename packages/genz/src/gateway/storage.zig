@@ -2,8 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 
 pub fn render(allocator: std.mem.Allocator, modules: []const []const u8) std.mem.Allocator.Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("storage_seed.zig").render(allocator, modules);
-
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

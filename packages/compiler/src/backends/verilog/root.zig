@@ -11,12 +11,6 @@ pub fn emitCircuit(allocator: std.mem.Allocator, module: hardware.Circuit, clock
 }
 
 fn renderModule(allocator: std.mem.Allocator, module: anytype, clocked: bool) ![]u8 {
-    if (comptime !@import("parser_options").generated_parser) {
-        if (!@import("../hardware/validate.zig").validate(module)) return error.InvalidHardwareIr;
-
-        return @import("seed/root.zig").emit(allocator, module, clocked);
-    }
-
     const View = @import("../hardware/graph/view.zig");
     var view: View = undefined;
 

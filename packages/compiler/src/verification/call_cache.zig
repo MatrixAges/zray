@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const terms = @import("terms.zig");
 const Allocator = std.mem.Allocator;
-pub const Cache = if (@import("parser_options").generated_parser) Source else Seed;
+pub const Cache = Source;
 
 fn Lookup(comptime Key: type) type {
     return union(enum) { hit: terms.Evaluation, miss: Key };
@@ -98,16 +98,3 @@ pub fn probeSymbolicCallKey(handle: *const anyopaque, target: u32, start: u64, c
 pub fn rewindSymbolicCallKey(handle: *const anyopaque, start: u64) void {
     Probe.borrow(handle).cache.leaves.shrinkRetainingCapacity(@intCast(start));
 }
-
-const Seed = struct {
-    rows: std.StringHashMapUnmanaged(terms.Evaluation) = .empty,
-    pub fn lookup(self: *Seed, allocator: Allocator, target: u32, argument: terms.Value) Allocator.Error!Lookup([]const u8) {
-        const value = try std.json.Stringify.valueAlloc(allocator, argument, .{});
-        const key = try std.fmt.allocPrint(allocator, "{d}:{s}", .{ target, value });
-
-        return if (self.rows.get(key)) |result| .{ .hit = result } else .{ .miss = key };
-    }
-    pub fn publish(self: *Seed, allocator: Allocator, key: []const u8, result: terms.Evaluation) Allocator.Error!void {
-        try self.rows.put(allocator, key, result);
-    }
-};

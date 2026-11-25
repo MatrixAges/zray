@@ -2,13 +2,10 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const terms = @import("terms.zig");
-const seed = @import("scalar/seed.zig");
-const generated = @import("parser_options").generated_parser;
 const Evaluation = terms.Evaluation;
 
 pub fn unary(allocator: std.mem.Allocator, invert: bool, target: ir.Type, operand: Evaluation) zx.Error!?Evaluation {
     if (operand.value != .scalar) return null;
-    if (comptime !generated) return seed.unary(allocator, invert, target, operand);
 
     const rule = @import("generated_verification_unary");
 
@@ -19,13 +16,6 @@ pub fn unary(allocator: std.mem.Allocator, invert: bool, target: ir.Type, operan
     };
 
     return evaluate(rule, allocator, &input);
-}
-
-pub fn binary(allocator: std.mem.Allocator, table: *const ir.ExpressionTable, id: ir.ExprId, operator: ir.Operator, target: ir.Type, left: Evaluation, right: Evaluation) zx.Error!?Evaluation {
-    if (left.value != .scalar or right.value != .scalar) return null;
-    if (comptime !generated) return seed.binary(allocator, operator, target, left, right);
-
-    return binaryWithColumns(allocator, table, id, target, left, right);
 }
 
 pub fn binaryWithColumns(allocator: std.mem.Allocator, table: *const ir.ExpressionTable, id: ir.ExprId, target: ir.Type, left: Evaluation, right: Evaluation) zx.Error!?Evaluation {

@@ -3,8 +3,6 @@ const zx = @import("zx");
 pub const Error = std.mem.Allocator.Error || error{UnsupportedNodeType};
 
 pub fn render(allocator: std.mem.Allocator, types: zx.ir.TypeTable, input_id: zx.ir.TypeId, output_id: zx.ir.TypeId) Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("seed/root.zig").render(allocator, types, input_id, output_id);
-
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

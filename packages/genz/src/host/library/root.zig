@@ -1,23 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
-const generated = @import("genz_options").generated_analysis;
-const entry = if (generated) @import("generated_library_build") else struct {};
-const Input = if (generated) std.meta.Child(entry.Input) else void;
-
-pub const Module = if (generated)
-    std.meta.Child(std.meta.Child(@FieldType(Input, "generated")))
-
-else
-    struct { name: []const u8, path: []const u8, dependencies: []const []const u8 };
-
-pub const Native = if (generated) std.meta.Child(std.meta.Child(@FieldType(Input, "native"))) else struct {
-    name: []const u8,
-    path: ?[]const u8,
-    header: ?[]const u8,
-    dependencies: []const []const u8,
-    include_paths: []const []const u8,
-    abi_view: ?[]const u8,
-};
+const entry = @import("generated_library_build");
+const Input = std.meta.Child(entry.Input);
+pub const Module = std.meta.Child(std.meta.Child(@FieldType(Input, "generated")));
+pub const Native = std.meta.Child(std.meta.Child(@FieldType(Input, "native")));
 
 pub const Options = struct {
     native: []const Native,
@@ -30,8 +16,6 @@ pub const Options = struct {
 pub const Error = std.mem.Allocator.Error || error{UnknownModuleDependency};
 
 pub fn render(allocator: std.mem.Allocator, options: Options) Error![]u8 {
-    if (comptime !generated) return @import("root_seed.zig").render(allocator, options);
-
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

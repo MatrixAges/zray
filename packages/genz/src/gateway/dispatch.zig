@@ -5,20 +5,12 @@ const Builder = @import("../builder.zig");
 const Route = @import("root.zig").Route;
 
 pub fn lower(builder: Builder, routes: []const Route) std.mem.Allocator.Error!node.Declaration {
-    if (comptime !@import("genz_options").generated_analysis) return @import("dispatch_seed.zig").lower(builder, routes);
-
     const root = try lowerStored(builder, routes);
 
     return builder.nodes.materializeDeclaration(builder.allocator, root);
 }
 
 pub fn lowerStored(builder: Builder, routes: []const Route) std.mem.Allocator.Error!u32 {
-    if (comptime !@import("genz_options").generated_analysis) {
-        const declaration = try @import("dispatch_seed.zig").lower(builder, routes);
-
-        return (try builder.nodes.declarations(builder.allocator, &.{declaration})).start;
-    }
-
     const entry = @import("generated_gateway_dispatch");
     const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;

@@ -5,7 +5,6 @@ const Bundle = @import("../library.zig").Bundle;
 const File = @import("../modules.zig").File;
 const State = @import("state.zig");
 const imports_writer = @import("imports.zig");
-const generated = @import("parser_options").generated_parser;
 const Self = @This();
 pub const Options = struct { routes: []const generating.gateway.Route, listen: []const u8, max_header_bytes: u32, max_body_bytes: u32 };
 
@@ -22,28 +21,6 @@ pub fn build(self: *Self) !void {
     const bundle = self.bundle;
     const modules = if (bundle) |value| value.modules.len else 0;
     const facades = if (bundle) |value| value.public_modules.len else 0;
-
-    if (!generated) {
-        if (bundle != null) try self.bindState();
-
-        const count = std.math.add(usize, modules, facades) catch return error.OutOfMemory;
-        const capacity = std.math.add(usize, count, 2) catch return error.OutOfMemory;
-
-        try self.files.ensureTotalCapacityPrecise(self.allocator, capacity);
-
-        if (bundle) |value| {
-            self.files.appendSliceAssumeCapacity(value.modules);
-
-            for (value.public_modules) |*facade| self.files.appendAssumeCapacity(facade.file);
-        }
-
-        try self.publishContract();
-        try self.publishState();
-        try self.publishApplication();
-
-        return;
-    }
-
     const entrypoint = @import("generated_gateway_bundle");
 
     const input: std.meta.Child(entrypoint.Input) = .{
@@ -95,7 +72,7 @@ pub fn appendGatewayFacade(handle: *const anyopaque, index: u64) void {
 fn publishContract(self: *Self) std.mem.Allocator.Error!void {
     const prefix = "application=gateway_storage_contract";
 
-    const state_imports = if (generated and self.mapped.object_columns != null)
+    const state_imports = if (self.mapped.object_columns != null)
         try imports_writer.prefixedColumns(self.allocator, prefix, self.mapped.object_columns.?.modules, self.mapped.object_columns.?.count)
 
     else
@@ -142,11 +119,9 @@ fn publishApplication(self: *Self) std.mem.Allocator.Error!void {
         .max_body_bytes = self.options.max_body_bytes,
     };
 
-    const source = if (!generated)
-        try renderer.render(self.allocator, input)
-
-    else if (self.mapped.bound) |bound|
+    const source = if (self.mapped.bound) |bound|
         try renderer.renderBound(self.allocator, input, bound)
+
     else
         try renderer.render(self.allocator, input);
 

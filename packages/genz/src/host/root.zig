@@ -17,8 +17,6 @@ pub const BootstrapEntries = struct {
 };
 
 pub fn reexports(allocator: std.mem.Allocator, module: []const u8, member: []const u8, names: []const []const u8) std.mem.Allocator.Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("bindings_seed.zig").reexports(allocator, module, member, names);
-
     const entry = @import("generated_host_reexports");
     const input: std.meta.Child(entry.Input) = .{ .module = module, .member = member, .names = names };
 
@@ -43,8 +41,6 @@ pub fn bootstrapReexports(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 }
 
 pub fn result(allocator: std.mem.Allocator, emit: bool) std.mem.Allocator.Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("bindings_seed.zig").result(allocator, emit);
-
     const entry = @import("generated_host_result");
     const input: std.meta.Child(entry.Input) = .{ .emit = emit };
 
@@ -52,8 +48,6 @@ pub fn result(allocator: std.mem.Allocator, emit: bool) std.mem.Allocator.Error!
 }
 
 pub fn cAdapter(allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("bindings_seed.zig").cAdapter(allocator);
-
     const entry = @import("generated_host_c_adapter");
     const input: std.meta.Child(entry.Input) = .{};
 

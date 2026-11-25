@@ -6,8 +6,6 @@ const Builder = @import("../builder.zig");
 const Options = @import("entry.zig").Options;
 
 pub fn lower(builder: Builder, declarations: *std.ArrayList(node.Declaration), options: Options) std.mem.Allocator.Error!void {
-    if (comptime !@import("genz_options").generated_analysis) return @import("prelude_seed.zig").lower(builder, declarations, options);
-
     const entry = @import("generated_gateway_prelude");
     const Input = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const Bases = std.meta.Child(@FieldType(Input, "bases"));

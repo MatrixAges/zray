@@ -12,8 +12,6 @@ pub const Options = struct {
 };
 
 pub fn render(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Error![]u8 {
-    if (comptime !@import("genz_options").generated_analysis) return @import("resources_seed.zig").render(allocator, options);
-
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

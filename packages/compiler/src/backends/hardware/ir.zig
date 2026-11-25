@@ -11,26 +11,7 @@ pub const Sort = struct {
     }
 };
 
-pub const Operator = if (@import("parser_options").generated_parser) @import("generated_hardware_binary_traits").Input else enum {
-    logical_and,
-    logical_or,
-    equal,
-    add,
-    subtract,
-    multiply,
-    unsigned_divide,
-    signed_divide,
-    unsigned_remainder,
-    signed_remainder,
-    unsigned_less,
-    unsigned_less_equal,
-    unsigned_greater,
-    unsigned_greater_equal,
-    signed_less,
-    signed_less_equal,
-    signed_greater,
-    signed_greater_equal,
-};
+pub const Operator = @import("generated_hardware_binary_traits").Input;
 
 pub const Node = struct {
     sort: Sort,

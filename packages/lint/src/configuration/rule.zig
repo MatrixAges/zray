@@ -11,7 +11,7 @@ pub fn checkLength(text: []const u8, maximum: ?usize) ?usize {
 
     defer arena.deinit();
 
-    const output = generated.executeIn(&arena, &.{
+    const output = generated.executeIn(arena.allocator(), &.{
         .check_length = true,
         .source = text,
         .maximum = if (maximum) |limit| @intCast(limit) else null,

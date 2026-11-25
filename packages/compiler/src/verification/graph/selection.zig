@@ -4,9 +4,8 @@ const Graph = @import("../graph.zig");
 const Value = @import("../terms.zig").Value;
 const entry = @import("generated_select_symbolic_value");
 const native = @import("output_execution_abi").layouts.@"zig:verification_host";
-const generated = @import("parser_options").generated_parser;
-const Source = if (generated) native.SymbolicValue else anyopaque;
-const Target = if (generated) native.SymbolicTarget else anyopaque;
+const Source = native.SymbolicValue;
+const Target = native.SymbolicTarget;
 
 const Frame = struct {
     graph: *Graph,

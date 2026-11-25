@@ -2,12 +2,10 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const terms = @import("terms.zig");
-const ports = @import("ports.zig");
 const Expressions = @import("expressions.zig");
 const Value = terms.Value;
 const Self = @This();
 const Graph = @import("graph.zig");
-const generated = @import("parser_options").generated_parser;
 const execution = @import("execution/context.zig");
 const workflow = @import("execution/program.zig");
 
@@ -30,225 +28,11 @@ pub const Query = struct { feasibility: []const u8, correctness: []const u8, inp
 pub const Model = struct { inputs: []const Input, output: terms.Evaluation, definitions: Graph.Definitions.Slice };
 
 pub fn model(self: *Self, port_allocator: std.mem.Allocator) zx.Error!Model {
-    if (comptime generated) return workflow.model(self, port_allocator);
-    if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "symbolic execution requires a pure executable function without Store capabilities");
-
-    self.input = try self.parameter(self.program.input_type, "in", port_allocator, .hardware);
-    const output = try self.call();
-
-    return .{ .inputs = self.inputs.items, .output = output, .definitions = self.graph.?.definitions.slice() };
+    return workflow.model(self, port_allocator);
 }
 
 pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.mem.Allocator) zx.Error!Query {
-    if (comptime generated) return workflow.generate(self, result_allocator, scratch);
-    try self.ensureGraph();
-    if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification requires an executable pure function without Store capabilities");
-
-    self.input = try self.parameter(self.program.input_type, "in", result_allocator, .verification);
-    const precondition = try self.preconditions(.entry);
-    // Terms only refer to earlier definitions. The body cannot add dependencies to the precondition.
-    const precondition_count = self.graph.?.definitions.len;
-    const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
-
-    @memset(environment, null);
-
-    environment[0] = self.input;
-
-    const remaining = try self.block(self.program.body.block(), environment, precondition);
-
-    if (self.program.typeOf(self.program.output_type) == .scalar and self.program.typeOf(self.program.output_type).scalar == .void) {
-        try self.postconditions(remaining, .{ .fields = &.{} });
-    }
-
-    return @import("query/output.zig").render(result_allocator, scratch, self.graph.?, precondition_count, .{
-        .declarations = self.declarations.items,
-        .violations = self.violations.items,
-        .precondition = precondition,
-    }, self.inputs.items);
-}
-
-const PortMode = enum { hardware, verification };
-
-fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: std.mem.Allocator, comptime mode: PortMode) zx.Error!Value {
-    const target = self.program.typeOf(type_id);
-
-    if (target == .object or target == .tuple) {
-        const count = if (target == .object) target.object.len else target.tuple.len;
-        const fields = try self.allocator.alloc(Value, count);
-
-        for (fields, 0..) |*field, index| {
-            const child_path = try ports.fieldPath(port_allocator, path, if (target == .object) target.object.at(index).name else null, index);
-
-            field.* = try self.parameter(if (target == .object) target.object.at(index).type_id else target.tuple.at(index), child_path, port_allocator, mode);
-        }
-
-        return .{ .fields = fields };
-    }
-
-    if (target == .scalar and target.scalar == .void) return .{ .fields = &.{} };
-
-    const width = terms.symbolicWidth(target) orelse return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification currently supports boolean, enum and fixed-width integer inputs with static objects or tuples");
-    const index = self.inputs.items.len;
-
-    const symbol = if (mode == .hardware) try ports.name(port_allocator, index, false) else blk: {
-        const members = if (target == .enumeration) target.enumeration.members.len else 0;
-        const declared = try ports.parameter(port_allocator, index, width, members);
-
-        try self.declarations.append(self.allocator, declared.declaration);
-        if (declared.domain) |domain| try self.declarations.append(self.allocator, domain);
-
-        break :blk declared.symbol;
-    };
-
-    try self.inputs.append(port_allocator, .{ .symbol = symbol, .path = path, .type_id = type_id });
-
-    return .{ .scalar = symbol };
-}
-
-fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []const u8) zx.Error![]const u8 {
-    if (comptime generated) return @import("execution/block.zig").execute(self, statements, environment, initial);
-
-    const checkpoint = self.scratch.checkpoint();
-
-    defer self.scratch.rewindRetainingCapacity(checkpoint);
-
-    var path = initial;
-    var evaluator = Expressions{ .allocator = self.allocator, .scratch = self.scratch, .program = self.program, .environment = environment, .graph = self.graph.?, .reporter = self.reporter, .call_depth = self.call_depth };
-
-    // Scope validation gives each binding a unique slot and rejects reads outside its branch.
-    for (0..statements.len) |statement_index| {
-        const statement = statements.at(statement_index);
-
-        switch (statement) {
-            .evaluate => |id| {
-                const value = try evaluator.evaluate(id);
-
-                try self.require(path, value.safe);
-
-                path = try self.conjunction(path, value.safe);
-            },
-            .constant => |binding| {
-                const value = try evaluator.evaluate(binding.value);
-
-                try self.require(path, value.safe);
-
-                path = try self.conjunction(path, value.safe);
-
-                environment[@backingInt(binding.symbol)] = value.value;
-            },
-            .destructure => |binding| {
-                const value = try evaluator.evaluate(binding.value);
-
-                try self.require(path, value.safe);
-
-                path = try self.conjunction(path, value.safe);
-
-                for (0..binding.symbols.len, value.value.fields) |symbol_index, field| {
-                    const symbol = binding.symbols.at(symbol_index);
-
-                    if (symbol) |id| environment[@backingInt(id)] = field;
-                }
-            },
-            .result => |result| {
-                const value = if (result) |id| try evaluator.evaluate(id) else terms.Evaluation{ .value = .{ .fields = &.{} } };
-
-                try self.require(path, value.safe);
-
-                const completed = try self.conjunction(path, value.safe);
-
-                try self.postconditions(completed, value.value);
-                try self.returns.append(self.allocator, .{ .path = completed, .value = value.value });
-
-                return "false";
-            },
-            .branch => |branch| {
-                const condition = try evaluator.evaluate(branch.condition);
-
-                try self.require(path, condition.safe);
-
-                path = try self.conjunction(path, condition.safe);
-                const yes_entry = try self.conjunction(path, condition.value.scalar);
-                const yes = try self.block(branch.yes, environment, yes_entry);
-                const no_entry = try self.excluding(path, condition.value.scalar);
-                const no = try self.block(branch.no, environment, no_entry);
-
-                // When both arms preserve their entry paths, their union is the incoming path.
-                if (!std.mem.eql(u8, yes, yes_entry) or !std.mem.eql(u8, no, no_entry)) {
-                    path = try self.disjunction(yes, no);
-                }
-            },
-            .switch_stmt => |selection| {
-                const subject = try evaluator.evaluate(selection.subject);
-
-                try self.require(path, subject.safe);
-
-                path = try self.conjunction(path, subject.safe);
-                var unmatched: []const u8 = "true";
-                var continuation: []const u8 = "false";
-                var fallback: ?ir.Block = null;
-
-                for (0..selection.cases.len) |case_index| {
-                    const case = selection.cases.at(case_index);
-
-                    if (case.value) |id| {
-                        const label = try evaluator.evaluate(id);
-                        const matches = try terms.connect(self.allocator, .Equal, subject.value.scalar, label.value.scalar);
-                        const remaining = try self.block(case.body, environment, try self.conjunction(path, matches));
-
-                        continuation = try self.disjunction(continuation, remaining);
-                        unmatched = try self.excluding(unmatched, matches);
-                    } else fallback = case.body;
-                }
-
-                const default_path = try self.conjunction(path, unmatched);
-                const remaining = if (fallback) |body| try self.block(body, environment, default_path) else default_path;
-
-                path = try self.disjunction(continuation, remaining);
-            },
-            .parallel => |invocations| path = try self.parallel(&evaluator, invocations, path),
-            else => return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification does not yet model this statement"),
-        }
-    }
-
-    return path;
-}
-
-fn parallel(self: *Self, evaluator: *Expressions, invocations: @FieldType(ir.StatementRow, "parallel"), initial: []const u8) zx.Error![]const u8 {
-    var parameter_path = initial;
-
-    for (0..invocations.len) |invocation_index| {
-        const invocation = invocations.at(invocation_index);
-        const argument = self.program.expression(invocation.value).value.call.argument;
-        const value = try evaluator.evaluate(argument);
-
-        try self.require(parameter_path, value.safe);
-
-        parameter_path = try self.conjunction(parameter_path, value.safe);
-    }
-
-    const launch_path = parameter_path;
-    var joined_path = launch_path;
-    const values = try self.allocator.alloc(terms.Evaluation, invocations.len);
-
-    defer self.allocator.free(values);
-
-    for (0..invocations.len, values) |invocation_index, *value| {
-        const invocation = invocations.at(invocation_index);
-
-        value.* = try evaluator.evaluate(invocation.value);
-
-        try self.require(launch_path, value.safe);
-
-        joined_path = try self.conjunction(joined_path, value.safe);
-    }
-
-    for (0..invocations.len, values) |invocation_index, value| {
-        const invocation = invocations.at(invocation_index);
-
-        if (invocation.symbol) |symbol| evaluator.environment[@backingInt(symbol)] = value.value;
-    }
-
-    return joined_path;
+    return workflow.generate(self, result_allocator, scratch);
 }
 
 pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!terms.Evaluation {
@@ -272,70 +56,8 @@ pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Err
     return evaluator.evaluate(clause.predicate);
 }
 
-const Boundary = enum { entry, called };
-
-fn preconditions(self: *Self, comptime boundary: Boundary) zx.Error![]const u8 {
-    var path: []const u8 = "true";
-
-    for (0..self.program.contracts.count()) |contract_index| {
-        const clause = self.program.contracts.at(contract_index);
-
-        if (clause.kind != .requires) continue;
-
-        const evaluated = try self.evaluateContract(clause, null);
-
-        if (boundary == .entry) try self.require(path, evaluated.safe);
-
-        const valid = try self.conjunction(evaluated.safe, evaluated.value.scalar);
-
-        if (boundary == .called) try self.require(path, valid);
-
-        path = try self.conjunction(path, valid);
-    }
-
-    return path;
-}
-
 pub fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
-    if (comptime generated) {
-        _ = try execution.apply(self, .Returned, path, value);
-
-        return;
-    }
-
-    var remaining = path;
-
-    for (0..self.program.contracts.count()) |contract_index| {
-        const clause = self.program.contracts.at(contract_index);
-
-        if (clause.kind != .ensures) continue;
-
-        const evaluated = try self.evaluateContract(clause, value);
-        const valid = try self.conjunction(evaluated.safe, evaluated.value.scalar);
-
-        try self.require(remaining, valid);
-
-        remaining = try self.conjunction(remaining, valid);
-    }
-}
-
-fn require(self: *Self, path: []const u8, predicate: []const u8) zx.Error!void {
-    const condition = try self.excluding(path, predicate);
-
-    if (std.mem.eql(u8, condition, "false")) return;
-    try self.violations.append(self.allocator, condition);
-}
-
-fn conjunction(self: *Self, left: []const u8, right: []const u8) zx.Error![]const u8 {
-    return self.boolean(try terms.connect(self.allocator, .And, left, right));
-}
-
-fn excluding(self: *Self, path: []const u8, predicate: []const u8) zx.Error![]const u8 {
-    return self.boolean(try terms.exclude(self.allocator, path, predicate));
-}
-
-fn disjunction(self: *Self, left: []const u8, right: []const u8) zx.Error![]const u8 {
-    return self.boolean(try terms.connect(self.allocator, .Or, left, right));
+    _ = try execution.apply(self, .Returned, path, value);
 }
 
 pub fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {
@@ -351,42 +73,5 @@ pub fn ensureGraph(self: *Self) std.mem.Allocator.Error!void {
 }
 
 pub fn call(self: *Self) zx.Error!terms.Evaluation {
-    if (comptime generated) return workflow.call(self);
-
-    try self.ensureGraph();
-
-    const checkpoint = self.scratch.checkpoint();
-
-    defer self.scratch.rewindRetainingCapacity(checkpoint);
-
-    const path = try self.preconditions(.called);
-    const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
-
-    @memset(environment, null);
-
-    environment[0] = self.input;
-
-    const remaining = try self.block(self.program.body.block(), environment, path);
-
-    if (self.program.typeOf(self.program.output_type) == .scalar and self.program.typeOf(self.program.output_type).scalar == .void) {
-        const unit = Value{ .fields = &.{} };
-
-        try self.postconditions(remaining, unit);
-        try self.returns.append(self.allocator, .{ .path = remaining, .value = unit });
-    }
-
-    if (self.returns.items.len == 0) return self.reporter.fail(.contract, .{ .start = 0, .end = 0 }, "verified call has no return value");
-
-    var value = self.returns.items[0].value;
-    var returned: []const u8 = "false";
-    var safe: []const u8 = "true";
-
-    for (self.returns.items) |result| {
-        value = try self.graph.?.select(self.program, self.program.output_type, result.path, result.value, value, .{ .start = 0, .end = 0 });
-        returned = try self.disjunction(returned, result.path);
-    }
-
-    for (self.violations.items) |violation| safe = try self.excluding(safe, violation);
-
-    return .{ .value = value, .safe = try self.conjunction(safe, returned) };
+    return workflow.call(self);
 }
