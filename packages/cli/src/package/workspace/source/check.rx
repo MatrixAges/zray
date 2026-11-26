@@ -24,14 +24,14 @@
             <Return value={Ownership.Status.Alias} />
         </If>
 
-        <Call fn="index.parentDirectory" in={$in.path} />
+        <Call fn="../paths/parent" in={$in.path} />
 
-        <If on={$ctx.parentDirectory != null}>
+        <If on={$ctx.parent != null}>
             <Call
                 fn="scan"
                 in={{
                     source: $in.source,
-                    directory: $ctx.parentDirectory,
+                    directory: $ctx.parent,
                     root: $ctx.scopeRoot
                 }}
             />

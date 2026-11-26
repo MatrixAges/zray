@@ -1,0 +1,11 @@
+import type { Project } from "package_workspace_host"
+
+export type Input = {
+    project: Project,
+    config_path?: string
+}
+
+export enum Outcome {
+    Complete,
+    OutsidePackage
+}

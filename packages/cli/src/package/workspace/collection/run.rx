@@ -3,20 +3,31 @@
 
     <Args in={IO.Collection} out={void} />
 
+    <Store from="state" as="state" />
+
     <Call fn="index.readRoot" in={$in} />
 
-    <If on={$ctx.readRoot.length > 0}>
-        <Call fn="../glob/invalid" in={$ctx.readRoot} />
+    <If on={$ctx.readRoot.patterns.length > 0}>
+        <Call fn="../glob/invalid" in={$ctx.readRoot.patterns} />
 
         <If on={$ctx.invalid != null}>
             <Call
                 fn="index.invalidPattern"
                 in={[
                     $in,
-                    $ctx.readRoot[$ctx.invalid]
+                    $ctx.readRoot.patterns[$ctx.invalid]
                 ]}
             />
         </If>
+
+        <Call
+            fn="seed_seen"
+            in={{
+                seen: store.state.seen,
+                root_name: $ctx.readRoot.root_name
+            }}
+            setter={[store.state.seen]}
+        />
 
         <Call fn="index.openDirectory" in={$in} />
 
@@ -25,22 +36,23 @@
                 module="walk"
                 in={{
                     collection: $in,
-                    patterns: $ctx.readRoot,
+                    patterns: $ctx.readRoot.patterns,
                     running: true
                 }}
             />
         </Loop>
 
-        <Call fn="index.orderMembers" in={$in} />
+        <Call fn="index.closeDirectory" in={$in} />
+        <Call fn="sort_paths" in={store.state.discovered} />
 
         <Loop on={$in.running}>
             <Call
                 module="members"
                 in={{
                     collection: $in,
-                    count: $ctx.orderMembers,
+                    paths: $ctx.sort_paths,
                     index: 0,
-                    running: $ctx.orderMembers != 0
+                    running: $ctx.sort_paths.length != 0
                 }}
             />
         </Loop>

@@ -5,17 +5,17 @@
 
     <Call
         module="member"
-        in={$in.pick([
-            "collection",
-            "index"
-        ])}
+        in={{
+            collection: $in.collection,
+            path: $in.paths[$in.index]
+        }}
     />
 
     <Return
         value={{
             ...$in,
             index: $in.index + 1,
-            running: $in.index + 1 < $in.count
+            running: $in.index + 1 < $in.paths.length
         }}
     />
 </Module>

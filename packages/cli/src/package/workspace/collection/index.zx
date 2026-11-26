@@ -3,13 +3,11 @@ export {
     invalidPattern,
     openDirectory,
     nextDirectory,
-    recordDirectory,
     enterDirectory,
-    orderMembers,
+    closeDirectory,
     readMember,
-    registerMember,
     duplicateMember,
     publishMember
 } from "package_workspace_host"
 
-export type { Collection } from "package_workspace_host"
+export type { Collection, RootManifest } from "package_workspace_host"

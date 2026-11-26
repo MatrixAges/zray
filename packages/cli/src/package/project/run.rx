@@ -1,7 +1,7 @@
 <Module>
-    <Type from="index" as="IO" />
+    <Type from="model" as="Project" />
 
-    <Args in={IO.Project} out={void} />
+    <Args in={Project.Input} out={Project.Outcome} />
 
     <Call module="configuration" in={$in} />
 
@@ -9,31 +9,35 @@
         <Call
             fn="index.loadProjectGraph"
             in={[
-                $in,
+                $in.project,
                 $ctx.configuration
             ]}
         />
 
         <If on={$ctx.loadProjectGraph}>
-            <Call fn="index.bindProjectScopes" in={$in} />
+            <Call fn="index.bindProjectScopes" in={$in.project} />
 
             <If on={$ctx.bindProjectScopes}>
-                <Call fn="index.owningProjectScope" in={$in} />
+                <Call fn="index.owningProjectScope" in={$in.project} />
 
                 <If on={$ctx.owningProjectScope != null}>
                     <Call
                         fn="index.publishProject"
                         in={[
-                            $in,
+                            $in.project,
                             $ctx.owningProjectScope
                         ]}
                     />
 
+                    <Return value={Project.Outcome.Complete} />
+
                     <Else>
-                        <Call fn="index.reportProjectEntry" in={$in} />
+                        <Return value={Project.Outcome.OutsidePackage} />
                     </Else>
                 </If>
             </If>
         </If>
     </If>
+
+    <Return value={Project.Outcome.Complete} />
 </Module>

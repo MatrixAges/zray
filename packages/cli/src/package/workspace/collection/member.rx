@@ -3,38 +3,44 @@
 
     <Args in={Workspace.Member} out={void} />
 
+    <Store from="state" as="state" />
+
     <Call
         fn="index.readMember"
         in={[
             $in.collection,
-            $in.index
+            $in.path
         ]}
     />
 
-    <If on={$ctx.readMember}>
+    <If on={$ctx.readMember != null}>
         <Call
-            fn="index.registerMember"
-            in={[
-                $in.collection,
-                $in.index
-            ]}
+            fn="register_name"
+            in={{
+                seen: store.state.seen,
+                name: $ctx.readMember,
+                location: $in.path
+            }}
+            setter={[store.state.seen]}
         />
 
-        <If on={$ctx.registerMember != null}>
+        <If on={$ctx.register_name != null}>
             <Call
                 fn="index.duplicateMember"
                 in={[
                     $in.collection,
-                    $ctx.registerMember
+                    $ctx.register_name
                 ]}
             />
         </If>
+
+        <Call fn="../paths/portable" in={$in.path} />
 
         <Call
             fn="index.publishMember"
             in={[
                 $in.collection,
-                $in.index
+                $ctx.portable
             ]}
         />
     </If>

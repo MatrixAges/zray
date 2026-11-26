@@ -1,0 +1,10 @@
+<Store name="workspace_collection" version={1}>
+    <Object name="discovered">
+        <Field name="paths" type={string[]} value={[]} />
+    </Object>
+
+    <Object name="seen">
+        <Field name="names" type={string[]} value={[]} />
+        <Field name="locations" type={string[]} value={[]} />
+    </Object>
+</Store>

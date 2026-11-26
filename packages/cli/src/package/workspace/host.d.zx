@@ -15,9 +15,13 @@ export enum Probe {
     Workspace
 }
 
+export type RootManifest = {
+    patterns: string[],
+    root_name: string
+}
+
 export type MemberSearch = {
-    search: Search,
-    count: u64,
+    paths: string[],
     target: string
 }
 
@@ -26,27 +30,29 @@ export type Directory = {
     name: string
 }
 
-export declare function readRoot(collection: Collection): string[] throws { SourceLoadFailure }
+export type Surface = {
+    exports: u64,
+    entry?: string,
+    library?: string
+}
+
+export declare function readRoot(collection: Collection): RootManifest throws { SourceLoadFailure }
 export declare function invalidPattern(collection: Collection, pattern: string): void throws {
     SourceLoadFailure
 }
 
 export declare function openDirectory(collection: Collection): void throws { SourceLoadFailure }
 export declare function nextDirectory(collection: Collection): Directory? throws { SourceLoadFailure }
-export declare function recordDirectory(collection: Collection): void throws { SourceLoadFailure }
 export declare function enterDirectory(collection: Collection): void throws { SourceLoadFailure }
+export declare function closeDirectory(collection: Collection): void
 
-export declare function orderMembers(collection: Collection): u64 throws { SourceLoadFailure }
-export declare function readMember(collection: Collection, index: u64): bool throws {
+export declare function readMember(collection: Collection, path: string): string? throws {
     SourceLoadFailure
 }
-export declare function registerMember(collection: Collection, index: u64): u64? throws {
+export declare function duplicateMember(collection: Collection, first: string): void throws {
     SourceLoadFailure
 }
-export declare function duplicateMember(collection: Collection, previous: u64): void throws {
-    SourceLoadFailure
-}
-export declare function publishMember(collection: Collection, index: u64): void throws {
+export declare function publishMember(collection: Collection, path: string): void throws {
     SourceLoadFailure
 }
 
@@ -57,7 +63,6 @@ export declare function rememberCandidate(search: Search): void
 export declare function selectCandidate(search: Search, nearest: bool): void
 export declare function loadAncestor(search: Search, directory: string): MemberSearch?
     throws { SourceLoadFailure }
-export declare function workspacePackagePath(search: Search, row: u64): string
 export declare function selectAncestor(search: Search): void
 export declare function discardCandidates(search: Search): void
 
@@ -65,12 +70,10 @@ export declare function scopeRoot(source: Source, path: string): string?
 export declare function physicalSource(source: Source, path: string): string throws {
     SourceLoadFailure
 }
-export declare function parentDirectory(path: string): string?
 export declare function hasPackageManifest(source: Source, directory: string): bool throws {
     SourceLoadFailure
 }
 
-export declare function projectConfiguration(project: Project): string?
 export declare function findProjectConfiguration(project: Project): string? throws {
     SourceLoadFailure
 }
@@ -79,16 +82,13 @@ export declare function loadProjectGraph(project: Project, path: string): bool t
 }
 export declare function bindProjectScopes(project: Project): bool throws { SourceLoadFailure }
 export declare function owningProjectScope(project: Project): u64? throws { SourceLoadFailure }
-export declare function reportProjectEntry(project: Project): void
 export declare function publishProject(project: Project, owner: u64): void throws {
     SourceLoadFailure
 }
 
-export declare function prepareSurface(binding: ScopeBinding, index: u64): u64 throws {
+export declare function prepareSurface(binding: ScopeBinding, index: u64): Surface throws {
     SourceLoadFailure
 }
-export declare function scopeEntry(binding: ScopeBinding): string?
-export declare function scopeLibrary(binding: ScopeBinding): string?
 export declare function writeScopeEntry(binding: ScopeBinding, entry: string): void throws {
     SourceLoadFailure
 }

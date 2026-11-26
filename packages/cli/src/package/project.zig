@@ -22,7 +22,6 @@ const State = struct {
     allocator: std.mem.Allocator,
     scratch: std.mem.Allocator,
     entry: []const u8,
-    config_path: ?[]const u8,
     inputs: ?*Inputs,
     discovered: discover.Result = .{},
     graph: ?graph.Result = null,
@@ -41,7 +40,6 @@ pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, scratch: std.mem
         .allocator = allocator,
         .scratch = scratch,
         .entry = entry,
-        .config_path = config_path,
         .inputs = inputs,
     };
 
@@ -50,13 +48,16 @@ pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, scratch: std.mem
 
     const reference = &state;
 
-    rules.workspace_project.executeValue(scratch, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const outcome = rules.workspace_project.executeValue(scratch, &.{
+        .project = @ptrCast(&reference),
+        .config_path = config_path,
+    }) catch |err| return state.failure.unwrap(err);
+
+    if (outcome == .OutsidePackage) {
+        state.result.diagnostic = rules.workspace_project_constants.@"zx.constants".outside_package;
+    }
 
     return state.result;
-}
-
-pub fn projectConfiguration(handle: *const anyopaque) ?[]const u8 {
-    return State.get(handle).config_path;
 }
 
 pub fn findProjectConfiguration(handle: *const anyopaque) Error!?[]const u8 {
@@ -107,10 +108,6 @@ pub fn owningProjectScope(handle: *const anyopaque) Error!?u64 {
     self.real = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.entry, self.allocator) catch |err| return self.failure.save(err);
 
     return compiler.project.package_scope.owner(self.scopes, self.real);
-}
-
-pub fn reportProjectEntry(handle: *const anyopaque) void {
-    State.get(handle).result.diagnostic = rules.workspace_project_constants.@"zx.constants".outside_package;
 }
 
 pub fn publishProject(handle: *const anyopaque, owner: u64) Error!void {

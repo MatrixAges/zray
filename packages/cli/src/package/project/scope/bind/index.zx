@@ -1,7 +1,5 @@
 export {
     prepareSurface,
-    scopeEntry,
-    scopeLibrary,
     writeScopeEntry,
     prepareLibrarySurface,
     borrowScopeColumns

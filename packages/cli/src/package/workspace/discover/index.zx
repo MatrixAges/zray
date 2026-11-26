@@ -1,6 +1,5 @@
 export {
     startSearch,
-    parentDirectory,
     readCandidate,
     rememberCandidate,
     selectCandidate,

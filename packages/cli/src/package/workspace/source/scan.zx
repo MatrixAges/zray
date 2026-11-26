@@ -1,5 +1,6 @@
-import { hasPackageManifest, parentDirectory } from "package_workspace_host"
+import { hasPackageManifest } from "package_workspace_host"
 
+import parentDirectory from "../paths/parent"
 import { Status } from "./model"
 
 import type { Scan as Input } from "./model"

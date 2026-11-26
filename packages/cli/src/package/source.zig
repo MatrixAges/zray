@@ -55,10 +55,6 @@ pub fn physicalSource(handle: *const anyopaque, path: []const u8) Error![]const 
     return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch |err| return self.failure.save(err);
 }
 
-pub fn parentDirectory(path: []const u8) ?[]const u8 {
-    return std.fs.path.dirname(path);
-}
-
 pub fn hasPackageManifest(handle: *const anyopaque, directory: []const u8) Error!bool {
     const self = State.get(handle);
     const path = std.fs.path.join(self.allocator, &.{ directory, constants.manifest_name }) catch |err| return self.failure.save(err);

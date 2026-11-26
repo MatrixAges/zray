@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+
+import type { RegisterNameInput as Input } from "./model"
+
+export type Output = string?
+
+export default function (in: Input, {
+    store
+}): Output {
+    const wanted = bytes.fromText(in.name)
+    const count = in.seen.names.length
+
+    const existing = loop({
+        index: 0,
+        found: false,
+        first: ""
+    }, {
+        while: row => !row.found && row.index < count,
+        next: row => {
+            const current = bytes.fromText(in.seen.names[row.index])
+
+            if (bytes.equals(current, wanted)) {
+                row.found = true
+                row.first = in.seen.locations[row.index]
+            }
+
+            row.index += 1
+        },
+        return: row => row
+    })
+
+    if (existing.found) {
+        return existing.first
+    }
+
+    store.state.seen = {
+        names: in.seen.names.push(in.name)[0],
+        locations: in.seen.locations.push(in.location)[0]
+    }
+
+    return null
+}

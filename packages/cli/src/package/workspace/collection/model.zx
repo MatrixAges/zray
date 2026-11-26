@@ -9,12 +9,47 @@ export type Directories = Patterns & {
     running: bool
 }
 
-export type Members = Member & {
-    count: u64,
+export type Discovered = {
+    paths: string[]
+}
+
+export type Seen = {
+    names: string[],
+    locations: string[]
+}
+
+export type SeedSeenInput = {
+    seen: Seen,
+    root_name: string
+}
+
+export type RecordPathInput = {
+    discovered: Discovered,
+    path: string
+}
+
+export type RegisterNameInput = {
+    seen: Seen,
+    name: string,
+    location: string
+}
+
+export type MergePathsInput = {
+    source: string[],
+    start: u64,
+    mid: u64,
+    end: u64,
+    merged: string[]
+}
+
+export type Members = {
+    collection: Collection,
+    paths: string[],
+    index: u64,
     running: bool
 }
 
 export type Member = {
     collection: Collection,
-    index: u64
+    path: string
 }

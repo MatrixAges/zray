@@ -1,0 +1,14 @@
+import { root_path } from "../const"
+
+import type { SeedSeenInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    store.state.seen = {
+        names: in.seen.names.push(in.root_name)[0],
+        locations: in.seen.locations.push(root_path)[0]
+    }
+}

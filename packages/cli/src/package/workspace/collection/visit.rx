@@ -9,10 +9,19 @@
         out={void}
     />
 
+    <Store from="state" as="state" />
+
     <Call module="../choose" in={$in.omit(["collection"])} />
 
     <If on={$ctx.choose.included}>
-        <Call fn="index.recordDirectory" in={$in.collection} />
+        <Call
+            fn="record_path"
+            in={{
+                discovered: store.state.discovered,
+                path: $in.path
+            }}
+            setter={[store.state.discovered]}
+        />
     </If>
 
     <If on={$ctx.choose.descendants}>

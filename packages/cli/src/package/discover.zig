@@ -163,13 +163,16 @@ pub fn loadAncestor(handle: *const anyopaque, directory: []const u8) Error!?*con
     else
         target;
 
-    self.member_search = .{ .search = @ptrCast(handle), .count = self.members.?.packages.len, .target = member };
+    const packages = self.members.?.packages;
+    const paths = self.scratch.alloc([]const u8, packages.len) catch |err| return self.failure.save(err);
+
+    for (packages, 0..) |package, index| {
+        paths[index] = package.path;
+    }
+
+    self.member_search = .{ .paths = paths, .target = member };
 
     return &self.member_search;
-}
-
-pub fn workspacePackagePath(handle: *const anyopaque, row: u64) []const u8 {
-    return State.get(handle).members.?.packages[@intCast(row)].path;
 }
 
 pub fn selectAncestor(handle: *const anyopaque) void {

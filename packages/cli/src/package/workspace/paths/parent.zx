@@ -1,0 +1,11 @@
+import path from "std:path"
+
+export type Input = string
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const directory = path.dirname(in)
+
+    return directory == in ? null : directory
+}

@@ -13,6 +13,7 @@ const Output = std.meta.Child(@FieldType(Input, "output"));
 const Target = memory.RowOutput(Package, Output, .{ .records = &.{}, .specifiers = &.{"specifier"} });
 const root_export = rules.package_scope_constants.@"zx.constants".root_export;
 const Surface = struct { bindings: []Package };
+const SurfaceView = @import("cli_abi").layouts.@"zig:package_workspace_host".Surface;
 
 const State = struct {
     allocator: std.mem.Allocator,
@@ -20,6 +21,7 @@ const State = struct {
     graph: *const graph.Result,
     scopes: []Scope,
     surfaces: []Surface,
+    surface_view: SurfaceView = undefined,
     current: usize = undefined,
     compiled_path: []const u8 = undefined,
     bindings: memory.ListColumn = undefined,
@@ -49,12 +51,12 @@ pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *
 
     const reference = &state;
 
-    rules.workspace_scope_bind.executeValue(scratch, &.{ .binding = @ptrCast(&reference), .count = scopes.len }) catch |err| return state.failure.unwrap(err);
+    rules.workspace_scope_bind.executeIn(scratch, &.{ .binding = @ptrCast(&reference), .count = scopes.len }) catch |err| return state.failure.unwrap(err);
 
     return state.diagnostic;
 }
 
-pub fn prepareSurface(handle: *const anyopaque, row: u64) Error!u64 {
+pub fn prepareSurface(handle: *const anyopaque, row: u64) Error!*const SurfaceView {
     const self = State.get(handle);
     const index: usize = @intCast(row);
     const package = &self.graph.packages[index];
@@ -66,19 +68,13 @@ pub fn prepareSurface(handle: *const anyopaque, row: u64) Error!u64 {
     self.scopes[index] = .{ .root = root, .packages = &.{} };
     self.surfaces[index] = .{ .bindings = items };
 
-    return package.manifest.exports.len;
-}
+    self.surface_view = .{
+        .exports = package.manifest.exports.len,
+        .entry = package.manifest.entry,
+        .library = package.manifest.library,
+    };
 
-pub fn scopeEntry(handle: *const anyopaque) ?[]const u8 {
-    const self = State.get(handle);
-
-    return self.graph.packages[self.current].manifest.entry;
-}
-
-pub fn scopeLibrary(handle: *const anyopaque) ?[]const u8 {
-    const self = State.get(handle);
-
-    return self.graph.packages[self.current].manifest.library;
+    return &self.surface_view;
 }
 
 pub fn writeScopeEntry(handle: *const anyopaque, entry: []const u8) Error!void {

@@ -16,13 +16,13 @@
     </If>
 
     <Call fn="index.discardCandidates" in={$in.search} />
-    <Call fn="index.parentDirectory" in={$in.directory} />
+    <Call fn="../paths/parent" in={$in.directory} />
 
-    <If on={$ctx.parentDirectory != null}>
+    <If on={$ctx.parent != null}>
         <Return
             value={{
                 ...$in,
-                directory: $ctx.parentDirectory,
+                directory: $ctx.parent,
                 has_nearest: $in.has_nearest || $ctx.step == Workspace.Progress.Retained
             }}
         />
