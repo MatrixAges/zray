@@ -1,6 +1,5 @@
 <Module>
     <Type from="model" as="Intake" />
-    <Type from="../../../work/ahead/model" as="Ahead" />
 
     <Args in={Intake.Input} out={Intake.Output} />
 
@@ -15,20 +14,21 @@
     <Call
         module="cache"
         in={$in.omit([
-            "ahead",
+            "ahead_ready",
+            "ahead_reads",
             "scratch",
             "reset"
         ])}
     />
 
-    <If on={$in.ahead != null}>
-        <Call module="collect" in={$in.ahead} />
+    <If on={$in.ahead_ready && $in.ahead_reads != null}>
+        <Call fn="unchanged" in={$in.ahead_reads} />
 
         <Call
             fn="complete"
             in={{
                 ...$ctx.cache,
-                result: $ctx.collect,
+                ahead: $ctx.unchanged,
                 scratch: $in.scratch,
                 reset: $in.reset
             }}
@@ -41,7 +41,7 @@
         fn="complete"
         in={{
             ...$ctx.cache,
-            result: Ahead.Result.Missing,
+            ahead: $in.ahead_ready,
             scratch: $in.scratch,
             reset: $in.reset
         }}

@@ -1,26 +1,74 @@
 const std = @import("std");
-const zx = @import("zx");
-const changing = @import("generated_uniqueness_ahead_transition");
-const resetting = @import("generated_uniqueness_ahead_reset");
-pub const Event = @FieldType(std.meta.Child(changing.Input), "event");
+const State = enum(u32) { idle, queued, running, waiting, ready, failed, held };
+pub const Event = enum { Queue, Hold, Withdraw, Claim, Complete, Fail };
 
-pub fn transition(words_arg: []u32, index: usize, event: Event) bool {
-    var words = words_arg;
-    const input: std.meta.Child(changing.Input) = .{ .words = @ptrCast(&words), .index = index, .event = event };
-
-    return invoke(changing, &input);
+fn cells(words: []u32) []std.atomic.Value(State) {
+    return @ptrCast(words);
 }
 
-pub fn reset(words_arg: []u32, dirty: []bool) void {
-    var words = words_arg;
-    var flags = std.mem.sliceAsBytes(dirty);
-    const input: std.meta.Child(resetting.Input) = .{ .words = @ptrCast(&words), .dirty = @ptrCast(&flags), .count = words.len };
+pub fn scan(words: []u32, dirty: []bool, recursive: []const bool, indices: @import("../work/round.zig").Window, first: usize, workers: usize) ?usize {
+    const end = @min(indices.first.len + indices.second.len, workers * 16);
 
-    invoke(resetting, &input);
+    for (first..end) |pos| {
+        const index = indices.at(pos);
+
+        switch (cells(words)[index].load(.acquire)) {
+            .idle => {},
+            .ready, .held => if (!dirty[index]) continue,
+            .queued => {
+                dirty[index] = false;
+
+                continue;
+            },
+            .running, .waiting, .failed => continue,
+        }
+
+        if (recursive[index]) continue;
+
+        dirty[index] = false;
+
+        return pos;
+    }
+
+    return null;
 }
 
-inline fn invoke(comptime entry: type, input: entry.Input) entry.Output {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+pub fn transition(words: []u32, index: usize, event: Event) bool {
+    const state = &cells(words)[index];
 
-    return zx.columns.invoke(entry.executeValue, empty.allocator(), input) catch unreachable;
+    switch (event) {
+        .Claim => return state.cmpxchgStrong(.queued, .running, .acquire, .monotonic) == null,
+        .Withdraw => return state.cmpxchgStrong(.queued, .idle, .acquire, .monotonic) == null,
+        .Queue, .Hold => state.store(if (event == .Queue) .queued else .held, .release),
+        .Complete, .Fail => {
+            if (state.swap(if (event == .Complete) .ready else .failed, .release) == .waiting)
+                std.Io.Threaded.global_single_threaded.io().futexWake(State, &state.raw, 1);
+        },
+    }
+
+    return true;
+}
+
+pub fn take(words: []u32, dirty: []bool, index: usize) std.mem.Allocator.Error!bool {
+    const state = &cells(words)[index];
+
+    dirty[index] = false;
+
+    defer state.store(.idle, .release);
+
+    while (true) {
+        switch (state.load(.acquire)) {
+            .idle, .held => return false,
+            .queued => if (state.cmpxchgStrong(.queued, .idle, .acquire, .monotonic) == null) return false,
+            .running => _ = state.cmpxchgStrong(.running, .waiting, .acquire, .monotonic),
+            .waiting => std.Io.Threaded.global_single_threaded.io().futexWaitUncancelable(State, &state.raw, .waiting),
+            .ready => return true,
+            .failed => return error.OutOfMemory,
+        }
+    }
+}
+
+pub fn reset(words: []u32, dirty: []bool) void {
+    @memset(cells(words), .init(.idle));
+    @memset(dirty, false);
 }

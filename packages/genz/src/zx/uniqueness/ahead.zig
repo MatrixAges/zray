@@ -8,7 +8,7 @@ const Slots = @import("slots.zig");
 const Summaries = @import("summaries.zig");
 const Bodies = @import("program/bodies.zig");
 const generated = @import("genz_options").generated_analysis;
-const Schedule = if (generated) @import("ahead/schedule.zig") else @import("ahead/seed.zig");
+const Schedule = @import("ahead/schedule.zig");
 const compute = @import("program/visit/compute.zig");
 const Window = @import("work/round.zig").Window;
 const BodyRows = @import("memo/body_rows.zig");
@@ -119,7 +119,7 @@ fn offer(self: *Self, comptime kind: Memo.Kind, comptime persistent: bool, memo:
 /// The result analyzed ahead for body `index` if every level it read still holds; waits while it is analyzed.
 pub fn take(self: *Self, comptime kind: Memo.Kind, index: usize) Error!?Found(kind) {
     if (self.pool.count() == 0) return null;
-    if (!try @import("ahead/seed.zig").take(self.states, self.dirty, index)) return null;
+    if (!try Schedule.take(self.states, self.dirty, index)) return null;
 
     const found = self.resultSlot(kind, index).*;
 

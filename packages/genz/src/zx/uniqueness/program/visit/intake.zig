@@ -11,8 +11,7 @@ const Context = @import("../host.zig").Context;
 const entry = @import("generated_uniqueness_visit_intake");
 const Input = std.meta.Child(entry.Input);
 const Probe = target(Input, "memo");
-const Pending = target(Input, "ahead");
-const Reads = target(Pending, "reads");
+const Reads = std.meta.Child(@typeInfo(@FieldType(Input, "ahead_reads")).optional.child);
 const Output = @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload;
 pub const Origin = @FieldType(Output, "origin");
 
@@ -48,14 +47,9 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     } else undefined;
 
     const worker = ahead.pool.count() != 0;
-    const slot = if (worker) ahead.resultSlot(kind, index) else null;
-    var flags = std.mem.sliceAsBytes(ahead.dirty);
+    const ahead_ready = if (worker) try @import("../../ahead/schedule.zig").take(ahead.states, ahead.dirty, index) else false;
+    const slot = if (ahead_ready) ahead.resultSlot(kind, index) else null;
     var reads: ReadColumns = undefined;
-
-    const pending: Pending = if (worker) .{
-        .take = &.{ .words = @ptrCast(&ahead.states), .dirty = @ptrCast(&flags), .index = index },
-        .reads = if (kind != .planned) &reads.bind(slot.?, ctx) else null,
-    } else undefined;
 
     const input: Input = .{
         .memo = if (persistent) &probe else null,
@@ -64,7 +58,8 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
         .scope = @ptrCast(&scope),
         .owner = @ptrCast(&owner),
         .temporary = @ptrCast(&temporary),
-        .ahead = if (worker) &pending else null,
+        .ahead_ready = ahead_ready,
+        .ahead_reads = if (ahead_ready and kind != .planned) &reads.bind(slot.?, ctx) else null,
         .scratch = @ptrCast(scratch),
         .reset = kind != .planned,
     };
@@ -89,8 +84,6 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
 
         break :lookup if (result.memo_row) |row| table.values.items[row] else null;
     } else null;
-
-    if (result.failed) return error.OutOfMemory;
 
     return .{ .origin = result.origin, .cached = cached, .ahead = if (result.origin == .Ahead) slot.?.* else null };
 }

@@ -1,6 +1,5 @@
 import memory from "memory"
 
-import { Result } from "../../../work/ahead/model"
 import { Origin } from "../model"
 import choose from "../select"
 
@@ -8,7 +7,7 @@ import type { Arena } from "memory"
 import type { Found, Output } from "./model"
 
 export type Input = Found & {
-    result: Result,
+    ahead: bool,
     scratch: Arena,
     reset: bool
 }
@@ -16,12 +15,10 @@ export type Input = Found & {
 export default function (in: Input): Output {
     const origin = choose({
         cached: in.trace_row != null || in.memo_row != null,
-        ahead: in.result == Result.Ready
+        ahead: in.ahead
     })
 
-    const failed = in.result == Result.Failed
-
-    if (!in.reset && !failed) {
+    if (!in.reset) {
         if (origin == Origin.Analyze) {
             const released = memory.resetArenaRetainingCapacity(in.scratch)
         }
@@ -29,11 +26,10 @@ export default function (in: Input): Output {
 
     return {
         ...in.omit([
-            "result",
+            "ahead",
             "scratch",
             "reset"
         ]),
-        origin,
-        failed
+        origin
     }
 }

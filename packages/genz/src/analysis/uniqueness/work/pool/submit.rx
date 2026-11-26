@@ -1,8 +1,0 @@
-<Module>
-    <Type from="model" as="Pool" />
-
-    <Args in={Pool.Publication} out={void} />
-
-    <Call fn="publish" in={$in} />
-    <Call fn="wake" in={$in.counters} />
-</Module>

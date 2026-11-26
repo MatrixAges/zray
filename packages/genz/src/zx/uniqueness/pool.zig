@@ -1,6 +1,6 @@
 const std = @import("std");
 const Self = @This();
-const Ring = if (@import("genz_options").generated_analysis) @import("pool/channel.zig") else @import("pool/seed.zig");
+const Ring = @import("pool/ring.zig");
 
 /// Background threads that analyze the bodies the calling thread requests while it walks the worklist on its own. A
 /// request waits in a bounded ring; when the ring is full the request is dropped, as the calling thread analyzes any

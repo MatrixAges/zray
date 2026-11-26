@@ -1,7 +1,6 @@
 import type { Allocator, Arena, ArenaScope, AtomicRows, ListColumn } from "memory"
 import type { Probe } from "../../../memo/encoding/body/model"
 import type { Step } from "../../../replay/model"
-import type { Input as Take } from "../../../work/ahead/take"
 import type { Origin } from "../model"
 
 export type Reads = {
@@ -10,11 +9,6 @@ export type Reads = {
     functions: ListColumn,
     slots: ListColumn,
     values: ListColumn
-}
-
-export type Pending = {
-    take: Take,
-    reads?: Reads
 }
 
 export type Cache = {
@@ -38,12 +32,12 @@ export type Found = {
 }
 
 export type Input = Cache & {
-    ahead?: Pending,
+    ahead_ready: bool,
+    ahead_reads?: Reads,
     scratch: Arena,
     reset: bool
 }
 
 export type Output = Found & {
-    origin: Origin,
-    failed: bool
+    origin: Origin
 }

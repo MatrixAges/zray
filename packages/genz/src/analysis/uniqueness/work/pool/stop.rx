@@ -1,8 +1,0 @@
-<Module>
-    <Type from="model" as="Pool" />
-
-    <Args in={Pool.Counters} out={void} />
-
-    <Call fn="mark_stop" in={$in.counters} />
-    <Call fn="wake" in={$in.counters} />
-</Module>
