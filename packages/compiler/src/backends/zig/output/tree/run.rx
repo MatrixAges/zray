@@ -1,9 +1,0 @@
-<Module>
-    <Type from="model" as="Tree" />
-
-    <Args in={Tree.Input} out={void} />
-
-    <Call fn="adapters" in={$in} />
-    <Call fn="roots" in={$in} />
-    <Call fn="partitions" in={$in} />
-</Module>

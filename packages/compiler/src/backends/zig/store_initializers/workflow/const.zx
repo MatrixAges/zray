@@ -1,5 +1,0 @@
-import { max_u64 } from "core/const"
-
-export const invalid_candidate: u64 = max_u64
-
-export const duplicate_identity: u64 = max_u64 - 1

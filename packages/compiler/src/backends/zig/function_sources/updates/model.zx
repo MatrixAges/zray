@@ -1,8 +1,0 @@
-import type { GeneratedSourceRows, SourceReuse } from "output_host"
-
-export type Record = SourceReuse.Omit("hits", "pending")
-
-export type Pending = {
-    target: GeneratedSourceRows,
-    positions: u64[]
-}

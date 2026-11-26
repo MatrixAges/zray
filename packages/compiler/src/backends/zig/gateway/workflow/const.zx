@@ -1,1 +1,0 @@
-export const storage_module_count: u64 = 2

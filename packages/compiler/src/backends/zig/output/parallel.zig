@@ -1,8 +1,4 @@
 const std = @import("std");
-const generated = @import("parser_options").generated_parser;
-const worker = if (generated) @import("generated_bootstrap_output_worker") else void;
-const Input = if (generated) std.meta.Child(worker.Input) else void;
-pub const Request = if (generated) std.meta.Child(@FieldType(Input, "jobs")) else void;
 
 /// One arena per worker, so steps running at once never share an allocator; the workers are `io`'s pooled threads.
 pub const Arenas = struct {
@@ -22,35 +18,10 @@ pub const Arenas = struct {
     }
 };
 
-pub fn each(arenas: Arenas, request: Request) !void {
-    var work: Work = .{ .request = request };
-
-    return spread(arenas, &work, Work.run);
-}
-
-const Work = struct {
-    request: Request,
-    next: std.atomic.Value(usize) = .init(0),
-    failure: std.atomic.Value(u32) = .init(0),
-    fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
-        const allocator = arena.allocator();
-        var failure: []u32 = @as(*[1]u32, @ptrCast(&self.failure.raw));
-
-        const input: Input = .{
-            .jobs = &self.request,
-            .allocator = @ptrCast(&allocator),
-            .cursor = @ptrCast(&self.next),
-            .failure = @ptrCast(&failure),
-        };
-
-        worker.executeIn(allocator, &input) catch unreachable;
-    }
-};
-
-pub fn eachSeed(arenas: Arenas, count: usize, context: anytype) !void {
+pub fn each(arenas: Arenas, count: usize, context: anytype) !void {
     const Context = @TypeOf(context);
 
-    const Seed = struct {
+    const Work = struct {
         context: Context,
         count: usize,
         next: std.atomic.Value(usize) = .init(0),
@@ -70,9 +41,9 @@ pub fn eachSeed(arenas: Arenas, count: usize, context: anytype) !void {
         }
     };
 
-    var work = Seed{ .context = context, .count = count };
+    var work = Work{ .context = context, .count = count };
 
-    return spread(arenas, &work, Seed.run);
+    return spread(arenas, &work, Work.run);
 }
 
 fn spread(arenas: Arenas, work: anytype, comptime run: anytype) !void {
