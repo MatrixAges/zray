@@ -3,9 +3,17 @@
 
     <Args in={State.Step} out={State.Step} />
 
-    <Call fn="../index.pendingCount" in={$in.collection} />
+    <Store from="state" as="collection" />
 
-    <If on={$in.index >= $ctx.pendingCount}>
+    <Call
+        fn="next_queued"
+        in={{
+            queue: store.collection.queue,
+            index: $in.index
+        }}
+    />
+
+    <If on={!$ctx.next_queued.found}>
         <Return
             value={{
                 ...$in,
@@ -14,7 +22,18 @@
         />
     </If>
 
-    <Call module="item" in={$in.omit(["running"])} />
+    <Call
+        module="item"
+        in={{
+            collection: $in.collection,
+            has_bundle: $in.has_bundle,
+            path: $ctx.next_queued.path,
+            source: $ctx.next_queued.source,
+            from_present: $ctx.next_queued.from_present,
+            from_path: $ctx.next_queued.from_path,
+            flags: $in.flags
+        }}
+    />
 
     <Return
         value={{

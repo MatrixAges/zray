@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.EnqueueRefsStep} out={Collection.EnqueueRefsStep} />
+
+    <Store from="state" as="collection" />
+
+    <Call
+        fn="../index.resolveReference"
+        in={[
+            $in.collection,
+            $in.current_path,
+            $in.ref_paths[$in.index]
+        ]}
+    />
+
+    <Call
+        fn="enqueue_one"
+        in={{
+            queue: store.collection.queue,
+            path: $ctx.resolveReference,
+            source: $in.ref_sources[$in.index],
+            from_present: true,
+            from_path: $in.relative
+        }}
+        setter={[store.collection.queue]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.ref_paths.length
+        }}
+    />
+</Module>

@@ -1,0 +1,14 @@
+import type { EnqueueOneInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    store.collection.queue = {
+        paths: in.queue.paths.push(in.path)[0],
+        sources: in.queue.sources.push(in.source)[0],
+        from_present: in.queue.from_present.push(in.from_present)[0],
+        from_paths: in.queue.from_paths.push(in.from_path)[0]
+    }
+}

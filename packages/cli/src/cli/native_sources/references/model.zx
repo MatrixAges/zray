@@ -1,3 +1,5 @@
+import type { Flags } from "../collect/model"
+
 export type Input = {
     name: string,
     arguments: u64,
@@ -12,4 +14,9 @@ export enum Action {
     DynamicAsset,
     Zig,
     Asset
+}
+
+export type Result = Flags & {
+    paths: string[],
+    sources: bool[]
 }

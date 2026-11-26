@@ -3,15 +3,37 @@
 
     <Args in={Collection.Discovery} out={Collection.Decision} />
 
+    <Store from="state" as="collection" />
+
     <Call fn="../index.openCollection" in={$in.collection} />
 
-    <Call
-        fn="seed"
-        in={$in.pick([
-            "collection",
-            "bundle_files"
-        ])}
-    />
+    <If on={$in.entry_path != null}>
+        <Call
+            fn="enqueue_one"
+            in={{
+                queue: store.collection.queue,
+                path: $in.entry_path,
+                source: true,
+                from_present: false,
+                from_path: ""
+            }}
+            setter={[store.collection.queue]}
+        />
+    </If>
+
+    <If on={$in.bundle_files.length != 0}>
+        <Loop on={$in.running}>
+            <Call
+                module="seed_bundle"
+                in={{
+                    collection: $in.collection,
+                    bundle_files: $in.bundle_files,
+                    index: 0,
+                    running: true
+                }}
+            />
+        </Loop>
+    </If>
 
     <Loop on={$in.running}>
         <Call

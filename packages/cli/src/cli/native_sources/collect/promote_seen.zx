@@ -1,0 +1,32 @@
+import type { PromoteSeenInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    const empty_bools: bool[] = []
+
+    const next = loop({
+        index: 0,
+        is_asset: empty_bools,
+        parsed: empty_bools
+    }, {
+        while: row => row.index < in.seen.parsed.length,
+        next: row => {
+            const target = row.index == in.index
+            const next_asset = target ? false : in.seen.is_asset[row.index]
+            const next_parsed = target ? true : in.seen.parsed[row.index]
+
+            row.is_asset = row.is_asset.push(next_asset)[0]
+            row.parsed = row.parsed.push(next_parsed)[0]
+            row.index += 1
+        }
+    })
+
+    store.collection.seen = {
+        relative_paths: in.seen.relative_paths,
+        is_asset: next.is_asset,
+        parsed: next.parsed
+    }
+}

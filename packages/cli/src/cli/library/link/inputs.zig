@@ -27,7 +27,12 @@ pub fn run(value: *analysis.Result, allocator: std.mem.Allocator) !compiler.libr
     const reference = &link;
 
     defer link.arena.deinit();
-    rules.library_link.executeIn(allocator, @ptrCast(&reference)) catch |err| return link.failure.unwrap(err);
+
+    rules.library_link.executeIn(allocator, &.{
+        .link = @ptrCast(&reference),
+        .has_compiled = value.compiled != null,
+        .count = value.modules.len,
+    }) catch |err| return link.failure.unwrap(err);
 
     return link.result;
 }
@@ -37,13 +42,13 @@ pub fn sources(modules: []const analysis.Module, allocator: std.mem.Allocator) !
     const reference = &collection;
 
     errdefer collection.list.deinit(allocator);
-    rules.library_sources.executeIn(allocator, @ptrCast(&reference)) catch |err| return collection.failure.unwrap(err);
+
+    rules.library_sources.executeIn(allocator, &.{
+        .sources = @ptrCast(&reference),
+        .count = modules.len,
+    }) catch |err| return collection.failure.unwrap(err);
 
     return collection.list;
-}
-
-pub fn linkHasCompiled(handle: *const anyopaque) bool {
-    return effects.state(Link, handle).analysis.compiled != null;
 }
 
 pub fn takeCompiledLibrary(handle: *const anyopaque) void {
@@ -57,10 +62,6 @@ pub fn allocateLinkInputs(handle: *const anyopaque) Error!void {
     const self = effects.state(Link, handle);
 
     self.inputs = self.arena.allocator().alloc(compiler.library.Input, self.analysis.modules.len) catch |err| return self.failure.save(err);
-}
-
-pub fn linkInputCount(handle: *const anyopaque) u64 {
-    return effects.state(Link, handle).inputs.len;
 }
 
 pub fn prepareLibraryLinkInput(handle: *const anyopaque, index: u64) Error!void {
@@ -79,10 +80,6 @@ pub fn linkLibraryInputs(handle: *const anyopaque) Error!void {
     const self = effects.state(Link, handle);
 
     self.result = compiler.library.link(self.allocator, self.inputs) catch |err| return self.failure.save(err);
-}
-
-pub fn librarySourceCount(handle: *const anyopaque) u64 {
-    return effects.state(Sources, handle).modules.len;
 }
 
 pub fn appendLibrarySources(handle: *const anyopaque, index: u64) Error!void {

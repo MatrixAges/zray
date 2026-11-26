@@ -3,21 +3,30 @@
 
     <Args in={Collection.Pending} out={Collection.Decision} />
 
+    <Store from="state" as="collection" />
+
     <Call
-        fn="../index.selectPending"
+        fn="../index.relativePath"
         in={[
             $in.collection,
-            $in.index
+            $in.path
         ]}
     />
 
-    <Call fn="../index.sourcePending" in={$in.collection} />
+    <Call
+        fn="lookup_seen"
+        in={{
+            seen: store.collection.seen,
+            relative: $ctx.relativePath
+        }}
+    />
 
     <Call
         module="visit"
         in={{
-            previous_parsed: $ctx.selectPending,
-            source: $ctx.sourcePending
+            found: $ctx.lookup_seen.found,
+            previous_parsed: $ctx.lookup_seen.parsed,
+            source: $in.source
         }}
     />
 
@@ -25,23 +34,81 @@
         <Return value={$in.flags} />
     </If>
 
-    <Call fn="../index.checkPending" in={$in.collection} />
+    <Call
+        fn="../index.checkPending"
+        in={[
+            $in.collection,
+            $in.path
+        ]}
+    />
 
     <If on={$ctx.visit == Collection.Action.Promote}>
-        <Call fn="../index.reusePending" in={$in.collection} />
+        <Call
+            fn="../index.reusePending"
+            in={[
+                $in.collection,
+                $ctx.lookup_seen.index
+            ]}
+        />
 
         <Else>
-            <Call fn="../index.readPending" in={$in.collection} />
+            <Call
+                fn="../index.readPending"
+                in={[
+                    $in.collection,
+                    $in.path
+                ]}
+            />
         </Else>
     </If>
 
-    <Call fn="../index.observePending" in={$in.collection} />
+    <Call
+        fn="../index.observePending"
+        in={[
+            $in.collection,
+            $in.path
+        ]}
+    />
 
     <If on={$ctx.visit == Collection.Action.Promote}>
-        <Call fn="../index.promotePending" in={$in.collection} />
+        <Call
+            fn="promote_seen"
+            in={{
+                seen: store.collection.seen,
+                index: $ctx.lookup_seen.index
+            }}
+            setter={[store.collection.seen]}
+        />
+
+        <Call
+            fn="../index.promoteSource"
+            in={[
+                $in.collection,
+                $ctx.lookup_seen.index
+            ]}
+        />
 
         <Else>
-            <Call fn="../index.addPending" in={$in.collection} />
+            <Call
+                fn="add_seen"
+                in={{
+                    seen: store.collection.seen,
+                    relative: $ctx.relativePath,
+                    source: $in.source
+                }}
+                setter={[store.collection.seen]}
+            />
+
+            <Call
+                fn="../index.addSource"
+                in={[
+                    $in.collection,
+                    $ctx.relativePath,
+                    $in.source,
+                    $in.from_present,
+                    $in.from_path
+                ]}
+            />
         </Else>
     </If>
 
@@ -54,7 +121,10 @@
     <Call
         module="scan"
         in={{
-            found: $ctx.read,
+            found: $ctx.read.pick([
+                "dynamic_resources",
+                "c_imports"
+            ]),
             accumulated: $in.flags.pick([
                 "dynamic_resources",
                 "c_imports"
@@ -63,8 +133,21 @@
         }}
     />
 
-    <If on={$ctx.scan.valid}>
-        <Call fn="references" in={$in.collection} />
+    <If on={$ctx.scan.valid && $ctx.read.paths.length != 0}>
+        <Loop on={$in.running}>
+            <Call
+                module="enqueue_refs"
+                in={{
+                    collection: $in.collection,
+                    current_path: $in.path,
+                    relative: $ctx.relativePath,
+                    ref_paths: $ctx.read.paths,
+                    ref_sources: $ctx.read.sources,
+                    index: 0,
+                    running: true
+                }}
+            />
+        </Loop>
     </If>
 
     <Return value={$ctx.scan} />

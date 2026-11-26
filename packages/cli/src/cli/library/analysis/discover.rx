@@ -1,17 +1,15 @@
 <Module>
-    <Type from="index" as="Analysis" />
+    <Type from="model" as="Analysis" />
 
-    <Args in={Analysis.Input} out={bool} />
+    <Args in={Analysis.EntryInput} out={bool} />
 
-    <Call fn="index.libraryEntryPath" in={$in} />
-
-    <Call fn="../../sources/path/is_rx" />
+    <Call fn="../../sources/path/is_rx" in={$in.entry_path} />
 
     <If on={$ctx.is_rx}>
         <Return value={true} />
     </If>
 
-    <Call fn="index.readLibraryDependencies" in={$in} />
+    <Call fn="index.readLibraryDependencies" in={$in.analysis} />
 
     <Return value={$ctx.readLibraryDependencies} />
 </Module>

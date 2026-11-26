@@ -11,7 +11,13 @@
         ]}
     />
 
-    <Call module="entry" in={$in.analysis} />
+    <Call
+        module="entry"
+        in={{
+            analysis: $in.analysis,
+            entry_path: $ctx.selectLibraryExport
+        }}
+    />
 
     <Return
         value={{

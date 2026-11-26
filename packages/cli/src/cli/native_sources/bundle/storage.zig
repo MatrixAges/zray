@@ -6,13 +6,7 @@ const storage = @import("../storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;
 
-pub fn absoluteHeader(handle: *anyopaque) bool {
-    const self = Context.get(handle);
-
-    return if (self.options.header) |header| std.fs.path.isAbsolute(header) else false;
-}
-
-pub fn prepareBundle(handle: *anyopaque) Error!void {
+pub fn prepareBundle(handle: *anyopaque) Error!?[]const u8 {
     const self = Context.get(handle);
 
     self.entry = if (self.options.path) |path|
@@ -33,6 +27,8 @@ pub fn prepareBundle(handle: *anyopaque) Error!void {
         error.FileNotFound => null,
         else => return self.fail(err),
     };
+
+    return self.entry;
 }
 
 pub fn bundlePath(handle: *anyopaque, path: []const u8) Error![]const u8 {
@@ -69,18 +65,6 @@ pub fn prepareIncludes(handle: *anyopaque) Error!void {
 
     self.destination = std.fs.path.join(self.allocator, &.{ "native", self.options.name, "source" }) catch |err| return self.fail(err);
     self.include_paths = self.allocator.alloc([]const u8, self.options.include_paths.len) catch |err| return self.fail(err);
-}
-
-pub fn sourceCount(handle: *anyopaque) u64 {
-    return Context.get(handle).sources.items.len;
-}
-
-pub fn sourceIsAsset(handle: *anyopaque, index: u64) bool {
-    return Context.get(handle).sources.items[@intCast(index)].kind == .asset;
-}
-
-pub fn sourcePath(handle: *anyopaque, index: u64) []const u8 {
-    return Context.get(handle).sources.items[@intCast(index)].path;
 }
 
 pub fn prepareFiles(handle: *anyopaque) Error!void {

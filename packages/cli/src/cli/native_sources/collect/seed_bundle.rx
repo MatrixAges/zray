@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.SeedBundleStep} out={Collection.SeedBundleStep} />
+
+    <Store from="state" as="collection" />
+
+    <Call
+        fn="../index.readBundle"
+        in={[
+            $in.collection,
+            $in.bundle_files[$in.index]
+        ]}
+    />
+
+    <If on={$ctx.readBundle.length != 0}>
+        <Call
+            fn="enqueue_batch"
+            in={{
+                queue: store.collection.queue,
+                paths: $ctx.readBundle,
+                source: false
+            }}
+            setter={[store.collection.queue]}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.bundle_files.length
+        }}
+    />
+</Module>

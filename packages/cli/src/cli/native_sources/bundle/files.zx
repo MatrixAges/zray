@@ -1,19 +1,21 @@
 import host from "native_resource_host"
 
-import type { Context as Input } from "native_resource_host"
+import type { Context } from "native_resource_host"
+import type { Seen } from "../collect/model"
+
+export type Input = {
+    collection: Context,
+    seen: Seen
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = host.sourceCount(in)
-
-    const written = loop({
-        index: 0
-    }, {
-        while: row => row.index < count,
-        next: row => {
-            host.publishFile(in, row.index)
-            row.index += 1
+    const written = loop(0, {
+        while: index => index < in.seen.relative_paths.length,
+        next: index => {
+            host.publishFile(in.collection, index)
+            index += 1
         }
     })
 }

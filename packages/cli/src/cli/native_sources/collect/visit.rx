@@ -3,7 +3,7 @@
 
     <Args in={Collection.Item} out={Collection.Action} />
 
-    <If on={$in.previous_parsed == null}>
+    <If on={!$in.found}>
         <If on={$in.source}>
             <Return value={Collection.Action.ReadSource} />
         </If>
@@ -11,7 +11,7 @@
         <Return value={Collection.Action.ReadAsset} />
     </If>
 
-    <If on={$in.previous_parsed == true || !$in.source}>
+    <If on={$in.previous_parsed || !$in.source}>
         <Return value={Collection.Action.Skip} />
     </If>
 

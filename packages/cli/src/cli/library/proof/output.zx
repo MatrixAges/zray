@@ -1,23 +1,20 @@
 import bytes from "std:bytes"
 import crypto from "std:crypto"
 import encoding from "std:encoding"
-import { proofExportName, proofOutputBase } from "library_workflow_host"
 
 import { proof_extension } from "./const"
 
-import type { Proof as Input } from "library_workflow_host"
+import type { OutputInput as Input } from "./model"
 
 export type Output = string?
 
 export default function (in: Input): Output {
-    const base = proofOutputBase(in)
-
-    if (base == null) {
+    if (in.output_base == null) {
         return null
     }
 
-    const name = bytes.fromText(proofExportName(in))
+    const name = bytes.fromText(in.name)
     const digest = encoding.encodeHex(crypto.sha256(name))
 
-    return `${base}.${digest}.${proof_extension}`
+    return `${in.output_base}.${digest}.${proof_extension}`
 }

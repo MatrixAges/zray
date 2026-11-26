@@ -1,10 +1,5 @@
 export {
-    hasExecutableProof,
-    proofExportCount,
-    selectProofExport,
     confirmProofInterface,
     writeProofHeading,
     verifyPublicExport
 } from "library_workflow_host"
-
-export type { Proof as Input } from "library_workflow_host"

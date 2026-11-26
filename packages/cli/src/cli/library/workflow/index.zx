@@ -1,5 +1,4 @@
 export {
-    hasBuildExports,
     configureLibraryEntry,
     analyzeLibraryBuild,
     linkLibraryBuild,
@@ -12,8 +11,7 @@ export {
     createLibraryStaging,
     stageLibraryBuild,
     publishLibraryBuild,
-    libraryBuildWatching,
     rejectChangedLibraryBuild
 } from "library_workflow_host"
 
-export type { Build, BuildStatus } from "library_workflow_host"
+export type { BuildStatus } from "library_workflow_host"

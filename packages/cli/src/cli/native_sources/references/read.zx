@@ -5,16 +5,21 @@ import local from "./local"
 import { Action } from "./model"
 
 import type { Context } from "native_resource_host"
-import type { Flags } from "../collect/model"
+import type { Result } from "./model"
 
 export type Input = Context
 
-export type Output = Flags
+export type Output = Result
 
 export default function (in: Input): Output {
+    const empty_paths: string[] = []
+    const empty_sources: bool[] = []
+
     return loop({
         dynamic_resources: false,
-        c_imports: false
+        c_imports: false,
+        paths: empty_paths,
+        sources: empty_sources
     }, {
         while: state => host.nextBuiltin(in),
         next: state => {
@@ -37,12 +42,14 @@ export default function (in: Input): Output {
                     const path = host.decodeLiteral(in)
 
                     if (local(path)) {
-                        host.recordReference(in, path, true)
+                        state.paths = state.paths.push(path)[0]
+                        state.sources = state.sources.push(true)[0]
                     } else {
                         host.discardLiteral(in, path)
                     }
                 case Action.Asset:
-                    host.recordReference(in, host.decodeLiteral(in), false)
+                    state.paths = state.paths.push(host.decodeLiteral(in))[0]
+                    state.sources = state.sources.push(false)[0]
                 default:
             }
         }

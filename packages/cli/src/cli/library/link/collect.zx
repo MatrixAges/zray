@@ -1,16 +1,14 @@
-import { linkInputCount, prepareLibraryLinkInput } from "library_workflow_host"
+import { prepareLibraryLinkInput } from "library_workflow_host"
 
-import type { Link as Input } from "library_workflow_host"
+import type { CollectInput as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = linkInputCount(in)
-
     const prepared = loop(0, {
-        while: index => index < count,
+        while: index => index < in.count,
         next: index => {
-            prepareLibraryLinkInput(in, index)
+            prepareLibraryLinkInput(in.link, index)
 
             index += 1
         }

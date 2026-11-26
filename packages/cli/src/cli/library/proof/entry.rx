@@ -1,23 +1,41 @@
 <Module>
-    <Type from="index" as="Proof" />
+    <Type from="model" as="Proof" />
 
-    <Args in={Proof.Input} out={bool} />
+    <Args in={Proof.Entry} out={bool} />
 
-    <Call fn="index.hasExecutableProof" in={$in} />
-
-    <If on={!$ctx.hasExecutableProof}>
-        <Call fn="index.confirmProofInterface" in={$in} />
+    <If on={!$in.item.executable}>
+        <Call
+            fn="index.confirmProofInterface"
+            in={[
+                $in.proof,
+                $in.index
+            ]}
+        />
 
         <Return value={true} />
     </If>
 
-    <Call fn="output" in={$in} />
-    <Call fn="index.writeProofHeading" in={$in} />
+    <Call
+        fn="output"
+        in={{
+            name: $in.item.name,
+            output_base: $in.output_base
+        }}
+    />
+
+    <Call
+        fn="index.writeProofHeading"
+        in={[
+            $in.proof,
+            $in.index
+        ]}
+    />
 
     <Call
         fn="index.verifyPublicExport"
         in={[
-            $in,
+            $in.proof,
+            $in.index,
             $ctx.output
         ]}
     />

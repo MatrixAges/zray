@@ -1,0 +1,31 @@
+import type { EnqueueBatchInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    const next = loop({
+        index: 0,
+        paths: in.queue.paths,
+        sources: in.queue.sources,
+        from_present: in.queue.from_present,
+        from_paths: in.queue.from_paths
+    }, {
+        while: row => row.index < in.paths.length,
+        next: row => {
+            row.paths = row.paths.push(in.paths[row.index])[0]
+            row.sources = row.sources.push(in.source)[0]
+            row.from_present = row.from_present.push(false)[0]
+            row.from_paths = row.from_paths.push("")[0]
+            row.index += 1
+        }
+    })
+
+    store.collection.queue = {
+        paths: next.paths,
+        sources: next.sources,
+        from_present: next.from_present,
+        from_paths: next.from_paths
+    }
+}

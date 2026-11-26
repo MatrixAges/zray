@@ -1,18 +1,20 @@
 export {
-    absoluteHeader,
     prepareBundle,
     openCollection,
-    selectPending,
-    sourcePending,
+    readBundle,
+    relativePath,
+    resolveReference,
     checkPending,
     readPending,
     reusePending,
     observePending,
-    addPending,
-    promotePending,
+    addSource,
+    promoteSource,
+    selectInclude,
+    includeFiles,
+    writeInclude,
     openAst,
     closeAst,
     prepareIncludes,
     prepareFiles
 } from "native_resource_host"
-export { pendingCount } from "native_resource_host"

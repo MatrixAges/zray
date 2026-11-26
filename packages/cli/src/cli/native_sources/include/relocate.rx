@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Relocate" />
+
+    <Args in={Relocate.Input} out={bool} />
+
+    <If on={$in.include_paths.length == 0}>
+        <Return value={true} />
+    </If>
+
+    <Loop on={$in.running}>
+        <Call
+            module="relocate_step"
+            in={{
+                collection: $in.collection,
+                include_paths: $in.include_paths,
+                seen: $in.seen,
+                separator: $in.separator,
+                windows: $in.windows,
+                index: 0,
+                valid: true,
+                running: true
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.relocate_step.valid} />
+</Module>

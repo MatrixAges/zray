@@ -9,8 +9,6 @@ pub fn openAst(handle: *anyopaque) Error!void {
     self.ast = std.zig.Ast.parse(self.allocator, self.bytes, .{}) catch |err| return self.fail(err);
     self.node_index = 0;
 
-    self.references.clearRetainingCapacity();
-
     if (self.ast.?.errors.len != 0) return self.fail(error.InvalidNativeSource);
 }
 
@@ -70,15 +68,6 @@ pub fn decodeLiteral(handle: *anyopaque) Error![]const u8 {
 
 pub fn discardLiteral(handle: *anyopaque, text: []const u8) void {
     Context.get(handle).allocator.free(text);
-}
-
-pub fn recordReference(handle: *anyopaque, path: []const u8, source: bool) Error!void {
-    const self = Context.get(handle);
-
-    self.references.append(self.allocator, .{
-        .path = path,
-        .kind = if (source) .zig else .asset,
-    }) catch |err| return self.fail(err);
 }
 
 pub fn invalidBuiltin(handle: *anyopaque, invalid_import: bool) Error!void {

@@ -1,47 +1,44 @@
 <Module>
     <Type from="index" as="Library" />
+    <Type from="model" as="Model" />
 
-    <Args in={Library.Build} out={Library.BuildStatus} />
+    <Args in={Model.Input} out={Library.BuildStatus} />
 
-    <Call fn="index.hasBuildExports" in={$in} />
-
-    <If on={!$ctx.hasBuildExports}>
-        <Call fn="index.configureLibraryEntry" in={$in} />
+    <If on={!$in.has_exports}>
+        <Call fn="index.configureLibraryEntry" in={$in.build} />
     </If>
 
-    <Call fn="index.analyzeLibraryBuild" in={$in} />
+    <Call fn="index.analyzeLibraryBuild" in={$in.build} />
 
     <If on={!$ctx.analyzeLibraryBuild}>
         <Return value={Library.BuildStatus.Failed} />
     </If>
 
-    <Call fn="index.linkLibraryBuild" in={$in} />
-    <Call fn="index.collectBuildSources" in={$in} />
-    <Call fn="index.openLibraryBuildCache" in={$in} />
-    <Call fn="index.generateLibraryBundle" in={$in} />
+    <Call fn="index.linkLibraryBuild" in={$in.build} />
+    <Call fn="index.collectBuildSources" in={$in.build} />
+    <Call fn="index.openLibraryBuildCache" in={$in.build} />
+    <Call fn="index.generateLibraryBundle" in={$in.build} />
 
     <If on={!$ctx.generateLibraryBundle}>
         <Return value={Library.BuildStatus.Failed} />
     </If>
 
-    <Call fn="index.reportLibraryBuildCache" in={$in} />
-    <Call fn="index.resolveLibraryToolchain" in={$in} />
-    <Call fn="index.resolveLibraryNativeProject" in={$in} />
-    <Call fn="index.createLibraryStaging" in={$in} />
-    <Call fn="index.stageLibraryBuild" in={$in} />
-    <Call fn="index.publishLibraryBuild" in={$in} />
+    <Call fn="index.reportLibraryBuildCache" in={$in.build} />
+    <Call fn="index.resolveLibraryToolchain" in={$in.build} />
+    <Call fn="index.resolveLibraryNativeProject" in={$in.build} />
+    <Call fn="index.createLibraryStaging" in={$in.build} />
+    <Call fn="index.stageLibraryBuild" in={$in.build} />
+    <Call fn="index.publishLibraryBuild" in={$in.build} />
 
     <If on={$ctx.publishLibraryBuild}>
         <Return value={Library.BuildStatus.Success} />
     </If>
 
-    <Call fn="index.libraryBuildWatching" in={$in} />
-
-    <If on={$ctx.libraryBuildWatching}>
+    <If on={$in.watching}>
         <Return value={Library.BuildStatus.Retry} />
     </If>
 
-    <Call fn="index.rejectChangedLibraryBuild" in={$in} />
+    <Call fn="index.rejectChangedLibraryBuild" in={$in.build} />
 
     <Return value={Library.BuildStatus.Failed} />
 </Module>

@@ -58,7 +58,11 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
     defer analysis.deinit();
 
-    const ready = workflow.executeIn(allocator, @ptrCast(&reference)) catch |err| return analysis.failure.unwrap(err);
+    const ready = workflow.executeIn(allocator, &.{
+        .analysis = @ptrCast(&reference),
+        .export_count = options.loaded.config.exports.len,
+        .compiled = options.loaded.config.library != null,
+    }) catch |err| return analysis.failure.unwrap(err);
 
     return if (ready) analysis.take() else null;
 }

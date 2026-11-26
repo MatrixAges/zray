@@ -1,8 +1,6 @@
 import host from "native_resource_host"
 
-import type { Input as Bundle } from "./model"
-
-export type Input = Bundle.Pick("collection", "bundle_files")
+import type { Input } from "./check_output_model"
 
 export type Output = bool
 

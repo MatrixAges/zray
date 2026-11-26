@@ -1,9 +1,33 @@
 import type { Proof } from "library_workflow_host"
 
+export type Export = {
+    name: string,
+    executable: bool
+}
+
+export type Input = {
+    proof: Proof,
+    exports: Export[],
+    output_base?: string
+}
+
 export type Entries = {
     proof: Proof,
-    count: u64,
+    exports: Export[],
+    output_base?: string,
     index: u64,
     valid: bool,
     running: bool
+}
+
+export type Entry = {
+    proof: Proof,
+    index: u64,
+    item: Export,
+    output_base?: string
+}
+
+export type OutputInput = {
+    name: string,
+    output_base?: string
 }

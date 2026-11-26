@@ -1,5 +1,4 @@
 const std = @import("std");
-const columns = @import("zx").columns;
 const storage = @import("native_sources/storage.zig");
 const collection = @import("native_sources/collect.zig");
 const bundle = @import("native_sources/bundle/storage.zig");
@@ -8,6 +7,27 @@ const includes = @import("native_sources/include/storage.zig");
 const rule = @import("cli_source").native_bundle;
 pub const File = storage.File;
 pub const Include = storage.Include;
+const Store0 = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+const Store1 = std.meta.Child(@FieldType(rule.zx_pending, "store_1"));
+
+const StoreHost = struct {
+    store_0: *Store0,
+    store_1: *Store1,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+        if (pending.store_1) |next| self.store_1.* = next;
+    }
+};
+
+fn initEmptyStore(comptime Pointer: type) std.meta.Child(Pointer) {
+    const T = std.meta.Child(Pointer);
+
+    if (comptime @hasField(T, "paths")) {
+        return .{ .paths = &.{}, .sources = &.{}, .from_present = &.{}, .from_paths = &.{} };
+    }
+
+    return .{ .relative_paths = &.{}, .is_asset = &.{}, .parsed = &.{} };
+}
 
 pub const Result = struct {
     entry: ?[]const u8,
@@ -28,19 +48,30 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
         .inputs = inputs,
     };
 
-    defer context.seen.deinit(allocator);
     defer ast.closeAst(@ptrCast(&context));
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var store_0_value = initEmptyStore(Store0);
+    var store_1_value = initEmptyStore(Store1);
+    var store_0: Store0 = &store_0_value;
+    var store_1: Store1 = &store_1_value;
+    var host: StoreHost = .{ .store_0 = &store_0, .store_1 = &store_1 };
 
     const input: std.meta.Child(rule.Input) = .{
         .collection = @ptrCast(&context),
         .bundle_files = options.bundle_files,
         .header = options.header != null,
+        .header_absolute = if (options.header) |header| std.fs.path.isAbsolute(header) else false,
         .include_paths = options.include_paths,
         .separator = std.fs.path.sep,
         .windows = @import("builtin").os.tag == .windows,
     };
 
-    const result = columns.invoke(rule.executeValue, allocator, &input) catch |err| return if (err == error.NativeResourceFailure) context.failure.? else err;
+    const raw = rule.execute(&arena, &input, &host) catch |err| return if (err == error.NativeResourceFailure) context.failure.? else err;
+    const result = if (@typeInfo(@TypeOf(raw)) == .pointer) raw.* else raw;
 
     switch (result.status) {
         .Published => {},

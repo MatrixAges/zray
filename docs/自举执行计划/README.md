@@ -1,8 +1,7 @@
 # zray 分包自举诊断与执行计划总览
 
 > 基线版本：`4a1a0c5a`（2026-11-25）· 上位诊断报告：[自举进度诊断和指导报告.md](自举进度诊断和指导报告.md) · 验收终局标准：[自举完成标准.md](../../rules/自举完成标准.md) · 工程执行方法：[WAY.md](../../WAY.md)
-
-本目录为 `packages/` 下所有与编译器自举及外部边界相关的模块/包建立**一包一档**的诊断与大步执行计划，用于替代过去“每 16 分钟微切片 + 乒乓跳板 + 单行净减”的低效推进方式。
+> 本目录为 `packages/` 下所有与编译器自举及外部边界相关的模块/包建立**一包一档**的诊断与大步执行计划，用于替代过去“每 16 分钟微切片 + 乒乓跳板 + 单行净减”的低效推进方式。
 
 ---
 
@@ -140,4 +139,7 @@ flowchart TD
 - **Wave 20（2026-11-25 · 已完成）**：
     - 打通 `zxc-bootstrap --manifest` 构建链路对 `.store.rx` `<Store>` 的原生支持：在 [packages/compiler/build/resident/modules.zig](../../packages/compiler/build/resident/modules.zig) 分离 `.store.rx` 验证与路径登记、在 [source_inputs.zig](../../packages/compiler/build/source_inputs.zig) 传入 `stores` 参与 `source_graph` 构造、并在 [shared_generation.zig](../../packages/compiler/build/shared_generation.zig) 分离普通 `.rx` 模块与 `.store.rx` 后完整注入 `analysis.project.infer`；完成 Zig `0.17.1` 下 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译（`stage1-seed` → `stage1` → `stage2` → `stage3`），`stage2`/`stage3` `zxc-bootstrap` 二进制 SHA-256 完全一致（`8c3c23b019c00d471456344f549471bd946d72e21508f3983fad3fc1b0064516`），且 `packages/compiler` `ReleaseSmall`/`ReleaseSafe` 全量测试全部通过。
     - 在 `cli` 中落地首个真实自举 `<Store>`（[packages/cli/src/cli/lint/reachable/seen.store.rx](../../packages/cli/src/cli/lint/reachable/seen.store.rx)）：新增纯原子 ZX `admit_path.zx`（显式声明 `setter={[store.seen.visited]}`，无副作用去重）与 `step.rx`，重构 `reachable/run.rx` 与 `reachable/model.zx`，物理删除旧有状态胶水 `module.rx`、`walk.rx`、`source_rows.zx`、`store_rows.zx`（4 份文件），移除 [cli/lint/sources.zig](../../packages/cli/src/cli/lint/sources.zig) 中的 `std.StringHashMapUnmanaged` 与可变游标字段，并从 [cli/lint/host.d.zx](../../packages/cli/src/cli/lint/host.d.zx) 与 [cli/lint/index.zx](../../packages/cli/src/cli/lint/index.zx) 净减 **5 个**有状态宿主回调（零新增 `.d.zx`）；`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试及格式/lint 全部通过，全仓 10 目录 `@constCast == 0`。
-    - 下一步：继续推进 `packages/pkgs`（Phase K1）与 `cli/package/`、`cli/lint/`、`cli/watch/` 等运行时持久状态的 `<Store>` + 纯 ZX/RX 正向收口，以及 `packages/genz` 唯一性与表达式求值自举。
+- **Wave 21（2026-11-26 · 已完成）**：
+    - 完成 `cli/native_sources/` 双对象 `<Store>` + 纯无副作用原子 ZX + RX 正向迁移：新增 [collect/state.store.rx](../../packages/cli/src/cli/native_sources/collect/state.store.rx)（`native_collection`：`queue` + `seen`），将待处理队列、已见路径去重与资产/源码状态提升彻底迁入 RX/ZX（`enqueue_one`/`enqueue_batch`/`lookup_seen`/`next_queued`/`add_seen`/`promote_seen` 与 `seed_bundle`/`enqueue_refs`/`walk`/`item`），将 `references/read.zx` 与 `include/{find,all_seen,relocate,relocate_step}` 收口为无副作用纯返回与 RX 编排，删除 `storage.zig` 中 `Pending`/`Seen`/`Reference` 与 `StringHashMapUnmanaged` 及 4 份旧文件（`collect/{seed,references}.zx`、`include/{check,relocate}.zx`），在 `native_sources.zig` 中以固定 `StoreHost` 接入 `native_bundle.execute`。
+    - 完成 `cli/library/`（`workflow`、`analysis`、`link`、`proof`）去纯查询 getter 与可变游标收口：将 `has_exports`、`watching`、`export_count`、`compiled`、`entry_path`、`exports` 与 `output_base` 直接以不可变输入传给 RX/ZX，将 `library/proof/output.zx` 收口为 100% 纯 ZX 并消除 `verify.zig` 可变 `index` 游标。本批在 `native_sources/host.d.zx` 与 `library/workflow/host.d.zx` 上以纯正向迁移验证并净减 **22 个**原生宿主回调、`collect.zig` 删除全部旧队列/游标入口、`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试、全量 `.zig`/`.rx`/`.zx`/`.d.zx` 格式化与 lint 及全仓 10 目录 `@constCast == 0` 全部通过。
+    - 下一步：继续推进 `cli/watch/{driver,observation}`、剩余 `cli/{library,publication,rx,project/scopes}`、以及 `packages/genz` / `packages/compiler` / `packages/lint` / `packages/pkgs` 正向自举。

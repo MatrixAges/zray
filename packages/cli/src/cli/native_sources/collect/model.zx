@@ -1,7 +1,82 @@
 import type { Context } from "native_resource_host"
 
+export type Queue = {
+    paths: string[],
+    sources: bool[],
+    from_present: bool[],
+    from_paths: string[]
+}
+
+export type Seen = {
+    relative_paths: string[],
+    is_asset: bool[],
+    parsed: bool[]
+}
+
+export type SeenMatch = {
+    found: bool,
+    index: u64,
+    parsed: bool
+}
+
+export type QueuedItem = {
+    found: bool,
+    path: string,
+    source: bool,
+    from_present: bool,
+    from_path: string
+}
+
+export type EnqueueOneInput = {
+    queue: Queue,
+    path: string,
+    source: bool,
+    from_present: bool,
+    from_path: string
+}
+
+export type EnqueueBatchInput = {
+    queue: Queue,
+    paths: string[],
+    source: bool
+}
+
+export type LookupSeenInput = {
+    seen: Seen,
+    relative: string
+}
+
+export type AddSeenInput = {
+    seen: Seen,
+    relative: string,
+    source: bool
+}
+
+export type PromoteSeenInput = {
+    seen: Seen,
+    index: u64
+}
+
+export type SeedBundleStep = {
+    collection: Context,
+    bundle_files: string[],
+    index: u64,
+    running: bool
+}
+
+export type EnqueueRefsStep = {
+    collection: Context,
+    current_path: string,
+    relative: string,
+    ref_paths: string[],
+    ref_sources: bool[],
+    index: u64,
+    running: bool
+}
+
 export type Item = {
-    previous_parsed?: bool,
+    found: bool,
+    previous_parsed: bool,
     source: bool
 }
 
@@ -29,19 +104,25 @@ export type Decision = Flags & {
 
 export type Discovery = {
     collection: Context,
+    entry_path?: string,
     bundle_files: string[],
     header: bool
 }
 
-export type Walk = Discovery.Pick("collection", "header") & {
-    has_bundle: bool
-}
-
-export type Pending = Walk.Pick("collection", "has_bundle") & {
-    index: u64,
+export type Pending = {
+    collection: Context,
+    has_bundle: bool,
+    path: string,
+    source: bool,
+    from_present: bool,
+    from_path: string,
     flags: Decision
 }
 
-export type Step = Pending & {
+export type Step = {
+    collection: Context,
+    has_bundle: bool,
+    index: u64,
+    flags: Decision,
     running: bool
 }

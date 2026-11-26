@@ -1,5 +1,16 @@
 import type { Analysis } from "library_workflow_host"
 
+export type Input = {
+    analysis: Analysis,
+    export_count: u64,
+    compiled: bool
+}
+
+export type EntryInput = {
+    analysis: Analysis,
+    entry_path: string
+}
+
 export type Entries = {
     analysis: Analysis,
     count: u64,

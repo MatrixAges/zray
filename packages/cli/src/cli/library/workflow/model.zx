@@ -1,0 +1,7 @@
+import type { Build } from "library_workflow_host"
+
+export type Input = {
+    build: Build,
+    has_exports: bool,
+    watching: bool
+}

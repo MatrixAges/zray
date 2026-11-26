@@ -1,0 +1,26 @@
+import type { Queue, QueuedItem as Output } from "./model"
+
+export type Input = {
+    queue: Queue,
+    index: u64
+}
+
+export default function (in: Input): Output {
+    if (in.index >= in.queue.paths.length) {
+        return {
+            found: false,
+            path: "",
+            source: false,
+            from_present: false,
+            from_path: ""
+        }
+    }
+
+    return {
+        found: true,
+        path: in.queue.paths[in.index],
+        source: in.queue.sources[in.index],
+        from_present: in.queue.from_present[in.index],
+        from_path: in.queue.from_paths[in.index]
+    }
+}

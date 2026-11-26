@@ -49,17 +49,17 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
 
     defer state.deinit();
 
-    const status = rule.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const status = rule.executeIn(context.allocator, &.{
+        .build = @ptrCast(&reference),
+        .has_exports = state.configured.config.exports.len != 0,
+        .watching = context.watch != null,
+    }) catch |err| return state.failure.unwrap(err);
 
     return switch (status) {
         .Success => .success,
         .Failed => .failed,
         .Retry => .retry,
     };
-}
-
-pub fn hasBuildExports(handle: *const anyopaque) bool {
-    return effects.state(State, handle).configured.config.exports.len != 0;
 }
 
 pub fn configureLibraryEntry(handle: *const anyopaque) Error!void {
@@ -194,10 +194,6 @@ pub fn publishLibraryBuild(handle: *const anyopaque) Error!bool {
     const context = self.context;
 
     return @import("../watch/library.zig").publish(context.io, context.backing, self.staging.?, context.options.output.?, self.managed, self.inputs) catch |err| return self.failure.save(err);
-}
-
-pub fn libraryBuildWatching(handle: *const anyopaque) bool {
-    return effects.state(State, handle).context.watch != null;
 }
 
 pub fn rejectChangedLibraryBuild(handle: *const anyopaque) Error!void {

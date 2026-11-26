@@ -49,16 +49,8 @@ pub const State = struct {
     }
 };
 
-pub fn analysisExportCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).exports().len;
-}
-
 pub fn missingLibraryExports(handle: *const anyopaque) Error!void {
     return effects.state(State, handle).failure.save(error.MissingPublicModules);
-}
-
-pub fn isCompiledLibrary(handle: *const anyopaque) bool {
-    return effects.state(State, handle).options.loaded.config.library != null;
 }
 
 pub fn loadCompiledLibrary(handle: *const anyopaque) Error!void {
@@ -89,7 +81,7 @@ pub fn beginLibraryAnalysis(handle: *const anyopaque) Error!void {
     self.texts = .{ .allocator = owned };
 }
 
-pub fn selectLibraryExport(handle: *const anyopaque, index: u64) Error!void {
+pub fn selectLibraryExport(handle: *const anyopaque, index: u64) Error![]const u8 {
     const self = effects.state(State, handle);
     const exported = self.exports()[@intCast(index)];
     var project = self.options.loaded.project;
@@ -97,10 +89,8 @@ pub fn selectLibraryExport(handle: *const anyopaque, index: u64) Error!void {
     self.active = project;
 
     self.module().name = exported.path;
-}
 
-pub fn libraryEntryPath(handle: *const anyopaque) []const u8 {
-    return effects.state(State, handle).active.entry;
+    return self.active.entry;
 }
 
 pub fn readLibraryDependencies(handle: *const anyopaque) Error!bool {

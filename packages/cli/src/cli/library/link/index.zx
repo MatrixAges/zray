@@ -1,8 +1,5 @@
 export {
-    linkHasCompiled,
     takeCompiledLibrary,
     allocateLinkInputs,
     linkLibraryInputs
 } from "library_workflow_host"
-
-export type { Link as Input } from "library_workflow_host"

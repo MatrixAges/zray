@@ -1,16 +1,14 @@
-import { appendLibrarySources, librarySourceCount } from "library_workflow_host"
+import { appendLibrarySources } from "library_workflow_host"
 
-import type { SourceRows as Input } from "library_workflow_host"
+import type { SourcesInput as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = librarySourceCount(in)
-
     const collected = loop(0, {
-        while: index => index < count,
+        while: index => index < in.count,
         next: index => {
-            appendLibrarySources(in, index)
+            appendLibrarySources(in.sources, index)
 
             index += 1
         }

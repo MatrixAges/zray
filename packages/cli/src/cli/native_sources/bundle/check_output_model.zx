@@ -1,0 +1,6 @@
+import type { Context } from "native_resource_host"
+
+export type Input = {
+    collection: Context,
+    bundle_files: string[]
+}

@@ -1,17 +1,23 @@
 <Module>
-    <Type from="index" as="Link" />
+    <Type from="model" as="Link" />
 
     <Args in={Link.Input} out={void} />
 
-    <Call fn="index.linkHasCompiled" in={$in} />
-
-    <If on={$ctx.linkHasCompiled}>
-        <Call fn="index.takeCompiledLibrary" in={$in} />
+    <If on={$in.has_compiled}>
+        <Call fn="index.takeCompiledLibrary" in={$in.link} />
 
         <Else>
-            <Call fn="index.allocateLinkInputs" in={$in} />
-            <Call fn="collect" in={$in} />
-            <Call fn="index.linkLibraryInputs" in={$in} />
+            <Call fn="index.allocateLinkInputs" in={$in.link} />
+
+            <Call
+                fn="collect"
+                in={{
+                    link: $in.link,
+                    count: $in.count
+                }}
+            />
+
+            <Call fn="index.linkLibraryInputs" in={$in.link} />
         </Else>
     </If>
 </Module>

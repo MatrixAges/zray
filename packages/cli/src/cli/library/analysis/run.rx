@@ -1,32 +1,28 @@
 <Module>
-    <Type from="index" as="Analysis" />
+    <Type from="model" as="Analysis" />
 
     <Args in={Analysis.Input} out={bool} />
 
-    <Call fn="index.analysisExportCount" in={$in} />
-
-    <If on={$ctx.analysisExportCount == 0}>
-        <Call fn="index.missingLibraryExports" in={$in} />
+    <If on={$in.export_count == 0}>
+        <Call fn="index.missingLibraryExports" in={$in.analysis} />
 
         <Return value={false} />
     </If>
 
-    <Call fn="index.isCompiledLibrary" in={$in} />
-
-    <If on={$ctx.isCompiledLibrary}>
-        <Call fn="index.loadCompiledLibrary" in={$in} />
+    <If on={$in.compiled}>
+        <Call fn="index.loadCompiledLibrary" in={$in.analysis} />
 
         <Return value={true} />
     </If>
 
-    <Call fn="index.beginLibraryAnalysis" in={$in} />
+    <Call fn="index.beginLibraryAnalysis" in={$in.analysis} />
 
     <Loop on={$in.running}>
         <Call
             module="entries"
             in={{
-                analysis: $in,
-                count: $ctx.analysisExportCount,
+                analysis: $in.analysis,
+                count: $in.export_count,
                 index: 0,
                 valid: true,
                 running: true

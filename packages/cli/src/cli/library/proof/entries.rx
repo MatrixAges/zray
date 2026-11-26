@@ -1,19 +1,22 @@
 <Module>
-    <Type from="index" as="Proof" />
+    <Type from="model" as="Proof" />
 
     <Args in={Proof.Input} out={bool} />
 
-    <Call fn="index.proofExportCount" in={$in} />
+    <If on={$in.exports.length == 0}>
+        <Return value={true} />
+    </If>
 
     <Loop on={$in.running}>
         <Call
             module="verify_entry"
             in={{
-                proof: $in,
-                count: $ctx.proofExportCount,
+                proof: $in.proof,
+                exports: $in.exports,
+                output_base: $in.output_base,
                 index: 0,
                 valid: true,
-                running: $ctx.proofExportCount != 0
+                running: true
             }}
         />
     </Loop>

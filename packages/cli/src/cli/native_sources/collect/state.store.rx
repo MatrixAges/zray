@@ -1,0 +1,14 @@
+<Store name="native_collection" version={1}>
+    <Object name="queue">
+        <Field name="paths" type={string[]} value={[]} />
+        <Field name="sources" type={bool[]} value={[]} />
+        <Field name="from_present" type={bool[]} value={[]} />
+        <Field name="from_paths" type={string[]} value={[]} />
+    </Object>
+
+    <Object name="seen">
+        <Field name="relative_paths" type={string[]} value={[]} />
+        <Field name="is_asset" type={bool[]} value={[]} />
+        <Field name="parsed" type={bool[]} value={[]} />
+    </Object>
+</Store>

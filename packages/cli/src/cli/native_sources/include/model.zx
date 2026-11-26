@@ -1,0 +1,16 @@
+import type { Context } from "native_resource_host"
+import type { Seen } from "../collect/model"
+
+export type Input = {
+    collection: Context,
+    include_paths: string[],
+    seen: Seen,
+    separator: u8,
+    windows: bool
+}
+
+export type Step = Input & {
+    index: u64,
+    valid: bool,
+    running: bool
+}

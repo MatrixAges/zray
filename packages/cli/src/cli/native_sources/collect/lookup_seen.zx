@@ -1,0 +1,24 @@
+import type { LookupSeenInput as Input, SeenMatch as Output } from "./model"
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        found: false,
+        parsed: false
+    }, {
+        while: row => !row.found && row.index < in.seen.relative_paths.length,
+        next: row => {
+            if (in.seen.relative_paths[row.index] == in.relative) {
+                row.found = true
+                row.parsed = in.seen.parsed[row.index]
+            } else {
+                row.index += 1
+            }
+        },
+        return: row => ({
+            found: row.found,
+            index: row.index,
+            parsed: row.parsed
+        })
+    })
+}

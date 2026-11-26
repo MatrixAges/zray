@@ -1,0 +1,84 @@
+<Module>
+    <Type from="model" as="Relocate" />
+
+    <Args in={Relocate.Step} out={Relocate.Step} />
+
+    <Call
+        fn="../index.selectInclude"
+        in={[
+            $in.collection,
+            $in.include_paths[$in.index]
+        ]}
+    />
+
+    <If on={$ctx.selectInclude != null}>
+        <Call
+            fn="find"
+            in={{
+                seen: $in.seen,
+                directory: $ctx.selectInclude,
+                separator: $in.separator,
+                windows: $in.windows
+            }}
+        />
+
+        <If on={$ctx.find}>
+            <Call fn="../index.includeFiles" in={$in.collection} />
+
+            <Call
+                fn="all_seen"
+                in={{
+                    files: $ctx.includeFiles,
+                    seen: $in.seen
+                }}
+            />
+
+            <If on={!$ctx.all_seen}>
+                <Return
+                    value={{
+                        ...$in,
+                        index: $in.index + 1,
+                        valid: false,
+                        running: false
+                    }}
+                />
+            </If>
+
+            <Call
+                fn="../index.writeInclude"
+                in={[
+                    $in.collection,
+                    $in.index,
+                    true
+                ]}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    index: $in.index + 1,
+                    valid: true,
+                    running: $in.index + 1 < $in.include_paths.length
+                }}
+            />
+        </If>
+    </If>
+
+    <Call
+        fn="../index.writeInclude"
+        in={[
+            $in.collection,
+            $in.index,
+            false
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: true,
+            running: $in.index + 1 < $in.include_paths.length
+        }}
+    />
+</Module>

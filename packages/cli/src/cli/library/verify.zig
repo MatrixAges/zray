@@ -12,10 +12,6 @@ const State = struct {
     library: *const compiler.library.Result,
     sources: []const compiler.project.Source,
     failure: effects.Failure = .{},
-    index: usize = undefined,
-    fn current(self: *const State) *const compiler.library.Export {
-        return &self.library.exports[self.index];
-    }
 };
 
 pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.Status {
@@ -38,49 +34,56 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.
 
     defer scratch.deinit();
 
-    const verified = rule.executeIn(scratch.allocator(), @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const Input = std.meta.Child(rule.Input);
+    const ExportSlot = std.meta.Child(@FieldType(Input, "exports"));
+    const ExportItem = if (@typeInfo(ExportSlot) == .pointer) std.meta.Child(ExportSlot) else ExportSlot;
+    const scratch_allocator = scratch.allocator();
+    const exports = try scratch_allocator.alloc(ExportSlot, library.exports.len);
+
+    for (library.exports, 0..) |item, i| {
+        const value: ExportItem = .{ .name = item.name, .executable = item.function != null };
+
+        if (ExportSlot == ExportItem) {
+            exports[i] = value;
+        } else {
+            const slot = try scratch_allocator.create(ExportItem);
+
+            slot.* = value;
+            exports[i] = slot;
+        }
+    }
+
+    const verified = rule.executeIn(scratch_allocator, &.{
+        .proof = @ptrCast(&reference),
+        .exports = exports,
+        .output_base = context.options.output,
+    }) catch |err| return state.failure.unwrap(err);
 
     return if (verified) .success else .failed;
 }
 
-pub fn proofExportCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).library.exports.len;
-}
-
-pub fn selectProofExport(handle: *const anyopaque, index: u64) void {
-    effects.state(State, handle).index = @intCast(index);
-}
-
-pub fn hasExecutableProof(handle: *const anyopaque) bool {
-    return effects.state(State, handle).current().function != null;
-}
-
-pub fn proofExportName(handle: *const anyopaque) []const u8 {
-    return effects.state(State, handle).current().name;
-}
-
-pub fn proofOutputBase(handle: *const anyopaque) ?[]const u8 {
-    return effects.state(State, handle).context.options.output;
-}
-
-pub fn confirmProofInterface(handle: *const anyopaque) Error!void {
+pub fn confirmProofInterface(handle: *const anyopaque, index: u64) Error!void {
     const self = effects.state(State, handle);
+    const name = self.library.exports[@intCast(index)].name;
 
-    self.context.stderr.print("public module {s}: type interface validated; no executable proof obligation\n", .{self.current().name}) catch |err| return self.failure.save(err);
+    self.context.stderr.print("public module {s}: type interface validated; no executable proof obligation\n", .{name}) catch |err| return self.failure.save(err);
 }
 
-pub fn writeProofHeading(handle: *const anyopaque) Error!void {
+pub fn writeProofHeading(handle: *const anyopaque, index: u64) Error!void {
     const self = effects.state(State, handle);
+    const name = self.library.exports[@intCast(index)].name;
 
-    self.context.stderr.print("public module {s}:\n", .{self.current().name}) catch |err| return self.failure.save(err);
+    self.context.stderr.print("public module {s}:\n", .{name}) catch |err| return self.failure.save(err);
 }
 
-pub fn verifyPublicExport(handle: *const anyopaque, output: ?[]const u8) Error!bool {
+pub fn verifyPublicExport(handle: *const anyopaque, index: u64, output: ?[]const u8) Error!bool {
     const self = effects.state(State, handle);
     const context = self.context;
-    const program = self.library.module(self.index) catch |err| return self.failure.save(err);
+    const row: usize = @intCast(index);
+    const program = self.library.module(row) catch |err| return self.failure.save(err);
+    const path = self.library.exports[row].path;
 
-    return compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, program, self.sources, self.current().path, .{
+    return compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, program, self.sources, path, .{
         .solver = context.options.solver,
         .output = output,
     }, context.stderr) catch |err| return self.failure.save(err);
