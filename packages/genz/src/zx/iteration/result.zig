@@ -55,6 +55,7 @@ pub const Result = struct {
                 .origin = @ptrCast(&origin),
                 .body = @ptrCast(body),
                 .changed_name = config.changed_name,
+                .type_id = @backingInt(config.type_id),
                 .state = @backingInt(state),
                 .initial = @backingInt(config.initial),
                 .renewals = publication.packSpan(previous.renewals),
@@ -219,14 +220,10 @@ pub fn consumeLoopProjection(handle: *const anyopaque, converted: bool) Lower.Er
     return @backingInt(try Publication.borrow(handle).project(converted));
 }
 
-pub fn wrapLoopResult(handle: *const anyopaque, form: evaluation.Api.LoopResultWrap) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).wrap(switch (form) {
-        .Block => .Block,
-        .Layout => .Layout,
-        .Pointer => .Pointer,
-    }));
+pub fn wrapLoopResult(handle: *const anyopaque, layout: bool) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).wrap(if (layout) .Layout else .Pointer));
 }
 
-pub fn convertLoopResult(handle: *const anyopaque, deep: bool) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).convert(deep));
+pub fn convertLoopResult(handle: *const anyopaque) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).convert(true));
 }

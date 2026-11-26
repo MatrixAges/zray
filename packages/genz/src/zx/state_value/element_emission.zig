@@ -9,13 +9,8 @@ const Query = std.meta.Child(querying.Input);
 const Facts = std.meta.Child(@FieldType(Query, "source"));
 const Operation = @FieldType(Query, "operation");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const lists = @import("list_emission.zig");
-const context = @import("../construction/context.zig");
-const runner = @import("generated_run_state_element");
-const capturing = @import("generated_run_state_element_capture");
 const emitter = @import("generated_state_element_emit");
 const Call = std.meta.Child(emitter.Input);
-const Input = std.meta.Child(@FieldType(Call, "element"));
 const Decision = @typeInfo(@typeInfo(@TypeOf(querying.executeValue)).@"fn".return_type.?).error_union.payload;
 
 pub fn inlineStored(self: *const Lower, list: ir.TypeId) bool {
@@ -35,15 +30,15 @@ pub fn typeExpr(self: *Lower, list: ir.TypeId) Lower.Error!node.ExpressionId {
 }
 
 pub fn read(self: *Lower, body: *Sequence, list: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
-    return @fromBackingInt(try run(runner, self, body, list, .Read, @backingInt(value), null));
+    return @fromBackingInt((try run(self, body, list, .Read, @backingInt(value), null)).root);
 }
 
 pub fn write(self: *Lower, body: *Sequence, list: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
-    return @fromBackingInt(try run(runner, self, body, list, .Write, @backingInt(value), null));
+    return @fromBackingInt((try run(self, body, list, .Write, @backingInt(value), null)).root);
 }
 
 pub fn captureName(self: *Lower, body: *Sequence, list: ir.TypeId, symbol: ir.SymbolId) Lower.Error![]const u8 {
-    return run(capturing, self, body, list, .Capture, 0, symbol);
+    return (try run(self, body, list, .Capture, 0, symbol)).name;
 }
 
 pub fn choice(self: *const Lower, list: ir.TypeId, operation: Operation, used: bool) Decision {
@@ -64,52 +59,52 @@ pub fn choice(self: *const Lower, list: ir.TypeId, operation: Operation, used: b
     return zx.columns.invoke(querying.executeValue, fixed.allocator(), &input) catch @panic("invalid element query");
 }
 
-const Frame = struct {
-    lower: *Lower,
-    body: *Sequence,
-    decision: *const Decision,
-    name: []const u8,
-    result: @import("../expressions/evaluate.zig").Api.ElementEmission = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-fn run(comptime entry: type, self: *Lower, body: *Sequence, list: ir.TypeId, operation: Operation, value: u32, symbol: ?ir.SymbolId) Lower.Error!entry.Output {
+fn run(self: *Lower, body: *Sequence, list: ir.TypeId, operation: Operation, value: u32, symbol: ?ir.SymbolId) Lower.Error!emitter.Output {
     const used = if (symbol) |id| self.used[@backingInt(id)] else false;
     const decision = choice(self, list, operation, used);
-    const Request = std.meta.Child(entry.Input);
-    const bound = zx.columns.view(std.meta.Child(@FieldType(Request, "choice")), decision);
-    var frame: Frame = .{ .lower = self, .body = body, .decision = &decision, .name = if (used) self.names[@backingInt(symbol.?)] else &.{} };
+    const bound = zx.columns.view(std.meta.Child(@FieldType(Call, "choice")), decision);
+    const name = if (used) self.names[@backingInt(symbol.?)] else &.{};
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    const input: Request = .{
-        .frame = @ptrCast(&frame),
-        .lower = @ptrCast(self),
+    defer scratch.deinit();
+
+    const allocator = buffered.allocator();
+    var boundary: conversion.Capture = undefined;
+    const prepared: ?conversion.Input = if (!decision.passthrough and !decision.discard and !decision.stored) try conversion.prepareMode(self, allocator, @fromBackingInt(decision.type_id), @fromBackingInt(value), zx.columns.view(conversion.PlanningMode, decision.mode), conversion.captureBoundary(self, &boundary)) else null;
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
+
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
+        .body = @ptrCast(body),
         .choice = &bound,
+        .conversion = if (prepared) |*item| zx.columns.pointer(std.meta.Child(@FieldType(Call, "conversion")), item) else null,
         .value = value,
-        .name = frame.name,
+        .name = name,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return entry.executeIn(fixed.allocator(), &input) catch |err| return failure(err);
+    return emitter.executeIn(allocator, &call) catch |err| return failure(err);
 }
 
 pub fn storedLayout(self: *Lower, decision: Decision) Lower.Error!u32 {
     return @backingInt(try @import("../types.zig").get(self, self.state_types, @fromBackingInt(decision.type_id)));
 }
 
-pub const Bases = std.meta.Child(@FieldType(std.meta.Child(@FieldType(std.meta.Child(@import("generated_collection_pop").Input), "pop")), "bases"));
+const PopInput = std.meta.Child(@FieldType(std.meta.Child(@import("generated_collection_pop").Input), "pop"));
+pub const Bases = std.meta.Child(@FieldType(PopInput, "bases"));
+const PopElement = std.meta.Child(@typeInfo(@FieldType(PopInput, "element")).optional.child);
 
 pub const Preparation = struct {
-    choice_value: std.meta.Child(@FieldType(Input, "choice")),
+    choice_value: std.meta.Child(@FieldType(PopElement, "choice")),
     conversion: ?conversion.Input,
     layout: u32,
-    pub fn input(self: *const Preparation, comptime Target: type, bases: *const Bases, ast: *const lists.Ast, value: u32, name: []const u8) Target {
+    pub fn input(self: *const Preparation, comptime Target: type, bases: *const Bases, value: u32, name: []const u8) Target {
         return .{
             .choice = zx.columns.pointer(@FieldType(Target, "choice"), &self.choice_value),
             .conversion = if (self.conversion) |*prepared| zx.columns.pointer(std.meta.Child(@FieldType(Target, "conversion")), prepared) else null,
-            .ast = zx.columns.pointer(@FieldType(Target, "ast"), ast),
             .layout = self.layout,
             .value = value,
             .name = name,
@@ -126,7 +121,7 @@ pub fn prepare(self: *Lower, temporary: std.mem.Allocator, decision: Decision, v
     const capture = if (capture_value) |source| zx.columns.pointer(*const conversion.Capture, source) else null;
 
     return .{
-        .choice_value = zx.columns.view(std.meta.Child(@FieldType(Input, "choice")), decision),
+        .choice_value = zx.columns.view(std.meta.Child(@FieldType(PopElement, "choice")), decision),
         .conversion = if (layout == null) try conversion.prepareMode(self, temporary, @fromBackingInt(decision.type_id), @fromBackingInt(value), zx.columns.view(conversion.PlanningMode, decision.mode), capture) else null,
         .layout = layout orelse 0,
     };
@@ -134,39 +129,6 @@ pub fn prepare(self: *Lower, temporary: std.mem.Allocator, decision: Decision, v
 
 pub fn materializeElementType(frame: *anyopaque, list_type: u32) Lower.Error!u32 {
     return @backingInt(try typeExpr(@import("../expressions/evaluate.zig").borrow(frame), @fromBackingInt(list_type)));
-}
-
-pub fn emitElement(handle: *anyopaque, value: u32, layout: ?u32) Lower.Error!*const @import("../expressions/evaluate.zig").Api.ElementEmission {
-    const frame = Frame.borrow(handle);
-    const self = frame.lower;
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
-
-    defer scratch.deinit();
-
-    const allocator = buffered.allocator();
-    var boundary: conversion.Capture = undefined;
-    const capture_value = conversion.captureBoundary(self, &boundary);
-    const preparation = try prepare(self, allocator, frame.decision.*, value, layout, capture_value);
-    const ast = lists.borrow(self);
-    const bases = context.snapshot(Bases, self);
-    const input = preparation.input(Input, &bases, &ast, value, frame.name);
-
-    const call: Call = .{
-        .frame = @ptrCast(self),
-        .writer = @ptrCast(self),
-        .body = @ptrCast(frame.body),
-        .element = &input,
-    };
-
-    const output = emitter.executeIn(allocator, &call) catch |err| return failure(err);
-
-    if (frame.decision.capture) frame.name = try self.allocator.dupe(u8, output.name);
-
-    frame.result = .{ .root = output.root, .name = frame.name };
-
-    return &frame.result;
 }
 
 fn failure(err: anyerror) Lower.Error {

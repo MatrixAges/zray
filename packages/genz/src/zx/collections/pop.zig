@@ -46,7 +46,7 @@ pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, arg
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
     std.debug.assert(statements == self.builder.nodes.statements.tags.items.len);
 
-    const element: Element = if (preparation) |*prepared| prepared.input(Element, &bases, &ast, 0, &.{}) else undefined;
+    const element: Element = if (preparation) |*prepared| prepared.input(Element, &bases, 0, &.{}) else undefined;
 
     const input: Input = .{
         .items = @backingInt(args.items),

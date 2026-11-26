@@ -1,8 +1,10 @@
+import integers from "std:integer"
 import { readAstOrigin } from "ast_rows"
 import host from "lowering_host"
-import { LoopResultWrap } from "lowering_host"
 
+import finishStored from "../../../../aggregate/execute/finish_stored"
 import emitUnit from "../../../../collections/workflow/emit_unit"
+import { word_radix } from "../../../../node_headers/block/const"
 import { Preparation } from "../model"
 
 import type { Actions as Input } from "./model"
@@ -20,14 +22,26 @@ export default function (in: Input): Output {
         return in.state
     }
 
+    if (in.preparation == Preparation.Block) {
+        const current = readAstOrigin(writer, origin)
+
+        return finishStored({
+            frame,
+            writer,
+            origin,
+            span: integers.widen(current.statement_base) * word_radix,
+            value: in.state,
+            guard: null
+        })
+    }
+
     return match in.preparation {
         Preparation.BufferedConsumer => host.consumeDeepLoopResult(target, true),
         Preparation.DeepConsumer => host.consumeDeepLoopResult(target, false),
         Preparation.Consumer => host.consumeLoopProjection(target, false),
         Preparation.ConvertedConsumer => host.consumeLoopProjection(target, true),
         Preparation.Unit => emitUnit(writer),
-        Preparation.Layout => host.wrapLoopResult(target, LoopResultWrap.Layout),
-        Preparation.Pointer => host.wrapLoopResult(target, LoopResultWrap.Pointer),
-        _ => host.wrapLoopResult(target, LoopResultWrap.Block)
+        Preparation.Layout => host.wrapLoopResult(target, true),
+        _ => host.wrapLoopResult(target, false)
     }
 }

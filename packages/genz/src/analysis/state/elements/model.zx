@@ -5,7 +5,6 @@ import type {
     State
 } from "../conversion/emit/model"
 import type { Input as Facts, Mode } from "../conversion/model"
-import type { Ast } from "../list/model"
 import type { Resource } from "../resources/model"
 
 export enum Operation {
@@ -37,7 +36,6 @@ export type Choice = {
 export type Input = {
     choice: Choice,
     conversion?: Conversion,
-    ast: Ast,
     layout: u32,
     value: u32,
     name: u8[],

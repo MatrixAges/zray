@@ -59,8 +59,9 @@ export declare function cacheIterationResult(
 export declare function materializeElementType(frame: Lowering, list_type: u32): u32
     throws { OutOfMemory }
 
-export declare function emitElement(
-    frame: ElementRepresentation,
+export declare function constructValue(
+    frame: Lowering,
+    type_id: u32,
     value: u32,
     layout: u32?
-): ElementEmission throws { OutOfMemory }
+): u32 throws { OutOfMemory }

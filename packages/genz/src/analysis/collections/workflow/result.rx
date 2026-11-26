@@ -21,10 +21,12 @@
     <Call module="convert" in={$in} />
 
     <Call
-        fn="host.constructCollectionResult"
+        fn="host.constructValue"
         in={[
-            $in.frame,
-            $ctx.convert
+            $in.ast.lower,
+            $in.result_type,
+            $ctx.convert,
+            $in.layout
         ]}
     />
 
@@ -35,7 +37,7 @@
             writer: $in.ast.writer,
             origin: $in.ast.origin,
             sequence: $in.ast.sequence,
-            value: $ctx.constructCollectionResult
+            value: $ctx.constructValue
         }}
     />
 

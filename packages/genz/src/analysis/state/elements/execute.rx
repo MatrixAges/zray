@@ -3,7 +3,27 @@
 
     <Args in={Element.Execute} out={Element.Published} />
 
-    <Call module="build" in={$in.element} />
+    <If on={$in.choice.discard}>
+        <Return
+            value={{
+                root: $in.value,
+                name: $in.choice.discard_name
+            }}
+        />
+    </If>
+
+    <If on={$in.choice.passthrough}>
+        <Return
+            value={{
+                root: $in.value,
+                name: $in.name
+            }}
+        />
+    </If>
+
+    <Call fn="prepare_input" in={$in} />
+
+    <Call module="build" />
 
     <Call
         fn="../conversion/emit/publish_ast"
@@ -16,10 +36,27 @@
         }}
     />
 
+    <If on={$in.choice.capture}>
+        <Call
+            fn="execute_model.retainLoweringText"
+            in={[
+                $in.frame,
+                $ctx.build.name
+            ]}
+        />
+
+        <Return
+            value={{
+                root: $ctx.publish_ast,
+                name: $ctx.retainLoweringText
+            }}
+        />
+    </If>
+
     <Return
         value={{
             root: $ctx.publish_ast,
-            name: $ctx.build.name
+            name: $in.name
         }}
     />
 </Module>

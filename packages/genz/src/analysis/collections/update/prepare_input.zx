@@ -1,0 +1,48 @@
+import { astFieldCount, readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import type { Input as Output } from "./model"
+import type { Evaluated, Input as Request } from "./workflow"
+
+export type Input = Request.Pick(
+    "ast",
+    "represented",
+    "source_type",
+    "deferred",
+    "in_place",
+    "grow",
+    "exact",
+    "shared"
+) & {
+    evaluated: Evaluated
+}
+
+export default function (in: Input): Output {
+    const layout: u32 = match {
+        in.represented => host.materializeType(
+            in.ast.lower,
+            in.source_type,
+            StoredType.StateType
+        ),
+        _ => 0
+    }
+
+    const field_base = astFieldCount(in.ast.writer)
+    const current = readAstOrigin(in.ast.writer, in.ast.origin)
+
+    return {
+        bases: {
+            ...current,
+            field_base
+        },
+        ...in.evaluated,
+        layout,
+        selected: in.represented,
+        deferred: in.deferred,
+        in_place: in.in_place,
+        grow: in.grow,
+        exact: in.exact,
+        shared: in.shared
+    }
+}

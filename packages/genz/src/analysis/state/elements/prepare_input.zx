@@ -1,0 +1,33 @@
+import { astFieldCount, readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import type { Execute as Input } from "./execute_model"
+import type { Input as Output } from "./model"
+
+export default function (in: Input): Output {
+    const layout: u32 = match {
+        in.choice.stored => host.materializeType(
+            in.frame,
+            in.choice.type_id,
+            StoredType.StateType
+        ),
+        _ => 0
+    }
+
+    const field_base = astFieldCount(in.writer)
+    const current = readAstOrigin(in.writer, in.origin)
+
+    return {
+        choice: in.choice,
+        conversion: in.conversion,
+        layout,
+        value: in.value,
+        name: in.name,
+        capture: current.capture,
+        expression_base: current.expression_base,
+        statement_base: current.statement_base,
+        field_base,
+        serial: current.serial
+    }
+}

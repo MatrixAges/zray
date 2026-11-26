@@ -6,11 +6,30 @@
     <Call module="evaluate" in={$in} />
 
     <Call
-        fn="../workflow/host.emitCollectionUpdate"
-        in={[
-            $in.frame,
-            $ctx.evaluate
-        ]}
+        fn="prepare_input"
+        in={{
+            ...$in.pick([
+                "ast",
+                "represented",
+                "source_type",
+                "deferred",
+                "in_place",
+                "grow",
+                "exact",
+                "shared"
+            ]),
+            evaluated: $ctx.evaluate
+        }}
+    />
+
+    <Call
+        module="execute"
+        in={{
+            frame: $in.ast.lower,
+            writer: $in.ast.writer,
+            body: $in.ast.sequence,
+            update: $ctx.prepare_input
+        }}
     />
 
     <Call
@@ -20,7 +39,7 @@
             writer: $in.ast.writer,
             origin: $in.ast.origin,
             sequence: $in.ast.sequence,
-            value: $ctx.emitCollectionUpdate
+            value: $ctx.execute
         }}
     />
 

@@ -1,14 +1,25 @@
-import type { CollectionFrame, CollectionUpdate } from "lowering_host"
+import type { CollectionFrame } from "lowering_host"
 import type { Ast } from "../workflow/model"
 
 export type Input = {
     frame: CollectionFrame,
     ast: Ast,
     represented: bool,
+    deferred: bool,
+    in_place: bool,
+    grow: bool,
+    exact: bool,
+    shared: bool,
     source_type: u32,
     target: u32,
     index: u32,
     value: u32
 }
 
-export type Write = CollectionUpdate
+export type Evaluated = {
+    items: u32,
+    target: u32,
+    index: u32,
+    value: u32,
+    element: u32
+}

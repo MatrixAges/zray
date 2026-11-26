@@ -104,8 +104,8 @@ export declare function consumeDeepLoopResult(target: LoopResultFrame, buffered:
 export declare function consumeLoopProjection(target: LoopResultFrame, converted: bool): u32
     throws { OutOfMemory }
 
-export declare function wrapLoopResult(target: LoopResultFrame, form: LoopResultWrap): u32
+export declare function wrapLoopResult(target: LoopResultFrame, layout: bool): u32
     throws { OutOfMemory }
 
-export declare function convertLoopResult(target: LoopResultFrame, deep: bool): u32
+export declare function convertLoopResult(target: LoopResultFrame): u32
     throws { OutOfMemory }

@@ -21,7 +21,6 @@ pub const Frame = struct {
         result_type: ir.TypeId,
         kind: ir.ListOperation,
         flags: @import("../uniqueness/root.zig").Flags,
-        layout: ?node.ExpressionId,
         removed_only: bool,
     };
     pub fn init(self: *Lower, id: ir.ExprId, target: ir.ExprId, temporary: std.mem.Allocator) Frame {
@@ -56,7 +55,6 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
         .result_type = row.type_id,
         .kind = operation.kind,
         .flags = flags,
-        .layout = layout,
         .removed_only = removed_only,
     };
 
@@ -76,6 +74,7 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
         .kind = @fromBackingInt(@backingInt(operation.kind)),
         .target = @backingInt(operation.target),
         .source_type = @backingInt(frame.source_type),
+        .result_type = @backingInt(row.type_id),
         .arguments = @import("../../node/view.zig").slice([]const u32, operation.arguments),
         .frontier = flags.frontier,
         .removed_only = removed_only,
@@ -103,11 +102,4 @@ pub fn convertCollectionResult(handle: *anyopaque, result: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("result.zig").lower(frame, @fromBackingInt(result)));
-}
-
-pub fn constructCollectionResult(handle: *anyopaque, result: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const operation = frame.operation.?;
-
-    return @backingInt(try @import("../construction/build.zig").lower(frame.lower, operation.result_type, @fromBackingInt(result), operation.layout));
 }

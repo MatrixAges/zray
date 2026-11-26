@@ -29,14 +29,8 @@ export declare function emitCollectionPop(
 export declare function convertCollectionResult(frame: CollectionFrame, result: u32): u32
     throws { OutOfMemory }
 
-export declare function constructCollectionResult(frame: CollectionFrame, result: u32): u32
-    throws { OutOfMemory }
-
 export declare function prepareCollectionMember(
     frame: CollectionConversion,
     index: u64,
     type_id: u32?
 ): void throws { OutOfMemory }
-
-export declare function emitCollectionUpdate(frame: CollectionFrame, input: CollectionUpdate): u32
-    throws { OutOfMemory }

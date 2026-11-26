@@ -29,6 +29,7 @@
                 "origin",
                 "body",
                 "changed_name",
+                "type_id",
                 "state",
                 "initial",
                 "renewals",

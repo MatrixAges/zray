@@ -50,12 +50,6 @@ export type LoopFieldRebuild = mutable_opaque
 
 export type LoopResultFrame = opaque
 
-export enum LoopResultWrap {
-    Block,
-    Layout,
-    Pointer
-}
-
 export type TransformFrame = mutable_opaque
 
 export type IterationProjectionFrame = mutable_opaque

@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Update" />
 
-    <Args in={Update.Input} out={Update.Write} />
+    <Args in={Update.Input} out={Update.Evaluated} />
 
     <Call
         fn="../workflow/host.lowerExpression"
@@ -67,8 +67,7 @@
             target: $ctx.bind_target.value,
             index: $ctx.operand,
             value: $ctx.convert,
-            element: $ctx.materializeElementType,
-            selected: $in.represented
+            element: $ctx.materializeElementType
         }}
     />
 </Module>

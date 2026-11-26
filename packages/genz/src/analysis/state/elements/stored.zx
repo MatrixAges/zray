@@ -1,12 +1,12 @@
 import bytes from "std:bytes"
 
-import boolean from "../../../ast/context/boolean"
+import conditional from "../../../ast/context/conditional"
 import field from "../../../ast/context/field"
 import { items_field } from "../../types/state/const"
-import { Operation } from "../list/const"
+import { Operation, Storage } from "../list/const"
 import construct from "../list/construct"
 import permission from "../list/permission"
-import proven from "../list/proven"
+import tag from "../list/tag"
 
 import type { Work as Input, Work as Output } from "./model"
 
@@ -23,16 +23,21 @@ export default function (in: Input): Output {
         operation: Operation.Headered
     })
 
-    const unique = boolean({
+    const yes = tag({
         state: header.state,
-        value: false
+        storage: Storage.Shared
     })
 
-    const storage = proven({
-        state: unique.state,
-        ast: in.source.ast,
-        header: header.id,
-        unique: unique.id
+    const no = tag({
+        state: yes.state,
+        storage: Storage.Plain
+    })
+
+    const storage = conditional({
+        state: no.state,
+        condition: header.id,
+        yes: yes.id,
+        no: no.id
     })
 
     const result = construct({
