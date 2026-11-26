@@ -22,7 +22,7 @@ pub const State = struct {
     dependencies: pkgs.install.Dependencies = undefined,
     owner_path: ?[]const u8 = null,
     pending: pkgs.install.Dependencies.Pending = undefined,
-    archive_is_local: bool = undefined,
+    lookup_view: @import("cli_abi").layouts.@"zig:installation_host".ArchiveLookup = undefined,
     archive_manifest: Manifest = undefined,
     spelling: [std.crypto.hash.sha2.Sha256.digest_length * 2]u8 = undefined,
 };

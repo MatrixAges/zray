@@ -7,9 +7,18 @@ const Collector = @import("../references/collector.zig");
 pub const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
 const abi = @import("cli_abi").native.@"zig:rx_collection_host";
+const PhysicalResolution = @import("cli_abi").layouts.@"zig:rx_collection_host".PhysicalResolution;
 pub const Kind = abi.Kind;
 pub const Availability = abi.Availability;
 const rule = @import("cli_source").collect_rx_sources;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 pub const State = struct {
     result: *collection.Result,
@@ -23,13 +32,13 @@ pub const State = struct {
     failure: effects.Failure = .{},
     queue: std.ArrayList([]const u8) = .empty,
     queued: std.StringHashMapUnmanaged(void) = .empty,
-    physical: std.StringHashMapUnmanaged([]const u8) = .empty,
     sources: std.ArrayList(rx.TextSource) = .empty,
     functions: std.ArrayList(rx.TextSource) = .empty,
     modules: std.ArrayList(rx.ModuleSource) = .empty,
     stores: std.ArrayList(rx.ModuleSource) = .empty,
     gateway: ?collection.GatewaySource = null,
     file: File = undefined,
+    physical_view: PhysicalResolution = undefined,
     checked: ?rx.Result = null,
     collector: Collector = undefined,
     const File = struct {
@@ -63,10 +72,18 @@ pub const State = struct {
         };
 
         const reference = &state;
+        var store_arena = std.heap.ArenaAllocator.init(backing);
 
+        defer store_arena.deinit();
         defer state.deinit();
 
-        const ready = rule.executeIn(allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+        var seen: StoreState = &.{ .real_paths = &.{}, .logical_paths = &.{} };
+        var host: StoreHost = .{ .store_0 = &seen };
+
+        const ready = rule.execute(&store_arena, &.{
+            .collection = @ptrCast(&reference),
+            .entry = options.entry,
+        }, &host) catch |err| return state.failure.unwrap(err);
 
         if (!ready) return null;
 
@@ -114,10 +131,6 @@ pub const State = struct {
         return if (err == error.FileNotFound) .Missing else .Failed;
     }
 };
-
-pub fn collectionEntry(handle: *const anyopaque) []const u8 {
-    return State.get(handle).options.entry;
-}
 
 pub fn registerCollectionEntry(handle: *const anyopaque, kind: Kind) Error!bool {
     const self = State.get(handle);

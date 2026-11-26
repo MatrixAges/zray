@@ -4,56 +4,60 @@
 
     <Args in={Collection.File} out={Collection.Readiness} />
 
+    <Store from="../physical" as="physical" />
+
     <Call fn="../index.resolveCollectionPhysicalPath" in={$in.collection} />
 
-    <If on={$ctx.resolveCollectionPhysicalPath != IO.Availability.Ready}>
+    <If on={$ctx.resolveCollectionPhysicalPath.availability != IO.Availability.Ready}>
         <Call
             module="unavailable"
             in={{
                 collection: $in.collection,
                 kind: $in.kind,
                 first: $in.first,
-                availability: $ctx.resolveCollectionPhysicalPath
+                availability: $ctx.resolveCollectionPhysicalPath.availability
             }}
         />
 
         <Return value={$ctx.unavailable} />
     </If>
 
-    <Call fn="../index.collectionPhysicalRelative" in={$in.collection} />
+    <Call fn="outside" in={$ctx.resolveCollectionPhysicalPath.relative} />
 
-    <Call fn="outside" />
-
-    <Call
-        fn="../../../publication/index.absolutePath"
-        in={$ctx.collectionPhysicalRelative}
-    />
-
-    <If on={$ctx.absolutePath || $ctx.outside}>
+    <If on={$ctx.outside}>
         <Call fn="../index.reportCollectionEscape" in={$in.collection} />
 
         <Return value={Collection.Readiness.Invalid} />
     </If>
 
-    <Call fn="../index.previousCollectionPath" in={$in.collection} />
+    <Call
+        fn="register_physical"
+        in={{
+            seen: store.physical.seen,
+            real: $ctx.resolveCollectionPhysicalPath.real,
+            path: $in.path
+        }}
+        setter={[store.physical.seen]}
+    />
 
-    <If on={$ctx.previousCollectionPath != null}>
-        <If on={$ctx.previousCollectionPath == $in.path}>
-            <Return value={Collection.Readiness.Skipped} />
-        </If>
+    <If on={$ctx.register_physical.status == Collection.PhysicalRegistration.SamePath}>
+        <Return value={Collection.Readiness.Skipped} />
+    </If>
 
+    <If
+        on={$ctx.register_physical.status ==
+            Collection.PhysicalRegistration.AliasConflict}
+    >
         <Call
             fn="../index.reportCollectionAlias"
             in={[
                 $in.collection,
-                $ctx.previousCollectionPath
+                $ctx.register_physical.previous
             ]}
         />
 
         <Return value={Collection.Readiness.Invalid} />
     </If>
-
-    <Call fn="../index.registerCollectionPhysicalPath" in={$in.collection} />
 
     <Call
         fn="../index.readCollectionFile"

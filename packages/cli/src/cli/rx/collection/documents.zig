@@ -78,7 +78,7 @@ pub fn recordCollectionGateway(handle: *const anyopaque) bool {
     return (self.checked.?.value.data.gateway.attributes.protocol orelse .http) == .http;
 }
 
-pub fn prepareCollectionGateway(handle: *const anyopaque) Error!bool {
+pub fn prepareCollectionGateway(handle: *const anyopaque) Error!?u64 {
     const self = State.get(handle);
     const file = &self.file;
     const attrs = self.checked.?.value.data.gateway.attributes;
@@ -91,17 +91,13 @@ pub fn prepareCollectionGateway(handle: *const anyopaque) Error!bool {
 
     const value = &self.result.gateway_analysis.?.value;
 
-    if (value.* != .diagnostic) return true;
+    if (value.* != .diagnostic) return value.definition.service_routes.len;
 
     const issue = value.diagnostic;
 
     self.options.writer.print("{s}:{d}:{d}: {s}: {s}\n", .{ issue.path, issue.location.line, issue.location.column, issue.code, issue.message }) catch |err| return self.failure.save(err);
 
-    return false;
-}
-
-pub fn collectionGatewayServices(handle: *const anyopaque) u64 {
-    return State.get(handle).result.gateway_analysis.?.value.definition.service_routes.len;
+    return null;
 }
 
 pub fn collectGatewayService(handle: *const anyopaque, row: u64) Error!void {

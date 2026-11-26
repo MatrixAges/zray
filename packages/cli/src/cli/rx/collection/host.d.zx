@@ -13,16 +13,18 @@ export enum Availability {
     Failed
 }
 
-export declare function collectionEntry(collection: Collection): string
+export type PhysicalResolution = {
+    availability: Availability,
+    real: string,
+    relative: string
+}
+
 export declare function registerCollectionEntry(collection: Collection, kind: Kind): bool throws { SourceLoadFailure }
 export declare function collectionQueueLength(collection: Collection): u64
 export declare function releaseRxDocument(collection: Collection): void
 
 export declare function selectCollectionPath(collection: Collection, row: u64): string throws { SourceLoadFailure }
-export declare function resolveCollectionPhysicalPath(collection: Collection): Availability throws { SourceLoadFailure }
-export declare function collectionPhysicalRelative(collection: Collection): string throws { SourceLoadFailure }
-export declare function previousCollectionPath(collection: Collection): string?
-export declare function registerCollectionPhysicalPath(collection: Collection): void throws { SourceLoadFailure }
+export declare function resolveCollectionPhysicalPath(collection: Collection): PhysicalResolution throws { SourceLoadFailure }
 export declare function readCollectionFile(collection: Collection, retained: bool): Availability throws { SourceLoadFailure }
 export declare function reportCollectionFileFailure(collection: Collection): void throws { SourceLoadFailure }
 export declare function reportCollectionEscape(collection: Collection): void throws { SourceLoadFailure }
@@ -36,7 +38,6 @@ export declare function validateCollectionXml(collection: Collection): bool thro
 export declare function recordCollectionModule(collection: Collection): void throws { SourceLoadFailure }
 export declare function recordCollectionStore(collection: Collection): void throws { SourceLoadFailure }
 export declare function recordCollectionGateway(collection: Collection): bool
-export declare function prepareCollectionGateway(collection: Collection): bool throws { SourceLoadFailure }
-export declare function collectionGatewayServices(collection: Collection): u64
+export declare function prepareCollectionGateway(collection: Collection): u64? throws { SourceLoadFailure }
 export declare function collectGatewayService(collection: Collection, row: u64): void throws { SourceLoadFailure }
 export declare function collectXmlReferences(collection: Collection): bool throws { SourceLoadFailure }

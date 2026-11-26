@@ -11,5 +11,11 @@
         ]}
     />
 
-    <Call fn="paths" in={$in} />
+    <Call
+        fn="paths"
+        in={{
+            host: $in.host,
+            is_archive: $ctx.beginReplay
+        }}
+    />
 </Module>

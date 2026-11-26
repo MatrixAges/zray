@@ -2,30 +2,21 @@ const std = @import("std");
 const host = @import("../host.zig");
 const model = @import("../model.zig");
 const pkgs = @import("pkgs");
+const ArchiveLookup = @import("cli_abi").layouts.@"zig:installation_host".ArchiveLookup;
 
-pub fn findArchive(handle: *anyopaque, first: u64) host.Error!?u64 {
+pub fn findArchive(handle: *anyopaque, first: u64) host.Error!*const ArchiveLookup {
     const self = host.State.get(handle);
     const fresh = &self.fresh;
     const release = fresh.pending.release;
     const key = std.ascii.lowerString(&fresh.spelling, release.sha256);
     const plan = fresh.archives.?.plan(fresh.packages.items, @intCast(first), key, fresh.pending.name, release) catch |err| return self.fail(err);
 
-    return switch (plan) {
-        .existing => |row| row,
-        .remote, .local => result: {
-            fresh.archive_is_local = plan == .local;
-
-            break :result null;
-        },
+    fresh.lookup_view = switch (plan) {
+        .existing => |row| .{ .existing = row, .local = false, .archive = "" },
+        .remote, .local => .{ .existing = null, .local = plan == .local, .archive = release.archive },
     };
-}
 
-pub fn localArchive(handle: *anyopaque) bool {
-    return host.State.get(handle).fresh.archive_is_local;
-}
-
-pub fn indexedArchive(handle: *anyopaque) []const u8 {
-    return host.State.get(handle).fresh.pending.release.archive;
+    return &fresh.lookup_view;
 }
 
 pub fn relativeArchive(handle: *anyopaque) host.Error![]const u8 {

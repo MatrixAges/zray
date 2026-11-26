@@ -4,6 +4,7 @@ const state = @import("state.zig");
 const State = state.State;
 const Error = state.effects.Error;
 const Availability = state.Availability;
+const PhysicalResolution = @import("cli_abi").layouts.@"zig:rx_collection_host".PhysicalResolution;
 
 pub fn selectCollectionPath(handle: *const anyopaque, row: u64) Error![]const u8 {
     const self = State.get(handle);
@@ -22,34 +23,34 @@ pub fn selectCollectionPath(handle: *const anyopaque, row: u64) Error![]const u8
     return path;
 }
 
-pub fn resolveCollectionPhysicalPath(handle: *const anyopaque) Error!Availability {
+pub fn resolveCollectionPhysicalPath(handle: *const anyopaque) Error!*const PhysicalResolution {
     const self = State.get(handle);
     const options = self.options;
     const absolute = self.file.absolute;
 
     if (options.inputs) |inputs| inputs.add(options.io, absolute) catch |err| return self.failure.save(err);
 
-    self.file.real = std.Io.Dir.cwd().realPathFileAlloc(options.io, absolute, self.allocator) catch |err| return self.fileUnavailable(err);
+    self.file.real = std.Io.Dir.cwd().realPathFileAlloc(options.io, absolute, self.allocator) catch |err| {
+        const avail = self.fileUnavailable(err) catch |failure| return failure;
 
-    return .Ready;
-}
+        self.physical_view = .{
+            .availability = avail,
+            .real = "",
+            .relative = "",
+        };
 
-pub fn collectionPhysicalRelative(handle: *const anyopaque) Error![]const u8 {
-    const self = State.get(handle);
+        return &self.physical_view;
+    };
 
-    return std.fs.path.relative(self.allocator, self.physical_root, null, self.physical_root, self.file.real) catch |err| return self.failure.save(err);
-}
+    const relative = std.fs.path.relative(self.allocator, self.physical_root, null, self.physical_root, self.file.real) catch |err| return self.failure.save(err);
 
-pub fn previousCollectionPath(handle: *const anyopaque) ?[]const u8 {
-    const self = State.get(handle);
+    self.physical_view = .{
+        .availability = .Ready,
+        .real = self.file.real,
+        .relative = relative,
+    };
 
-    return self.physical.get(self.file.real);
-}
-
-pub fn registerCollectionPhysicalPath(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.physical.put(self.allocator, self.file.real, self.file.path) catch |err| return self.failure.save(err);
+    return &self.physical_view;
 }
 
 pub fn readCollectionFile(handle: *const anyopaque, retained: bool) Error!Availability {

@@ -22,13 +22,19 @@
         <If on={$ctx.recordCollectionGateway}>
             <Call fn="../index.prepareCollectionGateway" in={$in.collection} />
 
-            <If on={!$ctx.prepareCollectionGateway}>
-                <Return value={false} />
+            <If on={$ctx.prepareCollectionGateway != null}>
+                <Call
+                    fn="services"
+                    in={{
+                        collection: $in.collection,
+                        count: $ctx.prepareCollectionGateway
+                    }}
+                />
+
+                <Return value={true} />
             </If>
 
-            <Call fn="services" in={$in.collection} />
-
-            <Return value={true} />
+            <Return value={false} />
         </If>
     </If>
 

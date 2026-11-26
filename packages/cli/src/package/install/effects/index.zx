@@ -7,6 +7,7 @@ export {
     acceptArchive,
     finishDependencies,
     findArchive,
+    relativeArchive,
     fetchArchive,
     readArchive,
     verifyArchive,

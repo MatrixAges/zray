@@ -1,11 +1,7 @@
 export {
-    collectionEntry,
     registerCollectionEntry,
     selectCollectionPath,
     resolveCollectionPhysicalPath,
-    collectionPhysicalRelative,
-    previousCollectionPath,
-    registerCollectionPhysicalPath,
     readCollectionFile,
     reportCollectionFileFailure,
     reportCollectionEscape,

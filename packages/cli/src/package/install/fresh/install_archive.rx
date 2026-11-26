@@ -1,0 +1,34 @@
+<Module>
+    <Type from="../model" as="Installation" />
+
+    <Args in={Installation.ArchiveSource} out={u64} />
+
+    <Call
+        fn="../effects.fetchArchive"
+        in={[
+            $in.host,
+            $in.source
+        ]}
+    />
+
+    <Call
+        fn="../effects.readArchive"
+        in={[
+            $in.host,
+            $ctx.fetchArchive
+        ]}
+    />
+
+    <Call fn="../effects.verifyArchive" in={$in.host} />
+
+    <Call
+        fn="../effects.recordArchive"
+        in={[
+            $in.host,
+            $in.source,
+            $ctx.fetchArchive
+        ]}
+    />
+
+    <Return value={$ctx.recordArchive} />
+</Module>

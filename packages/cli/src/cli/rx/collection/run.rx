@@ -1,16 +1,16 @@
 <Module>
-    <Type from="index" as="IO" />
+    <Type from="model" as="Collection" />
 
-    <Args in={IO.Collection} out={bool} />
+    <Args in={Collection.Request} out={bool} />
 
-    <Call fn="index.collectionEntry" in={$in} />
+    <Store from="physical" as="physical" />
 
-    <Call fn="kind" />
+    <Call fn="kind" in={$in.entry} />
 
     <Call
         fn="index.registerCollectionEntry"
         in={[
-            $in,
+            $in.collection,
             $ctx.kind
         ]}
     />
@@ -23,7 +23,7 @@
         <Call
             module="walk"
             in={{
-                collection: $in,
+                collection: $in.collection,
                 index: 0,
                 valid: true,
                 running: true

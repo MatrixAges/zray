@@ -2,19 +2,22 @@ const std = @import("std");
 const host = @import("../host.zig");
 const model = @import("../model.zig");
 
-pub fn beginReplay(handle: *anyopaque, count: u64) host.Error!void {
+pub fn beginReplay(handle: *anyopaque, count: u64) host.Error![]const bool {
     const self = host.State.get(handle);
     const previous = self.previous.?;
+    const is_archive = self.allocator.alloc(bool, @intCast(count)) catch |err| return self.fail(err);
+
+    for (previous.lock.packages, 0..) |package, index| {
+        is_archive[index] = package.source == .archive;
+    }
 
     self.prepared = .{
         .lock = previous.lock,
         .source = previous.source,
         .paths = self.allocator.alloc([]const u8, @intCast(count)) catch |err| return self.fail(err),
     };
-}
 
-pub fn lockedArchive(handle: *anyopaque, row: u64) bool {
-    return host.State.get(handle).prepared.lock.packages[@intCast(row)].source == .archive;
+    return is_archive;
 }
 
 pub fn workspacePath(handle: *anyopaque, row: u64) host.Error![]const u8 {

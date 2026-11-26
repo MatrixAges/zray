@@ -1,5 +1,11 @@
 export type Host = mutable_opaque
 
+export type ArchiveLookup = {
+    existing?: u64,
+    local: bool,
+    archive: string
+}
+
 export declare function prepareIndex(host: Host): void throws { InstallHostFailure }
 export declare function seedMember(host: Host, row: u64): void throws { InstallHostFailure }
 export declare function packageCount(host: Host): u64
@@ -11,9 +17,7 @@ export declare function advanceDependency(host: Host, remaining: u64): bool thro
 export declare function acceptArchive(host: Host, target: u64): void
 export declare function finishDependencies(host: Host, row: u64): u64
 
-export declare function findArchive(host: Host, first: u64): u64? throws { InstallHostFailure }
-export declare function localArchive(host: Host): bool
-export declare function indexedArchive(host: Host): string
+export declare function findArchive(host: Host, first: u64): ArchiveLookup throws { InstallHostFailure }
 export declare function relativeArchive(host: Host): string throws { InstallHostFailure }
 export declare function fetchArchive(host: Host, source: string): string throws { InstallHostFailure }
 export declare function readArchive(host: Host, path: string): void throws { InstallHostFailure }
@@ -23,8 +27,7 @@ export declare function recordArchive(host: Host, source: string, path: string):
 }
 
 export declare function finishFresh(host: Host): void throws { InstallHostFailure }
-export declare function beginReplay(host: Host, count: u64): void throws { InstallHostFailure }
-export declare function lockedArchive(host: Host, row: u64): bool
+export declare function beginReplay(host: Host, count: u64): bool[] throws { InstallHostFailure }
 export declare function workspacePath(host: Host, row: u64): string throws { InstallHostFailure }
 export declare function fetchLocked(host: Host, row: u64): string throws { InstallHostFailure }
 export declare function recordLockedPath(host: Host, row: u64, path: string): string throws {

@@ -1,9 +1,41 @@
 import type { Availability, Collection, Kind } from "rx_collection_host"
 
+export type Request = {
+    collection: Collection,
+    entry: string
+}
+
 export enum Readiness {
     Ready,
     Skipped,
     Invalid
+}
+
+export type SeenPhysical = {
+    real_paths: string[],
+    logical_paths: string[]
+}
+
+export type RegisterPhysicalInput = {
+    seen: SeenPhysical,
+    real: string,
+    path: string
+}
+
+export enum PhysicalRegistration {
+    Registered,
+    SamePath,
+    AliasConflict
+}
+
+export type PhysicalRegistrationResult = {
+    status: PhysicalRegistration,
+    previous: string
+}
+
+export type ServicesInput = {
+    collection: Collection,
+    count: u64
 }
 
 export type Row = {

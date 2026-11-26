@@ -11,38 +11,31 @@
         ]}
     />
 
-    <If on={$ctx.findArchive != null}>
-        <Return value={$ctx.findArchive} />
+    <If on={$ctx.findArchive.existing != null}>
+        <Return value={$ctx.findArchive.existing} />
     </If>
 
-    <Call fn="locate" in={$in.host} />
+    <If on={$ctx.findArchive.local}>
+        <Call fn="../effects.relativeArchive" in={$in.host} />
+
+        <Call
+            module="install_archive"
+            in={{
+                host: $in.host,
+                source: $ctx.relativeArchive
+            }}
+        />
+
+        <Return value={$ctx.install_archive} />
+    </If>
 
     <Call
-        fn="../effects.fetchArchive"
-        in={[
-            $in.host,
-            $ctx.locate
-        ]}
+        module="install_archive"
+        in={{
+            host: $in.host,
+            source: $ctx.findArchive.archive
+        }}
     />
 
-    <Call
-        fn="../effects.readArchive"
-        in={[
-            $in.host,
-            $ctx.fetchArchive
-        ]}
-    />
-
-    <Call fn="../effects.verifyArchive" in={$in.host} />
-
-    <Call
-        fn="../effects.recordArchive"
-        in={[
-            $in.host,
-            $ctx.locate,
-            $ctx.fetchArchive
-        ]}
-    />
-
-    <Return value={$ctx.recordArchive} />
+    <Return value={$ctx.install_archive} />
 </Module>

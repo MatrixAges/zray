@@ -23,7 +23,17 @@ export type Fresh = Input.Pick("host", "members", "maximum_edges")
 
 export type Archive = Fresh.Pick("host", "members")
 
+export type ArchiveSource = {
+    host: Host,
+    source: string
+}
+
 export type Replay = Input.Pick("host", "locked_rows")
+
+export type ReplayPaths = {
+    host: Host,
+    is_archive: bool[]
+}
 
 export type Publication = Input.Pick("host", "reuse")
 

@@ -1,0 +1,68 @@
+import bytes from "std:bytes"
+
+import { PhysicalRegistration } from "../model"
+
+import type {
+    PhysicalRegistrationResult as Output,
+    RegisterPhysicalInput as Input
+} from "../model"
+
+export default function (in: Input, {
+    store
+}): Output {
+    const target = bytes.fromText(in.real)
+    const count = in.seen.real_paths.length
+
+    const match_row = loop({
+        index: 0,
+        found: false,
+        logical: ""
+    }, {
+        while: row => !row.found && row.index < count,
+        next: row => {
+            if (
+                bytes.equals(
+                    bytes.fromText(
+                        in.seen.real_paths[row.index]
+                    ),
+                    target
+                )
+            ) {
+                row.found = true
+                row.logical = in.seen.logical_paths[row.index]
+            }
+
+            row.index += 1
+        },
+        return: row => row
+    })
+
+    if (match_row.found) {
+        if (
+            bytes.equals(
+                bytes.fromText(match_row.logical),
+                bytes.fromText(in.path)
+            )
+        ) {
+            return {
+                status: PhysicalRegistration.SamePath,
+                previous: ""
+            }
+        }
+
+        return {
+            status: PhysicalRegistration.AliasConflict,
+            previous: match_row.logical
+        }
+    }
+
+    store.physical.seen = {
+        real_paths: in.seen.real_paths.push(in.real)[0],
+        logical_paths: in.seen.logical_paths.push(in.path)[0]
+    }
+
+    return {
+        status: PhysicalRegistration.Registered,
+        previous: ""
+    }
+}
