@@ -1,61 +1,69 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import sift from "./sift"
 
 import type { Sort as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { columns, count, order, wide } = in
-    const { indices, scratch } = order
+    const { columns, count, wide } = in
 
-    memory.growU32Scratch(scratch, count, false)
+    const initial: u32[] = []
 
-    const first: u64 = 0
-
-    const seeded = loop(first, {
-        while: index => index < count,
-        next: index => {
-            memory.writeU32(indices, index, integers.narrow(index))
-            index += 1
-        }
+    const seeded = loop({
+        index: 0,
+        indices: initial
+    }, {
+        while: s => s.index < count,
+        next: s => {
+            s.indices = s.indices.push(integers.narrow(s.index))[0]
+            s.index += 1
+        },
+        return: s => s.indices
     })
 
-    const prepared = loop(count / 2, {
-        while: position => position != 0,
-        next: position => {
-            position -= 1
+    const prepared = loop({
+        position: count / 2,
+        indices: seeded
+    }, {
+        while: s => s.position != 0,
+        next: s => {
+            s.position -= 1
 
-            sift({
+            s.indices = sift({
                 columns,
                 wide,
-                indices,
+                indices: s.indices,
                 limit: count,
-                root: position
+                root: s.position
             })
-        }
+        },
+        return: s => s.indices
     })
 
-    const sorted = loop(count, {
-        while: limit => limit > 1,
-        next: limit => {
-            limit -= 1
+    return loop({
+        limit: count,
+        indices: prepared
+    }, {
+        while: s => s.limit > 1,
+        next: s => {
+            s.limit -= 1
 
-            const last = memory.readU32(indices, limit)
-            const largest = memory.readU32(indices, first)
+            const first: u64 = 0
+            const last = s.indices[s.limit]
+            const largest = s.indices[first]
 
-            memory.writeU32(indices, first, last)
-            memory.writeU32(indices, limit, largest)
+            const swapped = s.indices.with(first, last).with(s.limit, largest)
 
-            sift({
+            s.indices = sift({
                 columns,
                 wide,
-                indices,
-                limit,
+                indices: swapped,
+                limit: s.limit,
                 root: first
             })
-        }
+        },
+        return: s => s.indices
     })
 }

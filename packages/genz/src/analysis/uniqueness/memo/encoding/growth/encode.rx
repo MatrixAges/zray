@@ -44,8 +44,7 @@
         in={{
             columns: $in.rows,
             count: $in.count,
-            wide: $in.wide,
-            order: $in.order
+            wide: $in.wide
         }}
     />
 
@@ -56,7 +55,7 @@
             columns: $in.rows,
             count: $in.count,
             wide: $in.wide,
-            order: $in.order.indices
+            order: $ctx.arrange
         }}
     />
 

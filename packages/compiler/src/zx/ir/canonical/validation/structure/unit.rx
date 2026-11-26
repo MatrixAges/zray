@@ -1,12 +1,10 @@
 <Module>
     <Type from="../model" as="Model" />
-    <Type from="../../body/workspace" as="Workspace" />
 
     <Args
         in={{
             max_offset: u64,
-            unit: Model.Unit,
-            workspace: Workspace.Workspace
+            unit: Model.Unit
         }}
         out={bool}
     />
@@ -15,8 +13,7 @@
         module="../../body_check"
         in={{
             body: $in.unit.body,
-            max_offset: $in.max_offset,
-            workspace: $in.workspace
+            max_offset: $in.max_offset
         }}
     />
 

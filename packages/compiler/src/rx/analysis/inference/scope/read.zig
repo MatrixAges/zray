@@ -18,7 +18,6 @@ const Frame = struct {
     append: Nodes.Append(Node) = undefined,
     node: Node = undefined,
     rows: Rows = undefined,
-    candidates: [][]const u32 = undefined,
     values: []u32 = undefined,
     spans: []zx.Span = undefined,
     length: []usize = undefined,
@@ -30,11 +29,6 @@ const Frame = struct {
 pub fn run(graph: *Graph, rows: Scope.Storage.Slice, facts: []const []const u8, name: []const u8, identifier: bool, span: zx.Span) zx.Error!Scope.Reference {
     var parents = graph.parents();
     var frame: Frame = .{ .graph = graph, .span = span };
-    var candidates: zx.memory.U32Scratch = .{ .allocator = graph.pending.allocator };
-
-    errdefer candidates.deinit();
-
-    const lengths: zx.memory.ColumnLengths = &.{&candidates.backing.items.len};
 
     const query: Input = .{
         .topology = &.{ .graph = &rules.view(Topology, graph), .parents = @ptrCast(&parents) },
@@ -43,12 +37,14 @@ pub fn run(graph: *Graph, rows: Scope.Storage.Slice, facts: []const []const u8, 
         .start = 0,
         .facts = facts,
         .identifier = identifier,
-        .candidates = &.{ .scratch = @ptrCast(&candidates), .values = @ptrCast(&candidates.items), .lengths = @ptrCast(&lengths) },
         .deferred = &.{ .frame = @ptrCast(&frame), .node = &frame.node, .rows = &frame.rows },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &query) catch |err| return errors.errorSet(err);
+    const result = zx.columns.invoke(entry.executeValue, graph.pending.allocator, &query) catch |err| return errors.errorSet(err);
+
+    if (result.candidates) |list| {
+        graph.pending.binding_lookups.items(.candidates)[frame.rows.position] = @ptrCast(list);
+    }
 
     return .{
         .value = if (result.value) |id| @fromBackingInt(id) else null,
@@ -74,13 +70,11 @@ pub fn reserveScopeLookupRow(handle: *anyopaque) std.mem.Allocator.Error!void {
     var rows = lookups.slice();
 
     rows.len += 1;
-    frame.candidates = @ptrCast(rows.items(.candidates));
     frame.values = @ptrCast(rows.items(.value));
     frame.spans = rows.items(.span);
     frame.length = (&lookups.len)[0..1];
 
     frame.rows = .{
-        .candidates = @ptrCast(&frame.candidates),
         .values = @ptrCast(&frame.values),
         .spans = @ptrCast(&frame.spans),
         .length = @ptrCast(&frame.length),

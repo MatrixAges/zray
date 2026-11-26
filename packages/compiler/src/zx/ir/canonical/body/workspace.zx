@@ -1,28 +1,18 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import walk from "./walk"
 
 import type { Control } from "core/control_table/model"
-import type { U32Buffer, U32Scratch } from "memory"
-
-export type Workspace = {
-    depths: U32Buffer,
-    scratch: U32Scratch,
-    precise: bool
-}
 
 export type Input = {
     control: Control,
-    root?: u32,
-    workspace: Workspace
+    root?: u32
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { control, workspace } = in
-    const { depths, scratch, precise } = workspace
+    const { control } = in
 
     const count = control.block_first.length
     const block = in.root
@@ -41,11 +31,19 @@ export default function (in: Input): Output {
         return true
     }
 
-    if (count > memory.u32BufferLength(depths)) {
-        memory.growU32Scratch(scratch, count, precise)
-    }
+    const initial: u32[] = []
 
-    memory.clearU32Buffer(depths, count)
+    const depths = loop({
+        index: 0,
+        items: initial
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            state.items = state.items.push(0)[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
 
     return walk({
         control,

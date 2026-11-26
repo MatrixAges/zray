@@ -1,17 +1,16 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import storedKey from "../../../function/levels/growth/stored_key"
 
 import type { Heap as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { columns, wide, indices, limit, root } = in
+    const { columns, wide, limit, root } = in
     const { keys } = columns
 
-    const held = memory.readU32(indices, root)
+    const held = in.indices[root]
 
     const key = storedKey({
         keys,
@@ -21,20 +20,21 @@ export default function (in: Input): Output {
 
     const leaf = loop({
         root,
+        indices: in.indices,
         moving: true
     }, {
         while: state => state.moving && state.root * 2 + 1 < limit,
         next: state => {
             const left = state.root * 2 + 1
             const right = left + 1
-            const first = memory.readU32(indices, left)
+            const first = state.indices[left]
             const first_key = storedKey({
                 keys,
                 wide,
                 index: integers.widen(first)
             })
 
-            const second = right < limit ? memory.readU32(indices, right) : first
+            const second = right < limit ? state.indices[right] : first
             const second_key = storedKey({
                 keys,
                 wide,
@@ -49,13 +49,12 @@ export default function (in: Input): Output {
             state.moving = chosen_key > key || (chosen_key == key && chosen > held)
 
             if (state.moving) {
-                memory.writeU32(indices, state.root, chosen)
-
+                state.indices = state.indices.with(state.root, chosen)
                 state.root = use_right ? right : left
             }
         },
-        return: state => state.root
+        return: state => state
     })
 
-    memory.writeU32(indices, leaf, held)
+    return leaf.indices.with(leaf.root, held)
 }

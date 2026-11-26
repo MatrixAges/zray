@@ -2,15 +2,9 @@
     <Type from="lookup" as="Lookup" />
     <Type from="model" as="Scope" />
 
-    <Args in={Lookup.Request} out={Scope.Reference} />
+    <Args in={Lookup.Request} out={Scope.LookupResult} />
 
-    <Call
-        fn="lookup"
-        in={$in.omit([
-            "candidates",
-            "deferred"
-        ])}
-    />
+    <Call fn="lookup" in={$in.omit(["deferred"])} />
 
     <If on={$ctx.lookup.second != null}>
         <Call
@@ -19,8 +13,7 @@
                 ...$in.pick([
                     "topology",
                     "active",
-                    "name",
-                    "candidates"
+                    "name"
                 ]),
                 first: $ctx.lookup.first ?? 0,
                 second: $ctx.lookup.second ?? 0,
@@ -31,9 +24,7 @@
         <Call
             module="defer_lookup"
             in={{
-                destination: $in.deferred,
-                candidates: $in.candidates.values,
-                count: $ctx.candidates
+                destination: $in.deferred
             }}
         />
 
@@ -43,7 +34,8 @@
                     "implicit_input",
                     "refined"
                 ]),
-                value: $ctx.defer_lookup
+                value: $ctx.defer_lookup,
+                candidates: $ctx.candidates
             }}
         />
     </If>
@@ -54,7 +46,8 @@
                 "implicit_input",
                 "refined"
             ]),
-            value: $ctx.lookup.first
+            value: $ctx.lookup.first,
+            candidates: null
         }}
     />
 </Module>

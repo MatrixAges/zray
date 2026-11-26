@@ -4,14 +4,12 @@ const Self = @This();
 
 buffer: zx.memory.ByteWriter,
 state_end: u64 = 0,
-order: zx.memory.U32Scratch,
 pub fn init(backing: std.mem.Allocator) Self {
-    return .{ .buffer = .{ .allocator = backing }, .order = .{ .allocator = backing } };
+    return .{ .buffer = .{ .allocator = backing } };
 }
 
 pub fn deinit(self: *Self) void {
     self.buffer.deinit();
-    self.order.deinit();
 }
 
 pub fn binding(self: *Self, comptime State: type) State {

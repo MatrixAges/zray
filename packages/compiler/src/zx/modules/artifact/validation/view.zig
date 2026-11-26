@@ -38,7 +38,6 @@ pub fn verificationError(err: anyerror) Error {
 pub const View = struct {
     const Views = std.meta.Child(@FieldType(Input, "views"));
     const Base = std.meta.Child(@FieldType(Views, "context"));
-    const Workspace = std.meta.Child(@FieldType(Base, "workspace"));
     const Prefix = std.meta.Child(@typeInfo(@FieldType(Base, "verified_types")).optional.child);
     const Exports = std.meta.Child(@FieldType(Input, "exports"));
     const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "constant_exports")).optional.child);
@@ -50,8 +49,6 @@ pub const View = struct {
     type_storage: memory.ColumnSet,
     function_storage: memory.ColumnSet,
     prefix: Prefix,
-    depths: memory.U32Scratch,
-    workspace: Workspace,
     base: Base,
     exports: Exports,
     reads: [3]memory.ReadColumn,
@@ -60,12 +57,11 @@ pub const View = struct {
     views: Views,
     input: Input,
     pub fn init(self: *View, state: State, surface: anytype, scratch: std.mem.Allocator) void {
+        _ = scratch;
         self.type_slots = memory.bindColumnSet(Table, false, state.types);
         self.function_slots = memory.bindColumnSet(Complete, false, state.functions);
         self.type_storage = &self.type_slots;
         self.function_storage = &self.function_slots;
-        self.depths = .{ .allocator = scratch };
-        self.workspace = self.depths.borrow(Workspace, false);
 
         const verified = state.verified;
 
@@ -79,7 +75,6 @@ pub const View = struct {
             .verified = verified.functions,
             .verified_types = if (verified.types != null) &self.prefix else null,
             .verified_native = verified.native,
-            .workspace = &self.workspace,
         };
 
         self.exports = .{ .rows = @ptrCast(&surface.export_target), .length = surface.export_source.length };

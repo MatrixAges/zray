@@ -22,7 +22,7 @@ export default function (in: Input): Output {
         next: current => {
             const offset = match {
                 order == null => current.index,
-                _ => integers.widen(memory.readU32(order, current.index))
+                _ => integers.widen(order[current.index])
             }
 
             current.state = record({

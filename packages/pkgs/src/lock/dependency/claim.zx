@@ -2,34 +2,38 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import type { ListColumn, U32Buffer } from "memory"
+import type { ListColumn } from "memory"
 
 export type Input = {
     names: ListColumn,
     name: string,
     row: u64,
     edge: u64,
-    slots: U32Buffer,
+    slots: u32[],
     mask: u64
 }
 
-export type Output = bool
+export type Output = {
+    slots: u32[],
+    inserted: bool
+}
 
 export default function (in: Input): Output {
-    const { names, name, row, edge, slots, mask } = in
+    const { names, name, row, edge, mask } = in
 
     const hash = bytes.hash(bytes.fromText(name))
 
     return loop({
         slot: integers.andBits(hash, mask),
+        slots: in.slots,
         done: false,
         inserted: false
     }, {
         while: s => !s.done,
         next: s => {
-            const entry = memory.readU32(slots, s.slot)
+            const entry = s.slots[s.slot]
             if (entry == 0) {
-                memory.writeU32(slots, s.slot, integers.narrow(edge + 1))
+                s.slots = s.slots.with(s.slot, integers.narrow(edge + 1))
                 s.inserted = true
                 s.done = true
             } else {
@@ -38,6 +42,9 @@ export default function (in: Input): Output {
                 s.slot = integers.andBits(s.slot + 1, mask)
             }
         },
-        return: s => s.inserted
+        return: s => s.pick([
+            "slots",
+            "inserted"
+        ])
     })
 }

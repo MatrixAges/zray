@@ -7,8 +7,7 @@
         module="structure/unit"
         in={{
             unit: $in.unit,
-            max_offset: $in.context.max_offset,
-            workspace: $in.context.workspace
+            max_offset: $in.context.max_offset
         }}
     />
 

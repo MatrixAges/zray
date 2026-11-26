@@ -2,9 +2,9 @@ import integers from "std:integer"
 import memory from "memory"
 
 import type { Span } from "../../../syntax/model"
-import type { Lookups, NewLookup } from "./deferred"
+import type { Lookups } from "./deferred"
 
-export type Input = NewLookup.Omit("destination") & {
+export type Input = {
     rows: Lookups,
     node: u64,
     span: Span
@@ -17,10 +17,7 @@ export default function (in: Input): Output {
     const row = rows.position
     const end = row + 1
     const value = integers.narrow(in.node)
-    const entries = memory.u32Views(in.candidates)
-    const candidates = memory.borrowU32Range(entries, 0, in.count)
 
-    memory.writeU32List(rows.candidates, row, candidates)
     memory.writeU32(rows.values, row, value)
     memory.fillSourceSpanRange(rows.spans, row, end, in.span.start, in.span.end)
     memory.writeIndex(rows.length, 0, end)

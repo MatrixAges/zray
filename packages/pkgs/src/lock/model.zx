@@ -1,4 +1,4 @@
-import type { ListColumn, TextColumn, U8Buffer, U32Buffer, U32Scratch } from "memory"
+import type { ListColumn, TextColumn, U8Buffer } from "memory"
 import type { Input as Graph } from "../graph/model"
 
 export enum Status {
@@ -47,15 +47,9 @@ export type Dependencies = {
     development: ListColumn
 }
 
-export type Table = {
-    slots: U32Buffer,
-    scratch: U32Scratch
-}
-
 export type Input = {
     packages: Packages,
     edges: Dependencies,
     graph: Graph,
-    table: Table,
     maximum_edges: u64
 }

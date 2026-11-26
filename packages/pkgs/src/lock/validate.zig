@@ -38,14 +38,16 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
     const edge_names = memory.borrowListColumn([]const u8, "dependencies", "name", packages);
     const requirements = memory.borrowListColumn([]const u8, "dependencies", "requirement", packages);
     const development = memory.borrowListColumn(bool, "dependencies", "development", packages);
-    var table: memory.U32Scratch = .{ .allocator = allocator };
-
-    defer table.deinit();
-
     var frames: graph.Frames = .{};
     const traversal = frames.input(&targets, &marks, &heights, true);
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    const result = rules.lock_validate.executeIn(empty.allocator(), &.{
+    defer arena.deinit();
+
+    var buffer: [2048]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const result = rules.lock_validate.executeIn(scratch.allocator(), &.{
         .packages = &.{
             .names = @ptrCast(&names),
             .versions = @ptrCast(&versions),
@@ -63,7 +65,6 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
             .development = @ptrCast(&development),
         },
         .graph = &traversal,
-        .table = &.{ .slots = @ptrCast(&table.items), .scratch = @ptrCast(&table) },
         .maximum_edges = Lock.maximum_dependencies,
     }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

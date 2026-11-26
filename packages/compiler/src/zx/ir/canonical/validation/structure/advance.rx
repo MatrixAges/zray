@@ -15,8 +15,7 @@
         module="unit"
         in={{
             unit: $ctx.select,
-            max_offset: $in.context.max_offset,
-            workspace: $in.context.workspace
+            max_offset: $in.context.max_offset
         }}
     />
 

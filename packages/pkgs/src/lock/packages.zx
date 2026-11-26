@@ -7,10 +7,11 @@ import { ParseStatus } from "../version/model"
 import parse from "../version/parse/partial"
 import identity from "./identity/package"
 import { Status } from "./model"
+import allocateSlots from "./slots"
 
 import type { Input as Lock } from "./model"
 
-export type Input = Lock.Pick("packages", "table", "edges", "maximum_edges")
+export type Input = Lock.Pick("packages", "edges", "maximum_edges")
 
 export type Output = {
     status: Status,
@@ -18,18 +19,16 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { packages, table, maximum_edges } = in
+    const { packages, maximum_edges } = in
     const { names, versions, count, limit } = packages
 
     const capacity = capacityFor(integers.narrow(count)).capacity
-
-    memory.growU32Scratch(table.scratch, capacity * 2, true)
-    memory.clearU32Buffer(table.slots, capacity * 2)
 
     return loop({
         row: 0,
         total: 0,
         largest: 0,
+        slots: allocateSlots(capacity * 2),
         status: Status.Valid
     }, {
         while: s => s.row < count && s.status == Status.Valid,
@@ -48,15 +47,20 @@ export default function (in: Input): Output {
                     release: true
                 })
 
-                s.status = match parsed.status {
-                    ParseStatus.InvalidVersion => Status.InvalidVersion,
-                    ParseStatus.Overflow => Status.Overflow,
-                    _ => identity({
+                if (parsed.status == ParseStatus.InvalidVersion) {
+                    s.status = Status.InvalidVersion
+                } else if (parsed.status == ParseStatus.Overflow) {
+                    s.status = Status.Overflow
+                } else {
+                    const checked = identity({
                         packages,
                         row,
-                        slots: table.slots,
+                        slots: s.slots,
                         capacity
                     })
+
+                    s.slots = checked.slots
+                    s.status = checked.status
                 }
             }
 

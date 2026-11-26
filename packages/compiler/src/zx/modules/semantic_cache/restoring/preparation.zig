@@ -101,7 +101,6 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
     var preflight: Preflight = undefined;
 
     preflight.init(temporary, module, current, decoded, &previous_modules, &current_modules, &previous_signatures);
-    defer preflight.depths.deinit();
 
     const transaction: Transaction = .{
         .preflight = &preflight.input,

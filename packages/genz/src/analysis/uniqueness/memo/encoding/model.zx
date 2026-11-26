@@ -1,4 +1,4 @@
-import type { ByteWriter, U8Buffer, U32Buffer, U32Scratch } from "memory"
+import type { ByteWriter, U8Buffer } from "memory"
 import type { GrowthColumns } from "../../function/levels/model"
 import type { Probe } from "../table/model"
 
@@ -54,11 +54,6 @@ export type GrowthLevel = Integer & {
     want: u8
 }
 
-export type Order = {
-    indices: U32Buffer,
-    scratch: U32Scratch
-}
-
 export type RecordColumns = GrowthColumns.Omit("bytes", "wide")
 
 export type Key = {
@@ -74,8 +69,7 @@ export type Key = {
     normalized: RecordColumns,
     normalized_count: u64,
     renewed: RecordColumns,
-    renewed_count: u64,
-    order: Order
+    renewed_count: u64
 }
 
 export type Target = {

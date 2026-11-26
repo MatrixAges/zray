@@ -41,12 +41,6 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Artifact.Module, ex
     };
 
     const Body = std.meta.Child(@FieldType(Function, "body"));
-    const Workspace = std.meta.Child(@FieldType(Function, "workspace"));
-    var depths: zx.memory.U32Scratch = .{ .allocator = temporary };
-
-    defer depths.deinit();
-
-    const workspace = depths.borrow(Workspace, true);
     var body: Body = undefined;
     var function: Function = undefined;
 
@@ -63,7 +57,6 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Artifact.Module, ex
             .body = &body,
             .contracts = columns.pointer(@FieldType(Function, "contracts"), &unit.contracts),
             .max_offset = std.math.maxInt(usize),
-            .workspace = &workspace,
         };
     }
 

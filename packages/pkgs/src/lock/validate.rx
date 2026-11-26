@@ -18,8 +18,7 @@
         in={{
             ...$in.pick([
                 "packages",
-                "edges",
-                "table"
+                "edges"
             ]),
             largest: $ctx.packages.largest
         }}

@@ -39,7 +39,6 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
         .summaries = &BodyRows.summaries(target(Probe, "summaries"), ctx.summaries),
         .index = index,
         .kind = @fromBackingInt(@backingInt(kind)),
-        .order = &.{ .indices = @ptrCast(&memo.encoding.order.items), .scratch = @ptrCast(&memo.encoding.order) },
         .digest = @ptrCast(&bytes),
         .table = &table.probe(target(Probe, "table"), &marked),
     } else undefined;

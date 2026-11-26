@@ -3,11 +3,9 @@ const zx = @import("zx");
 const ir = zx.ir;
 const columns = @import("../../../artifact/materializing/publication/columns.zig");
 const remap = @import("../../../artifact/nodes/remap.zig");
-const stack_depth_slots = 2048 / @sizeOf(u32);
 
 pub fn Storage(comptime Input: type) type {
     const Target = std.meta.Child(@FieldType(Input, "target"));
-    const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
     const Empty = std.meta.Child(@FieldType(Input, "empty"));
 
     return struct {
@@ -21,10 +19,9 @@ pub fn Storage(comptime Input: type) type {
         lengths: zx.memory.ColumnLengths,
         completed: [1]u64,
         progress: []u64,
-        fixed: [stack_depth_slots]u32,
-        scratch: zx.memory.U32Scratch,
-        workspace: Workspace,
         pub fn init(self: *@This(), destination: *ir.FunctionStorage, temporary: std.mem.Allocator) Input {
+            _ = temporary;
+
             self.tail.init(destination);
 
             self.target = .{ .storage = @ptrCast(&self.tail.storage), .shape = null };
@@ -32,15 +29,12 @@ pub fn Storage(comptime Input: type) type {
             self.lengths = &self.lengths_array;
             self.completed = .{0};
             self.progress = &self.completed;
-            self.scratch = .{ .allocator = temporary, .items = &self.fixed };
-            self.workspace = self.scratch.borrow(Workspace, false);
 
             return .{
                 .source = undefined,
                 .mappings = undefined,
                 .target = &self.target,
                 .empty = &empty,
-                .workspace = &self.workspace,
                 .max_offset = std.math.maxInt(usize),
                 .progress = @ptrCast(&self.progress),
             };
@@ -48,8 +42,6 @@ pub fn Storage(comptime Input: type) type {
 
         pub fn deinit(self: *@This()) void {
             if (self.completed[0] != 0) @import("../../../column_lengths.zig").publish(&self.lengths, self.completed[0]);
-
-            self.scratch.deinit();
         }
     };
 }

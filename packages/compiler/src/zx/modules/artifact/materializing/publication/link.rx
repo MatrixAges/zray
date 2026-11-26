@@ -7,8 +7,7 @@
         module="../../../../ir/canonical/control/structure"
         in={{
             control: $in.control,
-            root: $in.attributes.root,
-            workspace: $in.workspace
+            root: $in.attributes.root
         }}
     />
 

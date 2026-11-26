@@ -11,7 +11,6 @@
     <Call
         fn="publish_lookup"
         in={{
-            ...$in.omit(["destination"]),
             node: $in.destination.node.first,
             span: $in.destination.node.span.omit(["rows"]),
             rows: $in.destination.rows

@@ -1,41 +1,25 @@
-import { publish as publishLengths } from "core/column_lengths"
-import memory from "memory"
-
 import candidate from "./candidate"
-import { initial_candidate_capacity } from "./const"
 
-import type { Candidates, Query } from "./model"
+import type { Query } from "./model"
 
 export type Input = Query & {
-    candidates: Candidates,
     first: u32,
     second: u32
 }
 
-export type Output = u64
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { scratch, values, lengths } = in.candidates
-
     const visible = in.active.names.length
 
-    const capacity = match {
-        visible < initial_candidate_capacity => visible,
-        _ => initial_candidate_capacity
-    }
-
-    memory.growU32Scratch(scratch, capacity, true)
-    memory.writeU32(values, 0, in.first)
-    memory.writeU32(values, 1, in.second)
-
-    publishLengths({
-        target: lengths,
-        count: 2
-    })
+    const initial: u32[] = [
+        in.first,
+        in.second
+    ]
 
     return loop({
         next: in.start,
-        count: 2
+        values: initial
     }, {
         while: state => state.next < visible,
         next: state => {
@@ -47,20 +31,11 @@ export default function (in: Input): Output {
             })
 
             if (value != null) {
-                if (state.count == memory.u32BufferLength(values)) {
-                    memory.growU32Scratch(scratch, state.count + 1, false)
-                }
-
-                memory.writeU32(values, state.count, value)
-                publishLengths({
-                    target: lengths,
-                    count: 1
-                })
-                state.count += 1
+                state.values = state.values.push(value)[0]
             }
 
             state.next += 1
         },
-        return: state => state.count
+        return: state => state.values
     })
 }

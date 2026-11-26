@@ -12,10 +12,7 @@ const Dependencies = std.meta.Child(@FieldType(Input, "dependencies"));
 const Columns = std.meta.Child(@FieldType(Dependencies, "previous"));
 const Header = std.meta.Child(@FieldType(Columns, "header"));
 const Control = std.meta.Child(@typeInfo(@FieldType(Input, "control")).optional.child);
-const Workspace = std.meta.Child(@FieldType(Control, "workspace"));
 
-depths: zx.memory.U32Scratch,
-workspace: Workspace,
 control: Control,
 previous: Rows,
 incoming: Rows,
@@ -28,17 +25,14 @@ input: Input,
 const Self = @This();
 
 pub fn init(self: *Self, temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, decoded: bool, previous_modules: anytype, current_modules: anytype, previous_signatures: anytype) void {
+    _ = temporary;
+
     const unchecked = if (decoded) null else if (module.function) |*value| value else null;
 
-    self.depths = .{ .allocator = temporary };
-
     if (unchecked) |value| {
-        self.workspace = self.depths.borrow(Workspace, true);
-
         self.control = .{
             .control = zx.columns.pointer(@FieldType(Control, "control"), value.body.control),
             .root = if (value.body.root) |root| @backingInt(root) else null,
-            .workspace = &self.workspace,
         };
     }
 

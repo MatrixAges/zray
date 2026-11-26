@@ -7,7 +7,6 @@ import type { Table as Types } from "core/type_table/model"
 import type {
     Interface as Constants
 } from "../../../analysis/constants/validation/model"
-import type { Workspace } from "../../../ir/canonical/body/workspace"
 import type { PortRows } from "../../binding/model"
 
 export type Tables = {
@@ -27,8 +26,7 @@ export type Header = {
 export type Function = {
     body: Body,
     contracts: Contracts,
-    max_offset: u64,
-    workspace: Workspace
+    max_offset: u64
 }
 
 export type Bindings = {

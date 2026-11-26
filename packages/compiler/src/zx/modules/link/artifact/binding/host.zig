@@ -11,8 +11,6 @@ const function_destination = @import("../../signature/publication/destination.zi
 const Binding = dependencies.Binding;
 const Body = std.meta.Child(@FieldType(Binding, "body"));
 const Control = std.meta.Child(@typeInfo(@FieldType(Body, "control")).optional.child);
-const Workspace = std.meta.Child(@FieldType(Control, "workspace"));
-const inline_depth_slots = 2048 / @sizeOf(u32);
 const Header = std.meta.Child(@typeInfo(@FieldType(Body, "body")).optional.child);
 const Input = std.meta.Child(@typeInfo(@FieldType(Binding, "signatures")).optional.child);
 const Providers = std.meta.Child(@FieldType(Input, "providers"));
@@ -31,7 +29,6 @@ const empty = function_destination.empty(Empty);
 pub const Window = struct {
     providers: dependencies.Providers,
     target: function_destination.View(Destination),
-    inline_depths: [inline_depth_slots]u32,
     scratch: *std.heap.ArenaAllocator,
     owned: *std.heap.ArenaAllocator,
     view: View,
@@ -54,7 +51,7 @@ pub const Window = struct {
     }
     pub fn bind(self: *Window, builder: *Builder, first: usize, count: usize) Builder.Error!void {
         for (builder.plan.registration[first..][0..count]) |index| {
-            self.view.borrow(builder, @intCast(index), &self.providers, &self.target.input, &self.inline_depths);
+            self.view.borrow(builder, @intCast(index), &self.providers, &self.target.input);
 
             const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input) catch |err| switch (@as(anyerror, err)) {
                 error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
@@ -102,15 +99,13 @@ const View = struct {
     native_binding: NativeBinding,
     dependency_view: dependencies.View,
     signatures: SignatureView,
-    scratch: memory.U32Scratch,
     header: Header,
-    workspace: Workspace,
     control: Control,
     body: Body,
     request: Request,
     source: Source,
     attributes: Attributes,
-    fn borrow(self: *View, builder: *Builder, index: usize, providers: *const dependencies.Providers, target: *const Destination, depths: []u32) void {
+    fn borrow(self: *View, builder: *Builder, index: usize, providers: *const dependencies.Providers, target: *const Destination) void {
         const module = &builder.modules[index];
         const types: []const u32 = @ptrCast(builder.type_mappings[index]);
         const entry = index == builder.plan.entry;
@@ -133,16 +128,12 @@ const View = struct {
 
         const linked = module.function != null or module.functions.count() != 0;
 
-        self.scratch = .{ .allocator = builder.temporary, .items = depths };
-
         if (module.function) |*value| {
             self.header = .{ .path = module.path, .file_name = value.file_name, .external = value.external != null };
-            self.workspace = self.scratch.borrow(Workspace, entry);
 
             self.control = .{
                 .control = zx.columns.pointer(@FieldType(Control, "control"), value.body.control),
                 .root = if (value.body.root) |id| @backingInt(id) else null,
-                .workspace = &self.workspace,
             };
 
             self.attributes = .{

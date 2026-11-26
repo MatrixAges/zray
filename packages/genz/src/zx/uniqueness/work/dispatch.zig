@@ -11,7 +11,6 @@ const ProbeInput = std.meta.Child(probe_entry.Input);
 const RowsType = std.meta.Child(@FieldType(ProbeInput, "rows"));
 const SummariesType = std.meta.Child(@FieldType(ProbeInput, "summaries"));
 const TableType = std.meta.Child(@FieldType(ProbeInput, "table"));
-const OrderType = std.meta.Child(@FieldType(ProbeInput, "order"));
 const EncodingState = std.meta.Child(@FieldType(ProbeInput, "state"));
 pub const Advance = std.meta.Child(entry.Input);
 
@@ -41,7 +40,6 @@ pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const
     const summary = if (use_memo) BodyRows.summaries(SummariesType, ahead.summaries) else undefined;
     const table_probe = if (use_memo) @field(memo, @tagName(kind)).probe(TableType, null) else undefined;
     var target: []u8 = &memo.key;
-    const order: OrderType = if (use_memo) .{ .indices = @ptrCast(&memo.encoding.order.items), .scratch = @ptrCast(&memo.encoding.order) } else undefined;
     var first: usize = 0;
 
     while (Schedule.scan(ahead.states, ahead.dirty, ahead.recursive, claim.pending, first, workers)) |pos| {
@@ -57,7 +55,6 @@ pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const
                 .index = index,
                 .table = &table_probe,
                 .digest = @ptrCast(&target),
-                .order = &order,
                 .state = &encoding,
                 .kind = @fromBackingInt(@backingInt(kind)),
             };

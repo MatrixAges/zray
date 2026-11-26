@@ -54,4 +54,5 @@
 
 ## 五、验收与回测口径
 
+- **已完成进展（Wave 70 · 2026-11-26）**：清零 `packages/pkgs/src/lock/` 全部 `growU32Scratch`、`U32Scratch` 与 `U32Buffer`（新增共享 [slots.zx](../../packages/pkgs/src/lock/slots.zx) 并将 [packages.zx](../../packages/pkgs/src/lock/packages.zx)、[dependencies.zx](../../packages/pkgs/src/lock/dependencies.zx) 等哈希表校验改为纯 `u32[]` 返回，在 [validate.zig](../../packages/pkgs/src/lock/validate.zig) 使用局部 `ArenaAllocator` + 2 KiB `BufferFirstAllocator` 承接 `rules.lock_validate.executeIn` 临时分配）；通过 `packages/test` `test-package-lock-graphs`/`test-package-lock-parsing`（`ReleaseSafe` 0 泄漏）、`packages/pkgs` 构建与 `packages/cli` 全量测试。
 - **验证范围**：`packages/pkgs` 单元测试 + `packages/cli` 中包安装、依赖图、lockfile、workspace 与 watch 集成回归（无需重跑 `compiler` 或 `genz` 生成器 17,560 文件对比）。

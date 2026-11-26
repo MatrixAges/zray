@@ -9,7 +9,6 @@
             ...$in.input.pick([
                 "source",
                 "mappings",
-                "workspace",
                 "max_offset"
             ]),
             row: $in.row

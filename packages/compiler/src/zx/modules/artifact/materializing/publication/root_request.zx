@@ -1,7 +1,7 @@
 import type { RootRequest as Input, Row as Output } from "./source_model"
 
 export default function (in: Input): Output {
-    const { source, mappings, max_offset, workspace } = in
+    const { source, mappings, max_offset } = in
 
     return {
         admission: {
@@ -27,7 +27,6 @@ export default function (in: Input): Output {
             external: source.external
         },
         attributes: source.attributes,
-        control: source.control,
-        workspace
+        control: source.control
     }
 }

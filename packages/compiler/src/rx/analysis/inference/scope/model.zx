@@ -1,4 +1,3 @@
-import type { ColumnLengths, U32Buffer, U32Scratch } from "memory"
 import type { Topology } from "../bindings/model"
 
 export type Active = {
@@ -19,8 +18,6 @@ export type Reference = {
     refined: bool
 }
 
-export type Candidates = {
-    scratch: U32Scratch,
-    values: U32Buffer,
-    lengths: ColumnLengths
+export type LookupResult = Reference & {
+    candidates?: u32[]
 }
