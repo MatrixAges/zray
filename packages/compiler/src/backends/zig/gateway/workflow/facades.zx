@@ -1,0 +1,18 @@
+import host from "gateway_bundle_host"
+
+import type { Input as Bundle } from "./model"
+
+export type Input = Bundle.Pick("frame", "public_modules")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const copied = loop(0, {
+        while: index => index < in.public_modules,
+        next: index => {
+            host.appendGatewayFacade(in.frame, index)
+
+            index += 1
+        }
+    })
+}

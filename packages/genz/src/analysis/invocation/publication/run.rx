@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <If on={$in.request}>
+        <Call fn="index.registerCallReference" in={$in.target} />
+    </If>
+
+    <Call fn="expressions" in={$in} />
+
+    <If on={$in.body}>
+        <Call fn="index.publishCallBody" in={$in.target} />
+    </If>
+
+    <If on={$in.regular}>
+        <Call
+            fn="index.publishTaskEffects"
+            in={[
+                $in.lower,
+                true,
+                $in.io,
+                $in.process
+            ]}
+        />
+    </If>
+
+    <If on={$in.value_call}>
+        <Call
+            fn="index.finishGeneratedAst"
+            in={[
+                $in.lower,
+                $in.serial,
+                $in.uses_allocator
+            ]}
+        />
+    </If>
+</Module>

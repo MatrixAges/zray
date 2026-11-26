@@ -1,0 +1,15 @@
+import host from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const function_name: u64? = match {
+        !in.request => null,
+        in.value_call => 0,
+        _ => in.identifiers - 1
+    }
+
+    host.publishCallExpressions(in.target, function_name, in.operand)
+}

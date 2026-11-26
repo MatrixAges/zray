@@ -4,6 +4,7 @@ const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
+const evaluation = @import("../expressions/evaluate.zig");
 const Variant = @import("../functions/requests.zig").Variant;
 const Reference = std.meta.Child(@import("generated_function_reference").Output);
 const Regular = std.meta.Child(@import("generated_regular_call_emit").Output);
@@ -18,76 +19,101 @@ const Source = union(enum) {
     value: struct { output: *const Value, body: ?*Sequence },
 };
 
+pub const Publication = struct {
+    lowering: *Lower,
+    request: ?Request,
+    source: Source,
+    name: []const u8 = &.{},
+    fn borrow(handle: *anyopaque) *Publication {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
 pub fn write(self: *Lower, request: ?Request, source: Source) Error!NodeId {
-    const requested = switch (source) {
-        .reference => |output| output.request,
-        .regular => |regular| regular.output.request,
-        .value => |value| value.output.request,
+    const entry = @import("generated_publish_call_ast");
+    var frame: Publication = .{ .lowering = self, .request = request, .source = source };
+
+    const input: std.meta.Child(entry.Input) = .{
+        .target = @ptrCast(&frame),
+        .lower = @ptrCast(self),
+        .request = switch (source) {
+            .reference => |output| output.request,
+            .regular => |regular| regular.output.request,
+            .value => |value| value.output.request,
+        },
+        .regular = source == .regular,
+        .value_call = source == .value,
+        .io = if (source == .regular) source.regular.io else false,
+        .process = if (source == .regular) source.regular.process else false,
+        .identifiers = switch (source) {
+            .reference => |output| output.nodes.identifier.len,
+            .regular => |regular| regular.output.nodes.identifier.len,
+            .value => |value| value.output.context.expressions.identifier.len,
+        },
+        .operand = if (source == .value and source.value.output.name.len != 0) source.value.output.name_index else null,
+        .body = source == .value and source.value.output.body.tags.len != 0,
+        .serial = if (source == .value) source.value.output.context.serial else null,
+        .uses_allocator = if (source == .value) source.value.output.uses_allocator else false,
     };
 
-    if (requested) {
-        const entry = request.?;
+    try evaluation.execute(entry, &input);
 
-        try self.function_requests.add(self.allocator, entry.id, entry.variant);
-    }
+    return @fromBackingInt(switch (source) {
+        .reference => |output| output.root,
+        .regular => |regular| regular.output.root,
+        .value => |value| value.output.root,
+    });
+}
 
-    switch (source) {
-        .reference => |output| {
-            const fn_idx: ?usize = if (requested) output.nodes.identifier.len - 1 else null;
+pub fn registerCallReference(handle: *anyopaque) Error!void {
+    const frame = Publication.borrow(handle);
+    const request = frame.request.?;
 
-            try publish(self, output.nodes, fn_idx, null, &.{});
+    return frame.lowering.function_requests.add(frame.lowering.allocator, request.id, request.variant);
+}
 
-            return @fromBackingInt(output.root);
-        },
-        .regular => |regular| {
-            const output = regular.output;
-            const fn_idx: ?usize = if (requested) output.nodes.identifier.len - 1 else null;
+pub fn publishCallExpressions(handle: *anyopaque, function_name: ?u64, operand_name: ?u64) Error!void {
+    const frame = Publication.borrow(handle);
+    const self = frame.lowering;
 
-            try publish(self, output.nodes, fn_idx, null, &.{});
-
-            self.uses_allocator = true;
-            self.uses_io = self.uses_io or regular.io;
-            self.uses_process = self.uses_process or regular.process;
-
-            return @fromBackingInt(output.root);
-        },
+    switch (frame.source) {
+        .reference => |output| try publish(self, output.nodes, function_name, null, &.{}),
+        .regular => |regular| try publish(self, regular.output.nodes, function_name, null, &.{}),
         .value => |value| {
             const output = value.output;
-            const fn_idx: ?usize = if (requested) 0 else null;
-            const operand_idx: ?usize = if (output.name.len != 0) @intCast(output.name_index) else null;
-            const name = if (operand_idx != null) try self.allocator.dupe(u8, output.name) else &.{};
+
+            if (operand_name != null) frame.name = try self.allocator.dupe(u8, output.name);
+
             const expressions = view.join(output.context.expressions.*, output.context.forms.*);
 
-            try publish(self, &expressions, fn_idx, operand_idx, name);
-
-            if (output.body.tags.len != 0) {
-                const names = [_][]const u8{name};
-                var body = output.body.*;
-
-                if (name.len != 0 and body.constant_name.len != 0) body.constant_name = &names;
-
-                const body_source = view.join(body, output.context.variables.*);
-                @import("../../node/import_statements.zig").appendSelectedBorrowingText(self.allocator, value.body.?, &body_source) catch |err| return failure(err);
-            }
-
-            self.serial = @intCast(output.context.serial);
-            self.uses_allocator = self.uses_allocator or output.uses_allocator;
-
-            return @fromBackingInt(output.root);
+            try publish(self, &expressions, function_name, operand_name, frame.name);
         },
     }
 }
 
-fn publish(self: *Lower, source: anytype, function_name: ?usize, operand_name: ?usize, name: []const u8) Error!void {
+fn publish(self: *Lower, source: anytype, function_name: ?u64, operand_name: ?u64, name: []const u8) Error!void {
     const target = &self.builder.nodes.expressions;
     const names = &target.payloads.identifier.values;
     const first = names.items.len;
-    const function = if (function_name) |index| try self.allocator.dupe(u8, source.identifier[index]) else null;
+    const function = if (function_name) |index| try self.allocator.dupe(u8, source.identifier[@intCast(index)]) else null;
 
     rows.appendBorrowingText(self.allocator, target, source) catch |err| return failure(err);
 
-    if (function_name) |index| names.items[first + index] = function.?;
-    if (operand_name) |index| names.items[first + index] = name;
+    if (function_name) |index| names.items[first + @as(usize, @intCast(index))] = function.?;
+    if (operand_name) |index| names.items[first + @as(usize, @intCast(index))] = name;
+}
+
+pub fn publishCallBody(handle: *anyopaque) Error!void {
+    const frame = Publication.borrow(handle);
+    const value = frame.source.value;
+    const output = value.output;
+    const names = [_][]const u8{frame.name};
+    var body = output.body.*;
+
+    if (frame.name.len != 0 and body.constant_name.len != 0) body.constant_name = &names;
+
+    const source = view.join(body, output.context.variables.*);
+    @import("../../node/import_statements.zig").appendSelectedBorrowingText(frame.lowering.allocator, value.body.?, &source) catch |err| return failure(err);
 }
 
 fn failure(err: rows.Error) Error {

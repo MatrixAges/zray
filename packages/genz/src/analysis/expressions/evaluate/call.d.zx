@@ -14,6 +14,12 @@ export declare function emitLoweredCall(call: CallFrame, value: u32, store: u32?
 export declare function convertCallResult(call: CallFrame, value: u32): u32
     throws { OutOfMemory }
 
+export declare function openIterationCall(call: IterationCallFrame, value: u32): void
+    throws { OutOfMemory }
+
+export declare function convertIterationCall(call: IterationCallFrame, value: u32): u32
+    throws { OutOfMemory }
+
 export declare function materializeBorrowedObject(frame: BorrowedArgument): u32
     throws { OutOfMemory }
 

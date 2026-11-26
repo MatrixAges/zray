@@ -21,27 +21,52 @@ pub fn build(self: *Self) !void {
     const bundle = self.bundle;
     const modules = if (bundle) |value| value.modules.len else 0;
     const facades = if (bundle) |value| value.public_modules.len else 0;
+    const entrypoint = @import("generated_gateway_bundle");
 
-    if (bundle != null) try self.bindState();
+    const input: std.meta.Child(entrypoint.Input) = .{
+        .frame = @ptrCast(self),
+        .has_library = bundle != null,
+        .modules = modules,
+        .public_modules = facades,
+    };
 
-    const files = std.math.add(usize, modules, facades) catch return error.OutOfMemory;
-    const capacity = std.math.add(usize, files, 2) catch return error.OutOfMemory;
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    try self.files.ensureTotalCapacityPrecise(self.allocator, capacity);
+    entrypoint.executeIn(fixed.allocator(), &input) catch |err| return switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => err,
+    };
+}
 
-    if (bundle) |value| {
-        self.files.appendSliceAssumeCapacity(value.modules);
-
-        for (value.public_modules) |module| self.files.appendAssumeCapacity(module.file);
-    }
-
-    try self.publishContract();
-    try self.publishState();
-    try self.publishApplication();
+fn borrow(handle: *anyopaque) *Self {
+    return @ptrCast(@alignCast(handle));
 }
 
 fn bindState(self: *Self) State.Error!void {
     self.mapped = try State.create(self.allocator, self.library.?, self.bundle.?.*);
+}
+
+pub fn bindGatewayState(handle: *anyopaque) State.Error!void {
+    return borrow(handle).bindState();
+}
+
+pub fn reserveGatewayFiles(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const self = borrow(handle);
+    const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
+
+    try self.files.ensureTotalCapacityPrecise(self.allocator, capacity);
+}
+
+pub fn appendGatewayModules(handle: *anyopaque) void {
+    const self = borrow(handle);
+
+    self.files.appendSliceAssumeCapacity(self.bundle.?.modules);
+}
+
+pub fn appendGatewayFacade(handle: *anyopaque, index: u64) void {
+    const self = borrow(handle);
+
+    self.files.appendAssumeCapacity(self.bundle.?.public_modules[@intCast(index)].file);
 }
 
 fn publishContract(self: *Self) std.mem.Allocator.Error!void {
@@ -61,6 +86,10 @@ fn publishContract(self: *Self) std.mem.Allocator.Error!void {
     self.files.appendAssumeCapacity(.{ .name = "gateway_storage_contract", .source = source, .imports = initial_imports });
 }
 
+pub fn publishGatewayContract(handle: *anyopaque) std.mem.Allocator.Error!void {
+    return borrow(handle).publishContract();
+}
+
 fn publishState(self: *Self) std.mem.Allocator.Error!void {
     const state = generating.zx.state;
 
@@ -70,6 +99,10 @@ fn publishState(self: *Self) std.mem.Allocator.Error!void {
         try state.renderStorage(self.allocator, self.mapped.objects);
 
     self.files.appendAssumeCapacity(.{ .name = "zxc_gateway_state", .source = source, .imports = self.state_imports });
+}
+
+pub fn publishGatewayState(handle: *anyopaque) std.mem.Allocator.Error!void {
+    return borrow(handle).publishState();
 }
 
 fn publishApplication(self: *Self) std.mem.Allocator.Error!void {
@@ -93,4 +126,8 @@ fn publishApplication(self: *Self) std.mem.Allocator.Error!void {
         try renderer.render(self.allocator, input);
 
     self.entry = .{ .name = "application", .imports = imports, .source = source };
+}
+
+pub fn publishGatewayApplication(handle: *anyopaque) std.mem.Allocator.Error!void {
+    return borrow(handle).publishApplication();
 }

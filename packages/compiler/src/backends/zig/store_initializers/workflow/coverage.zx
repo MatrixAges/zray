@@ -1,0 +1,42 @@
+import indexSlot from "core/bytes/index/column"
+import memory from "memory"
+
+import { Status } from "./model"
+
+import type { Input, Status as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { plan, paths, types } = in
+
+    return loop({
+        row: 0,
+        status: Status.Ready
+    }, {
+        while: state => state.status == Status.Ready && state.row < paths.length,
+        next: state => {
+            const key = paths[state.row]
+            const found = match {
+                plan.capacity != 0 => indexSlot({
+                    ...plan.pick([
+                        "keys",
+                        "buckets",
+                        "capacity"
+                    ]),
+                    key
+                }),
+                plan.count == 0 => null,
+                memory.readTextColumn(plan.keys, 0) == key => 0,
+                _ => null
+            }
+
+            if (found == null) {
+                state.status = Status.MissingInitializer
+            } else if (memory.readU32(plan.values, found) != types[state.row]) {
+                state.status = Status.InvalidInitializer
+            }
+
+            state.row += 1
+        },
+        return: state => state.status
+    })
+}

@@ -8,8 +8,8 @@ const Cursor = @import("../shortcut.zig");
 const Replacements = @import("replacements.zig");
 const scan = @import("scan.zig");
 const Error = std.mem.Allocator.Error;
+const Api = @import("../../program/driver.zig").Api;
 const Self = @This();
-pub const Phase = @FieldType(Cursor, "phase");
 
 scratch: std.heap.ArenaAllocator,
 staged: std.heap.ArenaAllocator,
@@ -26,7 +26,7 @@ pub fn close(self: *Self) void {
     self.scratch.deinit();
 }
 
-pub fn advance(self: *Self, ctx: *Context, phase: Phase, recovered: ?u32) Error!Phase {
+pub fn advance(self: *Self, ctx: *Context, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {
     const next = try scan.advance(ctx, &ctx.memo.trace.?, &self.scratch, self.staged.allocator(), &self.replacements, .{
         .body = self.body,
         .visit = self.visit,
@@ -40,11 +40,11 @@ pub fn advance(self: *Self, ctx: *Context, phase: Phase, recovered: ?u32) Error!
     return @fromBackingInt(@backingInt(next.cursor.phase));
 }
 
-pub fn recover(self: *Self, ctx: *Context, phase: Phase) Error!u32 {
+pub fn recover(self: *Self, ctx: *Context, phase: Api.ReplayPhase) Error!u32 {
     return switch (phase) {
-        .settled => prepare(.settled, ctx, self.body, &self.growth, self.scratch.allocator()),
-        .demanded => prepare(.demanded, ctx, self.body, &self.growth, self.scratch.allocator()),
-        .planned => prepare(.planned, ctx, self.body, &self.growth, self.scratch.allocator()),
+        .Settled => prepare(.settled, ctx, self.body, &self.growth, self.scratch.allocator()),
+        .Demanded => prepare(.demanded, ctx, self.body, &self.growth, self.scratch.allocator()),
+        .Planned => prepare(.planned, ctx, self.body, &self.growth, self.scratch.allocator()),
         else => unreachable,
     };
 }

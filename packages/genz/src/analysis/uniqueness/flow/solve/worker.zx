@@ -1,0 +1,29 @@
+import integers from "std:integer"
+import host from "ownership_host"
+
+import type { Worker as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { worker, remembered, held } = in
+
+    const visited = loop({
+        active: true
+    }, {
+        while: state => state.active,
+        next: state => {
+            const index = host.claimFlowBody(worker)
+
+            if (index == null) {
+                state.active = false
+            } else {
+                const reused = remembered && host.adoptFlowMemo(worker, index)
+
+                if (!reused && held[integers.widen(index)].length != 0) {
+                    host.walkFlowBody(worker, index)
+                }
+            }
+        }
+    })
+}

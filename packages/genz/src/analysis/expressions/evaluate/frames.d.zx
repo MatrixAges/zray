@@ -18,6 +18,8 @@ export enum Representation {
 
 export type CallFrame = mutable_opaque
 
+export type IterationCallFrame = mutable_opaque
+
 export type BorrowedArgument = opaque
 
 export type MatchFrame = mutable_opaque
@@ -28,6 +30,75 @@ export enum CallArgument {
     Borrow,
     Stack
 }
+
+export type FunctionBody = opaque
+
+export type ValueFunction = mutable_opaque
+
+export type RepresentedCache = mutable_opaque
+
+export type ModuleFrame = mutable_opaque
+
+export enum BodySection {
+    Prelude,
+    Pending,
+    References,
+    Contracts,
+    Statements,
+    Commit
+}
+
+export enum ModuleFunctionForm {
+    Native,
+    Regular,
+    RegularAndValue,
+    Value
+}
+
+export enum ModuleRequestForm {
+    Done,
+    Native,
+    FirstRegular,
+    Regular,
+    FirstValue,
+    Value
+}
+
+export type ModuleSignatures = mutable_opaque
+
+export type AstPublication = opaque
+
+export type FragmentPublication = mutable_opaque
+
+export enum FragmentKind {
+    Growth,
+    Collection,
+    Update,
+    List,
+    Construction,
+    Origin,
+    Conversion
+}
+
+export enum FragmentBody {
+    Direct,
+    Roots,
+    RootsWithVariables,
+    Selected,
+    SelectedWithVariables,
+    ConvertedBinding,
+    ConvertedBody
+}
+
+export enum FragmentStatements {
+    Dense,
+    BorrowingText,
+    Borrowed,
+    Sparse,
+    SparseWithVariables
+}
+
+export type DirectAstRows = mutable_opaque
 
 export type FieldProjection = opaque
 
@@ -40,7 +111,13 @@ export enum StoredType {
     ViewType
 }
 
+export type CallAstPublication = mutable_opaque
+
 export type PreconditionFrame = mutable_opaque
+
+export type AnalysisWork = mutable_opaque
+
+export type BasisWork = mutable_opaque
 
 export type CollectionFrame = mutable_opaque
 

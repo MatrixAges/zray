@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import get from "core/bytes/index/get"
+
+import type { Index } from "core/bytes/index/model"
+
+export type Input = {
+    index: Index,
+    paths: string[]
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const rows: u32[] = []
+
+    return loop({
+        row: 0,
+        rows
+    }, {
+        while: state => state.row < in.paths.length,
+        next: state => {
+            const existing = get({
+                index: in.index,
+                key: bytes.fromText(in.paths[state.row])
+            })
+
+            if (existing == null) {
+                state.rows = state.rows.push(integers.narrow(state.row))[0]
+            }
+
+            state.row += 1
+        },
+        return: state => state.rows
+    })
+}

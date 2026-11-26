@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Workflow" />
+
+    <Args in={Workflow.Analysis} out={void} />
+
+    <If on={$in.build}>
+        <If on={$in.concurrent}>
+            <Call fn="index.startAnalysisBasis" in={$in.work} />
+
+            <If on={!$ctx.startAnalysisBasis}>
+                <Call fn="index.buildAnalysisBasis" in={$in.work} />
+            </If>
+
+            <Else>
+                <Call fn="index.buildAnalysisBasis" in={$in.work} />
+            </Else>
+        </If>
+    </If>
+
+    <Call fn="index.collectAnalysisFacts" in={$in.work} />
+    <Call fn="index.joinAnalysisBasis" in={$in.work} />
+    <Call fn="index.checkAnalysisFacts" in={$in.work} />
+    <Call fn="index.checkAnalysisBasis" in={$in.work} />
+
+    <If on={$in.concurrent}>
+        <Call fn="index.planAnalysisConcurrent" in={$in.work} />
+
+        <Else>
+            <Call fn="index.planAnalysis" in={$in.work} />
+        </Else>
+    </If>
+
+    <Call fn="index.analyzeEntryFlags" in={$in.work} />
+</Module>

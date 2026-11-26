@@ -1,0 +1,16 @@
+import type { Allocator, OptionalU32Buffer, U32Buffer, U8ListBuffer } from "memory"
+import type { BootstrapMirror, BootstrapOutputPlan } from "output_host"
+
+export type Plan = BootstrapOutputPlan
+
+export type Cleanup = {
+    allocator: Allocator,
+    paths: U8ListBuffer,
+    values: U32Buffer,
+    buckets: OptionalU32Buffer
+}
+
+export type Input = {
+    target: BootstrapMirror,
+    cleanup: Cleanup
+}

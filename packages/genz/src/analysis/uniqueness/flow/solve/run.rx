@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Input} out={void} />
+
+    <Call fn="index.initializeFlow" in={$in.flow} />
+    <Call fn="index.planFlow" in={$in.flow} />
+
+    <If on={$ctx.planFlow == Flow.Plan.Recursive}>
+        <Call fn="index.solveRecursiveFlow" in={$in.flow} />
+
+        <Else>
+            <If on={$in.remembered}>
+                <Call fn="index.reserveFlowMemo" in={$in.flow} />
+            </If>
+
+            <If on={$ctx.planFlow == Flow.Plan.Layered}>
+                <Call fn="index.openFlowWorkers" in={$in.flow} />
+                <Call fn="index.flowLayerOrder" in={$in.flow} />
+                <Call fn="index.flowLayerEnds" in={$in.flow} />
+                <Call fn="index.flowMemoHits" in={$in.flow} />
+
+                <Call
+                    fn="layers"
+                    in={{
+                        ...$in,
+                        order: $ctx.flowLayerOrder,
+                        ends: $ctx.flowLayerEnds,
+                        hits: $ctx.flowMemoHits
+                    }}
+                />
+            </If>
+        </Else>
+    </If>
+</Module>

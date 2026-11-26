@@ -90,7 +90,7 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     const roots = Roots{ .workspace = workspace, .functions = functions, .partitions = partitions, .exports = exports, .sources = try allocator.alloc([]const u8, count), .modules = try allocator.alloc([]const u8, count) };
 
-    try parallel.each(arenas, count, &roots);
+    try parallel.eachSeed(arenas, count, &roots);
 
     for (roots.sources, 0..) |source, index| {
         try files.append(allocator, .{ .path = try std.fmt.allocPrint(allocator, "part_{d}/root.zig", .{index}), .source = try allocator.dupe(u8, source) });

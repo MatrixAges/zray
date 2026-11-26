@@ -1,0 +1,63 @@
+import host from "output_host"
+
+import recordPrefix from "./prefix"
+
+import type { Record as Input } from "./model"
+
+export type Output = bool
+
+export type Adoption = {
+    remaining: u64,
+    row?: u64
+}
+
+export default function (in: Input): Output {
+    const { target, stored } = in
+
+    if (in.ordered) {
+        recordPrefix({
+            target,
+            count: in.count
+        })
+
+        return true
+    }
+
+    const initial: Adoption = {
+        remaining: stored.length,
+        row: null
+    }
+
+    const failure = loop(initial, {
+        while: state => state.remaining != 0 && state.row == null,
+        next: state => {
+            state.remaining -= 1
+
+            const row = stored[state.remaining]
+
+            if (!host.tryRecordCachedSource(target, row)) {
+                state.row = row
+            }
+        },
+        return: state => state.row
+    })
+
+    if (failure != null) {
+        recordPrefix({
+            target,
+            count: failure
+        })
+
+        return false
+    }
+
+    host.accountCachedSources(
+        target,
+        in.held,
+        in.discarded,
+        in.failures,
+        in.last_failure
+    )
+
+    return true
+}

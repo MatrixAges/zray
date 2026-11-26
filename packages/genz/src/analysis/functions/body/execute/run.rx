@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Function" />
+
+    <Args in={Function.Input} out={void} />
+
+    <Call fn="lower" in={$in.body} />
+    <Call fn="publish" in={$in} />
+</Module>

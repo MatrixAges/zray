@@ -5,8 +5,18 @@ const Slots = @import("../slots.zig");
 const Body = @import("body.zig");
 const Walk = @import("walk.zig");
 const create = @import("generated_uniqueness_flow_queue");
-const advance = @import("generated_uniqueness_flow_advance");
+const run = @import("generated_uniqueness_flow_fixpoint");
 const Error = std.mem.Allocator.Error;
+
+const Frame = struct {
+    owner: std.mem.Allocator,
+    functions: *const zx.ir.FunctionTable,
+    walk: Walk,
+    bodies: []?*const Body.Facts,
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
+    }
+};
 
 pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!void {
     var owner = owner_arg;
@@ -42,33 +52,43 @@ pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Alloc
 
     @memset(bodies, null);
 
-    var walk: Walk = .{ .allocator = workspace, .flow = flow, .slots = slots };
+    var frame: Frame = .{
+        .owner = owner,
+        .functions = functions,
+        .bodies = bodies,
+        .walk = .{ .allocator = workspace, .flow = flow, .slots = slots },
+    };
 
-    defer walk.deinit();
+    defer frame.walk.deinit();
 
-    var current_count = count;
-    var changed: ?u32 = null;
-
-    while (true) {
-        const request: std.meta.Child(advance.Input) = .{
+    const request: std.meta.Child(run.Input) = .{
+        .flow = @ptrCast(&frame),
+        .queue = &.{
             .indices = @ptrCast(&indices),
             .queued = @ptrCast(&queued),
             .first = first,
             .items = items,
-            .count = current_count,
-            .changed = changed,
-        };
+            .count = count,
+            .changed = null,
+        },
+    };
 
-        const visit = zx.columns.invoke(advance.executeValue, empty.allocator(), &request) catch unreachable;
-        const index = visit.index orelse break;
+    run.executeIn(empty.allocator(), &request) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+}
 
-        if (visit.retain and bodies[index] == null) {
-            bodies[index] = try walk.keep(owner, Body.View.at(functions, index));
-        }
+pub fn retainFlowFacts(handle: *anyopaque, index: u32) Error!void {
+    const frame = Frame.borrow(handle);
 
-        const grew = try walk.visit(index, Body.View.at(functions, index), if (visit.retain) bodies[index] else null);
-
-        current_count = visit.count;
-        changed = if (grew) index else null;
+    if (frame.bodies[index] == null) {
+        frame.bodies[index] = try frame.walk.keep(frame.owner, Body.View.at(frame.functions, index));
     }
+}
+
+pub fn visitRecursiveFlow(handle: *anyopaque, index: u32, retained: bool) Error!bool {
+    const frame = Frame.borrow(handle);
+
+    return frame.walk.visit(index, Body.View.at(frame.functions, index), if (retained) frame.bodies[index] else null);
 }

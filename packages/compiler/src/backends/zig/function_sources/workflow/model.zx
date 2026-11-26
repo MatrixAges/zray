@@ -1,0 +1,12 @@
+import type { FunctionSources } from "output_host"
+
+export type Input = {
+    batch: FunctionSources,
+    count: u64,
+    cached: bool
+}
+
+export type Restoration = {
+    batch: FunctionSources,
+    hits: u64
+}

@@ -1,0 +1,20 @@
+import type { FlowExecution, FlowPlan, FlowWorker } from "ownership_host"
+
+export type Plan = FlowPlan
+
+export type Input = {
+    flow: FlowExecution,
+    remembered: bool
+}
+
+export type Layers = Input & {
+    order: u32[],
+    ends: u64[],
+    hits: bool[]
+}
+
+export type Worker = {
+    worker: FlowWorker,
+    remembered: bool,
+    held: bool[][]
+}

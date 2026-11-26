@@ -1,0 +1,10 @@
+import host from "output_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.scanPartitionBodies(in)
+    host.scanPartitionSupport(in)
+}

@@ -1,0 +1,15 @@
+import { Action } from "./model"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request.Pick("active", "threaded")
+
+export type Output = Action
+
+export default function (in: Input): Output {
+    return match {
+        in.threaded => Action.Join,
+        in.active => Action.Drain,
+        _ => Action.Idle
+    }
+}

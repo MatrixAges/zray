@@ -1,0 +1,275 @@
+export type LibraryEntries = opaque
+
+export type CachedSourceRows = opaque
+
+export type GeneratedSourceRows = opaque
+
+export type CacheWriter = mutable_opaque
+
+export type GenerationCacheRecord = opaque
+
+export type GenerationCacheFiles = opaque
+
+export type FunctionSources = mutable_opaque
+
+export type FunctionSourceWorker = mutable_opaque
+
+export enum FunctionSourceKind {
+    Entry,
+    Types,
+    Function,
+    Regular
+}
+
+export type ApplicationInitializers = mutable_opaque
+
+export type LibraryInitializers = opaque
+
+export enum InitializerOrigin {
+    Owned,
+    Borrowed,
+    Linked
+}
+
+export type InitializerCandidate = {
+    identity: string,
+    type_id: u32,
+    names: u8[][]
+}
+
+export type SourceReuse = {
+    target: CachedSourceRows,
+    count: u64,
+    stored: u64[],
+    ordered: bool,
+    held: u64,
+    discarded: u64,
+    failures: u64,
+    last_failure?: u64,
+    hits: u64,
+    pending: u64
+}
+
+export type BootstrapTree = mutable_opaque
+
+export type BootstrapMirror = mutable_opaque
+
+export type BootstrapPartitionJobs = opaque
+
+export type BootstrapPartitionScan = opaque
+
+export type BootstrapWorkerAllocator = opaque
+
+export type BootstrapWriter = opaque
+
+export enum PartitionFile {
+    Stub,
+    Exports,
+    Modules
+}
+
+export type BootstrapOutputPlan = {
+    target: BootstrapMirror,
+    paths: string[],
+    changed: u32[],
+    aligned: bool,
+    previous_paths?: string[]
+}
+
+export type BootstrapDirectoryEntry = {
+    path: string,
+    file: bool
+}
+
+export type BootstrapPartition = mutable_opaque
+
+export type BootstrapPartitionPlan = {
+    target: BootstrapPartition,
+    jobs: u64
+}
+
+export declare function analyzeLibraryExport(
+    entries: LibraryEntries,
+    index: u64,
+    first: u64,
+    end: u64
+): void throws {
+    OutOfMemory,
+    InvalidModule
+}
+
+export declare function publishLibraryExport(
+    entries: LibraryEntries,
+    index: u64,
+    first: u64,
+    end: u64
+): void throws { OutOfMemory }
+
+export declare function recordCachedSource(target: CachedSourceRows, row: u64): void
+    throws { OutOfMemory }
+
+export declare function tryRecordCachedSource(target: CachedSourceRows, row: u64): bool
+
+export declare function accountCachedSources(
+    target: CachedSourceRows,
+    held: u64,
+    discarded: u64,
+    failures: u64,
+    last: u64?
+): void
+
+export declare function commitGeneratedSource(
+    target: GeneratedSourceRows,
+    position: u64,
+    index: u64
+): void throws { OutOfMemory }
+
+export declare function finishCacheWriting(cache: CacheWriter, join: bool): void
+
+export declare function startCacheWriting(cache: CacheWriter, background: bool): bool
+
+export declare function writeGenerationCacheFile(files: GenerationCacheFiles, row: u64): u32?
+
+export declare function writeGenerationCacheRecord(
+    target: GenerationCacheRecord,
+    pending: u64?
+): void throws { OutOfMemory }
+
+export declare function findFunctionSource(
+    worker: FunctionSourceWorker,
+    row: u64,
+    kind: FunctionSourceKind,
+    index: u64
+): u32
+
+export declare function renderFunctionSource(
+    worker: FunctionSourceWorker,
+    row: u64,
+    kind: FunctionSourceKind,
+    index: u64
+): u32
+
+export declare function readFunctionSources(batch: FunctionSources): SourceReuse throws {
+    OutOfMemory,
+    InvalidNames,
+    InvalidFunction
+}
+
+export declare function restoreFunctionSources(batch: FunctionSources): void
+    throws { OutOfMemory }
+
+export declare function generateFunctionSources(batch: FunctionSources): void throws {
+    OutOfMemory,
+    InvalidNames,
+    InvalidFunction
+}
+
+export declare function publishFunctionSources(batch: FunctionSources): void
+    throws { OutOfMemory }
+
+export declare function readApplicationInitializer(
+    target: ApplicationInitializers,
+    origin: InitializerOrigin,
+    index: u64
+): InitializerCandidate? throws {
+    OutOfMemory,
+    MissingNominalOrigin,
+    InvalidNominalOrigin
+}
+
+export declare function emitApplicationInitializer(
+    target: ApplicationInitializers,
+    row: u64
+): void throws {
+    OutOfMemory,
+    InvalidAnalysis,
+    ConflictingFunction,
+    InvalidNames,
+    InvalidFunction,
+    MissingNominalOrigin,
+    InvalidNominalOrigin
+}
+
+export declare function emitLibraryInitializer(
+    target: LibraryInitializers,
+    row: u64
+): void throws {
+    OutOfMemory,
+    InvalidAnalysis,
+    ConflictingFunction,
+    InvalidNames,
+    InvalidFunction,
+    MissingNominalOrigin,
+    InvalidNominalOrigin
+}
+
+export declare function renderBootstrapAdapter(target: BootstrapTree, row: u64): void
+    throws { BootstrapOutput }
+
+export declare function renderBootstrapOriginals(target: BootstrapTree): void
+    throws { BootstrapOutput }
+
+export declare function renderBootstrapRoot(target: BootstrapTree, partitioned: bool): void
+    throws { BootstrapOutput }
+
+export declare function placeBootstrapPartitions(target: BootstrapTree): void
+    throws { BootstrapOutput }
+
+export declare function hashBootstrapFiles(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function compareBootstrapFiles(target: BootstrapMirror): BootstrapOutputPlan
+    throws { BootstrapOutput }
+
+export declare function createBootstrapFolder(target: BootstrapMirror, path: u8[]): void
+    throws { BootstrapOutput }
+
+export declare function writeBootstrapChanges(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function openBootstrapWalk(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function nextBootstrapEntry(target: BootstrapMirror): BootstrapDirectoryEntry?
+    throws { BootstrapOutput }
+
+export declare function deleteBootstrapFile(target: BootstrapMirror, path: string): void
+    throws { BootstrapOutput }
+
+export declare function commitBootstrapManifest(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function renderPartitionFile(
+    target: BootstrapPartitionJobs,
+    row: u64,
+    file: PartitionFile
+): u32
+
+export declare function scanPartitionRange(
+    target: BootstrapPartitionScan,
+    allocator: BootstrapWorkerAllocator,
+    first: u64,
+    end: u64
+): u32
+
+export declare function writeBootstrapFile(
+    target: BootstrapWriter,
+    path: string,
+    body: string
+): u32
+
+export declare function scanPartitionBodies(target: BootstrapPartition): void
+    throws { BootstrapOutput }
+
+export declare function scanPartitionSupport(target: BootstrapPartition): void
+    throws { BootstrapOutput }
+
+export declare function planPartitionLayout(target: BootstrapPartition): void
+    throws { BootstrapOutput }
+
+export declare function placePartitionFiles(
+    target: BootstrapPartition
+): BootstrapPartitionPlan throws { BootstrapOutput }
+
+export declare function emitPartitionJobs(target: BootstrapPartition): void
+    throws { BootstrapOutput }

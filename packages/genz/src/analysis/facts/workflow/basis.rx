@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Workflow" />
+
+    <Args in={Workflow.Basis} out={void} />
+
+    <Call fn="index.buildBasisSlots" in={$in.work} />
+
+    <If on={$in.persistent}>
+        <Call fn="index.hashBasis" in={$in.work} />
+    </If>
+
+    <Call fn="index.buildBasisFlow" in={$in.work} />
+    <Call fn="index.buildBasisReturns" in={$in.work} />
+    <Call fn="index.buildBasisEffects" in={$in.work} />
+</Module>

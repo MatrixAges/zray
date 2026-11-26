@@ -1,3 +1,11 @@
 export { appendExpressionRows, AstPayloadOwnership } from "ast_rows"
-export { finishGeneratedAst } from "lowering_host"
+export {
+    appendFragmentExpressions,
+    appendFragmentStatements,
+    appendFragmentBody,
+    appendFragmentStorage,
+    appendFragmentFields,
+    finishGeneratedAst,
+    FragmentBody
+} from "lowering_host"
 export { requireAllocation } from "memory"

@@ -1,0 +1,16 @@
+import type { FragmentKind, FragmentPublication, Lowering } from "lowering_host"
+
+export { FragmentKind } from "lowering_host"
+
+export type Input = {
+    target: FragmentPublication,
+    lower: Lowering,
+    kind: FragmentKind,
+    sequence: bool,
+    fields: bool,
+    valid: bool,
+    serial: u64,
+    uses_allocator: bool
+}
+
+export type Body = Input.Pick("target", "kind", "sequence")

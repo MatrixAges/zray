@@ -1,0 +1,73 @@
+export declare function prepareDirectAstRow(target: DirectAstRows, position: u64): u64
+    throws { OutOfMemory }
+
+export declare function appendAstExpressions(target: AstPublication, segment: u64): void
+    throws { OutOfMemory }
+
+export declare function appendAstStatements(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function appendAstStorage(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function appendAstHelper(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function appendAstBody(target: AstPublication, binding: bool): void
+    throws { OutOfMemory }
+
+export declare function finishGeneratedAst(
+    frame: Lowering,
+    serial: u64?,
+    uses_allocator: bool
+): void
+
+export declare function registerCallReference(target: CallAstPublication): void
+    throws { OutOfMemory }
+
+export declare function publishCallExpressions(
+    target: CallAstPublication,
+    function_name: u64?,
+    operand_name: u64?
+): void throws { OutOfMemory }
+
+export declare function publishCallBody(target: CallAstPublication): void
+    throws { OutOfMemory }
+
+export declare function recordIterationTransfer(target: IterationPublication): void
+    throws { OutOfMemory }
+
+export declare function appendLoopGuard(target: LoopFramePublication): void
+    throws { OutOfMemory }
+
+export declare function appendLoopPrefix(target: LoopFramePublication): void
+    throws { OutOfMemory }
+
+export declare function appendLoopBody(target: LoopFramePublication): void
+    throws { OutOfMemory }
+
+export declare function appendLoopEntry(target: LoopFramePublication): void
+    throws { OutOfMemory }
+
+export declare function appendFragmentExpressions(target: FragmentPublication, borrow_text: bool): void
+    throws { OutOfMemory }
+
+export declare function appendFragmentLayoutExpressions(target: FragmentPublication): void
+    throws { OutOfMemory }
+
+export declare function appendFragmentStatements(
+    target: FragmentPublication,
+    mode: FragmentStatements
+): void
+    throws { OutOfMemory }
+
+export declare function appendFragmentBody(
+    target: FragmentPublication,
+    mode: FragmentBody
+): void throws { OutOfMemory }
+
+export declare function appendFragmentStorage(target: FragmentPublication): void
+    throws { OutOfMemory }
+
+export declare function appendFragmentFields(target: FragmentPublication, own_text: bool): void
+    throws { OutOfMemory }

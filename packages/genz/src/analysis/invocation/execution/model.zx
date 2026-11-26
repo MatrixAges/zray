@@ -1,5 +1,10 @@
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
-import type { CallArgument, CallFrame, Lowering } from "lowering_host"
+import type {
+    CallArgument,
+    CallFrame,
+    IterationCallFrame,
+    Lowering
+} from "lowering_host"
 
 export { Representation } from "lowering_host"
 
@@ -36,3 +41,11 @@ export type Emission =
     ) & {
         value: u32
     }
+
+export type Iteration = {
+    frame: Lowering,
+    call: IterationCallFrame,
+    call_id: u32,
+    operand: u32,
+    value_call: bool
+}

@@ -1,0 +1,19 @@
+export enum Mode {
+    Wait,
+    Synchronous,
+    Background
+}
+
+export enum Action {
+    Idle,
+    Join,
+    Drain,
+    Spawn
+}
+
+export type Input = {
+    mode: Mode,
+    active: bool,
+    threaded: bool,
+    waiting: bool
+}

@@ -1,9 +1,14 @@
 const std = @import("std");
+const memory = @import("zx").memory;
 const generation = @import("../partition.zig");
 const Scanning = @import("workers.zig");
 const parallel = @import("../output/parallel.zig");
+const Failure = @import("../output/failure.zig");
 pub const File = generation.placement.File;
 const available = generation.groups.available and generation.layout.available;
+const native = if (available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
+const Plan = if (available) native.BootstrapPartitionPlan else void;
+const Kind = if (available) native.PartitionFile else void;
 
 /// Groups public entry closures into separately compiled units.
 pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: []const File, columns: generation.layout.FunctionFiles, top: []const File, count: u32) ![]File {
@@ -19,41 +24,124 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     defer arenas.deinit();
 
-    const scanning = try Scanning.run(temporary, arenas, functions, &scanner);
-    const top_callees = try temporary.alloc([]const u32, top.len);
-    const top_variants = try temporary.alloc([]const []const u8, top.len);
-
-    try scanner.scan(temporary, top, .{ .callees = top_callees, .variants = top_variants });
-
-    var planned = try generation.layout.create(workspace, .{
-        .paths = columns.paths,
-        .sizes = columns.sizes,
-        .callees = scanning.callees,
-        .variants = scanning.variants,
-        .inline_names = scanning.inline_names,
-        .top_callees = top_callees,
-        .top_variants = top_variants,
+    var frame: Frame = .{
+        .allocator = allocator,
+        .workspace = workspace,
+        .temporary = temporary,
+        .functions = functions,
+        .columns = columns,
+        .top = top,
         .count = count,
-    });
+        .scanner = &scanner,
+        .arenas = arenas,
+    };
 
-    defer planned.deinit();
+    defer if (frame.planned) |*planned| planned.deinit();
 
-    const publication = try generation.placement.publish(allocator, temporary, functions, columns.paths, &planned.value);
+    const entry = @import("generated_bootstrap_partition");
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    if (publication.jobs.len != 0) {
-        const render: Rendering = .{
-            .owner = allocator,
-            .workspace = workspace,
-            .columns = columns,
-            .roots = planned.value.roots,
-            .jobs = publication.jobs,
-            .files = publication.files,
-        };
+    _ = entry.executeIn(fixed.allocator(), @ptrCast(&frame)) catch |err| return frame.failure.restore(err);
 
-        try parallel.each(arenas, publication.jobs.len, &render);
+    return frame.publication.files;
+}
+
+const Frame = struct {
+    allocator: std.mem.Allocator,
+    workspace: std.mem.Allocator,
+    temporary: std.mem.Allocator,
+    functions: []const File,
+    columns: generation.layout.FunctionFiles,
+    top: []const File,
+    count: u32,
+    scanner: *const generation.Scanning,
+    arenas: parallel.Arenas,
+    scanning: Scanning = undefined,
+    top_callees: [][]const u32 = undefined,
+    top_variants: [][]const []const u8 = undefined,
+    planned: ?generation.layout.Owned = null,
+    publication: generation.placement.Publication = undefined,
+    result: Plan = undefined,
+    failure: Failure = .{},
+    fn borrow(handle: *anyopaque) *@This() {
+        return @ptrCast(@alignCast(handle));
+    }
+    fn scanBodies(self: *Frame) !void {
+        self.scanning = try Scanning.run(self.temporary, self.arenas, self.functions, self.scanner);
     }
 
-    return publication.files;
+    fn scanSupport(self: *Frame) !void {
+        self.top_callees = try self.temporary.alloc([]const u32, self.top.len);
+        self.top_variants = try self.temporary.alloc([]const []const u8, self.top.len);
+
+        try self.scanner.scan(self.temporary, self.top, .{ .callees = self.top_callees, .variants = self.top_variants });
+    }
+    fn layout(self: *Frame) !void {
+        self.planned = try generation.layout.create(self.workspace, .{
+            .paths = self.columns.paths,
+            .sizes = self.columns.sizes,
+            .callees = self.scanning.callees,
+            .variants = self.scanning.variants,
+            .inline_names = self.scanning.inline_names,
+            .top_callees = self.top_callees,
+            .top_variants = self.top_variants,
+            .count = self.count,
+        });
+    }
+    fn place(self: *Frame) !void {
+        self.publication = try generation.placement.publish(self.allocator, self.temporary, self.functions, self.columns.paths, &self.planned.?.value);
+    }
+};
+
+pub fn scanPartitionBodies(handle: *anyopaque) Failure.Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.scanBodies() catch |err| return frame.failure.save(err);
+}
+
+pub fn scanPartitionSupport(handle: *anyopaque) Failure.Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.scanSupport() catch |err| return frame.failure.save(err);
+}
+
+pub fn planPartitionLayout(handle: *anyopaque) Failure.Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.layout() catch |err| return frame.failure.save(err);
+}
+
+pub fn placePartitionFiles(handle: *anyopaque) Failure.Error!*const Plan {
+    const frame = Frame.borrow(handle);
+
+    frame.place() catch |err| return frame.failure.save(err);
+
+    frame.result = .{ .target = @ptrCast(frame), .jobs = frame.publication.jobs.len };
+
+    return &frame.result;
+}
+
+pub fn emitPartitionJobs(handle: *anyopaque) Failure.Error!void {
+    const frame = Frame.borrow(handle);
+
+    const render: Rendering = .{
+        .owner = frame.allocator,
+        .workspace = frame.workspace,
+        .columns = frame.columns,
+        .roots = frame.planned.?.value.roots,
+        .jobs = frame.publication.jobs,
+        .files = frame.publication.files,
+    };
+
+    const roots = memory.borrowReadColumn(bool, "root", render.jobs);
+
+    parallel.each(frame.arenas, .{
+        .count = render.jobs.len,
+        .scan = null,
+        .hash = null,
+        .write = null,
+        .render = &.{ .target = @ptrCast(&render), .roots = @ptrCast(&roots) },
+    }) catch |err| return frame.failure.save(err);
 }
 
 const Rendering = struct {
@@ -63,19 +151,29 @@ const Rendering = struct {
     roots: @FieldType(generation.layout.Plan, "roots"),
     jobs: []const generation.placement.Job,
     files: []File,
-    pub fn step(self: *const Rendering, _: std.mem.Allocator, index: usize) !void {
-        const job = &self.jobs[index];
+    fn render(self: *const Rendering, job: *const generation.placement.Job, kind: Kind) !void {
         const row: usize = @intCast(job.destination);
 
-        if (!job.root) {
-            self.files[row].source = try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry);
+        switch (kind) {
+            .Stub => self.files[row].source = try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry),
+            .Exports => {
+                const selected = self.roots[job.index];
 
-            return;
+                self.files[row].source = try generation.indexedExports(self.owner, self.workspace, self.columns.names, selected.entries, selected.variants);
+            },
+            .Modules => {
+                const selected = self.roots[job.index];
+
+                self.files[row + 1].source = try generation.indexedRoot(self.owner, self.workspace, self.columns, selected.callees);
+            },
         }
-
-        const selected = self.roots[job.index];
-
-        self.files[row].source = try generation.indexedExports(self.owner, self.workspace, self.columns.names, selected.entries, selected.variants);
-        self.files[row + 1].source = try generation.indexedRoot(self.owner, self.workspace, self.columns, selected.callees);
     }
 };
+
+pub fn renderPartitionFile(handle: *const anyopaque, index: u64, kind: Kind) u32 {
+    const rendering: *const Rendering = @ptrCast(@alignCast(handle));
+
+    rendering.render(&rendering.jobs[@intCast(index)], kind) catch |err| return @intFromError(err);
+
+    return 0;
+}

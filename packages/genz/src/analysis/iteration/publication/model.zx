@@ -1,0 +1,36 @@
+import type {
+    FragmentPublication,
+    IterationPublication,
+    IterationResourceFrame,
+    Lowering
+} from "lowering_host"
+
+export { FragmentBody } from "lowering_host"
+
+export enum Mode {
+    Borrow,
+    Types,
+    Input,
+    Returned,
+    Projection,
+    Transfer,
+    Buffer,
+    PrepareBuffer
+}
+
+export type Input = {
+    target: IterationPublication,
+    lower: Lowering,
+    context?: IterationResourceFrame,
+    cache_types: u32[],
+    cache_values: u32[],
+    rows: Rows,
+    valid: bool,
+    serial?: u64,
+    uses_allocator: bool
+}
+
+export type Rows = {
+    fragment: FragmentPublication,
+    mode: Mode
+}

@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Call" />
+
+    <Args in={Call.Iteration} out={Call.Output} />
+
+    <Call fn="iteration_input" in={$in} />
+
+    <If on={$in.value_call}>
+        <Call
+            fn="index.lowerCall"
+            in={[
+                $in.frame,
+                $in.call_id,
+                Call.Representation.Value,
+                false
+            ]}
+        />
+
+        <Call
+            fn="convert"
+            in={{
+                call: $in.call,
+                value: $ctx.lowerCall
+            }}
+        />
+
+        <Return value={$ctx.convert} />
+    </If>
+
+    <Call
+        fn="index.lowerRegular"
+        in={[
+            $in.frame,
+            $in.call_id,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="convert"
+        in={{
+            call: $in.call,
+            value: $ctx.lowerRegular
+        }}
+    />
+
+    <Return value={$ctx.convert} />
+</Module>

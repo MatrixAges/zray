@@ -4,6 +4,8 @@ const Flow = @import("../flow.zig");
 const Slots = @import("../slots.zig");
 const Memo = @import("../memo.zig");
 const layers = @import("layers/root.zig");
+const entry = @import("generated_uniqueness_flow_solve");
+const Plan = @import("../program/driver.zig").Api.FlowPlan;
 const Error = std.mem.Allocator.Error;
 
 const Request = struct {
@@ -18,59 +20,107 @@ const Request = struct {
     memo: ?*Memo,
 };
 
+const Frame = struct {
+    request: Request,
+    result: Flow = undefined,
+    plan: layers.Plan = undefined,
+    remembered: ?Flow.Remembered = null,
+    walkers: []Flow.Walker = &.{},
+    fn borrow(handle: *anyopaque) *Frame {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
 pub fn solve(request: Request) Error!Flow {
-    const result = try @import("initial.zig").create(request.allocator, request.program.*, request.slots, request.texts);
-    const maybe_plan = try layers.build(request.temporary, &request.program.functions, result.held, request.memo != null);
+    var frame: Frame = .{ .request = request };
 
-    if (maybe_plan == null) {
-        try @import("fixpoint.zig").settle(result, request.temporary, request.workspace, &request.program.functions, request.slots);
+    defer Flow.Walker.close(frame.walkers);
 
-        return result;
-    }
+    const input: std.meta.Child(entry.Input) = .{
+        .flow = @ptrCast(&frame),
+        .remembered = request.memo != null,
+    };
 
-    const plan = maybe_plan.?;
+    try @import("../../expressions/evaluate.zig").execute(entry, &input);
 
-    const remembered = if (request.memo) |memo|
-        try Flow.Remembered.init(request.temporary, memo, request.types, request.contents, request.program.functions.count())
-    else
-        null;
+    return frame.result;
+}
 
-    if (plan.order.len != 0) {
-        const walkers = try Flow.Walker.open();
+pub fn initializeFlow(handle: *anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const input = &frame.request;
 
-        defer Flow.Walker.close(walkers);
+    frame.result = try @import("initial.zig").create(input.allocator, input.program.*, input.slots, input.texts);
+}
 
-        var first: usize = 0;
+pub fn planFlow(handle: *anyopaque) Error!Plan {
+    const frame = Frame.borrow(handle);
+    const input = &frame.request;
 
-        for (plan.ends) |raw_end| {
-            const end: usize = @intCast(raw_end);
+    frame.plan = (try layers.build(input.temporary, &input.program.functions, frame.result.held, input.memo != null)) orelse return .Recursive;
 
-            var layer: Flow.Layer = .{
-                .flow = result,
-                .table = &request.program.functions,
-                .slots = request.slots,
-                .functions = plan.order[first..end],
-                .walkers = walkers,
-                .remembered = remembered,
-            };
+    return if (frame.plan.order.len == 0) .Empty else .Layered;
+}
 
-            try layer.spread();
+pub fn reserveFlowMemo(handle: *anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const input = &frame.request;
 
-            if (remembered) |kept| {
-                for (plan.order[first..end]) |body_u32| {
-                    const body: usize = body_u32;
+    frame.remembered = try Flow.Remembered.init(input.temporary, input.memo.?, input.types, input.contents, input.program.functions.count());
+}
 
-                    if (kept.found[body]) {
-                        kept.memo.keepFlowed(kept.keys[body]);
-                    } else {
-                        try kept.memo.putFlowed(kept.keys[body], result.held[body], result.text_held[body], result.written[body]);
-                    }
-                }
-            }
+pub fn flowLayerOrder(handle: *anyopaque) []const u32 {
+    return Frame.borrow(handle).plan.order;
+}
 
-            first = end;
-        }
-    }
+pub fn flowLayerEnds(handle: *anyopaque) []const u64 {
+    return Frame.borrow(handle).plan.ends;
+}
 
-    return result;
+pub fn flowMemoHits(handle: *anyopaque) []const bool {
+    const frame = Frame.borrow(handle);
+
+    return if (frame.remembered) |saved| saved.found else &.{};
+}
+
+pub fn openFlowWorkers(handle: *anyopaque) Error!void {
+    Frame.borrow(handle).walkers = try Flow.Walker.open();
+}
+
+pub fn solveFlowLayer(handle: *anyopaque, first: u64, end: u64) Error!void {
+    const frame = Frame.borrow(handle);
+    const input = &frame.request;
+
+    var layer: Flow.Layer = .{
+        .flow = frame.result,
+        .table = &input.program.functions,
+        .slots = input.slots,
+        .functions = frame.plan.order[@intCast(first)..@intCast(end)],
+        .walkers = frame.walkers,
+        .remembered = frame.remembered,
+    };
+
+    try layer.spread();
+}
+
+pub fn keepFlowMemo(handle: *anyopaque, row: u64) void {
+    const remembered = Frame.borrow(handle).remembered.?;
+
+    remembered.memo.keepFlowed(remembered.keys[@intCast(row)]);
+}
+
+pub fn publishFlowMemo(handle: *anyopaque, row: u64) Error!void {
+    const frame = Frame.borrow(handle);
+    const kept = frame.remembered.?;
+    const flow = &frame.result;
+    const index: usize = @intCast(row);
+
+    try kept.memo.putFlowed(kept.keys[index], flow.held[index], flow.text_held[index], flow.written[index]);
+}
+
+pub fn solveRecursiveFlow(handle: *anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const input = &frame.request;
+
+    try @import("fixpoint.zig").settle(frame.result, input.temporary, input.workspace, &input.program.functions, input.slots);
 }

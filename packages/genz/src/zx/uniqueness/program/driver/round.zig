@@ -5,10 +5,9 @@ const Context = @import("../host.zig").Context;
 const Round = @import("../../work/round.zig");
 const PlanWriter = @import("../visit/plan_writer.zig");
 const visits = @import("../visits.zig");
+const Api = @import("../driver.zig").Api;
 const Error = std.mem.Allocator.Error;
 const Self = @This();
-pub const Kind = enum { Settle, Demand, Plan };
-pub const Outcome = enum { Stable, Grew, Exhausted };
 
 arena: std.heap.ArenaAllocator,
 started: bool = false,
@@ -16,8 +15,8 @@ plans: PlanWriter = undefined,
 columns: Round.Frame = undefined,
 feedback: ?Round.Feedback = null,
 plan: Function.Plan = undefined,
-outcome: Outcome = .Stable,
-pub fn open(self: *Self, ctx: *Context, kind: Kind, exhausted: bool) Error!void {
+outcome: Api.RoundOutcome = .Stable,
+pub fn open(self: *Self, ctx: *Context, kind: Api.RoundKind, exhausted: bool) Error!void {
     const rounds = &ctx.rounds.?;
 
     switch (kind) {
@@ -47,7 +46,7 @@ pub fn close(self: *Self, ctx: *Context) void {
     self.arena.deinit();
 }
 
-pub fn claim(self: *Self, ctx: *Context, kind: Kind) Error!?u64 {
+pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!?u64 {
     const rounds = &ctx.rounds.?;
     const following = ctx.replay.trace != null;
 
@@ -64,7 +63,7 @@ pub fn claim(self: *Self, ctx: *Context, kind: Kind) Error!?u64 {
     return null;
 }
 
-pub fn visit(self: *Self, ctx: *Context, kind: Kind, body: usize) Error!void {
+pub fn visit(self: *Self, ctx: *Context, kind: Api.RoundKind, body: usize) Error!void {
     self.feedback = switch (kind) {
         .Settle => try visits.settle(ctx, &self.arena, body),
         .Demand => try visits.demand(ctx, &self.arena, body),
@@ -76,7 +75,7 @@ pub fn visit(self: *Self, ctx: *Context, kind: Kind, body: usize) Error!void {
     };
 }
 
-fn memoKind(comptime kind: Kind) Memo.Kind {
+fn memoKind(comptime kind: Api.RoundKind) Memo.Kind {
     return switch (kind) {
         .Settle => .settled,
         .Demand => .demanded,

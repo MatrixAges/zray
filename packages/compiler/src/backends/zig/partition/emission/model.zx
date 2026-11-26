@@ -1,0 +1,5 @@
+import type { BootstrapPartition, BootstrapPartitionPlan } from "output_host"
+
+export type Input = BootstrapPartition
+
+export type Plan = BootstrapPartitionPlan

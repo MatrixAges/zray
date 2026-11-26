@@ -1,0 +1,11 @@
+import host from "output_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.partitioned) {
+        host.placeBootstrapPartitions(in.target)
+    }
+}

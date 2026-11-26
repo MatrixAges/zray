@@ -1,0 +1,8 @@
+export {
+    appendFragmentLayoutExpressions,
+    appendFragmentBody,
+    appendFragmentStorage,
+    recordIterationTransfer,
+    finishGeneratedAst
+} from "lowering_host"
+export { requireAllocation } from "memory"

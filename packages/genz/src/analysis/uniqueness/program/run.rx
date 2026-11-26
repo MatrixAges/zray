@@ -1,0 +1,34 @@
+<Module>
+    <Type from="driver/model" as="Driver" />
+
+    <Args in={Driver.Input} out={void} />
+
+    <Call module="driver/prepare" in={$in} />
+
+    <Call fn="../replay/shortcut/attempt" in={$in.frame} />
+
+    <If on={!$ctx.attempt}>
+        <Call fn="driver/index.prepareOwnershipWorkers" in={$in.frame} />
+        <Call fn="driver/index.prepareOwnershipQueue" in={$in.frame} />
+        <Call fn="driver/index.bindOwnershipMemoRows" in={$in.frame} />
+        <Call fn="driver/converge" in={$in.frame} />
+
+        <Call
+            fn="driver/round"
+            in={{
+                frame: $in.frame,
+                kind: Driver.Kind.Plan,
+                exhausted: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="driver/finish"
+        in={{
+            frame: $in.frame,
+            recording: $in.persistent && $in.recording,
+            reused: $ctx.attempt
+        }}
+    />
+</Module>

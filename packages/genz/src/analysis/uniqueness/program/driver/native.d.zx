@@ -1,0 +1,156 @@
+export type Execution = mutable_opaque
+
+export type IdentityWorker = mutable_opaque
+
+export type FlowExecution = mutable_opaque
+
+export type FlowWorker = opaque
+
+export type FlowFixpoint = mutable_opaque
+
+export enum IdentityRow {
+    Zero,
+    Content,
+    Known,
+    Body
+}
+
+export enum FlowPlan {
+    Recursive,
+    Empty,
+    Layered
+}
+
+export enum RoundKind {
+    Settle,
+    Demand,
+    Plan
+}
+
+export enum RoundOutcome {
+    Stable,
+    Grew,
+    Exhausted
+}
+
+export enum ReplayPhase {
+    Start,
+    Settled,
+    Demanded,
+    Planned,
+    Done,
+    Reject
+}
+
+export declare function prepareOwnershipStorage(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipIdentities(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipReplay(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipBodies(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipWorkers(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipQueue(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function bindOwnershipMemoRows(in: Execution): void
+
+export declare function releaseOwnership(in: Execution): void
+
+export declare function commitOwnership(in: Execution): void throws { OutOfMemory }
+
+export declare function beginOwnershipRound(
+    in: Execution,
+    kind: RoundKind,
+    exhausted: bool
+): void throws { OutOfMemory }
+
+export declare function claimOwnershipBody(
+    in: Execution,
+    kind: RoundKind
+): u64? throws { OutOfMemory }
+
+export declare function visitOwnershipBody(
+    in: Execution,
+    kind: RoundKind,
+    body: u64
+): void throws { OutOfMemory }
+
+export declare function finishOwnershipRound(in: Execution, publish: bool): void
+
+export declare function ownershipRoundOutcome(in: Execution): RoundOutcome
+
+export declare function beginOwnershipReplay(in: Execution): bool
+
+export declare function scanOwnershipReplay(
+    in: Execution,
+    phase: ReplayPhase,
+    recovered: u32?
+): ReplayPhase throws { OutOfMemory }
+
+export declare function recoverOwnershipVisit(
+    in: Execution,
+    phase: ReplayPhase
+): u32 throws { OutOfMemory }
+
+export declare function publishOwnershipReplay(in: Execution): void throws { OutOfMemory }
+
+export declare function finishOwnershipReplay(in: Execution): void
+
+export declare function claimOwnershipIdentity(worker: IdentityWorker): u64?
+
+export declare function writeOwnershipIdentity(
+    worker: IdentityWorker,
+    row: u64,
+    action: IdentityRow
+): void
+
+export declare function initializeFlow(flow: FlowExecution): void throws { OutOfMemory }
+
+export declare function planFlow(flow: FlowExecution): FlowPlan throws { OutOfMemory }
+
+export declare function reserveFlowMemo(flow: FlowExecution): void throws { OutOfMemory }
+
+export declare function flowLayerOrder(flow: FlowExecution): u32[]
+
+export declare function flowLayerEnds(flow: FlowExecution): u64[]
+
+export declare function flowMemoHits(flow: FlowExecution): bool[]
+
+export declare function openFlowWorkers(flow: FlowExecution): void throws { OutOfMemory }
+
+export declare function solveFlowLayer(
+    flow: FlowExecution,
+    first: u64,
+    end: u64
+): void throws { OutOfMemory }
+
+export declare function keepFlowMemo(flow: FlowExecution, row: u64): void
+
+export declare function publishFlowMemo(flow: FlowExecution, row: u64): void
+    throws { OutOfMemory }
+
+export declare function solveRecursiveFlow(flow: FlowExecution): void throws { OutOfMemory }
+
+export declare function claimFlowBody(worker: FlowWorker): u32?
+
+export declare function adoptFlowMemo(worker: FlowWorker, index: u32): bool
+
+export declare function walkFlowBody(worker: FlowWorker, index: u32): void
+    throws { OutOfMemory }
+
+export declare function retainFlowFacts(flow: FlowFixpoint, index: u32): void
+    throws { OutOfMemory }
+
+export declare function visitRecursiveFlow(
+    flow: FlowFixpoint,
+    index: u32,
+    retained: bool
+): bool throws { OutOfMemory }

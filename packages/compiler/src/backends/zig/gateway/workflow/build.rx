@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Gateway" />
+
+    <Args in={Gateway.Input} out={void} />
+
+    <If on={$in.has_library}>
+        <Call fn="index.bindGatewayState" in={$in.frame} />
+    </If>
+
+    <Call fn="reserve" in={$in} />
+
+    <If on={$in.has_library}>
+        <Call fn="index.appendGatewayModules" in={$in.frame} />
+
+        <Call
+            fn="facades"
+            in={$in.pick([
+                "frame",
+                "public_modules"
+            ])}
+        />
+    </If>
+
+    <Call fn="index.publishGatewayContract" in={$in.frame} />
+    <Call fn="index.publishGatewayState" in={$in.frame} />
+    <Call fn="index.publishGatewayApplication" in={$in.frame} />
+</Module>

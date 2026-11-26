@@ -1,0 +1,63 @@
+import integers from "std:integer"
+import memory from "memory"
+import host from "output_host"
+
+import render from "../../partition/emission/render"
+import { batch_size } from "../../partition/scanning/const"
+import mark from "../assembly/mark"
+
+import type { BootstrapWorkerAllocator } from "output_host"
+import type { Work } from "./model"
+
+export type Input = {
+    jobs: Work,
+    allocator: BootstrapWorkerAllocator,
+    row: u64
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { jobs, row } = in
+    const { scan, render: rendering, hash, write } = jobs
+
+    if (hash != null) {
+        mark({
+            plan: hash,
+            block: row
+        })
+
+        return 0
+    }
+
+    if (rendering != null) {
+        return render({
+            target: rendering.target,
+            row,
+            root: memory.readColumnBool(rendering.roots, row)
+        })
+    }
+
+    if (scan != null) {
+        const first = row * batch_size
+        const remaining = scan.length - first
+        const end = first + (remaining < batch_size ? remaining : batch_size)
+
+        return host.scanPartitionRange(scan.target, in.allocator, first, end)
+    }
+
+    if (write == null) {
+        return 0
+    }
+
+    const { head, functions } = write.sections
+
+    const selected = integers.widen(write.changed[row])
+    const in_head = selected < head.count
+    const source = in_head ? head : functions
+    const index = in_head ? selected : selected - head.count
+    const path = memory.readTextColumn(source.paths, index)
+    const body = memory.readTextColumn(source.bodies, index)
+
+    return host.writeBootstrapFile(write.target, path, body)
+}

@@ -1,0 +1,2 @@
+export { freeOwnedText, reserveColumnRange } from "memory"
+export { writeGenerationCacheRecord } from "output_host"

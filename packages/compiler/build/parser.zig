@@ -2,6 +2,7 @@ const std = @import("std");
 const entries = @import("entries.zig");
 const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
+const ownership_interface = "analysis/uniqueness/program/driver/native.d.zx";
 const lowering_declarations = "analysis/expressions/evaluate/";
 const partition_interface = "build/partition/driver.d.zx";
 
@@ -42,7 +43,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const ast_rows = ast_directory.add("rows.d.zx", internal.join(b, genz_dependency.builder, "src/ast/rows", &.{ "expressions.d.zx", "statements.d.zx", "declarations.d.zx", "operands.d.zx", "value_expressions.d.zx", "write.d.zx", "statement_sequence.d.zx", "write_values.d.zx" }));
     const ast_prefix = b.fmt("{s}/ast/rows/", .{directories[3]});
     const execution_interfaces_dir = b.addWriteFiles();
-    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency.builder, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "resources.d.zx", "collections.d.zx", "statement.d.zx" }));
+    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency.builder, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "module.d.zx", "resources.d.zx", "collections.d.zx", "publication.d.zx", "statement.d.zx" }));
     const lowering_prefix = b.fmt("{s}/{s}", .{ directories[3], lowering_declarations });
     const project_directory = "zx/modules/project/execution";
     const project_prefix = b.fmt("{s}/{s}/", .{ directories[0], project_directory });
@@ -105,10 +106,14 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
         lexical_interface,
+        .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host", .resolve_members = true },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{rx_project_prefix}), .module = "rx_project_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host", .resolve_members = true },
+        .{ .path = b.fmt("{s}/backends/zig/state/publication/host.d.zx", .{directories[0]}), .module = "state_publication_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host", .resolve_members = true },
@@ -183,6 +188,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 inline for (collection_roots) |path| addSubtree(run, tracked[3], path);
             },
             .execution => {
+                run.addFileInput(roots[3].path(b, ownership_interface));
                 run.addFileInput(lowering);
                 run.addFileInput(project_interface);
                 run.addFileInput(rx_project_host);
