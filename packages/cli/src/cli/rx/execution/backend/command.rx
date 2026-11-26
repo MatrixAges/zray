@@ -3,15 +3,7 @@
 
     <Args in={Backend.CommandInvocation} out={bool} />
 
-    <Call fn="index.reserveNativeNames" in={$in.build} />
-
-    <Call
-        fn="modules/names"
-        in={{
-            build: $in.build,
-            count: $ctx.reserveNativeNames
-        }}
-    />
+    <Call fn="modules/names" in={$in.native_headers} />
 
     <Call
         fn="../../../command/scope/paths"
@@ -33,25 +25,31 @@
     />
 
     <Call fn="index.appendBackendEntry" in={$in.build} />
-    <Call fn="modules/generated" in={$in.build} />
+
+    <Call
+        fn="modules/generated"
+        in={{
+            build: $in.build,
+            count: $in.generated_count
+        }}
+    />
 
     <If on={$in.native.count != 0}>
         <Call module="modules/walk" in={$in.native} />
+
+        <If on={!$ctx.walk}>
+            <Return value={false} />
+        </If>
     </If>
 
     <Call
-        fn="index.readU64"
-        in={[
-            $in.native.cursor,
-            0
-        ]}
+        fn="modules/views"
+        in={{
+            build: $in.build,
+            count: $in.abi_count
+        }}
     />
 
-    <If on={$ctx.readU64 != $in.native.count}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="modules/views" in={$in.build} />
     <Call fn="index.appendCanonicalAbi" in={$in.build} />
 
     <If on={$in.node}>

@@ -80,6 +80,9 @@
     - 在 `watch/output.zig` 预先传递不可变 `logical_inputs`/`physical_inputs`，将 `publication/target/overlap.zx` 收口为纯 ZX 并从 `publication/host.d.zx` 净减 **2 个**游标回调；`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全部通过。
 - **已完成进展（Wave 24 · 2026-11-26）**：
     - 在 `cli/compilation/`、`cli/cache.zig` 与 `cli/fpga.zig` 消除 `rx/execution/host.d.zx` **12 个**纯查询/路径判断/游标回调：新增纯 ZX `compilation/is_configuration.zx` 并复用 `../lint/is_rx`/`../lint/is_manifest`，在 `compilation/cache/` 与 `compilation/fpga/` 改传不可变脏标与合约布尔切片并将 `proof_required.zx` 收口为 100% 纯 ZX，`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全通过。
+- **已完成进展（Wave 25 · 2026-11-26）**：
+    - 在 `cli/watch/driver/` 落地 `<Store>`（[state.store.rx](../../packages/cli/src/cli/watch/driver/state.store.rx)）与 `clear_diagnostic.zx`/`report_diagnostic.zx`，将 `Cycle`/`Poll` 改为纯 ZX/RX 值构造，消除 `DoubleBuffer` 与 `writeCycle`/`writePoll`/`clearDiagnostic`；
+    - 在 `cli/rx/execution/backend/` 移除 `U64Buffer` `cursor`、`watch.preloaded`、`modules/names.zx` 宿主依赖与 **8 个**回调，`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全部通过。
 - 收口 `library/workflow/host.d.zx`（42f）、`publication/host.d.zx`（48f）、`native_sources/host.d.zx`（40f）、`lint/host.d.zx`（68f）与 `package/{workspace,graph}/host.d.zx`（69f）；
 - 对接 `pkgs.md` Phase K1 与 `lint.md` Phase L1 的顶层 RX 入口，由 CLI 的 RX 直接 `Call.module` 调用 `pkgs` 与 `lint`，消灭两包之间的 Zig 中转胶水；
 - 收口 `cli/watch/{driver,observation}` 仅保留 OS 目录事件/子进程重启原语。

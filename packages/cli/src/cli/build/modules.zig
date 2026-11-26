@@ -9,10 +9,6 @@ const workspace = source.workspace_artifact_constants.@"zx.constants";
 const Error = @import("../sources/effects.zig").Error;
 const NativeModule = @import("cli_abi").layouts.@"zig:rx_execution_host".NativeBackendModule;
 
-pub fn generatedModuleCount(handle: *const anyopaque) u64 {
-    return State.get(handle).bundle.modules.len;
-}
-
 pub fn appendGeneratedModule(handle: *const anyopaque, index: u64) Error!void {
     const self = State.get(handle);
     const row: usize = @intCast(index);
@@ -138,10 +134,6 @@ pub fn appendNativeModule(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
     self.command.module(self.native.spec) catch |err| return self.failure.save(err);
-}
-
-pub fn abiViewCount(handle: *const anyopaque) u64 {
-    return State.get(handle).abi.views.len;
 }
 
 pub fn appendAbiView(handle: *const anyopaque, index: u64) Error!void {

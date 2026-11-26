@@ -1,20 +1,22 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Watch} out={void} />
+    <Args in={Driver.WatchInput} out={void} />
 
-    <Call fn="index.announce" in={$in} />
+    <Store from="state" as="watch_state" />
 
-    <Call
-        fn="index.writeCycle"
-        in={[
-            $in,
-            true,
-            Driver.Status.Initial
-        ]}
-    />
+    <Call fn="index.announce" in={$in.watch} />
 
     <Loop on={$in.running}>
-        <Call module="cycle" />
+        <Call
+            module="cycle"
+            in={{
+                watch: $in.watch,
+                cache: $in.cache,
+                run_application: $in.run_application,
+                running: true,
+                status: Driver.Status.Initial
+            }}
+        />
     </Loop>
 </Module>

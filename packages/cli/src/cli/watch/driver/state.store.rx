@@ -1,0 +1,6 @@
+<Store name="watch_driver" version={1}>
+    <Object name="diagnostics">
+        <Field name="has_last" type={bool} value={false} />
+        <Field name="last" type={string} value={""} />
+    </Object>
+</Store>

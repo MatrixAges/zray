@@ -24,35 +24,6 @@ export type ScanResult = {
     error_code?: u16
 }
 
-export type Cycle = {
-    watch: Watch,
-    cache: bool,
-    run_application: bool,
-    running: bool,
-    status: Status
-}
-
-export type Poll = {
-    watch: Watch,
-    snapshot: SnapshotSlot,
-    retry_backend: bool,
-    running: bool,
-    scans: u64,
-    changed: bool,
-    scan_error?: u16
-}
-
-export declare function writeCycle(watch: Watch, running: bool, status: Status): Cycle
-export declare function writePoll(
-    watch: Watch,
-    snapshot: SnapshotSlot,
-    retry_backend: bool,
-    running: bool,
-    scans: u64,
-    changed: bool,
-    scan_error: u16?
-): Poll
-
 export declare function announce(watch: Watch): void throws { WatchFailure }
 export declare function interrupted(watch: Watch): bool
 export declare function delay(watch: Watch, interval: Delay): void throws { WatchFailure }
@@ -66,14 +37,18 @@ export declare function scanInputs(watch: Watch, slot: SnapshotSlot): ScanResult
     WatchFailure
 }
 export declare function reportScanError(watch: Watch, code: u16): void throws { WatchFailure }
-export declare function clearDiagnostic(watch: Watch): void
 export declare function begin(watch: Watch, cache: bool, previous: Snapshot?): void throws {
     WatchFailure
 }
 export declare function compileTurn(watch: Watch): Status throws { WatchFailure }
 export declare function refreshParseCache(watch: Watch): void
 export declare function adoptBackend(watch: Watch): void
-export declare function reportDiagnostic(watch: Watch, normalize: bool): void throws { WatchFailure }
+export declare function reportDiagnostic(
+    watch: Watch,
+    normalize: bool,
+    has_last: bool,
+    last: string
+): string? throws { WatchFailure }
 export declare function adoptPublishedSnapshot(watch: Watch): bool
 export declare function captureSnapshot(watch: Watch, slot: SnapshotSlot): void throws { WatchFailure }
 export declare function releaseSnapshot(watch: Watch, slot: SnapshotSlot): void

@@ -51,7 +51,8 @@
         module="command"
         in={{
             ...$in,
-            wasm: $ctx.target.wasm
+            wasm: $ctx.target.wasm,
+            abi_count: $ctx.prepareBackendAbi
         }}
     />
 

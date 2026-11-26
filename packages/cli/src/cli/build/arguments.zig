@@ -6,24 +6,6 @@ const Command = @import("command.zig");
 const artifacts = @import("../artifacts.zig");
 const Error = @import("../sources/effects.zig").Error;
 
-pub fn reserveNativeNames(handle: *const anyopaque) Error!u64 {
-    const self = State.get(handle);
-    const count = self.project.config.native_modules.len;
-    self.native_names = self.context.allocator.alloc([]const u8, count) catch |err| return self.failure.save(err);
-
-    return count;
-}
-
-pub fn recordNativeName(handle: *const anyopaque, index: u64) bool {
-    const self = State.get(handle);
-    const row: usize = @intCast(index);
-    const module = &self.project.config.native_modules[row];
-
-    self.native_names[row] = module.name;
-
-    return module.header != null;
-}
-
 pub fn appendBackendPrefix(handle: *const anyopaque, libc: bool, library_paths: []const []const u8, wasm: bool) Error!void {
     const self = State.get(handle);
     const context = self.context;

@@ -1,22 +1,35 @@
 import host from "rx_execution_host"
 
-import type { NativeBuild as Input } from "./index"
+import type { PreloadInput as Input } from "./model"
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const paths = host.previousBackendPaths(in)
+    const empty_paths: string[] = []
 
-    const preloaded = loop(0, {
-        while: index => index < paths.length,
-        next: index => {
-            const path = paths[index]
+    return loop({
+        index: 0,
+        preloaded: empty_paths
+    }, {
+        while: row => row.index < in.previous.length,
+        next: row => {
+            const path = in.previous[row.index]
 
-            if (!host.hasBackendObservation(in, path)) {
-                host.preloadBackendPath(in, path)
+            const seen = loop(0, {
+                while: i => i < in.observed.length && in.observed[i] != path,
+                next: i => {
+                    i += 1
+                },
+                return: i => i < in.observed.length
+            })
+
+            if (!seen) {
+                host.preloadBackendPath(in.build, path)
+                row.preloaded = row.preloaded.push(path)[0]
             }
 
-            index += 1
-        }
+            row.index += 1
+        },
+        return: row => row.preloaded
     })
 }

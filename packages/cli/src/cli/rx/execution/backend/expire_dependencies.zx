@@ -1,16 +1,14 @@
 import host from "rx_execution_host"
 
-import type { NativeBuild as Input } from "./index"
+import type { ExpireInput as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const paths = host.preloadedBackendPaths(in)
-
     const expired = loop(0, {
-        while: index => index < paths.length,
+        while: index => index < in.paths.length,
         next: index => {
-            host.expireBackendPath(in, paths[index])
+            host.expireBackendPath(in.build, in.paths[index])
 
             index += 1
         }

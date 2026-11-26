@@ -7,12 +7,11 @@ import type { Poll as Input } from "./model"
 export type Output = Input
 
 export default function (in: Input): Output {
-    const state = in
-    const outcome = host.scanInputs(state.watch, state.snapshot)
+    const outcome = host.scanInputs(in.watch, in.snapshot)
 
-    const scans = state.scans + 1
+    const scans = in.scans + 1
     const changed = outcome.changed
-    const retry = !changed && outcome.error_code == null && state.retry_backend
+    const retry = !changed && outcome.error_code == null && in.retry_backend
 
     const running = match {
         changed => false,
@@ -20,13 +19,13 @@ export default function (in: Input): Output {
         _ => true
     }
 
-    return host.writePoll(
-        state.watch,
-        state.snapshot,
-        state.retry_backend,
+    return {
+        watch: in.watch,
+        snapshot: in.snapshot,
+        retry_backend: in.retry_backend,
         running,
         scans,
         changed,
-        outcome.error_code
-    )
+        scan_error: outcome.error_code
+    }
 }

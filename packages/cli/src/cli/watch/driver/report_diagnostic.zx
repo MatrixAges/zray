@@ -1,0 +1,23 @@
+import host from "watch_host"
+
+import type { ReportDiagnosticInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    const next = host.reportDiagnostic(
+        in.watch,
+        in.normalize,
+        in.diagnostics.has_last,
+        in.diagnostics.last
+    )
+
+    if (next != null) {
+        store.watch_state.diagnostics = {
+            has_last: true,
+            last: next
+        }
+    }
+}

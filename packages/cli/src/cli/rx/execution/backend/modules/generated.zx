@@ -1,16 +1,14 @@
-import { appendGeneratedModule, generatedModuleCount } from "rx_execution_host"
+import { appendGeneratedModule } from "rx_execution_host"
 
-import type { NativeBuild as Input } from "rx_execution_host"
+import type { RangeInput as Input } from "../model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = generatedModuleCount(in)
-
     const written = loop(0, {
-        while: row => row < count,
+        while: row => row < in.count,
         next: row => {
-            appendGeneratedModule(in, row)
+            appendGeneratedModule(in.build, row)
 
             row += 1
         }

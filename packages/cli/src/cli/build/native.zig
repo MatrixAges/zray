@@ -24,9 +24,40 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
 
     const entry = @import("cli_source").build_native_application;
     const reference = &state;
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
+
+    defer arena.deinit();
+
+    const scratch = arena.allocator();
+    const native_modules = project.config.native_modules;
+    const native_names = try context.allocator.alloc([]const u8, native_modules.len);
+    const native_headers = try scratch.alloc(bool, native_modules.len);
+
+    for (native_modules, 0..) |module, index| {
+        native_names[index] = module.name;
+        native_headers[index] = module.header != null;
+    }
+
+    state.native_names = native_names;
+
+    var previous_backend: []const []const u8 = &.{};
+    var observed_paths: []const []const u8 = &.{};
+
+    if (context.watch) |watch| {
+        previous_backend = watch.previous_backend;
+
+        const observed_list = try scratch.alloc([]const u8, watch.inputs.entries.count());
+        var entries = watch.inputs.entries.iterator();
+        var index: usize = 0;
+
+        while (entries.next()) |item| : (index += 1) {
+            observed_list[index] = item.key_ptr.*;
+        }
+
+        observed_paths = observed_list;
+    }
+
     var paths: @import("../project/native_paths.zig").Paths = undefined;
-    var position = [1]u64{0};
-    var cursor: []u64 = &position;
 
     paths.init(project, &context.allocator);
 
@@ -34,11 +65,14 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .build = @ptrCast(&reference),
         .node = context.options.host == .node,
         .observed = context.watch != null,
+        .previous_backend = previous_backend,
+        .observed_paths = observed_paths,
+        .native_headers = native_headers,
+        .generated_count = bundle.modules.len,
         .native = &.{
             .build = @ptrCast(&reference),
             .observed = context.watch != null,
-            .count = project.config.native_modules.len,
-            .cursor = @ptrCast(&cursor),
+            .count = native_modules.len,
             .setup = &paths.setup,
             .abi_views = &state.abi_views.view,
         },
@@ -182,18 +216,16 @@ pub fn createObservedBindings(handle: *const anyopaque) Error!void {
     observed.bindings = @import("../node/bindings.zig").create(observed.response.arena.allocator(), self.bundle, self.context.options) catch |err| return self.failure.save(err);
 }
 
-pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!bool {
+pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!?bool {
     const self = State.get(handle);
     const response = &self.observed.?.response;
     const writer = self.context.stderr;
 
     response.report(writer) catch |err| return self.failure.save(err);
 
-    return response.succeeded;
-}
+    if (!response.succeeded) return null;
 
-pub fn observedInputsComplete(handle: *const anyopaque) bool {
-    return State.get(handle).observed.?.response.inputs_complete;
+    return response.inputs_complete;
 }
 
 pub fn rejectIncompleteBackendInputs(handle: *const anyopaque) Error!void {

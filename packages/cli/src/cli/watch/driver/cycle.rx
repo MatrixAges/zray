@@ -3,20 +3,18 @@
 
     <Args in={Driver.Cycle} out={Driver.Cycle} />
 
+    <Store from="state" as="watch_state" />
+
     <If on={$in.run_application}>
         <Call fn="index.interrupted" in={$in.watch} />
 
         <If on={$ctx.interrupted}>
-            <Call
-                fn="index.writeCycle"
-                in={[
-                    $in.watch,
-                    false,
-                    $in.status
-                ]}
+            <Return
+                value={{
+                    ...$in,
+                    running: false
+                }}
             />
-
-            <Return value={$ctx.writeCycle} />
         </If>
     </If>
 
@@ -24,7 +22,11 @@
         <Call module="wait" in={$in} />
 
         <If on={$ctx.wait}>
-            <Call fn="index.clearDiagnostic" in={$in.watch} />
+            <Call
+                fn="clear_diagnostic"
+                in={store.watch_state.diagnostics}
+                setter={[store.watch_state.diagnostics]}
+            />
         </If>
     </If>
 
@@ -44,11 +46,13 @@
     <Call fn="index.adoptBackend" in={$in.watch} />
 
     <Call
-        fn="index.reportDiagnostic"
-        in={[
-            $in.watch,
-            $ctx.compileTurn == Driver.Status.BackendFailed
-        ]}
+        fn="report_diagnostic"
+        in={{
+            watch: $in.watch,
+            normalize: $ctx.compileTurn == Driver.Status.BackendFailed,
+            diagnostics: store.watch_state.diagnostics
+        }}
+        setter={[store.watch_state.diagnostics]}
     />
 
     <Call
@@ -66,16 +70,12 @@
             <Call fn="index.interrupted" in={$in.watch} />
 
             <If on={$ctx.interrupted}>
-                <Call
-                    fn="index.writeCycle"
-                    in={[
-                        $in.watch,
-                        false,
-                        $in.status
-                    ]}
+                <Return
+                    value={{
+                        ...$in,
+                        running: false
+                    }}
                 />
-
-                <Return value={$ctx.writeCycle} />
             </If>
 
             <Call fn="index.flush" in={$in.watch} />
@@ -86,14 +86,11 @@
     <Call fn="index.flush" in={$in.watch} />
     <Call fn="index.releaseTurn" in={$in.watch} />
 
-    <Call
-        fn="index.writeCycle"
-        in={[
-            $in.watch,
-            true,
-            $ctx.compileTurn
-        ]}
+    <Return
+        value={{
+            ...$in,
+            running: true,
+            status: $ctx.compileTurn
+        }}
     />
-
-    <Return value={$ctx.writeCycle} />
 </Module>

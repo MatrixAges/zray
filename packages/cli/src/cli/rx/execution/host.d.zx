@@ -108,12 +108,9 @@ export declare function retainStagedBindings(build: NativeBuild): void throws {
 export declare function publishStagedBackend(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function previousBackendPaths(build: NativeBuild): string[]
-export declare function hasBackendObservation(build: NativeBuild, path: string): bool
 export declare function preloadBackendPath(build: NativeBuild, path: string): void throws {
     SourceLoadFailure
 }
-export declare function preloadedBackendPaths(build: NativeBuild): string[]
 export declare function expireBackendPath(build: NativeBuild, path: string): void
 export declare function spawnObservedBackend(build: NativeBuild): void throws {
     SourceLoadFailure
@@ -126,10 +123,9 @@ export declare function createObservedBindings(build: NativeBuild): void throws 
     SourceLoadFailure
 }
 export declare function publishBackendPaths(build: NativeBuild): void
-export declare function reportObservedNativeBuild(build: NativeBuild): bool throws {
+export declare function reportObservedNativeBuild(build: NativeBuild): bool? throws {
     SourceLoadFailure
 }
-export declare function observedInputsComplete(build: NativeBuild): bool
 export declare function rejectIncompleteBackendInputs(build: NativeBuild): void throws {
     SourceLoadFailure
 }
@@ -146,7 +142,7 @@ export declare function generateNodeResources(build: NativeBuild): void throws {
 export declare function encodeBackendConfiguration(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function prepareBackendAbi(build: NativeBuild): void throws {
+export declare function prepareBackendAbi(build: NativeBuild): u64 throws {
     SourceLoadFailure
 }
 export declare function readNativeTarget(build: NativeBuild): BackendTarget throws {
@@ -169,10 +165,6 @@ export declare function prepareStagedParents(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 
-export declare function reserveNativeNames(build: NativeBuild): u64 throws {
-    SourceLoadFailure
-}
-export declare function recordNativeName(build: NativeBuild, index: u64): bool
 export declare function appendBackendPrefix(
     build: NativeBuild,
     libc: bool,
@@ -188,7 +180,6 @@ export declare function writeBackendCommand(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 
-export declare function generatedModuleCount(build: NativeBuild): u64
 export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
     SourceLoadFailure
 }
@@ -219,7 +210,6 @@ export declare function writeNativeAdapter(build: NativeBuild): void throws {
 export declare function appendNativeModule(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function abiViewCount(build: NativeBuild): u64
 export declare function appendAbiView(build: NativeBuild, index: u64): void throws {
     SourceLoadFailure
 }

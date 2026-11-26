@@ -1,21 +1,13 @@
 <Module>
     <Type from="../model" as="Backend" />
 
-    <Args in={Backend.NativeWalk} out={bool} />
-
-    <Call
-        fn="../index.readU64"
-        in={[
-            $in.cursor,
-            0
-        ]}
-    />
+    <Args in={Backend.AppendInput} out={bool} />
 
     <Call
         fn="../index.nativeBackendModule"
         in={[
             $in.build,
-            $ctx.readU64
+            $in.index
         ]}
     />
 
@@ -65,7 +57,7 @@
         fn="../index.bindBackendModule"
         in={[
             $in.build,
-            $ctx.readU64,
+            $in.index,
             $ctx.includes,
             $ctx.abi,
             $ctx.source_path

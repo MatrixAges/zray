@@ -1,5 +1,4 @@
 export {
-    writeCycle,
     announce,
     interrupted,
     delay,
@@ -10,12 +9,10 @@ export {
     startApplication,
     reportApplicationExit,
     reportScanError,
-    clearDiagnostic,
     begin,
     compileTurn,
     refreshParseCache,
     adoptBackend,
-    reportDiagnostic,
     adoptPublishedSnapshot,
     captureSnapshot,
     releaseSnapshot,

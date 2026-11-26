@@ -1,25 +1,22 @@
 <Module>
     <Type from="../model" as="Backend" />
 
-    <Args in={Backend.NativeWalk?} out={Backend.NativeWalk?} />
+    <Args in={Backend.NativeStep} out={Backend.NativeStep} />
 
-    <If on={$in != null}>
-        <Call module="append" in={$in} />
+    <Call
+        module="append"
+        in={$in.omit([
+            "failed",
+            "running"
+        ])}
+    />
 
-        <If on={$ctx.append}>
-            <Call
-                fn="../../../../command/scope/advance"
-                in={$in.pick([
-                    "cursor",
-                    "count"
-                ])}
-            />
-
-            <If on={$ctx.advance}>
-                <Return value={$in} />
-            </If>
-        </If>
-    </If>
-
-    <Return value={null} />
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            failed: !$ctx.append,
+            running: $ctx.append && $in.index + 1 < $in.count
+        }}
+    />
 </Module>

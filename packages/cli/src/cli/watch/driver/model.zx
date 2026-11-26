@@ -1,9 +1,41 @@
-import { Status } from "watch_host"
+import { SnapshotSlot, Status } from "watch_host"
 
-import type { Watch } from "watch_host"
+import type { ScanResult, Snapshot, Watch } from "watch_host"
 
 export { Delay, SnapshotSlot, Status } from "watch_host"
 
-export type { Cycle, Poll, ScanResult, Snapshot, Watch } from "watch_host"
+export type { ScanResult, Snapshot, Watch } from "watch_host"
+
+export type WatchInput = {
+    watch: Watch,
+    cache: bool,
+    run_application: bool
+}
+
+export type Cycle = WatchInput & {
+    running: bool,
+    status: Status
+}
+
+export type Poll = {
+    watch: Watch,
+    snapshot: SnapshotSlot,
+    retry_backend: bool,
+    running: bool,
+    scans: u64,
+    changed: bool,
+    scan_error?: u16
+}
+
+export type DiagnosticStore = {
+    has_last: bool,
+    last: string
+}
+
+export type ReportDiagnosticInput = {
+    watch: Watch,
+    normalize: bool,
+    diagnostics: DiagnosticStore
+}
 
 export type Wait = [Watch, Status]

@@ -49,12 +49,14 @@ pub fn encodeBackendConfiguration(handle: *const anyopaque) Error!void {
     }, .{}) catch |err| return self.failure.save(err);
 }
 
-pub fn prepareBackendAbi(handle: *const anyopaque) Error!void {
+pub fn prepareBackendAbi(handle: *const anyopaque) Error!u64 {
     const self = State.get(handle);
 
     self.abi = @import("../abi.zig").create(self.context.allocator, self.bundle, self.project) catch |err| return self.failure.save(err);
 
     self.abi_views.init(self.abi.views);
+
+    return self.abi.views.len;
 }
 
 pub fn readNativeTarget(handle: *const anyopaque) Error!*const BackendTarget {

@@ -1,0 +1,14 @@
+import type { DiagnosticStore as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    if (in.has_last) {
+        store.watch_state.diagnostics = {
+            has_last: false,
+            last: ""
+        }
+    }
+}

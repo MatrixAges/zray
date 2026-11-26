@@ -1,24 +1,20 @@
-import host from "watch_host"
-
 import { SnapshotSlot, Status } from "./model"
 
 import type { Cycle as Input, Poll as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { watch, status } = in
-
-    const snapshot = match status {
+    const snapshot = match in.status {
         Status.Success => SnapshotSlot.Success,
         _ => SnapshotSlot.Failure
     }
 
-    return host.writePoll(
-        watch,
+    return {
+        watch: in.watch,
         snapshot,
-        status == Status.BackendFailed,
-        true,
-        0,
-        false,
-        null
-    )
+        retry_backend: in.status == Status.BackendFailed,
+        running: true,
+        scans: 0,
+        changed: false,
+        scan_error: null
+    }
 }
