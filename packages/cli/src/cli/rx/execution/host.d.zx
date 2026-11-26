@@ -231,23 +231,18 @@ export declare function appendNapiModule(build: NativeBuild): void throws {
 }
 
 export declare function runCompilationLint(check: Compilation): Status throws { SourceLoadFailure }
-export declare function compilationIsConfiguration(check: Compilation): bool
 export declare function runCompilationConfiguration(check: Compilation): Status throws { SourceLoadFailure }
 export declare function openCompilationInputs(check: Compilation): void throws { SourceLoadFailure }
-export declare function resolveCompilationEntry(check: Compilation): void throws { SourceLoadFailure }
-export declare function compilationIsRx(check: Compilation): bool
+export declare function resolveCompilationEntry(check: Compilation): u8[] throws { SourceLoadFailure }
 export declare function runCompilationRx(check: Compilation): Status throws { SourceLoadFailure }
 export declare function loadCompilationProject(check: Compilation): bool throws { SourceLoadFailure }
-export declare function compilationIsManifest(check: Compilation): bool
 export declare function runCompilationLibraryProof(check: Compilation): Status throws { SourceLoadFailure }
 export declare function runCompilationLibraryBuild(check: Compilation): Status throws { SourceLoadFailure }
 export declare function readCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
 export declare function openCompilationCaches(check: Compilation): void throws { SourceLoadFailure }
-export declare function readCompilationDependencies(check: Compilation): bool throws { SourceLoadFailure }
-export declare function compilationHasRxImport(check: Compilation): bool
-export declare function adoptCompilationInputs(check: Compilation): void
+export declare function readCompilationDependencies(check: Compilation): bool? throws { SourceLoadFailure }
+export declare function adoptCompilationInputs(check: Compilation): bool
 
-export declare function compilationHasCompiledLibraries(check: Compilation): bool
 export declare function reportCompilationCacheBypass(check: Compilation): void throws { SourceLoadFailure }
 export declare function loadCompilationCache(check: Compilation): void throws { SourceLoadFailure }
 export declare function saveCompilationCache(check: Compilation): void throws { SourceLoadFailure }
@@ -271,16 +266,13 @@ export declare function checkCompilationText(check: Compilation): bool throws { 
 export declare function writeCompilationText(check: Compilation): void throws { SourceLoadFailure }
 export declare function printCompilationText(check: Compilation): void throws { SourceLoadFailure }
 
-export declare function diskSemanticSourceCount(check: SemanticDiskRead): u64
 export declare function loadDiskSemanticSource(check: SemanticDiskRead, index: u64): void throws { SourceLoadFailure }
-export declare function selectDiskSemanticSources(check: SemanticDiskWrite): u64
-export declare function selectDiskSemanticNatives(check: SemanticDiskWrite): u64
-export declare function diskSemanticDirty(check: SemanticDiskWrite, index: u64): bool
-export declare function saveDiskSemanticEntry(check: SemanticDiskWrite, index: u64): void throws { SourceLoadFailure }
+export declare function saveDiskSemanticEntry(
+    check: SemanticDiskWrite,
+    is_native: bool,
+    index: u64
+): void throws { SourceLoadFailure }
 
-export declare function fpgaLocalProofRequired(check: FpgaProgram): bool
-export declare function fpgaFunctionCount(check: FpgaProgram): u64
-export declare function fpgaFunctionHasContract(check: FpgaProgram, index: u64): bool
 export declare function verifyFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
 export declare function lowerFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
 export declare function renderFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }

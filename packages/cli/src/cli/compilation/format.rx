@@ -4,9 +4,15 @@
 
     <Args in={Compile.Request} out={IO.Status} />
 
-    <Call fn="index.compilationIsConfiguration" in={$in.compilation} />
+    <Call
+        fn="is_configuration"
+        in={{
+            path: $in.input,
+            explicit: $in.explicit_config
+        }}
+    />
 
-    <If on={$ctx.compilationIsConfiguration}>
+    <If on={$ctx.is_configuration}>
         <Call fn="index.runCompilationConfiguration" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationConfiguration} />

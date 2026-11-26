@@ -21,9 +21,10 @@
     </If>
 
     <Call fn="index.resolveCompilationEntry" in={$in.compilation} />
-    <Call fn="index.compilationIsRx" in={$in.compilation} />
 
-    <If on={$ctx.compilationIsRx && !$in.settings.library}>
+    <Call fn="../lint/is_rx" />
+
+    <If on={$ctx.is_rx && !$in.settings.library}>
         <Call fn="index.runCompilationRx" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationRx} />
@@ -35,9 +36,9 @@
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call fn="index.compilationIsManifest" in={$in.compilation} />
+    <Call fn="../lint/is_manifest" in={$ctx.resolveCompilationEntry} />
 
-    <If on={$in.settings.verifying && $ctx.compilationIsManifest}>
+    <If on={$in.settings.verifying && $ctx.is_manifest}>
         <Call fn="index.runCompilationLibraryProof" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationLibraryProof} />
@@ -49,7 +50,7 @@
         <Return value={$ctx.runCompilationLibraryBuild} />
     </If>
 
-    <If on={$ctx.compilationIsRx}>
+    <If on={$ctx.is_rx}>
         <Call fn="index.runCompilationRx" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationRx} />

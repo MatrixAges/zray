@@ -20,7 +20,6 @@ pub const State = struct {
     storage: ?Disk = null,
     libraries: ?Libraries = null,
     swapped: bool = false,
-    has_rx_import: bool = false,
     sources: []const compiler.project.Source = &.{},
     analyzed: ?compiler.AnalysisResult = null,
     generation: ?compiler.zig.GenerationCache = null,
@@ -76,6 +75,8 @@ pub fn run(context: Compile.Context) !Compile.Status {
         .compilation = @ptrCast(&reference),
         .settings = &settings,
         .watching = context.watch != null,
+        .input = context.options.input,
+        .explicit_config = context.options.config_kind != null,
     };
 
     defer state.deinit();
@@ -92,12 +93,6 @@ pub fn runCompilationLint(handle: *const anyopaque) Error!native.Status {
     return native.sourceStatus(result);
 }
 
-pub fn compilationIsConfiguration(handle: *const anyopaque) bool {
-    const options = State.get(handle).options();
-
-    return options.config_kind != null or std.mem.endsWith(u8, options.input, ".yaml") or std.mem.endsWith(u8, options.input, ".json");
-}
-
 pub fn runCompilationConfiguration(handle: *const anyopaque) Error!native.Status {
     const self = State.get(handle);
     const result = @import("../configuration/root.zig").run(self.context) catch |err| return self.failure.save(err);
@@ -111,7 +106,7 @@ pub fn openCompilationInputs(handle: *const anyopaque) Error!void {
     self.library_inputs = Inputs.init(self.context.io, self.context.allocator) catch |err| return self.failure.save(err);
 }
 
-pub fn resolveCompilationEntry(handle: *const anyopaque) Error!void {
+pub fn resolveCompilationEntry(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
     const context = &self.context;
     const observed = self.inputs();
@@ -120,10 +115,8 @@ pub fn resolveCompilationEntry(handle: *const anyopaque) Error!void {
     context.options.input = path;
 
     if (observed) |inputs| inputs.add(context.io, path) catch |err| return self.failure.save(err);
-}
 
-pub fn compilationIsRx(handle: *const anyopaque) bool {
-    return std.mem.endsWith(u8, State.get(handle).options().input, ".rx");
+    return path;
 }
 
 pub fn runCompilationRx(handle: *const anyopaque) Error!native.Status {
@@ -156,10 +149,6 @@ pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
     }
 
     return true;
-}
-
-pub fn compilationIsManifest(handle: *const anyopaque) bool {
-    return std.mem.eql(u8, std.fs.path.basename(State.get(handle).options().input), "pkg.yaml");
 }
 
 pub fn runCompilationLibraryProof(handle: *const anyopaque) Error!native.Status {
@@ -219,7 +208,7 @@ pub fn openCompilationCaches(handle: *const anyopaque) Error!void {
     self.libraries = .{ .allocator = context.allocator };
 }
 
-pub fn readCompilationDependencies(handle: *const anyopaque) Error!bool {
+pub fn readCompilationDependencies(handle: *const anyopaque) Error!?bool {
     const self = State.get(handle);
     const context = &self.context;
 
@@ -229,20 +218,15 @@ pub fn readCompilationDependencies(handle: *const anyopaque) Error!bool {
         context.stderr.print("{s}: source loading: {s}\n", .{ self.libraries.?.failure_path orelse context.options.input, @errorName(err) }) catch |issue| return self.failure.save(issue);
         context.stderr.flush() catch |issue| return self.failure.save(issue);
 
-        return false;
+        return null;
     };
 
     self.sources = detected.sources;
-    self.has_rx_import = detected.has_rx;
 
-    return true;
+    return detected.has_rx;
 }
 
-pub fn compilationHasRxImport(handle: *const anyopaque) bool {
-    return State.get(handle).has_rx_import;
-}
-
-pub fn adoptCompilationInputs(handle: *const anyopaque) void {
+pub fn adoptCompilationInputs(handle: *const anyopaque) bool {
     const self = State.get(handle);
 
     if (self.watchingParses()) |parsed| {
@@ -252,4 +236,6 @@ pub fn adoptCompilationInputs(handle: *const anyopaque) void {
     }
 
     self.loaded.project.compiled_libraries = self.libraries.?.libraries.items;
+
+    return self.loaded.project.compiled_libraries.len != 0;
 }

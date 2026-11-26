@@ -1,0 +1,10 @@
+import type { FpgaProgram } from "rx_execution_host"
+
+export type ProofInput = {
+    local_required: bool,
+    function_contracts: bool[]
+}
+
+export type Input = ProofInput & {
+    program: FpgaProgram
+}

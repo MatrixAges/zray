@@ -8,10 +8,6 @@ const artifacts = @import("../artifacts.zig");
 const generation = @import("../generation_cache.zig");
 const verification = @import("../verify.zig");
 
-pub fn compilationHasCompiledLibraries(handle: *const anyopaque) bool {
-    return State.get(handle).loaded.project.compiled_libraries.len != 0;
-}
-
 pub fn reportCompilationCacheBypass(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 

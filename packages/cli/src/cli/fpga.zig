@@ -23,26 +23,28 @@ const State = struct {
 };
 
 pub fn runProgram(context: Context, program: *const compiler.ir.Program, sources: []const compiler.project.Source, entry: []const u8) !bool {
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
+
+    defer arena.deinit();
+
+    const owned = arena.allocator();
+    const count = program.functions.count();
+    const function_contracts = try owned.alloc(bool, count);
+
+    for (0..count) |index| {
+        function_contracts[index] = program.functions.at(index).contracts.count() != 0;
+    }
+
     var state: State = .{ .context = &context, .program = program, .sources = sources, .entry = entry };
     const reference = &state;
 
     defer state.deinit();
 
-    return @import("cli_source").run_fpga_program.executeIn(context.allocator, @ptrCast(&reference)) catch |err| state.failure.unwrap(err);
-}
-
-pub fn fpgaLocalProofRequired(handle: *const anyopaque) bool {
-    const self = State.get(handle);
-
-    return self.program.contracts.count() != 0 or self.context.options.solver != null;
-}
-
-pub fn fpgaFunctionCount(handle: *const anyopaque) u64 {
-    return State.get(handle).program.functions.count();
-}
-
-pub fn fpgaFunctionHasContract(handle: *const anyopaque, index: u64) bool {
-    return State.get(handle).program.functions.at(@intCast(index)).contracts.count() != 0;
+    return @import("cli_source").run_fpga_program.executeIn(owned, &.{
+        .program = @ptrCast(&reference),
+        .local_required = program.contracts.count() != 0 or context.options.solver != null,
+        .function_contracts = function_contracts,
+    }) catch |err| state.failure.unwrap(err);
 }
 
 pub fn verifyFpgaProgram(handle: *const anyopaque) Error!bool {

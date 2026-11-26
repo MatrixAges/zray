@@ -1,28 +1,26 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="model" as="Cache" />
 
-    <Args in={IO.SemanticDiskWrite} out={void} />
+    <Args in={Cache.WriteInput} out={void} />
 
-    <Call fn="../index.selectDiskSemanticSources" in={$in} />
-
-    <If on={$ctx.selectDiskSemanticSources > 0}>
+    <If on={$in.source_dirty.length > 0}>
         <Call
             fn="write_entries"
             in={{
-                disk: $in,
-                count: $ctx.selectDiskSemanticSources
+                disk: $in.disk,
+                is_native: false,
+                dirty: $in.source_dirty
             }}
         />
     </If>
 
-    <Call fn="../index.selectDiskSemanticNatives" in={$in} />
-
-    <If on={$ctx.selectDiskSemanticNatives > 0}>
+    <If on={$in.native_dirty.length > 0}>
         <Call
             fn="write_entries"
             in={{
-                disk: $in,
-                count: $ctx.selectDiskSemanticNatives
+                disk: $in.disk,
+                is_native: true,
+                dirty: $in.native_dirty
             }}
         />
     </If>

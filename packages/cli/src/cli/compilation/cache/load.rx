@@ -2,12 +2,10 @@
     <Type from="../index" as="IO" />
     <Type from="../model" as="Compile" />
 
-    <Args in={Compile.Request} out={void} />
+    <Args in={Compile.CacheLoad} out={void} />
 
     <If on={$in.settings.cache}>
-        <Call fn="../index.compilationHasCompiledLibraries" in={$in.compilation} />
-
-        <If on={$ctx.compilationHasCompiledLibraries}>
+        <If on={$in.has_compiled_libraries}>
             <If on={$in.settings.cache_stats}>
                 <Call fn="../index.reportCompilationCacheBypass" in={$in.compilation} />
             </If>

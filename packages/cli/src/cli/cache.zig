@@ -47,11 +47,11 @@ pub fn load(self: *Self, sources: []const compiler.project.Source, project: comp
     const reference = &state;
 
     defer state.seen.deinit(self.allocator);
-    @import("cli_source").load_disk_semantic_cache.executeIn(self.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
-}
 
-pub fn diskSemanticSourceCount(handle: *const anyopaque) u64 {
-    return Read.get(handle).sources.len;
+    @import("cli_source").load_disk_semantic_cache.executeIn(self.allocator, &.{
+        .disk = @ptrCast(&reference),
+        .count = sources.len,
+    }) catch |err| return state.failure.unwrap(err);
 }
 
 pub fn loadDiskSemanticSource(handle: *const anyopaque, index: u64) Error!void {
@@ -118,46 +118,45 @@ fn loadEntry(self: *Self, allocator: std.mem.Allocator, entries: *SemanticCache.
 const Write = struct {
     disk: *Self,
     cache: *SemanticCache,
-    entries: *SemanticCache.entry_store.Map = undefined,
-    kind: Kind = undefined,
     failure: Effects.Failure = .{},
     fn get(handle: *const anyopaque) *Write {
         return Effects.state(Write, handle);
     }
-    fn select(self: *Write, kind: Kind) usize {
-        self.kind = kind;
-        self.entries = if (kind == .native) &self.cache.native.items else &self.cache.entries;
-
-        return self.entries.keys.items.len;
-    }
 };
 
 pub fn save(self: *Self, cache: *SemanticCache) !void {
+    var arena = std.heap.ArenaAllocator.init(self.allocator);
+
+    defer arena.deinit();
+
+    const owned = arena.allocator();
+    const source_values = cache.entries.values.items;
+    const native_values = cache.native.items.values.items;
+    const source_dirty = try owned.alloc(bool, source_values.len);
+    const native_dirty = try owned.alloc(bool, native_values.len);
+
+    for (source_values, 0..) |entry, index| source_dirty[index] = entry.dirty;
+    for (native_values, 0..) |entry, index| native_dirty[index] = entry.dirty;
+
     var state: Write = .{ .disk = self, .cache = cache };
     const reference = &state;
 
-    @import("cli_source").save_disk_semantic_cache.executeIn(self.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    @import("cli_source").save_disk_semantic_cache.executeIn(owned, &.{
+        .disk = @ptrCast(&reference),
+        .source_dirty = source_dirty,
+        .native_dirty = native_dirty,
+    }) catch |err| return state.failure.unwrap(err);
 }
 
-pub fn selectDiskSemanticSources(handle: *const anyopaque) u64 {
-    return Write.get(handle).select(.source);
-}
-
-pub fn selectDiskSemanticNatives(handle: *const anyopaque) u64 {
-    return Write.get(handle).select(.native);
-}
-
-pub fn diskSemanticDirty(handle: *const anyopaque, index: u64) bool {
-    return Write.get(handle).entries.values.items[@intCast(index)].dirty;
-}
-
-pub fn saveDiskSemanticEntry(handle: *const anyopaque, index: u64) Error!void {
+pub fn saveDiskSemanticEntry(handle: *const anyopaque, is_native: bool, index: u64) Error!void {
     const self = Write.get(handle);
     const disk = self.disk;
     const row: usize = @intCast(index);
-    const key = self.entries.keys.items[row];
-    const entry = self.entries.values.items[row];
-    const location = disk.filePath(key, self.kind) catch |err| return self.failure.save(err);
+    const entries = if (is_native) &self.cache.native.items else &self.cache.entries;
+    const key = entries.keys.items[row];
+    const entry = entries.values.items[row];
+    const kind: Kind = if (is_native) .native else .source;
+    const location = disk.filePath(key, kind) catch |err| return self.failure.save(err);
 
     defer disk.allocator.free(location);
     SemanticCache.codec.encodeInto(&disk.buffer, entry.result.value, entry.context_digest, identity()) catch |err| return self.failure.save(err);
@@ -170,7 +169,7 @@ pub fn saveDiskSemanticEntry(handle: *const anyopaque, index: u64) Error!void {
 
     entry.dirty = false;
 
-    if (self.kind == .native) disk.native_written += 1 else disk.written += 1;
+    if (is_native) disk.native_written += 1 else disk.written += 1;
 }
 
 pub fn report(self: *const Self, cache: *const SemanticCache, writer: *std.Io.Writer) !void {

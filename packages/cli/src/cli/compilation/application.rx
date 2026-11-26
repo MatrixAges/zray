@@ -13,13 +13,11 @@
     <Call fn="index.openCompilationCaches" in={$in.compilation} />
     <Call fn="index.readCompilationDependencies" in={$in.compilation} />
 
-    <If on={!$ctx.readCompilationDependencies}>
+    <If on={$ctx.readCompilationDependencies == null}>
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call fn="index.compilationHasRxImport" in={$in.compilation} />
-
-    <If on={$ctx.compilationHasRxImport}>
+    <If on={$ctx.readCompilationDependencies == true}>
         <Call fn="index.runCompilationRx" in={$in.compilation} />
 
         <Return value={$ctx.runCompilationRx} />
@@ -27,7 +25,13 @@
 
     <Call fn="index.adoptCompilationInputs" in={$in.compilation} />
 
-    <Call module="cache/load" in={$in} />
+    <Call
+        module="cache/load"
+        in={{
+            ...$in,
+            has_compiled_libraries: $ctx.adoptCompilationInputs
+        }}
+    />
 
     <If on={$in.settings.verifying || $in.settings.fpga}>
         <Call

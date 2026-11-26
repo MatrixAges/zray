@@ -18,9 +18,15 @@ export type Settings = {
 export type Request = {
     compilation: Compilation,
     settings: Settings,
-    watching: bool
+    watching: bool,
+    input: u8[],
+    explicit_config: bool
 }
 
 export type Query = Request & {
     proof: bool
+}
+
+export type CacheLoad = Request & {
+    has_compiled_libraries: bool
 }

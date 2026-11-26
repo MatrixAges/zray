@@ -1,26 +1,32 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="model" as="Fpga" />
 
-    <Args in={IO.FpgaProgram} out={bool} />
+    <Args in={Fpga.Input} out={bool} />
 
-    <Call fn="proof_required" in={$in} />
+    <Call
+        fn="proof_required"
+        in={$in.pick([
+            "local_required",
+            "function_contracts"
+        ])}
+    />
 
     <If on={$ctx.proof_required}>
-        <Call fn="../index.verifyFpgaProgram" in={$in} />
+        <Call fn="../index.verifyFpgaProgram" in={$in.program} />
 
         <If on={!$ctx.verifyFpgaProgram}>
             <Return value={false} />
         </If>
     </If>
 
-    <Call fn="../index.lowerFpgaProgram" in={$in} />
+    <Call fn="../index.lowerFpgaProgram" in={$in.program} />
 
     <If on={!$ctx.lowerFpgaProgram}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.renderFpgaProgram" in={$in} />
-    <Call fn="../index.publishFpgaProgram" in={$in} />
+    <Call fn="../index.renderFpgaProgram" in={$in.program} />
+    <Call fn="../index.publishFpgaProgram" in={$in.program} />
 
     <Return value={true} />
 </Module>
