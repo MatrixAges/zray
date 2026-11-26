@@ -1,0 +1,41 @@
+import conditional from "../../../ast/context/conditional"
+import makeTag from "./tag"
+
+import type { Node as Output, State } from "../../../ast/context/model"
+import type { Storage } from "./const"
+
+export type { Node as Output } from "../../../ast/context/model"
+
+export type Input = {
+    state: State,
+    condition: u32,
+    known?: bool,
+    yes: Storage,
+    no: Storage
+}
+
+export default function (in: Input): Output {
+    if (in.known != null) {
+        return makeTag({
+            state: in.state,
+            storage: in.known ? in.yes : in.no
+        })
+    }
+
+    const yes = makeTag({
+        state: in.state,
+        storage: in.yes
+    })
+
+    const no = makeTag({
+        state: yes.state,
+        storage: in.no
+    })
+
+    return conditional({
+        state: no.state,
+        condition: in.condition,
+        yes: yes.id,
+        no: no.id
+    })
+}

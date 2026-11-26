@@ -53,7 +53,13 @@
         }}
     />
 
-    <Call fn="../workflow/host.collectionElementType" in={$in.frame} />
+    <Call
+        fn="../workflow/host.materializeElementType"
+        in={[
+            $in.ast.lower,
+            $in.source_type
+        ]}
+    />
 
     <Return
         value={{
@@ -61,7 +67,7 @@
             target: $ctx.bind_target.value,
             index: $ctx.operand,
             value: $ctx.convert,
-            element: $ctx.collectionElementType,
+            element: $ctx.materializeElementType,
             selected: $in.represented
         }}
     />

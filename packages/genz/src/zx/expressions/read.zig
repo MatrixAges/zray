@@ -53,6 +53,13 @@ pub fn readList(frame: *anyopaque, operand: u32) Error!u32 {
     return @backingInt(try list.expression(borrow(frame), @fromBackingInt(operand)));
 }
 
+pub fn readListItems(frame: *anyopaque, origin: u32, value: u32) Error!u32 {
+    const self = borrow(frame);
+    const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[origin]);
+
+    return @backingInt(try list.items(self, type_id, @fromBackingInt(value)));
+}
+
 pub fn readBorrowedList(frame: *anyopaque, type_id: u32, value: u32) Error!u32 {
     return @backingInt(try list.borrowed(borrow(frame), @fromBackingInt(type_id), @fromBackingInt(value)));
 }

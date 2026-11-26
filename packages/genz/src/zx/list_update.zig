@@ -32,6 +32,7 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
             .sequence = @ptrCast(&frame.body),
         },
         .represented = @import("state_value/list.zig").selected(self, frame.source_type),
+        .source_type = @backingInt(frame.source_type),
         .target = @backingInt(update.target),
         .index = @backingInt(update.index),
         .value = @backingInt(update.value),

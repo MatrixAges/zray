@@ -8,7 +8,7 @@ export default function (in: Input): Output {
         fields: in.fields,
         first: in.source.field_base,
         layout: in.source.layout,
-        value: in.source.request.value,
+        value: in.source.value,
         storage: in.root
     })
 

@@ -5,8 +5,6 @@ export declare function enterTransformParameters(frame: TransformFrame): void
 
 export declare function tryTransformSimd(frame: TransformFrame): u32? throws { OutOfMemory }
 
-export declare function bindTransformSource(frame: TransformFrame): u32 throws { OutOfMemory }
-
 export declare function bindTransformElement(frame: TransformFrame): u8[] throws { OutOfMemory }
 
 export declare function storeMapTransformValue(frame: TransformFrame, callback: u32): u32
@@ -19,16 +17,6 @@ export declare function emitReduceRenewals(
     end: u64,
     filtered_inline: bool
 ): u64 throws { OutOfMemory }
-
-export declare function transformCollectionElement(frame: TransformFrame): u32
-    throws { OutOfMemory }
-
-export declare function finishTransformCollection(
-    frame: TransformFrame,
-    start: u32,
-    count: u32,
-    result: u32
-): u32 throws { OutOfMemory }
 
 export declare function convertReduceValue(frame: TransformFrame, value: u32, initial: bool): u32
     throws { OutOfMemory }

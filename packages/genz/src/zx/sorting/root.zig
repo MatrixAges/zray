@@ -7,7 +7,6 @@ const Lower = @import("../lower.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const rows = @import("../construction/publication.zig");
 const Api = evaluation.Api;
-const aggregate = @import("../aggregate.zig");
 const lists = @import("../state_value/list.zig");
 const worker = @import("worker.zig");
 const Error = Lower.Error;
@@ -58,6 +57,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
         .scratch = @ptrCast(&resource),
         .target = @backingInt(value.target),
         .environment = @backingInt(value.initial.?),
+        .list_type = @backingInt(list_type),
         .selected = lists.selected(self, list_type),
         .reusable = self.plan.get(id).in_place,
         .errors = errors,
@@ -66,12 +66,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
 
     return @fromBackingInt(result);
-}
-
-pub fn sortElementType(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../state_value/elements.zig").typeExpr(frame.lowering, frame.list_type));
 }
 
 pub fn buildSortComparator(handle: *anyopaque, child: u32, errors: ?[]const []const u8) Error!*const Api.SortComparator {
@@ -88,26 +82,4 @@ pub fn clipSortTarget(handle: *anyopaque, target: u32) Error!u32 {
     const ownership = @import("../state_value/ownership.zig");
 
     return @backingInt(try ownership.clip(frame.lowering, &frame.body, frame.value.target, @fromBackingInt(target)));
-}
-
-pub fn readSortItems(handle: *anyopaque, target: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try lists.items(frame.lowering, frame.list_type, @fromBackingInt(target)));
-}
-
-pub fn sortWritable(handle: *anyopaque, target: u32) Error!u32 {
-    return @backingInt(try lists.writable(Frame.borrow(handle).lowering, @fromBackingInt(target)));
-}
-
-pub fn readSortHeader(handle: *anyopaque, target: u32) Error!u32 {
-    return @backingInt(try lists.headered(Frame.borrow(handle).lowering, @fromBackingInt(target)));
-}
-
-pub fn finishSortResult(handle: *anyopaque, result: u32, headered: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const value = try lists.owned(self, frame.list_type, @fromBackingInt(result), @fromBackingInt(headered));
-
-    return @backingInt(try aggregate.finish(self, &frame.body, value));
 }

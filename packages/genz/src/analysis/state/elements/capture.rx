@@ -25,9 +25,9 @@
                 $ctx.layout
             ]}
         />
+
+        <Return value={$ctx.emitElement.name} />
     </If>
 
-    <Call fn="workflow.elementCaptureName" in={$in.frame} />
-
-    <Return value={$ctx.elementCaptureName} />
+    <Return value={$in.name} />
 </Module>

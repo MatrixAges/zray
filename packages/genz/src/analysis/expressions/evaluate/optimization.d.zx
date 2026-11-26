@@ -1,5 +1,3 @@
-export declare function sortElementType(frame: SortFrame): u32 throws { OutOfMemory }
-
 export declare function buildSortComparator(
     frame: SortFrame,
     child: u32,
@@ -7,15 +5,6 @@ export declare function buildSortComparator(
 ): SortComparator throws { OutOfMemory }
 
 export declare function clipSortTarget(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
-
-export declare function readSortItems(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
-
-export declare function sortWritable(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
-
-export declare function readSortHeader(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
-
-export declare function finishSortResult(frame: SortFrame, value: u32, headered: u32): u32
-    throws { OutOfMemory }
 
 export declare function bindSortWorkerNames(
     frame: SortWorkerFrame,

@@ -69,6 +69,7 @@ const Frame = struct {
     body: *Sequence,
     decision: *const Decision,
     name: []const u8,
+    result: @import("../expressions/evaluate.zig").Api.ElementEmission = undefined,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -86,6 +87,7 @@ fn run(comptime entry: type, self: *Lower, body: *Sequence, list: ir.TypeId, ope
         .lower = @ptrCast(self),
         .choice = &bound,
         .value = value,
+        .name = frame.name,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
@@ -130,11 +132,11 @@ pub fn prepare(self: *Lower, temporary: std.mem.Allocator, decision: Decision, v
     };
 }
 
-pub fn elementCaptureName(handle: *anyopaque) []const u8 {
-    return Frame.borrow(handle).name;
+pub fn materializeElementType(frame: *anyopaque, list_type: u32) Lower.Error!u32 {
+    return @backingInt(try typeExpr(@import("../expressions/evaluate.zig").borrow(frame), @fromBackingInt(list_type)));
 }
 
-pub fn emitElement(handle: *anyopaque, value: u32, layout: ?u32) Lower.Error!u32 {
+pub fn emitElement(handle: *anyopaque, value: u32, layout: ?u32) Lower.Error!*const @import("../expressions/evaluate.zig").Api.ElementEmission {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -162,7 +164,9 @@ pub fn emitElement(handle: *anyopaque, value: u32, layout: ?u32) Lower.Error!u32
 
     if (frame.decision.capture) frame.name = try self.allocator.dupe(u8, output.name);
 
-    return output.root;
+    frame.result = .{ .root = output.root, .name = frame.name };
+
+    return &frame.result;
 }
 
 fn failure(err: anyerror) Lower.Error {

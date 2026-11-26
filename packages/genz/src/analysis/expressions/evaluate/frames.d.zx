@@ -106,6 +106,9 @@ export type CollectionUpdate = {
     selected: bool
 }
 
-export type ListRepresentation = opaque
+export type ElementEmission = {
+    root: u32,
+    name: u8[]
+}
 
 export type ElementRepresentation = mutable_opaque

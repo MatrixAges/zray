@@ -6,7 +6,6 @@
     <Call
         fn="header"
         in={{
-            frame: $in.frame,
             writer: $in.ast.writer,
             value: $in.value,
             represented: $in.represented,
@@ -24,7 +23,13 @@
         ])}
     />
 
-    <Call fn="host.collectionElementType" in={$in.frame} />
+    <Call
+        fn="host.materializeElementType"
+        in={[
+            $in.ast.lower,
+            $in.source_type
+        ]}
+    />
 
     <Call
         fn="emit_length"
@@ -44,7 +49,7 @@
                 $in.items,
                 $in.value,
                 $ctx.header,
-                $ctx.collectionElementType,
+                $ctx.materializeElementType,
                 $ctx.emit_length
             ]}
         />
@@ -62,7 +67,7 @@
                 items: $in.items,
                 value: $in.value,
                 header: $ctx.header,
-                element: $ctx.collectionElementType,
+                element: $ctx.materializeElementType,
                 length: $ctx.emit_length,
                 unit: $ctx.emit_unit
             }

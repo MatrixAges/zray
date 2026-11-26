@@ -1,16 +1,7 @@
-export declare function readCollectionItems(frame: CollectionFrame, origin: u32, value: u32): u32
-    throws { OutOfMemory }
-
 export declare function clipCollectionTarget(frame: CollectionFrame, value: u32): u32
     throws { OutOfMemory }
 
 export declare function writeCollectionElement(frame: CollectionFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function collectionHeader(frame: CollectionFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function collectionElementType(frame: CollectionFrame): u32
     throws { OutOfMemory }
 
 export declare function collectionCompare(frame: CollectionFrame): u8[]

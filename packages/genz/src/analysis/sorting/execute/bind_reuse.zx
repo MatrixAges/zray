@@ -1,14 +1,14 @@
-import host from "lowering_host"
-
 import bindOperand from "../../aggregate/execute/bind_operand"
 import emitFlag from "../../collections/workflow/emit_flag"
+import { Operation } from "../../state/list/const"
+import emitPermission from "../../state/list/emit_permission"
 
 import type { Reuse as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, lower, writer, origin, body, target, selected, reusable } = in
+    const { lower, writer, origin, body, target, selected, reusable } = in
 
     const reads_header = (
         - selected
@@ -16,7 +16,11 @@ export default function (in: Input): Output {
     )
 
     const value = match {
-        reads_header => host.sortWritable(frame, target),
+        reads_header => emitPermission({
+            writer,
+            value: target,
+            operation: Operation.Writable
+        }),
         _ => emitFlag({
             writer,
             value: reusable

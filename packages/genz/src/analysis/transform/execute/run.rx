@@ -21,6 +21,7 @@
                 "frame",
                 "ast",
                 "kind",
+                "target",
                 "body_expr",
                 "initial",
                 "context_used",
@@ -38,7 +39,13 @@
         <Return value={$ctx.tryTransformSimd} />
     </If>
 
-    <Call fn="index.bindTransformSource" in={$in.frame} />
+    <Call
+        fn="bind_source"
+        in={{
+            ast: $in.ast,
+            target: $in.target
+        }}
+    />
 
     <Call
         fn="index.lowerType"
@@ -73,7 +80,7 @@
                     "inline_lists",
                     "accumulator"
                 ]),
-                source: $ctx.bindTransformSource,
+                source: $ctx.bind_source,
                 callback: $ctx.lowerExpression,
                 layout: $ctx.lowerType
             }}
@@ -89,6 +96,8 @@
                 "frame",
                 "ast",
                 "kind",
+                "result_type",
+                "result_selected",
                 "initial",
                 "context_used",
                 "context_name",
@@ -97,7 +106,7 @@
                 "element_name",
                 "used"
             ]),
-            source: $ctx.bindTransformSource,
+            source: $ctx.bind_source,
             callback: $ctx.lowerExpression
         }}
     />

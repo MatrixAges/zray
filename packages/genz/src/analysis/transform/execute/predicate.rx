@@ -4,7 +4,13 @@
 
     <Args in={Transform.Predicate} out={u32} />
 
-    <Call fn="index.bindTransformSource" in={$in.frame} />
+    <Call
+        fn="bind_source"
+        in={{
+            ast: $in.ast,
+            target: $in.target
+        }}
+    />
 
     <Call
         fn="block_name"
@@ -72,7 +78,7 @@
                 "statement_base"
             ]),
             kind: $in.kind,
-            source: $ctx.bindTransformSource,
+            source: $ctx.bind_source,
             callback: $ctx.lowerExpression,
             label: $ctx.block_name,
             capture: $ctx.bindTransformElement,

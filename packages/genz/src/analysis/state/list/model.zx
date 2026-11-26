@@ -4,6 +4,7 @@ import type { Columns as Expressions } from "../../../ast/expressions/model"
 import type { Columns as Fields } from "../../../ast/fields/model"
 import type { ExpressionsKind } from "../../../printer/model/expressions"
 import type { Operation, Storage } from "./const"
+import type { Known } from "./known_model"
 
 export type Ast = {
     tags: ExpressionsKind[],
@@ -23,7 +24,9 @@ export type Query = {
 }
 
 export type Input = {
-    request: Query,
+    operation: Operation,
+    value: u32,
+    known: Known,
     construct: bool,
     condition: u32,
     unique: u32,

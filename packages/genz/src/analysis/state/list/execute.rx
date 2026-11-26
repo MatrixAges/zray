@@ -3,7 +3,51 @@
 
     <Args in={List.Execute} out={u32} />
 
-    <Call module="build" in={$in.list} />
+    <Call fn="query" in={$in.request} />
+
+    <If on={$ctx.query != null}>
+        <Return value={$ctx.query} />
+    </If>
+
+    <Call
+        fn="resolve_known"
+        in={{
+            request: $in.request,
+            condition: $in.condition,
+            unique: $in.unique
+        }}
+    />
+
+    <Call
+        fn="prepare_layout"
+        in={{
+            lower: $in.lower,
+            type_id: $in.type_id,
+            operation: $in.request.operation
+        }}
+    />
+
+    <Call fn="execute_model.astExpressionCount" in={$in.writer} />
+    <Call fn="execute_model.astFieldCount" in={$in.writer} />
+
+    <Call
+        module="build"
+        in={{
+            ...$in.pick([
+                "condition",
+                "unique",
+                "storage",
+                "flag"
+            ]),
+            operation: $in.request.operation,
+            value: $in.request.value,
+            known: $ctx.resolve_known,
+            construct: $ctx.prepare_layout != null,
+            layout: $ctx.prepare_layout ?? 0,
+            expression_base: $ctx.astExpressionCount,
+            field_base: $ctx.astFieldCount
+        }}
+    />
 
     <Call
         fn="publish_ast"

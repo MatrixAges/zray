@@ -1,0 +1,44 @@
+import { Operation } from "./const"
+import readBoolean from "./read_boolean"
+
+import type { Known as Output } from "./known_model"
+import type { Query } from "./model"
+
+export type { Known as Output } from "./known_model"
+
+export type Input = {
+    request: Query,
+    condition: u32,
+    unique: u32
+}
+
+export default function (in: Input): Output {
+    const { operation, ast } = in.request
+
+    const known_condition = (
+        - operation == Operation.Create
+        - or operation == Operation.Owned
+        - or operation == Operation.Proven
+    )
+
+    const condition: bool? = match {
+        known_condition => readBoolean({
+            ast,
+            value: in.condition
+        }),
+        _ => null
+    }
+
+    const unique: bool? = match {
+        operation == Operation.Proven => readBoolean({
+            ast,
+            value: in.unique
+        }),
+        _ => null
+    }
+
+    return {
+        condition,
+        unique
+    }
+}

@@ -1,9 +1,8 @@
 export {
     clipCollectionTarget,
-    readCollectionItems,
+    readListItems,
     writeCollectionElement,
-    collectionHeader,
-    collectionElementType,
+    materializeElementType,
     collectionCompare,
     collectionMinimum,
     emitCollectionRows,

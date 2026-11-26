@@ -5,7 +5,8 @@ export type Input = {
     frame: ElementRepresentation,
     lower: Lowering,
     choice: Choice,
-    value: u32
+    value: u32,
+    name: u8[]
 }
 
-export { emitElement, elementCaptureName } from "lowering_host"
+export { emitElement } from "lowering_host"

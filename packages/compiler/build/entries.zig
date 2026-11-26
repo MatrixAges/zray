@@ -665,7 +665,6 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/store/transaction/initialize.rx", .name = "store_pending_initial", .owner = .genz },
     .{ .path = "genz/analysis/store/transaction/fallthrough.rx", .name = "store_fallthrough", .owner = .genz },
     .{ .path = "genz/analysis/state/conversion/prepare/run.rx", .name = "prepare_state_conversion", .owner = .genz },
-    .{ .path = "genz/analysis/state/list/run.rx", .name = "run_state_list", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/run.rx", .name = "run_state_element", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/capture.rx", .name = "run_state_element_capture", .owner = .genz },
     .{ .path = "genz/analysis/collections/update/run.rx", .name = "run_list_update", .owner = .genz },

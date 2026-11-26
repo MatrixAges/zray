@@ -24,9 +24,9 @@
         />
 
         <Call
-            fn="host.readCollectionItems"
+            fn="host.readListItems"
             in={[
-                $in.frame,
+                $in.ast.lower,
                 $in.target,
                 $ctx.bind_operand
             ]}
@@ -35,7 +35,7 @@
         <Return
             value={{
                 value: $ctx.bind_operand,
-                items: $ctx.readCollectionItems,
+                items: $ctx.readListItems,
                 represented: true
             }}
         />
@@ -53,9 +53,9 @@
     />
 
     <Call
-        fn="host.readCollectionItems"
+        fn="host.readListItems"
         in={[
-            $in.frame,
+            $in.ast.lower,
             $in.target,
             $ctx.bind_operand
         ]}
@@ -64,7 +64,7 @@
     <Return
         value={{
             value: $ctx.bind_operand,
-            items: $ctx.readCollectionItems,
+            items: $ctx.readListItems,
             represented: $in.represented
         }}
     />

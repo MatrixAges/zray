@@ -1,0 +1,70 @@
+import { astExpressionCount, astFieldCount } from "ast_rows"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import initialize from "../../../ast/context/initialize"
+import emptyFields from "../../../ast/fields/empty"
+import chooseKnown from "./choose_known"
+import { Storage } from "./const"
+import construct from "./construct"
+import publishAst from "./publish_ast"
+
+import type { AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    lower: Lowering,
+    writer: AstWriter,
+    type_id: u32,
+    selected: bool,
+    value: u32,
+    header: u32,
+    known_header?: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    if (!in.selected) {
+        return in.value
+    }
+
+    const layout = host.materializeType(in.lower, in.type_id, StoredType.StateType)
+    const field_base = astFieldCount(in.writer)
+
+    const context = initialize({
+        capture: null,
+        expression_base: astExpressionCount(in.writer),
+        statement_base: 0,
+        field_base,
+        serial: 0
+    })
+
+    const storage = chooseKnown({
+        state: context,
+        condition: in.header,
+        known: in.known_header,
+        yes: Storage.Exclusive,
+        no: Storage.Owned
+    })
+
+    const constructed = construct({
+        context: storage.state,
+        fields: emptyFields({}),
+        first: field_base,
+        layout,
+        value: in.value,
+        storage: storage.id
+    })
+
+    return publishAst({
+        writer: in.writer,
+        output: {
+            expressions: constructed.context.expressions,
+            forms: constructed.context.forms,
+            fields: constructed.fields,
+            root: constructed.root,
+            valid: constructed.context.valid
+        }
+    })
+}

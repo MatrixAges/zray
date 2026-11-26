@@ -1,9 +1,19 @@
 import type { AstWriter } from "ast_rows"
-import type { Input, Output } from "./model"
+import type { Lowering } from "lowering_host"
+import type { Storage } from "./const"
+import type { Output, Query } from "./model"
+
+export { astExpressionCount, astFieldCount } from "ast_rows"
 
 export type Execute = {
+    lower: Lowering,
     writer: AstWriter,
-    list: Input
+    type_id: u32,
+    request: Query,
+    condition: u32,
+    unique: u32,
+    storage: Storage,
+    flag: bool
 }
 
 export type PublishAst = {

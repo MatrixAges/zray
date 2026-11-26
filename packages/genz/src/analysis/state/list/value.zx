@@ -1,19 +1,18 @@
 import bytes from "std:bytes"
 
-import boolean from "../../../ast/context/boolean"
+import conditional from "../../../ast/context/conditional"
 import field from "../../../ast/context/field"
 import { items_field } from "../../types/state/const"
-import choose from "./choose"
+import chooseKnown from "./choose_known"
 import { Operation, Storage } from "./const"
 import permission from "./permission"
-import proven from "./proven"
 import tag from "./tag"
 
 import type { State as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
     const source = in.source
-    const operation = source.request.operation
+    const operation = source.operation
 
     if (operation == Operation.Weakened) {
         const header = permission({
@@ -22,10 +21,10 @@ export default function (in: Input): Output {
             operation: Operation.Headered
         })
 
-        const value = choose({
+        const value = chooseKnown({
             state: header.state,
-            ast: source.request.ast,
             condition: header.id,
+            known: null,
             yes: Storage.Shared,
             no: Storage.Plain
         })
@@ -38,16 +37,75 @@ export default function (in: Input): Output {
     }
 
     if (operation == Operation.Owned) {
-        const unique = boolean({
+        const value = chooseKnown({
             state: in.context,
-            value: true
+            condition: source.condition,
+            known: source.known.condition,
+            yes: Storage.Exclusive,
+            no: Storage.Owned
         })
 
-        const value = proven({
-            state: unique.state,
-            ast: source.request.ast,
-            header: source.condition,
-            unique: unique.id
+        return {
+            ...in,
+            context: value.state,
+            root: value.id
+        }
+    }
+
+    if (operation == Operation.Proven) {
+        if (source.known.condition != null) {
+            const value = chooseKnown({
+                state: in.context,
+                condition: source.unique,
+                known: source.known.unique,
+                yes: source.known.condition ? Storage.Exclusive : Storage.Owned,
+                no: source.known.condition ? Storage.Shared : Storage.Plain
+            })
+
+            return {
+                ...in,
+                context: value.state,
+                root: value.id
+            }
+        }
+
+        if (source.condition == source.unique) {
+            const value = chooseKnown({
+                state: in.context,
+                condition: source.condition,
+                known: null,
+                yes: Storage.Exclusive,
+                no: Storage.Plain
+            })
+
+            return {
+                ...in,
+                context: value.state,
+                root: value.id
+            }
+        }
+
+        const yes = chooseKnown({
+            state: in.context,
+            condition: source.unique,
+            known: source.known.unique,
+            yes: Storage.Exclusive,
+            no: Storage.Shared
+        })
+
+        const no = chooseKnown({
+            state: yes.state,
+            condition: source.unique,
+            known: source.known.unique,
+            yes: Storage.Owned,
+            no: Storage.Plain
+        })
+
+        const value = conditional({
+            state: no.state,
+            condition: source.condition,
+            yes: yes.id,
+            no: no.id
         })
 
         return {
@@ -82,16 +140,10 @@ export default function (in: Input): Output {
             value: in.root,
             operation
         }),
-        Operation.Proven => proven({
+        Operation.Create => chooseKnown({
             state: in.context,
-            ast: source.request.ast,
-            header: source.condition,
-            unique: source.unique
-        }),
-        Operation.Create => choose({
-            state: in.context,
-            ast: source.request.ast,
             condition: source.condition,
+            known: source.known.condition,
             yes: Storage.Shared,
             no: Storage.Plain
         }),

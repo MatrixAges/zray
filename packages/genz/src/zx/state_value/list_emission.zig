@@ -5,29 +5,19 @@ const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
 const generated = @import("generated_state_list");
 const Call = std.meta.Child(generated.Input);
-const Input = std.meta.Child(@FieldType(Call, "list"));
-const Query = std.meta.Child(@FieldType(Input, "request"));
+const Query = std.meta.Child(@FieldType(Call, "request"));
 const Operation = @FieldType(Query, "operation");
 pub const Ast = std.meta.Child(@FieldType(Query, "ast"));
-const runner = @import("generated_run_state_list");
+const Storage = @FieldType(Call, "storage");
 const publication = @import("../construction/publication.zig");
 
 const Request = struct {
     value: node.ExpressionId = @fromBackingInt(0),
     condition: node.ExpressionId = @fromBackingInt(0),
     unique: node.ExpressionId = @fromBackingInt(0),
-    storage: @FieldType(Input, "storage") = .Plain,
+    storage: Storage = .Plain,
     selected: bool = false,
     flag: bool = false,
-};
-
-const Frame = struct {
-    lower: *Lower,
-    query: *const Query,
-    request: Request,
-    fn borrowHandle(handle: *const anyopaque) *const Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn lower(self: *Lower, id: ?ir.TypeId, operation: Operation, request: Request) Lower.Error!node.ExpressionId {
@@ -40,42 +30,15 @@ pub fn lower(self: *Lower, id: ?ir.TypeId, operation: Operation, request: Reques
         .ast = &ast,
     };
 
-    const frame: Frame = .{ .lower = self, .query = &query, .request = request };
-
-    const input: std.meta.Child(runner.Input) = .{
-        .frame = @ptrCast(&frame),
+    const call: Call = .{
         .lower = @ptrCast(self),
+        .writer = @ptrCast(self),
         .type_id = if (id) |type_id| @backingInt(type_id) else 0,
-        .request = @import("zx").columns.pointer(@FieldType(std.meta.Child(runner.Input), "request"), &query),
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return @fromBackingInt(runner.executeIn(fixed.allocator(), &input) catch |err| return publication.failure(err));
-}
-
-pub fn emitListRepresentation(handle: *const anyopaque, layout: ?u32) Lower.Error!u32 {
-    const frame = Frame.borrowHandle(handle);
-    const self = frame.lower;
-    const request = frame.request;
-    var query = frame.query.*;
-    var ast: Ast = undefined;
-
-    if (layout != null) {
-        ast = borrow(self);
-        query.ast = &ast;
-    }
-
-    const input: Input = .{
         .request = &query,
-        .construct = layout != null,
         .condition = @backingInt(request.condition),
         .unique = @backingInt(request.unique),
         .storage = request.storage,
         .flag = request.flag,
-        .layout = layout orelse 0,
-        .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .field_base = @intCast(self.builder.nodes.field_columns.count()),
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -84,12 +47,7 @@ pub fn emitListRepresentation(handle: *const anyopaque, layout: ?u32) Lower.Erro
 
     defer scratch.deinit();
 
-    const call: Call = .{
-        .writer = @ptrCast(self),
-        .list = &input,
-    };
-
-    return generated.executeIn(buffered.allocator(), &call) catch |err| return publication.failure(err);
+    return @fromBackingInt(generated.executeIn(buffered.allocator(), &call) catch |err| return publication.failure(err));
 }
 
 pub fn borrow(self: *const Lower) Ast {

@@ -1,0 +1,43 @@
+import integers from "std:integer"
+
+import finishStored from "../../aggregate/execute/finish_stored"
+import { word_radix } from "../../node_headers/block/const"
+import emitOwned from "../../state/list/emit_owned"
+
+import type { Ast } from "./model"
+
+export type Input = {
+    ast: Ast,
+    result_type: u32,
+    result_selected: bool,
+    start: u32,
+    count: u32,
+    value: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { ast } = in
+
+    const owned = emitOwned({
+        lower: ast.lower,
+        writer: ast.writer,
+        type_id: in.result_type,
+        selected: in.result_selected,
+        value: in.value,
+        header: 0,
+        known_header: false
+    })
+
+    const span = (integers.widen(in.start) * word_radix) + integers.widen(in.count)
+
+    return finishStored({
+        frame: ast.lower,
+        writer: ast.writer,
+        origin: ast.origin,
+        span,
+        value: owned,
+        guard: null
+    })
+}

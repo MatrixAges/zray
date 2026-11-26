@@ -1,0 +1,23 @@
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import layout from "./layout"
+
+import type { Lowering } from "lowering_host"
+import type { Operation } from "./const"
+
+export type Input = {
+    lower: Lowering,
+    type_id: u32,
+    operation: Operation
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    if (layout(in.operation)) {
+        return host.materializeType(in.lower, in.type_id, StoredType.StateType)
+    }
+
+    return null
+}

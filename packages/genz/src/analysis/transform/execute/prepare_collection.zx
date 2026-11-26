@@ -8,7 +8,7 @@ import freshName from "./fresh_name"
 import type { Prepare } from "../collect/model"
 import type { Collection } from "./model"
 
-export type Input = Collection.Pick("frame", "ast", "kind")
+export type Input = Collection.Pick("ast", "kind", "result_type")
 
 export type Output = Prepare.Pick("name", "element", "map")
 
@@ -25,7 +25,7 @@ export default function (in: Input): Output {
         })
     }
 
-    const element = host.transformCollectionElement(in.frame)
+    const element = host.materializeElementType(in.ast.lower, in.result_type)
 
     return {
         name,

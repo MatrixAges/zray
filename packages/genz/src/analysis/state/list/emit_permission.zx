@@ -1,0 +1,44 @@
+import { astExpressionCount, astFieldCount } from "ast_rows"
+
+import initialize from "../../../ast/context/initialize"
+import emptyFields from "../../../ast/fields/empty"
+import permission from "./permission"
+import publishAst from "./publish_ast"
+
+import type { AstWriter } from "ast_rows"
+import type { Operation } from "./const"
+
+export type Input = {
+    writer: AstWriter,
+    value: u32,
+    operation: Operation
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const context = initialize({
+        capture: null,
+        expression_base: astExpressionCount(in.writer),
+        statement_base: 0,
+        field_base: astFieldCount(in.writer),
+        serial: 0
+    })
+
+    const result = permission({
+        state: context,
+        value: in.value,
+        operation: in.operation
+    })
+
+    return publishAst({
+        writer: in.writer,
+        output: {
+            expressions: result.state.expressions,
+            forms: result.state.forms,
+            fields: emptyFields({}),
+            root: result.id,
+            valid: result.state.valid
+        }
+    })
+}

@@ -17,6 +17,7 @@ export type Input = {
     represented: bool,
     kind: CollectionKind,
     target: u32,
+    source_type: u32,
     arguments: u32[],
     frontier: bool,
     removed_only: bool,

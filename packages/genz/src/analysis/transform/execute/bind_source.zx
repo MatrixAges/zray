@@ -1,0 +1,26 @@
+import host from "lowering_host"
+
+import bindOperand from "../../aggregate/execute/bind_operand"
+
+import type { Ast } from "./model"
+
+export type Input = {
+    ast: Ast,
+    target: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { ast, target } = in
+
+    const value = host.readList(ast.lower, target)
+
+    return bindOperand({
+        frame: ast.lower,
+        writer: ast.writer,
+        origin: ast.origin,
+        sequence: ast.body,
+        value
+    })
+}

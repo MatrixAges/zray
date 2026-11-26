@@ -14,13 +14,20 @@
     />
 
     <Call fn="../rows.releasePreparation" in={$in.scratch} />
-    <Call fn="index.sortElementType" in={$in.frame} />
+
+    <Call
+        fn="index.materializeElementType"
+        in={[
+            $in.lower,
+            $in.list_type
+        ]}
+    />
 
     <Call
         fn="index.buildSortComparator"
         in={[
             $in.frame,
-            $ctx.sortElementType,
+            $ctx.materializeElementType,
             $in.errors
         ]}
     />
@@ -30,7 +37,7 @@
         in={{
             writer: $in.writer,
             origin: $in.origin,
-            child: $ctx.sortElementType,
+            child: $ctx.materializeElementType,
             errors: $in.errors
         }}
     />
@@ -73,9 +80,10 @@
     />
 
     <Call
-        fn="index.readSortItems"
+        fn="index.readListItems"
         in={[
-            $in.frame,
+            $in.lower,
+            $in.target,
             $ctx.bind_target
         ]}
     />
@@ -84,7 +92,6 @@
         fn="bind_reuse"
         in={{
             ...$in.pick([
-                "frame",
                 "lower",
                 "writer",
                 "origin",
@@ -110,7 +117,7 @@
     <Call
         fn="read_header"
         in={{
-            frame: $in.frame,
+            writer: $in.writer,
             target: $ctx.bind_target,
             selected: $in.selected
         }}
@@ -124,7 +131,7 @@
             origin: $in.origin,
             body: $in.body,
             name: $ctx.reserve_slot,
-            source: $ctx.readSortItems,
+            source: $ctx.readListItems,
             reuse: $ctx.bind_reuse,
             environment: $ctx.bind_environment,
             errors: $in.errors,
@@ -136,13 +143,28 @@
     />
 
     <Call
-        fn="index.finishSortResult"
-        in={[
-            $in.frame,
-            $ctx.execute.root,
-            $ctx.execute.headered
-        ]}
+        fn="../../state/list/emit_owned"
+        in={{
+            lower: $in.lower,
+            writer: $in.writer,
+            type_id: $in.list_type,
+            selected: $in.selected,
+            value: $ctx.execute.root,
+            header: $ctx.execute.headered,
+            known_header: null
+        }}
     />
 
-    <Return value={$ctx.finishSortResult} />
+    <Call
+        fn="../../aggregate/execute/finish_block"
+        in={{
+            frame: $in.lower,
+            writer: $in.writer,
+            origin: $in.origin,
+            sequence: $in.body,
+            value: $ctx.emit_owned
+        }}
+    />
+
+    <Return value={$ctx.finish_block} />
 </Module>

@@ -3,7 +3,13 @@
 
     <Args in={Flow.Operation} out={u32} />
 
-    <Call fn="host.collectionElementType" in={$in.frame} />
+    <Call
+        fn="host.materializeElementType"
+        in={[
+            $in.ast.lower,
+            $in.source_type
+        ]}
+    />
 
     <Call
         fn="emit_length"
@@ -29,7 +35,7 @@
             items: $in.items,
             value: $in.value,
             header: $ctx.emit_flag,
-            element: $ctx.collectionElementType,
+            element: $ctx.materializeElementType,
             length: $ctx.emit_length,
             unit: $ctx.emit_unit
         }}

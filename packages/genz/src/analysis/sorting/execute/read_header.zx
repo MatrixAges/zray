@@ -1,11 +1,20 @@
-import host from "lowering_host"
+import { Operation } from "../../state/list/const"
+import emitPermission from "../../state/list/emit_permission"
 
 import type { Header as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, target, selected } = in
+    const { writer, target, selected } = in
 
-    return selected ? host.readSortHeader(frame, target) : 0
+    if (!selected) {
+        return 0
+    }
+
+    return emitPermission({
+        writer,
+        value: target,
+        operation: Operation.Headered
+    })
 }

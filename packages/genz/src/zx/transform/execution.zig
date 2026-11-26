@@ -3,7 +3,6 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const aggregate = @import("../aggregate.zig");
 const publication = @import("../construction/publication.zig");
 const entry = @import("generated_execute_transform");
 const Input = std.meta.Child(entry.Input);
@@ -89,7 +88,9 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .ast = &ast,
         .kind = @fromBackingInt(@backingInt(transform.kind)),
         .id = @backingInt(frame.id),
+        .target = @backingInt(transform.target),
         .result_type = @backingInt(frame.typeId()),
+        .result_selected = @import("../state_value/list.zig").selected(self, frame.typeId()),
         .body_expr = @backingInt(transform.body),
         .initial = if (transform.initial) |initial| @backingInt(initial) else null,
         .context_used = context_used,
@@ -128,14 +129,6 @@ pub fn tryTransformSimd(handle: *anyopaque) Error!?u32 {
     const value = try @import("../simd/root.zig").lower(frame.lowering, frame.id, frame.transform) orelse return null;
 
     return @backingInt(value);
-}
-
-pub fn bindTransformSource(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const value = try @import("../state_value/list.zig").expression(self, frame.transform.target);
-
-    return @backingInt(try aggregate.bind(self, &frame.body, value));
 }
 
 pub fn bindTransformElement(handle: *anyopaque) Error![]const u8 {

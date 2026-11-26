@@ -47,7 +47,7 @@ export default function (in: Input): Output {
             value: replacement
         })
 
-        const third = host.readCollectionItems(frame, replacement_id, value)
+        const third = host.readListItems(ast.lower, replacement_id, value)
 
         return {
             first,
@@ -70,7 +70,7 @@ export default function (in: Input): Output {
 
         const first = match kind {
             CollectionKind.Push => host.writeCollectionElement(frame, bound),
-            _ => host.readCollectionItems(frame, id, bound)
+            _ => host.readListItems(ast.lower, id, bound)
         }
 
         return {

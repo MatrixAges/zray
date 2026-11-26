@@ -1,0 +1,4 @@
+export type Known = {
+    condition?: bool,
+    unique?: bool
+}

@@ -18,9 +18,9 @@
     <Call
         fn="prepare_collection"
         in={$in.pick([
-            "frame",
             "ast",
-            "kind"
+            "kind",
+            "result_type"
         ])}
     />
 
@@ -179,14 +179,16 @@
     />
 
     <Call
-        fn="index.finishTransformCollection"
-        in={[
-            $in.frame,
-            $ctx.publish.outer_start,
-            $ctx.publish.outer_count,
-            $ctx.publish.result
-        ]}
+        fn="finish_collection"
+        in={{
+            ast: $in.ast,
+            result_type: $in.result_type,
+            result_selected: $in.result_selected,
+            start: $ctx.publish.outer_start,
+            count: $ctx.publish.outer_count,
+            value: $ctx.publish.result
+        }}
     />
 
-    <Return value={$ctx.finishTransformCollection} />
+    <Return value={$ctx.finish_collection} />
 </Module>

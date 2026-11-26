@@ -13,7 +13,7 @@ export default function (in: Input): Output {
             field_base: in.field_base,
             serial: 0
         }),
-        root: in.request.value,
+        root: in.value,
         fields: emptyFields({})
     }
 }

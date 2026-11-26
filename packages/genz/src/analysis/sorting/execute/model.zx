@@ -10,6 +10,7 @@ export type Input = {
     origin: AstOriginBuffer,
     target: u32,
     environment: u32,
+    list_type: u32,
     selected: bool,
     reusable: bool,
     errors?: u8[][]
@@ -27,14 +28,20 @@ export type Target = {
     selected: bool
 }
 
-export type Reuse = Target & {
-    reusable: bool
-}
+export type Reuse = Input.Pick(
+    "lower",
+    "writer",
+    "origin",
+    "body",
+    "target",
+    "selected",
+    "reusable"
+)
 
 export type Environment = Input.Pick("lower", "writer", "origin", "body", "environment")
 
 export type Header = {
-    frame: SortFrame,
+    writer: AstWriter,
     target: u32,
     selected: bool
 }
