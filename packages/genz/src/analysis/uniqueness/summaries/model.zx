@@ -1,5 +1,5 @@
 import type { Allocator, U8Buffer } from "memory"
-import type { RowBuffer } from "memory/columns"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
 
 export type Shape = {
     counts: u32[],
@@ -36,7 +36,8 @@ export type Create = {
     shape: Shape,
     views: Views,
     buffers: Buffers,
-    allocator: Allocator
+    allocator: Allocator,
+    owner_rows: ColumnAllocator
 }
 
 export enum Mode {

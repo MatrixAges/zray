@@ -1,5 +1,5 @@
 import type { Allocator, ArenaScope } from "memory"
-import type { WriteColumn } from "memory/columns"
+import type { ColumnAllocator, WriteColumn } from "memory/columns"
 import type { Targets } from "../../growth/output"
 import type { Demanded, Mark, Visit as DemandInput } from "../demand/model"
 import type { GrowthRows, Knowledge, Read } from "../levels/model"
@@ -13,7 +13,8 @@ import type { ContributionTarget, MarkTarget, ReadTarget } from "./columns"
 export type Reads = {
     before: Read[],
     after: Read[],
-    target: ReadTarget
+    target: ReadTarget,
+    owner?: ColumnAllocator
 }
 
 export type Contributions = {
@@ -23,7 +24,8 @@ export type Contributions = {
 
 export type Marks = {
     marks: Mark[],
-    target: MarkTarget
+    target: MarkTarget,
+    owner?: ColumnAllocator
 }
 
 export type Settlement = {
@@ -42,7 +44,8 @@ export type Demand = {
     renewed: GrowthRows,
     mark_target: MarkTarget,
     read_target?: ReadTarget,
-    growth?: Targets
+    growth?: Targets,
+    owner?: ColumnAllocator
 }
 
 export type Arenas = {
@@ -72,7 +75,7 @@ export type SettleVisit = {
 export type DemandVisit = {
     analysis: DemandInput,
     targets: DemandTargets,
-    arenas: Arenas,
+    owner: ColumnAllocator,
     restored_growth: bool
 }
 

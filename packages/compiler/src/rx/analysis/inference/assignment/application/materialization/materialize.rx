@@ -76,13 +76,5 @@
         }}
     />
 
-    <Call
-        fn="../host.readU64"
-        in={[
-            $in.revision,
-            0
-        ]}
-    />
-
-    <Return value={$ctx.readU64 != $ctx.assignmentRevision} />
+    <Return value={$ctx.run != $ctx.assignmentRevision} />
 </Module>

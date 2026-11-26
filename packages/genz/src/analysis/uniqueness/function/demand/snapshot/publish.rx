@@ -8,7 +8,8 @@
         in={{
             rows: $in.normalized,
             target: $in.targets.normalized,
-            wide: false
+            wide: false,
+            owner: $in.owner
         }}
     />
 
@@ -17,7 +18,8 @@
         in={{
             rows: $in.renewed,
             target: $in.targets.renewed,
-            wide: true
+            wide: true,
+            owner: $in.owner
         }}
     />
 </Module>

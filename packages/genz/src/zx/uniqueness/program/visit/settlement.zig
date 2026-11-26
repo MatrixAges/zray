@@ -18,7 +18,7 @@ pub fn apply(scratch: std.mem.Allocator, summaries: *Summaries, value: *const Me
 
     if (memo) |cache| {
         passed.init();
-        stored.open(cache, &scope, &scratch, .{ .passed = &passed.buffer });
+        stored.open(cache, .{ .passed = &passed.buffer });
     }
 
     defer if (memo != null) stored.table.finish();

@@ -11,6 +11,7 @@
                     "keys",
                     "values",
                     "owner",
+                    "owner_rows",
                     "current"
                 ]),
                 buckets: $in.next_buckets,
@@ -23,6 +24,7 @@
             in={{
                 ...$in.omit([
                     "owner",
+                    "owner_rows",
                     "next_buckets",
                     "current",
                     "limit"
@@ -43,6 +45,7 @@
         fn="publish"
         in={$in.omit([
             "owner",
+            "owner_rows",
             "next_buckets",
             "current",
             "limit"

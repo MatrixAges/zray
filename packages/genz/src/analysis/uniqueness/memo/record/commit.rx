@@ -4,14 +4,6 @@
     <Args in={Record.Writer} out={u64} />
 
     <Call
-        fn="../../program/allocators.selectAllocator"
-        in={[
-            $in.scope,
-            $in.table.owner
-        ]}
-    />
-
-    <Call
         module="../table/store"
         in={{
             ...$in.table,
@@ -25,14 +17,6 @@
             $in.limit,
             0,
             $ctx.store.limit
-        ]}
-    />
-
-    <Call
-        fn="../../program/allocators.selectAllocator"
-        in={[
-            $in.scope,
-            $in.scratch
         ]}
     />
 

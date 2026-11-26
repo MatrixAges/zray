@@ -8,7 +8,7 @@ import type { Reserve as Input } from "./model"
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { keys, values, buckets, owner, current, additional } = in
+    const { keys, values, buckets, owner, owner_rows, current, additional } = in
 
     const size = capacity(integers.narrow(current + integers.widen(additional)))
 
@@ -16,14 +16,14 @@ export default function (in: Input): Output {
         keys,
         current,
         size.limit,
-        null
+        owner_rows
     ])
 
     reserveRows([
         values,
         current,
         size.limit,
-        null
+        owner_rows
     ])
 
     memory.allocateU32Buffer(owner, buckets, size.capacity)

@@ -2,7 +2,7 @@ import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { RowBuffer } from "memory/columns"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
 import type { Cells } from "./model"
 
 export type Input = Cells.Omit("layout") & {
@@ -10,24 +10,27 @@ export type Input = Cells.Omit("layout") & {
     base: u64,
     count: u64,
     guarantee_rows: RowBuffer,
-    demand_rows: RowBuffer
+    demand_rows: RowBuffer,
+    owner_rows: ColumnAllocator
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { first, guarantee_rows, demand_rows } = in
+    const { first, guarantee_rows, demand_rows, owner_rows } = in
 
     const length = first.length
 
     allocateRows({
         target: guarantee_rows,
-        count: length
+        count: length,
+        owner: owner_rows
     })
 
     allocateRows({
         target: demand_rows,
-        count: length
+        count: length,
+        owner: owner_rows
     })
 
     const initial: u64 = 0

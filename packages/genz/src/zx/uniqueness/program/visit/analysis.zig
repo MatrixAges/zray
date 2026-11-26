@@ -131,7 +131,7 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     var install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
     var stored: record.Frame(kind, rows.Target(Input, "memo")) = undefined;
 
-    if (frame.memo) |memo| stored.open(memo, &scope, &frame.scratch, switch (kind) {
+    if (frame.memo) |memo| stored.open(memo, switch (kind) {
         .settled => .{ .passed = &passed.buffer },
         .demanded => .{ .marks = &marks.buffer, .growth = growth },
         .planned => {},
@@ -144,6 +144,7 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         .facts = zx.columns.pointer(@FieldType(Input, "facts"), facts),
         .index = index,
         .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(&frame.scratch), .owner = @ptrCast(&frame.owner) },
+        .owner_rows = @ptrCast(&frame.owner),
         .types = &types,
         .deferred = deferred,
         .independent = independent,

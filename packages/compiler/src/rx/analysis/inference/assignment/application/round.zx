@@ -54,6 +54,5 @@ export type Request = {
     sequences: SequencesView,
     indexes: Indexes,
     bounds: Bounds,
-    node_spans: ProjectionSpans,
-    revision: U64Buffer
+    node_spans: ProjectionSpans
 }

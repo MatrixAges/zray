@@ -8,10 +8,9 @@ const entry = @import("generated_uniqueness_visit_adopt_plan");
 const Input = std.meta.Child(entry.Input);
 
 pub fn run(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) std.mem.Allocator.Error!Memo.Planned {
-    var scope = zx.memory.ArenaScope{ .active = owner };
     var stored: record.Frame(.planned, rows.Target(Input, "memo")) = undefined;
 
-    if (memo) |cache| stored.open(cache, &scope, &owner, {});
+    if (memo) |cache| stored.open(cache, {});
 
     defer if (memo != null) stored.table.finish();
 
@@ -26,7 +25,7 @@ pub fn run(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) s
 
     const input: Input = .{ .source = &source, .memo = if (memo != null) &stored.target else null };
 
-    const retained = zx.columns.invoke(entry.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const retained = zx.columns.invoke(entry.executeValue, owner, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("plan adoption failed: {s}", .{@errorName(err)}),
     };

@@ -20,7 +20,6 @@ pub const Frame = struct {
     topology: Topology(View),
     merge_view: View,
     nodes: child(Request, "nodes"),
-    revision: []u64,
     node_spans: []const zx.Span,
     classes: Classes,
     storage: child(Classes, "storage"),
@@ -48,7 +47,6 @@ pub const Frame = struct {
     pub fn bind(self: *Frame, graph: *Graph, workspace: *std.heap.ArenaAllocator) void {
         self.graph = graph;
         self.workspace = workspace;
-        self.revision = (&graph.revision)[0..1];
 
         self.refresh();
 
@@ -86,7 +84,6 @@ pub const Frame = struct {
             .indexes = &self.indexes,
             .bounds = &self.bounds,
             .node_spans = @ptrCast(&self.node_spans),
-            .revision = @ptrCast(&self.revision),
         };
     }
 

@@ -17,6 +17,7 @@ pub fn grow(table: anytype, allocator: std.mem.Allocator, additional: u32) std.m
 
     const input: Input = .{
         .owner = @ptrCast(&allocator),
+        .owner_rows = @ptrCast(&allocator),
         .keys = @ptrCast(&keys),
         .values = @ptrCast(&values),
         .buckets = @ptrCast(&buckets),

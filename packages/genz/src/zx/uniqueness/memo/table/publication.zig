@@ -80,6 +80,7 @@ pub fn Write(comptime Table: type) type {
                 .values = @ptrCast(&self.values),
                 .buckets = @ptrCast(&self.table.buckets),
                 .owner = @ptrCast(&self.allocator),
+                .owner_rows = @ptrCast(&self.allocator),
                 .next_buckets = @ptrCast(&self.next_buckets),
                 .current = self.used[0],
                 .limit = self.table.limit,
@@ -150,6 +151,7 @@ const Fields = struct {
     limit: @FieldType(Input, "limit"),
     next_buckets: @FieldType(Input, "next_buckets"),
     owner: @FieldType(Input, "owner"),
+    owner_rows: @FieldType(Input, "owner_rows"),
     used: @FieldType(Input, "used"),
     values: @FieldType(Input, "values"),
 };

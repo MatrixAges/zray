@@ -17,7 +17,8 @@
             in={{
                 before: [],
                 after: $in.reads,
-                target: $in.read_target
+                target: $in.read_target,
+                owner: null
             }}
         />
     </If>

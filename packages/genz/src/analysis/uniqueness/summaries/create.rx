@@ -18,7 +18,8 @@
         fn="views"
         in={{
             cells: $ctx.allocate,
-            views: $in.views
+            views: $in.views,
+            owner_rows: $in.owner_rows
         }}
     />
 

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Materialization" />
 
-    <Args in={Materialization.Request} out={void} />
+    <Args in={Materialization.Request} out={u64} />
 
     <If on={$in.views.deferred.length != 0}>
         <Call
@@ -22,4 +22,8 @@
             }}
         />
     </Loop>
+
+    <Call fn="../host.assignmentRevision" in={$in.frame} />
+
+    <Return value={$ctx.assignmentRevision} />
 </Module>

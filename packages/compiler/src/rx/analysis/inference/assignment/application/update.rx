@@ -29,15 +29,7 @@
         }}
     />
 
-    <Call
-        fn="host.readU64"
-        in={[
-            $in.revision,
-            0
-        ]}
-    />
-
-    <If on={$ctx.readU64 != $ctx.assignmentRevision}>
+    <If on={$ctx.propagate != $ctx.assignmentRevision}>
         <Return value={true} />
     </If>
 

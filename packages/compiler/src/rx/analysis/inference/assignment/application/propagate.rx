@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Assignment" />
 
-    <Args in={Assignment.Request} out={void} />
+    <Args in={Assignment.Request} out={u64} />
 
     <Loop on={$in.next < $in.request.classes.groups.length}>
         <Call
@@ -15,4 +15,8 @@
             }}
         />
     </Loop>
+
+    <Call fn="host.assignmentRevision" in={$in.frame} />
+
+    <Return value={$ctx.assignmentRevision} />
 </Module>

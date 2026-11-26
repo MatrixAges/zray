@@ -4,34 +4,7 @@
     <Args in={Program.Prepare} out={Program.Prepared} />
 
     <Call module="../topology/collect" in={$in.bodies} />
-
-    <Call
-        fn="allocators.selectAllocator"
-        in={[
-            $in.arenas.scope,
-            $in.arenas.summaries
-        ]}
-    />
-
-    <Call
-        module="../summaries/create"
-        in={{
-            ...$in.pick([
-                "shape",
-                "views",
-                "buffers"
-            ]),
-            allocator: $in.arenas.summaries
-        }}
-    />
-
-    <Call
-        fn="allocators.selectAllocator"
-        in={[
-            $in.arenas.scope,
-            $in.arenas.temporary
-        ]}
-    />
+    <Call module="../summaries/create" in={$in.omit(["bodies"])} />
 
     <Return
         value={{

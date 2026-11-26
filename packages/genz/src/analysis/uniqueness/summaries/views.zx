@@ -1,16 +1,18 @@
 import rows from "./rows"
 
+import type { ColumnAllocator } from "memory/columns"
 import type { Cells, Views } from "./model"
 
 export type Input = {
     cells: Cells,
-    views: Views
+    views: Views,
+    owner_rows: ColumnAllocator
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { cells, views } = in
+    const { cells, views, owner_rows } = in
     const { layout, guarantees, demands } = cells
 
     rows({
@@ -20,7 +22,8 @@ export default function (in: Input): Output {
         guarantee_rows: views.input,
         demand_rows: views.inputs,
         guarantees,
-        demands
+        demands,
+        owner_rows
     })
 
     rows({
@@ -30,6 +33,7 @@ export default function (in: Input): Output {
         guarantee_rows: views.output,
         demand_rows: views.outputs,
         guarantees,
-        demands
+        demands,
+        owner_rows
     })
 }

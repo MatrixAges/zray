@@ -23,7 +23,6 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
 
     const Input = std.meta.Child(creating.Input);
     const Bodies = std.meta.Child(@FieldType(Input, "bodies"));
-    var scope = zx.memory.ArenaScope{ .active = temporary };
     var input_rows: zx.memory.RowBuffer = .empty([]Level);
     var output_rows: zx.memory.RowBuffer = .empty([]Level);
     var input_wants: zx.memory.RowBuffer = .empty([]Level);
@@ -53,20 +52,26 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
             .guarantees = @ptrCast(&guarantees),
             .demands = @ptrCast(&demands),
         },
-        .arenas = &.{
-            .scope = @ptrCast(&scope),
-            .temporary = @ptrCast(&temporary),
-            .summaries = @ptrCast(&summary_memory),
-        },
+        .allocator = @ptrCast(&summary_memory),
+        .owner_rows = @ptrCast(&summary_memory),
     };
 
-    const prepared = creating.executeIn(scope.allocator(), &input) catch |err| switch (err) {
+    const prepared = creating.executeIn(temporary, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("ownership preparation failed: {s}", .{@errorName(err)}),
     };
 
+    const layout = try summary_memory.create(std.meta.Child(@FieldType(Prepared, "layout")));
+
+    layout.* = .{
+        .input_first = try summary_memory.dupe(u64, prepared.layout.input_first),
+        .output_first = try summary_memory.dupe(u64, prepared.layout.output_first),
+        .input_count = prepared.layout.input_count,
+        .output_count = prepared.layout.output_count,
+    };
+
     const model: Model = .{
-        .layout = prepared.layout,
+        .layout = layout,
         .guarantees = guarantees,
         .demands = demands,
     };

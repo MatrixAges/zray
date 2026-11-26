@@ -7,7 +7,8 @@
         fn="marks"
         in={{
             marks: $in.marks,
-            target: $in.mark_target
+            target: $in.mark_target,
+            owner: $in.owner
         }}
     />
 
@@ -17,7 +18,8 @@
             in={{
                 before: $in.before,
                 after: $in.after,
-                target: $in.read_target
+                target: $in.read_target,
+                owner: $in.owner
             }}
         />
     </If>
@@ -28,7 +30,8 @@
             in={{
                 normalized: $in.normalized,
                 renewed: $in.renewed,
-                targets: $in.growth
+                targets: $in.growth,
+                owner: $in.owner
             }}
         />
     </If>

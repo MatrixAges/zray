@@ -1,6 +1,6 @@
 import type { ReadTable, Table } from "core/bytes/index/digest/model"
 import type { Allocator, ReadColumn, U8Buffer, U32Buffer, WriteColumn } from "memory"
-import type { RowBuffer } from "memory/columns"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
 
 export type Index = Table & {
     rows: RowBuffer,
@@ -16,6 +16,7 @@ export type Publication = Storage.Pick("keys", "values", "buckets") & {
 
 export type Store = Publication & {
     owner: Allocator,
+    owner_rows: ColumnAllocator,
     next_buckets: U32Buffer,
     current: u64,
     limit: u64
@@ -48,7 +49,8 @@ export type Storage = {
     keys: RowBuffer,
     values: RowBuffer,
     buckets: U32Buffer,
-    owner: Allocator
+    owner: Allocator,
+    owner_rows: ColumnAllocator
 }
 
 export type Reserve = Storage & Resize

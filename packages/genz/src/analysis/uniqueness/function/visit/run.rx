@@ -46,7 +46,7 @@
                     }
                 },
                 targets: $in.demand.targets,
-                arenas: $in.arenas,
+                owner: $in.owner_rows,
                 restored_growth: $in.demand.restored_growth
             }}
         />

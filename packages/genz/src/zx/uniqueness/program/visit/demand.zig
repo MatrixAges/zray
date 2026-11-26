@@ -19,7 +19,6 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
     const Retention = std.meta.Child(@FieldType(Snapshot, "rows"));
     const Save = rows.Target(Input, "save");
     var retained_marks = zx.memory.RowBuffer.empty(Function.Mark);
-    var scope = zx.memory.ArenaScope{ .active = allocator };
     var stored: record.Frame(.demanded, rows.Target(Save, "memo")) = undefined;
     var normalized = zx.memory.RowBuffer.empty(Growth.Normalized);
     var renewed = zx.memory.RowBuffer.empty(Growth.Renewed);
@@ -39,7 +38,7 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
     const slots = zx.memory.borrowReadColumn(u32, "slot", marks);
     const wants = zx.memory.borrowReadColumn(Level, "want", marks);
 
-    if (memo) |cache| stored.open(cache, &scope, &allocator, .{ .marks = &retained_marks, .growth = target });
+    if (memo) |cache| stored.open(cache, .{ .marks = &retained_marks, .growth = target });
 
     defer if (memo != null) stored.table.finish();
 
@@ -74,7 +73,7 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
         } else null,
     };
 
-    const changed = zx.columns.invoke(entry.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const changed = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("demand visitation failed: {s}", .{@errorName(err)}),
     };

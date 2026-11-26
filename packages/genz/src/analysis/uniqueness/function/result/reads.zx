@@ -22,7 +22,8 @@ export default function (in: Input): Output {
 
     allocateRows({
         target: target.storage,
-        count
+        count,
+        owner: in.owner
     })
 
     const first: u64 = 0

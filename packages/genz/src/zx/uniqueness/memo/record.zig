@@ -51,7 +51,7 @@ pub fn Frame(comptime kind: Memo.Kind, comptime Target: type) type {
         writer: Writer,
         phase: Phase,
         target: Target,
-        pub fn open(self: *Self, memo: *Memo, scope: *zx.memory.ArenaScope, scratch: *const std.mem.Allocator, payload: anytype) void {
+        pub fn open(self: *Self, memo: *Memo, payload: anytype) void {
             self.table.open(&@field(memo, @tagName(kind)), memo.arena.child_allocator, &memo.changed);
 
             self.value = switch (kind) {
@@ -69,8 +69,6 @@ pub fn Frame(comptime kind: Memo.Kind, comptime Target: type) type {
                 .table = &self.store,
                 .value = std.mem.asBytes(&self.value),
                 .limit = @ptrCast(&self.table.limit),
-                .scope = @ptrCast(scope),
-                .scratch = @ptrCast(scratch),
             };
 
             self.phase = switch (kind) {
