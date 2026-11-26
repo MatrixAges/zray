@@ -1,1 +1,1 @@
- () (_ BitVec
+(define-fun ${name} () (_ BitVec ${width}) ${expression})

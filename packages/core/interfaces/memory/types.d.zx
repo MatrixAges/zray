@@ -3,7 +3,6 @@ export type AtomicRows = opaque
 export type BoolBuffer = mutable_opaque
 export type ByteWriter = mutable_opaque
 export type StreamReader = mutable_opaque
-export type StreamWriter = mutable_opaque
 export type U32Buffer = mutable_opaque
 export type U32View = opaque
 export type U64View = opaque

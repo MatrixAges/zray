@@ -1,54 +1,44 @@
-import bytes from "std:bytes"
-import integers from "std:integer"
-import { ascii_space, ascii_close_paren } from "core/ascii/const"
-
-import { declaration_end } from "./const"
-
-import type { Writer } from "std:bytes"
+import strings from "std:string"
 
 export type Input = {
     names: string[],
     expressions: string[],
     widths: u16[],
-    writer: Writer
+    first: u64,
+    end: u64
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { names, expressions, widths, writer } = in
+    const { names, expressions, widths } = in
 
-    const written = loop({
-        index: 0
+    const lines: string[] = []
+
+    const collected = loop({
+        index: in.first,
+        lines
     }, {
-        while: state => state.index < names.length,
+        while: state => state.index < in.end,
         next: state => {
             const name = names[state.index]
             const expression = expressions[state.index]
             const width = widths[state.index]
 
-            const prefix = templateFile("./templates/declaration.tpl")
-            const boolean = templateFile("./templates/boolean.tpl")
-            const bitvector = templateFile("./templates/bitvector.tpl")
-
-            bytes.write(writer, bytes.fromText(prefix))
-            bytes.writeByte(writer, ascii_space)
-            bytes.write(writer, bytes.fromText(name))
-
-            if (width == 0) {
-                bytes.write(writer, bytes.fromText(boolean))
-            } else {
-                bytes.write(writer, bytes.fromText(bitvector))
-                bytes.writeByte(writer, ascii_space)
-                bytes.writeDecimalU64(writer, integers.widenShort(width))
-                bytes.writeByte(writer, ascii_close_paren)
+            const line = match width {
+                0 => templateFile("./templates/boolean.tpl"),
+                _ => templateFile("./templates/bitvector.tpl")
             }
 
-            bytes.writeByte(writer, ascii_space)
-            bytes.write(writer, bytes.fromText(expression))
-            bytes.write(writer, bytes.fromText(declaration_end))
-
+            state.lines = state.lines.push(line)[0]
             state.index += 1
-        }
+        },
+        return: state => state.lines
     })
+
+    if (collected.length == 0) {
+        return ""
+    }
+
+    return strings.join("\n", collected.push("")[0])
 }

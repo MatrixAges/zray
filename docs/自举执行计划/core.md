@@ -57,6 +57,7 @@
     1. **Wave 2（Hop 1）**：已在 `core/src/type_table/structure.zig`、`compiler` 与 `genz`（`ExpressionsKind.Pointer` / `Expressions.pointer`）落地 `mutable_opaque` 可变原生句柄类型，区分 `*const T`（`opaque`）与 `*T`（`mutable_opaque`）。
     2. **Wave 3（Hop 2 收口）**：已将 `core/memory` 与 `std` 全部写入句柄切换为 `mutable_opaque`，新增只读 `U32View`/`U64View`/`StringViews`（`opaque`），重构 `WriteFields` 与 `columns.zig` 可变指针校验，移除 `packages/core/src/memory/` 全部 **36 处 `@constCast` 与 3 处 `noinline`**（`ZERO_UB_CLEAN`），并修复 `column_range`/`column_set`/`column_transfer` 跨分区函数指针错误标签 ABI 问题（改为返回 `bool`）。
 - **阶段门禁（已通过）**：`packages/core/src/memory/` `@constCast == 0` 且 `noinline == 0`；Zig `0.17.1` 下 `ReleaseSmall` 与 `ReleaseSafe` 构建及 `compiler`/`cli` 全量测试全部通过。
+- **Wave 50 补充进展（2026-11-26）**：随着 `compiler` 中仅存的两处流式写入迁移为纯 ZX，彻底删除 [types.d.zx](../../packages/core/interfaces/memory/types.d.zx)、[stream.d.zx](../../packages/core/interfaces/memory/stream.d.zx)、[root.zig](../../packages/core/src/memory/root.zig) 与 [stream.zig](../../packages/core/src/memory/stream.zig) 中的 `StreamWriter`（`mutable_opaque`）、`writeStreamText` 与 `writeStreamJsonBytes`（全仓归零）。
 
 ### Phase C2（P1 · 配合 `genz`）：从 341 个微原语收敛为泛型/类型化独占缓冲原语
 

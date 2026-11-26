@@ -1,7 +1,5 @@
 export type GraphRegistration = mutable_opaque
 
-export type QueryAssembly = mutable_opaque
-
 export declare function reserveSymbolicDefinition(graph: GraphRegistration): void
     throws { OutOfMemory }
 
@@ -19,12 +17,3 @@ export declare function rejectSymbolicDefinition(
     graph: GraphRegistration,
     message: string?
 ): string throws { InvalidSource }
-
-export declare function appendQueryDefinitions(query: QueryAssembly, first: u64, end: u64): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function publishAssembledQuery(
-    query: QueryAssembly,
-    prefix: u64,
-    feasibility: string
-): void throws { OutOfMemory }

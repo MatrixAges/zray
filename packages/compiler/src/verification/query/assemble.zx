@@ -1,0 +1,33 @@
+import strings from "std:string"
+
+export type Input = {
+    header: string,
+    prefix_defs: string,
+    body_defs: string,
+    feasibility: string,
+    correctness: string
+}
+
+export type Output = {
+    feasibility: string,
+    correctness: string
+}
+
+export default function (in: Input): Output {
+    const prefix = strings.join("", [
+        in.header,
+        in.prefix_defs
+    ])
+
+    return {
+        feasibility: strings.join("", [
+            prefix,
+            in.feasibility
+        ]),
+        correctness: strings.join("", [
+            prefix,
+            in.body_defs,
+            in.correctness
+        ])
+    }
+}

@@ -1,5 +1,4 @@
 const std = @import("std");
-const zx = @import("zx");
 const generating = @import("genz").zx.state;
 const modules = @import("../modules.zig");
 const Cache = @import("../cache.zig");
@@ -14,20 +13,14 @@ writable: []const bool,
 independent: bool,
 requirements: generating.Requirements,
 cache: ?*Cache,
-hash: std.Io.Writer.Hashing(zx.Sha256) = undefined,
-key: [32]u8 = undefined,
 pub fn run(self: *Self) Error!void {
     const entry = @import("generated_publish_state");
     const Input = std.meta.Child(entry.Input);
-    var buffer: [512]u8 = undefined;
-
-    if (self.cache != null) self.hash = .init(&buffer);
 
     const input: Input = .{
         .frame = @ptrCast(self),
         .name = @import("generated_state_constants").@"zx.constants".state_name,
         .key = &.{
-            .writer = @ptrCast(&self.hash.writer),
             .imports = self.imports,
             .writable = self.writable,
             .independent = self.independent,
@@ -49,11 +42,8 @@ fn borrow(handle: *anyopaque) *Self {
 
 pub fn lookupStateSource(in: *const native.Lookup) Error!?[]const u8 {
     const self = borrow(in.frame);
-
-    self.hash.writer.flush() catch unreachable;
-    self.hash.hasher.final(&self.key);
-
-    const source = try self.cache.?.get(in.name, self.key) orelse return null;
+    const key = in.key[0..32].*;
+    const source = try self.cache.?.get(in.name, key) orelse return null;
 
     return try self.bundle.arena.allocator().dupe(u8, source);
 }
@@ -77,9 +67,10 @@ pub fn renderStateSource(handle: *anyopaque) Error![]const u8 {
 pub fn cacheStateSource(in: *const native.Source) Error!void {
     const self = borrow(in.frame);
     const cache = self.cache.?;
+    const key = in.key[0..32].*;
     cache.generated += 1;
 
-    try cache.put(in.name, self.key, in.source);
+    try cache.put(in.name, key, in.source);
 }
 
 pub fn appendStateFile(in: *const native.File) Error!void {

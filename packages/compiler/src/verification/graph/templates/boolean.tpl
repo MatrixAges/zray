@@ -1,1 +1,1 @@
- () Bool
+(define-fun ${name} () Bool ${expression})

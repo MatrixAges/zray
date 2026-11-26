@@ -10,7 +10,6 @@ pub const Definitions = std.MultiArrayList(Definition);
 allocator: std.mem.Allocator,
 reporter: *zx.Reporter,
 definitions: Definitions = .empty,
-declaration_payload_bytes: usize = 0,
 index: []u64 = &.{},
 calls: @import("call_cache.zig").Cache = .{},
 steps: usize = 0,
@@ -26,16 +25,6 @@ pub fn bind(self: *Self, expression: []const u8, width: u16, origin: Origin) zx.
 
 pub fn appendDefinition(self: *Self, definition: Definition) void {
     self.definitions.appendAssumeCapacity(definition);
-
-    self.declaration_payload_bytes +|= definition.name.len +| definition.expression.len;
-}
-
-pub fn declarationCapacity(self: *const Self) usize {
-    // The longest sort uses five digits for a bit-vector width. Names and
-    // expressions are already accounted for in declaration_payload_bytes.
-    const max_overhead = "(define-fun  () (_ BitVec 65535) )\n".len;
-
-    return self.declaration_payload_bytes +| (self.definitions.len *| max_overhead);
 }
 
 /// Every composite is assembled from evaluations whose scalar leaves are already bound.
@@ -49,23 +38,4 @@ pub fn retain(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input:
 
 pub fn select(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: terms.Value, no: terms.Value, span: zx.Span) zx.Error!terms.Value {
     return @import("graph/selection.zig").select(self, &program, type_id, condition, &yes, &no, span);
-}
-
-pub fn writeDeclarations(self: *Self, output: *std.Io.Writer, start: usize, end: usize) zx.Error!void {
-    if (start == end) return;
-
-    const rows = self.definitions.slice().subslice(start, end - start);
-    const rule = @import("generated_verification_graph_declarations");
-
-    const input: std.meta.Child(rule.Input) = .{
-        .writer = @ptrCast(output),
-        .expressions = rows.items(.expression),
-        .names = rows.items(.name),
-        .widths = rows.items(.width),
-    };
-
-    zx.columns.invoke(rule.executeValue, self.allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
 }

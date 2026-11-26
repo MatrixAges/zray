@@ -19,5 +19,3 @@ export const external_call_message: string =
 
 export const recursive_call_message: string =
     "symbolic execution does not support recursive functions"
-
-export const declaration_end: string = ")\n"

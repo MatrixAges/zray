@@ -2,12 +2,14 @@ export type StatePublication = mutable_opaque
 
 export type Lookup = {
     frame: StatePublication,
-    name: string
+    name: string,
+    key: u8[]
 }
 
 export type Source = {
     frame: StatePublication,
     name: string,
+    key: u8[],
     source: u8[]
 }
 

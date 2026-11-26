@@ -31,7 +31,6 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("verification/execution/program.zig"),
     @import("verification/graph/registration.zig"),
     @import("verification/graph/selection.zig"),
-    @import("verification/query/assembly.zig"),
     @import("verification/solver.zig"),
 }).resolve;
 

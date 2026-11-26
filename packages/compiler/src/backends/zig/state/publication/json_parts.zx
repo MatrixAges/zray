@@ -1,0 +1,83 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import strings from "std:string"
+
+export type Input = {
+    text: string,
+    parts: u8[][]
+}
+
+export type Output = u8[][]
+
+export default function (in: Input): Output {
+    const raw = bytes.fromText(in.text)
+    const initial = in.parts.push(bytes.fromText("\""))[0]
+
+    const scanned = loop({
+        index: 0,
+        written: 0,
+        parts: initial
+    }, {
+        while: state => state.index < raw.length,
+        next: state => {
+            const index = state.index
+            const byte = raw[index]
+
+            const escape: string? = match byte {
+                34 => "\\\"",
+                92 => "\\\\",
+                8 => "\\b",
+                12 => "\\f",
+                10 => "\\n",
+                13 => "\\r",
+                9 => "\\t",
+                _ => null
+            }
+
+            if (escape != null) {
+                if (state.written < index) {
+                    const chunk = encoding.sliceBytes(in.text, state.written, index)
+
+                    state.parts = state.parts.push(bytes.fromText(chunk))[0]
+                }
+
+                state.parts = state.parts.push(bytes.fromText(escape))[0]
+                state.written = index + 1
+            } else if (byte < 32) {
+                if (state.written < index) {
+                    const chunk = encoding.sliceBytes(in.text, state.written, index)
+
+                    state.parts = state.parts.push(bytes.fromText(chunk))[0]
+                }
+
+                const hex = encoding.encodeHex(bytes.readU8s(raw, index, index + 1))
+
+                const sequence = strings.join("", [
+                    "\\u00",
+                    hex
+                ])
+
+                state.parts = state.parts.push(bytes.fromText(sequence))[0]
+                state.written = index + 1
+            }
+
+            state.index += 1
+        },
+        return: state => ({
+            written: state.written,
+            parts: state.parts
+        })
+    })
+
+    if (scanned.written == raw.length) {
+        return scanned.parts.push(bytes.fromText("\""))[0]
+    }
+
+    const tail = encoding.sliceBytes(in.text, scanned.written, raw.length)
+
+    return scanned.parts.push(bytes.fromText(tail))[0].push(
+        bytes.fromText(
+            "\""
+        )
+    )[0]
+}

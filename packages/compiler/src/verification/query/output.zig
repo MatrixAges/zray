@@ -1,18 +1,44 @@
 const std = @import("std");
-const zx = @import("zx");
 const Graph = @import("../graph.zig");
 const Conditions = @import("../conditions.zig");
 const Allocator = std.mem.Allocator;
 const layout = @import("generated_verification_query");
-const Request = @typeInfo(@TypeOf(layout.executeValue)).@"fn".param_types[1].?;
-const Input = if (@typeInfo(Request) == .pointer) std.meta.Child(Request) else Request;
 
-pub fn render(result: Allocator, temporary: Allocator, graph: *Graph, precondition_count: usize, input: Input, inputs: []const Conditions.Input) zx.Error!Conditions.Query {
+pub const Sections = struct {
+    declarations: []const []const u8,
+    violations: []const []const u8,
+    precondition: []const u8,
+};
+
+pub fn render(result: Allocator, temporary: Allocator, graph: *Graph, precondition_count: usize, input: Sections, inputs: []const Conditions.Input) zx.Error!Conditions.Query {
     var scratch = std.heap.ArenaAllocator.init(temporary);
 
     defer scratch.deinit();
 
-    const sections = try layout.executeValue(scratch.allocator(), if (Input == Request) input else &input);
+    const rows = graph.definitions.slice();
 
-    return @import("assembly.zig").write(result, graph, precondition_count, sections, inputs);
+    const request: std.meta.Child(layout.Input) = .{
+        .declarations = input.declarations,
+        .precondition = input.precondition,
+        .violations = input.violations,
+        .names = rows.items(.name),
+        .expressions = rows.items(.expression),
+        .widths = rows.items(.width),
+        .precondition_count = precondition_count,
+    };
+
+    const assembled = layout.executeIn(scratch.allocator(), &request) catch |err| return switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        else => unreachable,
+    };
+
+    const feasibility = try result.dupe(u8, assembled.feasibility);
+
+    errdefer result.free(feasibility);
+
+    const correctness = try result.dupe(u8, assembled.correctness);
+
+    return .{ .feasibility = feasibility, .correctness = correctness, .inputs = inputs };
 }
+
+const zx = @import("zx");

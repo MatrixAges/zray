@@ -3,16 +3,21 @@
         in={{
             declarations: string[],
             precondition: string,
-            violations: string[]
+            violations: string[],
+            names: string[],
+            expressions: string[],
+            widths: u16[],
+            precondition_count: u64
         }}
         out={{
-            header: string,
-            correctness: string,
-            feasibility: string
+            feasibility: string,
+            correctness: string
         }}
     />
 
-    <Call fn="declarations" in={$in.declarations} />
+    <Task name="preamble" out={$ctx.declarations}>
+        <Call fn="declarations" in={$in.declarations} />
+    </Task>
 
     <Call fn="header" />
 
@@ -26,11 +31,42 @@
         <Call fn="assertion" in={$ctx.failures} />
     </Task>
 
-    <Return
-        value={{
+    <Task name="prefix_defs" out={$ctx.declarations}>
+        <Call
+            fn="../graph/declarations"
+            in={{
+                names: $in.names,
+                expressions: $in.expressions,
+                widths: $in.widths,
+                first: 0,
+                end: $in.precondition_count
+            }}
+        />
+    </Task>
+
+    <Task name="body_defs" out={$ctx.declarations}>
+        <Call
+            fn="../graph/declarations"
+            in={{
+                names: $in.names,
+                expressions: $in.expressions,
+                widths: $in.widths,
+                first: $in.precondition_count,
+                end: $in.names.length
+            }}
+        />
+    </Task>
+
+    <Call
+        fn="assemble"
+        in={{
             header: $ctx.header,
+            prefix_defs: $ctx.task.prefix_defs,
+            body_defs: $ctx.task.body_defs,
             feasibility: $ctx.task.feasibility,
             correctness: $ctx.task.correctness
         }}
     />
+
+    <Return value={$ctx.assemble} />
 </Module>

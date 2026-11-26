@@ -1,5 +1,5 @@
 import bytes from "std:bytes"
-import memory from "memory"
+import crypto from "std:crypto"
 
 import {
     false_value,
@@ -15,43 +15,74 @@ import {
     true_value,
     writable_object_end
 } from "./const"
+import jsonParts from "./json_parts"
 
 import type { Key as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, imports, writable } = in
+    const { imports, writable } = in
 
     const object = in.independent ? independent_object : shared_object
 
-    memory.writeStreamText(writer, fingerprint_prefix)
+    const initial: u8[][] = [
+        bytes.fromText(fingerprint_prefix)
+    ]
 
-    const written = loop(first_initializer, {
-        while: row => row < imports.length,
-        next: row => {
+    const body = loop({
+        row: first_initializer,
+        parts: initial
+    }, {
+        while: state => state.row < imports.length,
+        next: state => {
+            const row = state.row
+
             if (row != first_initializer) {
-                memory.writeStreamText(writer, object_separator)
+                state.parts = state.parts.push(bytes.fromText(object_separator))[0]
             }
 
-            memory.writeStreamText(writer, object)
-            memory.writeStreamJsonBytes(
-                writer,
-                bytes.fromText(imports[row])
-            )
+            const obj_parts = state.parts.push(bytes.fromText(object))[0]
+
+            const text_parts = jsonParts({
+                text: imports[row],
+                parts: obj_parts
+            })
 
             const can_write = writable[row - first_initializer]
             const end = can_write ? writable_object_end : readonly_object_end
 
-            memory.writeStreamText(writer, end)
-
-            row += 1
-        }
+            state.parts = text_parts.push(bytes.fromText(end))[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
 
-    memory.writeStreamText(writer, requirements_open)
-    memory.writeStreamText(writer, in.io ? true_value : false_value)
-    memory.writeStreamText(writer, process_field)
-    memory.writeStreamText(writer, in.process ? true_value : false_value)
-    memory.writeStreamText(writer, fingerprint_close)
+    const io_value = in.io ? true_value : false_value
+    const process_value = in.process ? true_value : false_value
+
+    const parts = body
+        .push(bytes.fromText(requirements_open))[0]
+        .push(
+            bytes.fromText(
+                io_value
+            )
+        )[0]
+        .push(
+            bytes.fromText(
+                process_field
+            )
+        )[0]
+        .push(
+            bytes.fromText(
+                process_value
+            )
+        )[0]
+        .push(
+            bytes.fromText(
+                fingerprint_close
+            )
+        )[0]
+
+    return crypto.sha256Parts(parts)
 }

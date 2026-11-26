@@ -15,7 +15,8 @@
         fn="index.lookupStateSource"
         in={{
             frame: $in.frame,
-            name: $in.name
+            name: $in.name,
+            key: $ctx.fingerprint
         }}
     />
 
@@ -30,6 +31,7 @@
         in={{
             frame: $in.frame,
             name: $in.name,
+            key: $ctx.fingerprint,
             source: $ctx.renderStateSource
         }}
     />
