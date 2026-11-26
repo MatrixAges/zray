@@ -1,22 +1,26 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="model" as="Reachable" />
 
-    <Args in={IO.ReachableLint} out={bool} />
+    <Args in={Reachable.Input} out={bool} />
 
-    <Call fn="../index.reachableLintModuleCount" in={$in} />
+    <Store from="seen" as="seen" />
+
+    <If on={$in.items.length == 0}>
+        <Return value={true} />
+    </If>
 
     <Loop on={$in.running}>
         <Call
-            module="walk"
+            module="step"
             in={{
-                check: $in,
-                count: $ctx.reachableLintModuleCount,
+                check: $in.check,
+                items: $in.items,
                 index: 0,
                 valid: true,
-                running: $ctx.reachableLintModuleCount != 0
+                running: true
             }}
         />
     </Loop>
 
-    <Return value={$ctx.walk.valid} />
+    <Return value={$ctx.step.valid} />
 </Module>

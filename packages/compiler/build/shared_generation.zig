@@ -35,6 +35,38 @@ const Counts = struct {
     bodies_only: bool,
 };
 
+const PartitionedModules = struct {
+    modules: []const @import("rx").ModuleSource,
+    stores: []const @import("rx").ModuleSource,
+};
+
+fn partitionModules(allocator: std.mem.Allocator, all: []const @import("rx").ModuleSource) !PartitionedModules {
+    var store_count: usize = 0;
+
+    for (all) |item| {
+        if (std.mem.endsWith(u8, item.path, ".store.rx")) store_count += 1;
+    }
+
+    if (store_count == 0) return .{ .modules = all, .stores = &.{} };
+
+    const regular = try allocator.alloc(@import("rx").ModuleSource, all.len - store_count);
+    const stores = try allocator.alloc(@import("rx").ModuleSource, store_count);
+    var regular_index: usize = 0;
+    var store_index: usize = 0;
+
+    for (all) |item| {
+        if (std.mem.endsWith(u8, item.path, ".store.rx")) {
+            stores[store_index] = item;
+            store_index += 1;
+        } else {
+            regular[regular_index] = item;
+            regular_index += 1;
+        }
+    }
+
+    return .{ .modules = regular, .stores = stores };
+}
+
 /// Generates the tree for `entries` into `output`, unless it is null, and returns its summary line. Parsed modules,
 /// cached sources and the previous analysis come from `resident`, which keeps them for later requests.
 pub fn run(target: Target, owned: std.mem.Allocator, entries: []const Entry, inputs: Inputs) ![]const u8 {
@@ -54,12 +86,13 @@ pub fn run(target: Target, owned: std.mem.Allocator, entries: []const Entry, inp
     };
 
     const parse_cache = &resident.parse_cache;
+    const partitioned = try partitionModules(owned, inputs.modules);
     const history = resident.startAnalysis(inputs.frame, inputs.shape, inputs.rx_digests, inputs.sources);
 
     // When only function bodies changed, the earlier analysis already found the reachable modules.
     history.bodies_only = try history.bodiesOnly(inputs.sources, parse_cache);
 
-    const selected = if (history.bodies_only) history.previous.?.modules else try @import("source_inputs.zig").reachable(owned, resident.gpa, inputs.modules, inputs.sources, roots, project, parse_cache);
+    const selected = if (history.bodies_only) history.previous.?.modules else try @import("source_inputs.zig").reachable(owned, resident.gpa, partitioned.modules, partitioned.stores, inputs.sources, roots, project, parse_cache);
     // Retired analysis epochs can release their pages without keeping large blocks in malloc.
     const analysis_allocator = if (resident.request != null) std.heap.page_allocator else resident.gpa;
 
@@ -67,6 +100,7 @@ pub fn run(target: Target, owned: std.mem.Allocator, entries: []const Entry, inp
         .entry = roots[0],
         .exports = exports,
         .modules = selected,
+        .stores = partitioned.stores,
         .sources = inputs.sources,
         .project = project,
         .scratch_allocator = resident.gpa,

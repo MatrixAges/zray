@@ -7,79 +7,100 @@ const Error = effects.Error;
 
 const State = struct {
     context: *const Compile.Context,
-    modules: []const Module,
-    root: []const u8,
-    seen: std.StringHashMapUnmanaged(void) = .empty,
-    module: *const Module = undefined,
-    source: *const Source = undefined,
-    path: []const u8 = undefined,
+    sources: []const *const Source,
+    store_paths: []const []const u8,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
-    fn admit(self: *State, path: []const u8) Error!bool {
-        const row = self.seen.getOrPut(self.context.allocator, path) catch |err| return self.failure.save(err);
+};
 
-        return !row.found_existing;
+const reachable = @import("cli_source").lint_reachable;
+const StoreState = std.meta.Child(@FieldType(reachable.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
     }
 };
 
 pub fn check(context: Compile.Context, modules: []const Module, root: []const u8) !Compile.Status {
-    var state: State = .{ .context = &context, .modules = modules, .root = root };
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
+
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+    const Input = std.meta.Child(reachable.Input);
+    const ItemSlot = std.meta.Child(@FieldType(Input, "items"));
+    const Item = if (@typeInfo(ItemSlot) == .pointer) std.meta.Child(ItemSlot) else ItemSlot;
+    var source_count: usize = 0;
+    var store_count: usize = 0;
+
+    for (modules) |module| {
+        source_count += module.sources.len;
+        store_count += module.store_definitions.len;
+    }
+
+    const source_list = try allocator.alloc(*const Source, source_count);
+    const store_paths = try allocator.alloc([]const u8, store_count);
+    const items = try allocator.alloc(ItemSlot, source_count + store_count);
+    var source_index: usize = 0;
+    var store_index: usize = 0;
+    var item_index: usize = 0;
+
+    for (modules) |module| {
+        for (module.sources) |*source| {
+            source_list[source_index] = source;
+            items[item_index] = try buildItem(allocator, ItemSlot, Item, source.path, false, source_index);
+            source_index += 1;
+            item_index += 1;
+        }
+
+        for (module.store_definitions) |*definition| {
+            const path = try std.fs.path.resolve(allocator, &.{ root, definition.source_path });
+
+            store_paths[store_index] = path;
+            items[item_index] = try buildItem(allocator, ItemSlot, Item, path, true, store_index);
+            store_index += 1;
+            item_index += 1;
+        }
+    }
+
+    var state: State = .{ .context = &context, .sources = source_list, .store_paths = store_paths };
     const reference = &state;
-
-    defer state.seen.deinit(context.allocator);
-
-    const valid = @import("cli_source").lint_reachable.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    var visited: StoreState = &.{ .paths = &.{} };
+    var host: StoreHost = .{ .store_0 = &visited };
+    const valid = reachable.execute(&arena, &.{ .check = @ptrCast(&reference), .items = items }, &host) catch |err| return state.failure.unwrap(err);
 
     return if (valid) .success else .failed;
 }
 
-pub fn reachableLintModuleCount(handle: *const anyopaque) u64 {
-    return State.get(handle).modules.len;
+fn buildItem(allocator: std.mem.Allocator, comptime Slot: type, comptime Item: type, path: []const u8, is_store: bool, row: usize) !Slot {
+    const value: Item = .{ .path = path, .is_store = is_store, .row = row };
+
+    if (Slot == Item) return value;
+
+    const slot = try allocator.create(Item);
+
+    slot.* = value;
+
+    return slot;
 }
 
-pub fn selectReachableLintModule(handle: *const anyopaque, index: u64) u64 {
+pub fn checkReachableLintSource(handle: *const anyopaque, row: u64) Error!bool {
     const self = State.get(handle);
-
-    self.module = &self.modules[@intCast(index)];
-
-    return self.module.sources.len;
-}
-
-pub fn admitReachableLintSource(handle: *const anyopaque, index: u64) Error!bool {
-    const self = State.get(handle);
-
-    self.source = &self.module.sources[@intCast(index)];
-
-    return self.admit(self.source.path);
-}
-
-pub fn checkReachableLintSource(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
+    const source = self.sources[@intCast(row)];
     var selected = self.context.*;
-    selected.options.input = self.source.path;
-    const status = @import("../lint.zig").checkSource(selected, self.source.source) catch |err| return self.failure.save(err);
+    selected.options.input = source.path;
+    const status = @import("../lint.zig").checkSource(selected, source.source) catch |err| return self.failure.save(err);
 
     return status == .success;
 }
 
-pub fn reachableLintStoreCount(handle: *const anyopaque) u64 {
-    return State.get(handle).module.store_definitions.len;
-}
-
-pub fn admitReachableLintStore(handle: *const anyopaque, index: u64) Error!bool {
+pub fn checkReachableLintStore(handle: *const anyopaque, row: u64) Error!bool {
     const self = State.get(handle);
-    const definition = &self.module.store_definitions[@intCast(index)];
-
-    self.path = std.fs.path.resolve(self.context.allocator, &.{ self.root, definition.source_path }) catch |err| return self.failure.save(err);
-
-    return self.admit(self.path);
-}
-
-pub fn checkReachableLintStore(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const status = file(self.context.*, self.path) catch |err| return self.failure.save(err);
+    const status = file(self.context.*, self.store_paths[@intCast(row)]) catch |err| return self.failure.save(err);
 
     return status == .success;
 }

@@ -1,14 +1,29 @@
 import type { ReachableLint } from "lint_workflow_host"
 
-export type Module = [ReachableLint, u64]
-
-export type Rows = {
-    check: ReachableLint,
-    count: u64
+export type Visited = {
+    paths: u8[][]
 }
 
-export type Walk = Rows & {
+export type Item = {
+    path: u8[],
+    is_store: bool,
+    row: u64
+}
+
+export type Input = {
+    check: ReachableLint,
+    items: Item[]
+}
+
+export type Walk = {
+    check: ReachableLint,
+    items: Item[],
     index: u64,
     valid: bool,
     running: bool
+}
+
+export type AdmitInput = {
+    path: u8[],
+    visited: Visited
 }

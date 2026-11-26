@@ -39,8 +39,8 @@ export {
     lintMemberSemantics,
     lintMemberConfiguration,
     releaseLintWorkspaceMember,
-    selectReachableLintModule,
-    reachableLintStoreCount,
+    checkReachableLintSource,
+    checkReachableLintStore,
     reportConfigurationKind,
     readConfiguration,
     formatConfigurationManifest,
@@ -54,7 +54,6 @@ export {
     Entry,
     Layout
 } from "lint_workflow_host"
-export { reachableLintModuleCount } from "lint_workflow_host"
 
 export type {
     Command,

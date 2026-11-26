@@ -1,0 +1,5 @@
+<Store name="reachable_lint" version={1}>
+    <Object name="visited">
+        <Field name="paths" type={u8[][]} value={[]} />
+    </Object>
+</Store>

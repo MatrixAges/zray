@@ -32,6 +32,10 @@ pub fn deinit(self: *Self) void {
     std.debug.assert(self.versions == 0);
 }
 
+fn isStore(path: []const u8) bool {
+    return std.mem.endsWith(u8, path, ".store.rx");
+}
+
 /// Borrows unchanged XML and stages new versions until an analysis publishes them. Sources are sorted by path.
 pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSource, packages: [32]u8) ![]const rx.ModuleSource {
     std.debug.assert(self.pending == null);
@@ -46,7 +50,7 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
     const plan = try selection.prepare(scratch.allocator(), before, sources, previous_packages, &packages);
 
     if (plan.whole) {
-        for (before, inputs, sources) |version, *input, source| input.* = view(version, source, true);
+        for (before, inputs, sources) |version, *input, source| input.* = view(version, source, !isStore(source.path));
 
         self.reused += before.len;
 
@@ -79,20 +83,66 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
         }
 
         initialized += 1;
-        input.* = view(version.*, source, reused);
+        input.* = view(version.*, source, reused and !isStore(source.path));
     }
 
-    var checked = try rx.validateModulePaths(self.gpa, inputs);
+    var store_count: usize = 0;
 
-    defer checked.deinit();
-
-    if (checked.value == .diagnostic) {
-        const issue = checked.value.diagnostic;
-
-        return invalid(sources[issue.source_index].path, issue.issue);
+    for (inputs) |input| {
+        if (isStore(input.path)) store_count += 1;
     }
 
-    for (inputs, next) |*input, version| rx.markModuleSchema(input, &version.parsed.xml.value.node);
+    if (store_count == 0) {
+        var checked = try rx.validateModulePaths(self.gpa, inputs);
+
+        defer checked.deinit();
+
+        if (checked.value == .diagnostic) {
+            const issue = checked.value.diagnostic;
+
+            return invalid(sources[issue.source_index].path, issue.issue);
+        }
+
+        for (inputs, next) |*input, version| rx.markModuleSchema(input, &version.parsed.xml.value.node);
+    } else {
+        const regular_count = inputs.len - store_count;
+        const regular = try scratch.allocator().alloc(rx.ModuleSource, regular_count);
+        const regular_indices = try scratch.allocator().alloc(usize, regular_count);
+        var regular_pos: usize = 0;
+
+        for (inputs, 0..) |input, row| {
+            if (isStore(input.path)) {
+                rx.validateSourcePath(self.gpa, input.path, .store) catch |err| {
+                    if (err == error.OutOfMemory) return error.OutOfMemory;
+
+                    return invalid(input.path, .{
+                        .code = .context,
+                        .location = input.node.location,
+                        .element = input.node.name,
+                        .message = "Store definition must have a project-relative .store.rx path",
+                    });
+                };
+            } else {
+                regular[regular_pos] = input;
+                regular_indices[regular_pos] = row;
+                regular_pos += 1;
+            }
+        }
+
+        var checked = try rx.validateModulePaths(self.gpa, regular);
+
+        defer checked.deinit();
+
+        if (checked.value == .diagnostic) {
+            const issue = checked.value.diagnostic;
+
+            return invalid(sources[regular_indices[issue.source_index]].path, issue.issue);
+        }
+
+        for (inputs, next) |*input, version| {
+            if (!isStore(input.path)) rx.markModuleSchema(input, &version.parsed.xml.value.node);
+        }
+    }
 
     batch.* = .{ .versions = next, .packages = packages };
     self.pending = batch;

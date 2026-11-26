@@ -71,13 +71,11 @@ export declare function lintMemberSemantics(check: WorkspaceLint): bool throws {
 export declare function lintMemberConfiguration(check: WorkspaceLint): bool throws { SourceLoadFailure }
 export declare function releaseLintWorkspaceMember(check: WorkspaceLint): void
 
-export declare function reachableLintModuleCount(check: ReachableLint): u64
-export declare function selectReachableLintModule(check: ReachableLint, index: u64): u64
-export declare function admitReachableLintSource(check: ReachableLint, index: u64): bool throws { SourceLoadFailure }
-export declare function checkReachableLintSource(check: ReachableLint): bool throws { SourceLoadFailure }
-export declare function reachableLintStoreCount(check: ReachableLint): u64
-export declare function admitReachableLintStore(check: ReachableLint, index: u64): bool throws { SourceLoadFailure }
-export declare function checkReachableLintStore(check: ReachableLint): bool throws { SourceLoadFailure }
+export declare function checkReachableLintSource(check: ReachableLint, row: u64): bool
+    throws { SourceLoadFailure }
+
+export declare function checkReachableLintStore(check: ReachableLint, row: u64): bool
+    throws { SourceLoadFailure }
 
 export declare function reportConfigurationKind(check: Configuration): void throws { SourceLoadFailure }
 export declare function readConfiguration(check: Configuration, maximum_bytes: u64): void throws { SourceLoadFailure }
