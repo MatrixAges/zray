@@ -1,6 +1,8 @@
 import host from "verification_publication_host"
 
+import commit from "../commit"
 import { definition_limit_message } from "../const"
+import identity from "../identity"
 import { Action } from "../model"
 
 import type { Bind as Input } from "./model"
@@ -28,11 +30,18 @@ export default function (in: Input): Output {
         host.allocateSymbolicIndex(graph, selected.capacity)
     }
 
-    const name = host.writeSymbolicDefinition(graph, selected.position, resized)
+    const created = identity(in.origin)
 
-    if (resized) {
-        host.installSymbolicIndex(graph)
-    }
+    commit({
+        keys: lookup.keys,
+        key: lookup.key,
+        buckets: in.buckets,
+        capacity: selected.capacity,
+        position: selected.position,
+        resized
+    })
 
-    return name
+    host.commitSymbolicDefinition(graph, created.name, created.file, resized)
+
+    return created.name
 }

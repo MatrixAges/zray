@@ -1,6 +1,8 @@
 import type { ColumnLengths, StreamWriter } from "memory"
 import type { QueryAssembly } from "verification_publication_host"
 
+export { publishAssembledQuery } from "verification_publication_host"
+
 export type Input = {
     query: QueryAssembly,
     writer: StreamWriter,
@@ -10,10 +12,4 @@ export type Input = {
     feasibility: string,
     precondition_count: u64,
     definition_count: u64
-}
-
-export type Finish = {
-    query: QueryAssembly,
-    prefix: u64,
-    feasibility: string
 }

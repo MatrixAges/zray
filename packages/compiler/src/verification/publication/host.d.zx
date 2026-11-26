@@ -8,13 +8,12 @@ export declare function reserveSymbolicDefinition(graph: GraphRegistration): voi
 export declare function allocateSymbolicIndex(graph: GraphRegistration, capacity: u64): void
     throws { OutOfMemory }
 
-export declare function writeSymbolicDefinition(
+export declare function commitSymbolicDefinition(
     graph: GraphRegistration,
-    position: u64,
+    name: string,
+    file: string,
     resized: bool
-): string throws { OutOfMemory }
-
-export declare function installSymbolicIndex(graph: GraphRegistration): void
+): void
 
 export declare function rejectSymbolicDefinition(
     graph: GraphRegistration,
@@ -24,11 +23,8 @@ export declare function rejectSymbolicDefinition(
 export declare function appendQueryDefinitions(query: QueryAssembly, first: u64, end: u64): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function publishCorrectnessQuery(query: QueryAssembly): void
-    throws { OutOfMemory }
-
-export declare function publishFeasibilityQuery(
+export declare function publishAssembledQuery(
     query: QueryAssembly,
     prefix: u64,
-    suffix: string
+    feasibility: string
 ): void throws { OutOfMemory }

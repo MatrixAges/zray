@@ -8,9 +8,6 @@ export default function (in: Input): Output {
     const { evidence, feasibility, correctness } = in
 
     const output = in.output ?? path({
-        context: in.context,
-        hash: in.hash,
-        path_writer: in.path_writer,
         evidence,
         feasibility,
         correctness

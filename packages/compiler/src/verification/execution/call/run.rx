@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Call" />
 
-    <Args in={Call.Input} out={void} />
+    <Args in={Call.Input} out={string} />
 
     <Call fn="prepare" in={$in} />
 
@@ -12,4 +12,6 @@
             argument_safe: $ctx.prepare
         }}
     />
+
+    <Return value={$ctx.solve} />
 </Module>

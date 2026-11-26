@@ -3,13 +3,13 @@ const zx = @import("zx");
 const Graph = @import("../graph.zig");
 const execution = @import("../execution/context.zig");
 const workflow = @import("generated_bind_symbolic_definition");
-const publication = @import("generated_verification_graph_publish");
 
 const Frame = struct {
     graph: *Graph,
     expression: []const u8,
     origin: Graph.Origin,
     width: u16,
+    buckets: []u64,
     staged: ?[]u64 = null,
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
@@ -17,7 +17,13 @@ const Frame = struct {
 };
 
 pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Origin) zx.Error![]const u8 {
-    var frame: Frame = .{ .graph = graph, .expression = expression, .width = width, .origin = origin };
+    var frame: Frame = .{
+        .graph = graph,
+        .expression = expression,
+        .width = width,
+        .origin = origin,
+        .buckets = graph.index,
+    };
 
     defer if (frame.staged) |buckets| graph.allocator.free(buckets);
 
@@ -33,6 +39,12 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
             .width = width,
             .buckets = @ptrCast(&graph.index),
             .capacity = graph.index.len,
+        },
+        .buckets = @ptrCast(&frame.buckets),
+        .origin = &.{
+            .count = rows.len,
+            .file = origin.file_name,
+            .previous = if (rows.len == 0) null else rows.items(.origin)[rows.len - 1].file_name,
         },
         .names = rows.items(.name),
     };
@@ -53,53 +65,26 @@ pub fn allocateSymbolicIndex(handle: *anyopaque, capacity: u64) std.mem.Allocato
     @memset(buckets, 0);
 
     frame.staged = buckets;
+    frame.buckets = buckets;
 }
 
-pub fn writeSymbolicDefinition(handle: *anyopaque, position: u64, resized: bool) std.mem.Allocator.Error![]const u8 {
+pub fn commitSymbolicDefinition(handle: *anyopaque, name: []const u8, file: []const u8, resized: bool) void {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
-    const rows = graph.definitions.slice();
-    var buckets = frame.staged orelse graph.index;
-
-    const request: std.meta.Child(publication.Input) = .{
-        .origin = &.{
-            .count = rows.len,
-            .file = frame.origin.file_name,
-            .previous = if (rows.len == 0) null else rows.items(.origin)[rows.len - 1].file_name,
-        },
-        .index = &.{
-            .keys = rows.items(.expression),
-            .key = frame.expression,
-            .buckets = @ptrCast(&buckets),
-            .capacity = buckets.len,
-            .position = position,
-            .resized = resized,
-        },
-    };
-
-    const identity = zx.columns.invoke(publication.executeValue, graph.allocator, &request) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
 
     graph.appendDefinition(.{
-        .name = identity.name,
+        .name = name,
         .expression = frame.expression,
         .width = frame.width,
-        .origin = .{ .file_name = identity.file, .span = frame.origin.span },
+        .origin = .{ .file_name = file, .span = frame.origin.span },
     });
 
-    return identity.name;
-}
+    if (resized) {
+        graph.allocator.free(graph.index);
 
-pub fn installSymbolicIndex(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-    const graph = frame.graph;
-
-    graph.allocator.free(graph.index);
-
-    graph.index = frame.staged.?;
-    frame.staged = null;
+        graph.index = frame.staged.?;
+        frame.staged = null;
+    }
 }
 
 pub fn rejectSymbolicDefinition(handle: *anyopaque, message: ?[]const u8) error{InvalidSource}![]const u8 {

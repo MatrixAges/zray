@@ -8,6 +8,19 @@ fn Lookup(comptime Key: type) type {
     return union(enum) { hit: terms.Evaluation, miss: Key };
 }
 
+fn equalTerms(left_target: u32, left_terms: []const []const u8, right_target: u32, right_terms: []const []const u8) bool {
+    const rule = @import("generated_verification_call_equal");
+
+    const input: std.meta.Child(rule.Input) = .{
+        .left = &.{ .target = left_target, .terms = left_terms },
+        .right = &.{ .target = right_target, .terms = right_terms },
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+}
+
 const Source = struct {
     pub const Key = struct { target: u32, start: usize, length: usize, digest: u64 };
 
@@ -17,39 +30,40 @@ const Source = struct {
             return key.digest;
         }
         pub fn eql(self: Context, left: Key, right: Key) bool {
-            const rule = @import("generated_verification_call_equal");
+            return equalTerms(left.target, self.leaves[left.start..][0..left.length], right.target, self.leaves[right.start..][0..right.length]);
+        }
+    };
+    const ProbeKey = struct { target: u32, terms: []const []const u8, digest: u64 };
 
-            const input: std.meta.Child(rule.Input) = .{
-                .left = &.{ .target = left.target, .terms = self.leaves[left.start..][0..left.length] },
-                .right = &.{ .target = right.target, .terms = self.leaves[right.start..][0..right.length] },
-            };
-
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    const ProbeContext = struct {
+        leaves: []const []const u8,
+        pub fn hash(_: ProbeContext, key: ProbeKey) u64 {
+            return key.digest;
+        }
+        pub fn eql(self: ProbeContext, probe: ProbeKey, stored: Key) bool {
+            return equalTerms(probe.target, probe.terms, stored.target, self.leaves[stored.start..][0..stored.length]);
         }
     };
     rows: std.HashMapUnmanaged(Key, terms.Evaluation, Context, std.hash_map.default_max_load_percentage) = .empty,
     leaves: std.ArrayList([]const u8) = .empty,
     pub fn lookup(self: *Source, allocator: Allocator, target: u32, argument: terms.Value) Allocator.Error!Lookup(Key) {
-        const start = self.leaves.items.len;
-
-        errdefer self.leaves.shrinkRetainingCapacity(start);
-
         var frame: Probe = .{ .cache = self, .allocator = allocator };
         const entry = @import("generated_lookup_symbolic_call");
 
         const input: std.meta.Child(entry.Input) = .{
             .key = @ptrCast(&frame),
             .argument = @ptrCast(&argument),
-            .start = start,
             .target = target,
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var scratch = std.heap.ArenaAllocator.init(allocator);
+        var buffer: [4096]u8 = undefined;
+        var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-        entry.executeIn(empty.allocator(), &input) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
+        defer scratch.deinit();
+
+        entry.executeIn(memory.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => unreachable,
         };
 
@@ -69,32 +83,23 @@ const Probe = struct {
     }
 };
 
-pub fn appendSymbolicCallKey(handle: *anyopaque, text: []const u8) Allocator.Error!void {
+pub fn probeSymbolicCallKey(handle: *anyopaque, target: u32, key_terms: []const []const u8, digest: u64) Allocator.Error!void {
     const probe = Probe.borrow(handle);
+    const cache = probe.cache;
 
-    try probe.cache.leaves.append(probe.allocator, text);
-}
-
-pub fn symbolicCallKeyTerms(handle: *anyopaque, start: u64) []const []const u8 {
-    return Probe.borrow(handle).cache.leaves.items[@intCast(start)..];
-}
-
-pub fn probeSymbolicCallKey(handle: *anyopaque, target: u32, start: u64, count: u64, digest: u64) bool {
-    const probe = Probe.borrow(handle);
-    // Offsets survive pool growth while a nested call evaluates this miss.
-    const key: Source.Key = .{ .target = target, .start = @intCast(start), .length = @intCast(count), .digest = digest };
-
-    if (probe.cache.rows.getContext(key, .{ .leaves = probe.cache.leaves.items })) |value| {
+    if (cache.rows.getAdapted(
+        Source.ProbeKey{ .target = target, .terms = key_terms, .digest = digest },
+        Source.ProbeContext{ .leaves = cache.leaves.items },
+    )) |value| {
         probe.result = .{ .hit = value };
 
-        return true;
+        return;
     }
 
-    probe.result = .{ .miss = key };
+    // Offsets survive pool growth while a nested call evaluates this miss.
+    const start = cache.leaves.items.len;
 
-    return false;
-}
+    try cache.leaves.appendSlice(probe.allocator, key_terms);
 
-pub fn rewindSymbolicCallKey(handle: *anyopaque, start: u64) void {
-    Probe.borrow(handle).cache.leaves.shrinkRetainingCapacity(@intCast(start));
+    probe.result = .{ .miss = .{ .target = target, .start = start, .length = key_terms.len, .digest = digest } };
 }

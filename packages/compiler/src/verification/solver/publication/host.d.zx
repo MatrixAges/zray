@@ -50,10 +50,6 @@ export declare function writeEvidenceProgram(
 
 export declare function finishEvidence(writer: EvidenceOutput): u8[] throws { OutOfMemory }
 
-export declare function finishVerificationDigest(context: VerificationPublication): u8[]
-
-export declare function verificationPathText(context: VerificationPublication): string
-
 export declare function writeVerificationOutput(
     context: VerificationPublication,
     content: u8[]

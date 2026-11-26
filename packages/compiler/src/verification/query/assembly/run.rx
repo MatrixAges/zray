@@ -7,11 +7,11 @@
     <Call fn="body" in={$in} />
 
     <Call
-        fn="publish"
-        in={{
-            query: $in.query,
-            prefix: $ctx.prefix,
-            feasibility: $in.feasibility
-        }}
+        fn="model.publishAssembledQuery"
+        in={[
+            $in.query,
+            $ctx.prefix,
+            $in.feasibility
+        ]}
     />
 </Module>

@@ -1,7 +1,8 @@
-import type { SymbolicInvocation } from "verification_host"
+import type { SymbolicExpression, SymbolicInvocation } from "verification_host"
 import type { Input as Description } from "../../graph/call"
 
 export type Input = Description & {
+    frame: SymbolicExpression,
     call: SymbolicInvocation
 }
 

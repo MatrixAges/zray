@@ -4,33 +4,25 @@ import conjunction from "../../scalar/conjunction"
 
 import type { Solve as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
     const call = in.call
     const cached = host.findSymbolicCallee(call)
 
     if (cached != null) {
-        host.writeSymbolicCallSafety(
-            call,
-            conjunction({
-                left: in.argument_safe,
-                right: cached
-            })
-        )
-
-        return
+        return conjunction({
+            left: in.argument_safe,
+            right: cached
+        })
     }
 
     const evaluated = host.evaluateSymbolicCallee(call)
 
     host.publishSymbolicCallee(call)
 
-    host.writeSymbolicCallSafety(
-        call,
-        conjunction({
-            left: in.argument_safe,
-            right: evaluated
-        })
-    )
+    return conjunction({
+        left: in.argument_safe,
+        right: evaluated
+    })
 }

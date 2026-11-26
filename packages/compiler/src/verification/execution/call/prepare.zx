@@ -7,10 +7,17 @@ import type { Input } from "./model"
 export type Output = string
 
 export default function (in: Input): Output {
-    const rejection = admission(in.omit(["call"]))
+    const rejection = admission(
+        in.omit(
+            [
+                "call",
+                "frame"
+            ]
+        )
+    )
 
     if (rejection != null) {
-        host.rejectSymbolicCall(in.call, rejection)
+        host.rejectSymbolicExpression(in.frame, rejection)
     }
 
     return host.evaluateSymbolicCallArgument(in.call)

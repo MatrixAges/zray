@@ -30,6 +30,7 @@ pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32)
     };
 
     const input: std.meta.Child(rule.Input) = .{
+        .frame = @ptrCast(frame),
         .call = @ptrCast(&invocation),
         .calls = function.expressions.call_functions,
         .target = target,
@@ -38,13 +39,7 @@ pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32)
         .depth = evaluator.call_depth,
     };
 
-    rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
-}
-
-pub fn rejectSymbolicCall(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
-    const frame = Invocation.borrow(handle).frame;
-
-    return @errorCast(frame.evaluator.reporter.fail(.unsupported, frame.span, message));
+    frame.at(.Result).safe = rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
 }
 
 pub fn evaluateSymbolicCallArgument(handle: *anyopaque) zx.Error![]const u8 {
@@ -91,8 +86,4 @@ pub fn publishSymbolicCallee(handle: *anyopaque) std.mem.Allocator.Error!void {
     const evaluator = invocation.frame.evaluator;
 
     try evaluator.graph.calls.publish(evaluator.allocator, invocation.key, invocation.frame.at(.Result).*);
-}
-
-pub fn writeSymbolicCallSafety(handle: *anyopaque, safe: []const u8) void {
-    Invocation.borrow(handle).frame.at(.Result).safe = safe;
 }

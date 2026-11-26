@@ -56,15 +56,10 @@ pub fn appendQueryDefinitions(handle: *anyopaque, first: u64, end: u64) zx.Error
     try frame.graph.writeDeclarations(&frame.output.writer, @intCast(first), @intCast(end));
 }
 
-pub fn publishCorrectnessQuery(handle: *anyopaque) Allocator.Error!void {
+pub fn publishAssembledQuery(handle: *anyopaque, prefix: u64, suffix: []const u8) Allocator.Error!void {
     const frame = Frame.borrow(handle);
+    const correctness = try frame.output.toOwnedSlice();
 
-    frame.correctness = try frame.output.toOwnedSlice();
-}
-
-pub fn publishFeasibilityQuery(handle: *anyopaque, prefix: u64, suffix: []const u8) Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const shared = frame.correctness.?[0..@intCast(prefix)];
-
-    frame.feasibility = try std.mem.concat(frame.allocator, u8, &.{ shared, suffix });
+    frame.correctness = correctness;
+    frame.feasibility = try std.mem.concat(frame.allocator, u8, &.{ correctness[0..@intCast(prefix)], suffix });
 }

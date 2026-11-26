@@ -1,8 +1,8 @@
 import bytes from "std:bytes"
 import crypto from "std:crypto"
-import host from "verification_report_host"
+import encoding from "std:encoding"
+import strings from "zig:string"
 
-import stamp from "../../../inputs/generation/stamp"
 import { proof_path_prefix, proof_path_suffix } from "./const"
 
 import type { Path as Input } from "./model"
@@ -10,23 +10,17 @@ import type { Path as Input } from "./model"
 export type Output = string
 
 export default function (in: Input): Output {
-    const { hash, path_writer, context } = in
+    const digest = crypto.sha256Parts([
+        in.evidence,
+        bytes.fromText(in.feasibility),
+        bytes.fromText(in.correctness)
+    ])
 
-    crypto.resetSha256(hash)
-    crypto.updateSha256(hash, in.evidence)
-    crypto.updateSha256(hash, bytes.fromText(in.feasibility))
-    crypto.updateSha256(hash, bytes.fromText(in.correctness))
+    const hex = encoding.encodeHex(digest)
 
-    const digest = host.finishVerificationDigest(context)
-
-    bytes.write(path_writer, bytes.fromText(proof_path_prefix))
-
-    stamp({
-        out: path_writer,
-        digest
-    })
-
-    bytes.write(path_writer, bytes.fromText(proof_path_suffix))
-
-    return host.verificationPathText(context)
+    return strings.join("", [
+        proof_path_prefix,
+        hex,
+        proof_path_suffix
+    ])
 }

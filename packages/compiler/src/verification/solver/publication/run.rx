@@ -22,9 +22,6 @@
         fn="prepare"
         in={{
             ...$in.pick([
-                "context",
-                "hash",
-                "path_writer",
                 "output",
                 "solver",
                 "feasibility",

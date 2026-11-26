@@ -36,8 +36,3 @@ export type Origin = {
     file: string,
     previous?: string
 }
-
-export type Publication = {
-    origin: Origin,
-    index: Commit
-}

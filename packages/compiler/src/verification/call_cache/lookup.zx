@@ -8,28 +8,23 @@ import type { SymbolicCallKey, SymbolicValue } from "verification_host"
 export type Input = {
     key: SymbolicCallKey,
     argument: SymbolicValue,
-    target: u32,
-    start: u64
+    target: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { key, start, target } = in
+    const { key, target } = in
 
-    traverse({
-        key,
-        value: in.argument
+    const terms = traverse({
+        value: in.argument,
+        terms: []
     })
-
-    const terms = host.symbolicCallKeyTerms(key, start)
 
     const hash = digest({
         target,
         terms
     })
 
-    if (host.probeSymbolicCallKey(key, target, start, terms.length, hash)) {
-        host.rewindSymbolicCallKey(key, start)
-    }
+    host.probeSymbolicCallKey(key, target, terms, hash)
 }

@@ -5,9 +5,6 @@ const Conditions = @import("conditions.zig");
 const Evidence = @import("solver/publication/evidence/output.zig");
 
 const Context = struct {
-    hash: *zx.Sha256,
-    digest: *[zx.Sha256.digest_length]u8,
-    path: *std.Io.Writer,
     output: *std.Io.Writer,
     fn borrow(handle: *const anyopaque) *const @This() {
         return @ptrCast(@alignCast(handle));
@@ -30,18 +27,12 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     defer generated.deinit();
 
     const proof = @import("generated_publish_verification_proof");
-    const settings = @import("generated_verification_proof_constants").@"zx.constants";
 
     const query = switch (generated.value) {
         .query => |query| query,
         .diagnostic => Conditions.Query{ .feasibility = "", .correctness = "", .inputs = &.{} },
     };
 
-    var hash: zx.Sha256 = undefined;
-    var digest: [zx.Sha256.digest_length]u8 = undefined;
-    var path_buffer: [settings.proof_path_prefix.len + digest.len * 2 + settings.proof_path_suffix.len]u8 = undefined;
-    var path_writer = std.Io.Writer.fixed(&path_buffer);
-    const hash_reference: zx.Sha256State = .{ .value = &hash };
     var evidence_bytes: std.Io.Writer.Allocating = .init(allocator);
 
     defer evidence_bytes.deinit();
@@ -49,9 +40,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     var evidence = Evidence.init(&evidence_bytes);
 
     const context: Context = .{
-        .hash = &hash,
-        .digest = &digest,
-        .path = &path_writer,
         .output = writer,
     };
 
@@ -60,8 +48,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
 
     const input: std.meta.Child(proof.Input) = .{
         .context = @ptrCast(&context),
-        .hash = @ptrCast(&hash_reference),
-        .path_writer = @ptrCast(&path_writer),
         .diagnostic = if (generated.value == .diagnostic) generated.value.diagnostic.message else null,
         .output = options.output,
         .solver = options.solver,
@@ -87,18 +73,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .InvalidResponse => error.InvalidSolverResponse,
         .Continue => unreachable,
     };
-}
-
-pub fn finishVerificationDigest(handle: *const anyopaque) []const u8 {
-    const context = Context.borrow(handle);
-
-    context.hash.final(context.digest);
-
-    return context.digest;
-}
-
-pub fn verificationPathText(handle: *const anyopaque) []const u8 {
-    return Context.borrow(handle).path.buffered();
 }
 
 pub fn writeVerificationOutput(handle: *const anyopaque, content: []const u8) std.Io.Writer.Error!void {
