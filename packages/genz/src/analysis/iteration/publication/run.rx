@@ -5,20 +5,12 @@
 
     <Call fn="index.requireAllocation" in={$in.valid} />
 
-    <If on={$in.rows.mode == Publication.Mode.Mutation}>
-        <Call fn="index.ownIterationLabel" in={$in.target} />
-    </If>
-
     <If on={$in.rows.mode == Publication.Mode.Types}>
         <Call fn="index.appendFragmentLayoutExpressions" in={$in.rows.fragment} />
 
         <Else>
             <Call fn="expressions" in={$in.rows} />
         </Else>
-    </If>
-
-    <If on={$in.rows.mode == Publication.Mode.Mutation}>
-        <Call fn="index.repairIterationBlockLabel" in={$in.target} />
     </If>
 
     <Switch on={$in.rows.mode}>
@@ -89,11 +81,6 @@
 
         <Default>
             <Call fn="statements" in={$in.rows} />
-
-            <If on={$in.rows.mode == Publication.Mode.Mutation}>
-                <Call fn="index.repairIterationBreakLabel" in={$in.target} />
-            </If>
-
             <Call fn="fields" in={$in.rows} />
         </Default>
     </Switch>

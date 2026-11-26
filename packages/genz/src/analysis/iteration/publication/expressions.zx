@@ -10,7 +10,6 @@ export default function (in: Input): Output {
     const { fragment, mode } = in
 
     const borrowed = match mode {
-        Mode.Mutation => true,
         Mode.Buffer => true,
         Mode.PrepareBuffer => true,
         _ => false

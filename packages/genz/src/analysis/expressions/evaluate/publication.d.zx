@@ -34,13 +34,6 @@ export declare function publishCallExpressions(
 export declare function publishCallBody(target: CallAstPublication): void
     throws { OutOfMemory }
 
-export declare function ownIterationLabel(target: IterationPublication): void
-    throws { OutOfMemory }
-
-export declare function repairIterationBlockLabel(target: IterationPublication): void
-
-export declare function repairIterationBreakLabel(target: IterationPublication): void
-
 export declare function recordIterationTransfer(target: IterationPublication): void
     throws { OutOfMemory }
 

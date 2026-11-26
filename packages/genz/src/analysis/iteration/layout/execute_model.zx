@@ -1,11 +1,28 @@
-import type { LoopLayout } from "lowering_host"
+import type { Expressions } from "core/expression_table/model"
+import type { Table } from "core/type_table/model"
 import type { Output as Initial } from "../initial/model"
 import type { Action, Input as Facts } from "./model"
 
 export { Action } from "./model"
 
 export type Input = {
-    frame: LoopLayout,
+    types: Table,
+    expressions: Expressions,
+    function_inputs: u32[],
+    function_outputs: u32[],
+    pure_functions: bool[],
+    local_functions: bool[],
+    value_functions: bool[],
+    identity_free_functions: bool[],
+    flags: u8[],
+    condition: u32,
+    body: u32,
+    initial: u32,
+    parameter: u32,
+    condition_parameter: u32,
+    type_id: u32,
+    state_type: u32,
+    symbol_count: u64,
     facts: Facts,
     postcondition: bool
 }

@@ -24,16 +24,7 @@ pub const Selection = if (generated) struct {
 const entry = if (generated) @import("generated_execute_loop_layout") else void;
 const Input = if (generated) std.meta.Child(entry.Input) else void;
 const Facts = if (generated) std.meta.Child(@FieldType(Input, "facts")) else void;
-
-const Frame = struct {
-    lowering: *const Lower,
-    iteration: ir.Iteration,
-    consumer: ?consumers.Consumer,
-    type_id: ir.TypeId,
-    fn borrow(handle: *const anyopaque) *const Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
+const Types = if (generated) std.meta.Child(@FieldType(Input, "types")) else void;
 
 pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, consumer: ?consumers.Consumer, projected_output: bool) Lower.Error!Selection {
     if (comptime !generated) {
@@ -69,9 +60,37 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
         .initial = null,
     };
 
-    const frame: Frame = .{ .lowering = self, .iteration = iteration, .consumer = consumer, .type_id = type_id };
-    const input: Input = .{ .frame = @ptrCast(&frame), .facts = &facts, .postcondition = iteration.postcondition };
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
+    const types = ir.TypeTable.borrow(Types, self.program.types);
+    const expressions: *const ir.ExpressionTable = &self.program.expressions;
+
+    const input: Input = .{
+        .types = &types,
+        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), expressions),
+        .function_inputs = zx.columns.slice(@FieldType(Input, "function_inputs"), self.program.functions.input_types),
+        .function_outputs = zx.columns.slice(@FieldType(Input, "function_outputs"), self.program.functions.output_types),
+        .pure_functions = self.pure_functions,
+        .local_functions = self.local_functions,
+        .value_functions = self.value_functions,
+        .identity_free_functions = self.identity_free_functions,
+        .flags = std.mem.sliceAsBytes(self.plan.flags),
+        .condition = @backingInt(iteration.condition),
+        .body = @backingInt(iteration.body),
+        .initial = @backingInt(iteration.initial),
+        .parameter = @backingInt(iteration.parameter),
+        .condition_parameter = @backingInt(iteration.condition_parameter),
+        .type_id = @backingInt(type_id),
+        .state_type = @backingInt(self.program.expression(iteration.initial).type_id),
+        .symbol_count = self.program.symbols.count(),
+        .facts = &facts,
+        .postcondition = iteration.postcondition,
+    };
+
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    defer scratch.deinit();
+
     const decision = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
 
     return .{
@@ -88,59 +107,4 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
         .forwarded = if (decision.forwarded) |forwarded| @fromBackingInt(forwarded) else null,
         .plan = zx.columns.view(initial.Plan, decision),
     };
-}
-
-pub fn loopPure(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    return layout.eligible(self.allocator, self.program, frame.iteration, self.pure_functions);
-}
-
-pub fn loopLocalCalls(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    return layout.eligible(self.allocator, self.program, frame.iteration, self.local_functions);
-}
-
-pub fn loopForwardedValue(handle: *const anyopaque) Lower.Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const forwarded = try layout.forwarded(frame.lowering, frame.iteration);
-
-    return if (forwarded) |id| @backingInt(id) else null;
-}
-
-pub fn loopBufferLayout(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    return layout.buffers(self.allocator, self.program, frame.iteration, self.identity_free_functions, self.plan.flags);
-}
-
-pub fn loopDeepLayout(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    return layout.deep(self.allocator, self.program, frame.iteration, self.identity_free_functions);
-}
-
-pub fn loopAbiLayout(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-
-    return layout.abi(frame.lowering, frame.iteration, frame.type_id);
-}
-
-pub fn loopShallowLayout(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    return layout.shallow(self.allocator, self.program, frame.iteration);
-}
-
-pub fn loopDirectInitial(handle: *const anyopaque) Lower.Error!bool {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    return layout.initialValue(self.allocator, self.program, frame.iteration.initial, self.identity_free_functions);
 }

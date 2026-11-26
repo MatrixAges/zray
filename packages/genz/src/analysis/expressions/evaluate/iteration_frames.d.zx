@@ -13,8 +13,6 @@ export type LoopConsumerFacts = {
     capture: bool
 }
 
-export type LoopLayout = opaque
-
 export type LoopFrame = mutable_opaque
 
 export type IterationScopeBindings = {
@@ -69,21 +67,7 @@ export enum LoopResultWrap {
     Pointer
 }
 
-export type IterationMutationFrame = mutable_opaque
-
 export type TransformFrame = mutable_opaque
-
-export enum IterationMutationMode {
-    Push,
-    Pop,
-    Update
-}
-
-export enum IterationOperandSlot {
-    Target,
-    Index,
-    Value
-}
 
 export type IterationProjectionFrame = mutable_opaque
 

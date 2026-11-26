@@ -5,13 +5,216 @@
 
     <Call module="select" in={$in.facts} />
 
-    <Call
-        fn="probe"
-        in={{
-            ...$in,
-            action: $ctx.select
-        }}
-    />
+    <Switch on={$ctx.select}>
+        <Case value={Layout.Action.CheckPure}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
 
-    <Return value={$ctx.probe} />
+            <Call module="../analyze" />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        pure: $ctx.analyze
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckLocal}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call module="../analyze" />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        local: $ctx.analyze
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckForwarding}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call
+                module="../forwarding/build"
+                in={{
+                    source: $ctx.request,
+                    body: $in.body,
+                    parameter: $in.parameter,
+                    value_functions: $in.value_functions
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    forwarded: $ctx.build,
+                    facts: {
+                        ...$in.facts,
+                        forwarded: $ctx.build != null
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckBuffers}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call
+                module="../buffers/analyze"
+                in={{
+                    source: $ctx.request,
+                    flags: $in.flags,
+                    parameter: $in.parameter,
+                    condition_parameter: $in.condition_parameter,
+                    symbol_count: $in.symbol_count,
+                    state_type: $in.state_type
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        buffered: $ctx.analyze
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckDeep}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call module="../analyze" />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        deep: $ctx.analyze
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckAbi}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call
+                module="../abi/build"
+                in={{
+                    source: $ctx.request,
+                    type_id: $in.type_id
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        abi: $ctx.build
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckShallow}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call module="../analyze" />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        shallow: $ctx.analyze
+                    }
+                }}
+            />
+        </Case>
+
+        <Case value={Layout.Action.CheckInitial}>
+            <Call
+                fn="request"
+                in={{
+                    source: $in,
+                    action: $ctx.select
+                }}
+            />
+
+            <Call module="../analyze" />
+
+            <Return
+                value={{
+                    ...$in,
+                    facts: {
+                        ...$in.facts,
+                        initial: $ctx.analyze
+                    }
+                }}
+            />
+        </Case>
+
+        <Default>
+            <Return
+                value={{
+                    ...$in,
+                    action: $ctx.select,
+                    running: false
+                }}
+            />
+        </Default>
+    </Switch>
 </Module>

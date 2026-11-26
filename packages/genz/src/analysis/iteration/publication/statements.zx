@@ -10,7 +10,6 @@ export type Output = void
 export default function (in: Input): Output {
     const mode = match in.mode {
         Mode.PrepareBuffer => FragmentStatements.BorrowingText,
-        Mode.Mutation => FragmentStatements.Borrowed,
         _ => FragmentStatements.Dense
     }
 

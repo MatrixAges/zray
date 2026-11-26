@@ -1,28 +1,45 @@
-import integers from "std:integer"
+import {
+    AstPayloadOwnership,
+    appendAstFields,
+    appendExpressionRows,
+    appendStatementRows
+} from "ast_rows"
 import host from "lowering_host"
-import { IterationMutationMode, IterationResource } from "lowering_host"
+import { requireAllocation } from "memory"
 
 import type { Publication as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, context, expressions, id, list_type, mode } = in
+    const { lower, writer, built } = in
 
-    const list_layout = host.materializeIterationResource(
-        context,
-        list_type,
-        IterationResource.IterationType
+    requireAllocation(built.valid)
+
+    const label = host.retainLoweringText(lower, built.expressions.block_label[0])
+
+    appendExpressionRows(
+        writer,
+        {
+            ...built.expressions,
+            block_label: [label]
+        },
+        built.forms,
+        AstPayloadOwnership.BorrowingText
     )
 
-    const result_layout = match mode {
-        IterationMutationMode.Update => 0,
-        _ => host.materializeIterationResource(
-            context,
-            expressions.types[integers.widen(id)],
-            IterationResource.IterationType
-        )
-    }
+    appendStatementRows(
+        writer,
+        {
+            ...built.statements,
+            break_value_label: [label]
+        },
+        null,
+        AstPayloadOwnership.Borrowed
+    )
 
-    return host.publishIterationMutation(frame, mode, list_layout, result_layout)
+    appendAstFields(writer, built.fields)
+    host.finishGeneratedAst(lower, built.serial, built.uses_allocator)
+
+    return built.root
 }

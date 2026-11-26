@@ -14,10 +14,8 @@ const Rows = std.meta.Child(@FieldType(Fragment, "statements"));
 
 const Frame = struct {
     lowering: *Lower,
-    labels: []const []const u8,
     context: ?*Context,
     record: ?@FieldType(Transfer, "record"),
-    label: ?[]const u8 = null,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -58,7 +56,6 @@ pub fn write(self: *Lower, comptime mode: Mode, scope: Scope, output: anytype) E
 
     var frame: Frame = .{
         .lowering = self,
-        .labels = if (mode == .Mutation) fragment.expressions.block_label else &.{},
         .context = scope.context,
         .record = if (mode == .Transfer) result.record else null,
     };
@@ -76,33 +73,12 @@ pub fn write(self: *Lower, comptime mode: Mode, scope: Scope, output: anytype) E
             else => @intCast(result.serial),
         },
         .uses_allocator = switch (mode) {
-            .Input, .Returned, .Mutation => result.uses_allocator,
+            .Input, .Returned => result.uses_allocator,
             else => false,
         },
     };
 
     return evaluation.executeWith(self, entry, &input);
-}
-
-pub fn ownIterationLabel(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    frame.label = try frame.lowering.allocator.dupe(u8, frame.labels[frame.labels.len - 1]);
-}
-
-pub fn repairIterationBlockLabel(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-    const expressions = &frame.lowering.builder.nodes.expressions;
-    const labels = expressions.payloads.block.fields.label.values.items;
-
-    labels[labels.len - 1] = frame.label.?;
-}
-
-pub fn repairIterationBreakLabel(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-    const statements = &frame.lowering.builder.nodes.statements;
-    const labels = statements.payloads.break_value.fields.label.values.items;
-
-    labels[labels.len - 1] = frame.label.?;
 }
 
 pub fn recordIterationTransfer(handle: *anyopaque) Error!void {

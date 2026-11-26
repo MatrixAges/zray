@@ -1,0 +1,59 @@
+import { Action } from "./model"
+
+import type { Boundary, Input as Analysis } from "../model"
+import type { Progress } from "./execute_model"
+
+export type Input = {
+    source: Progress,
+    action: Action
+}
+
+export type Output = Analysis
+
+export default function (in: Input): Output {
+    const { source, action } = in
+
+    const allowed = match action {
+        Action.CheckPure => source.pure_functions,
+        Action.CheckForwarding => source.pure_functions,
+        Action.CheckLocal => source.local_functions,
+        Action.CheckShallow => [],
+        _ => source.identity_free_functions
+    }
+
+    const roots = match action {
+        Action.CheckForwarding => [source.condition],
+        Action.CheckInitial => [source.initial],
+        _ => [
+            source.condition,
+            source.body
+        ]
+    }
+
+    const deep = match action {
+        Action.CheckBuffers => true,
+        Action.CheckDeep => true,
+        Action.CheckAbi => true,
+        Action.CheckInitial => true,
+        _ => false
+    }
+
+    const boundary: Boundary? = match action {
+        Action.CheckShallow => {
+            type_id: source.state_type,
+            result: source.body
+        },
+        _ => null
+    }
+
+    return {
+        types: source.types,
+        expressions: source.expressions,
+        function_inputs: source.function_inputs,
+        function_outputs: source.function_outputs,
+        allowed,
+        roots,
+        deep,
+        boundary
+    }
+}

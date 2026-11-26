@@ -1,9 +1,7 @@
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Expressions } from "core/expression_table/model"
-import type {
-    IterationMutationFrame,
-    IterationMutationMode,
-    IterationResourceFrame
-} from "lowering_host"
+import type { IterationResourceFrame, Lowering } from "lowering_host"
+import type { Output as Built } from "../model"
 
 export type Operands = Expressions.Pick(
     "kinds",
@@ -19,13 +17,16 @@ export type Operands = Expressions.Pick(
 )
 
 export type Input = {
-    frame: IterationMutationFrame,
+    lower: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
     context: IterationResourceFrame,
     expressions: Operands,
     id: u32
 }
 
-export type Publication = Input & {
-    mode: IterationMutationMode,
-    list_type: u32
+export type Publication = {
+    lower: Lowering,
+    writer: AstWriter,
+    built: Built
 }

@@ -1,7 +1,4 @@
 export {
-    ownIterationLabel,
-    repairIterationBlockLabel,
-    repairIterationBreakLabel,
     appendFragmentLayoutExpressions,
     appendFragmentBody,
     appendFragmentStorage,

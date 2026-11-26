@@ -3,15 +3,18 @@
 
     <Args in={Mutation.Input} out={u32} />
 
-    <Call fn="bind_target" in={$in} />
-    <Call fn="bind_arguments" in={$in} />
+    <Call fn="prepare" in={$in} />
+
+    <Call module="../build" />
 
     <Call
         fn="publish"
         in={{
-            ...$in,
-            list_type: $ctx.bind_target,
-            mode: $ctx.bind_arguments
+            ...$in.pick([
+                "lower",
+                "writer"
+            ]),
+            built: $ctx.build
         }}
     />
 

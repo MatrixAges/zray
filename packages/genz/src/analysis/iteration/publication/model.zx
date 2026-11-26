@@ -13,7 +13,6 @@ export enum Mode {
     Input,
     Returned,
     Projection,
-    Mutation,
     Transfer,
     Buffer,
     PrepareBuffer

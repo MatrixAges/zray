@@ -1,0 +1,119 @@
+import integers from "std:integer"
+import { astFieldCount, readAstOrigin } from "ast_rows"
+import { CollectionKind, ExpressionKind } from "core/expression_table/kinds"
+import host from "lowering_host"
+import { IterationResource } from "lowering_host"
+
+import { Mode } from "../model"
+import bindOperand from "./bind_operand"
+
+import type { Input as Output } from "../model"
+import type { Input } from "./model"
+
+export type { Input as Output } from "../model"
+
+export default function (in: Input): Output {
+    const { lower, writer, origin, context, expressions, id } = in
+
+    const row = integers.widen(id)
+    const payload = integers.widen(expressions.payloads[row])
+    const kind = expressions.kinds[row]
+
+    const target_id = match kind {
+        ExpressionKind.ListUpdate => expressions.update_targets[payload],
+        _ => expressions.collection_targets[payload]
+    }
+
+    const list_type = expressions.types[integers.widen(target_id)]
+
+    const target = bindOperand({
+        lower,
+        writer,
+        origin,
+        id: target_id
+    })
+
+    if (kind != ExpressionKind.ListUpdate) {
+        const operation = expressions.collection_kinds[payload]
+
+        if (operation != CollectionKind.Push && operation != CollectionKind.Pop) {
+            const invalid = host.invalidLowering()
+        }
+    }
+
+    const mode = match kind {
+        ExpressionKind.ListUpdate => Mode.Update,
+        _ => match expressions.collection_kinds[payload] {
+            CollectionKind.Push => Mode.Push,
+            _ => Mode.Pop
+        }
+    }
+
+    const index = match mode {
+        Mode.Update => bindOperand({
+            lower,
+            writer,
+            origin,
+            id: expressions.update_indices[payload]
+        }),
+        _ => {
+            name: [],
+            value: 0,
+            reference: 0
+        }
+    }
+
+    const value = match mode {
+        Mode.Update => bindOperand({
+            lower,
+            writer,
+            origin,
+            id: expressions.update_values[payload]
+        }),
+        Mode.Push => bindOperand({
+            lower,
+            writer,
+            origin,
+            id:
+                expressions
+                .collection_arguments[integers.widen(
+                    expressions.collection_first[payload]
+                )]
+        }),
+        _ => {
+            name: [],
+            value: 0,
+            reference: 0
+        }
+    }
+
+    const list_layout = host.materializeIterationResource(
+        context,
+        list_type,
+        IterationResource.IterationType
+    )
+
+    const result_layout = match mode {
+        Mode.Update => 0,
+        _ => host.materializeIterationResource(
+            context,
+            expressions.types[row],
+            IterationResource.IterationType
+        )
+    }
+
+    const current = readAstOrigin(writer, origin)
+
+    return {
+        mode,
+        target,
+        index,
+        value,
+        list_layout,
+        result_layout,
+        bases: {
+            ...current,
+            field_base: astFieldCount(writer)
+        }
+    }
+}
