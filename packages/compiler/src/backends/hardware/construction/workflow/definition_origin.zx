@@ -1,16 +1,25 @@
 import host from "hardware_graph_host"
-
-import preserveOrigin from "./origin"
+import memory from "memory"
 
 import type { DefinitionWalk as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const file = preserveOrigin({
-        build: in.build,
-        file: host.hardwareDefinitionFile(in.build, in.row)
-    })
+    const file = memory.readTextColumn(in.rows.files, in.row)
+    const previous = in.origin_file
 
-    host.setHardwareOrigin(in.build, file, in.row)
+    if (previous != null) {
+        if (previous == file) {
+            host.setHardwareOrigin(in.build, previous, in.row)
+
+            return previous
+        }
+    }
+
+    const retained = host.retainHardwareOrigin(in.build, file)
+
+    host.setHardwareOrigin(in.build, retained, in.row)
+
+    return retained
 }

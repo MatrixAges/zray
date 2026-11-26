@@ -1,0 +1,28 @@
+import { Operator } from "./model"
+
+export type Input = u8
+
+export type Output = Operator
+
+export default function (in: Input): Output {
+    return match in {
+        0 => Operator.logical_and,
+        1 => Operator.logical_or,
+        2 => Operator.equal,
+        3 => Operator.add,
+        4 => Operator.subtract,
+        5 => Operator.multiply,
+        6 => Operator.unsigned_divide,
+        7 => Operator.signed_divide,
+        8 => Operator.unsigned_remainder,
+        9 => Operator.signed_remainder,
+        10 => Operator.unsigned_less,
+        11 => Operator.unsigned_less_equal,
+        12 => Operator.unsigned_greater,
+        13 => Operator.unsigned_greater_equal,
+        14 => Operator.signed_less,
+        15 => Operator.signed_less_equal,
+        16 => Operator.signed_greater,
+        _ => Operator.signed_greater_equal
+    }
+}

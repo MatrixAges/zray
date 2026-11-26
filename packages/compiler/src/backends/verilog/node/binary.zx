@@ -1,9 +1,10 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import host from "hardware_graph_host"
 import memory from "memory"
 
+import fromCode from "../../hardware/binary/from_code"
 import { Rendering } from "../../hardware/binary/model"
+import traits from "../../hardware/binary/traits"
 import {
     wire_name,
     bit_select,
@@ -28,7 +29,8 @@ export default function (in: Input): Output {
 
     const left = node.first
     const right = integers.widen(node.second)
-    const rendering = host.hardwareTermRendering(node.operator)
+    const info = traits(fromCode(node.operator))
+    const rendering = info.rendering
 
     if (rendering == Rendering.SignedRemainder) {
         const width = memory.readColumnU16(in.widths, left)
@@ -51,7 +53,7 @@ export default function (in: Input): Output {
         return
     }
 
-    const token = host.hardwareTermToken(node.operator)
+    const token = info.token
 
     if (rendering == Rendering.Signed) {
         bytes.write(writer, bytes.fromText(signed_wire))

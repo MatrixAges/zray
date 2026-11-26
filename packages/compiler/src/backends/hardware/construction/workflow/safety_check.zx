@@ -11,7 +11,7 @@ export type Output = u32
 export default function (in: Input): Output {
     const { build, node } = in
 
-    if (!host.hardwareNodeIsBoolean(build, node)) {
+    if (!host.readHardwareSort(build, node).boolean) {
         host.rejectHardwareTerm()
     }
 

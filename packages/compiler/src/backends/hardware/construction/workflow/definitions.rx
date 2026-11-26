@@ -9,6 +9,7 @@
             in={{
                 ...$in,
                 row: 0,
+                origin_file: null,
                 running: $in.rows.names.length != 0
             }}
         />

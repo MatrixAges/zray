@@ -272,7 +272,6 @@ pub const main = [_]Entry{
     .{ .path = "verification/call_cache/equal.zx", .name = "verification_call_equal", .owner = .compiler },
     .{ .path = "verification/graph/declarations.zx", .name = "verification_graph_declarations", .owner = .compiler },
     .{ .path = "backends/hardware/binary/traits.zx", .name = "hardware_binary_traits", .owner = .compiler },
-    .{ .path = "backends/hardware/binary/result.zx", .name = "hardware_binary_result", .owner = .compiler },
     .{ .path = "core/bytes/map/capacity.zx", .name = "byte_map_capacity", .owner = .compiler },
     .{ .path = "core/bytes/map/lookup.zx", .name = "byte_map_lookup", .owner = .compiler },
     .{ .path = "backends/hardware/construction/inputs.zx", .name = "hardware_bind_inputs", .owner = .compiler },

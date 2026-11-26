@@ -1,25 +1,26 @@
 import integers from "std:integer"
 import host from "hardware_graph_host"
 import { Kind } from "hardware_graph_host"
+import memory from "memory"
 
 import requireSpace from "../../terms/parse/space"
 import portType from "./port_type"
 
 import type { Input as Request } from "./model"
 
-export type Input = Request.Pick("build", "inputs", "types")
+export type Input = Request.Pick("build", "inputs", "input_types", "types")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { build, inputs, types } = in
+    const { build, inputs, input_types, types } = in
 
     const written = loop(0, {
         while: row => row < inputs,
         next: row => {
             const port = portType({
                 types,
-                type_id: host.hardwareInputType(build, row)
+                type_id: memory.readColumnU32(input_types, row)
             })
 
             requireSpace({

@@ -22,20 +22,18 @@ export type Node = {
     signed: bool
 }
 
-export enum Family {
-    Logical,
-    Equality,
-    Arithmetic,
-    Comparison
+export type HardwareBuild = mutable_opaque
+
+export type NodeSort = {
+    width: u16,
+    boolean: bool
 }
 
-export enum Rendering {
-    Plain,
-    Signed,
-    SignedRemainder
+export type CacheView = {
+    keys: string?[],
+    values: u32[],
+    full: bool
 }
-
-export type HardwareBuild = opaque
 
 export enum Form {
     Invalid,
@@ -55,14 +53,6 @@ export enum Form {
 
 export declare function readHardwareGraphNode(nodes: Nodes, index: u64): Node
 
-export declare function hardwareTermOperator(text: string): u8?
-
-export declare function hardwareTermFamily(operator: u8): Family
-
-export declare function hardwareTermRendering(operator: u8): Rendering
-
-export declare function hardwareTermToken(operator: u8): string
-
 export declare function reserveHardwareVariables(build: HardwareBuild, count: u64): void
     throws { OutOfMemory }
 
@@ -74,8 +64,6 @@ export declare function reserveHardwareInputs(build: HardwareBuild, count: u64):
 
 export declare function reserveHardwareNodes(build: HardwareBuild, count: u64): void
     throws { OutOfMemory }
-
-export declare function hardwareInputType(build: HardwareBuild, row: u64): u32
 
 export declare function writeHardwareInput(
     build: HardwareBuild,
@@ -89,10 +77,6 @@ export declare function writeHardwareInput(
 export declare function bindHardwareInputs(build: HardwareBuild): void
     throws { OutOfMemory, InvalidHardwareTerm }
 
-export declare function hardwareDefinitionFile(build: HardwareBuild, row: u64): string
-
-export declare function hardwareOriginFile(build: HardwareBuild): string?
-
 export declare function retainHardwareOrigin(build: HardwareBuild, file: string): string
     throws { OutOfMemory }
 
@@ -100,18 +84,10 @@ export declare function setHardwareOrigin(build: HardwareBuild, file: string, ro
 
 export declare function clearHardwareOrigin(build: HardwareBuild): void
 
-export declare function hardwareTermOffset(build: HardwareBuild): u64
-
-export declare function setHardwareTermOffset(build: HardwareBuild, offset: u64): void
-
 export declare function hardwareVariable(build: HardwareBuild, name: string): u32?
     throws { OutOfMemory, InvalidHardwareTerm }
 
-export declare function hardwareCacheKeys(build: HardwareBuild): string?[]
-
-export declare function hardwareCacheValues(build: HardwareBuild): u32[]
-
-export declare function hardwareCacheFull(build: HardwareBuild): bool
+export declare function readHardwareCache(build: HardwareBuild): CacheView
 
 export declare function growHardwareCache(build: HardwareBuild): void
     throws { OutOfMemory }
@@ -140,11 +116,7 @@ export declare function publishHardwareDefinition(
     node: u32
 ): void throws { OutOfMemory, InvalidHardwareTerm }
 
-export declare function hardwareNodeWidth(build: HardwareBuild, node: u32): u16
-
-export declare function hardwareNodeIsBoolean(build: HardwareBuild, node: u32): bool
-
-export declare function hardwareOutputCount(build: HardwareBuild): u64
+export declare function readHardwareSort(build: HardwareBuild, node: u32): NodeSort
 
 export declare function writeHardwareOutput(
     build: HardwareBuild,

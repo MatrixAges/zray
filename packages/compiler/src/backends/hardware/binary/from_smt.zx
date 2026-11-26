@@ -1,0 +1,48 @@
+import {
+    smt_and,
+    smt_or,
+    smt_equal,
+    smt_bvadd,
+    smt_bvsub,
+    smt_bvmul,
+    smt_bvudiv,
+    smt_bvsdiv,
+    smt_bvurem,
+    smt_bvsrem,
+    smt_bvult,
+    smt_bvule,
+    smt_bvugt,
+    smt_bvuge,
+    smt_bvslt,
+    smt_bvsle,
+    smt_bvsgt,
+    smt_bvsge
+} from "../../../verification/scalar/const"
+
+export type Input = string
+
+export type Output = u8?
+
+export default function (in: Input): Output {
+    return match {
+        in == smt_and => 0,
+        in == smt_or => 1,
+        in == smt_equal => 2,
+        in == smt_bvadd => 3,
+        in == smt_bvsub => 4,
+        in == smt_bvmul => 5,
+        in == smt_bvudiv => 6,
+        in == smt_bvsdiv => 7,
+        in == smt_bvurem => 8,
+        in == smt_bvsrem => 9,
+        in == smt_bvult => 10,
+        in == smt_bvule => 11,
+        in == smt_bvugt => 12,
+        in == smt_bvuge => 13,
+        in == smt_bvslt => 14,
+        in == smt_bvsle => 15,
+        in == smt_bvsgt => 16,
+        in == smt_bvsge => 17,
+        _ => null
+    }
+}

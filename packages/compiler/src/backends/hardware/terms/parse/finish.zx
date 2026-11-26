@@ -4,22 +4,22 @@ import boundary from "../boundary"
 
 import type { End as Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { build, source, closing } = in
+    const { source, offset, closing } = in
 
     const end = boundary({
         source,
-        offset: host.hardwareTermOffset(build),
+        offset,
         closing
     })
 
     if (end == null) {
         host.rejectHardwareTerm()
 
-        return
+        return 0
     }
 
-    host.setHardwareTermOffset(build, end)
+    return end
 }

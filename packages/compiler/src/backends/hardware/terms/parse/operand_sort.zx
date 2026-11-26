@@ -18,8 +18,10 @@ export default function (in: Input): Output {
         }
     }
 
+    const sort = host.readHardwareSort(build, node)
+
     return {
-        width: host.hardwareNodeWidth(build, node),
-        boolean: host.hardwareNodeIsBoolean(build, node)
+        width: sort.width,
+        boolean: sort.boolean
     }
 }

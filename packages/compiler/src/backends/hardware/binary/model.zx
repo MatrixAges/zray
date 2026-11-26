@@ -1,6 +1,15 @@
-import type { Family, Rendering } from "hardware_graph_host"
+export enum Family {
+    Logical,
+    Equality,
+    Arithmetic,
+    Comparison
+}
 
-export { Family, Rendering } from "hardware_graph_host"
+export enum Rendering {
+    Plain,
+    Signed,
+    SignedRemainder
+}
 
 export enum Operator {
     logical_and,

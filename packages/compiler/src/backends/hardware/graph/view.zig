@@ -1,11 +1,9 @@
 const std = @import("std");
 const memory = @import("zx").memory;
 const ir = @import("../ir.zig");
-const binary = @import("../binary.zig");
 const node = @import("node.zig");
 const Circuit = @import("circuit.zig");
 const validate_graph = @import("generated_validate_hardware_graph");
-const native = @import("output_execution_abi").layouts.@"zig:hardware_graph_host";
 pub const Scan = std.meta.Child(validate_graph.Input);
 const Graph = std.meta.Child(@FieldType(Scan, "graph"));
 const Ports = std.meta.Child(@FieldType(Graph, "inputs"));
@@ -100,22 +98,4 @@ pub fn readHardwareGraphNode(handle: *anyopaque, index: u64) *const node.Node {
             break :value &legacy.current;
         },
     };
-}
-
-pub fn hardwareTermOperator(text: []const u8) ?u8 {
-    const operator = binary.names.get(text) orelse return null;
-
-    return @intCast(@backingInt(operator));
-}
-
-pub fn hardwareTermFamily(operator: u8) native.Family {
-    return @fromBackingInt(@backingInt(binary.traits(@fromBackingInt(@intCast(operator))).family));
-}
-
-pub fn hardwareTermRendering(operator: u8) native.Rendering {
-    return @fromBackingInt(@backingInt(binary.traits(@fromBackingInt(@intCast(operator))).rendering));
-}
-
-pub fn hardwareTermToken(operator: u8) []const u8 {
-    return binary.traits(@fromBackingInt(@intCast(operator))).token;
 }

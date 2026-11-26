@@ -2,29 +2,31 @@ import integers from "std:integer"
 import host from "hardware_graph_host"
 import memory from "memory"
 
+import fromCode from "../../binary/from_code"
+import fromSmt from "../../binary/from_smt"
 import { Family } from "../../binary/model"
+import traits from "../../binary/traits"
 import { Form } from "../model"
 import derive from "../sort"
 import finish from "./finish"
 import intern from "./intern"
 import operandSort from "./operand_sort"
 
-import type { Apply as Input } from "./model"
-
-export type Output = u32
+import type { Apply as Input, Parsed as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { build, expression, source, head, left, right, third } = in
+    const { build, expression, source, head, left, right, third, offset } = in
     const { form, start, next, operator_start, bits } = head
 
-    finish({
+    const end = finish({
         build,
         source,
+        offset,
         closing: true
     })
 
     const token = match form {
-        Form.Binary => host.hardwareTermOperator(
+        Form.Binary => fromSmt(
             memory.borrowTextRange(
                 expression,
                 operator_start,
@@ -38,7 +40,10 @@ export default function (in: Input): Output {
         host.rejectHardwareTerm()
     }
 
-    const family = token == null ? Family.Logical : host.hardwareTermFamily(token)
+    const family = match {
+        token == null => Family.Logical,
+        _ => traits(fromCode(token)).family
+    }
 
     const extra = bits
 
@@ -64,18 +69,20 @@ export default function (in: Input): Output {
         host.rejectHardwareTerm()
     }
 
-    const end = host.hardwareTermOffset(build)
     const key = memory.borrowTextRange(expression, start, end - start)
 
-    return intern({
-        ...sort,
-        build,
-        key,
-        form,
-        first: integers.widen(left),
-        second: right ?? 0,
-        third: third ?? 0,
-        operator: token,
-        extra
-    })
+    return {
+        node: intern({
+            ...sort,
+            build,
+            key,
+            form,
+            first: integers.widen(left),
+            second: right ?? 0,
+            third: third ?? 0,
+            operator: token,
+            extra
+        }),
+        offset: end
+    }
 }

@@ -10,15 +10,16 @@ export type Output = void
 export default function (in: Input): Output {
     const { build, leaf, node } = in
 
-    const width = integers.widenShort(host.hardwareNodeWidth(build, node))
-    const boolean = host.hardwareNodeIsBoolean(build, node)
+    const sort = host.readHardwareSort(build, node)
+    const width = integers.widenShort(sort.width)
+    const boolean = sort.boolean
 
     if (width != leaf.width || boolean != leaf.boolean) {
         host.rejectHardwareTerm()
     }
 
     const symbol = name({
-        index: host.hardwareOutputCount(build),
+        index: in.index,
         output: true
     })
 

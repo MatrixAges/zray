@@ -7,11 +7,17 @@ export type Input = {
 }
 
 export type Read = Input & Cursor.Pick("source") & {
+    offset: u64,
     depth: u64
 }
 
-export type End = Read.Pick("build", "source") & {
+export type End = Read.Pick("build", "source", "offset") & {
     closing: bool
+}
+
+export type Parsed = {
+    node: u32,
+    offset: u64
 }
 
 export type Store = TermSort & {

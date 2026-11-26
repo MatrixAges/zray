@@ -1,9 +1,10 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 import memory from "memory"
 
+import fromCode from "../binary/from_code"
 import { Result } from "../binary/model"
 import derive from "../binary/result"
+import traits from "../binary/traits"
 import { maximum_bit_width, literal_bit_width } from "../const"
 import { Kind } from "./model"
 import sameSort from "./same_sort"
@@ -104,7 +105,7 @@ export default function (in: Input): Output {
     }
 
     const result = derive({
-        family: host.hardwareTermFamily(node.operator),
+        family: traits(fromCode(node.operator)).family,
         left: {
             width: left_width,
             boolean: left_bool

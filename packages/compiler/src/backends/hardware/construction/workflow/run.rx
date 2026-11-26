@@ -17,6 +17,7 @@
         in={$in.pick([
             "build",
             "inputs",
+            "input_types",
             "types"
         ])}
     />

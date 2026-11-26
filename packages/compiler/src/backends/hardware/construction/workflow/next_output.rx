@@ -19,7 +19,17 @@
             in={{
                 build: $in.build,
                 leaf: $ctx.next_leaf.leaf,
-                node: $ctx.run
+                node: $ctx.run,
+                index: $in.output_count
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                stack: $ctx.next_leaf.stack,
+                output_count: $in.output_count + 1,
+                running: $ctx.next_leaf.stack.length != 0
             }}
         />
     </If>

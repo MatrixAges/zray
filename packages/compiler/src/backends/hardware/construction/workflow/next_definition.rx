@@ -27,6 +27,7 @@
         value={{
             ...$in,
             row: $in.row + 1,
+            origin_file: $ctx.definition_origin,
             running: $in.row + 1 < $in.rows.names.length
         }}
     />

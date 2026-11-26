@@ -6,12 +6,10 @@ import read from "../read"
 import apply from "./application"
 import literal from "./literal"
 
-import type { Read as Input } from "./model"
-
-export type Output = u32
+import type { Parsed as Output, Read as Input } from "./model"
 
 export default function walk(in: Input): Output {
-    const { build, expression, source, depth } = in
+    const { build, expression, source, offset, depth } = in
 
     if (depth >= maximum_depth) {
         host.rejectHardwareTerm()
@@ -19,10 +17,8 @@ export default function walk(in: Input): Output {
 
     const head = read({
         source,
-        offset: host.hardwareTermOffset(build)
+        offset
     })
-
-    host.setHardwareTermOffset(build, head.next)
 
     const { form, arity } = head
 
@@ -31,39 +27,60 @@ export default function walk(in: Input): Output {
     }
 
     if (arity == 0) {
-        return literal({
-            build,
-            expression,
-            head
-        })
+        return {
+            node: literal({
+                build,
+                expression,
+                head
+            }),
+            offset: head.next
+        }
     }
 
-    const nested = {
+    const first = walk({
         build,
         expression,
         source,
+        offset: head.next,
         depth: depth + 1
-    }
+    })
 
-    const left = walk(nested)
-
-    const right: u32? = match arity >= 2 {
-        true => walk(nested),
+    const second: Output? = match arity >= 2 {
+        true => walk({
+            build,
+            expression,
+            source,
+            offset: first.offset,
+            depth: depth + 1
+        }),
         _ => null
     }
 
-    const third: u32? = match arity == 3 {
-        true => walk(nested),
+    const after_second = second == null ? first.offset : second.offset
+
+    const third: Output? = match arity == 3 {
+        true => walk({
+            build,
+            expression,
+            source,
+            offset: after_second,
+            depth: depth + 1
+        }),
         _ => null
     }
+
+    const after_args = third == null ? after_second : third.offset
+    const right_node: u32? = second == null ? null : second.node
+    const third_node: u32? = third == null ? null : third.node
 
     return apply({
         build,
         expression,
         source,
         head,
-        left,
-        right,
-        third
+        left: first.node,
+        right: right_node,
+        third: third_node,
+        offset: after_args
     })
 }

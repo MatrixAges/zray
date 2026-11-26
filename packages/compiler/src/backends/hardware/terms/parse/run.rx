@@ -11,6 +11,7 @@
             build: $in.build,
             expression: $in.expression,
             source: $ctx.begin,
+            offset: 0,
             depth: 0
         }}
     />
@@ -20,9 +21,10 @@
         in={{
             build: $in.build,
             source: $ctx.begin,
+            offset: $ctx.walk.offset,
             closing: false
         }}
     />
 
-    <Return value={$ctx.walk} />
+    <Return value={$ctx.walk.node} />
 </Module>

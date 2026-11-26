@@ -13,11 +13,13 @@ export type Output = u32
 export default function (in: Input): Output {
     const { build, key } = in
 
+    const cache = host.readHardwareCache(build)
+
     const found = lookup({
-        keys: host.hardwareCacheKeys(build),
-        values: host.hardwareCacheValues(build),
+        keys: cache.keys,
+        values: cache.values,
         key,
-        full: host.hardwareCacheFull(build)
+        full: cache.full
     })
 
     if (found.value != null) {
@@ -30,7 +32,7 @@ export default function (in: Input): Output {
 
     const position = match found.grow {
         true => slot({
-            keys: host.hardwareCacheKeys(build),
+            keys: host.readHardwareCache(build).keys,
             key
         }),
         _ => found.position
