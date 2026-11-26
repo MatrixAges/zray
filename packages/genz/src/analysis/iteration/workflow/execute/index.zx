@@ -1,17 +1,13 @@
 export {
     LoopParameterLayout,
     enterLoopRepresentation,
-    createLoopSeed,
-    trackLoopChange,
     addLoopParameterMembers,
     openLoopParameterContext,
-    loopForwardedCall,
     releaseLoopPlanningScratch,
     emitLoopRenewals,
     maskLoopBorrowedFields,
     declareProjectedLoopState,
     publishLoopDeclarations,
     frameLoweredLoop,
-    resetLoopResult,
     restoreLoopFields
 } from "lowering_host"

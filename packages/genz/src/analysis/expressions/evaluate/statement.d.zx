@@ -18,29 +18,16 @@ export declare function emitParallelStatement(
     index: u64
 ): u64?
 
-export declare function emitTaskStatement(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): u64?
-
 export declare function statementBinding(
     traversal: StatementTraversal,
     scope: u64,
     index: u64
 ): u32
 
-export declare function borrowStatementBinding(traversal: StatementTraversal): bool
+export declare function borrowStatementBinding(traversal: StatementTraversal): u32?
+    throws { OutOfMemory }
 
 export declare function statementBindingUsesValue(traversal: StatementTraversal): bool
-
-export declare function borrowedStatementValue(traversal: StatementTraversal): u32?
-
-export declare function lowerStatementExpression(
-    traversal: StatementTraversal,
-    value: u32,
-    by_value: bool
-): u32?
 
 export declare function emitStatementBinding(
     traversal: StatementTraversal,
@@ -53,17 +40,13 @@ export declare function statementResult(
     index: u64
 ): u32?
 
-export declare function statementResultUsesValue(traversal: StatementTraversal): bool
-
-export declare function statementResultMode(traversal: StatementTraversal): StatementResultMode
-
 export declare function fuseStatementResult(
     traversal: StatementTraversal,
     scope: u64,
     index: u64,
     value: u32,
     by_value: bool
-): bool
+): u32? throws { OutOfMemory }
 
 export declare function clipStatementResult(
     traversal: StatementTraversal,

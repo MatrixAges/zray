@@ -22,9 +22,3 @@ export declare function publishScopeBinding(
     value: u32,
     layout: bool
 ): u64 throws { OutOfMemory }
-
-export declare function completeIterationScope(
-    scope: ScopeFrame,
-    bindings: IterationScopeBindings,
-    result: u32
-): u32 throws { OutOfMemory }

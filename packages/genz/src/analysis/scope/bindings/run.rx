@@ -63,13 +63,25 @@
     />
 
     <Call
-        fn="workflow.completeIterationScope"
+        fn="workflow.readAstOrigin"
         in={[
-            $in.scope,
-            $ctx.iteration_result,
-            $ctx.prepare.value
+            $in.writer,
+            $in.origin
         ]}
     />
 
-    <Return value={$ctx.completeIterationScope} />
+    <Call
+        module="../../iteration/scope/build"
+        in={{
+            writer: $in.writer,
+            frame: $in.frame,
+            bindings: $ctx.iteration_result,
+            result: $ctx.prepare.value,
+            expression_base: $ctx.readAstOrigin.expression_base,
+            statement_base: $ctx.readAstOrigin.statement_base,
+            serial: $ctx.readAstOrigin.serial
+        }}
+    />
+
+    <Return value={$ctx.build} />
 </Module>

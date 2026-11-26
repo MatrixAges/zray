@@ -1,5 +1,5 @@
+const Lower = @import("../lower.zig");
 const Frame = @import("traversal/host.zig").Frame;
-const Api = @import("../expressions/evaluate.zig").Api;
 const rows = @import("../construction/publication.zig");
 
 pub fn beginStatementStore(handle: *const anyopaque, slot: u64, index: u64) ?u64 {
@@ -17,15 +17,6 @@ pub fn emitParallelStatement(handle: *const anyopaque, slot: u64, index: u64) ?u
     return rows.packSpan(span);
 }
 
-pub fn emitTaskStatement(handle: *const anyopaque, slot: u64, index: u64) ?u64 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const binding = frame.block(slot).at(@intCast(index)).constant;
-    const span = @import("../tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false) catch return null;
-
-    return rows.packSpan(span);
-}
-
 pub fn statementBinding(handle: *const anyopaque, slot: u64, index: u64) u32 {
     const frame = Frame.borrow(handle);
 
@@ -36,37 +27,20 @@ pub fn statementBinding(handle: *const anyopaque, slot: u64, index: u64) u32 {
     return @backingInt(frame.binding.value);
 }
 
-pub fn borrowStatementBinding(handle: *const anyopaque) bool {
+pub fn borrowStatementBinding(handle: *const anyopaque) Lower.Error!?u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const locals = @import("../value_call/locals.zig");
     const binding = frame.binding;
-    frame.borrowed = locals.optionalCall(self, &frame.sequence, binding.symbol, binding.value, self.program.output_type) catch return false;
+    const borrowed = try locals.optionalCall(self, &frame.sequence, binding.symbol, binding.value, self.program.output_type);
 
-    return true;
+    return if (borrowed) |id| @backingInt(id) else null;
 }
 
 pub fn statementBindingUsesValue(handle: *const anyopaque) bool {
     const frame = Frame.borrow(handle);
 
     return frame.lowering.stack_symbols.contains(frame.binding.symbol);
-}
-
-pub fn borrowedStatementValue(handle: *const anyopaque) ?u32 {
-    return if (Frame.borrow(handle).borrowed) |id| @backingInt(id) else null;
-}
-
-pub fn lowerStatementExpression(handle: *const anyopaque, value: u32, by_value: bool) ?u32 {
-    const self = Frame.borrow(handle).lowering;
-    const id = @as(@import("zx").ir.ExprId, @fromBackingInt(value));
-
-    const result = if (by_value)
-        @import("../value_call/root.zig").expression(self, id) catch return null
-
-    else
-        self.expr(id) catch return null;
-
-    return @backingInt(result);
 }
 
 pub fn emitStatementBinding(handle: *const anyopaque, value: u32) ?u64 {
@@ -90,24 +64,12 @@ pub fn statementResult(handle: *const anyopaque, slot: u64, index: u64) ?u32 {
     return if (source) |id| @backingInt(id) else null;
 }
 
-pub fn statementResultUsesValue(handle: *const anyopaque) bool {
-    return Frame.borrow(handle).lowering.value_output;
-}
-
-pub fn statementResultMode(handle: *const anyopaque) Api.StatementResultMode {
-    const self = Frame.borrow(handle).lowering;
-
-    if (!self.state_active) return .Plain;
-
-    return if (self.public_value_output) .View else .State;
-}
-
-pub fn fuseStatementResult(handle: *const anyopaque, slot: u64, index: u64, value: u32, by_value: bool) bool {
+pub fn fuseStatementResult(handle: *const anyopaque, slot: u64, index: u64, value: u32, by_value: bool) Lower.Error!?u32 {
     const frame = Frame.borrow(handle);
     const binding = frame.block(slot).at(@intCast(index - 1)).constant;
-    frame.borrowed = @import("../iteration_consumer.zig").lower(frame.lowering, binding.symbol, binding.value, @fromBackingInt(value), by_value) catch return false;
+    const fused = try @import("../iteration_consumer.zig").lower(frame.lowering, binding.symbol, binding.value, @fromBackingInt(value), by_value);
 
-    return true;
+    return if (fused) |id| @backingInt(id) else null;
 }
 
 pub fn clipStatementResult(handle: *const anyopaque, source: u32, value: u32) ?u32 {

@@ -16,12 +16,12 @@ export default function (in: Input): Output {
     if (admission != LoopAdmission.Proceed) {
         return {
             admission,
-            name: "",
+            name: [],
             initial_value: 0
         }
     }
 
-    const name = host.prepareLoopInitial(loop_frame)
+    const name = in.loop_state.name
     const route = in.initial_plan.evaluation
     const deep = route == Evaluation.Deep
 

@@ -1,0 +1,34 @@
+import { readAstOrigin } from "ast_rows"
+import host from "lowering_host"
+import memory from "memory"
+
+import fresh from "../../../../ast/fresh"
+
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { U8ListBuffer } from "memory"
+
+export type Input = {
+    frame: Lowering,
+    writer: AstWriter,
+    origin: AstOriginBuffer,
+    changed_slot: U8ListBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, writer, origin, changed_slot } = in
+
+    const current = readAstOrigin(writer, origin)
+
+    const generated = fresh({
+        serial: current.serial,
+        prefix: "state_changed_"
+    })
+
+    const name = host.retainLoweringText(frame, generated.name)
+
+    host.setLoweringSerial(frame, generated.serial)
+    memory.writeU8List(changed_slot, 0, name)
+}

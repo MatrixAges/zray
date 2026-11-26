@@ -15,13 +15,6 @@ export type LoopConsumerFacts = {
 
 export type LoopFrame = mutable_opaque
 
-export type IterationScopeBindings = {
-    symbols: u32?[],
-    values: u32?[],
-    types: u32?[],
-    names: u8[][]
-}
-
 export enum LoopParameterLayout {
     Plain,
     Stack,

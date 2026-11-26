@@ -24,33 +24,33 @@ pub fn beginLoweredLoop(handle: *anyopaque) Error!Admission {
     frame.state = try self.builder.identifier(frame.name);
     frame.selection = try selection.choose(self, frame.id, frame.iteration, frame.mode, frame.consumer, projected);
 
+    if (frame.selection.representation != .dereference and frame.selection.representation != .reject) {
+        frame.type_id = @fromBackingInt(self.program.expressions.types[@backingInt(frame.id)]);
+
+        frame.initial = if (generated) frame.selection.plan else initial.plan(.{
+            .representation = frame.selection.representation,
+            .mode = frame.mode,
+            .state_active = self.state_active,
+            .direct_initial = frame.selection.direct_initial,
+            .postcondition = frame.iteration.postcondition,
+            .consumer = frame.consumer != null,
+            .pure = frame.selection.pure,
+            .forwarded = frame.selection.forwarded != null,
+        });
+
+        frame.context = .{ .lowering = self, .declarations = &frame.body, .inline_lists = frame.initial.buffered };
+
+        frame.state_info = .{
+            .name = frame.name,
+            .forwarded = if (frame.selection.forwarded) |call| @backingInt(call) else null,
+        };
+    }
+
     return switch (frame.selection.representation) {
         .dereference => .Dereference,
         .reject => .Reject,
         else => .Proceed,
     };
-}
-
-pub fn prepareLoopInitial(handle: *anyopaque) []const u8 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    frame.type_id = @fromBackingInt(self.program.expressions.types[@backingInt(frame.id)]);
-
-    frame.initial = if (generated) frame.selection.plan else initial.plan(.{
-        .representation = frame.selection.representation,
-        .mode = frame.mode,
-        .state_active = self.state_active,
-        .direct_initial = frame.selection.direct_initial,
-        .postcondition = frame.iteration.postcondition,
-        .consumer = frame.consumer != null,
-        .pure = frame.selection.pure,
-        .forwarded = frame.selection.forwarded != null,
-    });
-
-    frame.context = .{ .lowering = self, .declarations = &frame.body, .inline_lists = frame.initial.buffered };
-
-    return frame.name;
 }
 
 pub fn setLoopInitialScope(handle: *anyopaque, active: bool) void {
@@ -75,7 +75,15 @@ pub fn saveLoopInitial(handle: *anyopaque, value: u32) Error!void {
 
 pub fn guardLoopInitial(handle: *anyopaque, value: u32) Error!void {
     const frame = Frame.borrow(handle);
-    frame.guard = try @import("../../iteration_value/initial.zig").create(frame.lowering, &frame.body, frame.iteration, frame.consumer, @fromBackingInt(value), frame.initial.guard);
+    const guard = try @import("../../iteration_value/initial.zig").create(frame.lowering, &frame.body, frame.iteration, frame.consumer, @fromBackingInt(value), frame.initial.guard);
+
+    frame.guard = guard;
+
+    frame.guard_info = .{
+        .body = @import("../../construction/publication.zig").packSpan(guard.body),
+        .condition = @backingInt(guard.condition),
+        .fallback = @backingInt(guard.result),
+    };
 }
 
 pub fn prepareLoopState(handle: *anyopaque) Error!void {
@@ -91,11 +99,10 @@ pub fn prepareLoopState(handle: *anyopaque) Error!void {
 
 pub fn enterLoopRepresentation(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
-
     frame.representation = try @import("../../state_value/root.zig").enter(frame.lowering);
 }
 
-pub fn createLoopSeed(handle: *anyopaque) Error![]const u8 {
+fn createLoopSeed(handle: *anyopaque) Error![]const u8 {
     const frame = Frame.borrow(handle);
     const lowering = frame.lowering;
     const name = try lowering.fresh("loop_seed");
@@ -111,7 +118,7 @@ pub fn prepareLoopFields(handle: *anyopaque) Error!bool {
     return frame.fields != null;
 }
 
-pub fn trackLoopChange(handle: *anyopaque) Error!void {
+fn trackLoopChange(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.changed_name = try frame.lowering.fresh("state_changed");
@@ -164,7 +171,7 @@ pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
     frame.schedule = step.plan(.{
         .condition = @backingInt(frame.iteration.condition),
         .body = @backingInt(frame.iteration.body),
-        .forwarded = loopForwardedCall(handle),
+        .forwarded = if (frame.selection.forwarded) |call| @backingInt(call) else null,
         .postcondition = frame.iteration.postcondition,
         .projected = frame.fields != null,
         .selected_state = frame.initial.selected_state,
@@ -189,12 +196,6 @@ pub fn clipLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, @fromBackingInt(value)));
-}
-
-pub fn loopForwardedCall(handle: *anyopaque) ?u32 {
-    const frame = Frame.borrow(handle);
-
-    return if (frame.selection.forwarded) |call| @backingInt(call) else null;
 }
 
 pub fn releaseLoopPlanningScratch(handle: *anyopaque) void {

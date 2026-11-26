@@ -19,7 +19,6 @@ pub const Frame = struct {
     selections: []Selection,
     sequence: @import("../../../node/blocks.zig").Sequence,
     binding: @FieldType(ir.StatementRow, "constant") = undefined,
-    borrowed: ?node.ExpressionId = null,
     child: node.Block = .{},
     pub fn borrow(handle: *const anyopaque) *Frame {
         const reference: *const *Frame = @ptrCast(@alignCast(handle));
@@ -130,6 +129,9 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .names = self.names,
         .used = self.used,
         .transaction = self.transaction(),
+        .value_output = self.value_output,
+        .state_active = self.state_active,
+        .public_value_output = self.public_value_output,
     };
 
     const buffers: Buffers = .{

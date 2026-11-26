@@ -133,9 +133,3 @@ pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32
 
     return packSpan(block);
 }
-
-pub fn completeIterationScope(handle: *const anyopaque, bindings: *const evaluation.Api.IterationScopeBindings, result: u32) Error!u32 {
-    const frame = borrow(handle);
-
-    return @backingInt(try @import("../iteration_value/scope.zig").emit(frame.lowering, frame.temporary, @fromBackingInt(result), bindings));
-}

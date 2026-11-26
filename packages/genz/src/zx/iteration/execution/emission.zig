@@ -107,6 +107,10 @@ pub fn publishLoopDeclarations(handle: *anyopaque) Error!void {
     const output = frame.output();
 
     frame.prefix.declarations = if (generated) try output.block(self.allocator) else try self.builder.statements(output.items);
+
+    output.clearRetainingCapacity();
+
+    frame.recovered = frame.state;
 }
 
 pub fn writeLoopUpdate(handle: *anyopaque) Error!void {
@@ -159,17 +163,13 @@ pub fn frameLoweredLoop(handle: *anyopaque, condition: u32, after_step: bool) Er
 }
 
 pub fn recoverLoweredLoop(handle: *anyopaque) Error!void {
-    resetLoopResult(handle);
-
-    if (Frame.borrow(handle).schedule.restore_projected) try restoreLoopFields(handle);
-}
-
-pub fn resetLoopResult(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.output().clearRetainingCapacity();
 
     frame.recovered = frame.state;
+
+    if (frame.schedule.restore_projected) try restoreLoopFields(handle);
 }
 
 pub fn restoreLoopFields(handle: *anyopaque) Error!void {
@@ -190,7 +190,7 @@ pub fn finishLoweredLoop(handle: *anyopaque) Error!u32 {
         return @backingInt(try aggregate.finish(frame.lowering, &frame.body, @fromBackingInt(value)));
     }
 
-    return if (frame.guard != null) finishGuardedLoop(handle, value) else value;
+    return if (frame.guard) |*guard| @backingInt(try guard.finish(frame.lowering, @fromBackingInt(value))) else value;
 }
 
 fn resultConfig(frame: *Frame, initial: node.ExpressionId) result.Result {
@@ -225,10 +225,4 @@ pub fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u3
     const fallback = try resultConfig(frame, @fromBackingInt(initial)).lower(self, &skipped, frame.seed, .{});
 
     return @backingInt(try aggregate.finishGuarded(self, &frame.body, @fromBackingInt(first), @fromBackingInt(value), fallback));
-}
-
-pub fn finishGuardedLoop(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.guard.?.finish(frame.lowering, @fromBackingInt(value)));
 }

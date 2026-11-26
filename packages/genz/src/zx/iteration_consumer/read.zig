@@ -45,10 +45,6 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.Exp
     return @fromBackingInt(output);
 }
 
-pub fn requireLoopPath(valid: bool) void {
-    std.debug.assert(valid);
-}
-
 pub fn projectLoopPath(handle: *anyopaque, row: u32, target: u32, length_type: ?u32) Lower.Error!u32 {
     const self = evaluation.borrow(handle);
     const current: node.ExpressionId = @fromBackingInt(target);

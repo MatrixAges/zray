@@ -1,8 +1,6 @@
 export declare function beginLoweredLoop(loop_frame: LoopFrame): LoopAdmission
     throws { OutOfMemory }
 
-export declare function prepareLoopInitial(loop_frame: LoopFrame): string
-
 export declare function setLoopInitialScope(loop_frame: LoopFrame, active: bool): void
 
 export declare function addLoopParameterMembers(
@@ -12,8 +10,6 @@ export declare function addLoopParameterMembers(
 ): void throws { OutOfMemory }
 
 export declare function openLoopParameterContext(frame: LoopFrame): void
-
-export declare function loopForwardedCall(frame: LoopFrame): u32?
 
 export declare function releaseLoopPlanningScratch(frame: LoopFrame): void
 
@@ -51,11 +47,7 @@ export declare function guardLoopInitial(frame: LoopFrame, value: u32): void
 
 export declare function enterLoopRepresentation(frame: LoopFrame): void throws { OutOfMemory }
 
-export declare function createLoopSeed(frame: LoopFrame): string throws { OutOfMemory }
-
 export declare function prepareLoopFields(frame: LoopFrame): bool throws { OutOfMemory }
-
-export declare function trackLoopChange(frame: LoopFrame): void throws { OutOfMemory }
 
 export declare function deepenLoopInitial(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
@@ -91,8 +83,6 @@ export declare function clipLoopAssignment(frame: LoopFrame, value: u32): u32
 export declare function commitLoopUpdate(frame: LoopFrame, value: u32, state: bool): void
     throws { OutOfMemory }
 
-export declare function resetLoopResult(frame: LoopFrame): void
-
 export declare function restoreLoopFields(frame: LoopFrame): void throws { OutOfMemory }
 
 export declare function completeLoopResult(frame: LoopFrame, initial: u32): u32
@@ -104,9 +94,6 @@ export declare function finishSkippedLoop(
     value: u32,
     first: u32
 ): u32 throws { OutOfMemory }
-
-export declare function finishGuardedLoop(frame: LoopFrame, value: u32): u32
-    throws { OutOfMemory }
 
 export declare function rebuildLoopFields(target: LoopFieldRebuild, layout: u32): u32
     throws { OutOfMemory }
@@ -122,5 +109,3 @@ export declare function wrapLoopResult(target: LoopResultFrame, form: LoopResult
 
 export declare function convertLoopResult(target: LoopResultFrame, deep: bool): u32
     throws { OutOfMemory }
-
-export declare function requireLoopPath(valid: bool): void

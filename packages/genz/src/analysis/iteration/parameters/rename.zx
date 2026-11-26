@@ -6,6 +6,6 @@ import type { Rename as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.writeString(in.target, integers.widen(in.step), in.step_name)
-    memory.writeString(in.target, integers.widen(in.condition), in.condition_name)
+    memory.writeU8List(in.target, integers.widen(in.step), in.step_name)
+    memory.writeU8List(in.target, integers.widen(in.condition), in.condition_name)
 }

@@ -1,6 +1,6 @@
 import memory from "memory"
 
-import type { IterationScopeBindings as Output } from "lowering_host"
+import type { Bindings as Output } from "../../iteration/scope/model"
 import type { Values } from "./model"
 
 export type Input = Output.Pick("symbols") & {

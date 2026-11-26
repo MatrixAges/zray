@@ -24,12 +24,6 @@ export type BorrowedArgument = opaque
 
 export type MatchFrame = mutable_opaque
 
-export enum StatementResultMode {
-    Plain,
-    State,
-    View
-}
-
 export enum CallArgument {
     Value,
     Tuple,

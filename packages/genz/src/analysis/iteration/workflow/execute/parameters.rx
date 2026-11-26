@@ -8,7 +8,15 @@
         <Call fn="index.enterLoopRepresentation" in={$in.loop_frame} />
     </If>
 
-    <Call fn="index.createLoopSeed" in={$in.loop_frame} />
+    <Call
+        fn="create_seed"
+        in={$in.pick([
+            "frame",
+            "writer",
+            "origin",
+            "seed_slot"
+        ])}
+    />
 
     <Call
         fn="prepare_fields"
@@ -19,7 +27,15 @@
     />
 
     <If on={$in.initial_plan.track}>
-        <Call fn="index.trackLoopChange" in={$in.loop_frame} />
+        <Call
+            fn="track_change"
+            in={$in.pick([
+                "frame",
+                "writer",
+                "origin",
+                "changed_slot"
+            ])}
+        />
     </If>
 
     <Call fn="parameter_layout" in={$in.initial_plan.parameters} />
@@ -69,7 +85,7 @@
 
     <Return
         value={{
-            seed_name: $ctx.createLoopSeed,
+            seed_name: $ctx.create_seed,
             projected: $ctx.prepare_fields
         }}
     />

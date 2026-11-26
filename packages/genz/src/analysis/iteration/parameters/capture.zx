@@ -15,7 +15,7 @@ import rename from "./rename"
 import type { RemovalFlags, View } from "./model"
 
 export type Input = View.Omit("state", "stack") & {
-    name: string,
+    name: u8[],
     removal: RemovalFlags
 }
 
@@ -24,10 +24,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { target, previous, flags, condition, step, removal, name } = in
 
-    const names = memory.stringViews(target)
+    const names = memory.u8ListViews(target)
 
-    memory.writeString(previous, condition_slot, names[integers.widen(condition)])
-    memory.writeString(previous, step_slot, names[integers.widen(step)])
+    memory.writeU8List(previous, condition_slot, names[integers.widen(condition)])
+    memory.writeU8List(previous, step_slot, names[integers.widen(step)])
 
     memory.writeBool(flags, state_condition_slot, removal.remove_state_condition)
     memory.writeBool(flags, state_step_slot, removal.remove_state_step)

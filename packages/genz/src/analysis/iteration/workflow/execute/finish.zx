@@ -1,6 +1,8 @@
+import { tailAstPackedStatements } from "ast_rows"
 import host from "lowering_host"
 
 import finishBlock from "../../../aggregate/execute/finish_block"
+import finishStored from "../../../aggregate/execute/finish_stored"
 import { Guard } from "../../initial/model"
 
 import type { Finish as Input } from "./model"
@@ -14,6 +16,7 @@ export default function (in: Input): Output {
         origin,
         body_seq,
         loop_frame,
+        guard_info,
         initial_plan,
         projected,
         initial_value,
@@ -38,7 +41,22 @@ export default function (in: Input): Output {
         })
     }
 
-    const guarded = initial_plan.guard != Guard.None
+    if (initial_plan.guard == Guard.None) {
+        return result
+    }
 
-    return guarded ? host.finishGuardedLoop(loop_frame, result) : result
+    const span = tailAstPackedStatements(writer, [guard_info.body])
+
+    return finishStored({
+        frame,
+        writer,
+        origin,
+        span,
+        value: result,
+        guard: {
+            condition: guard_info.condition,
+            yes: result,
+            no: guard_info.fallback
+        }
+    })
 }

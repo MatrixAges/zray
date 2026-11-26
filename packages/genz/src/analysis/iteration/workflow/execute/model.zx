@@ -1,5 +1,6 @@
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
+import type { U32Buffer, U8ListBuffer } from "memory"
 import type {
     Output as RenewalPlan,
     Source as RenewalSource
@@ -10,12 +11,27 @@ import type { Output as StepPlan } from "../../step/model"
 
 export type Admission = LoopAdmission
 
+export type LoopState = {
+    name: u8[],
+    forwarded?: u32
+}
+
+export type GuardInfo = {
+    body: u64,
+    condition: u32,
+    fallback: u32
+}
+
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
     body_seq: AstSequence,
     loop_frame: LoopFrame,
+    loop_state: LoopState,
+    guard_info: GuardInfo,
+    seed_slot: U32Buffer,
+    changed_slot: U8ListBuffer,
     id: u32,
     initial: u32,
     parameters: View,
@@ -29,16 +45,26 @@ export type Input = {
 
 export type InitialOutcome = {
     admission: Admission,
-    name: string,
+    name: u8[],
     initial_value: u32
 }
 
-export type Parameters = Input.Pick("loop_frame", "parameters", "initial_plan") & {
-    name: string
-}
+export type Parameters =
+    Input.Pick(
+        "frame",
+        "writer",
+        "origin",
+        "loop_frame",
+        "seed_slot",
+        "changed_slot",
+        "parameters",
+        "initial_plan"
+    ) & {
+        name: u8[]
+    }
 
 export type ParametersOutcome = {
-    seed_name: string,
+    seed_name: u8[],
     projected: bool
 }
 
@@ -61,13 +87,21 @@ export type Evaluate =
     Input.Pick("frame", "loop_frame", "parameters", "initial_plan") & {
         schedule: StepPlan,
         renewals: RenewalPlan,
-        name: string,
-        seed_name: string,
+        name: u8[],
+        seed_name: u8[],
         initial_state: u32
     }
 
 export type Emit =
-    Input.Pick("frame", "writer", "origin", "body_seq", "loop_frame", "initial_plan") & {
+    Input.Pick(
+        "frame",
+        "writer",
+        "origin",
+        "body_seq",
+        "loop_frame",
+        "guard_info",
+        "initial_plan"
+    ) & {
         schedule: StepPlan,
         renewals: RenewalPlan,
         projected: bool,

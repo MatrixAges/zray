@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import host from "lowering_host"
-import { StatementResultMode } from "lowering_host"
 
 import { fuse_route } from "../block/const"
 import resultPublish from "./result_publish"
@@ -30,29 +29,20 @@ export default function (in: Input): Output {
 
     const bits = integers.widenByte(route)
     const fuse = integers.andBits(bits, integers.widenByte(fuse_route)) != 0
-    const by_value = host.statementResultUsesValue(traversal)
+    const by_value = context.value_output
 
-    if (
-        fuse && !host.fuseStatementResult(traversal, scope, index, source, by_value)
-    ) {
-        return null
+    const fused: u32? = match {
+        fuse => host.fuseStatementResult(traversal, scope, index, source, by_value),
+        _ => null
     }
 
-    const fused: u32? = fuse ? host.borrowedStatementValue(traversal) : null
-
-    const lowered: u32? = match {
-        fused != null => fused,
-        _ => host.lowerStatementExpression(traversal, source, by_value)
+    const lowered: u32 = fused ?? match {
+        by_value => host.lowerValueExpression(context.frame, source),
+        _ => host.lowerExpression(context.frame, source, false, null)
     }
 
-    if (lowered == null) {
-        return null
-    }
-
-    const mode = host.statementResultMode(traversal)
-
-    const owned: u32? = match mode {
-        StatementResultMode.Plain => lowered,
+    const owned: u32? = match {
+        !context.state_active => lowered,
         _ => host.clipStatementResult(traversal, source, lowered)
     }
 
@@ -60,8 +50,9 @@ export default function (in: Input): Output {
         return null
     }
 
-    const output: u32? = match mode {
-        StatementResultMode.View => host.viewStatementResult(traversal, owned),
+    const output: u32? = match {
+        context.state_active && context.public_value_output =>
+            host.viewStatementResult(traversal, owned),
         _ => owned
     }
 

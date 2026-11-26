@@ -1,3 +1,2 @@
-export { tailAstPackedStatements } from "ast_rows"
-export { completeIterationScope } from "lowering_host"
+export { readAstOrigin, tailAstPackedStatements } from "ast_rows"
 export { u64Views } from "memory"

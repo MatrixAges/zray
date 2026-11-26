@@ -8,31 +8,31 @@ import type { Input } from "./model"
 export type Output = u64?
 
 export default function (in: Input): Output {
-    const { traversal, scope, index, route } = in
+    const { traversal, context, scope, index, statement, route } = in
 
     const bits = integers.widenByte(route)
     const task = integers.andBits(bits, integers.widenByte(task_route)) != 0
 
     if (task) {
-        return host.emitTaskStatement(traversal, scope, index)
+        const payload = integers.widen(context.control.statement_payloads[statement])
+        const symbol = integers.widen(context.control.constant_symbols[payload])
+        const value = context.control.constant_values[payload]
+
+        return host.startInlineTask(
+            context.frame,
+            value,
+            context.names[symbol],
+            false
+        )
     }
 
     const value = host.statementBinding(traversal, scope, index)
-
-    if (!host.borrowStatementBinding(traversal)) {
-        return null
-    }
-
-    const borrowed = host.borrowedStatementValue(traversal)
+    const borrowed = host.borrowStatementBinding(traversal)
     const by_value = host.statementBindingUsesValue(traversal)
 
-    const lowered: u32? = match {
-        borrowed != null => borrowed,
-        _ => host.lowerStatementExpression(traversal, value, by_value)
-    }
-
-    if (lowered == null) {
-        return null
+    const lowered: u32 = borrowed ?? match {
+        by_value => host.lowerValueExpression(context.frame, value),
+        _ => host.lowerExpression(context.frame, value, false, null)
     }
 
     return host.emitStatementBinding(traversal, lowered)

@@ -1,10 +1,14 @@
-import { lowerType } from "lowering_host"
+import { invalidLowering, lowerType } from "lowering_host"
 
 import type { Input as Output } from "./execute"
 import type { Prepare as Input } from "./model"
 
 export default function (in: Input): Output {
     const { frame, writer, origin, table, plan, state } = in
+
+    if (!plan.valid) {
+        const invalid = invalidLowering()
+    }
 
     const type_id = plan.length_type
 

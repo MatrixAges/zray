@@ -41,8 +41,6 @@
         ]}
     />
 
-    <Call fn="index.resetLoopResult" in={$in.loop_frame} />
-
     <If on={$in.schedule.restore_projected}>
         <Call fn="index.restoreLoopFields" in={$in.loop_frame} />
     </If>

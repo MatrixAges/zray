@@ -27,7 +27,12 @@
         module="parameters"
         in={{
             ...$in.pick([
+                "frame",
+                "writer",
+                "origin",
                 "loop_frame",
+                "seed_slot",
+                "changed_slot",
                 "parameters",
                 "initial_plan"
             ]),
@@ -47,8 +52,6 @@
         }}
     />
 
-    <Call fn="index.loopForwardedCall" in={$in.loop_frame} />
-
     <Call
         module="../../step/plan"
         in={{
@@ -63,7 +66,7 @@
                 "layout",
                 "buffered"
             ]),
-            forwarded: $ctx.loopForwardedCall,
+            forwarded: $in.loop_state.forwarded,
             projected: $ctx.parameters.projected
         }}
     />
@@ -104,6 +107,7 @@
                 "origin",
                 "body_seq",
                 "loop_frame",
+                "guard_info",
                 "initial_plan"
             ]),
             schedule: $ctx.plan,

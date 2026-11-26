@@ -17,6 +17,8 @@ const Step = @import("../step.zig");
 const generated = @import("genz_options").generated_analysis;
 const Api = @import("../../expressions/evaluate.zig").Api;
 pub const UpdateScope = if (generated) Api.LoopUpdateScope else enum { None, Projected, Ordinary };
+pub const StateInfo = struct { name: []const u8 = &.{}, forwarded: ?u32 = null };
+pub const GuardInfo = struct { body: u64 = 0, condition: u32 = 0, fallback: u32 = 0 };
 const Self = @This();
 
 const Parameters = struct {
@@ -61,6 +63,8 @@ prefix: Result.Prefix = .{},
 update: node.Block = undefined,
 growth: node.Block = .{},
 recovered: node.ExpressionId = undefined,
+state_info: StateInfo = .{},
+guard_info: GuardInfo = .{},
 pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Result.Mode, consumer: ?Consumer) Self {
     return .{
         .lowering = lowering,

@@ -13,6 +13,7 @@ export type Control = ControlTable.Pick(
     "statement_kinds",
     "statement_payloads",
     "evaluations",
+    "constant_symbols",
     "constant_values",
     "results",
     "branch_conditions",
@@ -58,7 +59,10 @@ export type Context = {
     store_count: u64,
     names: u8[][],
     used: bool[],
-    transaction: bool
+    transaction: bool,
+    value_output: bool,
+    state_active: bool,
+    public_value_output: bool
 }
 
 export type Input = {

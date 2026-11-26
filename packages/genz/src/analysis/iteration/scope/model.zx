@@ -1,5 +1,11 @@
-import type { IterationScopeBindings as Bindings } from "lowering_host"
 import type { BlockBody, Target } from "../../aggregate/binding/publication"
+
+export type Bindings = {
+    symbols: u32?[],
+    values: u32?[],
+    types: u32?[],
+    names: u8[][]
+}
 
 export type Input = Target & {
     bindings: Bindings,

@@ -52,28 +52,6 @@ fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) L
     return self.symbols.addMany(lowering.allocator, entered);
 }
 
-const scope_entry = @import("generated_iteration_scope");
-const ScopeInput = std.meta.Child(scope_entry.Input);
-const Bindings = @import("../expressions/evaluate.zig").Api.IterationScopeBindings;
-
-pub noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: node.ExpressionId, bindings: *const Bindings) Lower.Error!node.ExpressionId {
-    const input: ScopeInput = .{
-        .writer = @ptrCast(lowering),
-        .frame = @ptrCast(lowering),
-        .bindings = zx.columns.pointer(@FieldType(ScopeInput, "bindings"), bindings),
-        .result = @backingInt(result),
-        .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(lowering.builder.nodes.statements.tags.items.len),
-        .serial = lowering.serial,
-    };
-
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, temporary);
-    const root = scope_entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
-
-    return @fromBackingInt(root);
-}
-
 fn failure(err: anyerror) Lower.Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,

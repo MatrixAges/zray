@@ -103,12 +103,23 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .stack = &stack_view,
     };
 
+    comptime std.debug.assert(@typeInfo(node.ExpressionId).@"enum".tag_type == u32);
+
+    var seed_slot: []u32 = @as(*[1]u32, @ptrCast(&frame.seed));
+    var changed_slot: [][]const u8 = @as(*[1][]const u8, @ptrCast(&frame.changed_name));
+    const state_info: *const Frame.StateInfo = &frame.state_info;
+    const guard_info: *const Frame.GuardInfo = &frame.guard_info;
+
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
         .body_seq = @ptrCast(&frame.body),
         .loop_frame = @ptrCast(frame),
+        .loop_state = zx.columns.pointer(@FieldType(Input, "loop_state"), state_info),
+        .guard_info = zx.columns.pointer(@FieldType(Input, "guard_info"), guard_info),
+        .seed_slot = @ptrCast(&seed_slot),
+        .changed_slot = @ptrCast(&changed_slot),
         .id = @backingInt(frame.id),
         .initial = @backingInt(frame.iteration.initial),
         .parameters = &parameters,
@@ -138,8 +149,6 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
         .Dereference => return try self.builder.expression(.{ .dereference = try lower(self, frame.id, frame.iteration) }),
         .Proceed => {},
     }
-
-    _ = prepare.prepareLoopInitial(handle);
 
     const route = frame.initial.evaluation;
 
