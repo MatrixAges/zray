@@ -16,8 +16,8 @@ export type Body = FactsContext.Pick("normalized", "renewed") & {
     counts: u32[],
     symbols: u64,
     index?: u32,
-    input: u8[][],
-    output: u8[][],
+    input: AtomicRows,
+    output: AtomicRows,
     held: bool[][],
     written: bool[][],
     record: bool

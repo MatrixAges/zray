@@ -1,25 +1,31 @@
-import strings from "zig:string"
-
-import type { StringSet } from "zig:string"
+import collectKeys from "./collect_keys"
 
 export type Input = {
     names: string?[],
-    keys: StringSet,
+    keys: string[],
     initial: string[],
     first: u64
 }
 
-export type Output = u64
+export type Output = {
+    row: u64,
+    keys: string[]
+}
 
 export default function (in: Input): Output {
-    const { names, keys } = in
+    const { names } = in
 
-    if (in.first == 0) {
-        strings.setAddAll(keys, in.initial)
+    const initial_keys = match {
+        in.first == 0 => collectKeys({
+            keys: in.keys,
+            additions: in.initial
+        }),
+        _ => in.keys
     }
 
     return loop({
         row: in.first,
+        keys: initial_keys,
         stopped: false
     }, {
         while: state => state.row < names.length && !state.stopped,
@@ -29,11 +35,17 @@ export default function (in: Input): Output {
             if (name == null) {
                 state.stopped = true
             } else {
-                strings.setAdd(keys, name)
+                state.keys = collectKeys({
+                    keys: state.keys,
+                    additions: [name]
+                })
 
                 state.row += 1
             }
         },
-        return: state => state.row
+        return: state => ({
+            row: state.row,
+            keys: state.keys
+        })
     })
 }

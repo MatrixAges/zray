@@ -1,8 +1,8 @@
 import integers from "std:integer"
-import strings from "zig:string"
 import memory from "memory"
 
-import type { StringSet } from "zig:string"
+import collectKeys from "./collect_keys"
+
 import type {
     StringListBuffer,
     U8Buffer,
@@ -19,7 +19,7 @@ export type Columns = {
 }
 
 export type Input = {
-    keys: StringSet,
+    keys: string[],
     names: string[],
     values: u32[],
     columns: Columns,
@@ -29,12 +29,10 @@ export type Input = {
     aliases: bool
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
     const { keys, names, columns, row, root, open, aliases } = in
-
-    strings.setAddAll(keys, names)
 
     memory.writeU64(columns.roots, row, integers.widen(root))
     memory.writeU8(columns.open, row, open ? 1 : 0)
@@ -47,4 +45,9 @@ export default function (in: Input): Output {
         memory.writeStringList(columns.fields, row, names)
         memory.writeU32List(columns.values, row, in.values)
     }
+
+    return collectKeys({
+        keys,
+        additions: names
+    })
 }

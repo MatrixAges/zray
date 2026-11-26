@@ -8,6 +8,7 @@ const Self = @This();
 pub const ModuleResult = parser.ModuleResult;
 pub const indexed_enabled = @import("../frontend/module_result.zig").indexed_enabled;
 const generated = @import("parser_options").generated_parser;
+const ABI = if (generated) @import("project_execution_abi").layouts.@"zig:project_host" else void;
 const Native = if (generated) @import("project_execution_abi").native.@"zig:project_host" else void;
 const Digest = [zx.Sha256.digest_length]u8;
 
@@ -473,6 +474,7 @@ fn stageResult(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, 
 const Batch = struct {
     adoption: Adoption,
     output: BatchOutput,
+    prefetched: if (generated) ABI.PrefetchedParse else void = undefined,
     fn borrow(handle: *anyopaque) *Batch {
         return @ptrCast(@alignCast(handle));
     }
@@ -490,17 +492,33 @@ fn publishPrefetched(self: *Self, paths: *const zx.memory.TextColumn, results: [
         .worker_failed = worker_failed,
     };
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(self.allocator);
 
-    if (!(rule.executeIn(scratch.allocator(), &input) catch unreachable)) return error.OutOfMemory;
+    defer arena.deinit();
+
+    var buffer: [4096]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const ok = rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    if (!ok) return error.OutOfMemory;
 }
 
 pub fn preparePrefetchedParse(handle: *anyopaque, path: []const u8) Native.preparePrefetchedParse.Output {
     const batch = Batch.borrow(handle);
+
     batch.adoption.path = path;
     batch.adoption.found = batch.adoption.cache.entries.probe(path);
 
-    return @ptrCast(&batch.adoption);
+    batch.prefetched = .{
+        .adoption = @ptrCast(&batch.adoption),
+        .existing = if (batch.adoption.found.existing) |entry| @ptrCast(entry) else null,
+    };
+
+    return &batch.prefetched;
 }
 
 pub fn bindPrefetchedParse(handle: *anyopaque, index: u64, handle_entry: *anyopaque) void {
@@ -550,12 +568,6 @@ const Adoption = struct {
     }
 };
 
-pub fn existingParseEntry(handle: *const anyopaque) Native.existingParseEntry.Output {
-    const entry = Adoption.borrow(handle).found.existing orelse return null;
-
-    return @ptrCast(entry);
-}
-
 pub fn insertParseEntry(handle: *const anyopaque, candidate: *anyopaque) Native.insertParseEntry.Output {
     const entry = Adoption.borrow(handle).insert(@ptrCast(@alignCast(candidate))) catch return null;
 
@@ -573,7 +585,13 @@ fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *Entry) std.me
 
     if (comptime generated) {
         const rule = @import("generated_parse_cache_adopt");
-        const input: std.meta.Child(rule.Input) = .{ .adoption = @ptrCast(&adoption), .candidate = @ptrCast(value) };
+
+        const input: std.meta.Child(rule.Input) = .{
+            .adoption = @ptrCast(&adoption),
+            .existing = if (found.existing) |entry| @ptrCast(entry) else null,
+            .candidate = @ptrCast(value),
+        };
+
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
         const entry = (rule.executeIn(scratch.allocator(), &input) catch unreachable) orelse return error.OutOfMemory;
 
@@ -608,9 +626,6 @@ const Replacement = struct {
         if (plan.keep_on_abort) try cache.replaced.ensureUnusedCapacity(cache.allocator, cache.transient.items.len + 1);
         try cache.transient.append(cache.allocator, .{ .result = self.entry.result, .retention = plan });
     }
-    fn borrow(handle: *const anyopaque) *const Replacement {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
@@ -620,18 +635,23 @@ fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
         const rule = @import("generated_parse_cache_replacement");
 
         const input: std.meta.Child(rule.Input) = .{
-            .replacement = @ptrCast(&replacement),
             .keeps_replaced = self.keeps_replaced,
             .transactional = self.transactional,
             .mark = entry.mark,
             .published = self.clock.published,
         };
 
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+        var buffer: [128]u8 = undefined;
+        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+        const decision = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
 
-        return rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
-            error.OutOfMemory => error.OutOfMemory,
-            else => unreachable,
+        return switch (decision.action) {
+            .Discard => replacement.discard(),
+            .Keep => replacement.keep(),
+            .Queue => replacement.queue(.{
+                .keep_on_publish = decision.keep_on_publish,
+                .keep_on_abort = decision.keep_on_abort,
+            }),
         };
     }
 
@@ -639,18 +659,6 @@ fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
     if (!self.transactional) return replacement.keep();
 
     return replacement.queue(self.clock.classify(entry.mark));
-}
-
-pub fn discardParseReplacement(handle: *const anyopaque) void {
-    Replacement.borrow(handle).discard();
-}
-
-pub fn keepParseReplacement(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    return Replacement.borrow(handle).keep();
-}
-
-pub fn queueParseReplacement(handle: *const anyopaque, keep_on_publish: bool, keep_on_abort: bool) std.mem.Allocator.Error!void {
-    return Replacement.borrow(handle).queue(.{ .keep_on_publish = keep_on_publish, .keep_on_abort = keep_on_abort });
 }
 
 pub fn retainPendingParse(handle: *anyopaque, row: u64) u64 {

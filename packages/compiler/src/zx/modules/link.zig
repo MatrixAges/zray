@@ -22,6 +22,7 @@ pub const Result = struct {
 };
 
 const Binding = if (generated) @import("link/artifact/binding/host.zig").Window else void;
+const BindingInfo = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".ArtifactBinding else void;
 
 const Frame = struct {
     owned: std.heap.ArenaAllocator,
@@ -33,6 +34,7 @@ const Frame = struct {
     types: Types = undefined,
     builder: Builder = undefined,
     binding: Binding = undefined,
+    binding_info: BindingInfo = undefined,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -54,9 +56,8 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     const program = if (comptime generated) program: {
         const rule = @import("generated_artifact_link_execute");
         const request: rule.Input = @ptrCast(&frame);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        try rule.executeIn(empty.allocator(), request);
+        try rule.executeIn(frame.temporary.allocator(), request);
 
         break :program try publish(&frame);
     } else try seed(&frame);
@@ -103,16 +104,17 @@ pub fn registerArtifactTypes(handle: *anyopaque) Types.Error!void {
     };
 }
 
-pub fn openArtifactBinding(handle: *anyopaque) std.mem.Allocator.Error!u64 {
+pub fn openArtifactBinding(handle: *anyopaque) std.mem.Allocator.Error!*const BindingInfo {
     const frame = Frame.borrow(handle);
 
     try frame.binding.init(&frame.builder, frame.temporary.allocator(), &frame.workspace, &frame.owned);
 
-    return frame.plan.registration.len;
-}
+    frame.binding_info = .{
+        .length = frame.plan.registration.len,
+        .capacity = frame.binding.capacity(),
+    };
 
-pub fn artifactWindowCapacity(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).binding.capacity();
+    return &frame.binding_info;
 }
 
 pub fn bindArtifactWindow(handle: *anyopaque, first: u64, count: u64) Builder.Error!void {

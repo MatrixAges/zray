@@ -1,19 +1,22 @@
 import host from "project_host"
 
-import type { CacheSlot as Input } from "project_host"
+import type { CacheProbe, CacheSlot as Input } from "project_host"
 
-export type Output = u64
+export type Output = CacheProbe
 
 export default function (in: Input): Output {
     const found = host.probeCacheSlot(in)
 
-    if (host.readCacheBucket(in, found) != 0) {
+    if (found.row != 0) {
         return found
     }
 
-    const position = host.reserveCacheSlot(in, found)
+    const position = host.reserveCacheSlot(in, found.bucket)
 
     host.stageCacheSlot(in)
 
-    return position
+    return {
+        bucket: position,
+        row: 0
+    }
 }

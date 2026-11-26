@@ -9,7 +9,7 @@
         fn="commit"
         in={{
             ...$in,
-            bucket: $ctx.prepare
+            prepared: $ctx.prepare
         }}
     />
 </Module>

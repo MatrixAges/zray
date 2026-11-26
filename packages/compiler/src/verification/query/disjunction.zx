@@ -1,4 +1,4 @@
-import strings from "zig:string"
+import strings from "std:string"
 
 export type Input = string[]
 

@@ -60,13 +60,16 @@ export enum ProjectSourceAction {
     Depth
 }
 
-export type ParseReplacement = opaque
-
 export type ParseRetirement = mutable_opaque
 
 export type ParseAdoption = opaque
 
 export type ParseCacheEntry = mutable_opaque
+
+export type PrefetchedParse = {
+    adoption: ParseAdoption,
+    existing?: ParseCacheEntry
+}
 
 export type ParseCacheBatch = mutable_opaque
 
@@ -76,6 +79,11 @@ export type NativeCacheLoad = mutable_opaque
 
 export type CacheSlot = mutable_opaque
 
+export type CacheProbe = {
+    bucket: u64,
+    row: u64
+}
+
 export type CacheEntries = opaque
 
 export type CacheEntry = mutable_opaque
@@ -83,3 +91,18 @@ export type CacheEntry = mutable_opaque
 export type SourceEntry = opaque
 
 export type SourceBody = opaque
+
+export type ProjectSourceSelection = {
+    action: ProjectSourceAction,
+    row: u64
+}
+
+export type ProjectFrameHeader = {
+    count: u64,
+    suspended: u64
+}
+
+export type ArtifactBinding = {
+    length: u64,
+    capacity: u64
+}

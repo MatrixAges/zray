@@ -1,5 +1,5 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import memory from "memory"
 
 import decode from "./decode"
 import { Table } from "./model"
@@ -20,12 +20,18 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const values = match {
+    const rows = match {
         in.table == Table.Input => in.context.metadata.input,
-        _ => in.context.metadata.output[integers.widen(in.function_index)]
+        _ => in.context.metadata.output
     }
 
-    const value = decode(bytes.loadAtomic(values, integers.widen(in.slot)))
+    const value = decode(
+        memory.loadAtomicCell(
+            rows,
+            integers.widen(in.function_index),
+            integers.widen(in.slot)
+        )
+    )
 
     return {
         reads: match {

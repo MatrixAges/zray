@@ -1,0 +1,42 @@
+export type Input = {
+    keys: string[],
+    additions: string[]
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const { additions } = in
+
+    return loop({
+        index: 0,
+        keys: in.keys
+    }, {
+        while: state => state.index < additions.length,
+        next: state => {
+            const candidate = additions[state.index]
+
+            const exists = loop({
+                row: 0,
+                found: false
+            }, {
+                while: scan => !scan.found && scan.row < state.keys.length,
+                next: scan => {
+                    if (state.keys[scan.row] == candidate) {
+                        scan.found = true
+                    } else {
+                        scan.row += 1
+                    }
+                },
+                return: scan => scan.found
+            })
+
+            if (!exists) {
+                state.keys = state.keys.push(candidate)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.keys
+    })
+}

@@ -7,8 +7,9 @@ export type Output = u64?
 export default function (in: Input): Output {
     const { walk, completed } = in
 
-    const count = host.readProjectFrame(walk)
-    const first = completed == null ? 0 : host.suspendedProjectImport(walk)
+    const frame = host.readProjectFrame(walk)
+    const count = frame.count
+    const first = completed == null ? 0 : frame.suspended
     const child: u64? = null
 
     if (completed != null) {

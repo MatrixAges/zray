@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
+import memory from "memory"
 
 import crosses from "../../../order/crosses_concurrent"
 import { Definition } from "../../../order/model"
@@ -65,7 +66,13 @@ export default function (in: Input): Output {
 
     switch (definition) {
         case Definition.Input:
-            if (integers.widen(request.slot) >= metadata.input.length) {
+            const row = integers.widen(metadata.function_index)
+
+            if (
+                row >= memory.atomicRowsCount(metadata.input) ||
+                    integers.widen(request.slot) >=
+                    memory.atomicRowLength(metadata.input, row)
+            ) {
                 return reference
             }
 

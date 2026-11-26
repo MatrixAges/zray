@@ -6,21 +6,17 @@
 
     <Call fn="index.selectProjectSource" in={$in.frame} />
 
-    <Switch on={$ctx.selectProjectSource}>
+    <Switch on={$ctx.selectProjectSource.action}>
         <Case value={Host.ProjectSourceAction.Descend}>
-            <Call fn="index.projectImportSourceRow" in={$in.frame} />
-
-            <Return value={$ctx.projectImportSourceRow} />
+            <Return value={$ctx.selectProjectSource.row} />
         </Case>
 
         <Case value={Host.ProjectSourceAction.Bind}>
-            <Call fn="index.projectImportSourceRow" in={$in.frame} />
-
             <Call
                 fn="index.prepareProjectSource"
                 in={[
                     $in.frame,
-                    $ctx.projectImportSourceRow
+                    $ctx.selectProjectSource.row
                 ]}
             />
 
@@ -42,7 +38,7 @@
                 fn="index.rejectProjectSource"
                 in={[
                     $in.frame,
-                    $ctx.selectProjectSource
+                    $ctx.selectProjectSource.action
                 ]}
             />
         </Default>

@@ -25,7 +25,7 @@
             fn="../slot/commit"
             in={{
                 slot: $in.slot,
-                bucket: $ctx.prepare
+                prepared: $ctx.prepare
             }}
         />
     </If>

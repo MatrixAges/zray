@@ -26,9 +26,7 @@ export declare function prepareProjectIntrinsic(frame: ProjectImport): void
 export declare function resolveProjectImport(frame: ProjectImport): bool
     throws { OutOfMemory, InvalidSource }
 
-export declare function selectProjectSource(frame: ProjectImport): ProjectSourceAction
-
-export declare function projectImportSourceRow(frame: ProjectImport): u64
+export declare function selectProjectSource(frame: ProjectImport): ProjectSourceSelection
 
 export declare function prepareProjectSource(frame: ProjectImport, row: u64): void
 

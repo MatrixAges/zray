@@ -4,15 +4,14 @@ import type { ParseAdoption, ParseCacheEntry } from "project_host"
 
 export type Input = {
     adoption: ParseAdoption,
+    existing?: ParseCacheEntry,
     candidate: ParseCacheEntry
 }
 
 export type Output = ParseCacheEntry?
 
 export default function (in: Input): Output {
-    const { adoption, candidate } = in
-
-    const existing = host.existingParseEntry(adoption)
+    const { adoption, existing, candidate } = in
 
     if (existing == null) {
         return host.insertParseEntry(adoption, candidate)

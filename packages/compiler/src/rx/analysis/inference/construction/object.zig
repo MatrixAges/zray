@@ -20,7 +20,6 @@ pub const Frame = struct {
     parts: Parts,
     members: Members = undefined,
     shape: Activation = undefined,
-    names: std.StringHashMapUnmanaged(void) = .empty,
     projection: Projection = undefined,
     scan: Scan = undefined,
     buffers: Buffers = undefined,
@@ -60,7 +59,6 @@ pub fn openConstructionRow(handle: *anyopaque, row: u64, root: u32, final: bool)
         .parents = replay.constructions.parents,
         .result = root,
         .initial = result.names,
-        .keys = @ptrCast(&frame.names),
         .final = final,
     };
 

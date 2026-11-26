@@ -1,32 +1,39 @@
-import host from "project_host"
-
 import classify from "../cache_retention/classify"
 
-import type { ParseReplacement } from "project_host"
+export enum Action {
+    Discard,
+    Keep,
+    Queue
+}
 
 export type Input = {
-    replacement: ParseReplacement,
     keeps_replaced: bool,
     transactional: bool,
     mark: u64,
     published: u64
 }
 
-export type Output = void
+export type Output = {
+    action: Action,
+    keep_on_publish: bool,
+    keep_on_abort: bool
+}
 
 export default function (in: Input): Output {
-    const { replacement } = in
-
     if (!in.keeps_replaced) {
-        host.discardParseReplacement(replacement)
-
-        return
+        return {
+            action: Action.Discard,
+            keep_on_publish: false,
+            keep_on_abort: false
+        }
     }
 
     if (!in.transactional) {
-        host.keepParseReplacement(replacement)
-
-        return
+        return {
+            action: Action.Keep,
+            keep_on_publish: false,
+            keep_on_abort: false
+        }
     }
 
     const retention = classify({
@@ -34,9 +41,9 @@ export default function (in: Input): Output {
         published: in.published
     })
 
-    host.queueParseReplacement(
-        replacement,
-        retention.keep_on_publish,
-        retention.keep_on_abort
-    )
+    return {
+        action: Action.Queue,
+        keep_on_publish: retention.keep_on_publish,
+        keep_on_abort: retention.keep_on_abort
+    }
 }

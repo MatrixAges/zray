@@ -4,8 +4,9 @@ const Project = @import("../../../project.zig").Project;
 const Frame = @import("frame.zig");
 const Loading = @import("../../load/host.zig");
 const Action = @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceAction;
+const Selection = @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceSelection;
 
-pub fn selectProjectSource(handle: *anyopaque) Action {
+pub fn selectProjectSource(handle: *anyopaque) *const Selection {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
 
@@ -22,13 +23,12 @@ pub fn selectProjectSource(handle: *anyopaque) Action {
         }),
     };
 
-    if (plan.index) |index| frame.source_row = index;
+    frame.selection = .{
+        .action = zx.columns.view(Action, plan.action),
+        .row = plan.index orelse 0,
+    };
 
-    return zx.columns.view(Action, plan.action);
-}
-
-pub fn projectImportSourceRow(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).source_row;
+    return &frame.selection;
 }
 
 pub fn prepareProjectSource(handle: *anyopaque, row: u64) void {

@@ -1,7 +1,7 @@
 <Module>
     <Type from="sources" as="Sources" />
 
-    <Args in={Sources.Request} out={Sources.Output} />
+    <Args in={Sources.Request} out={Sources.Step} />
 
     <Call
         fn="named"
@@ -21,9 +21,14 @@
                 "initial",
                 "first"
             ]),
-            row: $ctx.named
+            row: $ctx.named.row
         }}
     />
 
-    <Return value={$ctx.sources} />
+    <Return
+        value={{
+            ...$ctx.sources,
+            keys: $ctx.named.keys
+        }}
+    />
 </Module>

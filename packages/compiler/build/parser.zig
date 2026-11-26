@@ -81,11 +81,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     }
 
     const interfaces = [_]manifest.Interface{
-        .{
-            .specifier = "zig:string",
-            .path = b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "interfaces/string.d.zx") catch @panic("out of memory"),
-            .module = "zxc_string",
-        },
         .{ .path = declarations.index_path, .module = "memory" },
         .{ .path = declarations.columns_path, .module = memory_columns },
         .{ .path = b.fmt("{s}rows.d.zx", .{ast_prefix}), .module = "ast_rows", .resolve_members = true },

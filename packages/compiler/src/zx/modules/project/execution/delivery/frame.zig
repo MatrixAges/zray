@@ -21,7 +21,7 @@ scope: Target.Scope = undefined,
 route: Loading.Route = undefined,
 duplicate: zx.ast.Name = undefined,
 resolved: Target.Resolved = undefined,
-source_row: usize = undefined,
+selection: @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceSelection = undefined,
 imported: owner.Imported = undefined,
 deferred: @import("../../../source_signature.zig").Member = undefined,
 dependency: ModuleRecord.Target.Wire = undefined,
@@ -59,7 +59,8 @@ pub fn run(walk: *load.Walk, row: usize, completed: ?u64) zx.Error!?u64 {
         .completed = completed,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [256]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
-    return entry.executeIn(empty.allocator(), &request) catch |err| @import("../invoke.zig").errorSet(err);
+    return entry.executeIn(scratch.allocator(), &request) catch |err| @import("../invoke.zig").errorSet(err);
 }

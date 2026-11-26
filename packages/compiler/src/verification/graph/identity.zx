@@ -1,4 +1,4 @@
-import strings from "zig:string"
+import strings from "std:string"
 
 import type { Origin as Input, Identity as Output } from "./model"
 

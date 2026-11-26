@@ -104,9 +104,3 @@ pub fn readU32(in: []const u8, offset: u64, little_endian: bool) error{IndexOutO
 
     return if (little_endian) std.mem.readInt(u32, value, .little) else std.mem.readInt(u32, value, .big);
 }
-
-pub fn loadAtomic(in: []const u8, index: u64) error{IndexOutOfBounds}!u8 {
-    if (index >= in.len) return error.IndexOutOfBounds;
-
-    return @atomicLoad(u8, &in[@intCast(index)], .monotonic);
-}

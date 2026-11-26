@@ -30,7 +30,7 @@
     <Call
         fn="../publish"
         in={{
-            keys: $in.request.scan.keys,
+            keys: $in.keys,
             names: $in.request.members.names,
             values: $in.request.members.values,
             columns: $in.request.columns,
@@ -45,7 +45,8 @@
         <Return
             value={{
                 ...$in,
-                row: $in.row + 1
+                row: $in.row + 1,
+                keys: $ctx.publish
             }}
         />
     </If>
@@ -54,6 +55,7 @@
         module="../sources"
         in={{
             ...$in.request.scan,
+            keys: $ctx.publish,
             first: $in.row + 1
         }}
     />

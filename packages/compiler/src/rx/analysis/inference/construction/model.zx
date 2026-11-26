@@ -1,4 +1,3 @@
-import type { StringSet } from "zig:string"
 import type { Kind as Shape } from "../unification/model"
 
 export enum Kind {
@@ -60,7 +59,7 @@ export type Policy = {
 
 export type Input = {
     parts: Parts,
-    keys: StringSet,
+    keys: string[],
     final: bool
 }
 

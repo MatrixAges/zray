@@ -6,6 +6,7 @@ const indexed = @import("../../parse_cache.zig").indexed_enabled;
 const Phase = @import("../load/host.zig").Phase;
 const errorSet = @import("invoke.zig").errorSet;
 const Frame = @import("../../project.zig").LoadFrame;
+const FrameHeader = @import("project_execution_abi").layouts.@"zig:project_host".ProjectFrameHeader;
 
 pub const Header = union(enum) {
     native: zx.syntax.header.Native,
@@ -17,6 +18,7 @@ pub const Walk = struct {
     phase: Phase,
     paths: std.heap.ArenaAllocator,
     header: Header = undefined,
+    frame_header: FrameHeader = undefined,
     fn borrow(handle: *anyopaque) *Walk {
         return @ptrCast(@alignCast(handle));
     }
@@ -40,8 +42,13 @@ pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
         .frame = &.{ .states = marks, .marks = @ptrCast(&marks), .row = index, .depth = project.load_frames.items.len },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const admission = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch |err| return errorSet(err);
+    var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    const admission = zx.columns.invoke(entry.executeIn, fallback.allocator(), &input) catch |err| return errorSet(err);
 
     return switch (admission) {
         .Skip, .Push => {},
@@ -58,34 +65,37 @@ pub fn openProjectFrame(handle: *anyopaque, row: u64) zx.Error!void {
     try walk.project.pushFrame(@intCast(row));
 }
 
-pub fn readProjectFrame(handle: *anyopaque) u64 {
+pub fn readProjectFrame(handle: *anyopaque) *const FrameHeader {
     const walk = Walk.borrow(handle);
     const frame = walk.active();
 
     walk.project.current_source = frame.index;
 
-    switch (frame.parsed.result.*) {
-        .native => |result| {
+    const count: u64 = switch (frame.parsed.result.*) {
+        .native => |result| blk: {
             const input: Inputs.Native = .{ .value = result.value.parsed };
             const header = input.header();
 
             walk.header = .{ .native = header };
 
-            return header.importCount();
+            break :blk header.importCount();
         },
-        .indexed => |*result| if (indexed) {
+        .indexed => |*result| if (indexed) blk: {
             const input: Inputs.Indexed = .{ .value = result };
             const header = input.header();
 
             walk.header = .{ .indexed = header };
 
-            return header.importCount();
+            break :blk header.importCount();
         } else unreachable,
-    }
-}
+    };
 
-pub fn suspendedProjectImport(handle: *anyopaque) u64 {
-    return Walk.borrow(handle).active().suspended_import;
+    walk.frame_header = .{
+        .count = count,
+        .suspended = frame.suspended_import,
+    };
+
+    return &walk.frame_header;
 }
 
 pub fn resumeProjectImport(handle: *anyopaque, row: u64, child: u64) zx.Error!void {

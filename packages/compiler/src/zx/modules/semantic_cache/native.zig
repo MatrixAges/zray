@@ -64,9 +64,10 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
             .usage = @ptrCast(&usage),
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var buffer: [128]u8 = undefined;
+        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
-        generated.executeIn(empty.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
+        generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
     } else {
         try seed(&request);
     }

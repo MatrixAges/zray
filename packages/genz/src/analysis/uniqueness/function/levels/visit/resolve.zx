@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
+import memory from "memory"
 
 import { buffer_slot } from "../../../flow/body/const"
 import aggregate from "../aggregate"
@@ -102,15 +103,17 @@ export default function (in: Input): Output {
             }
 
         case ExpressionKind.Call:
-            if (metadata.output.length == 0) {
+            if (memory.atomicRowsCount(metadata.output) == 0) {
                 return current
             }
 
             const callee = expressions.call_functions[payload]
-            const values = metadata.output[integers.widen(callee)]
 
             return match {
-                integers.widen(request.slot) >= values.length => current,
+                integers.widen(request.slot) >= memory.atomicRowLength(
+                    metadata.output,
+                    integers.widen(callee)
+                ) => current,
                 _ => {
                     ...current,
                     read_table: Table.Output,

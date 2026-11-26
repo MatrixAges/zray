@@ -21,9 +21,10 @@ export default function (in: Input): Output {
 
             if (candidate != null) {
                 const path = memory.readTextColumn(paths, row)
-                const adoption = host.preparePrefetchedParse(batch, path)
+                const prepared = host.preparePrefetchedParse(batch, path)
                 const stored = adopt({
-                    adoption,
+                    adoption: prepared.adoption,
+                    existing: prepared.existing,
                     candidate
                 })
 

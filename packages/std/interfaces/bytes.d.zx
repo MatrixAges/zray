@@ -96,10 +96,6 @@ export declare function readU64sLe(
     end: u64
 ): u64[] throws { IndexOutOfBounds, OutOfMemory } concurrent
 
-export declare function loadAtomic(in: u8[], index: u64): u8 throws {
-    IndexOutOfBounds
-} concurrent
-
 export declare function allEqual(
     source: u8[],
     start: u64,

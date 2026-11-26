@@ -49,9 +49,7 @@ export declare function finishProjectSignatures(batch: ProjectSignatures): void
 export declare function openProjectFrame(walk: ProjectWalk, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function readProjectFrame(walk: ProjectWalk): u64
-
-export declare function suspendedProjectImport(walk: ProjectWalk): u64
+export declare function readProjectFrame(walk: ProjectWalk): ProjectFrameHeader
 
 export declare function resumeProjectImport(
     walk: ProjectWalk,
@@ -154,10 +152,8 @@ export declare function orderArtifactLink(frame: ArtifactLink): void
 export declare function registerArtifactTypes(frame: ArtifactLink): void
     throws { OutOfMemory, InvalidModule, MissingNominalOrigin, ConflictingNominalType }
 
-export declare function openArtifactBinding(frame: ArtifactLink): u64
+export declare function openArtifactBinding(frame: ArtifactLink): ArtifactBinding
     throws { OutOfMemory }
-
-export declare function artifactWindowCapacity(frame: ArtifactLink): u64
 
 export declare function bindArtifactWindow(frame: ArtifactLink, first: u64, count: u64): void throws {
     OutOfMemory,

@@ -1,11 +1,17 @@
 <Module>
     <Type from="model" as="Projection" />
 
-    <Args in={Projection.Request} out={void} />
+    <Args in={Projection.Request} out={string[]} />
 
     <Call module="begin" in={$in} />
 
-    <Loop on={$in.row < $in.request.scan.names.length}>
-        <Call module="advance" />
-    </Loop>
+    <If on={$ctx.begin.row < $in.scan.names.length}>
+        <Loop on={$in.row < $in.request.scan.names.length}>
+            <Call module="advance" in={$ctx.begin} />
+        </Loop>
+
+        <Return value={$ctx.advance.keys} />
+    </If>
+
+    <Return value={$ctx.begin.keys} />
 </Module>

@@ -1,11 +1,11 @@
 import type { ObjectConstructionRow } from "rx_project_host"
 import type { Context } from "../../object_closure/workflow"
 import type { Columns } from "../publish"
-import type { Request as Sources, Output as Spread } from "../sources"
+import type { Request as Sources, Output as Spread, Step } from "../sources"
 
 export type Request = {
     frame: ObjectConstructionRow,
-    scan: Sources.Omit("first"),
+    scan: Sources.Omit("first", "keys"),
     columns: Columns,
     members: Members,
     readiness: Context
@@ -16,7 +16,7 @@ export type Members = {
     values: u32[]
 }
 
-export type Cursor = Spread & {
+export type Cursor = Step & {
     request: Request
 }
 

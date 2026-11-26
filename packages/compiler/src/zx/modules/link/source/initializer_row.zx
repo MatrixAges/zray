@@ -1,5 +1,5 @@
 import bytes from "std:bytes"
-import strings from "zig:string"
+import strings from "std:string"
 import memory from "memory/columns"
 
 import type { Prefix } from "./initializer_rows"

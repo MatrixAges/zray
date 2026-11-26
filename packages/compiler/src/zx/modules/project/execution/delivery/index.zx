@@ -9,7 +9,6 @@ export {
     prepareProjectIntrinsic,
     resolveProjectImport,
     selectProjectSource,
-    projectImportSourceRow,
     prepareProjectSource,
     loadProjectLibrary,
     bindProjectImport,

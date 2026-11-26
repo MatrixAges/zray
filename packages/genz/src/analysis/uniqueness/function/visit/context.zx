@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
+import memory from "memory"
 
 import type { Metadata } from "../levels/model"
 import type { Body as Input, View as Output } from "./model"
@@ -10,13 +11,8 @@ export default function (in: Input): Output {
     const function_index = index ?? max_u32
     const row = integers.widen(function_index)
 
-    const levels = match {
-        row < input.length => input[row],
-        _ => []
-    }
-
     const count = match {
-        row < output.length => output[row].length,
+        row < memory.atomicRowsCount(output) => memory.atomicRowLength(output, row),
         _ => 0
     }
 
@@ -41,7 +37,7 @@ export default function (in: Input): Output {
             observe: false
         },
         states: facts.usage.states,
-        input: levels,
+        input,
         output,
         function_index,
         record: in.record
