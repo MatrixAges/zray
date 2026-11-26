@@ -72,6 +72,9 @@
 - **已完成进展（Wave 21 · 2026-11-26）**：
     - 在 `cli/native_sources/` 落地双对象 `<Store>`（[state.store.rx](../../packages/cli/src/cli/native_sources/collect/state.store.rx)：`queue` + `seen`），将采集队列、已见相对路径表、引用返回、include 查重与路径重定位全部迁入 RX/ZX（`enqueue_one`/`enqueue_batch`/`lookup_seen`/`next_queued`/`add_seen`/`promote_seen` 与 `seed_bundle`/`enqueue_refs`/`relocate`/`relocate_step`），删除 `storage.zig` 中 `Pending`/`Seen`/`Reference` 与 `StringHashMapUnmanaged`、删除 4 份旧胶水并收薄 `collect.zig`/`ast.zig`/`bundle/storage.zig`/`include/storage.zig`；
     - 精简 `cli/library/{workflow,analysis,link,proof}`，以不可变值传入选项/计数/导出切片、`proof/output.zx` 收口为 100% 纯 ZX 并删除 `verify.zig` 可变 `index` 游标；`native_sources/host.d.zx` 与 `library/workflow/host.d.zx` 各自净减并移除旧查询/游标回调，`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全部通过。
+- **已完成进展（Wave 22 · 2026-11-26）**：
+    - 在 `cli/library/retirement/` 落地 `<Store>`（[kept.store.rx](../../packages/cli/src/cli/library/retirement/kept.store.rx)）与 `keep_path.zx`，删除 `targets.zx` 并直接向 `walk`/`check`/`candidate`/`search` 传入不可变 `targets` 与 `RetirementPath.absolute`，删除 `retirement/storage.zig` 中 `StringHashMapUnmanaged` 与状态数组，从 `publication/host.d.zx` 净减 **5 个**回调；
+    - 在 `cli/rx/checking/{store,function}/` 落地 `<Store>`（[seen.store.rx](../../packages/cli/src/cli/rx/checking/store/seen.store.rx)）与纯 ZX `has_delegate.zx`，删除 `store_types.zig` 中 `StringHashMapUnmanaged` 去重逻辑及 `function.zig` 中 `default_call`/`delegated` 游标，在 `rx/checking/host.d.zx` 净减 **7 个**原生回调；`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全通过。
 - 收口 `library/workflow/host.d.zx`（42f）、`publication/host.d.zx`（48f）、`native_sources/host.d.zx`（40f）、`lint/host.d.zx`（68f）与 `package/{workspace,graph}/host.d.zx`（69f）；
 - 对接 `pkgs.md` Phase K1 与 `lint.md` Phase L1 的顶层 RX 入口，由 CLI 的 RX 直接 `Call.module` 调用 `pkgs` 与 `lint`，消灭两包之间的 Zig 中转胶水；
 - 收口 `cli/watch/{driver,observation}` 仅保留 OS 目录事件/子进程重启原语。

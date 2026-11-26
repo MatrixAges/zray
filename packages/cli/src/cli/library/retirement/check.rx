@@ -3,6 +3,8 @@
 
     <Args in={Retirement.Candidate} out={Retirement.Status} />
 
+    <Store from="kept" as="kept" />
+
     <Call fn="candidate" in={$in} />
 
     <If on={$ctx.candidate.selection == Retirement.Selection.Invalid}>
@@ -46,10 +48,11 @@
 
     <Call
         fn="search"
-        in={[
-            $in.retirement,
-            $ctx.physical.path
-        ]}
+        in={{
+            retirement: $in.retirement,
+            targets: $in.targets,
+            physical: $ctx.physical.path
+        }}
     />
 
     <If on={$ctx.search}>
@@ -79,11 +82,12 @@
     </If>
 
     <Call
-        fn="index.keepRetirement"
-        in={[
-            $in.retirement,
-            $ctx.candidate.path
-        ]}
+        fn="keep_path"
+        in={{
+            kept: store.kept.kept,
+            path: $ctx.candidate.path
+        }}
+        setter={[store.kept.kept]}
     />
 
     <Return value={Retirement.Status.Ready} />

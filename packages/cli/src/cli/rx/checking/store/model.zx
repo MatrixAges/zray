@@ -1,0 +1,27 @@
+import type { StoreCheck } from "rx_checking_host"
+
+export type Visited = {
+    paths: string[]
+}
+
+export type Input = {
+    check: StoreCheck,
+    root_count: u64
+}
+
+export type RootStep = {
+    check: StoreCheck,
+    root_count: u64,
+    index: u64,
+    running: bool
+}
+
+export type AdmitInput = {
+    visited: Visited,
+    paths: string[]
+}
+
+export type RegisterInput = {
+    check: StoreCheck,
+    indices: u64[]
+}

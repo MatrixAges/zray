@@ -10,7 +10,8 @@ export type Retirement = opaque
 
 export type RetirementPath = {
     path: string,
-    relative: string
+    relative: string,
+    absolute: bool
 }
 
 export enum ResourceKind {
@@ -93,14 +94,10 @@ export declare function inventoryPath(collector: InventoryCollector): string thr
 export declare function addInventoryFile(collector: InventoryCollector, path: string): void throws { PublicationFailure }
 
 export declare function readRetirement(plan: Retirement): bool throws { PublicationFailure }
-export declare function reserveTargets(plan: Retirement): void throws { PublicationFailure }
-export declare function retirementTargetCount(plan: Retirement): u64
-export declare function registerRetirementTarget(plan: Retirement, index: u64): void throws { PublicationFailure }
-export declare function retirementTargets(plan: Retirement): string[]
+export declare function reserveTargets(plan: Retirement): string[] throws { PublicationFailure }
 
 export declare function retirementSpelling(plan: Retirement, path: string): RetirementPath
     throws { PublicationFailure }
-export declare function retirementSpellingMatches(plan: Retirement, path: string): bool
 export declare function retirementFileKind(plan: Retirement, path: string): RetirementFile
     throws { PublicationFailure }
 export declare function retirementPhysical(plan: Retirement, path: string): RetirementPath
@@ -113,6 +110,4 @@ export declare function retirementPhysicalMatches(
 export declare function checkRetirementInput(plan: Retirement, path: string): void
     throws { PublicationFailure }
 export declare function retirementDigest(plan: Retirement, path: string): string
-    throws { PublicationFailure }
-export declare function keepRetirement(plan: Retirement, path: string): void
     throws { PublicationFailure }

@@ -1,0 +1,43 @@
+import type { AdmitInput as Input } from "./model"
+
+export type Output = u64[]
+
+export default function (in: Input, {
+    store
+}): Output {
+    const empty_indices: u64[] = []
+
+    const result = loop({
+        index: 0,
+        next_paths: in.visited.paths,
+        indices: empty_indices
+    }, {
+        while: row => row.index < in.paths.length,
+        next: row => {
+            const target = in.paths[row.index]
+
+            const existing = loop(0, {
+                while: i => i < row.next_paths.length && row.next_paths[i] != target,
+                next: i => {
+                    i += 1
+                },
+                return: i => i < row.next_paths.length
+            })
+
+            if (!existing) {
+                row.next_paths = row.next_paths.push(target)[0]
+                row.indices = row.indices.push(row.index)[0]
+            }
+
+            row.index += 1
+        }
+    })
+
+    if (result.indices.length != 0) {
+        store.seen.visited = {
+            paths: result.next_paths
+        }
+    }
+
+    return result.indices
+}

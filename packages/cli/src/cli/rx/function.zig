@@ -8,6 +8,7 @@ const Error = effects.Error;
 const rx = @import("rx");
 const named = @import("rx_analysis").call.named;
 const Libraries = @import("../library/inputs.zig");
+const SignatureCheck = @import("cli_abi").layouts.@"zig:rx_checking_host".SignatureCheck;
 
 const State = struct {
     io: std.Io,
@@ -23,8 +24,8 @@ const State = struct {
     libraries: Libraries,
     detected: sources.Detected = undefined,
     signed: ?compiler.project.signature_project.Result = null,
-    default_call: bool = undefined,
-    delegated: []const u8 = undefined,
+    deferred_buffer: [1][]const u8 = undefined,
+    signature_check: SignatureCheck = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
@@ -60,7 +61,10 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
 
     defer state.deinit();
 
-    return @import("cli_source").check_zx_function.executeIn(allocator, @ptrCast(&reference)) catch |err| state.failure.unwrap(err);
+    return @import("cli_source").check_zx_function.executeIn(allocator, &.{
+        .check = @ptrCast(&reference),
+        .has_calls = calls.len != 0,
+    }) catch |err| state.failure.unwrap(err);
 }
 
 pub fn loadFunctionProject(handle: *const anyopaque) Error!bool {
@@ -83,7 +87,7 @@ pub fn loadFunctionProject(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn loadFunctionSources(handle: *const anyopaque) Error!bool {
+pub fn loadFunctionSources(handle: *const anyopaque) Error!?bool {
     const self = State.get(handle);
 
     self.detected = sources.readDetectingRx(self.io, self.allocator, self.source, self.loaded.project, &self.cache, null, &self.libraries) catch |err| {
@@ -91,71 +95,69 @@ pub fn loadFunctionSources(handle: *const anyopaque) Error!bool {
 
         self.writer.print("{s}: source loading: {s}\n", .{ self.path, @errorName(err) }) catch |issue| return self.failure.save(issue);
 
-        return false;
+        return null;
     };
 
     self.loaded.project.compiled_libraries = self.libraries.libraries.items;
 
-    return true;
+    return self.detected.has_rx;
 }
 
-pub fn functionHasCalls(handle: *const anyopaque) bool {
-    return State.get(handle).calls.len != 0;
-}
-
-pub fn functionHasRx(handle: *const anyopaque) bool {
-    return State.get(handle).detected.has_rx;
-}
-
-pub fn analyzeFunctionSignatures(handle: *const anyopaque) Error!bool {
+pub fn analyzeFunctionSignatures(handle: *const anyopaque) Error!*const SignatureCheck {
     const self = State.get(handle);
     const inputs = self.detected.sources;
     self.signed = compiler.project.analyzeSignaturesWithCache(self.allocator, inputs, &.{self.path}, self.loaded.project, &self.cache) catch |err| return self.failure.save(err);
 
     const result = &self.signed.?.value;
 
-    if (result.* == .diagnostic) return report(self.writer, inputs, result.diagnostic) catch |err| return self.failure.save(err);
+    if (result.* == .diagnostic) {
+        _ = report(self.writer, inputs, result.diagnostic) catch |err| return self.failure.save(err);
+        self.signature_check = .{ .valid = false, .default_call = false, .deferred_sources = &.{} };
+
+        return &self.signature_check;
+    }
 
     const checked = named.inspect(self.calls, result.data.modules, self.path);
 
-    if (checked.rejected) |index| return rejectNamed(self.writer, self.calls[@intCast(index)]) catch |err| return self.failure.save(err);
+    if (checked.rejected) |index| {
+        _ = rejectNamed(self.writer, self.calls[@intCast(index)]) catch |err| return self.failure.save(err);
+        self.signature_check = .{ .valid = false, .default_call = false, .deferred_sources = &.{} };
 
-    self.default_call = checked.default_call;
+        return &self.signature_check;
+    }
 
-    return true;
+    var found = false;
+
+    if (checked.default_call) {
+        for (result.data.modules) |module| {
+            if (module.signature.has_deferred_source) {
+                self.deferred_buffer[0] = module.signature.deferred_source;
+                found = true;
+
+                break;
+            }
+        }
+    }
+
+    self.signature_check = .{
+        .valid = true,
+        .default_call = checked.default_call,
+        .deferred_sources = if (found) &self.deferred_buffer else &.{},
+    };
+
+    return &self.signature_check;
 }
 
-pub fn functionHasDefaultCall(handle: *const anyopaque) bool {
-    return State.get(handle).default_call;
-}
-
-pub fn signatureModuleCount(handle: *const anyopaque) u64 {
-    return State.get(handle).signed.?.value.data.modules.len;
-}
-
-pub fn selectFunctionDelegate(handle: *const anyopaque, index: u64) bool {
-    const self = State.get(handle);
-    const signature = &self.signed.?.value.data.modules[@intCast(index)].signature;
-
-    if (!signature.has_deferred_source) return false;
-
-    self.delegated = signature.deferred_source;
-
-    return true;
-}
-
-pub fn functionModuleCount(handle: *const anyopaque) u64 {
-    return State.get(handle).modules.len;
-}
-
-pub fn matchesFunctionDelegate(handle: *const anyopaque, index: u64) Error!bool {
+pub fn resolveFunctionModules(handle: *const anyopaque) Error![]const []const u8 {
     const self = State.get(handle);
     const allocator = self.allocator;
-    const absolute = std.fs.path.resolve(allocator, &.{ self.loaded.project.root_dir, self.modules[@intCast(index)].path }) catch |err| return self.failure.save(err);
+    const resolved = allocator.alloc([]const u8, self.modules.len) catch |err| return self.failure.save(err);
 
-    defer allocator.free(absolute);
+    for (self.modules, 0..) |module, index| {
+        resolved[index] = std.fs.path.resolve(allocator, &.{ self.loaded.project.root_dir, module.path }) catch |err| return self.failure.save(err);
+    }
 
-    return std.mem.eql(u8, self.delegated, absolute);
+    return resolved;
 }
 
 pub fn reportFunctionDelegate(handle: *const anyopaque) Error!void {

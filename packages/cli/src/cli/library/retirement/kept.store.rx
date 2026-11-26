@@ -1,0 +1,5 @@
+<Store name="retirement_plan" version={1}>
+    <Object name="kept">
+        <Field name="paths" type={string[]} value={[]} />
+    </Object>
+</Store>

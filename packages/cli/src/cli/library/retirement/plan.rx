@@ -3,6 +3,8 @@
 
     <Args in={Retirement.Plan} out={Retirement.Status} />
 
+    <Store from="kept" as="kept" />
+
     <Call fn="index.readRetirement" in={$in.retirement} />
 
     <If on={!$ctx.readRetirement}>
@@ -10,13 +12,13 @@
     </If>
 
     <Call fn="index.reserveTargets" in={$in.retirement} />
-    <Call fn="targets" in={$in.retirement} />
 
     <Loop on={$in.running}>
         <Call
             module="walk"
             in={{
                 ...$in,
+                targets: $ctx.reserveTargets,
                 index: 0,
                 status: Retirement.Status.Ready,
                 running: $in.previous.count != 0

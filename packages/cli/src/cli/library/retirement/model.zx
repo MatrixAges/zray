@@ -1,6 +1,15 @@
 import type { TextColumn } from "memory"
 import type { Retirement } from "publication_host"
 
+export type Kept = {
+    paths: string[]
+}
+
+export type KeepInput = {
+    kept: Kept,
+    path: string
+}
+
 export enum Selection {
     Invalid,
     Retain,
@@ -27,6 +36,7 @@ export type Plan = {
 }
 
 export type Candidate = Plan & {
+    targets: string[],
     index: u64
 }
 

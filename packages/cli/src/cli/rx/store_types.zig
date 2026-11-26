@@ -8,6 +8,15 @@ const Collection = @import("collection.zig").Data;
 const Libraries = @import("../library/inputs.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
+const rule = @import("cli_source").check_store_types;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 const State = struct {
     io: std.Io,
@@ -19,8 +28,8 @@ const State = struct {
     cache: compiler.project.ParseCache,
     libraries: Libraries,
     sources: std.ArrayList(compiler.project.Source) = .empty,
-    seen: std.StringHashMapUnmanaged(void) = .empty,
     imports: []const compiler.project.Source = &.{},
+    import_paths: [][]const u8 = &.{},
     paths: compiler.project.source_index.Map = .empty,
     prefetched: compiler.project.ParseCache.Prefetched = .{},
     graph_result: ?graph.Result = null,
@@ -37,9 +46,9 @@ const State = struct {
         if (self.graph_result) |*result| result.deinit();
 
         self.paths.deinit(self.allocator);
+        self.allocator.free(self.import_paths);
         self.allocator.free(self.imports);
         self.sources.deinit(self.allocator);
-        self.seen.deinit(self.allocator);
         self.libraries.deinit();
         self.cache.deinit();
     }
@@ -63,14 +72,21 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection
 
     defer state.deinit();
 
-    return @import("cli_source").check_store_types.executeIn(allocator, @ptrCast(&reference)) catch |err| state.failure.unwrap(err);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var visited_value: std.meta.Child(StoreState) = .{ .paths = &.{} };
+    var visited: StoreState = &visited_value;
+    var host: StoreHost = .{ .store_0 = &visited };
+
+    return rule.execute(&arena, &.{
+        .check = @ptrCast(&reference),
+        .root_count = functions.len,
+    }, &host) catch |err| state.failure.unwrap(err);
 }
 
-pub fn storeCheckRootCount(handle: *const anyopaque) u64 {
-    return State.get(handle).functions.len;
-}
-
-pub fn loadStoreCheckRoot(handle: *const anyopaque, index: u64) Error!u64 {
+pub fn loadStoreCheckRoot(handle: *const anyopaque, index: u64) Error![]const []const u8 {
     const self = State.get(handle);
     const allocator = self.allocator;
     const function = self.functions[@intCast(index)];
@@ -78,21 +94,28 @@ pub fn loadStoreCheckRoot(handle: *const anyopaque, index: u64) Error!u64 {
 
     options.entry = std.fs.path.resolve(allocator, &.{ options.root_dir, function.path }) catch |err| return self.failure.save(err);
 
+    allocator.free(self.import_paths);
     allocator.free(self.imports);
 
+    self.import_paths = &.{};
     self.imports = &.{};
     self.imports = @import("../sources.zig").readWithLibraries(self.io, allocator, function.source, options, &self.cache, null, &self.libraries) catch |err| return self.failure.save(err);
+    const paths = allocator.alloc([]const u8, self.imports.len) catch |err| return self.failure.save(err);
 
-    return self.imports.len;
+    for (self.imports, 0..) |source, row| {
+        paths[row] = source.path;
+    }
+
+    self.import_paths = paths;
+
+    return paths;
 }
 
 pub fn registerStoreCheckImport(handle: *const anyopaque, index: u64) Error!void {
     const self = State.get(handle);
     const source = self.imports[@intCast(index)];
-    const allocator = self.allocator;
-    const known = self.seen.getOrPut(allocator, source.path) catch |err| return self.failure.save(err);
 
-    if (!known.found_existing) self.sources.append(allocator, source) catch |err| return self.failure.save(err);
+    self.sources.append(self.allocator, source) catch |err| return self.failure.save(err);
 }
 
 pub fn buildStoreCheckGraph(handle: *const anyopaque) Error!bool {

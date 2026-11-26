@@ -12,26 +12,35 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { retirement, previous, index } = in
+    const { retirement, previous, targets, index } = in
 
     const entry = memory.readTextColumn(previous.paths, index)
 
-    const { path, relative } = host.retirementSpelling(retirement, entry)
+    const { path, relative, absolute } = host.retirementSpelling(retirement, entry)
 
     const valid = admit({
         path: relative,
-        absolute: host.absolutePath(relative),
+        absolute,
         native_only: previous.native_only
     })
 
-    const selection = match {
-        !valid => Selection.Invalid,
-        host.retirementSpellingMatches(retirement, path) => Selection.Retain,
-        _ => Selection.Inspect
+    if (!valid) {
+        return {
+            path,
+            selection: Selection.Invalid
+        }
     }
+
+    const retained = loop(0, {
+        while: i => i < targets.length && targets[i] != path,
+        next: i => {
+            i += 1
+        },
+        return: i => i < targets.length
+    })
 
     return {
         path,
-        selection
+        selection: retained ? Selection.Retain : Selection.Inspect
     }
 }

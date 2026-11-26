@@ -16,11 +16,11 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { path, relative } = host.retirementPhysical(in.retirement, in.path)
+    const { path, relative, absolute } = host.retirementPhysical(in.retirement, in.path)
 
     const inside = within({
         path: relative,
-        absolute: host.absolutePath(relative),
+        absolute,
         separator: in.separator
     })
 

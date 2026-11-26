@@ -1,0 +1,11 @@
+import type { KeepInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    store.kept.kept = {
+        paths: in.kept.paths.push(in.path)[0]
+    }
+}

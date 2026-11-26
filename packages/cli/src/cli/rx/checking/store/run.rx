@@ -1,22 +1,37 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="model" as="Store" />
 
-    <Args in={IO.StoreCheck} out={bool} />
+    <Args in={Store.Input} out={bool} />
 
-    <Call fn="load_roots" in={$in} />
-    <Call fn="../index.buildStoreCheckGraph" in={$in} />
+    <Store from="seen" as="seen" />
+
+    <If on={$in.root_count != 0}>
+        <Loop on={$in.running}>
+            <Call
+                module="load_root"
+                in={{
+                    check: $in.check,
+                    root_count: $in.root_count,
+                    index: 0,
+                    running: true
+                }}
+            />
+        </Loop>
+    </If>
+
+    <Call fn="../index.buildStoreCheckGraph" in={$in.check} />
 
     <If on={!$ctx.buildStoreCheckGraph}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.analyzeStoreCheckSignatures" in={$in} />
+    <Call fn="../index.analyzeStoreCheckSignatures" in={$in.check} />
 
     <If on={!$ctx.analyzeStoreCheckSignatures}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.checkStoreRegistry" in={$in} />
+    <Call fn="../index.checkStoreRegistry" in={$in.check} />
 
     <Return value={$ctx.checkStoreRegistry} />
 </Module>

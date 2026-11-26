@@ -1,52 +1,53 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="model" as="Model" />
 
-    <Args in={IO.FunctionCheck} out={bool} />
+    <Args in={Model.Input} out={bool} />
 
-    <Call fn="../index.loadFunctionProject" in={$in} />
+    <Call fn="../index.loadFunctionProject" in={$in.check} />
 
     <If on={!$ctx.loadFunctionProject}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.loadFunctionSources" in={$in} />
+    <Call fn="../index.loadFunctionSources" in={$in.check} />
 
-    <If on={!$ctx.loadFunctionSources}>
+    <If on={$ctx.loadFunctionSources == null}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.functionHasCalls" in={$in} />
-    <Call fn="../index.functionHasRx" in={$in} />
+    <If on={!$in.has_calls || $ctx.loadFunctionSources == true}>
+        <Call fn="../index.analyzeFunctionSignatures" in={$in.check} />
 
-    <If on={!$ctx.functionHasCalls || $ctx.functionHasRx}>
-        <Call fn="../index.analyzeFunctionSignatures" in={$in} />
-
-        <If on={!$ctx.analyzeFunctionSignatures}>
+        <If on={!$ctx.analyzeFunctionSignatures.valid}>
             <Return value={false} />
         </If>
 
-        <Call fn="../index.functionHasDefaultCall" in={$in} />
-
-        <If on={!$ctx.functionHasDefaultCall}>
+        <If on={!$ctx.analyzeFunctionSignatures.default_call}>
             <Return value={true} />
         </If>
 
-        <Call fn="select_delegate" in={$in} />
+        <If on={$ctx.analyzeFunctionSignatures.deferred_sources.length != 0}>
+            <Call fn="../index.resolveFunctionModules" in={$in.check} />
 
-        <If on={$ctx.select_delegate}>
-            <Call fn="registered_delegate" in={$in} />
+            <Call
+                fn="has_delegate"
+                in={{
+                    delegate: $ctx.analyzeFunctionSignatures.deferred_sources[0],
+                    module_paths: $ctx.resolveFunctionModules
+                }}
+            />
 
-            <If on={!$ctx.registered_delegate}>
-                <Call fn="../index.reportFunctionDelegate" in={$in} />
+            <If on={!$ctx.has_delegate}>
+                <Call fn="../index.reportFunctionDelegate" in={$in.check} />
             </If>
 
-            <Return value={$ctx.registered_delegate} />
+            <Return value={$ctx.has_delegate} />
         </If>
 
-        <Call fn="../index.closeFunctionSignatures" in={$in} />
+        <Call fn="../index.closeFunctionSignatures" in={$in.check} />
     </If>
 
-    <Call fn="../index.analyzeCheckedFunction" in={$in} />
+    <Call fn="../index.analyzeCheckedFunction" in={$in.check} />
 
     <Return value={$ctx.analyzeCheckedFunction} />
 </Module>

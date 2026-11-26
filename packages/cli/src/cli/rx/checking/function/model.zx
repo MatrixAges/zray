@@ -1,0 +1,11 @@
+import type { FunctionCheck } from "rx_checking_host"
+
+export type Input = {
+    check: FunctionCheck,
+    has_calls: bool
+}
+
+export type DelegateMatch = {
+    delegate: string,
+    module_paths: string[]
+}

@@ -10,9 +10,17 @@ const FileKind = abi.native.@"zig:publication_host".RetirementFile;
 const Path = abi.layouts.@"zig:publication_host".RetirementPath;
 const Input = std.meta.Child(rule.Input);
 const Entries = std.meta.Child(@FieldType(Input, "previous"));
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 const history = .{ .paths = "path", .digests = "sha256" };
 const Error = effects.Error;
 const Sha256 = std.crypto.hash.sha2.Sha256;
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 const Plan = struct {
     io: std.Io,
@@ -26,9 +34,6 @@ const Plan = struct {
     failure: effects.Failure = .{},
     previous: ?std.json.Parsed(inventory.Inventory) = null,
     physical_root: []const u8 = undefined,
-    targets: [][]const u8 = &.{},
-    names: std.StringHashMapUnmanaged(void) = .empty,
-    paths: std.ArrayList([]const u8) = .empty,
     entries: Entries = undefined,
     borrowed: zx.memory.ReadFields(history) = undefined,
     spelling: Path = undefined,
@@ -51,22 +56,46 @@ pub fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Alloca
     defer plan.planning.deinit();
     defer plan.row.deinit();
     defer if (plan.previous) |*previous| previous.deinit();
-    errdefer plan.paths.deinit(allocator);
 
+    var arena = std.heap.ArenaAllocator.init(backing);
+
+    defer arena.deinit();
+
+    var kept_value: std.meta.Child(StoreState) = .{ .paths = &.{} };
+    var kept: StoreState = &kept_value;
+    var host: StoreHost = .{ .store_0 = &kept };
     const state = &plan;
 
-    const status = rule.executeIn(allocator, &.{
+    const raw = rule.execute(&arena, &.{
         .retirement = @ptrCast(&state),
         .previous = &plan.entries,
         .separator = std.fs.path.sep,
-    }) catch |err| return plan.failure.unwrap(err);
+    }, &host) catch |err| return plan.failure.unwrap(err);
 
-    return switch (status) {
-        .Ready => plan.paths.items,
-        .InvalidInventory => error.InvalidLibraryInventory,
-        .Modified => error.LibraryResourceModified,
-        .OutsideOutput => error.LibraryResourceOutsideOutput,
-    };
+    const status = if (@typeInfo(@TypeOf(raw)) == .pointer) raw.* else raw;
+
+    switch (status) {
+        .Ready => {},
+        .InvalidInventory => return error.InvalidLibraryInventory,
+        .Modified => return error.LibraryResourceModified,
+        .OutsideOutput => return error.LibraryResourceOutsideOutput,
+    }
+
+    const paths = try allocator.alloc([]const u8, kept.paths.len);
+    var copied: usize = 0;
+
+    errdefer {
+        for (paths[0..copied]) |path| allocator.free(path);
+
+        allocator.free(paths);
+    }
+
+    for (kept.paths, 0..) |path, index| {
+        paths[index] = try allocator.dupe(u8, path);
+        copied += 1;
+    }
+
+    return paths;
 }
 
 pub fn readRetirement(handle: *const anyopaque) Error!bool {
@@ -89,31 +118,18 @@ pub fn readRetirement(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn reserveTargets(handle: *const anyopaque) Error!void {
+pub fn reserveTargets(handle: *const anyopaque) Error![]const []const u8 {
     const self = effects.state(Plan, handle);
     const memory = self.planning.allocator();
     self.physical_root = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.directory, memory) catch |err| return self.failure.save(err);
-    self.targets = memory.alloc([]const u8, self.current.len) catch |err| return self.failure.save(err);
 
-    self.names.ensureTotalCapacity(memory, @intCast(self.current.len)) catch |err| return self.failure.save(err);
-}
+    const targets = memory.alloc([]const u8, self.current.len) catch |err| return self.failure.save(err);
 
-pub fn retirementTargetCount(handle: *const anyopaque) u64 {
-    return effects.state(Plan, handle).current.len;
-}
+    for (self.current, 0..) |item, index| {
+        targets[index] = std.fs.path.resolve(memory, &.{ self.directory, item.path }) catch |err| return self.failure.save(err);
+    }
 
-pub fn registerRetirementTarget(handle: *const anyopaque, index: u64) Error!void {
-    const self = effects.state(Plan, handle);
-    const row: usize = @intCast(index);
-    const path = std.fs.path.resolve(self.planning.allocator(), &.{ self.directory, self.current[row].path }) catch |err| return self.failure.save(err);
-
-    self.targets[row] = path;
-
-    self.names.putAssumeCapacity(path, {});
-}
-
-pub fn retirementTargets(handle: *const anyopaque) []const []const u8 {
-    return effects.state(Plan, handle).targets;
+    return targets;
 }
 
 pub fn retirementSpelling(handle: *const anyopaque, entry: []const u8) Error!*const Path {
@@ -122,18 +138,18 @@ pub fn retirementSpelling(handle: *const anyopaque, entry: []const u8) Error!*co
     _ = self.row.reset(.retain_capacity);
 
     const memory = self.row.allocator();
-    const path = std.fs.path.resolve(memory, &.{ self.directory, entry }) catch |err| return self.failure.save(err);
+    const path = std.fs.path.resolve(self.planning.allocator(), &.{ self.directory, entry }) catch |err| return self.failure.save(err);
     const relative = std.fs.path.relative(memory, self.directory, null, self.directory, path) catch |err| return self.failure.save(err);
 
     inventory.makePortable(relative);
 
-    self.spelling = .{ .path = path, .relative = relative };
+    self.spelling = .{
+        .path = path,
+        .relative = relative,
+        .absolute = std.fs.path.isAbsolute(relative),
+    };
 
     return &self.spelling;
-}
-
-pub fn retirementSpellingMatches(handle: *const anyopaque, path: []const u8) bool {
-    return effects.state(Plan, handle).names.contains(path);
 }
 
 pub fn retirementFileKind(handle: *const anyopaque, path: []const u8) Error!FileKind {
@@ -157,7 +173,11 @@ pub fn retirementPhysical(handle: *const anyopaque, spelling: []const u8) Error!
     const path = std.Io.Dir.cwd().realPathFileAlloc(self.io, spelling, memory) catch |err| return self.failure.save(err);
     const relative = std.fs.path.relative(memory, self.physical_root, null, self.physical_root, path) catch |err| return self.failure.save(err);
 
-    self.physical = .{ .path = path, .relative = relative };
+    self.physical = .{
+        .path = path,
+        .relative = relative,
+        .absolute = std.fs.path.isAbsolute(relative),
+    };
 
     return &self.physical;
 }
@@ -183,11 +203,4 @@ pub fn retirementDigest(handle: *const anyopaque, path: []const u8) Error![]cons
     self.hex = std.fmt.bytesToHex(hash, .lower);
 
     return &self.hex;
-}
-
-pub fn keepRetirement(handle: *const anyopaque, path: []const u8) Error!void {
-    const self = effects.state(Plan, handle);
-    const owned = self.allocator.dupe(u8, path) catch |err| return self.failure.save(err);
-
-    self.paths.append(self.allocator, owned) catch |err| return self.failure.save(err);
 }
