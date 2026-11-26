@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import host from "verification_host"
+
+import { depth_message, max_depth } from "./const"
+
+import type { Input, Prepared as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { frame, columns, id } = in
+
+    if (in.depth >= max_depth) {
+        host.rejectSymbolicExpression(frame, depth_message)
+    }
+
+    const kind = columns.kinds[id]
+    const payload = integers.widen(columns.payloads[id])
+
+    const first = match kind {
+        ExpressionKind.Reference => columns.references[payload],
+        ExpressionKind.Call => columns.call_functions[payload],
+        _ => 0
+    }
+
+    const second = match kind {
+        ExpressionKind.Call => columns.call_arguments[payload],
+        _ => 0
+    }
+
+    return {
+        kind,
+        payload,
+        type_id: columns.types[id],
+        first,
+        second
+    }
+}

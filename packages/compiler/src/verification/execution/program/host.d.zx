@@ -25,8 +25,6 @@ export declare function markSymbolicQueryPrefix(program: SymbolicProgram): void
 export declare function runSymbolicProgramBody(program: SymbolicProgram, path: string): string
     throws { OutOfMemory, InvalidSource }
 
-export declare function symbolicProgramReturnsUnit(program: SymbolicProgram): bool
-
 export declare function checkSymbolicUnit(program: SymbolicProgram, path: string): void
     throws { OutOfMemory, InvalidSource }
 
@@ -36,12 +34,10 @@ export declare function appendSymbolicUnit(program: SymbolicProgram, path: strin
 export declare function publishSymbolicQuery(program: SymbolicProgram, path: string): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function hasSymbolicReturns(program: SymbolicProgram): bool
-
 export declare function rejectSymbolicReturn(program: SymbolicProgram, message: string): void
     throws { InvalidSource }
 
-export declare function publishSymbolicProgramResult(program: SymbolicProgram): void
+export declare function publishSymbolicProgramResult(program: SymbolicProgram): bool
     throws { OutOfMemory, InvalidSource }
 
 export declare function reserveSymbolicParameter(
@@ -49,12 +45,6 @@ export declare function reserveSymbolicParameter(
     target: ParameterTarget,
     count: u64
 ): void throws { OutOfMemory }
-
-export declare function symbolicEnumWidth(members: u32): u64
-
-export declare function symbolicScalarWidth(scalar: u32): u64
-
-export declare function symbolicPortCount(program: SymbolicProgram): u64
 
 export declare function appendSymbolicDeclaration(program: SymbolicProgram, text: string): void
     throws { OutOfMemory }

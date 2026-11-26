@@ -13,7 +13,7 @@ export default function (in: Input): Output {
             frame,
             SymbolicOperand.First,
             columns.projection_targets[payload]
-        )
+        ).safe
 
     host.projectSymbolicOperand(frame, columns.projection_indices[payload])
 }

@@ -5,12 +5,11 @@ const calls = @import("../calls.zig");
 const Cache = @import("../call_cache.zig").Cache;
 const Expression = @import("expression.zig").Frame;
 const rule = @import("generated_run_symbolic_expression_call");
-const native = @import("output_execution_abi").layouts.@"zig:verification_host";
 
 const Invocation = struct {
     frame: *Expression,
     function: ir.Function,
-    description: native.SymbolicCallDescription,
+    target: u32,
     argument_id: ir.ExprId,
     key: Cache.Key = undefined,
     fn borrow(handle: *anyopaque) *@This() {
@@ -26,21 +25,20 @@ pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32)
     var invocation: Invocation = .{
         .frame = frame,
         .function = function,
-        .description = .{
-            .calls = function.expressions.call_functions,
-            .target = target,
-            .stores = function.stores.count(),
-            .external = function.external != null,
-            .depth = evaluator.call_depth,
-        },
+        .target = target,
         .argument_id = @fromBackingInt(argument),
     };
 
-    rule.executeIn(evaluator.allocator, @ptrCast(&invocation)) catch |err| return @import("context.zig").failure(err);
-}
+    const input: std.meta.Child(rule.Input) = .{
+        .call = @ptrCast(&invocation),
+        .calls = function.expressions.call_functions,
+        .target = target,
+        .stores = function.stores.count(),
+        .external = function.external != null,
+        .depth = evaluator.call_depth,
+    };
 
-pub fn describeSymbolicCall(handle: *anyopaque) *const native.SymbolicCallDescription {
-    return &Invocation.borrow(handle).description;
+    rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
 }
 
 pub fn rejectSymbolicCall(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
@@ -58,31 +56,34 @@ pub fn evaluateSymbolicCallArgument(handle: *anyopaque) zx.Error![]const u8 {
     return result.safe;
 }
 
-pub fn findSymbolicCallee(handle: *anyopaque) std.mem.Allocator.Error!bool {
+pub fn findSymbolicCallee(handle: *anyopaque) std.mem.Allocator.Error!?[]const u8 {
     const invocation = Invocation.borrow(handle);
     const frame = invocation.frame;
     const evaluator = frame.evaluator;
-    const cached = try evaluator.graph.calls.lookup(evaluator.allocator, invocation.description.target, frame.at(.First).value);
+    const cached = try evaluator.graph.calls.lookup(evaluator.allocator, invocation.target, frame.at(.First).value);
 
     switch (cached) {
         .hit => |result| {
             frame.at(.Result).* = result;
 
-            return true;
+            return result.safe;
         },
         .miss => |key| {
             invocation.key = key;
 
-            return false;
+            return null;
         },
     }
 }
 
-pub fn evaluateSymbolicCallee(handle: *anyopaque) zx.Error!void {
+pub fn evaluateSymbolicCallee(handle: *anyopaque) zx.Error![]const u8 {
     const invocation = Invocation.borrow(handle);
     const frame = invocation.frame;
+    const result = try calls.execute(frame.evaluator, invocation.function, frame.at(.First).value);
 
-    frame.at(.Result).* = try calls.execute(frame.evaluator, invocation.function, frame.at(.First).value);
+    frame.at(.Result).* = result;
+
+    return result.safe;
 }
 
 pub fn publishSymbolicCallee(handle: *anyopaque) std.mem.Allocator.Error!void {
@@ -90,10 +91,6 @@ pub fn publishSymbolicCallee(handle: *anyopaque) std.mem.Allocator.Error!void {
     const evaluator = invocation.frame.evaluator;
 
     try evaluator.graph.calls.publish(evaluator.allocator, invocation.key, invocation.frame.at(.Result).*);
-}
-
-pub fn symbolicCalleeSafety(handle: *anyopaque) []const u8 {
-    return Invocation.borrow(handle).frame.at(.Result).safe;
 }
 
 pub fn writeSymbolicCallSafety(handle: *anyopaque, safe: []const u8) void {

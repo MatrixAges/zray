@@ -4,17 +4,19 @@ import host from "verification_host"
 
 import encode from "../../predicate/literal"
 import { smt_false, smt_true } from "../../scalar/const"
+import enumWidth from "../../scalar/enum_width"
+import numeric from "../../scalar/numeric"
 
-import type { Payload } from "./model"
+import type { TypedPayload } from "./model"
 
-export type Input = Payload & {
+export type Input = TypedPayload & {
     kind: ExpressionKind
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { frame, columns, payload, kind } = in
+    const { frame, columns, payload, types, type_id, kind } = in
 
     if (kind == ExpressionKind.Boolean) {
         const value = columns.booleans[payload] ? smt_true : smt_false
@@ -25,6 +27,12 @@ export default function (in: Input): Output {
     }
 
     const enumeration = kind == ExpressionKind.EnumValue
+    const type_row = integers.widen(type_id)
+
+    const width = match enumeration {
+        true => enumWidth(types.second[type_row]),
+        _ => numeric(types.first[type_row]).width
+    }
 
     const value = match kind {
         ExpressionKind.EnumValue => integers.widen(columns.enumerations[payload]),
@@ -34,7 +42,7 @@ export default function (in: Input): Output {
 
     const text = encode({
         value,
-        width: host.symbolicLiteralWidth(frame, enumeration),
+        width,
         negative: kind == ExpressionKind.NegativeInteger
     })
 

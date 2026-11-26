@@ -6,6 +6,7 @@ const terms = @import("../terms.zig");
 const Session = @import("context.zig");
 const walk = @import("generated_walk_symbolic_block");
 const parallel = @import("generated_run_symbolic_parallel");
+const native = @import("output_execution_abi").layouts.@"zig:verification_host";
 const Input = std.meta.Child(walk.Input);
 const Scope = std.meta.Child(@FieldType(Input, "scope"));
 const Parallel = std.meta.Child(parallel.Input);
@@ -15,6 +16,7 @@ const Frame = struct {
     scope: *const Scope,
     evaluator: Expressions,
     outcome: terms.Evaluation = undefined,
+    outcome_view: native.SymbolicOutcome = undefined,
     completed: []terms.Evaluation = &.{},
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
@@ -68,16 +70,17 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Va
     return walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
 }
 
-pub fn evaluateSymbolicStatement(handle: *anyopaque, expression: ?u32) zx.Error![]const u8 {
+pub fn evaluateSymbolicStatement(handle: *anyopaque, expression: ?u32) zx.Error!*const native.SymbolicOutcome {
     const frame = Frame.borrow(handle);
+    const outcome: terms.Evaluation = if (expression) |id| try frame.evaluator.evaluate(@fromBackingInt(id)) else .{ .value = .{ .fields = &.{} } };
+    frame.outcome = outcome;
 
-    frame.outcome = if (expression) |id| try frame.evaluator.evaluate(@fromBackingInt(id)) else .{ .value = .{ .fields = &.{} } };
+    frame.outcome_view = .{
+        .safe = outcome.safe,
+        .text = if (outcome.value == .scalar) outcome.value.scalar else null,
+    };
 
-    return frame.outcome.safe;
-}
-
-pub fn symbolicStatementText(handle: *anyopaque) []const u8 {
-    return Frame.borrow(handle).outcome.value.scalar;
+    return &frame.outcome_view;
 }
 
 pub fn bindSymbolicStatement(handle: *anyopaque, symbol: u32) void {

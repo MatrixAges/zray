@@ -13,7 +13,10 @@ export default function (in: Input): Output {
     const control = scope.control
 
     const safe =
-        host.evaluateSymbolicStatement(block, control.destructure_values[payload])
+        host.evaluateSymbolicStatement(
+            block,
+            control.destructure_values[payload]
+        ).safe
 
     const next = guard({
         session,

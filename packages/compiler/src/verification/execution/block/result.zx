@@ -16,7 +16,7 @@ export type Output = string?
 export default function (in: Input): Output {
     const { block, session, path, expression } = in
 
-    const safe = host.evaluateSymbolicStatement(block, expression)
+    const safe = host.evaluateSymbolicStatement(block, expression).safe
 
     const completed = guard({
         session,

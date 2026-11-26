@@ -7,6 +7,7 @@ export type Input = {
     types: Ports,
     type_id: u32,
     path: string,
+    index: u64,
     proof: bool
 }
 

@@ -8,16 +8,29 @@ export type Output = void
 
 export default function (in: Input): Output {
     const call = in.call
+    const cached = host.findSymbolicCallee(call)
 
-    if (!host.findSymbolicCallee(call)) {
-        host.evaluateSymbolicCallee(call)
-        host.publishSymbolicCallee(call)
+    if (cached != null) {
+        host.writeSymbolicCallSafety(
+            call,
+            conjunction({
+                left: in.argument_safe,
+                right: cached
+            })
+        )
+
+        return
     }
 
-    const safe = conjunction({
-        left: in.argument_safe,
-        right: host.symbolicCalleeSafety(call)
-    })
+    const evaluated = host.evaluateSymbolicCallee(call)
 
-    host.writeSymbolicCallSafety(call, safe)
+    host.publishSymbolicCallee(call)
+
+    host.writeSymbolicCallSafety(
+        call,
+        conjunction({
+            left: in.argument_safe,
+            right: evaluated
+        })
+    )
 }

@@ -23,7 +23,10 @@ export default function (in: Input): Output {
             const call = integers.widen(control.parallel_values[state.row])
             const argument = integers.widen(scope.expression_payloads[call])
             const safe =
-                host.evaluateSymbolicStatement(block, scope.call_arguments[argument])
+                host.evaluateSymbolicStatement(
+                    block,
+                    scope.call_arguments[argument]
+                ).safe
 
             state.path = guard({
                 session,

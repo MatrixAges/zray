@@ -20,12 +20,13 @@ export default function (in: Input): Output {
         host.rejectSymbolicProgram(program, message)
     }
 
-    parameter({
+    const count = parameter({
         program,
         target: in.target,
         types: in.types,
         type_id: in.input,
         path: root_path,
+        index: 0,
         proof
     })
 }

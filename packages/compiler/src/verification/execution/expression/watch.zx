@@ -33,7 +33,7 @@ export default function (in: Input): Output {
                     frame,
                     SymbolicOperand.First,
                     values[state.row]
-                )
+                ).safe
             const checked = conjunction({
                 left: state.safe,
                 right: safe

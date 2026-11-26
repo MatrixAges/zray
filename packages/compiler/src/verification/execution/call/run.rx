@@ -8,7 +8,7 @@
     <Call
         fn="solve"
         in={{
-            call: $in,
+            call: $in.call,
             argument_safe: $ctx.prepare
         }}
     />

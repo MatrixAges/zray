@@ -24,6 +24,7 @@
         in={{
             program: $in.program,
             called: false,
+            returns_unit: $in.returns_unit,
             path: $ctx.preconditions
         }}
     />

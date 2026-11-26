@@ -14,15 +14,15 @@ export default function (in: Input): Output {
 
     const control = scope.control
 
-    const safe =
+    const outcome =
         host.evaluateSymbolicStatement(block, control.branch_conditions[payload])
 
-    const condition = host.symbolicStatementText(block)
+    const condition = outcome.text == null ? "" : outcome.text
 
     const path = guard({
         session,
         path: in.path,
-        safe
+        safe: outcome.safe
     })
 
     const positive = conjunction({

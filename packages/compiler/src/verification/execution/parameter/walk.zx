@@ -6,14 +6,16 @@ import { Kind } from "core/type_table/model"
 import host from "verification_program_host"
 
 import fieldPath from "../../ports/path"
+import enumWidth from "../../scalar/enum_width"
+import symbolicWidth from "../../scalar/symbolic_width"
 import leaf from "./leaf"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function walk(in: Input): Output {
-    const { program, target, types, type_id, path, proof } = in
+    const { program, target, types, type_id, path, index, proof } = in
 
     const row = integers.widen(type_id)
     const shape = kind(types.kinds[row])
@@ -27,45 +29,48 @@ export default function walk(in: Input): Output {
 
         host.reserveSymbolicParameter(program, target, count)
 
-        const finished = loop(0, {
-            while: index => index < count,
-            next: index => {
+        return loop({
+            field: 0,
+            next_index: index
+        }, {
+            while: state => state.field < count,
+            next: state => {
                 const label: string? = match object {
-                    true => types.field_names[first + index],
+                    true => types.field_names[first + state.field],
                     _ => null
                 }
                 const child_path = fieldPath({
                     parent: path,
                     field: label,
-                    index
+                    index: state.field
                 })
 
-                walk({
+                state.next_index = walk({
                     program,
-                    target: host.symbolicParameterField(target, index),
+                    target: host.symbolicParameterField(target, state.field),
                     types,
-                    type_id: children[first + index],
+                    type_id: children[first + state.field],
                     path: child_path,
+                    index: state.next_index,
                     proof
                 })
-                index += 1
-            }
+                state.field += 1
+            },
+            return: state => state.next_index
         })
-
-        return
     }
 
     if (shape == Kind.Scalar && start == scalar_void) {
         host.reserveSymbolicParameter(program, target, 0)
 
-        return
+        return index
     }
 
     leaf({
         ...in.omit(["types"]),
         width: match shape {
-            Kind.Enumeration => host.symbolicEnumWidth(types.second[row]),
-            Kind.Scalar => host.symbolicScalarWidth(start),
+            Kind.Enumeration => enumWidth(types.second[row]),
+            Kind.Scalar => symbolicWidth(start),
             _ => max_u64
         },
         members: match shape {
@@ -73,4 +78,6 @@ export default function walk(in: Input): Output {
             _ => 0
         }
     })
+
+    return index + 1
 }

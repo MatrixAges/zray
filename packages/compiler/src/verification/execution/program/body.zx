@@ -5,11 +5,11 @@ import type { Body as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { program, path, called } = in
+    const { program, path, called, returns_unit } = in
 
     const remaining = host.runSymbolicProgramBody(program, path)
 
-    if (host.symbolicProgramReturnsUnit(program)) {
+    if (returns_unit) {
         host.checkSymbolicUnit(program, remaining)
 
         if (called) {

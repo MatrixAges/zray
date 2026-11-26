@@ -1,6 +1,9 @@
 import type { SymbolicInvocation } from "verification_host"
+import type { Input as Description } from "../../graph/call"
 
-export type Input = SymbolicInvocation
+export type Input = Description & {
+    call: SymbolicInvocation
+}
 
 export type Solve = {
     call: SymbolicInvocation,

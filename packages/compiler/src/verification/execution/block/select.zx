@@ -18,15 +18,15 @@ export default function (in: Input): Output {
 
     const control = scope.control
 
-    const safe =
+    const subject_outcome =
         host.evaluateSymbolicStatement(block, control.selection_subjects[payload])
 
-    const subject = host.symbolicStatementText(block)
+    const subject = subject_outcome.text == null ? "" : subject_outcome.text
 
     const path = guard({
         session,
         path: in.path,
-        safe
+        safe: subject_outcome.safe
     })
 
     const first = integers.widen(control.selection_first[payload])
@@ -46,10 +46,11 @@ export default function (in: Input): Output {
             const body = control.case_bodies[state.row]
 
             if (label != null) {
-                const label_safety = host.evaluateSymbolicStatement(block, label)
+                const label_outcome = host.evaluateSymbolicStatement(block, label)
+                const label_safety = label_outcome.safe
                 const matches = connect({
                     left: subject,
-                    right: host.symbolicStatementText(block),
+                    right: label_outcome.text == null ? "" : label_outcome.text,
                     operator: Operator.Equal
                 })
                 const entry = conjunction({

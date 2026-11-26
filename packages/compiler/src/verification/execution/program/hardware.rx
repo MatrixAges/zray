@@ -11,5 +11,11 @@
         }}
     />
 
-    <Call module="call" in={$in.program} />
+    <Call
+        module="call"
+        in={{
+            program: $in.program,
+            returns_unit: $in.returns_unit
+        }}
+    />
 </Module>

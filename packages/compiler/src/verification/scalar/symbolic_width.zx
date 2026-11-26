@@ -1,0 +1,18 @@
+import { max_u64 } from "core/const"
+import { scalar_bool } from "core/type_table/const"
+
+import numeric from "./numeric"
+
+export type Input = u32
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in == scalar_bool) {
+        return 0
+    }
+
+    const traits = numeric(in)
+
+    return traits.width == 0 ? max_u64 : traits.width
+}

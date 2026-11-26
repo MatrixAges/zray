@@ -57,7 +57,7 @@ export default function (in: Input): Output {
                 _ => integers.narrow(state.field)
             }
             const safe =
-                host.evaluateSymbolicOperand(frame, SymbolicOperand.First, value)
+                host.evaluateSymbolicOperand(frame, SymbolicOperand.First, value).safe
 
             host.writeSymbolicAggregateField(frame, index)
 

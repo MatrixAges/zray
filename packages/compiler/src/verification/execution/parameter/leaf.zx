@@ -10,13 +10,11 @@ import type { Leaf as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { program, target, type_id, path, proof, width, members } = in
+    const { program, target, type_id, path, index, proof, width, members } = in
 
     if (width == max_u64) {
         host.rejectSymbolicProgram(program, invalid_parameter_type)
     }
-
-    const index = host.symbolicPortCount(program)
 
     const symbol = match proof {
         true => declare({

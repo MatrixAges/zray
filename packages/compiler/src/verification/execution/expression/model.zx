@@ -1,9 +1,18 @@
+import { ExpressionKind } from "core/expression_table/kinds"
+
 import type { Expressions } from "core/expression_table/model"
+import type { Table } from "core/type_table/model"
 import type { SymbolicExpression } from "verification_host"
+import type { Result } from "../../scalar/model"
+
+export { ExpressionKind } from "core/expression_table/kinds"
+
+export type Types = Table.Pick("kinds", "first", "second")
 
 export type Columns = Expressions.Pick(
     "kinds",
     "payloads",
+    "types",
     "integers",
     "negative_integers",
     "enumerations",
@@ -13,6 +22,7 @@ export type Columns = Expressions.Pick(
     "projection_indices",
     "unary_operators",
     "unary_operands",
+    "binary_operators",
     "binary_left",
     "binary_right",
     "conditional_conditions",
@@ -41,6 +51,7 @@ export type Columns = Expressions.Pick(
 export type Input = {
     frame: SymbolicExpression,
     columns: Columns,
+    types: Types,
     id: u64,
     depth: u64
 }
@@ -49,4 +60,22 @@ export type Payload = {
     frame: SymbolicExpression,
     columns: Columns,
     payload: u64
+}
+
+export type TypedPayload = Payload & {
+    types: Types,
+    type_id: u32
+}
+
+export type Prepared = {
+    kind: ExpressionKind,
+    payload: u64,
+    type_id: u32,
+    first: u32,
+    second: u32
+}
+
+export type BinaryFinish = {
+    frame: SymbolicExpression,
+    result: Result
 }

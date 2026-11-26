@@ -1,0 +1,60 @@
+import integers from "std:integer"
+import { UnaryOperator } from "core/expression_table/kinds"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+import host from "verification_host"
+import { SymbolicOperand } from "verification_host"
+
+import numeric from "../../scalar/numeric"
+import evaluateUnary from "../../scalar/unary"
+import { unsupported_message } from "./const"
+
+import type { TypedPayload as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, columns, payload, types, type_id } = in
+
+    const operand =
+        host.evaluateSymbolicOperand(
+            frame,
+            SymbolicOperand.First,
+            columns.unary_operands[payload]
+        )
+
+    const text = operand.text
+
+    if (text == null) {
+        host.rejectSymbolicExpression(frame, unsupported_message)
+
+        return
+    }
+
+    const type_row = integers.widen(type_id)
+
+    const width = match kind(types.kinds[type_row]) {
+        Kind.Scalar => numeric(types.first[type_row]).width,
+        _ => 0
+    }
+
+    const evaluated = evaluateUnary({
+        invert: columns.unary_operators[payload] == UnaryOperator.Not,
+        width,
+        operand: {
+            value: text,
+            safe: operand.safe
+        }
+    })
+
+    const value = evaluated.value
+
+    if (value == null) {
+        host.rejectSymbolicExpression(frame, unsupported_message)
+
+        return
+    }
+
+    host.writeSymbolicLiteral(frame, value)
+    host.writeSymbolicSafety(frame, evaluated.safe)
+}

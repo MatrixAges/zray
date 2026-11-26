@@ -1,0 +1,75 @@
+import integers from "std:integer"
+import { scalar_bool } from "core/type_table/const"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+import host from "verification_host"
+import { SymbolicOperand } from "verification_host"
+
+import numeric from "../../scalar/numeric"
+import { unsupported_message } from "./const"
+
+import type { Binary as Output } from "../../scalar/model"
+import type { TypedPayload as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { frame, columns, payload, types } = in
+
+    const left_id = columns.binary_left[payload]
+
+    const left_operand =
+        host.evaluateSymbolicOperand(frame, SymbolicOperand.First, left_id)
+
+    const right_operand =
+        host.evaluateSymbolicOperand(
+            frame,
+            SymbolicOperand.Second,
+            columns.binary_right[payload]
+        )
+
+    const type_row = integers.widen(columns.types[integers.widen(left_id)])
+    const shape = kind(types.kinds[type_row])
+    const scalar_tag = types.first[type_row]
+    const scalar_traits = numeric(scalar_tag)
+    const is_scalar = shape == Kind.Scalar
+    const width = is_scalar ? scalar_traits.width : 0
+    const signed = is_scalar && scalar_traits.signed
+    const comparable_scalar = is_scalar && scalar_tag == scalar_bool
+    const comparable = width != 0 || shape == Kind.Enumeration || comparable_scalar
+
+    const left_text = left_operand.text
+    const right_text = right_operand.text
+
+    if (left_text == null || right_text == null) {
+        host.rejectSymbolicExpression(frame, unsupported_message)
+
+        return {
+            operator: columns.binary_operators[payload],
+            width,
+            signed,
+            comparable,
+            left: {
+                value: "",
+                safe: left_operand.safe
+            },
+            right: {
+                value: "",
+                safe: right_operand.safe
+            }
+        }
+    }
+
+    return {
+        operator: columns.binary_operators[payload],
+        width,
+        signed,
+        comparable,
+        left: {
+            value: left_text,
+            safe: left_operand.safe
+        },
+        right: {
+            value: right_text,
+            safe: right_operand.safe
+        }
+    }
+}

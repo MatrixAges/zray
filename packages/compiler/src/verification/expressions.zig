@@ -8,6 +8,7 @@ const Self = @This();
 const Graph = @import("graph.zig");
 const source = @import("execution/expression.zig");
 const Columns = source.Columns;
+const Types = source.Types;
 
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
@@ -17,6 +18,7 @@ reporter: *zx.Reporter,
 graph: *Graph,
 cache: std.AutoHashMapUnmanaged(ir.ExprId, Evaluation) = .empty,
 columns: ?Columns = null,
+types: ?Types = null,
 depth: usize = 0,
 call_depth: usize = 0,
 pub fn evaluate(self: *Self, id: ir.ExprId) zx.Error!Evaluation {

@@ -2,6 +2,7 @@ import host from "verification_host"
 import { SymbolicOperand } from "verification_host"
 
 import guarded from "../../predicate/guard"
+import { unsupported_message } from "./const"
 
 import type { Payload as Input } from "./model"
 
@@ -10,7 +11,7 @@ export type Output = void
 export default function (in: Input): Output {
     const { frame, columns, payload } = in
 
-    const safe =
+    const first =
         host.evaluateSymbolicOperand(
             frame,
             SymbolicOperand.First,
@@ -31,7 +32,13 @@ export default function (in: Input): Output {
             columns.conditional_no[payload]
         )
 
-    const condition = host.symbolicOperandText(frame, SymbolicOperand.First)
+    const condition = first.text
+
+    if (condition == null) {
+        host.rejectSymbolicExpression(frame, unsupported_message)
+
+        return
+    }
 
     host.selectSymbolicExpression(
         frame,
@@ -42,8 +49,8 @@ export default function (in: Input): Output {
 
     host.writeSymbolicSafety(frame, guarded({
         condition,
-        safe,
-        yes,
-        no
+        safe: first.safe,
+        yes: yes.safe,
+        no: no.safe
     }))
 }
