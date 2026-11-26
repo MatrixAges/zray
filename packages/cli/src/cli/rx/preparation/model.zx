@@ -2,12 +2,44 @@ import type { Preparation, References, TypeSources } from "rx_preparation_host"
 
 export type TypePass = {
     types: TypeSources,
-    references: References
+    references: References,
+    module_count: u64,
+    scoped: bool,
+    initial_paths: string[]
 }
 
-export type TypeRange = {
+export type TypeWalkStart =
+    TypePass.Pick("types", "references", "module_count", "scoped")
+
+export type TypeReference = {
     types: TypeSources,
-    count: u64
+    references: References,
+    scoped: bool,
+    diagnostic: string
+}
+
+export type TypeRead = {
+    types: TypeSources,
+    scoped: bool,
+    path: string
+}
+
+export type Visited = {
+    paths: string[]
+}
+
+export type SeedSeenInput = {
+    paths: string[]
+}
+
+export type AdmitPathInput = {
+    visited: Visited,
+    path: string
+}
+
+export type CompiledPass = {
+    references: References,
+    module_count: u64
 }
 
 export type Range = {
@@ -17,7 +49,8 @@ export type Range = {
 
 export type NewSources = {
     preparation: Preparation,
-    first: u64
+    first: u64,
+    count: u64
 }
 
 export type Request = {
@@ -27,10 +60,6 @@ export type Request = {
 
 export type Root = Request & {
     index: u64
-}
-
-export type TypeReference = TypePass & {
-    diagnostic: string
 }
 
 export type CompiledReference = {

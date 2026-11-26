@@ -8,19 +8,21 @@ export enum Target {
     Source
 }
 
+export type ResolvedImport = {
+    target: Target,
+    path: string
+}
+
 export declare function registerRoot(discovery: Discovery): u64 throws { SourceLoadFailure }
 export declare function sourceCount(discovery: Discovery): u64
-export declare function selectSource(discovery: Discovery, index: u64): void
-export declare function prepareSource(discovery: Discovery): void throws { SourceLoadFailure }
-export declare function openHeader(discovery: Discovery): u64 throws { SourceLoadFailure }
+export declare function prepareSource(discovery: Discovery, row: u64): void throws { SourceLoadFailure }
+export declare function openHeader(discovery: Discovery, row: u64): u64 throws { SourceLoadFailure }
 export declare function closeHeader(discovery: Discovery): void
-export declare function resolveImport(discovery: Discovery, index: u64): Target throws { SourceLoadFailure }
+export declare function resolveImport(discovery: Discovery, index: u64): ResolvedImport throws { SourceLoadFailure }
 export declare function admitCompiledImport(discovery: Discovery): void throws { SourceLoadFailure }
-export declare function importPath(discovery: Discovery): string
 export declare function markRxImport(discovery: Discovery): void
-export declare function selectImportFile(discovery: Discovery): bool throws { SourceLoadFailure }
-export declare function hasSource(discovery: Discovery): bool
-export declare function loadImportText(discovery: Discovery): void throws { SourceLoadFailure }
+export declare function selectImportFile(discovery: Discovery): string? throws { SourceLoadFailure }
+export declare function loadImportText(discovery: Discovery, path: string): void throws { SourceLoadFailure }
 
 export declare function resolveTemplateReference(template: Template, index: u64): string? throws { SourceLoadFailure }
 export declare function readTemplateFile(template: Template, path: string): void throws { SourceLoadFailure }

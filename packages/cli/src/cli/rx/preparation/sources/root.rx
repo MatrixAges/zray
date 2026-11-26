@@ -4,28 +4,21 @@
     <Args in={Preparation.Root} out={void} />
 
     <Call
-        fn="../index.hasPreparedRoot"
+        fn="../index.loadPreparationRoot"
         in={[
             $in.preparation,
             $in.index
         ]}
     />
 
-    <If on={!$ctx.hasPreparedRoot}>
-        <Call
-            fn="../index.loadPreparationRoot"
-            in={[
-                $in.preparation,
-                $in.index
-            ]}
-        />
-
+    <If on={$ctx.loadPreparationRoot != null}>
         <If on={!$in.scoped}>
             <Call
                 fn="check"
                 in={{
                     preparation: $in.preparation,
-                    first: $ctx.loadPreparationRoot + 1
+                    first: $ctx.loadPreparationRoot.first + 1,
+                    count: $ctx.loadPreparationRoot.count
                 }}
             />
         </If>

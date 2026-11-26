@@ -28,5 +28,8 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !bool {
 
     const reference = &cursor;
 
-    return rule.executeIn(allocator, @ptrCast(&reference)) catch |err| return cursor.failure.unwrap(err);
+    return rule.executeIn(allocator, &.{
+        .references = @ptrCast(&reference),
+        .module_count = options.modules.len,
+    }) catch |err| return cursor.failure.unwrap(err);
 }

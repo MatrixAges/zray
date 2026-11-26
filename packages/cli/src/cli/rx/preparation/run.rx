@@ -1,5 +1,4 @@
 <Module>
-    <Type from="index" as="IO" />
     <Type from="model" as="Preparation" />
 
     <Args in={Preparation.Request} out={bool} />
@@ -36,9 +35,17 @@
 
     <Call fn="index.inferPreparedProject" in={$in.preparation} />
 
-    <If on={$ctx.inferPreparedProject}>
-        <Call fn="evidence" in={$in.preparation} />
+    <If on={$ctx.inferPreparedProject != null}>
+        <Call
+            fn="evidence"
+            in={{
+                preparation: $in.preparation,
+                count: $ctx.inferPreparedProject
+            }}
+        />
+
+        <Return value={true} />
     </If>
 
-    <Return value={$ctx.inferPreparedProject} />
+    <Return value={false} />
 </Module>

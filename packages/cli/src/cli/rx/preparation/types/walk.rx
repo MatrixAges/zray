@@ -1,18 +1,9 @@
 <Module>
-    <Type from="../index" as="IO" />
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.TypePass} out={bool} />
+    <Args in={Preparation.TypeWalkStart} out={bool} />
 
-    <Call fn="../index.preparationModuleCount" in={$in.references} />
-
-    <Call
-        fn="cursor"
-        in={{
-            ...$in,
-            count: $ctx.preparationModuleCount
-        }}
-    />
+    <Call fn="cursor" in={$in} />
 
     <Loop on={$in.running}>
         <Call module="walk_module" />

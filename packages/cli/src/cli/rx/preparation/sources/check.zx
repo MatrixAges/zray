@@ -1,13 +1,11 @@
-import { preparedZxCount, validatePreparedSource } from "rx_preparation_host"
+import { validatePreparedSource } from "rx_preparation_host"
 
 import type { NewSources as Input } from "../model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { preparation, first } = in
-
-    const count = preparedZxCount(preparation)
+    const { preparation, first, count } = in
 
     const checked = loop(first, {
         while: index => index < count,

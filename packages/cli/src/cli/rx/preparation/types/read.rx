@@ -1,22 +1,48 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Preparation" />
 
-    <Args in={IO.TypeSources} out={bool} />
+    <Args in={Preparation.TypeRead} out={bool} />
 
-    <Call fn="../index.selectTypeSourcePath" in={$in} />
+    <Store from="seen" as="seen" />
 
-    <If on={!$ctx.selectTypeSourcePath}>
+    <Call
+        fn="admit_path"
+        in={{
+            visited: store.seen.visited,
+            path: $in.path
+        }}
+        setter={[store.seen.visited]}
+    />
+
+    <If on={!$ctx.admit_path}>
         <Return value={true} />
     </If>
 
-    <Call fn="../index.validateTypeSourceFile" in={$in} />
-    <Call fn="../index.hasTypeSourceScopes" in={$in} />
+    <Call
+        fn="../index.validateTypeSourceFile"
+        in={[
+            $in.types,
+            $in.path
+        ]}
+    />
 
-    <If on={!$ctx.hasTypeSourceScopes}>
-        <Call fn="../index.validateTypeSourceRoot" in={$in} />
+    <If on={!$in.scoped}>
+        <Call
+            fn="../index.validateTypeSourceRoot"
+            in={[
+                $in.types,
+                $in.path
+            ]}
+        />
     </If>
 
-    <Call fn="../index.readPreparedTypeSource" in={$in} />
+    <Call
+        fn="../index.readPreparedTypeSource"
+        in={[
+            $in.types,
+            $in.path
+        ]}
+    />
 
     <Return value={$ctx.readPreparedTypeSource} />
 </Module>

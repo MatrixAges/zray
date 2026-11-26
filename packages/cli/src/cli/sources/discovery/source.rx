@@ -1,16 +1,29 @@
 <Module>
-    <Type from="index" as="Discovery" />
+    <Type from="model" as="State" />
 
-    <Args in={Discovery.Input} out={void} />
+    <Args in={State.SourceRow} out={void} />
 
-    <Call fn="index.prepareSource" in={$in} />
-    <Call fn="index.openHeader" in={$in} />
+    <Call
+        fn="index.prepareSource"
+        in={[
+            $in.discovery,
+            $in.row
+        ]}
+    />
+
+    <Call
+        fn="index.openHeader"
+        in={[
+            $in.discovery,
+            $in.row
+        ]}
+    />
 
     <Loop on={$in.running}>
         <Call
             module="load_import"
             in={{
-                discovery: $in,
+                discovery: $in.discovery,
                 count: $ctx.openHeader,
                 index: 0,
                 running: $ctx.openHeader != 0
@@ -18,5 +31,5 @@
         />
     </Loop>
 
-    <Call fn="index.closeHeader" in={$in} />
+    <Call fn="index.closeHeader" in={$in.discovery} />
 </Module>

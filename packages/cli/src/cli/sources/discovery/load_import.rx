@@ -12,14 +12,12 @@
         ]}
     />
 
-    <If on={$ctx.resolveImport != Discovery.Target.Deferred}>
-        <If on={$ctx.resolveImport == Discovery.Target.Compiled}>
+    <If on={$ctx.resolveImport.target != Discovery.Target.Deferred}>
+        <If on={$ctx.resolveImport.target == Discovery.Target.Compiled}>
             <Call fn="index.admitCompiledImport" in={$in.discovery} />
 
             <Else>
-                <Call fn="index.importPath" in={$in.discovery} />
-
-                <Call fn="../path/is_rx" />
+                <Call fn="../path/is_rx" in={$ctx.resolveImport.path} />
 
                 <If on={$ctx.is_rx}>
                     <Call fn="index.markRxImport" in={$in.discovery} />

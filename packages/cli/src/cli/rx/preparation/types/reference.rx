@@ -19,17 +19,22 @@
         ]}
     />
 
-    <If on={$ctx.resolvePreparationTarget == IO.Target.Invalid}>
+    <If on={$ctx.resolvePreparationTarget.target == IO.Target.Invalid}>
         <Return value={false} />
     </If>
 
-    <If on={$ctx.resolvePreparationTarget == IO.Target.Source}>
-        <Call fn="../index.preparationSourcePath" in={$in.references} />
-
-        <Call fn="../../collection/kind" />
+    <If on={$ctx.resolvePreparationTarget.target == IO.Target.Source}>
+        <Call fn="../../collection/kind" in={$ctx.resolvePreparationTarget.source_path} />
 
         <If on={$ctx.kind == Collection.Kind.Zx}>
-            <Call module="read" in={$in.types} />
+            <Call
+                module="read"
+                in={{
+                    types: $in.types,
+                    scoped: $in.scoped,
+                    path: $ctx.resolvePreparationTarget.source_path
+                }}
+            />
 
             <Return value={$ctx.read} />
         </If>

@@ -8,7 +8,7 @@ const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
 const abi = @import("cli_abi").native.@"zig:rx_preparation_host";
 const Role = abi.Role;
-const Target = abi.Target;
+const ResolvedTarget = @import("cli_abi").layouts.@"zig:rx_preparation_host".ResolvedTarget;
 const Entry = rx.dependency_reference.Entry;
 
 pub const Cursor = struct {
@@ -28,6 +28,7 @@ pub const Cursor = struct {
     entry: *const Entry = undefined,
     attribute: *const rx.ast.Attribute = undefined,
     target: compiler.project.ImportTarget = undefined,
+    resolved_view: ResolvedTarget = undefined,
     pub fn get(handle: *const anyopaque) *Cursor {
         return effects.state(Cursor, handle);
     }
@@ -37,12 +38,6 @@ pub const Cursor = struct {
         self.writer.print("{s}:{d}:{d}: module: {s}\n", .{ self.module.path, location.line, location.column, message }) catch |err| return self.failure.save(err);
     }
 };
-
-pub fn preparationModuleCount(handle: *const anyopaque) u64 {
-    const self = Cursor.get(handle);
-
-    return self.modules.len + self.stores.len;
-}
 
 pub fn selectPreparationModule(handle: *const anyopaque, index: u64) Error!u64 {
     const self = Cursor.get(handle);
@@ -75,7 +70,7 @@ pub fn isPreparationPackage(handle: *const anyopaque) bool {
     return rx.module_reference.isPackage(self.attribute.value, self.packages);
 }
 
-pub fn resolvePreparationTarget(handle: *const anyopaque, at_attribute: bool) Error!Target {
+pub fn resolvePreparationTarget(handle: *const anyopaque, at_attribute: bool) Error!*const ResolvedTarget {
     const self = Cursor.get(handle);
     const attribute = self.attribute;
     const offset = if (at_attribute) attribute.value_location.offset else 0;
@@ -85,17 +80,23 @@ pub fn resolvePreparationTarget(handle: *const anyopaque, at_attribute: bool) Er
         if (err == error.OutOfMemory) return self.failure.save(err);
         try self.report(reporter.diagnostic.?.message);
 
-        return .Invalid;
+        self.resolved_view = .{ .target = .Invalid, .source_path = "" };
+
+        return &self.resolved_view;
     };
 
-    return switch (self.target) {
-        .source => .Source,
-        .compiled => .Compiled,
-    };
-}
+    switch (self.target) {
+        .source => |source| {
+            const path = std.fs.path.resolve(self.allocator, &.{ self.project.root_dir, source }) catch |err| return self.failure.save(err);
 
-pub fn preparationSourcePath(handle: *const anyopaque) []const u8 {
-    return Cursor.get(handle).target.source;
+            self.resolved_view = .{ .target = .Source, .source_path = path };
+        },
+        .compiled => {
+            self.resolved_view = .{ .target = .Compiled, .source_path = "" };
+        },
+    }
+
+    return &self.resolved_view;
 }
 
 pub fn reportPreparationReference(handle: *const anyopaque, message: []const u8) Error!void {

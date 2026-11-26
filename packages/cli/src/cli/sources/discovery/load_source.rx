@@ -5,11 +5,13 @@
 
     <Call fn="index.selectImportFile" in={$in} />
 
-    <If on={$ctx.selectImportFile}>
-        <Call fn="index.hasSource" in={$in} />
-
-        <If on={!$ctx.hasSource}>
-            <Call fn="index.loadImportText" in={$in} />
-        </If>
+    <If on={$ctx.selectImportFile != null}>
+        <Call
+            fn="index.loadImportText"
+            in={[
+                $in,
+                $ctx.selectImportFile
+            ]}
+        />
     </If>
 </Module>

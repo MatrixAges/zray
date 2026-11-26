@@ -1,16 +1,14 @@
-import { preparationEvidenceCount, recordPreparationEvidence } from "rx_preparation_host"
+import { recordPreparationEvidence } from "rx_preparation_host"
 
-import type { Preparation as Input } from "rx_preparation_host"
+import type { Range as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = preparationEvidenceCount(in)
-
     const recorded = loop(0, {
-        while: index => index < count,
+        while: index => index < in.count,
         next: index => {
-            recordPreparationEvidence(in, index)
+            recordPreparationEvidence(in.preparation, index)
 
             index += 1
         }

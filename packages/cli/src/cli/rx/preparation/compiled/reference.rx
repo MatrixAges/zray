@@ -18,8 +18,8 @@
         ]}
     />
 
-    <If on={$ctx.resolvePreparationTarget != IO.Target.Compiled}>
-        <Return value={$ctx.resolvePreparationTarget == IO.Target.Source} />
+    <If on={$ctx.resolvePreparationTarget.target != IO.Target.Compiled}>
+        <Return value={$ctx.resolvePreparationTarget.target == IO.Target.Source} />
     </If>
 
     <Call fn="../index.prepareCompiledReference" in={$in.references} />

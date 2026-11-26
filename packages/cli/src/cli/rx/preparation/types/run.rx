@@ -3,17 +3,17 @@
 
     <Args in={Preparation.TypePass} out={bool} />
 
-    <Call fn="../index.copyInitialTypeSources" in={$in.types} />
+    <Store from="seen" as="seen" />
 
     <Call
-        fn="initial"
+        fn="seed_seen"
         in={{
-            types: $in.types,
-            count: $ctx.copyInitialTypeSources
+            paths: $in.initial_paths
         }}
+        setter={[store.seen.visited]}
     />
 
-    <Call module="walk" in={$in} />
+    <Call module="walk" in={$in.omit(["initial_paths"])} />
 
     <Return value={$ctx.walk} />
 </Module>

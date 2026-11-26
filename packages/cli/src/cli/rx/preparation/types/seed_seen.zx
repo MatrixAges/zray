@@ -1,0 +1,11 @@
+import type { SeedSeenInput as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    store.seen.visited = {
+        paths: in.paths
+    }
+}

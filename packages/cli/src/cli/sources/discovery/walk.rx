@@ -15,14 +15,12 @@
     </If>
 
     <Call
-        fn="index.selectSource"
-        in={[
-            $in.discovery,
-            $in.index
-        ]}
+        module="source"
+        in={{
+            discovery: $in.discovery,
+            row: $in.index
+        }}
     />
-
-    <Call module="source" in={$in.discovery} />
 
     <Return
         value={{

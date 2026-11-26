@@ -5,7 +5,7 @@ const Traversal = @import("../../sources.zig").Traversal;
 const effects = @import("../effects.zig");
 const Error = effects.Error;
 const Text = @import("../text.zig");
-const Target = @import("cli_abi").native.@"zig:source_loader_host".Target;
+const ResolvedImport = @import("cli_abi").layouts.@"zig:source_loader_host".ResolvedImport;
 const ModuleResult = compiler.project.ParseCache.ModuleResult;
 const rule = @import("cli_source").discover_sources;
 
@@ -15,12 +15,12 @@ const State = struct {
     entry: []const u8,
     recorded: bool,
     failure: effects.Failure = .{},
-    row: usize = undefined,
     owner: ?[]const u8 = null,
     parsed: *const ModuleResult = undefined,
     reference: compiler.project.ModuleReference = undefined,
     path: []const u8 = undefined,
     span: zx.Span = undefined,
+    resolved_view: ResolvedImport = undefined,
     fn close(self: *State) void {
         if (self.owner) |owner| self.traversal.allocator.free(owner);
 
@@ -66,22 +66,17 @@ pub fn sourceCount(handle: *const anyopaque) u64 {
     return effects.state(State, handle).traversal.sources.items.len;
 }
 
-pub fn selectSource(handle: *const anyopaque, index: u64) void {
-    effects.state(State, handle).row = @intCast(index);
-}
-
-pub fn prepareSource(handle: *const anyopaque) Error!void {
+pub fn prepareSource(handle: *const anyopaque, row: u64) Error!void {
     const self = effects.state(State, handle);
     const traversal = self.traversal;
-    const item = &traversal.sources.items[self.row];
-
+    const item = &traversal.sources.items[@intCast(row)];
     item.* = @import("../templates.zig").prepare(traversal.io, traversal.allocator, item.*, self.project, traversal.inputs) catch |err| return self.failure.save(err);
 }
 
-pub fn openHeader(handle: *const anyopaque) Error!u64 {
+pub fn openHeader(handle: *const anyopaque, row: u64) Error!u64 {
     const self = effects.state(State, handle);
     const traversal = self.traversal;
-    const item = &traversal.sources.items[self.row];
+    const item = &traversal.sources.items[@intCast(row)];
     const owner = std.fs.path.resolve(traversal.allocator, &.{ self.project.root_dir, item.path }) catch |err| return self.failure.save(err);
     self.owner = owner;
 
@@ -101,7 +96,7 @@ pub fn closeHeader(handle: *const anyopaque) void {
     effects.state(State, handle).close();
 }
 
-pub fn resolveImport(handle: *const anyopaque, index: u64) Error!Target {
+pub fn resolveImport(handle: *const anyopaque, index: u64) Error!*const ResolvedImport {
     const self = effects.state(State, handle);
     const imported = self.imported(@intCast(index));
     var reporter: zx.Reporter = .{};
@@ -109,20 +104,25 @@ pub fn resolveImport(handle: *const anyopaque, index: u64) Error!Target {
     const reference = compiler.project.resolveModuleReference(self.traversal.allocator, self.owner.?, imported.path, self.project, &reporter, imported.span) catch |err| {
         if (err == error.OutOfMemory) return self.failure.save(err);
 
-        return .Deferred;
+        self.resolved_view = .{ .target = .Deferred, .path = "" };
+
+        return &self.resolved_view;
     };
 
     self.reference = reference;
     self.span = imported.span;
 
     switch (reference.target) {
-        .compiled => return .Compiled,
+        .compiled => {
+            self.resolved_view = .{ .target = .Compiled, .path = "" };
+        },
         .source => |path| {
             self.path = path;
-
-            return .Source;
+            self.resolved_view = .{ .target = .Source, .path = path };
         },
     }
+
+    return &self.resolved_view;
 }
 
 pub fn admitCompiledImport(handle: *const anyopaque) Error!void {
@@ -133,48 +133,39 @@ pub fn admitCompiledImport(handle: *const anyopaque) Error!void {
     _ = libraries.add(traversal.io, self.reference.target.compiled, self.project, traversal.inputs) catch |err| return self.failure.save(err);
 }
 
-pub fn importPath(handle: *const anyopaque) []const u8 {
-    return effects.state(State, handle).path;
-}
-
 pub fn markRxImport(handle: *const anyopaque) void {
     const traversal = effects.state(State, handle).traversal;
 
     if (traversal.has_rx) |found| found.* = true;
 }
 
-pub fn selectImportFile(handle: *const anyopaque) Error!bool {
+pub fn selectImportFile(handle: *const anyopaque) Error!?[]const u8 {
     const self = effects.state(State, handle);
-
-    if (!self.reference.file) return true;
-
     const traversal = self.traversal;
-    const path = @import("../module_path.zig").select(traversal.io, traversal.allocator, self.path, traversal.inputs) catch |err| return self.failure.save(err);
-    var reporter: zx.Reporter = .{};
 
-    compiler.project.checkFileTarget(self.owner.?, path, self.project, &reporter, self.span) catch |err| {
-        if (err == error.OutOfMemory) return self.failure.save(err);
+    if (self.reference.file) {
+        const path = @import("../module_path.zig").select(traversal.io, traversal.allocator, self.path, traversal.inputs) catch |err| return self.failure.save(err);
+        var reporter: zx.Reporter = .{};
 
-        return false;
-    };
+        compiler.project.checkFileTarget(self.owner.?, path, self.project, &reporter, self.span) catch |err| {
+            if (err == error.OutOfMemory) return self.failure.save(err);
 
-    self.path = path;
+            return null;
+        };
 
-    return true;
+        self.path = path;
+    }
+
+    if (traversal.paths.contains(self.path)) return null;
+
+    return self.path;
 }
 
-pub fn hasSource(handle: *const anyopaque) bool {
-    const self = effects.state(State, handle);
-
-    return self.traversal.paths.contains(self.path);
-}
-
-pub fn loadImportText(handle: *const anyopaque) Error!void {
+pub fn loadImportText(handle: *const anyopaque, path: []const u8) Error!void {
     const self = effects.state(State, handle);
     const traversal = self.traversal;
     const io = traversal.io;
     const allocator = traversal.allocator;
-    const path = self.path;
     const inputs = traversal.inputs;
 
     if (inputs) |observed| observed.add(io, path) catch |err| return self.failure.save(err);

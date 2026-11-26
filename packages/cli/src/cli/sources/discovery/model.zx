@@ -5,6 +5,11 @@ export type Range = {
     first: u64
 }
 
+export type SourceRow = {
+    discovery: Discovery,
+    row: u64
+}
+
 export type Header = {
     discovery: Discovery,
     count: u64,

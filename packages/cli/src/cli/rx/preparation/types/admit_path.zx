@@ -1,0 +1,31 @@
+import bytes from "std:bytes"
+
+import type { AdmitPathInput as Input } from "../model"
+
+export type Output = bool
+
+export default function (in: Input, {
+    store
+}): Output {
+    const wanted = bytes.fromText(in.path)
+    const count = in.visited.paths.length
+
+    const existing = loop(0, {
+        while: i =>
+            i < count && !bytes.equals(bytes.fromText(in.visited.paths[i]), wanted),
+        next: i => {
+            i += 1
+        },
+        return: i => i < count
+    })
+
+    if (existing) {
+        return false
+    }
+
+    store.seen.visited = {
+        paths: in.visited.paths.push(in.path)[0]
+    }
+
+    return true
+}

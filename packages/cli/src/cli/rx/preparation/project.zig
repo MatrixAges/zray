@@ -10,6 +10,7 @@ const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
 const rule = @import("cli_source").prepare_rx_project;
 const Inferred = analysis.module.Result;
+const LoadedRange = @import("cli_abi").layouts.@"zig:rx_preparation_host".LoadedRange;
 
 const State = struct {
     allocator: std.mem.Allocator,
@@ -24,6 +25,7 @@ const State = struct {
     physical_root: ?[]const u8 = null,
     functions: []const rx.TextSource = &.{},
     paths: [][]const u8 = &.{},
+    loaded_view: LoadedRange = undefined,
     inferred: ?Inferred = null,
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
@@ -199,16 +201,12 @@ pub fn registerPreparationRoot(handle: *const anyopaque, index: u64) Error!void 
     self.known.put(self.allocator, path, function.source) catch |err| return self.failure.save(err);
 }
 
-pub fn hasPreparedRoot(handle: *const anyopaque, index: u64) bool {
-    const self = State.get(handle);
-
-    return self.traversal.paths.contains(self.paths[@intCast(index)]);
-}
-
-pub fn loadPreparationRoot(handle: *const anyopaque, index: u64) Error!u64 {
+pub fn loadPreparationRoot(handle: *const anyopaque, index: u64) Error!?*const LoadedRange {
     const self = State.get(handle);
     const row: usize = @intCast(index);
     const path = self.paths[row];
+
+    if (self.traversal.paths.contains(path)) return null;
 
     self.validatePath(path) catch |err| return self.failure.save(err);
 
@@ -216,11 +214,12 @@ pub fn loadPreparationRoot(handle: *const anyopaque, index: u64) Error!u64 {
 
     self.traversal.readEntry(path, self.functions[row].source, true) catch |err| return self.failure.save(err);
 
-    return first;
-}
+    self.loaded_view = .{
+        .first = first,
+        .count = self.traversal.sources.items.len,
+    };
 
-pub fn preparedZxCount(handle: *const anyopaque) u64 {
-    return State.get(handle).traversal.sources.items.len;
+    return &self.loaded_view;
 }
 
 pub fn validatePreparedSource(handle: *const anyopaque, index: u64) Error!void {
@@ -244,7 +243,7 @@ pub fn collectPreparationLibraries(handle: *const anyopaque) Error!bool {
     }) catch |err| return self.failure.save(err);
 }
 
-pub fn inferPreparedProject(handle: *const anyopaque) Error!bool {
+pub fn inferPreparedProject(handle: *const anyopaque) Error!?u64 {
     const self = State.get(handle);
     const options = self.options;
     const loaded = &self.loaded.?.data;
@@ -264,17 +263,13 @@ pub fn inferPreparedProject(handle: *const anyopaque) Error!bool {
 
     const value = &self.inferred.?.value;
 
-    if (value.* != .diagnostic) return true;
+    if (value.* != .diagnostic) return loaded.sources.len;
 
     const issue = value.diagnostic;
 
     options.writer.print("{s}:{d}:{d}: {s}: {s}\n", .{ issue.path, issue.location.line, issue.location.column, issue.code, issue.message }) catch |err| return self.failure.save(err);
 
-    return false;
-}
-
-pub fn preparationEvidenceCount(handle: *const anyopaque) u64 {
-    return State.get(handle).loaded.?.data.sources.len;
+    return null;
 }
 
 pub fn recordPreparationEvidence(handle: *const anyopaque, index: u64) Error!void {

@@ -18,6 +18,7 @@
             in={$in.pick([
                 "types",
                 "references",
+                "scoped",
                 "diagnostic"
             ])}
         />
