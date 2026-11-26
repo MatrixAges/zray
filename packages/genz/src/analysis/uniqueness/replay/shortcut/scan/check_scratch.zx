@@ -6,6 +6,4 @@ export type Output = void
 
 export default function (in: Input): Output {
     const reset = try memory.resetArena(in.scratch)
-
-    memory.selectArena(in.scope, in.scratch)
 }

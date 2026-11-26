@@ -25,12 +25,14 @@ export default function (in: Input): Output {
 
     reserve({
         ...owners,
-        used
+        used,
+        owner: null
     })
 
     reserve({
         ...entries,
-        used
+        used,
+        owner: null
     })
 
     columns.writeRow(entries.rows, used, entry)

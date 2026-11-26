@@ -1,4 +1,4 @@
-import type { Allocator, ArenaScope, AtomicRows, ListColumn } from "memory"
+import type { AtomicRows, ListColumn } from "memory"
 import type { Probe } from "../../../memo/encoding/body/model"
 import type { Step } from "../../../replay/model"
 import type { Origin } from "../model"
@@ -14,10 +14,7 @@ export type Reads = {
 export type Cache = {
     memo?: Probe,
     history?: Step,
-    state_end: u64,
-    scope: ArenaScope,
-    owner: Allocator,
-    temporary: Allocator
+    state_end: u64
 }
 
 export type ProbeInput = Cache.Omit("history") & {

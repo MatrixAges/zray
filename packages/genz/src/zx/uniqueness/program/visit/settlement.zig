@@ -11,7 +11,6 @@ const Retain = rows.Target(Save, "retain");
 pub const Adopted = struct { changed: []const u64, stored: ?Memo.Settled };
 
 pub fn apply(scratch: std.mem.Allocator, summaries: *Summaries, value: *const Memo.Settled, memo: ?*Memo) std.mem.Allocator.Error!Adopted {
-    var scope = zx.memory.ArenaScope{ .active = scratch };
     var passed: rows.Contributions(Retain, "target") = undefined;
     var stored: record.Frame(.settled, rows.Target(Save, "memo")) = undefined;
     const owner = if (memo) |cache| cache.arena.allocator() else undefined;
@@ -36,13 +35,11 @@ pub fn apply(scratch: std.mem.Allocator, summaries: *Summaries, value: *const Me
                 .target = &.{ .storage = @ptrCast(&passed.buffer), .columns = &passed.view },
                 .output = @ptrCast(value.output),
                 .owner = @ptrCast(&owner),
-                .scope = @ptrCast(&scope),
-                .scratch = @ptrCast(&scratch),
             },
         } else null,
     };
 
-    const changed = zx.columns.invoke(entry.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const changed = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("settlement adoption failed: {s}", .{@errorName(err)}),
     };

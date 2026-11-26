@@ -23,9 +23,7 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     const ahead = &ctx.rounds.?.ahead;
     const memo = ctx.memo;
     const table = &@field(memo, @tagName(kind));
-    const owner = memo.arena.allocator();
     const temporary = ctx.replay.allocator;
-    var scope = zx.memory.ArenaScope{ .active = temporary };
     const previous: ?*const Trace = if (persistent) ctx.replay.trace else null;
     const history: ?@FieldType(Trace, @tagName(kind)) = if (previous) |trace| @field(trace, @tagName(kind)) else null;
     const selection = if (history) |rows| ctx.replay.control.visit(target(Input, "history"), kind, index, rows.starts, false) else undefined;
@@ -57,14 +55,11 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
         .memo = if (persistent) &probe else null,
         .history = if (history != null) &selection else null,
         .state_end = encoding.state_end,
-        .scope = @ptrCast(&scope),
-        .owner = @ptrCast(&owner),
-        .temporary = @ptrCast(&temporary),
         .ahead_ready = ahead_ready,
         .ahead_reads = if (ahead_ready and kind != .planned) &reads.bind(slot.?, ctx) else null,
     };
 
-    const result = zx.columns.invoke(entry.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(entry.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership visit intake failed: {s}", .{@errorName(err)}),
     };

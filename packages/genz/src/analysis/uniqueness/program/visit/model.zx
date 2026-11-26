@@ -1,4 +1,4 @@
-import type { Allocator, ArenaScope, WriteColumn } from "memory"
+import type { WriteColumn } from "memory"
 import type { WriteColumn as Column } from "memory/columns"
 import type { Input as RetainSettlement } from "../../function/result/retain"
 import type { Input as Contributions } from "../../function/updates/contributions"
@@ -50,13 +50,7 @@ export type Settlement = Contributions & {
 
 export type SettlementSave = {
     memo: MemoTarget,
-    retain: SettlementRetention
-}
-
-export type SettlementRetention = RetainSettlement & {
-    scope: ArenaScope,
-    owner: Allocator,
-    scratch: Allocator
+    retain: RetainSettlement
 }
 
 export type PlanAdoption = {

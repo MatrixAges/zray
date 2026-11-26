@@ -1,4 +1,3 @@
-import type { Allocator, ArenaScope } from "memory"
 import type { ColumnAllocator, WriteColumn } from "memory/columns"
 import type { Targets } from "../../growth/output"
 import type { Demanded, Mark, Visit as DemandInput } from "../demand/model"
@@ -19,7 +18,8 @@ export type Reads = {
 
 export type Contributions = {
     passed: Contribution[],
-    target: ContributionTarget
+    target: ContributionTarget,
+    owner?: ColumnAllocator
 }
 
 export type Marks = {
@@ -33,7 +33,8 @@ export type Settlement = {
     levels: Knowledge[],
     reads: Read[],
     contributions: ContributionTarget,
-    read_target?: ReadTarget
+    read_target?: ReadTarget,
+    owner?: ColumnAllocator
 }
 
 export type Demand = {
@@ -46,12 +47,6 @@ export type Demand = {
     read_target?: ReadTarget,
     growth?: Targets,
     owner?: ColumnAllocator
-}
-
-export type Arenas = {
-    scope: ArenaScope,
-    scratch: Allocator,
-    owner: Allocator
 }
 
 export type SettlementTargets = Settlement.Pick("contributions", "read_target")
@@ -69,7 +64,7 @@ export type GrowthInstallation = {
 export type SettleVisit = {
     analysis: SettlementInput,
     targets: SettlementTargets,
-    arenas: Arenas
+    owner: ColumnAllocator
 }
 
 export type DemandVisit = {

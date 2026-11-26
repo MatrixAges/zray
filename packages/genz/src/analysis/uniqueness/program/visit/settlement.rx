@@ -4,14 +4,14 @@
     <Args in={Visit.Settlement} out={u64[]} />
 
     <If on={$in.save != null}>
-        <Call fn="retain_settlement" in={$in.save.retain} />
+        <Call fn="../../function/result/retain" in={$in.save.retain} />
 
         <Call
             module="../../memo/record/write"
             in={{
                 target: $in.save.memo,
                 result: {
-                    levels: $ctx.retain_settlement,
+                    levels: $ctx.retain,
                     changed: [],
                     grew: false,
                     plan: null

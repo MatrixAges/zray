@@ -15,14 +15,6 @@
         }}
     />
 
-    <Call
-        fn="../../../program/allocators.selectAllocator"
-        in={[
-            $in.scan.arenas.scope,
-            $in.scan.arenas.staged
-        ]}
-    />
-
     <If on={$ctx.restore}>
         <Return
             value={{

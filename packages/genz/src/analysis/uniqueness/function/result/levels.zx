@@ -1,11 +1,22 @@
+import columns from "memory/columns"
+
 import encode from "../levels/encode"
 
+import type { ColumnAllocator } from "memory/columns"
 import type { Knowledge } from "../levels/model"
 
-export type Input = Knowledge[]
+export type Input = {
+    levels: Knowledge[],
+    owner?: ColumnAllocator
+}
 
 export type Output = u8[]
 
 export default function (in: Input): Output {
-    return in.map(value => encode(value))[0]
+    const encoded = in.levels.map(value => encode(value))[0]
+
+    return match {
+        in.owner != null => columns.copyColumnBytes(in.owner, encoded),
+        _ => encoded
+    }
 }

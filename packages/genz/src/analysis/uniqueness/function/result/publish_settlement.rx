@@ -4,14 +4,6 @@
     <Args in={Result.PublishSettlement} out={Result.PublishedSettlement} />
 
     <Call
-        fn="../../program/allocators.selectAllocator"
-        in={[
-            $in.arenas.scope,
-            $in.arenas.owner
-        ]}
-    />
-
-    <Call
         module="settlement"
         in={{
             ...$in.result.pick([
@@ -19,16 +11,9 @@
                 "levels",
                 "reads"
             ]),
-            ...$in.targets
+            ...$in.targets,
+            owner: $in.owner
         }}
-    />
-
-    <Call
-        fn="../../program/allocators.selectAllocator"
-        in={[
-            $in.arenas.scope,
-            $in.arenas.scratch
-        ]}
     />
 
     <Return

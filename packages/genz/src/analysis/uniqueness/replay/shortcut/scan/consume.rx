@@ -21,14 +21,6 @@
         ])}
     />
 
-    <Call
-        fn="../../../program/allocators.selectAllocator"
-        in={[
-            $in.arenas.scope,
-            $in.arenas.staged
-        ]}
-    />
-
     <Return
         value={{
             agreed: $ctx.compare,

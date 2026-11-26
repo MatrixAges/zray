@@ -14,7 +14,8 @@ export default function (in: Input): Output {
         rows: target.rows,
         available: columns.rowBufferBytes(target.rows).length / target.width,
         granule: target.granule,
-        used
+        used,
+        owner: target.owner
     })
 
     memory.writeColumnU32(target.positions, used, in.visit)

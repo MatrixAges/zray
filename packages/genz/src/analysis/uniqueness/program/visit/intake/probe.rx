@@ -4,23 +4,7 @@
     <Args in={Intake.ProbeInput} out={Intake.Found} />
 
     <If on={$in.memo != null}>
-        <Call
-            fn="../../allocators.selectAllocator"
-            in={[
-                $in.scope,
-                $in.owner
-            ]}
-        />
-
         <Call module="../../../memo/encoding/body/probe" in={$in.memo} />
-
-        <Call
-            fn="../../allocators.selectAllocator"
-            in={[
-                $in.scope,
-                $in.temporary
-            ]}
-        />
 
         <Return
             value={{

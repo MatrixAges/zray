@@ -17,7 +17,7 @@
                     count: $in.view.count
                 },
                 targets: $in.settlement.targets,
-                arenas: $in.arenas
+                owner: $in.owner_rows
             }}
         />
 

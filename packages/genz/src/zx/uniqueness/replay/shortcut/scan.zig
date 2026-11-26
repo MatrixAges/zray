@@ -41,7 +41,6 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
     var key: []u8 = &ctx.memo.key;
     var demands = ctx.summaries.storage.?.demands;
-    var scope = zx.memory.ArenaScope{ .active = staged };
     var output: zx.memory.RowOutput(Row, Columns, .{ .positions = &.{"visit"}, .values = &.{"value"} }) = undefined;
     var normalized: rows.Normalized(Recovery) = undefined;
     var renewed: rows.Renewed(Recovery) = undefined;
@@ -86,8 +85,9 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
             .values = output.view.values,
             .width = @sizeOf(Row),
             .granule = @max(1, std.atomic.cache_line / @sizeOf(Row)),
+            .owner = @ptrCast(&staged),
         },
-        .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(scratch), .staged = @ptrCast(&staged) },
+        .arenas = &.{ .scratch = @ptrCast(scratch) },
         .recovery = &.{
             .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
             .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
@@ -103,7 +103,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
         .recovered = recovered,
     };
 
-    const result = zx.columns.invoke(scanning.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(scanning.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership replay scan failed: {s}", .{@errorName(err)}),
     };

@@ -19,6 +19,7 @@ pub fn retain(owner: std.mem.Allocator, passed: []const Function.Contribution, o
         .source = &source.view(rows.Target(Input, "source")),
         .target = &.{ .storage = @ptrCast(&result.buffer), .columns = &result.view },
         .output = @ptrCast(output),
+        .owner = null,
     };
 
     const levels = retaining.executeValue(owner, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {

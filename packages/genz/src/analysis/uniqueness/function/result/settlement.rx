@@ -7,7 +7,8 @@
         fn="contributions"
         in={{
             passed: $in.passed,
-            target: $in.contributions
+            target: $in.contributions,
+            owner: $in.owner
         }}
     />
 
@@ -18,12 +19,18 @@
                 before: [],
                 after: $in.reads,
                 target: $in.read_target,
-                owner: null
+                owner: $in.owner
             }}
         />
     </If>
 
-    <Call fn="levels" in={$in.levels} />
+    <Call
+        fn="levels"
+        in={{
+            levels: $in.levels,
+            owner: $in.owner
+        }}
+    />
 
     <Return value={$ctx.levels} />
 </Module>

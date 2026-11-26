@@ -1,14 +1,17 @@
 import { allocateRows } from "core/row_buffer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import record from "./contribution"
 
+import type { ColumnAllocator } from "memory/columns"
 import type { ContributionRows, ContributionTarget } from "./columns"
 
 export type Input = {
     source: ContributionRows,
     target: ContributionTarget,
-    output: u8[]
+    output: u8[],
+    owner?: ColumnAllocator
 }
 
 export type Output = u8[]
@@ -18,7 +21,8 @@ export default function (in: Input): Output {
 
     allocateRows({
         target: target.storage,
-        count: source.count
+        count: source.count,
+        owner: in.owner
     })
 
     const first: u64 = 0
@@ -30,11 +34,16 @@ export default function (in: Input): Output {
                 target: target.columns,
                 index,
                 callee: memory.readColumnU32(source.callees, index),
-                levels: memory.borrowListBytes(source.levels, index)
+                levels: memory.borrowListBytes(source.levels, index),
+                owner: in.owner
             })
             index += 1
         }
     })
+
+    if (in.owner != null) {
+        return columns.copyColumnBytes(in.owner, in.output)
+    }
 
     const output: u8[] = []
 

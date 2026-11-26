@@ -1,13 +1,14 @@
 import { max_u64 } from "core/const"
 import { reserveRows } from "core/row_buffer"
 
-import type { RowBuffer } from "memory/columns"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
 
 export type Input = {
     rows: RowBuffer,
     available: u64,
     granule: u64,
-    used: u64
+    used: u64,
+    owner?: ColumnAllocator
 }
 
 export type Output = void
@@ -31,6 +32,6 @@ export default function (in: Input): Output {
         rows,
         used,
         capacity,
-        null
+        in.owner
     ])
 }

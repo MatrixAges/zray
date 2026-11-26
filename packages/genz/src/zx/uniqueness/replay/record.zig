@@ -97,5 +97,6 @@ fn view(comptime Row: type, buffer: *RowBuffer) Rows {
         .rows = @ptrCast(buffer),
         .available = buffer.bytes.len / @sizeOf(Row),
         .granule = @max(1, std.atomic.cache_line / @sizeOf(Row)),
+        .owner = null,
     };
 }

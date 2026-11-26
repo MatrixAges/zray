@@ -11,7 +11,8 @@ export default function (in: Input): Output {
 
     allocateRows({
         target: target.storage,
-        count: passed.length
+        count: passed.length,
+        owner: in.owner
     })
 
     const first: u64 = 0
@@ -25,7 +26,8 @@ export default function (in: Input): Output {
                 target: target.columns,
                 index,
                 callee: row.callee,
-                levels: row.guarantees
+                levels: row.guarantees,
+                owner: in.owner
             })
             index += 1
         }

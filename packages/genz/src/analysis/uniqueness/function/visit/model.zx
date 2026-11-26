@@ -7,8 +7,9 @@ import type { Layout } from "../../slots/model"
 import type { Exchange } from "../demand/model"
 import type { Context as FactsContext } from "../levels/model"
 import type { Published } from "../plan/model"
+import type { Arenas } from "../plan/model"
 import type { Output as Facts } from "../prepare/model"
-import type { Arenas, DemandTargets, SettlementTargets } from "../result/model"
+import type { DemandTargets, SettlementTargets } from "../result/model"
 
 export type Body = FactsContext.Pick("normalized", "renewed") & {
     facts: Facts,
