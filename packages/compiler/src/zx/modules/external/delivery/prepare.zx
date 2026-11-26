@@ -1,7 +1,8 @@
 import encoding from "std:encoding"
-import strings from "std:string"
 import { Ownership } from "core/symbol_table/model"
 import memory from "memory"
+
+import copyList from "./copy_list"
 
 import type { Allocator } from "memory"
 import type { Output } from "../../link/signature/publication/prepare"
@@ -21,7 +22,11 @@ export default function (in: Input): Output {
     const spans = in.members
 
     const members = memory.requireTextSlots(
-        memory.allocateTextSlots(resource, spans.length, null)
+        memory.allocateTextSlots(
+            resource,
+            spans.length,
+            null
+        )
     )
 
     const filled = loop(0, {
@@ -37,9 +42,22 @@ export default function (in: Input): Output {
         }
     })
 
+    const owned_errors: string[]? = match {
+        errors != null => copyList({
+            resource,
+            items: errors
+        }),
+        _ => null
+    }
+
+    const owned_export: string? = match {
+        export_name != null => memory.copyColumnText(resource, export_name),
+        _ => null
+    }
+
     return {
         function: {
-            file: strings.copy(implementation.specifier),
+            file: memory.copyColumnText(resource, implementation.specifier),
             ports: {
                 input: in.input_type,
                 output: in.output_type,
@@ -47,8 +65,8 @@ export default function (in: Input): Output {
             },
             external: {
                 members: memory.borrowTextSlots(members, spans.length),
-                errors: errors == null ? null : strings.copyList(errors),
-                export_name: export_name == null ? null : strings.copy(export_name),
+                errors: owned_errors,
+                export_name: owned_export,
                 parameters: null
             }
         },

@@ -6,7 +6,7 @@ import type { Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { selected, destinations } = in
+    const { selected, destinations, owner_rows } = in
     const { aliases, constants, functions } = destinations
 
     if (selected.alias_names.length != 0) {
@@ -14,7 +14,7 @@ export default function (in: Input): Output {
             aliases.storage,
             memory.readU64(aliases.used, 0),
             selected.alias_names.length,
-            null
+            owner_rows
         ])
     }
 
@@ -23,7 +23,7 @@ export default function (in: Input): Output {
             constants.storage,
             memory.readU64(constants.used, 0),
             selected.constant_names.length,
-            null
+            owner_rows
         ])
     }
 
@@ -32,7 +32,7 @@ export default function (in: Input): Output {
             functions.storage,
             memory.readU64(functions.used, 0),
             selected.function_names.length,
-            null
+            owner_rows
         ])
     }
 }

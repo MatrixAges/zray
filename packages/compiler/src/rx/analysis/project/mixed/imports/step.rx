@@ -32,14 +32,6 @@
 
             <If on={$ctx.bind.function_names.length != 0}>
                 <Call
-                    fn="host.selectAllocator"
-                    in={[
-                        $in.scope,
-                        $in.owner
-                    ]}
-                />
-
-                <Call
                     fn="publish"
                     in={{
                         names: $ctx.bind.function_names,
@@ -47,19 +39,13 @@
                         rows: $ctx.openMixedImport,
                         exported: $ctx.openMixedImport.exported,
                         ...$in.pick([
+                            "owner",
+                            "owner_rows",
                             "functions",
                             "published",
                             "layout"
                         ])
                     }}
-                />
-
-                <Call
-                    fn="host.selectAllocator"
-                    in={[
-                        $in.scope,
-                        $in.scratch
-                    ]}
                 />
             </If>
         </If>

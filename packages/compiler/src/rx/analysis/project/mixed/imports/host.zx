@@ -1,2 +1,1 @@
-export { selectAllocator } from "memory"
 export { openMixedImport, rejectMixedImport } from "rx_project_host"

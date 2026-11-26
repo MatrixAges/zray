@@ -102,7 +102,6 @@ const Bindings = struct {
 
 fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *const Signature) State.Error!Result {
     const scratch = bindings.state.scratch.allocator();
-    var scope: memory.ArenaScope = .{ .active = scratch };
     var functions = memory.RowBuffer.empty(Binding);
     var published = memory.RowBuffer.empty(Binding);
     var used = [_]u64{ 0, 0 };
@@ -116,9 +115,8 @@ fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *
         .count = bindings.edges.len,
         .row = 0,
         .symbols = &.{zx.columns.pointer(std.meta.Elem(@FieldType(Input, "symbols")), symbols)},
-        .scope = @ptrCast(&scope),
-        .scratch = @ptrCast(&scratch),
         .owner = @ptrCast(&allocator),
+        .owner_rows = @ptrCast(&allocator),
         .functions = &.{
             .storage = @ptrCast(&functions),
             .bytes = @ptrCast(&functions.bytes),
@@ -134,7 +132,7 @@ fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *
         .layout = &.{ .stride = @sizeOf(Binding), .name_offset = @offsetOf(Binding, "name") },
     };
 
-    rule.executeIn(scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    rule.executeIn(scratch, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.InvalidSourceGraph => return error.InvalidSourceGraph,
         else => unreachable,

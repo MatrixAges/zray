@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import strings from "std:string"
 import { reserveAppend } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
@@ -7,12 +6,13 @@ import columns from "memory/columns"
 import type { MixedImportRows } from "rx_project_host"
 import type { Request } from "./model"
 
-export type Input = Request.Pick("functions", "published", "layout") & {
-    names: string[],
-    indices: u64[],
-    rows: MixedImportRows,
-    exported: bool
-}
+export type Input =
+    Request.Pick("owner", "owner_rows", "functions", "published", "layout") & {
+        names: string[],
+        indices: u64[],
+        rows: MixedImportRows,
+        exported: bool
+    }
 
 export type Output = void
 
@@ -33,7 +33,7 @@ export default function (in: Input): Output {
         target.storage,
         used,
         prefix + names.length,
-        null
+        in.owner_rows
     ])
 
     if (prefix != 0) {
@@ -55,7 +55,7 @@ export default function (in: Input): Output {
             }
 
             const destination = first + row
-            const owned = strings.copy(names[row])
+            const owned = memory.copyColumnText(in.owner, names[row])
             const copied = memory.copyBytes(
                 target.bytes,
                 destination * stride,

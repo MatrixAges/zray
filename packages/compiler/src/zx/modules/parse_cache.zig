@@ -114,24 +114,17 @@ fn retire(self: *Self, published: bool) void {
         else
             memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, self.transient.items);
 
-        var target: memory.WriteColumn = .{
-            .items = @ptrCast(&self.retained_capacity),
-            .count = 1,
-            .stride = @sizeOf(usize),
-            .width = @sizeOf(usize),
-        };
-
         const input: std.meta.Child(rule.Input) = .{
             .cache = @ptrCast(self),
             .marks = @ptrCast(&marks),
             .count = self.transient.items.len,
             .capacity = self.retained_capacity,
-            .target = @ptrCast(&target),
         };
 
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-        zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+        self.retained_capacity = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+
         self.transient.clearRetainingCapacity();
 
         return;

@@ -7,18 +7,12 @@
 
     <If on={$ctx.bind.message == ""}>
         <Call
-            fn="allocation.selectAllocator"
-            in={[
-                $in.scope,
-                $in.owner
-            ]}
-        />
-
-        <Call
             module="../publication/publish"
             in={{
                 selected: $ctx.bind,
-                destinations: $in.destinations
+                destinations: $in.destinations,
+                owner: $in.owner,
+                owner_rows: $in.owner_rows
             }}
         />
 
@@ -26,10 +20,7 @@
             <Call
                 module="../../project/exports/signatures/publish_reexports"
                 in={{
-                    ...$in.pick([
-                        "scope",
-                        "owner"
-                    ]),
+                    owner: $in.owner,
                     rows: $in.reexports,
                     names: $ctx.bind.function_names,
                     indices: $ctx.bind.function_indices

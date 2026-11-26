@@ -1,4 +1,3 @@
-import type { Allocator, ArenaScope } from "memory"
 import type { Target } from "../../../analysis/semantic/merging/publication/model"
 import type { Diagnostic } from "../../../analysis/semantic/resolving/model"
 import type { Span } from "../../../frontend/lexer/token_model"
@@ -25,8 +24,6 @@ export type Input = {
     analysis:
         ExternalInput.Omit("nominal_origin", "expand_tuple", "fallible", "errors"),
     identity?: string,
-    scope: ArenaScope,
-    payload: Allocator,
     types: Target,
     destination: Destination,
     empty: BodyColumns,

@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import strings from "std:string"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -10,7 +9,7 @@ export type Input = Selected & Constants.Pick("source", "target")
 export type Output = void
 
 export default function (in: Input): Output {
-    const { names, indices, source, target, used } = in
+    const { names, indices, source, target, used, owner } = in
 
     const first = memory.readU64(used, 0)
 
@@ -19,7 +18,7 @@ export default function (in: Input): Output {
         next: row => {
             const index = indices[row]
             const destination = first + row
-            const name = strings.copy(names[row])
+            const name = memory.copyColumnText(owner, names[row])
             const type_id = columns.readColumnU32(source.types, index)
             const text = columns.readScalarText(source.values, index)
 
@@ -27,7 +26,7 @@ export default function (in: Input): Output {
                 columns.writeScalarText(
                     target.values,
                     destination,
-                    strings.copy(text)
+                    memory.copyColumnText(owner, text)
                 )
             } else {
                 columns.copyScalarAt(

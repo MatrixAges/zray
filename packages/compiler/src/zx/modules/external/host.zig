@@ -17,7 +17,6 @@ pub fn load(project: *Project, entry: *const External, module: ir.NativeModuleId
 
     defer scratch.deinit();
 
-    var scope: zx.memory.ArenaScope = .{ .active = scratch.allocator() };
     const offsets = TypeTail.offsets(&project.types);
     const options: TypeTail.Options = .{ .allocator = allocator, .payload = allocator, .types = &project.types, .origins = &project.nominal_origins.items, .offsets = &offsets };
     var types: TypeTail = undefined;
@@ -42,8 +41,6 @@ pub fn load(project: *Project, entry: *const External, module: ir.NativeModuleId
             .member = implementation.member,
         },
         .identity = entry.identity,
-        .scope = @ptrCast(&scope),
-        .payload = @ptrCast(&allocator),
         .types = zx.columns.pointer(@FieldType(Input, "types"), @as(*const TypeTail.Target, &types.target)),
         .destination = &view.input,
         .empty = &destination.empty(std.meta.Child(@FieldType(Input, "empty"))),
@@ -62,9 +59,9 @@ pub fn load(project: *Project, entry: *const External, module: ir.NativeModuleId
         },
     };
 
-    const output = generated.executeIn(scope.allocator(), &request) catch |err| switch (err) {
+    const output = generated.executeIn(scratch.allocator(), &request) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return project.reporter.fail(.contract, span, try std.fmt.allocPrint(allocator, "internal compiler error: generated external {s} failed with {s}", .{ if (scope.active.ptr == allocator.ptr) "delivery" else "loading", @errorName(err) })),
+        else => return project.reporter.fail(.contract, span, try std.fmt.allocPrint(allocator, "internal compiler error: generated external delivery failed with {s}", .{@errorName(err)})),
     };
 
     if (output.diagnostic.message.len != 0) return project.reporter.fail(

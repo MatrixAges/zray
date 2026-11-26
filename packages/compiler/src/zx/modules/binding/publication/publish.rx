@@ -11,7 +11,8 @@
             in={{
                 ...$in.destinations.aliases.omit(["storage"]),
                 names: $in.selected.alias_names,
-                indices: $in.selected.alias_indices
+                indices: $in.selected.alias_indices,
+                owner: $in.owner
             }}
         />
     </If>
@@ -22,7 +23,8 @@
             in={{
                 ...$in.destinations.constants.omit(["storage"]),
                 names: $in.selected.constant_names,
-                indices: $in.selected.constant_indices
+                indices: $in.selected.constant_indices,
+                owner: $in.owner
             }}
         />
     </If>
@@ -36,7 +38,8 @@
                 ...$in.destinations.functions.omit(["storage"]),
                 names: $in.selected.function_names,
                 indices: $in.selected.function_indices,
-                namespace: $in.selected.namespace
+                namespace: $in.selected.namespace,
+                owner: $in.owner
             }}
         />
     </If>

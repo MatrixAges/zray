@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import strings from "std:string"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -11,7 +10,7 @@ import type { Reexports as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { names, indices, rows, first } = in
+    const { names, indices, rows, first, owner } = in
     const { signatures, stride, buffer, target, kinds, facts } = rows
 
     const valid = loop({
@@ -25,7 +24,7 @@ export default function (in: Input): Output {
             const destination = first + row
 
             if (signatures.length != 0) {
-                const name = strings.copy(names[row])
+                const name = memory.copyColumnText(owner, names[row])
                 const start = stride * index
                 const copied = memory.copyBytes(
                     buffer,
@@ -52,7 +51,7 @@ export default function (in: Input): Output {
                 if (signature != null) {
                     write({
                         ...signature,
-                        name: strings.copy(names[row]),
+                        name: memory.copyColumnText(owner, names[row]),
                         target,
                         row: destination
                     })

@@ -24,7 +24,6 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
     var storage: Request.Storage = undefined;
     var publisher: Publisher.Publication = undefined;
     var reexports: Reexports = undefined;
-    var scope: memory.ArenaScope = .{ .active = temporary };
 
     publisher.init(lists.types, lists.functions);
     defer publisher.commit();
@@ -36,11 +35,11 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
         .request = storage.init(item, symbols),
         .destinations = &publisher.destinations,
         .reexports = if (lists.reexports != null) &reexports.input else null,
-        .scope = @ptrCast(&scope),
         .owner = @ptrCast(&allocator),
+        .owner_rows = @ptrCast(&allocator),
     };
 
-    const result = zx.columns.invoke(rule.executeValue, scope.allocator(), &input) catch |err|
+    const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err|
         return bindingFailure(allocator, item.span, reporter, err);
 
     if (result.message.len != 0) return reporter.fail(

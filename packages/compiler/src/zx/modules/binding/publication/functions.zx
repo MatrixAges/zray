@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import strings from "std:string"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -14,7 +13,7 @@ export type Input = Selected & Functions.Pick("named", "fallback", "target") & {
 export type Output = void
 
 export default function (in: Input): Output {
-    const { names, indices, named, fallback, target, used } = in
+    const { names, indices, named, fallback, target, used, owner } = in
 
     const members = {
         named,
@@ -22,7 +21,10 @@ export default function (in: Input): Output {
     }
 
     const namespace = in.namespace
-    const owned: string? = namespace == null ? null : strings.copy(namespace)
+
+    const owned: string? =
+        namespace == null ? null : memory.copyColumnText(owner, namespace)
+
     const first = memory.readU64(used, 0)
 
     const published = loop(0, {
@@ -33,7 +35,7 @@ export default function (in: Input): Output {
                 row: indices[row]
             })
 
-            const name = strings.copy(names[row])
+            const name = memory.copyColumnText(owner, names[row])
             const destination = first + row
 
             memory.writeColumnBytes(

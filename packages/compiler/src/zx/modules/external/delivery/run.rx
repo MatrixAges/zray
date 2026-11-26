@@ -23,14 +23,6 @@
         }}
     />
 
-    <Call
-        fn="index.selectAllocator"
-        in={[
-            $in.scope,
-            $in.payload
-        ]}
-    />
-
     <If on={$ctx.load.publish}>
         <Call
             module="../../../analysis/semantic/merging/publication/append"

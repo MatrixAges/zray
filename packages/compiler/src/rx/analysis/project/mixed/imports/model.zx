@@ -1,5 +1,5 @@
-import type { Allocator, ArenaScope, U8Buffer, U64Buffer } from "memory"
-import type { RowBuffer } from "memory/columns"
+import type { Allocator, U8Buffer, U64Buffer } from "memory"
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
 import type { MixedImports } from "rx_project_host"
 import type { Import } from "../../../../../zx/frontend/parser/imports/model"
 import type { Request as Symbols } from "../../../../../zx/modules/binding/model"
@@ -25,9 +25,8 @@ export type Request = {
     imports: Import[],
     count: u64,
     symbols: Symbols[],
-    scope: ArenaScope,
-    scratch: Allocator,
     owner: Allocator,
+    owner_rows: ColumnAllocator,
     functions: Target,
     published: Target,
     layout: Layout

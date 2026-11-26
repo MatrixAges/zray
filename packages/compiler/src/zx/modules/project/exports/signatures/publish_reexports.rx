@@ -4,39 +4,21 @@
     <Args in={Members.ReexportDelivery} out={void} />
 
     <Call
-        fn="../../../binding/delivery/allocation.selectAllocator"
-        in={[
-            $in.scope,
-            $in.rows.backing
-        ]}
-    />
-
-    <Call
         fn="reserve"
         in={{
             ...$in.rows.pick([
                 "storage",
-                "used"
+                "used",
+                "backing"
             ]),
             count: $in.names.length
         }}
     />
 
     <Call
-        fn="../../../binding/delivery/allocation.selectAllocator"
-        in={[
-            $in.scope,
-            $in.owner
-        ]}
-    />
-
-    <Call
         fn="reexports"
         in={{
-            ...$in.omit([
-                "scope",
-                "owner"
-            ]),
+            ...$in,
             first: $ctx.reserve
         }}
     />
