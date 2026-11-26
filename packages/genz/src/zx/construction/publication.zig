@@ -1,5 +1,4 @@
 const std = @import("std");
-const columns = @import("zx").columns;
 const Lower = @import("../lower.zig");
 const blocks = @import("../../node/blocks.zig");
 const node = @import("../../node.zig");
@@ -9,19 +8,8 @@ const dense = @import("../../node/import_rows.zig");
 const sparse = @import("../../node/import_selected.zig");
 const statements = @import("../../node/import_statements.zig");
 const fields = @import("../../node/import_fields.zig");
-const entry = @import("generated_publish_ast_fragment");
-const Input = std.meta.Child(entry.Input);
-const Kind = @FieldType(Input, "kind");
-const Api = @import("../expressions/evaluate.zig").Api;
 const Ast = @import("execution_abi").layouts.@"zig:ast_rows";
 const borrow = @import("../expressions/evaluate.zig").borrow;
-const Update = std.meta.Child(@import("generated_list_update").Output);
-const Collection = std.meta.Child(@import("generated_emit_collection_rows").Output);
-const Context = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Collection, "state")), "context"));
-const IterationTypes = std.meta.Child(@import("generated_iteration_types_emit").Output);
-const Expressions = @FieldType(Update, "expressions");
-const Forms = @FieldType(Update, "forms");
-const Rows = @FieldType(Update, "statements");
 
 pub const OriginBuffer = struct {
     origin: Ast.AstOrigin = undefined,
@@ -449,23 +437,19 @@ pub const Targets = struct {
     binding: ?*Sequence = null,
 };
 
-pub const Frame = struct {
-    lower: *Lower,
-    targets: Targets = .{},
-    expressions: Expressions,
-    forms: ?Forms = null,
-    layouts: ?@FieldType(IterationTypes, "layouts") = null,
-    statements: ?Rows = null,
-    vars: ?@FieldType(Context, "variables") = null,
-    subset: ?@FieldType(Update, "body") = null,
-    roots: ?Rows = null,
-    converted_body: ?Rows = null,
-    converted_binding: ?Rows = null,
-    fields: ?@FieldType(Update, "fields") = null,
-    fn borrow(target: *anyopaque) *const Frame {
-        return @ptrCast(@alignCast(target));
-    }
+pub const Kind = enum {
+    Growth,
+    Collection,
+    Update,
+    List,
+    Construction,
+    Origin,
+    Conversion,
 };
+
+inline fn deref(value: anytype) if (@typeInfo(@TypeOf(value)) == .pointer) std.meta.Child(@TypeOf(value)) else @TypeOf(value) {
+    return if (@typeInfo(@TypeOf(value)) == .pointer) value.* else value;
+}
 
 pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kind) Lower.Error!void {
     const data = switch (kind) {
@@ -474,151 +458,103 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         else => output,
     };
 
-    const expressions = if (kind == .Growth) columns.view(std.meta.Child(Expressions), data.expressions) else undefined;
-    const forms = if (kind == .Growth) columns.view(std.meta.Child(Forms), data.forms) else undefined;
+    const valid = if (kind == .Growth) data.valid else output.valid;
 
-    var frame: Frame = .{
-        .lower = self,
-        .targets = targets,
-        .expressions = if (kind == .Growth) &expressions else columns.pointer(Expressions, data.expressions),
-        .forms = if (kind == .Growth) &forms else columns.pointer(Forms, data.forms),
-        .statements = if (kind == .List or kind == .Origin) null else columns.pointer(Rows, data.statements),
-        .vars = switch (kind) {
-            .Collection, .Construction, .Conversion => columns.pointer(@FieldType(Context, "variables"), data.variables),
-            else => null,
-        },
-        .subset = switch (kind) {
-            .Collection => columns.pointer(@FieldType(Update, "body"), output.state.body),
-            .Update => output.body,
-            else => null,
-        },
-        .roots = switch (kind) {
-            .Growth => columns.pointer(Rows, data.body),
-            .Construction, .Conversion => columns.pointer(Rows, data.storage),
-            else => null,
-        },
-        .converted_body = if (kind == .Conversion) columns.pointer(Rows, data.body) else null,
-        .converted_binding = if (kind == .Conversion) columns.pointer(Rows, data.borrow_storage) else null,
-        .fields = switch (kind) {
-            .Growth => if (output.fields) |source| columns.pointer(@FieldType(Update, "fields"), source) else null,
-            .Collection, .Update, .List, .Conversion => columns.pointer(@FieldType(Update, "fields"), output.fields),
-            else => null,
-        },
-    };
+    if (!valid) return error.OutOfMemory;
 
-    const input: Input = .{
-        .target = @ptrCast(&frame),
-        .lower = @ptrCast(self),
-        .kind = kind,
-        .sequence = targets.body != null,
-        .fields = frame.fields != null,
-        .valid = if (kind == .Growth) data.valid else output.valid,
-        .serial = switch (kind) {
-            .Growth => data.serial,
-            .List, .Origin => 0,
-            else => output.serial,
-        },
-        .uses_allocator = kind != .List and kind != .Origin and output.uses_allocator,
-    };
+    const expr_src = view.join(deref(data.expressions), deref(data.forms));
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return entry.executeIn(fixed.allocator(), &input);
-}
-
-pub fn appendFragmentExpressions(handle: *anyopaque, borrow_text: bool) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const target = &frame.lower.builder.nodes.expressions;
-    const allocator = frame.lower.allocator;
-    const source = view.join(frame.expressions.*, frame.forms.?.*);
-
-    if (borrow_text) {
-        dense.appendBorrowingText(allocator, target, &source) catch |err| return failure(err);
+    if (kind == .List) {
+        dense.appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expr_src) catch |err| return failure(err);
     } else {
-        dense.append(allocator, target, &source) catch |err| return failure(err);
+        dense.append(self.allocator, &self.builder.nodes.expressions, &expr_src) catch |err| return failure(err);
     }
-}
 
-pub fn appendFragmentLayoutExpressions(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const source = view.join(frame.expressions.*, frame.layouts.?.*);
-    const target = &frame.lower.builder.nodes.expressions;
+    if (kind != .List and kind != .Origin) {
+        const stmts = deref(data.statements);
 
-    dense.append(frame.lower.allocator, target, &source) catch |err| return failure(err);
-}
+        switch (kind) {
+            .Update => sparse.append(self.allocator, &self.builder.nodes.statements, &stmts) catch |err| return failure(err),
+            .Collection, .Conversion => {
+                const stmt_src = view.join(stmts, deref(data.variables));
 
-pub fn appendFragmentStatements(handle: *anyopaque, mode: Api.FragmentStatements) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const target = &frame.lower.builder.nodes.statements;
-    const allocator = frame.lower.allocator;
+                sparse.append(self.allocator, &self.builder.nodes.statements, &stmt_src) catch |err| return failure(err);
+            },
+            .Growth, .Construction => dense.append(self.allocator, &self.builder.nodes.statements, &stmts) catch |err| return failure(err),
+            .List, .Origin => unreachable,
+        }
 
-    switch (mode) {
-        .Dense => dense.append(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .BorrowingText => dense.appendBorrowingText(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .Borrowed => dense.appendBorrowed(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .Sparse => sparse.append(allocator, target, frame.statements.?) catch |err| return failure(err),
-        .SparseWithVariables => {
-            const source = view.join(frame.statements.?.*, frame.vars.?.*);
+        if (kind == .Collection) {
+            const field_src = deref(output.fields);
 
-            sparse.append(allocator, target, &source) catch |err| return failure(err);
-        },
+            fields.append(self.allocator, &self.builder.nodes.field_columns, &field_src) catch |err| return failure(err);
+        }
+
+        switch (kind) {
+            .Construction, .Conversion => {
+                const storage_src = view.join(deref(data.storage), deref(data.variables));
+
+                try self.hoistReferences(&storage_src);
+
+                if (kind == .Conversion) {
+                    if (targets.body) |body_seq| {
+                        const vars = deref(data.variables);
+                        const bind_src = view.join(deref(data.borrow_storage), vars);
+
+                        statements.appendSelected(self.allocator, targets.binding.?, &bind_src) catch |err| return failure(err);
+
+                        const body_src = view.join(deref(data.body), vars);
+
+                        statements.appendSelected(self.allocator, body_seq, &body_src) catch |err| return failure(err);
+                    }
+                }
+            },
+            .Growth => {
+                const roots = deref(data.body);
+
+                if (targets.body) |body_seq| {
+                    statements.append(self.allocator, body_seq, &roots) catch |err| return failure(err);
+                } else {
+                    dense.append(self.allocator, &self.builder.nodes.statements, &roots) catch |err| return failure(err);
+                }
+            },
+            .Collection => {
+                var roots = stmts;
+                const subset = deref(output.state.body);
+                roots.tags = subset.tags;
+                roots.offsets = subset.offsets;
+
+                const body_src = view.join(roots, deref(data.variables));
+
+                statements.appendSelected(self.allocator, targets.body.?, &body_src) catch |err| return failure(err);
+            },
+            .Update => {
+                var roots = stmts;
+                const subset = deref(output.body);
+                roots.tags = subset.tags;
+                roots.offsets = subset.offsets;
+
+                statements.appendSelected(self.allocator, targets.body.?, &roots) catch |err| return failure(err);
+            },
+            .List, .Origin => unreachable,
+        }
     }
-}
 
-pub fn appendFragmentBody(handle: *anyopaque, mode: Api.FragmentBody) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const allocator = frame.lower.allocator;
-
-    switch (mode) {
-        .Direct => dense.append(allocator, &frame.lower.builder.nodes.statements, frame.roots.?) catch |err| return failure(err),
-        .Roots => statements.append(allocator, frame.targets.body.?, frame.roots.?) catch |err| return failure(err),
-        .RootsWithVariables => {
-            const source = view.join(frame.roots.?.*, frame.vars.?.*);
-
-            statements.append(allocator, frame.targets.body.?, &source) catch |err| return failure(err);
+    switch (kind) {
+        .Growth => if (output.fields) |source| {
+            const field_src = deref(source);
+            _ = fields.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, &field_src) catch |err| return failure(err);
         },
-        .Selected, .SelectedWithVariables => {
-            var roots = frame.statements.?.*;
-            roots.tags = frame.subset.?.tags;
-            roots.offsets = frame.subset.?.offsets;
-
-            const target = frame.targets.body.?;
-
-            if (mode == .SelectedWithVariables) {
-                const source = view.join(roots, frame.vars.?.*);
-
-                statements.appendSelected(allocator, target, &source) catch |err| return failure(err);
-            } else {
-                statements.appendSelected(allocator, target, &roots) catch |err| return failure(err);
-            }
+        .Update, .List, .Conversion => {
+            const field_src = deref(output.fields);
+            _ = fields.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, &field_src) catch |err| return failure(err);
         },
-        .ConvertedBinding, .ConvertedBody => {
-            const binding = mode == .ConvertedBinding;
-            const target = if (binding) frame.targets.binding.? else frame.targets.body.?;
-            const part = if (binding) frame.converted_binding.? else frame.converted_body.?;
-            const source = view.join(part.*, frame.vars.?.*);
-
-            statements.appendSelected(allocator, target, &source) catch |err| return failure(err);
-        },
+        else => {},
     }
-}
 
-pub fn appendFragmentStorage(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const source = view.join(frame.roots.?.*, frame.vars.?.*);
-
-    return frame.lower.hoistReferences(&source);
-}
-
-pub fn appendFragmentFields(handle: *anyopaque, own_text: bool) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const target = &frame.lower.builder.nodes.field_columns;
-    const allocator = frame.lower.allocator;
-
-    if (own_text) {
-        fields.append(allocator, target, frame.fields.?) catch |err| return failure(err);
-    } else {
-        _ = fields.appendBorrowingText(allocator, target, frame.fields.?) catch |err| return failure(err);
+    if (kind != .List and kind != .Origin) {
+        self.serial = @intCast(if (kind == .Growth) data.serial else output.serial);
+        self.uses_allocator = self.uses_allocator or output.uses_allocator;
     }
 }
 

@@ -15,17 +15,17 @@ export declare function retainLoweringText(frame: Lowering, text: u8[]): u8[]
 
 export declare function setLoweringSerial(frame: Lowering, serial: u64): void
 
+export declare function finishGeneratedAst(
+    frame: Lowering,
+    serial: u64?,
+    uses_allocator: bool
+): void
+
 export declare function materializeIterationResource(
     frame: IterationResourceFrame,
     id: u32,
     resource: IterationResource
 ): u32 throws { OutOfMemory }
-
-export declare function cacheIterationType(
-    frame: IterationResourceFrame,
-    id: u32,
-    value: u32
-): void throws { OutOfMemory }
 
 export declare function reserveIterationProjection(
     history: IterationProjectionFrame,

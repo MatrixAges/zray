@@ -35,8 +35,6 @@ export type FunctionBody = opaque
 
 export type ValueFunction = mutable_opaque
 
-export type RepresentedCache = mutable_opaque
-
 export type ModuleFrame = mutable_opaque
 
 export enum BodySection {
@@ -66,40 +64,6 @@ export enum ModuleRequestForm {
 
 export type ModuleSignatures = mutable_opaque
 
-export type AstPublication = opaque
-
-export type FragmentPublication = mutable_opaque
-
-export enum FragmentKind {
-    Growth,
-    Collection,
-    Update,
-    List,
-    Construction,
-    Origin,
-    Conversion
-}
-
-export enum FragmentBody {
-    Direct,
-    Roots,
-    RootsWithVariables,
-    Selected,
-    SelectedWithVariables,
-    ConvertedBinding,
-    ConvertedBody
-}
-
-export enum FragmentStatements {
-    Dense,
-    BorrowingText,
-    Borrowed,
-    Sparse,
-    SparseWithVariables
-}
-
-export type DirectAstRows = mutable_opaque
-
 export type FieldProjection = opaque
 
 export enum StoredType {
@@ -110,8 +74,6 @@ export enum StoredType {
     StateLayout,
     ViewType
 }
-
-export type CallAstPublication = mutable_opaque
 
 export type PreconditionFrame = mutable_opaque
 

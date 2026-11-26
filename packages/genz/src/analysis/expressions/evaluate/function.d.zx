@@ -42,13 +42,6 @@ export declare function emitValuePrototype(body: ValueFunction): void
 
 export declare function emitValueBody(body: ValueFunction): void throws { OutOfMemory }
 
-export declare function convertRepresentedCache(
-    cache: RepresentedCache,
-    index: u64,
-    slot: u64,
-    layout: u32?
-): void throws { OutOfMemory }
-
 export declare function openPreconditionScope(frame: PreconditionFrame, index: u64): void
     throws { OutOfMemory }
 
