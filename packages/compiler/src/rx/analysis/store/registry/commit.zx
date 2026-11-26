@@ -2,7 +2,7 @@ import memory from "memory"
 
 import type { Load } from "./model"
 
-export type Input = Load.Pick("types", "scratch") & {
+export type Input = Load.Pick("types") & {
     view: u8[]
 }
 
@@ -10,6 +10,4 @@ export type Output = void
 
 export default function (in: Input): Output {
     memory.copyColumnValue(in.types, 0, in.view)
-
-    const released = memory.resetArenaRetainingCapacity(in.scratch)
 }

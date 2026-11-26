@@ -77,7 +77,6 @@ pub const Frame = struct {
         self.view = .{
             .frame = @ptrCast(self),
             .owner = @ptrCast(graph),
-            .arena = @ptrCast(workspace),
             .view = &self.merge_view,
             .nodes = &self.nodes,
             .classes = &self.classes,

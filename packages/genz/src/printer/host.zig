@@ -72,7 +72,6 @@ fn render(
         const input: Selection = .{
             .source = zx.columns.pointer(@FieldType(Selection, "source"), &source),
             .writer = @ptrCast(&output),
-            .scratch = @ptrCast(&arena),
             .ranges = if (shape == .scoped) &ranges else null,
             .indices = if (shape == .indices) rows else null,
         };

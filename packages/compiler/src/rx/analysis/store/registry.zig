@@ -94,7 +94,6 @@ const Load = struct {
                 .count = work.sources.len,
                 .row = 0,
                 .types = @ptrCast(&shared),
-                .scratch = @ptrCast(&work.values),
             }) catch |err| switch (@as(anyerror, err)) {
                 error.OutOfMemory => error.OutOfMemory,
                 error.InvalidSource => error.InvalidSource,
@@ -107,7 +106,6 @@ const Load = struct {
 
             _ = try compileStoreRegistryEntry(work, row);
             work.data.context.types = work.data.definitions[row].types;
-            _ = work.values.reset(.retain_capacity);
         }
     }
 
@@ -148,6 +146,7 @@ pub fn compileStoreRegistryEntry(handle: *anyopaque, row: u64) Error![]const u8 
     }
 
     work.data.definitions[index] = result.definition;
+    _ = work.values.reset(.retain_capacity);
 
     return std.mem.asBytes(&work.data.definitions[index].types);
 }

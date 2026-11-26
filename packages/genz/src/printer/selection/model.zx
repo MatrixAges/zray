@@ -1,11 +1,10 @@
-import type { ByteWriter, ScratchArena } from "memory"
+import type { ByteWriter } from "memory"
 import type { ReadColumn } from "memory/columns"
 import type { Source } from "../model"
 
 export type Destination = {
     source: Source,
-    writer: ByteWriter,
-    scratch: ScratchArena
+    writer: ByteWriter
 }
 
 export type Ranges = {

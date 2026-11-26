@@ -22,10 +22,7 @@
     <Call
         fn="commit"
         in={{
-            ...$in.pick([
-                "types",
-                "scratch"
-            ]),
+            types: $in.types,
             view: $ctx.compileStoreRegistryEntry
         }}
     />

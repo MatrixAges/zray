@@ -4,20 +4,10 @@
     <Args in={Intake.Input} out={Intake.Output} />
 
     <Call
-        fn="clear"
-        in={$in.pick([
-            "scratch",
-            "reset"
-        ])}
-    />
-
-    <Call
         module="cache"
         in={$in.omit([
             "ahead_ready",
-            "ahead_reads",
-            "scratch",
-            "reset"
+            "ahead_reads"
         ])}
     />
 
@@ -28,9 +18,7 @@
             fn="complete"
             in={{
                 ...$ctx.cache,
-                ahead: $ctx.unchanged,
-                scratch: $in.scratch,
-                reset: $in.reset
+                ahead: $ctx.unchanged
             }}
         />
 
@@ -41,9 +29,7 @@
         fn="complete"
         in={{
             ...$ctx.cache,
-            ahead: $in.ahead_ready,
-            scratch: $in.scratch,
-            reset: $in.reset
+            ahead: $in.ahead_ready
         }}
     />
 

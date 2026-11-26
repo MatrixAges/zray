@@ -1,4 +1,4 @@
-import type { Allocator, Arena, BoolBuffer, U64Buffer } from "memory"
+import type { Allocator, BoolBuffer, U64Buffer } from "memory"
 import type { Cache, Slots } from "./cache"
 import type { SnapshotInput } from "./layout/model"
 
@@ -43,7 +43,6 @@ export type Update = {
     slots: Slots,
     layout: SnapshotInput,
     work: Work,
-    arena: Arena,
     scratch: Allocator,
     revision: u64,
     rebuild: bool,

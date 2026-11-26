@@ -1,9 +1,6 @@
 import type { Modules } from "core/native_module_table/model"
 import type {
     Allocator,
-    Arena,
-    ArenaScope,
-    BoolBuffer,
     ColumnLengths,
     OptionalU32Buffer,
     U8Buffer,
@@ -50,14 +47,6 @@ export type Check = {
     natives?: Native,
 }
 
-export type Preparation = {
-    check: Check,
-    scratch: Arena,
-    resources: ArenaScope,
-    owner: Allocator,
-    reserved: BoolBuffer
-}
-
 export type Commit = {
     lengths: ColumnLengths,
     progress: U64Buffer
@@ -71,7 +60,6 @@ export type Write = {
 }
 
 export type Input = {
-    preparation?: Preparation,
     reserve?: Reservation,
     write?: Write
 }

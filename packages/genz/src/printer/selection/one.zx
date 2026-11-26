@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import walk from "../walk"
 
 import type { Destination } from "./model"
@@ -22,6 +20,4 @@ export default function (in: Input): Output {
         depth: 0,
         next: 0
     })
-
-    memory.rewindScratchArena(in.scratch)
 }

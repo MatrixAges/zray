@@ -46,8 +46,14 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
     const update = @import("generated_rx_update_object_readiness");
     const Update = std.meta.Child(update.Input);
     const Layout = std.meta.Child(@FieldType(Update, "layout"));
-    const allocator = closure.arena.allocator();
     const cache = &closure.cache;
+
+    if (rebuild) {
+        cache.index[0] = &.{};
+        _ = closure.arena.reset(.retain_capacity);
+    }
+
+    const allocator = closure.arena.allocator();
     var revision: []u64 = &cache.revision;
     var index: [][]const u32 = &cache.index;
     var edges: [][]const u64 = &cache.edges;
@@ -95,7 +101,6 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
             .queue = @ptrCast(&queue),
             .pending = @ptrCast(&pending),
         },
-        .arena = @ptrCast(&closure.arena),
         .scratch = @ptrCast(&scratch),
         .revision = graph.object_revision,
         .rebuild = rebuild,

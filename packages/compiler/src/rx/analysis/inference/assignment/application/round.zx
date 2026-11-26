@@ -1,4 +1,4 @@
-import type { Arena, U32Buffer, U64Buffer } from "memory"
+import type { U32Buffer, U64Buffer } from "memory"
 import type {
     AssignmentApplication,
     ProjectionGraph,
@@ -46,7 +46,6 @@ export type Bounds = {
 export type Request = {
     frame: AssignmentApplication,
     owner: ProjectionGraph,
-    arena: Arena,
     view: View,
     nodes: Nodes,
     classes: ClassStorage,

@@ -4,14 +4,6 @@
     <Args in={Readiness.Update} out={bool} />
 
     <If on={$in.rebuild}>
-        <Call
-            fn="invalidate"
-            in={$in.pick([
-                "arena",
-                "slots"
-            ])}
-        />
-
         <Call module="layout/snapshot" in={$in.layout} />
 
         <Call

@@ -1,12 +1,11 @@
-import type { Arena, WriteColumn } from "memory"
+import type { WriteColumn } from "memory"
 import type { StoreRegistryLoad, StoreRegistryPublication } from "rx_project_host"
 
 export type Load = {
     state: StoreRegistryLoad,
     count: u64,
     row: u64,
-    types: WriteColumn,
-    scratch: Arena
+    types: WriteColumn
 }
 
 export type Tables = {

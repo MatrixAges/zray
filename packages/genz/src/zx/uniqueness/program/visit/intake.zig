@@ -51,6 +51,8 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     const slot = if (ahead_ready) ahead.resultSlot(kind, index) else null;
     var reads: ReadColumns = undefined;
 
+    if (kind != .planned) _ = scratch.reset(.retain_capacity);
+
     const input: Input = .{
         .memo = if (persistent) &probe else null,
         .history = if (history != null) &selection else null,
@@ -60,14 +62,14 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
         .temporary = @ptrCast(&temporary),
         .ahead_ready = ahead_ready,
         .ahead_reads = if (ahead_ready and kind != .planned) &reads.bind(slot.?, ctx) else null,
-        .scratch = @ptrCast(scratch),
-        .reset = kind != .planned,
     };
 
     const result = zx.columns.invoke(entry.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership visit intake failed: {s}", .{@errorName(err)}),
     };
+
+    if (kind == .planned and result.origin == .Analyze) _ = scratch.reset(.retain_capacity);
 
     memo.encoding.state_end = result.state_end;
 

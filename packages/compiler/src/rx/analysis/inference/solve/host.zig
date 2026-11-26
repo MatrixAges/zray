@@ -105,6 +105,8 @@ pub fn refreshSolverObjects(handle: *anyopaque) void {
 pub fn refreshSolverAssignments(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
+    _ = frame.workspace.reset(.retain_capacity);
+
     frame.assignments.bind(frame.graph, &frame.workspace);
 }
 

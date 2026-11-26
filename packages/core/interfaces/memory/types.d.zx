@@ -35,7 +35,6 @@ export type OptionalTextSlots = mutable_opaque
 
 export type Allocator = opaque
 export type Arena = mutable_opaque
-export type ScratchArena = mutable_opaque
 export type ArenaScope = mutable_opaque
 
 export type TextColumn = opaque

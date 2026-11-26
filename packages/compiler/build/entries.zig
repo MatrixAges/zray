@@ -133,6 +133,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/ir/verified_prefix/scan.zx", .name = "function_prefix" },
     .{ .path = "zx/ir/canonical/validation/structure/functions.zx", .name = "ir_function_structure" },
     .{ .path = "zx/modules/link/source/extension/extend.rx", .name = "source_link_tail" },
+    .{ .path = "zx/modules/link/source/workflow/prepare.rx", .name = "source_link_preparation" },
     .{ .path = "zx/modules/link/source/workflow/publish.rx", .name = "source_link_publication" },
     .{ .path = "zx/modules/link/initializer/prepare.rx", .name = "source_initializer_prepare" },
     .{ .path = "zx/modules/link/artifact/binding/batch.rx", .name = "artifact_binding_batch" },

@@ -1,4 +1,4 @@
-export { resetArenaRetainingCapacity, readU64 } from "memory"
+export { readU64 } from "memory"
 export {
     assignmentRevision,
     reserveAssignmentClasses,

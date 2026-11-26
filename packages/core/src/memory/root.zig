@@ -160,24 +160,9 @@ pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
 }
 
 pub fn resetArena(source: *anyopaque) std.mem.Allocator.Error!void {
-    if (!resetArenaRetainingCapacity(source)) return error.OutOfMemory;
-}
-
-pub fn resetArenaRetainingCapacity(source: *anyopaque) bool {
     const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(source));
 
-    return arena.reset(.retain_capacity);
-}
-
-pub fn releaseArena(source: *anyopaque) void {
-    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(source));
-    _ = arena.reset(.free_all);
-}
-
-pub fn rewindScratchArena(source: *anyopaque) void {
-    const arena: *ScratchArena = @ptrCast(@alignCast(source));
-
-    arena.rewindRetainingCapacity(.{ .chunk = null, .end = 0 });
+    if (!arena.reset(.retain_capacity)) return error.OutOfMemory;
 }
 
 pub inline fn stringViews(source: *const anyopaque) []const []const u8 {

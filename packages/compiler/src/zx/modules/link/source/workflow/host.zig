@@ -10,10 +10,10 @@ const columns = @import("../../../artifact/materializing/publication/columns.zig
 const remap = @import("../../../artifact/nodes/remap.zig");
 const validation = @import("../../../../ir/validate.zig");
 const generated = @import("generated_source_link_publication");
+const preparation = @import("generated_source_link_preparation");
 const Input = std.meta.Child(generated.Input);
-const Prepare = std.meta.Child(@typeInfo(@FieldType(Input, "preparation")).optional.child);
 const Reservation = std.meta.Child(@typeInfo(@FieldType(Input, "reserve")).optional.child);
-const Check = std.meta.Child(@FieldType(Prepare, "check"));
+const Check = std.meta.Child(preparation.Input);
 const Write = std.meta.Child(@typeInfo(@FieldType(Input, "write")).optional.child);
 const Batch = std.meta.Child(@typeInfo(@FieldType(Write, "batch")).optional.child);
 const Single = std.meta.Child(@typeInfo(@FieldType(Write, "root")).optional.child);
@@ -40,17 +40,17 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     var mapped_natives: Mapping = .{ .kind = if (complete) .Sparse else .Range, .dense = &.{}, .sparse = &.{}, .planned = &.{}, .first = 0, .count = native_count, .prefix = 0 };
     const types: *[]u32 = @ptrCast(&mapped_types.dense);
     const natives: *[]?ir.NativeModuleId = @ptrCast(&mapped_natives.sparse);
-    var reserved = [_]bool{false};
-    var published: []bool = &reserved;
+    var reserved = false;
 
-    errdefer if (!reserved[0]) {
+    errdefer if (!reserved) {
         type_allocator.free(types.*);
         destination.temporary.free(natives.*);
     };
 
     var arena = std.heap.ArenaAllocator.init(destination.temporary);
+    var arena_alive = true;
 
-    defer arena.deinit();
+    defer if (arena_alive) arena.deinit();
 
     const temporary = arena.allocator();
     var checked: ValidationView = undefined;
@@ -78,7 +78,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     var view: merge_types.Registration = undefined;
 
     view.init(&registration, types);
-    errdefer if (!reserved[0]) view.output.release();
+    errdefer if (!reserved) view.output.release();
 
     if (complete) view.mapping.input.validation = null;
 
@@ -111,28 +111,25 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
         .natives = if (has_natives) &bindings else null,
     };
 
-    var scope: zx.memory.ArenaScope = .{ .active = temporary };
-
-    const result = execute(rows.*, destination.functions, destination.temporary, &destination.allocator, &.{
-        .check = &check,
-        .scratch = @ptrCast(&arena),
-        .resources = @ptrCast(&scope),
-        .owner = @ptrCast(&destination.allocator),
-        .reserved = @ptrCast(&published),
-    }, &.{ .types = &mapped_types, .functions = &ids, .natives = &mapped_natives }, null, scope.allocator()) catch |err| switch (@as(anyerror, err)) {
+    const prepared = preparation.executeIn(temporary, &check) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return if (complete and started[0] == 0) error.InvalidIr else error.InvalidModule,
     };
 
-    switch (result) {
-        .Ready => {},
-        .InvalidIr => return error.InvalidIr,
-        .MissingOrigin => return error.MissingNominalOrigin,
-        .ConflictingType => return error.ConflictingNominalType,
-        .ConflictingInterface => return error.ConflictingInterface,
-        .Exhausted => return error.OutOfMemory,
-        .Invalid => return error.InvalidModule,
-    }
+    try requireReady(prepared);
+
+    arena.deinit();
+
+    arena_alive = false;
+
+    const result = execute(rows.*, destination.functions, destination.temporary, &destination.allocator, &.{ .types = &mapped_types, .functions = &ids, .natives = &mapped_natives }, null, destination.allocator) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
+
+    reserved = true;
+
+    try requireReady(result);
 
     return .{
         .allocator = destination.allocator,
@@ -147,7 +144,7 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype,
     const ids = remap.idMapping(Mapping, nodes.functions);
     const natives = remap.idMapping(Mapping, nodes.native_modules);
 
-    const result = execute(value, storage, temporary, &nodes.allocator, null, &.{
+    const result = execute(value, storage, temporary, &nodes.allocator, &.{
         .types = &types,
         .functions = &ids,
         .natives = &natives,
@@ -163,7 +160,19 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype,
     };
 }
 
-fn execute(value: anytype, storage: *ir.FunctionStorage, scratch: std.mem.Allocator, owner: *const std.mem.Allocator, preparation: ?*const Prepare, mappings: *const Mappings, initializer: ?*const InitializerRegistration, allocator: std.mem.Allocator) !generated.Output {
+fn requireReady(status: anytype) source.Error!void {
+    switch (status) {
+        .Ready => {},
+        .InvalidIr => return error.InvalidIr,
+        .MissingOrigin => return error.MissingNominalOrigin,
+        .ConflictingType => return error.ConflictingNominalType,
+        .ConflictingInterface => return error.ConflictingInterface,
+        .Exhausted => return error.OutOfMemory,
+        .Invalid => return error.InvalidModule,
+    }
+}
+
+fn execute(value: anytype, storage: *ir.FunctionStorage, scratch: std.mem.Allocator, owner: *const std.mem.Allocator, mappings: *const Mappings, initializer: ?*const InitializerRegistration, allocator: std.mem.Allocator) !generated.Output {
     const batch = @TypeOf(value) == ir.FunctionTable;
     const InputRow = if (batch) Batch else Single;
     var binding: tail.Storage(InputRow) = undefined;
@@ -183,7 +192,7 @@ fn execute(value: anytype, storage: *ir.FunctionStorage, scratch: std.mem.Alloca
     const commit: std.meta.Child(@FieldType(Write, "commit")) = .{ .lengths = @ptrCast(&binding.lengths), .progress = input.progress };
     const write: Write = .{ .batch = if (batch) &input else null, .root = if (batch) null else &input, .initializer = initializer, .commit = &commit };
 
-    return generated.executeIn(allocator, &.{ .preparation = preparation, .reserve = if (count != 0) &reserve else null, .write = if (count != 0) &write else null });
+    return generated.executeIn(allocator, &.{ .reserve = if (count != 0) &reserve else null, .write = if (count != 0) &write else null });
 }
 
 fn borrow(comptime Target: type, pointer: anytype) Target {

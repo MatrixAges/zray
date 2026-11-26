@@ -3,7 +3,6 @@
 
     <Args in={Assignments.Request} out={bool} />
 
-    <Call fn="host.resetArenaRetainingCapacity" in={$in.arena} />
     <Call fn="host.assignmentRevision" in={$in.frame} />
 
     <Call

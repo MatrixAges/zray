@@ -9,8 +9,7 @@
             in={{
                 target: $in.pick([
                     "source",
-                    "writer",
-                    "scratch"
+                    "writer"
                 ]),
                 ranges: $in.ranges
             }}
@@ -25,8 +24,7 @@
             in={{
                 target: $in.pick([
                     "source",
-                    "writer",
-                    "scratch"
+                    "writer"
                 ]),
                 indices: $in.indices
             }}
