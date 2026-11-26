@@ -97,20 +97,30 @@ pub fn seedOutput(digest: *const Digest, partitions: u32, sources: anytype, temp
 }
 
 pub fn snapshot(generator: *const Digest, partitions: u32, directory: []const u8, manifest: []const u8) Digest {
+    if (comptime generated) {
+        const rule = @import("generated_input_snapshot_fingerprint");
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+
+        const digest = rule.executeIn(scratch.allocator(), &.{
+            .generator = generator,
+            .partitions = partitions,
+            .directory = directory,
+            .manifest = manifest,
+        }) catch unreachable;
+
+        std.debug.assert(digest.len == @sizeOf(Digest));
+
+        return digest[0..@sizeOf(Digest)].*;
+    }
+
     var buffer: [1024]u8 = undefined;
     var hash = Hash.init(&buffer);
 
-    if (comptime generated) {
-        const rule = @import("generated_input_snapshot_fingerprint");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(hash.out()), .generator = generator, .partitions = partitions, .directory = directory, .manifest = manifest }) catch unreachable;
-    } else {
-        hash.state.hasher.update(generator);
-        integer(u32, &hash.state.hasher, partitions);
-        field(&hash.state.hasher, directory);
-        hash.state.hasher.update(manifest);
-    }
+    hash.state.hasher.update(generator);
+    integer(u32, &hash.state.hasher, partitions);
+    field(&hash.state.hasher, directory);
+    hash.state.hasher.update(manifest);
 
     return hash.finish();
 }

@@ -1,0 +1,16 @@
+import strings from "std:string"
+
+export type Input = {
+    counts: string,
+    durations: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return strings.join("", [
+        in.counts,
+        in.durations,
+        "\n"
+    ])
+}

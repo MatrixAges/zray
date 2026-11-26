@@ -1,0 +1,1 @@
+bootstrap: ${entries} entries, ${analyzed} modules analyzed, ${reused} reused${suffix}, ${files} function files, ${generated} generated, ${cached} reused

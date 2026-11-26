@@ -1,5 +1,3 @@
-import type { Writer } from "std:bytes"
-
 export type Counts = {
     entries: u64,
     analyzed: u64,
@@ -17,7 +15,6 @@ export type Durations = {
 }
 
 export type Report = {
-    out: Writer,
     counts: Counts,
     durations: Durations
 }

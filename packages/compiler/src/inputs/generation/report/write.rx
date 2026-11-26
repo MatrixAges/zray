@@ -1,21 +1,18 @@
 <Module>
     <Type from="model" as="Report" />
 
-    <Args in={Report.Report} out={void} />
+    <Args in={Report.Report} out={string} />
+
+    <Call fn="counts" in={$in.counts} />
+    <Call fn="durations" in={$in.durations} />
 
     <Call
-        fn="counts"
+        fn="join"
         in={{
-            out: $in.out,
-            counts: $in.counts
+            counts: $ctx.counts,
+            durations: $ctx.durations
         }}
     />
 
-    <Call
-        fn="durations"
-        in={{
-            out: $in.out,
-            durations: $in.durations
-        }}
-    />
+    <Return value={$ctx.join} />
 </Module>

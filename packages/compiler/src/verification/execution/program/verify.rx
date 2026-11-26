@@ -3,38 +3,64 @@
 
     <Args in={Program.Entry} out={void} />
 
+    <Call fn="index.ensureSymbolicGraph" in={$in.program} />
+
+    <If on={$in.type_only || $in.stores != 0}>
+        <Call
+            fn="index.rejectSymbolicProgram"
+            in={[
+                $in.program,
+                "verification requires an executable pure function without Store capabilities"
+            ]}
+        />
+    </If>
+
     <Call
-        fn="prepare"
+        fn="../parameter/walk"
         in={{
-            ...$in,
+            program: $in.program,
+            target: $in.target,
+            types: $in.types,
+            type_id: $in.input,
+            path: "in",
+            index: 0,
             proof: true
         }}
     />
 
     <Call
-        fn="preconditions"
-        in={{
-            program: $in.program,
-            called: false
-        }}
+        fn="index.symbolicProgramPreconditions"
+        in={[
+            $in.program,
+            false
+        ]}
     />
 
-    <Call
-        fn="body"
-        in={{
-            program: $in.program,
-            called: false,
-            returns_unit: $in.returns_unit,
-            path: $ctx.preconditions
-        }}
-    />
+    <Call fn="index.markSymbolicQueryPrefix" in={$in.program} />
 
     <Call
-        fn="publish"
-        in={{
-            program: $in.program,
-            called: false,
-            path: $ctx.preconditions
-        }}
+        fn="index.runSymbolicProgramBody"
+        in={[
+            $in.program,
+            $ctx.symbolicProgramPreconditions
+        ]}
+    />
+
+    <If on={$in.returns_unit}>
+        <Call
+            fn="index.checkSymbolicUnit"
+            in={[
+                $in.program,
+                $ctx.runSymbolicProgramBody
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.publishSymbolicQuery"
+        in={[
+            $in.program,
+            $ctx.symbolicProgramPreconditions
+        ]}
     />
 </Module>

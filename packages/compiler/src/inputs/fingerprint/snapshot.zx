@@ -1,23 +1,27 @@
 import bytes from "std:bytes"
-
-import type { Writer } from "std:bytes"
+import crypto from "std:crypto"
+import integers from "std:integer"
 
 export type Input = {
-    out: Writer,
     generator: u8[],
     partitions: u32,
     directory: string,
     manifest: u8[]
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const directory = bytes.fromText(in.directory)
 
-    bytes.write(in.out, in.generator)
-    bytes.writeU32Le(in.out, in.partitions)
-    bytes.writeU64Le(in.out, directory.length)
-    bytes.write(in.out, directory)
-    bytes.write(in.out, in.manifest)
+    const partitions =
+        bytes.readU8s(bytes.encodeU64Le(integers.widen(in.partitions)), 0, 4)
+
+    return crypto.sha256Parts([
+        in.generator,
+        partitions,
+        bytes.encodeU64Le(directory.length),
+        directory,
+        in.manifest
+    ])
 }

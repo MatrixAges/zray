@@ -5,8 +5,3 @@ export type Input = {
     count: u64,
     cached: bool
 }
-
-export type Restoration = {
-    batch: FunctionSources,
-    hits: u64
-}

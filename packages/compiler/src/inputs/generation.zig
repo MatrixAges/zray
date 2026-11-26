@@ -15,20 +15,14 @@ pub const Stamp = [stamp_width]u8;
 pub fn stamp(digest: *const Digest) Stamp {
     if (comptime !generated) return std.fmt.bytesToHex(digest.*, .lower);
 
-    var result: Stamp = undefined;
-    var writer = std.Io.Writer.fixed(&result);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [256]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
     const rule = @import("generated_generation_stamp");
+    const text = rule.executeValue(scratch.allocator(), digest) catch unreachable;
 
-    const input: std.meta.Child(rule.Input) = .{
-        .out = @ptrCast(&writer),
-        .digest = digest,
-    };
+    std.debug.assert(text.len == stamp_width);
 
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    std.debug.assert(writer.end == result.len);
-
-    return result;
+    return text[0..stamp_width].*;
 }
 
 pub fn entries(source: anytype, roots: [][]const u8, exports: anytype) void {
@@ -84,17 +78,18 @@ pub fn report(allocator: std.mem.Allocator, counts: Counts, durations: Durations
     const rule = @import("generated_generation_report");
     const Input = std.meta.Child(rule.Input);
     const values = zx.columns.view(std.meta.Child(@FieldType(Input, "counts")), &counts);
-    var buffer: [settings.summary_capacity]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&buffer);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [1024]u8 = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var arena = std.heap.ArenaAllocator.init(backing.allocator());
+
+    defer arena.deinit();
 
     const input: Input = .{
-        .out = @ptrCast(&writer),
         .counts = &values,
         .durations = &.{ .infer = durations.infer, .emit = durations.emit, .write = durations.write },
     };
 
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    const summary = try rule.executeIn(arena.allocator(), &input);
 
-    return allocator.dupe(u8, writer.buffered());
+    return allocator.dupe(u8, summary);
 }

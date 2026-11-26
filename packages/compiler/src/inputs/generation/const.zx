@@ -6,28 +6,4 @@ export const stamp_digits_per_byte: u64 = 2
 
 export const stamp_width: u64 = digest_width * stamp_digits_per_byte
 
-export const summary_capacity: u64 = 384
-
-export const entries_prefix: string = "bootstrap: "
-
-export const analyzed_suffix: string = " modules analyzed, "
-
-export const entries_suffix: string = " entries, "
-
-export const reuse_suffix: string = " reused"
-
 export const bodies_only_suffix: string = " (bodies only)"
-
-export const files_prefix: string = ", "
-
-export const files_suffix: string = " function files, "
-
-export const generated_suffix: string = " generated, "
-
-export const infer_prefix: string = "; infer "
-
-export const emit_prefix: string = "ms, emit "
-
-export const write_prefix: string = "ms, write "
-
-export const duration_suffix: string = "ms\n"

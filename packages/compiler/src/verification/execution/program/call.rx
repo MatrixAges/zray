@@ -3,30 +3,52 @@
 
     <Args in={Program.Called} out={void} />
 
+    <Call fn="index.ensureSymbolicGraph" in={$in.program} />
+    <Call fn="index.beginSymbolicCall" in={$in.program} />
+
     <Call
-        fn="preconditions"
-        in={{
-            program: $in.program,
-            called: true
-        }}
+        fn="index.symbolicProgramPreconditions"
+        in={[
+            $in.program,
+            true
+        ]}
     />
 
     <Call
-        fn="body"
-        in={{
-            program: $in.program,
-            called: true,
-            returns_unit: $in.returns_unit,
-            path: $ctx.preconditions
-        }}
+        fn="index.runSymbolicProgramBody"
+        in={[
+            $in.program,
+            $ctx.symbolicProgramPreconditions
+        ]}
     />
 
-    <Call
-        fn="publish"
-        in={{
-            program: $in.program,
-            called: true,
-            path: $ctx.preconditions
-        }}
-    />
+    <If on={$in.returns_unit}>
+        <Call
+            fn="index.checkSymbolicUnit"
+            in={[
+                $in.program,
+                $ctx.runSymbolicProgramBody
+            ]}
+        />
+
+        <Call
+            fn="index.appendSymbolicUnit"
+            in={[
+                $in.program,
+                $ctx.runSymbolicProgramBody
+            ]}
+        />
+    </If>
+
+    <Call fn="index.publishSymbolicProgramResult" in={$in.program} />
+
+    <If on={!$ctx.publishSymbolicProgramResult}>
+        <Call
+            fn="index.rejectSymbolicReturn"
+            in={[
+                $in.program,
+                "verified call has no return value"
+            ]}
+        />
+    </If>
 </Module>

@@ -7,20 +7,16 @@
         <Return value={true} />
     </If>
 
-    <Call fn="read" in={$in} />
+    <If on={$in.cached}>
+        <Call fn="index.readFunctionSources" in={$in.batch} />
 
-    <If on={$ctx.read != null}>
-        <Call
-            fn="restore"
-            in={{
-                batch: $in.batch,
-                hits: $ctx.read.hits
-            }}
-        />
+        <If on={$ctx.readFunctionSources.hits != 0}>
+            <Call fn="index.restoreFunctionSources" in={$in.batch} />
+        </If>
 
         <Call
             fn="../updates/record"
-            in={$ctx.read.omit([
+            in={$ctx.readFunctionSources.omit([
                 "hits",
                 "pending"
             ])}
@@ -30,12 +26,13 @@
             <Return value={false} />
         </If>
 
-        <If on={$ctx.read.pending == 0}>
+        <If on={$ctx.readFunctionSources.pending == 0}>
             <Return value={true} />
         </If>
     </If>
 
-    <Call fn="emit" in={$in.batch} />
+    <Call fn="index.generateFunctionSources" in={$in.batch} />
+    <Call fn="index.publishFunctionSources" in={$in.batch} />
 
     <Return value={true} />
 </Module>

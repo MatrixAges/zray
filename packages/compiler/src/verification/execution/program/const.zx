@@ -1,12 +1,2 @@
-export const root_path: string = "in"
-
-export const verification_requires_body: string =
-    "verification requires an executable pure function without Store capabilities"
-
-export const hardware_requires_body: string =
-    "symbolic execution requires a pure executable function without Store capabilities"
-
-export const no_return: string = "verified call has no return value"
-
 export const invalid_parameter_type: string =
     "verification currently supports boolean, enum and fixed-width integer inputs with static objects or tuples"

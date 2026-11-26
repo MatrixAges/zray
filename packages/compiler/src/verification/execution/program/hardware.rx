@@ -3,10 +3,25 @@
 
     <Args in={Program.Entry} out={void} />
 
+    <If on={$in.type_only || $in.stores != 0}>
+        <Call
+            fn="index.rejectSymbolicProgram"
+            in={[
+                $in.program,
+                "symbolic execution requires a pure executable function without Store capabilities"
+            ]}
+        />
+    </If>
+
     <Call
-        fn="prepare"
+        fn="../parameter/walk"
         in={{
-            ...$in,
+            program: $in.program,
+            target: $in.target,
+            types: $in.types,
+            type_id: $in.input,
+            path: "in",
+            index: 0,
             proof: false
         }}
     />
