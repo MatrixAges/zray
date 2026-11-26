@@ -4,18 +4,10 @@
     <Args in={Scopes.Input} out={void} />
 
     <Call
-        fn="index.readU64"
-        in={[
-            $in.index,
-            0
-        ]}
-    />
-
-    <Call
         fn="index.openNativeScope"
         in={[
             $in.frame,
-            $ctx.readU64
+            $in.row
         ]}
     />
 

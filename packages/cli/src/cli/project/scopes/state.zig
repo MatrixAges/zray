@@ -9,7 +9,7 @@ const projections = @import("projections.zig");
 const abi = @import("cli_abi").layouts.@"zig:native_scope_host";
 const Self = @This();
 const name_workspace_slots = 32;
-const Request = std.meta.Child(@typeInfo(@import("cli_source").native_scope_load.Input).optional.child);
+const Request = std.meta.Child(@import("cli_source").native_scope_load.Input);
 const Workspace = std.meta.Child(@FieldType(Request, "workspace"));
 const Modules = std.meta.Child(@FieldType(Workspace, "modules"));
 const Binding = std.meta.Child(@FieldType(Workspace, "binding"));
@@ -58,8 +58,8 @@ naming_index: std.meta.Child(@FieldType(std.meta.Child(@FieldType(Binding, "regi
 workspace: Workspace = undefined,
 binding: Binding = undefined,
 traversal: Traversal = undefined,
-module_cursor: [1]u64 = .{0},
-module_index: []u64 = undefined,
+active: *memory.ArenaScope = undefined,
+scratch: std.mem.Allocator = undefined,
 declaration_views: projections.Declarations = undefined,
 setting_views: projections.Settings = undefined,
 registry_view: std.meta.Child(@FieldType(Binding, "registry")) = undefined,
@@ -88,6 +88,7 @@ pub fn close(self: *Self) void {
     if (self.alias_active) {
         aliases.discard(self.allocator, &self.alias_input, &self.alias_storage);
 
+        self.active.active = self.scratch;
         self.alias_active = false;
     }
 

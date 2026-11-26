@@ -30,8 +30,6 @@ export default function (in: Input): Output {
         )
     )
 
-    memory.selectAllocator(resources.active, resources.owner)
-
     const valid = loop({
         index: 0,
         valid: true
@@ -57,7 +55,10 @@ export default function (in: Input): Output {
                 memory.writeTextSlot(
                     output,
                     current.index,
-                    `${alias}=${resolved}`
+                    memory.copyColumnText(
+                        resources.owner,
+                        `${alias}=${resolved}`
+                    )
                 )
             }
 
@@ -65,8 +66,6 @@ export default function (in: Input): Output {
         },
         return: current => current.valid
     })
-
-    memory.selectArena(resources.active, resources.scratch)
 
     if (!valid) {
         requireNativeScopeAdmission(

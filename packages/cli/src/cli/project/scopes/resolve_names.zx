@@ -34,7 +34,6 @@ export default function (in: Input): Output {
                 memory.copyColumnText(resources.owner, name)
             )
 
-            memory.resetArena(resources.scratch)
             row += 1
         }
     })

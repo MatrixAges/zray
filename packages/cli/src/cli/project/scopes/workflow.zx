@@ -1,6 +1,6 @@
 import type { Compiled, Request } from "compiler_rules/compiled/identity/aliases/model"
 import type { Rows } from "compiler_rules/project/target/select"
-import type { Allocator, Arena, ArenaScope, U64Buffer } from "memory"
+import type { Allocator } from "memory"
 import type { NativeScopeLoad, ScopeWindow } from "native_scope_host"
 import type { Publication, Settings } from "./model"
 import type { Modules } from "./rules/admission/model"
@@ -16,15 +16,13 @@ export type Workspace = {
 }
 
 export type Resources = {
-    owner: Allocator,
-    scratch: Arena,
-    active: ArenaScope
+    owner: Allocator
 }
 
 export type Input = {
     frame: NativeScopeLoad,
     count: u64,
-    index: U64Buffer,
+    row: u64,
     workspace: Workspace,
     resources: Resources
 }
@@ -38,6 +36,6 @@ export type Binding = {
 
 export type Traversal = {
     binding: Binding,
-    index: U64Buffer,
+    row: u64,
     aliases: Request
 }

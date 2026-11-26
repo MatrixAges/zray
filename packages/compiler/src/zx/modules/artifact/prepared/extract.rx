@@ -21,14 +21,6 @@
         />
 
         <Call
-            fn="index.selectAllocator"
-            in={[
-                $in.scope,
-                $in.payload
-            ]}
-        />
-
-        <Call
             module="../materializing/materialize"
             in={{
                 views: $in.materialization,

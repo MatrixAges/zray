@@ -31,17 +31,13 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
     var first = std.heap.BufferFirstAllocator.init(&buffer, allocator);
     var scratch = std.heap.ArenaAllocator.init(first.allocator());
     var active: memory.ArenaScope = .{ .active = scratch.allocator() };
-    var position = [1]u64{0};
-    var index: []u64 = &position;
 
     defer scratch.deinit();
 
-    const Resources = std.meta.Child(@FieldType(std.meta.Child(@typeInfo(rule.Input).optional.child), "resources"));
+    const Resources = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "resources"));
 
     const resources: Resources = .{
         .owner = @ptrCast(&allocator),
-        .scratch = @ptrCast(&scratch),
-        .active = @ptrCast(&active),
     };
 
     state.workspace = .{
@@ -54,13 +50,14 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
     };
 
     state.binding = .{ .window = &state.window, .registry = &state.registry_view, .resources = &resources, .library = &state.compiled_view };
-    state.module_index = &state.module_cursor;
-    state.traversal = .{ .binding = &state.binding, .index = @ptrCast(&state.module_index), .aliases = &state.alias_input };
+    state.active = &active;
+    state.scratch = scratch.allocator();
+    state.traversal = .{ .binding = &state.binding, .row = 0, .aliases = &state.alias_input };
 
     rule.executeIn(active.allocator(), &.{
         .frame = @ptrCast(&reference),
         .count = scopes.len,
-        .index = @ptrCast(&index),
+        .row = 0,
         .workspace = &state.workspace,
         .resources = &resources,
     }) catch |err| {

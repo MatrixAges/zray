@@ -1,5 +1,6 @@
-import type { Allocator, Arena, ReadColumn, U32ListBuffer, U64Buffer } from "memory"
+import type { Allocator, Arena, ReadColumn, U32ListBuffer } from "memory"
 import type { ColumnSet, ColumnView, SliceColumns } from "memory/columns"
+import type { Status } from "../../../analysis/semantic/merging/model"
 import type { Target } from "../../../analysis/semantic/merging/publication/model"
 import type { Input as Shape } from "../../../analysis/semantic/types/validation/shape"
 
@@ -12,7 +13,6 @@ export type Tables = {
 
 export type Input = {
     order: u64[],
-    cursor: U64Buffer,
     types: Tables,
     origins: Tables,
     names: ReadColumn,
@@ -26,5 +26,6 @@ export type Input = {
 export type Traversal = {
     source: Input,
     position: u64,
+    status: Status,
     running: bool
 }

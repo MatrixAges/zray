@@ -4,13 +4,17 @@
 
     <Args in={Types.Input} out={Merge.Status} />
 
-    <Call fn="cursor" in={$in} />
-
     <Loop on={$in.running}>
-        <Call module="advance" />
+        <Call
+            module="advance"
+            in={{
+                source: $in,
+                position: 0,
+                status: Merge.Status.Ready,
+                running: $in.order.length != 0
+            }}
+        />
     </Loop>
 
-    <Call fn="status" in={$in.cursor} />
-
-    <Return value={$ctx.status} />
+    <Return value={$ctx.advance.status} />
 </Module>

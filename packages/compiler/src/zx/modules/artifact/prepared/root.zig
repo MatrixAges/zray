@@ -13,6 +13,7 @@ const Frame = struct {
     program: *const zx.ir.Program,
     record: *const Record,
     allocator: std.mem.Allocator,
+    scope: *zx.memory.ArenaScope,
     materialization: Materialization = undefined,
 };
 
@@ -21,15 +22,13 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
 
     try preparation.bind(scratch, analysis, &record);
 
-    var frame: Frame = .{ .program = &analysis.value.ir, .record = &record, .allocator = allocator };
     var scope: zx.memory.ArenaScope = .{ .active = scratch };
+    var frame: Frame = .{ .program = &analysis.value.ir, .record = &record, .allocator = allocator, .scope = &scope };
 
     const input: std.meta.Child(generated.Input) = .{
         .preparation = &preparation.input,
         .materialization = &frame.materialization.input,
         .frame = @ptrCast(&frame),
-        .scope = @ptrCast(&scope),
-        .payload = @ptrCast(&allocator),
     };
 
     const result = zx.columns.invoke(generated.executeValue, scope.allocator(), &input) catch |err| switch (err) {
@@ -77,6 +76,7 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
 
 pub fn bindArtifactMaterialization(handle: *anyopaque, function: ?u32, use_entry: bool, copy_entry_stores: bool, types: []const u64, functions: []const u64, natives: []const u64) void {
     const frame: *Frame = @ptrCast(@alignCast(handle));
+    frame.scope.active = frame.allocator;
     const program = frame.program;
 
     const source = if (function) |row|

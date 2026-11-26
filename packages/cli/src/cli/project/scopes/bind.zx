@@ -69,7 +69,6 @@ export default function (in: Input): Output {
                     identity,
                     resolved
                 )
-                memory.resetArena(resources.scratch)
             }
 
             index += 1

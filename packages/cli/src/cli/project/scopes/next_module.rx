@@ -3,62 +3,44 @@
     <Type from="../compiler_rules/compiled/identity/aliases/model" as="Alias" />
     <Type from="index" as="Host" />
 
-    <Args in={Scopes.Traversal?} out={Scopes.Traversal?} />
+    <Args in={Scopes.Traversal} out={Scopes.Traversal} />
 
-    <If on={$in != null}>
-        <Call fn="prepare_module" in={$in} />
-        <Call fn="index.prepareNativeScopeAliases" in={$in.binding.window.frame} />
+    <Call fn="prepare_module" in={$in} />
+    <Call fn="index.prepareNativeScopeAliases" in={$in.binding.window.frame} />
 
-        <Call
-            fn="index.selectAllocator"
-            in={[
-                $in.binding.resources.active,
-                $in.binding.resources.owner
-            ]}
-        />
+    <Call
+        module="../compiler_rules/compiled/identity/aliases/build"
+        in={$in.aliases}
+    />
 
-        <Call
-            module="../compiler_rules/compiled/identity/aliases/build"
-            in={$in.aliases}
-        />
+    <Switch on={$ctx.build}>
+        <Case value={Alias.Status.Conflict}>
+            <Call
+                fn="index.requireNativeScopeAdmission"
+                in={[
+                    $in.binding.window.frame,
+                    Host.Admission.ConflictingNativeAbiAlias
+                ]}
+            />
+        </Case>
 
-        <Call
-            fn="index.selectArena"
-            in={[
-                $in.binding.resources.active,
-                $in.binding.resources.scratch
-            ]}
-        />
+        <Case value={Alias.Status.Unknown}>
+            <Call
+                fn="index.requireNativeScopeAdmission"
+                in={[
+                    $in.binding.window.frame,
+                    Host.Admission.UnknownNativeAbiAlias
+                ]}
+            />
+        </Case>
+    </Switch>
 
-        <Switch on={$ctx.build}>
-            <Case value={Alias.Status.Conflict}>
-                <Call
-                    fn="index.requireNativeScopeAdmission"
-                    in={[
-                        $in.binding.window.frame,
-                        Host.Admission.ConflictingNativeAbiAlias
-                    ]}
-                />
-            </Case>
+    <Call fn="index.publishNativeScopeModule" in={$in.binding.window.frame} />
 
-            <Case value={Alias.Status.Unknown}>
-                <Call
-                    fn="index.requireNativeScopeAdmission"
-                    in={[
-                        $in.binding.window.frame,
-                        Host.Admission.UnknownNativeAbiAlias
-                    ]}
-                />
-            </Case>
-        </Switch>
-
-        <Call fn="index.publishNativeScopeModule" in={$in.binding.window.frame} />
-        <Call fn="advance_module" in={$in} />
-
-        <If on={$ctx.advance_module}>
-            <Return value={$in} />
-        </If>
-    </If>
-
-    <Return value={null} />
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
 </Module>

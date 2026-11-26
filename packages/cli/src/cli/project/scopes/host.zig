@@ -220,7 +220,6 @@ pub fn reserveNativeScopeModules(handle: *const anyopaque) std.mem.Allocator.Err
     const self = State.get(handle);
 
     self.module_first = self.modules.items.len;
-    self.module_cursor[0] = 0;
 
     try self.modules.ensureUnusedCapacity(self.allocator, self.config().native_modules.len);
 }
@@ -269,6 +268,7 @@ pub fn prepareNativeScopeAliases(handle: *const anyopaque) void {
     };
 
     self.alias_active = true;
+    self.active.active = self.allocator;
 }
 
 pub fn publishNativeScopeModule(handle: *const anyopaque) effects.Error!void {
@@ -277,6 +277,7 @@ pub fn publishNativeScopeModule(handle: *const anyopaque) effects.Error!void {
 
     module.abi_aliases = self.alias_storage.rows.rows();
     self.alias_active = false;
+    self.active.active = self.scratch;
 
     const previous = self.registry.register(self.registry_owner, module.name, self.modules.items.len) catch |err| return self.failure.save(err);
 

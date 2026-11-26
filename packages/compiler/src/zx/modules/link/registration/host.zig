@@ -41,14 +41,10 @@ pub fn register(types: *Types, modules: []const Module, order: []const u64, mapp
     var declared: Bindings = undefined;
     var known: Bindings = undefined;
     const limits: Limits = .{ .maximum_count = std.math.maxInt(u32), .scalar_count = std.enums.values(ir.Scalar).len };
-    // The batch borrows its cursor outside the scratch arena reset after each row.
-    var progress: [2]u64 = @splat(0);
-    const cursor: []u64 = &progress;
     const publication: Publication.Target = output.target;
 
     const request: Input = .{
         .order = order,
-        .cursor = @ptrCast(&cursor),
         .types = &Tables{
             .rows = @ptrCast(&type_sources),
             .storage = @ptrCast(&type_columns),

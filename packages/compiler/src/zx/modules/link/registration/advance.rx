@@ -10,7 +10,7 @@
     <Call
         fn="publish_cursor"
         in={{
-            source: $in,
+            ...$in,
             status: $ctx.register
         }}
     />

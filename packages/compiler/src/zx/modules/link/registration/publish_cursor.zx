@@ -1,44 +1,32 @@
 import memory from "memory"
 
 import { Status } from "../../../analysis/semantic/merging/model"
-import { position_slot, status_slot, missing_origin, conflict, invalid } from "./const"
 
-import type { Traversal as Output } from "./model"
+import type { Traversal as Input } from "./model"
 
-export type Input = {
-    source: Output,
-    status: Status
-}
+export type Output = Input
 
 export default function (in: Input): Output {
-    const { source, status } = in
-    const { cursor, order, scratch } = source.source
+    const { source, position, status } = in
+    const { order, scratch } = source
 
     if (status == Status.Ready) {
-        const position = source.position + 1
+        const next = position + 1
 
         memory.resetArena(scratch)
-        memory.writeU64(cursor, position_slot, position)
 
         return {
-            ...source,
-            position,
-            running: position < order.length
+            ...in,
+            position: next,
+            status: Status.Ready,
+            running: next < order.length
         }
     }
 
-    const code = match status {
-        Status.MissingOrigin => missing_origin,
-        Status.Conflict => conflict,
-        _ => invalid
-    }
-
-    memory.writeU64(cursor, status_slot, code)
-    memory.writeU64(cursor, position_slot, order.length)
-
     return {
-        ...source,
+        ...in,
         position: order.length,
+        status,
         running: false
     }
 }

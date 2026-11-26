@@ -36,15 +36,12 @@ export default function (in: Input): Output {
         return null
     }
 
-    memory.selectAllocator(resources.active, resources.owner)
-
-    const published = own({
-        instance: library.instance,
-        value: identity,
-        shared: found.shared
-    })
-
-    memory.selectArena(resources.active, resources.scratch)
-
-    return published
+    return memory.copyColumnText(
+        resources.owner,
+        own({
+            instance: library.instance,
+            value: identity,
+            shared: found.shared
+        })
+    )
 }
