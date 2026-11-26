@@ -1,0 +1,15 @@
+import { Layout } from "../lint/index"
+import { index_max_bytes, lock_max_bytes, manifest_max_bytes } from "./const"
+
+export type Input = Layout
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return match in {
+        Layout.Manifest => manifest_max_bytes,
+        Layout.Index => index_max_bytes,
+        Layout.Lock => lock_max_bytes,
+        _ => 0
+    }
+}

@@ -1,41 +1,44 @@
 <Module>
     <Type from="index" as="IO" />
+    <Type from="model" as="Lint" />
 
-    <Args in={IO.Command} out={bool} />
+    <Args in={Lint.CommandInput} out={bool} />
 
-    <Call fn="index.lintRequestsWorkspace" in={$in} />
-
-    <If on={$ctx.lintRequestsWorkspace}>
-        <Call fn="index.lintWorkspace" in={$in} />
+    <If on={$in.workspace}>
+        <Call fn="index.lintWorkspace" in={$in.host} />
 
         <Return value={$ctx.lintWorkspace} />
     </If>
 
-    <Call fn="index.lintRequestsSemantics" in={$in} />
-
-    <If on={$ctx.lintRequestsSemantics}>
-        <Call fn="index.lintSemantic" in={$in} />
+    <If on={$in.semantic}>
+        <Call fn="index.lintSemantic" in={$in.host} />
 
         <Return value={$ctx.lintSemantic} />
     </If>
 
-    <Call fn="index.lintIsConfiguration" in={$in} />
+    <Call
+        fn="../configuration/resolve_layout"
+        in={{
+            explicit_kind: $in.explicit_kind,
+            input_path: $in.input_path
+        }}
+    />
 
-    <If on={$ctx.lintIsConfiguration}>
-        <Call fn="index.lintConfiguration" in={$in} />
+    <If on={$ctx.resolve_layout != IO.Layout.Unknown}>
+        <Call fn="index.lintConfiguration" in={$in.host} />
 
         <Return value={$ctx.lintConfiguration} />
     </If>
 
-    <Call fn="index.lintIsSourceFile" in={$in} />
+    <Call fn="is_source" in={$in.input_path} />
 
-    <If on={!$ctx.lintIsSourceFile}>
-        <Call fn="index.reportLintInput" in={$in} />
+    <If on={!$ctx.is_source}>
+        <Call fn="index.reportLintInput" in={$in.host} />
 
         <Return value={false} />
     </If>
 
-    <Call fn="index.lintSourceFile" in={$in} />
+    <Call fn="index.lintSourceFile" in={$in.host} />
 
     <Return value={$ctx.lintSourceFile} />
 </Module>

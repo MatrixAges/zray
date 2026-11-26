@@ -1,0 +1,19 @@
+import type { Command, Layout, SemanticLint, SourceLint } from "./index"
+
+export type CommandInput = {
+    host: Command,
+    input_path: u8[],
+    explicit_kind: Layout,
+    workspace: bool,
+    semantic: bool
+}
+
+export type SourceInput = {
+    host: SourceLint,
+    input_path: u8[]
+}
+
+export type SemanticInput = {
+    host: SemanticLint,
+    input_path: u8[]
+}

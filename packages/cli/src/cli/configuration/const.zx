@@ -1,0 +1,11 @@
+export const manifest_file: string = "pkg.yaml"
+
+export const lock_file: string = "pkg.lock.json"
+
+export const manifest_max_bytes: u64 = 4194304
+
+export const index_max_bytes: u64 = 16777216
+
+export const lock_max_bytes: u64 = 33554432
+
+export const slash: u8 = 47

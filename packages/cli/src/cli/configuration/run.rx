@@ -1,63 +1,67 @@
 <Module>
     <Type from="../lint/index" as="IO" />
+    <Type from="model" as="Config" />
 
-    <Args in={IO.Configuration} out={bool} />
+    <Args in={Config.Input} out={bool} />
 
-    <Call fn="../lint/index.configurationLayout" in={$in} />
+    <Call
+        fn="resolve_layout"
+        in={{
+            explicit_kind: $in.explicit_kind,
+            input_path: $in.input_path
+        }}
+    />
 
-    <If on={$ctx.configurationLayout == IO.Layout.Unknown}>
-        <Call fn="../lint/index.reportConfigurationKind" in={$in} />
+    <If on={$ctx.resolve_layout == IO.Layout.Unknown}>
+        <Call fn="../lint/index.reportConfigurationKind" in={$in.host} />
 
         <Return value={false} />
     </If>
 
+    <Call fn="maximum_bytes" in={$ctx.resolve_layout} />
+
     <Call
         fn="../lint/index.readConfiguration"
         in={[
-            $in,
-            $ctx.configurationLayout
+            $in.host,
+            $ctx.maximum_bytes
         ]}
     />
 
-    <If on={$ctx.configurationLayout == IO.Layout.Lock}>
-        <Call fn="../lint/index.validateConfigurationLock" in={$in} />
-        <Call fn="../lint/index.configurationLinting" in={$in} />
+    <If on={$ctx.resolve_layout == IO.Layout.Lock}>
+        <Call fn="../lint/index.validateConfigurationLock" in={$in.host} />
 
-        <If on={!$ctx.configurationLinting}>
-            <Call fn="../lint/index.reportManagedLock" in={$in} />
+        <If on={!$in.linting}>
+            <Call fn="../lint/index.reportManagedLock" in={$in.host} />
         </If>
 
-        <Return value={$ctx.configurationLinting} />
+        <Return value={$in.linting} />
     </If>
 
-    <If on={$ctx.configurationLayout == IO.Layout.Manifest}>
-        <Call fn="../lint/index.formatConfigurationManifest" in={$in} />
+    <If on={$ctx.resolve_layout == IO.Layout.Manifest}>
+        <Call fn="../lint/index.formatConfigurationManifest" in={$in.host} />
 
         <If on={!$ctx.formatConfigurationManifest}>
             <Return value={false} />
         </If>
 
         <Else>
-            <Call fn="../lint/index.validateConfigurationIndex" in={$in} />
-            <Call fn="../lint/index.formatConfigurationIndex" in={$in} />
+            <Call fn="../lint/index.validateConfigurationIndex" in={$in.host} />
+            <Call fn="../lint/index.formatConfigurationIndex" in={$in.host} />
         </Else>
     </If>
 
-    <Call fn="../lint/index.configurationChecking" in={$in} />
-
-    <If on={$ctx.configurationChecking}>
-        <Call fn="../lint/index.checkConfigurationFormatting" in={$in} />
+    <If on={$in.linting || $in.check}>
+        <Call fn="../lint/index.checkConfigurationFormatting" in={$in.host} />
 
         <Return value={$ctx.checkConfigurationFormatting} />
     </If>
 
-    <Call fn="../lint/index.configurationWriting" in={$in} />
-
-    <If on={$ctx.configurationWriting}>
-        <Call fn="../lint/index.writeConfiguration" in={$in} />
+    <If on={$in.write}>
+        <Call fn="../lint/index.writeConfiguration" in={$in.host} />
 
         <Else>
-            <Call fn="../lint/index.printConfiguration" in={$in} />
+            <Call fn="../lint/index.printConfiguration" in={$in.host} />
         </Else>
     </If>
 

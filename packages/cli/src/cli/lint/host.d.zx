@@ -26,17 +26,12 @@ export enum Layout {
 }
 
 
-export declare function lintRequestsWorkspace(check: Command): bool
-export declare function lintRequestsSemantics(check: Command): bool
-export declare function lintIsConfiguration(check: Command): bool
-export declare function lintIsSourceFile(check: Command): bool
 export declare function lintConfiguration(check: Command): bool throws { SourceLoadFailure }
 export declare function lintSemantic(check: Command): bool throws { SourceLoadFailure }
 export declare function lintWorkspace(check: Command): bool throws { SourceLoadFailure }
 export declare function reportLintInput(check: Command): void throws { SourceLoadFailure }
 export declare function lintSourceFile(check: Command): bool throws { SourceLoadFailure }
 
-export declare function lintSourceIsRx(check: SourceLint): bool
 export declare function parseLintRx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function validateLintRx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function checkLintRxValues(check: SourceLint): bool throws { SourceLoadFailure }
@@ -46,8 +41,6 @@ export declare function formatLintZx(check: SourceLint): void throws { SourceLoa
 export declare function checkLintFormatting(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function checkLintLength(check: SourceLint): bool throws { SourceLoadFailure }
 
-export declare function semanticLintManifest(check: SemanticLint): bool
-export declare function semanticLintSource(check: SemanticLint): bool
 export declare function rejectSemanticLintInput(check: SemanticLint): void throws { SourceLoadFailure }
 export declare function checkSemanticManifest(check: SemanticLint): bool throws { SourceLoadFailure }
 export declare function loadSemanticProject(check: SemanticLint): bool throws { SourceLoadFailure }
@@ -86,17 +79,13 @@ export declare function reachableLintStoreCount(check: ReachableLint): u64
 export declare function admitReachableLintStore(check: ReachableLint, index: u64): bool throws { SourceLoadFailure }
 export declare function checkReachableLintStore(check: ReachableLint): bool throws { SourceLoadFailure }
 
-export declare function configurationLayout(check: Configuration): Layout
 export declare function reportConfigurationKind(check: Configuration): void throws { SourceLoadFailure }
-export declare function readConfiguration(check: Configuration, layout: Layout): void throws { SourceLoadFailure }
+export declare function readConfiguration(check: Configuration, maximum_bytes: u64): void throws { SourceLoadFailure }
 export declare function formatConfigurationManifest(check: Configuration): bool throws { SourceLoadFailure }
 export declare function validateConfigurationIndex(check: Configuration): void throws { SourceLoadFailure }
 export declare function formatConfigurationIndex(check: Configuration): void throws { SourceLoadFailure }
 export declare function validateConfigurationLock(check: Configuration): void throws { SourceLoadFailure }
-export declare function configurationLinting(check: Configuration): bool
 export declare function reportManagedLock(check: Configuration): void throws { SourceLoadFailure }
-export declare function configurationChecking(check: Configuration): bool
 export declare function checkConfigurationFormatting(check: Configuration): bool throws { SourceLoadFailure }
-export declare function configurationWriting(check: Configuration): bool
 export declare function writeConfiguration(check: Configuration): void throws { SourceLoadFailure }
 export declare function printConfiguration(check: Configuration): void throws { SourceLoadFailure }

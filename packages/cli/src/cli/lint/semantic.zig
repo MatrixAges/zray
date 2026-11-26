@@ -41,21 +41,12 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     defer if (state.analyzed) |*analyzed| analyzed.deinit();
 
-    const valid = @import("cli_source").lint_semantics.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const valid = @import("cli_source").lint_semantics.executeIn(context.allocator, &.{
+        .host = @ptrCast(&reference),
+        .input_path = context.options.input,
+    }) catch |err| return state.failure.unwrap(err);
 
     return if (valid) .success else .failed;
-}
-
-pub fn semanticLintManifest(handle: *const anyopaque) bool {
-    const path = State.get(handle).context.options.input;
-
-    return std.mem.eql(u8, std.fs.path.basename(path), "pkg.yaml");
-}
-
-pub fn semanticLintSource(handle: *const anyopaque) bool {
-    const path = State.get(handle).context.options.input;
-
-    return std.mem.endsWith(u8, path, ".zx") or std.mem.endsWith(u8, path, ".rx");
 }
 
 pub fn rejectSemanticLintInput(handle: *const anyopaque) Error!void {

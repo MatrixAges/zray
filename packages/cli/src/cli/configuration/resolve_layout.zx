@@ -1,0 +1,31 @@
+import { Layout } from "../lint/index"
+import { lock_file, manifest_file } from "./const"
+import hasBasename from "./has_basename"
+
+import type { LayoutQuery } from "./model"
+
+export type Input = LayoutQuery
+
+export type Output = Layout
+
+export default function (in: Input): Output {
+    if (in.explicit_kind != Layout.Unknown) {
+        return in.explicit_kind
+    }
+
+    if (hasBasename({
+        path: in.input_path,
+        name: manifest_file
+    })) {
+        return Layout.Manifest
+    }
+
+    if (hasBasename({
+        path: in.input_path,
+        name: lock_file
+    })) {
+        return Layout.Lock
+    }
+
+    return Layout.Unknown
+}

@@ -1,30 +1,30 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Lint" />
 
-    <Args in={IO.SourceLint} out={bool} />
+    <Args in={Lint.SourceInput} out={bool} />
 
-    <Call fn="../index.lintSourceIsRx" in={$in} />
+    <Call fn="../is_rx" in={$in.input_path} />
 
-    <If on={$ctx.lintSourceIsRx}>
-        <Call module="rx" in={$in} />
+    <If on={$ctx.is_rx}>
+        <Call module="rx" in={$in.host} />
 
         <Return value={$ctx.rx} />
     </If>
 
-    <Call fn="../index.checkLintZx" in={$in} />
+    <Call fn="../index.checkLintZx" in={$in.host} />
 
     <If on={!$ctx.checkLintZx}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.formatLintZx" in={$in} />
-    <Call fn="../index.checkLintFormatting" in={$in} />
+    <Call fn="../index.formatLintZx" in={$in.host} />
+    <Call fn="../index.checkLintFormatting" in={$in.host} />
 
     <If on={!$ctx.checkLintFormatting}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.checkLintLength" in={$in} />
+    <Call fn="../index.checkLintLength" in={$in.host} />
 
     <Return value={$ctx.checkLintLength} />
 </Module>

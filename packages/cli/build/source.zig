@@ -25,7 +25,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/cli/rx/execution"), "rx_execution", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/compilation"), "compilation", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/lint"), "lint_workflow", .{ .include_extensions = &.{ ".rx", ".zx" } });
-    _ = files.addCopyDirectory(b.path("src/cli/configuration"), "configuration_workflow", .{ .include_extensions = &.{".rx"} });
+    _ = files.addCopyDirectory(b.path("src/cli/configuration"), "configuration_workflow", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/build/workspace"), "workspace_files", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/publication"), "publication", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/build/dependencies"), "backend_dependencies", .{ .include_extensions = &.{ ".rx", ".zx" } });

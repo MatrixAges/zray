@@ -29,13 +29,12 @@ pub fn check(context: Compile.Context, source: []const u8) !Compile.Status {
 
     defer state.deinit();
 
-    const valid = @import("cli_source").lint_source.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const valid = @import("cli_source").lint_source.executeIn(context.allocator, &.{
+        .host = @ptrCast(&reference),
+        .input_path = context.options.input,
+    }) catch |err| return state.failure.unwrap(err);
 
     return if (valid) .success else .failed;
-}
-
-pub fn lintSourceIsRx(handle: *const anyopaque) bool {
-    return std.mem.endsWith(u8, State.get(handle).context.options.input, ".rx");
 }
 
 pub fn parseLintRx(handle: *const anyopaque) Error!bool {

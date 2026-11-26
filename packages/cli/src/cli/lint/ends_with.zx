@@ -1,0 +1,19 @@
+import bytes from "std:bytes"
+
+export type Input = {
+    text: u8[],
+    suffix: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const expected = bytes.fromText(in.suffix)
+    const length = expected.length
+
+    if (in.text.length < length) {
+        return false
+    }
+
+    return bytes.startsWithText(in.text, in.text.length - length, in.suffix)
+}

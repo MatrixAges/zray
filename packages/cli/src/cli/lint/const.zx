@@ -1,0 +1,5 @@
+export const zx_suffix: string = ".zx"
+
+export const rx_suffix: string = ".rx"
+
+export const manifest_file: string = "pkg.yaml"

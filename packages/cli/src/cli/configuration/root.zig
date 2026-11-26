@@ -1,11 +1,19 @@
 const std = @import("std");
 const Compile = @import("../compile.zig");
-const kinds = @import("kind.zig");
+const Options = @import("../options.zig");
 const pkgs = @import("pkgs");
 const yaml = @import("yaml.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
 const Layout = @import("cli_abi").native.@"zig:lint_workflow_host".Layout;
+
+pub fn toLayout(kind: ?Options.ConfigKind) Layout {
+    return switch (kind orelse return .Unknown) {
+        .manifest => .Manifest,
+        .index => .Index,
+        .lock => .Lock,
+    };
+}
 
 const State = struct {
     context: *const Compile.Context,
@@ -39,20 +47,16 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     defer state.deinit();
 
-    const valid = @import("cli_source").configuration_workflow.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const valid = @import("cli_source").configuration_workflow.executeIn(context.allocator, &.{
+        .host = @ptrCast(&reference),
+        .input_path = context.options.input,
+        .explicit_kind = toLayout(context.options.config_kind),
+        .linting = context.options.linting,
+        .check = context.options.check,
+        .write = context.options.write,
+    }) catch |err| return state.failure.unwrap(err);
 
     return if (valid) .success else .failed;
-}
-
-pub fn configurationLayout(handle: *const anyopaque) Layout {
-    const options = &State.get(handle).context.options;
-    const kind = options.config_kind orelse kinds.infer(options.input) orelse return .Unknown;
-
-    return switch (kind) {
-        .manifest => .Manifest,
-        .index => .Index,
-        .lock => .Lock,
-    };
 }
 
 pub fn reportConfigurationKind(handle: *const anyopaque) Error!void {
@@ -61,18 +65,11 @@ pub fn reportConfigurationKind(handle: *const anyopaque) Error!void {
     self.context.stderr.writeAll("configuration kind is unknown; use --kind manifest, index or lock\n") catch |err| return self.failure.save(err);
 }
 
-pub fn readConfiguration(handle: *const anyopaque, layout: Layout) Error!void {
+pub fn readConfiguration(handle: *const anyopaque, maximum_bytes: u64) Error!void {
     const self = State.get(handle);
     const context = self.context;
 
-    const kind: kinds.Kind = switch (layout) {
-        .Manifest => .manifest,
-        .Index => .index,
-        .Lock => .lock,
-        .Unknown => unreachable,
-    };
-
-    self.source = std.Io.Dir.cwd().readFileAlloc(context.io, context.options.input, context.allocator, .limited(kinds.maximumBytes(kind))) catch |err| return self.failure.save(err);
+    self.source = std.Io.Dir.cwd().readFileAlloc(context.io, context.options.input, context.allocator, .limited(@intCast(maximum_bytes))) catch |err| return self.failure.save(err);
 }
 
 pub fn formatConfigurationManifest(handle: *const anyopaque) Error!bool {
@@ -105,20 +102,10 @@ pub fn validateConfigurationLock(handle: *const anyopaque) Error!void {
     checked.deinit();
 }
 
-pub fn configurationLinting(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.linting;
-}
-
 pub fn reportManagedLock(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
     self.context.stderr.writeAll("pkg.lock.json is managed by zxc pkg install; use zxc lint for read-only validation\n") catch |err| return self.failure.save(err);
-}
-
-pub fn configurationChecking(handle: *const anyopaque) bool {
-    const options = &State.get(handle).context.options;
-
-    return options.linting or options.check;
 }
 
 pub fn checkConfigurationFormatting(handle: *const anyopaque) Error!bool {
@@ -129,10 +116,6 @@ pub fn checkConfigurationFormatting(handle: *const anyopaque) Error!bool {
     self.context.stderr.print("{s}: configuration formatting required; run zxc fmt with the same --kind selection\n", .{self.context.options.input}) catch |err| return self.failure.save(err);
 
     return false;
-}
-
-pub fn configurationWriting(handle: *const anyopaque) bool {
-    return State.get(handle).context.options.write;
 }
 
 pub fn writeConfiguration(handle: *const anyopaque) Error!void {

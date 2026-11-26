@@ -1,5 +1,4 @@
 const std = @import("std");
-
 const driver = "/usr/bin/xcrun";
 
 /// Links a partitioned zxc with the platform toolchain where `available`. Zig 0.17's Mach-O linker needs about 3 s
@@ -12,12 +11,16 @@ const driver = "/usr/bin/xcrun";
 /// command.
 pub fn link(b: *std.Build, target: std.Build.ResolvedTarget, entry: *std.Build.Step.Compile, inputs: []const *std.Build.Step.Compile, objects: []const std.Build.LazyPath, identity: std.Build.LazyPath, quiet: bool) std.Build.LazyPath {
     const minimum = target.result.os.version_range.semver.min;
+
     const command = b.addSystemCommand(&.{
         driver,
         "clang",
         "-arch",
         if (target.result.cpu.arch == .aarch64) "arm64" else @tagName(target.result.cpu.arch),
-        b.fmt("-mmacosx-version-min={d}.{d}", .{ minimum.major, minimum.minor }),
+        if (minimum.patch == 0)
+            b.fmt("-mmacosx-version-min={d}.{d}", .{ minimum.major, minimum.minor })
+        else
+            b.fmt("-mmacosx-version-min={d}.{d}.{d}", .{ minimum.major, minimum.minor, minimum.patch }),
         "-Wl,-stack_size,0x1000000",
     });
 

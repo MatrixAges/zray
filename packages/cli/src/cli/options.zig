@@ -1,6 +1,7 @@
 const std = @import("std");
 const CompilationRequest = std.meta.Child(@import("cli_source").compile_command.Input);
 const Settings = std.meta.Child(@FieldType(CompilationRequest, "settings"));
+pub const ConfigKind = enum { manifest, index, lock };
 
 pub const Options = struct {
     input: []const u8,
@@ -10,7 +11,7 @@ pub const Options = struct {
     linting: bool = false,
     semantic_lint: bool = false,
     workspace_lint: bool = false,
-    config_kind: ?@import("configuration/kind.zig").Kind = null,
+    config_kind: ?ConfigKind = null,
     max_lines: ?usize = null,
     check: bool = false,
     write: bool = false,
@@ -83,7 +84,7 @@ pub fn parse(args: []const []const u8) error{InvalidArguments}!Options {
         .run_args = if (state.tail == 0) &.{} else args[@intCast(state.tail)..],
     };
 
-    if (argument(args, state.kind)) |value| options.config_kind = std.meta.stringToEnum(@import("configuration/kind.zig").Kind, value) orelse return error.InvalidArguments;
+    if (argument(args, state.kind)) |value| options.config_kind = std.meta.stringToEnum(ConfigKind, value) orelse return error.InvalidArguments;
     if (argument(args, state.mode)) |value| options.mode = std.meta.stringToEnum(@TypeOf(options.mode), value) orelse return error.InvalidArguments;
     if (argument(args, state.host)) |value| options.host = std.meta.stringToEnum(@TypeOf(options.host), value) orelse return error.InvalidArguments;
     if (argument(args, state.result)) |value| options.result = std.meta.stringToEnum(@TypeOf(options.result), value) orelse return error.InvalidArguments;

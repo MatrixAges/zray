@@ -1,0 +1,15 @@
+import type { Configuration, Layout } from "../lint/index"
+
+export type LayoutQuery = {
+    explicit_kind: Layout,
+    input_path: u8[]
+}
+
+export type Input = {
+    host: Configuration,
+    input_path: u8[],
+    explicit_kind: Layout,
+    linting: bool,
+    check: bool,
+    write: bool
+}

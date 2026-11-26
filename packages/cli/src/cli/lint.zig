@@ -14,32 +14,19 @@ const Command = struct {
 pub fn run(context: Compile.Context) !Compile.Status {
     var command: Command = .{ .context = &context };
     const reference = &command;
-    const valid = @import("cli_source").lint_command.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return command.failure.unwrap(err);
+
+    const valid = @import("cli_source").lint_command.executeIn(context.allocator, &.{
+        .host = @ptrCast(&reference),
+        .input_path = context.options.input,
+        .explicit_kind = @import("configuration/root.zig").toLayout(context.options.config_kind),
+        .workspace = context.options.workspace_lint,
+        .semantic = context.options.semantic_lint,
+    }) catch |err| return command.failure.unwrap(err);
 
     return if (valid) .success else .failed;
 }
 
 pub const checkSource = @import("lint/source.zig").check;
-
-pub fn lintRequestsWorkspace(handle: *const anyopaque) bool {
-    return Command.get(handle).context.options.workspace_lint;
-}
-
-pub fn lintRequestsSemantics(handle: *const anyopaque) bool {
-    return Command.get(handle).context.options.semantic_lint;
-}
-
-pub fn lintIsConfiguration(handle: *const anyopaque) bool {
-    const options = &Command.get(handle).context.options;
-
-    return options.config_kind != null or @import("configuration/kind.zig").infer(options.input) != null;
-}
-
-pub fn lintIsSourceFile(handle: *const anyopaque) bool {
-    const path = Command.get(handle).context.options.input;
-
-    return std.mem.endsWith(u8, path, ".zx") or std.mem.endsWith(u8, path, ".rx");
-}
 
 pub fn lintConfiguration(handle: *const anyopaque) Error!bool {
     const self = Command.get(handle);
