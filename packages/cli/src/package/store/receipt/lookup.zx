@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+import string from "std:string"
+
+import { backslash, slash } from "../const"
+
+import type { LookupInput as Input } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const normalized = string.replaceAll(in.path, backslash, slash)
+    const wanted = bytes.fromText(normalized)
+
+    return loop(0, {
+        while: index =>
+            index < in.paths.length &&
+            !bytes.equals(bytes.fromText(in.paths[index]), wanted),
+        next: index => {
+            index += 1
+        },
+        return: index => index < in.paths.length ? index : null
+    })
+}

@@ -6,6 +6,11 @@ export enum TreeKind {
     Other
 }
 
+export type TreeEntry = {
+    kind: TreeKind,
+    path: string
+}
+
 export type LoadedReceipt = {
     format_version: u32,
     archive_hash: string,
@@ -21,12 +26,8 @@ export type HashedFile = {
 
 export declare function receiptIsFile(receipt: Receipt): bool throws { ReceiptHostFailure }
 export declare function loadReceipt(receipt: Receipt): LoadedReceipt throws { ReceiptHostFailure }
-export declare function claimFile(receipt: Receipt, row: u64, path: string): bool throws {
-    ReceiptHostFailure
-}
 export declare function openTree(receipt: Receipt): void throws { ReceiptHostFailure }
-export declare function nextTreeEntry(receipt: Receipt): TreeKind? throws { ReceiptHostFailure }
-export declare function lookupFile(receipt: Receipt): u64? throws { ReceiptHostFailure }
+export declare function nextTreeEntry(receipt: Receipt): TreeEntry? throws { ReceiptHostFailure }
 export declare function openTreeFile(receipt: Receipt): bool? throws { ReceiptHostFailure }
 export declare function hashTreeFile(receipt: Receipt, remaining: u64): HashedFile? throws {
     ReceiptHostFailure

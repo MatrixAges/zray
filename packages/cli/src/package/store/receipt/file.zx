@@ -1,27 +1,12 @@
 import host from "package_receipt_host"
 
-import type { Receipt } from "package_receipt_host"
-
-export type Input = {
-    receipt: Receipt,
-    remaining: u64,
-    hashes: string[],
-    executables: bool[]
-}
+import type { FileInput as Input } from "./model"
 
 export type Output = u64?
 
 export default function (in: Input): Output {
-    const { receipt, remaining, hashes, executables } = in
+    const { receipt, remaining, expected, executable } = in
 
-    const index = host.lookupFile(receipt)
-
-    if (index == null) {
-        return null
-    }
-
-    const executable = executables[index]
-    const expected = hashes[index]
     const actual = host.openTreeFile(receipt)
 
     if (actual != null && actual != executable) {

@@ -55,7 +55,25 @@ pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, dire
         .iterator = &iterator,
     };
 
-    const status = @import("cli_source").unpack.executeIn(state.allocator, @ptrCast(&state)) catch |err| switch (err) {
+    var store_arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer store_arena.deinit();
+
+    const rule = @import("cli_source").unpack;
+    const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+    const StoreHost = struct {
+        store_0: *StoreState,
+        pub fn commit(self: *@This(), pending: anytype) error{}!void {
+            if (pending.store_0) |next| self.store_0.* = next;
+        }
+    };
+
+    var claimed_value: std.meta.Child(StoreState) = .{ .paths = &.{} };
+    var claimed: StoreState = &claimed_value;
+    var host: StoreHost = .{ .store_0 = &claimed };
+
+    const status = rule.execute(&store_arena, @ptrCast(&state), &host) catch |err| switch (err) {
         error.ArchiveHostFailure => return state.failure.?,
         else => |failure| return failure,
     };

@@ -1,10 +1,21 @@
-import type { Archive, Entry } from "package_extract_host"
+import type { Archive } from "package_extract_host"
 
 export type Input = Archive
 
-export type EntryInput = {
-    archive: Archive,
-    entry: Entry
+export type Claimed = {
+    paths: string[]
+}
+
+export type AdmitInput = {
+    claimed: Claimed,
+    path: string
+}
+
+export enum Action {
+    Skip,
+    Directory,
+    File,
+    Unsupported
 }
 
 export enum Status {
@@ -12,6 +23,19 @@ export enum Status {
     InvalidPackageArchivePath,
     DuplicatePackageArchivePath,
     UnsupportedPackageTarEntry
+}
+
+export type Classified = {
+    status: Status,
+    action: Action,
+    path: string,
+    executable: bool
+}
+
+export type Step = {
+    archive: Archive,
+    status: Status,
+    running: bool
 }
 
 export type Output = Status

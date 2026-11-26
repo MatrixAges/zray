@@ -1,0 +1,47 @@
+import { EntryKind } from "package_extract_host"
+
+import normalize from "../package/archive/path/normalize"
+import { Action, Status } from "./model"
+
+import type { Entry as Input } from "package_extract_host"
+import type { Classified as Output } from "./model"
+
+export default function (in: Input): Output {
+    const directory = in.kind == EntryKind.Directory
+
+    const path = normalize({
+        name: in.name,
+        directory
+    })
+
+    if (path == null) {
+        return {
+            status: Status.InvalidPackageArchivePath,
+            action: Action.Skip,
+            path: "",
+            executable: false
+        }
+    }
+
+    if (path == "") {
+        return {
+            status: Status.Valid,
+            action: Action.Skip,
+            path: "",
+            executable: false
+        }
+    }
+
+    const action = match {
+        directory => Action.Directory,
+        in.kind == EntryKind.File => Action.File,
+        _ => Action.Unsupported
+    }
+
+    return {
+        status: Status.Valid,
+        action,
+        path,
+        executable: in.executable
+    }
+}

@@ -21,13 +21,25 @@ export type HeaderInput = {
 }
 
 export type PathsInput = {
-    receipt: Receipt,
     paths: string[],
     hashes: string[]
 }
 
+export type LookupInput = {
+    paths: string[],
+    path: string
+}
+
+export type FileInput = {
+    receipt: Receipt,
+    remaining: u64,
+    expected: string,
+    executable: bool
+}
+
 export type ScanInput = {
     receipt: Receipt,
+    paths: string[],
     hashes: string[],
     executables: bool[]
 }

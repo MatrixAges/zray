@@ -12,7 +12,6 @@ pub const State = struct {
     iterator: *std.tar.Iterator,
     entry: std.tar.Iterator.File = undefined,
     entry_view: Entry = undefined,
-    paths: std.StringHashMapUnmanaged(void) = .empty,
     files: std.ArrayList(File) = .empty,
     failure: ?anyerror = null,
     fn get(handle: *anyopaque) *State {
@@ -43,16 +42,6 @@ pub fn nextTar(handle: *anyopaque) Error!?*const Entry {
     return &self.entry_view;
 }
 
-pub fn claimTarPath(handle: *anyopaque, name: []const u8) Error!?[]const u8 {
-    const self = State.get(handle);
-    const path = self.allocator.dupe(u8, name) catch |err| return self.fail(err);
-    const previous = self.paths.getOrPut(self.allocator, path) catch |err| return self.fail(err);
-
-    if (previous.found_existing) return null;
-
-    return path;
-}
-
 pub fn makeTarDirectory(handle: *anyopaque, path: []const u8) Error!void {
     const self = State.get(handle);
 
@@ -63,10 +52,11 @@ pub fn writeTarFile(handle: *anyopaque, path: []const u8, executable: bool) Erro
     const self = State.get(handle);
     const io = self.io;
     const directory = self.directory;
+    const owned_path = self.allocator.dupe(u8, path) catch |err| return self.fail(err);
 
-    if (std.fs.path.dirname(path)) |parent| directory.createDirPath(io, parent) catch |err| return self.fail(err);
+    if (std.fs.path.dirname(owned_path)) |parent| directory.createDirPath(io, parent) catch |err| return self.fail(err);
 
-    const file = directory.createFile(io, path, .{ .exclusive = true, .permissions = if (executable) .executable_file else .default_file }) catch |err| return self.fail(err);
+    const file = directory.createFile(io, owned_path, .{ .exclusive = true, .permissions = if (executable) .executable_file else .default_file }) catch |err| return self.fail(err);
 
     defer file.close(io);
 
@@ -82,5 +72,5 @@ pub fn writeTarFile(handle: *anyopaque, path: []const u8, executable: bool) Erro
     const hex = std.fmt.bytesToHex(hashed.hasher.finalResult(), .lower);
     const digest = self.allocator.dupe(u8, &hex) catch |err| return self.fail(err);
 
-    self.files.append(self.allocator, .{ .path = path, .sha256 = digest, .executable = executable }) catch |err| return self.fail(err);
+    self.files.append(self.allocator, .{ .path = owned_path, .sha256 = digest, .executable = executable }) catch |err| return self.fail(err);
 }

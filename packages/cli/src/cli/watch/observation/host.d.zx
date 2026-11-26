@@ -64,5 +64,4 @@ export declare function publishObservation(
     consistent: bool
 ): void throws { ObservationFailure }
 
-export declare function captureEntry(capture: Capture, index: u64): void throws { ObservationFailure }
-export declare function sortCapture(capture: Capture): void
+export declare function captureEntry(capture: Capture, index: u64): string throws { ObservationFailure }

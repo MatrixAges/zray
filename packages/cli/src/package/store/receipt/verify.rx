@@ -26,7 +26,6 @@
     <Call
         fn="paths"
         in={{
-            receipt: $in.receipt,
             paths: $ctx.loadReceipt.paths,
             hashes: $ctx.loadReceipt.hashes
         }}
@@ -42,6 +41,7 @@
         fn="scan"
         in={{
             receipt: $in.receipt,
+            paths: $ctx.loadReceipt.paths,
             hashes: $ctx.loadReceipt.hashes,
             executables: $ctx.loadReceipt.executables
         }}

@@ -9,6 +9,5 @@ export {
     comparePrevious,
     recordFile,
     compareRecorded,
-    publishObservation,
-    sortCapture
+    publishObservation
 } from "snapshot_host"

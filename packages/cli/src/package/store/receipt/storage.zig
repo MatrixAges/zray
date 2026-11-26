@@ -4,7 +4,7 @@ const archive = @import("../../archive.zig");
 const Receipt = @import("../receipt.zig").Receipt;
 const constants = @import("cli_source").store_constants.@"zx.constants";
 const LoadedReceipt = abi.layouts.@"zig:package_receipt_host".LoadedReceipt;
-const TreeKind = abi.layouts.@"zig:package_receipt_host".TreeKind;
+const TreeEntry = abi.layouts.@"zig:package_receipt_host".TreeEntry;
 const HashedFile = abi.layouts.@"zig:package_receipt_host".HashedFile;
 pub const Error = error{ReceiptHostFailure};
 
@@ -15,11 +15,11 @@ pub const State = struct {
     source: ?[]u8 = null,
     parsed: ?std.json.Parsed(Receipt) = null,
     loaded_view: LoadedReceipt = undefined,
+    tree_view: TreeEntry = undefined,
     hashed_view: HashedFile = undefined,
     paths: [][]const u8 = &.{},
     hashes: [][]const u8 = &.{},
     executables: []bool = &.{},
-    names: std.StringHashMapUnmanaged(usize) = .empty,
     package: ?std.Io.Dir = null,
     walker: ?std.Io.Dir.Walker = null,
     entry: std.Io.Dir.Walker.Entry = undefined,
@@ -49,9 +49,6 @@ pub const State = struct {
         }
 
         if (self.package) |directory| directory.close(self.io);
-
-        self.names.deinit(self.allocator);
-
         if (self.executables.len != 0) self.allocator.free(self.executables);
         if (self.hashes.len != 0) self.allocator.free(self.hashes);
         if (self.paths.len != 0) self.allocator.free(self.paths);
@@ -103,17 +100,6 @@ pub fn loadReceipt(handle: *anyopaque) Error!*const LoadedReceipt {
     return &self.loaded_view;
 }
 
-pub fn claimFile(handle: *anyopaque, row: u64, path: []const u8) Error!bool {
-    const self = State.get(handle);
-    const entry = self.names.getOrPut(self.allocator, path) catch |err| return self.fail(err);
-
-    if (entry.found_existing) return false;
-
-    entry.value_ptr.* = @intCast(row);
-
-    return true;
-}
-
 pub fn openTree(handle: *anyopaque) Error!void {
     const self = State.get(handle);
     const package = self.directory.openDir(self.io, constants.package_directory, .{ .iterate = true, .follow_symlinks = false }) catch |err| return self.fail(err);
@@ -121,29 +107,21 @@ pub fn openTree(handle: *anyopaque) Error!void {
     self.walker = package.walk(self.allocator) catch |err| return self.fail(err);
 }
 
-pub fn nextTreeEntry(handle: *anyopaque) Error!?TreeKind {
+pub fn nextTreeEntry(handle: *anyopaque) Error!?*const TreeEntry {
     const self = State.get(handle);
 
     self.entry = (self.walker.?.next(self.io) catch |err| return self.fail(err)) orelse return null;
 
-    return switch (self.entry.kind) {
-        .directory => .Directory,
-        .file => .File,
-        else => .Other,
+    self.tree_view = .{
+        .kind = switch (self.entry.kind) {
+            .directory => .Directory,
+            .file => .File,
+            else => .Other,
+        },
+        .path = self.entry.path,
     };
-}
 
-pub fn lookupFile(handle: *anyopaque) Error!?u64 {
-    const self = State.get(handle);
-
-    if (comptime std.fs.path.sep == '/') return self.names.get(self.entry.path);
-
-    const path = self.allocator.dupe(u8, self.entry.path) catch |err| return self.fail(err);
-
-    defer self.allocator.free(path);
-    std.mem.replaceScalar(u8, path, std.fs.path.sep, '/');
-
-    return self.names.get(path);
+    return &self.tree_view;
 }
 
 pub fn openTreeFile(handle: *anyopaque) Error!?bool {

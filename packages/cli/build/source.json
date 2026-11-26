@@ -546,7 +546,7 @@
             "name": "receipt"
         },
         {
-            "path": "extract/unpack.zx",
+            "path": "extract/unpack.rx",
             "name": "unpack"
         },
         {

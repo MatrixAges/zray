@@ -13,9 +13,6 @@ export type Entry = {
 }
 
 export declare function nextTar(archive: Archive): Entry? throws { ArchiveHostFailure }
-export declare function claimTarPath(archive: Archive, path: string): string? throws {
-    ArchiveHostFailure
-}
 export declare function makeTarDirectory(archive: Archive, path: string): void throws {
     ArchiveHostFailure
 }

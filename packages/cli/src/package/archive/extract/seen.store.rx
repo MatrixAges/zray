@@ -1,0 +1,5 @@
+<Store name="archive_extract" version={1}>
+    <Object name="claimed">
+        <Field name="paths" type={string[]} value={[]} />
+    </Object>
+</Store>

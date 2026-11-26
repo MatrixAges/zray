@@ -1,0 +1,86 @@
+<Module>
+    <Type from="model" as="Extract" />
+
+    <Args in={Extract.Step} out={Extract.Step} />
+
+    <Store from="seen" as="seen" />
+
+    <Call fn="index.nextTar" in={$in.archive} />
+
+    <If on={$ctx.nextTar != null}>
+        <Call fn="classify_entry" in={$ctx.nextTar} />
+
+        <If on={$ctx.classify_entry.status != Extract.Status.Valid}>
+            <Return
+                value={{
+                    ...$in,
+                    status: $ctx.classify_entry.status,
+                    running: false
+                }}
+            />
+        </If>
+
+        <If on={$ctx.classify_entry.action != Extract.Action.Skip}>
+            <Call
+                fn="admit_path"
+                in={{
+                    claimed: $store.seen.claimed,
+                    path: $ctx.classify_entry.path
+                }}
+                setter={[$store.seen.claimed]}
+            />
+
+            <If on={!$ctx.admit_path}>
+                <Return
+                    value={{
+                        ...$in,
+                        status: Extract.Status.DuplicatePackageArchivePath,
+                        running: false
+                    }}
+                />
+            </If>
+
+            <If on={$ctx.classify_entry.action == Extract.Action.Directory}>
+                <Call
+                    fn="index.makeTarDirectory"
+                    in={[
+                        $in.archive,
+                        $ctx.classify_entry.path
+                    ]}
+                />
+
+                <Else>
+                    <If on={$ctx.classify_entry.action == Extract.Action.Unsupported}>
+                        <Return
+                            value={{
+                                ...$in,
+                                status: Extract.Status.UnsupportedPackageTarEntry,
+                                running: false
+                            }}
+                        />
+
+                        <Else>
+                            <Call
+                                fn="index.writeTarFile"
+                                in={[
+                                    $in.archive,
+                                    $ctx.classify_entry.path,
+                                    $ctx.classify_entry.executable
+                                ]}
+                            />
+                        </Else>
+                    </If>
+                </Else>
+            </If>
+        </If>
+
+        <Return value={$in} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            running: false
+        }}
+    />
+</Module>

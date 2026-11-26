@@ -1,4 +1,4 @@
-import host from "package_receipt_host"
+import bytes from "std:bytes"
 
 import normalize from "../../package/archive/path/normalize"
 import { digest_width } from "../const"
@@ -17,6 +17,7 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.row
             const path = in.paths[row]
+
             const normal = normalize({
                 name: path,
                 directory: false
@@ -31,8 +32,25 @@ export default function (in: Input): Output {
 
                 if (!matching || !sized) {
                     state.status = Status.InvalidPackageReceipt
-                } else if (!host.claimFile(in.receipt, row, normal)) {
-                    state.status = Status.InvalidPackageReceipt
+                } else {
+                    const wanted = bytes.fromText(path)
+
+                    const duplicate = loop(0, {
+                        while: prev =>
+                            prev < row &&
+                            !bytes.equals(
+                                bytes.fromText(in.paths[prev]),
+                                wanted
+                            ),
+                        next: prev => {
+                            prev += 1
+                        },
+                        return: prev => prev < row
+                    })
+
+                    if (duplicate) {
+                        state.status = Status.InvalidPackageReceipt
+                    }
                 }
             }
 

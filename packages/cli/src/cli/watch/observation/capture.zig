@@ -30,25 +30,33 @@ pub fn capture(inputs: *const Inputs, allocator: std.mem.Allocator) !Snapshot {
 
     const handle = &context;
 
-    source.executeValue(owned, &.{
+    const order = source.executeValue(owned, &.{
         .capture = @ptrCast(&handle),
         .count = context.entries.len,
     }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 
-    return .{ .arena = arena, .entries = context.entries, .consistent = inputs.consistent };
+    if (order.len <= 1) return .{ .arena = arena, .entries = context.entries, .consistent = inputs.consistent };
+
+    const sorted = try owned.alloc(Snapshot.Entry, order.len);
+
+    for (order, 0..) |row, index| {
+        sorted[index] = context.entries[@intCast(row)];
+    }
+
+    return .{ .arena = arena, .entries = sorted, .consistent = inputs.consistent };
 }
 
-pub fn captureEntry(handle: *const anyopaque, index: u64) Error!void {
+pub fn captureEntry(handle: *const anyopaque, index: u64) Error![]const u8 {
     const self = Context.get(handle);
 
-    fill(self, @intCast(index)) catch |err| {
+    return fill(self, @intCast(index)) catch |err| {
         self.failure = err;
 
         return error.ObservationFailure;
     };
 }
 
-fn fill(self: *Context, index: usize) !void {
+fn fill(self: *Context, index: usize) ![]const u8 {
     const entry = self.iterator.next().?;
     const logical = entry.key_ptr.*;
     const path = try self.allocator.dupe(u8, logical);
@@ -66,12 +74,6 @@ fn fill(self: *Context, index: usize) !void {
     }
 
     self.entries[index] = .{ .path = path, .state = state, .directory_entries = entry.value_ptr.directory_entries };
-}
 
-pub fn sortCapture(handle: *const anyopaque) void {
-    std.mem.sort(Snapshot.Entry, Context.get(handle).entries, {}, lessThan);
-}
-
-fn lessThan(_: void, left: Snapshot.Entry, right: Snapshot.Entry) bool {
-    return std.mem.lessThan(u8, left.path, right.path);
+    return path;
 }

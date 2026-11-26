@@ -3,6 +3,7 @@ import { TreeKind } from "package_receipt_host"
 
 import { maximum_entries, maximum_unpacked } from "../const"
 import file from "./file"
+import lookup from "./lookup"
 import { Status } from "./model"
 
 import type { Entries, ScanInput as Input, Output } from "./model"
@@ -21,30 +22,39 @@ export default function (in: Input): Output {
     return loop(initial, {
         while: current => current.more && current.status == Status.Valid,
         next: current => {
-            const kind = host.nextTreeEntry(in.receipt)
+            const entry = host.nextTreeEntry(in.receipt)
 
-            if (kind == null) {
+            if (entry == null) {
                 current.more = false
             } else if (current.visited == maximum_entries) {
                 current.status = Status.TooManyPackageEntries
             } else {
                 current.visited += 1
 
-                if (kind == TreeKind.File) {
-                    const bytes = file({
-                        receipt: in.receipt,
-                        remaining: maximum_unpacked - current.bytes,
-                        hashes: in.hashes,
-                        executables: in.executables
+                if (entry.kind == TreeKind.File) {
+                    const index = lookup({
+                        paths: in.paths,
+                        path: entry.path
                     })
 
-                    if (bytes == null) {
+                    if (index == null) {
                         current.status = Status.CorruptPackageStore
                     } else {
-                        current.bytes += bytes
-                        current.files += 1
+                        const bytes = file({
+                            receipt: in.receipt,
+                            remaining: maximum_unpacked - current.bytes,
+                            expected: in.hashes[index],
+                            executable: in.executables[index]
+                        })
+
+                        if (bytes == null) {
+                            current.status = Status.CorruptPackageStore
+                        } else {
+                            current.bytes += bytes
+                            current.files += 1
+                        }
                     }
-                } else if (kind != TreeKind.Directory) {
+                } else if (entry.kind != TreeKind.Directory) {
                     current.status = Status.CorruptPackageStore
                 }
             }
