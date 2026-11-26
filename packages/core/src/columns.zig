@@ -240,3 +240,51 @@ pub fn own(allocator: std.mem.Allocator, source: anytype, replacements: anytype)
 
     return result;
 }
+
+/// Bridges structurally matching values across distinct generated ABI nominal types.
+pub fn bridge(comptime Target: type, allocator: std.mem.Allocator, value: anytype) std.mem.Allocator.Error!Target {
+    @setEvalBranchQuota(100_000);
+
+    if (Target == @TypeOf(value)) return value;
+
+    return switch (@typeInfo(Target)) {
+        .pointer => |ptr| switch (ptr.size) {
+            .one => blk: {
+                if (comptime @typeInfo(ptr.child) == .@"opaque") break :blk @ptrCast(value);
+
+                const copy = try allocator.create(ptr.child);
+                const inner = if (@typeInfo(@TypeOf(value)) == .pointer) value.* else value;
+                copy.* = try bridge(ptr.child, allocator, inner);
+
+                break :blk copy;
+            },
+            .slice => blk: {
+                if (comptime ptr.child == std.meta.Elem(@TypeOf(value))) break :blk value;
+                if (value.len == 0) break :blk &.{};
+
+                const copy = try allocator.alloc(ptr.child, value.len);
+
+                for (copy, value) |*dst, item| dst.* = try bridge(ptr.child, allocator, item);
+
+                break :blk copy;
+            },
+            else => @compileError("Unsupported bridged pointer size"),
+        },
+        .optional => |opt| if (value) |inner| try bridge(opt.child, allocator, inner) else null,
+        .@"struct" => |info| blk: {
+            const inner = if (@typeInfo(@TypeOf(value)) == .pointer) value.* else value;
+            var result: Target = undefined;
+
+            inline for (info.field_names) |name| {
+                @field(result, name) = if (comptime std.mem.eql(u8, name, "zx_origin"))
+                    null
+                else
+                    try bridge(@FieldType(Target, name), allocator, @field(inner, name));
+            }
+
+            break :blk result;
+        },
+        .@"enum" => @fromBackingInt(@backingInt(value)),
+        else => value,
+    };
+}

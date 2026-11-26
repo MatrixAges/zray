@@ -3,14 +3,6 @@
 
     <Args in={Artifact.Publish} out={Artifact.Published} />
 
-    <Call
-        fn="index.selectAllocator"
-        in={[
-            $in.targets.scope,
-            $in.targets.payload
-        ]}
-    />
-
     <If on={$in.types.kinds.length != 0}>
         <Call
             fn="../../../analysis/semantic/merging/publication/size"

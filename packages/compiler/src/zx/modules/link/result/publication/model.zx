@@ -1,7 +1,6 @@
 import type { Stores } from "core/store_table/model"
 import type { Input as ArtifactSurface } from "../../../artifact/surface/model"
 import type { Body, Program, Unit } from "../../../artifact/validation/body"
-import type { Request as Verification } from "../../../artifact/validation/context"
 import type { Output as Wrapper } from "../../../forward_entry/model"
 import type { BodyColumns, Destination } from "../../signature/publication/model"
 
@@ -32,8 +31,7 @@ export type Surface = {
 export type Input = Surface & {
     store_source: Stores,
     destination: Destination,
-    empty: BodyColumns,
-    verification: Verification
+    empty: BodyColumns
 }
 
 export type Published = {
@@ -47,6 +45,5 @@ export type Selection = {
 }
 
 export type Output = Program & {
-    path: string,
-    valid: bool
+    path: string
 }

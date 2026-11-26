@@ -1,7 +1,7 @@
 const std = @import("std");
-pub const entry = @import("generated_artifact_binding_batch");
-pub const Input = std.meta.Child(entry.Input);
-pub const Row = std.meta.Elem(@FieldType(Input, "rows"));
-pub const Binding = std.meta.Child(@FieldType(std.meta.Child(Row), "binding"));
-pub const Output = std.meta.Child(entry.Output);
-pub const Retained = @typeInfo(@FieldType(Output, "entry")).optional.child;
+pub const bind = @import("generated_artifact_binding");
+pub const publish = @import("generated_artifact_body_publish");
+pub const Binding = std.meta.Child(bind.Input);
+pub const PublishInput = std.meta.Child(publish.Input);
+pub const PublishOutput = std.meta.Child(@typeInfo(publish.Output).optional.child);
+pub const Retained = @typeInfo(@FieldType(PublishOutput, "entry")).optional.child;

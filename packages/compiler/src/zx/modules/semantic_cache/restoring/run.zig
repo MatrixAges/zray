@@ -8,8 +8,10 @@ const preparation = @import("preparation.zig");
 const Publication = @import("publication/host.zig");
 const verification = @import("../../artifact/validation/view.zig");
 const generated = @import("generated_semantic_restore");
+const publish_entry = @import("generated_semantic_restore_publish");
 const rollback = @import("generated_semantic_restore_rollback");
 const Input = std.meta.Child(generated.Input);
+const PublishInput = std.meta.Child(publish_entry.Input);
 const type_fields = @typeInfo(zx.ir.TypeStorage).@"struct".field_names;
 
 pub const Frame = struct {
@@ -17,9 +19,9 @@ pub const Frame = struct {
     current: *const Current,
     decoded: bool,
     maps: preparation.Maps,
+    workspace: std.mem.Allocator,
     scratch: std.mem.Allocator,
     payload: std.mem.Allocator,
-    scope: memory.ArenaScope,
     publication: Publication = undefined,
     saved: bool = false,
     function_count: u64 = undefined,
@@ -69,13 +71,27 @@ pub const Frame = struct {
                 .origin_count = @ptrCast(&saved_origins),
                 .saved = @ptrCast(&saved_columns),
             },
-            .publication = &self.publication.input,
+            .columns = if (self.publication.has_columns) &self.publication.columns else null,
+            .mappings = &self.publication.mappings,
         };
 
-        const result = generated.executeIn(self.scope.allocator(), &input) catch |err|
-            return verification.failure(&self.scope, self.scratch, err);
+        const plan = generated.executeIn(self.workspace, &input) catch |err|
+            return verification.publicationError(err);
 
-        return self.publication.finish(current, result orelse return error.InvalidModule);
+        const type_plan = plan orelse return error.InvalidModule;
+
+        const publish_input: PublishInput = .{
+            .views = &self.publication.input,
+            .plan = try zx.columns.bridge(@FieldType(PublishInput, "plan"), self.workspace, type_plan),
+        };
+
+        const published = publish_entry.executeIn(self.payload, &publish_input) catch |err|
+            return verification.publicationError(err);
+
+        const committed = published orelse return error.InvalidModule;
+        const verified = try self.publication.validation.execute(self.scratch, committed, &self.publication.empty);
+
+        return self.publication.finish(current, committed, verified);
     }
 };
 
@@ -91,9 +107,9 @@ pub fn run(module: *const Artifact.Module, current: *const Current, temporary: s
         .current = current,
         .decoded = decoded,
         .maps = .{ .allocator = workspace.allocator() },
+        .workspace = workspace.allocator(),
         .scratch = scratch.allocator(),
         .payload = current.payloads.allocator(),
-        .scope = .{ .active = workspace.allocator() },
     };
 
     return preparation.execute(&frame);

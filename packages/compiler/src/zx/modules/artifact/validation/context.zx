@@ -1,8 +1,6 @@
 import { functionView, typeView } from "core/column_set"
 import { refreshRowReads } from "core/row_buffer"
-import memory from "memory"
 
-import type { Allocator, ArenaScope } from "memory"
 import type { ColumnSet, ColumnView, RowGrowth } from "memory/columns"
 import type { Context, Program } from "../../../ir/canonical/validation/model"
 
@@ -16,19 +14,14 @@ export type Views = {
 }
 
 export type Request = Program.Pick("version", "exports", "constant_exports") & {
-    views: Views,
-    scope: ArenaScope,
-    scratch: Allocator,
-    payload: Allocator
+    views: Views
 }
 
-export type Input = Request.Pick("views", "scope", "scratch")
+export type Input = Views
 
 export type Output = Context
 
 export default function (in: Input): Output {
-    const { views, scope, scratch } = in
-
     const {
         context,
         constants,
@@ -36,9 +29,7 @@ export default function (in: Input): Output {
         type_view,
         function_storage,
         function_view
-    } = views
-
-    memory.selectAllocator(scope, scratch)
+    } = in
 
     if (constants != null) {
         refreshRowReads(constants)

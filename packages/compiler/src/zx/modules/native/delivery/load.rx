@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.LoadInput} out={Delivery.LoadOutput} />
+
+    <Call fn="../origin" in={$in.owner_key} />
+
+    <Call
+        module="../load"
+        in={{
+            base: $in.base,
+            origins: $in.origins,
+            source: $in.source,
+            namespace: $in.namespace_bytes,
+            origin: $ctx.origin,
+            shared: true
+        }}
+    />
+
+    <Return value={$ctx.load} />
+</Module>

@@ -52,10 +52,10 @@
 
         <Call fn="snapshot" in={$in.checkpoint} />
 
-        <If on={$in.publication.columns != null}>
+        <If on={$in.columns != null}>
             <Call
                 module="../../../ir/canonical/validation/function_columns"
-                in={$in.publication.columns}
+                in={$in.columns}
             />
 
             <If on={!$ctx.function_columns}>
@@ -66,21 +66,13 @@
         <Call
             fn="publication/mapping"
             in={{
-                targets: $in.publication.mappings,
+                targets: $in.mappings,
                 buffers: $in.planning.buffers,
                 candidate: $ctx.check.entry
             }}
         />
 
-        <Call
-            module="publication/publish"
-            in={{
-                views: $in.publication,
-                plan: $ctx.plan
-            }}
-        />
-
-        <Return value={$ctx.publish} />
+        <Return value={$ctx.plan} />
     </If>
 
     <Return value={null} />

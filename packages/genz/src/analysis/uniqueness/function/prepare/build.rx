@@ -51,17 +51,12 @@
         }}
     />
 
-    <Call
-        fn="publish"
-        in={{
+    <Return
+        value={{
             ...$ctx.task.order.graph.omit(["edges"]),
             nodes: $ctx.task.order.nodes,
             usage: $ctx.build,
-            operations: $ctx.operations,
-            scope: $in.scope,
-            owner: $in.owner
+            operations: $ctx.operations
         }}
     />
-
-    <Return value={$ctx.publish} />
 </Module>

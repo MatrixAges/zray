@@ -13,7 +13,6 @@ const Store = std.meta.Child(@FieldType(Input, "store_source"));
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Empty = std.meta.Child(@FieldType(Input, "empty"));
 const Entry = @typeInfo(@FieldType(Input, "retained")).optional.child;
-const Verification = std.meta.Child(@FieldType(Input, "verification"));
 const empty = destination.empty(Empty);
 
 pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module: *const Model.Module, function: ?Retained, state: verification.State, mapping: []const ir.TypeId) Model.Error!ir.Program {
@@ -32,10 +31,6 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
     defer arena.deinit();
 
     const scratch = arena.allocator();
-    var scope: zx.memory.ArenaScope = .{ .active = allocator };
-    var validation: verification.View(Verification) = undefined;
-
-    validation.init(state, &surface, &scope, &scratch, &allocator);
 
     const request: Input = .{
         .store_source = &source_stores,
@@ -44,13 +39,15 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
         .destination = &target.input,
         .empty = &empty,
         .retained = if (function) |value| zx.columns.pointer(Entry, value) else null,
-        .verification = &validation.input,
     };
 
-    const outcome = rule.executeIn(scope.allocator(), &request) catch |err| return verification.failure(&scope, scratch, err);
+    const outcome = rule.executeIn(allocator, &request) catch |err| return verification.publicationError(err);
     const published = outcome orelse return error.InvalidModule;
+    var validation: verification.View = undefined;
 
-    if (!published.valid) return error.InvalidIr;
+    validation.init(state, &surface, scratch);
+
+    _ = try validation.execute(scratch, published, &empty);
 
     const linked_tables: program.Tables = .{
         .types = state.types.view(),

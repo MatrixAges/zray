@@ -6,17 +6,11 @@ import type { Table } from "core/type_table/model"
 import type {
     Target as TypeTail
 } from "../../../../analysis/semantic/merging/publication/model"
-import type {
-    Input as FunctionColumns
-} from "../../../../ir/canonical/validation/function_columns"
-import type { Output as Verified } from "../../../../ir/canonical/validation/prefix"
 import type { FunctionInput } from "../../../artifact/remapping/model"
 import type { Input as Surface } from "../../../artifact/surface/model"
 import type { Program, Unit } from "../../../artifact/validation/body"
-import type { Request as Verification } from "../../../artifact/validation/context"
 import type { BodyColumns, Destination } from "../../../link/signature/publication/model"
 import type { Plan as TypePlan } from "../types/model"
-import type { Targets } from "./mapping"
 
 export type Attributes = {
     ownership: Ownership,
@@ -31,8 +25,6 @@ export type Types = {
 }
 
 export type Views = {
-    columns?: FunctionColumns,
-    mappings: Targets,
     body?: FunctionInput,
     control?: Control,
     attributes?: Attributes,
@@ -43,8 +35,7 @@ export type Views = {
     surface: Surface,
     functions: Destination,
     empty: BodyColumns,
-    path: string,
-    verification: Verification
+    path: string
 }
 
 export type Input = {
@@ -57,7 +48,3 @@ export type Entry = Unit & {
 }
 
 export type Plan = Program & Entry.Pick("recursive")
-
-export type Committed = Plan & {
-    verified?: Verified
-}

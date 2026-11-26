@@ -1,39 +1,13 @@
 <Module>
     <Type from="model" as="Delivery" />
 
-    <Args in={Delivery.Input} out={Delivery.Output} />
-
-    <Call fn="../origin" in={$in.owner_key} />
-
-    <Call
-        module="../load"
-        in={{
-            base: $in.base,
-            origins: $in.origins,
-            source: $in.source,
-            namespace: $in.namespace_bytes,
-            origin: $ctx.origin,
-            shared: true
-        }}
-    />
-
-    <If on={$ctx.load.diagnostic.message != ""}>
-        <Return value={$ctx.load.diagnostic} />
-    </If>
-
-    <Call
-        fn="index.selectAllocator"
-        in={[
-            $in.scope,
-            $in.payload
-        ]}
-    />
+    <Args in={Delivery.Input} out={void} />
 
     <Call
         fn="../../../analysis/semantic/merging/publication/size"
         in={{
-            delta: $ctx.load.delta,
-            origins: $ctx.load.origins,
+            delta: $in.delta,
+            origins: $in.origins,
             destination: $in.types.destination
         }}
     />
@@ -42,8 +16,8 @@
         module="../../../analysis/semantic/merging/publication/write"
         in={{
             ...$in.types,
-            delta: $ctx.load.delta,
-            origins: $ctx.load.origins
+            delta: $in.delta,
+            origins: $in.origins
         }}
     />
 
@@ -51,19 +25,19 @@
         fn="exports"
         in={{
             ...$in.bindings,
-            source: $ctx.load.exports,
-            target: $in.exports
+            source: $in.exports,
+            target: $in.export_target
         }}
     />
 
     <Call
         module="members"
         in={{
-            ...$in.members,
+            ...$in.member_targets,
             rows: {
-                fresh: $ctx.load.members,
+                fresh: $in.members,
                 cached: null,
-                count: $ctx.load.members.length
+                count: $in.members.length
             },
             owner: $in.owner
         }}
@@ -82,12 +56,10 @@
         in={{
             destination: {
                 ...$in.native,
-                member_count: $ctx.load.members.length
+                member_count: $in.members.length
             },
             namespace: $ctx.namespace,
             exports: $in.bindings
         }}
     />
-
-    <Return value={$ctx.load.diagnostic} />
 </Module>

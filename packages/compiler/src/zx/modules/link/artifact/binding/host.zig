@@ -24,82 +24,78 @@ const Request = std.meta.Child(@typeInfo(@FieldType(Binding, "source")).optional
 const Source = std.meta.Child(@FieldType(Request, "source"));
 const Attributes = std.meta.Child(@FieldType(Source, "attributes"));
 const abi = @import("abi.zig");
-const NativeBinding = std.meta.Child(@typeInfo(@FieldType(Binding, "native")).optional.child);
-const Empty = std.meta.Child(@FieldType(abi.Input, "empty"));
+const NativeBinding = std.meta.Child(@typeInfo(@FieldType(abi.Binding, "native")).optional.child);
+const Empty = std.meta.Child(@FieldType(abi.PublishInput, "empty"));
 const empty = function_destination.empty(Empty);
-const view_budget = 64 * 1024;
 
 pub const Window = struct {
     providers: dependencies.Providers,
     target: function_destination.View(Destination),
     inline_depths: [inline_depth_slots]u32,
-    scope: memory.ArenaScope,
-    views: []View,
-    rows: []abi.Row,
-    input: abi.Input,
+    scratch: *std.heap.ArenaAllocator,
+    owned: *std.heap.ArenaAllocator,
+    view: View,
+    window_capacity: usize,
     entry: ?abi.Retained,
     pub fn init(self: *Window, builder: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, owned: *std.heap.ArenaAllocator) std.mem.Allocator.Error!void {
-        const count = @min(builder.plan.registration.len, @max(1, view_budget / (@sizeOf(View) + @sizeOf(abi.Row))));
-        const views = try setup.alloc(View, count);
-        const rows = try setup.alloc(abi.Row, count);
-
-        self.views = views;
-        self.rows = rows;
-        self.entry = null;
-        self.scope = .{ .active = owned.allocator() };
+        _ = setup;
 
         self.providers.init(builder);
         self.target.init(&builder.allocator, &builder.functions);
 
-        self.input = .{
-            .rows = &.{},
-            .scope = @ptrCast(&self.scope),
-            .scratch = @ptrCast(scratch),
-            .owned = @ptrCast(owned),
-            .storage = self.target.input.storage,
-            .linked = @ptrCast(&builder.module_functions),
-            .empty = &empty,
-        };
+        self.scratch = scratch;
+        self.owned = owned;
+        self.window_capacity = @max(1, builder.plan.registration.len);
+        self.entry = null;
     }
+
     pub fn capacity(self: *const Window) usize {
-        return self.views.len;
+        return self.window_capacity;
     }
-
     pub fn bind(self: *Window, builder: *Builder, first: usize, count: usize) Builder.Error!void {
-        for (builder.plan.registration[first..][0..count], self.views[0..count], self.rows[0..count]) |index, *view, *row| {
-            view.borrow(builder, @intCast(index), &self.providers, &self.target.input, &self.inline_depths);
+        for (builder.plan.registration[first..][0..count]) |index| {
+            self.view.borrow(builder, @intCast(index), &self.providers, &self.target.input, &self.inline_depths);
 
-            view.record = .{ .module = index, .binding = &view.input };
-            row.* = &view.record;
+            const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input) catch |err| switch (@as(anyerror, err)) {
+                error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+                else => return error.InvalidModule,
+            };
+
+            switch (bound.status) {
+                .Ready => {},
+                .Invalid => return error.InvalidModule,
+                .Conflict => return error.ConflictingInterface,
+                .Full => return error.OutOfMemory,
+            }
+
+            if (bound.body) |body| {
+                const publish_input: abi.PublishInput = .{
+                    .request = try zx.columns.bridge(@FieldType(abi.PublishInput, "request"), self.scratch.allocator(), body),
+                    .module = index,
+                    .storage = self.target.input.storage,
+                    .linked = @ptrCast(&builder.module_functions),
+                    .empty = &empty,
+                };
+
+                const published = abi.publish.executeIn(self.owned.allocator(), &publish_input) catch |err| switch (@as(anyerror, err)) {
+                    error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+                    else => return error.InvalidModule,
+                };
+
+                const outcome = published orelse return error.InvalidModule;
+
+                if (outcome.entry) |retained| self.entry = retained;
+            }
+
+            if (!self.view.body.entry) {
+                if (!self.scratch.reset(.retain_capacity)) return error.OutOfMemory;
+            }
         }
-
-        self.input.rows = self.rows[0..count];
-
-        const entry = try execute(self.scope.allocator(), &self.input);
-
-        self.entry = entry;
     }
 };
 
-fn execute(allocator: std.mem.Allocator, input: *const abi.Input) Builder.Error!?abi.Retained {
-    const result = abi.entry.executeIn(allocator, input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    switch (result.status) {
-        .Ready => {},
-        .Invalid => return error.InvalidModule,
-        .Conflict => return error.ConflictingInterface,
-        .Full => return error.OutOfMemory,
-    }
-
-    return result.entry;
-}
-
 const View = struct {
-    record: std.meta.Child(abi.Row),
-    input: Binding,
+    input: abi.Binding,
     mappings: admission.Mappings,
     admission_view: admission.View,
     native_view: native.View,

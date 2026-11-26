@@ -8,10 +8,19 @@ pub fn emptyGenerated(comptime State: type) State {
     const Index = if (indirect) std.meta.Child(State) else State;
 
     const Empty = struct {
-        const source = .{
-            .keys = @as([]const []const u8, &.{}),
-            .values = @as([]const u32, &.{}),
-            .buckets = @as([]const ?u32, &.{}),
+        const Origin = if (@hasField(Index, "zx_origin"))
+            std.meta.Child(@typeInfo(@FieldType(Index, "zx_origin")).optional.child)
+        else
+            struct {
+                keys: []const []const u8,
+                values: []const u32,
+                buckets: []const ?u32,
+            };
+
+        const source: Origin = .{
+            .keys = &.{},
+            .values = &.{},
+            .buckets = &.{},
         };
 
         const index: Index = columns.borrow(Index, &source);

@@ -1,15 +1,7 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Input} out={Publication.Committed?} />
-
-    <Call
-        fn="index.selectAllocator"
-        in={[
-            $in.views.verification.scope,
-            $in.views.verification.payload
-        ]}
-    />
+    <Args in={Publication.Input} out={Publication.Plan?} />
 
     <Call
         module="types"
@@ -75,26 +67,10 @@
         />
     </If>
 
-    <Call
-        module="../../../artifact/validation/verify"
-        in={{
-            ...$in.views.verification,
-            program: {
-                ...$ctx.entry.pick([
-                    "ports",
-                    "body"
-                ]),
-                stores: $ctx.stores
-            },
-            empty: $in.views.empty
-        }}
-    />
-
     <Return
         value={{
             ...$ctx.entry,
-            stores: $ctx.stores,
-            verified: $ctx.verify
+            stores: $ctx.stores
         }}
     />
 </Module>

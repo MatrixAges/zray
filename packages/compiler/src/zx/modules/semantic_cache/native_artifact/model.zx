@@ -1,7 +1,7 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
-import type { Allocator, ArenaScope, ColumnRanges, NamedRowBuffer } from "memory"
+import type { Allocator, ColumnRanges, NamedRowBuffer } from "memory"
 import type { ColumnSet, RowBuffer } from "memory/columns"
 import type {
     Target as TypeTail
@@ -13,13 +13,11 @@ import type { Member } from "../../native/interface/members"
 import type { Declaration } from "../restoring/native/model"
 
 export type Request = {
-    declaration: Declaration
     key: string
     source: u8[]
     namespace_bytes: u8[][]
     base: Types
     origins: Origins
-    targets: Targets
 }
 
 export type Surface = {
@@ -36,7 +34,7 @@ export type Artifact = {
 
 export type Outcome = {
     diagnostic: Diagnostic
-    artifact?: Published
+    artifact?: Artifact
 }
 
 export type OwnedOrigins = Origins & {
@@ -44,7 +42,6 @@ export type OwnedOrigins = Origins & {
 }
 
 export type Targets = {
-    scope: ArenaScope,
     payload: Allocator,
     types: TypeTail,
     signature_target: ColumnSet,

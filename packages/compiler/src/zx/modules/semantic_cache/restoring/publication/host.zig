@@ -13,8 +13,11 @@ const Restored = @import("../../restore.zig").Restored;
 const TypeTail = @import("../../../../analysis/semantic/merging/publication/view.zig");
 const Origins = @import("../../../nominal_origins.zig");
 const scalar_rows = @import("../../../../analysis/type_table.zig").scalar_rows;
-const generated = @import("generated_semantic_restore");
-const Input = std.meta.Child(@FieldType(std.meta.Child(generated.Input), "publication"));
+const restore_entry = @import("generated_semantic_restore");
+const publish_entry = @import("generated_semantic_restore_publish");
+const RestoreInput = std.meta.Child(restore_entry.Input);
+const PublishInput = std.meta.Child(publish_entry.Input);
+const Input = std.meta.Child(@FieldType(PublishInput, "views"));
 const Body = std.meta.Child(@typeInfo(@FieldType(Input, "body")).optional.child);
 const Control = @typeInfo(@FieldType(Input, "control")).optional.child;
 const Stores = std.meta.Child(@FieldType(Input, "stores"));
@@ -22,8 +25,8 @@ const Attributes = std.meta.Child(@typeInfo(@FieldType(Input, "attributes")).opt
 const Table = std.meta.Child(@typeInfo(@FieldType(Input, "scalars")).optional.child);
 const Destination = std.meta.Child(@FieldType(Input, "functions"));
 const Empty = std.meta.Child(@FieldType(Input, "empty"));
-const Columns = std.meta.Child(@typeInfo(@FieldType(Input, "columns")).optional.child);
-const Mappings = std.meta.Child(@FieldType(Input, "mappings"));
+const Columns = std.meta.Child(@typeInfo(@FieldType(RestoreInput, "columns")).optional.child);
+const Mappings = std.meta.Child(@FieldType(RestoreInput, "mappings"));
 const BodyMappings = std.meta.Child(@typeInfo(@FieldType(Mappings, "body")).optional.child);
 const slot = @import("../run.zig").slot;
 const Self = @This();
@@ -36,6 +39,7 @@ body: remap.FunctionView(Body),
 attributes: Attributes,
 stores: Stores,
 columns: Columns,
+has_columns: bool,
 types_slot: [][]const u32,
 candidate_slot: []?u32,
 mappings: Mappings,
@@ -43,7 +47,7 @@ body_mappings: BodyMappings,
 surface: Surface(std.meta.Child(@FieldType(Input, "surface"))),
 functions: destination.View(Destination),
 empty: Empty,
-validation: verification.View(std.meta.Child(@FieldType(Input, "verification"))),
+validation: verification.View,
 input: Input,
 pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
     const module = frame.module;
@@ -54,6 +58,7 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
 
     self.surface.init(module.exports, module.constant_exports, .{ .mapped = &.{} });
     self.types_slot = slot(&self.surface.mapping.dense);
+    self.has_columns = source != null and !frame.decoded;
 
     if (source) |value| {
         const empty_nodes: Nodes = .{
@@ -75,7 +80,7 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
             .root = if (value.body.root) |id| @backingInt(id) else null,
         };
 
-        if (!frame.decoded) self.columns = remap.functionColumns(Columns, value);
+        if (self.has_columns) self.columns = remap.functionColumns(Columns, value);
 
         self.candidate_slot = slot(&self.body.input.candidate);
 
@@ -107,11 +112,9 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
         .functions = target.functions,
         .native_modules = &target.native_modules,
         .verified = target.verified.*,
-    }, &self.surface, &frame.scope, &frame.scratch, &frame.payload);
+    }, &self.surface, frame.scratch);
 
     self.input = .{
-        .columns = if (source != null and !frame.decoded) &self.columns else null,
-        .mappings = &self.mappings,
         .body = if (source != null) &self.body.input else null,
         .control = control_source,
         .attributes = if (source != null) &self.attributes else null,
@@ -123,18 +126,11 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
         .functions = &self.functions.input,
         .empty = &self.empty,
         .path = target.path,
-        .verification = &self.validation.input,
     };
 }
 
-pub fn finish(self: *const Self, target: *const Current, plan: anytype) error{InvalidIr}!Restored {
-    const verified = plan.verified orelse return error.InvalidIr;
-
-    target.verified.* = .{
-        .functions = @intCast(verified.functions),
-        .types = zx.columns.view(@import("../../../../ir/validate.zig").TypePrefix, verified.types),
-        .native = verified.native,
-    };
+pub fn finish(self: *const Self, target: *const Current, plan: anytype, verified: verification.Verified) Restored {
+    target.verified.* = verification.applyPrefix(verified);
 
     const tables: result.Tables = .{
         .types = target.types.view(),

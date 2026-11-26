@@ -1,11 +1,16 @@
-import type { Committed, Views } from "./publication/model"
+import type {
+    Input as FunctionColumns
+} from "../../../ir/canonical/validation/function_columns"
+import type { Targets } from "./publication/mapping"
 import type { Input as Checkpoint } from "./snapshot"
 import type { Input as Planning } from "./transaction_model"
+import type { Plan as TypePlan } from "./types/model"
 
 export type Input = {
     planning: Planning,
     checkpoint: Checkpoint,
-    publication: Views
+    columns?: FunctionColumns,
+    mappings: Targets
 }
 
-export type Output = Committed
+export type Output = TypePlan

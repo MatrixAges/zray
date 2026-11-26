@@ -1,12 +1,9 @@
-import memory from "memory"
-
 import prefix from "../../../ir/canonical/validation/prefix"
 
 import type { Context } from "../../../ir/canonical/validation/model"
 import type { Output as Prefix } from "../../../ir/canonical/validation/prefix"
-import type { Request } from "./context"
 
-export type Input = Request.Pick("scope", "payload") & {
+export type Input = {
     context: Context,
     stores_owned?: bool
 }
@@ -14,20 +11,14 @@ export type Input = Request.Pick("scope", "payload") & {
 export type Output = Prefix?
 
 export default function (in: Input): Output {
-    const { scope, payload, context, stores_owned } = in
+    const { context, stores_owned } = in
 
     if (stores_owned == null) {
-        memory.selectAllocator(scope, payload)
-
         return null
     }
 
-    const verified = prefix({
+    return prefix({
         context,
         stores_owned
     })
-
-    memory.selectAllocator(scope, payload)
-
-    return verified
 }

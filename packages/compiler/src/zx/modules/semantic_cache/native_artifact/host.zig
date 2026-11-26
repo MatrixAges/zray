@@ -8,8 +8,10 @@ const FunctionImport = @import("../../function_import.zig");
 const columns = @import("../../artifact/materializing/publication/columns.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
 const generated = @import("generated_native_artifact");
+const publishing = @import("generated_native_artifact_publish");
 const Input = std.meta.Child(generated.Input);
-const Targets = std.meta.Child(@FieldType(Input, "targets"));
+const PublishInput = std.meta.Child(publishing.Input);
+const Targets = std.meta.Child(@FieldType(PublishInput, "targets"));
 const SignatureRow = @import("project_execution_abi").layouts.@"zig:memory/columns".SignatureRow;
 
 pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, error_allocator: std.mem.Allocator, reporter: *zx.Reporter, span: zx.Span) zx.Error!Artifact.Result {
@@ -17,7 +19,32 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
 
     defer scratch.deinit();
 
-    const declaration: std.meta.Child(@FieldType(Input, "declaration")) = .{
+    const temp = scratch.allocator();
+    const base = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "base")), .{});
+    const origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), .{});
+    const key = entry.key();
+
+    const input: Input = .{
+        .key = key,
+        .namespace_bytes = entry.namespace,
+        .source = entry.source,
+        .base = &base,
+        .origins = &origins,
+    };
+
+    const result = generated.executeIn(temp, &input) catch |err| switch (err) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => return fail(error_allocator, reporter, entry, span, .contract, 0, try std.fmt.allocPrint(temp, "internal compiler error: generated native analysis failed with {s}", .{@errorName(err)})),
+    };
+
+    const artifact = result.artifact orelse return fail(error_allocator, reporter, entry, span, std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable, @intCast(result.diagnostic.start), result.diagnostic.message);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    errdefer arena.deinit();
+
+    const payload = arena.allocator();
+
+    const declaration: std.meta.Child(@FieldType(PublishInput, "declaration")) = .{
         .identity = entry.identity,
         .specifier = entry.specifier,
         .path = entry.path,
@@ -25,14 +52,6 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         .namespace = entry.namespace,
     };
 
-    const base = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "base")), .{});
-    const origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), .{});
-    var arena = std.heap.ArenaAllocator.init(allocator);
-
-    errdefer arena.deinit();
-
-    const payload = arena.allocator();
-    var scope: zx.memory.ArenaScope = .{ .active = scratch.allocator() };
     var types: ir.TypeStorage = .{};
     var type_tail: TypeTail = undefined;
     const options: TypeTail.Options = .{ .allocator = payload, .payload = payload, .types = &types, .origins = null, .precise = true };
@@ -52,7 +71,6 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
     const signature_target: zx.memory.ColumnSet = &slots;
 
     const targets: Targets = .{
-        .scope = @ptrCast(&scope),
         .payload = @ptrCast(&payload),
         .types = zx.columns.pointer(@FieldType(Targets, "types"), @as(*const TypeTail.Target, &type_tail.target)),
         .signature_target = @ptrCast(&signature_target),
@@ -62,22 +80,20 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         .export_target = @ptrCast(&exports),
     };
 
-    const input: Input = .{
+    const publish_input: PublishInput = .{
         .declaration = &declaration,
-        .key = entry.key(),
-        .namespace_bytes = entry.namespace,
-        .source = entry.source,
-        .base = &base,
-        .origins = &origins,
+        .key = key,
+        .types = try zx.columns.bridge(@FieldType(PublishInput, "types"), temp, artifact.types),
+        .origins = try zx.columns.bridge(@FieldType(PublishInput, "origins"), temp, artifact.origins),
+        .exports = try zx.columns.bridge(@FieldType(PublishInput, "exports"), temp, artifact.exports),
+        .members = try zx.columns.bridge(@FieldType(PublishInput, "members"), temp, artifact.members),
         .targets = &targets,
     };
 
-    const result = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
+    const value = publishing.executeIn(payload, &publish_input) catch |err| switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => if (scope.active.ptr == payload.ptr) unreachable else return fail(error_allocator, reporter, entry, span, .contract, 0, try std.fmt.allocPrint(scratch.allocator(), "internal compiler error: generated native analysis failed with {s}", .{@errorName(err)})),
+        else => unreachable,
     };
-
-    const value = result.artifact orelse return fail(error_allocator, reporter, entry, span, std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable, @intCast(result.diagnostic.start), result.diagnostic.message);
 
     return .{ .arena = arena, .value = .{
         .path = value.path,

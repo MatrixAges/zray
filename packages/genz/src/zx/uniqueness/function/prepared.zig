@@ -16,7 +16,6 @@ pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, body: View,
     var finish: []u32 = &.{};
     var region: []u32 = &.{};
     var repeated: []u32 = &.{};
-    var scope = zx.memory.ArenaScope{ .active = scratch.allocator() };
 
     errdefer owner.free(time);
     errdefer owner.free(finish);
@@ -48,12 +47,94 @@ pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, body: View,
             .region = @ptrCast(&region),
             .repeated = @ptrCast(&repeated),
         },
-        .scope = @ptrCast(&scope),
         .owner = @ptrCast(&owner),
     };
 
-    return generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
+    const built = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
+    };
+
+    return retainFacts(owner, built);
+}
+
+fn retainFacts(owner: std.mem.Allocator, built: *const Facts) std.mem.Allocator.Error!*const Facts {
+    const owned = try owner.create(Facts);
+
+    owned.* = try retainStruct(Facts, owner, built.*);
+
+    return owned;
+}
+
+fn retainStruct(comptime T: type, owner: std.mem.Allocator, value: T) std.mem.Allocator.Error!T {
+    var result: T = undefined;
+
+    inline for (@typeInfo(T).@"struct".field_names) |name| {
+        if (T == Facts and comptime std.mem.eql(u8, name, "nodes")) {
+            @field(result, name) = try retainHeader(@FieldType(T, name), owner, @field(value, name));
+        } else {
+            @field(result, name) = try retainValue(@FieldType(T, name), owner, @field(value, name));
+        }
+    }
+
+    return result;
+}
+
+fn retainHeader(comptime T: type, owner: std.mem.Allocator, value: T) std.mem.Allocator.Error!T {
+    switch (@typeInfo(T)) {
+        .pointer => |ptr| {
+            const copy = try owner.create(ptr.child);
+
+            copy.* = value.*;
+
+            return copy;
+        },
+        .@"struct" => return value,
+        else => @compileError("unexpected nodes field type"),
+    }
+}
+
+fn retainValue(comptime T: type, owner: std.mem.Allocator, value: T) std.mem.Allocator.Error!T {
+    return switch (@typeInfo(T)) {
+        .pointer => |ptr| switch (ptr.size) {
+            .slice => {
+                if (value.len == 0) return &.{};
+
+                if (comptime containsPointers(ptr.child)) {
+                    const items = try owner.alloc(ptr.child, value.len);
+
+                    for (items, value) |*dst, item| dst.* = try retainValue(ptr.child, owner, item);
+
+                    return items;
+                }
+
+                return try owner.dupe(ptr.child, value);
+            },
+            .one => {
+                const copy = try owner.create(ptr.child);
+                copy.* = try retainValue(ptr.child, owner, value.*);
+
+                return copy;
+            },
+            else => @compileError("unsupported pointer size"),
+        },
+        .optional => |opt| if (value) |inner| try retainValue(opt.child, owner, inner) else null,
+        .@"struct" => try retainStruct(T, owner, value),
+        else => value,
+    };
+}
+
+fn containsPointers(comptime T: type) bool {
+    return switch (@typeInfo(T)) {
+        .pointer => true,
+        .optional => |opt| containsPointers(opt.child),
+        .@"struct" => |st| blk: {
+            for (st.field_names) |name| {
+                if (containsPointers(@FieldType(T, name))) break :blk true;
+            }
+
+            break :blk false;
+        },
+        else => false,
     };
 }
