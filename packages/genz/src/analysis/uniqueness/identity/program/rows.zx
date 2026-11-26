@@ -1,25 +1,29 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 
 import frame from "../bytes"
 
-import type { Rows as Input } from "./model"
+export type Input = u8[][]
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    crypto.updateSha256U64Le(in.hash, in.rows.length)
+    const start_index: u64 = 0
 
-    const result = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.rows.length,
-        next: state => {
-            frame({
-                hash: in.hash,
-                bytes: in.rows[state.index]
-            })
-
-            state.index += 1
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(in.length)
+            ]
+        },
+        {
+            while: state => state.index < in.length,
+            next: state => {
+                state.parts = state.parts.push(frame(in[state.index]))[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

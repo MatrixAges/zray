@@ -1,8 +1,6 @@
-import type { Sha256State } from "std:crypto"
 import type { Eligibility } from "../../model"
 
 export type Input = {
-    hash: Sha256State,
     names?: string[],
     index: u64,
     key: u8[],
@@ -11,14 +9,13 @@ export type Input = {
 }
 
 export type Slots = {
-    hash: Sha256State,
     source: Eligibility,
     count: u32
 }
 
-export type Seed = {
-    hash: Sha256State,
-    state_name: string
+export type Format = {
+    seed: u8[],
+    slots: u8[]
 }
 
 export type Output = string

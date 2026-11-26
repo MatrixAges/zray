@@ -4,11 +4,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 pub const Sha256 = if (accelerated) Accelerated else std.crypto.hash.sha2.Sha256;
-
-pub const Sha256State = struct {
-    value: *Sha256,
-};
-
 const accelerated = builtin.cpu.arch == .x86_64 and builtin.zig_backend == .stage2_llvm and builtin.cpu.hasAll(.x86, &.{ .sha, .avx2 });
 
 const Accelerated = struct {

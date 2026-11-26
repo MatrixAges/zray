@@ -1,33 +1,39 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 import integers from "std:integer"
 
 import { byte_radix, word_width } from "./const"
 
 import type { Word as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const initial = in.little_endian ? 1 : byte_radix * byte_radix * byte_radix
+    if (in.little_endian) {
+        return bytes.encodeU32Le(in.value)
+    }
 
-    const result = loop({
-        index: 0,
-        divisor: initial
-    }, {
-        while: state => state.index < word_width,
-        next: state => {
-            crypto.updateSha256Byte(
-                in.hash,
-                integers.narrowByte(
+    const start_index: u64 = 0
+    const empty: u8[] = []
+
+    const { out } = loop(
+        {
+            index: start_index,
+            divisor: byte_radix * byte_radix * byte_radix,
+            out: empty
+        },
+        {
+            while: state => state.index < word_width,
+            next: state => {
+                const byte = integers.narrowByte(
                     integers.widen(in.value) / state.divisor % byte_radix
                 )
-            )
 
-            state.divisor = match {
-                in.little_endian => state.divisor * byte_radix,
-                _ => state.divisor / byte_radix
+                state.out = state.out.push(byte)[0]
+                state.divisor = state.divisor / byte_radix
+                state.index += 1
             }
-            state.index += 1
         }
-    })
+    )
+
+    return out
 }

@@ -1,8 +1,18 @@
 <Module>
     <Type from="model" as="Key" />
 
-    <Args in={Key.Input} out={void} />
+    <Args in={Key.Input} out={u8[]} />
 
     <Call fn="seed" in={$in} />
     <Call fn="callees" in={$in} />
+
+    <Call
+        fn="assemble"
+        in={{
+            seed: $ctx.seed,
+            callees: $ctx.callees
+        }}
+    />
+
+    <Return value={$ctx.assemble} />
 </Module>

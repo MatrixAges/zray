@@ -1,0 +1,12 @@
+import crypto from "std:crypto"
+
+import type { Parts as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return crypto.sha256Parts([
+        in.seed,
+        in.walk
+    ])
+}

@@ -9,11 +9,6 @@ import type { Identity as Input } from "./model"
 export type Output = string
 
 export default function (in: Input): Output {
-    const { hash } = in
-
-    crypto.resetSha256(hash)
-    crypto.updateSha256(hash, bytes.fromText(identity_domain))
-
     const fields = [
         in.entry,
         in.abi,
@@ -23,23 +18,31 @@ export default function (in: Input): Output {
         in.graph
     ]
 
-    return loop({
-        index: 0,
-        hash
-    }, {
-        while: current => current.index < fields.length,
-        next: current => {
-            const data = bytes.fromText(fields[current.index])
+    const start_index: u64 = 0
 
-            crypto.updateSha256U64Le(current.hash, data.length)
-            crypto.updateSha256(current.hash, data)
-
-            current.index += 1
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.fromText(identity_domain)
+            ]
         },
-        return: current => {
-            const digest = encoding.encodeHex(crypto.digestSha256(current.hash))
+        {
+            while: current => current.index < fields.length,
+            next: current => {
+                const data = bytes.fromText(fields[current.index])
 
-            return `${build_root}/${digest}`
+                current.parts = current.parts
+                    .push(bytes.encodeU64Le(data.length))[0]
+                    .push(
+                        data
+                    )[0]
+                current.index += 1
+            }
         }
-    })
+    )
+
+    const digest = encoding.encodeHex(crypto.sha256Parts(parts))
+
+    return `${build_root}/${digest}`
 }

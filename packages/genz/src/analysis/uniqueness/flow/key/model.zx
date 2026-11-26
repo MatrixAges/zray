@@ -1,7 +1,4 @@
-import type { Sha256State } from "std:crypto"
-
 export type Input = {
-    hash: Sha256State,
     types: u8[],
     content: u8[],
     call_functions: u32[],
@@ -12,7 +9,11 @@ export type Input = {
 }
 
 export type Word = {
-    hash: Sha256State,
     value: u32,
     little_endian: bool
+}
+
+export type Parts = {
+    seed: u8[],
+    callees: u8[]
 }

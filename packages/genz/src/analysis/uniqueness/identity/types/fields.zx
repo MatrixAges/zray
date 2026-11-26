@@ -1,4 +1,4 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 import integers from "std:integer"
 
 import ids from "./ids"
@@ -6,25 +6,26 @@ import names from "./names"
 
 import type { Row as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const first = integers.widen(in.types.first[in.index])
     const count = integers.widen(in.types.second[in.index])
 
-    names({
-        hash: in.hash,
-        values: in.types.field_names,
-        first,
-        count
-    })
-
-    ids({
-        hash: in.hash,
-        values: in.types.field_types,
-        first,
-        count
-    })
-
-    crypto.updateSha256U64Le(in.hash, count)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            names({
+                values: in.types.field_names,
+                first,
+                count
+            }),
+            ids({
+                values: in.types.field_types,
+                first,
+                count
+            }),
+            bytes.encodeU64Le(count)
+        ]
+    )
 }

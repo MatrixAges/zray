@@ -1,10 +1,15 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 
-import type { Bytes as Input } from "./model"
+export type Input = u8[]
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    crypto.updateSha256U64Le(in.hash, in.bytes.length)
-    crypto.updateSha256(in.hash, in.bytes)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            bytes.encodeU64Le(in.length),
+            in
+        ]
+    )
 }

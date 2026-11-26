@@ -1,40 +1,22 @@
 <Module>
     <Type from="model" as="Identity" />
 
-    <Args in={Identity.Input} out={void} />
+    <Args in={Identity.Input} out={u8[]} />
 
     <Call fn="seed" in={$in} />
     <Call fn="signatures" in={$in} />
 
     <Call
-        fn="rows"
+        fn="assemble"
         in={{
-            hash: $in.hash,
-            rows: $in.held
+            seed: $ctx.seed,
+            signatures: $ctx.signatures,
+            held: $in.held,
+            written: $in.written,
+            return_only: $in.return_only,
+            return_allocations: $in.return_allocations
         }}
     />
 
-    <Call
-        fn="rows"
-        in={{
-            hash: $in.hash,
-            rows: $in.written
-        }}
-    />
-
-    <Call
-        fn="../bytes"
-        in={{
-            hash: $in.hash,
-            bytes: $in.return_only
-        }}
-    />
-
-    <Call
-        fn="../bytes"
-        in={{
-            hash: $in.hash,
-            bytes: $in.return_allocations
-        }}
-    />
+    <Return value={$ctx.assemble} />
 </Module>

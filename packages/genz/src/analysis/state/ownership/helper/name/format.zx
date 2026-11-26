@@ -4,15 +4,19 @@ import strings from "std:string"
 
 import { helper_prefix } from "../../const"
 
-import type { Sha256State as Input } from "std:crypto"
-import type { Output } from "./model"
+import type { Format as Input, Output } from "./model"
 
 export default function (in: Input): Output {
     return strings.join(
         "",
         [
             helper_prefix,
-            encoding.encodeHex(crypto.digestSha256(in))
+            encoding.encodeHex(
+                crypto.sha256Parts([
+                    in.seed,
+                    in.slots
+                ])
+            )
         ]
     )
 }

@@ -1,16 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const zx = @import("zx");
 const generated = @import("generated_uniqueness_flow_key");
 const Flow = @import("../flow.zig");
 const Input = std.meta.Child(generated.Input);
 
 pub fn build(flow: Flow, callees: []const u32, types: *const [32]u8, content: *const [32]u8) [32]u8 {
-    var hash: zx.Sha256 = undefined;
-    const hash_state = zx.Sha256State{ .value = &hash };
-
     const input: Input = .{
-        .hash = @ptrCast(&hash_state),
         .types = types,
         .content = content,
         .call_functions = callees,
@@ -20,9 +15,15 @@ pub fn build(flow: Flow, callees: []const u32, types: *const [32]u8, content: *c
         .little_endian = builtin.cpu.arch.endian() == .little,
     };
 
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
+    var pending: [2048]u8 = undefined;
+    var backing = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 
-    generated.executeIn(memory.allocator(), &input) catch |err| std.debug.panic("flow key failed: {s}", .{@errorName(err)});
+    defer backing.deinit();
 
-    return hash.finalResult();
+    var scratch = std.heap.BufferFirstAllocator.init(&pending, backing.allocator());
+    const digest = generated.executeIn(scratch.allocator(), &input) catch |err| std.debug.panic("flow key failed: {s}", .{@errorName(err)});
+
+    std.debug.assert(digest.len == 32);
+
+    return digest[0..32].*;
 }

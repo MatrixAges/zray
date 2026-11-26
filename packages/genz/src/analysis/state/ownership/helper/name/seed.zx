@@ -1,15 +1,21 @@
 import bytes from "std:bytes"
-import crypto from "std:crypto"
 
 import { helper_separator } from "../../const"
 
-import type { Sha256State as Output } from "std:crypto"
-import type { Seed as Input } from "./model"
+export type Input = string
+
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    crypto.resetSha256(in.hash)
-    crypto.updateSha256(in.hash, bytes.fromText(in.state_name))
-    crypto.updateSha256Byte(in.hash, helper_separator)
+    const separator: u8[] = [
+        helper_separator
+    ]
 
-    return in.hash
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            bytes.fromText(in),
+            separator
+        ]
+    )
 }

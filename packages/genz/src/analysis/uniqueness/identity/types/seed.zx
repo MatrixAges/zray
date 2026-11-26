@@ -1,20 +1,18 @@
 import bytes from "std:bytes"
-import crypto from "std:crypto"
 
 import frame from "../bytes"
 import { identity_domain } from "./const"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    crypto.resetSha256(in.hash)
-
-    frame({
-        hash: in.hash,
-        bytes: bytes.fromText(identity_domain)
-    })
-
-    crypto.updateSha256U64Le(in.hash, in.types.kinds.length)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            frame(bytes.fromText(identity_domain)),
+            bytes.encodeU64Le(in.types.kinds.length)
+        ]
+    )
 }

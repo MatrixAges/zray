@@ -11,7 +11,6 @@ export default function (in: Input): Output {
     const count = row < facts.counts.length ? facts.counts[row] : zero
 
     return {
-        hash: in.hash,
         names: in.names,
         index: row,
         key: in.key,

@@ -1,6 +1,0 @@
-import type { Sha256State } from "std:crypto"
-
-export type Bytes = {
-    hash: Sha256State,
-    bytes: u8[]
-}

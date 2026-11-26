@@ -10,7 +10,6 @@ pub const parallel = @import("parallel.zig");
 pub const Arena = memory.ScratchArena;
 pub const bytes = @import("bytes.zig");
 pub const Sha256 = @import("sha256.zig").Sha256;
-pub const Sha256State = @import("sha256.zig").Sha256State;
 pub const Refinement = @import("refinement.zig");
 pub const Diagnostic = @import("diagnostic.zig").Diagnostic;
 pub const Reporter = @import("diagnostic.zig").Reporter;

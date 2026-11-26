@@ -1,9 +1,7 @@
-import type { Sha256State } from "std:crypto"
 import type { FileSystem } from "artifact_io"
 import type { StringBuffer, TextColumn } from "memory"
 
 export type Identity = {
-    hash: Sha256State,
     entry: string,
     abi: string,
     runner: string,

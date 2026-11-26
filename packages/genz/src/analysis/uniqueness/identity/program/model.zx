@@ -1,9 +1,4 @@
-import type { Sha256State } from "std:crypto"
-
-export type { Bytes } from "../model"
-
 export type Input = {
-    hash: Sha256State,
     types: u8[],
     input_types: u32[],
     output_types: u32[],
@@ -14,7 +9,11 @@ export type Input = {
     return_allocations: u8[]
 }
 
-export type Rows = {
-    hash: Sha256State,
-    rows: u8[][]
+export type Assemble = {
+    seed: u8[],
+    signatures: u8[],
+    held: u8[][],
+    written: u8[][],
+    return_only: u8[],
+    return_allocations: u8[]
 }

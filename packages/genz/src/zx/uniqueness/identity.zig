@@ -167,23 +167,24 @@ fn hashBody(program_view: *const ir.Program, index: usize) [32]u8 {
 
 /// Combines the program digest with a body digest or the raw exported function IDs.
 pub fn combine(shared: *const [32]u8, suffix: []const u8) [32]u8 {
-    var hash: Hash = undefined;
-
     if (@import("genz_options").generated_analysis) {
         const zx = @import("zx");
         const entry = @import("generated_uniqueness_identity_combine");
         const Input = std.meta.Child(entry.Input);
-        const storage = zx.Sha256State{ .value = &hash };
-        const input: Input = .{ .hash = @ptrCast(&storage), .shared = shared, .suffix = suffix };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const input: Input = .{ .shared = shared, .suffix = suffix };
+        var pending: [256]u8 = undefined;
+        var scratch = std.heap.FixedBufferAllocator.init(&pending);
+        const digest = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| std.debug.panic("identity combine failed: {s}", .{@errorName(err)});
 
-        zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
-    } else {
-        hash = .init(.{});
+        std.debug.assert(digest.len == 32);
 
-        hash.update(shared);
-        hash.update(suffix);
+        return digest[0..32].*;
     }
+
+    var hash: Hash = .init(.{});
+
+    hash.update(shared);
+    hash.update(suffix);
 
     return hash.finalResult();
 }

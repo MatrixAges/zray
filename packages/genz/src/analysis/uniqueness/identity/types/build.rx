@@ -1,8 +1,18 @@
 <Module>
     <Type from="model" as="Identity" />
 
-    <Args in={Identity.Input} out={void} />
+    <Args in={Identity.Input} out={u8[]} />
 
     <Call fn="seed" in={$in} />
     <Call fn="walk" in={$in} />
+
+    <Call
+        fn="assemble"
+        in={{
+            seed: $ctx.seed,
+            walk: $ctx.walk
+        }}
+    />
+
+    <Return value={$ctx.assemble} />
 </Module>

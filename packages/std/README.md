@@ -87,25 +87,3 @@ import bytes from "std:bytes"
 `std:bytes` 直接扫描或比较借用切片，不分配内存、不做字符编码校验，支持并发调用。
 `hash(bytes)` 返回 seed 为 0 的 Wyhash 64 位值，可用于内存哈希索引。
 `hashSeeded(seed, bytes)` 使用指定的起始值，可将多个独立字段按顺序组成同一个索引键。
-
-## 借用 SHA-256 状态
-
-`std:crypto` 的 `Sha256State` 借用宿主提供的只读资源描述符
-`zxc_std.Sha256State`，其 `value` 指向宿主持有的可写 `zxc_std.Sha256`。
-宿主将描述符地址传入生成 ABI，而非直接传入 Hash 地址；描述符和 Hash
-均须存活至同步调用结束。reset、update 和 digest 通过描述符中的可写指针
-操作 Hash，要求独占访问；不会修改描述符，也不分配或复制 Hash。
-该类型使用当前目标的统一 SHA-256 后端；不要将其他实现的存储强转成此资源。
-
-| 函数                              | 作用                                              |
-| --------------------------------- | ------------------------------------------------- |
-| `resetSha256(state)`              | 初始化或重启宿主提供的状态，不分配内存            |
-| `updateSha256(state, bytes)`      | 顺序追加借用字节切片，不保留输入                  |
-| `updateSha256Byte(state, value)`  | 顺序追加一个字节，不构造动态数组                  |
-| `updateSha256U64Le(state, value)` | 按小端序追加 8 字节整数，使用栈上缓冲，不分配内存 |
-| `digestSha256(state)`             | 完成哈希并分配 32 字节结果，可能抛出 OutOfMemory  |
-
-该资源需要独占使用，不支持并发更新；更新前必须完成初始化。完成后需要 reset
-才能再次更新或完成，也不得
-保存超过宿主生命周期的引用。结果由调用方 allocator 管理。普通完整输入仍使用
-`sha256`；已有完整分片列表时使用 `sha256Parts`。

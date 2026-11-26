@@ -1,0 +1,19 @@
+import crypto from "std:crypto"
+
+import frame from "../bytes"
+import rows from "./rows"
+
+import type { Assemble as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return crypto.sha256Parts([
+        in.seed,
+        in.signatures,
+        rows(in.held),
+        rows(in.written),
+        frame(in.return_only),
+        frame(in.return_allocations)
+    ])
+}

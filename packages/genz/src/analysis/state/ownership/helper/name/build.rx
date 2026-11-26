@@ -12,26 +12,23 @@
         ])}
     />
 
-    <Call
-        fn="seed"
-        in={{
-            hash: $in.hash,
-            state_name: $ctx.name
-        }}
-    />
+    <Call fn="seed" />
 
     <Call
         fn="slots"
-        in={{
-            hash: $ctx.seed,
-            ...$in.pick([
-                "source",
-                "count"
-            ])
-        }}
+        in={$in.pick([
+            "source",
+            "count"
+        ])}
     />
 
-    <Call fn="format" />
+    <Call
+        fn="format"
+        in={{
+            seed: $ctx.seed,
+            slots: $ctx.slots
+        }}
+    />
 
     <Return value={$ctx.format} />
 </Module>

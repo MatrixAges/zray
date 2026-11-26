@@ -15,12 +15,9 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
     const facts = @import("query.zig").borrowFacts(Facts, self, &types);
     const query: Query = .{ .facts = &facts, .node = @backingInt(id), .type_id = @backingInt(type_id), .slot = slot };
     const outline: Outline = .{ .source = &query, .referenced = self.state_plan.borrowed };
-    var hash: zx.Sha256 = undefined;
-    const hash_state = zx.Sha256State{ .value = &hash };
 
     const plan_input: PlanInput = .{
         .source = &outline,
-        .hash = @ptrCast(&hash_state),
         .names = self.type_names,
         .existing_names = self.task_declarations.functionNames(),
         .key = &self.state_plan.keys[@backingInt(type_id)],

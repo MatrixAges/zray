@@ -1,35 +1,46 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 import integers from "std:integer"
 
 import { native_function, source_function } from "./const"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    crypto.updateSha256U64Le(in.hash, in.input_types.length)
+    const start_index: u64 = 0
 
-    const result = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.input_types.length,
-        next: state => {
-            crypto.updateSha256U64Le(
-                in.hash,
-                integers.widen(in.input_types[state.index])
-            )
-            crypto.updateSha256U64Le(
-                in.hash,
-                integers.widen(in.output_types[state.index])
-            )
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(in.input_types.length)
+            ]
+        },
+        {
+            while: state => state.index < in.input_types.length,
+            next: state => {
+                const external = in.native_modules[state.index] != null
+                const kind: u8 = external ? native_function : source_function
 
-            const external = in.native_modules[state.index] != null
-            const kind = external ? native_function : source_function
-
-            crypto.updateSha256Byte(in.hash, kind)
-
-            state.index += 1
+                state.parts = state.parts
+                    .push(
+                        bytes.encodeU64sLe([
+                            integers.widen(
+                                in.input_types[state.index]
+                            ),
+                            integers.widen(in.output_types[state.index])
+                        ])
+                    )[0]
+                    .push(
+                        [
+                            kind
+                        ]
+                    )[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

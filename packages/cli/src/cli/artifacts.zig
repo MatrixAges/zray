@@ -30,8 +30,6 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
 
     const paths = try allocator.alloc([]const u8, bundle.modules.len);
     var output = paths;
-    var hash: zx.Sha256 = undefined;
-    const hash_state: zx.Sha256State = .{ .value = &hash };
     var context: disk.Context = .{ .io = io };
     const view_paths = zx.memory.borrowTextColumn("path", abi.views);
     const view_sources = zx.memory.borrowTextColumn("source", abi.views);
@@ -42,7 +40,6 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
         .fs = @ptrCast(&context),
         .separator = &.{std.fs.path.sep},
         .identity = &.{
-            .hash = @ptrCast(&hash_state),
             .entry = bundle.entry.source,
             .abi = abi.source,
             .runner = runner,
