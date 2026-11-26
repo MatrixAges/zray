@@ -246,6 +246,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/binding_path/write.zx", .name = "binding_path_write" },
     .{ .path = "zx/ir/canonical/validation/verify.rx", .name = "ir_validation" },
     .{ .path = "zx/modules/compiled/execute.rx", .name = "compiled_library" },
+    .{ .path = "zx/modules/compiled/loading/install/publish.rx", .name = "compiled_library_publish" },
     .{ .path = "zx/modules/compiled/validate.rx", .name = "compiled_validation" },
     .{ .path = "zx/modules/compiled/validation/linked/check.rx", .name = "compiled_linked_validation" },
     .{ .path = "zx/modules/compiled/identity/scope.zx", .name = "compiled_scope_identity" },

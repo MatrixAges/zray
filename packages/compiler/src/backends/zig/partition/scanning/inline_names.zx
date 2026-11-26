@@ -1,7 +1,13 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
 
-import { inline_marker, newline, open_paren } from "./const"
+import {
+    anytype_marker,
+    inline_marker,
+    newline,
+    open_paren,
+    public_function_marker
+} from "./const"
 
 export type Input = string
 
@@ -11,7 +17,7 @@ export default function (in: Input): Output {
     const names: u8[][] = []
     const source = bytes.fromText(in)
 
-    return loop({
+    const inlined = loop({
         names,
         cursor: 0,
         done: false
@@ -40,6 +46,56 @@ export default function (in: Input): Output {
                                 )
                             )
                         )[0]
+                    }
+                }
+            }
+        },
+        return: current => current.names
+    })
+
+    return loop({
+        names: inlined,
+        cursor: 0,
+        done: false
+    }, {
+        while: current => !current.done,
+        next: current => {
+            const at = bytes.indexOfText(
+                source,
+                current.cursor,
+                public_function_marker
+            )
+
+            if (at == null) {
+                current.done = true
+            } else {
+                current.cursor = at + public_function_marker.length
+
+                if (at == 0 || source[at - 1] == newline) {
+                    const end = bytes.indexOfScalar(source, current.cursor, open_paren)
+
+                    if (end == null) {
+                        current.done = true
+                    } else {
+                        const line_end = bytes.indexOfScalar(source, end, newline)
+                        const generic = bytes.indexOfText(source, end, anytype_marker)
+
+                        if (generic != null) {
+                            const matched =
+                                line_end == null ? true : generic < line_end
+
+                            if (matched) {
+                                current.names = current.names.push(
+                                    bytes.fromText(
+                                        encoding.sliceBytes(
+                                            in,
+                                            current.cursor,
+                                            end
+                                        )
+                                    )
+                                )[0]
+                            }
+                        }
                     }
                 }
             }

@@ -13,6 +13,7 @@ pub const BootstrapEntries = struct {
     value_entry: bool,
     state_entry: bool,
     allocator_entry: bool,
+    pending_entry: bool = false,
     constant_only: bool,
 };
 
@@ -33,6 +34,7 @@ pub fn bootstrapReexports(allocator: std.mem.Allocator, workspace: std.mem.Alloc
         .value_entry = entries.value_entry,
         .state_entry = entries.state_entry,
         .allocator_entry = entries.allocator_entry,
+        .pending_entry = entries.pending_entry,
         .constant_only = entries.constant_only,
         .constant_namespace = @import("../zx/module/constants.zig").namespace,
     };

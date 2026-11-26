@@ -61,7 +61,6 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
         .functions = &self.functions.input,
         .interface = if (self.needs_interface) &self.public.request else null,
         .commit = &self.commit,
-        .owner = @ptrCast(&self.owner),
     };
 }
 

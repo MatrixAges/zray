@@ -3,13 +3,12 @@
 
     <Args in={Install.Publication} out={void} />
 
+    <Store from="progress" as="progress" />
+
     <Call
-        fn="memory.writeBool"
-        in={[
-            $in.preparing,
-            0,
-            true
-        ]}
+        fn="set_preparing"
+        in={true}
+        setter={[$store.progress.state]}
     />
 
     <Call
@@ -50,19 +49,8 @@
     </If>
 
     <Call
-        fn="memory.writeBool"
-        in={[
-            $in.preparing,
-            0,
-            false
-        ]}
-    />
-
-    <Call
-        fn="memory.selectAllocator"
-        in={[
-            $in.resources,
-            $in.installation.owner
-        ]}
+        fn="set_preparing"
+        in={false}
+        setter={[$store.progress.state]}
     />
 </Module>

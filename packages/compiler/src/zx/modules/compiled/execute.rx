@@ -1,8 +1,9 @@
 <Module>
     <Type from="loading/install/model" as="Install" />
+    <Type from="model" as="Model" />
     <Type from="status" as="Link" />
 
-    <Args in={Install.Request} out={Link.Status} />
+    <Args in={Install.Request} out={Model.Result} />
 
     <Call
         fn="loading/install/initialize"
@@ -15,20 +16,16 @@
     <Call module="plan" in={$in.plan} />
 
     <If on={$ctx.plan.status != Link.Status.Ready}>
-        <Return value={$ctx.plan.status} />
+        <Return value={$ctx.plan} />
     </If>
 
     <Call
-        module="loading/install/publish"
+        module="loading/install/prepare"
         in={{
-            ...$in.pick([
-                "installation",
-                "resources",
-                "preparing"
-            ]),
+            installation: $in.installation,
             plan: $ctx.plan
         }}
     />
 
-    <Return value={Link.Status.Ready} />
+    <Return value={$ctx.plan} />
 </Module>

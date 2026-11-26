@@ -99,6 +99,7 @@ fn publish(frame: *const Frame, index: usize, first: usize, end: usize) std.mem.
         .value_entry = analysis.hasValueEntry(),
         .state_entry = analysis.hasStateEntry(program.*),
         .allocator_entry = analysis.hasAllocatorEntry(),
+        .pending_entry = program.stores.count() > 0,
         .requires_io = analysis.entry_flags.io,
         .requires_process = analysis.entry_flags.process,
         .file = .{ .name = identity.module, .source = &.{}, .imports = imports },

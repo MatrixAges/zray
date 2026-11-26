@@ -9,7 +9,8 @@ import {
     output_shape_name,
     value_name,
     state_name,
-    allocator_name
+    allocator_name,
+    pending_name
 } from "../const"
 
 import type { Bootstrap as Input, Input as Output } from "./model"
@@ -36,13 +37,15 @@ export default function (in: Input): Output {
     const enabled = [
         in.value_entry,
         in.state_entry,
-        in.allocator_entry
+        in.allocator_entry,
+        in.pending_entry
     ]
 
     const optional = [
         value_name,
         state_name,
-        allocator_name
+        allocator_name,
+        pending_name
     ]
 
     const names = loop({

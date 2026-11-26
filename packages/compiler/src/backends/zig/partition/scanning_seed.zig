@@ -33,6 +33,7 @@ pub fn references(allocator: std.mem.Allocator, source: []const u8, indices: *co
 
 pub fn inlineNames(allocator: std.mem.Allocator, source: []const u8) ![]const []const u8 {
     const marker = "pub inline fn ";
+    const public_marker = "pub fn ";
     var names: std.ArrayList([]const u8) = .empty;
     var cursor: usize = 0;
 
@@ -44,6 +45,21 @@ pub fn inlineNames(allocator: std.mem.Allocator, source: []const u8) ![]const []
         const end = std.mem.indexOfScalarPos(u8, source, cursor, '(') orelse break;
 
         try names.append(allocator, source[cursor..end]);
+    }
+
+    cursor = 0;
+
+    while (@import("../search.zig").find(source, cursor, public_marker)) |at| {
+        cursor = at + public_marker.len;
+
+        if (at != 0 and source[at - 1] != '\n') continue;
+
+        const end = std.mem.indexOfScalarPos(u8, source, cursor, '(') orelse break;
+        const line_end = std.mem.indexOfScalarPos(u8, source, end, '\n') orelse source.len;
+
+        if (std.mem.indexOf(u8, source[end..line_end], ": anytype") != null) {
+            try names.append(allocator, source[cursor..end]);
+        }
     }
 
     return names.items;

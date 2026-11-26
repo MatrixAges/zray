@@ -1,0 +1,5 @@
+<Store name="compiled_install_progress" version={1}>
+    <Object name="state">
+        <Field name="preparing" type={bool} value={false} />
+    </Object>
+</Store>

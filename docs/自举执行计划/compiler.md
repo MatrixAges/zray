@@ -17,13 +17,16 @@
 
 ### `src/` 非 seed Zig 职责分类
 
-| 类别                                  | 文件数 |   行数 |      占比 |
-| ------------------------------------- | -----: | -----: | --------: |
-| 纯 Zig 状态与未迁逻辑                 |    476 | 33,250 |     49.4% |
-| 宿主回调 / 不透明桥接                 |    146 | 14,180 | **21.1%** |
-| 双向跳板（`executeIn` + `anyopaque`） |     77 | 12,508 | **18.6%** |
-| Zig→Source 封送包装                   |     31 |  2,673 |  **4.0%** |
-| 平台 I/O / 外部工具边界               |     30 |  4,649 |      6.9% |
+| 类别                  | 文件数 |   行数 |  占比 |
+| --------------------- | -----: | -----: | ----: |
+| 纯 Zig 状态与未迁逻辑 |    476 | 33,250 | 49.4% |
+
+| 宿主回调 / 不透明桥接 | 146 | 14,180 | **21.1%** |
+
+| 双向跳板（`executeIn` + `anyopaque`） | 77 | 12,508 | **18.6%** |
+| Zig→Source 封送包装 | 31 | 2,673 | **4.0%** |
+
+| 平台 I/O / 外部工具边界 | 30 | 4,649 | 6.9% |
 
 ### 8 大剩余 Zig 子树（`src/` 非 seed + seed）
 
@@ -122,5 +125,6 @@
 - **已完成进展（Wave 55 · 2026-11-26）**：在 `packages/std` 新增纯值并发 `bytes.mask` 并删除 `writeMasked`、`writeU32sLe`、`writeU64sLe`、`writeDecimalU64`；清零 `backends/verilog/`（[render.rx](../../packages/compiler/src/backends/verilog/workflow/render.rx)/[clocked.rx](../../packages/compiler/src/backends/verilog/layout/clocked.rx)/[finish.rx](../../packages/compiler/src/backends/verilog/layout/finish.rx)/[join.zx](../../packages/compiler/src/backends/verilog/layout/join.zx)/[root.zig](../../packages/compiler/src/backends/verilog/root.zig)）与 `genz/analysis/uniqueness/memo/disk/write/`（[run.rx](../../packages/genz/src/analysis/uniqueness/memo/disk/write/run.rx)/[assemble.zx](../../packages/genz/src/analysis/uniqueness/memo/disk/write/assemble.zx)/[writing.zig](../../packages/genz/src/zx/uniqueness/memo/writing.zig)）全部 `std:bytes.Writer`，撤销 `verilog_host`、`workflow/reserve.zx` 与 `layout/capacity.zx`，同步修复 `hardware/binary/model.zx` `Operands` 零分配校验与 [expression.zig](../../packages/compiler/src/verification/execution/expression.zig) `Frame.outcomes` 槽位覆盖；通过 `-Dstage0=""` 种子构建与 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译（`stage2`/`stage3` SHA-256 一致：`f759d410...`，`main` 575 入口冷生成 `stage2` `3.00 s` / CPU `14.56 s`）、`compiler`/`cli` `ReleaseSafe` 全量测试、`test-hardware-resources` `ReleaseSmall`、`cli` `ReleaseSmall` 构建、`scripts/format.mjs` 与 `zxc lint`。
 - **已完成进展（Wave 56 · 2026-11-26）**：清零全仓全部剩余 `std:bytes.Writer`（`core/ir/fingerprint/` 含新增 [statement.zx](../../packages/core/src/ir/fingerprint/statement.zx)、`genz/uniqueness/identity/content/` 含 [assemble.zx](../../packages/genz/src/analysis/uniqueness/identity/content/assemble.zx)/[build.rx](../../packages/genz/src/analysis/uniqueness/identity/content/build.rx)/[content.zig](../../packages/genz/src/zx/uniqueness/identity/content.zig)、`backends/zig/fingerprint/` 含 [join.zx](../../packages/compiler/src/backends/zig/fingerprint/join.zx)/[optional_strings.zx](../../packages/compiler/src/backends/zig/fingerprint/optional_strings.zx)/[source.zig](../../packages/compiler/src/backends/zig/fingerprint/source.zig)/[fingerprint.zig](../../packages/compiler/src/backends/zig/fingerprint.zig)/[batch.zig](../../packages/compiler/src/backends/zig/batch.zig)），并物理删除 `packages/std` 中的 `Writer = mutable_opaque`、`write*` 与 `bytes/writer.zig`（全仓 `std:bytes` `Writer`/`bytes.write* == 0`、`packages/std` `mutable_opaque == 0`、`void` ZX `624 → 580`）；通过 `-Dstage0=""` 种子构建与 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译（`stage2`/`stage3` SHA-256 一致：`c2293789...`，`main` 575 入口 / 5,212 模块冷生成 `stage2` `3.03 s` / CPU `14.91 s`）、`compiler`/`cli` `ReleaseSafe` 全量测试、`cli` `ReleaseSmall` 构建、`scripts/format.mjs` 与 `zxc lint`。
 - **已完成进展（Wave 57 · 2026-11-26）**：彻底清零全仓全部 `Sha256State` 消费（`cli/build/workspace/`、`genz/analysis/state/ownership/{helper/name,projection/plan}/`、`genz/analysis/uniqueness/{flow/key,identity/{combine,program,types}}/`），并物理删除 `packages/std` 与 `packages/core` 中的 `Sha256State = opaque`、`resetSha256`/`updateSha256*`/`digestSha256` 与 `packages/std/src/crypto/sha256_state.zig`（类别 3 全部清零：`packages/std` `opaque/mutable_opaque == 0`，总 `opaque` `125 → 124`，`void` ZX `580 → 567`）；通过 `-Dstage0=""` 种子构建与 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译（`stage2`/`stage3` SHA-256 一致：`7a84acf4...`，`main` 575 入口 / 5,214 模块冷生成 `stage2` `3.00 s` / CPU `14.78 s`）、`compiler`/`cli` `ReleaseSafe` 全量测试、`cli` `ReleaseSmall` 构建、`scripts/format.mjs` 与 `zxc lint`。
+- **已完成进展（Wave 58 · 2026-11-26）**：补齐引导入口 `zx_pending` 再导出与分区扫描 `: anytype)` 泛型识别（解锁自举与分区构建下的 `<Store>` `$store.*`），在 `packages/compiler` 落地首份 `.store.rx`（[progress.store.rx](../../packages/compiler/src/zx/modules/compiled/loading/install/progress.store.rx) + [set_preparing.zx](../../packages/compiler/src/zx/modules/compiled/loading/install/set_preparing.zx)），拆离独立 `compiled_library_publish` 入口（[publish.rx](../../packages/compiler/src/zx/modules/compiled/loading/install/publish.rx)），删除 `loading/install/memory.zx` 并清除 [prepare.rx](../../packages/compiler/src/zx/modules/compiled/loading/install/prepare.rx) 最后 3 处 `memory.*` 与 `compiled/host/` 中的 `ArenaScope`/`BoolBuffer`（全仓 RX `<Call fn="memory.*"> == 0`）；通过 `-Dstage0=""` 种子构建与 `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译（`stage2`/`stage3` SHA-256 一致：`0ecac9f6...`，`main` 576 入口 / 5,215 模块冷生成 `stage2` `3.06 s` / CPU `14.92 s`）、`compiler`/`cli` `ReleaseSafe` 全量测试、`cli` `ReleaseSmall` 构建与全部格式化/lint 检查。
 - **开发期**：`cd packages/compiler && zig build test-rx` / `zig build test-frontend` 或单文件测试复现，不跑全仓 17,560 文件比较。
 - **阶段收口（每个 M1–M6 结束时）**：`ReleaseSmall` 16 分区构建 `zxc-bootstrap`、372+ 编译器全测试、冻结清单生成产物字节一致性与冷/热/RSS 基准对比。

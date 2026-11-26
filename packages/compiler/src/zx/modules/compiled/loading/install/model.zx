@@ -1,4 +1,4 @@
-import type { Allocator, ArenaScope, BoolBuffer } from "memory"
+import type { Allocator } from "memory"
 import type {
     Target as TypeTarget
 } from "../../../../analysis/semantic/merging/publication/model"
@@ -17,18 +17,16 @@ export type Installation = {
     reserve: Reserve,
     functions: Functions.Omit("mapping"),
     interface?: Interface.Omit("selection", "mapping"),
-    commit: Commit,
-    owner: Allocator
+    commit: Commit
 }
 
 export type Request = {
     plan: Planning,
     installation: Installation,
-    temporary: Allocator,
-    resources: ArenaScope,
-    preparing: BoolBuffer
+    temporary: Allocator
 }
 
-export type Publication = Request.Pick("installation", "resources", "preparing") & {
+export type Publication = {
+    installation: Installation,
     plan: Result
 }

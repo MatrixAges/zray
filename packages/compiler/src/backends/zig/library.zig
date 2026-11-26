@@ -13,6 +13,7 @@ pub const PublicModule = struct {
     value_entry: bool = false,
     state_entry: bool = false,
     allocator_entry: bool = false,
+    pending_entry: bool = false,
     constant_only: bool = false,
     requires_io: ?bool = null,
     requires_process: bool = false,

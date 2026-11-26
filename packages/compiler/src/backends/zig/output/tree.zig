@@ -75,6 +75,7 @@ const Frame = struct {
             .value_entry = module.value_entry,
             .state_entry = module.state_entry,
             .allocator_entry = module.allocator_entry,
+            .pending_entry = module.pending_entry,
             .constant_only = module.constant_only,
         });
     }

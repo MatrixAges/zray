@@ -30,7 +30,7 @@ fn reexportsBacked(allocator: std.mem.Allocator, workspace: std.mem.Allocator, m
 pub fn bootstrapReexports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, input: @import("root.zig").BootstrapEntries) std.mem.Allocator.Error![]u8 {
     if (input.constant_only) return reexports(allocator, "generated", input.member, &.{@import("../zx/module/constants.zig").namespace});
 
-    var storage: [10][]const u8 = undefined;
+    var storage: [11][]const u8 = undefined;
     var names: std.ArrayList([]const u8) = .initBuffer(&storage);
 
     names.appendSliceAssumeCapacity(&.{ "Input", "Output", "execute", "requires_io", "requires_process", "input_shape", "output_shape" });
@@ -38,6 +38,7 @@ pub fn bootstrapReexports(allocator: std.mem.Allocator, workspace: std.mem.Alloc
     if (input.value_entry) names.appendAssumeCapacity("executeValue");
     if (input.state_entry) names.appendAssumeCapacity("executeState");
     if (input.allocator_entry) names.appendAssumeCapacity("executeIn");
+    if (input.pending_entry) names.appendAssumeCapacity("zx_pending");
 
     return reexportsBacked(allocator, workspace, "generated", input.member, names.items);
 }
