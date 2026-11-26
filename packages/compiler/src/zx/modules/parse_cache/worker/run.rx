@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Worker" />
+
+    <Args in={Worker.Batch} out={bool} />
+
+    <Call
+        fn="classify"
+        in={$in.pick([
+            "cache",
+            "sources",
+            "buffers",
+            "range"
+        ])}
+    />
+
+    <Call
+        fn="dispatch"
+        in={$in.pick([
+            "worker",
+            "sources",
+            "buffers",
+            "range",
+            "has_output"
+        ])}
+    />
+
+    <Return value={$ctx.dispatch} />
+</Module>

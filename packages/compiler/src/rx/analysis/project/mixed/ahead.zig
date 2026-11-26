@@ -165,22 +165,6 @@ const Work = struct {
     fn run(work: *Work, participant: usize) void {
         const worker: Worker = .{ .state = work.state, .results = work.results, .arena = work.arenas[participant].allocator() };
 
-        if (comptime generated) {
-            const rule = @import("generated_rx_mixed_worker");
-
-            const input: std.meta.Child(rule.Input) = .{
-                .worker = @ptrCast(&worker),
-                .cursor = @ptrCast(&work.next),
-                .count = work.results.len,
-            };
-
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            rule.executeIn(empty.allocator(), &input) catch unreachable;
-
-            return;
-        }
-
         while (true) {
             const position = work.next.fetchAdd(1, .monotonic);
 
@@ -198,11 +182,9 @@ const Worker = struct {
     state: *const State,
     results: []Result,
     arena: std.mem.Allocator,
-    fn borrow(handle: *const anyopaque) *const Worker {
-        return @ptrCast(@alignCast(handle));
-    }
     fn analyze(self: *const Worker, position: usize) void {
         const item = &self.results[position].zx;
+
         item.scratch = .init(self.arena);
         item.outcome = Zx.analyze(self.state, self.arena, &item.scratch.?, item.prepared, &.{}) catch null;
     }
@@ -211,18 +193,6 @@ const Worker = struct {
         item.value = Rx.lower(self.state, self.arena, item.prepared) catch null;
     }
 };
-
-pub fn preparedMixedIsZX(handle: *const anyopaque, row: u64) bool {
-    return Worker.borrow(handle).results[@intCast(row)] == .zx;
-}
-
-pub fn runPreparedMixedZX(handle: *const anyopaque, row: u64) void {
-    Worker.borrow(handle).analyze(@intCast(row));
-}
-
-pub fn runPreparedMixedRX(handle: *const anyopaque, row: u64) void {
-    Worker.borrow(handle).lower(@intCast(row));
-}
 
 const Preparation = struct {
     ahead: *Self,

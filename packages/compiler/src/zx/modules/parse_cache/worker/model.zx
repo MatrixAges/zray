@@ -1,5 +1,5 @@
 import type { Lookup as Slot } from "core/bytes/index/slot"
-import type { AtomicIndex, TextColumn, U8Buffer, U64Buffer } from "memory"
+import type { TextColumn, U8Buffer, U64Buffer } from "memory"
 import type { ReferenceColumn } from "memory/columns"
 import type { ParseWorker } from "project_host"
 
@@ -21,14 +21,12 @@ export type Buffers = {
     digest_width: u64
 }
 
-export type Walk = {
+export type Batch = {
     worker: ParseWorker,
-    cursor: AtomicIndex,
     cache: Cache,
     sources: Sources,
     buffers: Buffers,
-    count: u64,
-    participants: u64,
+    range: Range,
     has_output: bool
 }
 

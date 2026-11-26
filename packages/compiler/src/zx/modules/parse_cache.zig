@@ -401,33 +401,55 @@ const ParseWork = struct {
         var digests: [max_parse_batch]Digest = undefined;
         var hit_rows: []u64 = &hits;
         var digest_bytes = std.mem.sliceAsBytes(digests[0..]);
+        const input_type = std.meta.Child(rule.Input);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const width = @min(max_parse_batch, @max(1, work.results.len / work.staging.len));
 
-        const input: std.meta.Child(rule.Input) = .{
-            .worker = @ptrCast(&worker),
-            .cursor = @ptrCast(&work.next),
-            .cache = &.{
-                .keys = entries.keys.items,
-                .buckets = @ptrCast(&entries.buckets),
-                .capacity = entries.buckets.len,
-                .texts = @ptrCast(&cached_text),
-                .digests = @ptrCast(&cached_digest),
-            },
-            .sources = &.{ .paths = @ptrCast(work.paths), .texts = @ptrCast(work.texts) },
-            .buffers = &.{
-                .hits = @ptrCast(&hit_rows),
-                .hit_rows = hit_rows,
-                .digests = @ptrCast(&digest_bytes),
-                .digest_bytes = digest_bytes,
-                .digest_width = @sizeOf(Digest),
-            },
-            .count = work.results.len,
-            .participants = work.staging.len,
-            .has_output = work.output != .none,
+        const cache_view: std.meta.Child(@FieldType(input_type, "cache")) = .{
+            .keys = entries.keys.items,
+            .buckets = @ptrCast(&entries.buckets),
+            .capacity = entries.buckets.len,
+            .texts = @ptrCast(&cached_text),
+            .digests = @ptrCast(&cached_digest),
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const sources_view: std.meta.Child(@FieldType(input_type, "sources")) = .{
+            .paths = @ptrCast(work.paths),
+            .texts = @ptrCast(work.texts),
+        };
 
-        rule.executeIn(empty.allocator(), &input) catch unreachable;
+        const buffers_view: std.meta.Child(@FieldType(input_type, "buffers")) = .{
+            .hits = @ptrCast(&hit_rows),
+            .hit_rows = hit_rows,
+            .digests = @ptrCast(&digest_bytes),
+            .digest_bytes = digest_bytes,
+            .digest_width = @sizeOf(Digest),
+        };
+
+        while (!work.failed.load(.monotonic)) {
+            const first = work.next.fetchAdd(width, .monotonic);
+
+            if (first >= work.results.len) return;
+
+            const range_view: std.meta.Child(@FieldType(input_type, "range")) = .{ .first = first, .count = @min(width, work.results.len - first) };
+
+            const input: input_type = .{
+                .worker = @ptrCast(&worker),
+                .cache = &cache_view,
+                .sources = &sources_view,
+                .buffers = &buffers_view,
+                .range = &range_view,
+                .has_output = work.output != .none,
+            };
+
+            const ok = rule.executeIn(empty.allocator(), &input) catch unreachable;
+
+            if (!ok) {
+                work.failed.store(true, .monotonic);
+
+                return;
+            }
+        }
     }
 };
 
@@ -439,14 +461,6 @@ const ParseWorker = struct {
         return @ptrCast(@alignCast(handle));
     }
 };
-
-pub fn parseWorkerFailed(handle: *const anyopaque) bool {
-    return ParseWorker.borrow(handle).work.failed.load(.monotonic);
-}
-
-pub fn failParseWorker(handle: *const anyopaque) void {
-    ParseWorker.borrow(handle).work.failed.store(true, .monotonic);
-}
 
 pub fn bindParseWorkerHit(handle: *const anyopaque, index: u64, hit: u64) void {
     const work = ParseWorker.borrow(handle).work;

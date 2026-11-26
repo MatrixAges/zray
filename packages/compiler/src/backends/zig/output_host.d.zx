@@ -8,8 +8,6 @@ export type CacheWriter = mutable_opaque
 
 export type GenerationCacheRecord = opaque
 
-export type GenerationCacheFiles = opaque
-
 export type FunctionSources = mutable_opaque
 
 export type FunctionSourceWorker = mutable_opaque
@@ -122,8 +120,6 @@ export declare function commitGeneratedSource(
 export declare function finishCacheWriting(cache: CacheWriter, join: bool): void
 
 export declare function startCacheWriting(cache: CacheWriter, background: bool): bool
-
-export declare function writeGenerationCacheFile(files: GenerationCacheFiles, row: u64): u32?
 
 export declare function writeGenerationCacheRecord(
     target: GenerationCacheRecord,

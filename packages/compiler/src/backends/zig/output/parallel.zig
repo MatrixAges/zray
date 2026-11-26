@@ -34,16 +34,26 @@ const Work = struct {
     failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
         const allocator = arena.allocator();
-        var failure: []u32 = @as(*[1]u32, @ptrCast(&self.failure.raw));
 
-        const input: Input = .{
-            .jobs = &self.request,
-            .allocator = @ptrCast(&allocator),
-            .cursor = @ptrCast(&self.next),
-            .failure = @ptrCast(&failure),
-        };
+        while (self.failure.load(.monotonic) == 0) {
+            const row = self.next.fetchAdd(1, .monotonic);
 
-        worker.executeIn(allocator, &input) catch unreachable;
+            if (row >= self.request.count) return;
+
+            const input: Input = .{
+                .jobs = &self.request,
+                .allocator = @ptrCast(&allocator),
+                .row = row,
+            };
+
+            const code = worker.executeIn(allocator, &input) catch unreachable;
+
+            if (code != 0) {
+                _ = self.failure.cmpxchgStrong(0, code, .monotonic, .monotonic);
+
+                return;
+            }
+        }
     }
 };
 

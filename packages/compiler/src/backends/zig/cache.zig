@@ -317,28 +317,6 @@ const WriteBatch = struct {
         return if (written) 0 else null;
     }
     fn run(self: *WriteBatch, participant: usize) void {
-        if (comptime !generated_parser) return self.runSeed(participant);
-
-        const rule = @import("generated_generation_cache_writer_worker");
-        var written: []u64 = &self.written;
-        var failures: []u64 = &self.failures;
-        var error_word: []u32 = &self.last_io_error;
-
-        const input: std.meta.Child(rule.Input) = .{
-            .files = @ptrCast(self),
-            .cursor = @ptrCast(&self.next),
-            .count = self.items.len,
-            .participant = participant,
-            .written = @ptrCast(&written),
-            .failures = @ptrCast(&failures),
-            .last_error = @ptrCast(&error_word),
-        };
-
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-        rule.executeIn(fixed.allocator(), &input) catch unreachable;
-    }
-    fn runSeed(self: *WriteBatch, participant: usize) void {
         var written: u64 = 0;
         var failures: u64 = 0;
 
@@ -362,12 +340,6 @@ const WriteBatch = struct {
         self.failures[participant] = failures;
     }
 };
-
-pub fn writeGenerationCacheFile(handle: *const anyopaque, row: u64) ?u32 {
-    const batch: *const WriteBatch = @ptrCast(@alignCast(handle));
-
-    return batch.write(@intCast(row));
-}
 
 /// Writes separate cache files concurrently using the shared worker pool.
 fn writeAllInto(storage: Storage, writing: *Writing) void {

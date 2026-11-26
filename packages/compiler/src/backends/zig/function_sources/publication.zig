@@ -49,47 +49,56 @@ fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target_arg: 
 
     errdefer owned.free(data);
 
-    var workers: Workers = undefined;
-
-    workers = .{ .input = .{
-        .items = sources.items,
-        .contiguous = sources.contiguous,
-        .positions = sources.positions,
-        .offsets = sources.offsets,
-        .data = data,
-        .target = @ptrCast(&target),
-        .buffer = @ptrCast(&data),
-        .cursor = @ptrCast(&workers.next),
-        .width = chunk_size,
-        .failure = @ptrCast(&workers.error_view),
-    } };
-
-    workers.error_view = &workers.error_code;
+    var workers: Workers = .{
+        .input = .{
+            .items = sources.items,
+            .contiguous = sources.contiguous,
+            .positions = sources.positions,
+            .offsets = sources.offsets,
+            .data = data,
+            .target = @ptrCast(&target),
+            .buffer = @ptrCast(&data),
+            .first = 0,
+            .end = 0,
+        },
+        .count = sources.offsets.len,
+    };
 
     const chunks = std.math.divCeil(usize, sources.offsets.len, chunk_size) catch unreachable;
 
     zx.parallel.spread(Workers, &workers, Workers.run, @min(zx.parallel.width(), chunks));
 
-    const code = workers.error_code[0];
+    const code = workers.error_code.load(.monotonic);
 
     if (code != 0) return @errorCast(@errorFromInt(@as(u16, @intCast(code))));
 }
 
 const Workers = struct {
     input: Copy,
+    count: usize,
     next: std.atomic.Value(usize) = .init(0),
-    error_code: [1]u32 = .{0},
-    error_view: []u32 = undefined,
+    error_code: std.atomic.Value(u32) = .init(0),
     fn run(self: *Workers, _: usize) void {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        const valid = copying.executeIn(empty.allocator(), &self.input) catch |err| {
-            @atomicStore(u32, &self.error_code[0], @intFromError(failure(err)), .monotonic);
+        while (self.error_code.load(.monotonic) == 0) {
+            const first = self.next.fetchAdd(chunk_size, .monotonic);
 
-            return;
-        };
+            if (first >= self.count) return;
 
-        if (!valid) unreachable;
+            var input = self.input;
+
+            input.first = first;
+            input.end = first + @min(chunk_size, self.count - first);
+
+            const valid = copying.executeIn(empty.allocator(), &input) catch |err| {
+                _ = self.error_code.cmpxchgStrong(0, @intFromError(failure(err)), .monotonic, .monotonic);
+
+                return;
+            };
+
+            if (!valid) unreachable;
+        }
     }
 };
 

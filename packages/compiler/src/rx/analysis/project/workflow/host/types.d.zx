@@ -196,8 +196,6 @@ export type MixedWorkspace = mutable_opaque
 
 export type MixedCandidate = opaque
 
-export type MixedWorker = opaque
-
 export type MixedCallees = mutable_opaque
 
 export type MixedImports = mutable_opaque

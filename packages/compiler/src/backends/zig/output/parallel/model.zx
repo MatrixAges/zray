@@ -1,8 +1,7 @@
-import type { AtomicIndex, ReadColumn, StringBuffer, U32Buffer, U64Buffer } from "memory"
+import type { ReadColumn, StringBuffer, U64Buffer } from "memory"
 import type {
     BootstrapPartitionJobs,
     BootstrapPartitionScan,
-    BootstrapWorkerAllocator,
     BootstrapWriter
 } from "output_host"
 import type { Sources } from "../assembly/model"
@@ -41,11 +40,4 @@ export type Work = {
     render?: Render,
     hash?: Hash,
     write?: Write
-}
-
-export type Input = {
-    jobs: Work,
-    allocator: BootstrapWorkerAllocator,
-    cursor: AtomicIndex,
-    failure: U32Buffer
 }

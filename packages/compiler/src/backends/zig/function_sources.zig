@@ -87,21 +87,29 @@ fn runWorker(task: anytype, context: anytype, count: usize, pending: ?[]const u6
         .selected = jobs.positions,
     };
 
-    var failure: []u32 = @as(*[1]u32, @ptrCast(&task.failure.raw));
-
-    const input: Input = .{
-        .jobs = &view,
-        .count = count,
-        .cursor = @ptrCast(&task.next),
-        .failure = @ptrCast(&failure),
-        .pending = pending,
-        .search = search,
-        .worker = @ptrCast(context),
-    };
-
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    worker.executeIn(empty.allocator(), &input) catch unreachable;
+    while (task.failure.load(.monotonic) == 0) {
+        const row = task.next.fetchAdd(1, .monotonic);
+
+        if (row >= count) return;
+
+        const input: Input = .{
+            .jobs = &view,
+            .row = row,
+            .position = if (pending) |positions| positions[row] else row,
+            .search = search,
+            .worker = @ptrCast(context),
+        };
+
+        const code = worker.executeIn(empty.allocator(), &input) catch unreachable;
+
+        if (code != 0) {
+            _ = task.failure.cmpxchgStrong(0, code, .monotonic, .monotonic);
+
+            return;
+        }
+    }
 }
 
 /// Identifies every unit and fetches its cached source.
