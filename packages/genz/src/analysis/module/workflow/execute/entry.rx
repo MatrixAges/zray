@@ -3,10 +3,22 @@
 
     <Args in={Workflow.Entry} out={void} />
 
-    <Call fn="entry_header" in={$in} />
+    <Call fn="index.emitModuleStandard" in={$in.module_frame} />
+
+    <If on={$in.local}>
+        <Call fn="index.emitModuleImports" in={$in.module_frame} />
+    </If>
+
+    <Call fn="index.emitModuleTypes" in={$in.module_frame} />
+    <Call fn="index.emitModuleExports" in={$in.module_frame} />
+    <Call fn="index.emitModuleConstants" in={$in.module_frame} />
 
     <If on={!$in.type_only}>
-        <Call fn="entry_body" in={$in.module_frame} />
+        <Call fn="index.emitModuleShape" in={$in.module_frame} />
+        <Call fn="index.emitModuleAliases" in={$in.module_frame} />
+        <Call fn="index.emitModuleStore" in={$in.module_frame} />
+        <Call fn="index.emitModuleEntry" in={$in.module_frame} />
+        <Call fn="index.emitModuleValueEntry" in={$in.module_frame} />
 
         <If on={$in.local}>
             <Call fn="../../../functions/requests/execute/drain" in={$in.module_frame} />

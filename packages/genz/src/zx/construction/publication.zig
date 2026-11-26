@@ -444,6 +444,13 @@ pub fn appendAstSpan(writer: *anyopaque, span: u64) Lower.Error!void {
     return blocks.appendAtTail(self.allocator, self.builder.nodes, .{ .start = part.start, .len = part.count });
 }
 
+pub fn appendAstWhileLoop(writer: *anyopaque, condition: u32, start: u32, count: u32) Lower.Error!void {
+    _ = try borrow(writer).builder.statements(&.{.{ .while_loop = .{
+        .condition = @fromBackingInt(condition),
+        .body = .{ .start = start, .len = count },
+    } }});
+}
+
 pub const Targets = struct {
     body: ?*Sequence = null,
     binding: ?*Sequence = null,

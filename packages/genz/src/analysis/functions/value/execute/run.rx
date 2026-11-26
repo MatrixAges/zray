@@ -3,6 +3,31 @@
 
     <Args in={Value.Input} out={void} />
 
-    <Call fn="scope" in={$in} />
-    <Call fn="emit" in={$in} />
+    <If on={$in.enter}>
+        <Call fn="index.enterFunctionRepresentation" in={$in.body} />
+    </If>
+
+    <Call
+        fn="index.bindFunctionArgument"
+        in={[
+            $in.body,
+            $in.bind_input
+        ]}
+    />
+
+    <Call
+        fn="index.setFunctionOutput"
+        in={[
+            $in.body,
+            $in.value_output
+        ]}
+    />
+
+    <If on={$in.signature}>
+        <Call fn="index.emitValuePrototype" in={$in.body} />
+
+        <Else>
+            <Call fn="index.emitValueBody" in={$in.body} />
+        </Else>
+    </If>
 </Module>

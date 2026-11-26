@@ -3,8 +3,52 @@
 
     <Args in={Workflow.Function} out={void} />
 
-    <Call fn="function_header" in={$in} />
-    <Call fn="function_bodies" in={$in} />
+    <If on={$in.form == Workflow.ModuleFunctionForm.Native}>
+        <Call fn="index.openNativeFunctionModule" in={$in.module_frame} />
+
+        <Else>
+            <Call fn="index.openFunctionModule" in={$in.module_frame} />
+        </Else>
+    </If>
+
+    <Call fn="index.emitModuleStandard" in={$in.module_frame} />
+    <Call fn="index.emitModuleTypes" in={$in.module_frame} />
+    <Call fn="index.emitModuleStore" in={$in.module_frame} />
+
+    <If on={$in.form == Workflow.ModuleFunctionForm.Native}>
+        <Call fn="index.emitModuleImports" in={$in.module_frame} />
+
+        <Call
+            fn="index.emitFunctionModuleBody"
+            in={[
+                $in.module_frame,
+                Workflow.ModuleFunctionForm.Native
+            ]}
+        />
+
+        <Else>
+            <If on={$in.form != Workflow.ModuleFunctionForm.Value}>
+                <Call
+                    fn="index.emitFunctionModuleBody"
+                    in={[
+                        $in.module_frame,
+                        Workflow.ModuleFunctionForm.Regular
+                    ]}
+                />
+            </If>
+
+            <If on={$in.form != Workflow.ModuleFunctionForm.Regular}>
+                <Call
+                    fn="index.emitFunctionModuleBody"
+                    in={[
+                        $in.module_frame,
+                        Workflow.ModuleFunctionForm.Value
+                    ]}
+                />
+            </If>
+        </Else>
+    </If>
+
     <Call fn="suffix" in={$in.module_frame} />
     <Call fn="index.appendModuleAuxiliary" in={$in.module_frame} />
     <Call fn="index.appendModuleSuffix" in={$in.module_frame} />

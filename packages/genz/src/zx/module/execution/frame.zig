@@ -23,6 +23,7 @@ requests: ?*RequestsFrame = null,
 
 function: ?ir.FunctionId = null,
 result: Stored = undefined,
+suffix_info: if (generated) @import("../../expressions/evaluate.zig").Api.ModuleSuffix else void = undefined,
 pub fn init(lowering: *Lower) Self {
     return .{
         .lowering = lowering,

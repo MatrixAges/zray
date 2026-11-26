@@ -1,32 +1,28 @@
 export declare function prepareFunctionBody(body: FunctionBody): void
     throws { OutOfMemory }
 
-export declare function lowerFunctionStatements(body: FunctionBody): void
+export declare function lowerFunctionStatements(body: FunctionBody): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionContracts(body: FunctionBody): void
+export declare function lowerFunctionContracts(body: FunctionBody): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionPrelude(body: FunctionBody): void
+export declare function lowerFunctionPrelude(body: FunctionBody): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionPending(body: FunctionBody): void
+export declare function lowerFunctionPending(body: FunctionBody): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionReferences(body: FunctionBody): void
+export declare function lowerFunctionReferences(body: FunctionBody): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionCommit(body: FunctionBody): void
+export declare function lowerFunctionCommit(body: FunctionBody): u64
     throws { OutOfMemory }
 
 export declare function publishFunctionBody(
     body: FunctionBody,
-    prelude: BodySection,
-    pending: BodySection,
-    references: BodySection,
-    contracts: BodySection,
-    statements: BodySection,
-    commit: BodySection
+    start: u32,
+    count: u32
 ): void throws { OutOfMemory }
 
 export declare function enterFunctionRepresentation(body: ValueFunction): void

@@ -1,0 +1,7 @@
+export {
+    enterFunctionRepresentation,
+    bindFunctionArgument,
+    setFunctionOutput,
+    emitValuePrototype,
+    emitValueBody
+} from "lowering_host"

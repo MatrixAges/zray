@@ -3,6 +3,62 @@
 
     <Args in={Function.Input} out={void} />
 
-    <Call fn="lower" in={$in.body} />
-    <Call fn="publish" in={$in} />
+    <Call fn="index.prepareFunctionBody" in={$in.body} />
+    <Call fn="index.lowerFunctionStatements" in={$in.body} />
+    <Call fn="index.lowerFunctionContracts" in={$in.body} />
+    <Call fn="index.lowerFunctionPrelude" in={$in.body} />
+    <Call fn="index.lowerFunctionReferences" in={$in.body} />
+
+    <If on={$in.stores}>
+        <Call fn="index.lowerFunctionPending" in={$in.body} />
+        <Call fn="index.lowerFunctionCommit" in={$in.body} />
+
+        <Call
+            fn="join"
+            in={{
+                writer: $in.writer,
+                spans: [
+                    $ctx.lowerFunctionPrelude,
+                    $ctx.lowerFunctionPending,
+                    $ctx.lowerFunctionReferences,
+                    $ctx.lowerFunctionContracts,
+                    $ctx.lowerFunctionStatements,
+                    $ctx.lowerFunctionCommit
+                ]
+            }}
+        />
+
+        <Call
+            fn="index.publishFunctionBody"
+            in={[
+                $in.body,
+                $ctx.join.start,
+                $ctx.join.count
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="join"
+                in={{
+                    writer: $in.writer,
+                    spans: [
+                        $ctx.lowerFunctionPrelude,
+                        $ctx.lowerFunctionReferences,
+                        $ctx.lowerFunctionContracts,
+                        $ctx.lowerFunctionStatements
+                    ]
+                }}
+            />
+
+            <Call
+                fn="index.publishFunctionBody"
+                in={[
+                    $in.body,
+                    $ctx.join.start,
+                    $ctx.join.count
+                ]}
+            />
+        </Else>
+    </If>
 </Module>

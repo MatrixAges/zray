@@ -38,12 +38,10 @@ export declare function emitFunctionModuleBody(
     form: ModuleFunctionForm
 ): void throws { OutOfMemory }
 
-export declare function moduleUsesParallel(owner: ModuleFrame): bool
+export declare function readModuleSuffix(owner: ModuleFrame): ModuleSuffix
 
 export declare function emitModuleParallelAllocator(owner: ModuleFrame): void
     throws { OutOfMemory }
-
-export declare function moduleComparisonCount(owner: ModuleFrame): u64
 
 export declare function emitModuleComparison(owner: ModuleFrame, index: u64): void
     throws { OutOfMemory }

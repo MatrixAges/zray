@@ -1,36 +1,14 @@
 import integers from "std:integer"
 
-import {
-    ExpressionsKind,
-    ExpressionsUnaryOperator
-} from "../../../printer/model/expressions"
-import { StatementsKind } from "../../../printer/model/statements"
 import branch from "./branch"
 
-import type { Input, Guard as Output } from "./model"
+import type { Guard as Output, Input } from "./model"
 
 export default function (in: Input): Output {
     const condition = integers.narrow(integers.widen(in.expression_base) + 1)
     const stop = integers.narrow(integers.widen(in.statement_base) + 1)
 
     return {
-        expressions: {
-            tags: [
-                ExpressionsKind.Unary,
-                ExpressionsKind.Boolean
-            ],
-            offsets: [
-                0,
-                0
-            ],
-            unary_operator: [ExpressionsUnaryOperator.Not],
-            unary_operand: [in.condition],
-            boolean: [true]
-        },
-        stop: {
-            tags: [StatementsKind.BreakLoop],
-            offsets: [0]
-        },
         exit: branch({
             condition: in.expression_base,
             start: stop,

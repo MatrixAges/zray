@@ -1,6 +1,0 @@
-export {
-    appendLoopGuard,
-    appendLoopPrefix,
-    appendLoopBody,
-    appendLoopEntry
-} from "lowering_host"

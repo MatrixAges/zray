@@ -87,8 +87,15 @@ pub fn emitModuleValueEntry(handle: *anyopaque) Error!void {
     return @import("../../entry_values.zig").declarations(frame.lowering, &frame.output);
 }
 
-pub fn moduleUsesParallel(handle: *anyopaque) bool {
-    return Frame.borrow(handle).lowering.uses_parallel;
+pub fn readModuleSuffix(handle: *anyopaque) *const @import("../../expressions/evaluate.zig").Api.ModuleSuffix {
+    const frame = Frame.borrow(handle);
+
+    frame.suffix_info = .{
+        .uses_parallel = frame.lowering.uses_parallel,
+        .comparisons = frame.comparisons.items.len,
+    };
+
+    return &frame.suffix_info;
 }
 
 pub fn emitModuleParallelAllocator(handle: *anyopaque) Error!void {
@@ -96,10 +103,6 @@ pub fn emitModuleParallelAllocator(handle: *anyopaque) Error!void {
     const output = if (frame.function == null) &frame.suffix else &frame.output;
 
     return @import("../../parallel/allocator.zig").append(frame.lowering, output);
-}
-
-pub fn moduleComparisonCount(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).comparisons.items.len;
 }
 
 pub fn emitModuleComparison(handle: *anyopaque, index: u64) Error!void {
@@ -111,6 +114,8 @@ pub fn emitModuleComparison(handle: *anyopaque, index: u64) Error!void {
 }
 
 pub fn suffixSeed(handle: *anyopaque) Error!void {
-    if (moduleUsesParallel(handle)) try emitModuleParallelAllocator(handle);
-    for (0..moduleComparisonCount(handle)) |index| try emitModuleComparison(handle, index);
+    const frame = Frame.borrow(handle);
+
+    if (frame.lowering.uses_parallel) try emitModuleParallelAllocator(handle);
+    for (0..frame.comparisons.items.len) |index| try emitModuleComparison(handle, index);
 }

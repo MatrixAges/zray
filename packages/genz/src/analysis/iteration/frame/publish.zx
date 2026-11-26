@@ -1,25 +1,120 @@
 import integers from "std:integer"
+import ast from "ast_rows"
+import { AstPayloadOwnership } from "ast_rows"
 import { max_u32 } from "core/const"
+import { requireAllocation } from "memory"
 
+import emptyExpressions from "../../../ast/expressions/empty"
+import emptyForms from "../../../ast/expressions/forms/empty"
+import emptyStatements from "../../../ast/statements/empty"
+import {
+    ExpressionsKind,
+    ExpressionsUnaryOperator
+} from "../../../printer/model/expressions"
+import { StatementsKind } from "../../../printer/model/statements"
 import { guard_rows } from "./const"
 
-import type { Publication as Input, Output } from "./model"
+import type { Output, Publication as Input } from "./model"
 
 export default function (in: Input): Output {
     const source = in.source
-    const guarded = in.guard != null
+    const guard = in.guard
+    const entry = in.entry
+    const guarded = guard != null
     const extra = guarded ? guard_rows : 0
     const base = integers.widen(source.statement_base) + extra
-    const wrapped = in.entry != null
+    const wrapped = entry != null
     const owned = source.prefix_count + 1
     const start = wrapped ? base + owned : base
     const count = wrapped ? 1 : owned
-    const valid = start + count <= integers.widen(max_u32)
+
+    requireAllocation(start + count <= integers.widen(max_u32))
+
+    if (guard != null) {
+        ast.appendExpressionRows(
+            source.writer,
+            {
+                ...emptyExpressions({}),
+                tags: [
+                    ExpressionsKind.Unary,
+                    ExpressionsKind.Boolean
+                ],
+                offsets: [
+                    0,
+                    0
+                ],
+                unary_operator: [ExpressionsUnaryOperator.Not],
+                unary_operand: [source.condition]
+            },
+            {
+                ...emptyForms({}),
+                boolean: [true]
+            },
+            AstPayloadOwnership.Borrowed
+        )
+
+        ast.appendStatementRows(
+            source.writer,
+            {
+                ...emptyStatements({}),
+                tags: [
+                    StatementsKind.Branch,
+                    StatementsKind.BreakLoop
+                ],
+                offsets: [
+                    0,
+                    0
+                ],
+                branch_condition: guard.exit.branch_condition,
+                branch_yes_start: guard.exit.branch_yes_start,
+                branch_yes_len: guard.exit.branch_yes_len,
+                branch_no_start: guard.exit.branch_no_start,
+                branch_no_len: guard.exit.branch_no_len,
+                branch_capture: guard.exit.branch_capture,
+                branch_capture_reference: guard.exit.branch_capture_reference,
+                branch_error_capture: guard.exit.branch_error_capture
+            },
+            null,
+            AstPayloadOwnership.Borrowed
+        )
+    }
+
+    const prefix_block = ast.tailAstStatementRows(
+        source.writer,
+        [source.prefix_start],
+        [integers.narrow(source.prefix_count)]
+    )
+
+    ast.appendAstWhileLoop(
+        source.writer,
+        in.loop.condition,
+        in.loop.start,
+        integers.narrow(in.loop.count)
+    )
+
+    if (entry != null) {
+        ast.appendStatementRows(
+            source.writer,
+            {
+                ...emptyStatements({}),
+                tags: entry.tags,
+                offsets: entry.offsets,
+                branch_condition: entry.branch_condition,
+                branch_yes_start: entry.branch_yes_start,
+                branch_yes_len: entry.branch_yes_len,
+                branch_no_start: entry.branch_no_start,
+                branch_no_len: entry.branch_no_len,
+                branch_capture: entry.branch_capture,
+                branch_capture_reference: entry.branch_capture_reference,
+                branch_error_capture: entry.branch_error_capture
+            },
+            null,
+            AstPayloadOwnership.Borrowed
+        )
+    }
 
     return {
-        ...in.omit(["source"]),
-        start: valid ? integers.narrow(start) : 0,
-        count: valid ? integers.narrow(count) : 0,
-        valid
+        start: integers.narrow(start),
+        count: integers.narrow(count)
     }
 }

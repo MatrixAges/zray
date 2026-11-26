@@ -5,7 +5,6 @@
 
     <If on={$in.after_step || $in.prefix_count > 0 || $in.guarded_initial}>
         <Call fn="guard" in={$in} />
-        <Call fn="statement" in={$ctx.guard.loop} />
 
         <If on={!$in.after_step && $in.prefix_count > 0}>
             <Call
@@ -22,7 +21,7 @@
                 in={{
                     source: $in,
                     guard: $ctx.guard,
-                    statement: $ctx.statement,
+                    loop: $ctx.guard.loop,
                     entry: $ctx.entry
                 }}
             />
@@ -35,7 +34,7 @@
             in={{
                 source: $in,
                 guard: $ctx.guard,
-                statement: $ctx.statement
+                loop: $ctx.guard.loop
             }}
         />
 
@@ -43,19 +42,14 @@
     </If>
 
     <Call
-        fn="statement"
-        in={{
-            condition: $in.condition,
-            start: $in.body_start,
-            count: $in.body_count
-        }}
-    />
-
-    <Call
         fn="publish"
         in={{
             source: $in,
-            statement: $ctx.statement
+            loop: {
+                condition: $in.condition,
+                start: $in.body_start,
+                count: $in.body_count
+            }
         }}
     />
 

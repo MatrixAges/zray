@@ -1,0 +1,39 @@
+import integers from "std:integer"
+import { joinAstStatementRows } from "ast_rows"
+
+import { word_radix } from "../../../node_headers/block/const"
+
+import type { Block as Output, Sections as Input } from "./model"
+
+export default function (in: Input): Output {
+    const empty: u32[] = []
+
+    const collected = loop({
+        index: 0,
+        starts: empty,
+        counts: empty,
+        total: 0
+    }, {
+        while: state => state.index < in.spans.length,
+        next: state => {
+            const span = in.spans[state.index]
+            const count = span % word_radix
+
+            state.starts = state.starts.push(
+                integers.narrow(span / word_radix)
+            )[0]
+
+            state.counts = state.counts.push(integers.narrow(count))[0]
+            state.total += count
+            state.index += 1
+        },
+        return: state => state
+    })
+
+    const start = joinAstStatementRows(in.writer, collected.starts, collected.counts)
+
+    return {
+        start,
+        count: integers.narrow(collected.total)
+    }
+}

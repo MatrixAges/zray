@@ -27,7 +27,7 @@ pub fn lower(self: *Lower) Lower.Error!Stored {
         const entry = @import("generated_lower_entry_declarations");
         const input: std.meta.Child(entry.Input) = .{ .module_frame = @ptrCast(&frame), .type_only = type_only, .local = local };
 
-        try evaluation.execute(entry, &input);
+        try evaluation.executeWith(self, entry, &input);
     } else {
         try seed(handle, type_only, local);
 

@@ -25,7 +25,7 @@ pub fn lower(self: *Lower, id: ir.FunctionId, form: Form) Lower.Error!Stored {
         const entry = @import("generated_lower_function_declarations");
         const input: std.meta.Child(entry.Input) = .{ .module_frame = @ptrCast(&frame), .form = form };
 
-        try evaluation.execute(entry, &input);
+        try evaluation.executeWith(self, entry, &input);
     } else {
         try seed(handle, form);
 

@@ -1,4 +1,17 @@
 export {
+    emitModuleStandard,
+    emitModuleImports,
+    emitModuleTypes,
+    emitModuleExports,
+    emitModuleConstants,
+    emitModuleShape,
+    emitModuleAliases,
+    emitModuleStore,
+    openFunctionModule,
+    openNativeFunctionModule,
+    emitModuleEntry,
+    emitModuleValueEntry,
+    emitFunctionModuleBody,
     appendModuleAuxiliary,
     appendModuleSuffix,
     finishModuleDeclarations
