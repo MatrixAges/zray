@@ -1,0 +1,12 @@
+import type { GatewayAnalysis } from "rx_execution_host"
+
+export type AnalysisInput = {
+    analysis: GatewayAnalysis,
+    has_library: bool
+}
+
+export enum AnalysisOutcome {
+    Valid,
+    Invalid,
+    SourceRequired
+}

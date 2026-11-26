@@ -818,6 +818,16 @@
             "resolve_members": true
         },
         {
+            "path": "rx/execution/backend/host.d.zx",
+            "module": "native_build_host",
+            "resolve_members": true
+        },
+        {
+            "path": "compilation/host.d.zx",
+            "module": "compilation_host",
+            "resolve_members": true
+        },
+        {
             "path": "lint/host.d.zx",
             "module": "lint_workflow_host",
             "resolve_members": true

@@ -30,13 +30,11 @@
 
     <Call fn="../index.analyzeLintGateway" in={$in.check} />
 
-    <If on={!$ctx.analyzeLintGateway}>
+    <If on={$ctx.analyzeLintGateway == null}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.lintGatewayHasServices" in={$in.check} />
-
-    <If on={$ctx.lintGatewayHasServices}>
+    <If on={$ctx.analyzeLintGateway == true}>
         <Call fn="../index.checkLintServices" in={$in.check} />
 
         <If on={!$ctx.checkLintServices}>

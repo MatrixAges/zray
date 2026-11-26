@@ -1,4 +1,4 @@
-import { appendGeneratedModule } from "rx_execution_host"
+import { appendGeneratedModule } from "native_build_host"
 
 import type { RangeInput as Input } from "../model"
 

@@ -187,9 +187,9 @@ pub fn resolveGatewayNativeProject(handle: *const anyopaque) Error!void {
     self.native_project = @import("../../standard.zig").resolve(self.context.allocator, self.loaded.*, bundle.native_modules.import_names, self.paths.standard, bundle.modules) catch |err| return self.failure.save(err);
 }
 
-pub fn runGatewayBackend(handle: *const anyopaque) Error!native.Status {
+pub fn runGatewayBackend(handle: *const anyopaque) Error!native.RxStatus {
     const self = State.get(handle);
     const status = native.run(self.context, &self.bundle.?, &self.native_project, self.paths) catch |err| return self.failure.save(err);
 
-    return native.sourceStatus(status);
+    return native.sourceStatusAs(native.RxStatus, status);
 }

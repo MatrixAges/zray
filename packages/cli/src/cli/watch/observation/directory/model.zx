@@ -1,8 +1,39 @@
-import type { Directory } from "snapshot_host"
+import type { Directory, DirectoryEntry } from "snapshot_host"
 
 export type Collect = {
     directory: Directory,
     all_entries: bool
 }
 
-export type Feed = [Directory, u64]
+export type Step = Collect & {
+    running: bool
+}
+
+export type Admit = {
+    all_entries: bool,
+    entry: DirectoryEntry
+}
+
+export type Collected = {
+    names: string[],
+    tags: u8[]
+}
+
+export type AppendInput = {
+    collected: Collected,
+    entry: DirectoryEntry
+}
+
+export type PayloadInput = {
+    collected: Collected,
+    all_entries: bool
+}
+
+export type MergeInput = {
+    names: string[],
+    order: u64[],
+    start: u64,
+    mid: u64,
+    end: u64,
+    merged: u64[]
+}

@@ -1,8 +1,7 @@
 <Module>
-    <Type from="../index" as="IO" />
     <Type from="../model" as="Lint" />
 
-    <Args in={Lint.SemanticInput} out={bool} />
+    <Args in={Lint.SemanticInput} out={Lint.SemanticOutcome} />
 
     <Call fn="../is_manifest" in={$in.input_path} />
 
@@ -10,74 +9,38 @@
         <Call fn="../index.checkSemanticManifest" in={$in.host} />
 
         <If on={!$ctx.checkSemanticManifest}>
-            <Return value={false} />
+            <Return value={Lint.SemanticOutcome.Invalid} />
         </If>
 
         <Else>
             <Call fn="../is_source" in={$in.input_path} />
 
             <If on={!$ctx.is_source}>
-                <Call fn="../index.rejectSemanticLintInput" in={$in.host} />
+                <Return value={Lint.SemanticOutcome.InvalidInput} />
             </If>
         </Else>
     </If>
 
-    <Call fn="../index.loadSemanticProject" in={$in.host} />
-
-    <If on={!$ctx.loadSemanticProject}>
-        <Return value={false} />
-    </If>
-
-    <If on={!$ctx.is_manifest}>
-        <Call fn="../index.clearSemanticLibrary" in={$in.host} />
-    </If>
-
     <Call
-        fn="../index.semanticEntry"
+        fn="../index.loadSemanticProject"
         in={[
             $in.host,
             $ctx.is_manifest
         ]}
     />
 
-    <If on={$ctx.semanticEntry != IO.Entry.Ordinary}>
+    <If on={$ctx.loadSemanticProject != null}>
         <Call
-            fn="../index.checkSemanticSpecial"
-            in={[
-                $in.host,
-                $ctx.is_manifest,
-                $ctx.semanticEntry == IO.Entry.Store
-            ]}
+            module="loaded"
+            in={{
+                host: $in.host,
+                manifest: $ctx.is_manifest,
+                project: $ctx.loadSemanticProject
+            }}
         />
 
-        <Return value={$ctx.checkSemanticSpecial} />
+        <Return value={$ctx.loaded} />
     </If>
 
-    <Call fn="../index.semanticHasExports" in={$in.host} />
-
-    <If on={!$ctx.is_manifest || !$ctx.semanticHasExports}>
-        <Call
-            fn="../index.useSemanticEntryExport"
-            in={[
-                $in.host,
-                $ctx.is_manifest
-            ]}
-        />
-    </If>
-
-    <Call fn="../index.analyzeSemanticLibrary" in={$in.host} />
-
-    <If on={!$ctx.analyzeSemanticLibrary}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="../index.checkSemanticSources" in={$in.host} />
-
-    <If on={!$ctx.checkSemanticSources}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="../index.linkSemanticLibrary" in={$in.host} />
-
-    <Return value={true} />
+    <Return value={Lint.SemanticOutcome.Invalid} />
 </Module>

@@ -1,4 +1,4 @@
-import { appendAbiView } from "rx_execution_host"
+import { appendAbiView } from "native_build_host"
 
 import type { RangeInput as Input } from "../model"
 

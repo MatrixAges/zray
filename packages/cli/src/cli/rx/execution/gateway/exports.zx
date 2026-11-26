@@ -1,0 +1,25 @@
+import integer from "std:integer"
+
+import type { GatewayRoutes } from "rx_execution_host"
+
+export type Input = GatewayRoutes
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const empty: string[] = []
+
+    return loop({
+        index: 0,
+        services: empty
+    }, {
+        while: row => row.index < in.service_routes.length,
+        next: row => {
+            const route = integer.widen(in.service_routes[row.index])
+
+            row.services = row.services.push(in.route_services[route])[0]
+            row.index += 1
+        },
+        return: row => row.services
+    })
+}

@@ -4,42 +4,16 @@ export type GatewayAnalysis = opaque
 
 export type GatewayBuild = opaque
 
-export type NativeBuild = opaque
-
-export type Compilation = opaque
-
-export type SemanticDiskRead = opaque
-
-export type SemanticDiskWrite = opaque
-
-export type FpgaProgram = opaque
+export type GatewayRoutes = {
+    route_services: string[],
+    service_routes: u32[]
+}
 
 export enum Status {
     Success,
     Failed,
     BackendFailed,
     Retry
-}
-
-
-export type NativeBackendModule = {
-    name: string,
-    includes?: string[],
-    path?: string
-}
-
-export type BackendTarget = {
-    arch?: string,
-    os?: string,
-    host_arch: string,
-    host_os: string,
-    node_library?: string
-}
-
-export enum NodeTarget {
-    Ready,
-    UnsupportedNodeTarget,
-    NodeImportLibraryRequired
 }
 
 export declare function reportRxLibraryEntry(check: RxApplication): void throws { SourceLoadFailure }
@@ -62,12 +36,9 @@ export declare function resolveRxNativeProject(check: RxApplication): void throw
 export declare function runRxBackend(check: RxApplication): Status throws { SourceLoadFailure }
 
 export declare function resolveGatewayOwner(check: GatewayAnalysis): void throws { SourceLoadFailure }
-export declare function requireGatewaySource(check: GatewayAnalysis): void throws { SourceLoadFailure }
 export declare function collectGatewayDocuments(check: GatewayAnalysis): bool throws { SourceLoadFailure }
-export declare function analyzeGatewayDocument(check: GatewayAnalysis): bool throws { SourceLoadFailure }
-export declare function reserveGatewayServices(check: GatewayAnalysis): u64 throws { SourceLoadFailure }
-export declare function recordGatewayService(check: GatewayAnalysis, index: u64): void
-export declare function analyzeGatewayServices(check: GatewayAnalysis): bool throws { SourceLoadFailure }
+export declare function analyzeGatewayDocument(check: GatewayAnalysis): GatewayRoutes? throws { SourceLoadFailure }
+export declare function analyzeGatewayServices(check: GatewayAnalysis, service_names: string[]): bool throws { SourceLoadFailure }
 
 export declare function reportGatewayBuildMode(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function loadGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
@@ -83,187 +54,3 @@ export declare function reportGatewayBuildCache(check: GatewayBuild): void throw
 export declare function resolveGatewayToolchain(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function resolveGatewayNativeProject(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function runGatewayBackend(check: GatewayBuild): Status throws { SourceLoadFailure }
-
-export declare function createStagedBindings(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function openStagedOutput(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function openBackendEnvironment(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function openBackendTranslation(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function reportStagedTranslationFailure(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function spawnStagedBackend(build: NativeBuild): bool throws {
-    SourceLoadFailure
-}
-export declare function retainStagedBindings(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function publishStagedBackend(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function preloadBackendPath(build: NativeBuild, path: string): void throws {
-    SourceLoadFailure
-}
-export declare function expireBackendPath(build: NativeBuild, path: string): void
-export declare function spawnObservedBackend(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function takeTranslationFailure(build: NativeBuild): void
-export declare function resolveObservedNativeInputs(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function createObservedBindings(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function publishBackendPaths(build: NativeBuild): void
-export declare function reportObservedNativeBuild(build: NativeBuild): bool? throws {
-    SourceLoadFailure
-}
-export declare function rejectIncompleteBackendInputs(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function publishObservedNativeBuild(build: NativeBuild): bool throws {
-    SourceLoadFailure
-}
-
-export declare function validateNativePorts(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function generateNodeResources(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function encodeBackendConfiguration(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function prepareBackendAbi(build: NativeBuild): u64 throws {
-    SourceLoadFailure
-}
-export declare function readNativeTarget(build: NativeBuild): BackendTarget throws {
-    SourceLoadFailure
-}
-export declare function generateNodeRunner(build: NativeBuild, wasm: bool): void throws {
-    SourceLoadFailure
-}
-export declare function generateWasmRunner(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function writeBackendWorkspace(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function retainNodeResources(build: NativeBuild, target: NodeTarget): void throws {
-    SourceLoadFailure
-}
-export declare function releaseBackendSources(build: NativeBuild): void
-export declare function prepareStagedParents(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-
-export declare function appendBackendPrefix(
-    build: NativeBuild,
-    libc: bool,
-    library_paths: string[],
-    wasm: bool
-): void throws {
-    SourceLoadFailure
-}
-export declare function appendBackendEntry(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function writeBackendCommand(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-
-export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
-    SourceLoadFailure
-}
-export declare function nativeBackendModule(build: NativeBuild, index: u64): NativeBackendModule
-export declare function bindBackendModule(
-    build: NativeBuild,
-    index: u64,
-    includes: string[],
-    abi: string?,
-    path: string?
-): void
-export declare function writeNativeHeader(build: NativeBuild): string throws {
-    SourceLoadFailure
-}
-export declare function spawnNativeTranslation(build: NativeBuild, header: string): bool throws {
-    SourceLoadFailure
-}
-export declare function bindNativeTranslation(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function retainNativeTranslation(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function releaseNativeTranslation(build: NativeBuild): void
-export declare function writeNativeAdapter(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function appendNativeModule(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function appendAbiView(build: NativeBuild, index: u64): void throws {
-    SourceLoadFailure
-}
-export declare function appendCanonicalAbi(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function appendNapiModule(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-
-export declare function runCompilationLint(check: Compilation): Status throws { SourceLoadFailure }
-export declare function runCompilationConfiguration(check: Compilation): Status throws { SourceLoadFailure }
-export declare function openCompilationInputs(check: Compilation): void throws { SourceLoadFailure }
-export declare function resolveCompilationEntry(check: Compilation): u8[] throws { SourceLoadFailure }
-export declare function runCompilationRx(check: Compilation): Status throws { SourceLoadFailure }
-export declare function loadCompilationProject(check: Compilation): bool throws { SourceLoadFailure }
-export declare function runCompilationLibraryProof(check: Compilation): Status throws { SourceLoadFailure }
-export declare function runCompilationLibraryBuild(check: Compilation): Status throws { SourceLoadFailure }
-export declare function readCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
-export declare function openCompilationCaches(check: Compilation): void throws { SourceLoadFailure }
-export declare function readCompilationDependencies(check: Compilation): bool? throws { SourceLoadFailure }
-export declare function adoptCompilationInputs(check: Compilation): bool
-
-export declare function reportCompilationCacheBypass(check: Compilation): void throws { SourceLoadFailure }
-export declare function loadCompilationCache(check: Compilation): void throws { SourceLoadFailure }
-export declare function saveCompilationCache(check: Compilation): void throws { SourceLoadFailure }
-export declare function reportCompilationCache(check: Compilation): void throws { SourceLoadFailure }
-export declare function reportCompilationCacheDisabled(check: Compilation): void throws { SourceLoadFailure }
-export declare function analyzeCompilationCached(check: Compilation): void throws { SourceLoadFailure }
-export declare function analyzeCompilationUncached(check: Compilation): void throws { SourceLoadFailure }
-export declare function checkCompilationAnalysis(check: Compilation, proof: bool): bool throws { SourceLoadFailure }
-export declare function verifyCompilationProgram(check: Compilation): bool throws { SourceLoadFailure }
-export declare function generateCompilationFpga(check: Compilation): bool throws { SourceLoadFailure }
-export declare function closeCompilationAnalysis(check: Compilation): void
-export declare function flushCompilationDiagnostics(check: Compilation): void throws { SourceLoadFailure }
-export declare function openCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
-export declare function formatCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
-export declare function emitCompilationText(check: Compilation): bool throws { SourceLoadFailure }
-export declare function emitCompilationModules(check: Compilation): bool throws { SourceLoadFailure }
-export declare function reportCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
-export declare function resolveCompilationToolchain(check: Compilation): bool throws { SourceLoadFailure }
-export declare function buildCompilationModules(check: Compilation): Status throws { SourceLoadFailure }
-export declare function checkCompilationText(check: Compilation): bool throws { SourceLoadFailure }
-export declare function writeCompilationText(check: Compilation): void throws { SourceLoadFailure }
-export declare function printCompilationText(check: Compilation): void throws { SourceLoadFailure }
-
-export declare function loadDiskSemanticSource(check: SemanticDiskRead, index: u64): void throws { SourceLoadFailure }
-export declare function saveDiskSemanticEntry(
-    check: SemanticDiskWrite,
-    is_native: bool,
-    index: u64
-): void throws { SourceLoadFailure }
-
-export declare function verifyFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
-export declare function lowerFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
-export declare function renderFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }
-export declare function publishFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }

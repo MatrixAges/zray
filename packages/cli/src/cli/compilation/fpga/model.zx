@@ -1,4 +1,4 @@
-import type { FpgaProgram } from "rx_execution_host"
+import type { FpgaProgram } from "compilation_host"
 
 export type ProofInput = {
     local_required: bool,

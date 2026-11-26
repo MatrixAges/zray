@@ -2,4 +2,8 @@ export const zx_suffix: string = ".zx"
 
 export const rx_suffix: string = ".rx"
 
+export const store_suffix: string = ".store.rx"
+
+export const gateway_suffix: string = ".gateway.rx"
+
 export const manifest_file: string = "pkg.yaml"

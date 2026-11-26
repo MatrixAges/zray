@@ -86,18 +86,18 @@ pub fn run(context: Compile.Context) !Compile.Status {
     return native.status(result);
 }
 
-pub fn runCompilationLint(handle: *const anyopaque) Error!native.Status {
+pub fn runCompilationLint(handle: *const anyopaque) Error!native.CompilationStatus {
     const self = State.get(handle);
     const result = @import("../lint.zig").run(self.context) catch |err| return self.failure.save(err);
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
-pub fn runCompilationConfiguration(handle: *const anyopaque) Error!native.Status {
+pub fn runCompilationConfiguration(handle: *const anyopaque) Error!native.CompilationStatus {
     const self = State.get(handle);
     const result = @import("../configuration/root.zig").run(self.context) catch |err| return self.failure.save(err);
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
 pub fn openCompilationInputs(handle: *const anyopaque) Error!void {
@@ -119,11 +119,11 @@ pub fn resolveCompilationEntry(handle: *const anyopaque) Error![]const u8 {
     return path;
 }
 
-pub fn runCompilationRx(handle: *const anyopaque) Error!native.Status {
+pub fn runCompilationRx(handle: *const anyopaque) Error!native.CompilationStatus {
     const self = State.get(handle);
     const result = @import("../rx/compile.zig").run(self.context) catch |err| return self.failure.save(err);
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
 pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
@@ -151,7 +151,7 @@ pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn runCompilationLibraryProof(handle: *const anyopaque) Error!native.Status {
+pub fn runCompilationLibraryProof(handle: *const anyopaque) Error!native.CompilationStatus {
     const self = State.get(handle);
     const context = &self.context;
 
@@ -164,10 +164,10 @@ pub fn runCompilationLibraryProof(handle: *const anyopaque) Error!native.Status 
         return .Failed;
     };
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
-pub fn runCompilationLibraryBuild(handle: *const anyopaque) Error!native.Status {
+pub fn runCompilationLibraryBuild(handle: *const anyopaque) Error!native.CompilationStatus {
     const self = State.get(handle);
     const context = &self.context;
 
@@ -180,7 +180,7 @@ pub fn runCompilationLibraryBuild(handle: *const anyopaque) Error!native.Status 
         return .Failed;
     };
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
 pub fn readCompilationSource(handle: *const anyopaque) Error!bool {

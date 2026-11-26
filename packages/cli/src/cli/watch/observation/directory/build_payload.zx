@@ -1,0 +1,43 @@
+import bytes from "std:bytes"
+
+import { separator } from "./const"
+import sortOrder from "./sort_order"
+
+import type { PayloadInput as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const order = sortOrder(in.collected.names)
+    const empty_parts: u8[][] = []
+    const empty_separator: u8[] = []
+    const bare_suffix: u8[] = [separator]
+
+    const parts = loop({
+        index: 0,
+        items: empty_parts
+    }, {
+        while: row => row.index < order.length,
+        next: row => {
+            const item = order[row.index]
+            const name = bytes.fromText(in.collected.names[item])
+            const with_name = row.items.push(name)[0]
+
+            if (in.all_entries) {
+                const tagged: u8[] = [
+                    separator,
+                    in.collected.tags[item]
+                ]
+
+                row.items = with_name.push(tagged)[0]
+            } else {
+                row.items = with_name.push(bare_suffix)[0]
+            }
+
+            row.index += 1
+        },
+        return: row => row.items
+    })
+
+    return bytes.join(empty_separator, parts)
+}

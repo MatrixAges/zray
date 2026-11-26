@@ -1,18 +1,18 @@
 import host from "snapshot_host"
 
-import type { Capture as Input } from "./model"
+import type { CaptureInput as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = host.captureCount(in)
+    const { capture, count } = in
 
     const captured = loop({
         index: 0
     }, {
         while: row => row.index < count,
         next: row => {
-            host.captureEntry(in, row.index)
+            host.captureEntry(capture, row.index)
 
             row.index += 1
         }

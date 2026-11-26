@@ -1,4 +1,4 @@
-import { loadDiskSemanticSource } from "rx_execution_host"
+import { loadDiskSemanticSource } from "compilation_host"
 
 import type { ReadInput as Input } from "./model"
 

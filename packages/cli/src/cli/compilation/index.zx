@@ -38,11 +38,11 @@ export {
     renderFpgaProgram,
     publishFpgaProgram,
     Status
-} from "rx_execution_host"
+} from "compilation_host"
 
 export type {
     Compilation,
     SemanticDiskRead,
     SemanticDiskWrite,
     FpgaProgram
-} from "rx_execution_host"
+} from "compilation_host"

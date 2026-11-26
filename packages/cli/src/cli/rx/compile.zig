@@ -130,7 +130,7 @@ pub fn loadRxApplication(handle: *const anyopaque) Error!?[]const u8 {
     return self.loaded.project.entry;
 }
 
-pub fn buildRxGateway(handle: *const anyopaque) Error!native.Status {
+pub fn buildRxGateway(handle: *const anyopaque) Error!native.RxStatus {
     const self = State.get(handle);
 
     const result = @import("gateway/compile.zig").run(self.context, &self.loaded) catch |err| {
@@ -139,7 +139,7 @@ pub fn buildRxGateway(handle: *const anyopaque) Error!native.Status {
         return .Failed;
     };
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.RxStatus, result);
 }
 
 pub fn analyzeRxApplication(handle: *const anyopaque) Error!?u64 {
@@ -282,9 +282,9 @@ pub fn resolveRxNativeProject(handle: *const anyopaque) Error!void {
     self.native_project = @import("../standard.zig").resolve(self.context.allocator, self.loaded, bundle.native_modules.import_names, self.paths.standard, bundle.modules) catch |err| return self.failure.save(err);
 }
 
-pub fn runRxBackend(handle: *const anyopaque) Error!native.Status {
+pub fn runRxBackend(handle: *const anyopaque) Error!native.RxStatus {
     const self = State.get(handle);
     const result = native.run(self.context, &self.bundle.?, &self.native_project, self.paths) catch |err| return self.failure.save(err);
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.RxStatus, result);
 }

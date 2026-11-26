@@ -1,5 +1,1 @@
 export const separator: u8 = 0
-
-export const name_width: u8 = 1
-
-export const tagged_width: u8 = 2

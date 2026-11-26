@@ -6,7 +6,8 @@ export type Directory = opaque
 
 export type DirectoryEntry = {
     name: string,
-    is_directory: bool
+    is_directory: bool,
+    kind_tag: u8
 }
 
 export type Slot = {
@@ -44,13 +45,7 @@ export declare function readFile(observation: Observation): void throws { Observ
 export declare function nextDirectoryEntry(directory: Directory): DirectoryEntry? throws {
     ObservationFailure
 }
-export declare function retainDirectoryEntry(
-    directory: Directory,
-    separator: u8,
-    suffix_width: u8
-): void throws { ObservationFailure }
-export declare function sortDirectoryEntries(directory: Directory, suffix_width: u8): u64
-export declare function feedDirectoryEntry(directory: Directory, index: u64): void
+export declare function hashDirectoryBytes(directory: Directory, payload: u8[]): void
 
 export declare function openRegistration(registration: Registration): Slot throws {
     ObservationFailure
@@ -69,6 +64,5 @@ export declare function publishObservation(
     consistent: bool
 ): void throws { ObservationFailure }
 
-export declare function captureCount(capture: Capture): u64
 export declare function captureEntry(capture: Capture, index: u64): void throws { ObservationFailure }
 export declare function sortCapture(capture: Capture): void

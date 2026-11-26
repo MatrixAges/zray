@@ -99,6 +99,8 @@ pub fn build(b: *std.Build) void {
         "rx_checking_host",
         "lint_workflow_host",
         "rx_execution_host",
+        "native_build_host",
+        "compilation_host",
     }) |name| cli_source.addImport(name, host);
 
     host.addImport("cli_abi", cli_source.import_table.get("zxc_abi").?);

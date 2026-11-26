@@ -1,4 +1,4 @@
-import { saveDiskSemanticEntry } from "rx_execution_host"
+import { saveDiskSemanticEntry } from "compilation_host"
 
 import type { WriteEntries as Input } from "./model"
 

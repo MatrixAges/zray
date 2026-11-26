@@ -1,8 +1,8 @@
-import { NodeTarget } from "rx_execution_host"
+import { NodeTarget } from "native_build_host"
 
 import { freestanding, wasm32, wasm64, windows } from "./const"
 
-import type { BackendTarget as Input } from "rx_execution_host"
+import type { BackendTarget as Input } from "native_build_host"
 
 export type Output = {
     wasm: bool,

@@ -1,0 +1,164 @@
+export type NativeBuild = opaque
+
+export enum Status {
+    Success,
+    Failed,
+    BackendFailed,
+    Retry
+}
+
+export type NativeBackendModule = {
+    name: string,
+    includes?: string[],
+    path?: string
+}
+
+export type BackendTarget = {
+    arch?: string,
+    os?: string,
+    host_arch: string,
+    host_os: string,
+    node_library?: string
+}
+
+export enum NodeTarget {
+    Ready,
+    UnsupportedNodeTarget,
+    NodeImportLibraryRequired
+}
+
+export declare function createStagedBindings(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function openStagedOutput(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function openBackendEnvironment(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function openBackendTranslation(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function reportStagedTranslationFailure(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function spawnStagedBackend(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+export declare function retainStagedBindings(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function publishStagedBackend(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function preloadBackendPath(build: NativeBuild, path: string): void throws {
+    SourceLoadFailure
+}
+export declare function expireBackendPath(build: NativeBuild, path: string): void
+export declare function spawnObservedBackend(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function takeTranslationFailure(build: NativeBuild): void
+export declare function resolveObservedNativeInputs(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function createObservedBindings(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function publishBackendPaths(build: NativeBuild): void
+export declare function reportObservedNativeBuild(build: NativeBuild): bool? throws {
+    SourceLoadFailure
+}
+export declare function rejectIncompleteBackendInputs(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function publishObservedNativeBuild(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+
+export declare function validateNativePorts(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function generateNodeResources(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function encodeBackendConfiguration(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function prepareBackendAbi(build: NativeBuild): u64 throws {
+    SourceLoadFailure
+}
+export declare function readNativeTarget(build: NativeBuild): BackendTarget throws {
+    SourceLoadFailure
+}
+export declare function generateNodeRunner(build: NativeBuild, wasm: bool): void throws {
+    SourceLoadFailure
+}
+export declare function generateWasmRunner(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function writeBackendWorkspace(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function retainNodeResources(build: NativeBuild, target: NodeTarget): void throws {
+    SourceLoadFailure
+}
+export declare function releaseBackendSources(build: NativeBuild): void
+export declare function prepareStagedParents(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+
+export declare function appendBackendPrefix(
+    build: NativeBuild,
+    libc: bool,
+    library_paths: string[],
+    wasm: bool
+): void throws {
+    SourceLoadFailure
+}
+export declare function appendBackendEntry(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function writeBackendCommand(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+
+export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
+    SourceLoadFailure
+}
+export declare function nativeBackendModule(build: NativeBuild, index: u64): NativeBackendModule
+export declare function bindBackendModule(
+    build: NativeBuild,
+    index: u64,
+    includes: string[],
+    abi: string?,
+    path: string?
+): void
+export declare function writeNativeHeader(build: NativeBuild): string throws {
+    SourceLoadFailure
+}
+export declare function spawnNativeTranslation(build: NativeBuild, header: string): bool throws {
+    SourceLoadFailure
+}
+export declare function bindNativeTranslation(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function retainNativeTranslation(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function releaseNativeTranslation(build: NativeBuild): void
+export declare function writeNativeAdapter(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function appendNativeModule(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function appendAbiView(build: NativeBuild, index: u64): void throws {
+    SourceLoadFailure
+}
+export declare function appendCanonicalAbi(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function appendNapiModule(build: NativeBuild): void throws {
+    SourceLoadFailure
+}

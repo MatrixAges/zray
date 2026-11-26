@@ -11,7 +11,9 @@ const Error = effects.Error;
 pub const preparation = @import("prepare.zig");
 pub const command = @import("arguments.zig");
 pub const modules = @import("modules.zig");
-pub const Status = @import("cli_abi").native.@"zig:rx_execution_host".Status;
+pub const Status = @import("cli_abi").native.@"zig:native_build_host".Status;
+pub const CompilationStatus = @import("cli_abi").native.@"zig:compilation_host".Status;
+pub const RxStatus = @import("cli_abi").native.@"zig:rx_execution_host".Status;
 
 pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBundle, project: *const Loaded, toolchain: Paths) !Compile.Status {
     var state: State = .{
@@ -85,7 +87,7 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
     return status(result);
 }
 
-pub fn status(result: Status) Compile.Status {
+pub fn status(result: anytype) Compile.Status {
     return switch (result) {
         .Success => .success,
         .Failed => .failed,
@@ -94,13 +96,17 @@ pub fn status(result: Status) Compile.Status {
     };
 }
 
-pub fn sourceStatus(result: Compile.Status) Status {
+pub fn sourceStatusAs(comptime Target: type, result: Compile.Status) Target {
     return switch (result) {
         .success => .Success,
         .failed => .Failed,
         .backend_failed => .BackendFailed,
         .retry => .Retry,
     };
+}
+
+pub fn sourceStatus(result: Compile.Status) Status {
+    return sourceStatusAs(Status, result);
 }
 
 pub fn createStagedBindings(handle: *const anyopaque) Error!void {

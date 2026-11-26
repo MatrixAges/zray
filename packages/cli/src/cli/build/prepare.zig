@@ -7,8 +7,8 @@ const State = @import("../build.zig").State;
 const artifacts = @import("../artifacts.zig");
 const node_resources = @import("../node/resources.zig");
 const Error = @import("../sources/effects.zig").Error;
-const BackendTarget = @import("cli_abi").layouts.@"zig:rx_execution_host".BackendTarget;
-const NodeTarget = @import("cli_abi").native.@"zig:rx_execution_host".NodeTarget;
+const BackendTarget = @import("cli_abi").layouts.@"zig:native_build_host".BackendTarget;
+const NodeTarget = @import("cli_abi").native.@"zig:native_build_host".NodeTarget;
 
 pub fn validateNativePorts(handle: *const anyopaque) Error!void {
     const self = State.get(handle);

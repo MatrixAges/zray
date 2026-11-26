@@ -1,4 +1,4 @@
-import host from "rx_execution_host"
+import host from "native_build_host"
 
 import type { PreloadInput as Input } from "./model"
 

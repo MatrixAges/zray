@@ -3,21 +3,32 @@
 
     <Args in={Digest.Collect} out={void} />
 
-    <Call fn="collect" in={$in} />
+    <Store from="entries" as="state" />
+
+    <Loop on={$in.running}>
+        <Call
+            module="collect_step"
+            in={{
+                directory: $in.directory,
+                all_entries: $in.all_entries,
+                running: true
+            }}
+        />
+    </Loop>
 
     <Call
-        fn="index.sortDirectoryEntries"
-        in={[
-            $in.directory,
-            $ctx.collect
-        ]}
+        fn="build_payload"
+        in={{
+            collected: store.state.collected,
+            all_entries: $in.all_entries
+        }}
     />
 
     <Call
-        fn="feed"
+        fn="index.hashDirectoryBytes"
         in={[
             $in.directory,
-            $ctx.sortDirectoryEntries
+            $ctx.build_payload
         ]}
     />
 </Module>

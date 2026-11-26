@@ -30,13 +30,12 @@ pub fn capture(inputs: *const Inputs, allocator: std.mem.Allocator) !Snapshot {
 
     const handle = &context;
 
-    source.executeValue(owned, @ptrCast(&handle)) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
+    source.executeValue(owned, &.{
+        .capture = @ptrCast(&handle),
+        .count = context.entries.len,
+    }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 
     return .{ .arena = arena, .entries = context.entries, .consistent = inputs.consistent };
-}
-
-pub fn captureCount(handle: *const anyopaque) u64 {
-    return Context.get(handle).entries.len;
 }
 
 pub fn captureEntry(handle: *const anyopaque, index: u64) Error!void {

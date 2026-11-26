@@ -1,4 +1,4 @@
-import type { SemanticDiskRead, SemanticDiskWrite } from "rx_execution_host"
+import type { SemanticDiskRead, SemanticDiskWrite } from "compilation_host"
 
 export type ReadInput = {
     disk: SemanticDiskRead,

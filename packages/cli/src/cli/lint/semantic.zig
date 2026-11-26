@@ -5,11 +5,12 @@ const model = @import("../../package/manifest/model.zig");
 const library = @import("../library/analyze.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const Entry = @import("cli_abi").native.@"zig:lint_workflow_host".Entry;
+const SemanticProject = @import("cli_abi").layouts.@"zig:lint_workflow_host".SemanticProject;
 
 const State = struct {
     context: *const Compile.Context,
     loaded: project.Loaded = undefined,
+    project_view: SemanticProject = undefined,
     fallback: [1]model.Export = undefined,
     analyzed: ?library.Result = null,
     failure: effects.Failure = .{},
@@ -41,16 +42,16 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     defer if (state.analyzed) |*analyzed| analyzed.deinit();
 
-    const valid = @import("cli_source").lint_semantics.executeIn(context.allocator, &.{
+    const outcome = @import("cli_source").lint_semantics.executeIn(context.allocator, &.{
         .host = @ptrCast(&reference),
         .input_path = context.options.input,
     }) catch |err| return state.failure.unwrap(err);
 
-    return if (valid) .success else .failed;
-}
-
-pub fn rejectSemanticLintInput(handle: *const anyopaque) Error!void {
-    return State.get(handle).failure.save(error.InvalidSemanticInput);
+    return switch (outcome) {
+        .Valid => .success,
+        .Invalid => .failed,
+        .InvalidInput => error.InvalidSemanticInput,
+    };
 }
 
 pub fn checkSemanticManifest(handle: *const anyopaque) Error!bool {
@@ -60,7 +61,7 @@ pub fn checkSemanticManifest(handle: *const anyopaque) Error!bool {
     return status == .success;
 }
 
-pub fn loadSemanticProject(handle: *const anyopaque) Error!bool {
+pub fn loadSemanticProject(handle: *const anyopaque, manifest: bool) Error!?*const SemanticProject {
     const self = State.get(handle);
     const context = self.context;
 
@@ -69,24 +70,19 @@ pub fn loadSemanticProject(handle: *const anyopaque) Error!bool {
     if (self.loaded.diagnostic) |message| {
         context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
 
-    return true;
+    self.project_view = .{
+        .entry = if (manifest) self.loaded.config.entry else self.loaded.project.entry,
+        .has_exports = self.loaded.config.exports.len != 0,
+    };
+
+    return &self.project_view;
 }
 
 pub fn clearSemanticLibrary(handle: *const anyopaque) void {
     State.get(handle).loaded.config.library = null;
-}
-
-pub fn semanticEntry(handle: *const anyopaque, manifest: bool) Entry {
-    const loaded = &State.get(handle).loaded;
-    const selected = if (manifest) loaded.config.entry orelse return .Ordinary else loaded.project.entry;
-
-    if (std.mem.endsWith(u8, selected, ".store.rx")) return .Store;
-    if (std.mem.endsWith(u8, selected, ".gateway.rx")) return .Gateway;
-
-    return .Ordinary;
 }
 
 pub fn checkSemanticSpecial(handle: *const anyopaque, manifest: bool, store: bool) Error!bool {
@@ -97,10 +93,6 @@ pub fn checkSemanticSpecial(handle: *const anyopaque, manifest: bool, store: boo
     const status = @import("rx.zig").run(self.context.*, &self.loaded, store) catch |err| return self.failure.save(err);
 
     return status == .success;
-}
-
-pub fn semanticHasExports(handle: *const anyopaque) bool {
-    return State.get(handle).loaded.config.exports.len != 0;
 }
 
 pub fn useSemanticEntryExport(handle: *const anyopaque, manifest: bool) Error!void {

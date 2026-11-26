@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+
+import { gateway_suffix, store_suffix } from "../const"
+import endsWith from "../ends_with"
+import { Entry } from "../model"
+
+export type Input = string?
+
+export type Output = Entry
+
+export default function (in: Input): Output {
+    if (in == null) {
+        return Entry.Ordinary
+    }
+
+    const text = bytes.fromText(in)
+
+    if (endsWith({
+        text,
+        suffix: store_suffix
+    })) {
+        return Entry.Store
+    }
+
+    if (endsWith({
+        text,
+        suffix: gateway_suffix
+    })) {
+        return Entry.Gateway
+    }
+
+    return Entry.Ordinary
+}

@@ -1,4 +1,4 @@
-import type { NativeBuild } from "rx_execution_host"
+import type { NativeBuild } from "native_build_host"
 import type { Setup, Views } from "../../../command/scope/model"
 
 export type BuildMode = {

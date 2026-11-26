@@ -85,7 +85,7 @@ pub fn checkLintStoreTypes(handle: *const anyopaque) Error!bool {
     return @import("../rx/store_types.zig").validate(context.io, context.allocator, self.collection.?.data, self.functions, self.loaded.project, context.stderr) catch |err| self.failure.save(err);
 }
 
-pub fn analyzeLintGateway(handle: *const anyopaque) Error!bool {
+pub fn analyzeLintGateway(handle: *const anyopaque) Error!?bool {
     const self = State.get(handle);
     const context = self.context;
 
@@ -95,11 +95,9 @@ pub fn analyzeLintGateway(handle: *const anyopaque) Error!bool {
         .writer = context.stderr,
     }) catch |err| return self.failure.save(err);
 
-    return self.gateway != null;
-}
+    const analyzed = &(self.gateway orelse return null);
 
-pub fn lintGatewayHasServices(handle: *const anyopaque) bool {
-    return State.get(handle).gateway.?.services != null;
+    return analyzed.services != null;
 }
 
 pub fn checkLintServices(handle: *const anyopaque) Error!bool {

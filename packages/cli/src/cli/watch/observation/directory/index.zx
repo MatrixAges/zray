@@ -1,1 +1,1 @@
-export { sortDirectoryEntries } from "snapshot_host"
+export { nextDirectoryEntry, hashDirectoryBytes } from "snapshot_host"

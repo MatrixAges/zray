@@ -1,4 +1,4 @@
-import type { Compilation } from "rx_execution_host"
+import type { Compilation } from "compilation_host"
 
 export type Settings = {
     formatting: bool,

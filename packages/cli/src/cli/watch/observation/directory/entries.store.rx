@@ -1,0 +1,6 @@
+<Store name="directory_digest" version={1}>
+    <Object name="collected">
+        <Field name="names" type={string[]} value={[]} />
+        <Field name="tags" type={u8[]} value={[]} />
+    </Object>
+</Store>

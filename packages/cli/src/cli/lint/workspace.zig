@@ -55,15 +55,16 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     defer state.deinit();
 
-    const valid = @import("cli_source").lint_workspace.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const outcome = @import("cli_source").lint_workspace.executeIn(context.allocator, &.{
+        .host = @ptrCast(&reference),
+        .input_path = context.options.input,
+    }) catch |err| return state.failure.unwrap(err);
 
-    return if (valid) .success else .failed;
-}
-
-pub fn workspaceLintManifest(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    if (!std.mem.eql(u8, std.fs.path.basename(self.context.options.input), "pkg.yaml")) return self.failure.save(error.WorkspaceManifestRequired);
+    return switch (outcome) {
+        .Valid => .success,
+        .Invalid => .failed,
+        .ManifestRequired => error.WorkspaceManifestRequired,
+    };
 }
 
 pub fn discoverLintWorkspace(handle: *const anyopaque) Error!bool {

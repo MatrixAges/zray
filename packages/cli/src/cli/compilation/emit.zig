@@ -194,13 +194,13 @@ pub fn resolveCompilationToolchain(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn buildCompilationModules(handle: *const anyopaque) Error!native.Status {
+pub fn buildCompilationModules(handle: *const anyopaque) Error!native.CompilationStatus {
     const self = State.get(handle);
     const bundle = &self.bundle.?;
     const project = @import("../standard.zig").resolve(self.context.allocator, self.loaded, bundle.native_modules.import_names, self.paths.standard, bundle.modules) catch |err| return self.failure.save(err);
     const result = native.run(&self.context, bundle, &project, self.paths) catch |err| return self.failure.save(err);
 
-    return native.sourceStatus(result);
+    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
 pub fn checkCompilationText(handle: *const anyopaque) Error!bool {

@@ -1,28 +1,33 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Lint" />
 
-    <Args in={IO.WorkspaceLint} out={bool} />
+    <Args in={Lint.WorkspaceInput} out={Lint.WorkspaceOutcome} />
 
-    <Call fn="../index.workspaceLintManifest" in={$in} />
-    <Call fn="../index.discoverLintWorkspace" in={$in} />
+    <Call fn="../is_manifest" in={$in.input_path} />
+
+    <If on={!$ctx.is_manifest}>
+        <Return value={Lint.WorkspaceOutcome.ManifestRequired} />
+    </If>
+
+    <Call fn="../index.discoverLintWorkspace" in={$in.host} />
 
     <If on={!$ctx.discoverLintWorkspace}>
-        <Return value={false} />
+        <Return value={Lint.WorkspaceOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.resolveLintWorkspace" in={$in} />
+    <Call fn="../index.resolveLintWorkspace" in={$in.host} />
 
     <If on={!$ctx.resolveLintWorkspace}>
-        <Return value={false} />
+        <Return value={Lint.WorkspaceOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.locateLintWorkspace" in={$in} />
+    <Call fn="../index.locateLintWorkspace" in={$in.host} />
 
     <Loop on={$in.running}>
         <Call
             module="members"
             in={{
-                check: $in,
+                check: $in.host,
                 count: $ctx.locateLintWorkspace,
                 index: 0,
                 valid: true,
@@ -31,5 +36,9 @@
         />
     </Loop>
 
-    <Return value={$ctx.members.valid} />
+    <If on={$ctx.members.valid}>
+        <Return value={Lint.WorkspaceOutcome.Valid} />
+    </If>
+
+    <Return value={Lint.WorkspaceOutcome.Invalid} />
 </Module>

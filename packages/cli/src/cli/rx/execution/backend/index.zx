@@ -41,6 +41,6 @@ export {
     appendCanonicalAbi,
     appendNapiModule,
     Status
-} from "rx_execution_host"
+} from "native_build_host"
 
-export type { NativeBuild } from "rx_execution_host"
+export type { NativeBuild } from "native_build_host"

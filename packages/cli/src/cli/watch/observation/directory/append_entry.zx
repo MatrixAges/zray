@@ -1,0 +1,12 @@
+import type { AppendInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    store.state.collected = {
+        names: in.collected.names.push(in.entry.name)[0],
+        tags: in.collected.tags.push(in.entry.kind_tag)[0]
+    }
+}

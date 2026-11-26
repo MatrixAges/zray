@@ -1,37 +1,40 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="model" as="Gateway" />
 
-    <Args in={IO.GatewayAnalysis} out={bool} />
+    <Args in={Gateway.AnalysisInput} out={Gateway.AnalysisOutcome} />
 
-    <Call fn="../index.resolveGatewayOwner" in={$in} />
-    <Call fn="../index.requireGatewaySource" in={$in} />
-    <Call fn="../index.collectGatewayDocuments" in={$in} />
+    <If on={$in.has_library}>
+        <Return value={Gateway.AnalysisOutcome.SourceRequired} />
+    </If>
+
+    <Call fn="../index.resolveGatewayOwner" in={$in.analysis} />
+    <Call fn="../index.collectGatewayDocuments" in={$in.analysis} />
 
     <If on={!$ctx.collectGatewayDocuments}>
-        <Return value={false} />
+        <Return value={Gateway.AnalysisOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.analyzeGatewayDocument" in={$in} />
+    <Call fn="../index.analyzeGatewayDocument" in={$in.analysis} />
 
-    <If on={!$ctx.analyzeGatewayDocument}>
-        <Return value={false} />
+    <If on={$ctx.analyzeGatewayDocument != null}>
+        <Call fn="exports" in={$ctx.analyzeGatewayDocument} />
+
+        <If on={$ctx.exports.length == 0}>
+            <Return value={Gateway.AnalysisOutcome.Valid} />
+        </If>
+
+        <Call
+            fn="../index.analyzeGatewayServices"
+            in={[
+                $in.analysis,
+                $ctx.exports
+            ]}
+        />
+
+        <If on={$ctx.analyzeGatewayServices}>
+            <Return value={Gateway.AnalysisOutcome.Valid} />
+        </If>
     </If>
 
-    <Call fn="../index.reserveGatewayServices" in={$in} />
-
-    <If on={$ctx.reserveGatewayServices == 0}>
-        <Return value={true} />
-    </If>
-
-    <Call
-        fn="services"
-        in={{
-            analysis: $in,
-            count: $ctx.reserveGatewayServices
-        }}
-    />
-
-    <Call fn="../index.analyzeGatewayServices" in={$in} />
-
-    <Return value={$ctx.analyzeGatewayServices} />
+    <Return value={Gateway.AnalysisOutcome.Invalid} />
 </Module>

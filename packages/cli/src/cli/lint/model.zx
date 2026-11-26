@@ -1,4 +1,29 @@
-import type { Command, Layout, SemanticLint, SourceLint } from "./index"
+import type {
+    Command,
+    Layout,
+    SemanticLint,
+    SemanticProject,
+    SourceLint,
+    WorkspaceLint
+} from "./index"
+
+export enum Entry {
+    Ordinary,
+    Store,
+    Gateway
+}
+
+export enum SemanticOutcome {
+    Valid,
+    Invalid,
+    InvalidInput
+}
+
+export enum WorkspaceOutcome {
+    Valid,
+    Invalid,
+    ManifestRequired
+}
 
 export type CommandInput = {
     host: Command,
@@ -15,5 +40,16 @@ export type SourceInput = {
 
 export type SemanticInput = {
     host: SemanticLint,
+    input_path: u8[]
+}
+
+export type SemanticLoaded = {
+    host: SemanticLint,
+    manifest: bool,
+    project: SemanticProject
+}
+
+export type WorkspaceInput = {
+    host: WorkspaceLint,
     input_path: u8[]
 }

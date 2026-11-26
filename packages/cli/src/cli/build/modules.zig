@@ -7,7 +7,7 @@ const process = @import("backend_protocol").process;
 const source = @import("cli_source");
 const workspace = source.workspace_artifact_constants.@"zx.constants";
 const Error = @import("../sources/effects.zig").Error;
-const NativeModule = @import("cli_abi").layouts.@"zig:rx_execution_host".NativeBackendModule;
+const NativeModule = @import("cli_abi").layouts.@"zig:native_build_host".NativeBackendModule;
 
 pub fn appendGeneratedModule(handle: *const anyopaque, index: u64) Error!void {
     const self = State.get(handle);

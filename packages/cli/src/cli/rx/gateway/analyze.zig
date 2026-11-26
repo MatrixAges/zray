@@ -8,6 +8,7 @@ const Inputs = @import("watch_inputs").Inputs;
 const Export = @import("../../../package/manifest/model.zig").Export;
 const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
+const GatewayRoutes = @import("cli_abi").layouts.@"zig:rx_execution_host".GatewayRoutes;
 pub const Options = struct { io: std.Io, loaded: Loaded, writer: *std.Io.Writer, inputs: ?*Inputs = null, parse_cache: ?*compiler.project.ParseCache = null };
 
 pub const Result = struct {
@@ -36,17 +37,15 @@ const State = struct {
     loaded: ?collection.Result = null,
     gateway: ?gateway.Result = null,
     services: ?services.Result = null,
-    temporary: std.heap.ArenaAllocator,
-    exports: []Export = &.{},
+    route_services: []const []const u8 = &.{},
+    routes_view: GatewayRoutes = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
     fn deinit(self: *State) void {
         if (self.services) |*service| service.deinit();
-
-        self.temporary.deinit();
-
+        if (self.route_services.len != 0) self.allocator.free(self.route_services);
         if (self.gateway) |*analyzed| analyzed.deinit();
         if (self.loaded) |*loaded| loaded.deinit();
     }
@@ -61,14 +60,21 @@ const State = struct {
 };
 
 pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
-    var state: State = .{ .allocator = allocator, .options = &options, .temporary = .init(allocator) };
+    var state: State = .{ .allocator = allocator, .options = &options };
     const reference = &state;
 
     defer state.deinit();
 
-    const valid = @import("cli_source").analyze_gateway_application.executeIn(allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const outcome = @import("cli_source").analyze_gateway_application.executeIn(allocator, &.{
+        .analysis = @ptrCast(&reference),
+        .has_library = options.loaded.config.library != null,
+    }) catch |err| return state.failure.unwrap(err);
 
-    return if (valid) state.take() else null;
+    return switch (outcome) {
+        .Valid => state.take(),
+        .Invalid => null,
+        .SourceRequired => error.GatewaySourceRequired,
+    };
 }
 
 pub fn resolveGatewayOwner(handle: *const anyopaque) Error!void {
@@ -79,12 +85,6 @@ pub fn resolveGatewayOwner(handle: *const anyopaque) Error!void {
     self.owner = std.fs.path.relative(allocator, self.root, null, self.root, project.entry) catch |err| return self.failure.save(err);
 
     if (collection.outside(self.owner)) return self.failure.save(error.RxEntryOutsideProject);
-}
-
-pub fn requireGatewaySource(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    if (self.options.loaded.config.library != null) return self.failure.save(error.GatewaySourceRequired);
 }
 
 pub fn collectGatewayDocuments(handle: *const anyopaque) Error!bool {
@@ -104,7 +104,7 @@ pub fn collectGatewayDocuments(handle: *const anyopaque) Error!bool {
     return self.loaded != null;
 }
 
-pub fn analyzeGatewayDocument(handle: *const anyopaque) Error!bool {
+pub fn analyzeGatewayDocument(handle: *const anyopaque) Error!?*const GatewayRoutes {
     const self = State.get(handle);
     const loaded = &self.loaded.?;
     const source = loaded.data.gateway orelse return self.failure.save(error.ExpectedGateway);
@@ -118,35 +118,40 @@ pub fn analyzeGatewayDocument(handle: *const anyopaque) Error!bool {
 
         self.options.writer.print("{s}:{d}:{d}: {s}: {s}\n", .{ issue.path, issue.location.line, issue.location.column, issue.code, issue.message }) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
 
-    return true;
+    const definition = &result.definition;
+    const route_services = self.allocator.alloc([]const u8, definition.routes.len) catch |err| return self.failure.save(err);
+
+    for (definition.routes, 0..) |route, index| {
+        route_services[index] = route.service;
+    }
+
+    self.route_services = route_services;
+
+    self.routes_view = .{
+        .route_services = route_services,
+        .service_routes = definition.service_routes,
+    };
+
+    return &self.routes_view;
 }
 
-pub fn reserveGatewayServices(handle: *const anyopaque) Error!u64 {
-    const self = State.get(handle);
-    const count = self.gateway.?.value.definition.service_routes.len;
-    self.exports = self.temporary.allocator().alloc(Export, count) catch |err| return self.failure.save(err);
-
-    return count;
-}
-
-pub fn recordGatewayService(handle: *const anyopaque, index: u64) void {
-    const self = State.get(handle);
-    const definition = &self.gateway.?.value.definition;
-    const row: usize = @intCast(index);
-    const service = definition.routes[definition.service_routes[row]].service;
-
-    self.exports[row] = .{ .path = service, .source = service };
-}
-
-pub fn analyzeGatewayServices(handle: *const anyopaque) Error!bool {
+pub fn analyzeGatewayServices(handle: *const anyopaque, service_names: []const []const u8) Error!bool {
     const self = State.get(handle);
     const options = self.options;
+    const exports = self.allocator.alloc(Export, service_names.len) catch |err| return self.failure.save(err);
+
+    defer self.allocator.free(exports);
+
+    for (service_names, 0..) |service, index| {
+        exports[index] = .{ .path = service, .source = service };
+    }
+
     var configured = options.loaded;
 
-    configured.config.exports = self.exports;
+    configured.config.exports = exports;
 
     self.services = services.run(self.allocator, .{
         .io = options.io,
