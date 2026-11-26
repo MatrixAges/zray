@@ -21,11 +21,11 @@ export default function (in: Input): Output {
     }
 
     const valid = version({
-        cached_source: host.cachedSourceDigest(candidate),
+        cached_source: candidate.source,
         source: in.source,
-        cached_context: host.cachedContextDigest(candidate),
+        cached_context: candidate.context,
         context: in.context
     })
 
-    return valid ? candidate : null
+    return valid ? candidate.entry : null
 }

@@ -88,6 +88,12 @@ export type CacheEntries = opaque
 
 export type CacheEntry = mutable_opaque
 
+export type CachedEntryDigest = {
+    entry: CacheEntry,
+    source: u8[],
+    context: u8[]
+}
+
 export type SourceEntry = opaque
 
 export type SourceBody = opaque

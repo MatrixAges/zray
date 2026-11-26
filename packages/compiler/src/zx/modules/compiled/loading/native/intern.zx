@@ -78,6 +78,7 @@ export default function (in: Input): Output {
             type_namespaces: delta.type_namespaces.push(value.namespace)[0]
         },
         mapping: in.state.mapping.push(integers.narrow(count))[0],
+        type_ids: in.state.type_ids,
         status: Status.Ready
     }
 }

@@ -9,7 +9,6 @@
         in={{
             base: TypeDelta.Output,
             input: Model.Input,
-            type_ids: u32[],
             merged: Merge.State,
             native: NativeModel.State
         }}
@@ -47,7 +46,7 @@
             origins: $in.merged.origins,
             natives: $in.native.delta,
             functions: {
-                types: $in.type_ids,
+                types: $in.native.type_ids,
                 natives: $in.native.mapping
             },
             selection: $ctx.plan.selection

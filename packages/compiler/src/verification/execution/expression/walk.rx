@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Expression" />
 
-    <Args in={Expression.Input} out={void} />
+    <Args in={Expression.Input} out={Expression.Outcome} />
 
     <Call fn="prepare" in={$in} />
 
@@ -28,6 +28,8 @@
                     kind: Expression.ExpressionKind.Integer
                 }}
             />
+
+            <Return value={$ctx.literal} />
         </Case>
 
         <Case value={Expression.ExpressionKind.NegativeInteger}>
@@ -42,6 +44,8 @@
                     kind: Expression.ExpressionKind.NegativeInteger
                 }}
             />
+
+            <Return value={$ctx.literal} />
         </Case>
 
         <Case value={Expression.ExpressionKind.EnumValue}>
@@ -56,6 +60,8 @@
                     kind: Expression.ExpressionKind.EnumValue
                 }}
             />
+
+            <Return value={$ctx.literal} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Boolean}>
@@ -70,6 +76,8 @@
                     kind: Expression.ExpressionKind.Boolean
                 }}
             />
+
+            <Return value={$ctx.literal} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Unit}>
@@ -115,6 +123,8 @@
                     type_id: $ctx.prepare.type_id
                 }}
             />
+
+            <Return value={$ctx.unary} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Binary}>
@@ -138,6 +148,8 @@
                     result: $ctx.binary
                 }}
             />
+
+            <Return value={$ctx.binary_finish} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Call}>
@@ -148,6 +160,13 @@
                     $ctx.prepare.first,
                     $ctx.prepare.second
                 ]}
+            />
+
+            <Return
+                value={{
+                    scalar: null,
+                    safe: $ctx.runSymbolicExpressionCall
+                }}
             />
         </Case>
 
@@ -160,6 +179,8 @@
                     payload: $ctx.prepare.payload
                 }}
             />
+
+            <Return value={$ctx.conditional} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Match}>
@@ -171,6 +192,8 @@
                     payload: $ctx.prepare.payload
                 }}
             />
+
+            <Return value={$ctx.match_value} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Tuple}>
@@ -183,6 +206,8 @@
                     object: false
                 }}
             />
+
+            <Return value={$ctx.aggregate} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Object}>
@@ -195,6 +220,8 @@
                     object: true
                 }}
             />
+
+            <Return value={$ctx.aggregate} />
         </Case>
 
         <Default>
@@ -207,4 +234,11 @@
             />
         </Default>
     </Switch>
+
+    <Return
+        value={{
+            scalar: null,
+            safe: null
+        }}
+    />
 </Module>

@@ -9,9 +9,7 @@ import conjunction from "../../scalar/conjunction"
 import { unsupported_message } from "./const"
 
 import type { SymbolicOutcome } from "verification_host"
-import type { Payload as Input } from "./model"
-
-export type Output = void
+import type { Outcome as Output, Payload as Input } from "./model"
 
 export default function (in: Input): Output {
     const { frame, columns, payload } = in
@@ -26,7 +24,10 @@ export default function (in: Input): Output {
     if (subject_value != null && subject_value.text == null) {
         host.rejectSymbolicExpression(frame, unsupported_message)
 
-        return
+        return {
+            scalar: null,
+            safe: null
+        }
     }
 
     const subject_text: string? = subject_value == null ? null : subject_value.text
@@ -79,13 +80,14 @@ export default function (in: Input): Output {
                     SymbolicOperand.Second,
                     SymbolicOperand.Result
                 )
-                host.writeSymbolicSafety(frame, guarded({
+                const safe = guarded({
                     condition,
                     safe: test.safe,
                     yes: yes.safe,
                     no: state.no_safe
-                }))
-                state.no_safe = host.retainSymbolicExpression(frame)
+                })
+
+                state.no_safe = host.retainSymbolicExpression(frame, safe)
             } else {
                 host.rejectSymbolicExpression(frame, unsupported_message)
             }
@@ -94,11 +96,17 @@ export default function (in: Input): Output {
     })
 
     if (subject_value != null) {
-        const safe = conjunction({
-            left: subject_value.safe,
-            right: combined
-        })
+        return {
+            scalar: null,
+            safe: conjunction({
+                left: subject_value.safe,
+                right: combined
+            })
+        }
+    }
 
-        host.writeSymbolicSafety(frame, safe)
+    return {
+        scalar: null,
+        safe: combined
     }
 }

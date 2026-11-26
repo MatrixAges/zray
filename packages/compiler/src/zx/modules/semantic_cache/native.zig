@@ -64,7 +64,7 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
             .usage = @ptrCast(&usage),
         };
 
-        var buffer: [128]u8 = undefined;
+        var buffer: [256]u8 = undefined;
         var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
         generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);

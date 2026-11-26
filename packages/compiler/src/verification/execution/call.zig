@@ -17,7 +17,7 @@ const Invocation = struct {
     }
 };
 
-pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32) zx.Error!void {
+pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32) zx.Error![]const u8 {
     const frame = Expression.borrow(handle);
     const evaluator = frame.evaluator;
     const function = evaluator.program.functions.at(target);
@@ -39,7 +39,7 @@ pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32)
         .depth = evaluator.call_depth,
     };
 
-    frame.at(.Result).safe = rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
+    return rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
 }
 
 pub fn evaluateSymbolicCallArgument(handle: *anyopaque) zx.Error![]const u8 {

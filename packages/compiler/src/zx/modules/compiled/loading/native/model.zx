@@ -1,4 +1,5 @@
 import type { Binding, Modules } from "core/native_module_table/model"
+import type { U32Buffer } from "memory"
 import type { Status } from "../../status"
 
 export type Value = Binding
@@ -6,13 +7,14 @@ export type Value = Binding
 export type State = {
     delta: Modules,
     mapping: u32[],
+    type_ids: u32[],
     status: Status
 }
 
 export type Request = {
     source: Modules,
     base: Modules,
-    types: u32[],
+    type_mapping: U32Buffer,
     instance: string,
     maximum: u64
 }

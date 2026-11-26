@@ -4,9 +4,7 @@ import { SymbolicOperand } from "verification_host"
 import guarded from "../../predicate/guard"
 import { unsupported_message } from "./const"
 
-import type { Payload as Input } from "./model"
-
-export type Output = void
+import type { Outcome as Output, Payload as Input } from "./model"
 
 export default function (in: Input): Output {
     const { frame, columns, payload } = in
@@ -37,7 +35,10 @@ export default function (in: Input): Output {
     if (condition == null) {
         host.rejectSymbolicExpression(frame, unsupported_message)
 
-        return
+        return {
+            scalar: null,
+            safe: null
+        }
     }
 
     host.selectSymbolicExpression(
@@ -47,10 +48,13 @@ export default function (in: Input): Output {
         SymbolicOperand.Third
     )
 
-    host.writeSymbolicSafety(frame, guarded({
-        condition,
-        safe: first.safe,
-        yes: yes.safe,
-        no: no.safe
-    }))
+    return {
+        scalar: null,
+        safe: guarded({
+            condition,
+            safe: first.safe,
+            yes: yes.safe,
+            no: no.safe
+        })
+    }
 }

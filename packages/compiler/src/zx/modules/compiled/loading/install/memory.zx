@@ -1,1 +1,1 @@
-export { selectAllocator, u32Views, writeBool } from "memory"
+export { selectAllocator, writeBool } from "memory"

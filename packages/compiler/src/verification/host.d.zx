@@ -12,8 +12,6 @@ export type SymbolicExpression = mutable_opaque
 
 export type SymbolicInvocation = mutable_opaque
 
-export type SymbolicCallKey = mutable_opaque
-
 export enum SymbolicOperand {
     First,
     Second,
@@ -101,8 +99,6 @@ export declare function rejectSymbolicExpression(frame: SymbolicExpression, mess
 export declare function loadSymbolicReference(frame: SymbolicExpression, symbol: u32): void
     throws { InvalidSource }
 
-export declare function writeSymbolicLiteral(frame: SymbolicExpression, value: string): void
-
 export declare function evaluateSymbolicOperand(
     frame: SymbolicExpression,
     slot: SymbolicOperand,
@@ -118,13 +114,11 @@ export declare function selectSymbolicExpression(
     no: SymbolicOperand
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function retainSymbolicExpression(frame: SymbolicExpression): string
+export declare function retainSymbolicExpression(frame: SymbolicExpression, safe: string): string
     throws { OutOfMemory, InvalidSource }
 
 export declare function bindSymbolicExpressionSafety(frame: SymbolicExpression, safe: string): string
     throws { OutOfMemory, InvalidSource }
-
-export declare function writeSymbolicSafety(frame: SymbolicExpression, safe: string): void
 
 export declare function reserveSymbolicAggregate(frame: SymbolicExpression, count: u32): void
     throws { OutOfMemory }
@@ -135,7 +129,7 @@ export declare function runSymbolicExpressionCall(
     frame: SymbolicExpression,
     target: u32,
     argument: u32
-): void throws { OutOfMemory, InvalidSource }
+): string throws { OutOfMemory, InvalidSource }
 
 export declare function evaluateSymbolicCallArgument(call: SymbolicInvocation): string
     throws { OutOfMemory, InvalidSource }
@@ -148,10 +142,3 @@ export declare function evaluateSymbolicCallee(call: SymbolicInvocation): string
 
 export declare function publishSymbolicCallee(call: SymbolicInvocation): void
     throws { OutOfMemory }
-
-export declare function probeSymbolicCallKey(
-    key: SymbolicCallKey,
-    target: u32,
-    terms: string[],
-    digest: u64
-): void throws { OutOfMemory }

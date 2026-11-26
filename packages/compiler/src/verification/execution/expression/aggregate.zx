@@ -6,13 +6,11 @@ import conjunction from "../../scalar/conjunction"
 import { smt_true } from "../../scalar/const"
 import watch from "./watch"
 
-import type { Payload } from "./model"
+import type { Outcome as Output, Payload } from "./model"
 
 export type Input = Payload & {
     object: bool
 }
-
-export type Output = void
 
 export default function (in: Input): Output {
     const { frame, columns, payload, object } = in
@@ -71,5 +69,8 @@ export default function (in: Input): Output {
         return: state => state.safe
     })
 
-    host.writeSymbolicSafety(frame, completed)
+    return {
+        scalar: null,
+        safe: completed
+    }
 }

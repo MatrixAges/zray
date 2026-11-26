@@ -9,9 +9,7 @@ import numeric from "../../scalar/numeric"
 import evaluateUnary from "../../scalar/unary"
 import { unsupported_message } from "./const"
 
-import type { TypedPayload as Input } from "./model"
-
-export type Output = void
+import type { Outcome as Output, TypedPayload as Input } from "./model"
 
 export default function (in: Input): Output {
     const { frame, columns, payload, types, type_id } = in
@@ -28,7 +26,10 @@ export default function (in: Input): Output {
     if (text == null) {
         host.rejectSymbolicExpression(frame, unsupported_message)
 
-        return
+        return {
+            scalar: null,
+            safe: null
+        }
     }
 
     const type_row = integers.widen(type_id)
@@ -52,9 +53,14 @@ export default function (in: Input): Output {
     if (value == null) {
         host.rejectSymbolicExpression(frame, unsupported_message)
 
-        return
+        return {
+            scalar: null,
+            safe: null
+        }
     }
 
-    host.writeSymbolicLiteral(frame, value)
-    host.writeSymbolicSafety(frame, evaluated.safe)
+    return {
+        scalar: value,
+        safe: evaluated.safe
+    }
 }

@@ -24,7 +24,7 @@
         in={{
             base: $in.request.base,
             value: $ctx.rebind,
-            types: $in.request.types,
+            types: $in.state.type_ids,
             state: $in.state,
             maximum: $in.request.maximum
         }}

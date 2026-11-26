@@ -4,6 +4,7 @@ const codec = @import("codec.zig");
 const generated = @import("parser_options").generated_parser;
 const ABI = @import("project_execution_abi").layouts.@"zig:project_host";
 const Probe = if (generated) ABI.CacheProbe else struct { bucket: u64, row: u64 };
+const CachedDigest = if (generated) ABI.CachedEntryDigest else struct { entry: *anyopaque, source: []const u8, context: []const u8 };
 
 pub const Entry = struct {
     dirty: bool = true,
@@ -11,6 +12,7 @@ pub const Entry = struct {
     native_admitted: bool = false,
     context_digest: [32]u8,
     result: Artifact.Result,
+    digest_view: CachedDigest = undefined,
 };
 
 pub const Map = @import("../source_index/growing.zig").Map(*Entry);
@@ -40,22 +42,17 @@ pub fn find(entries: *const Map, path: []const u8, source_digest: *const [32]u8,
     return entry;
 }
 
-pub fn openCachedEntry(handle: *const anyopaque, path: []const u8) ?*ABI.CacheEntry {
+pub fn openCachedEntry(handle: *const anyopaque, path: []const u8) ?*const CachedDigest {
     const entries: *const Map = @ptrCast(@alignCast(handle));
+    const entry = entries.get(path) orelse return null;
 
-    return @ptrCast(entries.get(path));
-}
+    entry.digest_view = .{
+        .entry = @ptrCast(entry),
+        .source = &entry.result.value.source_digest,
+        .context = &entry.context_digest,
+    };
 
-pub fn cachedSourceDigest(handle: *anyopaque) []const u8 {
-    const entry: *const Entry = @ptrCast(@alignCast(handle));
-
-    return &entry.result.value.source_digest;
-}
-
-pub fn cachedContextDigest(handle: *anyopaque) []const u8 {
-    const entry: *const Entry = @ptrCast(@alignCast(handle));
-
-    return &entry.context_digest;
+    return &entry.digest_view;
 }
 
 pub fn put(allocator: std.mem.Allocator, entries: *Map, result: Artifact.Result, context_digest: [32]u8) std.mem.Allocator.Error!void {

@@ -55,7 +55,16 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
         .depth = depth,
     };
 
-    rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
+    const outcome = zx.columns.invoke(rule.executeIn, evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
+
+    if (outcome.scalar) |text| {
+        frame.at(.Result).* = .{
+            .value = .{ .scalar = text },
+            .safe = outcome.safe orelse "true",
+        };
+    } else if (outcome.safe) |safe| {
+        frame.at(.Result).safe = safe;
+    }
 
     return frame.at(.Result).*;
 }
@@ -73,10 +82,6 @@ pub fn loadSymbolicReference(handle: *anyopaque, symbol: u32) error{InvalidSourc
         return @errorCast(frame.evaluator.reporter.fail(.contract, frame.span, "verification encountered an unbound symbol"));
 
     frame.at(.Result).* = .{ .value = value };
-}
-
-pub fn writeSymbolicLiteral(handle: *anyopaque, value: []const u8) void {
-    Frame.borrow(handle).at(.Result).* = .{ .value = .{ .scalar = value } };
 }
 
 pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u32) zx.Error!*const native.SymbolicOutcome {
@@ -107,10 +112,10 @@ pub fn selectSymbolicExpression(handle: *anyopaque, condition: []const u8, yes: 
     frame.at(.Result).value = try evaluator.graph.select(evaluator.program, frame.target, condition, frame.at(yes).value, frame.at(no).value, frame.span);
 }
 
-pub fn retainSymbolicExpression(handle: *anyopaque) zx.Error![]const u8 {
+pub fn retainSymbolicExpression(handle: *anyopaque, safe: []const u8) zx.Error![]const u8 {
     const frame = Frame.borrow(handle);
     const result = frame.at(.Result);
-    result.* = try frame.evaluator.retainAt(frame.target, frame.span, result.*);
+    result.* = try frame.evaluator.retainAt(frame.target, frame.span, .{ .value = result.value, .safe = safe });
 
     return result.safe;
 }
@@ -119,10 +124,6 @@ pub fn bindSymbolicExpressionSafety(handle: *anyopaque, safe: []const u8) zx.Err
     const frame = Frame.borrow(handle);
 
     return frame.evaluator.boolean(safe, frame.span);
-}
-
-pub fn writeSymbolicSafety(handle: *anyopaque, safe: []const u8) void {
-    Frame.borrow(handle).at(.Result).safe = safe;
 }
 
 pub fn reserveSymbolicAggregate(handle: *anyopaque, count: u32) std.mem.Allocator.Error!void {

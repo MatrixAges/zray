@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import { Status } from "../../status"
 
 import type { Request as Input, Traversal as Output } from "./model"
@@ -15,6 +17,7 @@ export default function (in: Input): Output {
                 type_namespaces: []
             },
             mapping: [],
+            type_ids: memory.u32Views(in.type_mapping),
             status: Status.Ready
         },
         index: 0,

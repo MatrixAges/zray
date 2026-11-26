@@ -1,20 +1,16 @@
-import host from "verification_host"
-
 import digest from "./digest"
 import traverse from "./traverse"
 
-import type { SymbolicCallKey, SymbolicValue } from "verification_host"
+import type { SymbolicValue } from "verification_host"
+import type { Digest as Output } from "./model"
 
 export type Input = {
-    key: SymbolicCallKey,
     argument: SymbolicValue,
     target: u32
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { key, target } = in
+    const { target } = in
 
     const terms = traverse({
         value: in.argument,
@@ -26,5 +22,9 @@ export default function (in: Input): Output {
         terms
     })
 
-    host.probeSymbolicCallKey(key, target, terms, hash)
+    return {
+        target,
+        terms,
+        digest: hash
+    }
 }

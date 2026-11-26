@@ -2,9 +2,7 @@ import host from "verification_host"
 
 import { unsupported_message } from "./const"
 
-import type { BinaryFinish as Input } from "./model"
-
-export type Output = void
+import type { BinaryFinish as Input, Outcome as Output } from "./model"
 
 export default function (in: Input): Output {
     const { frame, result } = in
@@ -14,9 +12,14 @@ export default function (in: Input): Output {
     if (value == null) {
         host.rejectSymbolicExpression(frame, unsupported_message)
 
-        return
+        return {
+            scalar: null,
+            safe: null
+        }
     }
 
-    host.writeSymbolicLiteral(frame, value)
-    host.writeSymbolicSafety(frame, result.safe)
+    return {
+        scalar: value,
+        safe: result.safe
+    }
 }

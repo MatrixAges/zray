@@ -1,8 +1,4 @@
-export declare function openCachedEntry(entries: CacheEntries, path: string): CacheEntry?
-
-export declare function cachedSourceDigest(entry: CacheEntry): u8[]
-
-export declare function cachedContextDigest(entry: CacheEntry): u8[]
+export declare function openCachedEntry(entries: CacheEntries, path: string): CachedEntryDigest?
 
 export declare function restoreCachedNative(frame: NativeCacheLoad, entry: CacheEntry): bool
     throws { OutOfMemory }

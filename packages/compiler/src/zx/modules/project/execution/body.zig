@@ -77,7 +77,7 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             .installation = &body.installation.input,
         };
 
-        const duplicate = zx.columns.invoke(entry.executeValue, project.allocator, &request) catch |err| return switch (@as(anyerror, err)) {
+        const duplicate = zx.columns.invoke(entry.executeIn, project.allocator, &request) catch |err| return switch (@as(anyerror, err)) {
             error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => errorSet(err),
         };

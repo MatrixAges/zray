@@ -47,11 +47,9 @@ const Source = struct {
     rows: std.HashMapUnmanaged(Key, terms.Evaluation, Context, std.hash_map.default_max_load_percentage) = .empty,
     leaves: std.ArrayList([]const u8) = .empty,
     pub fn lookup(self: *Source, allocator: Allocator, target: u32, argument: terms.Value) Allocator.Error!Lookup(Key) {
-        var frame: Probe = .{ .cache = self, .allocator = allocator };
         const entry = @import("generated_lookup_symbolic_call");
 
         const input: std.meta.Child(entry.Input) = .{
-            .key = @ptrCast(&frame),
             .argument = @ptrCast(&argument),
             .target = target,
         };
@@ -62,44 +60,26 @@ const Source = struct {
 
         defer scratch.deinit();
 
-        entry.executeIn(memory.allocator(), &input) catch |err| switch (err) {
+        const key = entry.executeIn(memory.allocator(), &input) catch |err| switch (err) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => unreachable,
         };
 
-        return frame.result;
+        if (self.rows.getAdapted(
+            Source.ProbeKey{ .target = key.target, .terms = key.terms, .digest = key.digest },
+            Source.ProbeContext{ .leaves = self.leaves.items },
+        )) |value| {
+            return .{ .hit = value };
+        }
+
+        // Offsets survive pool growth while a nested call evaluates this miss.
+        const start = self.leaves.items.len;
+
+        try self.leaves.appendSlice(allocator, key.terms);
+
+        return .{ .miss = .{ .target = key.target, .start = start, .length = key.terms.len, .digest = key.digest } };
     }
     pub fn publish(self: *Source, allocator: Allocator, key: Key, result: terms.Evaluation) Allocator.Error!void {
         try self.rows.putContext(allocator, key, result, .{ .leaves = self.leaves.items });
     }
 };
-
-const Probe = struct {
-    cache: *Source,
-    allocator: Allocator,
-    result: Lookup(Source.Key) = undefined,
-    fn borrow(handle: *anyopaque) *@This() {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn probeSymbolicCallKey(handle: *anyopaque, target: u32, key_terms: []const []const u8, digest: u64) Allocator.Error!void {
-    const probe = Probe.borrow(handle);
-    const cache = probe.cache;
-
-    if (cache.rows.getAdapted(
-        Source.ProbeKey{ .target = target, .terms = key_terms, .digest = digest },
-        Source.ProbeContext{ .leaves = cache.leaves.items },
-    )) |value| {
-        probe.result = .{ .hit = value };
-
-        return;
-    }
-
-    // Offsets survive pool growth while a nested call evaluates this miss.
-    const start = cache.leaves.items.len;
-
-    try cache.leaves.appendSlice(probe.allocator, key_terms);
-
-    probe.result = .{ .miss = .{ .target = target, .start = start, .length = key_terms.len, .digest = digest } };
-}

@@ -79,3 +79,8 @@ export type BinaryFinish = {
     frame: SymbolicExpression,
     result: Result
 }
+
+export type Outcome = {
+    scalar?: string,
+    safe?: string
+}

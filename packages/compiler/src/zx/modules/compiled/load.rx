@@ -45,14 +45,12 @@
         />
 
         <If on={$ctx.capacity}>
-            <Call fn="loading/install/memory.u32Views" in={$in.type_mapping} />
-
             <Call
                 module="loading/native/walk"
                 in={{
                     source: $in.graph.program.context.modules,
                     base: $in.destination.natives,
-                    types: $ctx.u32Views,
+                    type_mapping: $in.type_mapping,
                     instance: $in.instance,
                     maximum: $in.graph.program.context.maximum_count
                 }}
@@ -63,7 +61,6 @@
                     module="loading/publish"
                     in={{
                         input: $in,
-                        type_ids: $ctx.u32Views,
                         base: $ctx.type_base,
                         merged: $ctx.types,
                         native: $ctx.walk
