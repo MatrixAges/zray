@@ -5,11 +5,9 @@ const Expressions = @import("../expressions.zig");
 const terms = @import("../terms.zig");
 const Session = @import("context.zig");
 const walk = @import("generated_walk_symbolic_block");
-const parallel = @import("generated_run_symbolic_parallel");
 const native = @import("output_execution_abi").layouts.@"zig:verification_host";
 const Input = std.meta.Child(walk.Input);
 const Scope = std.meta.Child(@FieldType(Input, "scope"));
-const Parallel = std.meta.Child(parallel.Input);
 
 const Frame = struct {
     session: Session.Frame,
@@ -67,6 +65,8 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Va
         .count = count,
     };
 
+    defer if (frame.completed.len != 0) conditions.allocator.free(frame.completed);
+
     return walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
 }
 
@@ -118,29 +118,14 @@ pub fn runSymbolicChild(handle: *anyopaque, body: u32, path: []const u8) zx.Erro
     );
 }
 
-pub fn runSymbolicParallel(handle: *anyopaque, payload: u64, path: []const u8) zx.Error![]const u8 {
+pub fn reserveSymbolicParallel(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
-    const allocator = frame.evaluator.allocator;
 
-    defer {
-        allocator.free(frame.completed);
+    if (frame.completed.len != 0) {
+        frame.evaluator.allocator.free(frame.completed);
 
         frame.completed = &.{};
     }
-
-    const input: Parallel = .{
-        .block = @ptrCast(frame),
-        .session = @ptrCast(&frame.session),
-        .scope = frame.scope,
-        .path = path,
-        .payload = payload,
-    };
-
-    return parallel.executeIn(allocator, &input) catch |err| return Session.failure(err);
-}
-
-pub fn reserveSymbolicParallel(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
 
     frame.completed = try frame.evaluator.allocator.alloc(terms.Evaluation, @intCast(count));
 }

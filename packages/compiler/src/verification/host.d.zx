@@ -80,9 +80,6 @@ export declare function publishSymbolicStatementReturn(block: SymbolicBlock, pat
 export declare function runSymbolicChild(block: SymbolicBlock, body: u32, path: string): string
     throws { OutOfMemory, InvalidSource }
 
-export declare function runSymbolicParallel(block: SymbolicBlock, payload: u64, path: string): string
-    throws { OutOfMemory, InvalidSource }
-
 export declare function reserveSymbolicParallel(block: SymbolicBlock, count: u64): void
     throws { OutOfMemory }
 

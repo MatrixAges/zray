@@ -1,0 +1,31 @@
+import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
+
+import type { Prepared, Statement as Input } from "./model"
+
+export type Output = Prepared
+
+export default function (in: Input): Output {
+    const control = in.scope.control
+    const kind = control.statement_kinds[in.row]
+    const payload = integers.widen(control.statement_payloads[in.row])
+
+    const expression: u32? = match kind {
+        StatementKind.Evaluate => control.evaluations[payload],
+        StatementKind.Constant => control.constant_values[payload],
+        StatementKind.Result => control.results[payload],
+        _ => null
+    }
+
+    const symbol: u32? = match kind {
+        StatementKind.Constant => control.constant_symbols[payload],
+        _ => null
+    }
+
+    return {
+        kind,
+        payload,
+        expression,
+        symbol
+    }
+}

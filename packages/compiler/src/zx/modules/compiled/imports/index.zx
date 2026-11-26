@@ -1,6 +1,5 @@
 export {
     bindCompiledImport,
-    compiledInitializerCount,
     findCompiledLibrary as findAdded,
     findCompiledLibrary as findInherited,
     rememberCompiledLibrary,

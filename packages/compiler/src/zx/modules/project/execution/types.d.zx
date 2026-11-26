@@ -20,6 +20,11 @@ export type ProjectExternalBindings = mutable_opaque
 
 export type CompiledImport = mutable_opaque
 
+export type CompiledUnitSize = {
+    exports: u64,
+    initializers: u64
+}
+
 export type ArtifactLink = mutable_opaque
 
 export type ArtifactExtraction = mutable_opaque

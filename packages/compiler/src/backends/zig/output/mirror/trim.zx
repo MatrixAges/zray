@@ -47,9 +47,10 @@ export default function (in: Input): Output {
         return
     }
 
+    const files = host.listBootstrapFiles(target)
+
     const stale = unrecorded({
-        target,
-        allocator: cleanup.allocator,
+        files,
         index
     })
 

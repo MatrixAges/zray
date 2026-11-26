@@ -56,21 +56,13 @@
     />
 
     <Call
-        fn="index.compiledInitializerCount"
-        in={[
-            $in.frame,
-            $ctx.resolveCompiledImport
-        ]}
-    />
-
-    <Call
         fn="reserve"
         in={{
             owner: $in.owner,
             initializers: $in.initializers,
             index: $in.index,
-            exports: $ctx.reserveCompiledUnit,
-            added: $ctx.compiledInitializerCount
+            exports: $ctx.reserveCompiledUnit.exports,
+            added: $ctx.reserveCompiledUnit.initializers
         }}
     />
 
@@ -86,7 +78,7 @@
         fn="publish"
         in={{
             target: $in.initializers,
-            added: $ctx.compiledInitializerCount
+            added: $ctx.reserveCompiledUnit.initializers
         }}
     />
 

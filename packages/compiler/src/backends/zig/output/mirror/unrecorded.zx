@@ -1,52 +1,41 @@
 import bytes from "std:bytes"
-import memory from "memory"
-import host from "output_host"
 
 import { stamp_name } from "../../../../inputs/generation/const"
 import stale from "../stale"
 
 import type { Index } from "core/bytes/index/model"
-import type { Allocator } from "memory"
-import type { BootstrapMirror } from "output_host"
 
 export type Input = {
-    target: BootstrapMirror,
-    allocator: Allocator,
+    files: string[],
     index: Index
 }
 
 export type Output = string[]
 
 export default function (in: Input): Output {
-    host.openBootstrapWalk(in.target)
-
     const fingerprint = bytes.fromText(stamp_name)
     const paths: string[] = []
 
     return loop({
-        running: true,
+        index: 0,
         paths
     }, {
-        while: state => state.running,
+        while: state => state.index < in.files.length,
         next: state => {
-            const entry = host.nextBootstrapEntry(in.target)
+            const path = in.files[state.index]
 
-            if (entry == null) {
-                state.running = false
-            } else if (entry.file) {
-                const selected = stale({
-                    index: in.index,
-                    path: bytes.fromText(entry.path),
-                    fingerprint,
-                    preserve_fingerprint: true
-                })
+            const selected = stale({
+                index: in.index,
+                path: bytes.fromText(path),
+                fingerprint,
+                preserve_fingerprint: true
+            })
 
-                if (selected) {
-                    const owned = memory.copyColumnText(in.allocator, entry.path)
-
-                    state.paths = state.paths.push(owned)[0]
-                }
+            if (selected) {
+                state.paths = state.paths.push(path)[0]
             }
+
+            state.index += 1
         },
         return: state => state.paths
     })

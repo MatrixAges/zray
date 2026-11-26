@@ -126,10 +126,10 @@ export declare function findCompiledLibrary(
     inherited: bool
 ): u64?
 
-export declare function reserveCompiledUnit(frame: CompiledImport, index: u64): u64
-    throws { OutOfMemory }
-
-export declare function compiledInitializerCount(frame: CompiledImport, index: u64): u64
+export declare function reserveCompiledUnit(
+    frame: CompiledImport,
+    index: u64
+): CompiledUnitSize throws { OutOfMemory }
 
 export declare function bindCompiledImport(frame: CompiledImport, index: u64): u64
     throws { OutOfMemory, InvalidLibrary }

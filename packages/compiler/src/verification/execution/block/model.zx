@@ -1,5 +1,7 @@
-import type { Control } from "core/control_table/model"
+import type { Control, StatementKind } from "core/control_table/model"
 import type { SymbolicBlock, SymbolicSession } from "verification_host"
+
+export { StatementKind } from "core/control_table/model"
 
 export type Scope = {
     control: Control,
@@ -25,6 +27,19 @@ export type Statement = Path & {
 
 export type Payload = Path & {
     payload: u64
+}
+
+export type Prepared = {
+    kind: StatementKind,
+    payload: u64,
+    expression?: u32,
+    symbol?: u32
+}
+
+export type Traversal = Path & {
+    row: u64,
+    end: u64,
+    running: bool
 }
 
 export type Cases = {

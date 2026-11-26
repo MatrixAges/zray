@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Traversal} out={Block.Traversal} />
+
+    <Call
+        module="step"
+        in={$in.omit([
+            "end",
+            "running"
+        ])}
+    />
+
+    <Call
+        fn="advance"
+        in={{
+            current: $in,
+            next: $ctx.step
+        }}
+    />
+
+    <Return value={$ctx.advance} />
+</Module>

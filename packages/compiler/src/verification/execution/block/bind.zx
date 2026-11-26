@@ -8,7 +8,7 @@ export type Input = {
     block: SymbolicBlock,
     session: SymbolicSession,
     path: string,
-    expression: u32,
+    expression?: u32,
     symbol?: u32
 }
 

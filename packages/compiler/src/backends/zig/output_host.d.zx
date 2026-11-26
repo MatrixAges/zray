@@ -76,11 +76,6 @@ export type BootstrapOutputPlan = {
     previous_paths?: string[]
 }
 
-export type BootstrapDirectoryEntry = {
-    path: string,
-    file: bool
-}
-
 export type BootstrapPartition = mutable_opaque
 
 export type BootstrapPartitionPlan = {
@@ -227,10 +222,7 @@ export declare function createBootstrapFolder(target: BootstrapMirror, path: u8[
 export declare function writeBootstrapChanges(target: BootstrapMirror): void
     throws { BootstrapOutput }
 
-export declare function openBootstrapWalk(target: BootstrapMirror): void
-    throws { BootstrapOutput }
-
-export declare function nextBootstrapEntry(target: BootstrapMirror): BootstrapDirectoryEntry?
+export declare function listBootstrapFiles(target: BootstrapMirror): string[]
     throws { BootstrapOutput }
 
 export declare function deleteBootstrapFile(target: BootstrapMirror, path: string): void

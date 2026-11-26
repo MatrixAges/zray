@@ -1,0 +1,13 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Input} out={string} />
+
+    <Call fn="initialize" in={$in} />
+
+    <Loop on={$in.running}>
+        <Call module="next" />
+    </Loop>
+
+    <Return value={$ctx.next.path} />
+</Module>

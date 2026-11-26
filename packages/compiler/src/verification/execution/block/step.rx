@@ -1,0 +1,107 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Statement} out={string?} />
+
+    <Call fn="prepare" in={$in} />
+
+    <Switch on={$ctx.prepare.kind}>
+        <Case value={Block.StatementKind.Evaluate}>
+            <Call
+                fn="bind"
+                in={{
+                    block: $in.block,
+                    session: $in.session,
+                    path: $in.path,
+                    expression: $ctx.prepare.expression,
+                    symbol: null
+                }}
+            />
+
+            <Return value={$ctx.bind} />
+        </Case>
+
+        <Case value={Block.StatementKind.Constant}>
+            <Call
+                fn="bind"
+                in={{
+                    block: $in.block,
+                    session: $in.session,
+                    path: $in.path,
+                    expression: $ctx.prepare.expression,
+                    symbol: $ctx.prepare.symbol
+                }}
+            />
+
+            <Return value={$ctx.bind} />
+        </Case>
+
+        <Case value={Block.StatementKind.Destructure}>
+            <Call
+                fn="destructure"
+                in={{
+                    ...$in.omit(["row"]),
+                    payload: $ctx.prepare.payload
+                }}
+            />
+
+            <Return value={$ctx.destructure} />
+        </Case>
+
+        <Case value={Block.StatementKind.Result}>
+            <Call
+                fn="result"
+                in={{
+                    block: $in.block,
+                    session: $in.session,
+                    path: $in.path,
+                    expression: $ctx.prepare.expression
+                }}
+            />
+
+            <Return value={$ctx.result} />
+        </Case>
+
+        <Case value={Block.StatementKind.Branch}>
+            <Call
+                fn="branch"
+                in={{
+                    ...$in.omit(["row"]),
+                    payload: $ctx.prepare.payload
+                }}
+            />
+
+            <Return value={$ctx.branch} />
+        </Case>
+
+        <Case value={Block.StatementKind.Switch}>
+            <Call
+                fn="select"
+                in={{
+                    ...$in.omit(["row"]),
+                    payload: $ctx.prepare.payload
+                }}
+            />
+
+            <Return value={$ctx.select} />
+        </Case>
+
+        <Case value={Block.StatementKind.Parallel}>
+            <Call
+                module="../parallel/run"
+                in={{
+                    ...$in.omit(["row"]),
+                    payload: $ctx.prepare.payload
+                }}
+            />
+
+            <Return value={$ctx.run} />
+        </Case>
+
+        <Default>
+            <Call fn="index.rejectSymbolicStatement" in={$in.block} />
+
+            <Return value={$ctx.rejectSymbolicStatement} />
+        </Default>
+    </Switch>
+</Module>

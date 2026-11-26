@@ -4,6 +4,8 @@ const compiled = @import("../compiled.zig");
 const Index = @import("imports/index.zig");
 const Destination = @import("load.zig").Destination;
 const Project = @import("../project.zig").Options;
+const generated = @import("parser_options").generated_parser;
+const UnitSize = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".CompiledUnitSize else struct { exports: u64, initializers: u64 };
 pub const Initializers = std.ArrayList(compiled.StoreInitializer);
 pub const Error = std.mem.Allocator.Error || error{ MissingLibrary, ConflictingArtifact, InvalidLibrary, MissingPublicModule };
 const ResolutionError = std.mem.Allocator.Error || error{ MissingLibrary, ConflictingArtifact };
@@ -37,6 +39,7 @@ const Load = struct {
     exports: []const compiled.Export = &.{},
     names: memory.TextColumn = undefined,
     buckets: []u64 = &.{},
+    size: UnitSize = undefined,
     fn borrow(handle: *anyopaque) *Load {
         return @ptrCast(@alignCast(handle));
     }
@@ -78,9 +81,10 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
         .member = &.{ .names = @ptrCast(&frame.names), .buckets = @ptrCast(&frame.buckets), .name = target.name },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [128]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
-    const row = rule.executeIn(empty.allocator(), &input) catch |err| return switch (@as(anyerror, err)) {
+    const row = rule.executeIn(scratch.allocator(), &input) catch |err| return switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         error.MissingLibrary => error.MissingLibrary,
         error.ConflictingArtifact => error.ConflictingArtifact,
@@ -113,16 +117,19 @@ pub fn findCompiledLibrary(handle: *anyopaque, index: u64, inherited: bool) ?u64
     return frame.useExports(unit.exports, unit.names.storage);
 }
 
-pub fn reserveCompiledUnit(handle: *anyopaque, index: u64) std.mem.Allocator.Error!u64 {
+pub fn reserveCompiledUnit(handle: *anyopaque, index: u64) std.mem.Allocator.Error!*const UnitSize {
     const frame = Load.borrow(handle);
 
     try frame.cache.added.ensureUnusedCapacity(frame.allocator, 1);
 
-    return frame.project.compiled_libraries[@intCast(index)].exports.len;
-}
+    const library = frame.project.compiled_libraries[@intCast(index)];
 
-pub fn compiledInitializerCount(handle: *anyopaque, index: u64) u64 {
-    return Load.borrow(handle).project.compiled_libraries[@intCast(index)].store_initializers.len;
+    frame.size = .{
+        .exports = library.exports.len,
+        .initializers = library.store_initializers.len,
+    };
+
+    return &frame.size;
 }
 
 pub fn bindCompiledImport(handle: *anyopaque, index: u64) (std.mem.Allocator.Error || error{InvalidLibrary})!u64 {
