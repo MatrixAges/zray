@@ -1,9 +1,9 @@
 <Module>
     <Type from="model" as="Resources" />
 
-    <Args in={Resources.Preparation?} out={void} />
+    <Args in={Resources.Step} out={void} />
 
-    <Loop on={$in != null}>
+    <Loop on={$in.running}>
         <Call module="modules" in={$in} />
     </Loop>
 </Module>

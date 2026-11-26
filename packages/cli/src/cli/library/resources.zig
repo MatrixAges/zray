@@ -32,8 +32,6 @@ pub const State = struct {
     external_includes: std.ArrayList([]const u8) = .empty,
     current: *project.NativeModule = undefined,
     dependency: *Dependency = undefined,
-    bundle: native_sources.Result = undefined,
-    bundle_paths: [][]const u8 = &.{},
     root: []const u8 = undefined,
     module: Module = undefined,
 };
@@ -57,7 +55,13 @@ pub fn libraryNativeModule(handle: *const anyopaque, index: u64) *const Module {
     self.current = native;
     self.dependency = &self.dependencies[row];
     self.dependency.* = .{ .name = native.name, .header = native.header, .c_imports = native.header != null };
-    self.module = .{ .name = native.name, .includes = native.include_paths };
+
+    self.module = .{
+        .name = native.name,
+        .includes = native.include_paths,
+        .has_bundle = native.path != null or native.bundle_files.len != 0,
+        .has_header = native.header != null,
+    };
 
     return &self.module;
 }
@@ -69,17 +73,7 @@ pub fn bindLibraryModule(handle: *const anyopaque, root: []const u8, includes: [
     self.current.include_paths = includes;
 }
 
-pub fn hasBundleInput(handle: *const anyopaque) bool {
-    const native = effects.state(State, handle).current;
-
-    return native.path != null or native.bundle_files.len != 0;
-}
-
-pub fn hasNativeHeader(handle: *const anyopaque) bool {
-    return effects.state(State, handle).current.header != null;
-}
-
-pub fn bundleNativeModule(handle: *const anyopaque) Error!void {
+pub fn bundleNativeModule(handle: *const anyopaque, record_bundle: bool) Error![]const []const u8 {
     const self = effects.state(State, handle);
     const native = self.current;
 
@@ -91,7 +85,6 @@ pub fn bundleNativeModule(handle: *const anyopaque) Error!void {
         .include_paths = native.include_paths.?,
     }, self.inputs) catch |err| return self.failure.save(err);
 
-    self.bundle = bundled;
     native.path = bundled.entry;
     native.include_paths = bundled.include_paths;
     self.dependency.c_imports = bundled.c_imports;
@@ -99,28 +92,18 @@ pub fn bundleNativeModule(handle: *const anyopaque) Error!void {
     self.dependency.include_relocations = bundled.include_relocations;
 
     self.bundled_files.appendSlice(self.allocator, bundled.files) catch |err| return self.failure.save(err);
-}
 
-pub fn allocateBundlePaths(handle: *const anyopaque) Error!void {
-    const self = effects.state(State, handle);
+    if (record_bundle) {
+        const paths = self.allocator.alloc([]const u8, bundled.files.len) catch |err| return self.failure.save(err);
 
-    self.bundle_paths = self.allocator.alloc([]const u8, self.bundle.files.len) catch |err| return self.failure.save(err);
-    self.current.bundle_files = self.bundle_paths;
-}
+        for (bundled.files, 0..) |file, index| {
+            paths[index] = file.path;
+        }
 
-pub fn bundleFileCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).bundle.files.len;
-}
+        native.bundle_files = paths;
+    }
 
-pub fn recordBundlePath(handle: *const anyopaque, index: u64) void {
-    const self = effects.state(State, handle);
-    const row: usize = @intCast(index);
-
-    self.bundle_paths[row] = self.bundle.files[row].path;
-}
-
-pub fn nativeIncludes(handle: *const anyopaque) []const []const u8 {
-    return effects.state(State, handle).current.include_paths.?;
+    return bundled.include_paths;
 }
 
 pub fn addExternalInclude(handle: *const anyopaque, path: []const u8) Error!void {

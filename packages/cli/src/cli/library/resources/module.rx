@@ -1,24 +1,38 @@
 <Module>
     <Type from="model" as="Resources" />
 
-    <Args in={Resources.Input} out={void} />
+    <Args in={Resources.ModuleInput} out={void} />
 
-    <Call fn="index.hasNativeHeader" in={$in} />
-    <Call fn="index.hasBundleInput" in={$in} />
+    <If on={$in.has_bundle}>
+        <Call
+            fn="index.bundleNativeModule"
+            in={[
+                $in.resources,
+                $in.has_header
+            ]}
+        />
 
-    <If on={$ctx.hasBundleInput}>
-        <Call fn="index.bundleNativeModule" in={$in} />
+        <Call
+            fn="includes"
+            in={[
+                $in.resources,
+                $ctx.bundleNativeModule
+            ]}
+        />
 
-        <If on={$ctx.hasNativeHeader}>
-            <Call fn="index.allocateBundlePaths" in={$in} />
-            <Call fn="bundle_paths" in={$in} />
-        </If>
+        <Else>
+            <Call
+                fn="includes"
+                in={[
+                    $in.resources,
+                    $in.includes
+                ]}
+            />
+        </Else>
     </If>
 
-    <Call fn="includes" in={$in} />
-
-    <If on={$ctx.hasNativeHeader}>
-        <Call fn="index.writeLibraryNativeHeader" in={$in} />
-        <Call fn="index.writeLibraryNativeAdapter" in={$in} />
+    <If on={$in.has_header}>
+        <Call fn="index.writeLibraryNativeHeader" in={$in.resources} />
+        <Call fn="index.writeLibraryNativeAdapter" in={$in.resources} />
     </If>
 </Module>

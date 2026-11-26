@@ -29,8 +29,6 @@ pub fn write(request: Request) ![]const inventory.File {
     const stage_ref = &state;
     const native_ref = &native;
     var paths: @import("../project/native_paths.zig").Paths = undefined;
-    var position = [1]u64{0};
-    var cursor: []u64 = &position;
 
     paths.init(request.loaded, &request.allocator);
 
@@ -42,7 +40,6 @@ pub fn write(request: Request) ![]const inventory.File {
             .resources = @ptrCast(&native_ref),
             .setup = &paths.setup,
             .count = request.loaded.config.native_modules.len,
-            .cursor = @ptrCast(&cursor),
         },
     }) catch |err| return failure.unwrap(state.disk.unwrap(err));
 

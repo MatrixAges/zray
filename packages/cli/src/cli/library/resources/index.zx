@@ -3,11 +3,7 @@ export {
     libraryNativeModule,
     bindLibraryModule,
     bindLibraryPaths,
-    hasBundleInput,
-    hasNativeHeader,
     bundleNativeModule,
-    allocateBundlePaths,
     writeLibraryNativeHeader,
     writeLibraryNativeAdapter
 } from "library_stage_host"
-export { readU64 } from "memory"

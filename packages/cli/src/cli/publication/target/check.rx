@@ -35,9 +35,10 @@
     <Call
         fn="overlap"
         in={{
-            target: $in.target,
             logical: $ctx.resolvePathParts,
-            physical: $ctx.destination
+            physical: $ctx.destination,
+            logical_inputs: $in.logical_inputs,
+            physical_inputs: $in.physical_inputs
         }}
     />
 

@@ -7,8 +7,6 @@ const Error = effects.Error;
 const Target = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
-    inputs: *const Inputs,
-    entries: Inputs.Observations.Iterator,
     failure: effects.Failure = .{},
     physical: [std.Io.Dir.max_path_bytes]u8 = undefined,
     result: ?[:0]u8 = null,
@@ -18,15 +16,34 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    var target: Target = .{ .io = io, .allocator = allocator, .inputs = inputs, .entries = inputs.entries.iterator() };
+    var target: Target = .{ .io = io, .allocator = allocator };
 
     defer arena.deinit();
     errdefer if (target.result) |result| allocator.free(result);
 
-    const status = rule.executeIn(scratch.allocator(), &.{
+    const scratch_allocator = scratch.allocator();
+    const count = inputs.entries.count();
+    const logical_inputs = try scratch_allocator.alloc([]const u8, count);
+    const physical_inputs = try scratch_allocator.alloc([]const u8, count);
+    var entries = inputs.entries.iterator();
+    var index: usize = 0;
+
+    while (entries.next()) |entry| : (index += 1) {
+        logical_inputs[index] = entry.key_ptr.*;
+
+        physical_inputs[index] = switch (entry.value_ptr.state) {
+            .file => |file| file.physical_path,
+            .directory => |directory| directory.physical_path,
+            else => entry.key_ptr.*,
+        };
+    }
+
+    const status = rule.executeIn(scratch_allocator, &.{
         .target = @ptrCast(&target),
         .cwd = inputs.cwd,
         .path = path,
+        .logical_inputs = logical_inputs,
+        .physical_inputs = physical_inputs,
     }) catch |err| return target.failure.unwrap(err);
 
     return switch (status) {
@@ -65,18 +82,4 @@ pub fn keepOutputPath(handle: *anyopaque, base: []const u8, logical: []const u8,
     self.result = result;
 
     return result;
-}
-
-pub fn observedLogicalOutput(handle: *anyopaque, path: []const u8) bool {
-    return effects.borrow(Target, handle).inputs.entries.contains(path);
-}
-
-pub fn nextPhysicalInput(handle: *anyopaque) ?[]const u8 {
-    const entry = effects.borrow(Target, handle).entries.next() orelse return null;
-
-    return switch (entry.value_ptr.state) {
-        .file => |file| file.physical_path,
-        .directory => |directory| directory.physical_path,
-        else => entry.key_ptr.*,
-    };
 }

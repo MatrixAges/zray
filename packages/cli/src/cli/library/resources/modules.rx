@@ -1,74 +1,66 @@
 <Module>
     <Type from="model" as="Step" />
 
-    <Args in={Step.Preparation?} out={Step.Preparation?} />
+    <Args in={Step.Step} out={Step.Step} />
 
-    <If on={$in != null}>
-        <Call
-            fn="index.readU64"
-            in={[
-                $in.cursor,
-                0
-            ]}
-        />
+    <Call
+        fn="index.libraryNativeModule"
+        in={[
+            $in.resources,
+            $in.index
+        ]}
+    />
 
-        <Call
-            fn="index.libraryNativeModule"
-            in={[
-                $in.resources,
-                $ctx.readU64
-            ]}
-        />
+    <Call
+        fn="../../command/scope/select"
+        in={{
+            setup: $in.setup,
+            name: $ctx.libraryNativeModule.name
+        }}
+    />
 
-        <Call
-            fn="../../command/scope/select"
-            in={{
-                setup: $in.setup,
-                name: $ctx.libraryNativeModule.name
-            }}
-        />
+    <Call
+        fn="../../command/scope/root"
+        in={{
+            setup: $in.setup,
+            index: $ctx.select
+        }}
+    />
 
-        <Call
-            fn="../../command/scope/root"
-            in={{
-                setup: $in.setup,
-                index: $ctx.select
-            }}
-        />
+    <Call
+        fn="../../command/scope/includes"
+        in={{
+            setup: $in.setup,
+            index: $ctx.select,
+            explicit: $ctx.libraryNativeModule.includes,
+            root: $ctx.root
+        }}
+    />
 
-        <Call
-            fn="../../command/scope/includes"
-            in={{
-                setup: $in.setup,
-                index: $ctx.select,
-                explicit: $ctx.libraryNativeModule.includes,
-                root: $ctx.root
-            }}
-        />
+    <Call
+        fn="index.bindLibraryModule"
+        in={[
+            $in.resources,
+            $ctx.root,
+            $ctx.includes
+        ]}
+    />
 
-        <Call
-            fn="index.bindLibraryModule"
-            in={[
-                $in.resources,
-                $ctx.root,
-                $ctx.includes
-            ]}
-        />
+    <Call
+        module="module"
+        in={{
+            resources: $in.resources,
+            includes: $ctx.includes,
+            has_bundle: $ctx.libraryNativeModule.has_bundle,
+            has_header: $ctx.libraryNativeModule.has_header
+        }}
+    />
 
-        <Call module="module" in={$in.resources} />
-
-        <Call
-            fn="../../command/scope/advance"
-            in={$in.pick([
-                "cursor",
-                "count"
-            ])}
-        />
-
-        <If on={$ctx.advance}>
-            <Return value={$in} />
-        </If>
-    </If>
-
-    <Return value={null} />
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.count
+        }}
+    />
 </Module>

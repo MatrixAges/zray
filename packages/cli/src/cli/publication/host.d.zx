@@ -78,8 +78,6 @@ export declare function keepOutputPath(
     logical: string,
     prefix: u64
 ): string throws { PublicationFailure }
-export declare function observedLogicalOutput(target: OutputTarget, path: string): bool
-export declare function nextPhysicalInput(target: OutputTarget): string?
 
 export declare function resourceRoot(walk: ResourceWalk): ResourceKind throws { PublicationFailure }
 export declare function openResources(walk: ResourceWalk): void throws { PublicationFailure }

@@ -1,12 +1,20 @@
-export type { NativeResources as Input } from "library_stage_host"
-
-import type { U64Buffer } from "memory"
 import type { NativeResources } from "library_stage_host"
 import type { Setup } from "../../command/scope/model"
 
 export type Preparation = {
     resources: NativeResources,
     setup: Setup,
-    count: u64,
-    cursor: U64Buffer
+    count: u64
+}
+
+export type Step = Preparation & {
+    index: u64,
+    running: bool
+}
+
+export type ModuleInput = {
+    resources: NativeResources,
+    includes: string[],
+    has_bundle: bool,
+    has_header: bool
 }

@@ -1,33 +1,34 @@
-import host from "publication_host"
-
-import type { OutputTarget } from "publication_host"
-
 export type Input = {
-    target: OutputTarget,
     logical: string,
-    physical: string
+    physical: string,
+    logical_inputs: string[],
+    physical_inputs: string[]
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { target, logical, physical } = in
+    const { logical, physical, logical_inputs, physical_inputs } = in
 
-    if (host.observedLogicalOutput(target, logical)) {
+    const logical_overlap = loop(0, {
+        while: index =>
+            index < logical_inputs.length && logical_inputs[index] != logical,
+        next: index => {
+            index += 1
+        },
+        return: index => index < logical_inputs.length
+    })
+
+    if (logical_overlap) {
         return true
     }
 
-    return loop({
-        searching: true,
-        found: false
-    }, {
-        while: state => state.searching,
-        next: state => {
-            const observed = host.nextPhysicalInput(target)
-
-            state.found = observed == physical
-            state.searching = observed != null && !state.found
+    return loop(0, {
+        while: index =>
+            index < physical_inputs.length && physical_inputs[index] != physical,
+        next: index => {
+            index += 1
         },
-        return: state => state.found
+        return: index => index < physical_inputs.length
     })
 }

@@ -75,6 +75,9 @@
 - **已完成进展（Wave 22 · 2026-11-26）**：
     - 在 `cli/library/retirement/` 落地 `<Store>`（[kept.store.rx](../../packages/cli/src/cli/library/retirement/kept.store.rx)）与 `keep_path.zx`，删除 `targets.zx` 并直接向 `walk`/`check`/`candidate`/`search` 传入不可变 `targets` 与 `RetirementPath.absolute`，删除 `retirement/storage.zig` 中 `StringHashMapUnmanaged` 与状态数组，从 `publication/host.d.zx` 净减 **5 个**回调；
     - 在 `cli/rx/checking/{store,function}/` 落地 `<Store>`（[seen.store.rx](../../packages/cli/src/cli/rx/checking/store/seen.store.rx)）与纯 ZX `has_delegate.zx`，删除 `store_types.zig` 中 `StringHashMapUnmanaged` 去重逻辑及 `function.zig` 中 `default_call`/`delegated` 游标，在 `rx/checking/host.d.zx` 净减 **7 个**原生回调；`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全通过。
+- **已完成进展（Wave 23 · 2026-11-26）**：
+    - 在 `cli/library/resources/` 移除 `U64Buffer` `cursor` 与 `bundle_paths.zx`，改写 `walk.rx`/`modules.rx`/`module.rx` 为常规索引循环并由 `libraryNativeModule`/`bundleNativeModule` 直接返回字段与 `includes`，从 `library/stage/host.d.zx` 净减 **6 个**回调；
+    - 在 `watch/output.zig` 预先传递不可变 `logical_inputs`/`physical_inputs`，将 `publication/target/overlap.zx` 收口为纯 ZX 并从 `publication/host.d.zx` 净减 **2 个**游标回调；`packages/cli` `ReleaseSmall` 构建与 `ReleaseSafe` 全量测试全部通过。
 - 收口 `library/workflow/host.d.zx`（42f）、`publication/host.d.zx`（48f）、`native_sources/host.d.zx`（40f）、`lint/host.d.zx`（68f）与 `package/{workspace,graph}/host.d.zx`（69f）；
 - 对接 `pkgs.md` Phase K1 与 `lint.md` Phase L1 的顶层 RX 入口，由 CLI 的 RX 直接 `Call.module` 调用 `pkgs` 与 `lint`，消灭两包之间的 Zig 中转胶水；
 - 收口 `cli/watch/{driver,observation}` 仅保留 OS 目录事件/子进程重启原语。

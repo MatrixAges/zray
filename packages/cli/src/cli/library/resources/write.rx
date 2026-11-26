@@ -23,6 +23,15 @@
     />
 
     <If on={$in.count != 0}>
-        <Call module="walk" in={$in} />
+        <Call
+            module="walk"
+            in={{
+                resources: $in.resources,
+                setup: $in.setup,
+                count: $in.count,
+                index: 0,
+                running: true
+            }}
+        />
     </If>
 </Module>
