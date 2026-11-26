@@ -3,54 +3,25 @@ import words from "core/ir/fingerprint/words"
 
 import strings from "../strings"
 
-import type { Writer } from "std:bytes"
 import type { Table } from "core/type_table/model"
 
-export type Input = {
-    out: Writer,
-    table: Table
-}
+export type Input = Table
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, table } = in
-
-    bytes.writeU64Le(out, table.kinds.length)
-    bytes.write(out, table.kinds)
-
-    words({
-        out,
-        values: table.first
-    })
-
-    words({
-        out,
-        values: table.second
-    })
-
-    strings({
-        out,
-        values: table.labels
-    })
-
-    words({
-        out,
-        values: table.children
-    })
-
-    words({
-        out,
-        values: table.field_types
-    })
-
-    strings({
-        out,
-        values: table.field_names
-    })
-
-    strings({
-        out,
-        values: table.names
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            bytes.encodeU64Le(in.kinds.length),
+            in.kinds,
+            words(in.first),
+            words(in.second),
+            strings(in.labels),
+            words(in.children),
+            words(in.field_types),
+            strings(in.field_names),
+            strings(in.names)
+        ]
+    )
 }

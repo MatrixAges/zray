@@ -1,25 +1,28 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
-import type { Writer } from "std:bytes"
+export type Input = u32[]
 
-export type Input = {
-    out: Writer,
-    values: u32[]
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, values } = in
+    const start_index: u64 = 0
 
-    bytes.writeU64Le(out, values.length)
-
-    const result = loop(0, {
-        while: index => index < values.length,
-        next: index => {
-            bytes.writeU64Le(out, integers.widen(values[index]))
-            index += 1
+    const { out } = loop(
+        {
+            index: start_index,
+            out: [
+                in.length
+            ]
+        },
+        {
+            while: state => state.index < in.length,
+            next: state => {
+                state.out = state.out.push(integers.widen(in[state.index]))[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.encodeU64sLe(out)
 }

@@ -7,7 +7,7 @@ import scope from "./scope"
 
 import type { ExpressionRow as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     return match in.kind {

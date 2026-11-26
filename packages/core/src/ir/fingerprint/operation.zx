@@ -12,135 +12,108 @@ import words from "./words"
 
 import type { ExpressionRow as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, expressions, kind, payload } = in
+    const { expressions, kind, payload } = in
 
     if (kind == ExpressionKind.Field || kind == ExpressionKind.TupleField) {
-        bytes.writeU64Le(
-            out,
-            integers.widen(expressions.projection_targets[payload])
-        )
-
-        bytes.writeU64Le(
-            out,
+        return bytes.encodeU64sLe([
+            integers.widen(
+                expressions.projection_targets[payload]
+            ),
             integers.widen(expressions.projection_indices[payload])
-        )
-
-        return
+        ])
     }
 
     switch (kind) {
         case ExpressionKind.Index:
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.index_targets[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
+            return bytes.encodeU64sLe([
+                integers.widen(
+                    expressions.index_targets[payload]
+                ),
                 integers.widen(expressions.index_values[payload])
-            )
+            ])
         case ExpressionKind.ListOperation:
-            bytes.writeU64Le(
-                out,
-                collectionKind(expressions.collection_kinds[payload])
+            return bytes.join(
+                bytes.fromText(""),
+                [
+                    bytes.encodeU64sLe([
+                        collectionKind(
+                            expressions.collection_kinds[payload]
+                        ),
+                        integers.widen(
+                            expressions.collection_targets[payload]
+                        )
+                    ]),
+                    words(
+                        memory.borrowU32Range(
+                            expressions.collection_arguments,
+                            integers.widen(expressions.collection_first[payload]),
+                            integers.widen(
+                                expressions.collection_count[payload]
+                            )
+                        )
+                    )
+                ]
             )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.collection_targets[payload])
-            )
-
-            words({
-                out,
-                values: memory.borrowU32Range(
-                    expressions.collection_arguments,
-                    integers.widen(expressions.collection_first[payload]),
-                    integers.widen(expressions.collection_count[payload])
-                )
-            })
         case ExpressionKind.Transform:
-            bytes.writeU64Le(
-                out,
-                transformKind(expressions.transform_kinds[payload])
+            return bytes.join(
+                bytes.fromText(""),
+                [
+                    bytes.encodeU64sLe([
+                        transformKind(
+                            expressions.transform_kinds[payload]
+                        ),
+                        integers.widen(
+                            expressions.transform_targets[payload]
+                        )
+                    ]),
+                    words(
+                        memory.borrowU32Range(
+                            expressions.transform_parameters,
+                            integers.widen(expressions.transform_first[payload]),
+                            integers.widen(expressions.transform_count[payload])
+                        )
+                    ),
+                    bytes.encodeU64Le(
+                        integers.widen(
+                            expressions.transform_bodies[payload]
+                        )
+                    ),
+                    optionalWord(expressions.transform_initials[payload])
+                ]
             )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.transform_targets[payload])
-            )
-
-            words({
-                out,
-                values: memory.borrowU32Range(
-                    expressions.transform_parameters,
-                    integers.widen(expressions.transform_first[payload]),
-                    integers.widen(expressions.transform_count[payload])
-                )
-            })
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.transform_bodies[payload])
-            )
-
-            optionalWord({
-                out,
-                value: expressions.transform_initials[payload]
-            })
         case ExpressionKind.ListUpdate:
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.update_targets[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.update_indices[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
+            return bytes.encodeU64sLe([
+                integers.widen(
+                    expressions.update_targets[payload]
+                ),
+                integers.widen(expressions.update_indices[payload]),
                 integers.widen(expressions.update_values[payload])
-            )
+            ])
         case ExpressionKind.Unary:
-            bytes.writeU64Le(
-                out,
-                unaryOperator(expressions.unary_operators[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
+            return bytes.encodeU64sLe([
+                unaryOperator(
+                    expressions.unary_operators[payload]
+                ),
                 integers.widen(expressions.unary_operands[payload])
-            )
+            ])
         case ExpressionKind.Binary:
-            bytes.writeU64Le(
-                out,
-                binaryOperator(expressions.binary_operators[payload])
-            )
-
-            bytes.writeU64Le(out, integers.widen(expressions.binary_left[payload]))
-
-            bytes.writeU64Le(
-                out,
+            return bytes.encodeU64sLe([
+                binaryOperator(
+                    expressions.binary_operators[payload]
+                ),
+                integers.widen(expressions.binary_left[payload]),
                 integers.widen(expressions.binary_right[payload])
-            )
+            ])
         default:
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.conditional_conditions[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.conditional_yes[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
+            return bytes.encodeU64sLe([
+                integers.widen(
+                    expressions.conditional_conditions[payload]
+                ),
+                integers.widen(expressions.conditional_yes[payload]),
                 integers.widen(expressions.conditional_no[payload])
-            )
+            ])
     }
 }

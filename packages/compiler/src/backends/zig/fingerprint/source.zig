@@ -1,9 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const generating = @import("genz").zx.modules;
-const Writer = std.Io.Writer;
 
-pub fn header(out: *Writer, unit: generating.Unit, version: u32, flags: generating.Analysis.Entry.Flags, value_function: ?bool) void {
+pub fn header(allocator: std.mem.Allocator, unit: generating.Unit, version: u32, flags: generating.Analysis.Entry.Flags, value_function: ?bool) std.mem.Allocator.Error![]const u8 {
     const rule = @import("generated_generation_key_header");
     const fields = @typeInfo(@TypeOf(flags)).@"struct".field_names;
     var entry_flags: [fields.len]u8 = undefined;
@@ -15,8 +14,7 @@ pub fn header(out: *Writer, unit: generating.Unit, version: u32, flags: generati
         encoded = &entry_flags;
     }
 
-    execute(rule, .{
-        .out = @ptrCast(out),
+    return execute(rule, allocator, .{
         .unit = @fromBackingInt(@intFromEnum(std.meta.activeTag(unit))),
         .version = version,
         .entry_flags = encoded,
@@ -24,11 +22,10 @@ pub fn header(out: *Writer, unit: generating.Unit, version: u32, flags: generati
     });
 }
 
-pub fn plan(out: *Writer, value: generating.Analysis.Uniqueness.Plan) void {
+pub fn plan(allocator: std.mem.Allocator, value: generating.Analysis.Uniqueness.Plan) std.mem.Allocator.Error![]const u8 {
     const rule = @import("generated_generation_key_plan");
 
-    execute(rule, .{
-        .out = @ptrCast(out),
+    return execute(rule, allocator, .{
         .flags = std.mem.sliceAsBytes(value.flags),
         .transfers = std.mem.sliceAsBytes(value.transfers),
         .slot_first = std.mem.sliceAsBytes(value.slot_first),
@@ -37,16 +34,16 @@ pub fn plan(out: *Writer, value: generating.Analysis.Uniqueness.Plan) void {
     });
 }
 
-pub fn function(out: *Writer, state: anytype, index: usize) void {
+pub fn function(allocator: std.mem.Allocator, state: anytype, index: usize) std.mem.Allocator.Error![]const u8 {
     const rule = @import("generated_generation_key_function");
     const Input = std.meta.Child(rule.Input);
     const Context = std.meta.Child(@FieldType(Input, "context"));
-    const facts: Facts(Context) = .init(out, state);
+    const facts: Facts(Context) = .init(state);
     const context = facts.borrow();
     const program: *const zx.ir.Program = &state.program;
     const functions = zx.columns.columns(std.meta.Child(@FieldType(Input, "functions")), program.functions);
 
-    execute(rule, .{
+    return execute(rule, allocator, .{
         .context = &context,
         .functions = &functions,
         .modules = zx.columns.pointer(@FieldType(Input, "modules"), &program.native_modules),
@@ -54,13 +51,13 @@ pub fn function(out: *Writer, state: anytype, index: usize) void {
     });
 }
 
-pub fn entry(out: *Writer, state: anytype) void {
+pub fn entry(allocator: std.mem.Allocator, hash: *zx.Sha256, state: anytype) std.mem.Allocator.Error!void {
     const rule = @import("generated_generation_key_entry");
     const Input = std.meta.Child(rule.Input);
     const Context = std.meta.Child(@FieldType(Input, "context"));
     const Ports = std.meta.Child(@FieldType(Input, "ports"));
     const Exported = std.meta.Child(@FieldType(Input, "exported"));
-    const facts: Facts(Context) = .init(out, state);
+    const facts: Facts(Context) = .init(state);
     const context = facts.borrow();
     const program: *const zx.ir.Program = &state.program;
     const view = zx.memory.borrowNamedRows("type_id", program.exports);
@@ -74,7 +71,7 @@ pub fn entry(out: *Writer, state: anytype) void {
 
     const exported: Exported = .{ .prefix = context.prefix, .rows = @ptrCast(&view), .count = view.len };
 
-    execute(rule, .{
+    hash.update(try execute(rule, allocator, .{
         .context = &context,
         .ports = &ports,
         .exported = &exported,
@@ -86,12 +83,12 @@ pub fn entry(out: *Writer, state: anytype) void {
         .root = if (program.body.root) |id| @backingInt(id) else null,
         .mode = @fromBackingInt(@backingInt(program.store_mode)),
         .type_only = program.type_only,
-    });
+    }));
 
-    constants(context.prefix, program.constant_exports);
+    try constants(allocator, hash, context.prefix, program.constant_exports);
 }
 
-fn constants(prefix: anytype, source: []const zx.ir.Constant) void {
+fn constants(allocator: std.mem.Allocator, hash: *zx.Sha256, prefix: anytype, source: []const zx.ir.Constant) std.mem.Allocator.Error!void {
     if (source.len == 0) return;
 
     const rule = @import("generated_generation_key_constants");
@@ -116,7 +113,11 @@ fn constants(prefix: anytype, source: []const zx.ir.Constant) void {
 
         const values: Values = .{ .names = names[0..count], .values = pointers[0..count] };
 
-        execute(rule, .{ .prefix = zx.columns.pointer(@FieldType(Input, "prefix"), prefix), .values = &values, .total = total });
+        hash.update(try execute(rule, allocator, .{
+            .prefix = zx.columns.pointer(@FieldType(Input, "prefix"), prefix),
+            .values = &values,
+            .total = total,
+        }));
 
         total = null;
         remaining = remaining[count..];
@@ -130,12 +131,11 @@ fn Facts(comptime Context: type) type {
         const Calls = std.meta.Child(@FieldType(Context, "calls"));
         prefix: Prefix,
         calls: Calls,
-        fn init(out: *Writer, state: anytype) Self {
+        fn init(state: anytype) Self {
             const functions = &state.program.functions;
 
             return .{
                 .prefix = .{
-                    .out = @ptrCast(out),
                     .key_count = state.state_plan.keys.len,
                     .keys = std.mem.sliceAsBytes(state.state_plan.keys),
                     .names = state.names.types,
@@ -165,16 +165,16 @@ fn Facts(comptime Context: type) type {
     };
 }
 
-pub fn types(out: *Writer, program: *const zx.ir.Program, names: []const []const u8, keys: []const [32]u8) void {
+pub fn types(allocator: std.mem.Allocator, program: *const zx.ir.Program, names: []const []const u8, keys: []const [32]u8) std.mem.Allocator.Error![]const u8 {
     const rule = @import("generated_generation_key_types");
     const Input = std.meta.Child(rule.Input);
     const Prefix = std.meta.Child(@FieldType(Input, "prefix"));
     const Table = std.meta.Child(@FieldType(Input, "table"));
-    const prefix: Prefix = .{ .out = @ptrCast(out), .key_count = keys.len, .keys = std.mem.sliceAsBytes(keys), .names = names };
+    const prefix: Prefix = .{ .key_count = keys.len, .keys = std.mem.sliceAsBytes(keys), .names = names };
     const table = zx.ir.TypeTable.borrow(Table, program.types);
     const functions = zx.columns.columns(std.meta.Child(@FieldType(Input, "functions")), program.functions);
 
-    execute(rule, .{
+    return execute(rule, allocator, .{
         .prefix = &prefix,
         .table = &table,
         .modules = zx.columns.pointer(@FieldType(Input, "modules"), &program.native_modules),
@@ -182,12 +182,11 @@ pub fn types(out: *Writer, program: *const zx.ir.Program, names: []const []const
     });
 }
 
-pub fn members(out: *Writer, digest: *const [32]u8, rows: []const generating.PublicMember, names: []const []const u8) void {
+pub fn members(allocator: std.mem.Allocator, digest: *const [32]u8, rows: []const generating.PublicMember, names: []const []const u8) std.mem.Allocator.Error![32]u8 {
     const rule = @import("generated_generation_key_members");
     const view = zx.memory.borrowNamedRows("function", rows);
 
-    execute(rule, .{
-        .out = @ptrCast(out),
+    const out = try execute(rule, allocator, .{
         .digest = digest,
         .count = rows.len,
         .members = @ptrCast(&view),
@@ -195,10 +194,15 @@ pub fn members(out: *Writer, digest: *const [32]u8, rows: []const generating.Pub
         .word_width = @sizeOf(usize),
         .little_endian = @import("builtin").cpu.arch.endian() == .little,
     });
+
+    std.debug.assert(out.len == 32);
+
+    return out[0..32].*;
 }
 
-fn execute(comptime rule: type, input: std.meta.Child(rule.Input)) void {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+fn execute(comptime rule: type, allocator: std.mem.Allocator, input: std.meta.Child(rule.Input)) std.mem.Allocator.Error![]const u8 {
+    return zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => error.OutOfMemory,
+        else => std.debug.panic("generation fingerprint failed: {s}", .{@errorName(err)}),
+    };
 }

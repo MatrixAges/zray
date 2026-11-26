@@ -5,11 +5,6 @@ pub fn join(allocator: std.mem.Allocator, separator: []const u8, values: []const
     return std.mem.join(allocator, separator, values);
 }
 
-const writer = @import("bytes/writer.zig");
-pub const write = writer.write;
-pub const writeByte = writer.writeByte;
-pub const writeU32Le = writer.writeU32Le;
-pub const writeU64Le = writer.writeU64Le;
 const reader = @import("bytes/reader.zig");
 pub const readU8s = reader.readU8s;
 pub const readU32sLe = reader.readU32sLe;

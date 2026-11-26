@@ -1,17 +1,10 @@
 <Module>
     <Type from="model" as="Bundle" />
 
-    <Args in={Bundle.Input} out={void} />
+    <Args in={Bundle.Input} out={u8[]} />
 
     <Call fn="../types" in={$in.prefix} />
-
-    <Call
-        fn="columns"
-        in={{
-            out: $in.prefix.out,
-            table: $in.table
-        }}
-    />
+    <Call fn="columns" in={$in.table} />
 
     <Call
         fn="modules"
@@ -29,4 +22,16 @@
             "functions"
         ])}
     />
+
+    <Call
+        fn="../join"
+        in={[
+            $ctx.types,
+            $ctx.columns,
+            $ctx.modules,
+            $ctx.signatures
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

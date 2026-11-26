@@ -14,33 +14,32 @@ export type Input = {
     index: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, expressions } = in.content
+    const { expressions } = in.content
 
     const kind = expressions.kinds[in.index]
     const payload = integers.widen(expressions.payloads[in.index])
 
-    bytes.writeU64Le(out, integers.widen(expressions.types[in.index]))
-
-    text({
-        out,
-        text: tag(kind)
-    })
-
-    if (kind == ExpressionKind.Call) {
-        call({
-            out,
+    const tail = match kind == ExpressionKind.Call {
+        true => call({
             expressions,
             payload
-        })
-    } else {
-        payloadBytes({
-            out,
+        }),
+        _ => payloadBytes({
             expressions,
             kind,
             payload
         })
     }
+
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            bytes.encodeU64Le(integers.widen(expressions.types[in.index])),
+            text(tag(kind)),
+            tail
+        ]
+    )
 }

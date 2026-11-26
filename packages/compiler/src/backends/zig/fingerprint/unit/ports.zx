@@ -1,26 +1,27 @@
+import bytes from "std:bytes"
 import text from "core/ir/fingerprint/text"
 
 import typeKey from "../types_bundle/type_key"
 
 import type { Ports as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { prefix } = in
 
-    text({
-        out: prefix.out,
-        text: in.file
-    })
-
-    typeKey({
-        prefix,
-        id: in.input_type
-    })
-
-    typeKey({
-        prefix,
-        id: in.output_type
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            text(in.file),
+            typeKey({
+                prefix,
+                id: in.input_type
+            }),
+            typeKey({
+                prefix,
+                id: in.output_type
+            })
+        ]
+    )
 }

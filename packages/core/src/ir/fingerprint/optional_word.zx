@@ -1,21 +1,26 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
-import type { Writer } from "std:bytes"
+export type Input = u32?
 
-export type Input = {
-    out: Writer,
-    value?: u32
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, value } = in
-
-    bytes.writeByte(out, value == null ? 0 : 1)
-
-    if (value != null) {
-        bytes.writeU64Le(out, integers.widen(value))
+    if (in == null) {
+        return [
+            0
+        ]
     }
+
+    const present: u8[] = [
+        1
+    ]
+
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            present,
+            bytes.encodeU64Le(integers.widen(in))
+        ]
+    )
 }

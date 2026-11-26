@@ -76,22 +76,25 @@ pub fn identify(self: *const Self, scratch: std.mem.Allocator, unit: generating.
         .entry, .types => try std.fmt.allocPrint(scratch, "{s}:{s}", .{ @tagName(unit), self.program.file_name }),
     };
 
-    var key = fingerprint.createAnalyzed(self.program, self.names, unit, self.analysis.value);
+    var key = try fingerprint.createAnalyzed(scratch, self.program, self.names, unit, self.analysis.value);
 
     if (unit == .entry and self.public_members.len != 0) {
-        const Hash = @import("zx").Sha256;
-
         if (comptime @import("parser_options").generated_parser) {
-            var buffer: [512]u8 = undefined;
-            var hash: std.Io.Writer.Hashing(Hash) = .init(&buffer);
+            var pending: [2048]u8 = undefined;
+            var arena = std.heap.ArenaAllocator.init(scratch);
 
-            @import("fingerprint/source.zig").members(&hash.writer, &key, self.public_members, self.names.functions);
-            hash.writer.flush() catch unreachable;
-            hash.hasher.final(&key);
+            defer arena.deinit();
 
-            return .{ .name = name, .key = key, .source = null };
+            var local = std.heap.BufferFirstAllocator.init(&pending, arena.allocator());
+
+            return .{
+                .name = name,
+                .key = try @import("fingerprint/source.zig").members(local.allocator(), &key, self.public_members, self.names.functions),
+                .source = null,
+            };
         }
 
+        const Hash = @import("zx").Sha256;
         var hash = Hash.init(.{});
 
         hash.update(&key);

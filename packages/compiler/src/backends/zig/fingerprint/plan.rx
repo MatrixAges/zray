@@ -1,8 +1,18 @@
 <Module>
     <Type from="model" as="Fingerprint" />
 
-    <Args in={Fingerprint.Plan} out={void} />
+    <Args in={Fingerprint.Plan} out={u8[]} />
 
     <Call fn="plan_prefix" in={$in} />
     <Call fn="renewals" in={$in} />
+
+    <Call
+        fn="join"
+        in={[
+            $ctx.plan_prefix,
+            $ctx.renewals
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

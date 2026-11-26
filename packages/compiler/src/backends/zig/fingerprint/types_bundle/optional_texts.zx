@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+
+import optionalText from "../optional_text"
+
+export type Input = string?[]?
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    if (in == null) {
+        return [
+            0
+        ]
+    }
+
+    const start_slot: u64 = 0
+
+    const present: u8[] = [
+        1
+    ]
+
+    const { parts } = loop(
+        {
+            slot: start_slot,
+            parts: [
+                present,
+                bytes.encodeU64Le(in.length)
+            ]
+        },
+        {
+            while: state => state.slot < in.length,
+            next: state => {
+                state.parts = state.parts.push(optionalText(in[state.slot]))[0]
+                state.slot += 1
+            }
+        }
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
+}

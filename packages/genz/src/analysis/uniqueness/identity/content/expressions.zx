@@ -4,22 +4,31 @@ import expression from "./expression"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    bytes.writeU64Le(in.out, in.expressions.kinds.length)
+    const start_index: u64 = 0
 
-    const result = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.expressions.kinds.length,
-        next: state => {
-            expression({
-                content: in,
-                index: state.index
-            })
-
-            state.index += 1
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(in.expressions.kinds.length)
+            ]
+        },
+        {
+            while: state => state.index < in.expressions.kinds.length,
+            next: state => {
+                state.parts = state.parts.push(
+                    expression({
+                        content: in,
+                        index: state.index
+                    })
+                )[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

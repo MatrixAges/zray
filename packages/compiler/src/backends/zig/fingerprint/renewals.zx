@@ -5,25 +5,33 @@ import { slot_stride } from "./const"
 
 import type { Plan as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out } = in
+    const start_index: u64 = 0
+    const empty_parts: u8[][] = []
 
-    const result = loop(0, {
-        while: index => index < in.keys.length,
-        next: index => {
-            const group = in.keys[index] / slot_stride
-            const path = in.paths[index]
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: empty_parts
+        },
+        {
+            while: state => state.index < in.keys.length,
+            next: state => {
+                const group = in.keys[state.index] / slot_stride
+                const path = in.paths[state.index]
+                const tail: u8 = group % 2 == 0 ? 0 : 1
 
-            bytes.writeU64Le(out, group / 2)
-            words({
-                out,
-                values: path
-            })
-
-            bytes.writeByte(out, group % 2 == 0 ? 0 : 1)
-            index += 1
+                state.parts = state.parts.push(bytes.encodeU64Le(group / 2))[0]
+                state.parts = state.parts.push(words(path))[0]
+                state.parts = state.parts.push([
+                    tail
+                ])[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

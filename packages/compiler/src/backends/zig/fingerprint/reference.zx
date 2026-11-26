@@ -2,8 +2,8 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import text from "core/ir/fingerprint/text"
 
+import optionalStrings from "./optional_strings"
 import stores from "./stores"
-import strings from "./strings"
 import typeKey from "./types_bundle/type_key"
 
 import type { Context } from "./body/model"
@@ -13,57 +13,67 @@ export type Input = {
     id: u32
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { calls, prefix } = in.context
     const { owner } = calls
-    const { out } = prefix
 
     const index = integers.widen(in.id)
-    const errors = calls.errors[index]
 
-    if (owner != null) {
-        bytes.writeByte(out, in.id < owner ? 1 : 0)
+    const head_flags: u8[] = [
+        calls.value[index] ? 1 : 0,
+        calls.pure[index] ? 1 : 0,
+        calls.local[index] ? 1 : 0,
+        calls.io[index] ? 1 : 0,
+        calls.process[index] ? 1 : 0,
+        calls.tasks[index] ? 1 : 0
+    ]
+
+    const tail_flags: u8[] = [
+        calls.fresh[index] ? 1 : 0,
+        calls.constructed[index] ? 1 : 0
+    ]
+
+    const id_free: u8[] = [
+        calls.identity_free[index] ? 1 : 0
+    ]
+
+    const body = bytes.join(
+        bytes.fromText(""),
+        [
+            text(calls.names[index]),
+            stores(calls.stores[index]),
+            head_flags,
+            optionalStrings(calls.errors[index]),
+            id_free,
+            typeKey({
+                prefix,
+                id: calls.input_types[index]
+            }),
+            typeKey({
+                prefix,
+                id: calls.output_types[index]
+            }),
+            tail_flags
+        ]
+    )
+
+    if (owner == null) {
+        return body
     }
 
-    text({
-        out,
-        text: calls.names[index]
-    })
+    const owner_flag: u8 = in.id < owner ? 1 : 0
 
-    stores({
-        out,
-        value: calls.stores[index]
-    })
+    const prefix_bytes: u8[] = [
+        owner_flag
+    ]
 
-    bytes.writeByte(out, calls.value[index] ? 1 : 0)
-    bytes.writeByte(out, calls.pure[index] ? 1 : 0)
-    bytes.writeByte(out, calls.local[index] ? 1 : 0)
-    bytes.writeByte(out, calls.io[index] ? 1 : 0)
-    bytes.writeByte(out, calls.process[index] ? 1 : 0)
-    bytes.writeByte(out, calls.tasks[index] ? 1 : 0)
-    bytes.writeByte(out, errors == null ? 0 : 1)
-
-    if (errors != null) {
-        strings({
-            out,
-            values: errors
-        })
-    }
-
-    bytes.writeByte(out, calls.identity_free[index] ? 1 : 0)
-
-    typeKey({
-        prefix,
-        id: calls.input_types[index]
-    })
-
-    typeKey({
-        prefix,
-        id: calls.output_types[index]
-    })
-
-    bytes.writeByte(out, calls.fresh[index] ? 1 : 0)
-    bytes.writeByte(out, calls.constructed[index] ? 1 : 0)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            prefix_bytes,
+            body
+        ]
+    )
 }

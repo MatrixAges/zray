@@ -1,10 +1,8 @@
-import type { Writer } from "std:bytes"
 import type { Control } from "core/control_table/model"
 import type { Expressions } from "core/expression_table/model"
 import type { Symbols } from "core/symbol_table/model"
 
 export type Input = {
-    out: Writer,
     symbols: Symbols,
     expressions: Expressions,
     control: Control,
@@ -15,7 +13,13 @@ export type Input = {
 }
 
 export type Call = {
-    out: Writer,
     expressions: Expressions,
     payload: u64
+}
+
+export type Parts = {
+    symbols: u8[],
+    expressions: u8[],
+    block: u8[],
+    signature: u8[]
 }

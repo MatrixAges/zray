@@ -7,18 +7,19 @@ import { digest_width } from "../../../../inputs/fingerprint/const"
 
 import type { TypeKey as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, keys, names } = in.prefix
+    const { keys, names } = in.prefix
 
     const index = integers.widen(in.id)
     const digest = memory.borrowU8Range(keys, index * digest_width, digest_width)
 
-    text({
-        out,
-        text: names[index]
-    })
-
-    bytes.write(out, digest)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            text(names[index]),
+            digest
+        ]
+    )
 }

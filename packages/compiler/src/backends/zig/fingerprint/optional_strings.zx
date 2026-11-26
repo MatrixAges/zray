@@ -1,0 +1,27 @@
+import bytes from "std:bytes"
+
+import strings from "./strings"
+
+export type Input = string[]?
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    if (in == null) {
+        return [
+            0
+        ]
+    }
+
+    const present: u8[] = [
+        1
+    ]
+
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            present,
+            strings(in)
+        ]
+    )
+}

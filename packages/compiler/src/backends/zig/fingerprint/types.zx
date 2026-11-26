@@ -4,16 +4,15 @@ import strings from "./strings"
 
 import type { TypePrefix as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out } = in
-
-    bytes.writeU64Le(out, in.key_count)
-    bytes.write(out, in.keys)
-
-    strings({
-        out,
-        values: in.names
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            bytes.encodeU64Le(in.key_count),
+            in.keys,
+            strings(in.names)
+        ]
+    )
 }

@@ -5,20 +5,27 @@ import memory from "memory"
 
 import type { Call as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, expressions, payload } = in
+    const { expressions, payload } = in
 
-    bytes.writeU64Le(out, integers.widen(expressions.call_functions[payload]))
-    bytes.writeU64Le(out, integers.widen(expressions.call_arguments[payload]))
-
-    words({
-        out,
-        values: memory.borrowU32Range(
-            expressions.call_stores,
-            integers.widen(expressions.call_store_first[payload]),
-            integers.widen(expressions.call_store_count[payload])
-        )
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            bytes.encodeU64sLe([
+                integers.widen(
+                    expressions.call_functions[payload]
+                ),
+                integers.widen(expressions.call_arguments[payload])
+            ]),
+            words(
+                memory.borrowU32Range(
+                    expressions.call_stores,
+                    integers.widen(expressions.call_store_first[payload]),
+                    integers.widen(expressions.call_store_count[payload])
+                )
+            )
+        ]
+    )
 }

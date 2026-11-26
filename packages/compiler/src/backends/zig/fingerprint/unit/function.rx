@@ -1,12 +1,11 @@
 <Module>
     <Type from="model" as="Unit" />
 
-    <Args in={Unit.Function} out={void} />
+    <Args in={Unit.Function} out={u8[]} />
 
     <Call
         fn="function_state"
         in={{
-            out: $in.context.prefix.out,
             stores: $in.functions.stores[$in.index],
             mode: $in.functions.store_modes[$in.index],
             ownership: $in.functions.ownership[$in.index]
@@ -24,7 +23,6 @@
     <Call
         fn="../types_bundle/external"
         in={{
-            out: $in.context.prefix.out,
             functions: $in.functions,
             modules: $in.modules,
             index: $in.index,
@@ -52,4 +50,17 @@
             root: $in.functions.roots[$in.index]
         }}
     />
+
+    <Call
+        fn="../join"
+        in={[
+            $ctx.function_state,
+            $ctx.contracts,
+            $ctx.external,
+            $ctx.ports,
+            $ctx.build
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

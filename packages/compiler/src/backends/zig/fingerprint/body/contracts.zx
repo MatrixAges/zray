@@ -8,34 +8,54 @@ import symbols from "./symbols"
 
 import type { Predicates as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { context, contracts } = in
     const { prefix } = context
-    const { out } = prefix
 
-    bytes.writeU64Le(out, contracts.kinds.length)
+    const start_index: u64 = 0
 
-    const result = loop(0, {
-        while: index => index < contracts.kinds.length,
-        next: index => {
-            const kind = match contracts.kinds[index] {
-                ContractKind.Requires => contract_requires,
-                _ => contract_ensures
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(contracts.kinds.length)
+            ]
+        },
+        {
+            while: state => state.index < contracts.kinds.length,
+            next: state => {
+                const kind = match contracts.kinds[state.index] {
+                    ContractKind.Requires => contract_requires,
+                    _ => contract_ensures
+                }
+
+                state.parts = state.parts
+                    .push(bytes.encodeU64Le(kind))[0]
+                    .push(
+                        symbols({
+                            prefix,
+                            symbols: contracts.symbols[state.index]
+                        })
+                    )[0]
+                    .push(
+                        rows({
+                            context,
+                            expressions: contracts.expressions[state.index]
+                        })
+                    )[0]
+                    .push(
+                        bytes.encodeU64Le(
+                            integers.widen(
+                                contracts.predicates[state.index]
+                            )
+                        )
+                    )[0]
+                state.index += 1
             }
-
-            bytes.writeU64Le(out, kind)
-            symbols({
-                prefix,
-                symbols: contracts.symbols[index]
-            })
-            rows({
-                context,
-                expressions: contracts.expressions[index]
-            })
-            bytes.writeU64Le(out, integers.widen(contracts.predicates[index]))
-            index += 1
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

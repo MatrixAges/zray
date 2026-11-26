@@ -7,7 +7,7 @@ const generated = @import("parser_options").generated_parser;
 const Self = @This();
 pub const Unit = @import("genz").zx.modules.Unit;
 
-hash: std.Io.Writer.Hashing(Hash),
+hash: Hash,
 program: ir.Program,
 current_function: ?ir.FunctionId = null,
 names: Names,
@@ -26,11 +26,9 @@ identity_free: []const bool,
 fresh_outputs: []const bool,
 constructed_outputs: []const bool,
 state_plan: @import("genz").zx.state_value.Analysis,
-pub fn createAnalyzed(program: ir.Program, names: Names, unit: Unit, facts: @import("genz").zx.modules.Analysis) [32]u8 {
-    var pending: [4096]u8 = undefined;
-
+pub fn createAnalyzed(scratch: std.mem.Allocator, program: ir.Program, names: Names, unit: Unit, facts: @import("genz").zx.modules.Analysis) std.mem.Allocator.Error![32]u8 {
     var self = Self{
-        .hash = .init(&pending),
+        .hash = Hash.init(.{}),
         .program = program,
         .names = names,
         .value_functions = facts.value.values,
@@ -48,10 +46,17 @@ pub fn createAnalyzed(program: ir.Program, names: Names, unit: Unit, facts: @imp
         .state_plan = facts.value.state,
     };
 
-    return self.finish(unit);
+    return self.finish(scratch, unit);
 }
 
-fn finish(self: *Self, unit: Unit) [32]u8 {
+fn finish(self: *Self, scratch: std.mem.Allocator, unit: Unit) std.mem.Allocator.Error![32]u8 {
+    var pending: [8192]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(scratch);
+
+    defer arena.deinit();
+
+    var local = std.heap.BufferFirstAllocator.init(&pending, arena.allocator());
+    const allocator = local.allocator();
     const program = &self.program;
     const value_functions = self.value_functions;
 
@@ -61,7 +66,7 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
             else => null,
         };
 
-        Source.header(&self.hash.writer, unit, program.version, self.entry_flags, value_function);
+        self.update(try Source.header(allocator, unit, program.version, self.entry_flags, value_function));
     } else {
         self.bytes("zxc.zig.input.v88");
         self.bytes(@tagName(unit));
@@ -75,20 +80,19 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
             self.current_function = id;
 
             if (comptime !generated) self.write(value_functions[@backingInt(id)]);
-
-            self.plan(self.uniqueness.functions[@backingInt(id)]);
+            try self.plan(allocator, self.uniqueness.functions[@backingInt(id)]);
 
             if (comptime generated) {
-                Source.function(&self.hash.writer, self, @backingInt(id));
+                self.update(try Source.function(allocator, self, @backingInt(id)));
             } else {
                 self.write(program.functions.at(@backingInt(id)));
             }
         },
         .entry => {
-            self.plan(self.uniqueness.entry);
+            try self.plan(allocator, self.uniqueness.entry);
 
             if (comptime generated) {
-                Source.entry(&self.hash.writer, self);
+                try Source.entry(allocator, &self.hash, self);
             } else {
                 self.write(.{
                     .file_name = program.file_name,
@@ -109,7 +113,7 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
         },
         .types => {
             if (comptime generated) {
-                Source.types(&self.hash.writer, &self.program, self.names.types, self.state_plan.keys);
+                self.update(try Source.types(allocator, &self.program, self.names.types, self.state_plan.keys));
             } else {
                 self.typesSeed();
             }
@@ -118,8 +122,7 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
 
     var result: [32]u8 = undefined;
 
-    self.hash.writer.flush() catch unreachable;
-    self.hash.hasher.final(&result);
+    self.hash.final(&result);
 
     return result;
 }
@@ -153,8 +156,12 @@ fn typesSeed(self: *Self) void {
     }
 }
 
-fn plan(self: *Self, value: @import("genz").zx.function_analysis.Uniqueness.Plan) void {
-    if (comptime generated and @typeInfo(@TypeOf(value.renewals)) == .@"struct") return Source.plan(&self.hash.writer, value);
+fn plan(self: *Self, allocator: std.mem.Allocator, value: @import("genz").zx.function_analysis.Uniqueness.Plan) std.mem.Allocator.Error!void {
+    if (comptime generated and @typeInfo(@TypeOf(value.renewals)) == .@"struct") {
+        self.update(try Source.plan(allocator, value));
+
+        return;
+    }
 
     self.update(std.mem.sliceAsBytes(value.flags));
     self.bytes(std.mem.sliceAsBytes(value.transfers));
@@ -276,5 +283,5 @@ fn bytes(self: *Self, value: []const u8) void {
 }
 
 fn update(self: *Self, value: []const u8) void {
-    self.hash.writer.writeAll(value) catch unreachable;
+    self.hash.update(value);
 }

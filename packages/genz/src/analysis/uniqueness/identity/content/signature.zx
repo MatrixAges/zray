@@ -3,9 +3,11 @@ import integers from "std:integer"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    bytes.writeU64Le(in.out, integers.widen(in.input_type))
-    bytes.writeU64Le(in.out, integers.widen(in.output_type))
+    return bytes.encodeU64sLe([
+        integers.widen(in.input_type),
+        integers.widen(in.output_type)
+    ])
 }

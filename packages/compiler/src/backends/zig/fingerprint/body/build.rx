@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Body" />
 
-    <Args in={Body.Body} out={void} />
+    <Args in={Body.Body} out={u8[]} />
 
     <Call
         fn="symbols"
@@ -22,9 +22,19 @@
     <Call
         fn="blocks"
         in={{
-            out: $in.context.prefix.out,
             control: $in.control,
             root: $in.root
         }}
     />
+
+    <Call
+        fn="../join"
+        in={[
+            $ctx.symbols,
+            $ctx.rows,
+            $ctx.blocks
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

@@ -1,0 +1,9 @@
+import bytes from "std:bytes"
+
+export type Input = u8[][]
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return bytes.join(bytes.fromText(""), in)
+}

@@ -1,13 +1,3 @@
-export type Writer = mutable_opaque
-
-export declare function write(out: Writer, value: u8[]): void throws { OutOfMemory }
-
-export declare function writeByte(out: Writer, value: u8): void throws { OutOfMemory }
-
-export declare function writeU32Le(out: Writer, value: u32): void throws { OutOfMemory }
-
-export declare function writeU64Le(out: Writer, value: u64): void throws { OutOfMemory }
-
 export declare function repeat(
     allocator,
     count: u64,

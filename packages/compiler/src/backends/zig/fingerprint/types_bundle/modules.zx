@@ -7,56 +7,76 @@ import typeKey from "./type_key"
 
 import type { NativeModules as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { modules, prefix } = in
-    const { out } = prefix
 
-    bytes.writeU64Le(out, modules.specifiers.length)
+    const start_index: u64 = 0
 
-    const result = loop(0, {
-        while: index => index < modules.specifiers.length,
-        next: index => {
-            text({
-                out,
-                text: modules.specifiers[index]
-            })
-            text({
-                out,
-                text: modules.import_names[index]
-            })
-            optionalText({
-                out,
-                value: modules.identities[index]
-            })
-            strings({
-                out,
-                values: modules.type_namespaces[index]
-            })
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(modules.specifiers.length)
+            ]
+        },
+        {
+            while: state => state.index < modules.specifiers.length,
+            next: state => {
+                const names = modules.type_names[state.index]
+                const ids = modules.type_ids[state.index]
+                const start_slot: u64 = 0
 
-            const names = modules.type_names[index]
-            const ids = modules.type_ids[index]
+                const { bindings } = loop(
+                    {
+                        slot: start_slot,
+                        bindings: state.parts
+                            .push(text(
+                                modules.specifiers[state.index]
+                            ))[0]
+                            .push(
+                                text(
+                                    modules.import_names[state.index]
+                                )
+                            )[0]
+                            .push(
+                                optionalText(
+                                    modules.identities[state.index]
+                                )
+                            )[0]
+                            .push(
+                                strings(
+                                    modules.type_namespaces[state.index]
+                                )
+                            )[0]
+                            .push(
+                                bytes.encodeU64Le(
+                                    names.length
+                                )
+                            )[0]
+                    },
+                    {
+                        while: inner => inner.slot < names.length,
+                        next: inner => {
+                            inner.bindings = inner.bindings
+                                .push(text(names[inner.slot]))[0]
+                                .push(
+                                    typeKey({
+                                        prefix,
+                                        id: ids[inner.slot]
+                                    })
+                                )[0]
+                            inner.slot += 1
+                        }
+                    }
+                )
 
-            bytes.writeU64Le(out, names.length)
-
-            const bindings = loop(0, {
-                while: slot => slot < names.length,
-                next: slot => {
-                    text({
-                        out,
-                        text: names[slot]
-                    })
-                    typeKey({
-                        prefix,
-                        id: ids[slot]
-                    })
-
-                    slot += 1
-                }
-            })
-
-            index += 1
+                state.parts = bindings
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

@@ -1,24 +1,26 @@
 import bytes from "std:bytes"
 import text from "core/ir/fingerprint/text"
 
-import type { Writer } from "std:bytes"
+export type Input = string?
 
-export type Input = {
-    out: Writer,
-    value?: string
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, value } = in
-
-    bytes.writeByte(out, value == null ? 0 : 1)
-
-    if (value != null) {
-        text({
-            out,
-            text: value
-        })
+    if (in == null) {
+        return [
+            0
+        ]
     }
+
+    const present: u8[] = [
+        1
+    ]
+
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            present,
+            text(in)
+        ]
+    )
 }

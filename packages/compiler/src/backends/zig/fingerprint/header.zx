@@ -7,10 +7,10 @@ import { Unit } from "./model"
 
 import type { Header as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, value_function } = in
+    const { value_function } = in
 
     const label = match in.unit {
         Unit.Entry => entry,
@@ -19,23 +19,27 @@ export default function (in: Input): Output {
         _ => regular
     }
 
-    text({
-        out,
-        text: domain
-    })
+    const base = [
+        text(domain),
+        text(label),
+        bytes.encodeU64Le(integers.widen(in.version))
+    ]
 
-    text({
-        out,
-        text: label
-    })
-
-    bytes.writeU64Le(out, integers.widen(in.version))
-
-    if (in.unit == Unit.Entry) {
-        bytes.write(out, in.entry_flags)
+    const with_entry = match in.unit == Unit.Entry {
+        true => base.push(in.entry_flags)[0],
+        _ => base
     }
 
-    if (value_function != null) {
-        bytes.writeByte(out, value_function ? 1 : 0)
+    if (value_function == null) {
+        return bytes.join(bytes.fromText(""), with_entry)
     }
+
+    const flag_byte: u8 = value_function ? 1 : 0
+
+    return bytes.join(
+        bytes.fromText(""),
+        with_entry.push([
+            flag_byte
+        ])[0]
+    )
 }

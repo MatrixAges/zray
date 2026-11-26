@@ -1,29 +1,28 @@
 import bytes from "std:bytes"
 import text from "core/ir/fingerprint/text"
 
-import type { Writer } from "std:bytes"
+export type Input = string[]
 
-export type Input = {
-    out: Writer,
-    values: string[]
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, values } = in
+    const start_index: u64 = 0
 
-    bytes.writeU64Le(out, values.length)
-
-    const result = loop(0, {
-        while: index => index < values.length,
-        next: index => {
-            text({
-                out,
-                text: values[index]
-            })
-
-            index += 1
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(in.length)
+            ]
+        },
+        {
+            while: state => state.index < in.length,
+            next: state => {
+                state.parts = state.parts.push(text(in[state.index]))[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

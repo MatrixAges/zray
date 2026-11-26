@@ -4,10 +4,10 @@ import type { Block } from "core/ir/fingerprint/model"
 
 export type Input = Block.Omit("symbolic")
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    writeBlock({
+    return writeBlock({
         ...in,
         symbolic: true
     })

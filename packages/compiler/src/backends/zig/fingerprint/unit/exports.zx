@@ -6,26 +6,38 @@ import typeKey from "../types_bundle/type_key"
 
 import type { Exported as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { prefix, rows, count } = in
-    const { out } = prefix
 
-    bytes.writeU64Le(out, count)
+    const start_index: u64 = 0
 
-    const result = loop(0, {
-        while: index => index < count,
-        next: index => {
-            text({
-                out,
-                text: memory.readRowName(rows, index)
-            })
-            typeKey({
-                prefix,
-                id: memory.readRowId(rows, index)
-            })
-            index += 1
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(count)
+            ]
+        },
+        {
+            while: state => state.index < count,
+            next: state => {
+                state.parts = state.parts
+                    .push(text(memory.readRowName(
+                        rows,
+                        state.index
+                    )))[0]
+                    .push(
+                        typeKey({
+                            prefix,
+                            id: memory.readRowId(rows, state.index)
+                        })
+                    )[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

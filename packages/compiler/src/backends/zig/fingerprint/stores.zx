@@ -1,43 +1,24 @@
+import bytes from "std:bytes"
 import words from "core/ir/fingerprint/words"
 
 import booleans from "./booleans"
 import strings from "./strings"
 
-import type { Writer } from "std:bytes"
 import type { Stores } from "core/store_table/model"
 
-export type Input = {
-    out: Writer,
-    value: Stores
-}
+export type Input = Stores
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, value } = in
-
-    strings({
-        out,
-        values: value.handles
-    })
-
-    strings({
-        out,
-        values: value.paths
-    })
-
-    booleans({
-        out,
-        values: value.readable
-    })
-
-    words({
-        out,
-        values: value.types
-    })
-
-    booleans({
-        out,
-        values: value.writable
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            strings(in.handles),
+            strings(in.paths),
+            booleans(in.readable),
+            words(in.types),
+            booleans(in.writable)
+        ]
+    )
 }

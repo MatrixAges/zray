@@ -2,78 +2,83 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 
 import native from "../native"
+import optionalStrings from "../optional_strings"
 import optionalText from "../optional_text"
 import strings from "../strings"
+import optionalTexts from "./optional_texts"
 
 import type { External as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, functions, modules, index } = in
+    const { functions, modules, index } = in
 
     const id = functions.native_modules[index]
 
-    if (in.optional) {
-        bytes.writeByte(out, id == null ? 0 : 1)
-    }
-
     if (id == null) {
-        return
+        if (in.optional) {
+            return [
+                0
+            ]
+        }
+
+        return []
     }
 
     const module = integers.widen(id)
-    const input = functions.native_inputs[index]
-    const errors = functions.native_errors[index]
+    const empty_parts: u8[][] = []
 
-    bytes.writeByte(out, input == null ? 0 : 1)
-
-    if (input != null) {
-        bytes.writeU64Le(out, input.length)
-
-        const names = loop(0, {
-            while: index => index < input.length,
-            next: index => {
-                optionalText({
-                    out,
-                    value: input[index]
-                })
-                index += 1
-            }
-        })
+    const head = match in.optional {
+        true => empty_parts.push([
+            1
+        ])[0],
+        _ => empty_parts
     }
 
-    native({
-        out,
-        specifier: modules.specifiers[module],
-        identity: modules.identities[module],
-        import_name: modules.import_names[module],
-        namespace: modules.type_namespaces[module]
-    })
+    const flags: u8[] = [
+        functions.native_allocators[index] ? 1 : 0,
+        functions.native_io[index] ? 1 : 0,
+        functions.native_process[index] ? 1 : 0,
+        functions.native_tuples[index] ? 1 : 0,
+        functions.native_fallible[index] ? 1 : 0
+    ]
 
-    strings({
-        out,
-        values: functions.native_members[index]
-    })
+    const concurrent: u8[] = [
+        functions.native_concurrent[index] ? 1 : 0
+    ]
 
-    optionalText({
-        out,
-        value: functions.native_exports[index]
-    })
+    const parts = head
+        .push(optionalTexts(functions.native_inputs[index]))[0]
+        .push(
+            native({
+                specifier: modules.specifiers[module],
+                identity: modules.identities[module],
+                import_name: modules.import_names[module],
+                namespace: modules.type_namespaces[module]
+            })
+        )[0]
+        .push(
+            strings(
+                functions.native_members[index]
+            )
+        )[0]
+        .push(
+            optionalText(
+                functions.native_exports[index]
+            )
+        )[0]
+        .push(
+            flags
+        )[0]
+        .push(
+            optionalStrings(
+                functions.native_errors[index]
+            )
+        )[0]
+        .push(
+            concurrent
+        )[0]
 
-    bytes.writeByte(out, functions.native_allocators[index] ? 1 : 0)
-    bytes.writeByte(out, functions.native_io[index] ? 1 : 0)
-    bytes.writeByte(out, functions.native_process[index] ? 1 : 0)
-    bytes.writeByte(out, functions.native_tuples[index] ? 1 : 0)
-    bytes.writeByte(out, functions.native_fallible[index] ? 1 : 0)
-    bytes.writeByte(out, errors == null ? 0 : 1)
-
-    if (errors != null) {
-        strings({
-            out,
-            values: errors
-        })
-    }
-
-    bytes.writeByte(out, functions.native_concurrent[index] ? 1 : 0)
+    return bytes.join(bytes.fromText(""), parts)
 }

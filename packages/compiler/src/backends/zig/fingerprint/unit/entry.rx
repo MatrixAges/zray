@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Unit" />
 
-    <Args in={Unit.Entry} out={void} />
+    <Args in={Unit.Entry} out={u8[]} />
 
     <Call fn="ports" in={$in.ports} />
 
@@ -29,10 +29,22 @@
     <Call
         fn="entry_state"
         in={{
-            out: $in.context.prefix.out,
             stores: $in.stores,
             mode: $in.mode,
             type_only: $in.type_only
         }}
     />
+
+    <Call
+        fn="../join"
+        in={[
+            $ctx.ports,
+            $ctx.build,
+            $ctx.exports,
+            $ctx.contracts,
+            $ctx.entry_state
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

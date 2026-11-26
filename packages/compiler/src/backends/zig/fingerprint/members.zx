@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import crypto from "std:crypto"
 import integers from "std:integer"
 import memory from "memory"
 
@@ -6,36 +7,47 @@ import length from "./member_length"
 
 import type { PublicMembers as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, word_width, little_endian } = in
+    const { word_width, little_endian } = in
 
-    bytes.write(out, in.digest)
+    const start_index: u64 = 0
 
-    const result = loop(0, {
-        while: index => index < in.count,
-        next: index => {
-            const name = memory.readRowName(in.members, index)
-            const id = memory.readRowId(in.members, index)
-            const target = in.names[integers.widen(id)]
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                in.digest
+            ]
+        },
+        {
+            while: state => state.index < in.count,
+            next: state => {
+                const name = memory.readRowName(in.members, state.index)
+                const id = memory.readRowId(in.members, state.index)
+                const target = in.names[integers.widen(id)]
 
-            length({
-                out,
-                size: name.length,
-                width: word_width,
-                little_endian
-            })
-            bytes.write(out, bytes.fromText(name))
-            length({
-                out,
-                size: target.length,
-                width: word_width,
-                little_endian
-            })
-            bytes.write(out, bytes.fromText(target))
-
-            index += 1
+                state.parts = state.parts.push(
+                    length({
+                        size: name.length,
+                        width: word_width,
+                        little_endian
+                    })
+                )[0]
+                state.parts = state.parts.push(bytes.fromText(name))[0]
+                state.parts = state.parts.push(
+                    length({
+                        size: target.length,
+                        width: word_width,
+                        little_endian
+                    })
+                )[0]
+                state.parts = state.parts.push(bytes.fromText(target))[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return crypto.sha256Parts(parts)
 }

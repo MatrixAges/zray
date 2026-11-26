@@ -1,4 +1,3 @@
-import type { Writer } from "std:bytes"
 import type { Complete } from "core/function_table/complete"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
@@ -28,7 +27,6 @@ export type NativeFunctions = {
 }
 
 export type External = {
-    out: Writer,
     modules: Modules,
     functions: Complete,
     index: u64,

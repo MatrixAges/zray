@@ -5,15 +5,14 @@ import stores from "../stores"
 
 import type { State as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out } = in
-
-    stores({
-        out,
-        value: in.stores
-    })
-
-    bytes.writeU64Le(out, in.mode == StoreMode.transaction ? 0 : 1)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            stores(in.stores),
+            bytes.encodeU64Le(in.mode == StoreMode.transaction ? 0 : 1)
+        ]
+    )
 }

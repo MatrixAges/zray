@@ -1,3 +1,4 @@
+import bytes from "std:bytes"
 import text from "core/ir/fingerprint/text"
 
 import optionalText from "./optional_text"
@@ -5,28 +6,16 @@ import strings from "./strings"
 
 import type { Native as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, identity } = in
-
-    text({
-        out,
-        text: in.specifier
-    })
-
-    optionalText({
-        out,
-        value: identity
-    })
-
-    text({
-        out,
-        text: in.import_name
-    })
-
-    strings({
-        out,
-        values: in.namespace
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            text(in.specifier),
+            optionalText(in.identity),
+            text(in.import_name),
+            strings(in.namespace)
+        ]
+    )
 }

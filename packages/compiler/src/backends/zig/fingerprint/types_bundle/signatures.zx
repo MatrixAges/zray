@@ -6,38 +6,53 @@ import typeKey from "./type_key"
 
 import type { NativeFunctions as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { functions, modules, prefix } = in
-    const { out } = prefix
 
-    bytes.writeU64Le(out, count(functions.native_modules))
+    const start_index: u64 = 0
 
-    const result = loop(0, {
-        while: index => index < functions.native_modules.length,
-        next: index => {
-            const module = functions.native_modules[index]
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(count(functions.native_modules))
+            ]
+        },
+        {
+            while: state => state.index < functions.native_modules.length,
+            next: state => {
+                const module = functions.native_modules[state.index]
 
-            if (module != null) {
-                typeKey({
-                    prefix,
-                    id: functions.input_types[index]
-                })
-                typeKey({
-                    prefix,
-                    id: functions.output_types[index]
-                })
-                external({
-                    out,
-                    modules,
-                    functions,
-                    index,
-                    optional: false
-                })
+                if (module != null) {
+                    state.parts = state.parts
+                        .push(
+                            typeKey({
+                                prefix,
+                                id: functions.input_types[state.index]
+                            })
+                        )[0]
+                        .push(
+                            typeKey({
+                                prefix,
+                                id: functions.output_types[state.index]
+                            })
+                        )[0]
+                        .push(
+                            external({
+                                modules,
+                                functions,
+                                index: state.index,
+                                optional: false
+                            })
+                        )[0]
+                }
+
+                state.index += 1
             }
-
-            index += 1
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

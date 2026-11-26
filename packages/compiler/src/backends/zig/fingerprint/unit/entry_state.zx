@@ -8,14 +8,21 @@ export type Input = State & {
     type_only: bool
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    state({
-        out: in.out,
-        stores: in.stores,
-        mode: in.mode
-    })
+    const flag: u8 = in.type_only ? 1 : 0
 
-    bytes.writeByte(in.out, in.type_only ? 1 : 0)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            state({
+                stores: in.stores,
+                mode: in.mode
+            }),
+            [
+                flag
+            ]
+        ]
+    )
 }

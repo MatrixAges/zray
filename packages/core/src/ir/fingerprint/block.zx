@@ -13,172 +13,149 @@ import {
     statement_result
 } from "./const"
 import optionalWord from "./optional_word"
-import optionals from "./optional_words"
+import statement from "./statement"
 import statementTag from "./statement_tag"
 import text from "./text"
 
 import type { Block as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function block(in: Input): Output {
-    const { out, control, symbolic, first, count } = in
+    const { control, symbolic, first, count } = in
 
     const end = first + count
 
-    bytes.writeU64Le(out, count)
+    const { parts } = loop(
+        {
+            index: first,
+            parts: [
+                bytes.encodeU64Le(count)
+            ]
+        },
+        {
+            while: state => state.index < end,
+            next: state => {
+                const payload =
+                    integers.widen(control.statement_payloads[state.index])
+                const kind = control.statement_kinds[state.index]
 
-    const result = loop(first, {
-        while: index => index < end,
-        next: index => {
-            const payload = integers.widen(control.statement_payloads[index])
-
-            const kind = control.statement_kinds[index]
-
-            if (symbolic) {
-                text({
-                    out,
-                    text: statementTag(kind)
-                })
-            } else {
-                const tag = match kind {
-                    StatementKind.Evaluate => statement_evaluate,
-                    StatementKind.Constant => statement_constant,
-                    StatementKind.Parallel => statement_parallel,
-                    StatementKind.Destructure => statement_destructure,
-                    StatementKind.Branch => statement_branch,
-                    StatementKind.Switch => statement_switch,
-                    StatementKind.StoreSet => statement_store_set,
-                    _ => statement_result
+                const tag_bytes = match symbolic {
+                    true => text(statementTag(kind)),
+                    _ => bytes.encodeU64Le(
+                        match kind {
+                            StatementKind.Evaluate => statement_evaluate,
+                            StatementKind.Constant => statement_constant,
+                            StatementKind.Parallel => statement_parallel,
+                            StatementKind.Destructure => statement_destructure,
+                            StatementKind.Branch => statement_branch,
+                            StatementKind.Switch => statement_switch,
+                            StatementKind.StoreSet => statement_store_set,
+                            _ => statement_result
+                        }
+                    )
                 }
 
-                bytes.writeU64Le(out, tag)
-            }
+                state.parts = state.parts.push(tag_bytes)[0]
 
-            switch (kind) {
-                case StatementKind.Evaluate:
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.evaluations[payload])
-                    )
-                case StatementKind.Constant:
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.constant_symbols[payload])
-                    )
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.constant_values[payload])
-                    )
-                case StatementKind.Parallel:
-                    const start = integers.widen(control.parallel_first[payload])
-                    const length = integers.widen(control.parallel_count[payload])
-
-                    bytes.writeU64Le(out, length)
-
-                    const invocations = loop(start, {
-                        while: slot => slot < start + length,
-                        next: slot => {
-                            optionalWord({
-                                out,
-                                value: control.parallel_symbols[slot]
-                            })
-                            bytes.writeU64Le(
-                                out,
-                                integers.widen(
-                                    control.parallel_values[slot]
-                                )
-                            )
-                            slot += 1
-                        }
-                    })
-                case StatementKind.Destructure:
-                    const start = integers.widen(control.destructure_first[payload])
-                    const length = integers.widen(control.destructure_count[payload])
-
-                    optionals({
-                        out,
-                        values: control.destructure_symbols,
-                        first: start,
-                        count: length
-                    })
-
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.destructure_values[payload])
-                    )
-                case StatementKind.Branch:
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.branch_conditions[payload])
-                    )
+                if (kind == StatementKind.Branch) {
                     const yes = integers.widen(control.branch_yes[payload])
                     const no = integers.widen(control.branch_no[payload])
 
-                    block({
-                        ...in,
-                        first: integers.widen(control.block_first[yes]),
-                        count: integers.widen(control.block_count[yes])
-                    })
-                    block({
-                        ...in,
-                        first: integers.widen(control.block_first[no]),
-                        count: integers.widen(control.block_count[no])
-                    })
-                case StatementKind.Switch:
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.selection_subjects[payload])
-                    )
-
-                    const start = integers.widen(control.selection_first[payload])
-                    const length = integers.widen(control.selection_count[payload])
-
-                    bytes.writeU64Le(out, length)
-
-                    const branches = loop(start, {
-                        while: slot => slot < start + length,
-                        next: slot => {
-                            optionalWord({
-                                out,
-                                value: control.case_values[slot]
-                            })
-                            const child = integers.widen(control.case_bodies[slot])
-
+                    state.parts = state.parts
+                        .push(
+                            bytes.encodeU64Le(
+                                integers.widen(
+                                    control.branch_conditions[payload]
+                                )
+                            )
+                        )[0]
+                        .push(
                             block({
                                 ...in,
-                                first: integers.widen(
-                                    control.block_first[child]
-                                ),
-                                count: integers.widen(
-                                    control.block_count[child]
-                                )
+                                first: integers.widen(control.block_first[yes]),
+                                count: integers.widen(control.block_count[yes])
                             })
-                            slot += 1
+                        )[0]
+                        .push(
+                            block({
+                                ...in,
+                                first: integers.widen(control.block_first[no]),
+                                count: integers.widen(control.block_count[no])
+                            })
+                        )[0]
+                } else if (kind == StatementKind.Switch) {
+                    const start = integers.widen(control.selection_first[payload])
+                    const length = integers.widen(control.selection_count[payload])
+                    const empty_cases: u8[][] = []
+
+                    const { cases } = loop(
+                        {
+                            slot: start,
+                            cases: empty_cases
+                        },
+                        {
+                            while: inner => inner.slot < start + length,
+                            next: inner => {
+                                const child =
+                                    integers.widen(control.case_bodies[inner.slot])
+
+                                inner.cases = inner.cases
+                                    .push(
+                                        optionalWord(
+                                            control.case_values[inner.slot]
+                                        )
+                                    )[0]
+                                    .push(
+                                        block({
+                                            ...in,
+                                            first:
+                                                integers.widen(
+                                                    control.block_first[child]
+                                                ),
+                                            count:
+                                                integers.widen(
+                                                    control.block_count[child]
+                                                )
+                                        })
+                                    )[0]
+                                inner.slot += 1
+                            }
                         }
-                    })
+                    )
 
-                    bytes.writeByte(
-                        out,
-                        control.selection_exhaustive[payload] ? 1 : 0
-                    )
-                case StatementKind.StoreSet:
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.setter_slots[payload])
-                    )
-                    bytes.writeU64Le(
-                        out,
-                        integers.widen(control.setter_values[payload])
-                    )
-                case StatementKind.Result:
-                    optionalWord({
-                        out,
-                        value: control.results[payload]
-                    })
+                    const exhaustive: u8 = control.selection_exhaustive[payload] ? 1 : 0
+
+                    state.parts = state.parts
+                        .push(
+                            bytes.encodeU64sLe([
+                                integers.widen(
+                                    control.selection_subjects[payload]
+                                ),
+                                length
+                            ])
+                        )[0]
+                        .push(bytes.join(
+                            bytes.fromText(""),
+                            cases
+                        ))[0]
+                        .push([
+                            exhaustive
+                        ])[0]
+                } else {
+                    state.parts = state.parts.push(
+                        statement({
+                            control,
+                            kind,
+                            payload
+                        })
+                    )[0]
+                }
+
+                state.index += 1
             }
-
-            index += 1
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

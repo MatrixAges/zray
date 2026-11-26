@@ -7,25 +7,28 @@ import reference from "../../reference"
 
 import type { ExpressionRow as Input } from "../model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { context, expressions, payload } = in
-    const { out } = context.prefix
 
-    reference({
-        context,
-        id: expressions.call_functions[payload]
-    })
-
-    bytes.writeU64Le(out, integers.widen(expressions.call_arguments[payload]))
-
-    words({
-        out,
-        values: memory.borrowU32Range(
-            expressions.call_stores,
-            integers.widen(expressions.call_store_first[payload]),
-            integers.widen(expressions.call_store_count[payload])
-        )
-    })
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            reference({
+                context,
+                id: expressions.call_functions[payload]
+            }),
+            bytes.encodeU64Le(integers.widen(
+                expressions.call_arguments[payload]
+            )),
+            words(
+                memory.borrowU32Range(
+                    expressions.call_stores,
+                    integers.widen(expressions.call_store_first[payload]),
+                    integers.widen(expressions.call_store_count[payload])
+                )
+            )
+        ]
+    )
 }

@@ -6,20 +6,23 @@ import state from "./state"
 
 import type { FunctionState as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    state({
-        out: in.out,
-        stores: in.stores,
-        mode: in.mode
-    })
-
     const ownership = match in.ownership {
         Ownership.Copy => ownership_copy,
         Ownership.Borrowed => ownership_borrowed,
         _ => ownership_owned
     }
 
-    bytes.writeU64Le(in.out, ownership)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            state({
+                stores: in.stores,
+                mode: in.mode
+            }),
+            bytes.encodeU64Le(ownership)
+        ]
+    )
 }

@@ -4,21 +4,18 @@ import block from "core/ir/fingerprint/block"
 
 import type { Block as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, control, root } = in
+    const { control, root } = in
 
     if (root == null) {
-        bytes.writeU64Le(out, 0)
-
-        return
+        return bytes.encodeU64Le(0)
     }
 
     const row = integers.widen(root)
 
-    block({
-        out,
+    return block({
         control,
         symbolic: false,
         first: integers.widen(control.block_first[row]),

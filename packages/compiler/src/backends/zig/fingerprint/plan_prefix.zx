@@ -2,15 +2,18 @@ import bytes from "std:bytes"
 
 import type { Plan as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out } = in
-
-    bytes.write(out, in.flags)
-    bytes.writeU64Le(out, in.transfers.length)
-    bytes.write(out, in.transfers)
-    bytes.writeU64Le(out, in.slot_first.length)
-    bytes.write(out, in.slot_first)
-    bytes.writeU64Le(out, in.keys.length)
+    return bytes.join(
+        bytes.fromText(""),
+        [
+            in.flags,
+            bytes.encodeU64Le(in.transfers.length),
+            in.transfers,
+            bytes.encodeU64Le(in.slot_first.length),
+            in.slot_first,
+            bytes.encodeU64Le(in.keys.length)
+        ]
+    )
 }

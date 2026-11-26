@@ -9,120 +9,119 @@ import words from "./words"
 
 import type { ExpressionRow as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, expressions, kind, payload } = in
+    const { expressions, kind, payload } = in
 
     switch (kind) {
         case ExpressionKind.Scope:
             const first = integers.widen(expressions.scope_first[payload])
             const count = integers.widen(expressions.scope_count[payload])
             const end = first + count
+            const borrows_init: u8[] = []
 
-            optionalWords({
-                out,
-                values: expressions.scope_symbols,
-                first,
-                count
-            })
-
-            words({
-                out,
-                values: memory.borrowU32Range(
-                    expressions.scope_values,
-                    first,
-                    count
-                )
-            })
-
-            bytes.writeU64Le(out, count)
-
-            const borrows = loop(first, {
-                while: index => index < end,
-                next: index => {
-                    bytes.writeByte(
-                        out,
-                        expressions.scope_borrows[index] ? 1 : 0
-                    )
-                    index += 1
+            const { borrows } = loop(
+                {
+                    index: first,
+                    borrows: borrows_init
+                },
+                {
+                    while: state => state.index < end,
+                    next: state => {
+                        state.borrows = state.borrows.push(
+                            expressions.scope_borrows[state.index] ? 1 : 0
+                        )[0]
+                        state.index += 1
+                    }
                 }
-            })
+            )
 
-            bytes.writeU64Le(out, count)
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.scope_results[payload])
+            return bytes.join(
+                bytes.fromText(""),
+                [
+                    optionalWords({
+                        values: expressions.scope_symbols,
+                        first,
+                        count
+                    }),
+                    words(
+                        memory.borrowU32Range(
+                            expressions.scope_values,
+                            first,
+                            count
+                        )
+                    ),
+                    bytes.encodeU64Le(count),
+                    borrows,
+                    bytes.encodeU64sLe([
+                        count,
+                        integers.widen(
+                            expressions.scope_results[payload]
+                        )
+                    ])
+                ]
             )
         case ExpressionKind.Iteration:
-            optionalWord({
-                out,
-                value: expressions.iteration_environment_symbols[payload]
-            })
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.iteration_initials[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.iteration_condition_parameters[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.iteration_parameters[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.iteration_conditions[payload])
-            )
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.iteration_bodies[payload])
-            )
-
-            bytes.writeByte(
-                out,
+            const postcondition: u8[] = [
                 expressions.iteration_postconditions[payload] ? 1 : 0
+            ]
+
+            return bytes.join(
+                bytes.fromText(""),
+                [
+                    optionalWord(
+                        expressions.iteration_environment_symbols[payload]
+                    ),
+                    bytes.encodeU64sLe([
+                        integers.widen(
+                            expressions.iteration_initials[payload]
+                        ),
+                        integers.widen(
+                            expressions.iteration_condition_parameters[payload]
+                        ),
+                        integers.widen(
+                            expressions.iteration_parameters[payload]
+                        ),
+                        integers.widen(
+                            expressions.iteration_conditions[payload]
+                        ),
+                        integers.widen(
+                            expressions.iteration_bodies[payload]
+                        )
+                    ]),
+                    postcondition
+                ]
             )
         default:
             const first = integers.widen(expressions.match_first[payload])
             const count = integers.widen(expressions.match_count[payload])
 
-            optionalWord({
-                out,
-                value: expressions.match_subjects[payload]
-            })
-
-            words({
-                out,
-                values:
-                    memory.borrowU32Range(
-                        expressions.match_conditions,
-                        first,
-                        count
-                    )
-            })
-
-            words({
-                out,
-                values: memory.borrowU32Range(
-                    expressions.match_results,
-                    first,
-                    count
-                )
-            })
-
-            bytes.writeU64Le(out, count)
-
-            bytes.writeU64Le(
-                out,
-                integers.widen(expressions.match_fallbacks[payload])
+            return bytes.join(
+                bytes.fromText(""),
+                [
+                    optionalWord(expressions.match_subjects[payload]),
+                    words(
+                        memory.borrowU32Range(
+                            expressions.match_conditions,
+                            first,
+                            count
+                        )
+                    ),
+                    words(
+                        memory.borrowU32Range(
+                            expressions.match_results,
+                            first,
+                            count
+                        )
+                    ),
+                    bytes.encodeU64sLe([
+                        count,
+                        integers.widen(
+                            expressions.match_fallbacks[payload]
+                        )
+                    ])
+                ]
             )
     }
 }

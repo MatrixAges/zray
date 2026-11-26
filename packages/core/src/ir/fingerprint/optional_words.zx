@@ -2,32 +2,35 @@ import bytes from "std:bytes"
 
 import optionalWord from "./optional_word"
 
-import type { Writer } from "std:bytes"
-
 export type Input = {
-    out: Writer,
     values: u32?[],
     first: u64,
     count: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, values, first, count } = in
+    const { values, first, count } = in
 
     const end = first + count
 
-    bytes.writeU64Le(out, count)
-
-    const result = loop(first, {
-        while: index => index < end,
-        next: index => {
-            optionalWord({
-                out,
-                value: values[index]
-            })
-            index += 1
+    const { parts } = loop(
+        {
+            index: first,
+            parts: [
+                bytes.encodeU64Le(count)
+            ]
+        },
+        {
+            while: state => state.index < end,
+            next: state => {
+                state.parts =
+                    state.parts.push(optionalWord(values[state.index]))[0]
+                state.index += 1
+            }
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

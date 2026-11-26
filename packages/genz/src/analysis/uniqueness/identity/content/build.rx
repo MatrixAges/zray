@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Identity" />
 
-    <Args in={Identity.Input} out={void} />
+    <Args in={Identity.Input} out={u8[]} />
 
     <Call fn="symbols" in={$in} />
     <Call fn="expressions" in={$in} />
@@ -9,7 +9,6 @@
     <Call
         fn="block"
         in={{
-            out: $in.out,
             control: $in.control,
             first: $in.first,
             count: $in.count
@@ -17,4 +16,16 @@
     />
 
     <Call fn="signature" in={$in} />
+
+    <Call
+        fn="assemble"
+        in={{
+            symbols: $ctx.symbols,
+            expressions: $ctx.expressions,
+            block: $ctx.block,
+            signature: $ctx.signature
+        }}
+    />
+
+    <Return value={$ctx.assemble} />
 </Module>

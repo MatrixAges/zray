@@ -16,57 +16,96 @@ import { constant_enumeration } from "./const"
 
 import type { Constants as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { prefix, values, total } = in
-    const { out } = prefix
+
+    const start_index: u64 = 0
+    const empty_parts: u8[][] = []
+
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: empty_parts
+        },
+        {
+            while: state => state.index < values.names.length,
+            next: state => {
+                const value = values.values[state.index]
+
+                const with_head = state.parts
+                    .push(text(values.names[state.index]))[0]
+                    .push(
+                        typeKey({
+                            prefix,
+                            id: value.type_id
+                        })
+                    )[0]
+
+                switch (value.kind) {
+                    case ExpressionKind.Integer:
+                        const tag = match value.negative {
+                            true => expression_negative_integer,
+                            _ => expression_integer
+                        }
+
+                        state.parts = with_head.push(
+                            bytes.encodeU64sLe([
+                                tag,
+                                value.integer
+                            ])
+                        )[0]
+                    case ExpressionKind.Float:
+                        state.parts = with_head.push(
+                            bytes.encodeU64sLe([
+                                expression_float,
+                                floats.bits(value.floating)
+                            ])
+                        )[0]
+                    case ExpressionKind.String:
+                        state.parts = with_head
+                            .push(bytes.encodeU64Le(expression_string))[0]
+                            .push(
+                                text(
+                                    value.text
+                                )
+                            )[0]
+                    case ExpressionKind.Boolean:
+                        const flag_byte: u8 = value.boolean ? 1 : 0
+
+                        state.parts = with_head
+                            .push(bytes.encodeU64Le(expression_boolean))[0]
+                            .push(
+                                [
+                                    flag_byte
+                                ]
+                            )[0]
+                    default:
+                        state.parts = with_head.push(
+                            bytes.encodeU64sLe([
+                                constant_enumeration,
+                                integers.widen(value.enumeration)
+                            ])
+                        )[0]
+                }
+
+                state.index += 1
+            }
+        }
+    )
+
+    const body = bytes.join(bytes.fromText(""), parts)
 
     if (total != null) {
-        bytes.writeU64Le(out, total)
+        return bytes.join(
+            bytes.fromText(""),
+            [
+                bytes.encodeU64Le(total),
+                body
+            ]
+        )
     }
 
-    const result = loop(0, {
-        while: index => index < values.names.length,
-        next: index => {
-            const value = values.values[index]
-
-            text({
-                out,
-                text: values.names[index]
-            })
-            typeKey({
-                prefix,
-                id: value.type_id
-            })
-
-            switch (value.kind) {
-                case ExpressionKind.Integer:
-                    const tag = match value.negative {
-                        true => expression_negative_integer,
-                        _ => expression_integer
-                    }
-
-                    bytes.writeU64Le(out, tag)
-                    bytes.writeU64Le(out, value.integer)
-                case ExpressionKind.Float:
-                    bytes.writeU64Le(out, expression_float)
-                    bytes.writeU64Le(out, floats.bits(value.floating))
-                case ExpressionKind.String:
-                    bytes.writeU64Le(out, expression_string)
-                    text({
-                        out,
-                        text: value.text
-                    })
-                case ExpressionKind.Boolean:
-                    bytes.writeU64Le(out, expression_boolean)
-                    bytes.writeByte(out, value.boolean ? 1 : 0)
-                default:
-                    bytes.writeU64Le(out, constant_enumeration)
-                    bytes.writeU64Le(out, integers.widen(value.enumeration))
-            }
-
-            index += 1
-        }
-    })
+    return body
 }

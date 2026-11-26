@@ -13,34 +13,46 @@ export type Input = {
     symbols: Symbols
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { prefix, symbols } = in
-    const { out } = prefix
 
-    bytes.writeU64Le(out, symbols.names.length)
+    const start_index: u64 = 0
 
-    const result = loop(0, {
-        while: index => index < symbols.names.length,
-        next: index => {
-            text({
-                out,
-                text: symbols.names[index]
-            })
-            typeKey({
-                prefix,
-                id: symbols.types[index]
-            })
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(symbols.names.length)
+            ]
+        },
+        {
+            while: state => state.index < symbols.names.length,
+            next: state => {
+                const ownership = match symbols.ownership[state.index] {
+                    Ownership.Copy => ownership_copy,
+                    Ownership.Borrowed => ownership_borrowed,
+                    _ => ownership_owned
+                }
 
-            const ownership = match symbols.ownership[index] {
-                Ownership.Copy => ownership_copy,
-                Ownership.Borrowed => ownership_borrowed,
-                _ => ownership_owned
+                state.parts = state.parts
+                    .push(text(symbols.names[state.index]))[0]
+                    .push(
+                        typeKey({
+                            prefix,
+                            id: symbols.types[state.index]
+                        })
+                    )[0]
+                    .push(
+                        bytes.encodeU64Le(
+                            ownership
+                        )
+                    )[0]
+                state.index += 1
             }
-
-            bytes.writeU64Le(out, ownership)
-            index += 1
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

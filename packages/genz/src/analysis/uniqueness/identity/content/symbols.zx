@@ -7,35 +7,41 @@ import { copy_ownership, borrowed_ownership, owned_ownership } from "./const"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    bytes.writeU64Le(in.out, in.symbols.names.length)
+    const start_index: u64 = 0
 
-    const result = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.symbols.names.length,
-        next: state => {
-            text({
-                out: in.out,
-                text: in.symbols.names[state.index]
-            })
+    const { parts } = loop(
+        {
+            index: start_index,
+            parts: [
+                bytes.encodeU64Le(in.symbols.names.length)
+            ]
+        },
+        {
+            while: state => state.index < in.symbols.names.length,
+            next: state => {
+                const ownership = match in.symbols.ownership[state.index] {
+                    Ownership.Copy => copy_ownership,
+                    Ownership.Borrowed => borrowed_ownership,
+                    _ => owned_ownership
+                }
 
-            bytes.writeU64Le(
-                in.out,
-                integers.widen(in.symbols.types[state.index])
-            )
-
-            const ownership = match in.symbols.ownership[state.index] {
-                Ownership.Copy => copy_ownership,
-                Ownership.Borrowed => borrowed_ownership,
-                _ => owned_ownership
+                state.parts =
+                    state.parts.push(text(in.symbols.names[state.index]))[0]
+                state.parts = state.parts.push(
+                    bytes.encodeU64sLe([
+                        integers.widen(
+                            in.symbols.types[state.index]
+                        ),
+                        ownership
+                    ])
+                )[0]
+                state.index += 1
             }
-
-            bytes.writeU64Le(in.out, ownership)
-
-            state.index += 1
         }
-    })
+    )
+
+    return bytes.join(bytes.fromText(""), parts)
 }

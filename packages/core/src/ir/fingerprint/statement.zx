@@ -1,0 +1,95 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
+
+import optionalWord from "./optional_word"
+import optionals from "./optional_words"
+
+import type { Control } from "core/control_table/model"
+
+export type Input = {
+    control: Control,
+    kind: StatementKind,
+    payload: u64
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const { control, kind, payload } = in
+
+    switch (kind) {
+        case StatementKind.Evaluate:
+            return bytes.encodeU64Le(integers.widen(
+                control.evaluations[payload]
+            ))
+        case StatementKind.Constant:
+            return bytes.encodeU64sLe([
+                integers.widen(
+                    control.constant_symbols[payload]
+                ),
+                integers.widen(control.constant_values[payload])
+            ])
+        case StatementKind.Parallel:
+            const start = integers.widen(control.parallel_first[payload])
+            const length = integers.widen(control.parallel_count[payload])
+
+            const { items } = loop(
+                {
+                    slot: start,
+                    items: [
+                        bytes.encodeU64Le(length)
+                    ]
+                },
+                {
+                    while: inner => inner.slot < start + length,
+                    next: inner => {
+                        inner.items = inner.items
+                            .push(
+                                optionalWord(
+                                    control.parallel_symbols[inner.slot]
+                                )
+                            )[0]
+                            .push(
+                                bytes.encodeU64Le(
+                                    integers.widen(
+                                        control.parallel_values[inner.slot]
+                                    )
+                                )
+                            )[0]
+                        inner.slot += 1
+                    }
+                }
+            )
+
+            return bytes.join(bytes.fromText(""), items)
+        case StatementKind.Destructure:
+            const start = integers.widen(control.destructure_first[payload])
+            const length = integers.widen(control.destructure_count[payload])
+
+            return bytes.join(
+                bytes.fromText(""),
+                [
+                    optionals({
+                        values: control.destructure_symbols,
+                        first: start,
+                        count: length
+                    }),
+                    bytes.encodeU64Le(
+                        integers.widen(
+                            control.destructure_values[payload]
+                        )
+                    )
+                ]
+            )
+        case StatementKind.StoreSet:
+            return bytes.encodeU64sLe([
+                integers.widen(
+                    control.setter_slots[payload]
+                ),
+                integers.widen(control.setter_values[payload])
+            ])
+        default:
+            return optionalWord(control.results[payload])
+    }
+}
