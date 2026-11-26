@@ -1,0 +1,30 @@
+import ast from "ast_rows"
+import { AstPayloadOwnership } from "ast_rows"
+import { requireAllocation } from "memory"
+
+import build from "./build"
+
+import type { AstWriter } from "ast_rows"
+import type { Input as Origin } from "./build"
+
+export type Input = {
+    writer: AstWriter,
+    origin: Origin
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const output = build(in.origin)
+
+    requireAllocation(output.valid)
+
+    ast.appendExpressionRows(
+        in.writer,
+        output.expressions,
+        output.forms,
+        AstPayloadOwnership.Owned
+    )
+
+    return output.root
+}

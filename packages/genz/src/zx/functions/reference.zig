@@ -26,9 +26,9 @@ pub fn lower(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error!n
     const target = prepare(self, id, variant);
 
     const input: Input = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
         .target = &target,
-        .base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .identifiers = 0,
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -38,9 +38,9 @@ pub fn lower(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error!n
     defer scratch.deinit();
 
     const temporary = memory.allocator();
-    const output = entry.executeIn(temporary, &input) catch |err| return failure(err);
+    const root = entry.executeIn(temporary, &input) catch |err| return failure(err);
 
-    return @import("../invocation/publication.zig").write(self, .{ .id = id, .variant = variant }, .{ .reference = output });
+    return @fromBackingInt(root);
 }
 
 pub fn failure(err: anyerror) Lower.Error {

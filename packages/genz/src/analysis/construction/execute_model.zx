@@ -1,0 +1,15 @@
+import type { AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Output, Request } from "./model"
+
+export type Execute = {
+    frame: Lowering,
+    writer: AstWriter,
+    request: Request
+}
+
+export type PublishAst = {
+    frame: Lowering,
+    writer: AstWriter,
+    output: Output
+}

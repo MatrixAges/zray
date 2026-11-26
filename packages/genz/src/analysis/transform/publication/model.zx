@@ -1,5 +1,6 @@
 import type {
     AstPayloadOwnership,
+    AstSequenceMode,
     AstWriter,
     ExpressionForms,
     ExpressionRows,
@@ -7,7 +8,7 @@ import type {
     StatementVariables
 } from "ast_rows"
 
-export { AstPayloadOwnership } from "ast_rows"
+export { AstPayloadOwnership, AstSequenceMode } from "ast_rows"
 
 export type Input = {
     writer: AstWriter,

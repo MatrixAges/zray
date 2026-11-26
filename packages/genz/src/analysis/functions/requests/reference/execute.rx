@@ -1,0 +1,26 @@
+<Module>
+    <Type from="execute_model" as="Reference" />
+
+    <Args in={Reference.Execute} out={u32} />
+
+    <Call fn="execute_model.astExpressionCount" in={$in.writer} />
+
+    <Call
+        module="build"
+        in={{
+            target: $in.target,
+            base: $ctx.astExpressionCount,
+            identifiers: 0
+        }}
+    />
+
+    <Call
+        fn="publish"
+        in={{
+            ...$in,
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

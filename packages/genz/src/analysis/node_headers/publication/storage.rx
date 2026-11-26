@@ -6,7 +6,7 @@
 
     <Call fn="host.appendFragmentStorage" in={$in.target} />
 
-    <If on={$in.kind == Fragment.FragmentKind.Conversion && $in.sequence}>
+    <If on={$in.sequence}>
         <Call
             fn="host.appendFragmentBody"
             in={[

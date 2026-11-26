@@ -13,10 +13,7 @@
         ]}
     />
 
-    <If
-        on={$in.kind != Fragment.FragmentKind.List &&
-            $in.kind != Fragment.FragmentKind.Origin}
-    >
+    <If on={$in.kind != Fragment.FragmentKind.List}>
         <Call fn="statement_mode" in={$in.kind} />
 
         <Call
@@ -37,10 +34,7 @@
             />
         </If>
 
-        <If
-            on={$in.kind == Fragment.FragmentKind.Construction ||
-                $in.kind == Fragment.FragmentKind.Conversion}
-        >
+        <If on={$in.kind == Fragment.FragmentKind.Conversion}>
             <Call
                 module="storage"
                 in={$in.pick([
@@ -80,10 +74,7 @@
         />
     </If>
 
-    <If
-        on={$in.kind != Fragment.FragmentKind.List &&
-            $in.kind != Fragment.FragmentKind.Origin}
-    >
+    <If on={$in.kind != Fragment.FragmentKind.List}>
         <Call
             fn="host.finishGeneratedAst"
             in={[

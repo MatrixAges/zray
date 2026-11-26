@@ -1,5 +1,6 @@
 import {
     AstPayloadOwnership,
+    AstSequenceMode,
     appendExpressionRows,
     appendStatementSequence,
     astFieldCount,
@@ -69,7 +70,14 @@ export default function (in: Input): Output {
         )
     }
 
-    appendStatementSequence(writer, sequence, built.statements, emptyVariables({}))
+    appendStatementSequence(
+        writer,
+        sequence,
+        built.statements,
+        emptyVariables({}),
+        AstSequenceMode.BorrowingText
+    )
+
     host.setLoweringSerial(frame, built.serial)
 
     return finishAstSequence(writer, sequence)

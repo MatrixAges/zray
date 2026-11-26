@@ -1,0 +1,45 @@
+<Module>
+    <Type from="execute_model" as="Emission" />
+
+    <Args in={Emission.Execute} out={u32} />
+
+    <Call
+        fn="execute_model.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call fn="execute_model.astFieldCount" in={$in.writer} />
+
+    <Call
+        module="build"
+        in={{
+            context: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            },
+            ...$in.pick([
+                "value",
+                "target",
+                "plan"
+            ])
+        }}
+    />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body",
+                "target"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

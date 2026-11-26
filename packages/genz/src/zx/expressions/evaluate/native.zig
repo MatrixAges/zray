@@ -190,6 +190,12 @@ pub fn lowerDereference(frame: *anyopaque, value: u32) Error!u32 {
     return @backingInt(try @import("../../value_call/emission.zig").emit(borrow(frame), null, .{ .value = @fromBackingInt(value) }));
 }
 
+pub fn requestFunction(frame: *anyopaque, id: u32, regular: bool) Error!void {
+    const self = borrow(frame);
+
+    return self.function_requests.add(self.allocator, @fromBackingInt(id), if (regular) .regular else .value);
+}
+
 pub fn invalidLowering() u32 {
     unreachable;
 }

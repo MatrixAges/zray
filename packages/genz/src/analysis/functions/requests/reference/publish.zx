@@ -1,0 +1,48 @@
+import ast from "ast_rows"
+import { AstPayloadOwnership } from "ast_rows"
+import host from "lowering_host"
+
+import emptyExpressions from "../../../../ast/expressions/empty"
+import emptyForms from "../../../../ast/expressions/forms/empty"
+import { Variant } from "../model"
+
+import type { Publish as Input } from "./execute_model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, target, output } = in
+
+    if (output.request) {
+        host.requestFunction(frame, target.id, target.variant == Variant.Regular)
+    }
+
+    const first = ast.astIdentifierCount(writer)
+    const count = output.nodes.identifier.length
+
+    const function_name: u8[]? = match {
+        output.request => host.retainLoweringText(
+            frame,
+            output.nodes.identifier[count - 1]
+        ),
+        _ => null
+    }
+
+    const rows = {
+        ...emptyExpressions({}),
+        ...output.nodes.omit(["string"])
+    }
+
+    const forms = {
+        ...emptyForms({}),
+        string: output.nodes.string
+    }
+
+    ast.appendExpressionRows(writer, rows, forms, AstPayloadOwnership.BorrowingText)
+
+    if (function_name != null) {
+        ast.replaceAstIdentifier(writer, first + count - 1, function_name)
+    }
+
+    return output.root
+}

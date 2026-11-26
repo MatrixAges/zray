@@ -62,8 +62,6 @@ export enum ModuleRequestForm {
 
 export type ModuleSignatures = mutable_opaque
 
-export type AstPublication = opaque
-
 export type FragmentPublication = mutable_opaque
 
 export enum FragmentKind {
@@ -71,8 +69,6 @@ export enum FragmentKind {
     Collection,
     Update,
     List,
-    Construction,
-    Origin,
     Conversion
 }
 
@@ -106,8 +102,6 @@ export enum StoredType {
     StateLayout,
     ViewType
 }
-
-export type CallAstPublication = mutable_opaque
 
 export type PreconditionFrame = mutable_opaque
 

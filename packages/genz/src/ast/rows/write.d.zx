@@ -59,7 +59,15 @@ export type AstLeafStatements = {
 export enum AstPayloadOwnership {
     Owned,
     BorrowingText,
-    Borrowed
+    Borrowed,
+    Selected
+}
+
+export enum AstSequenceMode {
+    Owned,
+    BorrowingText,
+    SelectedOwned,
+    SelectedBorrowingText
 }
 
 export type AstCapture = {
@@ -122,7 +130,20 @@ export declare function appendStatementSequence(
     writer: AstWriter,
     target: AstSequence,
     rows: StatementRows,
+    variables: StatementVariables,
+    mode: AstSequenceMode
+): void throws { OutOfMemory }
+
+export declare function hoistStatementRows(
+    writer: AstWriter,
+    rows: StatementRows,
     variables: StatementVariables
+): void throws { OutOfMemory }
+
+export declare function appendAuxiliaryFunction(
+    writer: AstWriter,
+    columns: FunctionRows,
+    parameters: FieldRows
 ): void throws { OutOfMemory }
 
 export declare function appendAstBindingRows(

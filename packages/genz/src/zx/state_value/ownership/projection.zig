@@ -39,7 +39,8 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
     const temporary = buffered.allocator();
     const prepared = (preparation.executeIn(temporary, &request) catch |err| return failure(err)) orelse return value;
     const emitter = @import("generated_ownership_projection");
-    const Input = std.meta.Child(emitter.Input);
+    const CallRequest = std.meta.Child(emitter.Input);
+    const Input = std.meta.Child(@FieldType(CallRequest, "projection"));
     const Helper = @typeInfo(@FieldType(Input, "helper")).optional.child;
     const Clear = @typeInfo(@FieldType(Input, "clear_plan")).optional.child;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../list_emission.zig").borrow(self));
@@ -59,11 +60,16 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
         .serial = self.serial,
     };
 
-    const output = emitter.executeIn(temporary, &input) catch |err| return failure(err);
+    const call: CallRequest = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(body),
+        .projection = &input,
+    };
 
-    try @import("../publication.zig").projection(self, body, output);
+    const root = emitter.executeIn(temporary, &call) catch |err| return failure(err);
 
-    return @fromBackingInt(output.root);
+    return @fromBackingInt(root);
 }
 
 fn failure(err: anyerror) Lower.Error {

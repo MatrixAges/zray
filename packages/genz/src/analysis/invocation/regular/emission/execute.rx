@@ -1,0 +1,42 @@
+<Module>
+    <Type from="execute_model" as="Emission" />
+
+    <Args in={Emission.Execute} out={u32} />
+
+    <Call
+        fn="execute_model.readAstOrigin"
+        in={[
+            $in.writer,
+            $in.origin
+        ]}
+    />
+
+    <Call
+        module="build"
+        in={{
+            ...$in.omit([
+                "frame",
+                "writer",
+                "origin"
+            ]),
+            base: $ctx.readAstOrigin.expression_base,
+            capture: $ctx.readAstOrigin.capture
+        }}
+    />
+
+    <Call
+        fn="publish"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "target",
+                "io",
+                "process"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

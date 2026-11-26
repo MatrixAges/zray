@@ -38,6 +38,9 @@ export declare function borrowedOperandCacheValue(
     value: u32
 ): u32 throws { OutOfMemory }
 
+export declare function requestFunction(frame: Lowering, id: u32, regular: bool): void
+    throws { OutOfMemory }
+
 export declare function cacheBorrowedOperand(
     frame: BorrowedArgument,
     id: u32,

@@ -3,9 +3,9 @@ const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const reference = @import("../functions/reference.zig");
+const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
 const entry = @import("generated_regular_call_emit");
 const Input = std.meta.Child(entry.Input);
-const Capture = std.meta.Child(@typeInfo(@FieldType(Input, "capture")).optional.child);
 
 pub const Request = struct {
     function: zx.ir.FunctionId,
@@ -17,20 +17,17 @@ pub const Request = struct {
 
 pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
     const target = reference.prepare(self, request.function, .regular);
-    var capture: Capture = undefined;
+    var origin: OriginBuffer = undefined;
 
     const input: Input = .{
-        .base = @intCast(self.builder.nodes.expressions.tags.items.len),
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .origin = @ptrCast(&origin),
         .target = zx.columns.pointer(@FieldType(Input, "target"), &target),
         .value = @backingInt(request.value),
         .store = if (request.store) |store| @backingInt(store) else null,
         .io = request.io,
         .process = request.process,
-        .capture = if (self.capture) |boundary| captured: {
-            capture = .{ .name = boundary.name, .label = boundary.label, .failure = @backingInt(boundary.failure) };
-
-            break :captured &capture;
-        } else null,
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -40,13 +37,7 @@ pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
     defer scratch.deinit();
 
     const temporary = memory.allocator();
-    const output = entry.executeIn(temporary, &input) catch |err| return reference.failure(err);
+    const root = entry.executeIn(temporary, &input) catch |err| return reference.failure(err);
 
-    if (!output.valid) return error.OutOfMemory;
-
-    return @import("../invocation/publication.zig").write(self, .{ .id = request.function, .variant = .regular }, .{ .regular = .{
-        .output = output,
-        .io = request.io,
-        .process = request.process,
-    } });
+    return @fromBackingInt(root);
 }

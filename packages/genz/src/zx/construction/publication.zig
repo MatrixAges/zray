@@ -216,6 +216,18 @@ pub fn appendStatementRows(writer: *anyopaque, source: *const Ast.StatementRows,
     const self = borrow(writer);
     const target = &self.builder.nodes.statements;
 
+    if (mode == .Selected) {
+        if (variables) |extra| {
+            const joined = view.join(source.*, extra.*);
+
+            sparse.append(self.allocator, target, &joined) catch |err| return failure(err);
+        } else {
+            sparse.append(self.allocator, target, source) catch |err| return failure(err);
+        }
+
+        return;
+    }
+
     if (variables) |extra| {
         const joined = view.join(source.*, extra.*);
 
@@ -230,6 +242,7 @@ fn appendRows(self: *Lower, target: anytype, source: anytype, mode: Ast.AstPaylo
         .Owned => dense.append(self.allocator, target, source),
         .BorrowingText => dense.appendBorrowingText(self.allocator, target, source),
         .Borrowed => dense.appendBorrowed(self.allocator, target, source),
+        .Selected => unreachable,
     };
 
     return result catch |err| failure(err);
@@ -365,10 +378,34 @@ pub fn publishAstScopedRows(writer: *anyopaque, source: *const Ast.StatementRows
     return packSpan(try self.builder.publishStatements(&joined));
 }
 
-pub fn appendStatementSequence(writer: *anyopaque, handle: *anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables) Lower.Error!void {
+pub fn appendStatementSequence(writer: *anyopaque, handle: *anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables, mode: Ast.AstSequenceMode) Lower.Error!void {
+    const allocator = borrow(writer).allocator;
+    const target: *Sequence = @ptrCast(@alignCast(handle));
     const joined = view.join(source.*, variables.*);
 
-    return appendSequenceRows(writer, handle, &joined);
+    const result = switch (mode) {
+        .Owned => statements.append(allocator, target, &joined),
+        .BorrowingText => statements.appendBorrowingText(allocator, target, &joined),
+        .SelectedOwned => statements.appendSelected(allocator, target, &joined),
+        .SelectedBorrowingText => statements.appendSelectedBorrowingText(allocator, target, &joined),
+    };
+
+    result catch |err| return failure(err);
+}
+
+pub fn hoistStatementRows(writer: *anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables) Lower.Error!void {
+    const joined = view.join(source.*, variables.*);
+
+    return borrow(writer).hoistReferences(&joined);
+}
+
+pub fn appendAuxiliaryFunction(writer: *anyopaque, functions: *const Ast.FunctionRows, parameters: *const Ast.FieldRows) Lower.Error!void {
+    const self = borrow(writer);
+    const Tag = std.meta.Child(@TypeOf(self.builder.nodes.declaration_rows.tags.items));
+    const imported = fields.appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, parameters) catch |err| return failure(err);
+    const rows = view.join(functions.*, .{ .tags = @as([]const Tag, &.{.Function}) });
+
+    try self.task_declarations.appendFunction(self.allocator, &rows, imported.start);
 }
 
 pub fn appendAstBindingRows(writer: *anyopaque, handle: *anyopaque, source: *const Ast.BindingRows) Lower.Error!void {
@@ -489,9 +526,9 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         .targets = targets,
         .expressions = if (kind == .Growth) &expressions else columns.pointer(Expressions, data.expressions),
         .forms = if (kind == .Growth) &forms else columns.pointer(Forms, data.forms),
-        .statements = if (kind == .List or kind == .Origin) null else columns.pointer(Rows, data.statements),
+        .statements = if (kind == .List) null else columns.pointer(Rows, data.statements),
         .vars = switch (kind) {
-            .Collection, .Construction, .Conversion => columns.pointer(@FieldType(Context, "variables"), data.variables),
+            .Collection, .Conversion => columns.pointer(@FieldType(Context, "variables"), data.variables),
             else => null,
         },
         .subset = switch (kind) {
@@ -501,7 +538,7 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         },
         .roots = switch (kind) {
             .Growth => columns.pointer(Rows, data.body),
-            .Construction, .Conversion => columns.pointer(Rows, data.storage),
+            .Conversion => columns.pointer(Rows, data.storage),
             else => null,
         },
         .converted_body = if (kind == .Conversion) columns.pointer(Rows, data.body) else null,
@@ -509,7 +546,6 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         .fields = switch (kind) {
             .Growth => if (output.fields) |source| columns.pointer(@FieldType(Update, "fields"), source) else null,
             .Collection, .Update, .List, .Conversion => columns.pointer(@FieldType(Update, "fields"), output.fields),
-            else => null,
         },
     };
 
@@ -522,10 +558,10 @@ pub fn write(self: *Lower, targets: Targets, output: anytype, comptime kind: Kin
         .valid = if (kind == .Growth) data.valid else output.valid,
         .serial = switch (kind) {
             .Growth => data.serial,
-            .List, .Origin => 0,
+            .List => 0,
             else => output.serial,
         },
-        .uses_allocator = kind != .List and kind != .Origin and output.uses_allocator,
+        .uses_allocator = kind != .List and output.uses_allocator,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});

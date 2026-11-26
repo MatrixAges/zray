@@ -1,0 +1,101 @@
+import ast from "ast_rows"
+import { AstPayloadOwnership, AstSequenceMode } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import type { PublishAst as Input } from "./execute_model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, body, output } = in
+    const { result } = output
+
+    requireAllocation(result.valid)
+
+    const { segments } = result
+
+    const written = loop(0, {
+        while: index => index < segments.length,
+        next: index => {
+            const segment = segments[index]
+
+            if (segment.borrow_text) {
+                ast.appendExpressionRows(
+                    writer,
+                    segment.expressions,
+                    segment.forms,
+                    AstPayloadOwnership.BorrowingText
+                )
+            } else {
+                ast.appendExpressionRows(
+                    writer,
+                    segment.expressions,
+                    segment.forms,
+                    AstPayloadOwnership.Owned
+                )
+            }
+
+            index += 1
+        }
+    })
+
+    ast.appendStatementRows(
+        writer,
+        result.statements,
+        result.variables,
+        AstPayloadOwnership.Selected
+    )
+
+    ast.hoistStatementRows(writer, result.storage, result.variables)
+
+    const declaration = result.declaration
+
+    if (declaration != null) {
+        ast.appendAuxiliaryFunction(
+            writer,
+            declaration.columns.omit(["tags"]),
+            declaration.parameters
+        )
+    }
+
+    if (output.binding.borrow_text) {
+        ast.appendStatementSequence(
+            writer,
+            body,
+            output.binding.statements,
+            output.binding.variables,
+            AstSequenceMode.SelectedBorrowingText
+        )
+    } else {
+        ast.appendStatementSequence(
+            writer,
+            body,
+            output.binding.statements,
+            output.binding.variables,
+            AstSequenceMode.SelectedOwned
+        )
+    }
+
+    if (output.body.borrow_text) {
+        ast.appendStatementSequence(
+            writer,
+            body,
+            output.body.statements,
+            output.body.variables,
+            AstSequenceMode.SelectedBorrowingText
+        )
+    } else {
+        ast.appendStatementSequence(
+            writer,
+            body,
+            output.body.statements,
+            output.body.variables,
+            AstSequenceMode.SelectedOwned
+        )
+    }
+
+    host.finishGeneratedAst(frame, result.serial, false)
+
+    return output.root
+}

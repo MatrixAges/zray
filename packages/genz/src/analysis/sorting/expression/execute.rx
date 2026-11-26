@@ -77,7 +77,8 @@
             {
                 ...$ctx.build.variables,
                 variable_name: [$ctx.retainLoweringText]
-            }
+            },
+            Sort.AstSequenceMode.BorrowingText
         ]}
     />
 

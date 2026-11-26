@@ -8,7 +8,6 @@ pub const gateway = @import("gateway/root.zig");
 pub const host = @import("host/root.zig");
 const flow = @import("zx/uniqueness/flow.zig");
 const read = @import("zx/expressions/read.zig");
-const publication = @import("zx/state_value/publication.zig");
 const object_execution = @import("zx/aggregate/object_execution.zig");
 const contracts = @import("zx/contracts.zig");
 
@@ -29,7 +28,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/construction/publication.zig"),
     @import("zx/list_update.zig"),
     @import("zx/invocation/execute.zig"),
-    @import("zx/invocation/publication.zig"),
     @import("zx/iteration/execution/emission.zig"),
     @import("zx/iteration/execution/frame.zig"),
     @import("zx/iteration/execution/prepare.zig"),
@@ -55,7 +53,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/state_value/entry.zig"),
     @import("zx/state_value/element_emission.zig"),
     @import("zx/state_value/list_emission.zig"),
-    @import("zx/state_value/publication.zig"),
     @import("zx/statements/emit.zig"),
     @import("zx/statements/traversal/host.zig"),
     @import("zx/tasks/root.zig"),

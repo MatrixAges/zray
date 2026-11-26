@@ -1,0 +1,21 @@
+<Module>
+    <Type from="execute_model" as="Projection" />
+
+    <Args in={Projection.Execute} out={u32} />
+
+    <Call module="build" in={$in.projection} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

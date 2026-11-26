@@ -1,5 +1,6 @@
 import {
     AstPayloadOwnership,
+    AstSequenceMode,
     appendExpressionRows,
     appendStatementRows,
     appendStatementSequence,
@@ -57,5 +58,11 @@ export default function (in: Input): Output {
         AstPayloadOwnership.BorrowingText
     )
 
-    appendStatementSequence(writer, sequence, emitted.roots, emptyVariables({}))
+    appendStatementSequence(
+        writer,
+        sequence,
+        emitted.roots,
+        emptyVariables({}),
+        AstSequenceMode.BorrowingText
+    )
 }

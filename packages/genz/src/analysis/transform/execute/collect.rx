@@ -62,7 +62,8 @@
             $in.ast.writer,
             $in.ast.body,
             $ctx.prepare.state.statements,
-            $ctx.prepare.state.variables
+            $ctx.prepare.state.variables,
+            Publication.AstSequenceMode.BorrowingText
         ]}
     />
 

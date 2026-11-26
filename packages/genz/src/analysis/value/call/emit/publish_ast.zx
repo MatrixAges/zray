@@ -1,0 +1,97 @@
+import ast from "ast_rows"
+import { AstPayloadOwnership, AstSequenceMode } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import { Variant } from "../../../functions/requests/model"
+
+import type { PublishAst as Input } from "./execute_model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, body, target, output } = in
+
+    requireAllocation(output.context.valid)
+
+    if (output.request) {
+        if (target != null) {
+            host.requestFunction(
+                frame,
+                target.id,
+                target.variant == Variant.Regular
+            )
+        }
+    }
+
+    const first = ast.astIdentifierCount(writer)
+
+    const function_name: u8[]? = match {
+        output.request => host.retainLoweringText(
+            frame,
+            output.context.expressions.identifier[0]
+        ),
+        _ => null
+    }
+
+    const has_operand = output.name.length != 0
+
+    const operand_name: u8[]? = match {
+        has_operand => host.retainLoweringText(frame, output.name),
+        _ => null
+    }
+
+    ast.appendExpressionRows(
+        writer,
+        output.context.expressions,
+        output.context.forms,
+        AstPayloadOwnership.BorrowingText
+    )
+
+    if (function_name != null) {
+        ast.replaceAstIdentifier(writer, first, function_name)
+    }
+
+    if (operand_name != null) {
+        ast.replaceAstIdentifier(writer, first + output.name_index, operand_name)
+
+        if (output.body.tags.length != 0) {
+            if (body != null) {
+                if (output.body.constant_name.length != 0) {
+                    ast.appendStatementSequence(
+                        writer,
+                        body,
+                        {
+                            ...output.body,
+                            constant_name: [operand_name]
+                        },
+                        output.context.variables,
+                        AstSequenceMode.SelectedBorrowingText
+                    )
+                } else {
+                    ast.appendStatementSequence(
+                        writer,
+                        body,
+                        output.body,
+                        output.context.variables,
+                        AstSequenceMode.SelectedBorrowingText
+                    )
+                }
+            }
+        }
+    } else if (output.body.tags.length != 0) {
+        if (body != null) {
+            ast.appendStatementSequence(
+                writer,
+                body,
+                output.body,
+                output.context.variables,
+                AstSequenceMode.SelectedBorrowingText
+            )
+        }
+    }
+
+    host.finishGeneratedAst(frame, output.context.serial, output.uses_allocator)
+
+    return output.root
+}

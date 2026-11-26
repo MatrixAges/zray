@@ -35,7 +35,8 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
     const references = self.referenceBatches();
     const temporary = buffered.allocator();
     const resources = preparation.executeValue(temporary, &request) catch |err| return publication.failure(err);
-    const Request = std.meta.Child(generated.Input);
+    const CallRequest = std.meta.Child(generated.Input);
+    const Request = std.meta.Child(@FieldType(CallRequest, "request"));
     const Input = std.meta.Child(@FieldType(Request, "construction"));
     const kind = self.program.typeOf(id);
     const ast = @import("ast.zig").borrow(std.meta.Child(@FieldType(Input, "ast")), self);
@@ -58,10 +59,9 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
         .serial = self.serial,
     };
 
-    const input: Request = .{ .construction = &construction, .target = target, .origin = selected };
-    const output = generated.executeIn(temporary, &input) catch |err| return publication.failure(err);
+    const request_body: Request = .{ .construction = &construction, .target = target, .origin = selected };
+    const call: CallRequest = .{ .frame = @ptrCast(self), .writer = @ptrCast(self), .request = &request_body };
+    const root = generated.executeIn(temporary, &call) catch |err| return publication.failure(err);
 
-    try publication.write(self, .{}, output, .Construction);
-
-    return @fromBackingInt(output.root);
+    return @fromBackingInt(root);
 }
