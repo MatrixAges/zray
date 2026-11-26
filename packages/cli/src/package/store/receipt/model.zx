@@ -1,13 +1,36 @@
-export type { Receipt as Input } from "package_receipt_host"
+import type { LoadedReceipt, Receipt } from "package_receipt_host"
 
 export enum Status {
     Valid,
     InvalidPackageReceipt,
+    InvalidPackageArchivePath,
     CorruptPackageStore,
     TooManyPackageEntries
 }
 
+export type Input = {
+    receipt: Receipt,
+    expected: string
+}
+
 export type Output = Status
+
+export type HeaderInput = {
+    loaded: LoadedReceipt,
+    expected: string
+}
+
+export type PathsInput = {
+    receipt: Receipt,
+    paths: string[],
+    hashes: string[]
+}
+
+export type ScanInput = {
+    receipt: Receipt,
+    hashes: string[],
+    executables: bool[]
+}
 
 export type Entries = {
     files: u64,

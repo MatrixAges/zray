@@ -1,4 +1,16 @@
-export type { Download as Input } from "package_download_host"
+import type { Download, ResponseHead } from "package_download_host"
+
+export type Handle = Download
+
+export type Input = {
+    download: Download,
+    is_local: bool
+}
+
+export type BodyInput = {
+    download: Download,
+    head: ResponseHead
+}
 
 export enum Status {
     Ready,

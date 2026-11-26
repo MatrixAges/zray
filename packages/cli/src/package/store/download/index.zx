@@ -1,3 +1,3 @@
-export { local as isLocal, receiveHead } from "package_download_host"
+export { receiveHead } from "package_download_host"
 
 export type { Download as Handle } from "package_download_host"

@@ -1,6 +1,8 @@
 const std = @import("std");
+const abi = @import("cli_abi");
 const rule = @import("cli_source").download;
 const constants = @import("../store.zig").constants;
+const ResponseHead = abi.layouts.@"zig:package_download_host".ResponseHead;
 const Error = error{PackageDownloadHostFailure};
 
 const State = struct {
@@ -9,6 +11,7 @@ const State = struct {
     base: []const u8,
     request: ?std.http.Client.Request = null,
     response: std.http.Client.Response = undefined,
+    head_view: ResponseHead = undefined,
     redirect_buffer: [8192]u8 = undefined,
     body: ?[]u8 = null,
     failure: ?anyerror = null,
@@ -39,12 +42,16 @@ const State = struct {
 };
 
 pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: []const u8) ![]u8 {
+    const transport = try @import("pkgs").install.archiveTransport(allocator, source);
     var state: State = .{ .client = .{ .io = io, .allocator = allocator }, .source = source, .base = base };
     var accepted = false;
 
     defer state.deinit(accepted);
 
-    const result = rule.executeValue(allocator, @ptrCast(&state)) catch |err| return if (err == error.PackageDownloadHostFailure) state.failure.? else err;
+    const result = rule.executeIn(allocator, &.{
+        .download = @ptrCast(&state),
+        .is_local = transport == .Local,
+    }) catch |err| return if (err == error.PackageDownloadHostFailure) state.failure.? else err;
 
     switch (result) {
         .Ready => accepted = true,
@@ -54,13 +61,6 @@ pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: 
     }
 
     return state.body.?;
-}
-
-pub fn local(handle: *anyopaque) Error!bool {
-    const self = State.get(handle);
-    const transport = @import("pkgs").install.archiveTransport(self.client.allocator, self.source) catch |err| return self.fail(err);
-
-    return transport == .Local;
 }
 
 pub fn readLocal(handle: *anyopaque, limit: u64) Error!u64 {
@@ -77,7 +77,7 @@ pub fn readLocal(handle: *anyopaque, limit: u64) Error!u64 {
     return bytes.len;
 }
 
-pub fn receiveHead(handle: *anyopaque) Error!void {
+pub fn receiveHead(handle: *anyopaque) Error!*const ResponseHead {
     const self = State.get(handle);
     const uri = std.Uri.parse(self.source) catch |err| return self.fail(err);
 
@@ -91,18 +91,14 @@ pub fn receiveHead(handle: *anyopaque) Error!void {
     request.sendBodiless() catch |err| return self.fail(err);
 
     self.response = request.receiveHead(&self.redirect_buffer) catch |err| return self.fail(err);
-}
 
-pub fn ok(handle: *anyopaque) bool {
-    return State.get(handle).response.head.status == .ok;
-}
+    self.head_view = .{
+        .ok = self.response.head.status == .ok,
+        .identity = self.response.head.content_encoding == .identity,
+        .length = self.response.head.content_length,
+    };
 
-pub fn identityEncoding(handle: *anyopaque) bool {
-    return State.get(handle).response.head.content_encoding == .identity;
-}
-
-pub fn declaredLength(handle: *anyopaque) ?u64 {
-    return State.get(handle).response.head.content_length;
+    return &self.head_view;
 }
 
 pub fn readBody(handle: *anyopaque, limit: u64) Error!void {

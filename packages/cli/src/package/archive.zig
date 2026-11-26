@@ -55,7 +55,7 @@ pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, dire
         .iterator = &iterator,
     };
 
-    const status = @import("cli_source").unpack.executeValue(state.allocator, @ptrCast(&state)) catch |err| switch (err) {
+    const status = @import("cli_source").unpack.executeIn(state.allocator, @ptrCast(&state)) catch |err| switch (err) {
         error.ArchiveHostFailure => return state.failure.?,
         else => |failure| return failure,
     };

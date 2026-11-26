@@ -8,7 +8,6 @@ export declare function openCache(toolchain: Toolchain, staged: bool): bool thro
     ToolchainHostFailure
 }
 export declare function marker(toolchain: Toolchain): string throws { ToolchainHostFailure }
-export declare function expectedMarker(toolchain: Toolchain): string
 export declare function regularFile(toolchain: Toolchain, path: string): bool throws {
     ToolchainHostFailure
 }
@@ -16,7 +15,6 @@ export declare function closeDirectory(toolchain: Toolchain): void
 export declare function createStaging(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function loadZig(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function zigHash(toolchain: Toolchain): bool
-export declare function zip(toolchain: Toolchain): bool
 export declare function extractZip(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function extractTar(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function renameZig(toolchain: Toolchain): void throws { ToolchainHostFailure }

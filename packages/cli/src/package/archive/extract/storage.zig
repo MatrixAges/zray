@@ -1,6 +1,8 @@
 const std = @import("std");
+const abi = @import("cli_abi");
 const File = @import("../../archive.zig").File;
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const Entry = abi.layouts.@"zig:package_extract_host".Entry;
 pub const Error = error{ArchiveHostFailure};
 
 pub const State = struct {
@@ -9,7 +11,7 @@ pub const State = struct {
     allocator: std.mem.Allocator,
     iterator: *std.tar.Iterator,
     entry: std.tar.Iterator.File = undefined,
-    path: []const u8 = undefined,
+    entry_view: Entry = undefined,
     paths: std.StringHashMapUnmanaged(void) = .empty,
     files: std.ArrayList(File) = .empty,
     failure: ?anyerror = null,
@@ -23,51 +25,44 @@ pub const State = struct {
     }
 };
 
-pub fn nextTar(handle: *anyopaque) Error!bool {
+pub fn nextTar(handle: *anyopaque) Error!?*const Entry {
     const self = State.get(handle);
 
-    self.entry = (self.iterator.next() catch |err| return self.fail(err)) orelse return false;
+    self.entry = (self.iterator.next() catch |err| return self.fail(err)) orelse return null;
 
-    return true;
+    self.entry_view = .{
+        .name = self.entry.name,
+        .kind = switch (self.entry.kind) {
+            .directory => .Directory,
+            .file => .File,
+            else => .Other,
+        },
+        .executable = self.entry.mode & 0o100 != 0,
+    };
+
+    return &self.entry_view;
 }
 
-pub fn tarName(handle: *anyopaque) []const u8 {
-    return State.get(handle).entry.name;
-}
-
-pub fn tarDirectory(handle: *anyopaque) bool {
-    return State.get(handle).entry.kind == .directory;
-}
-
-pub fn tarFile(handle: *anyopaque) bool {
-    return State.get(handle).entry.kind == .file;
-}
-
-pub fn tarExecutable(handle: *anyopaque) bool {
-    return State.get(handle).entry.mode & 0o100 != 0;
-}
-
-pub fn claimTarPath(handle: *anyopaque, name: []const u8) Error!bool {
+pub fn claimTarPath(handle: *anyopaque, name: []const u8) Error!?[]const u8 {
     const self = State.get(handle);
     const path = self.allocator.dupe(u8, name) catch |err| return self.fail(err);
     const previous = self.paths.getOrPut(self.allocator, path) catch |err| return self.fail(err);
 
-    self.path = path;
+    if (previous.found_existing) return null;
 
-    return !previous.found_existing;
+    return path;
 }
 
-pub fn makeTarDirectory(handle: *anyopaque) Error!void {
+pub fn makeTarDirectory(handle: *anyopaque, path: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.directory.createDirPath(self.io, self.path) catch |err| return self.fail(err);
+    self.directory.createDirPath(self.io, path) catch |err| return self.fail(err);
 }
 
-pub fn writeTarFile(handle: *anyopaque, executable: bool) Error!void {
+pub fn writeTarFile(handle: *anyopaque, path: []const u8, executable: bool) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const directory = self.directory;
-    const path = self.path;
 
     if (std.fs.path.dirname(path)) |parent| directory.createDirPath(io, parent) catch |err| return self.fail(err);
 

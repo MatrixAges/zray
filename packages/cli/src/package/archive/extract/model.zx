@@ -1,7 +1,15 @@
-export type { Archive as Input } from "package_extract_host"
+import type { Archive, Entry } from "package_extract_host"
+
+export type Input = Archive
+
+export type EntryInput = {
+    archive: Archive,
+    entry: Entry
+}
 
 export enum Status {
     Valid,
+    InvalidPackageArchivePath,
     DuplicatePackageArchivePath,
     UnsupportedPackageTarEntry
 }

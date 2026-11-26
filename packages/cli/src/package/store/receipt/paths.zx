@@ -1,29 +1,43 @@
 import host from "package_receipt_host"
 
+import normalize from "../../package/archive/path/normalize"
 import { digest_width } from "../const"
+import { Status } from "./model"
 
-import type { Input } from "./model"
-
-export type Output = bool
+import type { Output, PathsInput as Input } from "./model"
 
 export default function (in: Input): Output {
-    const count = host.fileCount(in)
+    const count = in.paths.length
 
     return loop({
         row: 0,
-        valid: true
+        status: Status.Valid
     }, {
-        while: state => state.valid && state.row < count,
+        while: state => state.status == Status.Valid && state.row < count,
         next: state => {
             const row = state.row
-            const path = host.filePath(in, row)
-            const normal = host.normalizeArchivePath(path, false)
-            const digest = host.fileHash(in, row)
+            const path = in.paths[row]
+            const normal = normalize({
+                name: path,
+                directory: false
+            })
 
-            state.valid = normal == path && digest.length == digest_width &&
-                host.claimFile(in, row, normal)
+            if (normal == null) {
+                state.status = Status.InvalidPackageArchivePath
+            } else {
+                const digest = in.hashes[row]
+                const matching = normal == path
+                const sized = digest.length == digest_width
+
+                if (!matching || !sized) {
+                    state.status = Status.InvalidPackageReceipt
+                } else if (!host.claimFile(in.receipt, row, normal)) {
+                    state.status = Status.InvalidPackageReceipt
+                }
+            }
+
             state.row += 1
         },
-        return: state => state.valid
+        return: state => state.status
     })
 }

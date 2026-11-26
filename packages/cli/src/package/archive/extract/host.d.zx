@@ -1,17 +1,26 @@
 export type Archive = mutable_opaque
 
-export declare function nextTar(archive: Archive): bool throws { ArchiveHostFailure }
-export declare function tarName(archive: Archive): string
-export declare function tarDirectory(archive: Archive): bool
-export declare function tarFile(archive: Archive): bool
-export declare function tarExecutable(archive: Archive): bool
-export declare function normalizeArchivePath(path: string, directory: bool): string throws {
-    InvalidPackageArchivePath
+export enum EntryKind {
+    Directory,
+    File,
+    Other
 }
-export declare function claimTarPath(archive: Archive, path: string): bool throws {
+
+export type Entry = {
+    name: string,
+    kind: EntryKind,
+    executable: bool
+}
+
+export declare function nextTar(archive: Archive): Entry? throws { ArchiveHostFailure }
+export declare function claimTarPath(archive: Archive, path: string): string? throws {
     ArchiveHostFailure
 }
-export declare function makeTarDirectory(archive: Archive): void throws { ArchiveHostFailure }
-export declare function writeTarFile(archive: Archive, executable: bool): void throws {
+export declare function makeTarDirectory(archive: Archive, path: string): void throws {
     ArchiveHostFailure
 }
+export declare function writeTarFile(
+    archive: Archive,
+    path: string,
+    executable: bool
+): void throws { ArchiveHostFailure }

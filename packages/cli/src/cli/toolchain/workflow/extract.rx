@@ -13,9 +13,7 @@
             <Return value={Toolchain.Status.CorruptBundledToolchain} />
         </If>
 
-        <Call fn="index.zip" in={$in.toolchain} />
-
-        <If on={$ctx.zip}>
+        <If on={$in.zip}>
             <Call fn="index.extractZip" in={$in.toolchain} />
 
             <Else>

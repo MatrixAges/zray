@@ -9,7 +9,6 @@ pub const constants = @import("cli_source").store_constants.@"zx.constants";
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
     @import("archive/extract/storage.zig"),
-    @import("archive/path.zig"),
     @import("store/cache/storage.zig"),
     @import("store/download.zig"),
     @import("store/receipt/storage.zig"),

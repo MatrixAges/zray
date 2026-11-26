@@ -12,10 +12,15 @@ export default function (in: Input): Output {
     }, {
         while: current => current.more && current.status == Status.Valid,
         next: current => {
-            current.more = host.nextTar(in)
+            const next = host.nextTar(in)
 
-            if (current.more) {
-                current.status = entry(in)
+            if (next == null) {
+                current.more = false
+            } else {
+                current.status = entry({
+                    archive: in,
+                    entry: next
+                })
             }
         },
         return: current => current.status

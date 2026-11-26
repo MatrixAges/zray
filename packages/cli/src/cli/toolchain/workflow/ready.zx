@@ -15,7 +15,7 @@ export default function (in: Input): Output {
     const toolchain = in.toolchain
     const text = host.marker(toolchain)
 
-    if (text != host.expectedMarker(toolchain)) {
+    if (text != in.expected_marker) {
         return false
     }
 

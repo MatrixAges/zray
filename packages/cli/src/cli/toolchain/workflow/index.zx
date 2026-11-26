@@ -6,7 +6,6 @@ export {
     createStaging,
     loadZig,
     zigHash,
-    zip,
     extractZip,
     extractTar,
     renameZig,

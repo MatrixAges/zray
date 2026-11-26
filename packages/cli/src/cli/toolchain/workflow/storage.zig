@@ -106,10 +106,6 @@ pub fn marker(handle: *anyopaque) Error![]const u8 {
     return text;
 }
 
-pub fn expectedMarker(handle: *anyopaque) []const u8 {
-    return State.get(handle).digest;
-}
-
 pub fn regularFile(handle: *anyopaque, path: []const u8) Error!bool {
     const self = State.get(handle);
     const file = self.directory.?.openFile(self.io, path, .{}) catch return self.fail(error.IncompleteToolchainCache);
@@ -145,10 +141,6 @@ pub fn loadZig(handle: *anyopaque) Error!void {
 
 pub fn zigHash(handle: *anyopaque) bool {
     return extract.hashMatches(State.get(handle).archive.?, bundle.zig_digest);
-}
-
-pub fn zip(_: *anyopaque) bool {
-    return bundle.zig_format == .zip;
 }
 
 pub fn extractZip(handle: *anyopaque) Error!void {

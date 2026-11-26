@@ -10,11 +10,14 @@ pub const Receipt = struct {
 };
 
 pub fn verify(io: std.Io, allocator: std.mem.Allocator, directory: std.Io.Dir, expected: []const u8) !void {
-    var state: storage.State = .{ .io = io, .allocator = allocator, .directory = directory, .expected = expected };
+    var state: storage.State = .{ .io = io, .allocator = allocator, .directory = directory };
 
     defer state.deinit();
 
-    const status = @import("cli_source").receipt.executeValue(allocator, @ptrCast(&state)) catch |err| switch (err) {
+    const status = @import("cli_source").receipt.executeIn(allocator, &.{
+        .receipt = @ptrCast(&state),
+        .expected = expected,
+    }) catch |err| switch (err) {
         error.ReceiptHostFailure => return state.failure.?,
         else => |failure| return failure,
     };

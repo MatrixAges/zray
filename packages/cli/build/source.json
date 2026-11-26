@@ -162,10 +162,6 @@
             "name": "archive_verify"
         },
         {
-            "path": "package/archive/path/normalize.rx",
-            "name": "archive_path"
-        },
-        {
             "path": "package/workspace/glob/invalid.zx",
             "name": "workspace_invalid_pattern"
         },
@@ -861,10 +857,6 @@
             "path": "store/download/host.d.zx",
             "module": "package_download_host",
             "resolve_members": true
-        },
-        {
-            "path": "toolchain/cache/host.d.zx",
-            "module": "toolchain_environment"
         },
         {
             "path": "toolchain/workflow/host.d.zx",

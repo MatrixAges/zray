@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const bundle = @import("bundle");
 const source = @import("cli_source");
 pub const cache = @import("toolchain_cache");
 pub const workflow = @import("toolchain/workflow/storage.zig");
@@ -17,6 +18,8 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
         .toolchain = @ptrCast(&state),
         .external = zig != null,
         .windows = windows,
+        .expected_marker = if (zig != null) bundle.resources_digest else bundle.digest,
+        .zip = bundle.zig_format == .zip,
     }) catch |err| return if (err == error.ToolchainHostFailure) state.failure.? else err;
 
     switch (outcome) {

@@ -3,24 +3,22 @@ import host from "package_download_host"
 import { maximum_archive } from "../const"
 import { Status } from "./model"
 
-import type { Input, Output } from "./model"
+import type { BodyInput as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    if (!host.ok(in)) {
+    if (!in.head.ok) {
         return Status.PackageDownloadFailed
     }
 
-    if (!host.identityEncoding(in)) {
+    if (!in.head.identity) {
         return Status.UnsupportedPackageContentEncoding
     }
 
-    const length = host.declaredLength(in)
-
-    if (length != null && length > maximum_archive) {
+    if (in.head.length != null && in.head.length > maximum_archive) {
         return Status.PackageArchiveTooLarge
     }
 
-    host.readBody(in, maximum_archive)
+    host.readBody(in.download, maximum_archive)
 
     return Status.Ready
 }

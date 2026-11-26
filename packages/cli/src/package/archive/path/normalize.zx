@@ -1,0 +1,21 @@
+import encoding from "std:encoding"
+
+import bounds from "./bounds"
+import components from "./components"
+
+import type { Input } from "./bounds"
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const range = bounds(in)
+
+    if (!components({
+        ...in,
+        ...range
+    })) {
+        return null
+    }
+
+    return encoding.sliceBytes(in.name, range.start, range.end)
+}

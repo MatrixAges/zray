@@ -1,29 +1,34 @@
 export type Receipt = mutable_opaque
 
+export enum TreeKind {
+    Directory,
+    File,
+    Other
+}
+
+export type LoadedReceipt = {
+    format_version: u32,
+    archive_hash: string,
+    paths: string[],
+    hashes: string[],
+    executables: bool[]
+}
+
+export type HashedFile = {
+    length: u64,
+    digest: string
+}
+
 export declare function receiptIsFile(receipt: Receipt): bool throws { ReceiptHostFailure }
-export declare function loadReceipt(receipt: Receipt): void throws { ReceiptHostFailure }
-export declare function formatVersion(receipt: Receipt): u32
-export declare function archiveHash(receipt: Receipt): string
-export declare function requiredHash(receipt: Receipt): string
-export declare function fileCount(receipt: Receipt): u64
-export declare function filePath(receipt: Receipt, row: u64): string
-export declare function fileHash(receipt: Receipt, row: u64): string
-export declare function expectedExecutable(receipt: Receipt, row: u64): bool
+export declare function loadReceipt(receipt: Receipt): LoadedReceipt throws { ReceiptHostFailure }
 export declare function claimFile(receipt: Receipt, row: u64, path: string): bool throws {
     ReceiptHostFailure
 }
 export declare function openTree(receipt: Receipt): void throws { ReceiptHostFailure }
-export declare function nextTreeEntry(receipt: Receipt): bool throws { ReceiptHostFailure }
-export declare function treeDirectory(receipt: Receipt): bool
-export declare function treeFile(receipt: Receipt): bool
+export declare function nextTreeEntry(receipt: Receipt): TreeKind? throws { ReceiptHostFailure }
 export declare function lookupFile(receipt: Receipt): u64? throws { ReceiptHostFailure }
-export declare function openTreeFile(receipt: Receipt): void throws { ReceiptHostFailure }
-export declare function permissionsMatch(receipt: Receipt, expected: bool): bool
-export declare function hashTreeFile(receipt: Receipt, remaining: u64): u64? throws {
+export declare function openTreeFile(receipt: Receipt): bool? throws { ReceiptHostFailure }
+export declare function hashTreeFile(receipt: Receipt, remaining: u64): HashedFile? throws {
     ReceiptHostFailure
 }
-export declare function currentHash(receipt: Receipt): string
 export declare function closeTreeFile(receipt: Receipt): void
-export declare function normalizeArchivePath(path: string, directory: bool): string throws {
-    InvalidPackageArchivePath
-}

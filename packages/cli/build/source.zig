@@ -114,6 +114,7 @@ pub fn store(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             .{ .name = "pkgs", .module = pkgs },
             .{ .name = "zx", .module = core },
             .{ .name = "cli_source", .module = cli_source },
+            .{ .name = "cli_abi", .module = cli_source.import_table.get("zxc_abi").? },
         },
     });
 
@@ -135,7 +136,6 @@ pub fn toolchain(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
         .imports = &.{.{ .name = "cli_host", .module = host }},
     });
 
-    cli_source.addImport("toolchain_environment", effects);
     cli_source.addImport("toolchain_host", effects);
 
     const cache = b.addModule("toolchain_cache", .{
