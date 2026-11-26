@@ -3,4 +3,9 @@
         <Field name="has_last" type={bool} value={false} />
         <Field name="last" type={string} value={""} />
     </Object>
+
+    <Object name="snapshots">
+        <Field name="has_success" type={bool} value={false} />
+        <Field name="has_failure" type={bool} value={false} />
+    </Object>
 </Store>

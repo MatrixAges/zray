@@ -4,16 +4,11 @@
 
     <Args in={Preparation.CompiledReference} out={bool} />
 
-    <Call fn="../index.isPreparationPackage" in={$in.references} />
-
-    <If on={!$ctx.isPreparationPackage}>
-        <Return value={true} />
-    </If>
-
     <Call
         fn="../index.resolvePreparationTarget"
         in={[
             $in.references,
+            $in.ref_index,
             false
         ]}
     />
@@ -29,6 +24,7 @@
             fn="../index.reportPreparationReference"
             in={[
                 $in.references,
+                $in.ref_index,
                 $in.diagnostic
             ]}
         />

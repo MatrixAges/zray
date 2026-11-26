@@ -59,6 +59,9 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.Text
 
     const reference = &state;
     const references = &cursor;
+
+    defer cursor.deinit();
+
     var store_arena = std.heap.ArenaAllocator.init(allocator);
 
     defer store_arena.deinit();
@@ -97,7 +100,7 @@ pub fn validateTypeSourceRoot(handle: *const anyopaque, path: []const u8) Error!
     if (@import("collection.zig").outside(relative)) return cursor.failure.save(error.RxSourceOutsideProject);
 }
 
-pub fn readPreparedTypeSource(handle: *const anyopaque, path: []const u8) Error!bool {
+pub fn readPreparedTypeSource(handle: *const anyopaque, index: u64, path: []const u8) Error!bool {
     const self = State.get(handle);
     const cursor = self.cursor;
     const allocator = cursor.allocator;
@@ -105,7 +108,7 @@ pub fn readPreparedTypeSource(handle: *const anyopaque, path: []const u8) Error!
     const text = Text.read(cursor.io, allocator, path, self.options.texts) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return cursor.failure.save(err);
 
-        try cursor.report(@errorName(err));
+        try cursor.report(@intCast(index), @errorName(err));
 
         return false;
     };

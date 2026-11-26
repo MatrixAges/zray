@@ -1,10 +1,37 @@
 import { SnapshotSlot, Status } from "watch_host"
 
-import type { ScanResult, Snapshot, Watch } from "watch_host"
+import type { ObservedEntry, ScanResult, Watch } from "watch_host"
 
 export { Delay, SnapshotSlot, Status } from "watch_host"
 
-export type { ScanResult, Snapshot, Watch } from "watch_host"
+export type { ObservedEntry, ScanResult, Watch } from "watch_host"
+
+export type SnapshotStore = {
+    has_success: bool,
+    has_failure: bool
+}
+
+export type PreviousInput = {
+    cache: bool,
+    snapshots: SnapshotStore
+}
+
+export type RecordSnapshotInput = {
+    snapshots: SnapshotStore,
+    success: bool
+}
+
+export type ReobserveStep = {
+    watch: Watch,
+    entries: ObservedEntry[],
+    index: u64,
+    running: bool
+}
+
+export type RestoreInput = {
+    watch: Watch,
+    has_success: bool
+}
 
 export type WatchInput = {
     watch: Watch,

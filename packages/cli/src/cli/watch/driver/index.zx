@@ -18,6 +18,8 @@ export {
     releaseSnapshot,
     announceBuilt,
     restart,
+    snapshotEntries,
+    reobservePath,
     flush,
     releaseTurn
 } from "watch_host"

@@ -30,7 +30,13 @@
         </If>
     </If>
 
-    <Call fn="previous" in={$in} />
+    <Call
+        fn="previous"
+        in={{
+            cache: $in.cache,
+            snapshots: $store.watch_state.snapshots
+        }}
+    />
 
     <Call
         fn="index.begin"

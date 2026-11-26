@@ -2,36 +2,31 @@
     <Type from="../index" as="IO" />
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.TypeWalk} out={Preparation.TypeWalk} />
+    <Args in={Preparation.TypeRefWalk} out={Preparation.TypeRefWalk} />
 
-    <Call
-        fn="../index.preparationReferenceRole"
-        in={[
-            $in.references,
-            $in.index - 1
-        ]}
-    />
-
-    <If on={$ctx.preparationReferenceRole == IO.Role.TypeImport}>
-        <Call
-            module="reference"
-            in={$in.pick([
-                "types",
-                "references",
-                "scoped",
-                "diagnostic"
-            ])}
-        />
-
-        <If on={!$ctx.reference}>
-            <Return
-                value={{
-                    ...$in,
-                    index: $in.index - 1,
-                    valid: false,
-                    running: false
+    <If on={$in.items[$in.index - 1].role == IO.Role.TypeImport}>
+        <If on={$in.items[$in.index - 1].is_package}>
+            <Call
+                module="reference"
+                in={{
+                    types: $in.types,
+                    references: $in.references,
+                    scoped: $in.scoped,
+                    diagnostic: $in.diagnostic,
+                    ref_index: $in.index - 1
                 }}
             />
+
+            <If on={!$ctx.reference}>
+                <Return
+                    value={{
+                        ...$in,
+                        index: $in.index - 1,
+                        valid: false,
+                        running: false
+                    }}
+                />
+            </If>
         </If>
     </If>
 

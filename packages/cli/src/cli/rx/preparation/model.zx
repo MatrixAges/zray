@@ -1,4 +1,9 @@
-import type { Preparation, References, TypeSources } from "rx_preparation_host"
+import type {
+    ModuleReference,
+    Preparation,
+    References,
+    TypeSources
+} from "rx_preparation_host"
 
 export type TypePass = {
     types: TypeSources,
@@ -11,15 +16,20 @@ export type TypePass = {
 export type TypeWalkStart =
     TypePass.Pick("types", "references", "module_count", "scoped")
 
-export type TypeReference = {
+export type TypeModuleState = {
     types: TypeSources,
     references: References,
     scoped: bool,
     diagnostic: string
 }
 
+export type TypeReference = TypeModuleState & {
+    ref_index: u64
+}
+
 export type TypeRead = {
     types: TypeSources,
+    ref_index: u64,
     scoped: bool,
     path: string
 }
@@ -62,9 +72,13 @@ export type Root = Request & {
     index: u64
 }
 
-export type CompiledReference = {
+export type CompiledModuleState = {
     references: References,
     diagnostic: string
+}
+
+export type CompiledReference = CompiledModuleState & {
+    ref_index: u64
 }
 
 export type RootWalk = Root & Range & {
@@ -78,6 +92,20 @@ export type Cursor = {
     running: bool
 }
 
-export type CompiledWalk = CompiledReference & Cursor
+export type CompiledWalk = CompiledModuleState & Cursor
 
-export type TypeWalk = TypeReference & Cursor
+export type TypeWalk = TypeModuleState & Cursor
+
+export type CompiledRefWalk = CompiledModuleState & {
+    items: ModuleReference[],
+    index: u64,
+    valid: bool,
+    running: bool
+}
+
+export type TypeRefWalk = TypeModuleState & {
+    items: ModuleReference[],
+    index: u64,
+    valid: bool,
+    running: bool
+}

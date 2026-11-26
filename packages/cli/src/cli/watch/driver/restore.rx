@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.RestoreInput} out={void} />
+
+    <If on={$in.has_success}>
+        <Call
+            fn="index.snapshotEntries"
+            in={[
+                $in.watch,
+                Driver.SnapshotSlot.Success
+            ]}
+        />
+
+        <If on={$ctx.snapshotEntries.length != 0}>
+            <Loop on={$in.running}>
+                <Call
+                    module="reobserve_step"
+                    in={{
+                        watch: $in.watch,
+                        entries: $ctx.snapshotEntries,
+                        index: 0,
+                        running: true
+                    }}
+                />
+            </Loop>
+        </If>
+    </If>
+</Module>

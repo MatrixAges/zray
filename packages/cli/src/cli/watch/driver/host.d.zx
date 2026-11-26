@@ -1,5 +1,4 @@
 export type Watch = opaque
-export type Snapshot = opaque
 
 export enum Status {
     Initial,
@@ -24,6 +23,11 @@ export type ScanResult = {
     error_code?: u16
 }
 
+export type ObservedEntry = {
+    path: string,
+    directory: bool
+}
+
 export declare function announce(watch: Watch): void throws { WatchFailure }
 export declare function interrupted(watch: Watch): bool
 export declare function delay(watch: Watch, interval: Delay): void throws { WatchFailure }
@@ -37,7 +41,7 @@ export declare function scanInputs(watch: Watch, slot: SnapshotSlot): ScanResult
     WatchFailure
 }
 export declare function reportScanError(watch: Watch, code: u16): void throws { WatchFailure }
-export declare function begin(watch: Watch, cache: bool, previous: Snapshot?): void throws {
+export declare function begin(watch: Watch, cache: bool, previous: SnapshotSlot?): void throws {
     WatchFailure
 }
 export declare function compileTurn(watch: Watch): Status throws { WatchFailure }
@@ -54,10 +58,13 @@ export declare function captureSnapshot(watch: Watch, slot: SnapshotSlot): void 
 export declare function releaseSnapshot(watch: Watch, slot: SnapshotSlot): void
 export declare function announceBuilt(watch: Watch): void throws { WatchFailure }
 export declare function restart(watch: Watch): void throws { WatchFailure }
-export declare function borrowSnapshot(watch: Watch, slot: SnapshotSlot): Snapshot?
-export declare function snapshotLength(snapshot: Snapshot): u64
-export declare function reobserve(watch: Watch, snapshot: Snapshot, index: u64): void throws {
+export declare function snapshotEntries(watch: Watch, slot: SnapshotSlot): ObservedEntry[] throws {
     WatchFailure
 }
+export declare function reobservePath(
+    watch: Watch,
+    path: string,
+    directory: bool
+): void throws { WatchFailure }
 export declare function flush(watch: Watch): void throws { WatchFailure }
 export declare function releaseTurn(watch: Watch): void

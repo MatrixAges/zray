@@ -5,16 +5,11 @@
 
     <Args in={Preparation.TypeReference} out={bool} />
 
-    <Call fn="../index.isPreparationPackage" in={$in.references} />
-
-    <If on={!$ctx.isPreparationPackage}>
-        <Return value={true} />
-    </If>
-
     <Call
         fn="../index.resolvePreparationTarget"
         in={[
             $in.references,
+            $in.ref_index,
             true
         ]}
     />
@@ -31,6 +26,7 @@
                 module="read"
                 in={{
                     types: $in.types,
+                    ref_index: $in.ref_index,
                     scoped: $in.scoped,
                     path: $ctx.resolvePreparationTarget.source_path
                 }}
@@ -44,6 +40,7 @@
         fn="../index.reportPreparationReference"
         in={[
             $in.references,
+            $in.ref_index,
             $in.diagnostic
         ]}
     />

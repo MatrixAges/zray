@@ -1,0 +1,12 @@
+import type { RecordSnapshotInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.watch_state.snapshots = {
+        has_success: in.success || in.snapshots.has_success,
+        has_failure: !in.success
+    }
+}

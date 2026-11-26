@@ -11,24 +11,37 @@
         ]}
     />
 
-    <Loop on={$in.running}>
-        <Call
-            module="walk_reference"
-            in={{
+    <If on={$ctx.selectPreparationModule.length != 0}>
+        <Loop on={$in.running}>
+            <Call
+                module="walk_reference"
+                in={{
+                    references: $in.references,
+                    diagnostic: $in.diagnostic,
+                    items: $ctx.selectPreparationModule,
+                    index: 0,
+                    valid: true,
+                    running: true
+                }}
+            />
+        </Loop>
+
+        <Return
+            value={{
                 ...$in,
-                count: $ctx.selectPreparationModule,
-                index: 0,
-                running: $ctx.selectPreparationModule != 0
+                index: $in.index + 1,
+                valid: $ctx.walk_reference.valid,
+                running: $ctx.walk_reference.valid && $in.index + 1 < $in.count
             }}
         />
-    </Loop>
+    </If>
 
     <Return
         value={{
             ...$in,
             index: $in.index + 1,
-            valid: $ctx.walk_reference.valid,
-            running: $ctx.walk_reference.valid && $in.index + 1 < $in.count
+            valid: true,
+            running: $in.index + 1 < $in.count
         }}
     />
 </Module>

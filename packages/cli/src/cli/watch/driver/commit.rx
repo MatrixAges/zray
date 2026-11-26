@@ -3,6 +3,8 @@
 
     <Args in={Driver.Wait} out={void} />
 
+    <Store from="state" as="watch_state" />
+
     <If on={$in[1] == Driver.Status.Success}>
         <Call fn="index.adoptPublishedSnapshot" in={$in[0]} />
 
@@ -24,8 +26,23 @@
             ]}
         />
 
+        <Call
+            fn="record_snapshot"
+            in={{
+                snapshots: $store.watch_state.snapshots,
+                success: true
+            }}
+            setter={[$store.watch_state.snapshots]}
+        />
+
         <Else>
-            <Call fn="restore" in={$in[0]} />
+            <Call
+                module="restore"
+                in={{
+                    watch: $in[0],
+                    has_success: $store.watch_state.snapshots.has_success
+                }}
+            />
 
             <Call
                 fn="index.captureSnapshot"
@@ -33,6 +50,15 @@
                     $in[0],
                     Driver.SnapshotSlot.Failure
                 ]}
+            />
+
+            <Call
+                fn="record_snapshot"
+                in={{
+                    snapshots: $store.watch_state.snapshots,
+                    success: false
+                }}
+                setter={[$store.watch_state.snapshots]}
             />
         </Else>
     </If>

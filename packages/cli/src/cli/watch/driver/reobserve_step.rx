@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.ReobserveStep} out={Driver.ReobserveStep} />
+
+    <Call
+        fn="index.reobservePath"
+        in={[
+            $in.watch,
+            $in.entries[$in.index].path,
+            $in.entries[$in.index].directory
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.entries.length
+        }}
+    />
+</Module>

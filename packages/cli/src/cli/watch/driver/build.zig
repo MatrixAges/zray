@@ -1,13 +1,13 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
-const Snapshot = @import("watch_inputs").Snapshot;
 const compiler = @import("../../compile.zig");
 const storage = @import("storage.zig");
 const State = storage.State;
 const Error = storage.Error;
-const SnapshotReference = @import("cli_abi").native.@"zig:watch_host".Snapshot;
+const ObservedEntryLayout = @import("cli_abi").layouts.@"zig:watch_host".ObservedEntry;
+const ObservedEntry = @import("cli_abi").native.@"zig:watch_host".ObservedEntry;
 
-pub fn begin(handle: *const anyopaque, cache: bool, previous: ?*const anyopaque) Error!void {
+pub fn begin(handle: *const anyopaque, cache: bool, previous: ?storage.SnapshotSlot) Error!void {
     const self = State.get(handle);
     const inputs = Inputs.init(self.io, self.allocator) catch |err| return self.fail(err);
     self.turn = .{ .arena = .init(self.allocator), .next_backend = .init(self.allocator), .inputs = inputs };
@@ -17,7 +17,9 @@ pub fn begin(handle: *const anyopaque, cache: bool, previous: ?*const anyopaque)
 
     turn.inputs.retain_versions = cache;
 
-    if (previous) |snapshot| turn.inputs.previous = @ptrCast(@alignCast(snapshot));
+    if (previous) |slot| if (self.snapshotSlot(slot).*) |*snapshot| {
+        turn.inputs.previous = snapshot;
+    };
 
     turn.attempt = .{
         .inputs = &turn.inputs,
@@ -102,25 +104,30 @@ pub fn restart(handle: *const anyopaque) Error!void {
     };
 }
 
-pub fn borrowSnapshot(handle: *const anyopaque, slot: storage.SnapshotSlot) ?SnapshotReference {
-    const snapshot = State.get(handle).snapshotSlot(slot);
-
-    return if (snapshot.*) |*value| @ptrCast(value) else null;
-}
-
-pub fn snapshotLength(snapshot: *const anyopaque) u64 {
-    const value: *const Snapshot = @ptrCast(@alignCast(snapshot));
-
-    return value.entries.len;
-}
-
-pub fn reobserve(handle: *const anyopaque, snapshot: *const anyopaque, index: u64) Error!void {
+pub fn snapshotEntries(handle: *const anyopaque, slot: storage.SnapshotSlot) Error![]const ObservedEntry {
     const self = State.get(handle);
-    const value: *const Snapshot = @ptrCast(@alignCast(snapshot));
-    const entry = &value.entries[@intCast(index)];
+    const snapshot = self.snapshotSlot(slot).* orelse return &.{};
+    const allocator = self.turn.?.arena.allocator();
+    const values = allocator.alloc(ObservedEntryLayout, snapshot.entries.len) catch |err| return self.fail(err);
+    const ptrs = allocator.alloc(ObservedEntry, snapshot.entries.len) catch |err| return self.fail(err);
+
+    for (snapshot.entries, values, ptrs) |entry, *value, *ptr| {
+        value.* = .{
+            .path = entry.path,
+            .directory = entry.directory_entries,
+        };
+
+        ptr.* = value;
+    }
+
+    return ptrs;
+}
+
+pub fn reobservePath(handle: *const anyopaque, path: []const u8, directory: bool) Error!void {
+    const self = State.get(handle);
     const inputs = &self.turn.?.inputs;
 
-    (if (entry.directory_entries) inputs.addDirectory(self.io, entry.path) else inputs.add(self.io, entry.path)) catch |err| {
+    (if (directory) inputs.addDirectory(self.io, path) else inputs.add(self.io, path)) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return self.fail(err);
     };
 }

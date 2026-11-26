@@ -2,34 +2,29 @@
     <Type from="../index" as="IO" />
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.CompiledWalk} out={Preparation.CompiledWalk} />
+    <Args in={Preparation.CompiledRefWalk} out={Preparation.CompiledRefWalk} />
 
-    <Call
-        fn="../index.preparationReferenceRole"
-        in={[
-            $in.references,
-            $in.index
-        ]}
-    />
-
-    <If on={$ctx.preparationReferenceRole == IO.Role.ModuleCall}>
-        <Call
-            module="reference"
-            in={$in.pick([
-                "references",
-                "diagnostic"
-            ])}
-        />
-
-        <If on={!$ctx.reference}>
-            <Return
-                value={{
-                    ...$in,
-                    index: $in.index + 1,
-                    valid: false,
-                    running: false
+    <If on={$in.items[$in.index].role == IO.Role.ModuleCall}>
+        <If on={$in.items[$in.index].is_package}>
+            <Call
+                module="reference"
+                in={{
+                    references: $in.references,
+                    diagnostic: $in.diagnostic,
+                    ref_index: $in.index
                 }}
             />
+
+            <If on={!$ctx.reference}>
+                <Return
+                    value={{
+                        ...$in,
+                        index: $in.index + 1,
+                        valid: false,
+                        running: false
+                    }}
+                />
+            </If>
         </If>
     </If>
 
@@ -37,7 +32,7 @@
         value={{
             ...$in,
             index: $in.index + 1,
-            running: $in.index + 1 < $in.count
+            running: $in.index + 1 < $in.items.length
         }}
     />
 </Module>
