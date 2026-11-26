@@ -7,13 +7,14 @@ import diagnostic from "./diagnostic"
 import type { Workspace as Input, Result as Output } from "../model"
 
 export default function (in: Input): Output {
-    const status = host.assembleWorkspace(in.host, WorkspaceStatus.Valid)
+    const outcome = host.assembleWorkspace(in.host)
 
-    return match status {
+    return match outcome.status {
         WorkspaceStatus.Valid => Status.Valid,
         _ => diagnostic({
             ...in,
-            status
+            status: outcome.status,
+            failed_owner: outcome.failed_owner
         })
     }
 }

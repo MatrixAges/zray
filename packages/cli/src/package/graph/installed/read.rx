@@ -5,38 +5,27 @@
 
     <Call fn="../effects.openLock" in={$in} />
 
-    <If on={!$ctx.openLock}>
+    <If on={$ctx.openLock == null}>
         <Return value={Project.Status.PackagesNotInstalled} />
     </If>
 
-    <Call fn="../effects.lockMatches" in={$in} />
-
-    <If on={!$ctx.lockMatches}>
+    <If on={$ctx.openLock == false}>
         <Return value={Project.Status.LockFileOutdated} />
     </If>
 
     <Call fn="../effects.openMapping" in={$in} />
 
-    <If on={!$ctx.openMapping}>
-        <Return value={Project.Status.PackagesNotInstalled} />
+    <If on={$ctx.openMapping != null}>
+        <Call
+            module="loaded"
+            in={{
+                host: $in,
+                mapping: $ctx.openMapping
+            }}
+        />
+
+        <Return value={$ctx.loaded} />
     </If>
 
-    <Call fn="mapping" in={$in} />
-
-    <If on={!$ctx.mapping}>
-        <Return value={Project.Status.InvalidPackageInstallation} />
-    </If>
-
-    <Call fn="../effects.prepareInstalled" in={$in} />
-    <Call fn="../effects.lockedCount" in={$in} />
-
-    <Call
-        fn="rows"
-        in={{
-            host: $in,
-            count: $ctx.lockedCount
-        }}
-    />
-
-    <Return value={$ctx.rows} />
+    <Return value={Project.Status.PackagesNotInstalled} />
 </Module>

@@ -1,6 +1,6 @@
 import host from "package_graph_host"
 
-import type { Workspace as Input } from "../model"
+import type { SeedInput as Input } from "../model"
 
 export type Output = void
 
@@ -9,9 +9,9 @@ export default function (in: Input): Output {
         row: 0,
         first: 0
     }, {
-        while: state => state.row < in.count,
+        while: state => state.row < in.edge_counts.length,
         next: state => {
-            const length = host.localEdgeCount(in.host, state.row)
+            const length = in.edge_counts[state.row]
 
             host.seedLocal(in.host, state.row, state.first, length)
 

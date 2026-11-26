@@ -3,19 +3,28 @@
 
     <Args in={Template.Row} out={void} />
 
+    <Store from="seen" as="seen" />
+
     <Call fn="index.resolveTemplateReference" in={$in} />
 
     <If on={$ctx.resolveTemplateReference != null}>
         <Call
-            fn="contains"
+            fn="admit_path"
             in={{
-                template: $in[0],
+                loaded: store.seen.loaded,
                 path: $ctx.resolveTemplateReference
             }}
+            setter={[store.seen.loaded]}
         />
 
-        <If on={!$ctx.contains}>
-            <Call fn="index.readTemplateFile" in={$in[0]} />
+        <If on={$ctx.admit_path}>
+            <Call
+                fn="index.readTemplateFile"
+                in={[
+                    $in[0],
+                    $ctx.resolveTemplateReference
+                ]}
+            />
         </If>
     </If>
 </Module>

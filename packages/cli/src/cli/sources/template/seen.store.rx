@@ -1,0 +1,5 @@
+<Store name="template_files" version={1}>
+    <Object name="loaded">
+        <Field name="paths" type={string[]} value={[]} />
+    </Object>
+</Store>

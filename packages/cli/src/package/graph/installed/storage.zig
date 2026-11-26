@@ -1,68 +1,55 @@
 const std = @import("std");
+const abi = @import("cli_abi");
 const pkgs = @import("pkgs");
 const graph = @import("../../graph.zig");
 const files = @import("../../install/files.zig");
 const model = @import("../../install/model.zig");
 const host = @import("../host.zig");
 const store = @import("package_store");
+const MappingView = abi.layouts.@"zig:package_graph_host".Mapping;
 
-pub fn openLock(handle: *anyopaque) host.Error!bool {
+pub fn openLock(handle: *anyopaque) host.Error!?bool {
     const self = host.State.get(handle);
 
-    self.locked = (files.load(self.io, self.allocator, self.result.root, self.inputs) catch |err| return self.fail(err)) orelse return false;
-
-    return true;
-}
-
-pub fn lockMatches(handle: *anyopaque) bool {
-    const self = host.State.get(handle);
+    self.locked = (files.load(self.io, self.allocator, self.result.root, self.inputs) catch |err| return self.fail(err)) orelse return null;
 
     return model.matchesWorkspace(self.locked.lock, self.members);
 }
 
-pub fn openMapping(handle: *anyopaque) host.Error!bool {
+pub fn openMapping(handle: *anyopaque) host.Error!?*const MappingView {
     const self = host.State.get(handle);
 
-    self.mapping = (files.readMapping(self.io, self.allocator, self.result.root, self.locked, self.inputs) catch |err| return self.fail(err)) orelse return false;
+    self.mapping = (files.readMapping(self.io, self.allocator, self.result.root, self.locked, self.inputs) catch |err| return self.fail(err)) orelse return null;
 
-    return true;
-}
+    const packages = self.locked.lock.packages;
+    const is_archive = self.allocator.alloc(bool, packages.len) catch |err| return self.fail(err);
+    const archive_digests = self.allocator.alloc([]const u8, packages.len) catch |err| return self.fail(err);
 
-pub fn mappingVersion(handle: *anyopaque) u32 {
-    return host.State.get(handle).mapping.value.format_version;
-}
+    for (packages, 0..) |package, index| {
+        if (package.source == .archive) {
+            is_archive[index] = true;
+            archive_digests[index] = package.source.archive.sha256;
+        } else {
+            is_archive[index] = false;
+            archive_digests[index] = "";
+        }
+    }
 
-pub fn mappingDigest(handle: *anyopaque) []const u8 {
-    return host.State.get(handle).mapping.value.lock_sha256;
-}
+    self.mapping_view = .{
+        .version = self.mapping.value.format_version,
+        .digest = self.mapping.value.lock_sha256,
+        .expected = &self.mapping.expected,
+        .paths = self.mapping.value.paths,
+        .is_archive = is_archive,
+        .archive_digests = archive_digests,
+    };
 
-pub fn expectedDigest(handle: *anyopaque) []const u8 {
-    return &host.State.get(handle).mapping.expected;
-}
-
-pub fn mappedPaths(handle: *anyopaque) []const []const u8 {
-    return host.State.get(handle).mapping.value.paths;
-}
-
-pub fn lockedCount(handle: *anyopaque) u64 {
-    return host.State.get(handle).locked.lock.packages.len;
+    return &self.mapping_view;
 }
 
 pub fn prepareInstalled(handle: *anyopaque) host.Error!void {
     const self = host.State.get(handle);
     self.installed_packages = self.allocator.alloc(graph.Package, self.locked.lock.packages.len) catch |err| return self.fail(err);
-}
-
-pub fn isArchive(handle: *anyopaque, index: u64) bool {
-    return host.State.get(handle).locked.lock.packages[@intCast(index)].source == .archive;
-}
-
-pub fn mappedPath(handle: *anyopaque, index: u64) []const u8 {
-    return host.State.get(handle).mapping.value.paths[@intCast(index)];
-}
-
-pub fn archiveDigest(handle: *anyopaque, index: u64) []const u8 {
-    return host.State.get(handle).locked.lock.packages[@intCast(index)].source.archive.sha256;
 }
 
 pub fn canonical(handle: *anyopaque, path: []const u8) host.Error![]const u8 {
@@ -85,14 +72,10 @@ pub fn verifyReceipt(handle: *anyopaque, parent: []const u8, digest: []const u8)
     store.receipt.verify(io, allocator, directory, digest) catch |err| return self.fail(err);
 }
 
-pub fn readInstalledArchive(handle: *anyopaque, path: []const u8) host.Error!void {
+pub fn readInstalledArchive(handle: *anyopaque, index: u64, path: []const u8) host.Error!bool {
     const self = host.State.get(handle);
 
     self.archive = model.read(self.io, self.allocator, path, self.inputs, self.manifests) catch |err| return self.fail(err);
-}
-
-pub fn archiveMatches(handle: *anyopaque, index: u64) bool {
-    const self = host.State.get(handle);
 
     return model.matches(self.archive, self.locked.lock.packages[@intCast(index)]);
 }

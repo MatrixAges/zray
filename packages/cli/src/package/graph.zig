@@ -93,7 +93,7 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
         .location = pkgs.workspace.manifest.inspect(discovered.packages),
     };
 
-    const status = @import("cli_source").graph_load.executeValue(allocator, &.{
+    const status = @import("cli_source").graph_load.executeIn(allocator, &.{
         .host = @ptrCast(&state),
         .external = state.location.found,
         .count = state.members.len,

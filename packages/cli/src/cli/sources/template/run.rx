@@ -1,21 +1,21 @@
 <Module>
-    <Type from="index" as="Template" />
+    <Type from="model" as="Template" />
 
     <Args in={Template.Input} out={void} />
 
-    <Call fn="index.templateReferenceCount" in={$in} />
+    <Store from="seen" as="seen" />
 
     <Loop on={$in.running}>
         <Call
             module="references"
             in={{
-                source: $in,
-                count: $ctx.templateReferenceCount,
+                source: $in.source,
+                count: $in.count,
                 index: 0,
-                running: $ctx.templateReferenceCount != 0
+                running: true
             }}
         />
     </Loop>
 
-    <Call fn="index.expandSourceTemplate" in={$in} />
+    <Call fn="index.expandSourceTemplate" in={$in.source} />
 </Module>

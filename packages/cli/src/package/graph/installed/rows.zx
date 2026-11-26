@@ -3,7 +3,7 @@ import host from "package_graph_host"
 import { Status } from "../model"
 import archive from "./archive"
 
-import type { Installed as Input, Result as Output } from "../model"
+import type { InstalledLoaded as Input, Result as Output } from "../model"
 
 export default function (in: Input): Output {
     return loop({
@@ -11,14 +11,17 @@ export default function (in: Input): Output {
         ordinal: 0,
         status: Status.Valid
     }, {
-        while: state => state.status == Status.Valid && state.row < in.count,
+        while: state =>
+            state.status == Status.Valid && state.row < in.mapping.is_archive.length,
         next: state => {
             const row = state.row
 
-            if (host.isArchive(in.host, row)) {
+            if (in.mapping.is_archive[row]) {
                 state.status = archive({
                     host: in.host,
-                    row
+                    row,
+                    path: in.mapping.paths[row],
+                    digest: in.mapping.archive_digests[row]
                 })
             } else {
                 const path = host.installedWorkspacePath(in.host, row)

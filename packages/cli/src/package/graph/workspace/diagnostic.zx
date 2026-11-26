@@ -5,18 +5,18 @@ import {
     cyclic_dependencies,
     dependency_depth,
     duplicate_dependency,
+    invalid_range,
     invalid_specifier,
     missing_dependency,
-    invalid_range,
     version_mismatch
 } from "../const"
 import { Status } from "../model"
 
-import type { Workspace } from "../model"
-import type { Result as Output } from "../model"
+import type { Result as Output, Workspace } from "../model"
 
 export type Input = Workspace & {
-    status: WorkspaceStatus
+    status: WorkspaceStatus,
+    failed_owner: u64
 }
 
 export default function (in: Input): Output {
@@ -33,7 +33,7 @@ export default function (in: Input): Output {
     }
 
     const traversal = loop({
-        row: host.failedOwner(in.host)
+        row: in.failed_owner
     }, {
         while: state => state.row < in.count,
         next: state => {

@@ -6,6 +6,14 @@ const resources = compiler.project.resources;
 const effects = @import("effects.zig");
 const Error = effects.Error;
 const rule = @import("cli_source").load_source_template;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 const State = struct {
     io: std.Io,
@@ -18,7 +26,6 @@ const State = struct {
     reporter: zx.Reporter,
     failure: effects.Failure = .{},
     files: std.ArrayList(compiler.project.Resource) = .empty,
-    path: []const u8 = undefined,
 };
 
 pub fn prepare(io: std.Io, allocator: std.mem.Allocator, source: compiler.project.Source, project: compiler.project.Options, inputs: ?*Inputs) !compiler.project.Source {
@@ -44,42 +51,34 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, source: compiler.projec
     };
 
     const reference = &load;
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    rule.executeIn(allocator, @ptrCast(&reference)) catch |err| return load.failure.unwrap(err);
+    defer arena.deinit();
+
+    var loaded: StoreState = &.{ .paths = &.{} };
+    var host: StoreHost = .{ .store_0 = &loaded };
+
+    rule.execute(&arena, &.{
+        .source = @ptrCast(&reference),
+        .count = references.len,
+    }, &host) catch |err| return load.failure.unwrap(err);
 
     return load.source;
-}
-
-pub fn templateReferenceCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).references.len;
 }
 
 pub fn resolveTemplateReference(handle: *const anyopaque, index: u64) Error!?[]const u8 {
     const self = effects.state(State, handle);
     const reference = self.references[@intCast(index)];
 
-    const path = resources.resolve(self.allocator, self.owner, reference, self.project.*, &self.reporter) catch |err| {
+    return resources.resolve(self.allocator, self.owner, reference, self.project.*, &self.reporter) catch |err| {
         if (err == error.OutOfMemory) return self.failure.save(err);
 
         return null;
     };
-
-    self.path = path;
-
-    return path;
 }
 
-pub fn templateFileCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).files.items.len;
-}
-
-pub fn templateFilePath(handle: *const anyopaque, index: u64) []const u8 {
-    return effects.state(State, handle).files.items[@intCast(index)].path;
-}
-
-pub fn readTemplateFile(handle: *const anyopaque) Error!void {
+pub fn readTemplateFile(handle: *const anyopaque, path: []const u8) Error!void {
     const self = effects.state(State, handle);
-    const path = self.path;
     const io = self.io;
     const allocator = self.allocator;
 

@@ -1,5 +1,10 @@
 import type { Template } from "source_loader_host"
 
+export type Input = {
+    source: Template,
+    count: u64
+}
+
 export type Row = [Template, u64]
 
 export type Walk = {
@@ -9,7 +14,11 @@ export type Walk = {
     running: bool
 }
 
-export type File = {
-    template: Template,
+export type Loaded = {
+    paths: string[]
+}
+
+export type AdmitInput = {
+    loaded: Loaded,
     path: string
 }

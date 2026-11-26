@@ -1,4 +1,4 @@
-import type { Host } from "package_graph_host"
+import type { Host, Mapping } from "package_graph_host"
 
 export enum Status {
     Valid,
@@ -19,13 +19,23 @@ export type Input = {
 
 export type Workspace = Input.Pick("host", "count")
 
-export type Installed = Workspace
+export type SeedInput = {
+    host: Host,
+    edge_counts: u64[]
+}
+
+export type InstalledLoaded = {
+    host: Host,
+    mapping: Mapping
+}
 
 export type InstalledHost = Host
 
 export type Row = {
     host: Host,
-    row: u64
+    row: u64,
+    path: string,
+    digest: string
 }
 
 export type Result = Status

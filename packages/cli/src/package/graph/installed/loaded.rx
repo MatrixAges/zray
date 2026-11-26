@@ -1,0 +1,16 @@
+<Module>
+    <Type from="../model" as="Project" />
+
+    <Args in={Project.InstalledLoaded} out={Project.Result} />
+
+    <Call fn="mapping" in={$in.mapping} />
+
+    <If on={!$ctx.mapping}>
+        <Return value={Project.Status.InvalidPackageInstallation} />
+    </If>
+
+    <Call fn="../effects.prepareInstalled" in={$in.host} />
+    <Call fn="rows" in={$in} />
+
+    <Return value={$ctx.rows} />
+</Module>

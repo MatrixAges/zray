@@ -1,18 +1,24 @@
 const std = @import("std");
+const abi = @import("cli_abi");
 const pkgs = @import("pkgs");
 const graph = @import("../../graph.zig");
 const host = @import("../host.zig");
+const AssemblyOutcome = abi.layouts.@"zig:package_graph_host".AssemblyOutcome;
+const WorkspaceStatus = abi.native.@"zig:package_graph_host".WorkspaceStatus;
 
-pub fn prepareWorkspace(handle: *anyopaque) host.Error!void {
+pub fn prepareWorkspace(handle: *anyopaque) host.Error![]const u64 {
     const self = host.State.get(handle);
+    const edge_counts = self.allocator.alloc(u64, self.members.len) catch |err| return self.fail(err);
     self.result.packages = self.allocator.alloc(graph.Package, self.members.len) catch |err| return self.fail(err);
     self.edges = self.allocator.alloc(graph.Dependency, @intCast(self.location.total)) catch |err| return self.fail(err);
-}
 
-pub fn localEdgeCount(handle: *anyopaque, index: u64) u64 {
-    const data = &host.State.get(handle).members[@intCast(index)].manifest;
+    for (self.members, 0..) |member, index| {
+        const data = &member.manifest;
 
-    return data.dependencies.len + data.dev_dependencies.len;
+        edge_counts[index] = data.dependencies.len + data.dev_dependencies.len;
+    }
+
+    return edge_counts;
 }
 
 pub fn seedLocal(handle: *anyopaque, index: u64, first: u64, length: u64) host.Error!void {
@@ -26,7 +32,7 @@ pub fn seedLocal(handle: *anyopaque, index: u64, first: u64, length: u64) host.E
     };
 }
 
-pub fn assembleWorkspace(handle: *anyopaque, shape: anytype) host.Error!@TypeOf(shape) {
+pub fn assembleWorkspace(handle: *anyopaque) host.Error!*const AssemblyOutcome {
     const self = host.State.get(handle);
     const output = self.result;
     const assembly = pkgs.graph.assemble(output.arena.child_allocator, output.root, output.packages, self.edges, self.location.capacity) catch |err| return self.fail(err);
@@ -34,13 +40,14 @@ pub fn assembleWorkspace(handle: *anyopaque, shape: anytype) host.Error!@TypeOf(
     self.failed_owner = @intCast(assembly.owner);
     self.failed_edge = @intCast(assembly.edge);
 
-    return switch (assembly.status) {
-        inline else => |status| @field(@TypeOf(shape), @tagName(status)),
+    self.assembly_view = .{
+        .status = switch (assembly.status) {
+            inline else => |status| @field(WorkspaceStatus, @tagName(status)),
+        },
+        .failed_owner = self.failed_owner,
     };
-}
 
-pub fn failedOwner(handle: *anyopaque) u64 {
-    return host.State.get(handle).failed_owner;
+    return &self.assembly_view;
 }
 
 pub fn discardEdges(handle: *anyopaque, index: u64) void {

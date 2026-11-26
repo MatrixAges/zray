@@ -5,9 +5,7 @@ const workspace = @import("../workspace.zig");
 const files = @import("../install/files.zig");
 const Manifest = @import("../manifest/model.zig").Manifest;
 const Inputs = @import("watch_inputs").Inputs;
-pub const isAbsolute = std.fs.path.isAbsolute;
-pub const parent = std.fs.path.dirname;
-pub const basename = std.fs.path.basename;
+const abi = @import("cli_abi");
 pub const Error = error{PackageGraphHostFailure};
 
 pub const State = struct {
@@ -20,6 +18,8 @@ pub const State = struct {
     location: pkgs.workspace.manifest.Location,
     locked: files.Loaded = undefined,
     mapping: files.Mapping = undefined,
+    mapping_view: abi.layouts.@"zig:package_graph_host".Mapping = undefined,
+    assembly_view: abi.layouts.@"zig:package_graph_host".AssemblyOutcome = undefined,
     installed_packages: []graph.Package = &.{},
     archive: Manifest = undefined,
     edges: []graph.Dependency = &.{},

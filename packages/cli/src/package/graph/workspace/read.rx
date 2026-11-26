@@ -4,7 +4,15 @@
     <Args in={Project.Workspace} out={Project.Result} />
 
     <Call fn="../effects.prepareWorkspace" in={$in.host} />
-    <Call fn="seed" in={$in} />
+
+    <Call
+        fn="seed"
+        in={{
+            host: $in.host,
+            edge_counts: $ctx.prepareWorkspace
+        }}
+    />
+
     <Call fn="assemble" in={$in} />
 
     <Return value={$ctx.assemble} />
