@@ -1,0 +1,17 @@
+<Module>
+    <Type from="execute_model" as="Buffer" />
+
+    <Args in={Buffer.ExecuteView} out={u32} />
+
+    <Call fn="view" in={$in.view} />
+
+    <Call
+        fn="publish_object"
+        in={{
+            writer: $in.writer,
+            output: $ctx.view
+        }}
+    />
+
+    <Return value={$ctx.publish_object} />
+</Module>

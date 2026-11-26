@@ -32,6 +32,16 @@ export type AstArrayRows = {
     builtin_name: ExpressionsBuiltinName[]
 }
 
+export type ExpressionLayouts = {
+    optional_type: u32[],
+    pointer: u32[],
+    const_slice: u32[],
+    primitive: ExpressionsPrimitive[],
+    tuple_type: u32[][],
+    struct_type_start: u32[],
+    struct_type_len: u32[]
+}
+
 export type AstAllocationCallRows = {
     tags: ExpressionsKind[],
     offsets: u32[],

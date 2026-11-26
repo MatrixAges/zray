@@ -1,0 +1,17 @@
+<Module>
+    <Type from="execute_model" as="Projection" />
+
+    <Args in={Projection.Execute} out={u32} />
+
+    <Call module="../emit" in={$in.projection} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            writer: $in.writer,
+            output: $ctx.emit
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

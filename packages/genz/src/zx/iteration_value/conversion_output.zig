@@ -52,7 +52,8 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         return @import("../construction/publication.zig").failure(err)) orelse return value;
 
     const generated = @import("generated_conversion_output");
-    const Input = std.meta.Child(generated.Input);
+    const Call = std.meta.Child(generated.Input);
+    const Input = std.meta.Child(@FieldType(Call, "request"));
     const Source = std.meta.Child(@FieldType(Input, "source"));
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last) and storage == self.referenceBatches());
@@ -78,12 +79,14 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         .operands = columns.operands,
     };
 
-    const output = generated.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .request = &input,
     };
 
-    try @import("publication.zig").write(self, .Returned, .{}, output);
+    const root = generated.executeIn(temporary, &call) catch |err|
+        return @import("../construction/publication.zig").failure(err);
 
-    return @fromBackingInt(output.result.root);
+    return @fromBackingInt(root);
 }

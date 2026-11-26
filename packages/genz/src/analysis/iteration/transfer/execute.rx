@@ -1,0 +1,22 @@
+<Module>
+    <Type from="execute_model" as="Transfer" />
+
+    <Args in={Transfer.Execute} out={Transfer.Published} />
+
+    <Call module="build" in={$in.request} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body",
+                "context"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

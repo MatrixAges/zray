@@ -14,7 +14,8 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
     const kind = try self.typeExpr(type_id);
     const element = try self.typeExpr(self.program.typeOf(type_id).list);
     const generated = @import("generated_iteration_transfer");
-    const Input = std.meta.Child(generated.Input);
+    const Call = std.meta.Child(generated.Input);
+    const Input = std.meta.Child(@FieldType(Call, "request"));
     const history = context.transfers.view(std.meta.Child(@FieldType(Input, "history")));
 
     const input: Input = .{
@@ -29,15 +30,21 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
         .serial = self.serial,
     };
 
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(body),
+        .context = @ptrCast(context),
+        .request = &input,
+    };
+
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
-    const output = generated.executeIn(buffered.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
+    const published = generated.executeIn(buffered.allocator(), &call) catch |err| return @import("../construction/publication.zig").failure(err);
 
-    try @import("publication.zig").write(self, .Transfer, .{ .context = context, .body = body }, output);
-
-    return .{ .root = @fromBackingInt(output.root), .cached = @fromBackingInt(output.record.value) };
+    return .{ .root = @fromBackingInt(published.root), .cached = @fromBackingInt(published.cached) };
 }

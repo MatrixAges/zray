@@ -1,0 +1,19 @@
+<Module>
+    <Type from="execute_model" as="Buffer" />
+
+    <Args in={Buffer.ExecutePrepare} out={void} />
+
+    <Call module="prepare" in={$in.prepare} />
+
+    <Call
+        fn="publish_prepare"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body"
+            ]),
+            output: $ctx.prepare
+        }}
+    />
+</Module>

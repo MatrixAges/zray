@@ -21,12 +21,20 @@ pub fn append(self: *Self, allocator: std.mem.Allocator, record: Record) std.mem
     return self.state.append(allocator, record);
 }
 
-pub fn retain(self: *Self, allocator: std.mem.Allocator, record: anytype) std.mem.Allocator.Error!void {
+pub fn retain(self: *Self, allocator: std.mem.Allocator, type_id: u32, owner: u32, value: u32, ready: u32) std.mem.Allocator.Error!void {
     const Input = @typeInfo(@TypeOf(writing.executeState)).@"fn".param_types[1].?;
+    const Target = std.meta.Child(@FieldType(Input, "record"));
+
+    const record: Target = .{
+        .type_id = type_id,
+        .owner = owner,
+        .value = value,
+        .ready = ready,
+    };
 
     self.state = writing.executeState(allocator, .{
         .state = self.state,
-        .record = zx.columns.pointer(@FieldType(Input, "record"), record),
+        .record = &record,
     }) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,

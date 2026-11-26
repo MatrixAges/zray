@@ -1,9 +1,11 @@
+import type { ExpressionLayouts as Layouts } from "ast_rows"
 import type { Table } from "core/type_table/model"
 import type { Columns as Expressions } from "../../../../ast/expressions/model"
 import type { Columns as Fields } from "../../../../ast/fields/model"
 import type { Columns as Statements } from "../../../../ast/statements/model"
-import type { ExpressionsPrimitive } from "../../../../printer/model/expressions"
 import type { Plan } from "../model"
+
+export type { ExpressionLayouts as Layouts } from "ast_rows"
 
 export type Input = {
     types: Table,
@@ -12,16 +14,6 @@ export type Input = {
     expression_base: u32,
     field_base: u32,
     serial: u64
-}
-
-export type Layouts = {
-    optional_type: u32[],
-    pointer: u32[],
-    const_slice: u32[],
-    primitive: ExpressionsPrimitive[],
-    tuple_type: u32[][],
-    struct_type_start: u32[],
-    struct_type_len: u32[]
 }
 
 export type State = {

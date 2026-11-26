@@ -27,6 +27,14 @@ export declare function cacheIterationType(
     value: u32
 ): void throws { OutOfMemory }
 
+export declare function recordIterationTransfer(
+    frame: IterationResourceFrame,
+    type_id: u32,
+    owner: u32,
+    value: u32,
+    ready: u32
+): void throws { OutOfMemory }
+
 export declare function reserveIterationProjection(
     history: IterationProjectionFrame,
     fresh: u64

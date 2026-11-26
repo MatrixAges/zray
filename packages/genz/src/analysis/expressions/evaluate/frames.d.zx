@@ -62,18 +62,6 @@ export enum ModuleRequestForm {
 
 export type ModuleSignatures = mutable_opaque
 
-export type FragmentPublication = mutable_opaque
-
-export enum FragmentBody {
-    Roots,
-    RootsWithVariables
-}
-
-export enum FragmentStatements {
-    Dense,
-    BorrowingText
-}
-
 export type DirectAstRows = mutable_opaque
 
 export type FieldProjection = opaque

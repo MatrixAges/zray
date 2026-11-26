@@ -1,0 +1,32 @@
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Output, Preparation, Prepare, Redirect, View } from "./model"
+
+export type ExecuteView = {
+    writer: AstWriter,
+    view: View
+}
+
+export type ExecuteRedirect = {
+    writer: AstWriter,
+    redirect: Redirect
+}
+
+export type PublishObject = {
+    writer: AstWriter,
+    output: Output
+}
+
+export type ExecutePrepare = {
+    frame: Lowering,
+    writer: AstWriter,
+    body: AstSequence,
+    prepare: Prepare
+}
+
+export type PublishPrepare = {
+    frame: Lowering,
+    writer: AstWriter,
+    body: AstSequence,
+    output: Preparation
+}

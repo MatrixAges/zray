@@ -1,0 +1,35 @@
+import ast from "ast_rows"
+import { AstPayloadOwnership } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import type { PublishAst as Input } from "./execute_model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, output } = in
+    const { result } = output
+
+    requireAllocation(result.valid)
+
+    ast.appendExpressionRows(
+        writer,
+        result.expressions,
+        result.forms,
+        AstPayloadOwnership.Owned
+    )
+
+    ast.appendStatementRows(
+        writer,
+        result.statements,
+        null,
+        AstPayloadOwnership.Owned
+    )
+
+    ast.appendAstFields(writer, result.fields)
+    host.finishGeneratedAst(frame, result.serial, result.uses_allocator)
+    ast.hoistStatementRows(writer, output.storage, result.variables)
+
+    return result.root
+}

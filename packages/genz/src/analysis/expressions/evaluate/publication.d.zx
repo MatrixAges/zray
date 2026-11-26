@@ -6,29 +6,3 @@ export declare function finishGeneratedAst(
     serial: u64?,
     uses_allocator: bool
 ): void
-
-export declare function recordIterationTransfer(target: IterationPublication): void
-    throws { OutOfMemory }
-
-export declare function appendFragmentExpressions(target: FragmentPublication, borrow_text: bool): void
-    throws { OutOfMemory }
-
-export declare function appendFragmentLayoutExpressions(target: FragmentPublication): void
-    throws { OutOfMemory }
-
-export declare function appendFragmentStatements(
-    target: FragmentPublication,
-    mode: FragmentStatements
-): void
-    throws { OutOfMemory }
-
-export declare function appendFragmentBody(
-    target: FragmentPublication,
-    mode: FragmentBody
-): void throws { OutOfMemory }
-
-export declare function appendFragmentStorage(target: FragmentPublication): void
-    throws { OutOfMemory }
-
-export declare function appendFragmentFields(target: FragmentPublication, own_text: bool): void
-    throws { OutOfMemory }

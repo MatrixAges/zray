@@ -6,7 +6,6 @@ const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const Consumer = @import("../iteration_consumer.zig").Consumer;
 const Api = @import("../expressions/evaluate.zig").Api;
-const publication = @import("publication.zig");
 const emissionFailure = @import("../construction/publication.zig").failure;
 
 pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
@@ -52,7 +51,8 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     if (plan.operations.len == 0) return value;
 
     const emitter = @import("generated_projection_emit");
-    const Input = std.meta.Child(emitter.Input);
+    const Call = std.meta.Child(emitter.Input);
+    const Input = std.meta.Child(@FieldType(Call, "projection"));
     const history = context.transfers.view(std.meta.Child(@FieldType(Input, "history")));
 
     const input: Input = .{
@@ -69,11 +69,14 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
         .serial = self.serial,
     };
 
-    const output = emitter.executeIn(temporary, &input) catch |err| return emissionFailure(err);
+    const call: Call = .{
+        .writer = @ptrCast(self),
+        .projection = &input,
+    };
 
-    try publication.write(self, .Projection, .{}, output);
+    const root = emitter.executeIn(temporary, &call) catch |err| return emissionFailure(err);
 
-    return @fromBackingInt(output.root);
+    return @fromBackingInt(root);
 }
 
 const Timeline = struct {

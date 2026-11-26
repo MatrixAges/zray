@@ -39,7 +39,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/iteration_value/operands.zig"),
     @import("zx/iteration_value/projection_emission.zig"),
     @import("zx/iteration_value/result.zig"),
-    @import("zx/iteration_value/publication.zig"),
     @import("zx/iteration_value/resources.zig"),
     @import("zx/match.zig"),
     @import("zx/module/execution/emission.zig"),

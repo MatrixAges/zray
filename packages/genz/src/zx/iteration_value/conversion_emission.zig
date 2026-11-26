@@ -44,7 +44,8 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last));
 
     const emitter = @import("generated_conversion_emit");
-    const Input = std.meta.Child(emitter.Input);
+    const Call = std.meta.Child(emitter.Input);
+    const Input = std.meta.Child(@FieldType(Call, "conversion"));
 
     const input: Input = .{
         .plan = zx.columns.pointer(@FieldType(Input, "plan"), plan),
@@ -58,12 +59,15 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         .serial = self.serial,
     };
 
-    const output = emitter.executeIn(buffered.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(context.declarations),
+        .conversion = &input,
     };
 
-    try @import("publication.zig").write(self, .Input, .{ .body = context.declarations }, output);
+    const root = emitter.executeIn(buffered.allocator(), &call) catch |err|
+        return @import("../construction/publication.zig").failure(err);
 
-    return @fromBackingInt(output.root);
+    return @fromBackingInt(root);
 }

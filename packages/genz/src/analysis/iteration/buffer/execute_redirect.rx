@@ -1,0 +1,17 @@
+<Module>
+    <Type from="execute_model" as="Buffer" />
+
+    <Args in={Buffer.ExecuteRedirect} out={u32} />
+
+    <Call module="redirect" in={$in.redirect} />
+
+    <Call
+        fn="publish_object"
+        in={{
+            writer: $in.writer,
+            output: $ctx.redirect
+        }}
+    />
+
+    <Return value={$ctx.publish_object} />
+</Module>

@@ -1,0 +1,21 @@
+<Module>
+    <Type from="execute_model" as="Borrow" />
+
+    <Args in={Borrow.Execute} out={u32} />
+
+    <Call module="build" in={$in.request} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

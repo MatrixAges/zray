@@ -40,7 +40,8 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
         return @import("../construction/publication.zig").failure(err)) orelse return value;
 
     const emitter = @import("generated_iteration_borrow_emit");
-    const EmitInput = std.meta.Child(emitter.Input);
+    const Call = std.meta.Child(emitter.Input);
+    const EmitInput = std.meta.Child(@FieldType(Call, "request"));
 
     const input: EmitInput = .{
         .plan = zx.columns.pointer(@FieldType(EmitInput, "plan"), plan),
@@ -51,12 +52,15 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
         .serial = lowering.serial,
     };
 
-    const output = emitter.executeIn(buffered.allocator(), &input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
+    const call: Call = .{
+        .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
+        .body = @ptrCast(body),
+        .request = &input,
     };
 
-    try @import("publication.zig").write(lowering, .Borrow, .{ .body = body }, output);
+    const root = emitter.executeIn(buffered.allocator(), &call) catch |err|
+        return @import("../construction/publication.zig").failure(err);
 
-    return @fromBackingInt(output.root);
+    return @fromBackingInt(root);
 }

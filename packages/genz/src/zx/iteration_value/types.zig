@@ -41,7 +41,8 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         return @import("../construction/publication.zig").failure(err)) orelse return lowering.typeExpr(id);
 
     const emitter = @import("generated_iteration_types_emit");
-    const EmitInput = std.meta.Child(emitter.Input);
+    const Call = std.meta.Child(emitter.Input);
+    const EmitInput = std.meta.Child(@FieldType(Call, "request"));
 
     const input: EmitInput = .{
         .types = zx.columns.pointer(@FieldType(EmitInput, "types"), &types),
@@ -52,14 +53,18 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         .serial = lowering.serial,
     };
 
-    const output = emitter.executeIn(buffered.allocator(), &input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
+    const call: Call = .{
+        .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
+        .body = @ptrCast(self.declarations),
+        .context = @ptrCast(self),
+        .request = &input,
     };
 
-    try @import("publication.zig").write(lowering, .Types, .{ .context = self, .body = self.declarations }, output);
+    const root = emitter.executeIn(buffered.allocator(), &call) catch |err|
+        return @import("../construction/publication.zig").failure(err);
 
-    return @fromBackingInt(output.root);
+    return @fromBackingInt(root);
 }
 
 pub fn element(lowering: *Lower, id: ir.TypeId) Lower.Error!node.ExpressionId {
