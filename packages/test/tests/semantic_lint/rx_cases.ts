@@ -11,7 +11,7 @@ const gateway = `<Gateway name="state" protocol="http">
 const service = `<Module>
     <Store from="state" as="reader" />
 
-    <Call fn="read" in={store.reader.counter.value} />
+    <Call fn="read" in={$store.reader.counter.value} />
 
     <Return value={$ctx.read} />
 </Module>

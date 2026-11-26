@@ -3,9 +3,9 @@ import type { AddSeenInput as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
-    store.collection.seen = {
+    $store.collection.seen = {
         relative_paths: in.seen.relative_paths.push(in.relative)[0],
         is_asset: in.seen.is_asset.push(!in.source)[0],
         parsed: in.seen.parsed.push(in.source)[0]

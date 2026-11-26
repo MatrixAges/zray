@@ -62,7 +62,7 @@
         in={{
             collection: $in.collection,
             include_paths: $in.include_paths,
-            seen: store.collection.seen,
+            seen: $store.collection.seen,
             separator: $in.separator,
             windows: $in.windows
         }}
@@ -84,7 +84,7 @@
         fn="files"
         in={{
             collection: $in.collection,
-            seen: store.collection.seen
+            seen: $store.collection.seen
         }}
     />
 

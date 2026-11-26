@@ -10,7 +10,7 @@ pub fn main(init: std.process.Init) !void {
     const archive = std.mem.startsWith(u8, args[1], "archive_");
     const order = if (archive) args[1]["archive_".len..] else args[1];
 
-    var library = if (std.mem.startsWith(u8, order, "store")) try @import("store.zig").link(allocator, std.mem.endsWith(u8, order, "reverse")) else if (std.mem.startsWith(u8, order, "native")) try @import("native.zig").link(allocator, std.mem.endsWith(u8, order, "reverse")) else if (std.mem.startsWith(u8, order, "mixed")) try @import("mixed.zig").link(allocator, std.mem.endsWith(u8, order, "reverse")) else block: {
+    var library = if (std.mem.startsWith(u8, order, "store")) try @import("$store.zig").link(allocator, std.mem.endsWith(u8, order, "reverse")) else if (std.mem.startsWith(u8, order, "native")) try @import("native.zig").link(allocator, std.mem.endsWith(u8, order, "reverse")) else if (std.mem.startsWith(u8, order, "mixed")) try @import("mixed.zig").link(allocator, std.mem.endsWith(u8, order, "reverse")) else block: {
         const sources = [_]compiler.project.Source{
             .{ .path = "alpha.zx", .source = @embedFile("fixtures/alpha.zx") },
             .{ .path = "beta.zx", .source = @embedFile("fixtures/beta.zx") },

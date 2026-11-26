@@ -26,7 +26,7 @@ fn check(body: []const u8, context: frontend.Context, expected: ?@FieldType(zx.D
     }
 }
 
-const writable = frontend.Context{ .stores = &.{.{ .handle = "$state", .path = "store.orders.state", .type_name = "State" }} };
+const writable = frontend.Context{ .stores = &.{.{ .handle = "$state", .path = "$store.orders.state", .type_name = "State" }} };
 
 test "store: only Call-injected handles are visible" {
     try check("return $state.value.count\n", .{}, .capability);
@@ -34,8 +34,8 @@ test "store: only Call-injected handles are visible" {
 }
 
 test "store: read-only and write-only permissions are separate" {
-    try check("$state.value = { count: 1, items: in }\n return 0\n", .{ .stores = &.{.{ .handle = "$state", .path = "store.orders.state", .type_name = "State", .writable = false }} }, .capability);
-    try check("return $state.value.count\n", .{ .stores = &.{.{ .handle = "$state", .path = "store.orders.state", .type_name = "State", .readable = false }} }, .capability);
+    try check("$state.value = { count: 1, items: in }\n return 0\n", .{ .stores = &.{.{ .handle = "$state", .path = "$store.orders.state", .type_name = "State", .writable = false }} }, .capability);
+    try check("return $state.value.count\n", .{ .stores = &.{.{ .handle = "$state", .path = "$store.orders.state", .type_name = "State", .readable = false }} }, .capability);
 }
 
 test "store: nested field writes cannot bypass the whole Object setter" {

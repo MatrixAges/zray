@@ -5,7 +5,7 @@ import type { AdmitPathInput as Input } from "../model"
 export type Output = bool
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const wanted = bytes.fromText(in.path)
     const count = in.visited.paths.length
@@ -23,7 +23,7 @@ export default function (in: Input, {
         return false
     }
 
-    store.seen.visited = {
+    $store.seen.visited = {
         paths: in.visited.paths.push(in.path)[0]
     }
 

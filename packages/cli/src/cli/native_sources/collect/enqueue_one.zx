@@ -3,9 +3,9 @@ import type { EnqueueOneInput as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
-    store.collection.queue = {
+    $store.collection.queue = {
         paths: in.queue.paths.push(in.path)[0],
         sources: in.queue.sources.push(in.source)[0],
         from_present: in.queue.from_present.push(in.from_present)[0],

@@ -2,7 +2,7 @@ const std = @import("std");
 const store = @import("store_fixture");
 pub const compiler = @import("compiler");
 pub const Mode = enum { single, duplicate, version_conflict, value_conflict, omitted };
-pub const identity = "store.state.store.rx:counter";
+pub const identity = "$store.state.store.rx:counter";
 
 pub fn library(allocator: std.mem.Allocator, mode: Mode) !compiler.library.Result {
     var inferred = try store.infer("state.store.rx", "u64");

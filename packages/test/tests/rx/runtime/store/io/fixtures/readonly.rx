@@ -12,7 +12,7 @@
     <Call
         fn="combine"
         in={{
-            stored: store.cache.snapshot,
+            stored: $store.cache.snapshot,
             read: $ctx.read
         }}
     />

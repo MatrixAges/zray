@@ -8,7 +8,7 @@ import type {
 } from "../model"
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const target = bytes.fromText(in.real)
     const count = in.seen.real_paths.length
@@ -56,7 +56,7 @@ export default function (in: Input, {
         }
     }
 
-    store.physical.seen = {
+    $store.physical.seen = {
         real_paths: in.seen.real_paths.push(in.real)[0],
         logical_paths: in.seen.logical_paths.push(in.path)[0]
     }

@@ -6,8 +6,8 @@ export const standard_prefix: string = "std:"
 
 export const library_scope_prefix: string = "library:"
 
-export const store_identity_prefix: string = "store."
+export const store_identity_prefix: string = "$store."
 
-export const library_store_prefix: string = "store.library:"
+export const library_store_prefix: string = "$store.library:"
 
 export const library_native_prefix: string = "library_native_"

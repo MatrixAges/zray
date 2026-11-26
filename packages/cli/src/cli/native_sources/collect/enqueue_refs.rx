@@ -17,13 +17,13 @@
     <Call
         fn="enqueue_one"
         in={{
-            queue: store.collection.queue,
+            queue: $store.collection.queue,
             path: $ctx.resolveReference,
             source: $in.ref_sources[$in.index],
             from_present: true,
             from_path: $in.relative
         }}
-        setter={[store.collection.queue]}
+        setter={[$store.collection.queue]}
     />
 
     <Return

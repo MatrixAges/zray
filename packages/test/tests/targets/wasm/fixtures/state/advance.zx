@@ -4,10 +4,10 @@ export type Input = { increment: u64, state: State }
 
 export type Output = u64
 
-export default function (in: Input, { store }): Output {
+export default function (in: Input, { $store }): Output {
   const next = { value: in.state.value + in.increment }
 
-  store.shared.counter = next
+  $store.shared.counter = next
 
   return next.value
 }

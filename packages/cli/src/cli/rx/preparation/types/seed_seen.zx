@@ -3,9 +3,9 @@ import type { SeedSeenInput as Input } from "../model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
-    store.seen.visited = {
+    $store.seen.visited = {
         paths: in.paths
     }
 }

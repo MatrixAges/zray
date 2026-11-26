@@ -74,9 +74,9 @@ pub fn writeSlot(self: *Analyzer, target: anytype) zx.Error!u32 {
 
         const root = syntax.value(object.field.target);
 
-        if (root != .identifier or !std.mem.eql(u8, root.identifier.text, "store")) return self.reporter.fail(.capability, target.span, message);
+        if (root != .identifier or !std.mem.eql(u8, root.identifier.text, "$store")) return self.reporter.fail(.capability, target.span, message);
 
-        const path = try std.fmt.allocPrint(self.allocator, "store.{s}.{s}", .{ object.field.name.text, node.field.name.text });
+        const path = try std.fmt.allocPrint(self.allocator, "$store.{s}.{s}", .{ object.field.name.text, node.field.name.text });
 
         for (self.stores.paths, 0..) |store_path, index| if (std.mem.eql(u8, store_path, path)) {
             break :blk @as(u32, @intCast(index));

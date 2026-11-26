@@ -104,7 +104,7 @@ pub fn main(init: std.process.Init) !void {
     try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = args[2], .data = bundle.source });
     try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = args[3], .data = bundle.types });
 
-    for ([_][]const u8{ "store.left.store.rx:counter", "store.right.store.rx:counter" }, 0..) |identity, index| {
+    for ([_][]const u8{ "$store.left.store.rx:counter", "$store.right.store.rx:counter" }, 0..) |identity, index| {
         if (!std.mem.eql(u8, contract.program.stores.at(index).path, identity)) return error.InvalidStoreIdentity;
         if (contract.store_definitions[index].objects.len != 1) return error.InvalidObjectCount;
 

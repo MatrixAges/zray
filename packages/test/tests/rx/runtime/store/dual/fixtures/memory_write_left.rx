@@ -6,9 +6,9 @@
         in={{
             increment: $in.increment,
             index: $in.index,
-            state: store.inner.counter
+            state: $store.inner.counter
         }}
-        setter={[store.inner.counter]}
+        setter={[$store.inner.counter]}
     />
 
     <Return value={$ctx.advance_failure} />

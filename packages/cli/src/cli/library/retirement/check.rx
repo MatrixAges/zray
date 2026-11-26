@@ -84,10 +84,10 @@
     <Call
         fn="keep_path"
         in={{
-            kept: store.kept.kept,
+            kept: $store.kept.kept,
             path: $ctx.candidate.path
         }}
-        setter={[store.kept.kept]}
+        setter={[$store.kept.kept]}
     />
 
     <Return value={Retirement.Status.Ready} />

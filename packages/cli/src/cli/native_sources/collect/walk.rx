@@ -8,7 +8,7 @@
     <Call
         fn="next_queued"
         in={{
-            queue: store.collection.queue,
+            queue: $store.collection.queue,
             index: $in.index
         }}
     />

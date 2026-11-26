@@ -14,9 +14,9 @@
         in={{
             increment: $in.increment,
             index: $in.right_index,
-            state: store.inner.counter
+            state: $store.inner.counter
         }}
-        setter={[store.inner.counter]}
+        setter={[$store.inner.counter]}
     />
 
     <Return

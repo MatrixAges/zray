@@ -12,7 +12,7 @@
             history: $ctx.consume,
             label: $in.label
         }}
-        setter={[store.inner.counter]}
+        setter={[$store.inner.counter]}
     />
 
     <Return value={$ctx.replace}/>

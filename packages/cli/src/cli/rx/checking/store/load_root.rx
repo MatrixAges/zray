@@ -17,10 +17,10 @@
         <Call
             fn="admit_imports"
             in={{
-                visited: store.seen.visited,
+                visited: $store.seen.visited,
                 paths: $ctx.loadStoreCheckRoot
             }}
-            setter={[store.seen.visited]}
+            setter={[$store.seen.visited]}
         />
 
         <If on={$ctx.admit_imports.length != 0}>

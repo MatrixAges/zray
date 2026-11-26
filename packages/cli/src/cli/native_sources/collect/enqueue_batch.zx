@@ -3,7 +3,7 @@ import type { EnqueueBatchInput as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const next = loop({
         index: 0,
@@ -22,7 +22,7 @@ export default function (in: Input, {
         }
     })
 
-    store.collection.queue = {
+    $store.collection.queue = {
         paths: next.paths,
         sources: next.sources,
         from_present: next.from_present,

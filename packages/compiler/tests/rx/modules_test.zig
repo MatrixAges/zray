@@ -66,7 +66,7 @@ test "Call requires exactly one function or module target" {
 }
 
 test "module calls cannot grant Store setters belonging to another module" {
-    const invalid = h.node("Call", .{ .module = "users", .in = "$in", .setter = "[store.users.state]" }, &.{});
+    const invalid = h.node("Call", .{ .module = "users", .in = "$in", .setter = "[$store.users.state]" }, &.{});
 
     _ = try h.expectError("orders.rx", h.module(&.{invalid}), .context);
 }

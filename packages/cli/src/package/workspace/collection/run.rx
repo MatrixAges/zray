@@ -23,10 +23,10 @@
         <Call
             fn="seed_seen"
             in={{
-                seen: store.state.seen,
+                seen: $store.state.seen,
                 root_name: $ctx.readRoot.root_name
             }}
-            setter={[store.state.seen]}
+            setter={[$store.state.seen]}
         />
 
         <Call fn="index.openDirectory" in={$in} />
@@ -43,7 +43,7 @@
         </Loop>
 
         <Call fn="index.closeDirectory" in={$in} />
-        <Call fn="sort_paths" in={store.state.discovered} />
+        <Call fn="sort_paths" in={$store.state.discovered} />
 
         <Loop on={$in.running}>
             <Call

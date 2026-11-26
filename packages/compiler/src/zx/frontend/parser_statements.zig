@@ -19,14 +19,12 @@ const Condition = grammar.sequence(.{ grammar.required(grammar.token("("), "expe
 const Else = grammar.sequence(.{ grammar.token("else"), grammar.reference(ast.Block, alternative) });
 const Branch = grammar.sequence(.{ grammar.token("if"), Condition, grammar.optional(Else) });
 const Switch = grammar.sequence(.{ grammar.token("switch"), grammar.reference(Value, switchStatement) });
-const Store = grammar.sequence(.{ grammar.peek(grammar.token("store")), grammar.reference(Value, store) });
 
 const Statement = grammar.choice(.{
     grammar.map(Constant, Value, takeSecond(Constant)),
     grammar.map(Return, Value, takeSecond(Return)),
     grammar.map(Branch, Value, branch),
     grammar.map(Switch, Value, takeSecond(Switch)),
-    grammar.map(Store, Value, takeSecond(Store)),
     InjectedStore,
     Evaluation,
 });
@@ -62,7 +60,7 @@ fn constant(_: *Parser, values: Binding.Value) zx.Error!Value {
 }
 
 fn result(parser: *Parser) zx.Error!Value {
-    const next_statement = parser.lineBreak() and (parser.at("const") or parser.at("return") or parser.at("if") or parser.at("switch") or parser.at("store"));
+    const next_statement = parser.lineBreak() and (parser.at("const") or parser.at("return") or parser.at("if") or parser.at("switch") or std.mem.startsWith(u8, parser.current().text(parser.source), "$"));
 
     return .{ .result = if (parser.at("}") or parser.current().kind == .eof or next_statement) null else try expression(parser) };
 }

@@ -136,7 +136,7 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
                 if (std.mem.eql(u8, source_path, entry_path)) {
                     const location = zx.source.locate(source.source, metadata.function_start);
 
-                    return failure(allocator, .{ .path = source.path, .location = .{ .offset = metadata.function_start, .line = location.line, .column = location.column }, .code = "capability", .message = "a Call.setter target must declare its second parameter as { store }" });
+                    return failure(allocator, .{ .path = source.path, .location = .{ .offset = metadata.function_start, .line = location.line, .column = location.column }, .code = "capability", .message = "a Call.setter target must declare its second parameter as { $store }" });
                 }
             }
 

@@ -33,11 +33,11 @@
     <Call
         fn="register_physical"
         in={{
-            seen: store.physical.seen,
+            seen: $store.physical.seen,
             real: $ctx.resolveCollectionPhysicalPath.real,
             path: $in.path
         }}
-        setter={[store.physical.seen]}
+        setter={[$store.physical.seen]}
     />
 
     <If on={$ctx.register_physical.status == Collection.PhysicalRegistration.SamePath}>

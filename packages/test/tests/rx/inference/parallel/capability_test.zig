@@ -9,7 +9,7 @@ const native_case = h.Case{
 };
 
 const setter_case = h.Case{
-    .source = "<Module><Store from='state' as='jobs'/><Parallel><Call fn='write' in={1} setter={[store.jobs.counter]}/></Parallel><Return value={$ctx.write}/></Module>",
+    .source = "<Module><Store from='state' as='jobs'/><Parallel><Call fn='write' in={1} setter={[$store.jobs.counter]}/></Parallel><Return value={$ctx.write}/></Module>",
     .store = true,
     .expected = .{ .code = "unsupported", .marker = "<Call", .message = pure_message },
 };
@@ -54,7 +54,7 @@ test "RX parallel rejects Store setter capability on direct call" {
 
 test "RX sequential Store setter retains existing capability" {
     try h.run(.{
-        .source = "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[store.jobs.counter]}/><Return value={$ctx.write}/></Module>",
+        .source = "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[$store.jobs.counter]}/><Return value={$ctx.write}/></Module>",
         .store = true,
         .slots = 1,
     });
@@ -62,7 +62,7 @@ test "RX sequential Store setter retains existing capability" {
 
 test "RX parallel accepts immutable Store snapshot evaluated in parent" {
     try h.run(.{
-        .source = "<Module><Store from='state' as='jobs'/><Parallel><Call fn='number' in={store.jobs.counter.value}/></Parallel><Return value={$ctx.number}/></Module>",
+        .source = "<Module><Store from='state' as='jobs'/><Parallel><Call fn='number' in={$store.jobs.counter.value}/></Parallel><Return value={$ctx.number}/></Module>",
         .store = true,
         .slots = 1,
     });
@@ -71,7 +71,7 @@ test "RX parallel accepts immutable Store snapshot evaluated in parent" {
 test "RX parallel rejects Store read performed inside service" {
     try h.run(.{
         .source = "<Module><Parallel><Call module='child.rx' in={1}/></Parallel><Return value={$ctx.child}/></Module>",
-        .modules = &.{.{ .path = "child.rx", .text = "<Module><Store from='state' as='jobs'/><Call fn='number' in={store.jobs.counter.value}/><Return value={$ctx.number}/></Module>" }},
+        .modules = &.{.{ .path = "child.rx", .text = "<Module><Store from='state' as='jobs'/><Call fn='number' in={$store.jobs.counter.value}/><Return value={$ctx.number}/></Module>" }},
         .store = true,
         .expected = .{ .code = "unsupported", .marker = "<Call", .message = pure_message },
     });
@@ -80,7 +80,7 @@ test "RX parallel rejects Store read performed inside service" {
 test "RX parallel rejects Store write performed inside service" {
     try h.run(.{
         .source = "<Module><Parallel><Call module='child.rx' in={1}/></Parallel><Return value={$ctx.child}/></Module>",
-        .modules = &.{.{ .path = "child.rx", .text = "<Module><Store from='state' as='jobs'/><Call fn='write' in={$in} setter={[store.jobs.counter]}/><Return value={$ctx.write}/></Module>" }},
+        .modules = &.{.{ .path = "child.rx", .text = "<Module><Store from='state' as='jobs'/><Call fn='write' in={$in} setter={[$store.jobs.counter]}/><Return value={$ctx.write}/></Module>" }},
         .store = true,
         .expected = .{ .code = "unsupported", .marker = "<Call", .message = pure_message },
     });
@@ -123,7 +123,7 @@ test "RX parallel accepts pure service with unused Store declaration" {
 
 test "RX parallel pure service accepts Store snapshot passed by parent" {
     try h.run(.{
-        .source = "<Module><Store from='state' as='jobs'/><Parallel><Call module='child.rx' in={store.jobs.counter.value}/></Parallel><Return value={$ctx.child}/></Module>",
+        .source = "<Module><Store from='state' as='jobs'/><Parallel><Call module='child.rx' in={$store.jobs.counter.value}/></Parallel><Return value={$ctx.child}/></Module>",
         .modules = &.{.{ .path = "child.rx", .text = "<Module><Call fn='number' in={$in}/><Return value={$ctx.number}/></Module>" }},
         .store = true,
         .slots = 1,

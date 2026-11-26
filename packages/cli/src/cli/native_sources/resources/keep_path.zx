@@ -3,9 +3,9 @@ import type { Append as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
-    store.state.discovered = {
+    $store.state.discovered = {
         paths: in.discovered.paths.push(in.path)[0]
     }
 }

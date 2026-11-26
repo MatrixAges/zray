@@ -63,7 +63,7 @@ fn header(parser: *Parser) zx.Error!Header {
 
     if (parser.take(",") and !parser.at(")")) {
         try parser.expect("{");
-        try parser.expect("store");
+        try parser.expect("$store");
         try parser.expect("}");
 
         has_store = true;

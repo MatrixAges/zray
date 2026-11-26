@@ -8,28 +8,28 @@ const header = "export type Input = u64\n\nexport type Output = u64\n\n";
 
 fn check(allocator: std.mem.Allocator, mode: Mode) !void {
     const helper = switch (mode) {
-        .helper_write => header ++ "export default function (in: Input, { store }): Output {\n  store.jobs.counter = { value: in, history: [8] }\n\n  return in\n}\n",
+        .helper_write => header ++ "export default function (in: Input, { $store }): Output {\n  $store.jobs.counter = { value: in, history: [8] }\n\n  return in\n}\n",
         .helper_read => header ++ "export default function (in: Input): Output {\n  return $store.value.value\n}\n",
         else => header ++ "export default function (in: Input): Output {\n  return in + 1\n}\n",
     };
 
     const body = switch (mode) {
-        .entry_read => "  const next = $store.value.value\n\n  store.jobs.counter = { value: next, history: [8] }\n",
-        .field_write => "  const next = helper(in)\n\n  store.jobs.counter.value = next\n",
-        .incomplete_object => "  const next = helper(in)\n\n  store.jobs.counter = { value: next }\n",
-        else => "  const next = helper(in)\n\n  store.jobs.counter = { value: next, history: [8] }\n",
+        .entry_read => "  const next = $store.value.value\n\n  $store.jobs.counter = { value: next, history: [8] }\n",
+        .field_write => "  const next = helper(in)\n\n  $store.jobs.counter.value = next\n",
+        .incomplete_object => "  const next = helper(in)\n\n  $store.jobs.counter = { value: next }\n",
+        else => "  const next = helper(in)\n\n  $store.jobs.counter = { value: next, history: [8] }\n",
     };
 
     const entry = try std.mem.concat(allocator, u8, &.{
         "import helper from \"./helper\"\n\n" ++ header,
-        if (mode == .missing_parameter) "export default function (in: Input): Output {\n" else "export default function (in: Input, { store }): Output {\n",
+        if (mode == .missing_parameter) "export default function (in: Input): Output {\n" else "export default function (in: Input, { $store }): Output {\n",
         body,
         "\n  return next\n}\n",
     });
 
     defer allocator.free(entry);
 
-    var main = try rx.parseXml(allocator, "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[store.jobs.counter]}/><Return value={$ctx.write}/></Module>");
+    var main = try rx.parseXml(allocator, "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[$store.jobs.counter]}/><Return value={$ctx.write}/></Module>");
 
     defer main.deinit();
 
@@ -73,7 +73,7 @@ fn check(allocator: std.mem.Allocator, mode: Mode) !void {
         try std.testing.expectEqualStrings(path, issue.path);
 
         if (mode == .helper_write or mode == .missing_parameter) {
-            try std.testing.expectEqualStrings(if (mode == .helper_write) "source function dependency has not been analyzed in its required context" else "a Call.setter target must declare its second parameter as { store }", issue.message);
+            try std.testing.expectEqualStrings(if (mode == .helper_write) "source function dependency has not been analyzed in its required context" else "a Call.setter target must declare its second parameter as { $store }", issue.message);
             try std.testing.expectEqual(@as(usize, 1), issue.location.line);
             try std.testing.expectEqual(@as(usize, if (mode == .helper_write) 1 else 50), issue.location.column);
         }

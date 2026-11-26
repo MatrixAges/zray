@@ -13,9 +13,9 @@ fn infer(allocator: std.mem.Allocator, mode: Mode) !analysis.module.Result {
     const input = inputs.allocator();
 
     const source = try input.dupe(u8, if (mode == .setter)
-        "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[store.jobs.counter.value]}/></Module>"
+        "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[$store.jobs.counter.value]}/></Module>"
     else
-        "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[store.jobs.counter]}/><Return value={$ctx.write}/></Module>");
+        "<Module><Store from='state' as='jobs'/><Call fn='write' in={1} setter={[$store.jobs.counter]}/><Return value={$ctx.write}/></Module>");
 
     var main = try rx.parseXml(input, source);
 
@@ -63,7 +63,7 @@ fn check(allocator: std.mem.Allocator, mode: Mode) !void {
     const contract = result.value.contract;
 
     try std.testing.expectEqual(@as(usize, 1), contract.program.stores.count());
-    try std.testing.expectEqualStrings("store.state.store.rx:counter", contract.program.stores.at(0).path);
+    try std.testing.expectEqualStrings("$store.state.store.rx:counter", contract.program.stores.at(0).path);
     try std.testing.expectEqual(@as(usize, 1), contract.store_definitions.len);
 
     const definition = contract.store_definitions[0];

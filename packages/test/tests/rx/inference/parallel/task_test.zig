@@ -49,7 +49,7 @@ test "RX parallel no-output Task still rejects native effect" {
 
 test "RX parallel Task rejects Store read inside worker input expression" {
     try h.run(.{
-        .source = "<Module><Store from='state' as='jobs'/><Parallel><Task name='result'><Call fn='number' in={store.jobs.counter.value}/><Return value={$ctx.number}/></Task></Parallel><Return value={$ctx.task.result}/></Module>",
+        .source = "<Module><Store from='state' as='jobs'/><Parallel><Task name='result'><Call fn='number' in={$store.jobs.counter.value}/><Return value={$ctx.number}/></Task></Parallel><Return value={$ctx.task.result}/></Module>",
         .store = true,
         .expected = .{ .code = "unsupported", .marker = "<Task", .message = "pure computation without Store access or native external calls" },
     });
@@ -57,7 +57,7 @@ test "RX parallel Task rejects Store read inside worker input expression" {
 
 test "RX parallel Task accepts captured parent Store snapshot" {
     try h.run(.{
-        .source = "<Module><Store from='state' as='jobs'/><Call fn='number' in={store.jobs.counter.value}/><Parallel><Task name='result'><Return value={$ctx.number}/></Task></Parallel><Return value={$ctx.task.result}/></Module>",
+        .source = "<Module><Store from='state' as='jobs'/><Call fn='number' in={$store.jobs.counter.value}/><Parallel><Task name='result'><Return value={$ctx.number}/></Task></Parallel><Return value={$ctx.task.result}/></Module>",
         .store = true,
         .slots = 1,
     });

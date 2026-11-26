@@ -3,7 +3,7 @@ import type { AdmitInput as Input } from "./model"
 export type Output = u64[]
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const empty_indices: u64[] = []
 
@@ -34,7 +34,7 @@ export default function (in: Input, {
     })
 
     if (result.indices.length != 0) {
-        store.seen.visited = {
+        $store.seen.visited = {
             paths: result.next_paths
         }
     }

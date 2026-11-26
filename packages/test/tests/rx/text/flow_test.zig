@@ -27,7 +27,7 @@ test "RX text Call rejects absolute module" {
 }
 
 test "RX text module Call rejects setter" {
-    try h.reject("<Module><Call module='./load' in={$in} setter={store.jobs}/></Module>", .context, "setter");
+    try h.reject("<Module><Call module='./load' in={$in} setter={$store.jobs}/></Module>", .context, "setter");
 }
 
 test "RX text Call rejects blank function" {
@@ -127,7 +127,7 @@ test "RX text preserves composed flow data" {
         \\  </Task>
         \\  <Parallel><Call fn="load" in={$in}/><Task name="query"><Call fn="load" in={$in}/></Task></Parallel>
         \\  <Emit event="order.created" value={$ctx.order}/>
-        \\  <Call fn="advance" in={$in} setter={[store.jobs.dispatcher]}/>
+        \\  <Call fn="advance" in={$in} setter={[$store.jobs.dispatcher]}/>
         \\</Module>
     ;
     var parsed = try rx.parseXml(std.testing.allocator, source);
@@ -150,7 +150,7 @@ test "RX text preserves composed flow data" {
     try std.testing.expectEqualStrings("$ctx.status", data.children[2].task.children[0].@"switch".attributes.on);
     try std.testing.expectEqual(@as(usize, 2), data.children[3].parallel.children.len);
     try std.testing.expectEqualStrings("order.created", data.children[4].emit.attributes.event);
-    try std.testing.expectEqualStrings("[store.jobs.dispatcher]", data.children[5].call.attributes.setter.?);
+    try std.testing.expectEqualStrings("[$store.jobs.dispatcher]", data.children[5].call.attributes.setter.?);
 }
 
 test "RX text empty attribute reports original value position" {

@@ -4,7 +4,7 @@
     <Call module="advance" in={$in} />
     <Call module="advance_next" in={$in} />
 
-    <Call fn="read" in={store.outer.counter.value} />
+    <Call fn="read" in={$store.outer.counter.value} />
 
     <Return
         value={{

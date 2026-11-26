@@ -5,7 +5,7 @@ import type { ReportDiagnosticInput as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const next = host.reportDiagnostic(
         in.watch,
@@ -15,7 +15,7 @@ export default function (in: Input, {
     )
 
     if (next != null) {
-        store.watch_state.diagnostics = {
+        $store.watch_state.diagnostics = {
             has_last: true,
             last: next
         }

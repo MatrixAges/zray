@@ -11,10 +11,10 @@
         <Call
             fn="admit_path"
             in={{
-                loaded: store.seen.loaded,
+                loaded: $store.seen.loaded,
                 path: $ctx.resolveTemplateReference
             }}
-            setter={[store.seen.loaded]}
+            setter={[$store.seen.loaded]}
         />
 
         <If on={$ctx.admit_path}>

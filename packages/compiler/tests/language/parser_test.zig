@@ -124,8 +124,8 @@ test "zx-store-signature: setter and spread retain their syntax" {
     var result = try h.parseValid(
         \\export type Input = { count: u64 }
         \\export type Output = void
-        \\export default function (in: Input, { store },): Output {
-        \\  store.state.counter = { ...in, count: in.count + 1 }
+        \\export default function (in: Input, { $store },): Output {
+        \\  $store.state.counter = { ...in, count: in.count + 1 }
         \\}
     );
 

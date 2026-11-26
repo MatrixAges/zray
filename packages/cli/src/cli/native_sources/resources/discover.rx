@@ -47,7 +47,7 @@
         />
     </If>
 
-    <Call fn="finish" in={store.state.discovered} />
+    <Call fn="finish" in={$store.state.discovered} />
 
     <Return value={$ctx.finish} />
 </Module>

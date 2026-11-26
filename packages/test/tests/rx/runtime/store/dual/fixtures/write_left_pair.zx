@@ -4,10 +4,10 @@ export type Input = { first: u64
 
 export type Output = u64
 
-export default function (in: Input, { store }): Output {
+export default function (in: Input, { $store }): Output {
   const next = { value: in.first + in.increment, history: [in.second] }
 
-  store.left.counter = next
+  $store.left.counter = next
 
   return next.value
 }

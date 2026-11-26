@@ -17,11 +17,11 @@
         <Call
             fn="enqueue_batch"
             in={{
-                queue: store.collection.queue,
+                queue: $store.collection.queue,
                 paths: $ctx.readBundle,
                 source: false
             }}
-            setter={[store.collection.queue]}
+            setter={[$store.collection.queue]}
         />
     </If>
 

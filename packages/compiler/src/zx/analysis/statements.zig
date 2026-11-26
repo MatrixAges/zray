@@ -126,7 +126,7 @@ pub fn block(self: *Analyzer, value: anytype) zx.Error!ir.BlockId {
 }
 
 pub fn bindingName(self: *Analyzer, name: zx.ast.Name) zx.Error!void {
-    if (std.mem.startsWith(u8, name.text, "$") or std.mem.eql(u8, name.text, "in") or std.mem.eql(u8, name.text, "store") or std.mem.eql(u8, name.text, "_")) {
+    if (std.mem.startsWith(u8, name.text, "$") or std.mem.eql(u8, name.text, "in") or std.mem.eql(u8, name.text, "_")) {
         return self.reporter.fail(.name, name.span, "reserved bindings cannot be redeclared; _ is only a tuple discard pattern");
     }
 }

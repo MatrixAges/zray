@@ -11,7 +11,6 @@ export default function (in: Input): Output {
         - bytes.length != 0
         - and bytes[0] == 36
         - or in == "in"
-        - or in == "store"
         - or in == "_"
     )
 }

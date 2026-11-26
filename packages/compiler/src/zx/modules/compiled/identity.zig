@@ -15,7 +15,7 @@ pub fn scope(allocator: std.mem.Allocator, instance: []const u8, value: []const 
 }
 
 pub fn store(allocator: std.mem.Allocator, instance: []const u8, path: []const u8) std.mem.Allocator.Error![]const u8 {
-    return std.fmt.allocPrint(allocator, "store.library:{d}:{s}:{s}", .{ instance.len, instance, path["store.".len..] });
+    return std.fmt.allocPrint(allocator, "$store.library:{d}:{s}:{s}", .{ instance.len, instance, path["$store.".len..] });
 }
 
 pub fn nativeKey(allocator: std.mem.Allocator, library: Library, key: []const u8) std.mem.Allocator.Error![]const u8 {

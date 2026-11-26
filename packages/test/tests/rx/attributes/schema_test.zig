@@ -278,13 +278,13 @@ test "field-type-expression" {
 
 test "setter-string" {
     try fixture.check(
-        \\{"source":"<Module><Call fn=\"echo\" in=\"text\" setter=\"[store.jobs.state]\"/></Module>","path":"flow.rx","attribute":"setter","offset":42}
+        \\{"source":"<Module><Call fn=\"echo\" in=\"text\" setter=\"[$store.jobs.state]\"/></Module>","path":"flow.rx","attribute":"setter","offset":42}
     );
 }
 
 test "setter-expression" {
     try fixture.check(
-        \\{"source":"<Module><Call fn=\"echo\" in=\"text\" setter={[store.jobs.state]}/></Module>","path":"flow.rx"}
+        \\{"source":"<Module><Call fn=\"echo\" in=\"text\" setter={[$store.jobs.state]}/></Module>","path":"flow.rx"}
     );
 }
 

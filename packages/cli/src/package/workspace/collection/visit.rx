@@ -17,10 +17,10 @@
         <Call
             fn="record_path"
             in={{
-                discovered: store.state.discovered,
+                discovered: $store.state.discovered,
                 path: $in.path
             }}
-            setter={[store.state.discovered]}
+            setter={[$store.state.discovered]}
         />
     </If>
 

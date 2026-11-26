@@ -9,9 +9,9 @@
         fn="admit_path"
         in={{
             path: $in.items[$in.index].path,
-            visited: store.seen.visited
+            visited: $store.seen.visited
         }}
-        setter={[store.seen.visited]}
+        setter={[$store.seen.visited]}
     />
 
     <If on={$ctx.admit_path}>

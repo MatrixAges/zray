@@ -81,7 +81,7 @@ RX 属性值只负责数据引用、组装和简单运算，不执行普通函�
 
 花括号内部直接使用 ZX 源码，支持对象、列表、比较、逻辑运算、注释和模板，不进行 XML 实体解码或空白归一化；`<`、`&&` 无需写成 XML 实体。引号字符串仍使用标签转义，例如 `&amp;`、`&quot;`。
 
-`Call.in`、`Return.value`、`Switch.on`、`Case.value`、`Emit.value` 和 Store `Field.value` 都使用这一规则。`If.on` 必须使用花括号布尔表达式。`setter` 写作 `{[store.alias.object]}`，仍只授权一个完整 Store Object。路径和 `name` 保持静态引号字符串；`Field.type` 使用花括号内的 ZX 类型表达式。Store.version 和 Gateway 字节上限是静态整数配置，使用 `{1}`、`{8192}` 等整数字面量，保留各自范围检查。
+`Call.in`、`Return.value`、`Switch.on`、`Case.value`、`Emit.value` 和 Store `Field.value` 都使用这一规则。`If.on` 必须使用花括号布尔表达式。`setter` 写作 `{[$store.alias.object]}`，仍只授权一个完整 Store Object。路径和 `name` 保持静态引号字符串；`Field.type` 使用花括号内的 ZX 类型表达式。Store.version 和 Gateway 字节上限是静态整数配置，使用 `{1}`、`{8192}` 等整数字面量，保留各自范围检查。
 
 Call 使用 in 传参；读取输入写 `in={$in}`，字符串写 `in="$in"`；旧表达式中通过 XML 实体表示的符号需在花括号内恢复为 ZX 符号。无后缀调用保留：`fn="load"` 对应 `load.zx`，`module="orders"` 对应 `orders.rx`，不需要 `.zig`。
 
@@ -376,27 +376,27 @@ CLI `check-rx --entry state.store.rx` 以及普通入口装载到的 Store 定�
 
 项目推导的 `stores` 与普通 `modules` 分开传入，CLI 源码生成自动沿 Store.from 装载。定义先进入共享类型表，成功结果的 `contract.store_definitions` 保留各 Object 的初值 Program，供宿主初始化；它们不在每个 Call 中重新执行。
 
-维护者使用分模块后端时，先通过 `compiler.zig.emitModules` 或对应缓存入口生成应用 Bundle，再调用 `compiler.zig.store_initializers.append(&bundle, options)`。options 中的 analysis 必须是生成该 Bundle 的同一份应用分析；initializers 每项提供 `identity`、`schema_version` 与 `program`，分别来自 `store.{source_path}:{Object.name}`、Definition.version 和 Object.initial。可选 cache 与应用使用同一个 GenerationCache。
+维护者使用分模块后端时，先通过 `compiler.zig.emitModules` 或对应缓存入口生成应用 Bundle，再调用 `compiler.zig.store_initializers.append(&bundle, options)`。options 中的 analysis 必须是生成该 Bundle 的同一份应用分析；initializers 每项提供 `identity`、`schema_version` 与 `program`，分别来自 `$store.{source_path}:{Object.name}`、Definition.version 和 Object.initial。可选 cache 与应用使用同一个 GenerationCache。
 
 该接口验证初值与应用的共享类型身份，为每个 Object 增加独立模块，并在 `bundle.store_initializers` 返回物理身份、schema 版本、模块名与 ABI 布局名。每个应用 Store 槽位必须找到同身份、同类型的初值；重复身份、缺失初值与不符合初始化约束的 Program 会被拒绝。Object 的运行值类型为该 ABI 布局的不可变指针。新增结果随 Bundle arena 一并释放。
 
 初值模块名称保持稳定，初值正文进入独立缓存指纹；诊断源码位置不影响 Zig 生成缓存。schema 版本保存在 metadata 中，宿主及构建缓存必须消费该 metadata，不能仅依据初值源码是否变化判断恢复兼容性。本接口只组装生成模块，不执行初值或创建持久状态。`compiler.zig.state.append` 根据应用槽位与初值 metadata 生成具体 `zxc_state` 模块；CLI 原生构建只加入实际引用 Object 的初值模块。
 
-`<Store from="state" as="jobs" />` 相对模块路径读取 state.store.rx，别名省略时取定义的 Store.name。命名空间与 Object 名需要是单个标识符；显示名称不适合作为标识符时使用 as。模块源码使用 `store.jobs.counter`，运行身份使用规范化定义路径与 Object 名。同一文件的不同别名共用一个对象，不同文件的同名 Store 不合并。
+`<Store from="state" as="jobs" />` 相对模块路径读取 state.store.rx，别名省略时取定义的 Store.name。命名空间与 Object 名需要是单个标识符；显示名称不适合作为标识符时使用 as。模块源码使用 `$store.jobs.counter`，运行身份使用规范化定义路径与 Object 名。同一文件的不同别名共用一个对象，不同文件的同名 Store 不合并。
 
 ```xml
 <Module>
   <Store from="state" as="jobs" />
   <Call fn="advance"
-    in={{increment: $in, state: store.jobs.counter}}
-    setter={[store.jobs.counter]} />
+    in={{increment: $in, state: $store.jobs.counter}}
+    setter={[$store.jobs.counter]} />
   <Return value={$ctx.advance} />
 </Module>
 ```
 
 getter 仅在 Call.in 可见，允许读取完整 Object 或字段。每次 Call 前读取新的不可变快照，作为普通输入值传递；Return、If、Switch 或回调不能直接捕获 Store getter。Call 结果固定位于 $ctx 命名空间。
 
-setter 必须列出一个完整 Object；不能列出整个 Store、字段、未声明对象或多个对象。目标 ZX 必须声明 `export default function (in: Input, { store }): Output`，通过 `store.jobs.counter = next` 替换整个对象。该能力只写，不允许读取当前 Store；读取值从 in 获得。普通 ZX import 不继承能力，Call.module 的授权由被调模块自己声明。
+setter 必须列出一个完整 Object；不能列出整个 Store、字段、未声明对象或多个对象。目标 ZX 必须声明 `export default function (in: Input, { $store }): Output`，通过 `$store.jobs.counter = next` 替换整个对象。该能力只写，不允许读取当前 Store；读取值从 in 获得。普通 ZX import 不继承能力，Call.module 的授权由被调模块自己声明。
 
 成功调用独立提交；后续调用失败不回滚先前提交。编排函数自身不创建覆盖全流程的事务。`zxc module.rx --out flow.zig` 支持生成带显式宿主的源码；宿主提供稳定槽位指针与 commit(pending)，必须保证当前状态及旧快照的内存存活期；如提供 begin(comptime slots)，生成代码会在 Call 输入读取前调用它。Store 的正确生命周期是应用启动时初始化一次，跨调用和请求共享，应用结束后释放，重启使用初值。此前误加的 JSON 快照、文件锁、磁盘版本、恢复及目录同步已移除；Store 不要求可序列化，也不依赖状态目录。
 

@@ -5,9 +5,9 @@ import type { SeedSeenInput as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
-    store.state.seen = {
+    $store.state.seen = {
         names: in.seen.names.push(in.root_name)[0],
         locations: in.seen.locations.push(root_path)[0]
     }

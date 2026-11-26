@@ -101,7 +101,7 @@ test "compiled Store instances keep valid distinct state paths" {
         for (0..function.stores.count()) |store_index| {
             const slot = function.stores.at(store_index);
 
-            try std.testing.expect(std.mem.startsWith(u8, slot.path, "store."));
+            try std.testing.expect(std.mem.startsWith(u8, slot.path, "$store."));
             try paths.put(std.testing.allocator, slot.path, {});
         }
     }

@@ -19,7 +19,7 @@
     <Call
         fn="build_payload"
         in={{
-            collected: store.state.collected,
+            collected: $store.state.collected,
             all_entries: $in.all_entries
         }}
     />

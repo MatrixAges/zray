@@ -8,8 +8,8 @@ pub fn main(init: std.process.Init) !void {
 
     const result = try compiler.compileWithContext(allocator, source, args[1], .{
         .stores = &.{
-            .{ .handle = "$store_a", .path = "store.primary.state", .type_name = "State" },
-            .{ .handle = "$store_b", .path = "store.secondary.state", .type_name = "State" },
+            .{ .handle = "$store_a", .path = "$store.primary.state", .type_name = "State" },
+            .{ .handle = "$store_b", .path = "$store.secondary.state", .type_name = "State" },
         },
     });
 

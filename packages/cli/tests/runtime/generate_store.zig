@@ -6,7 +6,7 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(allocator);
 
     const result = try compiler.compileWithContext(allocator, @embedFile("cases/store.zx"), "store.zx", .{
-        .stores = &.{.{ .handle = "$store_v", .path = "store.orders.state", .type_name = "State" }},
+        .stores = &.{.{ .handle = "$store_v", .path = "$store.orders.state", .type_name = "State" }},
     });
 
     defer result.deinit(allocator);

@@ -7,9 +7,9 @@
         fn="advance"
         in={{
             increment: $ctx.select,
-            state: store.shared.counter
+            state: $store.shared.counter
         }}
-        setter={[store.shared.counter]}
+        setter={[$store.shared.counter]}
     />
 
     <Return value={$ctx.advance}/>

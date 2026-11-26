@@ -130,7 +130,7 @@ test "ir: a supplied Store slot cannot bypass its read permission" {
 
     defer parsed.deinit();
 
-    var analyzed = try frontend.analyzeWithContext(std.testing.allocator, parsed.value.parsed, .{ .stores = &.{.{ .handle = "$state", .path = "store.orders.state", .type_name = "State" }} });
+    var analyzed = try frontend.analyzeWithContext(std.testing.allocator, parsed.value.parsed, .{ .stores = &.{.{ .handle = "$state", .path = "$store.orders.state", .type_name = "State" }} });
 
     defer analyzed.deinit();
 

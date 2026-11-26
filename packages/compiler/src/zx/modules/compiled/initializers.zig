@@ -6,7 +6,7 @@ pub fn validate(allocator: std.mem.Allocator, library: model.Graph) (std.mem.All
     var identities: std.StringHashMapUnmanaged(void) = .empty;
 
     for (library.store_initializers) |initial| {
-        if (!std.mem.startsWith(u8, initial.identity, "store.") or initial.identity.len == "store.".len or std.mem.indexOfScalar(u8, initial.identity, 0) != null or !std.unicode.utf8ValidateSlice(initial.identity)) return error.InvalidLibrary;
+        if (!std.mem.startsWith(u8, initial.identity, "$store.") or initial.identity.len == "$store.".len or std.mem.indexOfScalar(u8, initial.identity, 0) != null or !std.unicode.utf8ValidateSlice(initial.identity)) return error.InvalidLibrary;
         if ((try identities.getOrPut(allocator, initial.identity)).found_existing) return error.InvalidLibrary;
         if (@backingInt(initial.function) >= program.functions.count()) return error.InvalidLibrary;
 

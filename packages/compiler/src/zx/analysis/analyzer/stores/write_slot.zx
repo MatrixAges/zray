@@ -90,7 +90,7 @@ export default function (in: Input): Output {
             source: in.source,
             kind: NameKind.Expression,
             index: owner.first
-        }).text != "store"
+        }).text != "$store"
     }
 
     if (condition) {

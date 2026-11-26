@@ -29,7 +29,7 @@
         />
     </If>
 
-    <Call fn="finish" in={store.state.entries} />
+    <Call fn="finish" in={$store.state.entries} />
 
     <Return value={$ctx.finish} />
 </Module>

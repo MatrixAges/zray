@@ -8,10 +8,10 @@
     <Call
         fn="admit_path"
         in={{
-            visited: store.seen.visited,
+            visited: $store.seen.visited,
             path: $in.path
         }}
-        setter={[store.seen.visited]}
+        setter={[$store.seen.visited]}
     />
 
     <If on={!$ctx.admit_path}>

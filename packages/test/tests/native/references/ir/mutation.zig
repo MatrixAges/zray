@@ -41,7 +41,7 @@ pub fn apply(allocator: std.mem.Allocator, original: ir.Program, mode: Mode) !ir
 
             program.native_modules = modules.view();
         },
-        .store => program.stores = try ir.StoreTable.fromValues(allocator, &.{.{ .path = "store.host", .type_id = original.output_type }}),
+        .store => program.stores = try ir.StoreTable.fromValues(allocator, &.{.{ .path = "$store.host", .type_id = original.output_type }}),
         else => {
             program = f.nativeOnly(program);
 

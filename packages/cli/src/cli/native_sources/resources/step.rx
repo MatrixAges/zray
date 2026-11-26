@@ -42,10 +42,10 @@
         <Call
             fn="keep_path"
             in={{
-                discovered: store.state.discovered,
+                discovered: $store.state.discovered,
                 path: $ctx.nextResource.path
             }}
-            setter={[store.state.discovered]}
+            setter={[$store.state.discovered]}
         />
 
         <Return value={$in} />
@@ -64,10 +64,10 @@
             <Call
                 fn="keep_path"
                 in={{
-                    discovered: store.state.discovered,
+                    discovered: $store.state.discovered,
                     path: $ctx.nextResource.path
                 }}
-                setter={[store.state.discovered]}
+                setter={[$store.state.discovered]}
             />
 
             <Return value={$in} />

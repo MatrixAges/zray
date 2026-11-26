@@ -5,37 +5,37 @@
     <Call
         fn="read_pair"
         in={{
-            first: store.left.counter.value,
-            second: store.left.counter.value
+            first: $store.left.counter.value,
+            second: $store.left.counter.value
         }}
     />
 
     <Call
         fn="write_pair"
         in={{
-            first: store.left.counter.value,
-            second: store.left.counter.value,
+            first: $store.left.counter.value,
+            second: $store.left.counter.value,
             increment: $in
         }}
-        setter={[store.right.counter]}
+        setter={[$store.right.counter]}
     />
 
     <Call
         fn="read_pair_after"
         in={{
-            first: store.right.counter.value,
-            second: store.right.counter.value
+            first: $store.right.counter.value,
+            second: $store.right.counter.value
         }}
     />
 
     <Call
         fn="write_pair_overlap"
         in={{
-            first: store.right.counter.value,
-            second: store.right.counter.value,
+            first: $store.right.counter.value,
+            second: $store.right.counter.value,
             increment: $in
         }}
-        setter={[store.right.counter]}
+        setter={[$store.right.counter]}
     />
 
     <Call
@@ -45,7 +45,7 @@
             second: $in,
             increment: $in
         }}
-        setter={[store.right.counter]}
+        setter={[$store.right.counter]}
     />
 
     <Return

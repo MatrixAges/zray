@@ -1,7 +1,10 @@
+import bytes from "std:bytes"
+
 import { Keyword } from "../../lexer/keyword_model"
-import { Symbol } from "../../lexer/token_model"
+import { Kind, Symbol } from "../../lexer/token_model"
 import consume from "./consume"
 import expect from "./expect"
+import fail from "./fail"
 import { HeaderPhase } from "./model"
 
 import type { State } from "./model"
@@ -70,13 +73,30 @@ export default function (in: Input): Output {
                 phase: HeaderPhase.StoreName,
                 message: "{"
             })
-        case HeaderPhase.StoreName: return expect({
-            state: in,
-            word: Keyword.Store,
-            symbol: Symbol.None,
-            phase: HeaderPhase.StoreClose,
-            message: "store"
-        })
+        case HeaderPhase.StoreName:
+            const token = in.control.token
+            const source = in.expression.prepared.source
+            const is_identifier = token.kind == Kind.Identifier
+            const has_length = token.span.end - token.span.start == 6
+
+            const valid = is_identifier && has_length && bytes.startsWithText(
+                source,
+                token.span.start,
+                "$store"
+            )
+
+            if (!valid) {
+                return fail({
+                    state: in,
+                    code: "syntax",
+                    message: "$store"
+                })
+            }
+
+            return consume({
+                state: in,
+                phase: HeaderPhase.StoreClose
+            })
         case HeaderPhase.StoreClose:
 
             const state = {

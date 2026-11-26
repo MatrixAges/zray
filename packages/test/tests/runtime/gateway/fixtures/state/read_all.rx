@@ -5,8 +5,8 @@
     <Call
         fn="read_pair"
         in={{
-            primary: store.second.counter,
-            secondary: store.first.counter
+            primary: $store.second.counter,
+            secondary: $store.first.counter
         }}
     />
 

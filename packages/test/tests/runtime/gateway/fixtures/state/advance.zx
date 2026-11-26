@@ -12,7 +12,7 @@ export type Input = {
 export type Output = State
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const next = {
         ...in.state,
@@ -20,7 +20,7 @@ export default function (in: Input, {
         history: in.state.history.map(item => item + 1)[0]
     }
 
-    store.inner.counter = next
+    $store.inner.counter = next
 
     return next
 }

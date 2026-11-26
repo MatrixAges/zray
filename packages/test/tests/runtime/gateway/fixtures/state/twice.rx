@@ -5,18 +5,18 @@
         fn="advance"
         in={{
             increment: $in,
-            state: store.inner.counter
+            state: $store.inner.counter
         }}
-        setter={[store.inner.counter]}
+        setter={[$store.inner.counter]}
     />
 
     <Call
         fn="advance_second"
         in={{
             increment: $in,
-            state: store.inner.counter
+            state: $store.inner.counter
         }}
-        setter={[store.inner.counter]}
+        setter={[$store.inner.counter]}
     />
 
     <Return

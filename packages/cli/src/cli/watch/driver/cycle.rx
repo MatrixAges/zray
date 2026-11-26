@@ -24,8 +24,8 @@
         <If on={$ctx.wait}>
             <Call
                 fn="clear_diagnostic"
-                in={store.watch_state.diagnostics}
-                setter={[store.watch_state.diagnostics]}
+                in={$store.watch_state.diagnostics}
+                setter={[$store.watch_state.diagnostics]}
             />
         </If>
     </If>
@@ -50,9 +50,9 @@
         in={{
             watch: $in.watch,
             normalize: $ctx.compileTurn == Driver.Status.BackendFailed,
-            diagnostics: store.watch_state.diagnostics
+            diagnostics: $store.watch_state.diagnostics
         }}
-        setter={[store.watch_state.diagnostics]}
+        setter={[$store.watch_state.diagnostics]}
     />
 
     <Call

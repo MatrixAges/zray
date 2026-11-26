@@ -16,7 +16,7 @@
     <Call
         fn="lookup_seen"
         in={{
-            seen: store.collection.seen,
+            seen: $store.collection.seen,
             relative: $ctx.relativePath
         }}
     />
@@ -74,10 +74,10 @@
         <Call
             fn="promote_seen"
             in={{
-                seen: store.collection.seen,
+                seen: $store.collection.seen,
                 index: $ctx.lookup_seen.index
             }}
-            setter={[store.collection.seen]}
+            setter={[$store.collection.seen]}
         />
 
         <Call
@@ -92,11 +92,11 @@
             <Call
                 fn="add_seen"
                 in={{
-                    seen: store.collection.seen,
+                    seen: $store.collection.seen,
                     relative: $ctx.relativePath,
                     source: $in.source
                 }}
-                setter={[store.collection.seen]}
+                setter={[$store.collection.seen]}
             />
 
             <Call

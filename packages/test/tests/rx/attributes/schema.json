@@ -285,14 +285,14 @@
     },
     {
         "name": "setter-string",
-        "source": "<Module><Call fn=\"echo\" in=\"text\" setter=\"[store.jobs.state]\"/></Module>",
+        "source": "<Module><Call fn=\"echo\" in=\"text\" setter=\"[$store.jobs.state]\"/></Module>",
         "path": "flow.rx",
         "attribute": "setter",
         "offset": 42
     },
     {
         "name": "setter-expression",
-        "source": "<Module><Call fn=\"echo\" in=\"text\" setter={[store.jobs.state]}/></Module>",
+        "source": "<Module><Call fn=\"echo\" in=\"text\" setter={[$store.jobs.state]}/></Module>",
         "path": "flow.rx"
     },
     {

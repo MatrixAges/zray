@@ -12,8 +12,8 @@ pub fn analyze(allocator: std.mem.Allocator) !compiler.AnalysisResult {
         .root_dir = "/project",
         .context = .{
             .stores = &.{
-                .{ .handle = "$store_a", .path = "store.primary.state", .type_name = "State" },
-                .{ .handle = "$store_b", .path = "store.secondary.state", .type_name = "State", .writable = false },
+                .{ .handle = "$store_a", .path = "$store.primary.state", .type_name = "State" },
+                .{ .handle = "$store_b", .path = "$store.secondary.state", .type_name = "State", .writable = false },
             },
         },
     });
@@ -21,8 +21,8 @@ pub fn analyze(allocator: std.mem.Allocator) !compiler.AnalysisResult {
 
 pub fn check(module: compiler.project.artifact.Module) !void {
     try std.testing.expectEqual(@as(usize, 2), module.stores.count());
-    try std.testing.expectEqualStrings("store.primary.state", module.stores.at(0).path);
-    try std.testing.expectEqualStrings("store.secondary.state", module.stores.at(1).path);
+    try std.testing.expectEqualStrings("$store.primary.state", module.stores.at(0).path);
+    try std.testing.expectEqualStrings("$store.secondary.state", module.stores.at(1).path);
     try std.testing.expectEqualStrings("$store_a", module.stores.at(0).handle);
     try std.testing.expectEqualStrings("$store_b", module.stores.at(1).handle);
     try std.testing.expect(module.stores.at(0).readable and module.stores.at(0).writable);

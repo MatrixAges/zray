@@ -21,10 +21,10 @@ pub fn encode(mode: Mode) ![]u8 {
 
     switch (mode) {
         .out_of_range => initial.getPtr("function").?.* = .{ .integer = 999999 },
-        .empty_identity => initial.getPtr("identity").?.* = .{ .string = "store." },
+        .empty_identity => initial.getPtr("identity").?.* = .{ .string = "$store." },
         .prefix => initial.getPtr("identity").?.* = .{ .string = "state.counter" },
-        .nul => initial.getPtr("identity").?.* = .{ .string = "store.state\x00counter" },
-        .orphan => initial.getPtr("identity").?.* = .{ .string = "store.unknown:counter" },
+        .nul => initial.getPtr("identity").?.* = .{ .string = "$store.state\x00counter" },
+        .orphan => initial.getPtr("identity").?.* = .{ .string = "$store.unknown:counter" },
         .duplicate => try table.array.append(table.array.items[0]),
         .public_function => initial.getPtr("function").?.* = document.value.object.get("exports").?.array.items[0].object.get("function").?,
         .legacy => {},

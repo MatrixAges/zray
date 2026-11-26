@@ -17,11 +17,11 @@
         <Call
             fn="register_name"
             in={{
-                seen: store.state.seen,
+                seen: $store.state.seen,
                 name: $ctx.readMember,
                 location: $in.path
             }}
-            setter={[store.state.seen]}
+            setter={[$store.state.seen]}
         />
 
         <If on={$ctx.register_name != null}>

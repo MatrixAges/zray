@@ -409,7 +409,7 @@ fn loadSource(state: *const Invocation, edge: rx.ast.Location, named: bool, kind
         .MissingForward => loader.fail(location, "module", "default re-export target is missing from the RX module collection"),
         .SetterOnForward => loader.fail(location, "capability", "RX module Store authorization belongs inside the module"),
         .TypeOnly => loader.fail(location, "module", "Call.fn requires an executable ZX module with a default function"),
-        .MissingStore => loader.fail(location, "capability", "a Call.setter target must declare its second parameter as { store }"),
+        .MissingStore => loader.fail(location, "capability", "a Call.setter target must declare its second parameter as { $store }"),
         .Unused => unreachable,
     };
 }

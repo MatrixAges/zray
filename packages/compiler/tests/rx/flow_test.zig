@@ -14,7 +14,7 @@ test "ordinary RX tags compose directly inside a typed Module" {
         h.node("Task", .{ .name = "validate" }, &.{branch}),
         h.node("Parallel", .{}, &.{ h.call(), h.node("Task", .{ .name = "query" }, &.{h.call()}) }),
         h.node("Emit", .{ .event = "order.created", .value = "$ctx.create_order" }, &.{}),
-        h.node("Call", .{ .@"fn" = "advance", .in = "$in", .setter = "[store.jobs.dispatcher]" }, &.{}),
+        h.node("Call", .{ .@"fn" = "advance", .in = "$in", .setter = "[$store.jobs.dispatcher]" }, &.{}),
     });
 
     var result = try rx.validate(std.testing.allocator, "orders.rx", root);
@@ -29,7 +29,7 @@ test "ordinary RX tags compose directly inside a typed Module" {
     try std.testing.expectEqualStrings("bool", data.children[0].args.attributes.out);
     try std.testing.expectEqualStrings("jobs", data.children[1].store.attributes.as.?);
     try std.testing.expectEqualStrings("$ctx.status", data.children[2].task.children[0].@"switch".attributes.on);
-    try std.testing.expectEqualStrings("[store.jobs.dispatcher]", data.children[5].call.attributes.setter.?);
+    try std.testing.expectEqualStrings("[$store.jobs.dispatcher]", data.children[5].call.attributes.setter.?);
 }
 
 test "nesting table rejects misplaced flow elements" {

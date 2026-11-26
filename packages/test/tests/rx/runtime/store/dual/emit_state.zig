@@ -16,7 +16,7 @@ pub fn write(init: std.process.Init, contract: Contract, directory: []const u8) 
 
     for (contract.store_definitions) |definition| for (definition.objects) |object| {
         try initializers.append(allocator, .{
-            .identity = try std.fmt.allocPrint(allocator, "store.{s}:{s}", .{ definition.source_path, object.name }),
+            .identity = try std.fmt.allocPrint(allocator, "$store.{s}:{s}", .{ definition.source_path, object.name }),
             .schema_version = definition.version,
             .program = object.initial,
         });

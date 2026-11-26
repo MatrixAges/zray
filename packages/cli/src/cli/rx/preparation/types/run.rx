@@ -10,7 +10,7 @@
         in={{
             paths: $in.initial_paths
         }}
-        setter={[store.seen.visited]}
+        setter={[$store.seen.visited]}
     />
 
     <Call module="walk" in={$in.omit(["initial_paths"])} />

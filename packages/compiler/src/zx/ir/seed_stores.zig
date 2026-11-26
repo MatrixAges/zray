@@ -7,7 +7,7 @@ pub fn validate(allocator: std.mem.Allocator, program: ir.Program) std.mem.Alloc
     for (0..program.stores.count()) |index| {
         const slot = program.stores.at(index);
 
-        if (@backingInt(slot.type_id) >= program.types.count() or program.typeOf(slot.type_id) != .object or !std.mem.startsWith(u8, slot.path, "store.")) return false;
+        if (@backingInt(slot.type_id) >= program.types.count() or program.typeOf(slot.type_id) != .object or !std.mem.startsWith(u8, slot.path, "$store.")) return false;
         if (try ir.containsNativeReference(allocator, program.types, slot.type_id)) return false;
 
         for (program.stores.paths[0..index]) |previous| {

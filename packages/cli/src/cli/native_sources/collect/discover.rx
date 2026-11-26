@@ -11,13 +11,13 @@
         <Call
             fn="enqueue_one"
             in={{
-                queue: store.collection.queue,
+                queue: $store.collection.queue,
                 path: $in.entry_path,
                 source: true,
                 from_present: false,
                 from_path: ""
             }}
-            setter={[store.collection.queue]}
+            setter={[$store.collection.queue]}
         />
     </If>
 

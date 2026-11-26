@@ -5,7 +5,7 @@ const analysis = @import("rx_analysis");
 const frontend = @import("frontend");
 pub const Case = struct { value: []const u8, expected: bool, helper: bool = false, service: bool = false, forge_summary: bool = false };
 const types = "export type State = { count: u64, rows: u64[][], labels: string[] }\n\nexport type Input = State\n\n";
-const direct = "<Module><Store from='state' as='jobs'/><Call fn='write' in={store.jobs.snapshot} setter={[store.jobs.snapshot]}/></Module>";
+const direct = "<Module><Store from='state' as='jobs'/><Call fn='write' in={$store.jobs.snapshot} setter={[$store.jobs.snapshot]}/></Module>";
 const outer = "<Module><Call module='leaf' in={0}/></Module>";
 const store = "<Store name='proof' version={1}><Object name='snapshot'><Field name='count' type={u64} value={3}/><Field name='rows' type={u64[][]} value={[[1,2]]}/><Field name='labels' type={string[]} value={[\"seed\"]}/></Object></Store>";
 
@@ -14,7 +14,7 @@ pub fn run(case: Case) !void {
 }
 
 pub fn allocated(allocator: std.mem.Allocator, case: Case) !void {
-    const writer = try std.fmt.allocPrint(allocator, "{s}{s}export type Output = void\n\nexport default function (in: Input, {{ store }}): Output {{\n  store.jobs.snapshot = {s}\n\n  return\n}}\n", .{ if (case.helper) "import make from \"./make\"\n\n" else "", types, if (case.helper) "make(in)" else case.value });
+    const writer = try std.fmt.allocPrint(allocator, "{s}{s}export type Output = void\n\nexport default function (in: Input, {{ $store }}): Output {{\n  $store.jobs.snapshot = {s}\n\n  return\n}}\n", .{ if (case.helper) "import make from \"./make\"\n\n" else "", types, if (case.helper) "make(in)" else case.value });
 
     defer allocator.free(writer);
 

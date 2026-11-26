@@ -47,11 +47,11 @@
             <Call
                 fn="append_entry"
                 in={{
-                    entries: store.state.entries,
+                    entries: $store.state.entries,
                     path: $ctx.digestEntry.path,
                     digest: $ctx.digestEntry.digest
                 }}
-                setter={[store.state.entries]}
+                setter={[$store.state.entries]}
             />
         </If>
     </If>

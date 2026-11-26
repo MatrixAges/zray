@@ -3,7 +3,7 @@ import type { PromoteSeenInput as Input } from "./model"
 export type Output = void
 
 export default function (in: Input, {
-    store
+    $store
 }): Output {
     const empty_bools: bool[] = []
 
@@ -24,7 +24,7 @@ export default function (in: Input, {
         }
     })
 
-    store.collection.seen = {
+    $store.collection.seen = {
         relative_paths: in.seen.relative_paths,
         is_asset: next.is_asset,
         parsed: next.parsed

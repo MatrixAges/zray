@@ -20,10 +20,10 @@
             <Call
                 fn="append_entry"
                 in={{
-                    collected: store.state.collected,
+                    collected: $store.state.collected,
                     entry: $ctx.nextDirectoryEntry
                 }}
-                setter={[store.state.collected]}
+                setter={[$store.state.collected]}
             />
         </If>
 
