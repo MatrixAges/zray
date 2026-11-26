@@ -1,8 +1,0 @@
-<Module>
-    <Type from="model" as="Value" />
-
-    <Args in={Value.Input} out={void} />
-
-    <Call fn="scope" in={$in} />
-    <Call fn="emit" in={$in} />
-</Module>

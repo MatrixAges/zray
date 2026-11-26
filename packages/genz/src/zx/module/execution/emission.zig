@@ -3,8 +3,7 @@ const Frame = @import("frame.zig");
 const emission = @import("../emitting.zig");
 const Error = Lower.Error;
 
-pub fn emitModuleStandard(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn standard(frame: *Frame) Error!void {
     const self = frame.lowering;
 
     if (frame.function == null) return emission.standard(self, &frame.output);
@@ -14,8 +13,7 @@ pub fn emitModuleStandard(handle: *anyopaque) Error!void {
     try frame.output.append(self.allocator, .{ .constant = .{ .name = "std", .value = std_import } });
 }
 
-pub fn emitModuleImports(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn imports(frame: *Frame) Error!void {
     const self = frame.lowering;
 
     const selected = frame.function orelse {
@@ -39,78 +37,48 @@ pub fn emitModuleImports(handle: *anyopaque) Error!void {
     try frame.output.append(self.allocator, .{ .constant = .{ .name = "zx_native", .value = value } });
 }
 
-pub fn emitModuleTypes(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn types(frame: *Frame) Error!void {
     return @import("../../types.zig").lower(frame.lowering, &frame.output, false);
 }
 
-pub fn emitModuleExports(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn exports(frame: *Frame) Error!void {
     return emission.exports(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleConstants(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn constants(frame: *Frame) Error!void {
     return @import("../constants.zig").append(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleShape(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn shape(frame: *Frame) Error!void {
     return @import("../../shape.zig").lower(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleAliases(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn aliases(frame: *Frame) Error!void {
     return emission.contracts(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleStore(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn store(frame: *Frame) Error!void {
     return @import("../../store.zig").declaration(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleEntry(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn entry(frame: *Frame) Error!void {
     return @import("../../entry.zig").declarations(frame.lowering, &frame.output);
 }
 
-pub fn emitModuleValueEntry(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn valueEntry(frame: *Frame) Error!void {
     return @import("../../entry_values.zig").declarations(frame.lowering, &frame.output);
 }
 
-pub fn moduleUsesParallel(handle: *anyopaque) bool {
-    return Frame.borrow(handle).lowering.uses_parallel;
-}
-
-pub fn emitModuleParallelAllocator(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const output = if (frame.function == null) &frame.suffix else &frame.output;
-
-    return @import("../../parallel/allocator.zig").append(frame.lowering, output);
-}
-
-pub fn moduleComparisonCount(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).comparisons.items.len;
-}
-
-pub fn emitModuleComparison(handle: *anyopaque, index: u64) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn suffix(frame: *Frame) Error!void {
     const self = frame.lowering;
-    const type_id = frame.comparisons.items[@intCast(index)];
 
-    try frame.suffix.append(self.allocator, try @import("../../comparison.zig").ordering(self, type_id));
-}
+    if (self.uses_parallel) {
+        const output = if (frame.function == null) &frame.suffix else &frame.output;
 
-pub fn suffixSeed(handle: *anyopaque) Error!void {
-    if (moduleUsesParallel(handle)) try emitModuleParallelAllocator(handle);
-    for (0..moduleComparisonCount(handle)) |index| try emitModuleComparison(handle, index);
+        try @import("../../parallel/allocator.zig").append(self, output);
+    }
+
+    for (frame.comparisons.items) |type_id| {
+        try frame.suffix.append(self.allocator, try @import("../../comparison.zig").ordering(self, type_id));
+    }
 }

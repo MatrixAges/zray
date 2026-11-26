@@ -31,39 +31,6 @@ export enum CallArgument {
     Stack
 }
 
-export type FunctionBody = opaque
-
-export type ValueFunction = mutable_opaque
-
-export type ModuleFrame = mutable_opaque
-
-export enum BodySection {
-    Prelude,
-    Pending,
-    References,
-    Contracts,
-    Statements,
-    Commit
-}
-
-export enum ModuleFunctionForm {
-    Native,
-    Regular,
-    RegularAndValue,
-    Value
-}
-
-export enum ModuleRequestForm {
-    Done,
-    Native,
-    FirstRegular,
-    Regular,
-    FirstValue,
-    Value
-}
-
-export type ModuleSignatures = mutable_opaque
-
 export type FieldProjection = opaque
 
 export enum StoredType {
@@ -76,10 +43,6 @@ export enum StoredType {
 }
 
 export type PreconditionFrame = mutable_opaque
-
-export type AnalysisWork = mutable_opaque
-
-export type BasisWork = mutable_opaque
 
 export type CollectionFrame = mutable_opaque
 

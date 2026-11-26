@@ -22,7 +22,6 @@ tasks: Auxiliary,
 requests: ?*RequestsFrame = null,
 
 function: ?ir.FunctionId = null,
-result: Stored = undefined,
 pub fn init(lowering: *Lower) Self {
     return .{
         .lowering = lowering,
@@ -41,10 +40,6 @@ pub fn install(self: *Self) void {
     if (self.requests) |requests| lowering.function_requests = &requests.queue;
 }
 
-pub fn borrow(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
-}
-
 pub fn deinit(self: *Self) void {
     if (generated) {
         self.output.deinit();
@@ -52,30 +47,19 @@ pub fn deinit(self: *Self) void {
     }
 }
 
-pub fn finishSeed(self: *Self, type_only: bool) Lower.Error!Stored {
+pub fn finish(self: *Self, type_only: bool) Lower.Error!Stored {
     const lowering = self.lowering;
 
-    if (type_only) return publication.finish(&self.output, lowering.builder.nodes, lowering.allocator);
+    if (!generated) {
+        if (type_only) return publication.finish(&self.output, lowering.builder.nodes, lowering.allocator);
 
-    return self.tasks.assembleSeed(lowering.allocator, lowering.builder.nodes, &self.output, &self.suffix);
-}
+        return self.tasks.assembleSeed(lowering.allocator, lowering.builder.nodes, &self.output, &self.suffix);
+    }
 
-pub fn appendModuleAuxiliary(handle: *anyopaque) Lower.Error!void {
-    const frame = borrow(handle);
-    const lowering = frame.lowering;
+    if (!type_only) {
+        try self.output.spans.append(try self.tasks.store(lowering.allocator, lowering.builder.nodes));
+        try self.output.spans.extend(&self.suffix.spans);
+    }
 
-    try frame.output.spans.append(try frame.tasks.store(lowering.allocator, lowering.builder.nodes));
-}
-
-pub fn appendModuleSuffix(handle: *anyopaque) Lower.Error!void {
-    const frame = borrow(handle);
-
-    try frame.output.spans.extend(&frame.suffix.spans);
-}
-
-pub fn finishModuleDeclarations(handle: *anyopaque) Lower.Error!void {
-    const frame = borrow(handle);
-    const lowering = frame.lowering;
-
-    frame.result = try frame.output.spans.finish(lowering.allocator);
+    return self.output.spans.finish(lowering.allocator);
 }

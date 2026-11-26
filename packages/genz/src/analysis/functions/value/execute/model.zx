@@ -1,9 +1,0 @@
-import type { ValueFunction } from "lowering_host"
-
-export type Input = {
-    body: ValueFunction,
-    signature: bool,
-    enter: bool,
-    bind_input: bool,
-    value_output: bool
-}

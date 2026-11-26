@@ -1,5 +1,0 @@
-export {
-    appendModuleAuxiliary,
-    appendModuleSuffix,
-    finishModuleDeclarations
-} from "lowering_host"

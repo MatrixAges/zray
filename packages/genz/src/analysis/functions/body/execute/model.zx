@@ -1,6 +1,0 @@
-import type { FunctionBody } from "lowering_host"
-
-export type Input = {
-    body: FunctionBody,
-    stores: bool
-}

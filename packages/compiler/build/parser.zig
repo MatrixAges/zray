@@ -43,7 +43,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const ast_rows = ast_directory.add("rows.d.zx", internal.join(b, genz_dependency.builder, "src/ast/rows", &.{ "expressions.d.zx", "statements.d.zx", "declarations.d.zx", "operands.d.zx", "value_expressions.d.zx", "write.d.zx", "statement_sequence.d.zx", "write_values.d.zx" }));
     const ast_prefix = b.fmt("{s}/ast/rows/", .{directories[3]});
     const execution_interfaces_dir = b.addWriteFiles();
-    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency.builder, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "module.d.zx", "resources.d.zx", "collections.d.zx", "statement.d.zx" }));
+    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency.builder, "src/" ++ lowering_declarations, &.{ "frames.d.zx", "iteration_frames.d.zx", "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx", "call.d.zx", "consumer.d.zx", "iteration.d.zx", "transform.d.zx", "optimization.d.zx", "function.d.zx", "resources.d.zx", "collections.d.zx", "statement.d.zx" }));
     const lowering_prefix = b.fmt("{s}/{s}", .{ directories[3], lowering_declarations });
     const project_directory = "zx/modules/project/execution";
     const project_prefix = b.fmt("{s}/{s}/", .{ directories[0], project_directory });
