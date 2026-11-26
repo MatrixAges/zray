@@ -23,21 +23,20 @@ fn headerSize(compiler_width: usize) usize {
 }
 
 fn seal(header: []u8, payload: []const u8, compiler: []const u8) void {
-    var writer: std.Io.Writer = .fixed(header);
-    var buffer: [256]u8 = undefined;
+    var buffer: [1024]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
     const input: std.meta.Child(sealing.Input) = .{
-        .writer = @ptrCast(&writer),
         .compiler = compiler,
         .payload = payload,
     };
 
-    columns.invoke(sealing.executeValue, scratch.allocator(), &input) catch |err| {
+    const encoded = sealing.executeIn(scratch.allocator(), &input) catch |err| {
         std.debug.panic("semantic cache header could not be written: {s}", .{@errorName(err)});
     };
 
-    std.debug.assert(writer.end == header.len);
+    std.debug.assert(encoded.len == header.len);
+    @memcpy(header, encoded);
 }
 
 pub const Payload = struct {

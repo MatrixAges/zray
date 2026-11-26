@@ -1,38 +1,34 @@
 import bytes from "std:bytes"
-import field from "core/ir/fingerprint/text"
 
 import { frame_domain, shape_domain } from "./const"
-import writeText from "./text_pair"
 
-import type { Writers } from "./model"
+import type { Pair as Output } from "./model"
 
 export type Input = {
-    writers: Writers,
     generator: u8[],
     manifest: string
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { frame, shape } = in.writers
+    const frame_bytes = bytes.fromText(frame_domain)
+    const shape_bytes = bytes.fromText(shape_domain)
+    const manifest_bytes = bytes.fromText(in.manifest)
+    const manifest_len = bytes.encodeU64Le(manifest_bytes.length)
 
-    bytes.write(frame, in.generator)
-
-    field({
-        out: frame,
-        text: frame_domain
-    })
-
-    bytes.write(shape, in.generator)
-
-    field({
-        out: shape,
-        text: shape_domain
-    })
-
-    writeText({
-        writers: in.writers,
-        text: in.manifest
-    })
+    return {
+        frame: bytes.join(bytes.fromText(""), [
+            in.generator,
+            bytes.encodeU64Le(frame_bytes.length),
+            frame_bytes,
+            manifest_len,
+            manifest_bytes
+        ]),
+        shape: bytes.join(bytes.fromText(""), [
+            in.generator,
+            bytes.encodeU64Le(shape_bytes.length),
+            shape_bytes,
+            manifest_len,
+            manifest_bytes
+        ])
+    }
 }

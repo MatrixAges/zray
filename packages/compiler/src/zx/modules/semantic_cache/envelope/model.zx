@@ -1,5 +1,3 @@
-import type { Writer } from "std:bytes"
-
 export type Layout = {
     compiler_start: u64,
     digest_start: u64,
@@ -23,13 +21,11 @@ export type Inspect = {
 }
 
 export type Seal = {
-    writer: Writer,
     compiler: u8[],
     payload: string
 }
 
 export type Header = {
-    writer: Writer,
     compiler: u8[],
     digest: string
 }

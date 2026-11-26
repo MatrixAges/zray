@@ -51,27 +51,32 @@ fn frameSeed(hash: *Hash, generator: *const Digest, manifest: []const u8, texts:
     for (interfaces) |interface| field(&hash.state.hasher, interface.source);
 }
 
-pub fn packages(records: anytype) Digest {
-    var buffer: [1024]u8 = undefined;
-    var hash = Hash.init(&buffer);
-
+pub fn packages(allocator: std.mem.Allocator, records: anytype) std.mem.Allocator.Error!Digest {
     if (comptime generated) {
         const rule = @import("generated_input_text_fingerprint");
         const source = memory.borrowReadFields(.{ .first = "specifier", .second = "entry" }, records);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var arena = std.heap.ArenaAllocator.init(allocator);
+
+        defer arena.deinit();
+
         const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
 
-        const input: Input = .{
-            .out = @ptrCast(hash.out()),
-            .rows = &source.bind(std.meta.Child(@FieldType(Input, "rows"))),
+        const digest = rule.executeIn(arena.allocator(), &source.bind(Input)) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
         };
 
-        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    } else {
-        for (records) |record| {
-            field(&hash.state.hasher, record.specifier);
-            field(&hash.state.hasher, record.entry);
-        }
+        std.debug.assert(digest.len == @sizeOf(Digest));
+
+        return digest[0..@sizeOf(Digest)].*;
+    }
+
+    var buffer: [1024]u8 = undefined;
+    var hash = Hash.init(&buffer);
+
+    for (records) |record| {
+        field(&hash.state.hasher, record.specifier);
+        field(&hash.state.hasher, record.entry);
     }
 
     return hash.finish();

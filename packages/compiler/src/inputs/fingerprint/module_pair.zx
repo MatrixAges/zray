@@ -2,39 +2,52 @@ import bytes from "std:bytes"
 import { readGenerationFileDigest } from "generation_host"
 import memory from "memory"
 
-import writeText from "./text_pair"
-
-import type { Writers } from "./model"
-import type { ModuleRows } from "./output_shape"
-
-export type Input = {
-    writers: Writers,
-    rows: ModuleRows
-}
-
-export type Output = void
+import type { Pair as Output } from "./model"
+import type { ModuleRows as Input } from "./output_shape"
 
 export default function (in: Input): Output {
-    const { writers } = in
-    const { cache, rows, target } = in.rows
+    const { cache, rows, target } = in
 
-    const written = loop(0, {
-        while: position => position < rows.count,
-        next: position => {
+    const frame_parts: u8[][] = []
+    const shape_parts: u8[][] = []
+
+    const collected = loop({
+        position: 0,
+        frame_parts,
+        shape_parts
+    }, {
+        while: state => state.position < rows.count,
+        next: state => {
+            const position = state.position
             const path = memory.readTextColumn(rows.paths, position)
             const source = memory.readTextColumn(rows.sources, position)
             const digest = readGenerationFileDigest(cache, path, source)
+            const path_bytes = bytes.fromText(path)
+            const path_len = bytes.encodeU64Le(path_bytes.length)
 
-            writeText({
-                writers,
-                text: path
-            })
+            const shape_row = bytes.join(bytes.fromText(""), [
+                path_len,
+                path_bytes
+            ])
 
-            bytes.write(writers.frame, digest)
-            memory.writeColumnBytes(target.paths, position, bytes.fromText(path))
+            const frame_row = bytes.join(bytes.fromText(""), [
+                shape_row,
+                digest
+            ])
+
+            state.frame_parts = state.frame_parts.push(frame_row)[0]
+            state.shape_parts = state.shape_parts.push(shape_row)[0]
+
+            memory.writeColumnBytes(target.paths, position, path_bytes)
             memory.copyColumnValue(target.digests, position, digest)
 
-            position += 1
-        }
+            state.position += 1
+        },
+        return: state => state
     })
+
+    return {
+        frame: bytes.join(bytes.fromText(""), collected.frame_parts),
+        shape: bytes.join(bytes.fromText(""), collected.shape_parts)
+    }
 }

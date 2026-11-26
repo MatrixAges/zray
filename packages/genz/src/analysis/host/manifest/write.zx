@@ -1,25 +1,44 @@
 import bytes from "std:bytes"
-import { ascii_line_feed, ascii_space } from "core/ascii/const"
+import encoding from "std:encoding"
+import strings from "std:string"
 
 import type { Write as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { out, paths, hashes } = in
+    const { paths, hashes } = in
 
-    const position = loop({
-        index: 0
+    const parts: string[] = []
+
+    const collected = loop({
+        index: 0,
+        parts
     }, {
         while: state => state.index < paths.length,
         next: state => {
             const index = state.index
+            const le = bytes.encodeU64Le(hashes[index])
 
-            bytes.writeHexU64(out, hashes[index])
-            bytes.writeByte(out, ascii_space)
-            bytes.write(out, bytes.fromText(paths[index]))
-            bytes.writeByte(out, ascii_line_feed)
+            const hex = encoding.encodeHex([
+                le[7],
+                le[6],
+                le[5],
+                le[4],
+                le[3],
+                le[2],
+                le[1],
+                le[0]
+            ])
+
+            state.parts = state.parts.push(hex)[0]
+            state.parts = state.parts.push(" ")[0]
+            state.parts = state.parts.push(paths[index])[0]
+            state.parts = state.parts.push("\n")[0]
             state.index += 1
-        }
+        },
+        return: state => state.parts
     })
+
+    return strings.join("", collected)
 }

@@ -1,33 +1,44 @@
 import bytes from "std:bytes"
-import field from "core/ir/fingerprint/text"
 import { readGenerationFileDigest } from "generation_host"
 import memory from "memory"
 
-import type { OutputFingerprint, SourceRows } from "./output_shape"
+import type { GenerationFileCache } from "generation_host"
+import type { SourceRows } from "./output_shape"
 
-export type Input = OutputFingerprint.Pick("out", "cache") & {
+export type Input = {
+    cache: GenerationFileCache,
     rows: SourceRows
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, cache, rows } = in
+    const { cache, rows } = in
 
-    const written = loop(0, {
-        while: position => position < rows.count,
-        next: position => {
+    const parts: u8[][] = []
+
+    const collected = loop({
+        position: 0,
+        parts
+    }, {
+        while: state => state.position < rows.count,
+        next: state => {
+            const position = state.position
             const path = memory.readTextColumn(rows.paths, position)
             const source = memory.readTextColumn(rows.sources, position)
+            const path_bytes = bytes.fromText(path)
 
-            field({
-                out,
-                text: path
-            })
+            const row = bytes.join(bytes.fromText(""), [
+                bytes.encodeU64Le(path_bytes.length),
+                path_bytes,
+                readGenerationFileDigest(cache, path, source)
+            ])
 
-            bytes.write(out, readGenerationFileDigest(cache, path, source))
-
-            position += 1
-        }
+            state.parts = state.parts.push(row)[0]
+            state.position += 1
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

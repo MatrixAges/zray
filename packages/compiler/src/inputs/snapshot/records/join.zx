@@ -1,0 +1,16 @@
+import bytes from "std:bytes"
+
+import type { Parts as Input } from "./write_shape"
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    if (in.rows == null) {
+        return null
+    }
+
+    return bytes.join(bytes.fromText(""), [
+        in.header,
+        in.rows
+    ])
+}

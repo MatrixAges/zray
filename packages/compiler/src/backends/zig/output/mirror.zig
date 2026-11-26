@@ -131,7 +131,7 @@ const Frame = struct {
             .present = previous != null,
         });
 
-        try file_manifest.write(ledger.manifest_write, &self.manifest.writer, paths, hashes);
+        try file_manifest.write(ledger.manifest_write, self.workspace, &self.manifest.writer, paths, hashes);
     }
     fn parentsSeed(self: *Frame) !void {
         var temporary = std.heap.ArenaAllocator.init(self.workspace);

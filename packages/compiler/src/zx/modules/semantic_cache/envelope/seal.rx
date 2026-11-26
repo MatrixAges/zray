@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Envelope" />
 
-    <Args in={Envelope.Seal} out={void} />
+    <Args in={Envelope.Seal} out={u8[]} />
 
     <Call
         fn="../../../artifact_codec/digest"
@@ -14,11 +14,10 @@
     <Call
         fn="header"
         in={{
-            ...$in.pick([
-                "writer",
-                "compiler"
-            ]),
+            compiler: $in.compiler,
             digest: $ctx.digest
         }}
     />
+
+    <Return value={$ctx.header} />
 </Module>

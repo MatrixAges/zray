@@ -1,28 +1,38 @@
+import bytes from "std:bytes"
 import memory from "memory"
 
-import writeText from "./text_pair"
-
 import type { TextColumn } from "memory"
-import type { Writers } from "./model"
 
 export type Input = {
-    writers: Writers,
     sources: TextColumn,
     count: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const written = loop(0, {
-        while: position => position < in.count,
-        next: position => {
-            writeText({
-                writers: in.writers,
-                text: memory.readTextColumn(in.sources, position)
-            })
+    const parts: u8[][] = []
 
-            position += 1
-        }
+    const collected = loop({
+        position: 0,
+        parts
+    }, {
+        while: state => state.position < in.count,
+        next: state => {
+            const source_bytes = bytes.fromText(
+                memory.readTextColumn(in.sources, state.position)
+            )
+
+            const row = bytes.join(bytes.fromText(""), [
+                bytes.encodeU64Le(source_bytes.length),
+                source_bytes
+            ])
+
+            state.parts = state.parts.push(row)[0]
+            state.position += 1
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

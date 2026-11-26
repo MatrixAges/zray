@@ -185,7 +185,7 @@ const Generation = struct {
             break :seed fingerprint.seedFrame(&resident.digest, self.manifest_source, digests, self.interfaces.bindings);
         };
 
-        self.digest = self.outputDigest();
+        self.digest = try self.outputDigest();
     }
 
     fn hashFrame(self: *const Generation, digests: []analysis.project.ModuleDigest) !fingerprint.Frame {
@@ -197,14 +197,11 @@ const Generation = struct {
         var destination = memory.borrowWriteFields(.{ .paths = "path", .digests = "digest" }, digests);
         const interfaces = memory.borrowTextColumn("source", self.interfaces.bindings);
         var cache = FileDigest{ .files = &self.resident.files };
-        var content_buffer: [1024]u8 = undefined;
-        var shape_buffer: [1024]u8 = undefined;
-        var content = fingerprint.Hash.init(&content_buffer);
-        var shape = fingerprint.Hash.init(&shape_buffer);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
 
-        try rule.executeIn(empty.allocator(), &.{
-            .writers = &.{ .frame = @ptrCast(&content.state.writer), .shape = @ptrCast(&shape.state.writer) },
+        defer arena.deinit();
+
+        const result = try rule.executeIn(arena.allocator(), &.{
             .generator = &self.resident.digest,
             .manifest = self.manifest_source,
             .modules = &.{
@@ -216,9 +213,16 @@ const Generation = struct {
             .interface_count = self.interfaces.bindings.len,
         });
 
-        return .{ .content = content.finish(), .shape = shape.finish() };
+        std.debug.assert(result.content.len == @sizeOf(fingerprint.Digest));
+        std.debug.assert(result.shape.len == @sizeOf(fingerprint.Digest));
+
+        return .{
+            .content = result.content[0..@sizeOf(fingerprint.Digest)].*,
+            .shape = result.shape[0..@sizeOf(fingerprint.Digest)].*,
+        };
     }
-    fn outputDigest(self: *const Generation) fingerprint.Digest {
+
+    fn outputDigest(self: *const Generation) !fingerprint.Digest {
         const frame = &self.fingerprints.content;
         const partitions = self.request.partitions;
         const files = &self.resident.files;
@@ -232,21 +236,23 @@ const Generation = struct {
         const sources = memory.borrowReadFields(source_fields, self.inputs.sources);
         const templates = memory.borrowReadFields(source_fields, self.inputs.templates);
         var cache = FileDigest{ .files = files };
-        var buffer: [1024]u8 = undefined;
-        var hash = fingerprint.Hash.init(&buffer);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
 
-        rule.executeValue(empty.allocator(), &.{
-            .out = @ptrCast(&hash.state.writer),
+        defer arena.deinit();
+
+        const digest = try rule.executeIn(arena.allocator(), &.{
             .frame = frame,
             .partitions = partitions,
             .cache = @ptrCast(&cache),
             .sources = &sources.bind(Rows),
             .templates = &templates.bind(Rows),
-        }) catch unreachable;
+        });
 
-        return hash.finish();
+        std.debug.assert(digest.len == @sizeOf(fingerprint.Digest));
+
+        return digest[0..@sizeOf(fingerprint.Digest)].*;
     }
+
     fn readStamp(self: *Generation) !?[]const u8 {
         return std.Io.Dir.cwd().readFile(self.io, self.stamp_path, &self.stamp_buffer) catch |err| switch (err) {
             error.FileNotFound => null,
@@ -273,7 +279,7 @@ const Generation = struct {
     }
 
     fn prepareModules(self: *Generation) !void {
-        self.modules = try self.resident.modules.prepare(self.owned, self.inputs.modules, fingerprint.packages(self.packages));
+        self.modules = try self.resident.modules.prepare(self.owned, self.inputs.modules, try fingerprint.packages(self.allocator, self.packages));
     }
 
     fn emit(self: *Generation) ![]const u8 {

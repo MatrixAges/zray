@@ -1,32 +1,44 @@
 <Module>
     <Type from="output_shape" as="Fingerprint" />
 
-    <Args in={Fingerprint.OutputFingerprint} out={void} />
+    <Args in={Fingerprint.OutputFingerprint} out={u8[]} />
 
     <Call
         fn="output_header"
         in={{
-            out: $in.out,
             frame: $in.frame,
             partitions: $in.partitions
         }}
     />
 
+    <Task name="source_files" out={$ctx.files}>
+        <Call
+            fn="files"
+            in={{
+                cache: $in.cache,
+                rows: $in.sources
+            }}
+        />
+    </Task>
+
+    <Task name="template_files" out={$ctx.files}>
+        <Call
+            fn="files"
+            in={{
+                cache: $in.cache,
+                rows: $in.templates
+            }}
+        />
+    </Task>
+
     <Call
-        fn="files"
+        fn="output_digest"
         in={{
-            out: $in.out,
-            cache: $in.cache,
-            rows: $in.sources
+            header: $ctx.output_header,
+            sources: $ctx.task.source_files,
+            templates: $ctx.task.template_files
         }}
     />
 
-    <Call
-        fn="files"
-        in={{
-            out: $in.out,
-            cache: $in.cache,
-            rows: $in.templates
-        }}
-    />
+    <Return value={$ctx.output_digest} />
 </Module>

@@ -4,11 +4,13 @@ import { magic } from "./const"
 
 import type { WriteHeader as Input } from "./write_shape"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    bytes.write(in.writer, bytes.fromText(magic))
-    bytes.write(in.writer, bytes.fromText(in.context))
-    bytes.write(in.writer, in.digest)
-    bytes.writeU64Le(in.writer, in.count)
+    return bytes.join(bytes.fromText(""), [
+        bytes.fromText(magic),
+        bytes.fromText(in.context),
+        in.digest,
+        bytes.encodeU64Le(in.count)
+    ])
 }

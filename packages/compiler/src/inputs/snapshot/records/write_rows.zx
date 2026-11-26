@@ -5,14 +5,17 @@ import memory from "memory"
 
 import type { WriteRows as Input } from "./write_shape"
 
-export type Output = bool
+export type Output = u8[]?
 
 export default function (in: Input): Output {
-    const { writer, count, paths, keys, versions } = in
+    const { count, paths, keys, versions } = in
 
-    return loop({
+    const parts: u8[][] = []
+
+    const collected = loop({
         index: 0,
-        complete: true
+        complete: true,
+        parts
     }, {
         while: state => state.complete && state.index < count,
         next: state => {
@@ -25,20 +28,34 @@ export default function (in: Input): Output {
             } else {
                 const path = memory.readTextColumn(paths, index)
 
-                bytes.writeU64Le(writer, version.inode)
-                bytes.writeU64Le(writer, version.size)
-                bytes.writeU64Le(writer, version.mtime_low)
-                bytes.writeU64Le(writer, version.ctime_low)
-                bytes.writeU64Le(writer, version.read_low)
-                bytes.writeU32Le(writer, memory.i32Bits(version.mtime_high))
-                bytes.writeU32Le(writer, memory.i32Bits(version.ctime_high))
-                bytes.writeU32Le(writer, memory.i32Bits(version.read_high))
-                bytes.writeU32Le(writer, integers.narrow(path.length))
-                bytes.write(writer, bytes.fromText(path))
+                const row = bytes.join(bytes.fromText(""), [
+                    bytes.encodeU64Le(version.inode),
+                    bytes.encodeU64Le(version.size),
+                    bytes.encodeU64Le(version.mtime_low),
+                    bytes.encodeU64Le(version.ctime_low),
+                    bytes.encodeU64Le(version.read_low),
+                    bytes.encodeU32Le(memory.i32Bits(
+                        version.mtime_high
+                    )),
+                    bytes.encodeU32Le(memory.i32Bits(
+                        version.ctime_high
+                    )),
+                    bytes.encodeU32Le(memory.i32Bits(version.read_high)),
+                    bytes.encodeU32Le(integers.narrow(path.length)),
+                    bytes.fromText(path)
+                ])
+
+                state.parts = state.parts.push(row)[0]
             }
 
             state.index += 1
         },
-        return: state => state.complete
+        return: state => state
     })
+
+    if (!collected.complete) {
+        return null
+    }
+
+    return bytes.join(bytes.fromText(""), collected.parts)
 }

@@ -1,22 +1,11 @@
 <Module>
     <Type from="write_shape" as="Records" />
 
-    <Args in={Records.Write} out={bool} />
-
-    <Call
-        fn="write_header"
-        in={{
-            writer: $in.writer,
-            context: $in.context,
-            digest: $in.digest,
-            count: $in.count
-        }}
-    />
+    <Args in={Records.Write} out={u8[]?} />
 
     <Call
         fn="write_rows"
         in={{
-            writer: $in.writer,
             count: $in.count,
             paths: $in.paths,
             keys: $in.keys,
@@ -24,5 +13,26 @@
         }}
     />
 
-    <Return value={$ctx.write_rows} />
+    <If on={$ctx.write_rows == null}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="write_header"
+        in={{
+            context: $in.context,
+            digest: $in.digest,
+            count: $in.count
+        }}
+    />
+
+    <Call
+        fn="join"
+        in={{
+            header: $ctx.write_header,
+            rows: $ctx.write_rows
+        }}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

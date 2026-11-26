@@ -39,11 +39,15 @@ fn seedList(text: []const u8, paths: [][]const u8, hashes: []u64) !usize {
     return length;
 }
 
-pub fn write(comptime generated: ?type, out: *std.Io.Writer, paths: []const []const u8, hashes: []const u64) !void {
+pub fn write(comptime generated: ?type, allocator: std.mem.Allocator, out: *std.Io.Writer, paths: []const []const u8, hashes: []const u64) !void {
     if (generated) |entry| {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var arena = std.heap.ArenaAllocator.init(allocator);
 
-        try entry.executeValue(empty.allocator(), &.{ .out = @ptrCast(out), .paths = paths, .hashes = hashes });
+        defer arena.deinit();
+
+        const text = try entry.executeIn(arena.allocator(), &.{ .paths = paths, .hashes = hashes });
+
+        try out.writeAll(text);
     } else {
         for (paths, hashes) |path, hash| try out.print("{x:0>16} {s}\n", .{ hash, path });
     }

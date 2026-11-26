@@ -100,27 +100,22 @@ pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !v
 fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const Fact, files: *const Files, fingerprint: *const [32]u8) !?[]const u8 {
     const records = source.records;
     const size = records.measure(facts) orelse return null;
-    const payload = try allocator.alloc(u8, size);
-    var writer = std.Io.Writer.fixed(payload);
     const rule = @import("generated_input_records_write");
     const memory = @import("zx").memory;
     const paths = memory.borrowTextColumn("path", facts);
     const keys = memory.borrowTextColumn("key", facts);
     var versions = SnapshotVersions{ .files = files };
 
-    const complete = try rule.executeIn(allocator, &.{
-        .writer = @ptrCast(&writer),
+    const payload = (try rule.executeIn(allocator, &.{
         .context = context,
         .digest = fingerprint,
         .count = facts.len,
         .paths = @ptrCast(&paths),
         .keys = @ptrCast(&keys),
         .versions = @ptrCast(&versions),
-    });
+    })) orelse return null;
 
-    if (!complete) return null;
-
-    std.debug.assert(writer.buffered().len == size);
+    std.debug.assert(payload.len == size);
 
     return payload;
 }

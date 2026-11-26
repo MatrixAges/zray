@@ -1,31 +1,35 @@
 <Module>
+    <Type from="model" as="Model" />
     <Type from="output_shape" as="Fingerprint" />
 
-    <Args in={Fingerprint.Frame} out={void} />
+    <Args in={Fingerprint.Frame} out={Model.FrameDigest} />
 
     <Call
         fn="frame_header"
         in={{
-            writers: $in.writers,
             generator: $in.generator,
             manifest: $in.manifest
         }}
     />
 
-    <Call
-        fn="module_pair"
-        in={{
-            writers: $in.writers,
-            rows: $in.modules
-        }}
-    />
+    <Call fn="module_pair" in={$in.modules} />
 
     <Call
         fn="interface_pair"
         in={{
-            writers: $in.writers,
             sources: $in.interfaces,
             count: $in.interface_count
         }}
     />
+
+    <Call
+        fn="frame_digest"
+        in={{
+            header: $ctx.frame_header,
+            modules: $ctx.module_pair,
+            interfaces: $ctx.interface_pair
+        }}
+    />
+
+    <Return value={$ctx.frame_digest} />
 </Module>

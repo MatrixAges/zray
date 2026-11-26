@@ -1,4 +1,3 @@
-import type { Writer } from "std:bytes"
 import type { TextColumn } from "memory"
 
 export type Text = {
@@ -7,7 +6,12 @@ export type Text = {
     count: u64
 }
 
-export type Writers = {
-    frame: Writer,
-    shape: Writer
+export type Pair = {
+    frame: u8[],
+    shape: u8[]
+}
+
+export type FrameDigest = {
+    content: u8[],
+    shape: u8[]
 }

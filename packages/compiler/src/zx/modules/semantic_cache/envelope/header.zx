@@ -1,18 +1,17 @@
 import bytes from "std:bytes"
 
-import { newline } from "../../../artifact_codec/const"
 import { marker } from "./const"
 
 import type { Header as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, compiler, digest } = in
-
-    bytes.write(writer, bytes.fromText(marker))
-    bytes.write(writer, compiler)
-    bytes.writeByte(writer, newline)
-    bytes.write(writer, bytes.fromText(digest))
-    bytes.writeByte(writer, newline)
+    return bytes.join(bytes.fromText(""), [
+        bytes.fromText(marker),
+        in.compiler,
+        bytes.fromText("\n"),
+        bytes.fromText(in.digest),
+        bytes.fromText("\n")
+    ])
 }

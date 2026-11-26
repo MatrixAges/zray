@@ -1,0 +1,13 @@
+import crypto from "std:crypto"
+
+import type { OutputParts as Input } from "./output_shape"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return crypto.sha256Parts([
+        in.header,
+        in.sources,
+        in.templates
+    ])
+}

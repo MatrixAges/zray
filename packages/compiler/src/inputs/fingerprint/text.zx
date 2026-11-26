@@ -1,36 +1,42 @@
-import field from "core/ir/fingerprint/text"
+import bytes from "std:bytes"
+import crypto from "std:crypto"
 import memory from "memory"
 
-import type { Writer } from "std:bytes"
-import type { Text } from "./model"
+import type { Text as Input } from "./model"
 
-export type Input = {
-    out: Writer,
-    rows: Text
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, rows } = in
-    const { first, second, count } = rows
+    const { first, second, count } = in
 
-    const written = loop(0, {
-        while: position => position < count,
-        next: position => {
-            field({
-                out,
-                text: memory.readTextColumn(first, position)
-            })
+    const parts: u8[][] = []
+
+    const collected = loop({
+        position: 0,
+        parts
+    }, {
+        while: state => state.position < count,
+        next: state => {
+            const first_bytes =
+                bytes.fromText(memory.readTextColumn(first, state.position))
+
+            state.parts = state.parts.push(bytes.encodeU64Le(first_bytes.length))[0]
+            state.parts = state.parts.push(first_bytes)[0]
 
             if (second != null) {
-                field({
-                    out,
-                    text: memory.readTextColumn(second, position)
-                })
+                const second_bytes = bytes.fromText(
+                    memory.readTextColumn(second, state.position)
+                )
+
+                state.parts =
+                    state.parts.push(bytes.encodeU64Le(second_bytes.length))[0]
+                state.parts = state.parts.push(second_bytes)[0]
             }
 
-            position += 1
-        }
+            state.position += 1
+        },
+        return: state => state.parts
     })
+
+    return crypto.sha256Parts(collected)
 }
