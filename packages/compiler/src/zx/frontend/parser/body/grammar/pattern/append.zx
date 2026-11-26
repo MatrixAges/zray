@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { PatternKind, Phase } from "../../model"
 
 import type { Span } from "../../../../lexer/token_model"
@@ -28,12 +26,6 @@ export default function (in: Input): Output {
 
     const head = state.tree.names.length + 1
 
-    const placement = state.expression.prepared.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const name: Name = {
         span: {
             start: in.span.start,
@@ -47,10 +39,6 @@ export default function (in: Input): Output {
         },
         head: 0,
         count: 0
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     return {

@@ -5,7 +5,6 @@ const lex = @import("lexer").lex;
 const compact = @import("compact_output.zig");
 const diagnostic = @import("diagnostic.zig");
 const retention = @import("retention/host.zig");
-const parse_storage = @import("retention/parse.zig");
 
 pub const Parsed = struct {
     source: []const u8,
@@ -55,13 +54,14 @@ fn parseWithMode(comptime indexed: bool, copy_input: bool, allocator: std.mem.Al
         const generated = @import("generated_expression");
         const adapter = @import("program_adapter/root.zig");
         var scratch = zx.Arena.init(compact.scratch_backing);
-        var row_arena = zx.Arena.initSmall(allocator);
-        var retained_rows = false;
 
         defer scratch.deinit();
-        defer if (!retained_rows) row_arena.deinit();
 
-        const output = parse_storage.execute(generated, if (indexed) .none else .full, scratch.allocator(), if (indexed) &row_arena else null, owned_source) catch |err| {
+        const output = generated.executeIn(scratch.allocator(), &.{
+            .source = owned_source,
+            .omit_tokens = indexed,
+            .omit_comments = indexed,
+        }) catch |err| {
             const issue = try diagnostic.generatedFailure(temporary, "expression parser", err);
 
             return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = issue } } };
@@ -76,11 +76,8 @@ fn parseWithMode(comptime indexed: bool, copy_input: bool, allocator: std.mem.Al
         if (indexed) {
             const retained = try retention.retain(@import("generated_expression_retention_size"), allocator, output);
 
-            retained_rows = true;
-
             return .{ .indexed = .{
                 .arena = arena,
-                .row_arena = row_arena,
                 .syntax_arena = retained.arena,
                 .source = owned_source,
                 .file_name = owned_name,

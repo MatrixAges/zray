@@ -34,7 +34,6 @@ export type TextSlots = mutable_opaque
 export type OptionalTextSlots = mutable_opaque
 
 export type Allocator = opaque
-export type ArenaScope = mutable_opaque
 
 export type TextColumn = opaque
 export type ReadColumn = opaque

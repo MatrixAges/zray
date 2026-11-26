@@ -1,4 +1,3 @@
-import type { Placement } from "../../../storage"
 import type { Prepared } from "../../templates/model"
 
 export enum Operator {
@@ -56,7 +55,6 @@ export type State = {
 
 export type PreparedInput = {
     source: u8[],
-    placement?: Placement,
     lexical: Prepared,
     hints: Hint[],
     interpolation_hints: Hint[][]

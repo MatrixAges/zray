@@ -9,7 +9,6 @@ pub const createU8Buffer = buffer_owner.bytes;
 pub const createU32Buffer = buffer_owner.u32s;
 pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
-pub const selectAllocator = ArenaScope.selectAllocator;
 const stream = @import("stream.zig");
 pub const takeByte = stream.takeByte;
 pub const takeU32Le = stream.takeU32Le;

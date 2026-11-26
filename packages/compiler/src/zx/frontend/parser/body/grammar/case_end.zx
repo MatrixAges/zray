@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { FrameKind, Phase } from "../model"
 import appendBlock from "../state/append_block"
 import frame from "../state/frame"
@@ -23,7 +21,6 @@ export default function (in: Input): Output {
 
     const blocks = appendBlock({
         blocks: in.tree.blocks,
-        placement: in.expression.prepared.placement,
         start: in.frame.name.start,
         end: in.expression.control.token.span.start,
         head: in.frame.head,
@@ -33,12 +30,6 @@ export default function (in: Input): Output {
     const head = in.tree.cases.length + 1
     const count = parent.count + 1
 
-    const placement = in.expression.prepared.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const branch: Case = {
         span: {
             start: in.frame.start,
@@ -47,10 +38,6 @@ export default function (in: Input): Output {
         value: in.frame.first,
         body,
         previous: parent.head
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const cases = in.tree.cases.push(branch)[0]

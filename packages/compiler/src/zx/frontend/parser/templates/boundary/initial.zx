@@ -18,8 +18,7 @@ export default function (in: Input): Output {
     return {
         lexer: initial({
             start: 0,
-            end: in.source.length,
-            placement: in.placement
+            end: in.source.length
         }),
         graph: {
             templates,

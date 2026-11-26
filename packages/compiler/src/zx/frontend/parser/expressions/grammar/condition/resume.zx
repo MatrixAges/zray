@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Symbol } from "../../../../lexer/token_model"
 import { Connector } from "../../prepare/model"
 import fail from "../../state/fail"
@@ -27,11 +25,6 @@ export default function (in: Input): Output {
 
     if (state.control.token.symbol == Symbol.CloseParen) {
         const root = state.tree.nodes[state.control.result]
-        const placement = state.prepared.placement
-
-        if (placement != null) {
-            memory.selectAllocator(placement.scope, placement.rows)
-        }
 
         const node: ExprNode = {
             ...root,
@@ -39,10 +32,6 @@ export default function (in: Input): Output {
                 start: in.frame.start,
                 end: root.span.end
             }
-        }
-
-        if (placement != null) {
-            memory.selectAllocator(placement.scope, placement.scratch)
         }
 
         return {

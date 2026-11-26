@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { TypeKind } from "./model"
 
 import type { Span } from "../../lexer/token_model"
@@ -19,30 +17,12 @@ export type Output = State
 export default function (in: Input): Output {
     const result = in.state.tree.nodes.length
 
-    const placement = in.state.control.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
-    const name = match {
-        placement != null => {
-            start: in.name.start,
-            end: in.name.end
-        },
-        _ => in.name
-    }
-
     const node: Node = {
         kind: in.kind,
-        name,
+        name: in.name,
         child: in.child,
         head: in.head,
         count: in.count
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const nodes = in.state.tree.nodes.push(node)[0]

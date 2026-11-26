@@ -12,7 +12,6 @@ export default function (in: Input): Output {
 
     return append({
         tokens: in.tokens,
-        placement: in.placement,
         token: {
             kind: Kind.Eof,
             word: Keyword.Root,

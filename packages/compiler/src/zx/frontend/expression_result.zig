@@ -7,7 +7,6 @@ pub const View = if (indexed_enabled) @import("syntax/program.zig").View(@import
 
 pub const Indexed = if (indexed_enabled) struct {
     arena: std.heap.ArenaAllocator,
-    row_arena: zx.Arena,
     syntax_arena: zx.Arena,
     source: []const u8,
     file_name: []const u8,
@@ -36,7 +35,6 @@ pub const Result = union(enum) {
             .native => |*result| result.deinit(),
             .indexed => |*result| if (indexed_enabled) {
                 result.syntax_arena.deinit();
-                result.row_arena.deinit();
                 result.arena.deinit();
             } else unreachable,
         }

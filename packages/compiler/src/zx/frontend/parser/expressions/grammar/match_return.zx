@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Symbol } from "../../../lexer/token_model"
 import consume from "../state/consume"
 import fail from "../state/fail"
@@ -95,20 +93,10 @@ export default function (in: Input): Output {
         const head = in.state.tree.arms.length + 1
         const count = in.frame.count + 1
 
-        const placement = in.state.prepared.placement
-
-        if (placement != null) {
-            memory.selectAllocator(placement.scope, placement.rows)
-        }
-
         const arm: Arm = {
             condition: in.frame.second,
             result,
             previous: in.frame.head
-        }
-
-        if (placement != null) {
-            memory.selectAllocator(placement.scope, placement.scratch)
         }
 
         const arms = in.state.tree.arms.push(arm)[0]

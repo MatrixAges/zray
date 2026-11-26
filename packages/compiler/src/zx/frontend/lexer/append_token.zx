@@ -1,24 +1,16 @@
-import memory from "memory"
-
-import type { Placement } from "../storage"
 import type { Span, Token } from "./token_model"
 
 export type Draft = Token.Omit("span") & Span
 
 export type Input = {
     tokens: Token[],
-    token: Draft,
-    placement?: Placement
+    token: Draft
 }
 
 export type Output = Token[]
 
 export default function (in: Input): Output {
-    const { token, placement } = in
-
-    if (placement != null && placement.tokens != null) {
-        memory.selectAllocator(placement.scope, placement.tokens)
-    }
+    const { token } = in
 
     const item: Token = {
         kind: token.kind,
@@ -30,10 +22,6 @@ export default function (in: Input): Output {
         },
         line_break: token.line_break,
         dollar: token.dollar
-    }
-
-    if (placement != null && placement.tokens != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     return in.tokens.push(item)[0]

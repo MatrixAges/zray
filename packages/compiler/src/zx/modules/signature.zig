@@ -14,7 +14,6 @@ pub fn resolve(allocator: std.mem.Allocator, entry: External, span: zx.Span, exi
 
         const output = @import("generated_parser").execute(&scratch, &.{
             .source = entry.signature,
-            .placement = null,
             .omit_tokens = true,
             .omit_comments = true,
         }) catch |err| switch (err) {

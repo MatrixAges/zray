@@ -1,16 +1,5 @@
-import type { Allocator, ArenaScope } from "memory"
-
-export type Placement = {
-    scope: ArenaScope,
-    comments?: Allocator,
-    tokens?: Allocator,
-    rows: Allocator,
-    scratch: Allocator
-}
-
 export type Input = {
-    source: u8[],
-    placement?: Placement
+    source: u8[]
 }
 
 export type Request = Input & {

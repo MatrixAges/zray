@@ -8,7 +8,6 @@
         module="expression"
         in={{
             source: $in.source,
-            placement: $in.placement,
             start: 0,
             depth: 0,
             minimum: 0,

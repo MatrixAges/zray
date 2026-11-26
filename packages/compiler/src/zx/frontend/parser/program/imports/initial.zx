@@ -11,8 +11,7 @@ export default function (in: Input): Output {
     return {
         prepared: in,
         imports: initial({
-            start: 0,
-            placement: in.placement
+            start: 0
         })
     }
 }

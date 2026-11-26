@@ -1,6 +1,5 @@
 import { Symbol } from "./token_model"
 
-import type { Placement } from "../storage"
 import type { State } from "./number/number_state"
 import type { Token, Span } from "./token_model"
 
@@ -51,7 +50,6 @@ export type LexerState = {
     braces: u64
     depth: u64
     frames: Frame[]
-    placement?: Placement
     number: State
     tokens: Token[]
     comments: Span[]

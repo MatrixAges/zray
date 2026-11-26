@@ -14,8 +14,7 @@ export default function (in: Input): Output {
 
     const start = initial({
         start: in.index,
-        depth: 0,
-        placement: in.request.prepared.placement
+        depth: 0
     })
 
     const parsed = loop({

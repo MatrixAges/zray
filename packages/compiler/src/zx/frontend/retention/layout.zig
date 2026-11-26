@@ -7,7 +7,11 @@ pub fn of(comptime Layout: type, comptime Syntax: type) Layout {
 
     inline for (@typeInfo(Layout).@"struct".field_names) |name| {
         @field(result, name) = if (comptime std.mem.eql(u8, name, "base"))
-            allocation(Syntax)
+            allocation(Syntax) + if (@hasField(Syntax, "function_name"))
+                allocation(std.meta.Child(std.meta.Child(@FieldType(Syntax, "function_name"))))
+
+            else
+                0
 
         else if (comptime std.mem.eql(u8, name, "tables"))
             &tables(std.meta.Child(@FieldType(Layout, name)), Syntax)
@@ -55,15 +59,38 @@ fn columns(comptime Layout: type, comptime Table: type) Layout {
 
 fn constantIndex(comptime Layout: type, comptime Slice: type) Layout {
     const Element = std.meta.Child(Slice);
-    const alignment = @alignOf(Element);
+    const Constant = std.meta.Child(Element);
+    const Span = std.meta.Child(@FieldType(Constant, "span"));
 
-    return .{ .stride = @sizeOf(Element) + allocation(std.meta.Child(Element)), .padding = alignment - 1 };
+    return .{
+        .stride = @sizeOf(Element) + @sizeOf(Constant) + 2 * allocation(Span),
+        .padding = (@alignOf(Element) - 1) + (@alignOf(Constant) - 1),
+    };
 }
 
 fn index(comptime Layout: type, comptime Slice: type) Layout {
     const Element = std.meta.Child(Slice);
+    var stride: u64 = @sizeOf(Element);
+    var padding: u64 = @alignOf(Element) - 1;
 
-    return .{ .stride = @sizeOf(Element), .padding = @alignOf(Element) - 1 };
+    if (comptime @typeInfo(Element) == .pointer) {
+        const Row = std.meta.Child(Element);
+
+        stride += @sizeOf(Row);
+        padding += @alignOf(Row) - 1;
+
+        inline for (@typeInfo(Row).@"struct".field_names) |field_name| {
+            const Field = @FieldType(Row, field_name);
+
+            if (comptime @typeInfo(Field) == .pointer) {
+                const Sub = std.meta.Child(Field);
+                stride += @sizeOf(Sub);
+                padding += @alignOf(Sub) - 1;
+            }
+        }
+    }
+
+    return .{ .stride = stride, .padding = padding };
 }
 
 fn allocation(comptime Value: type) u64 {

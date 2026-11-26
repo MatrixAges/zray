@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Kind, Symbol } from "../../lexer/token_model"
 import begin from "./begin"
 import fail from "./fail"
@@ -69,12 +67,6 @@ export default function (in: Input): Output {
         _ => ImportKind.Function
     }
 
-    const placement = in.control.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const item: Import = {
         kind: kind,
         exported: in.control.exported,
@@ -89,10 +81,6 @@ export default function (in: Input): Output {
         },
         first: in.control.first,
         count: in.control.count
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const imports = in.imports.push(item)[0]

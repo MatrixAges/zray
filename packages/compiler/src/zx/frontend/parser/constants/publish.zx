@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Kind, Symbol } from "../../lexer/token_model"
 
 import type { Span } from "../../lexer/token_model"
@@ -70,12 +68,6 @@ export default function (in: Input): Output {
         }
     }
 
-    const placement = parsed.prepared.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const name: Span = {
         start: in.annotation.header.name.start,
         end: in.annotation.header.name.end
@@ -84,10 +76,6 @@ export default function (in: Input): Output {
     const span: Span = {
         start: in.annotation.header.opening,
         end: control.last_end
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     return {

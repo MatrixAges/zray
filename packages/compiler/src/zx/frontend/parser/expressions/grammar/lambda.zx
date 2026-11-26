@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Keyword } from "../../../lexer/keyword_model"
 import { Kind, Symbol } from "../../../lexer/token_model"
 import consume from "../state/consume"
@@ -107,22 +105,12 @@ export default function (in: Input): Output {
     const head = taken.state.tree.parameters.length + 1
     const count = taken.frame.count + 1
 
-    const placement = taken.state.prepared.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const parameter: Parameter = {
         name: {
             start: taken.state.control.token.span.start,
             end: taken.state.control.token.span.end
         },
         previous: taken.frame.head
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const parameters = taken.state.tree.parameters.push(parameter)[0]

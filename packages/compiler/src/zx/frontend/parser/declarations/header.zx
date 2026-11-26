@@ -98,8 +98,7 @@ export default function (in: Input): Output {
 
     const initial = typeInitial({
         start: index,
-        depth: in.control.depth,
-        placement: in.types.control.placement
+        depth: in.control.depth
     })
 
     const return_input = {

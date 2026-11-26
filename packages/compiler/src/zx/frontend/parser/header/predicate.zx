@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Keyword } from "../../lexer/keyword_model"
 import { Symbol } from "../../lexer/token_model"
 import parse from "../body/expression"
@@ -50,12 +48,6 @@ export default function (in: Input): Output {
         return state
     }
 
-    const placement = state.expression.prepared.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const contract: Contract = {
         ensures: in.control.ensures,
         predicate: in.expression.control.result,
@@ -63,10 +55,6 @@ export default function (in: Input): Output {
             start: in.control.contract_start,
             end: in.control.token.span.end
         }
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     return {

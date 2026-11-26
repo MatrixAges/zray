@@ -12,7 +12,6 @@
     <Return
         value={{
             source: $in.source,
-            placement: $in.placement,
             lexical: $ctx.prepare,
             hints: $ctx.scan,
             interpolation_hints: $ctx.interpolations

@@ -11,8 +11,7 @@ export type Output = DeclarationStage
 export default function (in: Input): Output {
     const state = initial({
         start: in.imports.control.index,
-        depth: 0,
-        placement: in.prepared.placement
+        depth: 0
     })
 
     const index = state.control.start

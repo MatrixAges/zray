@@ -1,13 +1,11 @@
 <Module>
     <Type from="expressions/parse" as="Parse" />
-    <Type from="../storage" as="Storage" />
 
     <Args
         in={{
             allow_lambda: bool,
             depth: u64,
             minimum: u8,
-            placement?: Storage.Placement,
             source: u8[],
             start: u64
         }}
@@ -16,10 +14,9 @@
 
     <Call
         module="prepare"
-        in={$in.pick([
-            "source",
-            "placement"
-        ])}
+        in={{
+            source: $in.source
+        }}
     />
 
     <Call

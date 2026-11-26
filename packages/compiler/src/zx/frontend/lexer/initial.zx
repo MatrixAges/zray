@@ -2,14 +2,12 @@ import { Mode } from "./model"
 import { Phase } from "./number/number_state"
 import { Symbol } from "./token_model"
 
-import type { Placement } from "../storage"
 import type { LexerState, Frame } from "./model"
 import type { Token, Span } from "./token_model"
 
 export type Input = {
     start: u64,
-    end: u64,
-    placement?: Placement
+    end: u64
 }
 
 export type Output = LexerState
@@ -35,7 +33,6 @@ export default function (in: Input): Output {
         braces: 0,
         depth: 0,
         frames,
-        placement: in.placement,
         number: {
             end: 0,
             phase: Phase.Integer,

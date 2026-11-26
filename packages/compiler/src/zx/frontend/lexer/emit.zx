@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import append from "./append_token"
 import { kind_identifier, kind_keyword } from "./const"
 import { Keyword } from "./keyword_model"
@@ -21,20 +19,10 @@ export type Input = {
 export type Output = LexerState
 
 export default function (in: Input): Output {
-    const placement = in.state.placement
-
     if (in.comment) {
-        if (placement != null && placement.comments != null) {
-            memory.selectAllocator(placement.scope, placement.comments)
-        }
-
         const span: Span = {
             start: in.start,
             end: in.end
-        }
-
-        if (placement != null && placement.comments != null) {
-            memory.selectAllocator(placement.scope, placement.scratch)
         }
 
         return {
@@ -53,7 +41,6 @@ export default function (in: Input): Output {
             braces: in.state.braces,
             depth: in.state.depth,
             frames: in.state.frames,
-            placement,
             number: in.state.number,
             tokens: in.state.tokens,
             comments: in.state.comments.push(span)[0],
@@ -74,7 +61,6 @@ export default function (in: Input): Output {
 
     const tokens = append({
         tokens: in.state.tokens,
-        placement,
         token: {
             kind,
             word,
@@ -102,7 +88,6 @@ export default function (in: Input): Output {
         braces: in.state.braces,
         depth: in.state.depth,
         frames: in.state.frames,
-        placement,
         number: in.state.number,
         tokens,
         comments: in.state.comments,

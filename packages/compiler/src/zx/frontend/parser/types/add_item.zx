@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import copyFrame from "./copy_frame"
 import replaceFrame from "./replace_frame"
 
@@ -14,19 +12,9 @@ export default function (in: Input): Output {
     const head = in.tree.items.length + 1
     const count = frame.count + 1
 
-    const placement = in.control.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const item: Item = {
         value: in.control.result,
         previous: frame.head
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const items = in.tree.items.push(item)[0]

@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { FrameKind, PatternKind, Phase } from "../../model"
 import consume from "../../state/consume"
 
@@ -21,12 +19,6 @@ export default function (in: Input): Output {
 
     const head = in.tree.names.length + 1
 
-    const placement = in.expression.prepared.placement
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.rows)
-    }
-
     const name: Name = {
         span: {
             start: in.frame.start,
@@ -40,10 +32,6 @@ export default function (in: Input): Output {
         },
         head: in.frame.head,
         count: in.frame.count
-    }
-
-    if (placement != null) {
-        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const names = in.tree.names.push(name)[0]

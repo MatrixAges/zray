@@ -6,10 +6,9 @@
 
     <Call
         module="prepare"
-        in={$in.pick([
-            "source",
-            "placement"
-        ])}
+        in={{
+            source: $in.source
+        }}
     />
 
     <Call fn="program/imports" />

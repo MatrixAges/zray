@@ -8,12 +8,6 @@ pub fn allocator(self: *Self) Allocator {
     return .{ .ptr = self, .vtable = &.{ .alloc = allocate, .resize = resize, .remap = remap, .free = free } };
 }
 
-pub fn selectAllocator(source: *anyopaque, resource: *const anyopaque) void {
-    const self: *Self = @ptrCast(@alignCast(source));
-    const next: *const Allocator = @ptrCast(@alignCast(resource));
-    self.active = next.*;
-}
-
 fn target(context: *anyopaque) Allocator {
     const self: *const Self = @ptrCast(@alignCast(context));
 
