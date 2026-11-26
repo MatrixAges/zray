@@ -1,5 +1,5 @@
+import path from "std:path"
 import { addExternalInclude } from "library_stage_host"
-import { absolutePath } from "publication_host"
 
 import type { NativeResources } from "library_stage_host"
 
@@ -13,10 +13,10 @@ export default function (in: Input): Output {
     const collected = loop(0, {
         while: index => index < paths.length,
         next: index => {
-            const path = paths[index]
+            const item = paths[index]
 
-            if (absolutePath(path)) {
-                addExternalInclude(resources, path)
+            if (path.isAbsolute(item)) {
+                addExternalInclude(resources, item)
             }
 
             index += 1

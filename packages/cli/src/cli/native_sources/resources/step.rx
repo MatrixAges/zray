@@ -1,0 +1,84 @@
+<Module>
+    <Type from="model" as="Resource" />
+
+    <Args in={Resource.Step} out={Resource.Step} />
+
+    <Store from="collected" as="state" />
+
+    <Call fn="index.nextResource" in={$in.walk} />
+
+    <If on={$ctx.nextResource.kind == Resource.ResourceKind.End}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <If on={$ctx.nextResource.kind == Resource.ResourceKind.Directory}>
+        <Call
+            fn="index.observeResource"
+            in={[
+                $in.walk,
+                $ctx.nextResource.path,
+                true
+            ]}
+        />
+
+        <Return value={$in} />
+    </If>
+
+    <Call
+        fn="index.observeResource"
+        in={[
+            $in.walk,
+            $ctx.nextResource.path,
+            false
+        ]}
+    />
+
+    <If on={$ctx.nextResource.kind == Resource.ResourceKind.Regular}>
+        <Call
+            fn="keep_path"
+            in={{
+                discovered: store.state.discovered,
+                path: $ctx.nextResource.path
+            }}
+            setter={[store.state.discovered]}
+        />
+
+        <Return value={$in} />
+    </If>
+
+    <If on={$ctx.nextResource.kind == Resource.ResourceKind.Symlink}>
+        <Call
+            fn="index.resourceLinkIsFile"
+            in={[
+                $in.walk,
+                $ctx.nextResource.path
+            ]}
+        />
+
+        <If on={$ctx.resourceLinkIsFile}>
+            <Call
+                fn="keep_path"
+                in={{
+                    discovered: store.state.discovered,
+                    path: $ctx.nextResource.path
+                }}
+                setter={[store.state.discovered]}
+            />
+
+            <Return value={$in} />
+        </If>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            running: false,
+            valid: false
+        }}
+    />
+</Module>

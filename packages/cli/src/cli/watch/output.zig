@@ -6,20 +6,17 @@ const Error = effects.Error;
 
 const Target = struct {
     io: std.Io,
-    allocator: std.mem.Allocator,
     failure: effects.Failure = .{},
     physical: [std.Io.Dir.max_path_bytes]u8 = undefined,
-    result: ?[:0]u8 = null,
 };
 
 pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, path: []const u8) ![:0]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    var target: Target = .{ .io = io, .allocator = allocator };
+    var target: Target = .{ .io = io };
 
     defer arena.deinit();
-    errdefer if (target.result) |result| allocator.free(result);
 
     const scratch_allocator = scratch.allocator();
     const count = inputs.entries.count();
@@ -38,7 +35,7 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
         };
     }
 
-    const status = rule.executeIn(scratch_allocator, &.{
+    const outcome = rule.executeIn(scratch_allocator, &.{
         .target = @ptrCast(&target),
         .cwd = inputs.cwd,
         .path = path,
@@ -46,8 +43,8 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
         .physical_inputs = physical_inputs,
     }) catch |err| return target.failure.unwrap(err);
 
-    return switch (status) {
-        .Ready => target.result.?,
+    return switch (outcome.status) {
+        .Ready => allocator.dupeSentinel(u8, outcome.path.?, 0),
         .MissingParent => error.FileNotFound,
         .Overlap => error.OutputOverlapsInput,
     };
@@ -74,12 +71,4 @@ pub fn isDirectOutput(handle: *anyopaque, path: []const u8) Error!bool {
     };
 
     return existing.kind != .sym_link;
-}
-
-pub fn keepOutputPath(handle: *anyopaque, base: []const u8, logical: []const u8, prefix: u64) Error![]const u8 {
-    const self = effects.borrow(Target, handle);
-    const result = std.fs.path.joinZ(self.allocator, &.{ base, logical[@intCast(prefix)..] }) catch |err| return self.failure.save(err);
-    self.result = result;
-
-    return result;
 }

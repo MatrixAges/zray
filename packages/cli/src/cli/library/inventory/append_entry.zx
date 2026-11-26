@@ -1,0 +1,12 @@
+import type { Append as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    store
+}): Output {
+    store.state.entries = {
+        paths: in.entries.paths.push(in.path)[0],
+        digests: in.entries.digests.push(in.digest)[0]
+    }
+}

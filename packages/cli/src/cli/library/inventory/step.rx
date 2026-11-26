@@ -1,0 +1,60 @@
+<Module>
+    <Type from="model" as="Inventory" />
+
+    <Args in={Inventory.Step} out={Inventory.Step} />
+
+    <Store from="collected" as="state" />
+
+    <Call
+        fn="index.nextEntry"
+        in={[
+            $in.directory,
+            $in.name
+        ]}
+    />
+
+    <Call fn="classify_entry" />
+
+    <If on={$ctx.classify_entry.action == Inventory.Action.Stop}>
+        <Return
+            value={{
+                ...$in,
+                running: false
+            }}
+        />
+    </If>
+
+    <If on={$ctx.classify_entry.action == Inventory.Action.Invalid}>
+        <Return
+            value={{
+                ...$in,
+                running: false,
+                valid: false
+            }}
+        />
+    </If>
+
+    <If on={$ctx.classify_entry.action == Inventory.Action.Keep}>
+        <If on={$ctx.classify_entry.path != null}>
+            <Call
+                fn="index.digestEntry"
+                in={[
+                    $in.directory,
+                    $ctx.classify_entry.path
+                ]}
+            />
+
+            <Call
+                fn="append_entry"
+                in={{
+                    entries: store.state.entries,
+                    path: $ctx.digestEntry.path,
+                    digest: $ctx.digestEntry.digest
+                }}
+                setter={[store.state.entries]}
+            />
+        </If>
+    </If>
+
+    <Return value={$in} />
+</Module>

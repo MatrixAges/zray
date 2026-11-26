@@ -21,12 +21,13 @@ export default function (in: Input): Output {
     }, {
         while: state => state.reading,
         next: state => {
-            const kind = host.nextEntry(directory, inventory_name)
+            const entry = host.nextEntry(directory, inventory_name)
+            const kind = entry.kind
 
             if (kind == end_of_directory) {
                 state.reading = false
             } else if (kind == regular_entry || kind == named_regular_entry) {
-                const path = host.entryPath(directory)
+                const path = entry.path
                 const target = host.validatePublishedPath(library, path)
 
                 if (kind == named_regular_entry) {

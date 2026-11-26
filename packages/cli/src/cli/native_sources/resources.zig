@@ -3,48 +3,76 @@ const Inputs = @import("watch_inputs").Inputs;
 const Directory = @import("../publication/directory.zig");
 const effects = @import("../publication/effects.zig");
 const rule = @import("cli_source").native_directory_files;
-const Kind = @import("publication_abi").native.@"zig:publication_host".ResourceKind;
+const abi = @import("publication_abi");
+const Kind = abi.native.@"zig:publication_host".ResourceKind;
+const ResourceEntry = abi.layouts.@"zig:publication_host".ResourceEntry;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 const Error = effects.Error;
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 const Walk = struct {
     directory: Directory,
     inputs: ?*Inputs,
-    paths: std.ArrayList([]const u8) = .empty,
-    current: []const u8 = undefined,
+    entry_view: ResourceEntry = undefined,
 };
 
 pub fn files(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs) ![]const []const u8 {
     var failure: effects.Failure = .{};
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
 
     var walk: Walk = .{
-        .directory = .{ .io = io, .allocator = allocator, .failure = &failure, .source = path },
+        .directory = .{ .io = io, .allocator = arena.allocator(), .failure = &failure, .source = path },
         .inputs = inputs,
     };
 
     defer walk.directory.deinit();
-    errdefer walk.paths.deinit(allocator);
 
     const state = &walk;
-    const supported = rule.executeIn(allocator, @ptrCast(&state)) catch |err| return failure.unwrap(err);
+    var discovered: StoreState = &.{ .paths = &.{} };
+    var host: StoreHost = .{ .store_0 = &discovered };
+    const outcome = rule.execute(&arena, &.{ .walk = @ptrCast(&state), .running = true }, &host) catch |err| return failure.unwrap(err);
 
-    if (!supported) return error.UnsupportedNativeResource;
+    if (!outcome.supported) return error.UnsupportedNativeResource;
 
-    std.mem.sort([]const u8, walk.paths.items, {}, lessThan);
+    const result = try allocator.alloc([]const u8, outcome.paths.len);
+    var initialized: usize = 0;
 
-    return walk.paths.items;
+    errdefer {
+        for (result[0..initialized]) |item| allocator.free(item);
+
+        allocator.free(result);
+    }
+
+    for (outcome.paths, 0..) |item, index| {
+        result[index] = try allocator.dupe(u8, item);
+        initialized += 1;
+    }
+
+    return result;
 }
 
-pub fn resourceRoot(handle: *const anyopaque) Error!Kind {
+pub fn resourceRoot(handle: *const anyopaque) Error!*const ResourceEntry {
     const self = effects.state(Walk, handle);
     const directory = &self.directory;
-
-    self.current = directory.source;
 
     if (self.inputs) |observed| observed.add(directory.io, directory.source) catch |err| return directory.failure.save(err);
 
     const stat = std.Io.Dir.cwd().statFile(directory.io, directory.source, .{}) catch |err| return directory.failure.save(err);
 
-    return classify(stat.kind);
+    self.entry_view = .{
+        .kind = classify(stat.kind),
+        .path = directory.source,
+    };
+
+    return &self.entry_view;
 }
 
 pub fn openResources(handle: *const anyopaque) Error!void {
@@ -56,40 +84,47 @@ pub fn openResources(handle: *const anyopaque) Error!void {
     return directory.open(false);
 }
 
-pub fn nextResource(handle: *const anyopaque) Error!Kind {
+pub fn nextResource(handle: *const anyopaque) Error!*const ResourceEntry {
     const self = effects.state(Walk, handle);
     const directory = &self.directory;
-    const kind = (try directory.advance()) orelse return .End;
+    const maybe_kind = try directory.advance();
 
-    // A directory path is used only when an input observer needs it.
-    if (kind != .directory or self.inputs != null) {
-        self.current = std.fs.path.join(directory.allocator, &.{ directory.source, directory.path }) catch |err| return directory.failure.save(err);
+    if (maybe_kind == null) {
+        self.entry_view = .{ .kind = .End, .path = "" };
+
+        return &self.entry_view;
     }
 
-    return classify(kind);
+    const kind = maybe_kind.?;
+
+    const path = if (kind != .directory or self.inputs != null)
+        std.fs.path.join(directory.allocator, &.{ directory.source, directory.path }) catch |err| return directory.failure.save(err)
+
+    else
+        "";
+
+    self.entry_view = .{
+        .kind = classify(kind),
+        .path = path,
+    };
+
+    return &self.entry_view;
 }
 
-pub fn observeResource(handle: *const anyopaque, is_directory: bool) Error!void {
+pub fn observeResource(handle: *const anyopaque, path: []const u8, is_directory: bool) Error!void {
     const self = effects.state(Walk, handle);
     const inputs = self.inputs orelse return;
     const directory = &self.directory;
 
-    (if (is_directory) inputs.addDirectory(directory.io, self.current) else inputs.add(directory.io, self.current)) catch |err| return directory.failure.save(err);
+    (if (is_directory) inputs.addDirectory(directory.io, path) else inputs.add(directory.io, path)) catch |err| return directory.failure.save(err);
 }
 
-pub fn resourceLinkIsFile(handle: *const anyopaque) Error!bool {
+pub fn resourceLinkIsFile(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = effects.state(Walk, handle);
     const directory = &self.directory;
-    const stat = std.Io.Dir.cwd().statFile(directory.io, self.current, .{}) catch |err| return directory.failure.save(err);
+    const stat = std.Io.Dir.cwd().statFile(directory.io, path, .{}) catch |err| return directory.failure.save(err);
 
     return stat.kind == .file;
-}
-
-pub fn keepResource(handle: *const anyopaque) Error!void {
-    const self = effects.state(Walk, handle);
-    const directory = &self.directory;
-
-    self.paths.append(directory.allocator, self.current) catch |err| return directory.failure.save(err);
 }
 
 fn classify(kind: std.Io.File.Kind) Kind {
@@ -99,8 +134,4 @@ fn classify(kind: std.Io.File.Kind) Kind {
         .sym_link => .Symlink,
         else => .Other,
     };
-}
-
-fn lessThan(_: void, left: []const u8, right: []const u8) bool {
-    return std.mem.lessThan(u8, left, right);
 }

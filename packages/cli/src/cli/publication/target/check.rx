@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Output" />
 
-    <Args in={Output.Input} out={Output.Status} />
+    <Args in={Output.Input} out={Output.Outcome} />
 
     <Call
         fn="index.resolvePathParts"
@@ -20,7 +20,11 @@
     />
 
     <If on={$ctx.ancestor.path.length == 0}>
-        <Return value={Output.Status.MissingParent} />
+        <Return
+            value={{
+                status: Output.Status.MissingParent
+            }}
+        />
     </If>
 
     <Call
@@ -43,8 +47,17 @@
     />
 
     <If on={$ctx.overlap}>
-        <Return value={Output.Status.Overlap} />
+        <Return
+            value={{
+                status: Output.Status.Overlap
+            }}
+        />
     </If>
 
-    <Return value={Output.Status.Ready} />
+    <Return
+        value={{
+            status: Output.Status.Ready,
+            path: $ctx.destination
+        }}
+    />
 </Module>

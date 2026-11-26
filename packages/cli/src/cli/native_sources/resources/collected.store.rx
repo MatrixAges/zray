@@ -1,0 +1,5 @@
+<Store name="native_resources" version={1}>
+    <Object name="discovered">
+        <Field name="paths" type={string[]} value={[]} />
+    </Object>
+</Store>

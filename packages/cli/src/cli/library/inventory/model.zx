@@ -1,1 +1,43 @@
-export type { InventoryCollector as Input } from "publication_host"
+import type { Directory } from "publication_host"
+
+export enum Action {
+    Stop,
+    Keep,
+    Skip,
+    Invalid
+}
+
+export type Input = {
+    directory: Directory,
+    name: string,
+    running: bool
+}
+
+export type Step = {
+    directory: Directory,
+    name: string,
+    running: bool,
+    valid: bool
+}
+
+export type Decision = {
+    action: Action,
+    path?: string
+}
+
+export type Entries = {
+    paths: string[],
+    digests: string[]
+}
+
+export type Append = {
+    entries: Entries,
+    path: string,
+    digest: string
+}
+
+export type Output = {
+    valid: bool,
+    paths: string[],
+    digests: string[]
+}

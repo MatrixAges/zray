@@ -3,20 +3,51 @@
 
     <Args in={Resource.Input} out={Resource.Output} />
 
-    <Call fn="index.resourceRoot" in={$in} />
+    <Store from="collected" as="state" />
 
-    <If on={$ctx.resourceRoot == Resource.ResourceKind.Regular}>
-        <Call fn="index.keepResource" in={$in} />
+    <Call fn="index.resourceRoot" in={$in.walk} />
 
-        <Return value={true} />
+    <If on={$ctx.resourceRoot.kind == Resource.ResourceKind.Regular}>
+        <Return
+            value={{
+                supported: true,
+                paths: [$ctx.resourceRoot.path]
+            }}
+        />
     </If>
 
-    <If on={$ctx.resourceRoot != Resource.ResourceKind.Directory}>
-        <Return value={false} />
+    <If on={$ctx.resourceRoot.kind != Resource.ResourceKind.Directory}>
+        <Return
+            value={{
+                supported: false,
+                paths: []
+            }}
+        />
     </If>
 
-    <Call fn="index.openResources" in={$in} />
-    <Call fn="walk" in={$in} />
+    <Call fn="index.openResources" in={$in.walk} />
 
-    <Return value={$ctx.walk} />
+    <Loop on={$in.running}>
+        <Call
+            module="step"
+            in={{
+                walk: $in.walk,
+                running: true,
+                valid: true
+            }}
+        />
+    </Loop>
+
+    <If on={!$ctx.step.valid}>
+        <Return
+            value={{
+                supported: false,
+                paths: []
+            }}
+        />
+    </If>
+
+    <Call fn="finish" in={store.state.discovered} />
+
+    <Return value={$ctx.finish} />
 </Module>

@@ -1,3 +1,4 @@
+import path from "std:path"
 import memory from "memory"
 import host from "publication_host"
 
@@ -21,11 +22,11 @@ export default function (in: Input): Output {
         while: state => state.disjoint && state.index < count,
         next: state => {
             const observed_path = memory.readTextColumn(observed, state.index)
-            const path = host.relativeInput(library, observed_path)
+            const relative = host.relativeInput(library, observed_path)
 
             state.disjoint = !within({
-                path,
-                absolute: host.absolutePath(path),
+                path: relative,
+                absolute: path.isAbsolute(relative),
                 separator
             })
             state.index += 1

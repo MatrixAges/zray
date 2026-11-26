@@ -1,0 +1,52 @@
+import path from "std:path"
+import string from "std:string"
+
+import admit from "../../native_sources/inventory/admit"
+import { backslash, slash } from "../../package/workspace/const"
+import {
+    directory_entry,
+    end_of_directory,
+    named_regular_entry,
+    regular_entry
+} from "../../publication/const"
+import { Action } from "./model"
+
+import type { DirectoryEntry } from "publication_host"
+import type { Decision as Output } from "./model"
+
+export type Input = DirectoryEntry
+
+export default function (in: Input): Output {
+    if (in.kind == end_of_directory) {
+        return {
+            action: Action.Stop
+        }
+    }
+
+    if (in.kind == regular_entry) {
+        const portable = string.replaceAll(in.path, backslash, slash)
+
+        const valid = admit({
+            path: portable,
+            absolute: path.isAbsolute(portable),
+            native_only: false
+        })
+
+        if (!valid) {
+            return {
+                action: Action.Invalid
+            }
+        }
+
+        return {
+            action: Action.Keep,
+            path: portable
+        }
+    }
+
+    const skipped = in.kind == directory_entry || in.kind == named_regular_entry
+
+    return {
+        action: skipped ? Action.Skip : Action.Invalid
+    }
+}

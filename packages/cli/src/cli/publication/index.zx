@@ -11,6 +11,5 @@ export {
     writeBindings,
     captureLibraryInputs,
     prepareRetirement,
-    copyStagedFile,
-    absolutePath
+    copyStagedFile
 } from "publication_host"

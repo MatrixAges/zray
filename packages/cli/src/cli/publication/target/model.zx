@@ -18,3 +18,8 @@ export enum Status {
     MissingParent,
     Overlap
 }
+
+export type Outcome = {
+    status: Status,
+    path?: string
+}

@@ -1,1 +1,7 @@
-export { resourceRoot, openResources, keepResource } from "publication_host"
+export {
+    nextResource,
+    observeResource,
+    openResources,
+    resourceLinkIsFile,
+    resourceRoot
+} from "publication_host"

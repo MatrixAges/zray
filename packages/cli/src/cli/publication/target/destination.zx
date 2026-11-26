@@ -1,3 +1,5 @@
+import encoding from "std:encoding"
+import path from "std:path"
 import host from "publication_host"
 
 import type { OutputTarget } from "publication_host"
@@ -15,10 +17,13 @@ export default function (in: Input): Output {
     const { target, logical, ancestor } = in
 
     if (host.isDirectOutput(target, logical)) {
-        const physical = host.readOutputPath(target, logical, false)
-
-        return host.keepOutputPath(target, physical, "", 0)
+        return host.readOutputPath(target, logical, false)
     }
 
-    return host.keepOutputPath(target, ancestor.path, logical, ancestor.prefix)
+    const tail = encoding.sliceBytes(logical, ancestor.prefix, logical.length)
+
+    return path.join([
+        ancestor.path,
+        tail
+    ])
 }

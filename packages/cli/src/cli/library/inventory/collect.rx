@@ -1,10 +1,35 @@
 <Module>
     <Type from="model" as="Inventory" />
 
-    <Args in={Inventory.Input} out={bool} />
+    <Args in={Inventory.Input} out={Inventory.Output} />
 
-    <Call fn="index.openInventory" in={$in} />
-    <Call fn="scan" in={$in} />
+    <Store from="collected" as="state" />
 
-    <Return value={$ctx.scan} />
+    <Call fn="index.openDirectory" in={$in.directory} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="step"
+            in={{
+                directory: $in.directory,
+                name: $in.name,
+                running: true,
+                valid: true
+            }}
+        />
+    </Loop>
+
+    <If on={!$ctx.step.valid}>
+        <Return
+            value={{
+                valid: false,
+                paths: [],
+                digests: []
+            }}
+        />
+    </If>
+
+    <Call fn="finish" in={store.state.entries} />
+
+    <Return value={$ctx.finish} />
 </Module>

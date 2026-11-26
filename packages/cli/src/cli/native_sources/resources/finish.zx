@@ -1,0 +1,12 @@
+import sortPaths from "../../package/workspace/collection/sort_paths"
+
+import type { Discovered as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    return {
+        supported: true,
+        paths: sortPaths({
+            paths: in.paths
+        })
+    }
+}

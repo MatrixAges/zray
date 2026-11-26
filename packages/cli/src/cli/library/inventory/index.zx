@@ -1,1 +1,1 @@
-export { openInventory } from "publication_host"
+export { digestEntry, nextEntry, openDirectory } from "publication_host"

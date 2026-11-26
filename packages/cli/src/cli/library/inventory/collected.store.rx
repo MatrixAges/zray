@@ -1,0 +1,6 @@
+<Store name="library_inventory" version={1}>
+    <Object name="entries">
+        <Field name="paths" type={string[]} value={[]} />
+        <Field name="digests" type={string[]} value={[]} />
+    </Object>
+</Store>

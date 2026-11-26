@@ -15,7 +15,8 @@ export default function (in: Input): Output {
     }, {
         while: state => state.reading,
         next: state => {
-            const kind = host.nextEntry(directory, primary)
+            const entry = host.nextEntry(directory, primary)
+            const kind = entry.kind
 
             if (kind == end_of_directory) {
                 state.reading = false

@@ -5,13 +5,16 @@ export type Verification = mutable_opaque
 export type OutputTarget = mutable_opaque
 
 export type ResourceWalk = opaque
-export type InventoryCollector = opaque
 export type Retirement = opaque
 
-export type RetirementPath = {
+export type DirectoryEntry = {
+    kind: u8,
+    path: string
+}
+
+export type InventoryEntry = {
     path: string,
-    relative: string,
-    absolute: bool
+    digest: string
 }
 
 export enum ResourceKind {
@@ -20,6 +23,17 @@ export enum ResourceKind {
     Regular,
     Symlink,
     Other
+}
+
+export type ResourceEntry = {
+    kind: ResourceKind,
+    path: string
+}
+
+export type RetirementPath = {
+    path: string,
+    relative: string,
+    absolute: bool
 }
 
 export enum RetirementFile {
@@ -32,15 +46,17 @@ export declare function copyAssembly(output: Output): void throws { PublicationF
 export declare function copyBinary(output: Output): void throws { PublicationFailure }
 
 export declare function openDirectory(directory: Directory): void throws { PublicationFailure }
-export declare function nextEntry(directory: Directory, name: string): u8 throws { PublicationFailure }
+export declare function nextEntry(directory: Directory, name: string): DirectoryEntry
+    throws { PublicationFailure }
 export declare function copyEntry(directory: Directory): void throws { PublicationFailure }
-export declare function entryPath(directory: Directory): string
 export declare function copyStagedFile(
     directory: Directory,
     target: string,
     prefix: u64
 ): void throws { PublicationFailure }
 export declare function removeRetiredFile(directory: Directory, target: string): void
+    throws { PublicationFailure }
+export declare function digestEntry(directory: Directory, path: string): InventoryEntry
     throws { PublicationFailure }
 
 export declare function capture(verification: Verification): void throws { PublicationFailure }
@@ -63,7 +79,6 @@ export declare function prepareRetirement(library: Library): string[] throws {
 }
 export declare function validatePublishedPath(library: Library, path: string): string
     throws { PublicationFailure }
-export declare function absolutePath(path: string): bool
 
 export declare function readOutputPath(
     target: OutputTarget,
@@ -72,24 +87,17 @@ export declare function readOutputPath(
 ): string throws { PublicationFailure }
 export declare function isDirectOutput(target: OutputTarget, path: string): bool
     throws { PublicationFailure }
-export declare function keepOutputPath(
-    target: OutputTarget,
-    base: string,
-    logical: string,
-    prefix: u64
-): string throws { PublicationFailure }
 
-export declare function resourceRoot(walk: ResourceWalk): ResourceKind throws { PublicationFailure }
+export declare function resourceRoot(walk: ResourceWalk): ResourceEntry throws { PublicationFailure }
 export declare function openResources(walk: ResourceWalk): void throws { PublicationFailure }
-export declare function nextResource(walk: ResourceWalk): ResourceKind throws { PublicationFailure }
-export declare function observeResource(walk: ResourceWalk, is_directory: bool): void throws { PublicationFailure }
-export declare function resourceLinkIsFile(walk: ResourceWalk): bool throws { PublicationFailure }
-export declare function keepResource(walk: ResourceWalk): void throws { PublicationFailure }
-
-export declare function openInventory(collector: InventoryCollector): void throws { PublicationFailure }
-export declare function nextInventory(collector: InventoryCollector): u8 throws { PublicationFailure }
-export declare function inventoryPath(collector: InventoryCollector): string throws { PublicationFailure }
-export declare function addInventoryFile(collector: InventoryCollector, path: string): void throws { PublicationFailure }
+export declare function nextResource(walk: ResourceWalk): ResourceEntry throws { PublicationFailure }
+export declare function observeResource(
+    walk: ResourceWalk,
+    path: string,
+    is_directory: bool
+): void throws { PublicationFailure }
+export declare function resourceLinkIsFile(walk: ResourceWalk, path: string): bool
+    throws { PublicationFailure }
 
 export declare function readRetirement(plan: Retirement): bool throws { PublicationFailure }
 export declare function reserveTargets(plan: Retirement): string[] throws { PublicationFailure }

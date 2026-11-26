@@ -29,8 +29,6 @@ pub fn relativeInput(handle: *anyopaque, path: []const u8) effects.Error![]const
     return std.fs.path.relative(directory.allocator, directory.destination, null, directory.destination, path) catch |err| return directory.failure.save(err);
 }
 
-pub const absolutePath = std.fs.path.isAbsolute;
-
 pub fn prepareRetirement(handle: *anyopaque) effects.Error![]const []const u8 {
     const self = effects.borrow(Self, handle);
     const directory = self.directory;

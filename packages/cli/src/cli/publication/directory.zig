@@ -1,6 +1,9 @@
 const std = @import("std");
+const abi = @import("publication_abi");
 const effects = @import("effects.zig");
 const constants = @import("cli_source").publication_constants.@"zx.constants";
+const DirectoryEntry = abi.layouts.@"zig:publication_host".DirectoryEntry;
+const InventoryEntry = abi.layouts.@"zig:publication_host".InventoryEntry;
 const Self = @This();
 
 io: std.Io,
@@ -13,6 +16,9 @@ opened: bool = false,
 directory: std.Io.Dir = undefined,
 walker: std.Io.Dir.Walker = undefined,
 path: []const u8 = &.{},
+
+entry_view: DirectoryEntry = undefined,
+inventory_view: InventoryEntry = undefined,
 pub fn deinit(self: *Self) void {
     if (!self.opened) return;
 
@@ -45,12 +51,16 @@ pub fn advance(self: *Self) effects.Error!?std.Io.File.Kind {
     return item.kind;
 }
 
-pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!u8 {
-    return effects.state(Self, handle).nextNamed(name);
-}
+pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!*const DirectoryEntry {
+    const self = effects.state(Self, handle);
+    const kind = try self.nextNamed(name);
 
-pub fn entryPath(handle: *const anyopaque) []const u8 {
-    return effects.state(Self, handle).path;
+    self.entry_view = .{
+        .kind = kind,
+        .path = if (kind == constants.end_of_directory) "" else self.path,
+    };
+
+    return &self.entry_view;
 }
 
 pub fn nextNamed(self: *Self, name: []const u8) effects.Error!u8 {

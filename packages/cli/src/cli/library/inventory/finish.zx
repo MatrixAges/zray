@@ -1,0 +1,31 @@
+import sortOrder from "../../observation/directory/sort_order"
+
+import type { Entries as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const order = sortOrder(in.paths)
+    const empty_paths: string[] = []
+    const empty_digests: string[] = []
+
+    const sorted = loop({
+        index: 0,
+        paths: empty_paths,
+        digests: empty_digests
+    }, {
+        while: state => state.index < order.length,
+        next: state => {
+            const row = order[state.index]
+
+            state.paths = state.paths.push(in.paths[row])[0]
+            state.digests = state.digests.push(in.digests[row])[0]
+            state.index += 1
+        },
+        return: state => state
+    })
+
+    return {
+        valid: true,
+        paths: sorted.paths,
+        digests: sorted.digests
+    }
+}

@@ -1,5 +1,28 @@
 export { ResourceKind } from "publication_host"
 
-export type { ResourceWalk as Input } from "publication_host"
+import type { ResourceWalk } from "publication_host"
 
-export type Output = bool
+export type Input = {
+    walk: ResourceWalk,
+    running: bool
+}
+
+export type Step = {
+    walk: ResourceWalk,
+    running: bool,
+    valid: bool
+}
+
+export type Discovered = {
+    paths: string[]
+}
+
+export type Append = {
+    discovered: Discovered,
+    path: string
+}
+
+export type Output = {
+    supported: bool,
+    paths: string[]
+}
