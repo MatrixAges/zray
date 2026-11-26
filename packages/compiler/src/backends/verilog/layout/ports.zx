@@ -1,30 +1,37 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import strings from "std:string"
 import memory from "memory"
 
 import { range_separator, port_end } from "./const"
 
 import type { Declaration as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { ports, prefix, writer } = in
+    const { ports, prefix } = in
 
-    const declared = loop(0, {
-        while: row => row < ports.count,
-        next: row => {
-            const width = integers.widenShort(memory.readColumnU16(ports.widths, row))
-            bytes.write(writer, bytes.fromText(prefix))
-            bytes.writeDecimalU64(writer, width - 1)
-            bytes.write(writer, bytes.fromText(range_separator))
-            bytes.write(
-                writer,
-                bytes.fromText(memory.readTextColumn(ports.names, row))
-            )
-            bytes.write(writer, bytes.fromText(port_end))
+    const initial: string[] = []
 
-            row += 1
-        }
+    const collected = loop({
+        row: 0,
+        parts: initial
+    }, {
+        while: state => state.row < ports.count,
+        next: state => {
+            const width =
+                integers.widenShort(memory.readColumnU16(
+                    ports.widths,
+                    state.row
+                ))
+            const name = memory.readTextColumn(ports.names, state.row)
+            const line = `${prefix}${width - 1}${range_separator}${name}${port_end}`
+
+            state.parts = state.parts.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
+
+    return strings.join("", collected)
 }

@@ -1,39 +1,22 @@
 <Module>
     <Type from="model" as="Wire" />
 
-    <Args in={Wire.Tables} out={void} />
+    <Args in={Wire.Tables} out={u8[]} />
 
-    <Call fn="version" in={$in.writer} />
+    <Call fn="settlements" in={$in.settled} />
+    <Call fn="demands" in={$in.demanded} />
+    <Call fn="plans" in={$in.planned} />
+    <Call fn="flows" in={$in.flowed} />
 
     <Call
-        fn="settlements"
+        fn="assemble"
         in={{
-            writer: $in.writer,
-            table: $in.settled
+            settled: $ctx.settlements,
+            demanded: $ctx.demands,
+            planned: $ctx.plans,
+            flowed: $ctx.flows
         }}
     />
 
-    <Call
-        fn="demands"
-        in={{
-            writer: $in.writer,
-            table: $in.demanded
-        }}
-    />
-
-    <Call
-        fn="plans"
-        in={{
-            writer: $in.writer,
-            table: $in.planned
-        }}
-    />
-
-    <Call
-        fn="flows"
-        in={{
-            writer: $in.writer,
-            table: $in.flowed
-        }}
-    />
+    <Return value={$ctx.assemble} />
 </Module>

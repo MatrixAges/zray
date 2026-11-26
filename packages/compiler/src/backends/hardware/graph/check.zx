@@ -106,14 +106,10 @@ export default function (in: Input): Output {
 
     const result = derive({
         family: traits(fromCode(node.operator)).family,
-        left: {
-            width: left_width,
-            boolean: left_bool
-        },
-        right: {
-            width: right_width,
-            boolean: right_bool
-        }
+        left_width,
+        left_boolean: left_bool,
+        right_width,
+        right_boolean: right_bool
     })
 
     return match result {

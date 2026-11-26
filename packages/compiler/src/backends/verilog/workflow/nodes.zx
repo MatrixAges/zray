@@ -1,27 +1,37 @@
+import strings from "std:string"
 import host from "hardware_graph_host"
 
 import write from "../node/write"
 
-import type { Nodes as Input } from "./model"
+import type { Scan as Input } from "../../hardware/graph/model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const written = loop(0, {
-        while: index => index < in.circuit.graph.count,
-        next: index => {
-            const { graph, nodes } = in.circuit
-            const node = host.readHardwareGraphNode(nodes, index)
+    const { graph, nodes } = in
 
-            write({
-                writer: in.layout.writer,
-                index,
+    const initial: string[] = []
+
+    const collected = loop({
+        index: 0,
+        parts: initial
+    }, {
+        while: state => state.index < graph.count,
+        next: state => {
+            const node = host.readHardwareGraphNode(nodes, state.index)
+
+            const line = write({
+                index: state.index,
                 node,
                 input_names: graph.inputs.names,
                 widths: graph.sorts.widths
             })
 
-            index += 1
-        }
+            state.parts = state.parts.push(line)[0]
+            state.index += 1
+        },
+        return: state => state.parts
     })
+
+    return strings.join("", collected)
 }

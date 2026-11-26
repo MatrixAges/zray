@@ -1,4 +1,3 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
@@ -15,40 +14,29 @@ import {
 
 import type { Wire as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, node } = in
+    const { node } = in
 
     const operand = node.first
     const extra = node.extra
 
     if (extra == 0) {
-        bytes.write(writer, bytes.fromText(wire_name))
-        bytes.writeDecimalU64(writer, operand)
-
-        return
+        return `${wire_name}${operand}`
     }
+
+    const added = integers.widenShort(extra)
 
     if (node.signed) {
         const width = memory.readColumnU16(in.widths, operand)
+        const high = integers.widenShort(width) - 1
 
-        bytes.write(writer, bytes.fromText(replicate))
-        bytes.writeDecimalU64(writer, integers.widenShort(extra))
-        bytes.write(writer, bytes.fromText(replicate_wire))
-        bytes.writeDecimalU64(writer, operand)
-        bytes.write(writer, bytes.fromText(bit_select))
-        bytes.writeDecimalU64(writer, integers.widenShort(width) - 1)
-        bytes.write(writer, bytes.fromText(replicate_end))
-        bytes.writeDecimalU64(writer, operand)
-        bytes.write(writer, bytes.fromText(concat_end))
+        const prefix =
+            `${replicate}${added}${replicate_wire}${operand}${bit_select}${high}`
 
-        return
+        return `${prefix}${replicate_end}${operand}${concat_end}`
     }
 
-    bytes.write(writer, bytes.fromText(concat_start))
-    bytes.writeDecimalU64(writer, integers.widenShort(extra))
-    bytes.write(writer, bytes.fromText(zero_prefix))
-    bytes.writeDecimalU64(writer, operand)
-    bytes.write(writer, bytes.fromText(concat_end))
+    return `${concat_start}${added}${zero_prefix}${operand}${concat_end}`
 }

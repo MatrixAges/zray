@@ -1,29 +1,19 @@
+import bytes from "std:bytes"
 import { sha256_digest_width } from "core/const"
 import memory from "memory"
 
-import count from "./count"
 import write from "./demanded"
 import population from "./population"
 import selected from "./selected"
 
-import type { Writer } from "std:bytes"
 import type { Demands as Table } from "./model"
 
-export type Input = {
-    writer: Writer,
-    table: Table
-}
+export type Input = Table
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, table } = in
-    const { rows } = table
-
-    count({
-        writer,
-        count: population(rows)
-    })
+    const { rows } = in
 
     const first = selected({
         rows,
@@ -32,26 +22,34 @@ export default function (in: Input): Output {
 
     const last: u64 = rows.keys.length / sha256_digest_width
 
-    const written = loop(first, {
-        while: index => index < last,
-        next: index => {
+    const initial: u8[][] = [bytes.encodeU32Le(population(rows))]
+
+    const collected = loop({
+        index: first,
+        parts: initial
+    }, {
+        while: state => state.index < last,
+        next: state => {
             const digest = memory.borrowU8Range(
                 rows.keys,
-                index * sha256_digest_width,
+                state.index * sha256_digest_width,
                 sha256_digest_width
             )
 
-            write({
-                writer,
+            const entry = write({
                 digest,
-                index,
-                table
+                index: state.index,
+                table: in
             })
 
-            index = selected({
+            state.parts = state.parts.push(entry)[0]
+            state.index = selected({
                 rows,
-                first: index + 1
+                first: state.index + 1
             })
-        }
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

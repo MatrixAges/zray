@@ -7,37 +7,48 @@ import { true_byte } from "../const"
 
 import type { Settled as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, table, index } = in
+    const { table, index } = in
     const { callees, levels } = table
 
     const mask = level_modulus - true_byte
     const count = memory.listLength(callees, index)
 
-    bytes.write(writer, in.digest)
-    bytes.writeU32Le(writer, integers.narrow(count))
+    const initial: u8[][] = [
+        in.digest,
+        bytes.encodeU32Le(integers.narrow(count))
+    ]
 
-    const first: u64 = 0
+    const collected = loop({
+        member: 0,
+        parts: initial
+    }, {
+        while: state => state.member < count,
+        next: state => {
+            const callee = memory.readListU32(callees, index, state.member)
+            const payload =
+                bytes.fromText(memory.readListText(levels, index, state.member))
 
-    const passed_written = loop(first, {
-        while: member => member < count,
-        next: member => {
-            const callee = memory.readListU32(callees, index, member)
-            const payload = bytes.fromText(memory.readListText(levels, index, member))
+            const entry = bytes.join(bytes.fromText(""), [
+                bytes.encodeU32Le(callee),
+                bytes.encodeU32Le(integers.narrow(payload.length)),
+                bytes.mask(payload, mask)
+            ])
 
-            bytes.writeU32Le(writer, callee)
-            bytes.writeU32Le(writer, integers.narrow(payload.length))
-            bytes.writeMasked(writer, payload, mask)
-
-            member += 1
-        }
+            state.parts = state.parts.push(entry)[0]
+            state.member += 1
+        },
+        return: state => state.parts
     })
 
     const output = memory.borrowListBytes(table.output, index)
 
-    bytes.writeU32Le(writer, integers.narrow(output.length))
-    bytes.writeMasked(writer, output, mask)
-    bytes.writeByte(writer, true_byte)
+    return bytes.join(bytes.fromText(""), [
+        bytes.join(bytes.fromText(""), collected),
+        bytes.encodeU32Le(integers.narrow(output.length)),
+        bytes.mask(output, mask),
+        bytes.repeat(1, true_byte)
+    ])
 }

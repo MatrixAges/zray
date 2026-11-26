@@ -1,34 +1,25 @@
-import bytes from "std:bytes"
+import strings from "std:string"
 
 import { wire_input, reg_output } from "./const"
 import ports from "./ports"
 
 import type { Interface as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { inputs, outputs, writer } = in
+    const { inputs, outputs } = in
 
-    bytes.write(
-        writer,
-        bytes.fromText(templateFile("./templates/clocked_header.tpl"))
-    )
-
-    ports({
-        writer,
-        ports: inputs,
-        prefix: wire_input
-    })
-
-    ports({
-        writer,
-        ports: outputs,
-        prefix: reg_output
-    })
-
-    bytes.write(
-        writer,
-        bytes.fromText(templateFile("./templates/clocked_fault.tpl"))
-    )
+    return strings.join("", [
+        templateFile("./templates/clocked_header.tpl"),
+        ports({
+            ports: inputs,
+            prefix: wire_input
+        }),
+        ports({
+            ports: outputs,
+            prefix: reg_output
+        }),
+        templateFile("./templates/clocked_fault.tpl")
+    ])
 }

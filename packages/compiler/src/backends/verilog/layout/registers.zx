@@ -1,5 +1,5 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import strings from "std:string"
 import memory from "memory"
 
 import {
@@ -14,55 +14,57 @@ import {
 
 import type { Interface as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { outputs, writer } = in
+    const { outputs } = in
 
-    bytes.write(writer, bytes.fromText(templateFile("./templates/always.tpl")))
+    const with_cleared = loop({
+        row: 0,
+        parts: [templateFile("./templates/always.tpl")]
+    }, {
+        while: state => state.row < outputs.count,
+        next: state => {
+            const name = memory.readTextColumn(outputs.names, state.row)
 
-    const cleared = loop(0, {
-        while: row => row < outputs.count,
-        next: row => {
-            bytes.write(writer, bytes.fromText(reset_indent))
-            bytes.write(
-                writer,
-                bytes.fromText(memory.readTextColumn(outputs.names, row))
-            )
-            bytes.write(writer, bytes.fromText(reset_assignment))
-            bytes.writeDecimalU64(
-                writer,
-                integers.widenShort(memory.readColumnU16(
+            const width = integers.widenShort(
+                memory.readColumnU16(
                     outputs.widths,
-                    row
-                ))
+                    state.row
+                )
             )
-            bytes.write(writer, bytes.fromText(zero_literal))
 
-            row += 1
-        }
+            const line =
+                `${reset_indent}${name}${reset_assignment}${width}${zero_literal}`
+
+            state.parts = state.parts.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
 
-    bytes.write(writer, bytes.fromText(templateFile("./templates/accept.tpl")))
+    const with_latched = loop({
+        row: 0,
+        parts: with_cleared.push(templateFile("./templates/accept.tpl"))[0]
+    }, {
+        while: state => state.row < outputs.count,
+        next: state => {
+            const name = memory.readTextColumn(outputs.names, state.row)
 
-    const latched = loop(0, {
-        while: row => row < outputs.count,
-        next: row => {
-            const name = memory.readTextColumn(outputs.names, row)
-            bytes.write(writer, bytes.fromText(capture_indent))
-            bytes.write(writer, bytes.fromText(name))
-            bytes.write(writer, bytes.fromText(capture_assignment))
-            bytes.write(writer, bytes.fromText(name))
-            bytes.write(writer, bytes.fromText(statement_end))
+            const line =
+                `${capture_indent}${name}${capture_assignment}${name}${statement_end}`
 
-            row += 1
-        }
+            state.parts = state.parts.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
 
-    bytes.write(
-        writer,
-        bytes.fromText(templateFile("./templates/end_registers.tpl"))
-    )
+    const final = with_latched
+        .push(templateFile("./templates/end_registers.tpl"))[0]
+        .push(
+            end_file
+        )[0]
 
-    bytes.write(writer, bytes.fromText(end_file))
+    return strings.join("", final)
 }

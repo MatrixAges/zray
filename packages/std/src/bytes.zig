@@ -7,13 +7,9 @@ pub fn join(allocator: std.mem.Allocator, separator: []const u8, values: []const
 
 const writer = @import("bytes/writer.zig");
 pub const write = writer.write;
-pub const writeMasked = writer.writeMasked;
 pub const writeByte = writer.writeByte;
 pub const writeU32Le = writer.writeU32Le;
 pub const writeU64Le = writer.writeU64Le;
-pub const writeDecimalU64 = writer.writeDecimalU64;
-pub const writeU32sLe = writer.writeU32sLe;
-pub const writeU64sLe = writer.writeU64sLe;
 const reader = @import("bytes/reader.zig");
 pub const readU8s = reader.readU8s;
 pub const readU32sLe = reader.readU32sLe;
@@ -24,6 +20,14 @@ pub fn repeat(allocator: std.mem.Allocator, count_value: u64, value: u8) std.mem
     const output = try allocator.alloc(u8, length);
 
     @memset(output, value);
+
+    return output;
+}
+
+pub fn mask(allocator: std.mem.Allocator, value: []const u8, bits: u8) std.mem.Allocator.Error![]const u8 {
+    const output = try allocator.alloc(u8, value.len);
+
+    for (output, value) |*byte, source| byte.* = source & bits;
 
     return output;
 }

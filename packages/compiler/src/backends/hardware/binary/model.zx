@@ -46,8 +46,10 @@ export type Sort = {
 
 export type Operands = {
     family: Family,
-    left: Sort,
-    right: Sort
+    left_width: u16,
+    left_boolean: bool,
+    right_width: u16,
+    right_boolean: bool
 }
 
 export enum Result {

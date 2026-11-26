@@ -1,9 +1,20 @@
 <Module>
     <Type from="model" as="Circuit" />
 
-    <Args in={Circuit.Interface} out={void} />
+    <Args in={Circuit.Interface} out={string} />
 
     <Call fn="kernel" in={$in} />
     <Call fn="connections" in={$in} />
     <Call fn="registers" in={$in} />
+
+    <Call
+        fn="join"
+        in={[
+            $ctx.kernel,
+            $ctx.connections,
+            $ctx.registers
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

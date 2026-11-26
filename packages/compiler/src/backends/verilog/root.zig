@@ -20,40 +20,25 @@ fn renderModule(allocator: std.mem.Allocator, module: anytype, clocked: bool) ![
 
     defer temporary.deinit();
 
-    var output = std.Io.Writer.Allocating.init(allocator);
-
-    errdefer output.deinit();
-
     const render = @import("generated_render_verilog");
     const Input = std.meta.Child(render.Input);
     const circuit = view.scan();
-    const target = &output;
 
     const layout: std.meta.Child(@FieldType(Input, "layout")) = .{
-        .writer = @ptrCast(&output.writer),
         .inputs = &view.inputs,
         .outputs = &view.outputs,
         .safe = view.graph.safe,
         .clocked = clocked,
     };
 
-    const input: Input = .{ .target = @ptrCast(&target), .layout = &layout, .circuit = &circuit };
+    const input: Input = .{ .layout = &layout, .circuit = &circuit };
 
-    const valid = render.executeIn(temporary.allocator(), &input) catch |err| return switch (err) {
-        error.OutputCapacity => error.OutOfMemory,
-        error.OutOfMemory => error.WriteFailed,
-        error.IndexOutOfBounds, error.IntegerOverflow => unreachable,
+    const rendered = render.executeIn(temporary.allocator(), &input) catch |err| return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        else => unreachable,
     };
 
-    if (!valid) return error.InvalidHardwareIr;
+    const text = rendered orelse return error.InvalidHardwareIr;
 
-    return output.toOwnedSlice();
-}
-
-pub fn reserveVerilogOutput(handle: *const anyopaque, capacity: u64) error{OutputCapacity}!void {
-    const reference: *const *std.Io.Writer.Allocating = @ptrCast(@alignCast(handle));
-    const output = reference.*;
-    const size = std.math.cast(usize, capacity) orelse return error.OutputCapacity;
-
-    output.* = std.Io.Writer.Allocating.initCapacity(output.allocator, size) catch return error.OutputCapacity;
+    return allocator.dupe(u8, text);
 }

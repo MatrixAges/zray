@@ -7,69 +7,101 @@ import { false_byte, true_byte } from "../const"
 
 import type { Demanded as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, table, index } = in
+    const { table, index } = in
 
     const mark_count = memory.listLength(table.marks_function, index)
     const normalized_count = memory.listLength(table.normalized_id, index)
     const renewed_count = memory.listLength(table.renewed_key, index)
 
-    const first: u64 = 0
+    const initial: u8[][] = [
+        in.digest,
+        bytes.encodeU32Le(integers.narrow(mark_count))
+    ]
 
-    bytes.write(writer, in.digest)
-    bytes.writeU32Le(writer, integers.narrow(mark_count))
+    const with_marks = loop({
+        member: 0,
+        parts: initial
+    }, {
+        while: state => state.member < mark_count,
+        next: state => {
+            const output = memory.readListBool(table.marks_output, index, state.member)
+            const callee = memory.readListU32(table.marks_function, index, state.member)
+            const slot = memory.readListU32(table.marks_slot, index, state.member)
+            const want = memory.readListU8(table.marks_want, index, state.member)
 
-    const marks_written = loop(first, {
-        while: member => member < mark_count,
-        next: member => {
-            const output = memory.readListBool(table.marks_output, index, member)
-            const callee = memory.readListU32(table.marks_function, index, member)
-            const slot = memory.readListU32(table.marks_slot, index, member)
-            const want = memory.readListU8(table.marks_want, index, member)
+            const entry = bytes.join(bytes.fromText(""), [
+                bytes.repeat(1, output ? true_byte : false_byte),
+                bytes.encodeU32Le(callee),
+                bytes.encodeU32Le(slot),
+                bytes.repeat(1, want % level_modulus)
+            ])
 
-            bytes.writeByte(writer, output ? true_byte : false_byte)
-            bytes.writeU32Le(writer, callee)
-            bytes.writeU32Le(writer, slot)
-            bytes.writeByte(writer, want % level_modulus)
-
-            member += 1
-        }
+            state.parts = state.parts.push(entry)[0]
+            state.member += 1
+        },
+        return: state => state.parts
     })
 
-    bytes.writeU32Le(writer, integers.narrow(normalized_count))
+    const with_normalized = loop({
+        member: 0,
+        parts:
+            with_marks.push(bytes.encodeU32Le(
+                integers.narrow(
+                    normalized_count
+                )
+            ))[0]
+    }, {
+        while: state => state.member < normalized_count,
+        next: state => {
+            const id = memory.readListU32(table.normalized_id, index, state.member)
+            const want = memory.readListU8(table.normalized_want, index, state.member)
 
-    const normalized_written = loop(first, {
-        while: member => member < normalized_count,
-        next: member => {
-            const id = memory.readListU32(table.normalized_id, index, member)
-            const want = memory.readListU8(table.normalized_want, index, member)
+            const entry = bytes.join(bytes.fromText(""), [
+                bytes.encodeU32Le(id),
+                bytes.repeat(1, want % level_modulus)
+            ])
 
-            bytes.writeU32Le(writer, id)
-            bytes.writeByte(writer, want % level_modulus)
-
-            member += 1
-        }
+            state.parts = state.parts.push(entry)[0]
+            state.member += 1
+        },
+        return: state => state.parts
     })
 
-    bytes.writeU32Le(writer, integers.narrow(renewed_count))
+    const with_renewed = loop({
+        member: 0,
+        parts:
+            with_normalized.push(
+                bytes.encodeU32Le(
+                    integers.narrow(
+                        renewed_count
+                    )
+                )
+            )[0]
+    }, {
+        while: state => state.member < renewed_count,
+        next: state => {
+            const key = memory.readListU64(table.renewed_key, index, state.member)
+            const want = memory.readListU8(table.renewed_want, index, state.member)
 
-    const renewed_written = loop(first, {
-        while: member => member < renewed_count,
-        next: member => {
-            const key = memory.readListU64(table.renewed_key, index, member)
-            const want = memory.readListU8(table.renewed_want, index, member)
+            const entry = bytes.join(bytes.fromText(""), [
+                bytes.encodeU64Le(key),
+                bytes.repeat(1, want % level_modulus)
+            ])
 
-            bytes.writeU64Le(writer, key)
-            bytes.writeByte(writer, want % level_modulus)
-
-            member += 1
-        }
+            state.parts = state.parts.push(entry)[0]
+            state.member += 1
+        },
+        return: state => state.parts
     })
 
     const grew = memory.readColumnBool(table.grew, index)
 
-    bytes.writeByte(writer, grew ? true_byte : false_byte)
-    bytes.writeByte(writer, true_byte)
+    return bytes.join(bytes.fromText(""), [
+        bytes.join(bytes.fromText(""), with_renewed),
+        bytes.repeat(1, grew ? true_byte : false_byte),
+        bytes.repeat(1, true_byte)
+    ])
 }

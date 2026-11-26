@@ -1,4 +1,3 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
@@ -14,46 +13,32 @@ import {
 
 import type { Wire as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, node } = in
+    const { node } = in
 
     const kind = node.kind
     const first = node.first
 
     if (kind == Kind.Input) {
-        bytes.write(
-            writer,
-            bytes.fromText(memory.readTextColumn(in.input_names, first))
-        )
-
-        return
+        return memory.readTextColumn(in.input_names, first)
     }
 
     if (kind == Kind.Constant) {
-        const width = node.width
+        const width = integers.widenShort(node.width)
 
-        bytes.writeDecimalU64(writer, integers.widenShort(width))
-        bytes.write(writer, bytes.fromText(decimal_literal))
-        bytes.writeDecimalU64(writer, first)
-
-        return
+        return `${width}${decimal_literal}${first}`
     }
 
     if (kind == Kind.Select) {
-        bytes.write(writer, bytes.fromText(wire_name))
-        bytes.writeDecimalU64(writer, first)
-        bytes.write(writer, bytes.fromText(choice_yes))
-        bytes.writeDecimalU64(writer, integers.widen(node.second))
-        bytes.write(writer, bytes.fromText(choice_no))
-        bytes.writeDecimalU64(writer, integers.widen(node.third))
+        const yes = integers.widen(node.second)
+        const no = integers.widen(node.third)
 
-        return
+        return `${wire_name}${first}${choice_yes}${yes}${choice_no}${no}`
     }
 
     const prefix = kind == Kind.Invert ? invert_wire : negate_wire
 
-    bytes.write(writer, bytes.fromText(prefix))
-    bytes.writeDecimalU64(writer, first)
+    return `${prefix}${first}`
 }

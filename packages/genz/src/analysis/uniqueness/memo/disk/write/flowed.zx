@@ -6,21 +6,23 @@ import { true_byte } from "../const"
 
 import type { Flowed as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, table, index } = in
+    const { table, index } = in
 
     const held = memory.borrowListBytes(table.held, index)
     const text_held = memory.borrowListBytes(table.text_held, index)
     const written = memory.borrowListBytes(table.written, index)
 
-    bytes.write(writer, in.digest)
-    bytes.writeU32Le(writer, integers.narrow(held.length))
-    bytes.writeMasked(writer, held, true_byte)
-    bytes.writeU32Le(writer, integers.narrow(text_held.length))
-    bytes.writeMasked(writer, text_held, true_byte)
-    bytes.writeU32Le(writer, integers.narrow(written.length))
-    bytes.writeMasked(writer, written, true_byte)
-    bytes.writeByte(writer, true_byte)
+    return bytes.join(bytes.fromText(""), [
+        in.digest,
+        bytes.encodeU32Le(integers.narrow(held.length)),
+        bytes.mask(held, true_byte),
+        bytes.encodeU32Le(integers.narrow(text_held.length)),
+        bytes.mask(text_held, true_byte),
+        bytes.encodeU32Le(integers.narrow(written.length)),
+        bytes.mask(written, true_byte),
+        bytes.repeat(1, true_byte)
+    ])
 }

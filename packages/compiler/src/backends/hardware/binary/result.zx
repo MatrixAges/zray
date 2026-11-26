@@ -5,16 +5,16 @@ import type { Operands as Input } from "./model"
 export type Output = Result
 
 export default function (in: Input): Output {
-    const { left, right, family } = in
+    const { left_width, left_boolean, right_width, right_boolean, family } = in
 
-    if (left.width != right.width || left.boolean != right.boolean) {
+    if (left_width != right_width || left_boolean != right_boolean) {
         return Result.Invalid
     }
 
     return match family {
         Family.Equality => Result.Boolean,
-        Family.Logical => left.boolean ? Result.Boolean : Result.Invalid,
-        Family.Arithmetic => left.boolean ? Result.Invalid : Result.Operand,
-        _ => left.boolean ? Result.Invalid : Result.Boolean
+        Family.Logical => left_boolean ? Result.Boolean : Result.Invalid,
+        Family.Arithmetic => left_boolean ? Result.Invalid : Result.Operand,
+        _ => left_boolean ? Result.Invalid : Result.Boolean
     }
 }

@@ -1,9 +1,7 @@
-import type { Writer } from "std:bytes"
 import type { TextColumn, ReadColumn } from "memory"
 import type { Node } from "../../hardware/graph/model"
 
 export type Wire = {
-    writer: Writer,
     index: u64,
     node: Node,
     input_names: TextColumn,

@@ -1,0 +1,17 @@
+import bytes from "std:bytes"
+
+import { magic } from "../const"
+
+import type { Sections as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return bytes.join(bytes.fromText(""), [
+        bytes.fromText(magic),
+        in.settled,
+        in.demanded,
+        in.planned,
+        in.flowed
+    ])
+}

@@ -19,7 +19,7 @@ pub const Frame = struct {
     span: zx.Span,
     aggregate_fields: []Value = &.{},
     slots: [std.enums.values(Operand).len]Evaluation = undefined,
-    outcome: native.SymbolicOutcome = undefined,
+    outcomes: [std.enums.values(Operand).len]native.SymbolicOutcome = undefined,
     pub fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
     }
@@ -90,12 +90,14 @@ pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u3
 
     frame.at(slot).* = value;
 
-    frame.outcome = .{
+    const outcome = &frame.outcomes[@backingInt(slot)];
+
+    outcome.* = .{
         .safe = value.safe,
         .text = if (value.value == .scalar) value.value.scalar else null,
     };
 
-    return &frame.outcome;
+    return outcome;
 }
 
 pub fn projectSymbolicOperand(handle: *anyopaque, index: u32) void {

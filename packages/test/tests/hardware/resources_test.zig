@@ -45,11 +45,7 @@ fn checkAllocation(allocator: std.mem.Allocator, source: []const u8, rejected: b
     try std.testing.expectEqual(@as(usize, 2), module.outputs.len);
 
     for ([_]bool{ false, true }) |clocked| {
-        const source_code = compiler.verilog.emit(allocator, module, clocked) catch |err| {
-            if (err == error.WriteFailed) return error.OutOfMemory;
-
-            return err;
-        };
+        const source_code = try compiler.verilog.emit(allocator, module, clocked);
 
         defer allocator.free(source_code);
 

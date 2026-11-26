@@ -1,18 +1,29 @@
 <Module>
     <Type from="model" as="Circuit" />
 
-    <Args in={Circuit.Module} out={void} />
+    <Args in={Circuit.Module} out={string} />
 
     <Call fn="assignments" in={$in} />
 
-    <If on={$in.clocked}>
-        <Call
-            module="clocked"
-            in={$in.pick([
-                "writer",
-                "inputs",
-                "outputs"
-            ])}
-        />
+    <If on={!$in.clocked}>
+        <Return value={$ctx.assignments} />
     </If>
+
+    <Call
+        module="clocked"
+        in={$in.pick([
+            "inputs",
+            "outputs"
+        ])}
+    />
+
+    <Call
+        fn="join"
+        in={[
+            $ctx.assignments,
+            $ctx.clocked
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

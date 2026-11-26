@@ -8,15 +8,14 @@ const Input = Value(rule.Input);
 const Error = std.mem.Allocator.Error;
 
 pub fn save(memo: *const Memo, allocator: std.mem.Allocator) Error![]u8 {
-    var out: std.Io.Writer.Allocating = .init(allocator);
-
-    errdefer out.deinit();
-
     var settled: View(@FieldType(Input, "settled")) = undefined;
     var demanded: View(@FieldType(Input, "demanded")) = undefined;
     var planned: View(@FieldType(Input, "planned")) = undefined;
     var flowed: View(@FieldType(Input, "flowed")) = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
+
     const settlements = memo.settled.values.items;
     const demands = memo.demanded.values.items;
     const plans = memo.planned.values.items;
@@ -55,19 +54,18 @@ pub fn save(memo: *const Memo, allocator: std.mem.Allocator) Error![]u8 {
     };
 
     const input: Input = .{
-        .writer = @ptrCast(&out.writer),
         .settled = settled.borrow(memo.settled.keys.items, settlements, &settlement_fields),
         .demanded = demanded.borrow(memo.demanded.keys.items, demands, &demand_fields),
         .planned = planned.borrow(memo.planned.keys.items, plans, &plan_fields),
         .flowed = flowed.borrow(memo.flowed.keys.items, flows, &flow_fields),
     };
 
-    zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
+    const encoded = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("memo disk write failed: {s}", .{@errorName(err)}),
     };
 
-    return out.toOwnedSlice();
+    return allocator.dupe(u8, encoded);
 }
 
 fn View(comptime Target: type) type {

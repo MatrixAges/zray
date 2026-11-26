@@ -1,5 +1,5 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
+import strings from "std:string"
 import memory from "memory"
 
 import {
@@ -14,56 +14,65 @@ import {
 
 import type { Interface as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { inputs, outputs, writer } = in
+    const { inputs, outputs } = in
 
-    const wires = loop(0, {
-        while: row => row < outputs.count,
-        next: row => {
+    const initial: string[] = []
+
+    const with_wires = loop({
+        row: 0,
+        parts: initial
+    }, {
+        while: state => state.row < outputs.count,
+        next: state => {
             const width =
-                integers.widenShort(memory.readColumnU16(outputs.widths, row))
-            bytes.write(writer, bytes.fromText(wire_range))
-            bytes.writeDecimalU64(writer, width - 1)
-            bytes.write(writer, bytes.fromText(core_range))
-            bytes.write(
-                writer,
-                bytes.fromText(memory.readTextColumn(outputs.names, row))
-            )
-            bytes.write(writer, bytes.fromText(statement_end))
+                integers.widenShort(memory.readColumnU16(
+                    outputs.widths,
+                    state.row
+                ))
+            const name = memory.readTextColumn(outputs.names, state.row)
+            const line = `${wire_range}${width - 1}${core_range}${name}${statement_end}`
 
-            row += 1
-        }
+            state.parts = state.parts.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
 
-    bytes.write(writer, bytes.fromText(templateFile("./templates/instance.tpl")))
+    const with_instance =
+        with_wires.push(templateFile("./templates/instance.tpl"))[0]
 
-    const bound_inputs = loop(0, {
-        while: row => row < inputs.count,
-        next: row => {
-            const name = memory.readTextColumn(inputs.names, row)
-            bytes.write(writer, bytes.fromText(port_binding))
-            bytes.write(writer, bytes.fromText(name))
-            bytes.write(writer, bytes.fromText(open_paren))
-            bytes.write(writer, bytes.fromText(name))
-            bytes.write(writer, bytes.fromText(binding_end))
+    const with_inputs = loop({
+        row: 0,
+        parts: with_instance
+    }, {
+        while: state => state.row < inputs.count,
+        next: state => {
+            const name = memory.readTextColumn(inputs.names, state.row)
+            const line = `${port_binding}${name}${open_paren}${name}${binding_end}`
 
-            row += 1
-        }
+            state.parts = state.parts.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
 
-    const bound_outputs = loop(0, {
-        while: row => row < outputs.count,
-        next: row => {
-            const name = memory.readTextColumn(outputs.names, row)
-            bytes.write(writer, bytes.fromText(port_binding))
-            bytes.write(writer, bytes.fromText(name))
-            bytes.write(writer, bytes.fromText(core_binding))
-            bytes.write(writer, bytes.fromText(name))
-            bytes.write(writer, bytes.fromText(binding_end))
+    const with_outputs = loop({
+        row: 0,
+        parts: with_inputs
+    }, {
+        while: state => state.row < outputs.count,
+        next: state => {
+            const name = memory.readTextColumn(outputs.names, state.row)
+            const line = `${port_binding}${name}${core_binding}${name}${binding_end}`
 
-            row += 1
-        }
+            state.parts = state.parts.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
+
+    return strings.join("", with_outputs)
 }

@@ -1,4 +1,3 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
@@ -22,10 +21,10 @@ import {
 
 import type { Wire as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, node } = in
+    const { node } = in
 
     const left = node.first
     const right = integers.widen(node.second)
@@ -36,41 +35,20 @@ export default function (in: Input): Output {
         const width = memory.readColumnU16(in.widths, left)
         const high = integers.widenShort(width) - 1
 
-        bytes.write(writer, bytes.fromText(signed_concat))
-        bytes.writeDecimalU64(writer, left)
-        bytes.write(writer, bytes.fromText(bit_select))
-        bytes.writeDecimalU64(writer, high)
-        bytes.write(writer, bytes.fromText(sign_repeat))
-        bytes.writeDecimalU64(writer, left)
-        bytes.write(writer, bytes.fromText(remainder_join))
-        bytes.writeDecimalU64(writer, right)
-        bytes.write(writer, bytes.fromText(bit_select))
-        bytes.writeDecimalU64(writer, high)
-        bytes.write(writer, bytes.fromText(sign_repeat))
-        bytes.writeDecimalU64(writer, right)
-        bytes.write(writer, bytes.fromText(signed_end))
+        const numerator =
+            `${signed_concat}${left}${bit_select}${high}${sign_repeat}${left}`
 
-        return
+        const denominator =
+            `${remainder_join}${right}${bit_select}${high}${sign_repeat}${right}`
+
+        return `${numerator}${denominator}${signed_end}`
     }
 
     const token = info.token
 
     if (rendering == Rendering.Signed) {
-        bytes.write(writer, bytes.fromText(signed_wire))
-        bytes.writeDecimalU64(writer, left)
-        bytes.write(writer, bytes.fromText(signed_operator))
-        bytes.write(writer, bytes.fromText(token))
-        bytes.write(writer, bytes.fromText(signed_right))
-        bytes.writeDecimalU64(writer, right)
-        bytes.write(writer, bytes.fromText(close_paren))
-
-        return
+        return `${signed_wire}${left}${signed_operator}${token}${signed_right}${right}${close_paren}`
     }
 
-    bytes.write(writer, bytes.fromText(wire_name))
-    bytes.writeDecimalU64(writer, left)
-    bytes.write(writer, bytes.fromText(space))
-    bytes.write(writer, bytes.fromText(token))
-    bytes.write(writer, bytes.fromText(right_wire))
-    bytes.writeDecimalU64(writer, right)
+    return `${wire_name}${left}${space}${token}${right_wire}${right}`
 }

@@ -1,5 +1,3 @@
-import bytes from "std:bytes"
-
 import { Kind } from "../../hardware/graph/model"
 import binary from "./binary"
 import { wire_end } from "./const"
@@ -9,20 +7,17 @@ import scalar from "./scalar"
 
 import type { Wire as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    declaration(in)
-
+    const head = declaration(in)
     const kind = in.node.kind
 
-    if (kind == Kind.Binary) {
-        binary(in)
-    } else if (kind == Kind.Extend) {
-        extend(in)
-    } else {
-        scalar(in)
+    const body = match (kind) {
+        Kind.Binary => binary(in),
+        Kind.Extend => extend(in),
+        _ => scalar(in)
     }
 
-    bytes.write(in.writer, bytes.fromText(wire_end))
+    return `${head}${body}${wire_end}`
 }

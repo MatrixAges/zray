@@ -6,10 +6,10 @@ import { true_byte } from "../const"
 
 import type { Planned as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, table, index } = in
+    const { table, index } = in
 
     const flags = memory.borrowListBytes(table.flags, index)
     const keys = memory.readColumnU64List(table.keys, index)
@@ -17,30 +17,40 @@ export default function (in: Input): Output {
     const transfers = memory.readColumnU64List(table.transfers, index)
     const slot_first = memory.readColumnU32List(table.slot_first, index)
 
-    const first: u64 = 0
+    const initial: u8[][] = [
+        in.digest,
+        bytes.encodeU32Le(integers.narrow(flags.length)),
+        flags,
+        bytes.encodeU32Le(integers.narrow(keys.length)),
+        bytes.encodeU64sLe(keys),
+        bytes.encodeU32Le(integers.narrow(paths.length))
+    ]
 
-    bytes.write(writer, in.digest)
-    bytes.writeU32Le(writer, integers.narrow(flags.length))
-    bytes.write(writer, flags)
-    bytes.writeU32Le(writer, integers.narrow(keys.length))
-    bytes.writeU64sLe(writer, keys)
-    bytes.writeU32Le(writer, integers.narrow(paths.length))
+    const collected = loop({
+        index: 0,
+        parts: initial
+    }, {
+        while: state => state.index < paths.length,
+        next: state => {
+            const path = paths[state.index]
 
-    const paths_written = loop(first, {
-        while: index => index < paths.length,
-        next: index => {
-            const path = paths[index]
+            const entry = bytes.join(bytes.fromText(""), [
+                bytes.encodeU32Le(integers.narrow(path.length)),
+                bytes.encodeU32sLe(path)
+            ])
 
-            bytes.writeU32Le(writer, integers.narrow(path.length))
-            bytes.writeU32sLe(writer, path)
-
-            index += 1
-        }
+            state.parts = state.parts.push(entry)[0]
+            state.index += 1
+        },
+        return: state => state.parts
     })
 
-    bytes.writeU32Le(writer, integers.narrow(transfers.length))
-    bytes.writeU64sLe(writer, transfers)
-    bytes.writeU32Le(writer, integers.narrow(slot_first.length))
-    bytes.writeU32sLe(writer, slot_first)
-    bytes.writeByte(writer, true_byte)
+    return bytes.join(bytes.fromText(""), [
+        bytes.join(bytes.fromText(""), collected),
+        bytes.encodeU32Le(integers.narrow(transfers.length)),
+        bytes.encodeU64sLe(transfers),
+        bytes.encodeU32Le(integers.narrow(slot_first.length)),
+        bytes.encodeU32sLe(slot_first),
+        bytes.repeat(1, true_byte)
+    ])
 }

@@ -114,7 +114,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host", .resolve_members = true },
         hardware_graph_interface,
-        .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/inputs/generation/request/host.d.zx", .{directories[0]}), .module = "generation_host", .resolve_members = true },
     };
 

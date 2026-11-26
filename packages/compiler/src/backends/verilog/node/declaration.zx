@@ -1,22 +1,15 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
 
 import { wire_width, wire_index, wire_assign, expression_start } from "./const"
 
 import type { Wire as Input } from "./model"
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, index, node } = in
+    const { index, node } = in
 
-    const width = node.width
+    const high = integers.widenShort(node.width) - 1
 
-    bytes.write(writer, bytes.fromText(wire_width))
-    bytes.writeDecimalU64(writer, integers.widenShort(width) - 1)
-    bytes.write(writer, bytes.fromText(wire_index))
-    bytes.writeDecimalU64(writer, index)
-    bytes.write(writer, bytes.fromText(wire_assign))
-    bytes.writeDecimalU64(writer, index)
-    bytes.write(writer, bytes.fromText(expression_start))
+    return `${wire_width}${high}${wire_index}${index}${wire_assign}${index}${expression_start}`
 }

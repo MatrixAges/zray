@@ -2,32 +2,22 @@ export type Writer = mutable_opaque
 
 export declare function write(out: Writer, value: u8[]): void throws { OutOfMemory }
 
-export declare function writeMasked(out: Writer, value: u8[], mask: u8): void throws {
-    OutOfMemory
-}
-
 export declare function writeByte(out: Writer, value: u8): void throws { OutOfMemory }
 
 export declare function writeU32Le(out: Writer, value: u32): void throws { OutOfMemory }
 
 export declare function writeU64Le(out: Writer, value: u64): void throws { OutOfMemory }
 
-export declare function writeDecimalU64(out: Writer, value: u64): void throws {
-    OutOfMemory
-}
-
-export declare function writeU32sLe(out: Writer, value: u32[]): void throws {
-    OutOfMemory
-}
-
-export declare function writeU64sLe(out: Writer, value: u64[]): void throws {
-    OutOfMemory
-}
-
 export declare function repeat(
     allocator,
     count: u64,
     value: u8
+): u8[] throws { OutOfMemory } concurrent
+
+export declare function mask(
+    allocator,
+    value: u8[],
+    bits: u8
 ): u8[] throws { OutOfMemory } concurrent
 
 export declare function fromText(in: string): u8[] concurrent

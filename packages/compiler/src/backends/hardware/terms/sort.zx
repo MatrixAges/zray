@@ -65,8 +65,10 @@ export default function (in: Input): Output {
 
     return match result({
         family: in.family,
-        left,
-        right
+        left_width: left.width,
+        left_boolean: left.boolean,
+        right_width: right.width,
+        right_boolean: right.boolean
     }) {
         Result.Boolean => boolean,
         Result.Operand => {

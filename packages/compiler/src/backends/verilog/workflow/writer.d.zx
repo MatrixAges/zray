@@ -1,4 +1,0 @@
-export type OutputBuffer = opaque
-
-export declare function reserveVerilogOutput(target: OutputBuffer, capacity: u64): void
-    throws { OutputCapacity }
