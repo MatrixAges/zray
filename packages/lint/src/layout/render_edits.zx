@@ -1,0 +1,44 @@
+import bytes from "std:bytes"
+
+import type { Edit as SourceEdit } from "../source/model"
+import type { Edit } from "./model"
+
+export type Input = {
+    edits: Edit[],
+    newline: u8[]
+}
+
+export type Output = SourceEdit[]
+
+export default function (in: Input): Output {
+    const empty = bytes.fromText("")
+    const initial: SourceEdit[] = []
+
+    return loop({
+        index: 0,
+        edits: initial
+    }, {
+        while: state => state.index < in.edits.length,
+        next: state => {
+            const item = in.edits[state.index]
+            const spaces = bytes.repeat(item.count, 32)
+
+            const replacement = match item.newline {
+                true => bytes.join(empty, [
+                    in.newline,
+                    spaces
+                ]),
+                _ => spaces
+            }
+
+            state.edits = state.edits.push({
+                start: item.start,
+                end: item.end,
+                replacement
+            })[0]
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+}

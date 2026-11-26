@@ -49,20 +49,30 @@ pub fn checkHeader(allocator: std.mem.Allocator, source: []const u8, comments: a
 
 pub fn checkView(allocator: std.mem.Allocator, source: []const u8, comments: anytype, view: anytype, contracts: anytype, body: anytype) std.mem.Allocator.Error!?zx.Diagnostic {
     if (@import("root.zig").checkSourceStyle(source, view, contracts, body)) |issue| return issue;
+    if (comptime @import("lint_options").seed) return null;
 
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
 
-    const changes = try planView(arena.allocator(), source, comments, view, body);
+    const prepared = try prepareView(arena.allocator(), source, comments, view, body);
 
-    return diagnostic(changes);
-}
+    const span = try @import("lint_source").check(
+        arena.allocator(),
+        source,
+        prepared.comments,
+        prepared.imports,
+        prepared.declarations,
+        prepared.constants,
+        view.functionStart(),
+        prepared.boundaries,
+    ) orelse return null;
 
-fn diagnostic(changes: []const spacing.Edit) ?zx.Diagnostic {
-    if (changes.len == 0) return null;
-
-    return .{ .code = .spacing, .span = changes[0].span, .message = "import order or blank lines do not match built-in rules; run zxc fmt" };
+    return .{
+        .code = .spacing,
+        .span = .{ .start = @intCast(span.start), .end = @intCast(span.end) },
+        .message = "import order or blank lines do not match built-in rules; run zxc fmt",
+    };
 }
 
 pub fn format(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Error![]u8 {
@@ -70,24 +80,40 @@ pub fn format(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Erro
 }
 
 pub fn formatView(allocator: std.mem.Allocator, source: []const u8, comments: anytype, view: anytype, body: anytype) std.mem.Allocator.Error![]u8 {
+    if (comptime @import("lint_options").seed) return allocator.dupe(u8, source);
+
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
 
-    const changes = try planView(arena.allocator(), source, comments, view, body);
+    const prepared = try prepareView(arena.allocator(), source, comments, view, body);
 
-    return spacing.format(allocator, source, changes);
+    return @import("lint_source").format(
+        allocator,
+        source,
+        prepared.comments,
+        prepared.imports,
+        prepared.declarations,
+        prepared.constants,
+        view.functionStart(),
+        prepared.boundaries,
+    );
 }
 
-fn planView(allocator: std.mem.Allocator, source: []const u8, comments: anytype, view: anytype, body: anytype) std.mem.Allocator.Error![]const spacing.Edit {
-    if (comptime @import("lint_options").seed) return &.{};
-
+fn PreparedView() type {
     const rule = @import("lint_source");
-    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    defer arena.deinit();
+    return struct {
+        comments: []const rule.Span,
+        imports: []const rule.Import,
+        declarations: []const rule.Span,
+        constants: []const rule.Span,
+        boundaries: []const spacing.Boundary,
+    };
+}
 
-    const temporary = arena.allocator();
+fn prepareView(temporary: std.mem.Allocator, source: []const u8, comments: anytype, view: anytype, body: anytype) std.mem.Allocator.Error!PreparedView() {
+    const rule = @import("lint_source");
     const comment_spans = try temporary.alloc(rule.Span, comments.len);
 
     for (comments, comment_spans) |position, *slot| {
@@ -128,28 +154,11 @@ fn planView(allocator: std.mem.Allocator, source: []const u8, comments: anytype,
 
     const boundaries = if (body) |value| try spacing.collectBody(temporary, source, value) else &.{};
 
-    const planned = try rule.plan(
-        allocator,
-        source,
-        comment_spans,
-        imports,
-        declarations,
-        constants,
-        view.functionStart(),
-        boundaries,
-    );
-
-    defer allocator.free(planned);
-    errdefer for (planned) |item| allocator.free(item.replacement);
-
-    const result = try allocator.alloc(spacing.Edit, planned.len);
-
-    for (planned, result) |item, *slot| {
-        slot.* = .{
-            .span = .{ .start = item.start, .end = item.end },
-            .replacement = item.replacement,
-        };
-    }
-
-    return result;
+    return .{
+        .comments = comment_spans,
+        .imports = imports,
+        .declarations = declarations,
+        .constants = constants,
+        .boundaries = boundaries,
+    };
 }

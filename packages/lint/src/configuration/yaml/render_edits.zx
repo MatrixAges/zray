@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+
+import type { Edit as SourceEdit } from "../../source/model"
+import type { BoundaryEdit } from "./model"
+
+export type Input = BoundaryEdit[]
+
+export type Output = SourceEdit[]
+
+export default function (in: Input): Output {
+    const crlf_sep = bytes.fromText("\r\n\r\n")
+    const crlf = bytes.fromText("\r\n")
+    const lf_sep = bytes.fromText("\n\n")
+    const lf = bytes.fromText("\n")
+    const initial: SourceEdit[] = []
+
+    return loop({
+        index: 0,
+        edits: initial
+    }, {
+        while: state => state.index < in.length,
+        next: state => {
+            const item = in[state.index]
+
+            const replacement = match item.crlf {
+                true => item.separate ? crlf_sep : crlf,
+                _ => item.separate ? lf_sep : lf
+            }
+
+            state.edits = state.edits.push({
+                start: item.start,
+                end: item.end,
+                replacement
+            })[0]
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+}

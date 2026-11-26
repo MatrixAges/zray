@@ -1,0 +1,23 @@
+import type { Edit, Output } from "./model"
+
+export type Input = Edit[]
+
+export default function (in: Input): Output {
+    const empty: u8[] = []
+
+    if (in.length == 0) {
+        return {
+            has_edits: false,
+            first_start: 0,
+            first_end: 0,
+            formatted: empty
+        }
+    }
+
+    return {
+        has_edits: true,
+        first_start: in[0].start,
+        first_end: in[0].end,
+        formatted: empty
+    }
+}

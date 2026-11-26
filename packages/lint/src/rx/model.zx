@@ -36,7 +36,9 @@ export type EntryInput = {
     attributes: Attribute[]
 }
 
-export type EntryOutput = Edit[]
+export type EntryOutput = u8[]
+
+export type LayoutOutput = Edit[]
 
 export type TagFrame = {
     node: u64,

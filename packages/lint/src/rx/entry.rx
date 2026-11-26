@@ -6,12 +6,44 @@
     <If on={$in.mode == 0}>
         <Call fn="structure" in={$in} />
 
-        <Return value={$ctx.structure} />
+        <Call
+            fn="render_edits"
+            in={{
+                edits: $ctx.structure,
+                sort_edits: true
+            }}
+        />
+
+        <Call
+            fn="../source/apply_edits"
+            in={{
+                source: $in.source,
+                edits: $ctx.render_edits
+            }}
+        />
+
+        <Return value={$ctx.apply_edits} />
 
         <Else>
             <Call module="layout" in={$in} />
 
-            <Return value={$ctx.layout} />
+            <Call
+                fn="render_edits"
+                in={{
+                    edits: $ctx.layout,
+                    sort_edits: false
+                }}
+            />
+
+            <Call
+                fn="../source/apply_edits"
+                in={{
+                    source: $in.source,
+                    edits: $ctx.render_edits
+                }}
+            />
+
+            <Return value={$ctx.apply_edits} />
         </Else>
     </If>
 </Module>

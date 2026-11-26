@@ -2,7 +2,6 @@ const std = @import("std");
 const generated = @import("generated");
 const Input = std.meta.Child(generated.Input);
 const FieldItem = std.meta.Child(std.meta.Child(@FieldType(Input, "fields")));
-pub const Edit = struct { start: usize, end: usize, replacement: []const u8 };
 
 pub fn checkLength(text: []const u8, maximum: ?usize) ?usize {
     var storage: [256]u8 = undefined;
@@ -18,7 +17,7 @@ pub fn checkLength(text: []const u8, maximum: ?usize) ?usize {
     return if (output.lines) |lines| @intCast(lines) else null;
 }
 
-pub fn yamlEdits(allocator: std.mem.Allocator, source: []const u8, fields: anytype) std.mem.Allocator.Error![]Edit {
+pub fn formatYaml(allocator: std.mem.Allocator, source: []const u8, fields: anytype) std.mem.Allocator.Error!?[]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -38,15 +37,5 @@ pub fn yamlEdits(allocator: std.mem.Allocator, source: []const u8, fields: anyty
         else => unreachable,
     };
 
-    const result = try allocator.alloc(Edit, output.edits.len);
-
-    for (output.edits, result) |item, *target| {
-        target.* = .{
-            .start = @intCast(item.start),
-            .end = @intCast(item.end),
-            .replacement = if (item.crlf) (if (item.separate) "\r\n\r\n" else "\r\n") else (if (item.separate) "\n\n" else "\n"),
-        };
-    }
-
-    return result;
+    return if (output.formatted) |text| try allocator.dupe(u8, text) else null;
 }

@@ -52,6 +52,11 @@
 1. **完成 `layout/projection` 算法自举**：将 [projection.zig](../../packages/lint/src/layout/projection.zig) 收薄为 `RawSpan`/`Op` 记录器（带 OOM `failed` 状态传播），将词法流合并与 7 类布局投影操作迁入 [projection.zx](../../packages/lint/src/layout/projection.zx) 与 `projection/{init,find,opening_at_end,condition,exclude_range,list,set_token}.zx`，并在 [entry.rx](../../packages/lint/src/layout/entry.rx) 与 [rule.zig](../../packages/lint/src/layout/rule.zig) / [root.zig](../../packages/lint/src/layout/root.zig) 间通过 `ProjectionData` 隔离模块边界。
 2. **修复静态缓冲 OOM 隐患**：将 `layout/rule.zig` `attributeRequired` 与 `configuration/rule.zig` `checkLength` 中残留的 `[0]u8` `FixedBufferAllocator` 改为 `[256]u8`，通过 `packages/test` `test-rx-formatting`（含 `allocation_test.zig` OOM 全路径）与 `test-configuration-formatting` 及全仓格式化/lint 检查。
 
+### 已完成进展（Wave 37 · 2026-11-26）
+
+1. **完成编辑渲染、排序与源码应用纯 ZX 迁移**：在 `lint_source`、`lint_rx`、`lint_layout` 与 `lint_config` 四套生成管线中新增 [apply_edits.zx](../../packages/lint/src/source/apply_edits.zx)、[first_edit.zx](../../packages/lint/src/source/first_edit.zx) 及三份 `render_edits.zx`，将编辑文案构造、`std.mem.sort` 排序（消除 `packages/lint/src/` 最后 1 处 `std.mem.sort`）与源码文本拼接全部迁入纯 ZX/RX，精简 8 个对应 Zig 宿主封装（`spacing.zig:format` 仅留作 `compiler/zx/frontend` 外部调用接口）。
+2. **验证通过**：通过 `packages/lint -Dseed=true` 与 `stage0 == ""` 种子构建、Zig `0.17.1` `ReleaseSmall -Dgenerated-partitions=4` 三阶段自编译（`stage2`/`stage3` `zxc-bootstrap` 二进制 SHA-256 完全一致：`f59b604167da4ce5add80f73878d512e93bf474a0dc37f16ac223b6af090adb5`；`main` 清单 5,809 生成单元 `diff -rq` 逐字节一致，冷生成 `stage2` `3.33 s` / `stage3` `3.41 s`）、`packages/compiler`（`ReleaseSafe`）、`packages/cli`（`ReleaseSmall` 构建与 `ReleaseSafe` 全量测试）、`packages/test` 格式化/lint 套件（`test-configuration-formatting`、`test-semantic-lint`、`test-zx-import-order` 与 `test-rx-formatting` 全路径）及全仓格式化/lint 与 `@constCast == 0` / `std.mem.sort == 0` 核查。
+
 ### 后续收口计划（Wave 1+）
 
 - **Phase L1 剩余**：将 `src/root.zig`、`spacing.zig`、`layout/projection.zig`、`imports/` 与 AST 检查调度继续合并为单一检查/格式化入口；消除剩余 `@constCast` / `@ptrCast`；

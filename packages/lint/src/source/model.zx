@@ -29,6 +29,7 @@ export type Unit = {
 }
 
 export type PlanInput = {
+    apply: bool,
     source: u8[],
     comments: Span[],
     imports: ImportItem[],
@@ -38,4 +39,9 @@ export type PlanInput = {
     boundaries: BoundaryItem[]
 }
 
-export type Output = Edit[]
+export type Output = {
+    has_edits: bool,
+    first_start: u64,
+    first_end: u64,
+    formatted: u8[]
+}

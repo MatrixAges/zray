@@ -4,7 +4,6 @@ const Input = std.meta.Child(generated.Input);
 const ProjectionInput = std.meta.Child(@FieldType(Input, "projection"));
 const Span = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "raw_tokens")));
 const AbiOp = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "ops")));
-pub const Edit = struct { start: usize, end: usize, newline: bool, count: usize };
 pub const RawSpan = struct { start: u64, end: u64 };
 pub const OpKind = @FieldType(AbiOp, "kind");
 
@@ -36,6 +35,7 @@ pub fn attributeRequired(source: []const u8, level: usize, prefix: usize) bool {
 
     const output = generated.executeIn(fixed.allocator(), &.{
         .source = source,
+        .newline = "\n",
         .layout = &.{ .tokens = &.{}, .width = 0, .level = level, .indent_only = false, .prefix = prefix, .suffix = 0 },
         .check_attribute = true,
         .projection = &.{ .source_text = "", .raw_tokens = &.{}, .raw_comments = &.{}, .ops = &.{} },
@@ -44,7 +44,7 @@ pub fn attributeRequired(source: []const u8, level: usize, prefix: usize) bool {
     return output.required;
 }
 
-pub fn edits(allocator: std.mem.Allocator, source: []const u8, projection: ProjectionData, options: Options) std.mem.Allocator.Error![]const Edit {
+pub fn format(allocator: std.mem.Allocator, source: []const u8, projection: ProjectionData, options: Options, newline: []const u8) std.mem.Allocator.Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -69,6 +69,7 @@ pub fn edits(allocator: std.mem.Allocator, source: []const u8, projection: Proje
 
     const output = generated.executeIn(temporary, &.{
         .source = source,
+        .newline = newline,
         .layout = &.{ .tokens = &.{}, .width = options.width, .level = options.level, .indent_only = options.indent_only, .prefix = options.prefix, .suffix = options.suffix },
         .check_attribute = false,
         .projection = &request,
@@ -77,11 +78,7 @@ pub fn edits(allocator: std.mem.Allocator, source: []const u8, projection: Proje
         else => unreachable,
     };
 
-    const result = try allocator.alloc(Edit, output.edits.len);
-
-    for (result, output.edits) |*item, value| item.* = .{ .start = @intCast(value.start), .end = @intCast(value.end), .newline = value.newline, .count = @intCast(value.count) };
-
-    return result;
+    return allocator.dupe(u8, output.formatted);
 }
 
 fn wrapSpans(allocator: std.mem.Allocator, items: []const RawSpan) std.mem.Allocator.Error![]const *const Span {

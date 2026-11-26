@@ -4,16 +4,7 @@ const Input = std.meta.Child(generated.Input);
 const NodeItem = std.meta.Child(std.meta.Child(@FieldType(Input, "nodes")));
 const AttributeItem = std.meta.Child(std.meta.Child(@FieldType(Input, "attributes")));
 
-pub const Edit = struct {
-    kind: u8,
-    start: usize,
-    end: usize,
-    count: usize,
-    crlf: bool,
-    separate: bool,
-};
-
-pub fn run(allocator: std.mem.Allocator, mode: u8, source: []const u8, width: usize, node: anytype) std.mem.Allocator.Error![]const Edit {
+pub fn run(allocator: std.mem.Allocator, mode: u8, source: []const u8, width: usize, node: anytype) std.mem.Allocator.Error![]u8 {
     const Entry = struct { view: @TypeOf(node), slot: *NodeItem };
     var arena = std.heap.ArenaAllocator.init(allocator);
 
@@ -84,18 +75,5 @@ pub fn run(allocator: std.mem.Allocator, mode: u8, source: []const u8, width: us
         else => unreachable,
     };
 
-    const result = try allocator.alloc(Edit, output.len);
-
-    for (output, result) |item, *slot| {
-        slot.* = .{
-            .kind = item.kind,
-            .start = @intCast(item.start),
-            .end = @intCast(item.end),
-            .count = @intCast(item.count),
-            .crlf = item.crlf,
-            .separate = item.separate,
-        };
-    }
-
-    return result;
+    return allocator.dupe(u8, output);
 }

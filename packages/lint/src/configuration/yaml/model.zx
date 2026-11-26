@@ -20,5 +20,5 @@ export type EntryInput = {
 
 export type EntryOutput = {
     lines?: u64,
-    edits: BoundaryEdit[]
+    formatted?: u8[]
 }

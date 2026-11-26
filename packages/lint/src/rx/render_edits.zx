@@ -1,0 +1,55 @@
+import bytes from "std:bytes"
+
+import sortEdits from "../source/sort_edits"
+
+import type { Edit as SourceEdit } from "../source/model"
+import type { Edit } from "./model"
+
+export type Input = {
+    edits: Edit[],
+    sort_edits: bool
+}
+
+export type Output = SourceEdit[]
+
+export default function (in: Input): Output {
+    const crlf_sep = bytes.fromText("\r\n\r\n")
+    const crlf = bytes.fromText("\r\n")
+    const lf_sep = bytes.fromText("\n\n")
+    const lf = bytes.fromText("\n")
+    const empty = bytes.fromText("")
+    const initial: SourceEdit[] = []
+
+    const rendered = loop({
+        index: 0,
+        edits: initial
+    }, {
+        while: state => state.index < in.edits.length,
+        next: state => {
+            const item = in.edits[state.index]
+
+            const replacement = match item.kind {
+                1 => match item.crlf {
+                    true => item.separate ? crlf_sep : crlf,
+                    _ => item.separate ? lf_sep : lf
+                },
+                2 => bytes.join(empty, [
+                    item.crlf ? crlf : lf,
+                    bytes.repeat(item.count, 32)
+                ]),
+                _ => bytes.repeat(item.count, 32)
+            }
+
+            state.edits = state.edits.push({
+                start: item.start,
+                end: item.end,
+                replacement
+            })[0]
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+
+    return in.sort_edits ? sortEdits(rendered) : rendered
+}

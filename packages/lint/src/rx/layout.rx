@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Rx" />
 
-    <Args in={Rx.EntryInput} out={Rx.EntryOutput} />
+    <Args in={Rx.EntryInput} out={Rx.LayoutOutput} />
 
     <If on={$in.nodes.length == 0}>
         <Return value={[]} />

@@ -42,5 +42,28 @@
         }}
     />
 
-    <Return value={$ctx.merge} />
+    <If on={$in.apply}>
+        <Call
+            fn="apply_edits"
+            in={{
+                source: $in.source,
+                edits: $ctx.merge
+            }}
+        />
+
+        <Return
+            value={{
+                has_edits: false,
+                first_start: 0,
+                first_end: 0,
+                formatted: $ctx.apply_edits
+            }}
+        />
+
+        <Else>
+            <Call fn="first_edit" in={$ctx.merge} />
+
+            <Return value={$ctx.first_edit} />
+        </Else>
+    </If>
 </Module>

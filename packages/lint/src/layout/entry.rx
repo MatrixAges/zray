@@ -16,7 +16,7 @@
         <Return
             value={{
                 required: $ctx.attribute_required,
-                edits: []
+                formatted: []
             }}
         />
 
@@ -50,10 +50,26 @@
                 }}
             />
 
+            <Call
+                fn="render_edits"
+                in={{
+                    edits: $ctx.edits,
+                    newline: $in.newline
+                }}
+            />
+
+            <Call
+                fn="../source/apply_edits"
+                in={{
+                    source: $in.source,
+                    edits: $ctx.render_edits
+                }}
+            />
+
             <Return
                 value={{
                     required: false,
-                    edits: $ctx.edits
+                    formatted: $ctx.apply_edits
                 }}
             />
         </Else>

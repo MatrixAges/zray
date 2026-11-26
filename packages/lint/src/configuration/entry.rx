@@ -10,7 +10,7 @@
             <Return
                 value={{
                     lines: $ctx.count,
-                    edits: []
+                    formatted: null
                 }}
             />
 
@@ -18,7 +18,7 @@
                 <Return
                     value={{
                         lines: null,
-                        edits: []
+                        formatted: null
                     }}
                 />
             </Else>
@@ -33,12 +33,33 @@
                 }}
             />
 
-            <Return
-                value={{
-                    lines: null,
-                    edits: $ctx.edits
-                }}
-            />
+            <If on={$ctx.edits.length == 0}>
+                <Return
+                    value={{
+                        lines: null,
+                        formatted: null
+                    }}
+                />
+
+                <Else>
+                    <Call fn="yaml/render_edits" in={$ctx.edits} />
+
+                    <Call
+                        fn="../source/apply_edits"
+                        in={{
+                            source: $in.source,
+                            edits: $ctx.render_edits
+                        }}
+                    />
+
+                    <Return
+                        value={{
+                            lines: null,
+                            formatted: $ctx.apply_edits
+                        }}
+                    />
+                </Else>
+            </If>
         </Else>
     </If>
 </Module>

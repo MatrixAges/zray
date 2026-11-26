@@ -86,6 +86,7 @@ export type ProjectionInput = {
 
 export type EntryInput = {
     source: u8[],
+    newline: u8[],
     layout: Input,
     check_attribute: bool,
     projection: ProjectionInput
@@ -93,5 +94,5 @@ export type EntryInput = {
 
 export type EntryOutput = {
     required: bool,
-    edits: Edit[]
+    formatted: u8[]
 }
