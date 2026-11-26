@@ -78,32 +78,13 @@ const Hashing = struct {
         return work.result;
     }
     fn run(self: *Hashing, _: usize) void {
-        if (!@import("genz_options").generated_analysis) {
-            switch (self.mode) {
-                .contents => self.seed(true),
-                .memo => self.seed(false),
-            }
-
-            return;
+        switch (self.mode) {
+            .contents => self.fill(true),
+            .memo => self.fill(false),
         }
-
-        const entry = @import("generated_uniqueness_identity_worker");
-        const memo = if (self.mode == .memo) self.mode.memo else null;
-
-        const input: std.meta.Child(entry.Input) = .{
-            .worker = @ptrCast(self),
-            .contents = memo == null,
-            .native_modules = self.program.functions.native_modules,
-            .active = if (memo) |rows| rows.active else &.{},
-            .known_count = if (memo) |rows| rows.known.len else 0,
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        entry.executeIn(empty.allocator(), &input) catch unreachable;
     }
 
-    fn seed(self: *Hashing, comptime only_contents: bool) void {
+    fn fill(self: *Hashing, comptime only_contents: bool) void {
         while (self.claim()) |row| {
             self.result[row] = if (only_contents)
                 if (self.program.functions.native_modules[row] != null) @splat(0) else hashBody(self.program, row)
@@ -126,10 +107,6 @@ const Hashing = struct {
 
         return combine(self.mode.memo.shared, &content_digest);
     }
-
-    fn borrow(handle: *anyopaque) *Hashing {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 /// External functions have no body fingerprint.
@@ -139,24 +116,6 @@ pub fn contents(allocator: std.mem.Allocator, value: *const ir.Program) std.mem.
 
 pub fn bodies(allocator: std.mem.Allocator, program_view: *const ir.Program, active: []const bool, shared: *const [32]u8, known: []const [32]u8) std.mem.Allocator.Error![]const [32]u8 {
     return Hashing.collect(allocator, program_view, .{ .memo = .{ .active = active, .shared = shared, .known = known } }, active.len);
-}
-
-pub fn claimOwnershipIdentity(handle: *anyopaque) ?u64 {
-    const row = Hashing.borrow(handle).claim() orelse return null;
-
-    return @intCast(row);
-}
-
-pub fn writeOwnershipIdentity(handle: *anyopaque, index: u64, action: @import("program/driver.zig").Api.IdentityRow) void {
-    const work = Hashing.borrow(handle);
-    const row: usize = @intCast(index);
-
-    work.result[row] = switch (action) {
-        .Zero => @splat(0),
-        .Content => hashBody(work.program, row),
-        .Known => combine(work.mode.memo.shared, &work.mode.memo.known[row]),
-        .Body => work.hashAndCombine(row),
-    };
 }
 
 fn hashBody(program_view: *const ir.Program, index: usize) [32]u8 {

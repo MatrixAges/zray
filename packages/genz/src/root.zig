@@ -6,7 +6,6 @@ pub const render_module = @import("printer/module.zig");
 pub const zx = @import("zx/render.zig");
 pub const gateway = @import("gateway/root.zig");
 pub const host = @import("host/root.zig");
-const flow = @import("zx/uniqueness/flow.zig");
 const read = @import("zx/expressions/read.zig");
 const object_execution = @import("zx/aggregate/object_execution.zig");
 const contracts = @import("zx/contracts.zig");
@@ -31,7 +30,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/iteration/result.zig"),
     @import("zx/iteration_consumer/execute.zig"),
     @import("zx/iteration_consumer/read.zig"),
-    @import("zx/iteration_value/invocation.zig"),
     @import("zx/iteration_value/operands.zig"),
     @import("zx/iteration_value/projection_emission.zig"),
     @import("zx/iteration_value/result.zig"),
@@ -50,11 +48,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("zx/transform/collect.zig"),
     @import("zx/transform/execution.zig"),
     @import("zx/transform/reduce.zig"),
-    @import("zx/uniqueness/flow.zig"),
-    @import("zx/uniqueness/flow/execution.zig"),
-    @import("zx/uniqueness/flow/fixpoint.zig"),
-    @import("zx/uniqueness/identity.zig"),
-    @import("zx/uniqueness/program/driver.zig"),
     @import("zx/value_call/argument.zig"),
     @import("zx/value_call/argument_object.zig"),
 }).resolve;

@@ -851,7 +851,6 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/iteration/resources/prepare/types.rx", .name = "prepare_iteration_types", .owner = .genz },
     .{ .path = "genz/analysis/value/call/argument/materialize/run.rx", .name = "materialize_borrowed_argument", .owner = .genz },
     .{ .path = "genz/analysis/value/call/argument/materialize/object.rx", .name = "materialize_borrowed_object", .owner = .genz },
-    .{ .path = "genz/analysis/invocation/execution/iteration.rx", .name = "lower_iteration_call", .owner = .genz },
     .{ .path = "genz/analysis/tasks/worker/execute/run.rx", .name = "execute_task_worker", .owner = .genz },
     .{ .path = "genz/analysis/tasks/start/execute/run.rx", .name = "execute_task_start", .owner = .genz },
     .{ .path = "genz/analysis/tasks/parallel/execute/run.rx", .name = "lower_parallel", .owner = .genz },
@@ -882,11 +881,6 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/simd/execute/run.rx", .name = "execute_simd", .owner = .genz },
     .{ .path = "genz/analysis/expressions/evaluate/binary.zx", .name = "lower_binary", .owner = .genz },
     .{ .path = "genz/analysis/expressions/read/projection.rx", .name = "lower_projection_path", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/program/run.rx", .name = "uniqueness_program", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/identity/worker.zx", .name = "uniqueness_identity_worker", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/flow/solve/run.rx", .name = "uniqueness_flow_solve", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/flow/solve/worker.zx", .name = "uniqueness_flow_worker", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/flow/fixpoint/run.zx", .name = "uniqueness_flow_fixpoint", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/visit/context.zx", .name = "uniqueness_body_view", .owner = .genz },
 };
 

@@ -2,7 +2,6 @@ const std = @import("std");
 const entries = @import("entries.zig");
 const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
-const ownership_interface = "analysis/uniqueness/program/driver/native.d.zx";
 const lowering_declarations = "analysis/expressions/evaluate/";
 const partition_interface = "build/partition/driver.d.zx";
 
@@ -106,7 +105,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
         lexical_interface,
-        .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host", .resolve_members = true },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{project_prefix}), .module = "project_host", .resolve_members = true },
         .{ .path = b.fmt("{s}host.d.zx", .{rx_project_prefix}), .module = "rx_project_host", .resolve_members = true },
@@ -188,7 +186,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 inline for (collection_roots) |path| addSubtree(run, tracked[3], path);
             },
             .execution => {
-                run.addFileInput(roots[3].path(b, ownership_interface));
                 run.addFileInput(lowering);
                 run.addFileInput(project_interface);
                 run.addFileInput(rx_project_host);
