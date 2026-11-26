@@ -8,8 +8,8 @@ const publication = @import("../../link/signature/publication/host.zig");
 const function_target = @import("../../link/signature/publication/destination.zig");
 const native_bindings = @import("../../link/signature/publication/native_bindings.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
-const Restore = std.meta.Child(@import("generated_native_restore").Input);
-const Target = std.meta.Child(@FieldType(Restore, "target"));
+const Publish = std.meta.Child(@import("generated_native_restore_publish").Input);
+const Target = std.meta.Child(@FieldType(Publish, "target"));
 const Bindings = std.meta.Child(@FieldType(Target, "bindings"));
 const Native = std.meta.Child(@FieldType(Target, "native"));
 const Members = std.meta.Child(@FieldType(Target, "members"));
@@ -28,7 +28,7 @@ offsets: TypeTail.Offsets,
 options: TypeTail.Options,
 tail: TypeTail,
 input: Target,
-pub fn init(self: *Self, allocator: std.mem.Allocator, scope: *memory.ArenaScope, artifact: *const Artifact.Module, current: Current) void {
+pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact.Module, current: Current) void {
     self.exports = &.{};
     self.written = .{0};
     self.progress = &self.written;
@@ -58,8 +58,6 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, scope: *memory.ArenaScope
     const tail: *const TypeTail.Target = &self.tail.target;
 
     self.input = .{
-        .scope = @ptrCast(scope),
-        .resource = @ptrCast(&self.options.allocator),
         .exports = &self.export_view,
         .members = &self.member_view,
         .bindings = &self.bindings.exports,

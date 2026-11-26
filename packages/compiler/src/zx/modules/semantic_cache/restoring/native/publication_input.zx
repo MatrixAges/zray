@@ -16,8 +16,6 @@ export type Output = {
 export default function (in: Input): Output {
     const { target, mapping, signatures, exported } = in
 
-    memory.selectAllocator(target.scope, target.resource)
-
     return {
         exports: {
             ...target.exports,

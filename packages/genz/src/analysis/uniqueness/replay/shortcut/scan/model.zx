@@ -1,5 +1,4 @@
 import type {
-    Arena,
     ListColumn,
     ReadColumn,
     U8Buffer,
@@ -55,15 +54,10 @@ export type Replacements = {
     owner: ColumnAllocator
 }
 
-export type Arenas = {
-    scratch: Arena
-}
-
 export type Input = {
     replay: Advance,
     tables: Tables,
     replacements: Replacements,
-    arenas: Arenas,
     recovery: Recovery,
     count: u64,
     recovered?: u32
@@ -109,7 +103,7 @@ export type Append = {
     used: u64
 }
 
-export type Consume = Compare & Input.Pick("replacements", "arenas", "count")
+export type Consume = Compare & Input.Pick("replacements", "count")
 
 export type Consumed = {
     agreed: bool,

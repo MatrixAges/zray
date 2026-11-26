@@ -1,7 +1,7 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
 import type { Rows } from "./bindings"
-import type { Mapping, Target } from "./publish_model"
+import type { Mapping } from "./publish_model"
 import type { Input as Validation } from "./validation"
 
 export type Reserve = Mapping & {
@@ -18,6 +18,4 @@ export type Preparation = {
     admission?: Rows
 }
 
-export type Input = Preparation & {
-    target: Target
-}
+export type Input = Preparation

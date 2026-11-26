@@ -22,7 +22,7 @@ const Row = Cursor.Replacement;
 const Error = std.mem.Allocator.Error;
 pub const Prepared = struct { cursor: Cursor, growth: Growth.Rows };
 
-pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor, recovered: ?u32) Error!Prepared {
+pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor, recovered: ?u32) Error!Prepared {
     var settled: BoundIndex = undefined;
     var demanded: BoundIndex = undefined;
     var planned: BoundIndex = undefined;
@@ -87,7 +87,6 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
             .granule = @max(1, std.atomic.cache_line / @sizeOf(Row)),
             .owner = @ptrCast(&staged),
         },
-        .arenas = &.{ .scratch = @ptrCast(scratch) },
         .recovery = &.{
             .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
             .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
@@ -103,7 +102,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
         .recovered = recovered,
     };
 
-    const result = zx.columns.invoke(scanning.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(scanning.executeValue, scratch, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership replay scan failed: {s}", .{@errorName(err)}),
     };

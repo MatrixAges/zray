@@ -10,8 +10,6 @@
         <Return value={$ctx.consume_plan} />
     </If>
 
-    <Call fn="check_scratch" in={$in.arenas} />
-
     <Call
         module="compare"
         in={$in.pick([

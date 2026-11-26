@@ -1,5 +1,5 @@
 import type { Table as Signatures } from "core/signature_table/model"
-import type { Allocator, ArenaScope, U32Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type {
     Target as TypeTarget
 } from "../../../../analysis/semantic/merging/publication/model"
@@ -25,8 +25,6 @@ export type Mapping = {
 }
 
 export type Target = {
-    scope: ArenaScope,
-    resource: Allocator,
     exports: Exports.Omit("source", "types"),
     members: Staging,
     bindings: Bindings,

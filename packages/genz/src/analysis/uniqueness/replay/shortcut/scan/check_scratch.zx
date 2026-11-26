@@ -1,9 +1,0 @@
-import memory from "memory"
-
-import type { Arenas as Input } from "./model"
-
-export type Output = void
-
-export default function (in: Input): Output {
-    const reset = try memory.resetArena(in.scratch)
-}

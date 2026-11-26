@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { Status } from "../../../analysis/semantic/merging/model"
 
 import type { Traversal as Input } from "./model"
@@ -8,12 +6,10 @@ export type Output = Input
 
 export default function (in: Input): Output {
     const { source, position, status } = in
-    const { order, scratch } = source
+    const { order } = source
 
     if (status == Status.Ready) {
         const next = position + 1
-
-        memory.resetArena(scratch)
 
         return {
             ...in,

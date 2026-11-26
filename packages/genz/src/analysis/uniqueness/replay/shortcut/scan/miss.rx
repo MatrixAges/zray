@@ -4,8 +4,6 @@
 
     <Args in={Scan.Miss} out={Scan.Traversal} />
 
-    <Call fn="check_scratch" in={$in.scan.arenas} />
-
     <Call
         module="restore"
         in={{

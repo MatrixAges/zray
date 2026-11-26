@@ -260,6 +260,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/semantic_cache/native_artifact/create.rx", .name = "native_artifact" },
     .{ .path = "zx/modules/semantic_cache/native_artifact/publish.rx", .name = "native_artifact_publish" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/restore.rx", .name = "native_restore" },
+    .{ .path = "zx/modules/semantic_cache/restoring/native/publish.rx", .name = "native_restore_publish" },
     .{ .path = "zx/modules/semantic_cache/restoring/rollback.zx", .name = "semantic_restore_rollback" },
     .{ .path = "zx/modules/semantic_cache/restoring/restore.rx", .name = "semantic_restore" },
     .{ .path = "zx/modules/semantic_cache/restoring/publication/publish.rx", .name = "semantic_restore_publish" },

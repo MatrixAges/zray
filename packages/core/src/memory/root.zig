@@ -9,7 +9,6 @@ pub const createU8Buffer = buffer_owner.bytes;
 pub const createU32Buffer = buffer_owner.u32s;
 pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
-pub const selectArena = ArenaScope.select;
 pub const selectAllocator = ArenaScope.selectAllocator;
 const stream = @import("stream.zig");
 pub const takeByte = stream.takeByte;
@@ -157,12 +156,6 @@ pub inline fn stringBufferSlots(source: *anyopaque, shape: anytype) std.meta.Chi
 
 pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
     if (!success) return error.OutOfMemory;
-}
-
-pub fn resetArena(source: *anyopaque) std.mem.Allocator.Error!void {
-    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(source));
-
-    if (!arena.reset(.retain_capacity)) return error.OutOfMemory;
 }
 
 pub inline fn stringViews(source: *const anyopaque) []const []const u8 {

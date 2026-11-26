@@ -60,7 +60,6 @@ pub fn register(types: *Types, modules: []const Module, order: []const u64, mapp
         .names = @ptrCast(&names),
         .mappings = @ptrCast(&mappings),
         .resource = @ptrCast(&mapping_allocator),
-        .scratch = @ptrCast(scratch),
         .limits = &limits,
         .publication = zx.columns.pointer(@FieldType(Input, "publication"), &publication),
     };

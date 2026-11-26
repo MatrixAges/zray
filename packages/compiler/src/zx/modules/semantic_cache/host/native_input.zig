@@ -38,7 +38,7 @@ namespaces: zx.memory.ReadColumn,
 port_rows: Ports,
 admission: Admission,
 input: Input,
-pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool, target: @FieldType(Input, "target")) void {
+pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool) void {
     self.signatures = borrow.columns(@TypeOf(self.signatures), artifact.functions);
     self.modules = borrow.columns(@TypeOf(self.modules), artifact.native_modules);
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), artifact.nominal_types);
@@ -104,6 +104,5 @@ pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, curren
         .base_origins = &self.base_origins,
         .mapping = &self.mapping,
         .admission = if (admitted) null else &self.admission,
-        .target = target,
     };
 }

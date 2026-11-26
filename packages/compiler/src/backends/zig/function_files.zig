@@ -46,7 +46,7 @@ pub fn create(owned: std.mem.Allocator, backing: std.mem.Allocator, functions: *
         .initializers = &.{ .names = @ptrCast(&initializer_names), .sources = @ptrCast(&initializer_sources), .imports = @ptrCast(&initializer_imports), .count = initializers.len },
         .native_ids = functions.native_modules,
         .native_names = native_names,
-        .destination = &.{ .owner = @ptrCast(&owned), .scratch = @ptrCast(&scratch) },
+        .destination = &.{ .owner = @ptrCast(&owned) },
         .storage = @ptrCast(&output.buffer),
         .target = &output.view,
     };

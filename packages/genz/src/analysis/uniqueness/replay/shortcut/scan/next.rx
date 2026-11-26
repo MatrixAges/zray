@@ -22,7 +22,6 @@
                     "tables",
                     "cursor",
                     "replacements",
-                    "arenas",
                     "count"
                 ]),
                 row: $ctx.widen

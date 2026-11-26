@@ -2,7 +2,7 @@
     <Type from="restore_input" as="Restore" />
     <Type from="result" as="Result" />
 
-    <Args in={Restore.Input} out={Result.Status} />
+    <Args in={Restore.Input} out={Result.Result} />
 
     <If on={$in.admission != null}>
         <Call
@@ -14,33 +14,25 @@
         />
 
         <If on={!$ctx.admit}>
-            <Return value={Result.Status.InvalidModule} />
+            <Return
+                value={{
+                    status: Result.Status.InvalidModule
+                }}
+            />
         </If>
 
         <Call module="validate" in={$in.validation} />
 
         <If on={!$ctx.validate}>
-            <Return value={Result.Status.InvalidIr} />
+            <Return
+                value={{
+                    status: Result.Status.InvalidIr
+                }}
+            />
         </If>
     </If>
 
-    <Call module="merge" in={$in.omit(["target"])} />
+    <Call module="merge" in={$in} />
 
-    <If on={$ctx.merge.value != null}>
-        <Call
-            module="publish"
-            in={{
-                ...$ctx.merge.value,
-                target: $in.target,
-                mapping: $in.mapping,
-                signatures: $in.validation.request.signatures,
-                exported: $in.validation.request.exports,
-                namespace: $in.validation.request.declaration.namespace
-            }}
-        />
-
-        <Return value={$ctx.publish} />
-    </If>
-
-    <Return value={$ctx.merge.status} />
+    <Return value={$ctx.merge} />
 </Module>

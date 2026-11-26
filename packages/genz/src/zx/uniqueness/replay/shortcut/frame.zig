@@ -27,7 +27,9 @@ pub fn close(self: *Self) void {
 }
 
 pub fn advance(self: *Self, ctx: *Context, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {
-    const next = try scan.advance(ctx, &ctx.memo.trace.?, &self.scratch, self.staged.allocator(), &self.replacements, .{
+    if (!self.scratch.reset(.retain_capacity)) return error.OutOfMemory;
+
+    const next = try scan.advance(ctx, &ctx.memo.trace.?, self.scratch.allocator(), self.staged.allocator(), &self.replacements, .{
         .body = self.body,
         .visit = self.visit,
         .phase = @fromBackingInt(@backingInt(phase)),

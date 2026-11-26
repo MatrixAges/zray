@@ -1,4 +1,4 @@
-import type { Allocator, Arena, ReadColumn, U32ListBuffer } from "memory"
+import type { Allocator, ReadColumn, U32ListBuffer } from "memory"
 import type { ColumnSet, ColumnView, SliceColumns } from "memory/columns"
 import type { Status } from "../../../analysis/semantic/merging/model"
 import type { Target } from "../../../analysis/semantic/merging/publication/model"
@@ -18,7 +18,6 @@ export type Input = {
     names: ReadColumn,
     mappings: U32ListBuffer,
     resource: Allocator,
-    scratch: Arena,
     limits: Shape.Pick("maximum_count", "scalar_count"),
     publication: Target
 }
