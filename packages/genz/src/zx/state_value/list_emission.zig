@@ -4,7 +4,8 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
 const generated = @import("generated_state_list");
-const Input = std.meta.Child(generated.Input);
+const Call = std.meta.Child(generated.Input);
+const Input = std.meta.Child(@FieldType(Call, "list"));
 const Query = std.meta.Child(@FieldType(Input, "request"));
 const Operation = @FieldType(Query, "operation");
 pub const Ast = std.meta.Child(@FieldType(Query, "ast"));
@@ -83,11 +84,12 @@ pub fn emitListRepresentation(handle: *const anyopaque, layout: ?u32) Lower.Erro
 
     defer scratch.deinit();
 
-    const output = generated.executeIn(buffered.allocator(), &input) catch |err| return publication.failure(err);
+    const call: Call = .{
+        .writer = @ptrCast(self),
+        .list = &input,
+    };
 
-    try publication.write(self, .{}, output, .List);
-
-    return output.root;
+    return generated.executeIn(buffered.allocator(), &call) catch |err| return publication.failure(err);
 }
 
 pub fn borrow(self: *const Lower) Ast {

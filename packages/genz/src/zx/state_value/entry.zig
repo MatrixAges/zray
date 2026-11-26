@@ -73,7 +73,8 @@ fn publish(allocator: std.mem.Allocator, keys: []const u32, slots: []const u64, 
 
 fn emit(self: *Lower, layout: ?ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const entry = @import("generated_state_entry_emit");
-    const EmitInput = std.meta.Child(entry.Input);
+    const EmitCall = std.meta.Child(entry.Input);
+    const EmitInput = std.meta.Child(@FieldType(EmitCall, "entry"));
     const Context = std.meta.Child(@FieldType(EmitInput, "context"));
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
@@ -95,9 +96,16 @@ fn emit(self: *Lower, layout: ?ir.TypeId, value: node.ExpressionId) Lower.Error!
     };
 
     const input: EmitInput = .{ .context = &context, .conversion = if (common) |*prepared| prepared else null, .value = @backingInt(value) };
-    const output = entry.executeIn(allocator, &input) catch |err| return failure(err);
 
-    return conversion.apply(self, null, null, output);
+    const call: EmitCall = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .entry = &input,
+    };
+
+    const root = entry.executeIn(allocator, &call) catch |err| return failure(err);
+
+    return @fromBackingInt(root);
 }
 
 fn failure(err: anyerror) Lower.Error {

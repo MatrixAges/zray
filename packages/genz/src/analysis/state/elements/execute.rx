@@ -1,0 +1,25 @@
+<Module>
+    <Type from="execute_model" as="Element" />
+
+    <Args in={Element.Execute} out={Element.Published} />
+
+    <Call module="build" in={$in.element} />
+
+    <Call
+        fn="../conversion/emit/publish_ast"
+        in={{
+            frame: $in.frame,
+            writer: $in.writer,
+            binding: $in.body,
+            body: $in.body,
+            output: $ctx.build.result
+        }}
+    />
+
+    <Return
+        value={{
+            root: $ctx.publish_ast,
+            name: $ctx.build.name
+        }}
+    />
+</Module>

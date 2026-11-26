@@ -14,7 +14,8 @@ const context = @import("../construction/context.zig");
 const runner = @import("generated_run_state_element");
 const capturing = @import("generated_run_state_element_capture");
 const emitter = @import("generated_state_element_emit");
-const Input = std.meta.Child(emitter.Input);
+const Call = std.meta.Child(emitter.Input);
+const Input = std.meta.Child(@FieldType(Call, "element"));
 const Decision = @typeInfo(@typeInfo(@TypeOf(querying.executeValue)).@"fn".return_type.?).error_union.payload;
 
 pub fn inlineStored(self: *const Lower, list: ir.TypeId) bool {
@@ -96,7 +97,7 @@ pub fn storedLayout(self: *Lower, decision: Decision) Lower.Error!u32 {
     return @backingInt(try @import("../types.zig").get(self, self.state_types, @fromBackingInt(decision.type_id)));
 }
 
-pub const Bases = std.meta.Child(@FieldType(std.meta.Child(@import("generated_collection_pop").Input), "bases"));
+pub const Bases = std.meta.Child(@FieldType(std.meta.Child(@FieldType(std.meta.Child(@import("generated_collection_pop").Input), "pop")), "bases"));
 
 pub const Preparation = struct {
     choice_value: std.meta.Child(@FieldType(Input, "choice")),
@@ -149,12 +150,19 @@ pub fn emitElement(handle: *anyopaque, value: u32, layout: ?u32) Lower.Error!u32
     const ast = lists.borrow(self);
     const bases = context.snapshot(Bases, self);
     const input = preparation.input(Input, &bases, &ast, value, frame.name);
-    const output = emitter.executeIn(allocator, &input) catch |err| return failure(err);
-    const result = try conversion.apply(self, frame.body, frame.body, output.result);
+
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(frame.body),
+        .element = &input,
+    };
+
+    const output = emitter.executeIn(allocator, &call) catch |err| return failure(err);
 
     if (frame.decision.capture) frame.name = try self.allocator.dupe(u8, output.name);
 
-    return @backingInt(result);
+    return output.root;
 }
 
 fn failure(err: anyerror) Lower.Error {

@@ -1,0 +1,22 @@
+<Module>
+    <Type from="execute_model" as="Conversion" />
+
+    <Args in={Conversion.Execute} out={u32} />
+
+    <Call module="build" in={$in.conversion} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "binding",
+                "body"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

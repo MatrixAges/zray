@@ -10,7 +10,9 @@ const View = std.meta.Child(@FieldType(Request, "view"));
 const Source = std.meta.Child(@FieldType(View, "source"));
 const Conversion = std.meta.Child(@FieldType(Source, "source"));
 const Resources = std.meta.Child(@FieldType(Request, "resources"));
-pub const Input = std.meta.Child(@import("generated_state_conversion_emit").Input);
+const emitter = @import("generated_state_conversion_emit");
+const Call = std.meta.Child(emitter.Input);
+pub const Input = std.meta.Child(@FieldType(Call, "conversion"));
 pub const Capture = std.meta.Child(std.meta.Child(@FieldType(Input, "capture")));
 pub const PlanningMode = @FieldType(Conversion, "mode");
 
@@ -36,9 +38,18 @@ pub fn lowerWithStorage(self: *Lower, borrow_storage: anytype, body: anytype, id
     var boundary: Capture = undefined;
     const capture = captureBoundary(self, &boundary);
     const input = (try prepare(self, temporary, id, value, planningMode(mode), capture, true)) orelse return value;
-    const output = @import("generated_state_conversion_emit").executeIn(temporary, &input) catch |err| return failure(err);
 
-    return apply(self, borrow_storage, body, output);
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .binding = @ptrCast(borrow_storage),
+        .body = @ptrCast(body),
+        .conversion = &input,
+    };
+
+    const root = emitter.executeIn(temporary, &call) catch |err| return failure(err);
+
+    return @fromBackingInt(root);
 }
 
 pub fn prepareFor(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: Mode, capture: ?*const Capture) Lower.Error!Input {
@@ -121,12 +132,6 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: nod
         .field_base = @intCast(self.builder.nodes.field_columns.count()),
         .serial = self.serial,
     };
-}
-
-pub fn apply(self: *Lower, borrow_storage: anytype, body: anytype, output: anytype) Lower.Error!node.ExpressionId {
-    try @import("../construction/publication.zig").write(self, .{ .body = body, .binding = borrow_storage }, output, .Conversion);
-
-    return @fromBackingInt(output.root);
 }
 
 fn failure(err: anyerror) Lower.Error {

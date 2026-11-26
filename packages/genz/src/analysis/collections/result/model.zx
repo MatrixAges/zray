@@ -1,5 +1,5 @@
-import type { AstWriter } from "ast_rows"
-import type { CollectionConversion } from "lowering_host"
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { CollectionConversion, Lowering } from "lowering_host"
 import type { Input as Bases } from "../../../ast/context/model"
 import type {
     Input as Conversion,
@@ -31,7 +31,9 @@ export type Preparation = {
 }
 
 export type Execution = {
+    frame: Lowering,
     writer: AstWriter,
+    body: AstSequence,
     source: Input,
     preparation: Preparation
 }

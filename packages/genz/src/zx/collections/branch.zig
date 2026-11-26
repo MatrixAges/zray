@@ -33,7 +33,8 @@ pub fn collectionMinimum(handle: *anyopaque) Error!?u32 {
 pub fn emitCollectionRows(handle: *anyopaque, rows: *const Api.CollectionRows, minimum: ?u32, compare: ?[]const u8) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lower;
-    const Input = std.meta.Child(entry.Input);
+    const Call = std.meta.Child(entry.Input);
+    const Input = std.meta.Child(@FieldType(Call, "rows"));
     const selected = @import("../state_value/list.zig").selected(self, frame.source_type);
     const layout = if (selected) try @import("../types.zig").get(self, self.state_types, frame.source_type) else null;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../state_value/list_emission.zig").borrow(self));
@@ -65,11 +66,14 @@ pub fn emitCollectionRows(handle: *anyopaque, rows: *const Api.CollectionRows, m
         .bases = &bases,
     };
 
-    const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(&frame.body),
+        .rows = &input,
+    };
 
-    try publication.write(self, .{ .body = &frame.body }, output, .Collection);
-
-    return output.root;
+    return entry.executeIn(frame.temporary, &call) catch |err| return publication.failure(err);
 }
 
 pub fn emitCollectionPop(handle: *anyopaque, items: u32, value: u32, header: u32, element: u32, length: u32) Error!u32 {

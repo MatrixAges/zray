@@ -34,8 +34,6 @@ pub fn lower(frame: *Collection, value: node.ExpressionId) Lower.Error!node.Expr
     const members = try temporary.alloc(Member, types.len);
     var boundary: conversion.Capture = undefined;
     const bases = @import("../construction/context.zig").snapshot(Bases, self);
-    const declarations = self.task_declarations.count();
-    const references = self.referenceBatches();
 
     const storage: Storage = .{
         .lower = self,
@@ -45,7 +43,9 @@ pub fn lower(frame: *Collection, value: node.ExpressionId) Lower.Error!node.Expr
     };
 
     const input: Input = .{
+        .frame = @ptrCast(self),
         .writer = @ptrCast(self),
+        .body = @ptrCast(&frame.body),
         .preparation = &.{
             .frame = @ptrCast(&storage),
             .types = types.values[0..types.len],
@@ -54,13 +54,9 @@ pub fn lower(frame: *Collection, value: node.ExpressionId) Lower.Error!node.Expr
         .source = &.{ .value = @backingInt(value), .members = members, .bases = &bases },
     };
 
-    const output = entry.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
+    const root = entry.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
 
-    std.debug.assert(bases.serial == self.serial and declarations == self.task_declarations.count());
-    std.debug.assert(bases.statement_base == self.builder.nodes.statements.tags.items.len);
-    std.debug.assert(references == self.referenceBatches());
-
-    return conversion.apply(self, &frame.body, &frame.body, output);
+    return @fromBackingInt(root);
 }
 
 pub fn prepareCollectionMember(handle: *const anyopaque, index: u64, type_id: ?u32) Lower.Error!void {

@@ -1,0 +1,21 @@
+<Module>
+    <Type from="execute_model" as="Update" />
+
+    <Args in={Update.Execute} out={u32} />
+
+    <Call module="build" in={$in.update} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body"
+            ]),
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

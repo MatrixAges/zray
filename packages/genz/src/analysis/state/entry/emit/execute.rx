@@ -1,0 +1,20 @@
+<Module>
+    <Type from="execute_model" as="Entry" />
+
+    <Args in={Entry.Execute} out={u32} />
+
+    <Call module="build" in={$in.entry} />
+
+    <Call
+        fn="../../conversion/emit/publish_ast"
+        in={{
+            frame: $in.frame,
+            writer: $in.writer,
+            binding: null,
+            body: null,
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

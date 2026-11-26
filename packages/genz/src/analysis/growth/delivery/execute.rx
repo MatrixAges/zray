@@ -1,0 +1,31 @@
+<Module>
+    <Type from="execute_model" as="Delivery" />
+
+    <Args in={Delivery.Execute} out={Delivery.Published} />
+
+    <Call module="run" in={$in.request} />
+
+    <If on={$ctx.run != null}>
+        <Call
+            fn="publish_ast"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "body"
+                ]),
+                output: $ctx.run
+            }}
+        />
+
+        <Return value={$ctx.publish_ast} />
+    </If>
+
+    <Return
+        value={{
+            root: 0,
+            start: 0,
+            count: 0
+        }}
+    />
+</Module>

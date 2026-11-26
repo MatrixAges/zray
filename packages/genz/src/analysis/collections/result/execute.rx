@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Result" />
 
-    <Args in={Result.Execution} out={Result.Output} />
+    <Args in={Result.Execution} out={u32} />
 
     <Call fn="prepare_members" in={$in.preparation} />
 
@@ -15,5 +15,16 @@
 
     <Call module="build" />
 
-    <Return value={$ctx.build} />
+    <Call
+        fn="../../state/conversion/emit/publish_ast"
+        in={{
+            frame: $in.frame,
+            writer: $in.writer,
+            binding: $in.body,
+            body: $in.body,
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
 </Module>

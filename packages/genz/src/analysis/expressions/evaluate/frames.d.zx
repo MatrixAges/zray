@@ -64,30 +64,14 @@ export type ModuleSignatures = mutable_opaque
 
 export type FragmentPublication = mutable_opaque
 
-export enum FragmentKind {
-    Growth,
-    Collection,
-    Update,
-    List,
-    Conversion
-}
-
 export enum FragmentBody {
-    Direct,
     Roots,
-    RootsWithVariables,
-    Selected,
-    SelectedWithVariables,
-    ConvertedBinding,
-    ConvertedBody
+    RootsWithVariables
 }
 
 export enum FragmentStatements {
     Dense,
-    BorrowingText,
-    Borrowed,
-    Sparse,
-    SparseWithVariables
+    BorrowingText
 }
 
 export type DirectAstRows = mutable_opaque

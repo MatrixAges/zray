@@ -1,0 +1,15 @@
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
+import type { Input } from "./model"
+
+export type Execute = {
+    frame: Lowering,
+    writer: AstWriter,
+    body: AstSequence,
+    element: Input
+}
+
+export type Published = {
+    root: u32,
+    name: u8[]
+}

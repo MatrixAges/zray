@@ -1,0 +1,21 @@
+<Module>
+    <Type from="execute_model" as="Emission" />
+
+    <Args in={Emission.Execute} out={u32} />
+
+    <Call module="emit" in={$in.rows} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body"
+            ]),
+            output: $ctx.emit
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

@@ -18,7 +18,8 @@ pub const Request = struct {
 
 pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, args: Request) Lower.Error!node.ExpressionId {
     const entry = @import("generated_collection_pop");
-    const Input = std.meta.Child(entry.Input);
+    const Call = std.meta.Child(entry.Input);
+    const Input = std.meta.Child(@FieldType(Call, "pop"));
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
     const Element = std.meta.Child(@typeInfo(@FieldType(Input, "element")).optional.child);
     const serial = self.serial;
@@ -65,7 +66,14 @@ pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, arg
         .bases = &bases,
     };
 
-    const output = entry.executeIn(memory.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(body),
+        .pop = &input,
+    };
 
-    return conversion.apply(self, body, body, output);
+    const root = entry.executeIn(memory.allocator(), &call) catch |err| return @import("../construction/publication.zig").failure(err);
+
+    return @fromBackingInt(root);
 }

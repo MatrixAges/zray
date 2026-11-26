@@ -44,7 +44,8 @@ pub fn emitCollectionUpdate(handle: *anyopaque, request: *const Api.CollectionUp
     const frame = Frame.borrow(handle);
     const self = frame.lower;
     const entry = @import("generated_list_update");
-    const Input = std.meta.Child(entry.Input);
+    const Call = std.meta.Child(entry.Input);
+    const Input = std.meta.Child(@FieldType(Call, "update"));
     const layout = if (request.selected) try @import("types.zig").get(self, self.state_types, frame.source_type) else null;
     const flags = self.plan.get(frame.id);
     const bases = context.snapshot(std.meta.Child(@FieldType(Input, "bases")), self);
@@ -65,9 +66,12 @@ pub fn emitCollectionUpdate(handle: *anyopaque, request: *const Api.CollectionUp
         .shared = self.shared_types,
     };
 
-    const output = entry.executeIn(frame.temporary, &input) catch |err| return publication.failure(err);
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = @ptrCast(&frame.body),
+        .update = &input,
+    };
 
-    try publication.write(self, .{ .body = &frame.body }, output, .Update);
-
-    return output.root;
+    return entry.executeIn(frame.temporary, &call) catch |err| return publication.failure(err);
 }

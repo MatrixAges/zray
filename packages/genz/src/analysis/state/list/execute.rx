@@ -1,0 +1,17 @@
+<Module>
+    <Type from="execute_model" as="List" />
+
+    <Args in={List.Execute} out={u32} />
+
+    <Call module="build" in={$in.list} />
+
+    <Call
+        fn="publish_ast"
+        in={{
+            writer: $in.writer,
+            output: $ctx.build
+        }}
+    />
+
+    <Return value={$ctx.publish_ast} />
+</Module>

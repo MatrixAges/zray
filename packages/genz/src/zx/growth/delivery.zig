@@ -6,7 +6,8 @@ const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const publication = @import("../construction/publication.zig");
 const generated = @import("generated_growth_delivery");
-const Input = std.meta.Child(generated.Input);
+const Call = std.meta.Child(generated.Input);
+const Input = std.meta.Child(@FieldType(Call, "request"));
 const Normalize = std.meta.Child(std.meta.Child(@FieldType(Input, "normalize")));
 const Entry = std.meta.Child(std.meta.Child(@FieldType(Input, "entry")));
 const Value = std.meta.Child(std.meta.Child(@FieldType(Input, "value")));
@@ -140,17 +141,20 @@ fn deliver(self: *Lower, body: ?*Sequence, input: Input) Lower.Error!Result {
 
     defer scratch.deinit();
 
-    const fragment = (zx.columns.invoke(generated.executeValue, memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+    const call: Call = .{
+        .frame = @ptrCast(self),
+        .writer = @ptrCast(self),
+        .body = if (body) |sequence| @ptrCast(sequence) else null,
+        .request = &input,
+    };
+
+    const published = generated.executeIn(memory.allocator(), &call) catch |err| return switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         else => unreachable,
-    }).?;
-
-    if (input.normalize == null) std.debug.assert(fragment.result.serial == self.serial);
-
-    try publication.write(self, .{ .body = body }, &fragment, .Growth);
+    };
 
     return .{
-        .root = @fromBackingInt(fragment.result.root),
-        .block = .{ .start = @intCast(fragment.start), .len = @intCast(fragment.count) },
+        .root = @fromBackingInt(published.root),
+        .block = .{ .start = @intCast(published.start), .len = @intCast(published.count) },
     };
 }

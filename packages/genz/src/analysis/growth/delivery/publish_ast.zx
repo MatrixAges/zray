@@ -1,0 +1,60 @@
+import ast from "ast_rows"
+import { AstPayloadOwnership, AstSequenceMode } from "ast_rows"
+import host from "lowering_host"
+import { requireAllocation } from "memory"
+
+import emptyVariables from "../../../ast/statements/empty_variables"
+
+import type { PublishAst as Input, Published as Output } from "./execute_model"
+
+export default function (in: Input): Output {
+    const { frame, writer, body, output } = in
+    const { result } = output
+
+    requireAllocation(result.valid)
+
+    ast.appendExpressionRows(
+        writer,
+        result.expressions,
+        result.forms,
+        AstPayloadOwnership.Owned
+    )
+
+    ast.appendStatementRows(
+        writer,
+        result.statements,
+        null,
+        AstPayloadOwnership.Owned
+    )
+
+    if (body != null) {
+        ast.appendStatementSequence(
+            writer,
+            body,
+            result.body,
+            emptyVariables({}),
+            AstSequenceMode.Owned
+        )
+    } else {
+        ast.appendStatementRows(
+            writer,
+            result.body,
+            null,
+            AstPayloadOwnership.Owned
+        )
+    }
+
+    const { fields } = output
+
+    if (fields != null) {
+        ast.appendAstFields(writer, fields)
+    }
+
+    host.finishGeneratedAst(frame, result.serial, output.uses_allocator)
+
+    return {
+        root: result.root,
+        start: output.start,
+        count: output.count
+    }
+}
