@@ -3,9 +3,12 @@ const zx = @import("zx");
 const ir = zx.ir;
 const columns = zx.columns;
 const generated = @import("generated_inline_prepare");
+const publishing = @import("generated_inline_publish");
 const Input = std.meta.Child(generated.Input);
+const PublishInput = std.meta.Child(publishing.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
 const Functions = std.meta.Child(@FieldType(Program, "functions"));
+const List = @import("../function_analysis/abi.zig").List;
 const unwrap = @import("../function_analysis/abi.zig").unwrap;
 
 /// The returned program borrows unchanged storage from the input. The output allocator owns replacements.
@@ -36,21 +39,43 @@ pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .output_type = @backingInt(program.output_type),
     };
 
-    const Allocators = std.meta.Child(@FieldType(Input, "allocators"));
-    var scope = zx.memory.ArenaScope{ .active = temporary };
-
-    const allocators: Allocators = .{
-        .scope = @ptrCast(&scope),
-        .scratch = @ptrCast(&temporary),
-        .owned = @ptrCast(&allocator),
-    };
-
     const input: Input = .{
         .program = &view,
-        .allocators = &allocators,
+        .scratch = @ptrCast(&temporary),
     };
 
-    const output = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
+    const planned = generated.executeIn(temporary, &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    if (planned.entry == null and planned.functions.len == 0) return program;
+
+    const Changes = List(@FieldType(PublishInput, "changes"));
+    var changes = try Changes.init(temporary, planned.functions.len);
+
+    for (planned.functions, changes.values) |item, *slot| {
+        slot.* = bridgeRebuilt(Changes.Value, item);
+    }
+
+    var entry_value: ?Changes.Value = if (planned.entry) |item| bridgeRebuilt(Changes.Value, item) else null;
+    const EntryField = @typeInfo(@FieldType(PublishInput, "entry")).optional.child;
+    const PublishSource = std.meta.Child(@FieldType(PublishInput, "source"));
+
+    const publish_source: PublishSource = .{
+        .symbols = columns.slice(@FieldType(PublishSource, "symbols"), program.functions.symbols),
+        .expressions = columns.slice(@FieldType(PublishSource, "expressions"), program.functions.expressions),
+        .control = columns.slice(@FieldType(PublishSource, "control"), program.functions.control),
+        .roots = columns.slice(@FieldType(PublishSource, "roots"), program.functions.roots),
+    };
+
+    const publish_input: PublishInput = .{
+        .source = &publish_source,
+        .changes = try changes.finish(temporary),
+        .entry = if (entry_value) |*value| if (@typeInfo(EntryField) == .pointer) value else value.* else null,
+    };
+
+    const output = publishing.executeIn(allocator, &publish_input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
@@ -75,4 +100,23 @@ pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
     }
 
     return result;
+}
+
+fn bridgeRebuilt(comptime Target: type, source: anytype) Target {
+    const src = unwrap(source);
+    const SymbolsPtr = @typeInfo(@FieldType(Target, "symbols")).optional.child;
+
+    return .{
+        .unit = src.unit,
+        .symbols = if (src.symbols) |symbols| bridgeField(SymbolsPtr, symbols) else null,
+        .expressions = bridgeField(@FieldType(Target, "expressions"), src.expressions),
+        .control = bridgeField(@FieldType(Target, "control"), src.control),
+        .root = src.root,
+    };
+}
+
+fn bridgeField(comptime Target: type, source: anytype) Target {
+    if (@typeInfo(Target) == .pointer) return columns.pointer(Target, source);
+
+    return columns.columns(Target, unwrap(source));
 }

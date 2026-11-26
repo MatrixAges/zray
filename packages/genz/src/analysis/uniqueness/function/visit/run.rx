@@ -70,7 +70,6 @@
             operations: $in.facts.operations,
             repeated: $in.facts.repeated.owner,
             results: $in.facts.results,
-            arenas: $in.arenas,
             independent: $in.independent
         }}
     />

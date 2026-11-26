@@ -67,18 +67,10 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .exported = @ptrCast(exported),
     };
 
-    var scope = zx.memory.ArenaScope{ .active = temporary };
     const Allocators = std.meta.Child(@FieldType(Input, "allocators"));
-    const Results = std.meta.Child(@FieldType(Allocators, "results"));
-
-    const results: Results = .{
-        .scope = @ptrCast(&scope),
-        .scratch = @ptrCast(&temporary),
-        .owned = @ptrCast(&allocator),
-    };
 
     const allocators: Allocators = .{
-        .results = &results,
+        .owned = @ptrCast(&allocator),
         .names = @ptrCast(&allocator),
     };
 
@@ -89,7 +81,7 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .allocators = &allocators,
     };
 
-    const output = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
+    const output = generated.executeIn(temporary, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
@@ -103,7 +95,7 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
                 .element_storage = output.element_storage,
                 .selected = output.selected,
                 .borrowed = output.borrowed,
-                .queries = output.state_queries,
+                .queries = try allocator.dupe(std.meta.Elem(@TypeOf(output.state_queries)), output.state_queries),
                 .keys = std.mem.bytesAsSlice([32]u8, output.keys),
             },
         },
@@ -114,8 +106,8 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .fresh_outputs = output.fresh_outputs,
         .constructed_outputs = output.constructed_outputs,
         .identity_free = output.identity_free,
-        .errors = output.errors,
-        .return_allocations = output.return_allocations,
-        .layout_types = output.layout_types,
+        .errors = try allocator.dupe(std.meta.Elem(@TypeOf(output.errors)), output.errors),
+        .return_allocations = try allocator.dupe(bool, output.return_allocations),
+        .layout_types = try allocator.dupe(std.meta.Elem(@TypeOf(output.layout_types)), output.layout_types),
     };
 }

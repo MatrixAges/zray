@@ -6,16 +6,7 @@ const Memo = @import("memo.zig");
 const Error = std.mem.Allocator.Error;
 
 pub fn plan(owner: std.mem.Allocator, source: *const Function.Plan) Error!Function.Plan {
-    const entry = @import("generated_uniqueness_retain_plan");
-
-    const result = try retain(entry, owner, .{
-        .flags = source.flags,
-        .renewals = &source.renewals,
-        .transfers = source.transfers,
-        .slot_first = source.slot_first,
-    });
-
-    return Function.Plan.fromColumns(result);
+    return (try @import("program/visit/adopt_plan.zig").run(owner, source, null)).plan();
 }
 
 pub fn marks(owner: std.mem.Allocator, source: []const Function.Mark) Error![]const Function.Mark {

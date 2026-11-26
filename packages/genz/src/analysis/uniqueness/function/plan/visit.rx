@@ -5,10 +5,7 @@
 
     <Call
         module="state"
-        in={$in.omit([
-            "arenas",
-            "time"
-        ])}
+        in={$in.omit(["time"])}
     />
 
     <Call
@@ -26,7 +23,7 @@
     />
 
     <Call
-        module="publish"
+        module="finish"
         in={{
             ...$ctx.plan.pick([
                 "flags",
@@ -35,10 +32,9 @@
                 "needed"
             ]),
             metadata: $in.context.metadata,
-            type_kinds: $in.types.kinds,
-            arenas: $in.arenas
+            type_kinds: $in.types.kinds
         }}
     />
 
-    <Return value={$ctx.publish} />
+    <Return value={$ctx.finish} />
 </Module>

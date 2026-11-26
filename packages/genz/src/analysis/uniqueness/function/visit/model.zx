@@ -7,7 +7,6 @@ import type { Layout } from "../../slots/model"
 import type { Exchange } from "../demand/model"
 import type { Context as FactsContext } from "../levels/model"
 import type { Published } from "../plan/model"
-import type { Arenas } from "../plan/model"
 import type { Output as Facts } from "../prepare/model"
 import type { DemandTargets, SettlementTargets } from "../result/model"
 
@@ -45,7 +44,6 @@ export type Input = {
     view: View,
     facts: Facts,
     index?: u32,
-    arenas: Arenas,
     owner_rows: ColumnAllocator,
     types: Table,
     deferred: bool,

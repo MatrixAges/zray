@@ -57,3 +57,8 @@ export type PlanAdoption = {
     source: Planned,
     memo?: MemoTarget
 }
+
+export type PlanAdopted = {
+    plan: Planned,
+    row?: u64
+}

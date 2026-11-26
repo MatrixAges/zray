@@ -1,5 +1,4 @@
 import type { Table } from "core/type_table/model"
-import type { Allocator, ArenaScope } from "memory"
 import type { Planned } from "../../replay/ordered/model"
 import type { Context, Knowledge, Metadata, Read } from "../levels/model"
 
@@ -53,19 +52,8 @@ export type Published = Planned
 
 export type Visit = Input.Omit("state")
 
-export type Arenas = {
-    scope: ArenaScope,
-    scratch: Allocator,
-    owner: Allocator
-}
-
 export type Generation = Visit & {
-    arenas: Arenas,
     independent: bool
 }
 
-export type Publication = Finish & {
-    arenas: Arenas
-}
-
-export type Solve = Generation.Omit("arenas", "time")
+export type Solve = Generation.Omit("time")

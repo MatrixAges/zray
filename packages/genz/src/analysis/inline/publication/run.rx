@@ -12,14 +12,6 @@
         />
     </If>
 
-    <Call
-        fn="../../uniqueness/program/allocators.selectAllocator"
-        in={[
-            $in.allocators.scope,
-            $in.allocators.owned
-        ]}
-    />
-
     <If on={$in.entry != null}>
         <Call fn="retain" in={$in.entry} />
 

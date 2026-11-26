@@ -7,7 +7,9 @@ const rows = @import("../../row_output.zig");
 const entry = @import("generated_uniqueness_visit_adopt_plan");
 const Input = std.meta.Child(entry.Input);
 
-pub fn run(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) std.mem.Allocator.Error!Memo.Planned {
+pub const Adopted = struct { record: Memo.Planned, row: ?u32 };
+
+pub fn adopt(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) std.mem.Allocator.Error!Adopted {
     var stored: record.Frame(.planned, rows.Target(Input, "memo")) = undefined;
 
     if (memo) |cache| stored.open(cache, {});
@@ -30,5 +32,12 @@ pub fn run(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) s
         else => std.debug.panic("plan adoption failed: {s}", .{@errorName(err)}),
     };
 
-    return if (memo != null) stored.value else Memo.Planned.fromPlan(Function.Plan.fromColumns(retained));
+    return .{
+        .record = if (memo != null) stored.value else Memo.Planned.fromPlan(Function.Plan.fromColumns(retained.plan)),
+        .row = if (retained.row) |row| @intCast(row) else null,
+    };
+}
+
+pub fn run(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) std.mem.Allocator.Error!Memo.Planned {
+    return (try adopt(owner, plan, memo)).record;
 }

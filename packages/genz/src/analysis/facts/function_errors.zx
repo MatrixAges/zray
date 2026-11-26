@@ -1,15 +1,14 @@
 import integers from "std:integer"
-import memory from "memory"
 import columns from "memory/columns"
 
 import returnAllocations from "./return_allocations"
 
 import type { Result } from "core/error_effects/functions/model"
-import type { Buffers } from "./allocators"
+import type { ColumnAllocator } from "memory/columns"
 
 export type Input = {
     source: Result,
-    allocators: Buffers,
+    names: ColumnAllocator,
     native_modules: u32?[]
 }
 
@@ -19,17 +18,12 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { results, names } = in.allocators
-    const { scope, scratch, owned } = results
-
     const unknown: string[]? = null
 
     const groups = in.source.names.map(
         group =>
-            columns.copyColumnTextViews(names, group)
+            columns.copyColumnTextViews(in.names, group)
     )[0]
-
-    memory.selectAllocator(scope, owned)
 
     const errors = in.source.components.map(
         component => {
@@ -43,8 +37,6 @@ export default function (in: Input): Output {
         errors,
         native_modules: in.native_modules
     })
-
-    memory.selectAllocator(scope, scratch)
 
     return {
         errors,

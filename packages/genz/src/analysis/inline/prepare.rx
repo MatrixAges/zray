@@ -1,21 +1,21 @@
 <Module>
     <Type from="../model" as="Model" />
     <Type from="../facts/allocators" as="Allocators" />
-    <Type from="publication/model" as="Publication" />
+    <Type from="apply" as="Apply" />
 
     <Args
         in={{
             program: Model.Program,
-            allocators: Allocators.Result
+            scratch: Allocators.Resource
         }}
-        out={Publication.Output}
+        out={Apply.Output}
     />
 
     <Call
         fn="../value/pure"
         in={{
             program: $in.program,
-            allocator: $in.allocators.scratch
+            allocator: $in.scratch
         }}
     />
 
@@ -31,7 +31,7 @@
     <If on={!$ctx.plan.available}>
         <Return
             value={{
-                functions: null,
+                functions: [],
                 entry: null
             }}
         />
@@ -45,20 +45,5 @@
         }}
     />
 
-    <Call
-        module="publication/run"
-        in={{
-            source: $in.program.functions.pick([
-                "symbols",
-                "expressions",
-                "control",
-                "roots"
-            ]),
-            changes: $ctx.apply.functions,
-            entry: $ctx.apply.entry,
-            allocators: $in.allocators
-        }}
-    />
-
-    <Return value={$ctx.run} />
+    <Return value={$ctx.apply} />
 </Module>

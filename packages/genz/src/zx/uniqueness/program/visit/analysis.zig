@@ -9,6 +9,7 @@ const Summaries = @import("../../summaries.zig");
 const compute = @import("compute.zig");
 const rows = @import("../../row_output.zig");
 const record = @import("../../memo/record.zig");
+const adopt_plan = @import("adopt_plan.zig");
 const generated = @import("generated_uniqueness_function_visit");
 const body_view = @import("generated_uniqueness_body_view");
 const Input = std.meta.Child(generated.Input);
@@ -72,7 +73,6 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     const growth = frame.growth;
     var normalized: GrowthView = undefined;
     var renewed: GrowthView = undefined;
-    var scope = zx.memory.ArenaScope{ .active = frame.scratch };
 
     normalized.init(growth.normalized);
     renewed.init(growth.renewed);
@@ -130,25 +130,25 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     var install_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", target);
     var install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
     var stored: record.Frame(kind, rows.Target(Input, "memo")) = undefined;
+    const inline_memo = kind != .planned and frame.memo != null;
 
-    if (frame.memo) |memo| stored.open(memo, switch (kind) {
+    if (inline_memo) stored.open(frame.memo.?, switch (kind) {
         .settled => .{ .passed = &passed.buffer },
         .demanded => .{ .marks = &marks.buffer, .growth = growth },
-        .planned => {},
+        .planned => unreachable,
     });
 
-    defer if (frame.memo != null) stored.table.finish();
+    defer if (inline_memo) stored.table.finish();
 
     const input: Input = .{
         .view = zx.columns.pointer(@FieldType(Input, "view"), view),
         .facts = zx.columns.pointer(@FieldType(Input, "facts"), facts),
         .index = index,
-        .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(&frame.scratch), .owner = @ptrCast(&frame.owner) },
         .owner_rows = @ptrCast(&frame.owner),
         .types = &types,
         .deferred = deferred,
         .independent = independent,
-        .memo = if (frame.memo != null) &stored.target else null,
+        .memo = if (inline_memo) &stored.target else null,
         .settlement = if (kind == .settled) &.{
             .input = @ptrCast(&metadata.input),
             .targets = &.{
@@ -176,16 +176,28 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         } else null,
     };
 
-    const value = zx.columns.invoke(generated.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const value = zx.columns.invoke(generated.executeValue, frame.scratch, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership visit failed: {s}", .{@errorName(err)}),
     };
+
+    if (kind == .planned) {
+        const plan = Function.Plan.fromColumns(value.plan.?);
+        const adopted = try adopt_plan.adopt(frame.owner, &plan, frame.memo);
+
+        return .{
+            .record = adopted.record,
+            .changed = if (deferred) {} else &.{},
+            .reads = if (!deferred) {} else &.{},
+            .row = adopted.row,
+        };
+    }
 
     return .{
         .record = if (frame.memo != null) stored.value else switch (kind) {
             .settled => .{ .passed = passed.rows(), .output = @ptrCast(value.levels) },
             .demanded => .{ .marks = marks.rows(), .normalized = growth.normalized, .renewed = growth.renewed, .grew = value.grew },
-            .planned => Memo.Planned.fromPlan(Function.Plan.fromColumns(value.plan.?)),
+            .planned => unreachable,
         },
         .changed = if (deferred) {} else value.changed,
         .reads = if (!deferred) {} else if (kind == .settled) settlement_reads.rows() else demand_reads.rows(),

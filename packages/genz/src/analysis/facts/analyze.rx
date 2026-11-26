@@ -38,7 +38,7 @@
         fn="../value/local"
         in={{
             program: $in.program,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -48,26 +48,27 @@
             program: $in.program,
             boundaries: $in.boundaries,
             local: $ctx.local,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
     <Call
-        fn="owned_types"
+        fn="../state/queries/build"
         in={{
-            allocators: $in.allocators.results,
             types: $in.program.types,
             selected: $ctx.select.selected
         }}
     />
 
+    <Call fn="../types/layout" in={$in.program.types} />
+
     <Call
         fn="../value/summary"
         in={{
             program: $in.program,
-            queries: $ctx.owned_types.state_queries,
+            queries: $ctx.build,
             local: $ctx.local,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -75,7 +76,7 @@
         fn="../capability/io"
         in={{
             functions: $in.program.functions,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -83,7 +84,7 @@
         fn="../capability/process"
         in={{
             functions: $in.program.functions,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -91,7 +92,7 @@
         fn="../capability/tasks"
         in={{
             functions: $in.program.functions,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -99,7 +100,7 @@
         fn="../capability/growth/evaluate"
         in={{
             functions: $in.program.functions,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -107,7 +108,7 @@
         fn="../types/fresh_outputs"
         in={{
             program: $in.program,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -115,7 +116,7 @@
         fn="../value/constructed_outputs"
         in={{
             functions: $in.program.functions,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -125,7 +126,7 @@
             types: $in.program.types,
             functions: $in.program.functions,
             pure: $ctx.summary.pure,
-            allocator: $in.allocators.results.owned
+            allocator: $in.allocators.owned
         }}
     />
 
@@ -135,7 +136,7 @@
         fn="function_errors"
         in={{
             source: $ctx.functions,
-            allocators: $in.allocators,
+            names: $in.allocators.names,
             native_modules: $in.program.functions.native_modules
         }}
     />
@@ -144,7 +145,8 @@
         value={{
             ...$ctx.summary,
             ...$ctx.select,
-            ...$ctx.owned_types,
+            state_queries: $ctx.build,
+            layout_types: $ctx.layout,
             io: $ctx.io,
             process: $ctx.process,
             tasks: $ctx.tasks,

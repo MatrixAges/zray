@@ -1,8 +1,7 @@
 <Module>
     <Type from="model" as="Visit" />
-    <Type from="../../replay/ordered/model" as="Record" />
 
-    <Args in={Visit.PlanAdoption} out={Record.Planned} />
+    <Args in={Visit.PlanAdoption} out={Visit.PlanAdopted} />
 
     <Call module="../../retain/plan" in={$in.source} />
 
@@ -19,7 +18,19 @@
                 }
             }}
         />
+
+        <Return
+            value={{
+                plan: $ctx.plan,
+                row: $ctx.write
+            }}
+        />
     </If>
 
-    <Return value={$ctx.plan} />
+    <Return
+        value={{
+            plan: $ctx.plan,
+            row: null
+        }}
+    />
 </Module>

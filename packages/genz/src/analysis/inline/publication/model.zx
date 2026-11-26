@@ -1,4 +1,3 @@
-import type { Result as Allocators } from "../../facts/allocators"
 import type { Functions } from "../../model"
 import type { Rebuilt } from "../apply"
 
@@ -12,6 +11,5 @@ export type Output = {
 export type Input = {
     source: Columns,
     changes: Rebuilt[],
-    entry?: Rebuilt,
-    allocators: Allocators
+    entry?: Rebuilt
 }
