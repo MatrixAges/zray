@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="References" />
+
+    <Args in={References.DecodeStep} out={References.DecodeStep} />
+
+    <Call
+        fn="../index.decodeLiteral"
+        in={[
+            $in.collection,
+            $in.raw_paths[$in.index]
+        ]}
+    />
+
+    <Call
+        fn="append_decoded"
+        in={{
+            path: $ctx.decodeLiteral,
+            source: $in.raw_sources[$in.index],
+            paths: $in.paths,
+            sources: $in.sources
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            paths: $ctx.append_decoded.paths,
+            sources: $ctx.append_decoded.sources,
+            running: $in.index + 1 < $in.raw_paths.length
+        }}
+    />
+</Module>

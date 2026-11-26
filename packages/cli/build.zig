@@ -83,6 +83,7 @@ pub fn build(b: *std.Build) void {
 
     host.addImport("native_resource_host", native_resources);
     host.import_table.get("cli_source").?.addImport("native_resource_host", native_resources);
+    native_resources.addImport("native_resource_abi", host.import_table.get("cli_source").?.import_table.get("zxc_abi").?);
 
     for ([_][]const u8{
         "installation_host",

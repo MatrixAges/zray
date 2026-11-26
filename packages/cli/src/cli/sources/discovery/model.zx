@@ -1,5 +1,25 @@
 import type { Discovery } from "source_loader_host"
 
+export type SeenState = {
+    paths: string[],
+    has_rx: bool
+}
+
+export type RootInput = {
+    discovery: Discovery,
+    path: string
+}
+
+export type HasSeenInput = {
+    paths: string[],
+    path: string
+}
+
+export type RecordSeenInput = {
+    state: SeenState,
+    path: string
+}
+
 export type Range = {
     discovery: Discovery,
     first: u64

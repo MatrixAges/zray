@@ -1,5 +1,17 @@
 export type Context = mutable_opaque
 
+export type Builtin = {
+    name: string,
+    arguments: u64,
+    literal?: string
+}
+
+export type IncludeTarget = {
+    absolute: string,
+    relative: string,
+    within: bool
+}
+
 export declare function prepareBundle(collection: Context): string? throws { NativeResourceFailure }
 export declare function bundlePath(collection: Context, path: string): string throws { NativeResourceFailure }
 export declare function logicalOutputInside(collection: Context, resource: string): bool throws { NativeResourceFailure }
@@ -27,19 +39,23 @@ export declare function addSource(
 export declare function promoteSource(collection: Context, index: u64): void
 
 export declare function prepareIncludes(collection: Context): void throws { NativeResourceFailure }
-export declare function selectInclude(collection: Context, path: string): string? throws { NativeResourceFailure }
-export declare function includeFiles(collection: Context): string[] throws { NativeResourceFailure }
-export declare function writeInclude(collection: Context, index: u64, bundled: bool): void throws { NativeResourceFailure }
+export declare function selectInclude(collection: Context, path: string): IncludeTarget throws {
+    NativeResourceFailure
+}
+export declare function includeFiles(collection: Context, absolute: string): string[] throws {
+    NativeResourceFailure
+}
+export declare function writeInclude(
+    collection: Context,
+    index: u64,
+    bundled: bool,
+    absolute: string,
+    relative: string
+): void throws { NativeResourceFailure }
 
 export declare function prepareFiles(collection: Context): void throws { NativeResourceFailure }
 export declare function publishFile(collection: Context, index: u64): void throws { NativeResourceFailure }
 
-export declare function openAst(collection: Context): void throws { NativeResourceFailure }
-export declare function closeAst(collection: Context): void
-export declare function nextBuiltin(collection: Context): bool
-export declare function builtinName(collection: Context): string
-export declare function builtinArguments(collection: Context): u64
-export declare function builtinHasLiteral(collection: Context): bool
-export declare function decodeLiteral(collection: Context): string throws { NativeResourceFailure }
-export declare function discardLiteral(collection: Context, text: string): void
+export declare function scanBuiltins(collection: Context): Builtin[] throws { NativeResourceFailure }
+export declare function decodeLiteral(collection: Context, raw: string): string throws { NativeResourceFailure }
 export declare function invalidBuiltin(collection: Context, invalid_import: bool): void throws { NativeResourceFailure }

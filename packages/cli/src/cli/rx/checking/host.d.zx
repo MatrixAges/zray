@@ -10,6 +10,32 @@ export type CheckRows = {
     gateway: bool
 }
 
+export type CallEdge = {
+    is_call: bool,
+    named: bool,
+    target_source: u64
+}
+
+export type CallReference = {
+    is_call: bool,
+    is_function: bool,
+    value: string,
+    line: u64,
+    column: u64
+}
+
+export type ModuleCalls = {
+    edges: CallEdge[],
+    references: CallReference[]
+}
+
+export type MatchedCall = {
+    target_source: u64,
+    line: u64,
+    column: u64,
+    member?: string
+}
+
 export type SignatureCheck = {
     valid: bool,
     default_call: bool,
@@ -24,10 +50,12 @@ export declare function reserveCheckGraph(check: ProjectCheck, gateway: bool): v
 export declare function registerCheckSource(check: ProjectCheck, index: u64): void
 export declare function registerCheckRoot(check: ProjectCheck, index: u64): void
 export declare function buildCheckGraph(check: ProjectCheck): bool throws { SourceLoadFailure }
-export declare function selectCheckCallModule(check: ProjectCheck, index: u64): u64
-export declare function isCheckCallEdge(check: ProjectCheck, index: u64): bool
-export declare function takeCheckCallReference(check: ProjectCheck): bool
-export declare function recordCheckFunctionCall(check: ProjectCheck, index: u64): void throws { SourceLoadFailure }
+export declare function readCheckCallModule(check: ProjectCheck, index: u64): ModuleCalls throws { SourceLoadFailure }
+export declare function recordCheckFunctionCalls(
+    check: ProjectCheck,
+    module: u64,
+    calls: MatchedCall[]
+): void throws { SourceLoadFailure }
 export declare function closeCheckGraph(check: ProjectCheck): void
 export declare function checkStoreTypes(check: ProjectCheck): bool throws { SourceLoadFailure }
 export declare function beginCheckFunctions(check: ProjectCheck): void

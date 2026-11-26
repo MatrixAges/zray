@@ -1,0 +1,61 @@
+import callMember from "./call_member"
+
+import type { MatchedCall, ModuleCalls } from "rx_checking_host"
+
+export type Input = ModuleCalls
+
+export type Output = MatchedCall[]
+
+export default function (in: Input): Output {
+    const empty: MatchedCall[] = []
+
+    return loop({
+        edge: 0,
+        ref_end: in.references.length,
+        matched: empty
+    }, {
+        while: state => state.edge < in.edges.length,
+        next: state => {
+            const current = in.edges[state.edge]
+
+            if (current.is_call) {
+                const picked = loop({
+                    cursor: state.ref_end,
+                    found: false,
+                    pos: 0
+                }, {
+                    while: step => !step.found && step.cursor > 0,
+                    next: step => {
+                        const last = step.cursor - 1
+                        step.cursor = last
+
+                        if (in.references[last].is_call) {
+                            step.found = true
+                            step.pos = last
+                        }
+                    }
+                })
+
+                state.ref_end = picked.cursor
+
+                if (picked.found) {
+                    const ref = in.references[picked.pos]
+
+                    if (ref.is_function) {
+                        const member = current.named ? callMember(ref.value) : null
+
+                        state.matched = state.matched.push({
+                            target_source: current.target_source,
+                            line: ref.line,
+                            column: ref.column,
+                            member
+                        })[0]
+                    }
+                }
+            }
+
+            state.edge += 1
+        },
+        return: state => state.matched
+    })
+}

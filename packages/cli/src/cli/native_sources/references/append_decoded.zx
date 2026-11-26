@@ -1,0 +1,19 @@
+import local from "./local"
+
+import type { DecodedLists, DecodeInput as Input } from "./model"
+
+export type Output = DecodedLists
+
+export default function (in: Input): Output {
+    if (!in.source || local(in.path)) {
+        return {
+            paths: in.paths.push(in.path)[0],
+            sources: in.sources.push(in.source)[0]
+        }
+    }
+
+    return {
+        paths: in.paths,
+        sources: in.sources
+    }
+}

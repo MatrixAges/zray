@@ -11,19 +11,25 @@
         ]}
     />
 
-    <If on={$ctx.selectInclude != null}>
+    <If on={$ctx.selectInclude.within}>
         <Call
             fn="find"
             in={{
                 seen: $in.seen,
-                directory: $ctx.selectInclude,
+                directory: $ctx.selectInclude.relative,
                 separator: $in.separator,
                 windows: $in.windows
             }}
         />
 
         <If on={$ctx.find}>
-            <Call fn="../index.includeFiles" in={$in.collection} />
+            <Call
+                fn="../index.includeFiles"
+                in={[
+                    $in.collection,
+                    $ctx.selectInclude.absolute
+                ]}
+            />
 
             <Call
                 fn="all_seen"
@@ -49,7 +55,9 @@
                 in={[
                     $in.collection,
                     $in.index,
-                    true
+                    true,
+                    $ctx.selectInclude.absolute,
+                    $ctx.selectInclude.relative
                 ]}
             />
 
@@ -69,7 +77,9 @@
         in={[
             $in.collection,
             $in.index,
-            false
+            false,
+            $ctx.selectInclude.absolute,
+            $ctx.selectInclude.relative
         ]}
     />
 

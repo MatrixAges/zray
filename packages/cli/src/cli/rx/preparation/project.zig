@@ -206,13 +206,13 @@ pub fn loadPreparationRoot(handle: *const anyopaque, index: u64) Error!?*const L
     const row: usize = @intCast(index);
     const path = self.paths[row];
 
-    if (self.traversal.paths.contains(path)) return null;
+    if (self.traversal.hasSeen(path)) return null;
 
     self.validatePath(path) catch |err| return self.failure.save(err);
 
     const first = self.traversal.sources.items.len;
 
-    self.traversal.readEntry(path, self.functions[row].source, true) catch |err| return self.failure.save(err);
+    _ = self.traversal.readEntry(path, self.functions[row].source, true) catch |err| return self.failure.save(err);
 
     self.loaded_view = .{
         .first = first,

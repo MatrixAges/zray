@@ -1,0 +1,6 @@
+<Store name="source_discovery" version={1}>
+    <Object name="state">
+        <Field name="paths" type={string[]} value={[]} />
+        <Field name="has_rx" type={bool} value={false} />
+    </Object>
+</Store>

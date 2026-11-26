@@ -3,15 +3,38 @@
 
     <Args in={Discovery.Input} out={void} />
 
+    <Store from="seen" as="seen" />
+
     <Call fn="index.selectImportFile" in={$in} />
 
     <If on={$ctx.selectImportFile != null}>
         <Call
-            fn="index.loadImportText"
-            in={[
-                $in,
-                $ctx.selectImportFile
-            ]}
+            fn="has_seen"
+            in={{
+                paths: $store.seen.state.paths,
+                path: $ctx.selectImportFile
+            }}
         />
+
+        <If on={!$ctx.has_seen}>
+            <Call
+                fn="index.loadImportText"
+                in={[
+                    $in,
+                    $ctx.selectImportFile
+                ]}
+            />
+
+            <If on={$ctx.loadImportText}>
+                <Call
+                    fn="record_seen"
+                    in={{
+                        state: $store.seen.state,
+                        path: $ctx.selectImportFile
+                    }}
+                    setter={[$store.seen.state]}
+                />
+            </If>
+        </If>
     </If>
 </Module>

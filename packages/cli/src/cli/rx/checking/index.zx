@@ -5,6 +5,8 @@ export {
     reserveCheckCalls,
     reserveCheckGraph,
     buildCheckGraph,
+    readCheckCallModule,
+    recordCheckFunctionCalls,
     closeCheckGraph,
     checkStoreTypes,
     beginCheckFunctions,

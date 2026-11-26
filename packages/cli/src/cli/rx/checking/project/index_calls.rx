@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Project" />
+
+    <Args in={Project.Range} out={void} />
+
+    <If on={$in.count != 0}>
+        <Loop on={$in.running}>
+            <Call
+                module="index_module"
+                in={{
+                    check: $in.check,
+                    count: $in.count,
+                    index: 0,
+                    running: true
+                }}
+            />
+        </Loop>
+    </If>
+</Module>

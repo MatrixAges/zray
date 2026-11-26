@@ -8,6 +8,14 @@ const Text = @import("../text.zig");
 const ResolvedImport = @import("cli_abi").layouts.@"zig:source_loader_host".ResolvedImport;
 const ModuleResult = compiler.project.ParseCache.ModuleResult;
 const rule = @import("cli_source").discover_sources;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 const State = struct {
     traversal: *Traversal,
@@ -34,7 +42,7 @@ const State = struct {
     }
 };
 
-pub fn run(traversal: *Traversal, path: []const u8, source: []const u8, recorded: bool) !void {
+pub fn run(traversal: *Traversal, path: []const u8, source: []const u8, recorded: bool) !bool {
     var project = traversal.project;
     project.entry = path;
 
@@ -42,7 +50,21 @@ pub fn run(traversal: *Traversal, path: []const u8, source: []const u8, recorded
     const reference = &load;
 
     defer load.close();
-    rule.executeIn(traversal.allocator, @ptrCast(&reference)) catch |err| return load.failure.unwrap(err);
+
+    if (traversal.seen_arena == null) traversal.seen_arena = std.heap.ArenaAllocator.init(traversal.allocator);
+
+    var state_value: std.meta.Child(StoreState) = .{ .paths = traversal.seen_paths, .has_rx = false };
+    var state_ptr: StoreState = &state_value;
+    var host: StoreHost = .{ .store_0 = &state_ptr };
+
+    rule.execute(&traversal.seen_arena.?, &.{
+        .discovery = @ptrCast(&reference),
+        .path = path,
+    }, &host) catch |err| return load.failure.unwrap(err);
+
+    traversal.seen_paths = state_ptr.paths;
+
+    return state_ptr.has_rx;
 }
 
 pub fn registerRoot(handle: *const anyopaque) Error!u64 {
@@ -133,12 +155,6 @@ pub fn admitCompiledImport(handle: *const anyopaque) Error!void {
     _ = libraries.add(traversal.io, self.reference.target.compiled, self.project, traversal.inputs) catch |err| return self.failure.save(err);
 }
 
-pub fn markRxImport(handle: *const anyopaque) void {
-    const traversal = effects.state(State, handle).traversal;
-
-    if (traversal.has_rx) |found| found.* = true;
-}
-
 pub fn selectImportFile(handle: *const anyopaque) Error!?[]const u8 {
     const self = effects.state(State, handle);
     const traversal = self.traversal;
@@ -156,12 +172,10 @@ pub fn selectImportFile(handle: *const anyopaque) Error!?[]const u8 {
         self.path = path;
     }
 
-    if (traversal.paths.contains(self.path)) return null;
-
     return self.path;
 }
 
-pub fn loadImportText(handle: *const anyopaque, path: []const u8) Error!void {
+pub fn loadImportText(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = effects.state(State, handle);
     const traversal = self.traversal;
     const io = traversal.io;
@@ -171,7 +185,7 @@ pub fn loadImportText(handle: *const anyopaque, path: []const u8) Error!void {
     if (inputs) |observed| observed.add(io, path) catch |err| return self.failure.save(err);
 
     @import("../../../package/source.zig").validateWithInputs(io, allocator, path, self.project.package_scopes, inputs) catch |err| switch (err) {
-        error.FileNotFound => return,
+        error.FileNotFound => return false,
         else => return self.failure.save(err),
     };
 
@@ -180,11 +194,13 @@ pub fn loadImportText(handle: *const anyopaque, path: []const u8) Error!void {
 
     else
         Text.read(io, allocator, path, traversal.texts) catch |err| switch (err) {
-            error.FileNotFound => return,
+            error.FileNotFound => return false,
             else => return self.failure.save(err),
         };
 
     if (text.fresh) if (inputs) |observed| observed.record(io, path, text.bytes) catch |err| return self.failure.save(err);
 
     traversal.append(.{ .path = path, .source = text.bytes }) catch |err| return self.failure.save(err);
+
+    return true;
 }

@@ -5,7 +5,6 @@ export {
     closeHeader,
     resolveImport,
     admitCompiledImport,
-    markRxImport,
     selectImportFile,
     loadImportText
 } from "source_loader_host"

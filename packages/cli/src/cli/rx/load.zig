@@ -7,7 +7,15 @@ const functions_check = @import("function.zig");
 const collection = @import("collection.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const CheckRows = @import("cli_abi").layouts.@"zig:rx_checking_host".CheckRows;
+const checking_abi = @import("cli_abi").layouts.@"zig:rx_checking_host";
+const checking_native = @import("cli_abi").native.@"zig:rx_checking_host";
+const CheckRows = checking_abi.CheckRows;
+const CallEdgeLayout = checking_abi.CallEdge;
+const CallEdge = checking_native.CallEdge;
+const CallReferenceLayout = checking_abi.CallReference;
+const CallReference = checking_native.CallReference;
+const ModuleCalls = checking_abi.ModuleCalls;
+const MatchedCall = checking_native.MatchedCall;
 
 const State = struct {
     io: std.Io,
@@ -29,16 +37,33 @@ const State = struct {
     sources: []compiler.project.Source = &.{},
     roots: [][]const u8 = &.{},
     graph_result: ?graph.Result = null,
-    call_index: functions_check.CallIndex = undefined,
+    call_edges: []CallEdgeLayout = &.{},
+    call_edge_ptrs: []CallEdge = &.{},
+    call_references: []CallReferenceLayout = &.{},
+    call_reference_ptrs: []CallReference = &.{},
+    module_calls: ModuleCalls = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
+    fn freeCallScratch(self: *State) void {
+        self.allocator.free(self.call_reference_ptrs);
+        self.allocator.free(self.call_references);
+        self.allocator.free(self.call_edge_ptrs);
+        self.allocator.free(self.call_edges);
+
+        self.call_reference_ptrs = &.{};
+        self.call_references = &.{};
+        self.call_edge_ptrs = &.{};
+        self.call_edges = &.{};
+    }
+
     fn closeGraph(self: *State) void {
         if (self.graph_result) |*result| result.deinit();
 
         self.graph_result = null;
 
+        self.freeCallScratch();
         self.allocator.free(self.roots);
         self.allocator.free(self.sources);
 
@@ -193,27 +218,78 @@ pub fn buildCheckGraph(handle: *const anyopaque) Error!bool {
         return false;
     }
 
-    self.call_index = .{ .graph = &result.graph, .modules = loaded.modules, .calls = self.calls };
-
     return true;
 }
 
-pub fn selectCheckCallModule(handle: *const anyopaque, index: u64) u64 {
-    return State.get(handle).call_index.selectModule(@intCast(index));
-}
-
-pub fn isCheckCallEdge(handle: *const anyopaque, index: u64) bool {
-    return State.get(handle).call_index.isCall(@intCast(index));
-}
-
-pub fn takeCheckCallReference(handle: *const anyopaque) bool {
-    return State.get(handle).call_index.takeReference();
-}
-
-pub fn recordCheckFunctionCall(handle: *const anyopaque, index: u64) Error!void {
+pub fn readCheckCallModule(handle: *const anyopaque, index: u64) Error!*const ModuleCalls {
     const self = State.get(handle);
+    const row: usize = @intCast(index);
+    const graph_value = &self.graph_result.?.value.graph;
+    const raw_edges = graph_value.modules.items(.dependencies)[graph_value.sources.zx_count + row];
+    const raw_references = self.loaded.?.data.modules[row].indexedReferences() orelse unreachable;
 
-    self.call_index.record(self.allocator, @intCast(index)) catch |err| return self.failure.save(err);
+    self.freeCallScratch();
+
+    self.call_edges = self.allocator.alloc(CallEdgeLayout, raw_edges.len) catch |err| return self.failure.save(err);
+    self.call_edge_ptrs = self.allocator.alloc(CallEdge, raw_edges.len) catch |err| return self.failure.save(err);
+    self.call_references = self.allocator.alloc(CallReferenceLayout, raw_references.len) catch |err| return self.failure.save(err);
+    self.call_reference_ptrs = self.allocator.alloc(CallReference, raw_references.len) catch |err| return self.failure.save(err);
+
+    for (raw_edges, self.call_edges, self.call_edge_ptrs) |edge, *slot, *ptr| {
+        const target_source: u64 = if (edge.reference == .call) switch (edge.target) {
+            .source => |source| source,
+            else => 0,
+        } else 0;
+
+        slot.* = .{
+            .is_call = edge.reference == .call,
+            .named = edge.named,
+            .target_source = target_source,
+        };
+
+        ptr.* = slot;
+    }
+
+    for (raw_references, self.call_references, self.call_reference_ptrs) |reference, *slot, *ptr| {
+        const is_call = reference.role == .Call;
+        const is_function = is_call and reference.target == .Function;
+
+        slot.* = if (is_function) .{
+            .is_call = true,
+            .is_function = true,
+            .value = reference.attribute.?.value,
+            .line = reference.attribute.?.value_location.line,
+            .column = reference.attribute.?.value_location.column,
+        } else .{
+            .is_call = is_call,
+            .is_function = false,
+            .value = "",
+            .line = 0,
+            .column = 0,
+        };
+
+        ptr.* = slot;
+    }
+
+    self.module_calls = .{
+        .edges = self.call_edge_ptrs,
+        .references = self.call_reference_ptrs,
+    };
+
+    return &self.module_calls;
+}
+
+pub fn recordCheckFunctionCalls(handle: *const anyopaque, module: u64, calls: []const MatchedCall) Error!void {
+    const self = State.get(handle);
+    const owner = self.loaded.?.data.modules[@intCast(module)].path;
+
+    for (calls) |call| {
+        self.calls[@intCast(call.target_source)].append(self.allocator, .{
+            .owner = owner,
+            .location = .{ .line = call.line, .column = call.column, .offset = 0 },
+            .member = call.member,
+        }) catch |err| return self.failure.save(err);
+    }
 }
 
 pub fn closeCheckGraph(handle: *const anyopaque) void {

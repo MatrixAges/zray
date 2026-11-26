@@ -1,11 +1,56 @@
 <Module>
-    <Type from="read" as="References" />
+    <Type from="model" as="References" />
 
-    <Args in={References.Input} out={References.Output} />
+    <Args in={References.Context} out={References.Result} />
 
-    <Call fn="../index.openAst" in={$in} />
-    <Call fn="read" in={$in} />
-    <Call fn="../index.closeAst" in={$in} />
+    <Call fn="../index.scanBuiltins" in={$in} />
 
-    <Return value={$ctx.read} />
+    <Call fn="read" />
+
+    <If on={$ctx.read.error_kind != References.ErrorKind.None}>
+        <Call
+            fn="../index.invalidBuiltin"
+            in={[
+                $in,
+                $ctx.read.error_kind == References.ErrorKind.InvalidImport
+            ]}
+        />
+    </If>
+
+    <If on={$ctx.read.paths.length != 0}>
+        <Loop on={$in.running}>
+            <Call
+                module="decode_step"
+                in={{
+                    collection: $in,
+                    raw_paths: $ctx.read.paths,
+                    raw_sources: $ctx.read.sources,
+                    index: 0,
+                    paths: [],
+                    sources: [],
+                    running: true
+                }}
+            />
+        </Loop>
+
+        <Return
+            value={{
+                ...$ctx.read.pick([
+                    "dynamic_resources",
+                    "c_imports"
+                ]),
+                paths: $ctx.decode_step.paths,
+                sources: $ctx.decode_step.sources
+            }}
+        />
+    </If>
+
+    <Return
+        value={$ctx.read.pick([
+            "dynamic_resources",
+            "c_imports",
+            "paths",
+            "sources"
+        ])}
+    />
 </Module>

@@ -16,7 +16,7 @@
 
     <If on={$ctx.buildCheckGraph}>
         <Call
-            fn="index_calls"
+            module="index_calls"
             in={{
                 check: $in.check,
                 count: $in.module_count

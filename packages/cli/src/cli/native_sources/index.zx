@@ -13,8 +13,9 @@ export {
     selectInclude,
     includeFiles,
     writeInclude,
-    openAst,
-    closeAst,
+    scanBuiltins,
+    decodeLiteral,
+    invalidBuiltin,
     prepareIncludes,
     prepareFiles
 } from "native_resource_host"

@@ -48,8 +48,6 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
         .inputs = inputs,
     };
 
-    defer ast.closeAst(@ptrCast(&context));
-
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

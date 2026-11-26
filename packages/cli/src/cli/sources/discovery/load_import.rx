@@ -4,6 +4,8 @@
 
     <Args in={Import.Header} out={Import.Header} />
 
+    <Store from="seen" as="seen" />
+
     <Call
         fn="index.resolveImport"
         in={[
@@ -20,7 +22,11 @@
                 <Call fn="../path/is_rx" in={$ctx.resolveImport.path} />
 
                 <If on={$ctx.is_rx}>
-                    <Call fn="index.markRxImport" in={$in.discovery} />
+                    <Call
+                        fn="mark_rx"
+                        in={$store.seen.state}
+                        setter={[$store.seen.state]}
+                    />
 
                     <Else>
                         <Call module="load_source" in={$in.discovery} />

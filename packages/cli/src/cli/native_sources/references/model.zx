@@ -1,4 +1,7 @@
+import type { Context } from "native_resource_host"
 import type { Flags } from "../collect/model"
+
+export type { Context } from "native_resource_host"
 
 export type Input = {
     name: string,
@@ -16,7 +19,39 @@ export enum Action {
     Asset
 }
 
+export enum ErrorKind {
+    None,
+    InvalidSource,
+    InvalidImport
+}
+
 export type Result = Flags & {
     paths: string[],
     sources: bool[]
+}
+
+export type ScanResult = Result & {
+    error_kind: ErrorKind
+}
+
+export type DecodeInput = {
+    path: string,
+    source: bool,
+    paths: string[],
+    sources: bool[]
+}
+
+export type DecodedLists = {
+    paths: string[],
+    sources: bool[]
+}
+
+export type DecodeStep = {
+    collection: Context,
+    raw_paths: string[],
+    raw_sources: bool[],
+    index: u64,
+    paths: string[],
+    sources: bool[],
+    running: bool
 }

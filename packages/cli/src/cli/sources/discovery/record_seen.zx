@@ -1,0 +1,12 @@
+import type { RecordSeenInput as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.seen.state = {
+        paths: in.state.paths.push(in.path)[0],
+        has_rx: in.state.has_rx
+    }
+}

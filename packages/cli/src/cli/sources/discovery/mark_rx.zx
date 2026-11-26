@@ -1,0 +1,12 @@
+import type { SeenState as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.seen.state = {
+        paths: in.paths,
+        has_rx: true
+    }
+}

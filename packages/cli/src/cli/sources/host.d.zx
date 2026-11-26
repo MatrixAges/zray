@@ -20,9 +20,8 @@ export declare function openHeader(discovery: Discovery, row: u64): u64 throws {
 export declare function closeHeader(discovery: Discovery): void
 export declare function resolveImport(discovery: Discovery, index: u64): ResolvedImport throws { SourceLoadFailure }
 export declare function admitCompiledImport(discovery: Discovery): void throws { SourceLoadFailure }
-export declare function markRxImport(discovery: Discovery): void
 export declare function selectImportFile(discovery: Discovery): string? throws { SourceLoadFailure }
-export declare function loadImportText(discovery: Discovery, path: string): void throws { SourceLoadFailure }
+export declare function loadImportText(discovery: Discovery, path: string): bool throws { SourceLoadFailure }
 
 export declare function resolveTemplateReference(template: Template, index: u64): string? throws { SourceLoadFailure }
 export declare function readTemplateFile(template: Template, path: string): void throws { SourceLoadFailure }

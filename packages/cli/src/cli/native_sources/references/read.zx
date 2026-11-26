@@ -1,56 +1,64 @@
-import host from "native_resource_host"
-
 import classify from "./classify"
-import local from "./local"
-import { Action } from "./model"
+import { Action, ErrorKind } from "./model"
 
-import type { Context } from "native_resource_host"
-import type { Result } from "./model"
+import type { Builtin } from "native_resource_host"
+import type { ScanResult } from "./model"
 
-export type Input = Context
+export type Input = Builtin[]
 
-export type Output = Result
+export type Output = ScanResult
 
 export default function (in: Input): Output {
     const empty_paths: string[] = []
     const empty_sources: bool[] = []
 
     return loop({
+        index: 0,
         dynamic_resources: false,
         c_imports: false,
         paths: empty_paths,
-        sources: empty_sources
+        sources: empty_sources,
+        error_kind: ErrorKind.None
     }, {
-        while: state => host.nextBuiltin(in),
+        while: state => state.index < in.length && state.error_kind == ErrorKind.None,
         next: state => {
+            const item = in[state.index]
+
             const action = classify({
-                name: host.builtinName(in),
-                arguments: host.builtinArguments(in),
-                literal: host.builtinHasLiteral(in)
+                name: item.name,
+                arguments: item.arguments,
+                literal: item.literal != null
             })
 
             switch (action) {
                 case Action.CImport:
                     state.c_imports = true
                 case Action.InvalidSource:
-                    host.invalidBuiltin(in, false)
+                    state.error_kind = ErrorKind.InvalidSource
                 case Action.InvalidImport:
-                    host.invalidBuiltin(in, true)
+                    state.error_kind = ErrorKind.InvalidImport
                 case Action.DynamicAsset:
                     state.dynamic_resources = true
                 case Action.Zig:
-                    const path = host.decodeLiteral(in)
-
-                    if (local(path)) {
-                        state.paths = state.paths.push(path)[0]
-                        state.sources = state.sources.push(true)[0]
-                    } else {
-                        host.discardLiteral(in, path)
-                    }
+                    const literal = item.literal ?? ""
+                    state.paths = state.paths.push(literal)[0]
+                    state.sources = state.sources.push(true)[0]
                 case Action.Asset:
-                    state.paths = state.paths.push(host.decodeLiteral(in))[0]
+                    const literal = item.literal ?? ""
+                    state.paths = state.paths.push(literal)[0]
                     state.sources = state.sources.push(false)[0]
                 default:
+            }
+
+            state.index += 1
+        },
+        return: state => {
+            return {
+                dynamic_resources: state.dynamic_resources,
+                c_imports: state.c_imports,
+                paths: state.paths,
+                sources: state.sources,
+                error_kind: state.error_kind
             }
         }
     })

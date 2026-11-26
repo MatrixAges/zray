@@ -2,72 +2,55 @@ const std = @import("std");
 const storage = @import("../storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;
+const BuiltinLayout = @import("native_resource_abi").layouts.@"zig:native_resource_host".Builtin;
+const Builtin = @import("native_resource_abi").native.@"zig:native_resource_host".Builtin;
 
-pub fn openAst(handle: *anyopaque) Error!void {
+pub fn scanBuiltins(handle: *anyopaque) Error![]const Builtin {
     const self = Context.get(handle);
+    var tree = std.zig.Ast.parse(self.allocator, self.bytes, .{}) catch |err| return self.fail(err);
 
-    self.ast = std.zig.Ast.parse(self.allocator, self.bytes, .{}) catch |err| return self.fail(err);
-    self.node_index = 0;
+    defer tree.deinit(self.allocator);
 
-    if (self.ast.?.errors.len != 0) return self.fail(error.InvalidNativeSource);
-}
+    if (tree.errors.len != 0) return self.fail(error.InvalidNativeSource);
 
-pub fn closeAst(handle: *anyopaque) void {
-    const self = Context.get(handle);
+    var items: std.ArrayList(BuiltinLayout) = .empty;
 
-    if (self.ast) |*tree| tree.deinit(self.allocator);
+    errdefer items.deinit(self.allocator);
 
-    self.ast = null;
-}
+    var node_index: usize = 0;
 
-pub fn nextBuiltin(handle: *anyopaque) bool {
-    const self = Context.get(handle);
-    const tree = &self.ast.?;
-
-    while (self.node_index < tree.nodes.len) {
-        const node: std.zig.Ast.Node.Index = @fromBackingInt(@intCast(self.node_index));
-        self.node_index += 1;
-
+    while (node_index < tree.nodes.len) : (node_index += 1) {
+        const node: std.zig.Ast.Node.Index = @fromBackingInt(@intCast(node_index));
         var buffer: [2]std.zig.Ast.Node.Index = undefined;
         const arguments = tree.builtinCallParams(&buffer, node) orelse continue;
 
-        self.builtin = .{
-            .name = tree.tokenSlice(tree.nodeMainToken(node)),
-            .count = arguments.len,
-            .parameter = if (arguments.len == 1) arguments[0] else null,
-        };
+        const literal = if (arguments.len == 1 and tree.nodeTag(arguments[0]) == .string_literal)
+            tree.tokenSlice(tree.nodeMainToken(arguments[0]))
 
-        return true;
+        else
+            null;
+
+        items.append(self.allocator, .{
+            .name = tree.tokenSlice(tree.nodeMainToken(node)),
+            .arguments = arguments.len,
+            .literal = literal,
+        }) catch |err| return self.fail(err);
     }
 
-    return false;
+    const values = items.toOwnedSlice(self.allocator) catch |err| return self.fail(err);
+    const ptrs = self.allocator.alloc(Builtin, values.len) catch |err| return self.fail(err);
+
+    for (values, ptrs) |*value, *slot| {
+        slot.* = value;
+    }
+
+    return ptrs;
 }
 
-pub fn builtinName(handle: *anyopaque) []const u8 {
-    return Context.get(handle).builtin.name;
-}
-
-pub fn builtinArguments(handle: *anyopaque) u64 {
-    return Context.get(handle).builtin.count;
-}
-
-pub fn builtinHasLiteral(handle: *anyopaque) bool {
+pub fn decodeLiteral(handle: *anyopaque, raw: []const u8) Error![]const u8 {
     const self = Context.get(handle);
-    const parameter = self.builtin.parameter orelse return false;
 
-    return self.ast.?.nodeTag(parameter) == .string_literal;
-}
-
-pub fn decodeLiteral(handle: *anyopaque) Error![]const u8 {
-    const self = Context.get(handle);
-    const tree = &self.ast.?;
-    const text = tree.tokenSlice(tree.nodeMainToken(self.builtin.parameter.?));
-
-    return std.zig.string_literal.parseAlloc(self.allocator, text) catch |err| return self.fail(err);
-}
-
-pub fn discardLiteral(handle: *anyopaque, text: []const u8) void {
-    Context.get(handle).allocator.free(text);
+    return std.zig.string_literal.parseAlloc(self.allocator, raw) catch |err| return self.fail(err);
 }
 
 pub fn invalidBuiltin(handle: *anyopaque, invalid_import: bool) Error!void {

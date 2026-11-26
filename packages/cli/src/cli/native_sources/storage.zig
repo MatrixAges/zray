@@ -1,5 +1,6 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
+const abi = @import("native_resource_abi").layouts.@"zig:native_resource_host";
 pub const Error = error{NativeResourceFailure};
 pub const Kind = enum { zig, asset };
 pub const File = struct { path: []const u8, kind: Kind, sha256: []const u8, referenced_from: ?[]const u8 };
@@ -29,18 +30,10 @@ pub const Context = struct {
     physical_output: ?[]const u8 = null,
     sources: std.ArrayList(Source) = .empty,
     bytes: [:0]const u8 = undefined,
-    ast: ?std.zig.Ast = null,
-    node_index: usize = 0,
-    builtin: struct {
-        name: []const u8,
-        count: usize,
-        parameter: ?std.zig.Ast.Node.Index,
-    } = undefined,
     destination: []const u8 = undefined,
     include_paths: [][]const u8 = &.{},
     relocations: std.ArrayList(Include) = .empty,
-    include_absolute: []const u8 = undefined,
-    include_relative: []const u8 = undefined,
+    include_target: abi.IncludeTarget = undefined,
     files: []File = &.{},
     pub fn get(handle: *anyopaque) *Context {
         return @ptrCast(@alignCast(handle));

@@ -1,15 +1,26 @@
 <Module>
-    <Type from="index" as="Discovery" />
+    <Type from="model" as="State" />
 
-    <Args in={Discovery.Input} out={void} />
+    <Args in={State.RootInput} out={void} />
 
-    <Call fn="index.registerRoot" in={$in} />
+    <Store from="seen" as="seen" />
+
+    <Call fn="index.registerRoot" in={$in.discovery} />
+
+    <Call
+        fn="record_seen"
+        in={{
+            state: $store.seen.state,
+            path: $in.path
+        }}
+        setter={[$store.seen.state]}
+    />
 
     <Loop on={$in.running}>
         <Call
             module="walk"
             in={{
-                discovery: $in,
+                discovery: $in.discovery,
                 index: $ctx.registerRoot,
                 running: true
             }}

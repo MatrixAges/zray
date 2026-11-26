@@ -1,0 +1,56 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import path from "std:path"
+
+import {
+    ascii_dot,
+    current_directory,
+    module_extension,
+    native_extension,
+    parent_directory,
+    rx_extension,
+    trailing_slash
+} from "../const"
+
+export type Input = string
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const raw = bytes.fromText(in)
+
+    if (
+        raw.length == 0 || bytes.startsWithText(raw, raw.length - 1, trailing_slash)
+    ) {
+        return null
+    }
+
+    const base = path.basename(in)
+    const name = bytes.fromText(base)
+    const dot = bytes.lastIndexOfScalar(name, ascii_dot) ?? name.length
+
+    if (dot == 0 || dot >= name.length) {
+        return null
+    }
+
+    const start = dot + 1
+
+    if (start == name.length) {
+        return null
+    }
+
+    const owner = encoding.sliceBytes(base, 0, dot)
+
+    if (owner == current_directory || owner == parent_directory) {
+        return null
+    }
+
+    const suffix = encoding.sliceBytes(base, dot, name.length)
+
+    return match suffix {
+        module_extension => null,
+        rx_extension => null,
+        native_extension => null,
+        _ => encoding.sliceBytes(base, start, name.length)
+    }
+}

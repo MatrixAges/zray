@@ -16,7 +16,7 @@ pub fn readWithInputs(io: std.Io, allocator: std.mem.Allocator, source: []const 
 pub fn readWithLibraries(io: std.Io, allocator: std.mem.Allocator, source: []const u8, project: compiler.project.Options, cache: *compiler.project.ParseCache, inputs: ?*Inputs, libraries: ?*Libraries) ![]const compiler.project.Source {
     var traversal: Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = inputs, .libraries = libraries };
 
-    return readInternal(&traversal, source, false);
+    return (try readInternal(&traversal, source, false)).sources;
 }
 
 pub const Detected = struct { sources: []const compiler.project.Source, has_rx: bool };
@@ -35,12 +35,7 @@ pub fn readLibrary(io: std.Io, allocator: std.mem.Allocator, project: compiler.p
 }
 
 fn detect(traversal: *Traversal, source: []const u8, recorded: bool) !Detected {
-    var has_rx = false;
-    traversal.has_rx = &has_rx;
-
-    const sources = try readInternal(traversal, source, recorded);
-
-    return .{ .sources = sources, .has_rx = has_rx };
+    return readInternal(traversal, source, recorded);
 }
 
 pub const Known = std.StringHashMapUnmanaged([]const u8);
@@ -52,32 +47,39 @@ pub const Traversal = struct {
     cache: *compiler.project.ParseCache,
     inputs: ?*Inputs,
     libraries: ?*Libraries,
-    has_rx: ?*bool = null,
     /// Preloaded text has the same lifetime as the resulting source list.
     known: ?*const Known = null,
     texts: ?*Text.Cache = null,
     sources: std.ArrayList(compiler.project.Source) = .empty,
-    paths: std.StringHashMapUnmanaged(void) = .empty,
+    seen_arena: ?std.heap.ArenaAllocator = null,
+    seen_paths: []const []const u8 = &.{},
     pub fn deinit(self: *Traversal) void {
-        self.paths.deinit(self.allocator);
+        if (self.seen_arena) |*arena| arena.deinit();
+
         self.sources.deinit(self.allocator);
     }
-    pub fn readEntry(self: *Traversal, path: []const u8, source: []const u8, recorded: bool) !void {
-        try Discovery.run(self, path, source, recorded);
+
+    pub fn hasSeen(self: *const Traversal, path: []const u8) bool {
+        for (self.seen_paths) |seen| {
+            if (std.mem.eql(u8, seen, path)) return true;
+        }
+
+        return false;
+    }
+
+    pub fn readEntry(self: *Traversal, path: []const u8, source: []const u8, recorded: bool) !bool {
+        return Discovery.run(self, path, source, recorded);
     }
 
     pub fn append(self: *Traversal, source: compiler.project.Source) !void {
-        try self.sources.ensureUnusedCapacity(self.allocator, 1);
-        try self.paths.put(self.allocator, source.path, {});
-
-        self.sources.appendAssumeCapacity(source);
+        try self.sources.append(self.allocator, source);
     }
 };
 
-fn readInternal(traversal: *Traversal, source: []const u8, recorded: bool) ![]const compiler.project.Source {
+fn readInternal(traversal: *Traversal, source: []const u8, recorded: bool) !Detected {
     defer traversal.deinit();
 
-    try traversal.readEntry(traversal.project.entry, source, recorded);
+    const has_rx = try traversal.readEntry(traversal.project.entry, source, recorded);
 
-    return traversal.sources.toOwnedSlice(traversal.allocator);
+    return .{ .sources = try traversal.sources.toOwnedSlice(traversal.allocator), .has_rx = has_rx };
 }
