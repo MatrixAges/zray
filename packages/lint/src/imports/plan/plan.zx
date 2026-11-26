@@ -1,0 +1,138 @@
+import bytes from "std:bytes"
+
+import section from "./section"
+import trailingEnd from "./trailing_end"
+
+import type { Edit, ImportItem, Span } from "../../source/model"
+
+export type Input = {
+    source: u8[],
+    comments: Span[],
+    imports: ImportItem[]
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const crlf = bytes.indexOfText(in.source, 0, "\r\n") != null
+    const count = in.imports.length
+
+    const initially_pinned = count != 0 && loop({
+        index: 0,
+        pinned: false
+    }, {
+        while: state => !state.pinned && state.index < in.comments.length,
+        next: state => {
+            if (in.comments[state.index].end <= in.imports[0].start) {
+                state.pinned = true
+            }
+
+            state.index += 1
+        },
+        return: state => state.pinned
+    })
+
+    const empty_edits: Edit[] = []
+
+    return loop({
+        index: 0,
+        start: 0,
+        pinned: initially_pinned,
+        edits: empty_edits
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const index = state.index
+            const item = in.imports[index]
+            const next = match {
+                index + 1 < count => in.imports[index + 1].start,
+                _ => in.source.length
+            }
+
+            const end = trailingEnd({
+                source: in.source,
+                comments: in.comments,
+                start: item.end,
+                limit: next
+            })
+
+            const has_text = loop({
+                pos: end,
+                found: false
+            }, {
+                while: scan => !scan.found && scan.pos < next,
+                next: scan => {
+                    const byte = in.source[scan.pos]
+
+                    const space = (
+                        - byte == 32
+                        - or byte == 9
+                        - or byte == 13
+                        - or byte == 10
+                    )
+
+                    if (!space) {
+                        scan.found = true
+                    }
+
+                    scan.pos += 1
+                },
+                return: scan => scan.found
+            })
+
+            const export_changed = index + 1 < count &&
+                item.exported != in.imports[index + 1].exported
+
+            const has_comment = loop({
+                pos: 0,
+                found: false
+            }, {
+                while: c => !c.found && c.pos < in.comments.length,
+                next: c => {
+                    const comment = in.comments[c.pos]
+
+                    if (comment.start >= end && comment.end <= next) {
+                        c.found = true
+                    }
+
+                    c.pos += 1
+                },
+                return: c => c.found
+            })
+
+            const barrier = (
+                - has_text
+                - or export_changed
+                - or has_comment
+            )
+
+            const flush = (
+                - state.pinned
+                - or barrier
+                - or index + 1 == count
+            )
+
+            if (flush) {
+                const edit = section({
+                    source: in.source,
+                    comments: in.comments,
+                    imports: in.imports,
+                    start: state.start,
+                    stop: index + 1,
+                    limit: next,
+                    crlf
+                })
+
+                if (edit != null) {
+                    state.edits = state.edits.push(edit)[0]
+                }
+
+                state.start = index + 1
+                state.pinned = barrier
+            }
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+}

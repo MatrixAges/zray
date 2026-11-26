@@ -1,0 +1,121 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import classify from "../order/classify"
+import sortUnits from "./sort_units"
+import trailingEnd from "./trailing_end"
+
+import type { Edit, ImportItem, Span, Unit } from "../../source/model"
+
+export type Input = {
+    source: u8[],
+    comments: Span[],
+    imports: ImportItem[],
+    start: u64,
+    stop: u64,
+    limit: u64,
+    crlf: bool
+}
+
+export type Output = Edit?
+
+export default function (in: Input): Output {
+    if (in.stop - in.start < 2) {
+        return null
+    }
+
+    const empty_units: Unit[] = []
+
+    const units = loop({
+        index: in.start,
+        out: empty_units
+    }, {
+        while: state => state.index < in.stop,
+        next: state => {
+            const item = in.imports[state.index]
+            const next_limit = match {
+                state.index + 1 < in.stop => in.imports[state.index + 1].start,
+                _ => in.limit
+            }
+
+            const end = trailingEnd({
+                source: in.source,
+                comments: in.comments,
+                start: item.end,
+                limit: next_limit
+            })
+
+            state.out = state.out.push({
+                item,
+                end
+            })[0]
+            state.index += 1
+        },
+        return: state => state.out
+    })
+
+    const sorted = sortUnits(units)
+    const nl = in.crlf ? bytes.fromText("\r\n") : bytes.fromText("\n")
+    const blank = in.crlf ? bytes.fromText("\r\n\r\n") : bytes.fromText("\n\n")
+    const empty_parts: u8[][] = []
+
+    const parts = loop({
+        index: 0,
+        out: empty_parts
+    }, {
+        while: state => state.index < sorted.length,
+        next: state => {
+            const unit = sorted[state.index]
+            const item = unit.item
+
+            if (state.index > 0) {
+                const previous = sorted[state.index - 1].item
+
+                const pair = classify({
+                    left: {
+                        path: previous.path,
+                        type_only: previous.type_only,
+                        start: previous.start
+                    },
+                    right: {
+                        path: item.path,
+                        type_only: item.type_only,
+                        start: item.start
+                    }
+                })
+
+                state.out = state.out.push(pair.same_group ? nl : blank)[0]
+            }
+
+            const slice =
+                memory.borrowU8Range(in.source, item.start, unit.end - item.start)
+
+            state.out = state.out.push(slice)[0]
+            state.index += 1
+        },
+        return: state => state.out
+    })
+
+    const empty_sep = bytes.fromText("")
+    const replacement = bytes.join(empty_sep, parts)
+    const span_start = in.imports[in.start].start
+
+    const span_end = trailingEnd({
+        source: in.source,
+        comments: in.comments,
+        start: in.imports[in.stop - 1].end,
+        limit: in.limit
+    })
+
+    const original = memory.borrowU8Range(in.source, span_start, span_end - span_start)
+
+    if (bytes.equals(original, replacement)) {
+        return null
+    }
+
+    return {
+        start: span_start,
+        end: span_end,
+        replacement
+    }
+}

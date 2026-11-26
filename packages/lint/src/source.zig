@@ -80,37 +80,76 @@ pub fn formatView(allocator: std.mem.Allocator, source: []const u8, comments: an
 }
 
 fn planView(allocator: std.mem.Allocator, source: []const u8, comments: anytype, view: anytype, body: anytype) std.mem.Allocator.Error![]const spacing.Edit {
-    const ordered = try @import("imports/edits.zig").planView(allocator, source, comments, view);
-    const spaced = try spacing.viewEdits(allocator, source, comments, view, body);
+    if (comptime @import("lint_options").seed) return &.{};
 
-    return merge(allocator, ordered, spaced);
-}
+    const rule = @import("lint_source");
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-fn merge(allocator: std.mem.Allocator, ordered: []const spacing.Edit, spaced: []const spacing.Edit) std.mem.Allocator.Error![]const spacing.Edit {
-    var result: std.ArrayList(spacing.Edit) = .empty;
+    defer arena.deinit();
 
-    try result.appendSlice(allocator, ordered);
+    const temporary = arena.allocator();
+    const comment_spans = try temporary.alloc(rule.Span, comments.len);
 
-    for (spaced) |edit| {
-        var replaced = false;
+    for (comments, comment_spans) |position, *slot| {
+        const span = Header.span(position);
 
-        for (ordered) |section| {
-            if (edit.span.start >= section.span.start and edit.span.end <= section.span.end) {
-                replaced = true;
-
-                break;
-            }
-        }
-
-        if (replaced) continue;
-        try result.append(allocator, edit);
+        slot.* = .{ .start = span.start, .end = span.end };
     }
 
-    std.mem.sort(spacing.Edit, result.items, {}, struct {
-        fn lessThan(_: void, left: spacing.Edit, right: spacing.Edit) bool {
-            return left.span.start < right.span.start;
-        }
-    }.lessThan);
+    const imports = try temporary.alloc(rule.Import, view.importCount());
 
-    return result.toOwnedSlice(allocator);
+    for (imports, 0..) |*slot, index| {
+        const item = view.importAt(index);
+
+        slot.* = .{
+            .path = item.path,
+            .type_only = item.kind == .type_only,
+            .exported = item.exported,
+            .start = item.span.start,
+            .end = item.span.end,
+        };
+    }
+
+    const declarations = try temporary.alloc(rule.Span, view.declarationCount());
+
+    for (declarations, 0..) |*slot, index| {
+        const span = view.declarationAt(index).span;
+
+        slot.* = .{ .start = span.start, .end = span.end };
+    }
+
+    const constants = try temporary.alloc(rule.Span, view.constantCount());
+
+    for (constants, 0..) |*slot, index| {
+        const span = view.constantAt(index).span;
+
+        slot.* = .{ .start = span.start, .end = span.end };
+    }
+
+    const boundaries = if (body) |value| try spacing.collectBody(temporary, source, value) else &.{};
+
+    const planned = try rule.plan(
+        allocator,
+        source,
+        comment_spans,
+        imports,
+        declarations,
+        constants,
+        view.functionStart(),
+        boundaries,
+    );
+
+    defer allocator.free(planned);
+    errdefer for (planned) |item| allocator.free(item.replacement);
+
+    const result = try allocator.alloc(spacing.Edit, planned.len);
+
+    for (planned, result) |item, *slot| {
+        slot.* = .{
+            .span = .{ .start = item.start, .end = item.end },
+            .replacement = item.replacement,
+        };
+    }
+
+    return result;
 }

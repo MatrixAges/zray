@@ -10,9 +10,8 @@ const rules = [_]Rule{
     .{ .name = "lint_layout", .seed_path = "src/layout/rule.zig", .root_path = "src/layout/rule.zig" },
     .{ .name = "lint_rx", .seed_path = "src/rx/rule.zig", .root_path = "src/rx/rule.zig" },
     .{ .name = "lint_config", .seed_path = "src/configuration/rule.zig", .root_path = "src/configuration/rule.zig" },
+    .{ .name = "lint_source", .seed_path = "src/source/rule.zig", .root_path = "src/source/rule.zig" },
     .{ .name = "naming", .seed_path = "bootstrap/naming.zig", .root_path = "src/naming/root.zig" },
-    .{ .name = "spacing_boundary", .seed_path = "bootstrap/spacing_boundary.zig", .root_path = "src/spacing/boundary/root.zig" },
-    .{ .name = "import_order", .seed_path = "bootstrap/import_order.zig", .root_path = "src/imports/order/root.zig" },
     .{ .name = "condition_policy", .seed_path = "bootstrap/condition_policy.zig", .root_path = "src/condition/policy.zig" },
     .{ .name = "loop_postfix", .seed_path = "bootstrap/loop_postfix.zig", .root_path = "src/loop/postfix.zig" },
 };
@@ -22,6 +21,9 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const seed = b.option(bool, "seed", "Use the initial Zig lint implementations") orelse false;
     const generated = b.option(std.Build.LazyPath, "generated", "Generated RX/ZX lint directory");
+    const options = b.addOptions();
+
+    options.addOption(bool, "seed", seed);
 
     if (seed and generated != null) @panic("seed lint cannot use generated rules");
     if (!seed and generated == null) @panic("lint requires generated directory; seed is only for bootstrap");
@@ -36,13 +38,13 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    module.addOptions("lint_options", options);
+
     for (rules) |rule| {
         if (seed and
             !std.mem.eql(u8, rule.name, "naming") and
             !std.mem.eql(u8, rule.name, "condition_policy") and
-            !std.mem.eql(u8, rule.name, "loop_postfix") and
-            !std.mem.eql(u8, rule.name, "import_order") and
-            !std.mem.eql(u8, rule.name, "spacing_boundary")) continue;
+            !std.mem.eql(u8, rule.name, "loop_postfix")) continue;
 
         const rule_module = b.createModule(.{
             .root_source_file = b.path(if (seed) rule.seed_path else rule.root_path),

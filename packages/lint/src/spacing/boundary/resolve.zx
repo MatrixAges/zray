@@ -1,0 +1,83 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import check from "./check"
+import scan from "./scan"
+
+import type { Edit, Span } from "../../source/model"
+
+export type Input = {
+    source: u8[],
+    comments: Span[],
+    left: u64,
+    right: u64,
+    separate: bool
+}
+
+export type Output = Edit?
+
+export default function (in: Input): Output {
+    const window = loop({
+        index: 0,
+        start: in.left,
+        end: in.right,
+        done: false
+    }, {
+        while: state => !state.done && state.index < in.comments.length,
+        next: state => {
+            const comment = in.comments[state.index]
+
+            if (comment.start >= in.left && comment.end <= in.right) {
+                const nl = bytes.indexOfScalar(in.source, state.start, 10)
+
+                if (nl == null || nl >= comment.start) {
+                    state.start = comment.end
+                } else {
+                    state.end = comment.start
+                    state.done = true
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state
+    })
+
+    if (window.end <= window.start) {
+        return null
+    }
+
+    const gap = memory.borrowU8Range(in.source, window.start, window.end - window.start)
+
+    const scanned = scan({
+        gap,
+        start: window.start,
+        separate: in.separate
+    })
+
+    if (!scanned.has_newline) {
+        return null
+    }
+
+    const checked = check({
+        gap,
+        scanned
+    })
+
+    if (!checked.needs_edit) {
+        return null
+    }
+
+    const replacement = match {
+        checked.crlf && checked.separate => bytes.fromText("\r\n\r\n"),
+        checked.crlf => bytes.fromText("\r\n"),
+        checked.separate => bytes.fromText("\n\n"),
+        _ => bytes.fromText("\n")
+    }
+
+    return {
+        start: checked.start,
+        end: checked.end,
+        replacement
+    }
+}

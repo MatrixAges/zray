@@ -1,0 +1,34 @@
+import classify from "../order/classify"
+import pathOrder from "../order/path_order"
+
+import type { Unit } from "../../source/model"
+
+export type Input = {
+    left: Unit,
+    right: Unit
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const query = {
+        left: {
+            path: in.left.item.path,
+            type_only: in.left.item.type_only,
+            start: in.left.item.start
+        },
+        right: {
+            path: in.right.item.path,
+            type_only: in.right.item.type_only,
+            start: in.right.item.start
+        }
+    }
+
+    const pair = classify(query)
+
+    if (pair.left_category != pair.right_category) {
+        return pair.left_category < pair.right_category
+    }
+
+    return pathOrder(query)
+}

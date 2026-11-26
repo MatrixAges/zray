@@ -1,0 +1,51 @@
+import mergeUnits from "./merge_units"
+
+import type { Unit } from "../../source/model"
+
+export type Input = Unit[]
+
+export type Output = Unit[]
+
+export default function (in: Input): Output {
+    const count = in.length
+
+    return loop({
+        width: 1,
+        order: in
+    }, {
+        while: pass => pass.width < count,
+        next: pass => {
+            const empty_pass: Unit[] = []
+            const width = pass.width
+            const current = pass.order
+
+            const next_order = loop({
+                start: 0,
+                out: empty_pass
+            }, {
+                while: span => span.start < count,
+                next: span => {
+                    const mid_raw = span.start + width
+                    const mid = mid_raw < count ? mid_raw : count
+                    const end_raw = span.start + width + width
+                    const end = end_raw < count ? end_raw : count
+
+                    span.out = mergeUnits({
+                        source: current,
+                        start: span.start,
+                        mid,
+                        end,
+                        merged: span.out
+                    })
+
+                    span.start = end
+                },
+                return: span => span.out
+            })
+
+            pass.order = next_order
+            pass.width = width + width
+        },
+        return: pass => pass.order
+    })
+}

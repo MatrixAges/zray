@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Source" />
+
+    <Args in={Source.PlanInput} out={Source.Output} />
+
+    <Call
+        fn="../imports/plan/plan"
+        in={$in.pick([
+            "source",
+            "comments",
+            "imports"
+        ])}
+    />
+
+    <Call
+        fn="../spacing/header"
+        in={$in.pick([
+            "source",
+            "comments",
+            "imports",
+            "declarations",
+            "constants",
+            "function_start"
+        ])}
+    />
+
+    <Call
+        fn="../spacing/body"
+        in={$in.pick([
+            "source",
+            "comments",
+            "boundaries"
+        ])}
+    />
+
+    <Call
+        fn="merge"
+        in={{
+            ordered: $ctx.plan,
+            header: $ctx.header,
+            body: $ctx.body
+        }}
+    />
+
+    <Return value={$ctx.merge} />
+</Module>

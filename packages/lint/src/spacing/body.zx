@@ -1,0 +1,40 @@
+import resolve from "./boundary/resolve"
+
+import type { BoundaryItem, Edit, Span } from "../source/model"
+
+export type Input = {
+    source: u8[],
+    comments: Span[],
+    boundaries: BoundaryItem[]
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const empty_edits: Edit[] = []
+
+    return loop({
+        index: 0,
+        edits: empty_edits
+    }, {
+        while: state => state.index < in.boundaries.length,
+        next: state => {
+            const item = in.boundaries[state.index]
+
+            const edit = resolve({
+                source: in.source,
+                comments: in.comments,
+                left: item.left,
+                right: item.right,
+                separate: item.separate
+            })
+
+            if (edit != null) {
+                state.edits = state.edits.push(edit)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.edits
+    })
+}

@@ -1,0 +1,87 @@
+import sortEdits from "./sort_edits"
+
+import type { Edit } from "./model"
+
+export type Input = {
+    ordered: Edit[],
+    header: Edit[],
+    body: Edit[]
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const combined = loop({
+        index: 0,
+        out: in.ordered
+    }, {
+        while: state => state.index < in.header.length,
+        next: state => {
+            const edit = in.header[state.index]
+
+            const covered = loop({
+                pos: 0,
+                found: false
+            }, {
+                while: inner => !inner.found && inner.pos < in.ordered.length,
+                next: inner => {
+                    const section = in.ordered[inner.pos]
+
+                    if (
+                        edit.start >= section.start && edit.end <= section.end
+                    ) {
+                        inner.found = true
+                    }
+
+                    inner.pos += 1
+                },
+                return: inner => inner.found
+            })
+
+            if (!covered) {
+                state.out = state.out.push(edit)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.out
+    })
+
+    const all = loop({
+        index: 0,
+        out: combined
+    }, {
+        while: state => state.index < in.body.length,
+        next: state => {
+            const edit = in.body[state.index]
+
+            const covered = loop({
+                pos: 0,
+                found: false
+            }, {
+                while: inner => !inner.found && inner.pos < in.ordered.length,
+                next: inner => {
+                    const section = in.ordered[inner.pos]
+
+                    if (
+                        edit.start >= section.start && edit.end <= section.end
+                    ) {
+                        inner.found = true
+                    }
+
+                    inner.pos += 1
+                },
+                return: inner => inner.found
+            })
+
+            if (!covered) {
+                state.out = state.out.push(edit)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.out
+    })
+
+    return sortEdits(all)
+}

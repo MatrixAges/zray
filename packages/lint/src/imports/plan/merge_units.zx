@@ -1,0 +1,63 @@
+import lessThan from "./less_than"
+
+import type { Unit } from "../../source/model"
+
+export type Input = {
+    source: Unit[],
+    start: u64,
+    mid: u64,
+    end: u64,
+    merged: Unit[]
+}
+
+export type Output = Unit[]
+
+export default function (in: Input): Output {
+    const merged = loop({
+        left: in.start,
+        right: in.mid,
+        out: in.merged
+    }, {
+        while: state => state.left < in.mid && state.right < in.end,
+        next: state => {
+            const left_item = in.source[state.left]
+            const right_item = in.source[state.right]
+
+            if (lessThan({
+                left: left_item,
+                right: right_item
+            })) {
+                state.out = state.out.push(left_item)[0]
+                state.left += 1
+            } else {
+                state.out = state.out.push(right_item)[0]
+                state.right += 1
+            }
+        },
+        return: state => state
+    })
+
+    const with_left = loop({
+        pos: merged.left,
+        out: merged.out
+    }, {
+        while: tail => tail.pos < in.mid,
+        next: tail => {
+            tail.out = tail.out.push(in.source[tail.pos])[0]
+            tail.pos += 1
+        },
+        return: tail => tail.out
+    })
+
+    return loop({
+        pos: merged.right,
+        out: with_left
+    }, {
+        while: tail => tail.pos < in.end,
+        next: tail => {
+            tail.out = tail.out.push(in.source[tail.pos])[0]
+            tail.pos += 1
+        },
+        return: tail => tail.out
+    })
+}

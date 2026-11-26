@@ -1,0 +1,123 @@
+import classify from "../imports/order/classify"
+import resolve from "./boundary/resolve"
+import exportStart from "./export_start"
+
+import type { Edit, ImportItem, Span } from "../source/model"
+
+export type Input = {
+    source: u8[],
+    comments: Span[],
+    imports: ImportItem[],
+    declarations: Span[],
+    constants: Span[],
+    function_start: u64
+}
+
+export type Output = Edit[]
+
+export default function (in: Input): Output {
+    const import_count = in.imports.length
+    const declaration_count = in.declarations.length
+    const constant_count = in.constants.length
+    const empty_edits: Edit[] = []
+
+    return loop({
+        import_index: 0,
+        declaration_index: 0,
+        constant_index: 0,
+        edits: empty_edits
+    }, {
+        while: state => state.import_index < import_count ||
+            state.declaration_index < declaration_count ||
+            state.constant_index < constant_count,
+        next: state => {
+            const ii = state.import_index
+            const di = state.declaration_index
+            const ci = state.constant_index
+
+            const import_start = match {
+                ii < import_count => in.imports[ii].start,
+                _ => in.source.length
+            }
+
+            const declaration_start = exportStart({
+                declarations: in.declarations,
+                constants: in.constants,
+                declaration_index: di,
+                constant_index: ci,
+                function_start: in.function_start
+            })
+
+            const imported = import_start < declaration_start
+            const has_const = ci < constant_count
+            const at_decl_end = di == declaration_count
+
+            const is_const = match {
+                imported || !has_const => false,
+                at_decl_end => true,
+                _ => in.constants[ci].start < in.declarations[di].start
+            }
+
+            const end = match {
+                imported => in.imports[ii].end,
+                is_const => in.constants[ci].end,
+                _ => in.declarations[di].end
+            }
+
+            const exported = imported && in.imports[ii].exported
+            const next_ii = imported ? ii + 1 : ii
+            const next_di = !imported && !is_const ? di + 1 : di
+            const next_ci = is_const ? ci + 1 : ci
+
+            const next_import = match {
+                next_ii < import_count => in.imports[next_ii].start,
+                _ => in.source.length
+            }
+
+            const next_declaration = exportStart({
+                declarations: in.declarations,
+                constants: in.constants,
+                declaration_index: next_di,
+                constant_index: next_ci,
+                function_start: in.function_start
+            })
+
+            const next = next_import < next_declaration ? next_import : next_declaration
+            const adjacent_imports = imported && next_import < next_declaration
+
+            const separate = match {
+                !adjacent_imports => next < in.source.length,
+                exported != in.imports[next_ii].exported => true,
+                _ => !classify({
+                    left: {
+                        path: in.imports[next_ii - 1].path,
+                        type_only: in.imports[next_ii - 1].type_only,
+                        start: in.imports[next_ii - 1].start
+                    },
+                    right: {
+                        path: in.imports[next_ii].path,
+                        type_only: in.imports[next_ii].type_only,
+                        start: in.imports[next_ii].start
+                    }
+                }).same_group
+            }
+
+            const edit = resolve({
+                source: in.source,
+                comments: in.comments,
+                left: end,
+                right: next,
+                separate
+            })
+
+            if (edit != null) {
+                state.edits = state.edits.push(edit)[0]
+            }
+
+            state.import_index = next_ii
+            state.declaration_index = next_di
+            state.constant_index = next_ci
+        },
+        return: state => state.edits
+    })
+}

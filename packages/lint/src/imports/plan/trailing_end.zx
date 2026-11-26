@@ -1,0 +1,41 @@
+import bytes from "std:bytes"
+
+import type { Span } from "../../source/model"
+
+export type Input = {
+    source: u8[],
+    comments: Span[],
+    start: u64,
+    limit: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        end: in.start,
+        done: false
+    }, {
+        while: state => !state.done && state.index < in.comments.length,
+        next: state => {
+            const comment = in.comments[state.index]
+
+            if (comment.start >= state.end && comment.end <= in.limit) {
+                const lf = bytes.indexOfScalar(in.source, state.end, 10)
+                const cr = bytes.indexOfScalar(in.source, state.end, 13)
+                const has_lf = lf != null && lf < comment.start
+                const has_cr = cr != null && cr < comment.start
+
+                if (has_lf || has_cr) {
+                    state.done = true
+                } else {
+                    state.end = comment.end
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.end
+    })
+}

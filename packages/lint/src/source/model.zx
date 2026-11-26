@@ -1,0 +1,41 @@
+export type Span = {
+    start: u64,
+    end: u64
+}
+
+export type ImportItem = {
+    path: u8[],
+    type_only: bool,
+    exported: bool,
+    start: u64,
+    end: u64
+}
+
+export type BoundaryItem = {
+    left: u64,
+    right: u64,
+    separate: bool
+}
+
+export type Edit = {
+    start: u64,
+    end: u64,
+    replacement: u8[]
+}
+
+export type Unit = {
+    item: ImportItem,
+    end: u64
+}
+
+export type PlanInput = {
+    source: u8[],
+    comments: Span[],
+    imports: ImportItem[],
+    declarations: Span[],
+    constants: Span[],
+    function_start: u64,
+    boundaries: BoundaryItem[]
+}
+
+export type Output = Edit[]

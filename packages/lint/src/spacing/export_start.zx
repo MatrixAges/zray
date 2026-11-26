@@ -1,0 +1,27 @@
+import type { Span } from "../source/model"
+
+export type Input = {
+    declarations: Span[],
+    constants: Span[],
+    declaration_index: u64,
+    constant_index: u64,
+    function_start: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const decl = match {
+        in.declaration_index < in.declarations.length =>
+            in.declarations[in.declaration_index].start,
+        _ => in.function_start
+    }
+
+    const constant = match {
+        in.constant_index < in.constants.length =>
+            in.constants[in.constant_index].start,
+        _ => in.function_start
+    }
+
+    return decl < constant ? decl : constant
+}
