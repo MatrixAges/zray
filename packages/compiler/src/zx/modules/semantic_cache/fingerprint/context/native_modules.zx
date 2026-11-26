@@ -1,48 +1,23 @@
+import bytes from "std:bytes"
+
 import integerLists from "../columns/integer_lists"
 import optionalStrings from "../columns/optional_strings"
 import stringLists from "../columns/string_lists"
 import strings from "../columns/strings"
 
-import type { Writer } from "std:bytes"
 import type { Modules } from "core/native_module_table/model"
 
-export type Input = {
-    writer: Writer,
-    native_modules: Modules
-}
+export type Input = Modules
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, native_modules } = in
-
-    optionalStrings({
-        out: writer,
-        value: native_modules.identities
-    })
-
-    strings({
-        out: writer,
-        value: native_modules.import_names
-    })
-
-    strings({
-        out: writer,
-        value: native_modules.specifiers
-    })
-
-    integerLists({
-        out: writer,
-        value: native_modules.type_ids
-    })
-
-    stringLists({
-        out: writer,
-        value: native_modules.type_names
-    })
-
-    stringLists({
-        out: writer,
-        value: native_modules.type_namespaces
-    })
+    return bytes.join(bytes.fromText(""), [
+        optionalStrings(in.identities),
+        strings(in.import_names),
+        strings(in.specifiers),
+        integerLists(in.type_ids),
+        stringLists(in.type_names),
+        stringLists(in.type_namespaces)
+    ])
 }

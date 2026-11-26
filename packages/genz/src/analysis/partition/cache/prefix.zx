@@ -2,10 +2,7 @@ import bytes from "std:bytes"
 
 import { domain } from "./const"
 
-import type { Writer } from "std:bytes"
-
 export type Input = {
-    out: Writer,
     executable: string,
     size: u64,
     modified: u64,
@@ -14,34 +11,42 @@ export type Input = {
     signatures: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, arguments } = in
+    const { arguments } = in
 
     const tag = bytes.fromText(domain)
     const executable = bytes.fromText(in.executable)
 
-    bytes.writeU64Le(out, tag.length)
-    bytes.write(out, tag)
-    bytes.writeU64Le(out, executable.length)
-    bytes.write(out, executable)
-    bytes.writeU64Le(out, in.size)
-    bytes.writeU64Le(out, in.modified)
+    const parts: u8[][] = [
+        bytes.encodeU64Le(tag.length),
+        tag,
+        bytes.encodeU64Le(executable.length),
+        executable,
+        bytes.encodeU64Le(in.size),
+        bytes.encodeU64Le(in.modified)
+    ]
 
-    const position = loop({
-        index: 0
+    const collected = loop({
+        index: 0,
+        parts
     }, {
         while: state => state.index < arguments.length,
         next: state => {
             const argument = bytes.fromText(arguments[state.index])
 
-            bytes.writeU64Le(out, argument.length)
-            bytes.write(out, argument)
+            state.parts = state.parts.push(bytes.encodeU64Le(argument.length))[0]
+            state.parts = state.parts.push(argument)[0]
             state.index += 1
-        }
+        },
+        return: state => state.parts
     })
 
-    bytes.writeU64Le(out, in.types)
-    bytes.writeU64Le(out, in.signatures)
+    const tail = collected.push(bytes.encodeU64Le(in.types))[0]
+
+    return bytes.join(
+        bytes.fromText(""),
+        tail.push(bytes.encodeU64Le(in.signatures))[0]
+    )
 }

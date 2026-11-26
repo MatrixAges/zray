@@ -1,28 +1,36 @@
 import bytes from "std:bytes"
-import { ascii_line_feed, ascii_space } from "core/ascii/const"
 
 import type { Publish as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, digests, valid } = in
+    const { digests, valid } = in
 
-    const position = loop({
-        index: 0
+    const parts: u8[][] = []
+
+    const collected = loop({
+        index: 0,
+        parts
     }, {
         while: state => state.index < valid.length,
         next: state => {
             const index = state.index
 
             if (valid[index]) {
-                bytes.writeDecimalU64(out, index)
-                bytes.writeByte(out, ascii_space)
-                bytes.write(out, digests[index])
-                bytes.writeByte(out, ascii_line_feed)
+                const line = bytes.join(bytes.fromText(""), [
+                    bytes.fromText(templateFile("./entry.tpl")),
+                    digests[index],
+                    bytes.fromText("\n")
+                ])
+
+                state.parts = state.parts.push(line)[0]
             }
 
             state.index += 1
-        }
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

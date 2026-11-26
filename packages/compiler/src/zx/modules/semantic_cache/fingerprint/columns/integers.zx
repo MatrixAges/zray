@@ -1,17 +1,12 @@
 import bytes from "std:bytes"
 
-import type { Writer } from "std:bytes"
+export type Input = u32[]
 
-export type Input = {
-    out: Writer,
-    value: u32[]
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, value: values } = in
-
-    bytes.writeU64Le(out, values.length)
-    bytes.writeU32sLe(out, values)
+    return bytes.join(bytes.fromText(""), [
+        bytes.encodeU64Le(in.length),
+        bytes.encodeU32sLe(in)
+    ])
 }

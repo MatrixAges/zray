@@ -1,23 +1,24 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
-import type { Writer } from "std:bytes"
 import type { Member } from "./selection/model"
 
 export type Input = {
-    out: Writer,
     paths: string[],
     hashes: u64[],
     members: Member[]
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, paths, hashes, members } = in
+    const { paths, hashes, members } = in
 
-    const position = loop({
-        index: 0
+    const parts: u8[][] = []
+
+    const collected = loop({
+        index: 0,
+        parts
     }, {
         while: state => state.index < members.length,
         next: state => {
@@ -32,12 +33,19 @@ export default function (in: Input): Output {
             ) {
                 const raw = bytes.fromText(path)
 
-                bytes.writeU64Le(out, raw.length)
-                bytes.write(out, raw)
-                bytes.writeU64Le(out, hashes[row])
+                const entry = bytes.join(bytes.fromText(""), [
+                    bytes.encodeU64Le(raw.length),
+                    raw,
+                    bytes.encodeU64Le(hashes[row])
+                ])
+
+                state.parts = state.parts.push(entry)[0]
             }
 
             state.index = next
-        }
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

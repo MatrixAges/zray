@@ -3,41 +3,24 @@ import bytes from "std:bytes"
 import optionalText from "../columns/optional_text"
 import text from "../columns/text"
 
-import type { Writer } from "std:bytes"
 import type { Store } from "./model"
 
-export type Input = {
-    writer: Writer,
-    binding: Store
-}
+export type Input = Store
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, binding } = in
-    const { type_id } = binding
+    const { type_id } = in
 
-    text({
-        out: writer,
-        value: binding.handle
-    })
+    const encoded_id = type_id == null ? bytes.fromText("") : bytes.encodeU32Le(type_id)
 
-    text({
-        out: writer,
-        value: binding.path
-    })
-
-    optionalText({
-        out: writer,
-        value: binding.type_name
-    })
-
-    bytes.writeByte(writer, type_id == null ? 0 : 1)
-
-    if (type_id != null) {
-        bytes.writeU32Le(writer, type_id)
-    }
-
-    bytes.writeByte(writer, binding.readable ? 1 : 0)
-    bytes.writeByte(writer, binding.writable ? 1 : 0)
+    return bytes.join(bytes.fromText(""), [
+        text(in.handle),
+        text(in.path),
+        optionalText(in.type_name),
+        bytes.repeat(1, type_id == null ? 0 : 1),
+        encoded_id,
+        bytes.repeat(1, in.readable ? 1 : 0),
+        bytes.repeat(1, in.writable ? 1 : 0)
+    ])
 }

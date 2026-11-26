@@ -1,31 +1,25 @@
 import bytes from "std:bytes"
 
-import writeValue from "./integers"
+import encodeValue from "./integers"
 
-import type { Writer } from "std:bytes"
+export type Input = u32[][]
 
-export type Input = {
-    out: Writer,
-    value: u32[][]
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { out, value: values } = in
+    const parts: u8[][] = [bytes.encodeU64Le(in.length)]
 
-    bytes.writeU64Le(out, values.length)
-
-    const result = loop({
-        index: 0
+    const collected = loop({
+        index: 0,
+        parts
     }, {
-        while: state => state.index < values.length,
+        while: state => state.index < in.length,
         next: state => {
-            writeValue({
-                out,
-                value: values[state.index]
-            })
+            state.parts = state.parts.push(encodeValue(in[state.index]))[0]
             state.index += 1
-        }
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

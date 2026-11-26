@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+import crypto from "std:crypto"
+
+import { native_domain } from "./const"
+
+import type { Parts as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const domain = bytes.fromText(native_domain)
+
+    const header = bytes.join(bytes.fromText(""), [
+        bytes.encodeU64Le(domain.length),
+        domain
+    ])
+
+    return crypto.sha256Parts([
+        header,
+        in.fields,
+        in.namespace
+    ])
+}

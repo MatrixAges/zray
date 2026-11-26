@@ -1,30 +1,22 @@
-import bytes from "std:bytes"
+import strings from "std:string"
 
 import digest from "../../../artifact_codec/digest"
 import { cache_extension, native_directory } from "./const"
 
-import type { Writer } from "std:bytes"
-
 export type Input = {
-    writer: Writer,
     native: bool,
     key: string
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, native, key } = in
-
-    if (native) {
-        bytes.write(writer, bytes.fromText(native_directory))
-    }
-
-    const hash = digest({
-        source: key,
-        start: 0
-    })
-
-    bytes.write(writer, bytes.fromText(hash))
-    bytes.write(writer, bytes.fromText(cache_extension))
+    return strings.join("", [
+        in.native ? native_directory : "",
+        digest({
+            source: in.key,
+            start: 0
+        }),
+        cache_extension
+    ])
 }

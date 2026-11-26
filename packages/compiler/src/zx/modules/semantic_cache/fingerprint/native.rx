@@ -1,27 +1,23 @@
 <Module>
     <Type from="model" as="Fingerprint" />
 
-    <Args in={Fingerprint.Input} out={void} />
+    <Args in={Fingerprint.Input} out={u8[]} />
 
-    <Call fn="seed" in={$in.hash} />
-
-    <Task name="interface">
-        <Call
-            fn="fields"
-            in={{
-                hash: $in.hash,
-                fields: $in.fields
-            }}
-        />
+    <Task name="interface" out={$ctx.fields}>
+        <Call fn="fields" in={$in.fields} />
     </Task>
 
-    <Task name="namespace">
-        <Call
-            fn="fields"
-            in={{
-                hash: $in.hash,
-                fields: $in.namespace
-            }}
-        />
+    <Task name="namespace" out={$ctx.fields}>
+        <Call fn="fields" in={$in.namespace} />
     </Task>
+
+    <Call
+        fn="native_digest"
+        in={{
+            fields: $ctx.task.interface,
+            namespace: $ctx.task.namespace
+        }}
+    />
+
+    <Return value={$ctx.native_digest} />
 </Module>

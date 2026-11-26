@@ -1,35 +1,39 @@
 import bytes from "std:bytes"
 import memory from "memory"
 
-import writeStore from "./store"
+import encodeStore from "./store"
 
-import type { Input as Context } from "./model"
+import type { StoreRows } from "./model"
 
-export type Input = Context.Pick("writer", "stores")
+export type Input = StoreRows
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, stores } = in
+    const parts: u8[][] = [bytes.encodeU64Le(in.count)]
 
-    bytes.writeU64Le(writer, stores.count)
+    const collected = loop({
+        row: 0,
+        parts
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const row = state.row
 
-    const encoded = loop(0, {
-        while: row => row < stores.count,
-        next: row => {
-            writeStore({
-                writer,
-                binding: {
-                    handle: memory.readTextColumn(stores.handle, row),
-                    path: memory.readTextColumn(stores.path, row),
-                    type_name: memory.readOptionalTextColumn(stores.type_name, row),
-                    type_id: memory.readColumnOptionalU32(stores.type_id, row),
-                    readable: memory.readColumnBool(stores.readable, row),
-                    writable: memory.readColumnBool(stores.writable, row)
-                }
+            const encoded = encodeStore({
+                handle: memory.readTextColumn(in.handle, row),
+                path: memory.readTextColumn(in.path, row),
+                type_name: memory.readOptionalTextColumn(in.type_name, row),
+                type_id: memory.readColumnOptionalU32(in.type_id, row),
+                readable: memory.readColumnBool(in.readable, row),
+                writable: memory.readColumnBool(in.writable, row)
             })
 
-            row += 1
-        }
+            state.parts = state.parts.push(encoded)[0]
+            state.row += 1
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

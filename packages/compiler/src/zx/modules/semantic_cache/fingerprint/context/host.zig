@@ -16,10 +16,10 @@ pub fn digest(allocator: std.mem.Allocator, context: Context) std.mem.Allocator.
         return result;
     }
 
-    var buffer: [1024]u8 = undefined;
-    var hash: std.Io.Writer.Hashing(zx.Sha256) = .init(&buffer);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const memory = empty.allocator();
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
     const entry = @import("generated_semantic_context_encode");
     const Input = std.meta.Child(entry.Input);
     const Origins = std.meta.Child(@FieldType(Input, "origins"));
@@ -31,7 +31,6 @@ pub fn digest(allocator: std.mem.Allocator, context: Context) std.mem.Allocator.
     const stores = context.stores;
 
     const input: Input = .{
-        .writer = @ptrCast(&hash.writer),
         .types = &types,
         .origins = &origins,
         .native_modules = &modules,
@@ -46,16 +45,12 @@ pub fn digest(allocator: std.mem.Allocator, context: Context) std.mem.Allocator.
         },
     };
 
-    entry.executeValue(memory, &input) catch |err| switch (err) {
+    const encoded = entry.executeIn(arena.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.IndexOutOfBounds => unreachable,
+        else => unreachable,
     };
 
-    hash.writer.flush() catch unreachable;
+    std.debug.assert(encoded.len == 32);
 
-    var result: [32]u8 = undefined;
-
-    hash.hasher.final(&result);
-
-    return result;
+    return encoded[0..32].*;
 }

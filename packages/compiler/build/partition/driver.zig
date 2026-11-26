@@ -66,12 +66,13 @@ pub fn startPartitionHash(handle: *anyopaque) Failure!void {
     self.shared.init();
 
     self.shared.prefix(
+        self.workspace,
         self.request.zig,
         stat,
         self.request.arguments,
         selected.types orelse return self.fail(error.MissingGeneratedFile),
         selected.signatures orelse return self.fail(error.MissingGeneratedFile),
-    );
+    ) catch |err| return self.fail(err);
 }
 
 pub fn hashExternalInput(handle: *anyopaque, path: []const u8) Failure!void {
@@ -89,7 +90,7 @@ pub fn allocatePartitionKeys(handle: *anyopaque, count: u64) Failure!void {
 pub fn hashPartitionMembers(handle: *anyopaque, row: u64, first: u64, end: u64) void {
     const self = borrow(handle);
 
-    self.keys.hash(@intCast(row), self.listed, self.selected.members[@intCast(first)..@intCast(end)]);
+    self.keys.hash(self.workspace, @intCast(row), self.listed, self.selected.members[@intCast(first)..@intCast(end)]);
 }
 
 pub fn loadPartitionObjects(handle: *anyopaque, state_file: []const u8) Failure!*const native.PartitionObjects {

@@ -22,13 +22,11 @@ pub const Keys = struct {
         });
     }
     pub fn write(self: Keys, io: std.Io, allocator: std.mem.Allocator, path: []const u8, valid: []const bool) !void {
-        var text = std.Io.Writer.Allocating.init(allocator);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var arena = std.heap.ArenaAllocator.init(allocator);
 
-        defer text.deinit();
+        defer arena.deinit();
 
-        try rules.partition_cache_publish.executeValue(empty.allocator(), &.{
-            .out = @ptrCast(&text.writer),
+        const text = try rules.partition_cache_publish.executeIn(arena.allocator(), &.{
             .digests = self.hex,
             .valid = valid,
         });
@@ -37,7 +35,7 @@ pub const Keys = struct {
 
         defer file.deinit(io);
 
-        try file.file.writeStreamingAll(io, text.written());
+        try file.file.writeStreamingAll(io, text);
         try file.replace(io);
     }
 };

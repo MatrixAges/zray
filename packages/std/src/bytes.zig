@@ -48,6 +48,28 @@ pub fn encodeU64Le(allocator: std.mem.Allocator, value: u64) std.mem.Allocator.E
     return output;
 }
 
+pub fn encodeU32sLe(allocator: std.mem.Allocator, values: []const u32) std.mem.Allocator.Error![]const u8 {
+    const byte_len = std.math.mul(usize, values.len, @sizeOf(u32)) catch return error.OutOfMemory;
+    const output = try allocator.alloc(u8, byte_len);
+
+    for (values, 0..) |value, index| {
+        std.mem.writeInt(u32, output[index * @sizeOf(u32) ..][0..@sizeOf(u32)], value, .little);
+    }
+
+    return output;
+}
+
+pub fn encodeU64sLe(allocator: std.mem.Allocator, values: []const u64) std.mem.Allocator.Error![]const u8 {
+    const byte_len = std.math.mul(usize, values.len, @sizeOf(u64)) catch return error.OutOfMemory;
+    const output = try allocator.alloc(u8, byte_len);
+
+    for (values, 0..) |value, index| {
+        std.mem.writeInt(u64, output[index * @sizeOf(u64) ..][0..@sizeOf(u64)], value, .little);
+    }
+
+    return output;
+}
+
 pub fn count(haystack: []const u8, needle: u8) u64 {
     return std.mem.countScalar(u8, haystack, needle);
 }

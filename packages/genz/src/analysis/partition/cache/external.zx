@@ -1,24 +1,20 @@
 import bytes from "std:bytes"
 
-import type { Writer } from "std:bytes"
-
 export type Input = {
-    out: Writer,
     path: string,
     size?: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const path = bytes.fromText(in.path)
-
-    bytes.writeU64Le(in.out, path.length)
-    bytes.write(in.out, path)
-
     const size = in.size
+    const encoded_size = size == null ? bytes.fromText("") : bytes.encodeU64Le(size)
 
-    if (size != null) {
-        bytes.writeU64Le(in.out, size)
-    }
+    return bytes.join(bytes.fromText(""), [
+        bytes.encodeU64Le(path.length),
+        path,
+        encoded_size
+    ])
 }

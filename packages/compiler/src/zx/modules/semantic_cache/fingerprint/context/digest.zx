@@ -1,0 +1,18 @@
+import crypto from "std:crypto"
+
+import text from "../columns/text"
+import { context_domain } from "../const"
+
+import type { Encoded as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return crypto.sha256Parts([
+        text(context_domain),
+        in.types,
+        in.origins,
+        in.native_modules,
+        in.stores
+    ])
+}

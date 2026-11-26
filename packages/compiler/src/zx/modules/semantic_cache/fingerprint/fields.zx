@@ -1,26 +1,26 @@
 import bytes from "std:bytes"
-import crypto from "std:crypto"
 
-import type { Sha256State } from "std:crypto"
+export type Input = string[]
 
-export type Input = {
-    hash: Sha256State,
-    fields: string[]
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const result = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.fields.length,
-        next: state => {
-            const field = bytes.fromText(in.fields[state.index])
+    const parts: u8[][] = []
 
-            crypto.updateSha256U64Le(in.hash, field.length)
-            crypto.updateSha256(in.hash, field)
+    const collected = loop({
+        index: 0,
+        parts
+    }, {
+        while: state => state.index < in.length,
+        next: state => {
+            const field = bytes.fromText(in[state.index])
+
+            state.parts = state.parts.push(bytes.encodeU64Le(field.length))[0]
+            state.parts = state.parts.push(field)[0]
             state.index += 1
-        }
+        },
+        return: state => state.parts
     })
+
+    return bytes.join(bytes.fromText(""), collected)
 }

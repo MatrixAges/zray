@@ -1,57 +1,24 @@
+import bytes from "std:bytes"
+
 import integers from "../columns/integers"
 import octets from "../columns/octets"
 import strings from "../columns/strings"
 
-import type { Writer } from "std:bytes"
 import type { Table } from "core/type_table/model"
 
-export type Input = {
-    writer: Writer,
-    types: Table
-}
+export type Input = Table
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, types } = in
-
-    octets({
-        out: writer,
-        value: types.kinds
-    })
-
-    integers({
-        out: writer,
-        value: types.first
-    })
-
-    integers({
-        out: writer,
-        value: types.second
-    })
-
-    strings({
-        out: writer,
-        value: types.labels
-    })
-
-    integers({
-        out: writer,
-        value: types.children
-    })
-
-    integers({
-        out: writer,
-        value: types.field_types
-    })
-
-    strings({
-        out: writer,
-        value: types.field_names
-    })
-
-    strings({
-        out: writer,
-        value: types.names
-    })
+    return bytes.join(bytes.fromText(""), [
+        octets(in.kinds),
+        integers(in.first),
+        integers(in.second),
+        strings(in.labels),
+        integers(in.children),
+        integers(in.field_types),
+        strings(in.field_names),
+        strings(in.names)
+    ])
 }

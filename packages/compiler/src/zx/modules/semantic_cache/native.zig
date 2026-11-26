@@ -41,7 +41,7 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
         .current = current,
         .reporter = reporter,
         .span = span,
-        .fingerprint = digest(entry),
+        .fingerprint = try digest(allocator, entry),
         .slot = .{ .allocator = self.allocator, .entries = &self.items },
     };
 
@@ -137,25 +137,35 @@ pub fn validateNativeCacheEntry(handle: *anyopaque) zx.Error!void {
     };
 }
 
-fn digest(entry: Native) [32]u8 {
-    var hash: zx.Sha256 = undefined;
+fn digest(allocator: std.mem.Allocator, entry: Native) std.mem.Allocator.Error![32]u8 {
     const fields = [_][]const u8{ entry.key(), entry.specifier, entry.path, entry.source, entry.module };
 
     if (comptime @import("parser_options").generated_parser) {
         const generated = @import("generated_semantic_cache_native_fingerprint");
-        const reference: zx.Sha256State = .{ .value = &hash };
-        const input: std.meta.Child(generated.Input) = .{ .hash = @ptrCast(&reference), .fields = &fields, .namespace = entry.namespace };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var buffer: [2048]u8 = undefined;
+        var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+        var arena = std.heap.ArenaAllocator.init(backing.allocator());
 
-        zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-    } else {
-        hash = zx.Sha256.init(.{});
+        defer arena.deinit();
 
-        field(&hash, "zxc.native.interface.v2");
+        const input: std.meta.Child(generated.Input) = .{ .fields = &fields, .namespace = entry.namespace };
 
-        for (fields) |part| field(&hash, part);
-        for (entry.namespace) |part| field(&hash, part);
+        const result = generated.executeIn(arena.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        std.debug.assert(result.len == 32);
+
+        return result[0..32].*;
     }
+
+    var hash = zx.Sha256.init(.{});
+
+    field(&hash, "zxc.native.interface.v2");
+
+    for (fields) |part| field(&hash, part);
+    for (entry.namespace) |part| field(&hash, part);
 
     var result: [32]u8 = undefined;
 

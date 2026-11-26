@@ -4,47 +4,48 @@ const Io = std.Io;
 const Blake3 = std.crypto.hash.Blake3;
 const Digest = [Blake3.digest_length]u8;
 const Encoded = @TypeOf(std.fmt.bytesToHex(@as(Digest, @splat(0)), .lower));
-const HashWriter = Io.Writer.Hashing(Blake3);
 const buffer_size = 16 * 1024;
 const Listed = @import("file_manifest").Listed;
 const Members = @FieldType(std.meta.Child(rules.partition_cache_selection.Output), "members");
 
 pub const Shared = struct {
     buffer: [buffer_size]u8 = undefined,
-    writer: HashWriter = undefined,
+    hasher: Blake3 = undefined,
     pub fn init(self: *Shared) void {
-        self.writer = .init(&self.buffer);
+        self.hasher = Blake3.init(.{});
     }
 
-    pub fn prefix(self: *Shared, executable: []const u8, stat: Io.File.Stat, arguments: []const []const u8, types: u64, signatures: u64) void {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+    pub fn prefix(self: *Shared, allocator: std.mem.Allocator, executable: []const u8, stat: Io.File.Stat, arguments: []const []const u8, types: u64, signatures: u64) !void {
+        var scratch = std.heap.ArenaAllocator.init(allocator);
+
+        defer scratch.deinit();
+
         const rule = rules.partition_cache_prefix;
 
-        rule.executeValue(empty.allocator(), &.{
-            .out = @ptrCast(&self.writer.writer),
+        const encoded = try rule.executeIn(scratch.allocator(), &.{
             .executable = executable,
             .size = stat.size,
             .modified = @bitCast(@as(i64, @truncate(stat.mtime.nanoseconds))),
             .arguments = arguments,
             .types = types,
             .signatures = signatures,
-        }) catch unreachable;
+        });
+
+        self.hasher.update(encoded);
     }
 
-    pub fn state(self: *Shared) Blake3 {
-        self.writer.writer.flush() catch unreachable;
-
-        return self.writer.hasher;
+    pub fn state(self: *const Shared) Blake3 {
+        return self.hasher;
     }
     pub fn input(self: *Shared, io: Io, allocator: std.mem.Allocator, path: []const u8) !void {
-        try inputPath(io, allocator, &self.writer, path);
+        try inputPath(io, allocator, &self.hasher, &self.buffer, path);
     }
 };
 
-fn inputPath(io: Io, workspace: std.mem.Allocator, hash: *HashWriter, path: []const u8) !void {
+fn inputPath(io: Io, workspace: std.mem.Allocator, hasher: *Blake3, buffer: []u8, path: []const u8) !void {
     const cwd = Io.Dir.cwd();
 
-    if ((try cwd.statFile(io, path, .{})).kind == .file) return file(io, cwd, hash, path);
+    if ((try cwd.statFile(io, path, .{})).kind == .file) return file(io, workspace, cwd, hasher, buffer, path);
 
     var directory = try cwd.openDir(io, path, .{ .iterate = true });
 
@@ -65,30 +66,28 @@ fn inputPath(io: Io, workspace: std.mem.Allocator, hash: *HashWriter, path: []co
 
     const ordered = try rules.partition_cache_external_order.executeValue(allocator, paths.items);
 
-    external(hash, path, null);
-
-    for (ordered) |child| try file(io, directory, hash, child);
+    try external(allocator, hasher, path, null);
+    for (ordered) |child| try file(io, allocator, directory, hasher, buffer, child);
 }
 
-fn file(io: Io, directory: Io.Dir, hash: *HashWriter, path: []const u8) !void {
+fn file(io: Io, allocator: std.mem.Allocator, directory: Io.Dir, hasher: *Blake3, buffer: []u8, path: []const u8) !void {
     const handle = try directory.openFile(io, path, .{});
 
     defer handle.close(io);
 
     const size = try handle.length(io);
 
-    external(hash, path, size);
-    hash.writer.flush() catch unreachable;
+    try external(allocator, hasher, path, size);
 
     var offset: u64 = 0;
 
     while (offset < size) {
-        const length: usize = @intCast(@min(hash.writer.buffer.len, size - offset));
-        const block = hash.writer.buffer[0..length];
+        const length: usize = @intCast(@min(buffer.len, size - offset));
+        const block = buffer[0..length];
 
         if (try handle.readPositionalAll(io, block, offset) != length) return error.FileChanged;
 
-        hash.hasher.update(block);
+        hasher.update(block);
 
         offset += length;
     }
@@ -96,11 +95,16 @@ fn file(io: Io, directory: Io.Dir, hash: *HashWriter, path: []const u8) !void {
     if (try handle.length(io) != size) return error.FileChanged;
 }
 
-fn external(hash: *HashWriter, path: []const u8, size: ?u64) void {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const rule = rules.partition_cache_external;
+fn external(allocator: std.mem.Allocator, hasher: *Blake3, path: []const u8, size: ?u64) !void {
+    var buffer: [512]u8 = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var scratch = std.heap.ArenaAllocator.init(backing.allocator());
 
-    rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(&hash.writer), .path = path, .size = size }) catch unreachable;
+    defer scratch.deinit();
+
+    const encoded = try rules.partition_cache_external.executeIn(scratch.allocator(), &.{ .path = path, .size = size });
+
+    hasher.update(encoded);
 }
 
 pub const Partitions = struct {
@@ -114,30 +118,29 @@ pub const Partitions = struct {
             .hex = try allocator.alloc([]const u8, count),
         };
     }
-
-    pub fn hash(self: *Partitions, row: usize, manifest: Listed, group: Members) void {
+    pub fn hash(self: *Partitions, allocator: std.mem.Allocator, row: usize, manifest: Listed, group: Members) void {
         var digest: Digest = undefined;
 
-        members(self.source, manifest, group, &digest);
+        members(allocator, self.source, manifest, group, &digest);
 
         self.names[row] = std.fmt.bytesToHex(digest, .lower);
         self.hex[row] = &self.names[row];
     }
 };
 
-fn members(shared: Blake3, manifest: Listed, group: Members, digest: *Digest) void {
-    var buffer: [1024]u8 = undefined;
-    var stream: HashWriter = .initHasher(shared, &buffer);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const rule = rules.partition_cache_members;
+fn members(allocator: std.mem.Allocator, shared: Blake3, manifest: Listed, group: Members, digest: *Digest) void {
+    var scratch = std.heap.ArenaAllocator.init(allocator);
 
-    rule.executeValue(empty.allocator(), &.{
-        .out = @ptrCast(&stream.writer),
+    defer scratch.deinit();
+
+    const encoded = rules.partition_cache_members.executeIn(scratch.allocator(), &.{
         .paths = manifest.paths,
         .hashes = manifest.hashes,
         .members = group,
     }) catch unreachable;
 
-    stream.writer.flush() catch unreachable;
-    stream.hasher.final(digest);
+    var hasher = shared;
+
+    hasher.update(encoded);
+    hasher.final(digest);
 }
