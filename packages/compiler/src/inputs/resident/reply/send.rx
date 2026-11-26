@@ -1,21 +1,18 @@
 <Module>
     <Type from="../model" as="Protocol" />
 
-    <Args in={Protocol.Reply} out={void} />
+    <Args in={Protocol.Reply} out={u8[]} />
+
+    <Call fn="write_status" in={$in.status} />
+    <Call fn="../write_text" in={$in.summary} />
 
     <Call
-        fn="write_status"
-        in={$in.pick([
-            "writer",
-            "status"
-        ])}
-    />
-
-    <Call
-        fn="../write_text"
+        fn="../join"
         in={{
-            writer: $in.writer,
-            value: $in.summary
+            head: $ctx.write_status,
+            tail: $ctx.write_text
         }}
     />
+
+    <Return value={$ctx.join} />
 </Module>

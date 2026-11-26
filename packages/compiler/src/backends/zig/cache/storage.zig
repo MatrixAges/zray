@@ -119,19 +119,13 @@ fn filePath(self: Self, allocator: std.mem.Allocator, key: []const u8) std.mem.A
     if (comptime !@import("parser_options").generated_parser) return std.fmt.allocPrint(allocator, "{s}/{s}.cache", .{ self.directory, key });
 
     const path = @import("generated_generation_cache_path");
-    const constants = @import("generated_generation_cache_constants").@"zx.constants";
-    const suffix = 1 + constants.cache_suffix.len;
-    const prefix = std.math.add(usize, self.directory.len, key.len) catch return error.OutOfMemory;
-    const length = std.math.add(usize, prefix, suffix) catch return error.OutOfMemory;
-    const buffer = try allocator.alloc(u8, length);
+    var buffer: [512]u8 = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var arena = std.heap.ArenaAllocator.init(backing.allocator());
 
-    errdefer allocator.free(buffer);
+    defer arena.deinit();
 
-    var writer: std.Io.Writer = .fixed(buffer);
-    const input: std.meta.Child(path.Input) = .{ .writer = @ptrCast(&writer), .directory = self.directory, .key = key };
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const encoded = try path.executeIn(arena.allocator(), &.{ .directory = self.directory, .key = key });
 
-    try @import("zx").columns.invoke(path.executeValue, fixed.allocator(), &input);
-
-    return buffer;
+    return allocator.dupe(u8, encoded);
 }

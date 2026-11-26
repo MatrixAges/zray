@@ -58,13 +58,12 @@ pub fn receive(allocator: std.mem.Allocator, reader: *std.Io.Reader) !Envelope {
     };
 }
 
-pub fn send(writer: *std.Io.Writer, identity: Identity, cwd: []const u8, request: Request) !void {
+pub fn send(allocator: std.mem.Allocator, writer: *std.Io.Writer, identity: Identity, cwd: []const u8, request: Request) !void {
     if (comptime !generated) return seed.send(writer, identity, cwd, request);
 
     const rule = @import("generated_resident_send");
 
     const input: std.meta.Child(rule.Input) = .{
-        .writer = @ptrCast(writer),
         .size = identity.size,
         .mtime_low = identity.mtime_low,
         .mtime_high = identity.mtime_high,
@@ -76,10 +75,15 @@ pub fn send(writer: *std.Io.Writer, identity: Identity, cwd: []const u8, request
         .partitions = request.partitions,
     };
 
-    var buffer: [512]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    var buffer: [2048]u8 = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var arena = std.heap.ArenaAllocator.init(backing.allocator());
 
-    try zx.columns.invoke(rule.executeValue, scratch.allocator(), &input);
+    defer arena.deinit();
+
+    const payload = try rule.executeIn(arena.allocator(), &input);
+
+    try writer.writeAll(payload);
 }
 
 pub fn admit(own: *const Identity, message: *const Envelope, here: []const u8) Status {
@@ -97,15 +101,20 @@ pub fn admit(own: *const Identity, message: *const Envelope, here: []const u8) S
     return @fromBackingInt(@intCast(@backingInt(status)));
 }
 
-pub fn reply(writer: *std.Io.Writer, status: Status, summary: []const u8) !void {
+pub fn reply(allocator: std.mem.Allocator, writer: *std.Io.Writer, status: Status, summary: []const u8) !void {
     if (comptime !generated) return seed.reply(writer, status, summary);
 
     const rule = @import("generated_resident_reply");
-    const input: std.meta.Child(rule.Input) = .{ .writer = @ptrCast(writer), .status = @fromBackingInt(@intCast(@backingInt(status))), .summary = summary };
-    var buffer: [128]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    const input: std.meta.Child(rule.Input) = .{ .status = @fromBackingInt(@intCast(@backingInt(status))), .summary = summary };
+    var buffer: [512]u8 = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var arena = std.heap.ArenaAllocator.init(backing.allocator());
 
-    try zx.columns.invoke(rule.executeValue, scratch.allocator(), &input);
+    defer arena.deinit();
+
+    const payload = try rule.executeIn(arena.allocator(), &input);
+
+    try writer.writeAll(payload);
 }
 
 pub fn readSummary(allocator: std.mem.Allocator, reader: *std.Io.Reader) !?[]const u8 {

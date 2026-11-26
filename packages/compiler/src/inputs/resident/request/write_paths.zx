@@ -2,32 +2,16 @@ import bytes from "std:bytes"
 
 import writeText from "../write_text"
 
-import type { Body as Input } from "../model"
+import type { Paths as Input } from "../model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, cwd, manifest, output, cache, partitions } = in
-
-    writeText({
-        writer,
-        value: cwd
-    })
-
-    writeText({
-        writer,
-        value: manifest
-    })
-
-    writeText({
-        writer,
-        value: output
-    })
-
-    writeText({
-        writer,
-        value: cache
-    })
-
-    bytes.writeU32Le(writer, partitions)
+    return bytes.join(bytes.fromText(""), [
+        writeText(in.cwd),
+        writeText(in.manifest),
+        writeText(in.output),
+        writeText(in.cache),
+        bytes.encodeU32Le(in.partitions)
+    ])
 }

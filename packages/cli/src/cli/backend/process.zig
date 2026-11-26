@@ -24,11 +24,13 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, arguments: []const []const 
 
     defer child.kill(io);
 
-    var request: [2 * @sizeOf(Message.Header)]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&request);
+    var scratch_buffer: [128]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&scratch_buffer);
+    const request = try source.request.executeValue(scratch.allocator(), {});
 
-    try source.request.executeIn(allocator, @ptrCast(&writer));
-    try child.stdin.?.writeStreamingAll(io, writer.buffered());
+    std.debug.assert(request.len == 2 * @sizeOf(Message.Header));
+
+    try child.stdin.?.writeStreamingAll(io, request);
 
     child.stdin.?.close(io);
 

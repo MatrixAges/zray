@@ -1,16 +1,16 @@
 import bytes from "std:bytes"
 
-import { newline, word_radix } from "./const"
+import { word_radix } from "./const"
 import hexWord from "./hex_word"
 
-import type { Length as Input } from "./model"
+export type Input = u64
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, payload_size } = in
-
-    bytes.writeU64Le(writer, hexWord(payload_size / word_radix))
-    bytes.writeU64Le(writer, hexWord(payload_size % word_radix))
-    bytes.writeByte(writer, newline)
+    return bytes.join(bytes.fromText(""), [
+        bytes.encodeU64Le(hexWord(in / word_radix)),
+        bytes.encodeU64Le(hexWord(in % word_radix)),
+        bytes.fromText("\n")
+    ])
 }

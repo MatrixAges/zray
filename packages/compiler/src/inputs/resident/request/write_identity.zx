@@ -2,19 +2,15 @@ import bytes from "std:bytes"
 
 import writeText from "../write_text"
 
-import type { Header as Input } from "../model"
+import type { Identity as Input } from "../model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, size, mtime_low, mtime_high } = in
-
-    bytes.writeU64Le(writer, size)
-    bytes.writeU64Le(writer, mtime_low)
-    bytes.writeU64Le(writer, mtime_high)
-
-    writeText({
-        writer,
-        value: in.path
-    })
+    return bytes.join(bytes.fromText(""), [
+        bytes.encodeU64Le(in.size),
+        bytes.encodeU64Le(in.mtime_low),
+        bytes.encodeU64Le(in.mtime_high),
+        writeText(in.path)
+    ])
 }

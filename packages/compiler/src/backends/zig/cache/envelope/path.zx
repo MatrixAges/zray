@@ -1,22 +1,19 @@
 import bytes from "std:bytes"
 
-import { cache_suffix, path_separator } from "./const"
-
-import type { Writer } from "std:bytes"
+import { cache_suffix } from "./const"
 
 export type Input = {
-    writer: Writer,
     directory: u8[],
     key: u8[]
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer, directory, key } = in
-
-    bytes.write(writer, directory)
-    bytes.writeByte(writer, path_separator)
-    bytes.write(writer, key)
-    bytes.write(writer, bytes.fromText(cache_suffix))
+    return bytes.join(bytes.fromText(""), [
+        in.directory,
+        bytes.fromText("/"),
+        in.key,
+        bytes.fromText(cache_suffix)
+    ])
 }

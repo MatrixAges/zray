@@ -22,5 +22,3 @@ export const header_width: u64 =
     marker_width + digest_text_width * 2 + length_width + separator_count
 
 export const cache_suffix: string = ".cache"
-
-export const path_separator: u8 = 47

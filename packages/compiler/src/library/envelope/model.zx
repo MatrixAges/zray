@@ -1,5 +1,3 @@
-import type { Writer } from "std:bytes"
-
 export type Payload = {
     accepted: bool,
     start: u64,
@@ -13,14 +11,4 @@ export type Admission = Payload.Omit(
     "digest_start"
 ) & {
     current_ir: bool
-}
-
-export type Seal = {
-    writer: Writer,
-    payload: string
-}
-
-export type Header = {
-    writer: Writer,
-    digest: string
 }

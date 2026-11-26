@@ -1,21 +1,19 @@
 import bytes from "std:bytes"
 
-import { done_code, failed_code, stale_code, declined_code } from "../const"
+import { declined_code, done_code, failed_code, stale_code } from "../const"
 import { Status } from "../model"
 
-import type { Reply } from "../model"
+export type Input = Status
 
-export type Input = Reply.Pick("writer", "status")
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const code = match in.status {
+    const code = match in {
         Status.Done => done_code,
         Status.Failed => failed_code,
         Status.Stale => stale_code,
         _ => declined_code
     }
 
-    bytes.writeByte(in.writer, code)
+    return bytes.repeat(1, code)
 }

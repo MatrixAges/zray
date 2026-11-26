@@ -34,16 +34,15 @@ pub fn encode(allocator: std.mem.Allocator, payload: anytype) std.mem.Allocator.
     errdefer out.deinit();
 
     const encoded = out.writer.buffered();
-    var writer: std.Io.Writer = .fixed(encoded[0..header_size]);
-    var buffer: [256]u8 = undefined;
+    var buffer: [512]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-    const input: std.meta.Child(sealing.Input) = .{ .writer = @ptrCast(&writer), .payload = encoded[header_size..] };
 
-    columns.invoke(sealing.executeValue, scratch.allocator(), &input) catch |err| {
+    const text = sealing.executeValue(scratch.allocator(), encoded[header_size..]) catch |err| {
         std.debug.panic("library header could not be written: {s}", .{@errorName(err)});
     };
 
-    std.debug.assert(writer.end == header_size);
+    std.debug.assert(text.len == header_size);
+    @memcpy(encoded[0..header_size], text);
 
     return out.toOwnedSlice();
 }
@@ -62,15 +61,13 @@ pub fn writeFile(io: std.Io, file: std.Io.File, payload: anytype) !void {
     hashed.writer.flush() catch return writer.err.?;
 
     const digest = std.fmt.bytesToHex(hashed.hasher.finalResult(), .lower);
-    var prefix: std.Io.Writer = .fixed(buffer[0..@intCast(header_size)]);
     var scratch_buffer: [256]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&scratch_buffer);
-    const input: std.meta.Child(header.Input) = .{ .writer = @ptrCast(&prefix), .digest = &digest };
+    const text = header.executeValue(scratch.allocator(), &digest) catch unreachable;
 
-    header.executeIn(scratch.allocator(), &input) catch unreachable;
-    std.debug.assert(prefix.end == header_size);
+    std.debug.assert(text.len == header_size);
 
-    try file.writePositionalAll(io, prefix.buffered(), 0);
+    try file.writePositionalAll(io, text, 0);
 }
 
 pub fn compatible(outer: u32, program: u32, expected: u32) bool {

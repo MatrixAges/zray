@@ -1,12 +1,11 @@
 <Module>
     <Type from="../model" as="Protocol" />
 
-    <Args in={Protocol.Sending} out={void} />
+    <Args in={Protocol.Request} out={u8[]} />
 
     <Call
         fn="write_identity"
         in={$in.pick([
-            "writer",
             "size",
             "mtime_low",
             "mtime_high",
@@ -17,7 +16,6 @@
     <Call
         fn="write_paths"
         in={$in.pick([
-            "writer",
             "cwd",
             "manifest",
             "output",
@@ -25,4 +23,14 @@
             "partitions"
         ])}
     />
+
+    <Call
+        fn="../join"
+        in={{
+            head: $ctx.write_identity,
+            tail: $ctx.write_paths
+        }}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

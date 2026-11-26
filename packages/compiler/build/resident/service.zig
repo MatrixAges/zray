@@ -106,7 +106,7 @@ fn answer(io: std.Io, resident: *Resident, identity: *const Identity, stream: st
         } else |_| status = .Failed;
     }
 
-    try protocol.reply(&writer.interface, status, summary);
+    try protocol.reply(allocator, &writer.interface, status, summary);
     try writer.interface.flush();
 
     return status;
@@ -134,7 +134,7 @@ fn forward(io: std.Io, allocator: std.mem.Allocator, request: Request) !?[]const
     var reader = stream.reader(io, &input_buffer);
     const cwd = try std.process.currentPathAlloc(io, allocator);
 
-    protocol.send(&writer.interface, identity, cwd, request) catch return null;
+    protocol.send(allocator, &writer.interface, identity, cwd, request) catch return null;
     writer.interface.flush() catch return null;
 
     return protocol.readSummary(allocator, &reader.interface) catch null;

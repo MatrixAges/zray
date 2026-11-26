@@ -1,0 +1,13 @@
+import bytes from "std:bytes"
+
+import type { Header as Output, Parts as Input } from "./model"
+
+export default function (in: Input): Output {
+    return {
+        bytes: bytes.join(bytes.fromText(""), [
+            in.prefix,
+            in.length
+        ]),
+        payload_size: in.payload_size
+    }
+}

@@ -1,14 +1,16 @@
-import { writeU32Le } from "std:bytes"
+import bytes from "std:bytes"
 
 import { empty_payload, exit_tag, update_tag } from "./const"
 
-import type { Writer as Input } from "std:bytes"
+export type Input = void
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    writeU32Le(in, update_tag)
-    writeU32Le(in, empty_payload)
-    writeU32Le(in, exit_tag)
-    writeU32Le(in, empty_payload)
+    return bytes.join(bytes.fromText(""), [
+        bytes.encodeU32Le(update_tag),
+        bytes.encodeU32Le(empty_payload),
+        bytes.encodeU32Le(exit_tag),
+        bytes.encodeU32Le(empty_payload)
+    ])
 }

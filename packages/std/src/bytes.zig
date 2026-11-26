@@ -33,6 +33,14 @@ pub fn fromText(text: []const u8) []const u8 {
     return text;
 }
 
+pub fn encodeU32Le(allocator: std.mem.Allocator, value: u32) std.mem.Allocator.Error![]const u8 {
+    const output = try allocator.create([@sizeOf(u32)]u8);
+
+    std.mem.writeInt(u32, output, value, .little);
+
+    return output;
+}
+
 pub fn encodeU64Le(allocator: std.mem.Allocator, value: u64) std.mem.Allocator.Error![]const u8 {
     const output = try allocator.create([@sizeOf(u64)]u8);
 

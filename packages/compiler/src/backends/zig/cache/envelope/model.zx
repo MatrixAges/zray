@@ -1,7 +1,4 @@
-import type { Writer } from "std:bytes"
-
 export type Frame = {
-    writer: Writer,
     compiler: u8[],
     key: u8[],
     size: u64,
@@ -18,10 +15,16 @@ export type Layout = {
     payload_size: u64
 }
 
-export type Prefix = Frame.Omit("size", "reading")
+export type Prefix = Frame.Pick("compiler", "key")
 
-export type Length = {
-    writer: Writer,
+export type Header = {
+    bytes: u8[],
+    payload_size: u64
+}
+
+export type Parts = {
+    prefix: u8[],
+    length: u8[],
     payload_size: u64
 }
 

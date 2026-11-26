@@ -14,24 +14,24 @@ comptime {
 }
 
 pub fn prepare(buffer: []u8, compiler: []const u8, key: []const u8, size: u64) ?Header {
-    var writer: std.Io.Writer = .fixed(buffer);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch_buffer: [2048]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&scratch_buffer);
 
     const input: std.meta.Child(frame.Input) = .{
-        .writer = @ptrCast(&writer),
         .compiler = compiler,
         .key = key,
         .size = size,
         .reading = false,
     };
 
-    const checked = columns.invoke(frame.executeValue, empty.allocator(), &input) catch |err| {
+    const prepared = (frame.executeIn(scratch.allocator(), &input) catch |err| {
         std.debug.panic("generation cache header could not be encoded: {s}", .{@errorName(err)});
-    };
+    }) orelse return null;
 
-    if (!checked.accepted) return null;
+    std.debug.assert(prepared.bytes.len <= buffer.len);
+    @memcpy(buffer[0..prepared.bytes.len], prepared.bytes);
 
-    return .{ .bytes = writer.buffered(), .payload_size = @intCast(checked.payload_size) };
+    return .{ .bytes = buffer[0..prepared.bytes.len], .payload_size = @intCast(prepared.payload_size) };
 }
 
 pub fn payloadSize(total: u64) ?usize {

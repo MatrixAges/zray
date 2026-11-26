@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Envelope" />
 
-    <Args in={Envelope.Frame} out={Envelope.Layout} />
+    <Args in={Envelope.Frame} out={Envelope.Header?} />
 
     <Call
         fn="layout"
@@ -11,24 +11,28 @@
         ])}
     />
 
-    <If on={$ctx.layout.accepted}>
-        <Call
-            fn="prefix"
-            in={$in.pick([
-                "writer",
-                "compiler",
-                "key"
-            ])}
-        />
-
-        <Call
-            fn="length"
-            in={{
-                writer: $in.writer,
-                payload_size: $ctx.layout.payload_size
-            }}
-        />
+    <If on={!$ctx.layout.accepted}>
+        <Return value={null} />
     </If>
 
-    <Return value={$ctx.layout} />
+    <Call
+        fn="prefix"
+        in={$in.pick([
+            "compiler",
+            "key"
+        ])}
+    />
+
+    <Call fn="length" in={$ctx.layout.payload_size} />
+
+    <Call
+        fn="assemble"
+        in={{
+            prefix: $ctx.prefix,
+            length: $ctx.length,
+            payload_size: $ctx.layout.payload_size
+        }}
+    />
+
+    <Return value={$ctx.assemble} />
 </Module>

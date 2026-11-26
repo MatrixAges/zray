@@ -1,6 +1,5 @@
 import bytes from "std:bytes"
 import crypto from "std:crypto"
-import integers from "std:integer"
 
 export type Input = {
     generator: u8[],
@@ -14,12 +13,9 @@ export type Output = u8[]
 export default function (in: Input): Output {
     const directory = bytes.fromText(in.directory)
 
-    const partitions =
-        bytes.readU8s(bytes.encodeU64Le(integers.widen(in.partitions)), 0, 4)
-
     return crypto.sha256Parts([
         in.generator,
-        partitions,
+        bytes.encodeU32Le(in.partitions),
         bytes.encodeU64Le(directory.length),
         directory,
         in.manifest

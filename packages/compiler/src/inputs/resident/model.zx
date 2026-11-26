@@ -1,4 +1,3 @@
-import type { Writer } from "std:bytes"
 import type { StreamReader } from "memory"
 
 export enum Command {
@@ -51,27 +50,14 @@ export type Admission = {
     here: string
 }
 
-export type Sending = Request & {
-    writer: Writer
-}
-
-export type Header = Identity & {
-    writer: Writer
-}
-
-export type Body = Paths & {
-    writer: Writer
-}
-
 export type Reply = {
-    writer: Writer,
     status: Status,
     summary: string
 }
 
-export type Field = {
-    writer: Writer,
-    value: string
+export type Parts = {
+    head: u8[],
+    tail: u8[]
 }
 
 export type Idle = {

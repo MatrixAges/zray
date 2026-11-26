@@ -1,0 +1,12 @@
+import bytes from "std:bytes"
+
+import type { Parts as Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return bytes.join(bytes.fromText(""), [
+        in.head,
+        in.tail
+    ])
+}
