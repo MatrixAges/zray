@@ -14,11 +14,14 @@ export default function (in: Input): Output {
     const { source, registry, range } = in
     const { published, buckets } = registry
 
+    const initial_buckets: u32[]? = null
+
     return loop({
         count: registry.count,
         space: registry.space,
         capacity: registry.capacity,
         limit: registry.capacity * load_numerator / load_denominator,
+        buckets: initial_buckets,
         next: 0,
         status: Status.Done
     }, {
@@ -33,6 +36,7 @@ export default function (in: Input): Output {
                 buckets,
                 range,
                 capacity: state.capacity,
+                rebuilt: state.buckets,
                 identity,
                 version,
                 id: columns.readColumnU32(source.function, row)
@@ -45,6 +49,7 @@ export default function (in: Input): Output {
                     space: state.space,
                     capacity: state.capacity,
                     limit: state.limit,
+                    buckets: state.buckets,
                     identity,
                     version,
                     slot: selected.slot,
@@ -55,6 +60,7 @@ export default function (in: Input): Output {
                 state.space = cursor.space
                 state.capacity = cursor.capacity
                 state.limit = cursor.limit
+                state.buckets = cursor.buckets
             } else if (selected.action == Action.Compare) {
                 const equivalent = compare({
                     functions: in.functions,
@@ -76,6 +82,9 @@ export default function (in: Input): Output {
 
             state.next += 1
         },
-        return: state => state.status
+        return: state => {
+            status: state.status,
+            buckets: state.buckets
+        }
     })
 }

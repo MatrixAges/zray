@@ -2,7 +2,7 @@
     <Type from="model" as="Source" />
     <Type from="../../../artifact/materializing/publication/model" as="Rows" />
 
-    <Args in={Source.Write} out={Source.Output} />
+    <Args in={Source.Write} out={Source.Publication} />
 
     <If on={$in.root != null}>
         <Call module="../../../artifact/materializing/publication/root" in={$in.root} />
@@ -13,16 +13,35 @@
                     fn="../../../compiled/initializer_registry/insert"
                     in={$in.initializer}
                 />
+
+                <Call fn="settle" in={$in.commit} />
+
+                <Return
+                    value={{
+                        status: Source.Status.Ready,
+                        buckets: $ctx.insert
+                    }}
+                />
             </If>
 
             <Call fn="settle" in={$in.commit} />
 
-            <Return value={Source.Status.Ready} />
+            <Return
+                value={{
+                    status: Source.Status.Ready,
+                    buckets: []
+                }}
+            />
         </If>
 
         <Call fn="settle" in={$in.commit} />
 
-        <Return value={Source.Status.Invalid} />
+        <Return
+            value={{
+                status: Source.Status.Invalid,
+                buckets: []
+            }}
+        />
     </If>
 
     <If on={$in.batch != null}>
@@ -34,9 +53,19 @@
         <Call fn="settle" in={$in.commit} />
 
         <If on={$ctx.source == Rows.PublicationStatus.Complete}>
-            <Return value={Source.Status.Ready} />
+            <Return
+                value={{
+                    status: Source.Status.Ready,
+                    buckets: []
+                }}
+            />
         </If>
     </If>
 
-    <Return value={Source.Status.Invalid} />
+    <Return
+        value={{
+            status: Source.Status.Invalid,
+            buckets: []
+        }}
+    />
 </Module>

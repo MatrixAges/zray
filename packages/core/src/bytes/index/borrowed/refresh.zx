@@ -4,20 +4,24 @@ import memory from "memory"
 import capacityFor from "../../map/capacity"
 import { load_denominator, load_numerator } from "../const"
 import probe from "./probe"
+import probeSlice from "./probe_slice"
 
-import type { TextColumn, U32Buffer, U32Scratch } from "memory"
+import type { TextColumn, U32Buffer } from "memory"
 
 export type Input = {
     keys: TextColumn,
     buckets: U32Buffer,
-    scratch: U32Scratch,
+    rebuilt?: u32[],
     count: u64,
     indexed: u64,
     required: u64,
     capacity: u64
 }
 
-export type Output = u64
+export type Output = {
+    capacity: u64,
+    buckets?: u32[]
+}
 
 export default function (in: Input): Output {
     const { count, capacity, indexed, buckets, keys } = in
@@ -25,7 +29,10 @@ export default function (in: Input): Output {
     const grow = in.required > capacity * load_numerator / load_denominator
 
     if (!grow && count == indexed) {
-        return capacity
+        return {
+            capacity,
+            buckets: in.rebuilt
+        }
     }
 
     const size = match {
@@ -33,26 +40,67 @@ export default function (in: Input): Output {
         _ => capacity
     }
 
-    if (grow) {
-        memory.growU32Scratch(in.scratch, size, true)
-        memory.clearU32Buffer(buckets, size)
+    const rebuilt = in.rebuilt
+
+    if (grow || rebuilt != null) {
+        const seed: u32[] = []
+
+        const base = match {
+            grow => loop({
+                index: 0,
+                items: seed
+            }, {
+                while: s => s.index < size,
+                next: s => {
+                    s.items = s.items.push(0)[0]
+                    s.index += 1
+                },
+                return: s => s.items
+            }),
+            _ => rebuilt ?? seed
+        }
+
+        const first = grow ? 0 : indexed
+
+        const updated = loop({
+            index: first,
+            items: base
+        }, {
+            while: s => s.index < count,
+            next: s => {
+                const location = probeSlice({
+                    keys,
+                    buckets: s.items,
+                    text: memory.readTextColumn(keys, s.index)
+                })
+                s.items = s.items.with(location.slot, integers.narrow(s.index + 1))
+                s.index += 1
+            },
+            return: s => s.items
+        })
+
+        return {
+            capacity: size,
+            buckets: updated
+        }
     }
 
-    const first = grow ? 0 : indexed
-
-    const position = loop(first, {
+    const position = loop(indexed, {
         while: i => i < count,
         next: i => {
             const location = probe({
                 buckets: memory.u32View(buckets, null),
                 keys,
                 text: memory.readTextColumn(keys, i),
-                capacity: size
+                capacity
             })
             memory.writeU32(buckets, location.slot, integers.narrow(i + 1))
             i += 1
         }
     })
 
-    return size
+    return {
+        capacity,
+        buckets: null
+    }
 }

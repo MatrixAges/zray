@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Source" />
 
-    <Args in={Source.Input} out={Source.Output} />
+    <Args in={Source.Input} out={Source.Publication} />
 
     <If on={$in.reserve != null}>
         <Call fn="../../../artifact/materializing/publication/reserve" in={$in.reserve} />
@@ -13,5 +13,10 @@
         <Return value={$ctx.write} />
     </If>
 
-    <Return value={Source.Status.Ready} />
+    <Return
+        value={{
+            status: Source.Status.Ready,
+            buckets: []
+        }}
+    />
 </Module>

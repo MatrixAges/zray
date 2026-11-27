@@ -1,0 +1,38 @@
+import { max_u64 } from "core/const"
+
+import { column_count, touched_column } from "./const"
+
+export type Input = {
+    length: u64,
+    count: u64
+}
+
+export type Plan = {
+    stride: u64,
+    cells: u64,
+    fill: u64
+}
+
+export type Output = Plan?
+
+export default function (in: Input): Output {
+    const capacity = in.length / column_count
+
+    if (in.count > capacity) {
+        if (in.count > max_u64 / column_count) {
+            return null
+        }
+
+        return {
+            stride: in.count,
+            cells: in.count * column_count,
+            fill: in.count * touched_column
+        }
+    }
+
+    return {
+        stride: capacity,
+        cells: 0,
+        fill: 0
+    }
+}

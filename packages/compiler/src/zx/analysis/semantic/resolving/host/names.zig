@@ -16,7 +16,7 @@ const Columns = struct {
 };
 
 columns: Columns = .{},
-buckets: memory.U32Scratch = .{ .allocator = undefined },
+buckets: []u32 = &.{},
 pub fn count(self: *const Self) u32 {
     return @intCast(self.columns.names.items.len);
 }
@@ -31,7 +31,7 @@ fn position(self: *const Self, name: []const u8) ?usize {
 
     const input: InputView = .{
         .names = self.columns.names.items,
-        .index = &.{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets.items) },
+        .index = &.{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets) },
         .name = name,
     };
 
@@ -56,13 +56,11 @@ pub fn put(self: *Self, allocator: std.mem.Allocator, name: []const u8, id: zx.i
 }
 
 pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, types: ?*const TypePublication) std.mem.Allocator.Error!void {
-    self.buckets.allocator = allocator;
-
     var keys = memory.borrowTextSlice(self.columns.names.items);
     var tails: Cache = .{ .names = &.{}, .ids = &.{} };
     var slots = memory.bindColumnRanges(&self.columns, cache.*, &tails);
     var ranges: memory.ColumnRanges = &slots;
-    const index: Index = .{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets.items) };
+    const index: Index = .{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets) };
 
     const target: Destination = .{
         .committed = @ptrCast(&self.columns.names.items),
@@ -70,16 +68,21 @@ pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, t
         .ids = @ptrCast(&tails.ids),
         .ranges = @ptrCast(&ranges),
         .index = &index,
-        .scratch = @ptrCast(&self.buckets),
         .resource = @ptrCast(&allocator),
         .first = self.columns.names.items.len,
     };
 
     const input: Input = .{ .cache = cache, .destination = &target, .types = types };
 
-    publication.executeIn(allocator, &input) catch |err| switch (err) {
+    const updated = publication.executeIn(allocator, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (updated) |next| {
+        const copy = try allocator.dupe(u32, next);
+
+        self.buckets = copy;
+    }
 }

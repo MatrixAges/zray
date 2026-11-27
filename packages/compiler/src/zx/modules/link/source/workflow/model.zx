@@ -65,3 +65,8 @@ export type Input = {
 }
 
 export type Output = Status
+
+export type Publication = {
+    status: Status,
+    buckets: u32[]
+}

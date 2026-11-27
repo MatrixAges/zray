@@ -1,0 +1,32 @@
+import probe from "./probe"
+import probeSlice from "./probe_slice"
+
+import type { TextColumn, U32View } from "memory"
+import type { Output } from "./probe"
+
+export type Input = {
+    keys: TextColumn,
+    buckets: U32View,
+    rebuilt?: u32[],
+    capacity: u64,
+    text: string
+}
+
+export default function (in: Input): Output {
+    const rebuilt = in.rebuilt
+
+    if (rebuilt != null) {
+        return probeSlice({
+            keys: in.keys,
+            buckets: rebuilt,
+            text: in.text
+        })
+    }
+
+    return probe({
+        keys: in.keys,
+        buckets: in.buckets,
+        capacity: in.capacity,
+        text: in.text
+    })
+}

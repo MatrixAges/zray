@@ -46,7 +46,7 @@ pub const State = struct {
     pub fn deinit(self: *State) void {
         self.scratch.deinit();
 
-        if (self.fresh.archives) |*archives| archives.table.deinit();
+        if (self.fresh.archives) |*archives| archives.deinit();
     }
 
     pub fn get(handle: *anyopaque) *State {

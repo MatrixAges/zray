@@ -1,4 +1,4 @@
-import type { TextColumn, U32Buffer, U32Scratch, U32View } from "memory"
+import type { TextColumn, U32Buffer, U32View } from "memory"
 
 export enum Action {
     Existing,
@@ -22,7 +22,6 @@ export type Table = {
 export type Input = Identity & Table & {
     names: TextColumn,
     versions: TextColumn,
-    scratch: U32Scratch,
     capacity: u64,
     indexed: u64,
     digest: string,
@@ -34,5 +33,6 @@ export type Input = Identity & Table & {
 
 export type Result = {
     action: Action,
-    row: u64
+    row: u64,
+    buckets?: u32[]
 }

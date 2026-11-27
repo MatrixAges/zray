@@ -14,11 +14,12 @@ pub const Columns = struct {
     touched: []u32 = &.{},
 };
 
-storage: zx.memory.U32Scratch,
+allocator: std.mem.Allocator,
+items: []u32 = &.{},
 columns: Columns = .{},
 dirty: u32 = 0,
 pub fn init(allocator: std.mem.Allocator) Self {
-    return .{ .storage = .{ .allocator = allocator } };
+    return .{ .allocator = allocator };
 }
 
 pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
@@ -26,28 +27,42 @@ pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
 
     if (!generated) return @import("scratch_seed.zig").prepare(self, count);
 
-    const entry = @import("generated_type_scratch_prepare");
-    const Input = std.meta.Child(entry.Input);
-    const Table = std.meta.Child(@FieldType(Input, "tables"));
+    const plan_entry = @import("generated_type_scratch_plan");
+    const bind_entry = @import("generated_type_scratch_bind");
+    const PlanInput = std.meta.Child(plan_entry.Input);
+    const BindInput = std.meta.Child(bind_entry.Input);
+    const Table = std.meta.Child(@FieldType(BindInput, "tables"));
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    const plan_input: PlanInput = .{
+        .length = self.items.len,
+        .count = count,
+    };
+
+    const plan = (zx.columns.invoke(plan_entry.executeValue, fixed.allocator(), &plan_input) catch unreachable) orelse return error.OutOfMemory;
+
+    if (plan.cells != 0) {
+        const cells = std.math.cast(usize, plan.cells) orelse return error.OutOfMemory;
+        const next = try self.allocator.alloc(u32, cells);
+
+        @memset(next[0..@intCast(plan.fill)], @backingInt(unset));
+        self.allocator.free(self.items);
+
+        self.items = next;
+    }
+
     var count_view = self.touchedCount();
     var touched: Touched(Table) = undefined;
     const tables = self.borrow(Table, &count_view, &touched);
 
-    const input: Input = .{
-        .storage = @ptrCast(&self.storage),
-        .items = @ptrCast(&self.storage.items),
+    const input: BindInput = .{
+        .items = @ptrCast(&self.items),
         .tables = &tables,
         .count = count,
+        .stride = plan.stride,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    const ready = entry.executeIn(fixed.allocator(), &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    if (!ready) return error.OutOfMemory;
+    bind_entry.executeIn(fixed.allocator(), &input) catch unreachable;
 
     return self.columns;
 }
@@ -87,5 +102,5 @@ pub fn reset(self: *Self) void {
 }
 
 pub fn deinit(self: *Self) void {
-    self.storage.deinit();
+    self.allocator.free(self.items);
 }

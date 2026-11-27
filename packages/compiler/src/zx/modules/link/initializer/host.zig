@@ -62,7 +62,7 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
         .version = initial.schema_version,
         .slot = selected.slot,
         .function = selected.function,
-    });
+    }, registry);
 }
 
 fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, registry: *Registry, initial: Initializer.Borrowed, origins: Origins.Table, mapping: *[]u32) Error!std.meta.Child(plan.Output) {
@@ -108,8 +108,8 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
         .registration_started = @ptrCast(&marker),
         .registry = &.{
             .source = &keys,
-            .buckets = @ptrCast(&registry.buckets.items),
-            .capacity = registry.buckets.items.len,
+            .buckets = @ptrCast(&registry.buckets),
+            .capacity = registry.buckets.len,
             .identity = initial.identity,
             .version = initial.schema_version,
             .functions = functions,

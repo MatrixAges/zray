@@ -1,15 +1,20 @@
 import refresh from "core/bytes/index/borrowed/refresh"
 import memory from "memory"
 
-import type { Names as Input } from "./model"
+import type { Suffix as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]?
 
 export default function (in: Input): Output {
     const { destination, cache } = in
-    const { index, first, scratch } = destination
+    const { index, first } = destination
 
-    const capacity = memory.u32Views(index.buckets).length
+    const rebuilt = in.rebuilt
+
+    const capacity = match {
+        rebuilt != null => rebuilt.length,
+        _ => memory.u32Views(index.buckets).length
+    }
 
     if (capacity != 0) {
         const keys = memory.bindTextView(index.keys, destination.committed, null)
@@ -19,11 +24,15 @@ export default function (in: Input): Output {
         const indexed = refresh({
             keys,
             buckets: index.buckets,
-            scratch,
+            rebuilt,
             count,
             indexed: first,
             required: count,
             capacity
         })
+
+        return indexed.buckets
     }
+
+    return rebuilt
 }

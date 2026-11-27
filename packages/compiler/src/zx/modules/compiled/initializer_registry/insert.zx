@@ -9,16 +9,21 @@ export type Input = Entry & {
     registry: Storage
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
     const { registry } = in
+
+    const empty: u32[] = []
 
     const inserted = append({
         ...in,
         count: registry.count,
         space: registry.space,
         capacity: registry.capacity,
-        limit: registry.capacity * load_numerator / load_denominator
+        limit: registry.capacity * load_numerator / load_denominator,
+        buckets: null
     })
+
+    return inserted.buckets ?? empty
 }

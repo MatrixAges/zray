@@ -147,12 +147,6 @@ export declare function fillU32Buffer(
     value: u32
 ): void throws { IndexOutOfBounds }
 
-export declare function growU32Scratch(
-    scratch: U32Scratch,
-    count: u64,
-    precise: bool
-): void throws { OutOfMemory }
-
 export declare function borrowTextRange(
     source: string,
     first: u64,

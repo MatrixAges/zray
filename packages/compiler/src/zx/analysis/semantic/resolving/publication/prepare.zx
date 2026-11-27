@@ -8,29 +8,31 @@ import { linear_name_limit } from "./const"
 
 import type { Names as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]?
 
 export default function (in: Input): Output {
     const { destination, cache } = in
-    const { first, index, scratch, resource, ranges } = destination
+    const { first, index, resource, ranges } = destination
 
     const required = first + cache.names.length
     const limit = integers.widen(max_u32)
 
     memory.requireAllocation(required <= limit)
 
-    if (required > linear_name_limit) {
-        const capacity = memory.u32Views(index.buckets).length
+    const capacity = memory.u32Views(index.buckets).length
+    const initial: u32[]? = null
 
-        const prepared = refresh({
+    const rebuilt = match {
+        required > linear_name_limit => refresh({
             keys: memory.bindTextView(index.keys, destination.committed, null),
             buckets: index.buckets,
-            scratch,
+            rebuilt: null,
             count: first,
             indexed: capacity == 0 ? 0 : first,
             required,
             capacity
-        })
+        }).buckets,
+        _ => initial
     }
 
     reserve({
@@ -40,4 +42,6 @@ export default function (in: Input): Output {
         precise: false,
         uniform: true
     })
+
+    return rebuilt
 }

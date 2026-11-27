@@ -1,11 +1,20 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Input} out={void} />
+    <Args in={Publication.Input} out={u32[]?} />
 
-    <If on={$in.cache.names.length != 0}>
-        <Call fn="prepare" in={$in.omit(["types"])} />
+    <If on={$in.cache.names.length == 0}>
+        <If on={$in.types != null}>
+            <Call
+                module="../../merging/publication/append"
+                in={$in.types}
+            />
+        </If>
+
+        <Return value={null} />
     </If>
+
+    <Call fn="prepare" in={$in.omit(["types"])} />
 
     <If on={$in.types != null}>
         <Call
@@ -14,8 +23,15 @@
         />
     </If>
 
-    <If on={$in.cache.names.length != 0}>
-        <Call fn="names" in={$in.omit(["types"])} />
-        <Call fn="index_suffix" in={$in.omit(["types"])} />
-    </If>
+    <Call fn="names" in={$in.omit(["types"])} />
+
+    <Call
+        fn="index_suffix"
+        in={{
+            ...$in.omit(["types"]),
+            rebuilt: $ctx.prepare
+        }}
+    />
+
+    <Return value={$ctx.index_suffix} />
 </Module>

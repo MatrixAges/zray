@@ -6,6 +6,7 @@ const merge_types = @import("../../../../analysis/semantic/merge.zig");
 const Origins = @import("../../../nominal_origins.zig");
 const Nodes = @import("../../../artifact/nodes.zig");
 const tail = @import("tail.zig");
+const Registry = @import("../../../compiled/initializer_registry.zig");
 const columns = @import("../../../artifact/materializing/publication/columns.zig");
 const remap = @import("../../../artifact/nodes/remap.zig");
 const validation = @import("../../../../ir/validate.zig");
@@ -129,7 +130,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
 
     reserved = true;
 
-    try requireReady(result);
+    try requireReady(result.status);
 
     return .{
         .allocator = destination.allocator,
@@ -139,7 +140,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     };
 }
 
-pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype, temporary: std.mem.Allocator, initializer: ?*const InitializerRegistration) @import("../../../artifact/model.zig").Error!void {
+pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype, temporary: std.mem.Allocator, initializer: ?*const InitializerRegistration, registry: ?*Registry) @import("../../../artifact/model.zig").Error!void {
     const types = remap.typeMapping(Mapping, nodes.types);
     const ids = remap.idMapping(Mapping, nodes.functions);
     const natives = remap.idMapping(Mapping, nodes.native_modules);
@@ -153,7 +154,9 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype,
         else => error.InvalidModule,
     };
 
-    return switch (result) {
+    if (result.buckets.len != 0) try registry.?.adoptBuckets(result.buckets);
+
+    return switch (result.status) {
         .Ready => {},
         .Exhausted => error.OutOfMemory,
         else => error.InvalidModule,

@@ -3,8 +3,7 @@ import type {
     ColumnRanges,
     StringBuffer,
     TextColumnBuffer,
-    U32Buffer,
-    U32Scratch
+    U32Buffer
 } from "memory"
 import type { Input as TypePublication } from "../../merging/publication/model"
 import type { Cache } from "../model"
@@ -20,7 +19,6 @@ export type Destination = {
     ids: U32Buffer,
     ranges: ColumnRanges,
     index: Index,
-    scratch: U32Scratch,
     resource: Allocator,
     first: u64
 }
@@ -32,4 +30,8 @@ export type Names = {
 
 export type Input = Names & {
     types?: TypePublication
+}
+
+export type Suffix = Names & {
+    rebuilt?: u32[]
 }

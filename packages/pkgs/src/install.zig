@@ -108,10 +108,14 @@ pub const Dependencies = struct {
 };
 
 pub const Archives = struct {
-    table: memory.U32Scratch,
+    allocator: std.mem.Allocator,
+    buckets: []u32 = &.{},
     indexed: usize = 0,
     const Selection = union(enum) { existing: usize, remote, local };
 
+    pub fn deinit(self: *Archives) void {
+        self.allocator.free(self.buckets);
+    }
     pub fn plan(self: *Archives, packages: []const Lock.Package, first: usize, digest: []const u8, name: []const u8, release: Index.Release) !Selection {
         const archives = packages[first..];
         const names = memory.borrowTextColumn("name", archives);
@@ -119,16 +123,20 @@ pub const Archives = struct {
         var sample: Lock.Package = undefined;
         sample.source = .{ .archive = undefined };
         const digests = memory.borrowProjectedText(archives, &sample, &sample.source.archive.sha256);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
 
-        const selected = rules.install_archive.executeValue(empty.allocator(), &.{
+        defer arena.deinit();
+
+        var buffer: [2048]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+        const selected = rules.install_archive.executeValue(scratch.allocator(), &.{
             .names = @ptrCast(&names),
             .versions = @ptrCast(&versions),
             .digests = @ptrCast(&digests),
-            .buckets = @ptrCast(&self.table.items),
-            .bucket_view = @ptrCast(&self.table.items),
-            .scratch = @ptrCast(&self.table),
-            .capacity = self.table.items.len,
+            .buckets = @ptrCast(&self.buckets),
+            .bucket_view = @ptrCast(&self.buckets),
+            .capacity = self.buckets.len,
             .indexed = self.indexed,
             .first = first,
             .count = archives.len,
@@ -141,6 +149,14 @@ pub const Archives = struct {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
+
+        if (selected.buckets) |updated| {
+            const next = try self.allocator.dupe(u32, updated);
+
+            self.allocator.free(self.buckets);
+
+            self.buckets = next;
+        }
 
         self.indexed = archives.len;
 

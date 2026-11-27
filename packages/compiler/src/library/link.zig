@@ -23,7 +23,7 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
     var types = try Types.init(owned);
     var functions: ir.FunctionStorage = .{};
     var native_modules: ir.NativeModuleStorage = .{};
-    var initializers = Initializers{ .allocator = owned, .scratch = scratch, .types = &types, .functions = &functions, .registry = .{ .buckets = .{ .allocator = allocator } } };
+    var initializers = Initializers{ .allocator = owned, .scratch = scratch, .types = &types, .functions = &functions, .registry = .{ .allocator = allocator } };
 
     defer initializers.registry.deinit();
 

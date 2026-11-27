@@ -9,7 +9,8 @@ const Self = @This();
 const fields = .{ .identity = "identity", .schema_version = "schema_version", .function = "function" };
 
 rows: std.ArrayList(Entry) = .empty,
-buckets: memory.U32Scratch = .{ .allocator = std.heap.page_allocator },
+allocator: std.mem.Allocator = std.heap.page_allocator,
+buckets: []u32 = &.{},
 seed_index: if (generated) void else std.StringHashMapUnmanaged(usize) = if (generated) {} else .empty,
 pub const Range = struct { first: usize = 0, count: usize, prefix: usize = 0 };
 
@@ -33,7 +34,15 @@ pub const Functions = struct {
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, ConflictingInitializer };
 
 pub fn deinit(self: *Self) void {
-    if (generated) self.buckets.deinit() else self.seed_index.deinit(self.buckets.allocator);
+    if (generated) self.allocator.free(self.buckets) else self.seed_index.deinit(self.allocator);
+}
+
+pub fn adoptBuckets(self: *Self, updated: []const u32) std.mem.Allocator.Error!void {
+    const next = try self.allocator.dupe(u32, updated);
+
+    self.allocator.free(self.buckets);
+
+    self.buckets = next;
 }
 
 pub fn find(self: *const Self, name: []const u8) ?Entry {
@@ -45,8 +54,8 @@ pub fn find(self: *const Self, name: []const u8) ?Entry {
 
     const input: std.meta.Child(probe.Input) = .{
         .keys = @ptrCast(&keys),
-        .buckets = @ptrCast(&self.buckets.items),
-        .capacity = self.buckets.items.len,
+        .buckets = @ptrCast(&self.buckets),
+        .capacity = self.buckets.len,
         .text = name,
     };
 
@@ -80,7 +89,7 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
                 continue;
             }
 
-            try self.seed_index.ensureUnusedCapacity(self.buckets.allocator, 1);
+            try self.seed_index.ensureUnusedCapacity(self.allocator, 1);
             try self.rows.ensureUnusedCapacity(allocator, 1);
 
             const name = if (own) try allocator.dupe(u8, value.identity) else value.identity;
@@ -120,7 +129,9 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
         else => return error.InvalidModule,
     };
 
-    switch (result) {
+    if (result.buckets) |updated| try self.adoptBuckets(updated);
+
+    switch (result.status) {
         .Done => return,
         .Conflict => return error.ConflictingInitializer,
         .InvalidModule => return error.InvalidModule,
@@ -160,9 +171,8 @@ pub fn Writer(comptime Storage: type) type {
                 .published = &self.published,
                 .target = &self.target.view,
                 .growth = @ptrCast(&self.growth),
-                .buckets = @ptrCast(&registry.buckets.items),
-                .scratch = @ptrCast(&registry.buckets),
-                .capacity = registry.buckets.items.len,
+                .buckets = @ptrCast(&registry.buckets),
+                .capacity = registry.buckets.len,
                 .count = registry.rows.items.len,
                 .space = registry.rows.capacity,
                 .own = own,

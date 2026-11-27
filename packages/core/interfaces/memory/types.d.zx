@@ -8,7 +8,6 @@ export type U32View = opaque
 export type U64View = opaque
 export type StringViews = opaque
 
-export type U32Scratch = mutable_opaque
 export type U64Buffer = mutable_opaque
 export type IndexBuffer = mutable_opaque
 export type SourceSpanBuffer = mutable_opaque

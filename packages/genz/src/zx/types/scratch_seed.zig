@@ -1,23 +1,23 @@
 const std = @import("std");
-const memory = @import("zx").memory;
 const Scratch = @import("scratch.zig");
 const Id = @import("../../node.zig").ExpressionId;
 
 pub fn prepare(self: *Scratch, count: usize) std.mem.Allocator.Error!Scratch.Columns {
     const width = 6;
-    var stride = self.storage.items.len / width;
+    var stride = self.items.len / width;
 
     if (stride < count) {
         const cells = std.math.mul(usize, count, width) catch return error.OutOfMemory;
+        const next = try self.allocator.alloc(u32, cells);
 
-        try memory.growU32Scratch(@ptrCast(&self.storage), cells, true);
+        @memset(next[0 .. count * (width - 1)], @backingInt(Scratch.unset));
+        self.allocator.free(self.items);
 
-        @memset(self.storage.items[0 .. count * (width - 1)], @backingInt(Scratch.unset));
-
+        self.items = next;
         stride = count;
     }
 
-    const words = self.storage.items;
+    const words = self.items;
     const ids: []Id = @ptrCast(words);
 
     self.columns = .{

@@ -8,27 +8,28 @@
         in={{
             ...$in.pick([
                 "buckets",
-                "scratch",
                 "indexed",
                 "count",
                 "capacity"
             ]),
             keys: $in.digests,
+            rebuilt: null,
             required: $in.count
         }}
     />
 
     <Call
-        fn="../../core/bytes/index/borrowed/probe"
+        fn="../../core/bytes/index/borrowed/lookup"
         in={{
             keys: $in.digests,
             buckets: $in.bucket_view,
+            rebuilt: $ctx.refresh.buckets,
             text: $in.digest,
-            capacity: $ctx.refresh
+            capacity: $ctx.refresh.capacity
         }}
     />
 
-    <If on={$ctx.probe.entry != 0}>
+    <If on={$ctx.lookup.entry != 0}>
         <Call
             fn="identity"
             in={{
@@ -38,7 +39,7 @@
                     "name",
                     "version"
                 ]),
-                row: $ctx.probe.entry - 1
+                row: $ctx.lookup.entry - 1
             }}
         />
 
@@ -46,7 +47,8 @@
             <Return
                 value={{
                     action: Archive.Action.PackageArchiveIdentityMismatch,
-                    row: 0
+                    row: 0,
+                    buckets: $ctx.refresh.buckets
                 }}
             />
         </If>
@@ -54,7 +56,8 @@
         <Return
             value={{
                 action: Archive.Action.Existing,
-                row: $in.first + $ctx.probe.entry - 1
+                row: $in.first + $ctx.lookup.entry - 1,
+                buckets: $ctx.refresh.buckets
             }}
         />
     </If>
@@ -63,7 +66,8 @@
         <Return
             value={{
                 action: Archive.Action.InvalidLockPackageCount,
-                row: 0
+                row: 0,
+                buckets: $ctx.refresh.buckets
             }}
         />
     </If>
@@ -73,7 +77,8 @@
     <Return
         value={{
             action: $ctx.transport,
-            row: $in.first + $in.count
+            row: $in.first + $in.count,
+            buckets: $ctx.refresh.buckets
         }}
     />
 </Module>

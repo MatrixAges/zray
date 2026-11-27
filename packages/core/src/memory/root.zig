@@ -595,32 +595,6 @@ pub inline fn fillU32Buffer(target: *anyopaque, count: u64, value: u32) error{In
     @memset(view.*[0..@intCast(count)], value);
 }
 
-pub const U32Scratch = struct {
-    allocator: std.mem.Allocator,
-    items: []u32 = &.{},
-    backing: std.ArrayList(u32) = .empty,
-    pub fn borrow(self: *U32Scratch, comptime View: type, precise: bool) View {
-        return .{ .depths = @ptrCast(&self.items), .scratch = @ptrCast(self), .precise = precise };
-    }
-
-    pub fn deinit(self: *U32Scratch) void {
-        self.backing.deinit(self.allocator);
-    }
-};
-
-pub fn growU32Scratch(scratch: *anyopaque, count: u64, precise: bool) std.mem.Allocator.Error!void {
-    const workspace: *U32Scratch = @ptrCast(@alignCast(scratch));
-    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
-
-    if (precise) {
-        try workspace.backing.ensureTotalCapacityPrecise(workspace.allocator, length);
-    } else {
-        try workspace.backing.ensureTotalCapacity(workspace.allocator, length);
-    }
-
-    workspace.items = workspace.backing.allocatedSlice();
-}
-
 pub fn allocateU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     return allocateFilledU32Buffer(resource, target, count, 0);
 }

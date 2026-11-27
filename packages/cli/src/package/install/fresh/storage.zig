@@ -42,7 +42,7 @@ pub fn prepareIndex(handle: *anyopaque) host.Error!void {
     const directory = if (options.index) |path| std.fs.path.dirname(path) orelse "." else ".";
     self.fresh.index_base = self.physicalPath(directory) catch |err| return self.fail(err);
     self.fresh.resolver = pkgs.install.Resolver.init(self.members, parsed.value);
-    self.fresh.archives = .{ .table = .{ .allocator = allocator } };
+    self.fresh.archives = .{ .allocator = allocator };
 
     self.fresh.packages.ensureTotalCapacity(allocator, self.members.len) catch |err| return self.fail(err);
     self.fresh.paths.ensureTotalCapacity(allocator, self.members.len) catch |err| return self.fail(err);

@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import probe from "core/bytes/index/borrowed/probe"
+import lookup from "core/bytes/index/borrowed/lookup"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -12,6 +12,7 @@ import type { Range, Selection as Output, Storage } from "./model"
 export type Input = Storage.Pick("published", "buckets") & {
     range: Range,
     capacity: u64,
+    rebuilt?: u32[],
     identity: string,
     version: u32,
     id: u32
@@ -38,9 +39,10 @@ export default function (in: Input): Output {
 
     const function_id = integers.narrow(mapped)
 
-    const found = probe({
+    const found = lookup({
         keys: published.identity,
         buckets: memory.u32View(in.buckets, null),
+        rebuilt: in.rebuilt,
         capacity: in.capacity,
         text: in.identity
     })

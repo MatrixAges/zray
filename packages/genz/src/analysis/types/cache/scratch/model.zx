@@ -1,16 +1,5 @@
-import type { U32Buffer, U32Scratch } from "memory"
 import type { Columns, Touched } from "../model"
 
 export type Tables = Columns.Omit("touched") & {
     touched: Touched
-}
-
-export type Backing = {
-    storage: U32Scratch,
-    items: U32Buffer,
-    count: u64
-}
-
-export type Input = Backing & {
-    tables: Tables
 }
