@@ -1,37 +1,20 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import {
-    cases_lane,
-    constants_lane,
-    continues,
-    evaluations_lane,
-    invocations_lane,
-    lane_count,
-    parallels_lane,
-    results_lane,
-    selections_lane,
-    tag_lane,
-    unreachable
-} from "./const"
-import exchange from "./exchange"
+import { continues, unreachable } from "./const"
 import { Status } from "./model"
 
-import type { U32Buffer } from "memory"
-import type { Blocks, Output, Units } from "./model"
+import type { Output, Row, Units } from "./model"
 
 export type Input = {
     units: Units,
-    layout: U32Buffer,
-    blocks: Blocks,
+    rows: Row[],
     capture_count: u64,
     void_output: bool
 }
 
 export default function (in: Input): Output {
     const last = in.units.firsts.length - 1
-    const layout = in.layout
-    const root = memory.readU32(layout, last * lane_count + tag_lane)
+    const root = in.rows[last].tag
     const implicit_return = root == continues && in.void_output
     const extra_return = implicit_return ? 1 : 0
     const root_extra = in.capture_count + extra_return
@@ -43,6 +26,8 @@ export default function (in: Input): Output {
     }
 
     const inline_start: u64? = null
+    const block_firsts: u32[] = []
+    const block_counts: u32[] = []
 
     return loop({
         evaluations: 0,
@@ -55,65 +40,46 @@ export default function (in: Input): Output {
         statement: 0,
         block_count: 0,
         inline_start,
-        unit: 0
+        unit: 0,
+        rows: in.rows,
+        block_firsts,
+        block_counts
     }, {
         while: state => status == Status.Ready && state.unit <= last,
         next: state => {
-            const row = state.unit * lane_count
-
             if (in.units.blocks[state.unit]) {
                 const inline_start = state.inline_start
 
                 if (inline_start != null) {
-                    memory.writeU32(
-                        layout,
-                        inline_start * lane_count + tag_lane,
-                        integers.narrow(state.unit)
-                    )
+                    const head = state.rows[inline_start]
+
+                    state.rows[inline_start] = {
+                        ...head,
+                        tag: integers.narrow(state.unit)
+                    }
                     state.inline_start = null
                 }
 
-                state.evaluations += exchange({
-                    layout,
-                    position: row + evaluations_lane,
-                    replacement: state.evaluations
-                })
-                state.constants += exchange({
-                    layout,
-                    position: row + constants_lane,
-                    replacement: state.constants
-                })
-                state.parallels += exchange({
-                    layout,
-                    position: row + parallels_lane,
-                    replacement: state.parallels
-                })
-                state.invocations += exchange({
-                    layout,
-                    position: row + invocations_lane,
-                    replacement: state.invocations
-                })
-                state.selections += exchange({
-                    layout,
-                    position: row + selections_lane,
-                    replacement: state.selections
-                })
-                state.cases += exchange({
-                    layout,
-                    position: row + cases_lane,
-                    replacement: state.cases
-                })
-                state.results += exchange({
-                    layout,
-                    position: row + results_lane,
-                    replacement: state.results
-                })
+                const current = state.rows[state.unit]
 
-                memory.writeU32(
-                    layout,
-                    row + tag_lane,
-                    integers.narrow(state.block_count)
-                )
+                state.rows[state.unit] = {
+                    evaluations: integers.narrow(state.evaluations),
+                    constants: integers.narrow(state.constants),
+                    parallels: integers.narrow(state.parallels),
+                    invocations: integers.narrow(state.invocations),
+                    selections: integers.narrow(state.selections),
+                    cases: integers.narrow(state.cases),
+                    results: integers.narrow(state.results),
+                    tag: integers.narrow(state.block_count)
+                }
+
+                state.evaluations += integers.widen(current.evaluations)
+                state.constants += integers.widen(current.constants)
+                state.parallels += integers.widen(current.parallels)
+                state.invocations += integers.widen(current.invocations)
+                state.selections += integers.widen(current.selections)
+                state.cases += integers.widen(current.cases)
+                state.results += integers.widen(current.results)
 
                 const end =
                     state.evaluations +
@@ -125,16 +91,10 @@ export default function (in: Input): Output {
                 const extra = state.unit == last ? root_extra : 0
                 const count = end - state.statement + extra
 
-                memory.writeU32(
-                    in.blocks.firsts,
-                    state.block_count,
-                    integers.narrow(state.statement)
-                )
-                memory.writeU32(
-                    in.blocks.counts,
-                    state.block_count,
-                    integers.narrow(count)
-                )
+                state.block_firsts =
+                    state.block_firsts.push(integers.narrow(state.statement))[0]
+                state.block_counts =
+                    state.block_counts.push(integers.narrow(count))[0]
 
                 state.statement = end
                 state.block_count += 1
@@ -153,7 +113,10 @@ export default function (in: Input): Output {
             selections: state.selections,
             cases: state.cases,
             results: state.results + (implicit_return ? 1 : 0),
-            implicit_return
+            implicit_return,
+            rows: state.rows,
+            block_firsts: state.block_firsts,
+            block_counts: state.block_counts
         })
     })
 }

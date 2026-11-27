@@ -1,6 +1,5 @@
-import type { Allocator, BoolBuffer, U64Buffer } from "memory"
-import type { Cache, Slots } from "./cache"
-import type { SnapshotInput } from "./layout/model"
+import type { Cache } from "./cache"
+import type { Snapshot, SnapshotInput } from "./layout/model"
 
 export type Input = {
     known: bool[],
@@ -12,46 +11,23 @@ export type Input = {
     spread: bool
 }
 
-export type Work = {
-    ready: BoolBuffer,
-    queue: U64Buffer,
-    pending: U64Buffer
-}
-
-export type Request = {
-    rules: Input,
-    work: Work
-}
-
 export type Initial = {
     count: u64,
-    known: u64
-}
-
-export type Publication = Slots.Pick("marks") & {
-    position: u64,
-    shared: bool,
-    spread: bool
-}
-
-export type Proof = Request & {
-    publication: Publication
+    known: u64,
+    ready: bool[],
+    queue: u64[]
 }
 
 export type Update = {
     cache: Cache,
-    slots: Slots,
     layout: SnapshotInput,
-    work: Work,
-    scratch: Allocator,
     revision: u64,
     rebuild: bool,
-    position: u64,
-    spread: bool,
-    shared: bool
+    spread: bool
 }
 
 export type UpdateOutcome = {
-    ready: bool,
-    revision?: u64
+    revision?: u64,
+    snapshot?: Snapshot,
+    marks?: bool[]
 }

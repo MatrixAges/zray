@@ -1,5 +1,3 @@
-import type { U32Buffer } from "memory"
-
 export enum Kind {
     Call,
     Parallel,
@@ -46,15 +44,19 @@ export type Shape = {
     calls: Calls
 }
 
-export type Blocks = {
-    firsts: U32Buffer,
-    counts: U32Buffer
+export type Row = {
+    evaluations: u32,
+    constants: u32,
+    parallels: u32,
+    invocations: u32,
+    selections: u32,
+    cases: u32,
+    results: u32,
+    tag: u32
 }
 
 export type Input = {
     shape: Shape,
-    layout: U32Buffer,
-    blocks: Blocks,
     capture_count: u64,
     void_output: bool
 }
@@ -68,5 +70,8 @@ export type Output = {
     selections: u64,
     cases: u64,
     results: u64,
-    implicit_return: bool
+    implicit_return: bool,
+    rows: Row[],
+    block_firsts: u32[],
+    block_counts: u32[]
 }

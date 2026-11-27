@@ -7,6 +7,18 @@ const Replay = @import("replay.zig");
 pub const Context = std.meta.Child(@FieldType(Replay.View, "readiness"));
 const Cache = std.meta.Child(@FieldType(Context, "cache"));
 
+const Slot = struct {
+    const keys: usize = 0;
+    const buckets: usize = 1;
+    const sizes: usize = 0;
+    const results: usize = 1;
+    const offsets: usize = 2;
+    const dependents: usize = 3;
+    const known: usize = 0;
+    const spread: usize = 1;
+    const selection: usize = 2;
+};
+
 pub const Session = struct {
     closure: *Closure,
     graph: *const Graph,
@@ -49,25 +61,11 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
     const cache = &closure.cache;
 
     if (rebuild) {
-        cache.index[0] = &.{};
+        cache.index[Slot.keys] = &.{};
         _ = closure.arena.reset(.retain_capacity);
     }
 
     const allocator = closure.arena.allocator();
-    var index: [][]const u32 = &cache.index;
-    var edges: [][]const u64 = &cache.edges;
-    var marks: [][]const bool = &cache.marks;
-    var buffer: [std.heap.page_size_min / 4]u8 = undefined;
-    var workspace = std.heap.BufferFirstAllocator.init(&buffer, closure.arena.child_allocator);
-    const scratch = workspace.allocator();
-    var ready: []bool = &.{};
-    var queue: []u64 = &.{};
-    var pending: []u64 = &.{};
-
-    errdefer allocator.free(ready);
-    defer scratch.free(queue);
-    defer scratch.free(pending);
-
     const kinds: []const Kind = graph.nodes.items(.kind);
     const constructions = graph.pending.constructions.slice();
     const parts = graph.pending.construction_parts.slice();
@@ -76,11 +74,6 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
 
     const input: Update = .{
         .cache = @ptrCast(&session.cache),
-        .slots = &.{
-            .index = @ptrCast(&index),
-            .edges = @ptrCast(&edges),
-            .marks = @ptrCast(&marks),
-        },
         .layout = &.{
             .kinds = zx.columns.slice(@FieldType(Layout, "kinds"), kinds),
             .columns = &.{
@@ -94,17 +87,9 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
             },
             .parents = @ptrCast(&parents),
         },
-        .work = &.{
-            .ready = @ptrCast(&ready),
-            .queue = @ptrCast(&queue),
-            .pending = @ptrCast(&pending),
-        },
-        .scratch = @ptrCast(&scratch),
         .revision = graph.object_revision,
         .rebuild = rebuild,
-        .position = position,
         .spread = spread,
-        .shared = shared,
     };
 
     const outcome = update.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -117,5 +102,24 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
         session.cache.revision = next;
     }
 
-    return outcome.ready;
+    if (outcome.snapshot) |snapshot| {
+        cache.edges[Slot.sizes] = snapshot.sizes;
+        cache.edges[Slot.results] = snapshot.results;
+        cache.edges[Slot.offsets] = snapshot.offsets;
+        cache.edges[Slot.dependents] = snapshot.dependents;
+        cache.marks[Slot.known] = snapshot.known;
+        cache.marks[Slot.spread] = &.{};
+        cache.marks[Slot.selection] = &.{};
+        cache.index[Slot.buckets] = snapshot.buckets;
+        cache.index[Slot.keys] = snapshot.keys;
+    }
+
+    if (outcome.marks) |marks| {
+        if (spread or shared) cache.marks[Slot.spread] = marks;
+        if (!spread or shared) cache.marks[Slot.selection] = marks;
+
+        return marks[@intCast(position)];
+    }
+
+    return false;
 }

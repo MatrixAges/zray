@@ -6,18 +6,11 @@
     <If on={$in.rebuild}>
         <Call module="layout/snapshot" in={$in.layout} />
 
-        <Call
-            fn="publish_snapshot"
-            in={{
-                layout: $ctx.snapshot,
-                slots: $in.slots
-            }}
-        />
-
         <Return
             value={{
-                ready: false,
-                revision: $in.revision
+                revision: $in.revision,
+                snapshot: $ctx.snapshot,
+                marks: null
             }}
         />
     </If>
@@ -27,33 +20,19 @@
         in={{
             ...$in.pick([
                 "cache",
-                "scratch",
-                "work",
                 "spread"
             ]),
             constructions: $in.layout.columns.construction_results.length
         }}
     />
 
-    <Call
-        module="prove"
-        in={{
-            rules: $ctx.prepare,
-            work: $in.work,
-            publication: {
-                marks: $in.slots.marks,
-                ...$in.pick([
-                    "position",
-                    "spread",
-                    "shared"
-                ])
-            }
-        }}
-    />
+    <Call module="prove" />
 
     <Return
         value={{
-            ready: $ctx.prove
+            revision: null,
+            snapshot: null,
+            marks: $ctx.prove
         }}
     />
 </Module>

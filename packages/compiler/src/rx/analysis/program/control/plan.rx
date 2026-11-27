@@ -6,8 +6,7 @@
     <Call
         fn="summarize"
         in={{
-            shape: $in.shape,
-            layout: $in.layout
+            shape: $in.shape
         }}
     />
 
@@ -15,8 +14,7 @@
         fn="place"
         in={{
             units: $in.shape.units,
-            layout: $ctx.summarize,
-            blocks: $in.blocks,
+            rows: $ctx.summarize,
             capture_count: $in.capture_count,
             void_output: $in.void_output
         }}

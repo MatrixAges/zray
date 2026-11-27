@@ -1,7 +1,4 @@
-import memory from "memory"
-
 import execute from "./execute"
-import iteration from "./iteration"
 import { Action } from "./model"
 import next from "./next"
 
@@ -11,42 +8,51 @@ export type Input = Prepared.Pick("count", "type_id") & {
     source: Scope
 }
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
     const { source, count, type_id } = in
-    const { frame, scope, selection, spans, values, names } = source
+    const { frame, scope, selection, names } = source
 
-    const remaining = loop(count, {
-        while: remaining => remaining != 0,
-        next: remaining => {
+    const empty: u64[] = []
+
+    const initial_spans = loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            state.items = state.items.push(0)[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
+
+    return loop({
+        remaining: count,
+        spans: initial_spans
+    }, {
+        while: state => state.remaining != 0,
+        next: state => {
             const binding = next({
                 selection,
-                remaining
+                remaining: state.remaining
             })
 
-            if (selection.iteration) {
-                iteration({
-                    scope: source,
+            const span = match binding.action {
+                Action.Skip => 0,
+                _ => execute({
+                    frame,
+                    scope,
                     binding,
-                    output: values
+                    type_id,
+                    names
                 })
-            } else {
-                const span = match binding.action {
-                    Action.Skip => 0,
-                    _ => execute({
-                        frame,
-                        scope,
-                        binding,
-                        type_id,
-                        names
-                    })
-                }
-
-                memory.writeU64(spans, binding.position, span)
             }
 
-            remaining = binding.position
-        }
+            state.spans[binding.position] = span
+            state.remaining = binding.position
+        },
+        return: state => state.spans
     })
 }

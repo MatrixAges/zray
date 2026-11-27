@@ -1,49 +1,45 @@
-import memory from "memory"
+import type { Initial, Input as Rules } from "./model"
 
-import type { Initial, Request } from "./model"
-
-export type Input = Request
+export type Input = Rules
 
 export type Output = Initial
 
 export default function (in: Input): Output {
-    const { rules, work } = in
-
-    const ready = memory.boolViews(work.ready)
+    const ready: bool[] = []
+    const queue: u64[] = []
 
     return loop({
         count: 0,
         known: 0,
         node: 0,
-        rule: 0
+        rule: 0,
+        ready,
+        queue
     }, {
-        while: state =>
-            state.node < rules.known.length || state.rule < rules.sizes.length,
+        while: state => state.node < in.known.length || state.rule < in.sizes.length,
         next: state => {
-            if (state.node < rules.known.length) {
+            if (state.node < in.known.length) {
                 const node = state.node
-                const known = rules.known[node]
+                const known = in.known[node]
 
-                memory.writeBool(work.ready, node, known)
+                state.ready = state.ready.push(known)[0]
 
                 if (known) {
-                    memory.writeU64(work.queue, state.count, node)
-
+                    state.queue = state.queue.push(node)[0]
                     state.count += 1
                     state.known += 1
                 }
 
                 state.node += 1
             } else {
-                const result = rules.results[state.rule]
-                const empty = rules.sizes[state.rule] == 0
-                const shortcut = rules.spread && state.rule >= rules.constructions
+                const result = in.results[state.rule]
+                const empty = in.sizes[state.rule] == 0
+                const shortcut = in.spread && state.rule >= in.constructions
                 const admissible = empty || shortcut
 
-                if (admissible && !ready[result]) {
-                    memory.writeU64(work.queue, state.count, result)
-                    memory.writeBool(work.ready, result, true)
-
+                if (admissible && !state.ready[result]) {
+                    state.queue = state.queue.push(result)[0]
+                    state.ready[result] = true
                     state.count += 1
                 }
 
@@ -52,7 +48,9 @@ export default function (in: Input): Output {
         },
         return: state => ({
             count: state.count,
-            known: state.known
+            known: state.known,
+            ready: state.ready,
+            queue: state.queue
         })
     })
 }

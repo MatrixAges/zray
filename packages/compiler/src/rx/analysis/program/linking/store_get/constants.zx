@@ -1,30 +1,39 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import binding from "../../control/write/binding"
+import type { ConstantRow, ConstantsOutput } from "./model"
 
-import type { Constants } from "./model"
-
-export type Input = Constants & {
+export type Input = {
+    first_symbol: u32,
+    first_expression: u32,
     count: u64
 }
 
-export type Output = void
+export type Output = ConstantsOutput
 
 export default function (in: Input): Output {
-    const written = loop(0, {
-        while: row => row < in.count,
-        next: row => {
-            const offset = integers.narrow(row)
+    const empty_constants: ConstantRow[] = []
+    const empty_bindings: u32[] = []
+
+    return loop({
+        row: 0,
+        constants: empty_constants,
+        bindings: empty_bindings
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const offset = integers.narrow(state.row)
             const symbol = in.first_symbol + offset
 
-            binding({
-                writer: in.writer,
+            state.constants = state.constants.push({
                 symbol,
                 value: in.first_expression + offset
-            })
-            memory.writeU32(in.bindings, row, symbol)
-            row += 1
-        }
+            })[0]
+            state.bindings = state.bindings.push(symbol)[0]
+            state.row += 1
+        },
+        return: state => ({
+            constants: state.constants,
+            bindings: state.bindings
+        })
     })
 }

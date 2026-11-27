@@ -7,19 +7,9 @@ const Parameters = @import("../capture.zig").Parameters;
 const Layout = @import("../../task_captures/layout.zig");
 const binding_rule = @import("generated_rx_capture_bind");
 const argument_rule = @import("generated_rx_capture_argument");
-const Binding = std.meta.Child(binding_rule.Input);
-const Prefix = std.meta.Child(@FieldType(Binding, "prefix"));
 const ExpressionKind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
 const StatementKind = std.meta.Elem(@FieldType(ir.ControlTable, "statement_kinds"));
 const Output = struct { input_type: ir.TypeId, parameters: []const ir.TypeId };
-
-comptime {
-    if (@sizeOf(ExpressionKind) != 1 or @sizeOf(StatementKind) != 1 or
-        @sizeOf(ir.SymbolId) != @sizeOf(u32) or @sizeOf(ir.TypeId) != @sizeOf(u32))
-    {
-        @compileError("Capture column buffers require byte tags and u32 IDs");
-    }
-}
 
 pub fn bind(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, input_type: ir.TypeId, captures: Parameters, span: zx.Span) std.mem.Allocator.Error!void {
     std.debug.assert(builder.symbols.count() == 0 and builder.expressions.count() == 0 and builder.bindings.items.len == 0);
@@ -125,91 +115,152 @@ const Request = struct {
     constant: usize = 0,
 };
 
-fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStorage, request: Request, output: if (is_argument) Output else Parameters) std.mem.Allocator.Error!void {
+fn copyPrefix(builder: *Builder, control: *ir.ControlStorage, request: Request, prefix: anytype) void {
     const symbols = &builder.symbols;
     const expressions = &builder.expressions;
 
+    for (prefix.symbols, 0..) |row, index| {
+        symbols.types.items[index] = row.type_id;
+        symbols.span_start.items[index] = row.start;
+        symbols.span_end.items[index] = row.end;
+    }
+
+    for (prefix.expressions, 0..) |row, index| {
+        expressions.kinds.items[index] = @fromBackingInt(@as(@typeInfo(ExpressionKind).@"enum".tag_type, @intCast(row.kind)));
+        expressions.payloads.items[index] = row.payload;
+        expressions.types.items[index] = row.type_id;
+        expressions.span_start.items[index] = row.start;
+        expressions.span_end.items[index] = row.end;
+    }
+
+    for (prefix.statements, 0..) |row, index| {
+        const statement = request.statement + index;
+        const constant = request.constant + index;
+
+        control.statement_kinds.items[statement] = @fromBackingInt(@as(@typeInfo(StatementKind).@"enum".tag_type, @intCast(row.kind)));
+        control.statement_payloads.items[statement] = row.payload;
+        control.constant_symbols.items[constant] = row.symbol;
+        control.constant_values.items[constant] = row.value;
+    }
+
+    @memcpy(expressions.references.items[0..prefix.references.len], prefix.references);
+    @memcpy(expressions.projection_targets.items[0..prefix.targets.len], prefix.targets);
+    @memcpy(expressions.projection_indices.items[0..prefix.indices.len], prefix.indices);
+
+    for (prefix.bindings, 0..) |id, index| {
+        builder.bindings.items[index] = @fromBackingInt(id);
+    }
+}
+
+fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStorage, request: Request, output: if (is_argument) Output else Parameters) std.mem.Allocator.Error!void {
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, builder.allocator);
+    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+
+    defer arena.deinit();
+
+    const scratch = arena.allocator();
+    const rule = if (comptime is_argument) argument_rule else binding_rule;
+    const Parameter = rule.Input;
+    const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const Prefix = std.meta.Child(@FieldType(Input, "prefix"));
+    const Span = std.meta.Child(@FieldType(Prefix, "span"));
+    const span: Span = .{ .start = request.span.start, .end = request.span.end };
+
     const prefix_input: Prefix = .{
-        .symbols = &.{
-            .types = @ptrCast(&symbols.types.items),
-            .starts = @ptrCast(&symbols.span_start.items),
-            .ends = @ptrCast(&symbols.span_end.items),
-        },
-        .expressions = &.{
-            .kinds = @ptrCast(&expressions.kinds.items),
-            .payloads = @ptrCast(&expressions.payloads.items),
-            .types = @ptrCast(&expressions.types.items),
-            .starts = @ptrCast(&expressions.span_start.items),
-            .ends = @ptrCast(&expressions.span_end.items),
-        },
-        .statements = &.{
-            .kinds = @ptrCast(&control.statement_kinds.items),
-            .payloads = @ptrCast(&control.statement_payloads.items),
-            .symbols = @ptrCast(&control.constant_symbols.items),
-            .values = @ptrCast(&control.constant_values.items),
-        },
         .types = @ptrCast(request.types),
-        .references = @ptrCast(&expressions.references.items),
-        .targets = @ptrCast(&expressions.projection_targets.items),
-        .indices = @ptrCast(&expressions.projection_indices.items),
-        .bindings = if (is_argument) null else @ptrCast(&builder.bindings.items),
-        .span = &.{ .start = request.span.start, .end = request.span.end },
+        .span = &span,
         .input_type = @backingInt(request.input_type),
         .statement = request.statement,
         .constant = request.constant,
         .reference_kind = @backingInt(ExpressionKind.Reference),
         .field_kind = @backingInt(ExpressionKind.TupleField),
         .constant_kind = @backingInt(StatementKind.Constant),
+        .include_bindings = !is_argument,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
     if (comptime is_argument) {
-        const input: std.meta.Child(argument_rule.Input) = .{
-            .prefix = &prefix_input,
-            .tuple = &.{
-                .expressions = prefix_input.expressions,
-                .source_types = prefix_input.types,
-                .parameter_types = @ptrCast(output.parameters),
-                .references = prefix_input.references,
-                .optionals = @ptrCast(&expressions.optional_values.items),
-                .firsts = @ptrCast(&expressions.sequence_first.items),
-                .counts = @ptrCast(&expressions.sequence_count.items),
-                .items = @ptrCast(&expressions.sequence_items.items),
-                .span = prefix_input.span,
-                .result_type = @backingInt(output.input_type),
-                .reference_kind = prefix_input.reference_kind,
-                .optional_kind = @backingInt(ExpressionKind.OptionalValue),
-                .tuple_kind = @backingInt(ExpressionKind.Tuple),
-            },
-            .result = &.{
-                .statements = prefix_input.statements,
-                .results = @ptrCast(&control.results.items),
-                .block_first = @ptrCast(&control.block_first.items),
-                .block_count = @ptrCast(&control.block_count.items),
-                .count = request.types.len,
-                .result_kind = @backingInt(StatementKind.Result),
-            },
+        const Tuple = std.meta.Child(@FieldType(Input, "tuple"));
+        const Result = std.meta.Child(@FieldType(Input, "result"));
+
+        const tuple_input: Tuple = .{
+            .source_types = @ptrCast(request.types),
+            .parameter_types = @ptrCast(output.parameters),
+            .span = &span,
+            .result_type = @backingInt(output.input_type),
+            .reference_kind = prefix_input.reference_kind,
+            .optional_kind = @backingInt(ExpressionKind.OptionalValue),
+            .tuple_kind = @backingInt(ExpressionKind.Tuple),
         };
 
-        zx.columns.invoke(argument_rule.executeValue, empty.allocator(), &input) catch unreachable;
-    } else {
-        var captured = symbols.names.items[1..];
-
-        const input: Binding = .{
-            .prefix = &prefix_input,
-            .names = &.{
-                .allocator = @ptrCast(&builder.allocator),
-                .source = output.names,
-                .positions = output.positions,
-                .names = @ptrCast(&symbols.names.items),
-                .captured = @ptrCast(&captured),
-            },
+        const result_input: Result = .{
+            .count = request.types.len,
+            .result_kind = @backingInt(StatementKind.Result),
         };
 
-        zx.columns.invoke(binding_rule.executeValue, builder.allocator, &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
+        const input: Input = .{
+            .prefix = &prefix_input,
+            .tuple = &tuple_input,
+            .result = &result_input,
+        };
+
+        const result = argument_rule.executeValue(scratch, if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
             else => unreachable,
         };
+
+        copyPrefix(builder, control, request, result.prefix);
+
+        const expressions = &builder.expressions;
+        const base = result.prefix.expressions.len;
+
+        for (result.tuple.expressions, 0..) |row, index| {
+            expressions.kinds.items[base + index] = @fromBackingInt(@as(@typeInfo(ExpressionKind).@"enum".tag_type, @intCast(row.kind)));
+            expressions.payloads.items[base + index] = row.payload;
+            expressions.types.items[base + index] = row.type_id;
+            expressions.span_start.items[base + index] = row.start;
+            expressions.span_end.items[base + index] = row.end;
+        }
+
+        @memcpy(expressions.references.items[1 .. 1 + result.tuple.references.len], result.tuple.references);
+        @memcpy(expressions.optional_values.items[0..result.tuple.optionals.len], result.tuple.optionals);
+        @memcpy(expressions.sequence_first.items[0..result.tuple.firsts.len], result.tuple.firsts);
+        @memcpy(expressions.sequence_count.items[0..result.tuple.counts.len], result.tuple.counts);
+        @memcpy(expressions.sequence_items.items[0..result.tuple.items.len], result.tuple.items);
+
+        const count = request.types.len;
+        control.statement_kinds.items[count] = @fromBackingInt(@as(@typeInfo(StatementKind).@"enum".tag_type, @intCast(result.result.statement_kind)));
+        control.statement_payloads.items[count] = result.result.statement_payload;
+        control.results.items[0] = result.result.result_expression;
+        control.block_first.items[0] = result.result.block_first;
+        control.block_count.items[0] = result.result.block_count;
+    } else {
+        const Names = std.meta.Child(@FieldType(Input, "names"));
+
+        const names_input: Names = .{
+            .source = output.names,
+            .positions = output.positions,
+        };
+
+        const input: Input = .{
+            .prefix = &prefix_input,
+            .names = &names_input,
+        };
+
+        const result = binding_rule.executeValue(scratch, if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        copyPrefix(builder, control, request, result.prefix);
+
+        var owned: usize = 0;
+
+        errdefer for (builder.symbols.names.items[0..owned]) |name| builder.allocator.free(name);
+
+        for (result.names, 0..) |name, index| {
+            builder.symbols.names.items[index] = try builder.allocator.dupe(u8, name);
+            owned += 1;
+        }
     }
 }

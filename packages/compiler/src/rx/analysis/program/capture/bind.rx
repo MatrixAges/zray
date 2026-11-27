@@ -1,8 +1,15 @@
 <Module>
     <Type from="model" as="Capture" />
 
-    <Args in={Capture.Binding} out={void} />
+    <Args in={Capture.Binding} out={Capture.BindingOutput} />
 
     <Call fn="prefix" in={$in.prefix} />
     <Call fn="names" in={$in.names} />
+
+    <Return
+        value={{
+            prefix: $ctx.prefix,
+            names: $ctx.names
+        }}
+    />
 </Module>

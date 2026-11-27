@@ -1,39 +1,42 @@
 <Module>
     <Type from="model" as="StoreGet" />
 
-    <Args in={StoreGet.Input} out={void} />
+    <Args in={StoreGet.Input} out={StoreGet.Output} />
 
     <Call
         fn="expressions"
-        in={$in.omit([
-            "symbols",
-            "constants",
-            "lengths"
+        in={$in.pick([
+            "getters",
+            "span",
+            "first_payload",
+            "kind"
         ])}
     />
 
     <Call
         fn="symbols"
-        in={$in.omit([
-            "expressions",
-            "constants",
-            "lengths"
+        in={$in.pick([
+            "getters",
+            "span",
+            "copy_tag"
         ])}
     />
 
     <Call
         fn="constants"
         in={{
-            ...$in.constants,
+            first_symbol: $in.first_symbol,
+            first_expression: $in.first_expression,
             count: $in.getters.count
         }}
     />
 
-    <Call
-        fn="../../../../../core/column_lengths/publish"
-        in={{
-            target: $in.lengths,
-            count: $in.getters.count
+    <Return
+        value={{
+            expressions: $ctx.expressions,
+            symbols: $ctx.symbols,
+            constants: $ctx.constants.constants,
+            bindings: $ctx.constants.bindings
         }}
     />
 </Module>

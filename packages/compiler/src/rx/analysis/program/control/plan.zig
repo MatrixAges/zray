@@ -39,17 +39,21 @@ rows: []const Row,
 blocks: []const bool,
 size: Counts,
 implicit_return: bool,
-pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks_arg: Blocks, capture_count: usize, void_output: bool) Error!Self {
-    var blocks = blocks_arg;
+pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks: Blocks, capture_count: usize, void_output: bool) Error!Self {
     const rows = try allocator.alloc(Row, shape.units.len);
 
     if (comptime !enabled) return @import("seed.zig").plan(shape, rows, blocks, capture_count, void_output);
 
     const rule = @import("generated_rx_control_layout");
-    const Input = std.meta.Child(rule.Input);
+    const Parameter = rule.Input;
+    const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const Columns = std.meta.Child(@FieldType(Input, "shape"));
     const Steps = std.meta.Child(@FieldType(Columns, "steps"));
-    var items: []u32 = @as([*]u32, @ptrCast(rows.ptr))[0 .. rows.len * (@sizeOf(Row) / @sizeOf(u32))];
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, allocator);
+    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+
+    defer arena.deinit();
 
     const input: Input = .{
         .shape = &.{
@@ -64,15 +68,11 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks_arg: Block
             .cases = shape.cases.items(.body),
             .calls = &.{ .getters = shape.calls.items(.getters), .publishes = shape.calls.items(.publishes) },
         },
-        .layout = @ptrCast(&items),
-        .blocks = &.{ .firsts = @ptrCast(&blocks.firsts), .counts = @ptrCast(&blocks.counts) },
         .capture_count = capture_count,
         .void_output = void_output,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    const result = rule.executeValue(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = rule.executeValue(arena.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
         error.IndexOutOfBounds => return error.InvalidModule,
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
@@ -91,6 +91,24 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks_arg: Block
     }
 
     if (size.statements() > std.math.maxInt(u32)) return error.OutOfMemory;
+
+    for (result.rows, 0..) |row, index| {
+        rows[index] = .{
+            .first = .{
+                .evaluations = row.evaluations,
+                .constants = row.constants,
+                .parallels = row.parallels,
+                .invocations = row.invocations,
+                .selections = row.selections,
+                .cases = row.cases,
+                .results = row.results,
+            },
+            .tag = row.tag,
+        };
+    }
+
+    @memcpy(blocks.firsts[0..result.block_firsts.len], result.block_firsts);
+    @memcpy(blocks.counts[0..result.block_counts.len], result.block_counts);
 
     return .{ .rows = rows, .blocks = shape.units.items(.block), .size = size, .implicit_return = result.implicit_return };
 }

@@ -1,38 +1,37 @@
-import type { ColumnLengths, U8Buffer, U32Buffer } from "memory"
 import type { Getters } from "../../../store/bindings/model"
-import type {
-    Expressions as Headers,
-    Span,
-    Symbols as SymbolColumns
-} from "../../capture/model"
-import type { Cursor } from "../../control/write/buffers"
+import type { ExpressionRow, Span } from "../../capture/model"
 
-export type Expressions = {
-    header: Headers,
+export type SymbolRow = {
+    name: string,
+    type_id: u32,
+    start: u64,
+    end: u64,
+    ownership: u8
+}
+
+export type ConstantRow = {
+    symbol: u32,
+    value: u32
+}
+
+export type ConstantsOutput = {
+    constants: ConstantRow[],
+    bindings: u32[]
+}
+
+export type Input = {
+    getters: Getters,
+    span: Span,
     first_payload: u32,
-    kind: u8
-}
-
-export type Symbols = SymbolColumns & {
-    ownership: U8Buffer,
-    copy_tag: u8
-}
-
-export type Constants = {
-    writer: Cursor,
-    bindings: U32Buffer,
+    kind: u8,
+    copy_tag: u8,
     first_symbol: u32,
     first_expression: u32
 }
 
-export type Snapshot = {
-    getters: Getters,
-    span: Span
-}
-
-export type Input = Snapshot & {
-    expressions: Expressions,
-    symbols: Symbols,
-    constants: Constants,
-    lengths: ColumnLengths
+export type Output = {
+    expressions: ExpressionRow[],
+    symbols: SymbolRow[],
+    constants: ConstantRow[],
+    bindings: u32[]
 }

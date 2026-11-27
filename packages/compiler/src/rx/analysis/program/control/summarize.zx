@@ -1,28 +1,32 @@
 import summarizeUnit from "./unit"
 
-import type { U32Buffer } from "memory"
-import type { Shape } from "./model"
+import type { Row, Shape } from "./model"
 
 export type Input = {
-    shape: Shape,
-    layout: U32Buffer
+    shape: Shape
 }
 
-export type Output = U32Buffer
+export type Output = Row[]
 
 export default function (in: Input): Output {
     const count = in.shape.units.firsts.length
+    const rows: Row[] = []
 
-    return loop(0, {
-        while: unit => unit < count,
-        next: unit => {
-            summarizeUnit({
+    return loop({
+        unit: 0,
+        rows
+    }, {
+        while: state => state.unit < count,
+        next: state => {
+            const row = summarizeUnit({
                 shape: in.shape,
-                layout: in.layout,
-                unit
+                rows: state.rows,
+                unit: state.unit
             })
-            unit += 1
+
+            state.rows = state.rows.push(row)[0]
+            state.unit += 1
         },
-        return: unit => in.layout
+        return: state => state.rows
     })
 }

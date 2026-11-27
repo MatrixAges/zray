@@ -1,24 +1,23 @@
 import { max_u32 } from "core/const"
-import memory from "memory"
 
-import type { Columns } from "../cache/model"
-
-export type Input = Columns.Omit("touched") & {
+export type Input = {
     count: u64
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { count } = in
+    const empty: u32[] = []
 
-    memory.allocateU32Views(in.state_types, count)
-    memory.allocateU32Views(in.state_layouts, count)
-    memory.allocateU32Views(in.views, count)
-
-    memory.fillU32Buffer(in.abi_types, count, max_u32)
-    memory.fillU32Buffer(in.abi_layouts, count, max_u32)
-    memory.fillU32Buffer(in.state_types, count, max_u32)
-    memory.fillU32Buffer(in.state_layouts, count, max_u32)
-    memory.fillU32Buffer(in.views, count, max_u32)
+    return loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            state.items = state.items.push(max_u32)[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
 }

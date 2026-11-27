@@ -1,69 +1,96 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import expression from "./expression"
-
-import type { Prefix } from "./model"
+import type {
+    ExpressionRow,
+    Prefix,
+    PrefixOutput,
+    StatementRow,
+    SymbolRow
+} from "./model"
 
 export type Input = Prefix
 
-export type Output = void
+export type Output = PrefixOutput
 
 export default function (in: Input): Output {
-    const { symbols, expressions, statements, types, span, bindings } = in
+    const { types, span } = in
 
-    memory.writeU32(symbols.types, 0, in.input_type)
-    memory.writeU64(symbols.starts, 0, span.start)
-    memory.writeU64(symbols.ends, 0, span.end)
-    memory.writeU32(in.references, 0, 0)
+    const symbols: SymbolRow[] = [
+        {
+            type_id: in.input_type,
+            start: span.start,
+            end: span.end
+        }
+    ]
 
-    expression({
-        columns: expressions,
-        span,
+    const expressions: ExpressionRow[] = [
+        {
+            kind: in.reference_kind,
+            payload: 0,
+            type_id: in.input_type,
+            start: span.start,
+            end: span.end
+        }
+    ]
+
+    const statements: StatementRow[] = []
+    const references: u32[] = [0]
+    const targets: u32[] = []
+    const indices: u32[] = []
+    const bindings: u32[] = []
+
+    return loop({
         row: 0,
-        kind: in.reference_kind,
-        type_id: in.input_type,
-        payload: 0
-    })
-
-    const written = loop(0, {
-        while: row => row < types.length,
-        next: row => {
-            const symbol = row + 1
+        symbols,
+        expressions,
+        statements,
+        targets,
+        indices,
+        bindings
+    }, {
+        while: state => state.row < types.length,
+        next: state => {
+            const symbol = state.row + 1
             const id = integers.narrow(symbol)
-            const payload = integers.narrow(row)
-            const type_id = types[row]
-            const statement = in.statement + row
-            const constant = in.constant + row
+            const payload = integers.narrow(state.row)
+            const type_id = types[state.row]
+            const constant = in.constant + state.row
 
-            memory.writeU32(symbols.types, symbol, type_id)
-            memory.writeU64(symbols.starts, symbol, span.start)
-            memory.writeU64(symbols.ends, symbol, span.end)
-            memory.writeU32(in.targets, row, 0)
-            memory.writeU32(in.indices, row, payload)
-            expression({
-                columns: expressions,
-                span,
-                row: symbol,
-                kind: in.field_kind,
+            state.symbols = state.symbols.push({
                 type_id,
-                payload
-            })
+                start: span.start,
+                end: span.end
+            })[0]
+            state.targets = state.targets.push(0)[0]
+            state.indices = state.indices.push(payload)[0]
+            state.expressions = state.expressions.push({
+                kind: in.field_kind,
+                payload,
+                type_id,
+                start: span.start,
+                end: span.end
+            })[0]
+            state.statements = state.statements.push({
+                kind: in.constant_kind,
+                payload: integers.narrow(constant),
+                symbol: id,
+                value: id
+            })[0]
 
-            memory.writeU8(statements.kinds, statement, in.constant_kind)
-            memory.writeU32(
-                statements.payloads,
-                statement,
-                integers.narrow(constant)
-            )
-            memory.writeU32(statements.symbols, constant, id)
-            memory.writeU32(statements.values, constant, id)
-
-            if (bindings != null) {
-                memory.writeU32(bindings, row, id)
+            if (in.include_bindings) {
+                state.bindings = state.bindings.push(id)[0]
             }
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => ({
+            symbols: state.symbols,
+            expressions: state.expressions,
+            statements: state.statements,
+            references,
+            targets: state.targets,
+            indices: state.indices,
+            bindings: state.bindings
+        })
     })
 }

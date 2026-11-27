@@ -1,29 +1,33 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import write from "../../capture/expression"
-
+import type { ExpressionRow } from "../../capture/model"
 import type { Input as Publication } from "./model"
 
-export type Input = Publication.Pick("expressions", "getters", "span")
+export type Input = Publication.Pick("getters", "span", "first_payload", "kind")
 
-export type Output = void
+export type Output = ExpressionRow[]
 
 export default function (in: Input): Output {
-    const { getters, expressions } = in
+    const { getters, span } = in
 
-    const written = loop(0, {
-        while: row => row < getters.count,
-        next: row => {
-            write({
-                columns: expressions.header,
-                row,
-                span: in.span,
-                kind: expressions.kind,
-                payload: expressions.first_payload + integers.narrow(row),
-                type_id: memory.readColumnU32(getters.types, row)
-            })
-            row += 1
-        }
+    const empty: ExpressionRow[] = []
+
+    return loop({
+        row: 0,
+        rows: empty
+    }, {
+        while: state => state.row < getters.count,
+        next: state => {
+            state.rows = state.rows.push({
+                kind: in.kind,
+                payload: in.first_payload + integers.narrow(state.row),
+                type_id: memory.readColumnU32(getters.types, state.row),
+                start: span.start,
+                end: span.end
+            })[0]
+            state.row += 1
+        },
+        return: state => state.rows
     })
 }

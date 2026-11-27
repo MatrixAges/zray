@@ -1,68 +1,54 @@
-import type { Allocator, OptionalU32Buffer, StringBuffer } from "memory"
-import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
-
-export type Symbols = {
-    names: StringBuffer,
-    types: U32Buffer,
-    starts: U64Buffer,
-    ends: U64Buffer
-}
-
-export type Expressions = {
-    kinds: U8Buffer,
-    payloads: U32Buffer,
-    types: U32Buffer,
-    starts: U64Buffer,
-    ends: U64Buffer
-}
-
-export type Statements = {
-    kinds: U8Buffer,
-    payloads: U32Buffer,
-    symbols: U32Buffer,
-    values: U32Buffer
-}
-
 export type Span = {
     start: u64,
     end: u64
 }
 
-export type Names = {
-    allocator: Allocator,
-    source: string[],
-    positions: u32[],
-    names: StringBuffer,
-    captured: StringBuffer
+export type SymbolRow = {
+    type_id: u32,
+    start: u64,
+    end: u64
+}
+
+export type ExpressionRow = {
+    kind: u8,
+    payload: u32,
+    type_id: u32,
+    start: u64,
+    end: u64
+}
+
+export type StatementRow = {
+    kind: u8,
+    payload: u32,
+    symbol: u32,
+    value: u32
 }
 
 export type Prefix = {
-    symbols: Symbols.Omit("names"),
-    expressions: Expressions,
-    statements: Statements,
     types: u32[],
-    references: U32Buffer,
-    targets: U32Buffer,
-    indices: U32Buffer,
-    bindings?: U32Buffer,
     span: Span,
     input_type: u32,
     statement: u64,
     constant: u64,
     reference_kind: u8,
     field_kind: u8,
-    constant_kind: u8
+    constant_kind: u8,
+    include_bindings: bool
+}
+
+export type PrefixOutput = {
+    symbols: SymbolRow[],
+    expressions: ExpressionRow[],
+    statements: StatementRow[],
+    references: u32[],
+    targets: u32[],
+    indices: u32[],
+    bindings: u32[]
 }
 
 export type Tuple = {
-    expressions: Expressions,
     source_types: u32[],
     parameter_types: u32[],
-    references: U32Buffer,
-    optionals: U32Buffer,
-    firsts: U32Buffer,
-    counts: U32Buffer,
-    items: U32Buffer,
     span: Span,
     result_type: u32,
     reference_kind: u8,
@@ -70,13 +56,32 @@ export type Tuple = {
     tuple_kind: u8
 }
 
+export type TupleOutput = {
+    expressions: ExpressionRow[],
+    references: u32[],
+    optionals: u32[],
+    firsts: u32[],
+    counts: u32[],
+    items: u32[],
+    result_expression: u32
+}
+
 export type Result = {
-    statements: Statements,
-    results: OptionalU32Buffer,
-    block_first: U32Buffer,
-    block_count: U32Buffer,
     count: u64,
     result_kind: u8
+}
+
+export type ResultOutput = {
+    statement_kind: u8,
+    statement_payload: u32,
+    result_expression?: u32,
+    block_first: u32,
+    block_count: u32
+}
+
+export type Names = {
+    source: string[],
+    positions: u32[]
 }
 
 export type Argument = {
@@ -85,7 +90,18 @@ export type Argument = {
     result: Result
 }
 
+export type ArgumentOutput = {
+    prefix: PrefixOutput,
+    tuple: TupleOutput,
+    result: ResultOutput
+}
+
 export type Binding = {
     prefix: Prefix,
     names: Names
+}
+
+export type BindingOutput = {
+    prefix: PrefixOutput,
+    names: string[]
 }

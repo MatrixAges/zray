@@ -1,2 +1,1 @@
 export { readAstOrigin, tailAstPackedStatements } from "ast_rows"
-export { u64Views } from "memory"

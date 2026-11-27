@@ -5,37 +5,23 @@
 
     <Call fn="prepare" in={$in} />
 
-    <Call
-        fn="reserve"
-        in={{
-            ...$in.pick([
-                "spans",
-                "values"
-            ]),
-            iteration: $in.selection.iteration,
-            count: $ctx.prepare.count
-        }}
-    />
-
-    <Call
-        fn="collect"
-        in={{
-            source: $in,
-            ...$ctx.prepare.pick([
-                "count",
-                "type_id"
-            ])
-        }}
-    />
-
     <If on={!$in.selection.iteration}>
-        <Call fn="workflow.u64Views" in={$in.spans} />
+        <Call
+            fn="collect"
+            in={{
+                source: $in,
+                ...$ctx.prepare.pick([
+                    "count",
+                    "type_id"
+                ])
+            }}
+        />
 
         <Call
             fn="workflow.tailAstPackedStatements"
             in={[
                 $in.writer,
-                $ctx.u64Views
+                $ctx.collect
             ]}
         />
 
@@ -55,10 +41,10 @@
     </If>
 
     <Call
-        fn="iteration_result"
+        fn="iteration"
         in={{
-            symbols: $in.selection.symbols,
-            buffers: $in.values
+            source: $in,
+            count: $ctx.prepare.count
         }}
     />
 
@@ -75,7 +61,7 @@
         in={{
             writer: $in.writer,
             frame: $in.frame,
-            bindings: $ctx.iteration_result,
+            bindings: $ctx.iteration,
             result: $ctx.prepare.value,
             expression_base: $ctx.readAstOrigin.expression_base,
             statement_base: $ctx.readAstOrigin.statement_base,

@@ -1,27 +1,34 @@
-import strings from "std:string"
 import memory from "memory"
 
-import type { Input as Publication } from "./model"
+import type { Input as Publication, SymbolRow } from "./model"
 
-export type Input = Publication.Pick("getters", "span", "symbols")
+export type Input = Publication.Pick("getters", "span", "copy_tag")
 
-export type Output = void
+export type Output = SymbolRow[]
 
 export default function (in: Input): Output {
-    const { getters, symbols } = in
+    const { getters, span } = in
 
-    const written = loop(0, {
-        while: row => row < getters.count,
-        next: row => {
-            const name = memory.readTextColumn(getters.names, row)
-            const type_id = memory.readColumnU32(getters.types, row)
+    const empty: SymbolRow[] = []
 
-            memory.writeString(symbols.names, row, strings.copy(name))
-            memory.writeU32(symbols.types, row, type_id)
-            memory.writeU64(symbols.starts, row, in.span.start)
-            memory.writeU64(symbols.ends, row, in.span.end)
-            memory.writeU8(symbols.ownership, row, symbols.copy_tag)
-            row += 1
-        }
+    return loop({
+        row: 0,
+        rows: empty
+    }, {
+        while: state => state.row < getters.count,
+        next: state => {
+            const name = memory.readTextColumn(getters.names, state.row)
+            const type_id = memory.readColumnU32(getters.types, state.row)
+
+            state.rows = state.rows.push({
+                name,
+                type_id,
+                start: span.start,
+                end: span.end,
+                ownership: in.copy_tag
+            })[0]
+            state.row += 1
+        },
+        return: state => state.rows
     })
 }

@@ -1,12 +1,11 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import { continues, lane_count, returns, tag_lane, unreachable } from "./const"
+import { continues, returns, unreachable } from "./const"
 
-import type { U32Buffer } from "memory"
+import type { Row } from "./model"
 
 export type Input = {
-    layout: U32Buffer,
+    rows: Row[],
     cases: u32[],
     first: u64,
     count: u64,
@@ -25,8 +24,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < end && state.exit != unreachable,
         next: state => {
-            const child = integers.widen(in.cases[state.index]) * lane_count
-            const exit = memory.readU32(in.layout, child + tag_lane)
+            const exit = in.rows[integers.widen(in.cases[state.index])].tag
 
             if (exit == unreachable || exit == continues) {
                 state.exit = exit

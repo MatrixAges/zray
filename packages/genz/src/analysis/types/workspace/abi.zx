@@ -1,19 +1,21 @@
-import memory from "memory"
-
-import type { U32Buffer } from "memory"
-
-export type Buffers = {
-    abi_types: U32Buffer,
-    abi_layouts: U32Buffer
-}
-
-export type Input = Buffers & {
+export type Input = {
     count: u64
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    memory.allocateU32Views(in.abi_types, in.count)
-    memory.allocateU32Views(in.abi_layouts, in.count)
+    const empty: u32[] = []
+
+    return loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            state.items = state.items.push(0)[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
 }

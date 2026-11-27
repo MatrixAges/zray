@@ -1,43 +1,26 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import {
-    cases_lane,
-    constants_lane,
-    continues,
-    evaluations_lane,
-    invocations_lane,
-    lane_count,
-    parallels_lane,
-    results_lane,
-    returns,
-    selections_lane,
-    tag_lane,
-    unreachable
-} from "./const"
+import { continues, returns, unreachable } from "./const"
 import getterCount from "./getter_count"
 import { Kind, Publish } from "./model"
 import selectionExit from "./selection_exit"
 
-import type { U32Buffer } from "memory"
-import type { Shape } from "./model"
+import type { Row, Shape } from "./model"
 
 export type Input = {
     shape: Shape,
-    layout: U32Buffer,
+    rows: Row[],
     unit: u64
 }
 
-export type Output = void
+export type Output = Row
 
 export default function (in: Input): Output {
     const first = integers.widen(in.shape.units.firsts[in.unit])
     const end = first + integers.widen(in.shape.units.counts[in.unit])
     const steps = in.shape.steps
-    const row = in.unit * lane_count
-    const layout = in.layout
 
-    const summary = loop({
+    return loop({
         index: first,
         exit: continues,
         evaluations: 0,
@@ -82,68 +65,26 @@ export default function (in: Input): Output {
                         state.results += 1
                         state.exit = returns
                     case Kind.Task:
-                        const child = integers.widen(steps.firsts[index]) * lane_count
-                        const exit = memory.readU32(layout, child + tag_lane)
+                        const child = in.rows[integers.widen(steps.firsts[index])]
 
-                        state.evaluations +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + evaluations_lane
-                                )
-                            )
-                        state.constants +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + constants_lane
-                                )
-                            )
-                        state.parallels +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + parallels_lane
-                                )
-                            )
-                        state.invocations +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + invocations_lane
-                                )
-                            )
-                        state.selections +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + selections_lane
-                                )
-                            )
-                        state.cases +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + cases_lane
-                                )
-                            )
-                        state.results +=
-                            integers.widen(
-                                memory.readU32(
-                                    layout,
-                                    child + results_lane
-                                )
-                            )
+                        state.evaluations += integers.widen(child.evaluations)
+                        state.constants += integers.widen(child.constants)
+                        state.parallels += integers.widen(child.parallels)
+                        state.invocations += integers.widen(child.invocations)
+                        state.selections += integers.widen(child.selections)
+                        state.cases += integers.widen(child.cases)
+                        state.results += integers.widen(child.results)
 
-                        if (output == Publish.None || exit == unreachable) {
-                            state.exit = exit
+                        if (output == Publish.None || child.tag == unreachable) {
+                            state.exit = child.tag
                         }
                     case Kind.Selection:
                         const count = integers.widen(steps.counts[index])
+
                         state.selections += 1
                         state.cases += count
                         state.exit = selectionExit({
-                            layout,
+                            rows: in.rows,
                             cases: in.shape.cases,
                             first: integers.widen(steps.firsts[index]),
                             count,
@@ -159,31 +100,16 @@ export default function (in: Input): Output {
             }
 
             state.index += 1
-        }
+        },
+        return: state => ({
+            evaluations: integers.narrow(state.evaluations),
+            constants: integers.narrow(state.constants),
+            parallels: integers.narrow(state.parallels),
+            invocations: integers.narrow(state.invocations),
+            selections: integers.narrow(state.selections),
+            cases: integers.narrow(state.cases),
+            results: integers.narrow(state.results),
+            tag: state.exit
+        })
     })
-
-    memory.writeU32(
-        layout,
-        row + evaluations_lane,
-        integers.narrow(summary.evaluations)
-    )
-
-    memory.writeU32(layout, row + constants_lane, integers.narrow(summary.constants))
-    memory.writeU32(layout, row + parallels_lane, integers.narrow(summary.parallels))
-
-    memory.writeU32(
-        layout,
-        row + invocations_lane,
-        integers.narrow(summary.invocations)
-    )
-
-    memory.writeU32(
-        layout,
-        row + selections_lane,
-        integers.narrow(summary.selections)
-    )
-
-    memory.writeU32(layout, row + cases_lane, integers.narrow(summary.cases))
-    memory.writeU32(layout, row + results_lane, integers.narrow(summary.results))
-    memory.writeU32(layout, row + tag_lane, summary.exit)
 }

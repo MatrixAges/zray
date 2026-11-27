@@ -1,46 +1,91 @@
 import integers from "std:integer"
 import host from "lowering_host"
-import memory from "memory"
 
 import { Action } from "./model"
+import next from "./next"
 
-import type { Binding, Input as Scope, Values } from "./model"
+import type { Bindings as Output } from "../../iteration/scope/model"
+import type { Input as Scope, Prepared } from "./model"
 
-export type Input = {
-    scope: Scope,
-    binding: Binding,
-    output: Values
+export type Input = Prepared.Pick("count") & {
+    source: Scope
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { scope, binding, output } = in
-    const { position, symbol } = binding
+    const { source, count } = in
+    const { selection } = source
 
-    const value: u32? = match binding.action {
-        Action.Skip => null,
-        _ => host.lowerExpression(scope.frame, binding.value, false, null)
-    }
+    const empty_values: u32?[] = []
+    const empty_types: u32?[] = []
+    const empty_names: u8[][] = []
 
-    if (value != null && symbol != null) {
-        const index = integers.widen(symbol)
+    const initial = loop({
+        index: 0,
+        values: empty_values,
+        types: empty_types,
+        names: empty_names
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const empty_name: u8[] = []
 
-        if (scope.selection.used[index]) {
-            const name = scope.names[index]
+            state.values = state.values.push(null)[0]
+            state.types = state.types.push(null)[0]
+            state.names = state.names.push(empty_name)[0]
+            state.index += 1
+        },
+        return: state => ({
+            values: state.values,
+            types: state.types,
+            names: state.names
+        })
+    })
 
-            const type_id =
-                host.lowerType(scope.frame, scope.symbol_types[index], true)
+    return loop({
+        remaining: count,
+        values: initial.values,
+        types: initial.types,
+        names: initial.names
+    }, {
+        while: state => state.remaining != 0,
+        next: state => {
+            const binding = next({
+                selection,
+                remaining: state.remaining
+            })
+            const { position, symbol } = binding
 
-            memory.writeOptionalU32(output.values, position, value)
-            memory.writeOptionalU32(output.types, position, type_id)
-            memory.writeU8List(output.names, position, name)
+            const value: u32? = match binding.action {
+                Action.Skip => null,
+                _ => host.lowerExpression(source.frame, binding.value, false, null)
+            }
 
-            return
-        }
-    }
+            const used = match {
+                value != null && symbol != null =>
+                    selection.used[integers.widen(symbol)],
+                _ => false
+            }
 
-    memory.writeOptionalU32(output.values, position, value)
-    memory.writeOptionalU32(output.types, position, null)
-    memory.writeU8List(output.names, position, [])
+            state.values[position] = value
+
+            if (used && symbol != null) {
+                const index = integers.widen(symbol)
+                const name = source.names[index]
+
+                const type_id =
+                    host.lowerType(source.frame, source.symbol_types[index], true)
+
+                state.types[position] = type_id
+                state.names[position] = name
+            }
+
+            state.remaining = position
+        },
+        return: state => ({
+            symbols: selection.symbols,
+            values: state.values,
+            types: state.types,
+            names: state.names
+        })
+    })
 }

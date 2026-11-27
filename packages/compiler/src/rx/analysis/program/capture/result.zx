@@ -1,20 +1,19 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { Result } from "./model"
+import type { Result, ResultOutput } from "./model"
 
 export type Input = Result & {
     expression: u32
 }
 
-export type Output = void
+export type Output = ResultOutput
 
 export default function (in: Input): Output {
-    const { statements, count } = in
-
-    memory.writeU8(statements.kinds, count, in.result_kind)
-    memory.writeU32(statements.payloads, count, 0)
-    memory.writeOptionalU32(in.results, 0, in.expression)
-    memory.writeU32(in.block_first, 0, 0)
-    memory.writeU32(in.block_count, 0, integers.narrow(count + 1))
+    return {
+        statement_kind: in.result_kind,
+        statement_payload: 0,
+        result_expression: in.expression,
+        block_first: 0,
+        block_count: integers.narrow(in.count + 1)
+    }
 }

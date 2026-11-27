@@ -1,6 +1,4 @@
 import integers from "std:integer"
-import { into } from "core/owned_text"
-import memory from "memory"
 
 import { environment_name } from "./const"
 
@@ -8,23 +6,22 @@ import type { Names } from "./model"
 
 export type Input = Names
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    memory.writeString(in.names, 0, environment_name)
+    const names: string[] = [environment_name]
 
-    const written = loop(0, {
-        while: row => row < in.positions.length,
-        next: row => {
-            const value = in.source[integers.widen(in.positions[row])]
-            memory.writeString(in.captured, row, value)
-            row += 1
-        }
-    })
+    return loop({
+        row: 0,
+        names
+    }, {
+        while: state => state.row < in.positions.length,
+        next: state => {
+            const value = in.source[integers.widen(in.positions[state.row])]
 
-    into({
-        allocator: in.allocator,
-        target: in.captured,
-        source: memory.stringViews(in.captured)
+            state.names = state.names.push(value)[0]
+            state.row += 1
+        },
+        return: state => state.names
     })
 }

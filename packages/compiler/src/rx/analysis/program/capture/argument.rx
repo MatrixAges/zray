@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Capture" />
 
-    <Args in={Capture.Argument} out={void} />
+    <Args in={Capture.Argument} out={Capture.ArgumentOutput} />
 
     <Call fn="prefix" in={$in.prefix} />
     <Call fn="tuple" in={$in.tuple} />
@@ -10,7 +10,15 @@
         fn="result"
         in={{
             ...$in.result,
-            expression: $ctx.tuple
+            expression: $ctx.tuple.result_expression
+        }}
+    />
+
+    <Return
+        value={{
+            prefix: $ctx.prefix,
+            tuple: $ctx.tuple,
+            result: $ctx.result
         }}
     />
 </Module>

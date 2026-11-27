@@ -1,44 +1,21 @@
 <Module>
     <Type from="model" as="ObjectRules" />
 
-    <Args in={ObjectRules.Proof} out={bool} />
+    <Args in={ObjectRules.Input} out={bool[]} />
 
-    <Call
-        fn="initial"
-        in={$in.pick([
-            "rules",
-            "work"
-        ])}
-    />
+    <Call fn="initial" in={$in} />
 
-    <If on={$in.rules.dependents.length != 0}>
-        <Call
-            fn="copy_pending"
-            in={{
-                sizes: $in.rules.sizes,
-                pending: $in.work.pending
-            }}
-        />
-
+    <If on={$in.dependents.length != 0}>
         <Call
             fn="propagate"
             in={{
-                ...$in.pick([
-                    "rules",
-                    "work"
-                ]),
+                rules: $in,
                 initial: $ctx.initial
             }}
         />
+
+        <Return value={$ctx.propagate} />
     </If>
 
-    <Call
-        fn="publish"
-        in={{
-            ...$in.publication,
-            ready: $in.work.ready
-        }}
-    />
-
-    <Return value={$ctx.publish} />
+    <Return value={$ctx.initial.ready} />
 </Module>

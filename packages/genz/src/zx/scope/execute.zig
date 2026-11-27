@@ -22,15 +22,9 @@ const Frame = struct {
     fn run(self: *Frame, layout: bool, comptime iteration_mode: bool) Error!node.ExpressionId {
         const Input = std.meta.Child(entry.Input);
         const Selection = std.meta.Child(@FieldType(Input, "selection"));
-        const ValueColumns = std.meta.Child(@FieldType(Input, "values"));
         const lowering = self.lowering;
         const expressions = &lowering.program.expressions;
         const stack = lowering.stack_symbols.current();
-        var spans: []u64 = &.{};
-        var lowered: []?u32 = &.{};
-        var types: []?u32 = &.{};
-        var names: [][]const u8 = &.{};
-        const values: ValueColumns = .{ .values = @ptrCast(&lowered), .types = @ptrCast(&types), .names = @ptrCast(&names) };
 
         const selection: Selection = .{
             .symbols = self.scope.bindings.symbols,
@@ -55,8 +49,6 @@ const Frame = struct {
             .result = @backingInt(self.scope.result),
             .layout = layout,
             .selection = &selection,
-            .spans = @ptrCast(&spans),
-            .values = &values,
             .names = lowering.names,
             .symbol_types = if (iteration_mode) lowering.program.symbols.types else &.{},
         };

@@ -1,5 +1,4 @@
 const std = @import("std");
-const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
 const seed = @import("darwin/seed.zig");
 pub const settings = if (generated) @import("generated_input_darwin_constants").@"zx.constants" else seed;
@@ -19,39 +18,39 @@ pub const Record = struct {
 pub fn decode(buffer: []const u8, offset: usize, rows: []Record, endian: std.builtin.Endian) error{InvalidDirectoryRecord}!usize {
     if (comptime !generated) return seed.decode(buffer, offset, rows, endian);
 
-    const memory = zx.memory;
     const rule = @import("generated_input_darwin_decode");
-    const Input = std.meta.Child(rule.Input);
-    const Rows = std.meta.Child(@FieldType(Input, "rows"));
+    const Parameter = rule.Input;
+    const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, std.heap.smp_allocator);
+    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
 
-    var metadata = memory.borrowWriteFields(.{
-        .inode = "inode",
-        .size = "size",
-        .modified_seconds = "modified_seconds",
-        .modified_nanos = "modified_nanos",
-        .changed_seconds = "changed_seconds",
-        .changed_nanos = "changed_nanos",
-    }, rows);
-
-    var columns = memory.borrowWriteFields(.{ .names = "name", .kinds = "kind", .has_metadata = "has_metadata" }, rows);
-    var measurements = metadata.bind(std.meta.Child(@FieldType(Rows, "metadata")));
-    var target: Rows = undefined;
-
-    columns.fill(&target);
-
-    target.metadata = &measurements;
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    defer arena.deinit();
 
     const input: Input = .{
         .buffer = buffer,
         .offset = offset,
         .count = rows.len,
         .little_endian = endian == .little,
-        .rows = &target,
     };
 
-    const next = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch return error.InvalidDirectoryRecord;
+    const decoded = (rule.executeValue(arena.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch return error.InvalidDirectoryRecord) orelse return error.InvalidDirectoryRecord;
 
-    return @intCast(next orelse return error.InvalidDirectoryRecord);
+    if (decoded.rows.len != rows.len) return error.InvalidDirectoryRecord;
+
+    for (rows, decoded.rows) |*dst, src| {
+        dst.* = .{
+            .name = src.name,
+            .kind = src.kind,
+            .has_metadata = src.has_metadata,
+            .inode = src.inode,
+            .size = src.size,
+            .modified_seconds = src.modified_seconds,
+            .modified_nanos = src.modified_nanos,
+            .changed_seconds = src.changed_seconds,
+            .changed_nanos = src.changed_nanos,
+        };
+    }
+
+    return @intCast(decoded.offset);
 }

@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import {
     dependents_slot,
     known_slot,
@@ -10,30 +8,19 @@ import {
 
 import type { Input as Rules, Update } from "./model"
 
-export type Input = Update.Pick("cache", "scratch", "work", "spread") & {
+export type Input = Update.Pick("cache", "spread") & {
     constructions: u64
 }
 
 export type Output = Rules
 
 export default function (in: Input): Output {
-    const { cache, scratch, work, spread, constructions } = in
-
-    const known = cache.marks[known_slot]
-    const sizes = cache.edges[sizes_slot]
-    const dependents = cache.edges[dependents_slot]
-
-    memory.allocateBoolViews(work.ready, known.length)
-    memory.allocateU64Buffer(scratch, work.queue, known.length)
-
-    if (dependents.length != 0) {
-        memory.allocateU64Buffer(scratch, work.pending, sizes.length)
-    }
+    const { cache, spread, constructions } = in
 
     return {
-        known,
-        sizes,
-        dependents,
+        known: cache.marks[known_slot],
+        sizes: cache.edges[sizes_slot],
+        dependents: cache.edges[dependents_slot],
         constructions,
         spread,
         results: cache.edges[results_slot],

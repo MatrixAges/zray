@@ -21,17 +21,29 @@ import {
 import metadata from "./metadata"
 import name from "./name"
 
-import type { Input, Record } from "./model"
+import type { Decoded, DecodedMetadata, DecodedRecord, Input, Record } from "./model"
 
-export type Output = u64?
+export type Output = Decoded?
 
 export default function (in: Input): Output {
-    const { buffer, count, little_endian, rows } = in
+    const { buffer, count, little_endian } = in
+
+    const initial_rows: DecodedRecord[] = []
+
+    const empty_metadata: DecodedMetadata = {
+        inode: 0,
+        size: 0,
+        modified_seconds: 0,
+        modified_nanos: 0,
+        changed_seconds: 0,
+        changed_nanos: 0
+    }
 
     return loop({
         row: 0,
         offset: in.offset,
-        valid: true
+        valid: true,
+        rows: initial_rows
     }, {
         while: state => state.row < count && state.valid,
         next: state => {
@@ -74,16 +86,19 @@ export default function (in: Input): Output {
             const entry_name = name(entry)
 
             if (entry_name != null) {
-                memory.writeColumnBytes(rows.names, state.row, entry_name)
-                memory.writeColumnU8(rows.kinds, state.row, kind)
-                memory.writeColumnBool(rows.has_metadata, state.row, has_metadata)
+                const info = has_metadata ? metadata(entry) : empty_metadata
 
-                if (has_metadata) {
-                    metadata({
-                        ...entry,
-                        target: rows.metadata
-                    })
-                }
+                state.rows = state.rows.push({
+                    name: entry_name,
+                    kind,
+                    has_metadata,
+                    inode: info.inode,
+                    size: info.size,
+                    modified_seconds: info.modified_seconds,
+                    modified_nanos: info.modified_nanos,
+                    changed_seconds: info.changed_seconds,
+                    changed_nanos: info.changed_nanos
+                })[0]
             } else {
                 state.valid = false
             }
@@ -91,6 +106,12 @@ export default function (in: Input): Output {
             state.row += 1
             state.offset += size
         },
-        return: state => state.valid ? state.offset : null
+        return: state => match {
+            state.valid => {
+                offset: state.offset,
+                rows: state.rows
+            },
+            _ => null
+        }
     })
 }

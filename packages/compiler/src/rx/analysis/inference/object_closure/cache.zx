@@ -1,14 +1,6 @@
-import type { BoolListBuffer, U32ListBuffer, U64ListBuffer } from "memory"
-
 export type Cache = {
     revision: u64,
     index: u32[][],
     edges: u64[][],
     marks: bool[][]
-}
-
-export type Slots = {
-    index: U32ListBuffer,
-    edges: U64ListBuffer,
-    marks: BoolListBuffer
 }

@@ -5,7 +5,6 @@ const Builder = @import("../../builder.zig");
 const Writer = @import("../../control/writer.zig");
 const Binding = @import("../../../store.zig").Binding;
 const Columns = @import("../../../store/bindings.zig").Columns;
-const headers = @import("../headers.zig");
 const rule = @import("generated_rx_link_store_get");
 const Input = std.meta.Child(rule.Input);
 
@@ -28,53 +27,53 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
     try builder.bindings.ensureUnusedCapacity(builder.allocator, count);
 
     const getters_view = Columns.init(getters);
-    var header = headers.Tail.init(expressions, count);
-
-    const length_slots = zx.memory.borrowColumnLengths(symbols) ++
-        .{ &builder.bindings.items.len, &expressions.stores.items.len } ++ headers.lengthSlots(expressions);
-
-    var lengths: zx.memory.ColumnLengths = &length_slots;
-    var names = symbols.names.unusedCapacitySlice()[0..count];
-    var types = symbols.types.unusedCapacitySlice()[0..count];
-    var starts = symbols.span_start.unusedCapacitySlice()[0..count];
-    var ends = symbols.span_end.unusedCapacitySlice()[0..count];
-    var ownership = std.mem.sliceAsBytes(symbols.ownership.unusedCapacitySlice()[0..count]);
-    var bindings = builder.bindings.unusedCapacitySlice()[0..count];
-    var cells = cursor.cells();
-    const Expression = std.meta.Child(@FieldType(Input, "expressions"));
-    const Constants = std.meta.Child(@FieldType(Input, "constants"));
-    const Cursor = std.meta.Child(@FieldType(Constants, "writer"));
-    const Buffers = std.meta.Child(@FieldType(Cursor, "columns"));
-    const columns = @import("../../control/write/buffers.zig").bind(Buffers, &writer.columns);
     const Kind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, builder.allocator);
+    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+
+    defer arena.deinit();
 
     const input: Input = .{
         .getters = &getters_view.view(std.meta.Child(@FieldType(Input, "getters"))),
         .span = &.{ .start = span.start, .end = span.end },
-        .expressions = &.{
-            .header = &header.view(std.meta.Child(@FieldType(Expression, "header"))),
-            .first_payload = @intCast(expressions.stores.items.len),
-            .kind = @backingInt(Kind.StoreGet),
-        },
-        .symbols = &.{
-            .names = @ptrCast(&names),
-            .types = @ptrCast(&types),
-            .starts = @ptrCast(&starts),
-            .ends = @ptrCast(&ends),
-            .ownership = @ptrCast(&ownership),
-            .copy_tag = @backingInt(ir.SymbolTable.Ownership.Copy),
-        },
-        .constants = &.{
-            .writer = &.{ .columns = &columns, .cells = @ptrCast(&cells) },
-            .bindings = @ptrCast(&bindings),
-            .first_symbol = @intCast(symbols.count()),
-            .first_expression = @intCast(expressions.count()),
-        },
-        .lengths = @ptrCast(&lengths),
+        .first_payload = @intCast(expressions.stores.items.len),
+        .kind = @backingInt(Kind.StoreGet),
+        .copy_tag = @backingInt(ir.SymbolTable.Ownership.Copy),
+        .first_symbol = @intCast(symbols.count()),
+        .first_expression = @intCast(expressions.count()),
     };
 
-    zx.columns.invoke(rule.executeValue, builder.allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
+
+    for (result.symbols) |row| {
+        const name = try builder.allocator.dupe(u8, row.name);
+
+        symbols.names.appendAssumeCapacity(name);
+        symbols.types.appendAssumeCapacity(row.type_id);
+        symbols.span_start.appendAssumeCapacity(row.start);
+        symbols.span_end.appendAssumeCapacity(row.end);
+        symbols.ownership.appendAssumeCapacity(@fromBackingInt(@as(@typeInfo(ir.SymbolTable.Ownership).@"enum".tag_type, @intCast(row.ownership))));
+    }
+
+    for (result.expressions) |row| {
+        expressions.kinds.appendAssumeCapacity(@fromBackingInt(@as(@typeInfo(Kind).@"enum".tag_type, @intCast(row.kind))));
+        expressions.payloads.appendAssumeCapacity(row.payload);
+        expressions.types.appendAssumeCapacity(row.type_id);
+        expressions.span_start.appendAssumeCapacity(row.start);
+        expressions.span_end.appendAssumeCapacity(row.end);
+    }
+
+    expressions.stores.items.len += count;
+
+    for (result.constants) |row| {
+        writer.constant(cursor, @fromBackingInt(row.symbol), @fromBackingInt(row.value));
+    }
+
+    for (result.bindings) |id| {
+        builder.bindings.appendAssumeCapacity(@fromBackingInt(id));
+    }
 }
