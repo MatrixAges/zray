@@ -1,27 +1,18 @@
-import memory from "memory"
-
-import type { Publication } from "./model"
-
 export type Input = {
-    ports: Publication,
-    row: u64,
-    used: bool,
-    binding_end: u64,
-    task_end: u64
+    already_fixed: bool,
+    used: bool
 }
 
-export type Output = u64
+export type Output = {
+    fixed: bool,
+    unused: u64
+}
 
 export default function (in: Input): Output {
-    const { ports, row } = in
-    const { fixed, binding_ends, task_ends } = ports
+    const fixed = in.already_fixed || in.used
 
-    const inputs = memory.boolViews(fixed)
-    const used = inputs[row] || in.used
-
-    memory.writeBool(fixed, row, used)
-    memory.writeU64(binding_ends, row, in.binding_end)
-    memory.writeU64(task_ends, row, in.task_end)
-
-    return used ? 0 : 1
+    return {
+        fixed,
+        unused: fixed ? 0 : 1
+    }
 }

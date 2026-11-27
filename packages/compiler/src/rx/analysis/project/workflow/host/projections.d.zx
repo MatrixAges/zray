@@ -3,8 +3,6 @@ export declare function unifyBindingReplay(frame: BindingReplay, row: u64, value
 
 export declare function refreshBindingTopology(frame: BindingReplay): void
 
-export declare function reserveBindingUse(frame: BindingUse): void throws { OutOfMemory }
-
 export declare function reportBindingName(
     reporter: BindingReporter,
     spans: BindingSpans,
@@ -26,13 +24,6 @@ export declare function registerNonNullPayload(frame: NonNullReplay, row: u64, v
 
 export declare function reserveNonNullSource(frame: NonNullReplay, row: u64, payload: u32): u32
     throws { OutOfMemory }
-
-export declare function registerGuardedPayload(frame: NonNullRead, value: u32, remaining: u64): u32
-    throws { OutOfMemory, InvalidSource }
-
-export declare function reserveNonNullNode(frame: NonNullRead): void throws { OutOfMemory }
-
-export declare function reserveNonNullProjection(frame: NonNullRead): void throws { OutOfMemory }
 
 export declare function registerOptionalPayload(
     frame: OptionalQuery,
@@ -113,19 +104,6 @@ export declare function appendIndexProjection(
 export declare function growAssignmentRows(frame: AssignmentRegistration): void
     throws { OutOfMemory }
 
-export declare function reserveScopeCollisions(frame: ScopeRegistration): void
-    throws { OutOfMemory }
-
-export declare function reserveScopeBindings(frame: ScopeRegistration, count: u64): u64
-    throws { OutOfMemory }
-
-export declare function rejectScopeCollision(frame: ScopeRegistration, row: u64): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function reserveScopeLookupNode(frame: ScopeLookup): void throws { OutOfMemory }
-
-export declare function reserveScopeLookupRow(frame: ScopeLookup): void throws { OutOfMemory }
-
 export declare function registerAssignmentTarget(
     frame: AssignmentRegistration,
     type_id: u32,
@@ -135,11 +113,8 @@ export declare function registerAssignmentTarget(
 export declare function addFieldNode(frame: FieldAccess): u32
     throws { OutOfMemory, InvalidSource }
 
-export declare function bindFieldColumns(
-    frame: FieldColumnStorage,
-    count: u64,
-    capacity: u64?
-): void throws { OutOfMemory }
+export declare function appendFieldMember(frame: FieldAccess, name: string, capacity: u64?): u32
+    throws { OutOfMemory, InvalidSource }
 
 export declare function registerFieldType(frame: FieldAccess, type_id: u32): u32
     throws { OutOfMemory, InvalidSource }

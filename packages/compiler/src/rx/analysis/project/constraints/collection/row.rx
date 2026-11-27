@@ -23,6 +23,14 @@
         </Else>
     </If>
 
+    <Call
+        fn="host.constraintPortFixed"
+        in={[
+            $in.request.frame,
+            $in.row
+        ]}
+    />
+
     <Call fn="host.constraintInputUsed" in={$in.request.frame} />
     <Call fn="host.constraintBindingEnd" in={$in.request.frame} />
     <Call fn="host.constraintTaskEnd" in={$in.request.frame} />
@@ -30,19 +38,27 @@
     <Call
         fn="publish"
         in={{
-            ports: $in.request.ports,
-            row: $in.row,
-            used: $ctx.constraintInputUsed,
-            binding_end: $ctx.constraintBindingEnd,
-            task_end: $ctx.constraintTaskEnd
+            already_fixed: $ctx.constraintPortFixed,
+            used: $ctx.constraintInputUsed
         }}
+    />
+
+    <Call
+        fn="host.commitConstraintPort"
+        in={[
+            $in.request.frame,
+            $in.row,
+            $ctx.publish.fixed,
+            $ctx.constraintBindingEnd,
+            $ctx.constraintTaskEnd
+        ]}
     />
 
     <Return
         value={{
             request: $in.request,
             row: $in.row + 1,
-            unused: $in.unused + $ctx.publish
+            unused: $in.unused + $ctx.publish.unused
         }}
     />
 </Module>

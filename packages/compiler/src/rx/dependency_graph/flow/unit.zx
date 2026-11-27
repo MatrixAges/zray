@@ -1,59 +1,68 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { Tag } from "../../schema/execution/model"
 import { if_has_else, task_has_output } from "./const"
 import layout from "./layout"
 import place from "./place"
 
-import type { U32Buffer } from "memory"
 import type { Input as Geometry } from "./layout"
-
-export type Columns = {
-    step_rows: U32Buffer,
-    unit_firsts: U32Buffer,
-    unit_counts: U32Buffer
-}
 
 export type Input = {
     geometry: Geometry,
-    columns: Columns,
+    step_rows: u32[],
     slot: u64,
     start: u64,
     flags: u32,
     task_output: bool
 }
 
-export type Output = u64
+export type Output = {
+    end: u64,
+    fact: u32,
+    first: u32,
+    count: u32,
+    step_rows: u32[]
+}
 
 export default function (in: Input): Output {
-    const { geometry, columns, slot, start } = in
-    const { children, child_count, tag } = geometry
+    const { geometry, start } = in
+    const { children, facts, child_count, tag } = geometry
 
-    const view = children.view
     const count = layout(geometry)
     const has_else = tag == Tag.If && count < child_count
     const output_flag = in.task_output ? task_has_output : 0
     const else_flag = has_else ? if_has_else : 0
+    const fact = in.flags + output_flag + else_flag
 
-    memory.writeU32(view.facts, slot, in.flags + output_flag + else_flag)
+    if (count == 0) {
+        const end = start
 
-    const first = match {
-        count == 0 => start,
-        _ => place({
-            children,
-            step_rows: columns.step_rows,
-            child_count,
-            tag,
-            first: start,
-            count
-        })
+        return {
+            end,
+            fact,
+            first: integers.narrow(start),
+            count: 0,
+            step_rows: in.step_rows
+        }
     }
+
+    const placed = place({
+        children,
+        facts,
+        step_rows: in.step_rows,
+        child_count,
+        tag,
+        first: start,
+        count
+    })
 
     const end = start + count
 
-    memory.writeU32(columns.unit_firsts, slot, integers.narrow(first))
-    memory.writeU32(columns.unit_counts, slot, integers.narrow(end - first))
-
-    return end
+    return {
+        end,
+        fact,
+        first: integers.narrow(placed.position),
+        count: integers.narrow(end - placed.position),
+        step_rows: placed.step_rows
+    }
 }

@@ -2,16 +2,11 @@ import contains from "../../../../zx/analysis/semantic/resolving/contains"
 import candidate from "./candidate"
 import { implicit_input_name } from "./const"
 
-import type { Destination } from "./deferred"
 import type { Query } from "./model"
 
 export type Input = Query & {
     facts: string[],
     identifier: bool
-}
-
-export type Request = Input & {
-    deferred: Destination
 }
 
 export type Output = {

@@ -4,7 +4,6 @@ import { capacity_growth, initial_capacity } from "core/integer/map/const"
 import probe from "core/integer/map/find"
 
 import { Action } from "./model"
-import publish from "./publish"
 
 import type { Output as Progress, Registry } from "./model"
 
@@ -14,23 +13,28 @@ export type Input = Registry & {
     grow_index: bool
 }
 
-export type Output = Progress.Pick("action", "capacity", "value") & {
-    added: bool
-}
+export type Output = Progress.Pick(
+    "action",
+    "capacity",
+    "value",
+    "slot",
+    "tag"
+)
 
 export default function (in: Input): Output {
     const capacity = in.table.metadata.length
 
-    const reserve: Output = {
+    const empty: Output = {
         action: Action.Reserve,
         capacity,
         value: 0,
-        added: false
+        slot: 0,
+        tag: 0
     }
 
     if (capacity == 0) {
         return {
-            ...reserve,
+            ...empty,
             capacity: initial_capacity
         }
     }
@@ -43,7 +47,7 @@ export default function (in: Input): Output {
 
     if (position.found) {
         return {
-            ...reserve,
+            ...empty,
             action: Action.Scan,
             value: in.table.values[position.slot]
         }
@@ -51,32 +55,23 @@ export default function (in: Input): Output {
 
     if (in.end > integers.widen(max_u32)) {
         return {
-            ...reserve,
+            ...empty,
             action: Action.Overflow
         }
     }
 
-    if (in.grow_index || in.end == in.nodes.capacity) {
+    if (in.grow_index) {
         return {
-            ...reserve,
-            capacity: in.grow_index ? capacity * capacity_growth : capacity
+            ...empty,
+            capacity: capacity * capacity_growth
         }
     }
 
-    const node = integers.narrow(in.end)
-
-    publish({
-        storage: in.storage,
-        nodes: in.nodes,
-        type_id: in.type_id,
-        node,
-        position
-    })
-
     return {
-        action: Action.Scan,
+        action: Action.Commit,
         capacity,
-        value: node,
-        added: true
+        value: integers.narrow(in.end),
+        slot: position.slot,
+        tag: position.tag
     }
 }

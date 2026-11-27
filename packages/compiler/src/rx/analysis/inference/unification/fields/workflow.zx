@@ -1,15 +1,7 @@
 import type { FieldAlignment } from "rx_project_host"
-import type { Storage } from "../../fields/growth/model"
 import type { Input as Alignment } from "./model"
-import type { Input as Publication } from "./publish"
 
 export type Align = {
     frame: FieldAlignment,
     scan: Alignment
-}
-
-export type Merge = {
-    storage: Storage,
-    columns: Publication,
-    length: u64
 }

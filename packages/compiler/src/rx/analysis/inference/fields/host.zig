@@ -9,8 +9,6 @@ const Input = std.meta.Child(rule.Input);
 const Site = std.meta.Child(@FieldType(Input, "site"));
 const Receiver = std.meta.Child(@FieldType(Site, "receiver"));
 const Members = std.meta.Child(@FieldType(Site, "members"));
-const Storage = std.meta.Child(@FieldType(Site, "storage"));
-const Columns = std.meta.Child(@FieldType(Site, "columns"));
 
 pub const Frame = struct {
     graph: *Graph,
@@ -20,10 +18,7 @@ pub const Frame = struct {
     site: Site = undefined,
     receiver: Receiver = undefined,
     members: Members = undefined,
-    resize: Graph.Fields.Resize = undefined,
-    storage: Storage = undefined,
-    writable: Nodes.Writable = undefined,
-    columns: Columns = undefined,
+    inferred: Graph.Fields = .{},
     pub fn bind(self: *Frame) View.Shape {
         const graph = self.graph;
         const shape = View.describe(graph, self.root);
@@ -31,14 +26,13 @@ pub const Frame = struct {
         const known = shape.kind == .Known;
         const argument = if (known) types.first.items[shape.argument] else 0;
 
-        const inferred = if (shape.kind == .Object)
+        self.inferred = if (shape.kind == .Object)
             graph.mutableFields(graph.nodes.items(.members)[@backingInt(self.root)])
 
         else
             Graph.Fields{};
 
-        self.resize = .{ .buffers = &graph.field_buffers, .allocator = graph.allocator, .fields = inferred };
-        self.storage = self.resize.borrow(Storage);
+        const layout = Graph.Fields.layout(self.inferred);
 
         self.members = if (known and shape.type_kind == @backingInt(@as(std.meta.Tag(zx.ir.Type), .object))) members: {
             const count = types.second.items[shape.argument];
@@ -47,7 +41,7 @@ pub const Frame = struct {
                 .names = types.field_names.items[argument..][0..count],
                 .values = types.field_types.items[argument..][0..count],
             };
-        } else .{ .names = self.storage.source_names, .values = self.storage.source_values };
+        } else .{ .names = self.inferred.names(), .values = @ptrCast(self.inferred.values()) };
 
         self.receiver = .{
             .kind = zx.columns.view(@FieldType(Receiver, "kind"), shape.kind),
@@ -60,11 +54,9 @@ pub const Frame = struct {
             .frame = @ptrCast(self),
             .receiver = &self.receiver,
             .members = &self.members,
-            .storage = &self.storage,
-            .allocator = @ptrCast(&graph.types.allocator),
-            .columns = &self.columns,
-            .parent = @backingInt(self.root),
-            .object_kind = @backingInt(Nodes.Kind.Object),
+            .prefix = layout.prefix,
+            .capacity = layout.capacity,
+            .published = layout.published,
         };
 
         return shape;
@@ -89,12 +81,23 @@ pub fn read(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, s
 
 pub fn addFieldNode(handle: *anyopaque) zx.Error!u32 {
     const frame = Frame.borrow(handle);
-    const graph = frame.graph;
-    const result = try graph.add(.unknown, frame.span);
-    frame.writable = Nodes.writable(graph.nodes.slice());
-    frame.columns = frame.writable.borrow(Columns);
 
-    return @backingInt(result);
+    return @backingInt(try frame.graph.add(.unknown, frame.span));
+}
+
+pub fn appendFieldMember(handle: *anyopaque, name: []const u8, capacity: ?u64) zx.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const graph = frame.graph;
+    const value = try graph.add(.unknown, frame.span);
+    const owned_name = try graph.types.allocator.dupe(u8, name);
+    const existing = frame.inferred;
+    const count = existing.len + 1;
+    const next = try Graph.Fields.grow(&graph.field_buffers, graph.allocator, existing, count, if (capacity) |size| std.math.cast(usize, size) orelse return error.OutOfMemory else null);
+
+    next.set(existing.len, owned_name, value);
+    Nodes.setShape(graph.nodes.slice(), @backingInt(frame.root), .{ .object = next.view() });
+
+    return @backingInt(value);
 }
 
 pub fn registerFieldType(handle: *anyopaque, type_id: u32) zx.Error!u32 {

@@ -1,19 +1,7 @@
-import type { IndexBuffer, SourceSpanBuffer, U32Buffer } from "memory"
-import type { BindingReporter, BindingSpans, BindingUse } from "rx_project_host"
-import type { Span } from "../../../syntax/model"
+import type { BindingReporter, BindingSpans } from "rx_project_host"
 import type { Input as Node } from "./node"
 
-export type Destination = {
-    values: U32Buffer,
-    spans: SourceSpanBuffer,
-    length: IndexBuffer,
-    first: u64
-}
-
 export type Use = Node & {
-    frame: BindingUse,
     reporter: BindingReporter,
-    span: Span,
-    source: BindingSpans,
-    rows: Destination
+    source: BindingSpans
 }

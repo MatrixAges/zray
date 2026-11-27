@@ -10,23 +10,6 @@ const Input = if (enabled) std.meta.Child(entry.Input) else void;
 const Target = if (enabled) std.meta.Child(@FieldType(Input, "target")) else void;
 pub const View = if (enabled) std.meta.Child(@FieldType(Target, "graph")) else void;
 
-pub const Publication = struct {
-    allowed: []?u16,
-    fallback: []?u8,
-    pub fn init(rows: Nodes.Storage.Slice) Publication {
-        return .{
-            .allowed = rows.items(.allowed),
-            .fallback = rows.items(.fallback),
-        };
-    }
-    pub fn borrow(self: *Publication, comptime Storage: type) Storage {
-        return .{
-            .allowed = @ptrCast(&self.allowed),
-            .fallback = @ptrCast(&self.fallback),
-        };
-    }
-};
-
 pub fn borrow(graph: *const Graph, parents: *[]u32) View {
     const rows = graph.nodes.slice();
     const types = &graph.types.items;
@@ -45,17 +28,16 @@ pub fn restrict(graph: *Graph, id: Graph.Id, allowed: Scalar.Mask, span: zx.Span
     if (!enabled) return restrictSeed(graph, id, allowed, span);
 
     var parents: []u32 = graph.parents();
-    var publication = Publication.init(graph.nodes.slice());
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{
         .target = &.{ .graph = &borrow(graph, &parents), .node = @backingInt(id) },
         .requested = allowed.bits.mask,
-        .storage = &publication.borrow(std.meta.Child(@FieldType(Input, "storage"))),
     };
 
     const outcome = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
 
+    if (outcome.allowed) |mask| graph.nodes.items(.allowed)[outcome.root] = mask;
     if (outcome.changed) graph.revision += 1;
     if (outcome.message) |text| return graph.reporter.fail(.type_mismatch, span, text);
 }

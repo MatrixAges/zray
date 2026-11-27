@@ -8,83 +8,18 @@ const Prepared = @import("../../prepare.zig");
 const Contracts = @import("../../contracts.zig");
 const Ports = @import("../ports.zig");
 const Input = @import("../../workflow/solve/abi.zig").Ports;
-const Reservation = std.meta.Child(@FieldType(Input, "reserved"));
-const Shape = std.meta.Child(@FieldType(Reservation, "nodes"));
-const Storage = std.meta.Child(@FieldType(Reservation, "storage"));
-const Columns = std.meta.Child(@FieldType(Shape, "columns"));
-const unknown: std.meta.Child(@FieldType(Shape, "shape")) = .{ .kind = @backingInt(Nodes.Kind.Unknown), .argument = 0, .members = &.{} };
 
 pub const Frame = struct {
     graph: *Graph = undefined,
-    reservation: Nodes.Reservation = undefined,
+    rows: Ports.Slice = undefined,
     input: Input = undefined,
-    port_columns: std.meta.Child(@FieldType(Input, "ports")) = undefined,
     origins: std.meta.Child(@FieldType(Input, "origins")) = undefined,
-    reserved: Reservation = undefined,
     locations: memory.ReadColumn = undefined,
-    inputs: []u32 = undefined,
-    outputs: []u32 = undefined,
-    fixed: []bool = undefined,
-    binding_ends: []u64 = undefined,
-    task_ends: []u64 = undefined,
-    parents: []u32 = undefined,
-    view: Nodes.Writable = undefined,
-    columns: Columns = undefined,
-    starts: memory.WriteColumn = undefined,
-    ends: memory.WriteColumn = undefined,
-    nodes: Shape = undefined,
-    publication: Nodes.Publication = undefined,
-    storage: Storage = undefined,
-    fn bindNodes(self: *Frame) void {
-        const rows = self.reservation.rows;
-        const spans = rows.items(.span);
-
-        self.parents = rows.items(.parent);
-        self.view = Nodes.writable(rows);
-        self.columns = self.view.borrow(Columns);
-        self.starts = memory.borrowWriteColumn(usize, "start", spans);
-        self.ends = memory.borrowWriteColumn(usize, "end", spans);
-        self.publication = Nodes.Publication.init(self.graph, rows);
-        self.storage = self.publication.storage(Storage);
-
-        self.nodes = .{
-            .parents = @ptrCast(&self.parents),
-            .columns = &self.columns,
-            .shape = &unknown,
-            .first = self.reservation.first,
-            .end = rows.len,
-        };
-    }
-
     pub fn bind(self: *Frame, graph: *Graph, rows: Ports.Slice, modules: []const Prepared.Module, source_map: SourceMap, declared: Contracts.Ports) void {
         self.graph = graph;
-        self.reservation = .{ .rows = graph.nodes.slice(), .first = graph.nodes.len };
-
-        self.bindNodes();
-
+        self.rows = rows;
         self.locations = memory.borrowNestedColumn(usize, &.{ "source", "node", "location", "offset" }, modules);
-        self.inputs = @ptrCast(rows.items(.input));
-        self.outputs = @ptrCast(rows.items(.output));
-        self.fixed = rows.items(.input_fixed);
-        self.binding_ends = rows.items(.binding_end);
-        self.task_ends = rows.items(.task_end);
-
-        self.port_columns = .{
-            .inputs = @ptrCast(&self.inputs),
-            .outputs = @ptrCast(&self.outputs),
-            .fixed = @ptrCast(&self.fixed),
-            .binding_ends = @ptrCast(&self.binding_ends),
-            .task_ends = @ptrCast(&self.task_ends),
-        };
-
         self.origins = .{ .ends = source_map.ends, .locations = @ptrCast(&self.locations) };
-
-        self.reserved = .{
-            .nodes = &self.nodes,
-            .span_starts = @ptrCast(&self.starts),
-            .span_ends = @ptrCast(&self.ends),
-            .storage = &self.storage,
-        };
 
         self.input = .{
             .graph = @ptrCast(self),
@@ -92,8 +27,6 @@ pub const Frame = struct {
             .types = @ptrCast(declared.types),
             .modules = modules.len,
             .origins = &self.origins,
-            .ports = &self.port_columns,
-            .reserved = &self.reserved,
         };
     }
 
@@ -102,17 +35,62 @@ pub const Frame = struct {
     }
 };
 
-pub fn reservePortNodes(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn commitInferredPorts(handle: *anyopaque, first: u64, end: u64, offsets: []const u64) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
+    const graph = frame.graph;
+    const count = offsets.len;
 
-    frame.reservation = try Nodes.reserve(frame.graph, std.math.cast(usize, count) orelse return error.OutOfMemory);
+    std.debug.assert(end - first == count);
 
-    frame.bindNodes();
+    const reservation = try Nodes.reserve(graph, std.math.mul(usize, count, 2) catch return error.OutOfMemory);
+    const node_parents = reservation.rows.items(.parent);
+    const kinds = reservation.rows.items(.kind);
+    const arguments = reservation.rows.items(.argument);
+    const members = reservation.rows.items(.members);
+    const spans = reservation.rows.items(.span);
+    const alloweds = reservation.rows.items(.allowed);
+    const fallbacks = reservation.rows.items(.fallback);
+    const start: usize = @intCast(first);
+
+    for (offsets, 0..) |offset, index| {
+        const node: usize = reservation.first + index * 2;
+        const pos: usize = @intCast(offset);
+        const span: zx.Span = .{ .start = pos, .end = pos };
+        const input_id: u32 = @intCast(node);
+        const output_id: u32 = @intCast(node + 1);
+        node_parents[node] = input_id;
+        node_parents[node + 1] = output_id;
+        kinds[node] = .Unknown;
+        kinds[node + 1] = .Unknown;
+        arguments[node] = 0;
+        arguments[node + 1] = 0;
+        members[node] = &.{};
+        members[node + 1] = &.{};
+        spans[node] = span;
+        spans[node + 1] = span;
+        alloweds[node] = null;
+        alloweds[node + 1] = null;
+        fallbacks[node] = null;
+        fallbacks[node + 1] = null;
+
+        frame.rows.set(start + index, .{
+            .input = @fromBackingInt(input_id),
+            .output = @fromBackingInt(output_id),
+            .input_fixed = false,
+        });
+    }
+
+    graph.nodes.len = reservation.rows.len;
 }
 
-pub fn internPortType(handle: *anyopaque, type_id: u32, offset: u64) zx.Error!u32 {
-    const graph = Frame.borrow(handle).graph;
-    const start: usize = @intCast(offset);
+pub fn commitDeclaredPort(handle: *anyopaque, row: u64, input: u32, output: u32, offset: u64) zx.Error!void {
+    const frame = Frame.borrow(handle);
+    const pos: usize = @intCast(offset);
+    const span: zx.Span = .{ .start = pos, .end = pos };
 
-    return @backingInt(try graph.known(@fromBackingInt(type_id), .{ .start = start, .end = start }));
+    frame.rows.set(@intCast(row), .{
+        .input = try frame.graph.known(@fromBackingInt(input), span),
+        .output = try frame.graph.known(@fromBackingInt(output), span),
+        .input_fixed = true,
+    });
 }

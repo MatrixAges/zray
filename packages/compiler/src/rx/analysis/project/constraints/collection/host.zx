@@ -1,10 +1,12 @@
 export {
-    openConstraintModule,
+    commitConstraintPort,
+    constraintBindingEnd,
+    constraintInputUsed,
+    constraintPortFixed,
+    constraintTaskEnd,
+    defaultConstraintOutput,
     forwardConstraintShortcut,
     inferConstraintBody,
-    defaultConstraintOutput,
-    constraintInputUsed,
-    constraintBindingEnd,
-    constraintTaskEnd,
+    openConstraintModule,
     releaseConstraintScope
 } from "rx_project_host"

@@ -1,5 +1,3 @@
-import type { U32Buffer, U64Buffer } from "memory"
-import type { Columns } from "../../../../../dependency_graph/flow/unit"
 import type { Layout } from "../../../../../syntax/tree/layout"
 
 export type Tree = {
@@ -19,16 +17,6 @@ export type Input = {
     layout: Layout
 }
 
-export type Buffers = Columns & {
-    storage: U32Buffer,
-    facts: U32Buffer,
-    events: U64Buffer
-}
-
-export type Run = Input & {
-    buffers: Buffers
-}
-
 export type Counts = {
     steps: u64,
     calls: u64,
@@ -41,6 +29,10 @@ export type Counts = {
 export type Output = {
     tree: Tree,
     capacity: Counts,
-    events: u64,
+    facts: u32[],
+    unit_firsts: u32[],
+    unit_counts: u32[],
+    step_rows: u32[],
+    events: u64[],
     parallel_tasks: u64
 }

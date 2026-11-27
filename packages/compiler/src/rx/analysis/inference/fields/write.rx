@@ -3,37 +3,24 @@
 
     <Args in={Fields.Write} out={u32} />
 
-    <Call fn="host.addFieldNode" in={$in.site.frame} />
+    <Call
+        fn="growth/capacity"
+        in={{
+            prefix: $in.site.prefix,
+            capacity: $in.site.capacity,
+            published: $in.site.published,
+            count: $in.site.prefix + 1
+        }}
+    />
 
     <Call
-        fn="host.copyColumnText"
+        fn="host.appendFieldMember"
         in={[
-            $in.site.allocator,
-            $in.name
+            $in.site.frame,
+            $in.name,
+            $ctx.capacity
         ]}
     />
 
-    <Call
-        module="growth/resize"
-        in={{
-            storage: $in.site.storage,
-            count: $in.site.storage.source_values.length + 1
-        }}
-    />
-
-    <Call
-        fn="append"
-        in={{
-            parent: $in.site.parent,
-            columns: $in.site.columns,
-            names: $in.site.storage.target_names,
-            values: $in.site.storage.target_values,
-            position: $in.site.storage.source_values.length,
-            name: $ctx.copyColumnText,
-            value: $ctx.addFieldNode,
-            object_kind: $in.site.object_kind
-        }}
-    />
-
-    <Return value={$ctx.addFieldNode} />
+    <Return value={$ctx.appendFieldMember} />
 </Module>

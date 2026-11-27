@@ -1,1 +1,4 @@
-export { reservePortNodes } from "rx_project_host"
+export {
+    commitDeclaredPort,
+    commitInferredPorts
+} from "rx_project_host"

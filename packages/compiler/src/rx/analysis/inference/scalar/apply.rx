@@ -3,15 +3,9 @@
 
     <Args in={Publication.Request} out={Publication.Outcome} />
 
-    <Call module="restrict" in={$in.omit(["storage"])} />
+    <Call module="restrict" in={$in} />
 
-    <Call
-        fn="publication/restriction"
-        in={{
-            ...$ctx.restrict,
-            storage: $in.storage
-        }}
-    />
+    <Call fn="publication/restriction" />
 
     <Return value={$ctx.restriction} />
 </Module>

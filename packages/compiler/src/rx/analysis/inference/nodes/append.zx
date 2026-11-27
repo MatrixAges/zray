@@ -1,4 +1,0 @@
-import type { Input as Rows } from "./initialize"
-import type { Uniform } from "./publication/model"
-
-export type Input = Rows & Uniform

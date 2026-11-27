@@ -1,22 +1,21 @@
 import { Collision } from "../bindings/model"
 import collision from "./collision"
-import deferPair from "./defer_pair"
-import { Action } from "./registration"
 
-import type { Input, Output } from "./registration"
+import type { DeferredPair, Input, Output } from "./registration"
 
 export default function (in: Input): Output {
-    const { topology, active, incoming, storage } = in
+    const { topology, active, incoming } = in
+
+    const deferred: DeferredPair[] = []
+    const conflict_row: u64? = null
 
     return loop({
-        ...in.pick([
-            "row",
-            "next",
-            "count"
-        ]),
-        action: Action.Scan
+        row: in.parallel ? 1 : 0,
+        next: 0,
+        deferred,
+        conflict_row
     }, {
-        while: state => state.action == Action.Scan && state.row < incoming.names.length,
+        while: state => state.conflict_row == null && state.row < incoming.names.length,
         next: state => {
             const row = state.row
             const right = incoming.values[row]
@@ -32,29 +31,20 @@ export default function (in: Input): Output {
             if (pair.action == Collision.Ignore) {
                 state.row += 1
                 state.next = 0
+            } else if (pair.action == Collision.Conflict) {
+                state.conflict_row = row
             } else {
-                state.next = pair.next - 1
-                state.action = match {
-                    row > in.published => Action.Publish,
-                    pair.action == Collision.Conflict => Action.Conflict,
-                    state.count == storage.capacity => Action.Reserve,
-                    _ => Action.Scan
-                }
-
-                if (state.action == Action.Scan) {
-                    deferPair({
-                        storage,
-                        row,
-                        count: state.count,
-                        left: pair.left,
-                        right
-                    })
-
-                    state.next = pair.next
-                    state.count += 1
-                }
+                state.deferred = state.deferred.push({
+                    row,
+                    left: pair.left,
+                    right
+                })[0]
+                state.next = pair.next
             }
         },
-        return: state => state
+        return: state => state.pick([
+            "deferred",
+            "conflict_row"
+        ])
     })
 }

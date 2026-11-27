@@ -104,12 +104,15 @@ export declare function rejectAssignmentDepth(frame: AssignmentApplication, node
 export declare function mergeAssignmentClass(frame: AssignmentApplication, row: u64, other: u32): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function reserveKnownNodes(frame: KnownRegistration): void throws { OutOfMemory }
+export declare function commitKnownNode(
+    frame: KnownRegistration,
+    slot: u64,
+    tag: u8,
+    type_id: u32
+): u32 throws { OutOfMemory }
 
 export declare function reserveKnownIndex(frame: KnownRegistration, capacity: u64): void
     throws { OutOfMemory }
-
-export declare function refreshKnownRegistry(frame: KnownRegistration): void
 
 export declare function rejectKnownType(frame: KnownRegistration): void
     throws { OutOfMemory, InvalidSource }

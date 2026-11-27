@@ -1,0 +1,51 @@
+import integers from "std:integer"
+import { kind_optional } from "core/type_table/const"
+
+import type { Types } from "../optional/model"
+
+export type Input = {
+    members: u32[],
+    types: Types,
+    next: u64,
+    type_id: u32,
+    remaining?: u64
+}
+
+export type Output = {
+    next: u64,
+    type_id: u32,
+    remaining?: u64,
+    running: bool
+}
+
+export default function (in: Input): Output {
+    const budget = in.remaining ?? 0
+    const index = integers.widen(in.type_id)
+
+    if (budget != 0 && in.types.kinds[index] == kind_optional) {
+        return {
+            next: in.next,
+            type_id: in.types.children[index],
+            remaining: budget - 1,
+            running: true
+        }
+    }
+
+    const next = in.next + 1
+
+    if (next < in.members.length) {
+        return {
+            next,
+            type_id: in.members[next],
+            remaining: in.remaining,
+            running: true
+        }
+    }
+
+    return {
+        next,
+        type_id: in.type_id,
+        remaining: in.remaining,
+        running: false
+    }
+}

@@ -30,8 +30,6 @@
                 ]}
             />
 
-            <Call module="../nodes/append" in={$in.request.view.node} />
-
             <Call
                 fn="host.mergeNonNullProjection"
                 in={[

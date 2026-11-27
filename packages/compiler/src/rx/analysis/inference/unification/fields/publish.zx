@@ -1,39 +1,67 @@
-import memory from "memory"
+import resize from "../../fields/growth/capacity"
 
-import type { StringBuffer, U32Buffer } from "memory"
+export type Addition = {
+    position: u64,
+    name: string,
+    value: u32
+}
 
 export type Input = {
     names: string[],
     values: u32[],
     positions: u64[],
     prefix: u64,
-    target_names: StringBuffer,
-    target_values: U32Buffer
+    length: u64,
+    capacity: u64,
+    published: u64
 }
 
-export type Output = void
+export type Output = {
+    capacity?: u64,
+    additions: Addition[]
+}
 
 export default function (in: Input): Output {
-    const positions = in.positions
-    const names = in.names
-    const values = in.values
-    const prefix = in.prefix
-    const target_names = in.target_names
-    const target_values = in.target_values
+    const empty: Addition[] = []
 
-    const written = loop({
-        row: 0
+    if (in.length == in.prefix) {
+        return {
+            capacity: null,
+            additions: empty
+        }
+    }
+
+    const capacity = resize({
+        prefix: in.prefix,
+        capacity: in.capacity,
+        published: in.published,
+        count: in.length
+    })
+
+    const additions = loop({
+        row: 0,
+        items: empty
     }, {
-        while: state => state.row < positions.length,
+        while: state => state.row < in.positions.length,
         next: state => {
-            const position = positions[state.row]
+            const row = state.row
+            const position = in.positions[row]
 
-            if (position >= prefix) {
-                memory.writeString(target_names, position, names[state.row])
-                memory.writeU32(target_values, position, values[state.row])
+            if (position >= in.prefix) {
+                state.items = state.items.push({
+                    position,
+                    name: in.names[row],
+                    value: in.values[row]
+                })[0]
             }
 
             state.row += 1
-        }
+        },
+        return: state => state.items
     })
+
+    return {
+        capacity,
+        additions
+    }
 }

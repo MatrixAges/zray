@@ -1,4 +1,3 @@
-import type { U32Buffer, U64Buffer } from "memory"
 import type { Attribute, Node } from "../../syntax/document/model"
 
 export enum Target {
@@ -46,11 +45,6 @@ export type Scan = {
     attributes: Attribute[],
     root: u64,
     slots: u64[],
-    facts: U32Buffer,
-    unit_firsts: U32Buffer,
-    unit_counts: U32Buffer,
-    step_rows: U32Buffer,
-    events: U64Buffer,
     project_flow: bool
 }
 
@@ -64,7 +58,11 @@ export type Scanned = {
     tasks: u64,
     groups: u64,
     selections: u64,
-    events: u64,
+    facts: u32[],
+    unit_firsts: u32[],
+    unit_counts: u32[],
+    step_rows: u32[],
+    events: u64[],
     source_extent: u64,
     missing_input?: u64
 }

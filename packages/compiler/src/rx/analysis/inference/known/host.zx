@@ -1,8 +1,6 @@
 export { requireAllocation } from "memory"
-export { writeU64 } from "memory"
 export {
-    reserveKnownNodes,
+    commitKnownNode,
     reserveKnownIndex,
-    refreshKnownRegistry,
     rejectKnownType
 } from "rx_project_host"

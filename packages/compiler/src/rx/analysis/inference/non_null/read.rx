@@ -1,50 +1,9 @@
 <Module>
     <Type from="read_model" as="NonNull" />
-    <Type from="../optional/payload" as="Payload" />
 
-    <Args in={NonNull.Read} out={u32} />
+    <Args in={NonNull.Read} out={NonNull.Outcome} />
 
-    <Call
-        fn="../optional/guard"
-        in={$in.omit([
-            "frame",
-            "node",
-            "rows"
-        ])}
-    />
+    <Call fn="../optional/guard" in={$in} />
 
-    <If on={$ctx.guard.action == Payload.Action.Register}>
-        <Call
-            fn="host.registerGuardedPayload"
-            in={[
-                $in.frame,
-                $ctx.guard.value ?? 0,
-                $ctx.guard.remaining
-            ]}
-        />
-
-        <Return value={$ctx.registerGuardedPayload} />
-    </If>
-
-    <If on={$ctx.guard.value != null}>
-        <Return value={$ctx.guard.value} />
-    </If>
-
-    <Call fn="host.reserveNonNullNode" in={$in.frame} />
-
-    <Call module="../nodes/append" in={$in.node} />
-
-    <Call fn="host.reserveNonNullProjection" in={$in.frame} />
-
-    <Call
-        fn="publish"
-        in={{
-            rows: $in.rows,
-            source: $in.value,
-            node: $in.node.first,
-            span: $in.node.span.omit(["rows"])
-        }}
-    />
-
-    <Return value={$ctx.publish} />
+    <Return value={$ctx.guard} />
 </Module>

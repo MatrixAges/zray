@@ -1,10 +1,11 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
-import memory from "memory"
 
 import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
+import { check_task_event } from "../flow/const"
 import taskExit from "../flow/task_exit"
+import zeros from "../flow/zeros"
 import nodeFlow from "./node_flow"
 import select from "./select"
 
@@ -17,16 +18,15 @@ export default function (in: Input): Output {
     const view: View = {
         nodes: in.nodes,
         siblings: [],
-        slots: in.slots,
-        facts: in.facts
+        slots: in.slots
     }
 
-    const columns = {
-        step_rows: in.step_rows,
-        unit_firsts: in.unit_firsts,
-        unit_counts: in.unit_counts
-    }
-
+    const node_count = in.project_flow ? in.nodes.length : 0
+    const facts = zeros(node_count)
+    const unit_firsts = zeros(node_count)
+    const unit_counts = zeros(node_count)
+    const step_rows = zeros(node_count)
+    const events: u64[] = []
     const references: Reference[] = []
     const parents: u64[] = []
     const missing_input: u64? = null
@@ -42,7 +42,11 @@ export default function (in: Input): Output {
         tasks: 0,
         groups: 0,
         selections: 0,
-        events: 0,
+        facts,
+        unit_firsts,
+        unit_counts,
+        step_rows,
+        events,
         source_extent: 0,
         graph_references: 0,
         parents,
@@ -55,15 +59,16 @@ export default function (in: Input): Output {
             const node = in.nodes[row]
 
             if (in.project_flow && !state.finishing) {
-                state.events = taskExit({
+                if (taskExit({
                     source,
                     node,
-                    attributes: in.attributes,
-                    slot: in.slots[row],
-                    facts: in.facts,
-                    events: in.events,
-                    cursor: state.events
-                })
+                    attributes: in.attributes
+                })) {
+                    const slot = in.slots[row]
+
+                    state.facts[slot] = 1
+                    state.events = state.events.push(check_task_event + slot)[0]
+                }
             }
 
             if (!state.finishing && node.children != 0) {
@@ -81,18 +86,19 @@ export default function (in: Input): Output {
                 }
 
                 if (in.project_flow) {
+                    const slot = in.slots[row]
                     const step = nodeFlow({
                         source,
                         nodes: in.nodes,
                         attributes: in.attributes,
                         node,
                         row,
-                        slot: in.slots[row],
+                        slot,
                         tag,
                         parents: state.parents,
-                        facts: in.facts,
+                        facts: state.facts,
+                        step_rows: state.step_rows,
                         view,
-                        columns,
                         module_steps: state.module_steps,
                         parallel_tasks: state.parallel_tasks,
                         steps: state.steps
@@ -107,10 +113,14 @@ export default function (in: Input): Output {
                     }
 
                     state.steps = step.steps
+                    state.facts = step.facts
+                    state.facts[slot] = step.fact
+                    state.unit_firsts[slot] = step.unit_first
+                    state.unit_counts[slot] = step.unit_count
+                    state.step_rows = step.step_rows
 
                     if (step.event != null) {
-                        memory.writeU64(in.events, state.events, step.event)
-                        state.events += 1
+                        state.events = state.events.push(step.event)[0]
                     }
 
                     if (step.missing_input != null) {
@@ -158,19 +168,23 @@ export default function (in: Input): Output {
                 }
             }
         },
-        return: state => ({
-            references: state.references,
-            graph_references: state.graph_references,
-            parallel_tasks: state.parallel_tasks,
-            steps: state.steps,
-            calls: state.calls,
-            results: state.results,
-            tasks: state.tasks,
-            groups: state.groups,
-            selections: state.selections,
-            events: state.events,
-            missing_input: state.missing_input,
-            source_extent: state.source_extent
-        })
+        return: state => state.pick([
+            "references",
+            "graph_references",
+            "parallel_tasks",
+            "steps",
+            "calls",
+            "results",
+            "tasks",
+            "groups",
+            "selections",
+            "facts",
+            "unit_firsts",
+            "unit_counts",
+            "step_rows",
+            "events",
+            "missing_input",
+            "source_extent"
+        ])
     })
 }

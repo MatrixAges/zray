@@ -8,25 +8,17 @@ const Columns = std.meta.Child(@FieldType(Input, "default_columns"));
 pub const Frame = struct {
     state: *Collection = undefined,
     input: Input = undefined,
-    ports: std.meta.Child(@FieldType(Input, "ports")) = undefined,
     parents: []u32 = undefined,
     edges: std.meta.Child(@FieldType(Columns, "edges")) = undefined,
     columns: Columns = undefined,
-    pub fn bind(self: *Frame, state: *Collection, port_columns: anytype) void {
+    pub fn bind(self: *Frame, state: *Collection) void {
         self.state = state;
-
-        self.ports = .{
-            .fixed = port_columns.fixed,
-            .binding_ends = port_columns.binding_ends,
-            .task_ends = port_columns.task_ends,
-        };
 
         self.input = .{
             .frame = @ptrCast(self),
             .modules = state.modules.len,
             .parents = @ptrCast(&self.parents),
             .default_columns = &self.columns,
-            .ports = &self.ports,
         };
     }
 
@@ -61,6 +53,10 @@ pub fn defaultConstraintOutput(handle: *anyopaque) zx.Error!void {
     try Defaults.default(state.graph, state.walker.output);
 }
 
+pub fn constraintPortFixed(handle: *anyopaque, row: u64) bool {
+    return Frame.borrow(handle).state.states.items(.input_fixed)[@intCast(row)];
+}
+
 pub fn constraintInputUsed(handle: *anyopaque) bool {
     return Frame.borrow(handle).state.expression.input_used;
 }
@@ -71,6 +67,15 @@ pub fn constraintBindingEnd(handle: *anyopaque) u64 {
 
 pub fn constraintTaskEnd(handle: *anyopaque) u64 {
     return Frame.borrow(handle).state.requests.tasks.items.len;
+}
+
+pub fn commitConstraintPort(handle: *anyopaque, row: u64, fixed: bool, binding_end: u64, task_end: u64) void {
+    const states = Frame.borrow(handle).state.states;
+    const index: usize = @intCast(row);
+
+    states.items(.input_fixed)[index] = fixed;
+    states.items(.binding_end)[index] = binding_end;
+    states.items(.task_end)[index] = task_end;
 }
 
 pub fn openConstraintDefaults(handle: *anyopaque) void {

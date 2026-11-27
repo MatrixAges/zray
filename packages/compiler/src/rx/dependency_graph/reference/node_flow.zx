@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import missingInput from "../../schema/call/input/missing"
 import { loop_tag } from "../../schema/execution/const"
@@ -11,10 +10,8 @@ import parallelParent from "../flow/parallel_parent"
 import project from "../flow/project"
 import unit from "../flow/unit"
 
-import type { U32Buffer } from "memory"
 import type { Attribute, Node } from "../../syntax/document/model"
 import type { View } from "../flow/model"
-import type { Columns } from "../flow/unit"
 
 export type Input = {
     source: u8[],
@@ -25,9 +22,9 @@ export type Input = {
     slot: u64,
     tag: Tag,
     parents: u64[],
-    facts: U32Buffer,
+    facts: u32[],
+    step_rows: u32[],
     view: View,
-    columns: Columns,
     module_steps: u64,
     parallel_tasks: u64,
     steps: u64
@@ -38,13 +35,18 @@ export type Output = {
     implicit: bool,
     module_step: bool,
     steps: u64,
+    fact: u32,
+    unit_first: u32,
+    unit_count: u32,
+    facts: u32[],
+    step_rows: u32[],
     event?: u64,
     call: bool,
     missing_input?: u64
 }
 
 export default function (in: Input): Output {
-    const { source, node, row, slot, tag, parents, view, columns } = in
+    const { source, node, row, slot, tag, parents, view } = in
 
     const parallel = tag == Tag.Task && parallelParent({
         source,
@@ -53,17 +55,18 @@ export default function (in: Input): Output {
     })
 
     const parallel_rank = in.parallel_tasks + (parallel ? 1 : 0)
-    const has_output = tag == Tag.Task && memory.readU32(in.facts, slot) != 0
+    const has_output = tag == Tag.Task && in.facts[slot] != 0
     const implicit = parallel && has_output
 
-    const flags = project({
+    const projected = project({
         view,
         head: node.children,
-        tag
+        tag,
+        facts: in.facts
     })
 
     const skipped = integers.andBits(
-        integers.widen(flags),
+        integers.widen(projected.flags),
         integers.widen(declaration)
     )
 
@@ -74,21 +77,22 @@ export default function (in: Input): Output {
         _ => node.child_count
     }
 
-    const steps = unit({
+    const placed = unit({
         geometry: {
             children: {
                 view,
                 head: node.children
             },
+            facts: projected.facts,
             child_count: node.child_count,
             tag,
             root_steps,
             implicit_result: implicit
         },
-        columns,
+        step_rows: in.step_rows,
         slot,
         start: in.steps,
-        flags,
+        flags: projected.flags,
         task_output: has_output
     })
 
@@ -133,7 +137,12 @@ export default function (in: Input): Output {
         parallel,
         implicit,
         module_step,
-        steps,
+        steps: placed.end,
+        fact: placed.fact,
+        unit_first: placed.first,
+        unit_count: placed.count,
+        facts: projected.facts,
+        step_rows: placed.step_rows,
         event,
         call: call_row != 0,
         missing_input: missing ? call_row - 1 : null

@@ -49,26 +49,36 @@ pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, i
 }
 
 pub fn publish(buffers: *Graph.Fields.Buffers, allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields.View, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {
-    var resize: Graph.Fields.Resize = .{ .buffers = buffers, .allocator = allocator, .fields = left };
+    const layout = Graph.Fields.layout(left);
 
     const input: Merge = .{
-        .storage = &resize.borrow(std.meta.Child(@FieldType(Merge, "storage"))),
-        .columns = &.{
-            .names = right.names(),
-            .values = @ptrCast(right.values()),
-            .positions = alignment.positions,
-            .prefix = left.len,
-            .target_names = @ptrCast(&resize.names),
-            .target_values = @ptrCast(&resize.values),
-        },
+        .names = right.names(),
+        .values = @ptrCast(right.values()),
+        .positions = alignment.positions,
+        .prefix = layout.prefix,
         .length = alignment.length,
+        .capacity = layout.capacity,
+        .published = layout.published,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    merge_rule.executeIn(empty.allocator(), &input) catch |err| return allocationError(err);
+    defer arena.deinit();
 
-    return resize.fields;
+    var scratch_buf: [2048]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const result = zx.columns.invoke(merge_rule.executeValue, scratch.allocator(), &input) catch |err| return allocationError(err);
+
+    if (alignment.length == left.len) return left;
+
+    const capacity = if (result.capacity) |size| std.math.cast(usize, size) orelse return error.OutOfMemory else null;
+    const next = try Graph.Fields.grow(buffers, allocator, left, alignment.length, capacity);
+
+    for (result.additions) |item| {
+        next.set(@intCast(item.position), item.name, @fromBackingInt(item.value));
+    }
+
+    return next;
 }
 
 pub fn reserveFieldAlignmentIndex(handle: *anyopaque, minimum: u64) std.mem.Allocator.Error!void {

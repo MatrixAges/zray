@@ -1,25 +1,8 @@
 import type { State as Table } from "core/integer/map/model"
-import type { U8Buffer, U32Buffer } from "memory"
 import type { Types } from "../optional/model"
-import type { Columns } from "../unification/commit/model"
-
-export type Storage = {
-    metadata: U8Buffer,
-    keys: U32Buffer,
-    values: U32Buffer
-}
-
-export type Nodes = {
-    parents: U32Buffer,
-    columns: Columns,
-    capacity: u64,
-    known_kind: u8
-}
 
 export type Registry = {
-    table: Table,
-    storage: Storage,
-    nodes: Nodes
+    table: Table
 }
 
 export type Input = Registry & {
@@ -33,6 +16,7 @@ export type Input = Registry & {
 
 export enum Action {
     Scan,
+    Commit,
     Reserve,
     Invalid,
     Overflow
@@ -43,6 +27,8 @@ export type Output = {
     end: u64,
     capacity: u64,
     value: u32,
+    slot: u64,
+    tag: u8,
     type_id: u32,
     remaining?: u64,
     action: Action

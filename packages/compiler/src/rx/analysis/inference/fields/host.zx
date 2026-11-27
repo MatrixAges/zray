@@ -1,7 +1,6 @@
-export { copyColumnText } from "memory"
 export {
     addFieldNode,
-    bindFieldColumns,
+    appendFieldMember,
     registerFieldType,
     appendLengthProjection,
     requireFieldList,

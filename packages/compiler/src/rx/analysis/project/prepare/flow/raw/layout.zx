@@ -1,40 +1,40 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import bodyEvent from "../../../../../dependency_graph/flow/body_event"
-import { declaration } from "../../../../../dependency_graph/flow/const"
+import {
+    check_task_event,
+    declaration
+} from "../../../../../dependency_graph/flow/const"
 import project from "../../../../../dependency_graph/flow/project"
 import unit from "../../../../../dependency_graph/flow/unit"
+import zeros from "../../../../../dependency_graph/flow/zeros"
 import { Tag } from "../../../../../schema/execution/model"
 import capacityAfter from "./capacity"
 import role from "./role"
 import taskOutput from "./task_output"
 
 import type { View } from "../../../../../dependency_graph/flow/model"
-import type { Counts, Output as Planned, Rows, Run } from "./model"
+import type { Layout } from "../../../../../syntax/tree/layout"
+import type { Counts, Output as Planned, Rows } from "./model"
 
-export type Input = Run.Pick("layout", "buffers") & {
+export type Input = {
+    layout: Layout,
     rows: Rows
 }
 
 export type Output = Planned
 
 export default function (in: Input): Output {
-    const { layout, buffers, rows } = in
+    const { layout, rows } = in
     const { nodes, children, counts, parents, siblings } = rows
+
+    const node_count = nodes.length
 
     const view: View = {
         nodes: null,
         siblings,
-        slots: rows.slots,
-        facts: buffers.facts
+        slots: rows.slots
     }
-
-    const columns = buffers.pick([
-        "step_rows",
-        "unit_firsts",
-        "unit_counts"
-    ])
 
     const capacity: Counts = {
         steps: 0,
@@ -45,12 +45,22 @@ export default function (in: Input): Output {
         selections: 0
     }
 
+    const facts = zeros(node_count)
+    const unit_firsts = zeros(node_count)
+    const unit_counts = zeros(node_count)
+    const step_rows = zeros(node_count)
+    const events: u64[] = []
+
     const planned = loop({
         next: 1,
         finishing: false,
         module_steps: 0,
         parallel_tasks: 0,
-        events: 0,
+        facts,
+        unit_firsts,
+        unit_counts,
+        step_rows,
+        events,
         capacity
     }, {
         while: state => state.next != 0,
@@ -64,13 +74,13 @@ export default function (in: Input): Output {
             ])
 
             if (!state.finishing && tag == Tag.Task) {
-                state.events = taskOutput({
+                if (taskOutput({
                     layout,
-                    node,
-                    buffers,
-                    slot,
-                    event: state.events
-                })
+                    node
+                })) {
+                    state.facts[slot] = 1
+                    state.events = state.events.push(check_task_event + slot)[0]
+                }
             }
 
             if (!state.finishing && head != 0) {
@@ -87,21 +97,21 @@ export default function (in: Input): Output {
                 }
 
                 const parallel = tag == Tag.Task && parent_tag == Tag.Parallel
-                const has_output =
-                    tag == Tag.Task && memory.readU32(buffers.facts, slot) != 0
+                const has_output = tag == Tag.Task && state.facts[slot] != 0
 
                 if (parallel) {
                     state.parallel_tasks += 1
                 }
 
-                const flags = project({
+                const projected = project({
                     view,
                     head,
-                    tag
+                    tag,
+                    facts: state.facts
                 })
 
                 const marks = integers.andBits(
-                    integers.widen(flags),
+                    integers.widen(projected.flags),
                     integers.widen(declaration)
                 )
 
@@ -111,23 +121,30 @@ export default function (in: Input): Output {
 
                 const implicit = parallel && has_output
 
-                const steps = unit({
+                const placed = unit({
                     geometry: {
                         children: {
                             view,
                             head
                         },
+                        facts: projected.facts,
                         child_count: counts[slot],
                         tag,
                         root_steps: state.module_steps,
                         implicit_result: implicit
                     },
-                    columns,
+                    step_rows: state.step_rows,
                     slot,
                     start: state.capacity.steps,
-                    flags,
+                    flags: projected.flags,
                     task_output: has_output
                 })
+
+                state.facts = projected.facts
+                state.facts[slot] = placed.fact
+                state.unit_firsts[slot] = placed.first
+                state.unit_counts[slot] = placed.count
+                state.step_rows = placed.step_rows
 
                 const loop_body = tag == Tag.Call && parent_tag == Tag.Loop
 
@@ -139,8 +156,7 @@ export default function (in: Input): Output {
                     })
 
                     if (event != null) {
-                        memory.writeU64(buffers.events, state.events, event)
-                        state.events += 1
+                        state.events = state.events.push(event)[0]
                     }
                 }
 
@@ -149,7 +165,7 @@ export default function (in: Input): Output {
                     tag,
                     implicit,
                     loop_body,
-                    steps
+                    steps: placed.end
                 })
 
                 const previous = siblings[slot]
@@ -159,6 +175,10 @@ export default function (in: Input): Output {
         },
         return: state => state.pick([
             "capacity",
+            "facts",
+            "unit_firsts",
+            "unit_counts",
+            "step_rows",
             "events",
             "parallel_tasks"
         ])

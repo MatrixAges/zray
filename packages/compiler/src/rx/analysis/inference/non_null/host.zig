@@ -5,15 +5,12 @@ const Nodes = @import("../nodes.zig");
 const Topology = @import("../optional/topology.zig").borrowType;
 const Solve = @import("../../project/workflow/solve/abi.zig").Solve;
 const Replay = std.meta.Child(@FieldType(Solve, "non_null"));
-const Node = std.meta.Child(@FieldType(Replay, "node"));
 
 pub const Frame = struct {
     graph: *Graph,
     view: Replay,
     topology: Topology(Replay),
     spans: []const zx.Span,
-    node: Node,
-    append: Nodes.Append(Node),
     pub fn bind(self: *Frame, graph: *Graph) void {
         const projections = graph.pending.nonnull.slice();
 
@@ -29,7 +26,6 @@ pub const Frame = struct {
             .known = &self.topology.known,
             .sources = @ptrCast(projections.items(.source)),
             .values = @ptrCast(projections.items(.value)),
-            .node = &self.node,
         };
     }
 
@@ -53,12 +49,13 @@ pub fn registerNonNullPayload(handle: *anyopaque, row: u64, value: u32) zx.Error
 
 pub fn reserveNonNullSource(handle: *anyopaque, row: u64, payload: u32) std.mem.Allocator.Error!u32 {
     const frame = Frame.borrow(handle);
-    const graph = frame.graph;
-    const reservation = try Nodes.reserve(graph, 1);
 
-    frame.append.bind(&frame.node, graph, reservation, .{ .optional = @fromBackingInt(payload) }, frame.spans[@intCast(row)]);
+    const created = Nodes.append(frame.graph, .{ .optional = @fromBackingInt(payload) }, frame.spans[@intCast(row)]) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    return @intCast(reservation.first);
+    return @backingInt(created);
 }
 
 pub fn mergeNonNullProjection(handle: *anyopaque, row: u64, left: u32, right: u32) zx.Error!void {

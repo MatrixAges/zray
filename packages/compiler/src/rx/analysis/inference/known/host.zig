@@ -8,55 +8,14 @@ const rule = @import("generated_rx_register_known_types");
 const Input = std.meta.Child(rule.Input);
 const Registry = std.meta.Child(@FieldType(Input, "view"));
 const Table = std.meta.Child(@FieldType(Registry, "table"));
-const Storage = std.meta.Child(@FieldType(Registry, "storage"));
-const NodeView = std.meta.Child(@FieldType(Registry, "nodes"));
-const Columns = std.meta.Child(@FieldType(NodeView, "columns"));
-const Publication = std.meta.Child(@FieldType(Input, "publication"));
-
-const Writable = struct {
-    metadata: []u8,
-    keys: []u32,
-    values: []u32,
-    fn from(rows: Buckets.Slice) Writable {
-        return .{ .metadata = rows.items(.metadata), .keys = rows.items(.keys), .values = rows.items(.values) };
-    }
-    fn borrow(self: *Writable, comptime Target: type) Target {
-        return .{ .metadata = @ptrCast(&self.metadata), .keys = @ptrCast(&self.keys), .values = @ptrCast(&self.values) };
-    }
-};
 
 const Frame = struct {
     graph: *Graph,
     span: zx.Span,
-    rows: Nodes.Storage.Slice = undefined,
-    columns: Nodes.Writable = undefined,
-    writable: Writable = undefined,
-    parents: []u32 = undefined,
     table: Table = undefined,
-    storage: Storage = undefined,
-    shape_columns: Columns = undefined,
-    nodes: NodeView = undefined,
     registry: Registry = undefined,
-    count: []u64 = undefined,
-    node_publication: Nodes.Publication = undefined,
-    visibility: std.meta.Child(@FieldType(Publication, "storage")) = undefined,
-    spans: std.meta.Child(@FieldType(Publication, "span")) = undefined,
     fn bind(self: *Frame) void {
-        const graph = self.graph;
-        const known = &graph.pending.known_types;
-        self.rows = graph.nodes.slice();
-        self.rows.len = graph.nodes.capacity;
-        self.columns = Nodes.writable(self.rows);
-        self.writable = Writable.from(known.state.buckets);
-        self.parents = self.rows.items(.parent);
-        self.table = known.borrow(Table);
-        self.storage = self.writable.borrow(Storage);
-        self.shape_columns = self.columns.borrow(Columns);
-        self.nodes = .{ .parents = @ptrCast(&self.parents), .columns = &self.shape_columns, .capacity = self.rows.len, .known_kind = @backingInt(Nodes.Kind.Known) };
-        self.count = (&known.state.count)[0..1];
-        self.node_publication = Nodes.Publication.init(graph, self.rows);
-        self.visibility = self.node_publication.storage(@TypeOf(self.visibility));
-        self.spans = self.node_publication.span(@TypeOf(self.spans), self.span);
+        self.table = self.graph.pending.known_types.borrow(Table);
     }
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
@@ -68,7 +27,7 @@ pub fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span
 
     frame.bind();
 
-    frame.registry = .{ .table = &frame.table, .storage = &frame.storage, .nodes = &frame.nodes };
+    frame.registry = .{ .table = &frame.table };
 
     const input: Input = .{
         .frame = @ptrCast(&frame),
@@ -78,7 +37,6 @@ pub fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span
         .type_id = members[0],
         .remaining = budget,
         .end = graph.nodes.len,
-        .publication = &.{ .storage = &frame.visibility, .span = &frame.spans, .count = @ptrCast(&frame.count) },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
@@ -88,12 +46,33 @@ pub fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span
     return .{ .node = @fromBackingInt(result.value), .remaining = result.remaining orelse 0 };
 }
 
-pub fn reserveKnownNodes(handle: *anyopaque) std.mem.Allocator.Error!void {
-    _ = try Nodes.reserve(Frame.borrow(handle).graph, 1);
+pub fn commitKnownNode(handle: *anyopaque, slot: u64, tag: u8, type_id: u32) std.mem.Allocator.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const graph = frame.graph;
+
+    const created = Nodes.append(graph, .{ .known = @fromBackingInt(type_id) }, frame.span) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    const node = @backingInt(created);
+    const table = &graph.pending.known_types;
+    const index: usize = @intCast(slot);
+
+    table.state.buckets.items(.metadata)[index] = tag;
+    table.state.buckets.items(.keys)[index] = type_id;
+    table.state.buckets.items(.values)[index] = node;
+
+    table.state.count += 1;
+
+    frame.bind();
+
+    return node;
 }
 
 pub fn reserveKnownIndex(handle: *anyopaque, capacity: u64) std.mem.Allocator.Error!void {
-    const graph = Frame.borrow(handle).graph;
+    const frame = Frame.borrow(handle);
+    const graph = frame.graph;
     const table = &graph.pending.known_types;
     const allocator = graph.pending.allocator;
     const rehash = @import("generated_rx_known_rehash");
@@ -108,25 +87,29 @@ pub fn reserveKnownIndex(handle: *anyopaque, capacity: u64) std.mem.Allocator.Er
 
     fresh.len = size;
     const rows = fresh.toOwnedSlice();
-    var storage = Writable.from(rows);
 
     const input: RehashInput = .{
         .previous = &table.borrow(std.meta.Child(@FieldType(RehashInput, "previous"))),
-        .metadata = storage.metadata,
-        .keys = storage.keys,
-        .storage = &storage.borrow(std.meta.Child(@FieldType(RehashInput, "storage"))),
+        .capacity = capacity,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    zx.columns.invoke(rehash.executeValue, empty.allocator(), &input) catch unreachable;
+    defer arena.deinit();
+
+    const result = zx.columns.invoke(rehash.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    @memcpy(rows.items(.metadata), result.metadata);
+    @memcpy(rows.items(.keys), result.keys);
+    @memcpy(rows.items(.values), result.values);
     table.state.buckets.deinit(allocator);
 
     table.state.buckets = rows;
-}
 
-pub fn refreshKnownRegistry(handle: *anyopaque) void {
-    Frame.borrow(handle).bind();
+    frame.bind();
 }
 
 pub fn rejectKnownType(handle: *anyopaque) zx.Error!void {

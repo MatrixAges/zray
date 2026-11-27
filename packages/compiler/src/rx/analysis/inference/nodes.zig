@@ -1,5 +1,4 @@
 const std = @import("std");
-const zx = @import("zx");
 const Graph = @import("types.zig");
 const enabled = @import("rx_options").generated_graph;
 const generated = if (enabled) @import("generated_rx_object_view") else void;
@@ -19,7 +18,7 @@ const Row = struct {
     kind: Kind,
     argument: u32,
     members: []const u32,
-    span: zx.Span,
+    span: @import("zx").Span,
     allowed: ?u16 = null,
     fallback: ?u8 = null,
 };
@@ -34,32 +33,6 @@ pub const Encoded = struct { kind: Kind, argument: u32, members: []const u32 };
 pub const Reservation = struct {
     rows: Storage.Slice,
     first: usize,
-};
-
-pub const Publication = struct {
-    length: []usize,
-    allowed: []?u16,
-    fallback: []?u8,
-    spans: []zx.Span,
-    pub fn init(graph: *Graph, rows: Storage.Slice) Publication {
-        return .{
-            .length = (&graph.nodes.len)[0..1],
-            .allowed = rows.items(.allowed),
-            .fallback = rows.items(.fallback),
-            .spans = rows.items(.span),
-        };
-    }
-    pub fn storage(self: *Publication, comptime View: type) View {
-        return .{
-            .length = @ptrCast(&self.length),
-            .allowed = @ptrCast(&self.allowed),
-            .fallback = @ptrCast(&self.fallback),
-        };
-    }
-
-    pub fn span(self: *Publication, comptime View: type, source: zx.Span) View {
-        return .{ .rows = @ptrCast(&self.spans), .start = source.start, .end = source.end };
-    }
 };
 
 pub fn reserve(graph: *Graph, count: usize) std.mem.Allocator.Error!Reservation {
@@ -79,86 +52,12 @@ pub fn reserve(graph: *Graph, count: usize) std.mem.Allocator.Error!Reservation 
     return .{ .rows = rows, .first = first };
 }
 
-pub fn Append(comptime Input: type) type {
-    return struct {
-        parents: []u32,
-        view: Writable,
-        publication: Publication,
-        columns: std.meta.Child(@FieldType(Input, "columns")),
-        storage: std.meta.Child(@FieldType(Input, "storage")),
-        source: std.meta.Child(@FieldType(Input, "span")),
-        shape: std.meta.Child(@FieldType(Input, "shape")),
-        pub fn bind(self: *@This(), input: *Input, graph: *Graph, reservation: Reservation, value: Graph.Shape, span: zx.Span) void {
-            const topology = encode(value);
-
-            self.parents = reservation.rows.items(.parent);
-            self.view = writable(reservation.rows);
-            self.publication = Publication.init(graph, reservation.rows);
-            self.columns = self.view.borrow(@TypeOf(self.columns));
-            self.storage = self.publication.storage(@TypeOf(self.storage));
-            self.source = self.publication.span(@TypeOf(self.source), span);
-            self.shape = .{ .kind = @backingInt(topology.kind), .argument = topology.argument, .members = topology.members };
-
-            input.* = .{
-                .parents = @ptrCast(&self.parents),
-                .columns = &self.columns,
-                .shape = &self.shape,
-                .first = reservation.first,
-                .end = reservation.rows.len,
-                .storage = &self.storage,
-                .span = &self.source,
-            };
-        }
-    };
-}
-
-pub fn append(graph: *Graph, value: Graph.Shape, span: zx.Span) zx.Error!Graph.Id {
-    if (comptime enabled) {
-        const reservation = try reserve(graph, 1);
-        const rule = @import("generated_rx_inference_nodes");
-        const Input = std.meta.Child(rule.Input);
-        var frame: Append(Input) = undefined;
-        var input: Input = undefined;
-
-        frame.bind(&input, graph, reservation, value, span);
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        rule.executeIn(empty.allocator(), &input) catch unreachable;
-
-        return @fromBackingInt(@intCast(reservation.first));
-    }
-
+pub fn append(graph: *Graph, value: Graph.Shape, span: @import("zx").Span) @import("zx").Error!Graph.Id {
     const parent = std.math.cast(u32, graph.nodes.len) orelse return error.OutOfMemory;
 
     try graph.nodes.append(graph.allocator, record(parent, value, span));
 
     return @fromBackingInt(parent);
-}
-
-pub const Writable = struct {
-    kinds: []u8,
-    arguments: []u32,
-    members: [][]const u32,
-    pub fn borrow(self: *Writable, comptime Columns: type) Columns {
-        return .{
-            .kinds = @ptrCast(&self.kinds),
-            .arguments = @ptrCast(&self.arguments),
-            .members = @ptrCast(&self.members),
-        };
-    }
-};
-
-pub fn writable(rows: Storage.Slice) Writable {
-    comptime {
-        if (@sizeOf(Kind) != @sizeOf(u8)) @compileError("inference kind column must store one byte per row");
-    }
-
-    return .{
-        .kinds = std.mem.sliceAsBytes(rows.items(.kind)),
-        .arguments = rows.items(.argument),
-        .members = rows.items(.members),
-    };
 }
 
 fn encode(value: Graph.Shape) Encoded {
@@ -185,7 +84,7 @@ fn encode(value: Graph.Shape) Encoded {
     };
 }
 
-fn record(parent: u32, value: Graph.Shape, span: zx.Span) Row {
+fn record(parent: u32, value: Graph.Shape, span: @import("zx").Span) Row {
     const topology = encode(value);
 
     return .{

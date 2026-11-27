@@ -1,9 +1,17 @@
-export declare function reservePortNodes(target: PortGraph, count: u64): void
-    throws { OutOfMemory }
+export declare function commitInferredPorts(
+    target: PortGraph,
+    first: u64,
+    end: u64,
+    offsets: u64[]
+): void throws { OutOfMemory }
 
-export declare function internPortType(target: PortGraph, type_id: u32, offset: u64): u32
-    throws { OutOfMemory, InvalidSource }
-
+export declare function commitDeclaredPort(
+    target: PortGraph,
+    row: u64,
+    input: u32,
+    output: u32,
+    offset: u64
+): void throws { OutOfMemory, InvalidSource }
 
 export declare function openConstraintModule(state: ConstraintCollection, row: u64): bool
 
@@ -18,11 +26,21 @@ export declare function inferConstraintBody(state: ConstraintCollection): bool
 export declare function defaultConstraintOutput(state: ConstraintCollection): void
     throws { OutOfMemory, InvalidSource }
 
+export declare function constraintPortFixed(state: ConstraintCollection, row: u64): bool
+
 export declare function constraintInputUsed(state: ConstraintCollection): bool
 
 export declare function constraintBindingEnd(state: ConstraintCollection): u64
 
 export declare function constraintTaskEnd(state: ConstraintCollection): u64
+
+export declare function commitConstraintPort(
+    state: ConstraintCollection,
+    row: u64,
+    fixed: bool,
+    binding_end: u64,
+    task_end: u64
+): void
 
 export declare function openConstraintDefaults(state: ConstraintCollection): void
 

@@ -1,29 +1,14 @@
 <Module>
     <Type from="model" as="Raw" />
 
-    <Args in={Raw.Run} out={Raw.Output} />
+    <Args in={Raw.Input} out={Raw.Output} />
 
-    <Call
-        fn="collect"
-        in={$in.pick([
-            "root",
-            "layout"
-        ])}
-    />
-
-    <Call
-        fn="reserve"
-        in={[
-            $in.buffers,
-            $ctx.collect.nodes.length
-        ]}
-    />
+    <Call fn="collect" in={$in} />
 
     <Call
         fn="layout"
         in={{
             layout: $in.layout,
-            buffers: $in.buffers,
             rows: $ctx.collect
         }}
     />

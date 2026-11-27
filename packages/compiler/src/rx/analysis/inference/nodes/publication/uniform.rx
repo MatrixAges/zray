@@ -1,8 +1,0 @@
-<Module>
-    <Type from="model" as="Publication" />
-
-    <Args in={Publication.Uniform} out={void} />
-
-    <Call fn="spans" in={$in.omit(["storage"])} />
-    <Call fn="finish" in={$in.omit(["span"])} />
-</Module>

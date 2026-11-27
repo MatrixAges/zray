@@ -186,15 +186,9 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
     if (count > std.math.maxInt(u32)) return error.OutOfMemory;
 
     const column_words = std.math.mul(usize, count, 4 * @sizeOf(u32) / @sizeOf(u64)) catch return error.OutOfMemory;
-    const event_capacity = std.math.mul(usize, count, 2) catch return error.OutOfMemory;
-    const length = std.math.add(usize, column_words, event_capacity) catch return error.OutOfMemory;
-    const data = try allocator.alloc(u64, length);
-    const flow = std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(data[0..column_words]));
-    var facts = flow[0..count];
-    var unit_firsts = flow[count..][0..count];
-    var unit_counts = flow[2 * count ..][0..count];
-    var step_rows = flow[3 * count ..];
-    var events = data[column_words..];
+    var arena = std.heap.ArenaAllocator.init(temporary);
+
+    defer arena.deinit();
 
     const scan_input: Input = .{
         .source = source,
@@ -202,22 +196,32 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
         .attributes = input.tree.attributes,
         .root = input.control.result,
         .slots = slots,
-        .facts = @ptrCast(&facts),
-        .unit_firsts = @ptrCast(&unit_firsts),
-        .unit_counts = @ptrCast(&unit_counts),
-        .step_rows = @ptrCast(&step_rows),
-        .events = @ptrCast(&events),
         .project_flow = project_flow,
     };
 
-    const result = scan(temporary, if (@typeInfo(Parameter) == .pointer) &scan_input else scan_input) catch |err| switch (err) {
+    const result = scan(arena.allocator(), if (@typeInfo(Parameter) == .pointer) &scan_input else scan_input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const event_count: usize = @intCast(result.events);
+    const event_count: usize = result.events.len;
+    const length = std.math.add(usize, column_words, event_count) catch return error.OutOfMemory;
+    const data = try allocator.alloc(u64, length);
+    const flow = std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(data[0..column_words]));
+    const facts = flow[0..count];
+    const unit_firsts = flow[count..][0..count];
+    const unit_counts = flow[2 * count ..][0..count];
+    const step_rows = flow[3 * count ..];
+    const events = data[column_words..];
 
-    _ = allocator.resize(data, column_words + event_count);
+    if (count != 0) {
+        @memcpy(facts, result.facts);
+        @memcpy(unit_firsts, result.unit_firsts);
+        @memcpy(unit_counts, result.unit_counts);
+        @memcpy(step_rows, result.step_rows);
+    }
+
+    if (event_count != 0) @memcpy(events, result.events);
 
     const entries = try allocator.alloc(Entry, result.references.len);
     const PublishParameter = @typeInfo(@TypeOf(publish)).@"fn".param_types[1].?;
@@ -228,10 +232,6 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
         .rows = result.references,
         .slots = slots,
     };
-
-    var arena = std.heap.ArenaAllocator.init(temporary);
-
-    defer arena.deinit();
 
     const published = zx.columns.invoke(publish, arena.allocator(), &publication) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,

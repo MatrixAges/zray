@@ -1,28 +1,52 @@
 import integers from "std:integer"
 import { free, used_flag } from "core/integer/map/const"
 import find from "core/integer/map/find"
-import memory from "memory"
-
-import writeSlot from "./write_slot"
 
 import type { State as Table } from "core/integer/map/model"
-import type { Storage } from "./model"
 
-export type Input = Table.Pick("metadata", "keys") & {
+export type Input = {
     previous: Table,
-    storage: Storage
+    capacity: u64
 }
 
-export type Output = void
+export type Output = {
+    metadata: u8[],
+    keys: u32[],
+    values: u32[]
+}
 
 export default function (in: Input): Output {
-    const { previous, metadata, keys, storage } = in
+    const empty_bytes: u8[] = []
+    const empty_u32s: u32[] = []
 
-    memory.fillByteRange(storage.metadata, 0, metadata.length, free)
-
-    const rehashed = loop({
+    const buffers = loop({
         index: 0,
-        moved: 0
+        metadata: empty_bytes,
+        keys: empty_u32s,
+        values: empty_u32s
+    }, {
+        while: state => state.index < in.capacity,
+        next: state => {
+            state.metadata = state.metadata.push(free)[0]
+            state.keys = state.keys.push(0)[0]
+            state.values = state.values.push(0)[0]
+            state.index += 1
+        },
+        return: state => state.pick([
+            "metadata",
+            "keys",
+            "values"
+        ])
+    })
+
+    const { previous } = in
+
+    return loop({
+        index: 0,
+        moved: 0,
+        metadata: buffers.metadata,
+        keys: buffers.keys,
+        values: buffers.values
     }, {
         while: state => state.moved < previous.count,
         next: state => {
@@ -31,22 +55,23 @@ export default function (in: Input): Output {
             if (integers.widenByte(previous.metadata[i]) >= used_flag) {
                 const type_id = previous.keys[i]
                 const position = find({
-                    metadata,
-                    keys,
+                    metadata: state.metadata,
+                    keys: state.keys,
                     key: type_id
                 })
 
-                writeSlot({
-                    storage,
-                    position,
-                    node: previous.values[i],
-                    type_id
-                })
-
+                state.values[position.slot] = previous.values[i]
+                state.keys[position.slot] = type_id
+                state.metadata[position.slot] = position.tag
                 state.moved += 1
             }
 
             state.index += 1
-        }
+        },
+        return: state => state.pick([
+            "metadata",
+            "keys",
+            "values"
+        ])
     })
 }

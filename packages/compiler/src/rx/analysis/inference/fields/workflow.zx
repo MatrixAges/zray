@@ -1,9 +1,7 @@
 import type { State as Known } from "core/integer/map/model"
-import type { Allocator, U32Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type { FieldAccess } from "rx_project_host"
-import type { Input as Shape } from "../unification/commit/publish_shape"
 import type { Object, Output as Field } from "./existing"
-import type { Storage } from "./growth/model"
 import type { Members, Receiver } from "./model"
 
 export type View = {
@@ -13,13 +11,13 @@ export type View = {
     site: Site
 }
 
-export type Site = Shape.Omit("shape") & {
+export type Site = {
     frame: FieldAccess,
     receiver: Receiver.Omit("name"),
     members: Members,
-    storage: Storage,
-    allocator: Allocator,
-    object_kind: u8
+    prefix: u64,
+    capacity: u64,
+    published: u64
 }
 
 export type Write = {

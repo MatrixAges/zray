@@ -1,18 +1,9 @@
-import type { U64Buffer } from "memory"
 import type { KnownRegistration } from "rx_project_host"
-import type { Storage, UniformSpan } from "../nodes/publication/model"
 import type { Input, Output, Registry } from "./model"
-
-export type Publication = {
-    storage: Storage,
-    span: UniformSpan,
-    count: U64Buffer
-}
 
 export type Request = Input.Pick("members", "types", "type_id", "remaining", "end") & {
     frame: KnownRegistration,
-    view: Registry,
-    publication: Publication
+    view: Registry
 }
 
 export type Result = Output.Pick("value", "remaining")
@@ -21,8 +12,4 @@ export type Cursor = Input.Pick("next", "type_id", "remaining", "end") & {
     request: Request,
     value: u32,
     running: bool
-}
-
-export type Reservation = Request.Pick("frame", "view", "end") & {
-    capacity: u64
 }

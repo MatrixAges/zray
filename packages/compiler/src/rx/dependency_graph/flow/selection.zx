@@ -1,12 +1,13 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { alternate, returns, terminates } from "./const"
 import previous from "./previous"
 
 import type { Children } from "./model"
 
-export type Input = Children
+export type Input = Children & {
+    facts: u32[]
+}
 
 export type Output = u32
 
@@ -23,7 +24,7 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.row - 1
             const slot = view.slots[row]
-            const flags = integers.widen(memory.readU32(view.facts, slot))
+            const flags = integers.widen(in.facts[slot])
             const yields = integers.andBits(flags, integers.widen(returns)) != 0
             const stops = integers.andBits(flags, integers.widen(terminates)) != 0
             const otherwise = integers.andBits(flags, integers.widen(alternate)) != 0

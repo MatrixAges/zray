@@ -1,40 +1,32 @@
-import integers from "std:integer"
-import memory from "memory"
-
-import { ports_per_declaration } from "../../contracts/const"
 import origin from "./origin"
-import publish from "./publish"
 
-import type { Inferred as Input } from "./model"
+import type { Origins } from "./model"
 
-export type Output = void
+export type Input = {
+    origins: Origins,
+    first: u64,
+    end: u64
+}
+
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { reserved, first, end, origins, ports } = in
+    const empty: u64[] = []
 
-    const written = loop(first, {
-        while: row => row < end,
-        next: row => {
-            const input = reserved.nodes.first + (row - first) * ports_per_declaration
-            const output = input + 1
+    return loop({
+        row: in.first,
+        offsets: empty
+    }, {
+        while: state => state.row < in.end,
+        next: state => {
             const offset = origin({
-                origins,
-                row
+                origins: in.origins,
+                row: state.row
             })
 
-            memory.writeColumnIndex(reserved.span_starts, input, offset)
-            memory.writeColumnIndex(reserved.span_ends, input, offset)
-            memory.writeColumnIndex(reserved.span_starts, output, offset)
-            memory.writeColumnIndex(reserved.span_ends, output, offset)
-            publish({
-                ports,
-                row,
-                input: integers.narrow(input),
-                output: integers.narrow(output),
-                fixed: false
-            })
-
-            row += 1
-        }
+            state.offsets = state.offsets.push(offset)[0]
+            state.row += 1
+        },
+        return: state => state.offsets
     })
 }

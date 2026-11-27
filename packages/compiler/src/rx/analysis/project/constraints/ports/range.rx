@@ -7,40 +7,43 @@
 
     <If on={$ctx.next.nodes != 0}>
         <Call
-            fn="host.reservePortNodes"
-            in={[
-                $in.request.graph,
-                $ctx.next.nodes
-            ]}
-        />
-
-        <Call
-            module="initialize"
+            fn="inferred"
             in={{
-                ...$in.request.pick([
-                    "ports",
-                    "origins",
-                    "reserved"
-                ]),
+                origins: $in.request.origins,
                 first: $in.position,
                 end: $ctx.next.inferred_until
             }}
+        />
+
+        <Call
+            fn="host.commitInferredPorts"
+            in={[
+                $in.request.graph,
+                $in.position,
+                $ctx.next.inferred_until,
+                $ctx.inferred
+            ]}
         />
     </If>
 
     <If on={$ctx.next.declared}>
         <Call
-            fn="declared"
+            fn="origin"
             in={{
-                ...$in.request.pick([
-                    "graph",
-                    "ports",
-                    "origins"
-                ]),
-                row: $ctx.next.inferred_until,
-                input: $ctx.next.input,
-                output: $ctx.next.output
+                origins: $in.request.origins,
+                row: $ctx.next.inferred_until
             }}
+        />
+
+        <Call
+            fn="host.commitDeclaredPort"
+            in={[
+                $in.request.graph,
+                $ctx.next.inferred_until,
+                $ctx.next.input,
+                $ctx.next.output,
+                $ctx.origin
+            ]}
         />
     </If>
 

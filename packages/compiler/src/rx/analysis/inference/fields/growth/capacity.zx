@@ -1,21 +1,22 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 
-import type { Resize } from "./model"
-
-export type Input = Resize
+export type Input = {
+    prefix: u64,
+    capacity: u64,
+    published: u64,
+    count: u64
+}
 
 export type Output = u64?
 
 export default function (in: Input): Output {
-    const prefix = in.storage.source_values.length
-
-    if (in.storage.published == prefix && in.count <= in.storage.capacity) {
+    if (in.published == in.prefix && in.count <= in.capacity) {
         return null
     }
 
     const maximum = integers.widen(max_u32)
-    const reserve = prefix + prefix / 2
+    const reserve = in.prefix + in.prefix / 2
     const preferred = reserve < maximum ? reserve : maximum
 
     return in.count > preferred ? in.count : preferred

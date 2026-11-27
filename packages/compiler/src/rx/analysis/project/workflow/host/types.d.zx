@@ -25,10 +25,6 @@ export type AssignmentApplication = mutable_opaque
 
 export type AssignmentRegistration = mutable_opaque
 
-export type ScopeRegistration = mutable_opaque
-
-export type ScopeLookup = mutable_opaque
-
 export type KnownRegistration = mutable_opaque
 
 export type UnificationTarget = mutable_opaque
@@ -43,21 +39,15 @@ export type FieldAccess = mutable_opaque
 
 export type FieldAlignment = mutable_opaque
 
-export type FieldColumnStorage = mutable_opaque
-
 export type ObjectConstructionRow = mutable_opaque
 
 export type BindingReplay = mutable_opaque
-
-export type BindingUse = mutable_opaque
 
 export type BindingReporter = mutable_opaque
 
 export type BindingSpans = opaque
 
 export type NonNullReplay = mutable_opaque
-
-export type NonNullRead = mutable_opaque
 
 export type OptionalQuery = mutable_opaque
 

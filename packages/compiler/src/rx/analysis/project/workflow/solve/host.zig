@@ -177,11 +177,17 @@ pub fn openFlowPorts(handle: *anyopaque) Error!void {
 
     const declared = try Contracts.resolve(stages.declarations.allocator(), &state.graph, modules, state.source_map);
 
+    stages.scope.active = stages.declarations.allocator();
+
     stages.ports.bind(&state.graph, state.ports, modules, state.source_map, declared);
 }
 
 pub fn releaseFlowDeclarations(handle: *anyopaque) void {
-    borrow(handle).stages.declarations.reset(0);
+    const stages = borrow(handle).stages;
+
+    stages.scope.active = stages.empty;
+
+    stages.declarations.reset(0);
 }
 
 pub fn openFlowCollection(handle: *anyopaque) void {
@@ -193,7 +199,7 @@ pub fn openFlowCollection(handle: *anyopaque) void {
     stages.body.states = state.ports;
     stages.scope.active = stages.collection_scratch.allocator();
 
-    stages.collection.bind(&stages.body, &stages.ports.port_columns);
+    stages.collection.bind(&stages.body);
 }
 
 pub fn releaseFlowCollection(handle: *anyopaque) void {

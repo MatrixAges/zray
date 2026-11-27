@@ -46,35 +46,19 @@ pub fn borrowed(loader: *Prepare.Loader, node: *const rx.ast.Node) Prepare.Loade
 
     defer scratch.deinit();
 
-    var storage: []u32 = &.{};
-    var facts: []u32 = &.{};
-    var firsts: []u32 = &.{};
-    var counts: []u32 = &.{};
-    var rows: []u32 = &.{};
-    var events: []u64 = &.{};
-
     const request: Request = .{
         .root = std.mem.asBytes(node),
         .layout = &comptime rx.astLayout(std.meta.Child(@FieldType(Request, "layout"))),
-        .buffers = &.{
-            .storage = @ptrCast(&storage),
-            .facts = @ptrCast(&facts),
-            .unit_firsts = @ptrCast(&firsts),
-            .unit_counts = @ptrCast(&counts),
-            .step_rows = @ptrCast(&rows),
-            .events = @ptrCast(&events),
-        },
     };
 
-    // Keep the generated layout call separate from the caller's mutable scratch views.
-    const result = @call(.never_inline, plan.executeValue, .{ scratch.allocator(), &request }) catch |err| return Prepare.loadError(err);
+    const result = plan.executeValue(scratch.allocator(), &request) catch |err| return Prepare.loadError(err);
 
     const index: Index = .{
-        .facts = facts,
-        .events = events[0..@intCast(result.events)],
-        .unit_firsts = firsts,
-        .unit_counts = counts,
-        .step_rows = rows,
+        .facts = result.facts,
+        .events = result.events,
+        .unit_firsts = result.unit_firsts,
+        .unit_counts = result.unit_counts,
+        .step_rows = result.step_rows,
         .parallel_tasks = result.parallel_tasks,
     };
 

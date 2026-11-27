@@ -16,32 +16,79 @@ import {
 import selection from "./selection"
 import sequence from "./sequence"
 
-import type { Input } from "./model"
+import type { Input as Base } from "./model"
 
-export type Output = u32
+export type Input = Base & {
+    facts: u32[]
+}
+
+export type Output = {
+    flags: u32,
+    facts: u32[]
+}
 
 export default function (in: Input): Output {
-    const children = {
-        view: in.view,
-        head: in.head
+    const is_sequence = match in.tag {
+        Tag.Module => true,
+        Tag.Task => true,
+        Tag.Case => true,
+        Tag.Else => true,
+        Tag.Default => true,
+        _ => false
     }
 
-    return match in.tag {
-        Tag.Module => sequence(children),
+    if (is_sequence) {
+        const result = sequence({
+            view: in.view,
+            head: in.head,
+            facts: in.facts
+        })
+
+        const extra = match in.tag {
+            Tag.Task => task_action,
+            Tag.Else => alternate,
+            Tag.Default => alternate,
+            _ => 0
+        }
+
+        return {
+            flags: result.flags + extra,
+            facts: result.facts
+        }
+    }
+
+    if (in.tag == Tag.If) {
+        const result = conditional({
+            view: in.view,
+            head: in.head,
+            facts: in.facts
+        })
+
+        return {
+            flags: result.flags + if_action,
+            facts: result.facts
+        }
+    }
+
+    const flags = match in.tag {
         Tag.Type => declaration + declaration_action,
         Tag.Args => declaration + declaration_action,
         Tag.Store => declaration + declaration_action,
         Tag.Import => declaration + declaration_action,
         Tag.Call => call_action,
         Tag.Loop => call_action,
-        Tag.Task => sequence(children) + task_action,
         Tag.Parallel => parallel_action,
-        Tag.Case => sequence(children),
-        Tag.Else => sequence(children) + alternate,
-        Tag.Default => sequence(children) + alternate,
-        Tag.If => conditional(children) + if_action,
-        Tag.Switch => selection(children) + switch_action,
+        Tag.Switch => selection({
+            view: in.view,
+            head: in.head,
+            facts: in.facts
+        }) + switch_action,
         Tag.Return => returns + terminates + return_action,
         _ => 0
+    }
+
+    return {
+        flags,
+        facts: in.facts
     }
 }

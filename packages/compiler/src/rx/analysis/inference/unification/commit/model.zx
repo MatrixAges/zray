@@ -1,30 +1,15 @@
-import type { U8Buffer, U32Buffer, U32ListBuffer } from "memory"
 import type { Constraints } from "../../scalar/model"
-import type { Storage } from "../../scalar/publication/model"
 import type { Graph } from "../../scalar/restriction"
 
 export type Input = {
-    parents: U32Buffer,
     graph: Graph,
     parent: u32,
-    child: u32,
-    columns: Columns,
-    shape: Shape,
-    storage: Storage,
     left: Constraints,
     right: Constraints
 }
 
-export type Columns = {
-    kinds: U8Buffer,
-    arguments: U32Buffer,
-    members: U32ListBuffer
+export type Output = {
+    fallback?: u8,
+    allowed?: u16,
+    message?: string
 }
-
-export type Shape = {
-    kind: u8,
-    argument: u32,
-    members: u32[]
-}
-
-export type Output = string?

@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { alternate, returns, terminates } from "./const"
 import previous from "./previous"
@@ -7,31 +6,46 @@ import sequence from "./sequence"
 
 import type { Children } from "./model"
 
-export type Input = Children
+export type Input = Children & {
+    facts: u32[]
+}
 
-export type Output = u32
+export type Output = {
+    flags: u32,
+    facts: u32[]
+}
 
 export default function (in: Input): Output {
     if (in.head == 0) {
-        return 0
+        return {
+            flags: 0,
+            facts: in.facts
+        }
     }
 
     const row = in.head - 1
     const view = in.view
-    const fallback = memory.readU32(view.facts, view.slots[row])
+    const fallback = in.facts[view.slots[row]]
 
     const has_else =
         integers.andBits(integers.widen(fallback), integers.widen(alternate))
 
     if (has_else == 0) {
-        const body = sequence(in)
+        const body = sequence({
+            view,
+            head: in.head,
+            facts: in.facts
+        })
 
-        return integers.narrow(
-            integers.andBits(
-                integers.widen(body),
-                integers.widen(returns)
-            )
-        )
+        return {
+            flags: integers.narrow(
+                integers.andBits(
+                    integers.widen(body.flags),
+                    integers.widen(returns)
+                )
+            ),
+            facts: body.facts
+        }
     }
 
     const body = sequence({
@@ -39,13 +53,21 @@ export default function (in: Input): Output {
         head: previous([
             view,
             row
-        ])
+        ]),
+        facts: in.facts
     })
 
-    const either = integers.orBits(integers.widen(body), integers.widen(fallback))
-    const both = integers.andBits(integers.widen(body), integers.widen(fallback))
+    const either =
+        integers.orBits(integers.widen(body.flags), integers.widen(fallback))
+
+    const both =
+        integers.andBits(integers.widen(body.flags), integers.widen(fallback))
+
     const result = integers.andBits(either, integers.widen(returns))
     const end = integers.andBits(both, integers.widen(terminates))
 
-    return integers.narrow(result + end)
+    return {
+        flags: integers.narrow(result + end),
+        facts: body.facts
+    }
 }

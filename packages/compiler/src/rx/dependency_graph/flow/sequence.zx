@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import {
     action_mask,
@@ -15,9 +14,14 @@ import previous from "./previous"
 
 import type { Children } from "./model"
 
-export type Input = Children
+export type Input = Children & {
+    facts: u32[]
+}
 
-export type Output = u32
+export type Output = {
+    flags: u32,
+    facts: u32[]
+}
 
 export default function (in: Input): Output {
     const view = in.view
@@ -27,13 +31,14 @@ export default function (in: Input): Output {
         following: 0,
         following_call: false,
         has_return: false,
-        ends: false
+        ends: false,
+        facts: in.facts
     }, {
         while: state => state.row != 0,
         next: state => {
             const row = state.row - 1
             const slot = view.slots[row]
-            const flags = integers.widen(memory.readU32(view.facts, slot))
+            const flags = integers.widen(state.facts[slot])
             state.row = previous([
                 view,
                 row
@@ -52,10 +57,10 @@ export default function (in: Input): Output {
                     state.ends = stop
                 } else if (stop || feeds_call) {
                     const next = state.following - 1
-                    const next_flags = memory.readU32(view.facts, next)
+                    const next_flags = state.facts[next]
                     const mark = stop ? unreachable : previous_output
 
-                    memory.writeU32(view.facts, next, next_flags + mark)
+                    state.facts[next] = next_flags + mark
                 }
 
                 const yields = integers.andBits(flags, integers.widen(returns)) != 0
@@ -63,11 +68,12 @@ export default function (in: Input): Output {
                 state.following = slot + 1
                 state.following_call = call
             }
-        }
+        },
+        return: state => ({
+            flags: (state.has_return ? returns : 0) + (state.ends ? terminates : 0),
+            facts: state.facts
+        })
     })
 
-    const result = summary.has_return ? returns : 0
-    const end = summary.ends ? terminates : 0
-
-    return result + end
+    return summary
 }

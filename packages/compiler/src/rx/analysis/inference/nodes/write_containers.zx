@@ -1,14 +1,6 @@
 import integers from "std:integer"
-import memory from "memory"
-
-import publish from "../unification/commit/publish_shape"
-
-import type { U32Buffer } from "memory"
-import type { Columns } from "../unification/commit/model"
 
 export type Input = {
-    parents: U32Buffer,
-    columns: Columns,
     first: u64,
     end: u64,
     payload?: u32,
@@ -16,52 +8,47 @@ export type Input = {
     unknown: u8
 }
 
-export type Output = void
+export type Row = {
+    parent: u32,
+    kind: u8,
+    argument: u32
+}
+
+export type Output = Row[]
 
 export default function (in: Input): Output {
     const start = in.first
-    const payload = in.payload ?? integers.narrow(start)
-    const parents = in.parents
-    const columns = in.columns
+    const seed = in.payload ?? integers.narrow(start)
+    const empty: Row[] = []
 
-    if (in.payload == null) {
-        memory.writeU32(parents, start, payload)
+    const seed_rows: Row[] = [{
+        parent: seed,
+        kind: in.unknown,
+        argument: 0
+    }]
 
-        publish({
-            parent: payload,
-            columns,
-            shape: {
-                kind: in.unknown,
-                argument: 0,
-                members: []
-            }
-        })
-    }
+    const initial = in.payload == null ? seed_rows : empty
 
     const row = in.payload == null ? start + 1 : start
 
-    const written = loop({
+    return loop({
         row,
-        payload
+        payload: seed,
+        rows: initial
     }, {
         while: state => state.row < in.end,
         next: state => {
-            const row = state.row
-            const id = integers.narrow(row)
+            const id = integers.narrow(state.row)
 
-            memory.writeU32(parents, row, id)
-            publish({
+            state.rows = state.rows.push({
                 parent: id,
-                columns,
-                shape: {
-                    kind: in.container,
-                    argument: state.payload,
-                    members: []
-                }
-            })
+                kind: in.container,
+                argument: state.payload
+            })[0]
 
             state.payload = id
             state.row += 1
-        }
+        },
+        return: state => state.rows
     })
 }

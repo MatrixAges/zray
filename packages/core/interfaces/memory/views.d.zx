@@ -19,12 +19,6 @@ export declare function allocateU32Views(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function allocateU64Views(
-    allocator,
-    target: U64Buffer,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function columnRangeSlotCount(source: ColumnRanges): u64
 
 export declare function columnRangeLength(source: ColumnRanges, slot: u64): u64

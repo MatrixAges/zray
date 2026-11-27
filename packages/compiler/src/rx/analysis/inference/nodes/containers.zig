@@ -24,9 +24,6 @@ pub fn append(graph: *Graph, payload: ?Graph.Id, kind: Kind, count: usize, span:
     const reservation = try Nodes.reserve(graph, rows_count);
     const writer = @import("generated_rx_inference_containers");
     const Input = std.meta.Child(writer.Input);
-    var rows = Nodes.writable(reservation.rows);
-    var parents = reservation.rows.items(.parent);
-    var publication = Nodes.Publication.init(graph, reservation.rows);
 
     const container: Nodes.Kind = switch (kind) {
         .list => .List,
@@ -34,20 +31,44 @@ pub fn append(graph: *Graph, payload: ?Graph.Id, kind: Kind, count: usize, span:
     };
 
     const input: Input = .{
-        .parents = @ptrCast(&parents),
-        .columns = &rows.borrow(std.meta.Child(@FieldType(Input, "columns"))),
         .first = reservation.first,
         .end = reservation.rows.len,
         .payload = if (payload) |id| @backingInt(id) else null,
         .container = @backingInt(container),
         .unknown = @backingInt(Nodes.Kind.Unknown),
-        .storage = &publication.storage(std.meta.Child(@FieldType(Input, "storage"))),
-        .span = &publication.span(std.meta.Child(@FieldType(Input, "span")), span),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(graph.scratch);
 
-    writer.executeIn(empty.allocator(), &input) catch unreachable;
+    defer arena.deinit();
+
+    var buf: [1024]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buf, arena.allocator());
+
+    const result = zx.columns.invoke(writer.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    const parents = reservation.rows.items(.parent);
+    const kinds = reservation.rows.items(.kind);
+    const arguments = reservation.rows.items(.argument);
+    const members = reservation.rows.items(.members);
+    const spans = reservation.rows.items(.span);
+    const alloweds = reservation.rows.items(.allowed);
+    const fallbacks = reservation.rows.items(.fallback);
+
+    for (result, reservation.first..) |item, index| {
+        parents[index] = item.parent;
+        kinds[index] = @fromBackingInt(@intCast(item.kind));
+        arguments[index] = item.argument;
+        members[index] = &.{};
+        spans[index] = span;
+        alloweds[index] = null;
+        fallbacks[index] = null;
+    }
+
+    graph.nodes.len = reservation.rows.len;
 
     return @fromBackingInt(@intCast(reservation.rows.len - 1));
 }

@@ -2,7 +2,7 @@
     <Type from="use_model" as="Requirement" />
     <Type from="model" as="Bindings" />
 
-    <Args in={Requirement.Use} out={void} />
+    <Args in={Requirement.Use} out={bool} />
 
     <Call
         fn="node"
@@ -25,16 +25,9 @@
         </Case>
 
         <Case value={Bindings.Status.Pending}>
-            <Call fn="host.reserveBindingUse" in={$in.frame} />
-
-            <Call
-                fn="publish_use"
-                in={$in.pick([
-                    "rows",
-                    "value",
-                    "span"
-                ])}
-            />
+            <Return value={true} />
         </Case>
     </Switch>
+
+    <Return value={false} />
 </Module>

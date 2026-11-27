@@ -7,6 +7,12 @@ const Name = []const u8;
 const Header = extern struct { capacity: u32, published: u32 };
 const row_bytes = @sizeOf(Name) + @sizeOf(Graph.Id);
 
+pub const Layout = struct {
+    prefix: u64,
+    capacity: u64,
+    published: u64,
+};
+
 pub const View = struct {
     bytes: [*]const u8 = undefined,
     len: usize = 0,
@@ -48,6 +54,35 @@ pub fn init(buffers: *Buffers, allocator: std.mem.Allocator, count: usize) std.m
     return fields;
 }
 
+pub fn layout(fields: Self) Layout {
+    const header_value = if (fields.len == 0) Header{ .capacity = 0, .published = 0 } else fields.header().*;
+
+    return .{
+        .prefix = fields.len,
+        .capacity = header_value.capacity,
+        .published = header_value.published,
+    };
+}
+
+pub fn grow(buffers: *Buffers, allocator: std.mem.Allocator, existing: Self, count: usize, capacity: ?usize) std.mem.Allocator.Error!Self {
+    if (capacity) |size| {
+        const next = try allocate(buffers, allocator, count, size);
+
+        if (existing.len != 0) existing.copyTo(next);
+        if (count != 0) next.header().published = @intCast(count);
+
+        return next;
+    }
+
+    var resized = existing;
+
+    resized.len = count;
+
+    if (count != 0) resized.header().published = @intCast(count);
+
+    return resized;
+}
+
 fn allocate(buffers: *Buffers, allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem.Allocator.Error!Self {
     if (capacity == 0) return .{};
 
@@ -62,47 +97,6 @@ fn allocate(buffers: *Buffers, allocator: std.mem.Allocator, count: usize, capac
     try buffers.put(allocator, fields.valuePtr(), fields.bytes);
 
     return fields;
-}
-
-pub const Resize = struct {
-    buffers: *Buffers,
-    allocator: std.mem.Allocator,
-    fields: Self,
-    names: []Name = undefined,
-    values: []u32 = undefined,
-    extent: []u32 = undefined,
-    pub fn borrow(self: *Resize, comptime ShapeView: type) ShapeView {
-        const fields = self.fields;
-        const layout = if (fields.len == 0) Header{ .capacity = 0, .published = 0 } else fields.header().*;
-
-        return .{
-            .frame = @ptrCast(self),
-            .source_names = fields.names(),
-            .source_values = @ptrCast(fields.values()),
-            .capacity = layout.capacity,
-            .published = layout.published,
-            .target_names = @ptrCast(&self.names),
-            .target_values = @ptrCast(&self.values),
-            .extent = @ptrCast(&self.extent),
-        };
-    }
-};
-
-pub fn bindFieldColumns(handle: *anyopaque, count: u64, capacity: ?u64) std.mem.Allocator.Error!void {
-    const frame: *Resize = @ptrCast(@alignCast(handle));
-    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
-
-    if (capacity) |size| {
-        const reserved = std.math.cast(usize, size) orelse return error.OutOfMemory;
-
-        frame.fields = try allocate(frame.buffers, frame.allocator, length, reserved);
-    } else {
-        frame.fields.len = length;
-    }
-
-    frame.names = frame.fields.nameColumn();
-    frame.values = @ptrCast(frame.fields.valueColumn());
-    frame.extent = (&frame.fields.header().published)[0..1];
 }
 
 /// Reconstruct a read-only descriptor from the complete value column of this layout.
