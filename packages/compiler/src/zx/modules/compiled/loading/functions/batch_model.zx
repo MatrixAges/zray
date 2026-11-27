@@ -12,8 +12,6 @@ export type Input = {
     first: u64
 }
 
-export type Output = void
-
 export type Traversal = {
     input: Input,
     row: u64,

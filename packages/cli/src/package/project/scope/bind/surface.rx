@@ -31,14 +31,17 @@
                 />
             </If>
 
-            <Call
-                fn="exports"
-                in={{
-                    binding: $in.binding,
-                    count: $ctx.prepareSurface.exports,
-                    compiled: $ctx.prepareSurface.library != null
-                }}
-            />
+            <Loop on={$in.index < $in.count}>
+                <Call
+                    module="exports"
+                    in={{
+                        binding: $in.binding,
+                        count: $ctx.prepareSurface.exports,
+                        compiled: $ctx.prepareSurface.library != null,
+                        index: 0
+                    }}
+                />
+            </Loop>
         </Else>
     </If>
 </Module>

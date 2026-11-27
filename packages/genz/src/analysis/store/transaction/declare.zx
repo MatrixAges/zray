@@ -1,5 +1,6 @@
-import type { AstDeclarations, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
+import type { Columns } from "../../../ast/declarations/model"
 
 export type Types = {
     frame: Lowering,
@@ -8,7 +9,8 @@ export type Types = {
 
 export type Input = {
     writer: AstWriter,
-    declarations: AstDeclarations,
     types: Types,
     name: u8[]
 }
+
+export type Output = Columns?

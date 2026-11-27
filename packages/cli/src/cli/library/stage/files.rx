@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.FileWrite} out={Model.FileWrite} />
+
+    <Call
+        fn="../../workspace_files/file"
+        in={{
+            files: $in.files,
+            index: $in.index
+        }}
+    />
+
+    <Call
+        fn="index.writeAtomic"
+        in={[
+            $in.fs,
+            $ctx.file.path,
+            $ctx.file.source
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

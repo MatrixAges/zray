@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Walk} out={Execution.Walk} />
+
+    <Call
+        fn="imports"
+        in={$in.pick([
+            "walk",
+            "completed"
+        ])}
+    />
+
+    <If on={$ctx.imports != null}>
+        <Call
+            fn="index.openProjectFrame"
+            in={[
+                $in.walk,
+                $ctx.imports
+            ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                row: $ctx.imports,
+                depth: $in.depth + 1,
+                completed: null
+            }}
+        />
+    </If>
+
+    <Call fn="index.finishProjectFrame" in={$in.walk} />
+
+    <Call
+        fn="../load/complete"
+        in={$in.pick([
+            "row",
+            "depth"
+        ])}
+    />
+
+    <Call fn="index.closeProjectFrame" in={$in.walk} />
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.closeProjectFrame,
+            depth: $in.depth - 1,
+            completed: $ctx.complete
+        }}
+    />
+</Module>

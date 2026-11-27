@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.LinkWalk} out={Model.LinkWalk} />
+
+    <Call
+        fn="index.prepareLibraryLinkInput"
+        in={[
+            $in.link,
+            $in.index
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

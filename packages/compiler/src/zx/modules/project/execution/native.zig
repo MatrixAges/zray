@@ -58,9 +58,8 @@ pub fn load(project: *Project, native: *const Native, module: zx.ir.NativeModule
     if (comptime generated) {
         const entry = @import("generated_project_execute_native");
         const Input = std.meta.Child(entry.Input);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
         const input: Input = .{ .frame = @ptrCast(&frame), .cached = cached };
-        const reset = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch |err| return @import("invoke.zig").errorSet(err);
+        const reset = entry.executeIn(project.allocator, &input) catch |err| return @import("invoke.zig").errorSet(err);
         project.verified.functions = @intCast(reset.functions);
         project.verified.native = reset.native;
     } else if (cached) {

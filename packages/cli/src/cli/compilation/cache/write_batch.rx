@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.WriteEntries} out={void} />
+
+    <Loop on={$in.index < $in.dirty.length}>
+        <Call
+            module="write_entries"
+            in={{
+                ...$in,
+                index: 0
+            }}
+        />
+    </Loop>
+</Module>

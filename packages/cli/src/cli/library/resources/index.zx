@@ -1,4 +1,5 @@
 export {
+    addExternalIncludes,
     allocateNativeRows,
     libraryNativeModule,
     bindLibraryModule,

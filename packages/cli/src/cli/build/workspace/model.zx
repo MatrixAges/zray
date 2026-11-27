@@ -45,3 +45,23 @@ export type Artifact = {
     path: string,
     source: string
 }
+
+export type Paths = Workspace.Pick("directory", "separator")
+
+export type ViewGroup = Workspace & {
+    files: Files
+}
+
+export type ViewWrite = ViewGroup & {
+    index: u64
+}
+
+export type ColumnRow = {
+    files: Files,
+    index: u64
+}
+
+export type File = {
+    path: string,
+    source: string
+}

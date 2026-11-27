@@ -1,72 +1,57 @@
-import {
-    Admission,
-    nativeScopeDeclaration,
-    requireNativeScopeAdmission,
-    writeNativeScopeDeclaration
-} from "native_scope_host"
-
 import backend from "./rules/naming/backend"
 import compiledIdentity from "./rules/naming/compiled"
 import declaration from "./rules/naming/declaration"
 import registered from "./rules/naming/registered"
 
-import type { Binding as Input } from "./workflow"
+import type { DeclarationBinding } from "native_scope_host"
+import type { Binding } from "./workflow"
 
-export type Output = void
+export type Input = {
+    binding: Binding,
+    declaration: DeclarationBinding
+}
+
+export type Resolved = {
+    identity: string,
+    module: string,
+    copy_module: bool
+}
+
+export type Output = Resolved?
 
 export default function (in: Input): Output {
-    const bound = loop(0, {
-        while: index => index < in.window.declarations + in.window.externals,
-        next: index => {
-            const { window, registry } = in
-            const { frame, scope } = window
-            const external = index >= window.declarations
-            const row = match external {
-                true => index - window.declarations,
-                _ => index
-            }
+    const { binding } = in
+    const { specifier, module } = in.declaration
+    const { scope } = binding.window
 
-            const { specifier, module } = nativeScopeDeclaration(frame, row, external)
+    const identity = match scope.compiled {
+        true => compiledIdentity({
+            binding,
+            requested: specifier
+        }),
+        _ => declaration({
+            owner: scope.owner,
+            value: specifier
+        })
+    }
 
-            const generated: string? = match scope.compiled {
-                true => compiledIdentity({
-                    binding: in,
-                    requested: specifier
-                }),
-                _ => declaration({
-                    owner: scope.owner,
-                    value: specifier
-                })
-            }
+    if (identity == null) {
+        return null
+    }
 
-            if (generated == null) {
-                requireNativeScopeAdmission(
-                    frame,
-                    Admission.InvalidExternalSpecifier
-                )
-            } else {
-                const known = registered({
-                    registry,
-                    value: module
-                })
-
-                const resolved =
-                    known ?? backend({
-                        scope,
-                        value: module
-                    })
-
-                writeNativeScopeDeclaration(
-                    frame,
-                    row,
-                    external,
-                    generated,
-                    resolved,
-                    known == null
-                )
-            }
-
-            index += 1
-        }
+    const known = registered({
+        registry: binding.registry,
+        value: module
     })
+
+    const resolved = known ?? backend({
+        scope,
+        value: module
+    })
+
+    return {
+        identity,
+        module: resolved,
+        copy_module: known == null
+    }
 }

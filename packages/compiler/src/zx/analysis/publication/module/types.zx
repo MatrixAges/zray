@@ -1,19 +1,16 @@
-import host from "project_host"
-
 import { Mode } from "../../analyzer/admission/model"
 
 import type { Input as Publication } from "./model"
 
-export type Input = Publication.Pick("publication", "mode", "borrow_body")
+export type Input = Publication.Pick("mode", "borrow_body")
 
-export type Output = void
+export type Output = bool?
 
 export default function (in: Input): Output {
-    const { mode, publication, borrow_body } = in
+    const { mode, borrow_body } = in
 
-    if (!borrow_body && mode != Mode.Project) {
-        host.initializeAnalysisTypes(publication, mode == Mode.Resolved)
+    return match {
+        !borrow_body && mode != Mode.Project => mode == Mode.Resolved,
+        _ => null
     }
-
-    host.appendAnalysisTypes(publication)
 }

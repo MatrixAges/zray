@@ -30,6 +30,7 @@ export declare function bundleNativeModule(
     resources: NativeResources,
     record_bundle: bool
 ): string[] throws { PublicationFailure }
-export declare function addExternalInclude(resources: NativeResources, path: string): void throws { PublicationFailure }
+export declare function addExternalIncludes(resources: NativeResources, paths: string[]): void
+    throws { PublicationFailure }
 export declare function writeLibraryNativeHeader(resources: NativeResources): void throws { PublicationFailure }
 export declare function writeLibraryNativeAdapter(resources: NativeResources): void throws { PublicationFailure }

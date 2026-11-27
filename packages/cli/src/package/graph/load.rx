@@ -8,6 +8,8 @@
 
         <If on={$ctx.read == Project.Status.PackagesNotInstalled}>
             <Call fn="missing" in={$in.host} />
+
+            <Call fn="effects.reportMissing" />
         </If>
 
         <Return value={$ctx.read} />

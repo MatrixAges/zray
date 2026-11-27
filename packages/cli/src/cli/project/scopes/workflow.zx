@@ -32,3 +32,18 @@ export type Traversal = {
     row: u64,
     aliases: Request
 }
+
+export type InterfaceRead = {
+    window: ScopeWindow,
+    row: u64
+}
+
+export type BindingWalk = {
+    binding: Binding,
+    index: u64
+}
+
+export type DeclarationRow = {
+    row: u64,
+    external: bool
+}

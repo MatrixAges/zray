@@ -1,0 +1,59 @@
+<Module>
+    <Type from="../model" as="Model" />
+
+    <Args in={Model.ReplayWalk} out={Model.ReplayWalk} />
+
+    <If on={$in.is_archive[$in.index]}>
+        <Call
+            fn="../effects.fetchLocked"
+            in={[
+                $in.host,
+                $in.index
+            ]}
+        />
+
+        <Call
+            fn="../effects.recordLockedPath"
+            in={[
+                $in.host,
+                $in.index,
+                $ctx.fetchLocked
+            ]}
+        />
+
+        <Call
+            fn="../effects.verifyLockedManifest"
+            in={[
+                $in.host,
+                $in.index,
+                $ctx.recordLockedPath
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="../effects.workspacePath"
+                in={[
+                    $in.host,
+                    $in.index
+                ]}
+            />
+
+            <Call
+                fn="../effects.recordLockedPath"
+                in={[
+                    $in.host,
+                    $in.index,
+                    $ctx.workspacePath
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

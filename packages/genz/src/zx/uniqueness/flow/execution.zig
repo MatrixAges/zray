@@ -26,7 +26,7 @@ const Frame = struct {
     scratch: std.mem.Allocator,
     recursive: ?Fixpoint = null,
     result: Flow = undefined,
-    plan: layers.Plan = undefined,
+    plan: Api.FlowLayers = undefined,
     remembered: ?Flow.Remembered = null,
     walkers: []Flow.Walker = &.{},
     fn borrow(handle: *anyopaque) *Frame {
@@ -64,13 +64,13 @@ pub fn initializeFlow(handle: *anyopaque) Error!void {
     frame.result = try @import("initial.zig").create(input.allocator, input.program.*, input.slots, input.texts);
 }
 
-pub fn planFlow(handle: *anyopaque) Error!Api.FlowPlan {
+pub fn planFlow(handle: *anyopaque) Error!?*const Api.FlowLayers {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
+    const plan = (try layers.build(input.temporary, &input.program.functions, frame.result.held, input.memo != null)) orelse return null;
+    frame.plan = .{ .order = plan.order, .ends = plan.ends };
 
-    frame.plan = (try layers.build(input.temporary, &input.program.functions, frame.result.held, input.memo != null)) orelse return .Recursive;
-
-    return if (frame.plan.order.len == 0) .Empty else .Layered;
+    return &frame.plan;
 }
 
 pub fn reserveFlowMemo(handle: *anyopaque) Error!void {
@@ -80,22 +80,12 @@ pub fn reserveFlowMemo(handle: *anyopaque) Error!void {
     frame.remembered = try Flow.Remembered.init(input.temporary, input.memo.?, input.types, input.contents, input.program.functions.count());
 }
 
-pub fn flowLayerOrder(handle: *anyopaque) []const u32 {
-    return Frame.borrow(handle).plan.order;
-}
-
-pub fn flowLayerEnds(handle: *anyopaque) []const u64 {
-    return Frame.borrow(handle).plan.ends;
-}
-
-pub fn flowMemoHits(handle: *anyopaque) []const bool {
+pub fn openFlowWorkers(handle: *anyopaque) Error![]const bool {
     const frame = Frame.borrow(handle);
 
-    return if (frame.remembered) |saved| saved.found else &.{};
-}
+    frame.walkers = try Flow.Walker.open();
 
-pub fn openFlowWorkers(handle: *anyopaque) Error!void {
-    Frame.borrow(handle).walkers = try Flow.Walker.open();
+    return if (frame.remembered) |saved| saved.found else &.{};
 }
 
 pub fn solveFlowLayer(handle: *anyopaque, first: u64, end: u64) Error!void {

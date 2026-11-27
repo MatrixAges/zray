@@ -1,6 +1,5 @@
 import {
     nativeScopeModulePaths,
-    prepareNativeScopeModule,
     resolveNativeScopePath
 } from "native_scope_host"
 
@@ -9,7 +8,12 @@ import resolveDependencies from "./rules/dependency"
 
 import type { Traversal as Input } from "./workflow"
 
-export type Output = void
+export type Output = {
+    name: string,
+    path?: string,
+    dependencies: string[],
+    includes: string[]
+}
 
 export default function (in: Input): Output {
     const { binding, row } = in
@@ -35,12 +39,10 @@ export default function (in: Input): Output {
         source: source.includes
     })
 
-    prepareNativeScopeModule(
-        frame,
-        row,
-        binding.registry.names[row],
+    return {
+        name: binding.registry.names[row],
         path,
         dependencies,
         includes
-    )
+    }
 }

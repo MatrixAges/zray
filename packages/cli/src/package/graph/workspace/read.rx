@@ -5,13 +5,17 @@
 
     <Call fn="../effects.prepareWorkspace" in={$in.host} />
 
-    <Call
-        fn="seed"
-        in={{
-            host: $in.host,
-            edge_counts: $ctx.prepareWorkspace
-        }}
-    />
+    <Loop on={$in.index < $in.edge_counts.length}>
+        <Call
+            module="seed"
+            in={{
+                host: $in.host,
+                edge_counts: $ctx.prepareWorkspace,
+                index: 0,
+                first: 0
+            }}
+        />
+    </Loop>
 
     <Call fn="assemble" in={$in} />
 

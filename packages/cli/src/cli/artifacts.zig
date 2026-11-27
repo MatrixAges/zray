@@ -54,6 +54,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
 
 pub fn retain(io: std.Io, allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
     var context: disk.Context = .{ .io = io };
+    const needs_write = source.workspace_retain.executeIn(allocator, &.{ .fs = @ptrCast(&context), .path = path, .source = content }) catch |err| return context.unwrap(err);
 
-    source.workspace_retain.executeIn(allocator, &.{ .fs = @ptrCast(&context), .path = path, .source = content }) catch |err| return context.unwrap(err);
+    if (needs_write) try context.writeFile(path, content);
 }

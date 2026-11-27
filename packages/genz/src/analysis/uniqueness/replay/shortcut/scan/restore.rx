@@ -8,7 +8,7 @@
     <Call
         module="../../../memo/restore/run"
         in={{
-            ...$in.summaries,
+            layout: $in.layout,
             source: $in.source,
             body: $in.cursor.body,
             callees: $in.callees[$in.cursor.body],

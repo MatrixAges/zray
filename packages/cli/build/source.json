@@ -354,10 +354,6 @@
             "name": "render_bundle_abi"
         },
         {
-            "path": "compiler_rules/compiled/identity/aliases/release.zx",
-            "name": "native_scope_release_aliases"
-        },
-        {
             "path": "package/project/scope/build.rx",
             "name": "package_scope_bindings"
         },

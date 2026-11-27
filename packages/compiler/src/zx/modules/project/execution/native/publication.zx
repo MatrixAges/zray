@@ -1,1 +1,5 @@
-export { appendProjectNativeModule } from "project_host"
+export {
+    appendProjectNativeModule,
+    loadCachedProjectNative,
+    loadFreshProjectNative
+} from "project_host"

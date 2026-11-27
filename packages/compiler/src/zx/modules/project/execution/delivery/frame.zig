@@ -59,8 +59,12 @@ pub fn run(walk: *load.Walk, row: usize, completed: ?u64) zx.Error!?u64 {
         .completed = completed,
     };
 
+    var arena = std.heap.ArenaAllocator.init(walk.project.arena.child_allocator);
+
+    defer arena.deinit();
+
     var buffer: [256]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     return entry.executeIn(scratch.allocator(), &request) catch |err| @import("../invoke.zig").errorSet(err);
 }

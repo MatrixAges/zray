@@ -80,13 +80,16 @@
 
     <Call fn="../index.prepareFiles" in={$in.collection} />
 
-    <Call
-        fn="files"
-        in={{
-            collection: $in.collection,
-            seen: $store.collection.seen
-        }}
-    />
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="files"
+            in={{
+                collection: $in.collection,
+                count: $store.collection.seen.relative_paths.length,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Return
         value={{

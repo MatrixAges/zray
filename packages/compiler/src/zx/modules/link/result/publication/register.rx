@@ -3,7 +3,7 @@
 
     <Args in={Result.Registration} out={void} />
 
-    <Call fn="../../signature/publication/reserve" in={$in.destination} />
+    <Call module="../../signature/publication/reserve_columns" in={$in.destination} />
 
     <Call
         fn="row"

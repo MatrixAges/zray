@@ -1,4 +1,7 @@
 export {
+    writeCompiledExport,
+    writeSourceExport,
+    bindScope,
     prepareSurface,
     writeScopeEntry,
     prepareLibrarySurface,

@@ -8,15 +8,24 @@
 
     <If on={$ctx.admit == Load.Admission.Push}>
         <Call
-            fn="walk"
-            in={{
-                walk: $in.walk,
-                ...$in.frame.pick([
-                    "row",
-                    "depth"
-                ])
-            }}
+            fn="index.openProjectFrame"
+            in={[
+                $in.walk,
+                $in.frame.row
+            ]}
         />
+
+        <Loop on={$in.depth > $in.base_depth}>
+            <Call
+                module="walk"
+                in={{
+                    walk: $in.walk,
+                    row: $in.frame.row,
+                    depth: $in.frame.depth + 1,
+                    base_depth: $in.frame.depth
+                }}
+            />
+        </Loop>
     </If>
 
     <Return value={$ctx.admit} />

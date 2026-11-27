@@ -39,3 +39,8 @@ export type Row = {
 }
 
 export type Result = Status
+
+export type SeedWalk = SeedInput & {
+    index: u64,
+    first: u64
+}

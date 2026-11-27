@@ -12,7 +12,7 @@
     />
 
     <Call
-        fn="views"
+        module="write_views"
         in={{
             fs: $in.fs,
             directory: $ctx.host_directories.node,
@@ -22,7 +22,7 @@
     />
 
     <Call
-        fn="views"
+        module="write_views"
         in={{
             fs: $in.fs,
             directory: $ctx.host_directories.napi,

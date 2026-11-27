@@ -1,16 +1,20 @@
-import { readCells } from "core/column_set"
 import columns from "memory/columns"
 
+import type { ColumnSet, ColumnView, ColumnViewLayout } from "memory/columns"
 import type { Views } from "./model"
 
 export type Input = Views
 
-export type Output = void
+export type Output = {
+    storage: ColumnSet,
+    view: ColumnView,
+    layout: ColumnViewLayout
+}
 
 export default function (in: Input): Output {
-    readCells({
+    return {
         storage: in.linked_columns,
         view: in.linked_view,
         layout: columns.linkedPortLayout(in.linked_shape, null)
-    })
+    }
 }

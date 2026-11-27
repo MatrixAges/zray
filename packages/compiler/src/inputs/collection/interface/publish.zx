@@ -1,66 +1,50 @@
-import { loadNativeText, writeNativeBinding } from "generation_host"
 import memory from "memory"
 
-import { internal_prefix } from "../const"
 import find from "./find"
 
-import type { Registration } from "./publish_shape"
+import type { ReadColumn } from "memory"
+import type { Traversal as Input } from "./publish_shape"
 
-export type Input = {
-    request: Registration,
-    first_internal: u64
+export type Output = {
+    index: u64,
+    alias?: string,
+    path: string,
+    module: string,
+    namespaces: ReadColumn,
+    source?: string,
+    next: Input
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { aliases, paths, modules, namespaces, sources, loader } = in.request
+    const { row, request } = in
+    const { aliases, paths, modules, namespaces, sources } = request
 
-    const published = loop({
-        row: 0,
-        external: 0,
-        internal: in.first_internal
-    }, {
-        while: state => state.row < aliases.count,
-        next: state => {
-            const { row } = state
-            const path = memory.readTextColumn(paths, row)
-            const module = memory.readTextColumn(modules, row)
-            const alias = memory.readOptionalTextColumn(aliases.specifiers, row)
-            const source_row = find({
-                path,
-                paths: sources.paths,
-                count: sources.count,
-                sorted: true
-            })
+    const path = memory.readTextColumn(paths, row)
+    const module = memory.readTextColumn(modules, row)
+    const alias = memory.readOptionalTextColumn(aliases.specifiers, row)
 
-            const source = match {
-                source_row != null =>
-                    memory.readTextColumn(sources.bodies, source_row),
-                _ => loadNativeText(loader, path)
-            }
-
-            const name = alias ?? `${internal_prefix}${module}`
-            const index = alias != null ? state.external : state.internal
-            const resolve_members =
-                memory.readColumnOptionalBool(namespaces, row) ?? false
-
-            writeNativeBinding(loader, {
-                index,
-                name,
-                path,
-                module,
-                source,
-                resolve_members
-            })
-
-            if (alias != null) {
-                state.external += 1
-            } else {
-                state.internal += 1
-            }
-
-            state.row += 1
-        }
+    const source_row = find({
+        path,
+        paths: sources.paths,
+        count: sources.count,
+        sorted: true
     })
+
+    return {
+        index: alias != null ? in.external : in.internal,
+        alias,
+        path,
+        module,
+        namespaces,
+        source: match {
+            source_row != null => memory.readTextColumn(sources.bodies, source_row),
+            _ => null
+        },
+        next: {
+            request,
+            row: row + 1,
+            external: in.external + (alias != null ? 1 : 0),
+            internal: in.internal + (alias == null ? 1 : 0)
+        }
+    }
 }

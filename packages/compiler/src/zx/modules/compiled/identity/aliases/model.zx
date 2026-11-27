@@ -1,12 +1,5 @@
 import type { Modules } from "core/native_module_table/model"
-import type {
-    OptionalTextSlots,
-    ReadColumn,
-    TextColumn,
-    U64Buffer,
-    WriteColumn
-} from "memory"
-import type { RowGrowth } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 
 export type Configured = {
     names: TextColumn,
@@ -56,36 +49,10 @@ export type Compiled = {
     instance: string
 }
 
-export type Fields = {
-    names: WriteColumn,
-    specifiers: WriteColumn
-}
-
-export type Published = {
-    names: TextColumn,
-    specifiers: TextColumn
-}
-
-export type Rows = {
-    fields: Fields,
-    published: Published,
-    growth: RowGrowth,
-    progress: U64Buffer
-}
-
-export type Output = {
-    rows: Rows,
-    pending: OptionalTextSlots
-}
-
 export type Request = {
     compiled?: Compiled,
     source?: Declarations,
     configured?: Configured
-}
-
-export type ReleaseRequest = Request & {
-    output: Output
 }
 
 export type Aliases = {

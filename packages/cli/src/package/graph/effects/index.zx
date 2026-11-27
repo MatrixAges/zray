@@ -1,4 +1,5 @@
 export {
+    seedLocal,
     openLock,
     openMapping,
     prepareInstalled,

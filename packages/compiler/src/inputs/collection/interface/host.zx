@@ -1,0 +1,1 @@
+export { loadNativeText, writeNativeBinding } from "generation_host"

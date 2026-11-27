@@ -1,0 +1,12 @@
+import { readTextColumn } from "memory"
+
+import type { ColumnRow as Input, File as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { files, index } = in
+
+    return {
+        path: readTextColumn(files.paths, index),
+        source: readTextColumn(files.sources, index)
+    }
+}

@@ -1,9 +1,8 @@
 import type { AstWriter } from "ast_rows"
-import type { FieldProjection, LoopFieldRebuild, Lowering } from "lowering_host"
+import type { FieldProjection, Lowering } from "lowering_host"
 import type { Expressions, Requests } from "./model"
 
 export type Input = {
-    target: LoopFieldRebuild,
     frame: Lowering,
     writer: AstWriter,
     projection: FieldProjection,
@@ -12,4 +11,9 @@ export type Input = {
     values: u32[],
     type_id: u32,
     layout?: u32
+}
+
+export type Output = {
+    layout: u32,
+    replacements: u32[]
 }

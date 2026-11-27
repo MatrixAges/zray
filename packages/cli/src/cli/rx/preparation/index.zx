@@ -1,4 +1,8 @@
 export {
+    validatePreparedModule,
+    recordPreparationEvidence,
+    validatePreparedSource,
+    registerPreparationRoot,
     selectPreparationModule,
     resolvePreparationTarget,
     reportPreparationReference,

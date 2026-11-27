@@ -4,7 +4,10 @@
     <Args in={Source.Input} out={Source.Publication} />
 
     <If on={$in.reserve != null}>
-        <Call fn="../../../artifact/materializing/publication/reserve" in={$in.reserve} />
+        <Call
+            module="../../../artifact/materializing/publication/reserve_columns"
+            in={$in.reserve}
+        />
     </If>
 
     <If on={$in.write != null}>

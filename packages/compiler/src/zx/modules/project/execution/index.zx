@@ -8,6 +8,9 @@ export {
     borrowForwardedBodyBytes
 } from "memory/columns"
 export {
+    openProjectFrame,
+    finishProjectFrame,
+    closeProjectFrame,
     validateProjectEntry,
     writeFunctionBody,
     writeForwardedBody

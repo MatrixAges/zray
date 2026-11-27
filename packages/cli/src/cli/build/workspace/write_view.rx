@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.ViewWrite} out={Model.ViewWrite} />
+
+    <Call fn="views" in={$in} />
+
+    <Call
+        module="retain_file"
+        in={{
+            fs: $in.fs,
+            ...$ctx.views
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

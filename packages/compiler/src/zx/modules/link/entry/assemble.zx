@@ -1,25 +1,31 @@
-import host from "project_host"
+import type { ArtifactBinding, ArtifactLink } from "project_host"
 
-import type { ArtifactLink as Input } from "project_host"
+export type Link = ArtifactLink
 
-export type Output = void
+export type Input = {
+    binding: ArtifactBinding,
+    first: u64
+}
+
+export type Cursor = Input & {
+    link: ArtifactLink
+}
+
+export type Output = {
+    first: u64,
+    count: u64,
+    next: u64
+}
 
 export default function (in: Input): Output {
-    const { length, capacity } = host.openArtifactBinding(in)
+    const { binding, first } = in
 
-    const first: u64 = 0
+    const remaining = binding.length - first
+    const count = remaining < binding.capacity ? remaining : binding.capacity
 
-    const linked = loop({
-        first
-    }, {
-        while: state => state.first < length,
-        next: state => {
-            const remaining = length - state.first
-            const count = remaining < capacity ? remaining : capacity
-
-            host.bindArtifactWindow(in, state.first, count)
-            state.first += count
-        },
-        return: state => state.first
-    })
+    return {
+        first,
+        count,
+        next: first + count
+    }
 }

@@ -1,4 +1,8 @@
 export {
+    inputLayout,
+    selectedInputBytes,
+    reserveInputs,
+    writeInput,
     commitInputs,
     commitDigest,
     commitDiagnostics,

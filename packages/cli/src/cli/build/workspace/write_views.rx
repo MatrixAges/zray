@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.ViewGroup} out={void} />
+
+    <Loop on={$in.index < $in.files.count}>
+        <Call
+            module="write_view"
+            in={{
+                ...$in,
+                index: 0
+            }}
+        />
+    </Loop>
+</Module>

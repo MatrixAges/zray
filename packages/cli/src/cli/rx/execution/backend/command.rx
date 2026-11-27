@@ -25,13 +25,16 @@
 
     <Call fn="index.appendBackendEntry" in={$in.build} />
 
-    <Call
-        fn="modules/generated"
-        in={{
-            build: $in.build,
-            count: $in.generated_count
-        }}
-    />
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="modules/generated"
+            in={{
+                build: $in.build,
+                count: $in.generated_count,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <If on={$in.native.count != 0}>
         <Call module="modules/walk" in={$in.native} />
@@ -41,13 +44,16 @@
         </If>
     </If>
 
-    <Call
-        fn="modules/views"
-        in={{
-            build: $in.build,
-            count: $in.abi_count
-        }}
-    />
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="modules/views"
+            in={{
+                build: $in.build,
+                count: $in.abi_count,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Call fn="index.appendCanonicalAbi" in={$in.build} />
 

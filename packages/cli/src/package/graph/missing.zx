@@ -1,11 +1,12 @@
-import host from "package_graph_host"
-
 import { not_installed } from "./const"
 
-import type { Host as Input } from "package_graph_host"
+import type { InstalledHost as Input } from "./model"
 
-export type Output = void
+export type Output = [Input, string]
 
 export default function (in: Input): Output {
-    host.reportMissing(in, not_installed)
+    return [
+        in,
+        not_installed
+    ]
 }

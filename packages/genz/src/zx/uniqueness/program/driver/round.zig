@@ -15,7 +15,7 @@ plans: PlanWriter = undefined,
 columns: Round.Frame = undefined,
 feedback: ?Round.Feedback = null,
 plan: Function.Plan = undefined,
-outcome: Api.RoundOutcome = .Stable,
+claimed: Api.RoundClaim = undefined,
 pub fn open(self: *Self, ctx: *Context, kind: Api.RoundKind, exhausted: bool) Error!void {
     const rounds = &ctx.rounds.?;
 
@@ -46,7 +46,7 @@ pub fn close(self: *Self, ctx: *Context) void {
     self.arena.deinit();
 }
 
-pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!?u64 {
+pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!*const Api.RoundClaim {
     const rounds = &ctx.rounds.?;
     const following = ctx.replay.trace != null;
 
@@ -54,13 +54,16 @@ pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!?u64 {
         inline else => |phase| try rounds.work.advance(memoKind(phase), @field(Round.Phase, @tagName(phase)), &self.columns, self.feedback, following, &rounds.ahead, ctx.memo),
     };
 
-    switch (next.visit) {
-        .body => |index| return index,
-        .done => self.outcome = if (next.grew) .Grew else .Stable,
-        .exhausted => self.outcome = .Exhausted,
-    }
+    self.claimed = .{
+        .body = switch (next.visit) {
+            .body => |index| index,
+            .done, .exhausted => null,
+        },
+        .grew = next.grew,
+        .exhausted = next.visit == .exhausted,
+    };
 
-    return null;
+    return &self.claimed;
 }
 
 pub fn visit(self: *Self, ctx: *Context, kind: Api.RoundKind, body: usize) Error!void {

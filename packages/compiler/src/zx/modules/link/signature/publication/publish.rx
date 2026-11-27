@@ -3,7 +3,7 @@
 
     <Args in={Signature.Input} out={void} />
 
-    <Call fn="reserve" in={$in.destination} />
+    <Call module="reserve_columns" in={$in.destination} />
 
     <Call
         fn="prepare"
@@ -22,6 +22,14 @@
             destination: $in.destination,
             empty: $in.empty,
             prepared: $ctx.prepare
+        }}
+    />
+
+    <Call
+        fn="../../../../../core/column_set/write_function"
+        in={{
+            storage: $in.destination.storage,
+            row: $ctx.append
         }}
     />
 </Module>

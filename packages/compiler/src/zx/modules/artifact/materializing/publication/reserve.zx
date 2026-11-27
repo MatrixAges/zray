@@ -1,9 +1,13 @@
 import integers from "std:integer"
-import { reserve } from "core/column_set"
 import { max_u32 } from "core/const"
 import columns from "memory/columns"
 
-import type { ColumnAllocator, ColumnSet, FunctionRow } from "memory/columns"
+import type {
+    ColumnAllocator,
+    ColumnGrowth,
+    ColumnSet,
+    FunctionRow
+} from "memory/columns"
 
 export type Input = {
     storage: ColumnSet,
@@ -12,16 +16,22 @@ export type Input = {
     count: u64
 }
 
-export type Output = void
+export type Output = {
+    resource: ColumnAllocator,
+    storage: ColumnSet,
+    growth: ColumnGrowth,
+    count: u64,
+    limit: u64
+}
 
 export default function (in: Input): Output {
     const { resource, storage, shape, count } = in
 
-    reserve({
+    return {
         resource,
         storage,
         growth: columns.functionColumnGrowth(shape, null),
         count,
         limit: integers.widen(max_u32)
-    })
+    }
 }

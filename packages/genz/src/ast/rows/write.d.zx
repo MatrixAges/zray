@@ -1,7 +1,5 @@
 export type AstWriter = mutable_opaque
 
-export type AstDeclarations = mutable_opaque
-
 export type AstOriginBuffer = mutable_opaque
 
 export type AstSequence = mutable_opaque
@@ -159,12 +157,6 @@ export declare function publishAstBasicStatements(
     writer: AstWriter,
     rows: BasicStatementRows
 ): u64 throws { OutOfMemory }
-
-export declare function appendAstDeclaredConstants(
-    writer: AstWriter,
-    target: AstDeclarations,
-    rows: ConstantRows
-): void throws { OutOfMemory }
 
 export declare function extendStatementSequence(target: AstSequence, suffix: AstSequence): void
     throws { OutOfMemory }

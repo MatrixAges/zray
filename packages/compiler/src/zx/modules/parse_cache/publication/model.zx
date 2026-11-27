@@ -8,8 +8,3 @@ export type Publication = {
     has_output: bool,
     worker_failed: bool
 }
-
-export type Discard = {
-    results: ParseCacheEntry?[],
-    first: u64
-}

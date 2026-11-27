@@ -1,3 +1,4 @@
+import type { Context } from "native_resource_host"
 import type { Discovery, Flags } from "../collect/model"
 
 export type Input = Discovery.Omit("entry_path") & {
@@ -17,4 +18,10 @@ export enum Status {
 
 export type Output = Flags & {
     status: Status
+}
+
+export type FileWalk = {
+    collection: Context,
+    count: u64,
+    index: u64
 }

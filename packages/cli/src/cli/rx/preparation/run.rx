@@ -11,13 +11,16 @@
 
     <Call fn="index.preparePhysicalRoot" in={$in.preparation} />
 
-    <Call
-        fn="validate_modules"
-        in={{
-            preparation: $in.preparation,
-            count: $ctx.preparePhysicalRoot
-        }}
-    />
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="validate_modules"
+            in={{
+                preparation: $in.preparation,
+                count: $ctx.preparePhysicalRoot,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Call fn="index.collectPreparationTypes" in={$in.preparation} />
 
@@ -36,13 +39,16 @@
     <Call fn="index.inferPreparedProject" in={$in.preparation} />
 
     <If on={$ctx.inferPreparedProject != null}>
-        <Call
-            fn="evidence"
-            in={{
-                preparation: $in.preparation,
-                count: $ctx.inferPreparedProject
-            }}
-        />
+        <Loop on={$in.index < $in.count}>
+            <Call
+                module="evidence"
+                in={{
+                    preparation: $in.preparation,
+                    count: $ctx.inferPreparedProject,
+                    index: 0
+                }}
+            />
+        </Loop>
 
         <Return value={true} />
     </If>

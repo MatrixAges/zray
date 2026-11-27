@@ -8,15 +8,31 @@
     <Call
         fn="entry"
         in={{
-            fs: $in.fs,
             directory: $ctx.identity,
-            separator: $in.separator,
-            identity: $in.identity
+            separator: $in.separator
         }}
     />
 
     <Call
-        fn="views"
+        module="retain_file"
+        in={{
+            fs: $in.fs,
+            path: $ctx.entry.entry,
+            source: $in.identity.entry
+        }}
+    />
+
+    <Call
+        module="retain_file"
+        in={{
+            fs: $in.fs,
+            path: $ctx.entry.abi,
+            source: $in.identity.abi
+        }}
+    />
+
+    <Call
+        module="write_views"
         in={{
             fs: $in.fs,
             directory: $ctx.identity,
@@ -28,10 +44,26 @@
     <Call
         fn="runner"
         in={{
-            fs: $in.fs,
             directory: $ctx.identity,
-            separator: $in.separator,
-            identity: $in.identity
+            separator: $in.separator
+        }}
+    />
+
+    <Call
+        module="retain_file"
+        in={{
+            fs: $in.fs,
+            path: $ctx.runner.runner,
+            source: $in.identity.runner
+        }}
+    />
+
+    <Call
+        module="retain_file"
+        in={{
+            fs: $in.fs,
+            path: $ctx.runner.result,
+            source: $in.identity.result
         }}
     />
 

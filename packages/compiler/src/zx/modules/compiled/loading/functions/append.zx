@@ -1,14 +1,22 @@
 import readAttributes from "../../../artifact/materializing/publication/attributes"
 import write from "../../../artifact/materializing/publication/write"
 
-import type { Append as Input, Traversal as Output } from "./batch_model"
+import type {
+    Output as Publication
+} from "../../../artifact/materializing/publication/write"
+import type { Append as Input, Traversal } from "./batch_model"
+
+export type Output = {
+    publication: Publication,
+    next: Traversal
+}
 
 export default function (in: Input): Output {
     const { state, owned } = in
     const { source, target } = state.input
     const { row } = state
 
-    write({
+    const publication = write({
         storage: target.storage,
         function: {
             ...readAttributes({
@@ -34,8 +42,11 @@ export default function (in: Input): Output {
     const next = row + 1
 
     return {
-        ...state,
-        row: next,
-        running: next < source.files.length
+        publication,
+        next: {
+            ...state,
+            row: next,
+            running: next < source.files.length
+        }
     }
 }

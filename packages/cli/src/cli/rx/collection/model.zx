@@ -66,3 +66,7 @@ export type Walk = {
     valid: bool,
     running: bool
 }
+
+export type ServiceWalk = ServicesInput & {
+    index: u64
+}

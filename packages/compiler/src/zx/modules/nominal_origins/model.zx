@@ -13,7 +13,3 @@ export type Input = {
 }
 
 export type Names = string[]
-
-export type Release = Input.Pick("allocator", "owners_out", "members_out") & {
-    completed: u64
-}

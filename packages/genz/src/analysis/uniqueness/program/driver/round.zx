@@ -10,23 +10,28 @@ export default function (in: Input): Output {
 
     host.beginOwnershipRound(frame, kind, exhausted)
 
-    const stopped = loop({
-        done: false
+    const outcome = loop({
+        done: false,
+        outcome: RoundOutcome.Stable
     }, {
         while: state => !state.done,
         next: state => {
-            const body = host.claimOwnershipBody(frame, kind)
+            const claim = host.claimOwnershipBody(frame, kind)
+            const body = claim.body
 
             if (body != null) {
                 host.visitOwnershipBody(frame, kind, body)
+            } else {
+                state.outcome = match {
+                    claim.exhausted => RoundOutcome.Exhausted,
+                    claim.grew => RoundOutcome.Grew,
+                    _ => RoundOutcome.Stable
+                }
+                state.done = true
             }
-
-            state.done = body == null
         },
-        return: state => state.done
+        return: state => state.outcome
     })
-
-    const outcome = host.ownershipRoundOutcome(frame)
 
     host.finishOwnershipRound(
         frame,

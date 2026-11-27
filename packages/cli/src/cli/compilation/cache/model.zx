@@ -16,3 +16,7 @@ export type WriteEntries = {
     is_native: bool,
     dirty: bool[]
 }
+
+export type WriteWalk = WriteEntries & {
+    index: u64
+}

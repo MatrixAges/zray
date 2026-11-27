@@ -24,3 +24,12 @@ export enum Output {
     MissingInventory,
     Published
 }
+
+export type Copy = {
+    directory: Directory,
+    paths: string[],
+    prefix: u64,
+    index: u64
+}
+
+export type Retire = Copy.Omit("prefix")

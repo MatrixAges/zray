@@ -10,11 +10,10 @@
                 ...$in.input.pick([
                     "source",
                     "body",
-                    "callees"
+                    "callees",
+                    "layout"
                 ]),
                 first: $in.facts_start,
-                own: $in.input.input,
-                called: $in.input.output,
                 trailing: false,
                 collect: true
             }}
@@ -28,11 +27,10 @@
                 ...$in.input.pick([
                     "source",
                     "body",
-                    "callees"
+                    "callees",
+                    "layout"
                 ]),
                 first: $in.wants_start,
-                own: $in.input.outputs,
-                called: $in.input.inputs,
                 trailing: true,
                 collect: true
             }}

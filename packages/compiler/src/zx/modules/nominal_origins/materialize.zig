@@ -47,22 +47,22 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
         .names_out = @ptrCast(&names),
     };
 
-    errdefer {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const release_input: std.meta.Child(release.Input) = .{
-            .allocator = @ptrCast(&allocator),
-            .owners_out = @ptrCast(&owners),
-            .members_out = @ptrCast(&members),
-            .completed = state_ptr.completed,
-        };
-
-        release.executeIn(empty.allocator(), &release_input) catch unreachable;
-    }
-
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
+
+    errdefer {
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const cleanup = release.executeValue(empty.allocator(), state_ptr.completed) catch unreachable;
+
+        if (cleanup != .None) {
+            for (owners) |owner| allocator.free(owner);
+        }
+
+        if (cleanup == .OwnersAndMembers) {
+            for (members) |member| allocator.free(member);
+        }
+    }
 
     const bound_names = generated.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,

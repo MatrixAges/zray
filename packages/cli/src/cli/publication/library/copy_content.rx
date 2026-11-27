@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.Copy} out={Model.Copy} />
+
+    <Call
+        fn="../index.copyStagedFile"
+        in={[
+            $in.directory,
+            $in.paths[$in.index],
+            $in.prefix
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

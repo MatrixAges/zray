@@ -1,7 +1,7 @@
 <Module>
     <Type from="execute_model" as="Projection" />
 
-    <Args in={Projection.Input} out={u32} />
+    <Args in={Projection.Input} out={Projection.Output} />
 
     <Call fn="publish" in={$in.expressions} />
 
@@ -26,7 +26,6 @@
         fn="rebuild"
         in={{
             ...$in.pick([
-                "target",
                 "frame",
                 "type_id",
                 "layout"

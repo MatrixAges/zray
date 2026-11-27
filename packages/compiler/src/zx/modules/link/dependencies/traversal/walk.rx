@@ -6,6 +6,8 @@
 
     <Call fn="checks" in={$in.views} />
 
+    <Call fn="../../../../../core/column_set/read_cells" />
+
     <Call
         module="../bindings"
         in={{

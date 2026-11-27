@@ -1,0 +1,61 @@
+<Module>
+    <Type from="workflow" as="Model" />
+    <Type from="index" as="Host" />
+
+    <Args in={Model.BindingWalk} out={Model.BindingWalk} />
+
+    <Call fn="declaration_row" in={$in} />
+
+    <Call
+        fn="index.nativeScopeDeclaration"
+        in={[
+            $in.binding.window.frame,
+            $ctx.declaration_row.row,
+            $ctx.declaration_row.external
+        ]}
+    />
+
+    <Call
+        fn="bind"
+        in={{
+            binding: $in.binding,
+            declaration: $ctx.nativeScopeDeclaration
+        }}
+    />
+
+    <If on={$ctx.bind != null}>
+        <Call
+            fn="index.writeNativeScopeDeclaration"
+            in={[
+                $in.binding.window.frame,
+                $ctx.declaration_row.row,
+                $ctx.declaration_row.external,
+                $ctx.bind.identity,
+                $ctx.bind.module,
+                $ctx.bind.copy_module
+            ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                index: $in.index + 1
+            }}
+        />
+    </If>
+
+    <Call
+        fn="index.requireNativeScopeAdmission"
+        in={[
+            $in.binding.window.frame,
+            Host.Admission.InvalidExternalSpecifier
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

@@ -1,4 +1,7 @@
 export {
+    registerCheckRoot,
+    registerCheckSource,
+    registerStoreCheckImport,
     loadCheckProject,
     collectCheckDocuments,
     collectCheckTypes,

@@ -32,13 +32,16 @@
         <Call fn="index.createObservedBindings" in={$in.build} />
     </If>
 
-    <Call
-        fn="expire_dependencies"
-        in={{
-            build: $in.build,
-            paths: $ctx.preload_dependencies
-        }}
-    />
+    <Loop on={$in.index < $in.paths.length}>
+        <Call
+            module="expire_dependencies"
+            in={{
+                build: $in.build,
+                paths: $ctx.preload_dependencies,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Call fn="index.publishBackendPaths" in={$in.build} />
     <Call fn="index.reportObservedNativeBuild" in={$in.build} />

@@ -16,3 +16,16 @@ export type Registration = {
     namespaces: ReadColumn,
     sources: Sources
 }
+
+export type Traversal = {
+    request: Registration,
+    row: u64,
+    external: u64,
+    internal: u64
+}
+
+export type Source = {
+    loader: InterfaceLoader,
+    path: string,
+    text?: string
+}

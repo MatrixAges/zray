@@ -1,4 +1,9 @@
 export {
+    nativeScopeInterfacePath,
+    readNativeScopeInterface,
+    nativeScopeDeclaration,
+    writeNativeScopeDeclaration,
+    prepareNativeScopeModule,
     Admission,
     closeNativeScope,
     finishNativeScopeDeclarations,

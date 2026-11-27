@@ -1,0 +1,13 @@
+import type { BindingWalk as Input, DeclarationRow as Output } from "./workflow"
+
+export default function (in: Input): Output {
+    const { index } = in
+    const { declarations } = in.binding.window
+
+    const external = index >= declarations
+
+    return {
+        row: external ? index - declarations : index,
+        external
+    }
+}

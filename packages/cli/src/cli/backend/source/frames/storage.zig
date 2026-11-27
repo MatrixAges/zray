@@ -65,9 +65,14 @@ pub fn selectedInputBytes(handle: *anyopaque) []const u8 {
 
 pub fn reserveInputs(handle: *anyopaque, count: u64, length: u64) Error!void {
     const self = Context.get(handle);
+    const path_bytes = self.owned.alloc(u8, @intCast(length)) catch |err| return self.fail(err);
 
-    self.path_bytes = self.owned.alloc(u8, @intCast(length)) catch |err| return self.fail(err);
-    self.inputs = self.owned.alloc(Protocol.Input, @intCast(count)) catch |err| return self.fail(err);
+    errdefer self.owned.free(path_bytes);
+
+    const inputs = self.owned.alloc(Protocol.Input, @intCast(count)) catch |err| return self.fail(err);
+
+    self.path_bytes = path_bytes;
+    self.inputs = inputs;
 }
 
 pub fn writeInput(handle: *anyopaque, row: u64, prefix: u8, offset: u64, spelling: []const u8) void {

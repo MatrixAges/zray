@@ -15,3 +15,7 @@ export type SourcesInput = {
     sources: SourceRows,
     count: u64
 }
+
+export type LinkWalk = CollectInput & {
+    index: u64
+}

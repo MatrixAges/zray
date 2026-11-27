@@ -1,7 +1,5 @@
-import type { FlowExecution, FlowPlan } from "ownership_host"
+import type { FlowExecution } from "ownership_host"
 import type { Advance } from "../fixpoint/model"
-
-export type Plan = FlowPlan
 
 export type Input = {
     flow: FlowExecution,

@@ -17,3 +17,12 @@ export type StageFiles = {
     generated: Files,
     public: Files
 }
+
+export type FileGroup = {
+    fs: FileSystem,
+    files: Files
+}
+
+export type FileWrite = FileGroup & {
+    index: u64
+}

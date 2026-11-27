@@ -1,0 +1,15 @@
+import { word_range } from "../diagnostics/const"
+
+export type Input = u64
+
+export type Output = {
+    count: u64,
+    length: u64
+}
+
+export default function (in: Input): Output {
+    return {
+        count: in / word_range,
+        length: in % word_range
+    }
+}

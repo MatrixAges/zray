@@ -6,7 +6,7 @@
     <Call fn="index.initializeFlow" in={$in.flow} />
     <Call fn="index.planFlow" in={$in.flow} />
 
-    <If on={$ctx.planFlow == Flow.Plan.Recursive}>
+    <If on={$ctx.planFlow == null}>
         <Call fn="index.openRecursiveFlow" in={$in.flow} />
 
         <Loop on={$in.running}>
@@ -28,23 +28,20 @@
                 <Call fn="index.reserveFlowMemo" in={$in.flow} />
             </If>
 
-            <If on={$ctx.planFlow == Flow.Plan.Layered}>
+            <If on={$ctx.planFlow.order.length != 0}>
                 <Call fn="index.openFlowWorkers" in={$in.flow} />
-                <Call fn="index.flowLayerOrder" in={$in.flow} />
-                <Call fn="index.flowLayerEnds" in={$in.flow} />
-                <Call fn="index.flowMemoHits" in={$in.flow} />
 
                 <Loop on={$in.running}>
                     <Call
                         module="layer"
                         in={{
                             ...$in,
-                            order: $ctx.flowLayerOrder,
-                            ends: $ctx.flowLayerEnds,
-                            hits: $ctx.flowMemoHits,
+                            order: $ctx.planFlow.order,
+                            ends: $ctx.planFlow.ends,
+                            hits: $ctx.openFlowWorkers,
                             layer: 0,
                             first: 0,
-                            running: $ctx.flowLayerEnds.length != 0
+                            running: $ctx.planFlow.ends.length != 0
                         }}
                     />
                 </Loop>

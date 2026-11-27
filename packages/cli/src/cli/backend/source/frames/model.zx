@@ -49,3 +49,21 @@ export type Reader = Input & {
     finished: bool,
     running: bool
 }
+
+export type InputCursor = {
+    body: string,
+    at: u64
+}
+
+export type InputRow = {
+    kind: u8,
+    path: string,
+    next: u64
+}
+
+export type InputWalk = InputCursor & {
+    response: Response,
+    count: u64,
+    row: u64,
+    offset: u64
+}

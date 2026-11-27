@@ -39,8 +39,15 @@ pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
         .recording = ctx.memo.record_trace,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const commit = try program.executeIn(empty.allocator(), &input);
+    const commit = execute: {
+        var scratch = std.heap.ArenaAllocator.init(ctx.workspace);
+        var buffer: [std.heap.page_size_min]u8 = undefined;
+        var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+        defer scratch.deinit();
+
+        break :execute try program.executeIn(memory.allocator(), &input);
+    };
 
     ctx.release();
 
@@ -126,7 +133,7 @@ pub fn beginOwnershipRound(handle: *anyopaque, kind: Api.RoundKind, exhausted: b
     try self.active.round.open(self.ctx, kind, exhausted);
 }
 
-pub fn claimOwnershipBody(handle: *anyopaque, kind: Api.RoundKind) Error!?u64 {
+pub fn claimOwnershipBody(handle: *anyopaque, kind: Api.RoundKind) Error!*const Api.RoundClaim {
     const self = borrow(handle);
 
     return self.active.round.claim(self.ctx, kind);
@@ -144,10 +151,6 @@ pub fn finishOwnershipRound(handle: *anyopaque, publish: bool) void {
     if (publish) self.result = self.active.round.plans.result();
 
     self.close();
-}
-
-pub fn ownershipRoundOutcome(handle: *anyopaque) Api.RoundOutcome {
-    return borrow(handle).active.round.outcome;
 }
 
 pub fn beginOwnershipReplay(handle: *anyopaque) bool {

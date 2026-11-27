@@ -1,7 +1,7 @@
 <Module>
     <Type from="batch_model" as="Batch" />
 
-    <Args in={Batch.Input} out={Batch.Output} />
+    <Args in={Batch.Input} out={void} />
 
     <Loop on={$in.running}>
         <Call

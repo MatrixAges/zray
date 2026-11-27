@@ -49,8 +49,6 @@ export declare function bindPrefetchedParse(
     entry: ParseCacheEntry
 ): void
 
-export declare function discardStagedParse(entry: ParseCacheEntry): void
-
 export declare function bindParseWorkerHit(worker: ParseWorker, row: u64, hit: u64): void
 
 export declare function stageParseWorkerResult(

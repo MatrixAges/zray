@@ -18,10 +18,15 @@
     />
 
     <Call
+        fn="../../../../../core/column_set/write_function"
+        in={$ctx.append.publication}
+    />
+
+    <Call
         fn="../../../artifact/materializing/publication/set_completed"
-        in={$ctx.append.row}
+        in={$ctx.append.next.row}
         setter={[$store.progress.state]}
     />
 
-    <Return value={$ctx.append} />
+    <Return value={$ctx.append.next} />
 </Module>

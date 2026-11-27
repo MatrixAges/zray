@@ -6,11 +6,22 @@
     <Call
         fn="types"
         in={$in.pick([
-            "publication",
             "mode",
             "borrow_body"
         ])}
     />
+
+    <If on={$ctx.types != null}>
+        <Call
+            fn="host.initializeAnalysisTypes"
+            in={[
+                $in.publication,
+                $ctx.types
+            ]}
+        />
+    </If>
+
+    <Call fn="host.appendAnalysisTypes" in={$in.publication} />
 
     <If on={$in.borrow_body}>
         <Return

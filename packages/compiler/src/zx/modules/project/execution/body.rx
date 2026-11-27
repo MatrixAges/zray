@@ -31,8 +31,14 @@
 
     <If on={$ctx.plan.append}>
         <Call
-            fn="body_install/reserve_function"
-            in={$in.installation.functions}
+            fn="../../../../core/column_set/reserve"
+            in={{
+                resource: $in.installation.functions.resource,
+                storage: $in.installation.functions.storage,
+                growth: $in.installation.functions.growth,
+                count: 1,
+                limit: $in.installation.functions.maximum_count
+            }}
         />
 
         <Call fn="index.materializeProjectFunction" in={$in.body} />
@@ -88,21 +94,24 @@
 
     <If on={$ctx.register_cache != null}>
         <Call
-            fn="body_install/reserve_record"
-            in={{
-                target: $in.installation.cache,
-                index: $in.installation.cache.used,
-                backing: $in.installation.backing
-            }}
+            fn="../../../../core/row_buffer/reserve_append"
+            in={[
+                $in.installation.cache.storage,
+                $in.installation.cache.used,
+                1,
+                $in.installation.backing
+            ]}
         />
     </If>
 
     <Call
-        fn="body_install/reserve_record"
-        in={{
-            target: $in.installation.records,
-            index: $in.installation.records.used
-        }}
+        fn="../../../../core/row_buffer/reserve_append"
+        in={[
+            $in.installation.records.storage,
+            $in.installation.records.used,
+            1,
+            null
+        ]}
     />
 
     <Call

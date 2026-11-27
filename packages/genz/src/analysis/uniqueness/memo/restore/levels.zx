@@ -1,17 +1,15 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import row from "./row"
 
-import type { AtomicRows } from "memory"
 import type { Cell } from "../../function/updates/model"
+import type { Layout } from "../../summaries/model"
 import type { LevelScan as Output } from "./model"
 
 export type Input = {
     source: u8[],
     first: u64,
-    own: AtomicRows,
-    called: AtomicRows,
+    layout: Layout,
     body: u64,
     callees: u32[],
     trailing: bool,
@@ -32,22 +30,26 @@ export default function (in: Input): Output {
         while: state => state.index < end && state.valid,
         next: state => {
             const own = state.index == own_index
-            const target = own ? in.own : in.called
+            const output = own == in.trailing
             const selected = match {
                 own => in.body,
                 in.trailing => integers.widen(in.callees[state.index]),
                 _ => integers.widen(in.callees[state.index - 1])
             }
+            const starts = output ? in.layout.output_first : in.layout.input_first
+            const count = output ? in.layout.output_count : in.layout.input_count
+
             const length = match {
-                own && selected == memory.atomicRowsCount(target) => 0,
-                _ => memory.atomicRowLength(target, selected)
+                own && selected == starts.length => 0,
+                selected + 1 == starts.length => count - starts[selected],
+                _ => starts[selected + 1] - starts[selected]
             }
 
             const decoded = row({
                 source: in.source,
                 offset: state.offset,
                 updates: state.updates,
-                output: own == in.trailing,
+                output,
                 row: selected,
                 length,
                 collect: in.collect

@@ -38,3 +38,11 @@ export type ReplayPaths = {
 export type Publication = Input.Pick("host", "reuse")
 
 export type Result = Status
+
+export type MemberWalk = Fresh.Pick("host", "members") & {
+    index: u64
+}
+
+export type ReplayWalk = ReplayPaths & {
+    index: u64
+}

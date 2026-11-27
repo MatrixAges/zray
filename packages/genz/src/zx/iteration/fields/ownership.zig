@@ -63,19 +63,12 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     const execute = @import("generated_rebuild_loop_fields");
     const ExecInput = std.meta.Child(execute.Input);
-
-    var work: Rebuild = .{
-        .context = self,
-        .projection = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) },
-        .planned = planned,
-        .value = request.value,
-    };
+    const field_projection: Frame = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) };
 
     const request_execution: ExecInput = .{
-        .target = @ptrCast(&work),
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
-        .projection = @ptrCast(&work.projection),
+        .projection = @ptrCast(&field_projection),
         .expressions = zx.columns.pointer(@FieldType(ExecInput, "expressions"), planned.expressions),
         .requests = zx.columns.pointer(@FieldType(ExecInput, "requests"), planned.requests),
         .values = planned.values,
@@ -85,27 +78,11 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     const result = execute.executeIn(temporary, &request_execution) catch |err| return failure(err);
 
-    return @fromBackingInt(result);
-}
-
-const Rebuild = struct {
-    context: *const Context,
-    projection: Frame,
-    planned: @typeInfo(entry.Output).optional.child,
-    value: node.ExpressionId,
-    fn borrow(handle: *anyopaque) *Rebuild {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn rebuildLoopFields(handle: *anyopaque, layout: u32, replacements: []const u32) Lower.Error!u32 {
-    const work = Rebuild.borrow(handle);
-
-    return @backingInt(try projection.rebuild(work.context, work.projection.lowering, work.value, @fromBackingInt(layout), .{
-        .values = work.planned.values,
-        .changed = work.planned.requests.fields,
-        .replacements = replacements,
-    }));
+    return try projection.rebuild(self, lowering, request.value, @fromBackingInt(result.layout), .{
+        .values = planned.values,
+        .changed = planned.requests.fields,
+        .replacements = result.replacements,
+    });
 }
 
 const Frame = struct {

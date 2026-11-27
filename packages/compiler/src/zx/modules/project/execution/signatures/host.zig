@@ -31,9 +31,14 @@ pub fn run(state: *Project, entries: project.Entries, registered: bool) std.mem.
         .paths = if (entries == .paths) entries.paths else &.{},
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(state.arena.child_allocator);
 
-    const published = generated.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    defer scratch.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    const published = generated.executeIn(fallback.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidSource => {
             var issue = state.reporter.diagnostic.?;

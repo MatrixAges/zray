@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.FileGroup} out={void} />
+
+    <Loop on={$in.index < $in.files.count}>
+        <Call
+            module="files"
+            in={{
+                ...$in,
+                index: 0
+            }}
+        />
+    </Loop>
+</Module>

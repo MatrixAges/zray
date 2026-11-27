@@ -25,14 +25,18 @@
         }}
     />
 
-    <Call
-        fn="diagnostic"
-        in={{
-            document: $in.document,
-            node: $in.node,
-            message: $ctx.check
-        }}
-    />
+    <If on={$ctx.check != null}>
+        <Call
+            fn="index.reject"
+            in={[
+                $in.document,
+                $in.node,
+                $ctx.check
+            ]}
+        />
+
+        <Return value={$ctx.fields} />
+    </If>
 
     <Return value={$ctx.fields} />
 </Module>

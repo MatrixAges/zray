@@ -1,10 +1,9 @@
-import { writeFunction } from "core/column_set"
 import { StoreMode } from "core/function_table/complete"
 import { ColumnStoreMode } from "memory/columns"
 
 import signature from "../../../link/signature/publication/signature_row"
 
-import type { ColumnSet } from "memory/columns"
+import type { ColumnSet, FunctionRow } from "memory/columns"
 import type { Payload } from "./model"
 
 export type Input = {
@@ -13,7 +12,11 @@ export type Input = {
     row: u64
 }
 
-export type Output = void
+export type Output = {
+    storage: ColumnSet,
+    row: FunctionRow,
+    index?: u64
+}
 
 export default function (in: Input): Output {
     const { storage, function: value, row } = in
@@ -35,7 +38,7 @@ export default function (in: Input): Output {
         ])
     })
 
-    writeFunction({
+    return {
         storage,
         row: {
             ...fields,
@@ -51,5 +54,5 @@ export default function (in: Input): Output {
             stores: value.store_table
         },
         index: row
-    })
+    }
 }

@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.InputWalk} out={Model.InputWalk} />
+
+    <Call
+        fn="materialize"
+        in={{
+            body: $in.body,
+            at: $in.at
+        }}
+    />
+
+    <Call
+        fn="index.writeInput"
+        in={[
+            $in.response,
+            $in.row,
+            $ctx.materialize.kind,
+            $in.offset,
+            $ctx.materialize.path
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            at: $ctx.materialize.next,
+            row: $in.row + 1,
+            offset: $in.offset + $ctx.materialize.path.length
+        }}
+    />
+</Module>

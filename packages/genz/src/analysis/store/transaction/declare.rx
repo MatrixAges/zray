@@ -1,7 +1,7 @@
 <Module>
     <Type from="declare" as="Pending" />
 
-    <Args in={Pending.Input} out={void} />
+    <Args in={Pending.Input} out={Pending.Output} />
 
     <If on={$in.types.ids.length != 0}>
         <Call fn="resolve_types" in={$in.types} />
@@ -41,13 +41,8 @@
             ]}
         />
 
-        <Call
-            fn="../rows.appendAstDeclaredConstants"
-            in={[
-                $in.writer,
-                $in.declarations,
-                $ctx.declaration.declarations.omit(["tags"])
-            ]}
-        />
+        <Return value={$ctx.declaration.declarations} />
     </If>
+
+    <Return value={null} />
 </Module>

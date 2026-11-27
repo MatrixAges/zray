@@ -3,7 +3,7 @@
 
     <Args in={Native.Import} out={Native.Verification} />
 
-    <Call fn="load" in={$in} />
+    <Call module="load" in={$in} />
 
     <Call fn="invalidate" />
 

@@ -1,9 +1,7 @@
 import type { ListColumn, ReadColumn } from "memory"
-import type {
-    Input as RecordedState,
-    Restored
-} from "../../../memo/restore/model"
+import type { Restored } from "../../../memo/restore/model"
 import type { Probe } from "../../../memo/table/model"
+import type { Layout } from "../../../summaries/model"
 import type { Demand, Settlement } from "../../ordered/columns"
 import type { Advance, Cursor, Phase } from "../model"
 
@@ -64,7 +62,7 @@ export type Resume =
     }
 
 export type Recovery = {
-    summaries: RecordedState.Pick("input", "output", "inputs", "outputs"),
+    layout: Layout,
     callees: u32[][]
 }
 

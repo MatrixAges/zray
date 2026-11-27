@@ -1,0 +1,38 @@
+<Module>
+    <Type from="workflow" as="Model" />
+
+    <Args in={Model.InterfaceRead} out={Model.InterfaceRead} />
+
+    <Call
+        fn="index.nativeScopeInterfacePath"
+        in={[
+            $in.window.frame,
+            $in.row
+        ]}
+    />
+
+    <Call fn="rules/admission/interface" />
+
+    <Call
+        fn="index.requireNativeScopeAdmission"
+        in={[
+            $in.window.frame,
+            $ctx.interface
+        ]}
+    />
+
+    <Call
+        fn="index.readNativeScopeInterface"
+        in={[
+            $in.window.frame,
+            $in.row
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

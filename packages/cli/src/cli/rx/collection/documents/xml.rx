@@ -23,13 +23,16 @@
             <Call fn="../index.prepareCollectionGateway" in={$in.collection} />
 
             <If on={$ctx.prepareCollectionGateway != null}>
-                <Call
-                    fn="services"
-                    in={{
-                        collection: $in.collection,
-                        count: $ctx.prepareCollectionGateway
-                    }}
-                />
+                <Loop on={$in.index < $in.count}>
+                    <Call
+                        module="services"
+                        in={{
+                            collection: $in.collection,
+                            count: $ctx.prepareCollectionGateway,
+                            index: 0
+                        }}
+                    />
+                </Loop>
 
                 <Return value={true} />
             </If>

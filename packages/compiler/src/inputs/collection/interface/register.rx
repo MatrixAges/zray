@@ -5,13 +5,17 @@
 
     <Call fn="count" in={$in.aliases} />
 
-    <Call
-        fn="publish"
-        in={{
-            request: $in,
-            first_internal: $ctx.count
-        }}
-    />
+    <Loop on={$in.row < $in.request.aliases.count}>
+        <Call
+            module="next"
+            in={{
+                request: $in,
+                row: 0,
+                external: 0,
+                internal: $ctx.count
+            }}
+        />
+    </Loop>
 
     <Return value={$ctx.count} />
 </Module>

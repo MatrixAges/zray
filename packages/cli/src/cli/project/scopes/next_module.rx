@@ -6,6 +6,19 @@
     <Args in={Scopes.Traversal} out={Scopes.Traversal} />
 
     <Call fn="prepare_module" in={$in} />
+
+    <Call
+        fn="index.prepareNativeScopeModule"
+        in={[
+            $in.binding.window.frame,
+            $in.row,
+            $ctx.prepare_module.name,
+            $ctx.prepare_module.path,
+            $ctx.prepare_module.dependencies,
+            $ctx.prepare_module.includes
+        ]}
+    />
+
     <Call fn="index.prepareNativeScopeAliases" in={$in.binding.window.frame} />
 
     <Call

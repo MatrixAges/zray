@@ -1,10 +1,10 @@
-import { writeFunction } from "core/column_set"
 import { copy, copyNullable } from "core/owned_text"
 import memory from "memory"
 
 import complete from "./function_row"
 import signature from "./signature_row"
 
+import type { FunctionRow } from "memory/columns"
 import type { BodyColumns, Destination } from "./model"
 import type { Output as Prepared } from "./prepare"
 
@@ -14,7 +14,7 @@ export type Input = {
     prepared: Prepared
 }
 
-export type Output = void
+export type Output = FunctionRow
 
 export default function (in: Input): Output {
     const fields = signature({
@@ -68,7 +68,7 @@ export default function (in: Input): Output {
 
     memory.freeTextSlots(allocator, names)
 
-    const row = complete({
+    return complete({
         signature: {
             ...fields,
             files: file,
@@ -78,10 +78,5 @@ export default function (in: Input): Output {
             native_inputs: owned_parameters
         },
         empty: in.empty
-    })
-
-    writeFunction({
-        storage: in.destination.storage,
-        row
     })
 }

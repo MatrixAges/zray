@@ -5,13 +5,16 @@
 
     <Call fn="../index.reservePreparationRoots" in={$in.preparation} />
 
-    <Call
-        fn="register"
-        in={{
-            preparation: $in.preparation,
-            count: $ctx.reservePreparationRoots
-        }}
-    />
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="register"
+            in={{
+                preparation: $in.preparation,
+                count: $ctx.reservePreparationRoots,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Loop on={$in.running}>
         <Call

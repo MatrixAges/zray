@@ -18,3 +18,12 @@ export type Prepare = Input & {
     index: u64,
     running: bool
 }
+
+export type ExportWalk = Exports & {
+    index: u64
+}
+
+export type PublishWalk = Input & {
+    index: u64,
+    valid: bool
+}

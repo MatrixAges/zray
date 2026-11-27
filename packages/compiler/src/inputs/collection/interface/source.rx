@@ -1,0 +1,19 @@
+<Module>
+    <Type from="publish_shape" as="Interfaces" />
+
+    <Args in={Interfaces.Source} out={string} />
+
+    <If on={$in.text != null}>
+        <Return value={$in.text} />
+    </If>
+
+    <Call
+        fn="host.loadNativeText"
+        in={[
+            $in.loader,
+            $in.path
+        ]}
+    />
+
+    <Return value={$ctx.loadNativeText} />
+</Module>

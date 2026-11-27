@@ -11,11 +11,14 @@
         ]}
     />
 
-    <Call
-        fn="paths"
-        in={{
-            host: $in.host,
-            is_archive: $ctx.beginReplay
-        }}
-    />
+    <Loop on={$in.index < $in.is_archive.length}>
+        <Call
+            module="paths"
+            in={{
+                host: $in.host,
+                is_archive: $ctx.beginReplay,
+                index: 0
+            }}
+        />
+    </Loop>
 </Module>

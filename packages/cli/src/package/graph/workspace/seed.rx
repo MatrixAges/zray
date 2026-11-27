@@ -1,0 +1,23 @@
+<Module>
+    <Type from="../model" as="Model" />
+
+    <Args in={Model.SeedWalk} out={Model.SeedWalk} />
+
+    <Call
+        fn="../effects.seedLocal"
+        in={[
+            $in.host,
+            $in.index,
+            $in.first,
+            $in.edge_counts[$in.index]
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            first: $in.first + $in.edge_counts[$in.index]
+        }}
+    />
+</Module>

@@ -37,7 +37,6 @@ pub fn declaration(self: *Lower, output: *@import("../../node/declarations.zig")
 
     const input: Input = .{
         .writer = @ptrCast(self),
-        .declarations = @ptrCast(output),
         .types = &request,
         .name = self.pending_name,
     };
@@ -48,10 +47,9 @@ pub fn declaration(self: *Lower, output: *@import("../../node/declarations.zig")
 
     defer scratch.deinit();
 
-    return entry.executeIn(memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const declarations = (entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err)) orelse return;
+
+    output.appendColumns(self.allocator, declarations, true) catch |err| return publication.failure(err);
 }
 
 pub fn initialize(self: *Lower) Lower.Error!node.Block {

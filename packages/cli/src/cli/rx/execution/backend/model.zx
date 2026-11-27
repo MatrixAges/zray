@@ -51,3 +51,11 @@ export type ExpireInput = {
     build: NativeBuild,
     paths: string[]
 }
+
+export type ModuleWalk = RangeInput & {
+    index: u64
+}
+
+export type ExpireWalk = ExpireInput & {
+    index: u64
+}

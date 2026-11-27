@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import { internal_prefix } from "../const"
+
+import type { NativeBinding as Output } from "generation_host"
+import type { Output as Plan } from "./publish"
+
+export type Input = Plan.Pick("index", "alias", "path", "module", "namespaces") & {
+    row: u64,
+    source: string
+}
+
+export default function (in: Input): Output {
+    const { index, alias, path, module, namespaces, row, source } = in
+
+    const name = alias ?? `${internal_prefix}${module}`
+
+    return {
+        index,
+        name,
+        path,
+        module,
+        source,
+        resolve_members: memory.readColumnOptionalBool(namespaces, row) ?? false
+    }
+}

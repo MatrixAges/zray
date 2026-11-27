@@ -1,0 +1,41 @@
+<Module>
+    <Type from="publish_shape" as="Interfaces" />
+
+    <Args in={Interfaces.Traversal} out={Interfaces.Traversal} />
+
+    <Call fn="publish" in={$in} />
+
+    <Call
+        module="source"
+        in={{
+            loader: $in.request.loader,
+            path: $ctx.publish.path,
+            text: $ctx.publish.source
+        }}
+    />
+
+    <Call
+        fn="binding"
+        in={{
+            ...$ctx.publish.pick([
+                "index",
+                "alias",
+                "path",
+                "module",
+                "namespaces"
+            ]),
+            row: $in.row,
+            source: $ctx.source
+        }}
+    />
+
+    <Call
+        fn="host.writeNativeBinding"
+        in={[
+            $in.request.loader,
+            $ctx.binding
+        ]}
+    />
+
+    <Return value={$ctx.publish.next} />
+</Module>

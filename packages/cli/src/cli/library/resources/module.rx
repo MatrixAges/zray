@@ -12,20 +12,24 @@
             ]}
         />
 
+        <Call fn="includes" />
+
         <Call
-            fn="includes"
+            fn="index.addExternalIncludes"
             in={[
                 $in.resources,
-                $ctx.bundleNativeModule
+                $ctx.includes
             ]}
         />
 
         <Else>
+            <Call fn="includes" in={$in.includes} />
+
             <Call
-                fn="includes"
+                fn="index.addExternalIncludes"
                 in={[
                     $in.resources,
-                    $in.includes
+                    $ctx.includes
                 ]}
             />
         </Else>

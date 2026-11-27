@@ -1,18 +1,24 @@
-import { reserve } from "core/column_set"
 import memory from "memory/columns"
 
+import type { ColumnAllocator, ColumnGrowth, ColumnSet } from "memory/columns"
 import type { Destination } from "./model"
 
 export type Input = Destination
 
-export type Output = void
+export type Output = {
+    resource: ColumnAllocator,
+    storage: ColumnSet,
+    growth: ColumnGrowth,
+    count: u64,
+    limit: u64
+}
 
 export default function (in: Input): Output {
-    reserve({
+    return {
         resource: in.resource,
         storage: in.storage,
         growth: memory.functionColumnGrowth(in.shape, null),
         count: 1,
         limit: in.maximum_count
-    })
+    }
 }

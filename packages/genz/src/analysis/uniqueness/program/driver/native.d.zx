@@ -10,10 +10,9 @@ export type FlowQueue = {
     count: u64
 }
 
-export enum FlowPlan {
-    Recursive,
-    Empty,
-    Layered
+export type FlowLayers = {
+    order: u32[],
+    ends: u64[]
 }
 
 export enum RoundKind {
@@ -26,6 +25,12 @@ export enum RoundOutcome {
     Stable,
     Grew,
     Exhausted
+}
+
+export type RoundClaim = {
+    body?: u64,
+    grew: bool,
+    exhausted: bool
 }
 
 export enum ReplayPhase {
@@ -66,7 +71,7 @@ export declare function beginOwnershipRound(
 export declare function claimOwnershipBody(
     in: Execution,
     kind: RoundKind
-): u64? throws { OutOfMemory }
+): RoundClaim throws { OutOfMemory }
 
 export declare function visitOwnershipBody(
     in: Execution,
@@ -75,8 +80,6 @@ export declare function visitOwnershipBody(
 ): void throws { OutOfMemory }
 
 export declare function finishOwnershipRound(in: Execution, publish: bool): void
-
-export declare function ownershipRoundOutcome(in: Execution): RoundOutcome
 
 export declare function beginOwnershipReplay(in: Execution): bool
 
@@ -97,17 +100,11 @@ export declare function finishOwnershipReplay(in: Execution): void
 
 export declare function initializeFlow(flow: FlowExecution): void throws { OutOfMemory }
 
-export declare function planFlow(flow: FlowExecution): FlowPlan throws { OutOfMemory }
+export declare function planFlow(flow: FlowExecution): FlowLayers? throws { OutOfMemory }
 
 export declare function reserveFlowMemo(flow: FlowExecution): void throws { OutOfMemory }
 
-export declare function flowLayerOrder(flow: FlowExecution): u32[]
-
-export declare function flowLayerEnds(flow: FlowExecution): u64[]
-
-export declare function flowMemoHits(flow: FlowExecution): bool[]
-
-export declare function openFlowWorkers(flow: FlowExecution): void throws { OutOfMemory }
+export declare function openFlowWorkers(flow: FlowExecution): bool[] throws { OutOfMemory }
 
 export declare function solveFlowLayer(
     flow: FlowExecution,

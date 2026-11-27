@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.PublishWalk} out={Model.PublishWalk} />
+
+    <Call
+        fn="index.bindScope"
+        in={[
+            $in.binding,
+            $in.index
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.bindScope
+        }}
+    />
+</Module>

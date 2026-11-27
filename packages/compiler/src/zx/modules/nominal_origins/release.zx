@@ -1,25 +1,19 @@
-import { releaseSlots } from "core/owned_text"
-
 import { completed_members, completed_owners } from "./const"
 
-import type { Release as Input } from "./model"
+export type Input = u64
 
-export type Output = void
+export enum Output {
+    None,
+    Owners,
+    OwnersAndMembers
+}
 
 export default function (in: Input): Output {
-    const { allocator, completed, owners_out, members_out } = in
+    const completed = in
 
-    if (completed >= completed_owners) {
-        releaseSlots({
-            allocator,
-            target: owners_out
-        })
-    }
-
-    if (completed >= completed_members) {
-        releaseSlots({
-            allocator,
-            target: members_out
-        })
+    return match {
+        completed >= completed_members => Output.OwnersAndMembers,
+        completed >= completed_owners => Output.Owners,
+        _ => Output.None
     }
 }

@@ -24,13 +24,16 @@
         />
 
         <If on={$ctx.admit_imports.length != 0}>
-            <Call
-                fn="register_imports"
-                in={{
-                    check: $in.check,
-                    indices: $ctx.admit_imports
-                }}
-            />
+            <Loop on={$in.index < $in.indices.length}>
+                <Call
+                    module="register_imports"
+                    in={{
+                        check: $in.check,
+                        indices: $ctx.admit_imports,
+                        index: 0
+                    }}
+                />
+            </Loop>
         </If>
     </If>
 

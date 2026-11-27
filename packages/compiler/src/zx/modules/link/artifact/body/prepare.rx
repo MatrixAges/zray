@@ -12,7 +12,7 @@
     />
 
     <If on={$ctx.place == Body.Placement.Append && $in.destination != null}>
-        <Call fn="../../signature/publication/reserve" in={$in.destination} />
+        <Call module="../../signature/publication/reserve_columns" in={$in.destination} />
     </If>
 
     <If on={$ctx.place == Body.Placement.Invalid}>

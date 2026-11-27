@@ -13,14 +13,16 @@
 
     <If on={$ctx.loadPreparationRoot != null}>
         <If on={!$in.scoped}>
-            <Call
-                fn="check"
-                in={{
-                    preparation: $in.preparation,
-                    first: $ctx.loadPreparationRoot.first + 1,
-                    count: $ctx.loadPreparationRoot.count
-                }}
-            />
+            <Loop on={$in.index < $in.count}>
+                <Call
+                    module="check"
+                    in={{
+                        preparation: $in.preparation,
+                        count: $ctx.loadPreparationRoot.count,
+                        index: $ctx.loadPreparationRoot.first + 1
+                    }}
+                />
+            </Loop>
         </If>
     </If>
 </Module>

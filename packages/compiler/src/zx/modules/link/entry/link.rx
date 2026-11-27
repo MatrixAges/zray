@@ -1,8 +1,20 @@
 <Module>
-    <Type from="register" as="Link" />
+    <Type from="assemble" as="Binding" />
 
-    <Args in={Link.Input} out={void} />
+    <Args in={Binding.Link} out={void} />
 
-    <Call fn="register" in={$in} />
-    <Call fn="assemble" in={$in} />
+    <Call fn="host.orderArtifactLink" in={$in} />
+    <Call fn="host.registerArtifactTypes" in={$in} />
+    <Call fn="host.openArtifactBinding" in={$in} />
+
+    <Loop on={$in.first < $in.binding.length}>
+        <Call
+            module="bind"
+            in={{
+                link: $in,
+                binding: $ctx.openArtifactBinding,
+                first: 0
+            }}
+        />
+    </Loop>
 </Module>

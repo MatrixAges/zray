@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.Artifact} out={void} />
+
+    <Call fn="retain" in={$in} />
+
+    <If on={$ctx.retain}>
+        <Call
+            fn="index.writeAtomic"
+            in={[
+                $in.fs,
+                $in.path,
+                $in.source
+            ]}
+        />
+    </If>
+</Module>

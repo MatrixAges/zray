@@ -13,3 +13,9 @@ export type ModuleStep = Range & {
     index: u64,
     running: bool
 }
+
+export type GraphWalk = {
+    check: ProjectCheck,
+    count: u64,
+    index: u64
+}

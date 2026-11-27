@@ -42,7 +42,17 @@
     />
 
     <Call fn="index.reserveNativeScopeInterfaces" in={$in.frame} />
-    <Call fn="read" in={$ctx.openNativeScope} />
+
+    <Loop on={$in.row < $in.window.declarations}>
+        <Call
+            module="read"
+            in={{
+                window: $ctx.openNativeScope,
+                row: 0
+            }}
+        />
+    </Loop>
+
     <Call fn="index.reserveNativeScopeIndex" in={$in.frame} />
     <Call fn="index.checkModules" in={$in.workspace.modules} />
 
@@ -74,7 +84,18 @@
         ]}
     />
 
-    <Call fn="bind" in={$in.workspace.binding} />
+    <Loop
+        on={$in.index < $in.binding.window.declarations + $in.binding.window.externals}
+    >
+        <Call
+            module="bind_row"
+            in={{
+                binding: $in.workspace.binding,
+                index: 0
+            }}
+        />
+    </Loop>
+
     <Call fn="index.reserveNativeScopeDeclarations" in={$in.frame} />
 
     <Call module="publish" in={$in.workspace.declarations} />

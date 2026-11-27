@@ -12,7 +12,37 @@
         <Return value={$ctx.read} />
     </If>
 
-    <Call fn="materialize" in={$in.response} />
+    <Call fn="index.inputLayout" in={$in.response} />
+
+    <Call fn="layout" />
+
+    <If on={$ctx.layout.count != 0}>
+        <Call
+            fn="index.reserveInputs"
+            in={[
+                $in.response,
+                $ctx.layout.count,
+                $ctx.layout.length
+            ]}
+        />
+
+        <Call fn="index.selectedInputBytes" in={$in.response} />
+
+        <Loop on={$in.row < $in.count}>
+            <Call
+                module="input_row"
+                in={{
+                    body: $ctx.selectedInputBytes,
+                    at: 0,
+                    response: $in.response,
+                    count: $ctx.layout.count,
+                    row: 0,
+                    offset: 0
+                }}
+            />
+        </Loop>
+    </If>
+
     <Call fn="index.hasDiagnostics" in={$in.response} />
 
     <If

@@ -25,3 +25,7 @@ export type RegisterInput = {
     check: StoreCheck,
     indices: u64[]
 }
+
+export type ImportWalk = RegisterInput & {
+    index: u64
+}

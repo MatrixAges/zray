@@ -1,13 +1,9 @@
-import disk from "artifact_io"
+import { matches } from "artifact_io"
 
 import type { Artifact as Input } from "./model"
 
-export type Output = void
+export type Output = bool
 
 export default function (in: Input): Output {
-    const { fs, path, source } = in
-
-    if (!disk.matches(fs, path, source)) {
-        disk.writeAtomic(fs, path, source)
-    }
+    return !matches(in.fs, in.path, in.source)
 }

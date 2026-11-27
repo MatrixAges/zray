@@ -1,35 +1,15 @@
-import memory from "memory"
+import file from "./file"
 
-import retain from "./retain"
-
-import type { Files, Workspace } from "./model"
-
-export type Input = Workspace & {
-    files: Files
-}
-
-export type Output = void
+import type { File as Output, ViewWrite as Input } from "./model"
 
 export default function (in: Input): Output {
-    const first: u64 = 0
-
-    loop({
-        source: in,
-        index: first
-    }, {
-        while: current => current.index < current.source.files.count,
-        next: current => {
-            const { fs, directory, separator, files } = current.source
-
-            const leaf = memory.readTextColumn(files.paths, current.index)
-
-            retain({
-                fs,
-                path: `${directory}${separator}${leaf}`,
-                source: memory.readTextColumn(files.sources, current.index)
-            })
-
-            current.index += 1
-        }
+    const value = file({
+        files: in.files,
+        index: in.index
     })
+
+    return {
+        path: `${in.directory}${in.separator}${value.path}`,
+        source: value.source
+    }
 }

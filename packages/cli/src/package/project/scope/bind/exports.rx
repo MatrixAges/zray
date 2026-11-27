@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.ExportWalk} out={Model.ExportWalk} />
+
+    <If on={$in.compiled}>
+        <Call
+            fn="index.writeCompiledExport"
+            in={[
+                $in.binding,
+                $in.index
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="index.writeSourceExport"
+                in={[
+                    $in.binding,
+                    $in.index
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

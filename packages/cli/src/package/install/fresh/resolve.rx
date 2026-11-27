@@ -5,13 +5,16 @@
 
     <Call fn="../effects.prepareIndex" in={$in.host} />
 
-    <Call
-        fn="seed"
-        in={$in.pick([
-            "host",
-            "members"
-        ])}
-    />
+    <Loop on={$in.index < $in.members}>
+        <Call
+            module="seed"
+            in={{
+                host: $in.host,
+                members: $in.members,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Loop on={$in.running}>
         <Call

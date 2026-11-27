@@ -106,10 +106,10 @@ pub fn bundleNativeModule(handle: *const anyopaque, record_bundle: bool) Error![
     return bundled.include_paths;
 }
 
-pub fn addExternalInclude(handle: *const anyopaque, path: []const u8) Error!void {
+pub fn addExternalIncludes(handle: *const anyopaque, paths: []const []const u8) Error!void {
     const self = effects.state(State, handle);
 
-    self.external_includes.append(self.allocator, path) catch |err| return self.failure.save(err);
+    self.external_includes.appendSlice(self.allocator, paths) catch |err| return self.failure.save(err);
 }
 
 pub fn writeLibraryNativeHeader(handle: *const anyopaque) Error!void {

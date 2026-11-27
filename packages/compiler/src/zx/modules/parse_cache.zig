@@ -502,17 +502,22 @@ fn publishPrefetched(self: *Self, paths: *const zx.memory.TextColumn, results: [
     var buffer: [4096]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
-    const ok = rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+    const discard_from = rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    if (!ok) return error.OutOfMemory;
+    const first = discard_from orelse return;
+
+    for (results[@intCast(first)..]) |candidate| {
+        if (candidate) |entry| entry.result.deinit();
+    }
+
+    return error.OutOfMemory;
 }
 
 pub fn preparePrefetchedParse(handle: *anyopaque, path: []const u8) Native.preparePrefetchedParse.Output {
     const batch = Batch.borrow(handle);
-
     batch.adoption.path = path;
     batch.adoption.found = batch.adoption.cache.entries.probe(path);
 
@@ -529,12 +534,6 @@ pub fn bindPrefetchedParse(handle: *anyopaque, index: u64, handle_entry: *anyopa
     const entry: *const Entry = @ptrCast(@alignCast(handle_entry));
 
     batch.output.bind(@intCast(index), entry);
-}
-
-pub fn discardStagedParse(handle: *anyopaque) void {
-    const entry: *Entry = @ptrCast(@alignCast(handle));
-
-    entry.result.deinit();
 }
 
 const Adoption = struct {

@@ -35,7 +35,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
     var previous_binding: DemandBinding = undefined;
     var current_binding: DemandBinding = undefined;
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
-    const demands = ctx.summaries.storage.?.demands;
+    const storage = ctx.summaries.storage.?;
 
     const input: Input = .{
         .replay = &.{
@@ -45,7 +45,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
             .planned = trace.planned.starts,
             .changed = ctx.replay.changed,
             .agreed = cursor.phase == .start,
-            .demand_count = demands.len,
+            .demand_count = storage.demands.len,
             .cursor = &.{ .body = cursor.body, .visit = cursor.visit, .phase = @fromBackingInt(@intCast(@backingInt(cursor.phase))) },
         },
         .tables = &.{
@@ -65,12 +65,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
         },
         .recovery = &.{
             .callees = ctx.bodies.callees,
-            .summaries = &.{
-                .input = @ptrCast(&ctx.summaries.input),
-                .output = @ptrCast(&ctx.summaries.output),
-                .inputs = @ptrCast(&ctx.summaries.inputs),
-                .outputs = @ptrCast(&ctx.summaries.outputs),
-            },
+            .layout = zx.columns.pointer(@FieldType(std.meta.Child(@FieldType(Input, "recovery")), "layout"), storage.layout),
         },
         .recovered = recovered,
     };
@@ -91,7 +86,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
         });
     }
 
-    if (result.cleared) |cleared| @memcpy(demands, cleared);
+    if (result.cleared) |cleared| @memcpy(storage.demands, cleared);
     if (result.digest) |digest| @memcpy(&ctx.memo.key, digest);
 
     for (result.hits) |hit| switch (hit.phase) {

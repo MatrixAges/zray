@@ -1,0 +1,9 @@
+<Module>
+    <Type from="reserve" as="Signature" />
+
+    <Args in={Signature.Input} out={void} />
+
+    <Call fn="reserve" in={$in} />
+
+    <Call fn="../../../../../core/column_set/reserve" />
+</Module>

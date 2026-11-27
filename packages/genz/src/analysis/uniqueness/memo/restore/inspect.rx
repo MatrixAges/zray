@@ -22,11 +22,10 @@
                 ...$in.pick([
                     "source",
                     "body",
-                    "callees"
+                    "callees",
+                    "layout"
                 ]),
                 first: $ctx.header.end,
-                own: $in.input,
-                called: $in.output,
                 trailing: false,
                 collect: false
             }}
@@ -74,11 +73,10 @@
                 ...$in.pick([
                     "source",
                     "body",
-                    "callees"
+                    "callees",
+                    "layout"
                 ]),
                 first: $ctx.task.renewed.end,
-                own: $in.outputs,
-                called: $in.inputs,
                 trailing: true,
                 collect: false
             }}

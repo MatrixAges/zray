@@ -1,13 +1,14 @@
 import write from "./write"
 
 import type { Append as Input } from "./source_model"
+import type { Output as Publication } from "./write"
 
-export type Output = void
+export type Output = Publication
 
 export default function (in: Input): Output {
     const { target, value, empty, row } = in
 
-    write({
+    return write({
         storage: target.storage,
         function: {
             ...value.omit([

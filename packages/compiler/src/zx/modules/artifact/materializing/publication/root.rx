@@ -23,6 +23,8 @@
             }}
         />
 
+        <Call fn="../../../../../core/column_set/write_function" />
+
         <Call
             fn="set_completed"
             in={1}

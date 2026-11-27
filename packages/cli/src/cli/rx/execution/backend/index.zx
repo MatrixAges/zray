@@ -1,4 +1,7 @@
 export {
+    appendGeneratedModule,
+    appendAbiView,
+    expireBackendPath,
     createStagedBindings,
     openStagedOutput,
     openBackendEnvironment,

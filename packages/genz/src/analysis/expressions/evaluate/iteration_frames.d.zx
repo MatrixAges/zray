@@ -46,8 +46,6 @@ export enum IterationResource {
     Invalid
 }
 
-export type LoopFieldRebuild = mutable_opaque
-
 export type LoopResultFrame = opaque
 
 export type TransformFrame = mutable_opaque

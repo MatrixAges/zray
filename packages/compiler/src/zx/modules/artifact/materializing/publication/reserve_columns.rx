@@ -1,0 +1,9 @@
+<Module>
+    <Type from="reserve" as="Artifact" />
+
+    <Args in={Artifact.Input} out={void} />
+
+    <Call fn="reserve" in={$in} />
+
+    <Call fn="../../../../../core/column_set/reserve" />
+</Module>

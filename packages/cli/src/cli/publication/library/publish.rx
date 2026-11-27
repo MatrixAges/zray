@@ -40,22 +40,28 @@
         <Return value={Library.Output.MissingInventory} />
     </If>
 
-    <Call
-        fn="copy_content"
-        in={[
-            $in.directory,
-            $ctx.preflight.targets,
-            $ctx.preflight.prefix
-        ]}
-    />
+    <Loop on={$in.index < $in.paths.length}>
+        <Call
+            module="copy_content"
+            in={{
+                directory: $in.directory,
+                paths: $ctx.preflight.targets,
+                prefix: $ctx.preflight.prefix,
+                index: 0
+            }}
+        />
+    </Loop>
 
-    <Call
-        fn="retire"
-        in={[
-            $in.directory,
-            $ctx.prepareRetirement
-        ]}
-    />
+    <Loop on={$in.index < $in.paths.length}>
+        <Call
+            module="retire"
+            in={{
+                directory: $in.directory,
+                paths: $ctx.prepareRetirement,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Call
         fn="../index.copyStagedFile"

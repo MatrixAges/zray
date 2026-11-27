@@ -35,7 +35,7 @@
 
     <If on={$in.installation.reserve.count != 0}>
         <Call
-            fn="../../../artifact/materializing/publication/reserve"
+            module="../../../artifact/materializing/publication/reserve_columns"
             in={$in.installation.reserve}
         />
     </If>

@@ -1,5 +1,5 @@
-import type { AtomicRows } from "memory"
 import type { Cell } from "../../function/updates/model"
+import type { Layout } from "../../summaries/model"
 import type { NormalizedRow, RenewedRow } from "../disk/load/model"
 import type { GrowthLayout } from "../disk/model"
 
@@ -8,10 +8,7 @@ export type Input = {
     body: u64,
     callees: u32[],
     demanded: bool,
-    input: AtomicRows,
-    output: AtomicRows,
-    inputs: AtomicRows,
-    outputs: AtomicRows
+    layout: Layout
 }
 
 export type Cursor = {
