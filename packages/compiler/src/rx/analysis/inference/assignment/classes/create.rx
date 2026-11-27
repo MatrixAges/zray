@@ -1,38 +1,32 @@
 <Module>
     <Type from="request" as="Classes" />
+    <Type from="model" as="AssignmentClasses" />
 
-    <Args in={Classes.Input} out={void} />
+    <Args in={Classes.Input} out={AssignmentClasses.Created} />
 
     <Call
         module="payload/run"
         in={{
             frame: $in.frame,
             view: $in.view,
-            payloads: $in.payloads.active
-        }}
-    />
-
-    <Call fn="../application/host.reserveAssignmentClasses" in={$in.frame} />
-
-    <Call
-        fn="payload_columns"
-        in={{
-            initial: $in.payloads.initial,
-            registered: $in.payloads.registered
+            initial_count: $in.nodes.kinds.length
         }}
     />
 
     <Call
         module="build"
         in={{
-            payloads: $ctx.payload_columns,
+            payloads: $ctx.run,
             nodes: $in.nodes,
             edges: $in.rows.edges,
-            storage: $in.classes.storage,
-            parents: $in.classes.groups,
-            ranks: $in.classes.ranks
+            count: $ctx.run.initial.length + $ctx.run.registered.length
         }}
     />
 
-    <Call fn="../application/host.releaseAssignmentRanks" in={$in.frame} />
+    <Return
+        value={{
+            ...$ctx.run,
+            ...$ctx.build
+        }}
+    />
 </Module>

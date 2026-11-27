@@ -10,7 +10,11 @@
             cursor: {
                 module: $in.module,
                 binding: $in.binding,
-                output: $in.output
+                output: $in.output,
+                bindings: $in.bindings,
+                tasks: $in.tasks,
+                inputs: $in.inputs,
+                outputs: $in.outputs
             }
         }}
     />
@@ -28,9 +32,7 @@
     <Return
         value={{
             request: $in.request,
-            module: $ctx.publish.module,
-            binding: $ctx.publish.binding,
-            output: $ctx.publish.output
+            ...$ctx.publish.omit(["unresolved"])
         }}
     />
 </Module>

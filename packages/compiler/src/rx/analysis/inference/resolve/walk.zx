@@ -1,14 +1,11 @@
 import integers from "std:integer"
 import { max_nesting_depth } from "core/const"
-import memory from "memory"
 
 import representative from "../forest/borrowed_root"
 import numericDefault from "../scalar/default"
 import { Kind } from "../unification/model"
 import { frame_width } from "./const"
 import { Route } from "./model"
-import record from "./record"
-import resume from "./resume"
 
 import type { Request } from "./model"
 
@@ -17,9 +14,7 @@ export type Input = Request
 export type Output = Request
 
 export default function (in: Input): Output {
-    const initial = resume(in)
-
-    return loop(initial, {
+    return loop(in, {
         while: state => state.route == Route.Search,
         next: state => {
             const graph = state.resolver.graph
@@ -30,11 +25,7 @@ export default function (in: Input): Output {
                     state.route = Route.Complete
                 } else {
                     const frame = (state.depth - 1) * frame_width
-                    const node =
-                        integers.narrow(memory.readU64(
-                            state.resolver.frames,
-                            frame
-                        ))
+                    const node = integers.narrow(state.frames[frame])
                     const index = integers.widen(node)
                     const kind = graph.kinds[index]
 
@@ -45,29 +36,28 @@ export default function (in: Input): Output {
                     } else {
                         const used = state.used
 
-                        if (used == state.value_capacity) {
-                            state.route = Route.GrowValues
+                        if (used < state.values.length) {
+                            state.values[used] = completed
                         } else {
-                            memory.writeU32(state.resolver.values, used, completed)
+                            state.values = state.values.push(completed)[0]
+                        }
 
-                            const start =
-                                memory.readU64(state.resolver.frames, frame + 1)
-                            const members = graph.members[index]
-                            const count = used + 1 - start
+                        const start = state.frames[frame + 1]
+                        const members = graph.members[index]
+                        const count = used + 1 - start
 
-                            if (count == members.length) {
-                                state.node = node
-                                state.depth -= 1
-                                state.used = start
-                                state.count = count
-                                const object = kind == Kind.Object
+                        if (count == members.length) {
+                            state.node = node
+                            state.depth -= 1
+                            state.used = start
+                            state.count = count
+                            const object = kind == Kind.Object
 
-                                state.route = object ? Route.Object : Route.Tuple
-                            } else {
-                                state.node = members[count]
-                                state.used = used + 1
-                                state.completed = null
-                            }
+                            state.route = object ? Route.Object : Route.Tuple
+                        } else {
+                            state.node = members[count]
+                            state.used = used + 1
+                            state.completed = null
                         }
                     }
                 }
@@ -109,13 +99,8 @@ export default function (in: Input): Output {
                             if (id == null) {
                                 state.route = Route.NumericMismatch
                             } else {
-                                record({
-                                    publication: state.resolver.publication,
-                                    node: state.node,
-                                    type_id: id
-                                })
-
                                 state.completed = id
+                                state.route = Route.Record
                             }
                         }
                     } else {
@@ -128,23 +113,16 @@ export default function (in: Input): Output {
                             const frame = state.depth * frame_width
                             const start = state.used
 
-                            if (frame + frame_width > state.frame_capacity) {
-                                state.route = Route.GrowFrames
+                            if (frame + frame_width <= state.frames.length) {
+                                state.frames[frame] = index
+                                state.frames[frame + 1] = start
                             } else {
-                                memory.writeU64(
-                                    state.resolver.frames,
-                                    frame,
-                                    index
-                                )
-                                memory.writeU64(
-                                    state.resolver.frames,
-                                    frame + 1,
-                                    start
-                                )
-
-                                state.depth += 1
-                                state.node = unary ? graph.arguments[index] : members[0]
+                                state.frames = state.frames.push(index)[0]
+                                state.frames = state.frames.push(start)[0]
                             }
+
+                            state.depth += 1
+                            state.node = unary ? graph.arguments[index] : members[0]
                         }
                     }
                 }

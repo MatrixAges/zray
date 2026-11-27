@@ -11,9 +11,7 @@
             "frame",
             "view",
             "nodes",
-            "classes",
-            "rows",
-            "payloads"
+            "rows"
         ])}
     />
 
@@ -22,7 +20,7 @@
         in={{
             frame: $in.frame,
             view: $in.view,
-            classes: $in.classes.pick([
+            classes: $ctx.create.pick([
                 "groups",
                 "representatives"
             ])
@@ -33,13 +31,39 @@
         <Return value={true} />
     </If>
 
-    <Call module="../../sequences/defaults/run" in={$in} />
+    <Call
+        module="../../sequences/defaults/run"
+        in={{
+            ...$in,
+            payloads: $ctx.create.pick([
+                "initial",
+                "registered"
+            ]),
+            classes: $ctx.create.pick([
+                "groups",
+                "representatives"
+            ])
+        }}
+    />
 
     <If on={$ctx.run}>
         <Return value={true} />
     </If>
 
-    <Call module="materialization/materialize" in={$in} />
+    <Call
+        module="materialization/materialize"
+        in={{
+            ...$in,
+            payloads: $ctx.create.pick([
+                "initial",
+                "registered"
+            ]),
+            classes: $ctx.create.pick([
+                "groups",
+                "representatives"
+            ])
+        }}
+    />
 
     <Return value={$ctx.materialize} />
 </Module>

@@ -231,12 +231,34 @@ pub fn bindFlowSignatures(handle: *anyopaque) void {
     const resolution = &stages.inference.resolution;
     const table = Signatures.borrow(state.ports, state.requests);
 
+    stages.scope.active = stages.inference.workspace.allocator();
+
     resolution.bind(&state.graph, &state.resolver, &stages.scope);
     stages.signatures.bind(&state.graph, table, &resolution.view);
 }
 
-pub fn publishFlowSignatures(handle: *anyopaque) void {
+pub fn publishFlowSignatures(
+    handle: *anyopaque,
+    bindings: []const u32,
+    tasks: []const u32,
+    inputs: []const u32,
+    outputs: []const u32,
+) void {
     const state = borrow(handle);
+    const stages = state.stages;
+    const table = stages.signatures.table;
+    const requests = &state.requests;
+    const ports = state.ports;
 
-    state.publish(state.stages.signatures.table);
+    if (ports.len != 0) {
+        @memcpy(@as([]u32, @ptrCast(requests.bindings.items(.value))), bindings);
+        @memcpy(requests.tasks.items, tasks);
+        @memcpy(@as([]u32, @ptrCast(ports.items(.input))), inputs);
+        @memcpy(@as([]u32, @ptrCast(ports.items(.output))), outputs);
+    }
+
+    stages.scope.active = stages.empty;
+    _ = stages.inference.workspace.reset(.free_all);
+
+    state.publish(table);
 }

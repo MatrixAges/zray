@@ -1,33 +1,16 @@
 import integers from "std:integer"
-import memory from "memory"
-
-import rename from "./rename"
 
 import type { Captured, View } from "./model"
 
-export type Input = View.Omit("state", "stack") & {
-    name: u8[]
-}
+export type Input = View.Pick("names", "condition", "step")
 
 export type Output = Captured
 
 export default function (in: Input): Output {
-    const { target, condition, step, name } = in
-
-    const names = memory.u8ListViews(target)
-    const previous_condition = names[integers.widen(condition)]
-    const previous_step = names[integers.widen(step)]
-
-    rename({
-        target,
-        condition,
-        step,
-        condition_name: name,
-        step_name: name
-    })
+    const { names, condition, step } = in
 
     return {
-        previous_condition,
-        previous_step
+        previous_condition: names[integers.widen(condition)],
+        previous_step: names[integers.widen(step)]
     }
 }

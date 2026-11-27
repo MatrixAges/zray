@@ -8,14 +8,11 @@
         fn="../payloads"
         in={{
             view: $in.range.request.view,
-            payloads: $in.range.request.payloads,
-            range: {
-                start: $in.range.start,
-                limit: $in.range.limit
-            },
+            limit: $in.range.limit,
             next: $in.next,
             source: $in.source,
-            remaining: $in.remaining
+            remaining: $in.remaining,
+            values: $in.values
         }}
     />
 
@@ -47,7 +44,8 @@
                 range: $in.range,
                 next: $ctx.payloads.next,
                 source: $ctx.registerAssignmentPayload,
-                remaining: $ctx.remainingAssignmentDepth
+                remaining: $ctx.remainingAssignmentDepth,
+                values: $ctx.payloads.values
             }}
         />
     </If>
@@ -57,7 +55,8 @@
             range: $in.range,
             next: $ctx.payloads.next,
             source: $ctx.payloads.source,
-            remaining: $ctx.payloads.remaining
+            remaining: $ctx.payloads.remaining,
+            values: $ctx.payloads.values
         }}
     />
 </Module>

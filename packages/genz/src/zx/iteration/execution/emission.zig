@@ -24,6 +24,15 @@ pub fn lowerLoopFirstTest(handle: *anyopaque) Error!?u32 {
     return @backingInt(try frame.lowering.expr(@fromBackingInt(condition)));
 }
 
+pub fn renameIterationParameters(handle: *anyopaque, name: []const u8) void {
+    const frame = Frame.borrow(handle);
+    const iteration = frame.iteration;
+    const names = frame.lowering.names;
+
+    names[@backingInt(iteration.condition_parameter)] = name;
+    names[@backingInt(iteration.parameter)] = name;
+}
+
 pub fn enterLoopUpdate(handle: *anyopaque, update: Frame.UpdateScope, delayed: bool) void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;

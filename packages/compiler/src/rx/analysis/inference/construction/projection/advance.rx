@@ -28,16 +28,21 @@
     />
 
     <Call
-        fn="../publish"
+        fn="host.commitObjectSpread"
+        in={[
+            $in.request.frame,
+            $in.row,
+            $in.root,
+            !$ctx.readiness,
+            $in.root == $in.request.scan.result
+        ]}
+    />
+
+    <Call
+        fn="../collect_keys"
         in={{
             keys: $in.keys,
-            names: $in.request.members.names,
-            values: $in.request.members.values,
-            columns: $in.request.columns,
-            row: $in.row,
-            root: $in.root,
-            open: !$ctx.readiness,
-            aliases: $in.root == $in.request.scan.result
+            additions: $in.request.members.names
         }}
     />
 
@@ -46,7 +51,7 @@
             value={{
                 ...$in,
                 row: $in.row + 1,
-                keys: $ctx.publish
+                keys: $ctx.collect_keys
             }}
         />
     </If>
@@ -55,7 +60,7 @@
         module="../sources"
         in={{
             ...$in.request.scan,
-            keys: $ctx.publish,
+            keys: $ctx.collect_keys,
             first: $in.row + 1
         }}
     />

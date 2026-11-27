@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import { max_u64 } from "core/const"
-import memory from "memory"
 
 import { Kind } from "../../unification/model"
 import initialLower from "./lower"
@@ -17,12 +16,7 @@ export default function (in: Input): Output {
     const assignment_count = in.assignments.left.length
     const edge_count = assignment_count + in.optionals.left.length
     const nodes = in.graph.nodes
-    const lower = in.lower.values
-
-    initialLower({
-        graph: in.graph,
-        lower: in.lower
-    })
+    const lower = initialLower(in.graph)
 
     const upper = initialUpper({
         nodes,
@@ -30,6 +24,7 @@ export default function (in: Input): Output {
     })
 
     return loop({
+        lower,
         upper,
         prefer_lower: nodes.kinds.map(
             (kind, index) =>
@@ -48,22 +43,18 @@ export default function (in: Input): Output {
             const pin_known = state.stage == Stage.PinKnown
 
             if (pin_preferred || pin_known) {
-                if (state.position == lower.length) {
+                if (state.position == state.lower.length) {
                     state.position = 0
                     state.stage = pin_preferred ? Stage.Maximum : Stage.Final
                 } else {
                     const index = state.position
 
                     if (pin_preferred && state.prefer_lower[index]) {
-                        const depth = lower[index]
-
-                        state.upper[index] = depth
+                        state.upper[index] = state.lower[index]
                     }
 
                     if (pin_known && state.upper[index] != max_u64) {
-                        const upper = state.upper[index]
-
-                        memory.writeU64(in.lower.output, index, upper)
+                        state.lower[index] = state.upper[index]
                     }
 
                     state.position += 1
@@ -73,7 +64,7 @@ export default function (in: Input): Output {
                     if (state.changed) {
                         state.rounds += 1
 
-                        if (state.rounds > lower.length) {
+                        if (state.rounds > state.lower.length) {
                             state.issue = Issue.Recursive
                         }
                     } else {
@@ -97,7 +88,7 @@ export default function (in: Input): Output {
                     const forward = state.forward
                     const owner = forward ? right : left
                     const neighbor = forward ? left : right
-                    const other_lower = lower[neighbor]
+                    const other_lower = state.lower[neighbor]
                     const other_upper = state.upper[neighbor]
                     const cannot_fit = (
                         - !forward
@@ -122,8 +113,8 @@ export default function (in: Input): Output {
                             _ => other_upper
                         }
 
-                        if (lower[owner] < minimum) {
-                            memory.writeU64(in.lower.output, owner, minimum)
+                        if (state.lower[owner] < minimum) {
+                            state.lower[owner] = minimum
                             state.changed = true
                         }
 
@@ -145,9 +136,9 @@ export default function (in: Input): Output {
 
                         if (!forward) {
                             const left_conflict =
-                                lower[left] > state.upper[left]
+                                state.lower[left] > state.upper[left]
                             const right_conflict =
-                                lower[right] > state.upper[right]
+                                state.lower[right] > state.upper[right]
 
                             if (left_conflict || right_conflict) {
                                 state.issue = Issue.Bounds
@@ -161,7 +152,8 @@ export default function (in: Input): Output {
         },
         return: state => ({
             issue: state.issue,
-            position: state.position
+            position: state.position,
+            depths: state.lower
         })
     })
 }

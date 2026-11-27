@@ -509,16 +509,8 @@ pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *anyopaque, c
     output.* = items;
 }
 
-pub inline fn swapU32Buffers(left: *anyopaque, right: *anyopaque) void {
-    swapBuffers(u32, left, right);
-}
-
 pub inline fn swapU64Buffers(left: *anyopaque, right: *anyopaque) void {
     swapBuffers(u64, left, right);
-}
-
-pub inline fn releaseU32Buffer(resource: *const anyopaque, target: *anyopaque) void {
-    releaseBuffer(u32, resource, target);
 }
 
 pub inline fn releaseU64Buffer(resource: *const anyopaque, target: *anyopaque) void {
@@ -570,10 +562,6 @@ pub inline fn fillByteRange(target: *anyopaque, first: u64, count: u64, value: u
 
 pub inline fn writeU64(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
     return write(u64, target, index, value);
-}
-
-pub inline fn writeIndex(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
-    return write(usize, target, index, std.math.cast(usize, value) orelse return error.IndexOutOfBounds);
 }
 
 pub const SourceSpan = struct {
@@ -634,10 +622,6 @@ pub inline fn initializeU32ListSlot(target: *anyopaque, index: u64, shape: anyty
     slot.* = &.{};
 
     return @ptrCast(slot);
-}
-
-pub inline fn writeU8List(target: *anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
-    return write([]const u8, target, index, value);
 }
 
 pub inline fn writeU32List(target: *anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {

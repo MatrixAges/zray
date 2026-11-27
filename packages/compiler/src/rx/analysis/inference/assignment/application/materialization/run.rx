@@ -3,16 +3,6 @@
 
     <Args in={Materialization.Request} out={u64} />
 
-    <If on={$in.views.deferred.length != 0}>
-        <Call
-            fn="../deferred"
-            in={{
-                ...$in.indexes,
-                parents: $in.views.parents
-            }}
-        />
-    </If>
-
     <Loop on={$in.next < $in.request.views.depths.length}>
         <Call
             module="advance"

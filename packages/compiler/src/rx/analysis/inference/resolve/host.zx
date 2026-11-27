@@ -1,6 +1,5 @@
 export {
-    reserveResolveFrames,
-    reserveResolveValues,
+    recordResolveType,
     reportResolveFailure,
     prepareResolveConstruction,
     reportResolveConstruction,

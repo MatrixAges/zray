@@ -9,21 +9,41 @@
         <Return value={$ctx.walk} />
     </If>
 
-    <If
-        on={$ctx.walk.route == Resolve.Route.GrowFrames ||
-            $ctx.walk.route == Resolve.Route.GrowValues}
-    >
-        <Call fn="grow" in={$ctx.walk} />
+    <If on={$ctx.walk.route == Resolve.Route.Record}>
+        <Call
+            fn="host.recordResolveType"
+            in={[
+                $in.resolver.frame,
+                $ctx.walk.node,
+                $ctx.walk.completed ?? 0
+            ]}
+        />
 
-        <Return value={$ctx.grow} />
+        <Return
+            value={{
+                ...$ctx.walk,
+                route: Resolve.Route.Search
+            }}
+        />
     </If>
 
     <Call module="construct" in={$ctx.walk} />
 
+    <Call
+        fn="host.recordResolveType"
+        in={[
+            $in.resolver.frame,
+            $ctx.walk.node,
+            $ctx.construct
+        ]}
+    />
+
     <Return
         value={{
             ...$ctx.walk,
-            completed: $ctx.construct
+            completed: $ctx.construct,
+            count: 0,
+            route: Resolve.Route.Search
         }}
     />
 </Module>

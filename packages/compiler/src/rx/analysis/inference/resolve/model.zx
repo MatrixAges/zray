@@ -1,5 +1,5 @@
 import type { Tables } from "core/type_table/model"
-import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type { TypeResolver } from "rx_project_host"
 import type {
     Input as TypeWrite
@@ -10,12 +10,11 @@ import type { Payload } from "./continuation"
 export enum Route {
     Search,
     Complete,
+    Record,
     List,
     Optional,
     Object,
     Tuple,
-    GrowFrames,
-    GrowValues,
     Depth,
     Sequence,
     Unconstrained,
@@ -30,22 +29,10 @@ export type View = {
     fallback: u8?[]
 }
 
-export type Publication = {
-    kinds: U8Buffer,
-    arguments: U32Buffer,
-    revision: U64Buffer,
-    known_kind: u8
-}
-
 export type Session = {
     frame: TypeResolver,
     graph: View,
-    publication: Publication,
     parents: U32Buffer,
-    frames: U64Buffer,
-    values: U32Buffer,
-    frame_capacity: u64,
-    value_capacity: u64,
     tables: Tables,
     payload: Payload,
     write: TypeWrite
@@ -58,8 +45,8 @@ export type Input = {
 
 export type Request = {
     resolver: Session,
-    frame_capacity: u64,
-    value_capacity: u64,
+    frames: u64[],
+    values: u32[],
     depth: u64,
     used: u64,
     count: u64,

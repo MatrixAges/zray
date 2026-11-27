@@ -7,13 +7,11 @@ const Solve = @import("../../../project/workflow/solve/abi.zig").Solve;
 const Request = child(Solve, "assignments");
 const View = child(Request, "view");
 const Validation = child(Solve, "validation");
-const Classes = child(Request, "classes");
 const Rows = child(Request, "rows");
 const Sequences = child(Request, "sequences");
 
 pub const Frame = struct {
     graph: *Graph,
-    workspace: *std.heap.ArenaAllocator,
     view: Request,
     validation: Validation,
     validation_columns: child(Validation, "columns"),
@@ -21,32 +19,18 @@ pub const Frame = struct {
     merge_view: View,
     nodes: child(Request, "nodes"),
     node_spans: []const zx.Span,
-    classes: Classes,
-    storage: child(Classes, "storage"),
-    groups: []u32,
-    representatives: []?u32,
-    ranks: []u8,
     edges: child(Rows, "edges"),
-    write: child(Rows, "write"),
     rows: Rows,
     left: []u32,
     right: []u32,
     spans: []const zx.Span,
-    payloads: child(Request, "payloads"),
-    active: []u32,
-    initial: []u32,
-    registered: []u32,
     remaining: u64,
     sequences: Sequences,
     sequence_rows: child(Sequences, "sequence"),
     sequence_spans: []const zx.Span,
     indexes: child(Request, "indexes"),
-    bounds: child(Request, "bounds"),
-    depths: []u64,
-    deferred: []u64,
-    pub fn bind(self: *Frame, graph: *Graph, workspace: *std.heap.ArenaAllocator) void {
+    pub fn bind(self: *Frame, graph: *Graph, _: *std.heap.ArenaAllocator) void {
         self.graph = graph;
-        self.workspace = workspace;
 
         self.refresh();
 
@@ -56,8 +40,7 @@ pub const Frame = struct {
         self.right = @ptrCast(edges.items(.expected));
         self.spans = edges.items(.span);
         self.edges = .{ .left = self.left, .right = self.right };
-        self.write = .{ .left = @ptrCast(&self.left), .right = @ptrCast(&self.right), .count = self.left.len };
-        self.rows = .{ .edges = &self.edges, .write = &self.write, .spans = @ptrCast(&self.spans) };
+        self.rows = .{ .edges = &self.edges, .spans = @ptrCast(&self.spans) };
 
         const sequences = graph.pending.sequences.slice();
 
@@ -69,20 +52,15 @@ pub const Frame = struct {
         const indexes = graph.pending.indexes.slice();
 
         self.indexes = .{ .values = @ptrCast(indexes.items(.value)), .resolved = indexes.items(.resolved) };
-        self.payloads = .{ .active = @ptrCast(&self.active), .initial = @ptrCast(&self.initial), .registered = @ptrCast(&self.registered) };
-        self.bounds = .{ .depths = @ptrCast(&self.depths), .deferred = @ptrCast(&self.deferred) };
 
         self.view = .{
             .frame = @ptrCast(self),
             .owner = @ptrCast(graph),
             .view = &self.merge_view,
             .nodes = &self.nodes,
-            .classes = &self.classes,
             .rows = &self.rows,
-            .payloads = &self.payloads,
             .sequences = &self.sequences,
             .indexes = &self.indexes,
-            .bounds = &self.bounds,
             .node_spans = @ptrCast(&self.node_spans),
         };
     }
@@ -139,58 +117,8 @@ pub fn assignmentRevision(handle: *anyopaque) u64 {
     return Frame.borrow(handle).graph.revision;
 }
 
-pub fn beginInitialAssignmentPayloads(handle: *anyopaque) std.mem.Allocator.Error!u64 {
-    const frame = Frame.borrow(handle);
-    frame.initial = try frame.workspace.allocator().alloc(u32, frame.graph.nodes.len);
-    frame.active = frame.initial;
-
-    return frame.initial.len;
-}
-
-pub fn beginRegisteredAssignmentPayloads(handle: *anyopaque, first: u64) std.mem.Allocator.Error!u64 {
-    const frame = Frame.borrow(handle);
-    const count = frame.graph.nodes.len;
-    frame.registered = try frame.workspace.allocator().alloc(u32, count - @as(usize, @intCast(first)));
-    frame.active = frame.registered;
-
-    return count;
-}
-
-pub fn reserveAssignmentClasses(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const allocator = frame.workspace.allocator();
-    const count = frame.graph.nodes.len;
-
-    std.debug.assert(count == frame.initial.len + frame.registered.len);
-
-    frame.groups = try allocator.alloc(u32, count);
-    frame.representatives = try allocator.alloc(?u32, count);
-    frame.ranks = try allocator.alloc(u8, count);
-    frame.storage = .{ .parents = @ptrCast(&frame.groups), .ranks = @ptrCast(&frame.ranks), .representatives = @ptrCast(&frame.representatives) };
-    frame.classes = .{ .groups = frame.groups, .representatives = frame.representatives, .ranks = frame.ranks, .storage = &frame.storage };
-}
-
-pub fn releaseAssignmentRanks(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.workspace.allocator().free(frame.ranks);
-}
-
-pub fn reserveAssignmentDepths(handle: *anyopaque) std.mem.Allocator.Error![]const u64 {
-    const frame = Frame.borrow(handle);
-    frame.depths = try frame.workspace.allocator().alloc(u64, frame.graph.nodes.len);
-
-    return frame.depths;
-}
-
-pub fn reserveDeferredAssignments(handle: *anyopaque, words: u64) std.mem.Allocator.Error![]const u64 {
-    const frame = Frame.borrow(handle);
-
-    frame.deferred = try frame.workspace.allocator().alloc(u64, @intCast(words));
-
-    @memset(frame.deferred, 0);
-
-    return frame.deferred;
+pub fn assignmentNodeCount(handle: *anyopaque) u64 {
+    return Frame.borrow(handle).graph.nodes.len;
 }
 
 pub fn registerAssignmentPayload(handle: *anyopaque, node: u32, value: u32, remaining: u64) zx.Error!u32 {

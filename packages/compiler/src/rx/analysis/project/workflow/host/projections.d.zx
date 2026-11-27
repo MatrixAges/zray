@@ -101,6 +101,18 @@ export declare function appendIndexProjection(
     position: u64?
 ): void throws { OutOfMemory }
 
+export declare function commitAssignment(
+    frame: AssignmentRegistration,
+    left: u32,
+    right: u32,
+    key: u64,
+    slot: u64,
+    span_index: u64
+): void
+
+export declare function replaceAssignmentIndex(frame: AssignmentRegistration, buckets: u32[]): void
+    throws { OutOfMemory }
+
 export declare function growAssignmentRows(frame: AssignmentRegistration): void
     throws { OutOfMemory }
 

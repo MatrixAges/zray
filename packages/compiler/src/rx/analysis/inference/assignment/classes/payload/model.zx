@@ -1,4 +1,3 @@
-import type { U32Buffer } from "memory"
 import type { AssignmentApplication } from "rx_project_host"
 import type { View } from "../../application/merge"
 import type { Cursor } from "../payloads"
@@ -6,11 +5,11 @@ import type { Cursor } from "../payloads"
 export type Request = {
     frame: AssignmentApplication,
     view: View,
-    payloads: U32Buffer
+    initial_count: u64
 }
 
 export type Range = {
-    request: Request,
+    request: Request.Omit("initial_count"),
     start: u64,
     limit: u64
 }

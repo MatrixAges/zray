@@ -22,5 +22,14 @@
 
     <Call module="../../signatures/run" in={$in.signatures} />
 
-    <Call fn="host.publishFlowSignatures" in={$in.frame} />
+    <Call
+        fn="host.publishFlowSignatures"
+        in={[
+            $in.frame,
+            $ctx.run.bindings,
+            $ctx.run.tasks,
+            $ctx.run.inputs,
+            $ctx.run.outputs
+        ]}
+    />
 </Module>

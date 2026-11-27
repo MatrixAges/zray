@@ -3,13 +3,15 @@ import { Kind } from "core/type_table/model"
 import { Route } from "./model"
 
 import type { Candidate } from "../../../../zx/analysis/semantic/types/model"
-import type { Payload } from "./continuation"
 import type { Route as Construction } from "./model"
 
 export type Input = {
     route: Construction,
     child: u32,
-    payload: Payload
+    names: string[],
+    values: u32[],
+    used: u64,
+    count: u64
 }
 
 export type Output = Candidate
@@ -22,8 +24,19 @@ export default function (in: Input): Output {
         _ => Kind.Object
     }
 
-    const members = in.payload.members
     const empty: u32[] = []
+
+    const members = loop({
+        offset: 0,
+        items: empty
+    }, {
+        while: state => state.offset < in.count,
+        next: state => {
+            state.items = state.items.push(in.values[in.used + state.offset])[0]
+            state.offset += 1
+        },
+        return: state => state.items
+    })
 
     return {
         kind,
@@ -32,7 +45,7 @@ export default function (in: Input): Output {
         label: "",
         children: kind == Kind.Tuple ? members : empty,
         fields: {
-            names: in.payload.names,
+            names: in.names,
             types: kind == Kind.Object ? members : empty
         },
         names: []

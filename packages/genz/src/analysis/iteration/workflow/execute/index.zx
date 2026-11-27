@@ -5,6 +5,7 @@ export {
     openLoopParameterContext,
     releaseLoopPlanningScratch,
     emitLoopRenewals,
+    renameIterationParameters,
     maskLoopBorrowedFields,
     declareProjectedLoopState,
     publishLoopDeclarations,

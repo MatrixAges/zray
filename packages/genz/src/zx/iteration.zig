@@ -122,7 +122,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const parameters: Views = .{
         .condition = @backingInt(frame.iteration.condition_parameter),
         .step = @backingInt(frame.iteration.parameter),
-        .target = @ptrCast(&self.names),
+        .names = self.names,
         .state = &state_view,
         .stack = &stack_view,
     };

@@ -21,7 +21,6 @@ sequence_spans: []const zx.Span,
 length_spans: []const zx.Span,
 index_spans: []const zx.Span,
 position_spans: []const zx.Span,
-resolution: []bool,
 pub fn bindSequences(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const rows = graph.pending.sequences.slice();
 
@@ -81,7 +80,6 @@ pub fn bindIndexes(self: *Self, graph: *Graph, handle: *anyopaque) void {
     self.sequence_view = Target.borrow(@TypeOf(self.sequence_view), graph);
     self.index_spans = rows.items(.span);
     self.position_spans = rows.items(.index_span);
-    self.resolution = rows.items(.resolved);
 
     self.indexes = .{
         .frame = @ptrCast(handle),
@@ -93,8 +91,7 @@ pub fn bindIndexes(self: *Self, graph: *Graph, handle: *anyopaque) void {
         .values = @ptrCast(rows.items(.value)),
         .spans = @ptrCast(&self.index_spans),
         .index_spans = @ptrCast(&self.position_spans),
-        .resolved = self.resolution,
-        .resolution = @ptrCast(&self.resolution),
+        .resolved = rows.items(.resolved),
         .positions = rows.items(.position),
     };
 }

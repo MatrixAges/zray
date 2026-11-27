@@ -62,10 +62,6 @@ export declare function allocateFilledU32Buffer(
     value: u32
 ): void throws { OutOfMemory }
 
-export declare function swapU32Buffers(left: U32Buffer, right: U32Buffer): void
-
-export declare function releaseU32Buffer(resource: Allocator, target: U32Buffer): void
-
 export declare function allocateU64Buffer(
     resource: Allocator,
     target: U64Buffer,
@@ -83,12 +79,6 @@ export declare function clearU64Buffer(target: U64Buffer): void
 export declare function swapU64Buffers(left: U64Buffer, right: U64Buffer): void
 
 export declare function releaseU64Buffer(resource: Allocator, target: U64Buffer): void
-
-export declare function writeIndex(
-    target: IndexBuffer,
-    index: u64,
-    value: u64
-): void throws { IndexOutOfBounds }
 
 export declare function copyBytes(
     target: U8Buffer,

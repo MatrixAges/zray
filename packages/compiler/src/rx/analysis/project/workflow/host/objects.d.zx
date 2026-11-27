@@ -45,6 +45,14 @@ export declare function bindObjectSpreadFields(
     inferred: bool
 ): void
 
+export declare function commitObjectSpread(
+    frame: ObjectConstructionRow,
+    row: u64,
+    root: u32,
+    open: bool,
+    aliases: bool
+): void
+
 export declare function registerConstructedSource(
     frame: ObjectConstructionRow,
     index: u64,

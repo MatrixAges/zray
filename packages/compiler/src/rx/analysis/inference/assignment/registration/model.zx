@@ -1,5 +1,5 @@
 import type { State as KnownTypes } from "core/integer/map/model"
-import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
+import type { U32Buffer } from "memory"
 
 export type Endpoints = {
     parents: U32Buffer,
@@ -16,16 +16,12 @@ export type Pair = {
 export enum Action {
     Skip,
     Reserve,
-    Added,
+    Commit,
     Register,
     Overflow
 }
 
 export type Rows = {
-    left: U32Buffer,
-    right: U32Buffer,
-    keys: U64Buffer,
-    buckets: U32Buffer,
     position: u64,
     capacity: u64
 }
@@ -33,21 +29,15 @@ export type Rows = {
 export type Input = {
     endpoints: Endpoints,
     keys: u64[],
-    rows: Rows,
-    spans: Spans
+    buckets: u32[],
+    rows: Rows
 }
 
-export type Admission = Input.Pick("keys", "rows") & {
+export type Admission = {
+    keys: u64[],
+    rows: Rows,
     buckets: u32[],
     pair: Pair
-}
-
-export type Publication = {
-    pair: Pair,
-    rows: Rows,
-    slot: u64,
-    spans: Spans,
-    span_index: u64
 }
 
 export type Output = {
@@ -59,10 +49,8 @@ export type Decision = Output & {
     slot?: u64
 }
 
-export type Spans = {
-    source: u8[],
-    target: U8Buffer,
-    width: u64
+export type Outcome = Output & Pair & {
+    slot: u64
 }
 
 export type Series = Input.Omit("endpoints") & {
@@ -74,7 +62,7 @@ export type Series = Input.Omit("endpoints") & {
     next: u64
 }
 
-export type Progress = Output & {
+export type Progress = Outcome & {
     next: u64,
     position: u64
 }

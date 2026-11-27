@@ -1,7 +1,5 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import representative from "../../inference/forest/borrowed_root"
 import { Kind } from "../../inference/unification/model"
 import { Stage } from "./model"
 import publishTasks from "./task_types"
@@ -13,11 +11,13 @@ export type Input = Request
 export type Output = Progress
 
 export default function (in: Input): Output {
-    const { nodes, ports, target } = in
+    const { nodes, ports } = in
+
+    const unresolved: u32? = null
 
     const initial: Output = {
         ...in.cursor,
-        unresolved: null
+        unresolved
     }
 
     return loop(initial, {
@@ -36,13 +36,20 @@ export default function (in: Input): Output {
             }
 
             const value = match stage {
-                Stage.Bindings => memory.readU32(target.bindings, binding),
+                Stage.Bindings => ports.binding_values[binding],
                 Stage.Input => ports.inputs[module],
                 _ => ports.outputs[module]
             }
-            const root = representative({
-                parents: nodes.parents,
-                value
+            const root = loop({
+                value,
+                parent: nodes.parents[integers.widen(value)]
+            }, {
+                while: current => current.value != current.parent,
+                next: current => {
+                    current.value = current.parent
+                    current.parent = nodes.parents[integers.widen(current.parent)]
+                },
+                return: current => current.value
             })
             const row = integers.widen(root)
 
@@ -53,10 +60,10 @@ export default function (in: Input): Output {
 
                 switch (stage) {
                     case Stage.Bindings:
-                        memory.writeU32(target.bindings, binding, type_id)
+                        state.bindings = state.bindings.push(type_id)[0]
                         state.binding += 1
                     case Stage.Input:
-                        memory.writeU32(target.inputs, module, type_id)
+                        state.inputs = state.inputs.push(type_id)[0]
                         state.output = true
                     default:
                         const first = module == 0 ? 0 : ports.task_ends[module - 1]
@@ -66,16 +73,17 @@ export default function (in: Input): Output {
                             const ends = ports.binding_ends
                             const binding_first = module == 0 ? 0 : ends[module - 1]
 
-                            publishTasks({
-                                bindings: target.bindings,
-                                tasks: target.tasks,
+                            state.tasks = publishTasks({
+                                bindings: state.bindings,
+                                offsets: ports.task_offsets,
+                                tasks: state.tasks,
                                 first,
                                 end,
                                 binding_first
                             })
                         }
 
-                        memory.writeU32(target.outputs, module, type_id)
+                        state.outputs = state.outputs.push(type_id)[0]
                         state.module += 1
                         state.output = false
                 }

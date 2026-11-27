@@ -9,7 +9,6 @@ const Parts = std.meta.Child(@FieldType(Input, "parts"));
 const Activation = std.meta.Child(@FieldType(Input, "shape"));
 const Projection = std.meta.Child(@FieldType(Input, "projection"));
 const Scan = std.meta.Child(@FieldType(Projection, "scan"));
-const Buffers = std.meta.Child(@FieldType(Projection, "columns"));
 const Members = std.meta.Child(@FieldType(Projection, "members"));
 const Spread = struct { fields: []const []const u8, values: []const u32, root: u64, open: bool, aliases: bool };
 
@@ -17,12 +16,12 @@ pub const Frame = struct {
     graph: *Graph,
     object: Object,
     allocator: std.mem.Allocator,
+    spread: std.MultiArrayList(Spread) = .empty,
     parts: Parts,
     members: Members = undefined,
     shape: Activation = undefined,
     projection: Projection = undefined,
     scan: Scan = undefined,
-    buffers: Buffers = undefined,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -62,18 +61,9 @@ pub fn openConstructionRow(handle: *anyopaque, row: u64, root: u32, final: bool)
         .final = final,
     };
 
-    frame.buffers = .{
-        .fields = @ptrCast(&frame.parts.fields),
-        .values = @ptrCast(&frame.parts.values),
-        .roots = @ptrCast(&frame.parts.roots),
-        .open = @ptrCast(&frame.parts.open),
-        .aliases = @ptrCast(&frame.parts.aliases),
-    };
-
     frame.projection = .{
         .frame = @ptrCast(frame),
         .scan = &frame.scan,
-        .columns = &frame.buffers,
         .members = &frame.members,
         .readiness = &replay.context,
     };
@@ -90,11 +80,12 @@ pub fn openConstructionRow(handle: *anyopaque, row: u64, root: u32, final: bool)
 
 pub fn reserveObjectSpreadColumns(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
-    var spread: std.MultiArrayList(Spread) = .empty;
 
-    try spread.resize(frame.allocator, @intCast(frame.object.count));
+    frame.spread = .empty;
 
-    const columns = spread.slice();
+    try frame.spread.resize(frame.allocator, @intCast(frame.object.count));
+
+    const columns = frame.spread.slice();
 
     frame.parts.fields = columns.items(.fields);
     frame.parts.values = columns.items(.values);
@@ -109,6 +100,18 @@ pub fn bindObjectSpreadFields(handle: *anyopaque, root: u32, declared: bool, inf
     const source = View.readMode(frame.graph, @fromBackingInt(root), mode);
 
     frame.members = .{ .names = source.names, .values = source.values };
+}
+
+pub fn commitObjectSpread(handle: *anyopaque, row: u64, root: u32, open: bool, aliases: bool) void {
+    const frame = Frame.borrow(handle);
+    const index: usize = @intCast(row);
+    const columns = frame.spread.slice();
+
+    columns.items(.root)[index] = root;
+    columns.items(.open)[index] = open;
+    columns.items(.aliases)[index] = aliases;
+    columns.items(.fields)[index] = if (aliases) &.{} else frame.members.names;
+    columns.items(.values)[index] = if (aliases) &.{} else frame.members.values;
 }
 
 pub fn registerConstructedSource(handle: *anyopaque, index: u64, type_id: ?u32) zx.Error!u32 {

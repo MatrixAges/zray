@@ -210,6 +210,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSubtree(run, tracked[0], "rx/syntax/tree");
                 addSubtree(run, tracked[0], "rx/analysis/program/statements");
                 addSubtree(run, tracked[0], "rx/analysis/project/workflow");
+                addSubtree(run, tracked[0], "rx/analysis/project/signatures");
                 addSubtree(run, tracked[0], "rx/analysis/project/mixed");
                 addSubtree(run, tracked[0], "rx/analysis/project/source_graph");
                 addSubtree(run, tracked[0], "rx/dependency_graph");

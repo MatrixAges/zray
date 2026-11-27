@@ -58,4 +58,10 @@ export declare function releaseFlowPending(state: Solver): void
 
 export declare function bindFlowSignatures(state: Solver): void
 
-export declare function publishFlowSignatures(state: Solver): void
+export declare function publishFlowSignatures(
+    state: Solver,
+    bindings: u32[],
+    tasks: u32[],
+    inputs: u32[],
+    outputs: u32[]
+): void

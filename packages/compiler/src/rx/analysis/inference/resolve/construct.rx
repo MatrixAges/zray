@@ -22,8 +22,6 @@
         in={[
             $in.resolver.frame,
             $in.node,
-            $in.used,
-            $in.count,
             $in.route == Resolve.Route.Object
         ]}
     />
@@ -33,7 +31,10 @@
         in={{
             route: $in.route,
             child: $in.completed ?? 0,
-            payload: $in.resolver.payload
+            names: $in.resolver.payload.names,
+            values: $in.values,
+            used: $in.used,
+            count: $in.count
         }}
     />
 

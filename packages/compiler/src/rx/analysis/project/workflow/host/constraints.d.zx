@@ -8,6 +8,8 @@ export declare function refreshSolverLengths(state: ConstraintRound): void
 
 export declare function refreshSolverIndexes(state: ConstraintRound): void
 
+export declare function markSolverIndexResolved(state: ConstraintRound, row: u64): void
+
 export declare function refreshSolverSequences(state: ConstraintRound): void
 
 export declare function refreshSolverValidation(state: ConstraintRound): void
@@ -16,11 +18,7 @@ export declare function refreshSolverObjects(state: ConstraintRound): void
 
 export declare function refreshSolverAssignments(frame: ConstraintRound): void
 
-export declare function reserveResolveFrames(frame: TypeResolver, used: u64, added: u64): u64
-    throws { OutOfMemory }
-
-export declare function reserveResolveValues(frame: TypeResolver, used: u64, added: u64): u64
-    throws { OutOfMemory }
+export declare function recordResolveType(frame: TypeResolver, node: u32, type_id: u32): void
 
 export declare function reportResolveFailure(
     frame: TypeResolver,
@@ -32,8 +30,6 @@ export declare function reportResolveFailure(
 export declare function prepareResolveConstruction(
     frame: TypeResolver,
     node: u32,
-    first: u64,
-    count: u64,
     object: bool
 ): void
 
@@ -61,18 +57,7 @@ export declare function refreshAssignmentTypes(frame: ConstraintRound): void
 
 export declare function assignmentRevision(frame: AssignmentApplication): u64
 
-export declare function reserveAssignmentClasses(frame: AssignmentApplication): void
-    throws { OutOfMemory }
-
-export declare function releaseAssignmentRanks(frame: AssignmentApplication): void
-
-export declare function reserveAssignmentDepths(frame: AssignmentApplication): u64[]
-    throws { OutOfMemory }
-
-export declare function reserveDeferredAssignments(
-    frame: AssignmentApplication,
-    words: u64
-): u64[] throws { OutOfMemory }
+export declare function assignmentNodeCount(frame: AssignmentApplication): u64
 
 export declare function reserveAssignmentOptional(
     frame: AssignmentApplication,
@@ -80,14 +65,6 @@ export declare function reserveAssignmentOptional(
     payload: u32,
     layers: u64
 ): u32 throws { OutOfMemory, InvalidSource }
-
-export declare function beginInitialAssignmentPayloads(frame: AssignmentApplication): u64
-    throws { OutOfMemory }
-
-export declare function beginRegisteredAssignmentPayloads(
-    frame: AssignmentApplication,
-    first: u64
-): u64 throws { OutOfMemory }
 
 export declare function registerAssignmentPayload(
     frame: AssignmentApplication,

@@ -9,7 +9,6 @@ export type U64View = opaque
 export type StringViews = opaque
 
 export type U64Buffer = mutable_opaque
-export type IndexBuffer = mutable_opaque
 export type U8Storage = mutable_opaque
 export type U32Storage = mutable_opaque
 export type U64Storage = mutable_opaque

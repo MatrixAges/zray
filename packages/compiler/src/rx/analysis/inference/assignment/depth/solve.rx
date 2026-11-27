@@ -6,7 +6,7 @@
     <Call
         fn="normalize"
         in={{
-            assignments: $in.write,
+            assignments: $in.assignments,
             parents: $in.parents
         }}
     />
@@ -19,20 +19,15 @@
         }}
     />
 
-    <If on={$ctx.normalize == 0 && $ctx.edges.left.length == 0}>
-        <Call
-            fn="lower"
-            in={{
-                graph: $in.graph,
-                lower: $in.lower
-            }}
-        />
+    <If on={$ctx.normalize.left.length == 0 && $ctx.edges.left.length == 0}>
+        <Call fn="lower" in={$in.graph} />
 
         <Return
             value={{
                 issue: OptionalDepth.Issue.None,
                 position: 0,
-                node: null
+                node: null,
+                depths: $ctx.lower
             }}
         />
     </If>
@@ -41,9 +36,8 @@
         fn="settle"
         in={{
             graph: $in.graph,
-            assignments: $in.assignments,
-            optionals: $ctx.edges,
-            lower: $in.lower
+            assignments: $ctx.normalize,
+            optionals: $ctx.edges
         }}
     />
 
@@ -51,13 +45,13 @@
         on={$ctx.settle.issue == OptionalDepth.Issue.Bounds ||
             $ctx.settle.issue == OptionalDepth.Issue.OptionalToRequired}
     >
-        <If on={$ctx.settle.position >= $ctx.normalize}>
+        <If on={$ctx.settle.position >= $ctx.normalize.left.length}>
             <Return
                 value={{
                     ...$ctx.settle,
                     node:
                         $ctx.edges
-                        .right[$ctx.settle.position - $ctx.normalize]
+                        .right[$ctx.settle.position - $ctx.normalize.left.length]
                 }}
             />
         </If>

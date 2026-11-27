@@ -1,24 +1,52 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import representative from "../../forest/borrowed_root"
 import { unsigned_word_bits } from "./const"
 
-import type { U32Buffer, U64Buffer } from "memory"
+import type { U32Buffer } from "memory"
 
 export type Input = {
     parents: U32Buffer,
     values: u32[],
     resolved: bool[],
-    words: U64Buffer,
-    first: u64
+    nodes: u64
 }
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const scanned = loop({
-        row: in.first
+    const resolved = in.resolved
+
+    const first = loop(0, {
+        while: row => row < resolved.length && resolved[row],
+        next: row => {
+            row += 1
+        },
+        return: row => row
+    })
+
+    if (first == resolved.length) {
+        return []
+    }
+
+    const whole_words = in.nodes / unsigned_word_bits
+    const partial_word = in.nodes % unsigned_word_bits != 0
+    const word_count = partial_word ? whole_words + 1 : whole_words
+    const zero: u64 = 0
+
+    const empty_words: u64[] = []
+
+    const initial_words = loop(empty_words, {
+        while: words => words.length < word_count,
+        next: words => {
+            words = words.push(zero)[0]
+        },
+        return: words => words
+    })
+
+    return loop({
+        row: first,
+        words: initial_words
     }, {
         while: state => state.row < in.values.length,
         next: state => {
@@ -33,12 +61,12 @@ export default function (in: Input): Output {
                 const word = index / unsigned_word_bits
                 const position = index % unsigned_word_bits
                 const mask = integers.bitMask(position)
-                const marked = integers.orBits(memory.readU64(in.words, word), mask)
 
-                memory.writeU64(in.words, word, marked)
+                state.words[word] = integers.orBits(state.words[word], mask)
             }
 
             state.row += 1
-        }
+        },
+        return: state => state.words
     })
 }

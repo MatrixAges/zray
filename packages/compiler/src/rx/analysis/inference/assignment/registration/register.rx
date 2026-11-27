@@ -1,16 +1,17 @@
 <Module>
     <Type from="model" as="Registration" />
 
-    <Args in={Registration.Input} out={Registration.Output} />
+    <Args in={Registration.Input} out={Registration.Outcome} />
 
     <Call fn="endpoints" in={$in.endpoints} />
-    <Call fn="host.u32Views" in={$in.rows.buckets} />
 
     <If on={$ctx.endpoints.left == $ctx.endpoints.right}>
         <Return
             value={{
                 action: Registration.Action.Skip,
-                capacity: $ctx.u32Views.length
+                capacity: $in.buckets.length,
+                ...$ctx.endpoints,
+                slot: 0
             }}
         />
     </If>
@@ -19,29 +20,20 @@
         fn="admit"
         in={{
             keys: $in.keys,
-            buckets: $ctx.u32Views,
+            buckets: $in.buckets,
             pair: $ctx.endpoints,
             rows: $in.rows
         }}
     />
 
-    <If on={$ctx.admit.slot != null}>
-        <Call
-            fn="publish"
-            in={{
-                pair: $ctx.endpoints,
-                rows: $in.rows,
-                slot: $ctx.admit.slot ?? 0,
-                spans: $in.spans,
-                span_index: 0
-            }}
-        />
-    </If>
-
     <Return
-        value={$ctx.admit.pick([
-            "action",
-            "capacity"
-        ])}
+        value={{
+            ...$ctx.admit.pick([
+                "action",
+                "capacity"
+            ]),
+            ...$ctx.endpoints,
+            slot: $ctx.admit.slot ?? 0
+        }}
     />
 </Module>

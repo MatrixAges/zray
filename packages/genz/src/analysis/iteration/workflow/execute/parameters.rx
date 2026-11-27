@@ -72,13 +72,19 @@
 
     <Call
         fn="../../parameters/capture"
-        in={{
-            ...$in.parameters.omit([
-                "state",
-                "stack"
-            ]),
-            name: $in.name
-        }}
+        in={$in.parameters.pick([
+            "names",
+            "condition",
+            "step"
+        ])}
+    />
+
+    <Call
+        fn="index.renameIterationParameters"
+        in={[
+            $in.loop_frame,
+            $in.name
+        ]}
     />
 
     <Call

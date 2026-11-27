@@ -2,16 +2,11 @@
     <Type from="../../assignment/application/round" as="Assignments" />
     <Type from="model" as="Sequences" />
 
-    <Args in={Assignments.Request} out={bool} />
+    <Args in={Assignments.Execution} out={bool} />
 
     <If on={$in.sequences.sequence.values.length == 0}>
         <Return value={false} />
     </If>
-
-    <Call
-        fn="../../assignment/classes/payload_columns"
-        in={$in.payloads.omit(["active"])}
-    />
 
     <Call
         module="choose"
@@ -23,11 +18,8 @@
                 members: $in.sequences.members
             },
             classes: {
-                ...$ctx.payload_columns,
-                ...$in.classes.pick([
-                    "groups",
-                    "representatives"
-                ])
+                ...$in.payloads,
+                ...$in.classes
             },
             sequences: $in.sequences.sequence
         }}
@@ -54,7 +46,16 @@
             <Call
                 fn="reject"
                 in={{
-                    request: $in,
+                    request: $in.pick([
+                        "frame",
+                        "owner",
+                        "view",
+                        "nodes",
+                        "rows",
+                        "sequences",
+                        "indexes",
+                        "node_spans"
+                    ]),
                     plan: $ctx.choose
                 }}
             />

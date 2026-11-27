@@ -1,4 +1,4 @@
 import type { Request } from "../application/round"
 
 export type Input =
-    Request.Pick("frame", "view", "nodes", "classes", "rows", "payloads")
+    Request.Pick("frame", "view", "nodes", "rows")

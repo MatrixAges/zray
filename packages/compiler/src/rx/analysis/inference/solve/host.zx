@@ -4,6 +4,7 @@ export {
     refreshSolverNonNull,
     refreshSolverLengths,
     refreshSolverIndexes,
+    markSolverIndexResolved,
     refreshSolverSequences,
     refreshSolverObjects,
     refreshSolverAssignments,

@@ -1,14 +1,11 @@
 import host from "lowering_host"
 
-import rename from "../../parameters/rename"
-
 import type { Evaluate as Input } from "./model"
 
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const { frame, parameters, name, seed_name } = in
-    const { target, condition, step } = parameters
+    const { frame, loop_frame, name, seed_name } = in
 
     const first = in.schedule.first_test
 
@@ -16,23 +13,11 @@ export default function (in: Input): Output {
         return null
     }
 
-    rename({
-        target,
-        condition,
-        step,
-        condition_name: seed_name,
-        step_name: seed_name
-    })
+    host.renameIterationParameters(loop_frame, seed_name)
 
     const value = host.lowerExpression(frame, first, false, null)
 
-    rename({
-        target,
-        condition,
-        step,
-        condition_name: name,
-        step_name: name
-    })
+    host.renameIterationParameters(loop_frame, name)
 
     return value
 }

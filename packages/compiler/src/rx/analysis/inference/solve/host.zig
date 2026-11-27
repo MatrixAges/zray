@@ -90,6 +90,10 @@ pub fn refreshSolverIndexes(handle: *anyopaque) void {
     frame.projections.bindIndexes(frame.graph, handle);
 }
 
+pub fn markSolverIndexResolved(handle: *anyopaque, row: u64) void {
+    Frame.borrow(handle).graph.pending.indexes.items(.resolved)[@intCast(row)] = true;
+}
+
 pub fn refreshSolverSequences(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 

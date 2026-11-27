@@ -1,18 +1,9 @@
-import type { U64Buffer } from "memory"
 import type { AssignmentApplication } from "rx_project_host"
 import type { Materialization } from "../model"
 
-export type Indexes = {
-    values: u32[],
-    resolved: bool[],
-    words: U64Buffer,
-    first: u64
-}
-
 export type Request = {
     frame: AssignmentApplication,
-    views: Materialization.Omit("next"),
-    indexes: Indexes
+    views: Materialization.Omit("next")
 }
 
 export type Iteration = {

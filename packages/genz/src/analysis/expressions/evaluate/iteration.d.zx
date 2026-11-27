@@ -11,6 +11,8 @@ export declare function addLoopParameterMembers(
 
 export declare function openLoopParameterContext(frame: LoopFrame): void
 
+export declare function renameIterationParameters(frame: LoopFrame, name: u8[]): void
+
 export declare function releaseLoopPlanningScratch(frame: LoopFrame): void
 
 export declare function enterLoopUpdate(

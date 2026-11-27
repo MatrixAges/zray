@@ -1,4 +1,4 @@
-import type { U32Buffer, U64Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type { Types } from "../../optional/model"
 import type { Edges, Nodes } from "../model"
 
@@ -27,28 +27,17 @@ export type Graph = {
 export type Problem = {
     graph: Graph,
     assignments: Edges,
-    optionals: Edges,
-    lower: Bounds
+    optionals: Edges
 }
 
 export type Solution = {
     issue: Issue,
-    position: u64
-}
-
-export type Bounds = {
-    values: u64[],
-    output: U64Buffer
-}
-
-export type AssignmentRows = {
-    left: U32Buffer,
-    right: U32Buffer,
-    count: u64
+    position: u64,
+    depths: u64[]
 }
 
 export type Normalization = {
-    assignments: AssignmentRows,
+    assignments: Edges,
     parents: U32Buffer
 }
 
@@ -60,9 +49,7 @@ export type OptionalRoots = {
 export type Input = {
     graph: Graph,
     assignments: Edges,
-    write: AssignmentRows,
-    parents: U32Buffer,
-    lower: Bounds
+    parents: U32Buffer
 }
 
 export type Output = Solution & {

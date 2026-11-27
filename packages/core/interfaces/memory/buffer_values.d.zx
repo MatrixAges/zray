@@ -52,12 +52,6 @@ export declare function initializeU32ListSlot(
     shape: U32Buffer?
 ): U32Buffer throws { IndexOutOfBounds }
 
-export declare function writeU8List(
-    target: U8ListBuffer,
-    index: u64,
-    value: u8[]
-): void throws { IndexOutOfBounds }
-
 export declare function writeU32List(
     target: U32ListBuffer,
     index: u64,

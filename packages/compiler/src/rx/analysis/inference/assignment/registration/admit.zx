@@ -61,7 +61,7 @@ export default function (in: Input): Output {
     }
 
     return {
-        action: Action.Added,
+        action: Action.Commit,
         capacity,
         slot
     }

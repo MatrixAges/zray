@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Payload" />
 
-    <Args in={Payload.Range} out={void} />
+    <Args in={Payload.Range} out={u32[]} />
 
     <Loop on={$in.next < $in.range.limit}>
         <Call
@@ -10,8 +10,11 @@
                 range: $in,
                 next: $in.start,
                 source: null,
-                remaining: null
+                remaining: null,
+                values: []
             }}
         />
     </Loop>
+
+    <Return value={$ctx.advance.values} />
 </Module>

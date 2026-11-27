@@ -1,28 +1,16 @@
-import type { Allocator, IndexBuffer, U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type { AssignmentRegistration } from "rx_project_host"
-import type { Endpoints, Rows, Series, Spans } from "./model"
-
-export type Destination = Rows.Omit("position")
-
-export type Visibility = {
-    length: IndexBuffer,
-    revision: U64Buffer
-}
+import type { Endpoints, Series } from "./model"
 
 export type Storage = {
     keys: u64[],
-    rows: Destination,
-    spans: U8Buffer,
-    allocator: Allocator,
-    replacement: U32Buffer,
-    visibility: Visibility
+    buckets: u32[],
+    capacity: u64
 }
 
 export type Request = {
     frame: AssignmentRegistration,
     storage: Storage,
-    position: u64,
-    source: Spans.Pick("source", "width")
+    position: u64
 }
 
 export type Single = Request & {
@@ -41,8 +29,4 @@ export type BatchCursor = {
     request: Batch,
     next: u64,
     position: u64
-}
-
-export type Reservation = Request.Pick("frame", "storage", "position") & {
-    capacity: u64
 }

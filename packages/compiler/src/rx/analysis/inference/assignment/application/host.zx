@@ -1,9 +1,6 @@
 export {
     assignmentRevision,
-    reserveAssignmentClasses,
-    releaseAssignmentRanks,
-    reserveAssignmentDepths,
-    reserveDeferredAssignments,
+    assignmentNodeCount,
     reserveAssignmentOptional,
     registerAssignmentPayload,
     remainingAssignmentDepth,

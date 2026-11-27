@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Signatures" />
 
-    <Args in={Signatures.Request} out={void} />
+    <Args in={Signatures.Request} out={Signatures.Result} />
 
     <Loop on={$in.module < $in.request.columns.ports.inputs.length}>
         <Call
@@ -10,8 +10,21 @@
                 request: $in,
                 module: 0,
                 binding: 0,
-                output: false
+                output: false,
+                bindings: [],
+                tasks: [],
+                inputs: [],
+                outputs: []
             }}
         />
     </Loop>
+
+    <Return
+        value={$ctx.advance.pick([
+            "bindings",
+            "tasks",
+            "inputs",
+            "outputs"
+        ])}
+    />
 </Module>

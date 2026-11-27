@@ -19,17 +19,10 @@ const empty_table = zx.ir.TypeTable.borrow(Table, .{});
 pub const Frame = struct {
     graph: *Graph = undefined,
     rows: Nodes.Storage.Slice = undefined,
-    workspace: *Workspace = undefined,
     scope: *zx.memory.ArenaScope = undefined,
     scratch: Scratch = .{},
-    frames: []u64 = undefined,
-    values: []u32 = undefined,
     parents: []u32 = undefined,
-    kind_bytes: []u8 = undefined,
-    arguments: []u32 = undefined,
-    revision: []u64 = undefined,
     graph_view: View = undefined,
-    publication: std.meta.Child(@FieldType(Session, "publication")) = undefined,
     view: Session = undefined,
     tables: Tables = undefined,
     base: Table = undefined,
@@ -42,36 +35,23 @@ pub const Frame = struct {
     row_first: u32 = undefined,
     row_second: u32 = undefined,
     row_label: []const u8 = undefined,
-    pub fn bind(self: *Frame, graph: *Graph, workspace: *Workspace, scope: *zx.memory.ArenaScope) void {
+    pub fn bind(self: *Frame, graph: *Graph, _: *Workspace, scope: *zx.memory.ArenaScope) void {
         const rows = graph.nodes.slice();
         const kinds: []const Nodes.Kind = rows.items(.kind);
 
         self.graph = graph;
         self.rows = rows;
-        self.workspace = workspace;
         self.scope = scope;
         self.parents = graph.parents();
-        self.kind_bytes = std.mem.sliceAsBytes(rows.items(.kind));
-        self.arguments = rows.items(.argument);
-        self.revision = (&graph.object_revision)[0..1];
-        self.frames = if (workspace.extra_frames.capacity == 0) &workspace.local_frames else workspace.extra_frames.allocatedSlice();
-        self.values = if (workspace.extra_values.capacity == 0) &workspace.local_values else workspace.extra_values.allocatedSlice();
 
         comptime std.debug.assert(@sizeOf(Nodes.Kind) == @sizeOf(u8));
 
         self.graph_view = .{
             .kinds = zx.columns.slice(@FieldType(View, "kinds"), kinds),
-            .arguments = self.arguments,
+            .arguments = rows.items(.argument),
             .members = rows.items(.members),
             .allowed = rows.items(.allowed),
             .fallback = rows.items(.fallback),
-        };
-
-        self.publication = .{
-            .kinds = @ptrCast(&self.kind_bytes),
-            .arguments = @ptrCast(&self.arguments),
-            .revision = @ptrCast(&self.revision),
-            .known_kind = @backingInt(Nodes.Kind.Known),
         };
 
         self.tables = .{ .base = &self.base, .delta = &empty_table };
@@ -79,12 +59,7 @@ pub const Frame = struct {
         self.view = .{
             .frame = @ptrCast(self),
             .graph = &self.graph_view,
-            .publication = &self.publication,
             .parents = @ptrCast(&self.parents),
-            .frames = @ptrCast(&self.frames),
-            .values = @ptrCast(&self.values),
-            .frame_capacity = self.frames.len,
-            .value_capacity = self.values.len,
             .tables = &self.tables,
             .payload = &self.payload,
             .write = &self.write,
@@ -100,36 +75,14 @@ pub const Frame = struct {
     }
 };
 
-pub fn reserveResolveFrames(handle: *anyopaque, used: u64, added: u64) std.mem.Allocator.Error!u64 {
+pub fn recordResolveType(handle: *anyopaque, node: u32, type_id: u32) void {
     const frame = Frame.borrow(handle);
+    const graph = frame.graph;
 
-    frame.frames = try grow(u64, frame.graph.scratch, &frame.workspace.extra_frames, frame.frames, @intCast(used), @intCast(added));
-    frame.view.frame_capacity = frame.frames.len;
+    frame.rows.items(.argument)[node] = type_id;
+    frame.rows.items(.kind)[node] = .Known;
 
-    return frame.view.frame_capacity;
-}
-
-pub fn reserveResolveValues(handle: *anyopaque, used: u64, added: u64) std.mem.Allocator.Error!u64 {
-    const frame = Frame.borrow(handle);
-
-    frame.values = try grow(u32, frame.graph.scratch, &frame.workspace.extra_values, frame.values, @intCast(used), @intCast(added));
-    frame.view.value_capacity = frame.values.len;
-
-    return frame.view.value_capacity;
-}
-
-fn grow(comptime T: type, allocator: std.mem.Allocator, storage: *std.ArrayList(T), previous: []const T, used: usize, added: usize) std.mem.Allocator.Error![]T {
-    if (storage.capacity == 0) {
-        try storage.ensureTotalCapacity(allocator, used + added);
-
-        storage.appendSliceAssumeCapacity(previous[0..used]);
-    } else {
-        storage.items.len = used;
-
-        try storage.ensureUnusedCapacity(allocator, added);
-    }
-
-    return storage.allocatedSlice();
+    graph.object_revision += 1;
 }
 
 pub fn reportResolveFailure(handle: *anyopaque, node: u32, code: []const u8, message: []const u8) zx.Error!void {
@@ -139,12 +92,12 @@ pub fn reportResolveFailure(handle: *anyopaque, node: u32, code: []const u8, mes
     return frame.graph.reporter.fail(tag, frame.rows.items(.span)[node], message);
 }
 
-pub fn prepareResolveConstruction(handle: *anyopaque, node: u32, first: u64, count: u64, object: bool) void {
+pub fn prepareResolveConstruction(handle: *anyopaque, node: u32, object: bool) void {
     const frame = Frame.borrow(handle);
     const names = if (object) Graph.Fields.viewFromValues(@ptrCast(frame.rows.items(.members)[node])).names() else &.{};
 
     frame.base = zx.ir.TypeTable.borrow(Table, frame.graph.types.items.view());
-    frame.payload = .{ .members = frame.values[@intCast(first)..][0..@intCast(count)], .names = names };
+    frame.payload = .{ .names = names };
     _ = frame.scratch.open(frame.scope, frame.graph.scratch);
 }
 

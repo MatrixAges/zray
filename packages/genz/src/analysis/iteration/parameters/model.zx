@@ -1,5 +1,5 @@
 import type { LoopParameterLayout } from "lowering_host"
-import type { U32Buffer, U8ListBuffer } from "memory"
+import type { U32Buffer } from "memory"
 
 export type Layout = LoopParameterLayout
 
@@ -20,7 +20,7 @@ export type Input = Slots & {
 }
 
 export type View = Input.Omit("layout") & {
-    target: U8ListBuffer
+    names: u8[][]
 }
 
 export type Captured = {
@@ -45,17 +45,6 @@ export type Output = {
     remove_stack_condition: bool,
     remove_stack_step: bool
 }
-
-export type Names = {
-    condition_name: u8[],
-    step_name: u8[]
-}
-
-export type Target = Slots & {
-    target: U8ListBuffer
-}
-
-export type Rename = Target & Names
 
 export type RemovalFlags = Output.Pick(
     "remove_state_condition",

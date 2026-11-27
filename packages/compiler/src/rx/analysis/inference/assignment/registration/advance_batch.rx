@@ -10,50 +10,68 @@
             ...$in.request.omit([
                 "frame",
                 "storage",
-                "position",
-                "source"
+                "position"
             ]),
             keys: $in.request.storage.keys,
+            buckets: $in.request.storage.buckets,
             rows: {
-                ...$in.request.storage.rows,
-                position: $in.position
-            },
-            spans: {
-                ...$in.request.source,
-                target: $in.request.storage.spans
+                position: $in.position,
+                capacity: $in.request.storage.capacity
             },
             next: $in.next
         }}
     />
 
-    <If on={$ctx.series.position != $in.position}>
-        <Call
-            fn="publish_prefix"
-            in={{
-                ...$in.request.storage.visibility,
-                first: $in.position,
-                end: $ctx.series.position
-            }}
-        />
-    </If>
-
     <Switch on={$ctx.series.action}>
+        <Case value={Actions.Action.Commit}>
+            <Call
+                fn="host.commitAssignment"
+                in={[
+                    $in.request.frame,
+                    $ctx.series.left,
+                    $ctx.series.right,
+                    $ctx.series.key,
+                    $ctx.series.slot,
+                    $ctx.series.next
+                ]}
+            />
+
+            <Return
+                value={{
+                    request: $in.request,
+                    next: $ctx.series.next + 1,
+                    position: $ctx.series.position + 1
+                }}
+            />
+        </Case>
+
         <Case value={Actions.Action.Overflow}>
             <Call fn="host.requireAllocation" in={false} />
         </Case>
 
         <Case value={Actions.Action.Reserve}>
-            <Call
-                module="reserve"
-                in={{
-                    ...$in.request.pick([
-                        "frame",
-                        "storage"
-                    ]),
-                    position: $ctx.series.position,
-                    capacity: $ctx.series.capacity
-                }}
-            />
+            <If on={$ctx.series.position == $in.request.storage.capacity}>
+                <Call fn="host.growAssignmentRows" in={$in.request.frame} />
+            </If>
+
+            <If on={$ctx.series.capacity > $in.request.storage.buckets.length}>
+                <Call
+                    fn="rebuild"
+                    in={{
+                        keys: $in.request.storage.keys,
+                        count: $ctx.series.position,
+                        capacity: $ctx.series.capacity
+                    }}
+                />
+
+                <Call
+                    fn="host.replaceAssignmentIndex"
+                    in={[
+                        $in.request.frame,
+                        $ctx.rebuild
+                    ]}
+                />
+            </If>
         </Case>
 
         <Case value={Actions.Action.Register}>

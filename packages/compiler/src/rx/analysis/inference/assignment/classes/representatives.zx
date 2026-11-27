@@ -1,28 +1,39 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { Kind } from "../../unification/model"
 
-import type { OptionalU32Buffer } from "memory"
 import type { Nodes, Payloads } from "../model"
 
 export type Input = {
     parents: u32[],
     payloads: Payloads,
-    nodes: Nodes,
-    target: OptionalU32Buffer
+    nodes: Nodes
 }
 
-export type Output = void
+export type Output = u32?[]
 
 export default function (in: Input): Output {
     const parents = in.parents
     const initial = in.payloads.initial
     const registered = in.payloads.registered
+    const absent: u32? = null
+    const empty: u32?[] = []
 
-    const published = loop(0, {
-        while: position => position < parents.length,
-        next: position => {
+    const representatives = loop(empty, {
+        while: items => items.length < parents.length,
+        next: items => {
+            items = items.push(absent)[0]
+        },
+        return: items => items
+    })
+
+    return loop({
+        position: 0,
+        representatives
+    }, {
+        while: state => state.position < parents.length,
+        next: state => {
+            const position = state.position
             const payload = match {
                 position < initial.length => initial[position],
                 _ => registered[position - initial.length]
@@ -35,14 +46,11 @@ export default function (in: Input): Output {
             ) {
                 const parent = parents[index]
 
-                memory.writeOptionalU32(
-                    in.target,
-                    integers.widen(parent),
-                    payload
-                )
+                state.representatives[integers.widen(parent)] = payload
             }
 
-            position += 1
-        }
+            state.position += 1
+        },
+        return: state => state.representatives
     })
 }

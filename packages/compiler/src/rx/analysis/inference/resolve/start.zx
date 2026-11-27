@@ -26,10 +26,13 @@ export default function (in: Input): Output {
         _ => null
     }
 
+    const frames: u64[] = []
+    const values: u32[] = []
+
     return {
         resolver,
-        frame_capacity: resolver.frame_capacity,
-        value_capacity: resolver.value_capacity,
+        frames,
+        values,
         depth: 0,
         used: 0,
         count: 0,

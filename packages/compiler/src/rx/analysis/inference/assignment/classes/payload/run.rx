@@ -1,33 +1,35 @@
 <Module>
+    <Type from="../../model" as="Assignment" />
     <Type from="model" as="Payload" />
 
-    <Args in={Payload.Request} out={void} />
+    <Args in={Payload.Request} out={Assignment.Payloads} />
 
-    <Call fn="host.beginInitialAssignmentPayloads" in={$in.frame} />
+    <Task name="initial" out={$ctx.range}>
+        <Call
+            module="range"
+            in={{
+                request: $in.omit(["initial_count"]),
+                start: 0,
+                limit: $in.initial_count
+            }}
+        />
+    </Task>
+
+    <Call fn="host.assignmentNodeCount" in={$in.frame} />
 
     <Call
         module="range"
         in={{
-            request: $in,
-            start: 0,
-            limit: $ctx.beginInitialAssignmentPayloads
+            request: $in.omit(["initial_count"]),
+            start: $in.initial_count,
+            limit: $ctx.assignmentNodeCount
         }}
     />
 
-    <Call
-        fn="host.beginRegisteredAssignmentPayloads"
-        in={[
-            $in.frame,
-            $ctx.beginInitialAssignmentPayloads
-        ]}
-    />
-
-    <Call
-        module="range"
-        in={{
-            request: $in,
-            start: $ctx.beginInitialAssignmentPayloads,
-            limit: $ctx.beginRegisteredAssignmentPayloads
+    <Return
+        value={{
+            initial: $ctx.task.initial,
+            registered: $ctx.range
         }}
     />
 </Module>

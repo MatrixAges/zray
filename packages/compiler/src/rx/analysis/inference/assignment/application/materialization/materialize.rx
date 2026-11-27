@@ -2,10 +2,9 @@
     <Type from="../round" as="Assignments" />
     <Type from="../../depth/model" as="Depth" />
 
-    <Args in={Assignments.Request} out={bool} />
+    <Args in={Assignments.Execution} out={bool} />
 
     <Call fn="../host.assignmentRevision" in={$in.frame} />
-    <Call fn="../host.reserveAssignmentDepths" in={$in.frame} />
 
     <Call
         module="../../depth/solve"
@@ -16,12 +15,7 @@
                 types: $in.view.graph.types
             },
             assignments: $in.rows.edges,
-            write: $in.rows.write,
-            parents: $in.view.parents,
-            lower: {
-                values: $ctx.reserveAssignmentDepths,
-                output: $in.bounds.depths
-            }
+            parents: $in.view.parents
         }}
     />
 
@@ -39,19 +33,13 @@
     </If>
 
     <Call
-        fn="../deferred_plan"
+        fn="../deferred"
         in={{
+            parents: $in.view.parents,
+            values: $in.indexes.values,
             resolved: $in.indexes.resolved,
             nodes: $in.nodes.kinds.length
         }}
-    />
-
-    <Call
-        fn="../host.reserveDeferredAssignments"
-        in={[
-            $in.frame,
-            $ctx.deferred_plan.words
-        ]}
     />
 
     <Call
@@ -60,18 +48,10 @@
             frame: $in.frame,
             views: {
                 nodes: $in.nodes,
-                depths: $ctx.reserveAssignmentDepths,
-                deferred: $ctx.reserveDeferredAssignments,
-                classes: $in.classes.pick([
-                    "groups",
-                    "representatives"
-                ]),
+                depths: $ctx.solve.depths,
+                deferred: $ctx.deferred,
+                classes: $in.classes,
                 parents: $in.view.parents
-            },
-            indexes: {
-                ...$in.indexes,
-                words: $in.bounds.deferred,
-                first: $ctx.deferred_plan.first
             }
         }}
     />

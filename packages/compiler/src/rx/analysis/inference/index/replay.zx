@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import { scalar_u8 } from "core/type_table/const"
-import memory from "memory"
 
 import representative from "../forest/borrowed_root"
 import knownNode from "../known/find"
@@ -8,6 +7,7 @@ import index from "../sequences/index_plan"
 import { IndexRoute } from "../sequences/model"
 import target from "../sequences/target"
 import { Kind } from "../unification/model"
+import { Action } from "./model"
 
 import type { IndexPlan } from "../sequences/model"
 import type { Input, Output } from "./model"
@@ -23,11 +23,12 @@ export default function (in: Input): Output {
 
     return loop({
         row: in.start,
-        found: false,
+        action: Action.Done,
         plan: empty,
         node
     }, {
-        while: state => !state.found && state.row < in.targets.length,
+        while: state =>
+            state.action == Action.Done && state.row < in.targets.length,
         next: state => {
             const row = state.row
 
@@ -75,16 +76,16 @@ export default function (in: Input): Output {
                     })
 
                     if (same) {
-                        memory.writeBool(in.resolution, row, true)
+                        state.action = Action.Resolved
                     } else if (plan.route != IndexRoute.Wait) {
                         state.plan = plan
                         state.node = node
-                        state.found = true
+                        state.action = Action.Apply
                     }
                 }
             }
 
-            if (!state.found) {
+            if (state.action == Action.Done) {
                 state.row += 1
             }
         },

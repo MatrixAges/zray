@@ -1,5 +1,6 @@
 <Module>
     <Type from="workflow" as="Indexes" />
+    <Type from="model" as="Model" />
 
     <Args in={Indexes.Cursor} out={Indexes.Cursor} />
 
@@ -16,42 +17,57 @@
         }}
     />
 
-    <If on={!$ctx.replay.found}>
-        <Return
-            value={{
-                ...$in,
-                row: $in.request.targets.length
-            }}
-        />
-    </If>
+    <Switch on={$ctx.replay.action}>
+        <Case value={Model.Action.Done}>
+            <Return
+                value={{
+                    ...$in,
+                    row: $in.request.targets.length
+                }}
+            />
+        </Case>
 
-    <Call
-        module="apply"
-        in={{
-            site: {
-                graph: $in.request.owner,
-                spans: $in.request.spans,
-                row: $ctx.replay.row
-            },
-            index_spans: $in.request.index_spans,
-            value: $in.request.values[$ctx.replay.row],
-            route: $ctx.replay.plan.route,
-            child: $ctx.replay.plan.child,
-            declared: $ctx.replay.plan.declared,
-            node: $ctx.replay.node
-        }}
-    />
+        <Case value={Model.Action.Resolved}>
+            <Call
+                fn="../solve/host.markSolverIndexResolved"
+                in={[
+                    $in.request.frame,
+                    $ctx.replay.row
+                ]}
+            />
+        </Case>
 
-    <Call
-        fn="../projections/host.writeBool"
-        in={[
-            $in.request.resolution,
-            $ctx.replay.row,
-            $ctx.apply
-        ]}
-    />
+        <Case value={Model.Action.Apply}>
+            <Call
+                module="apply"
+                in={{
+                    site: {
+                        graph: $in.request.owner,
+                        spans: $in.request.spans,
+                        row: $ctx.replay.row
+                    },
+                    index_spans: $in.request.index_spans,
+                    value: $in.request.values[$ctx.replay.row],
+                    route: $ctx.replay.plan.route,
+                    child: $ctx.replay.plan.child,
+                    declared: $ctx.replay.plan.declared,
+                    node: $ctx.replay.node
+                }}
+            />
 
-    <Call fn="../solve/host.refreshSolverIndexes" in={$in.request.frame} />
+            <If on={$ctx.apply}>
+                <Call
+                    fn="../solve/host.markSolverIndexResolved"
+                    in={[
+                        $in.request.frame,
+                        $ctx.replay.row
+                    ]}
+                />
+            </If>
+
+            <Call fn="../solve/host.refreshSolverIndexes" in={$in.request.frame} />
+        </Case>
+    </Switch>
 
     <Return
         value={{

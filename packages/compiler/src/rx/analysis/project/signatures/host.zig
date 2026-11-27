@@ -13,7 +13,6 @@ pub const Frame = struct {
     columns: Columns = undefined,
     nodes: Nodes = undefined,
     ports: std.meta.Child(@FieldType(Columns, "ports")) = undefined,
-    target: std.meta.Child(@FieldType(Columns, "target")) = undefined,
     parents: []u32 = undefined,
     pub fn bind(self: *Frame, graph: *const Graph, table: Table, resolver: @FieldType(Input, "resolver")) void {
         const rows = graph.nodes.slice();
@@ -22,7 +21,7 @@ pub const Frame = struct {
         self.parents = graph.parents();
 
         self.nodes = .{
-            .parents = @ptrCast(&self.parents),
+            .parents = self.parents,
             .kinds = zx.columns.slice(@FieldType(Nodes, "kinds"), kinds),
             .arguments = rows.items(.argument),
         };
@@ -32,16 +31,11 @@ pub const Frame = struct {
             .outputs = table.outputs,
             .binding_ends = table.binding_ends,
             .task_ends = table.task_ends,
+            .binding_values = table.binding_types,
+            .task_offsets = table.task_types,
         };
 
-        self.target = .{
-            .bindings = @ptrCast(&self.table.binding_types),
-            .tasks = @ptrCast(&self.table.task_types),
-            .inputs = @ptrCast(&self.table.inputs),
-            .outputs = @ptrCast(&self.table.outputs),
-        };
-
-        self.columns = .{ .nodes = &self.nodes, .ports = &self.ports, .target = &self.target };
+        self.columns = .{ .nodes = &self.nodes, .ports = &self.ports };
         self.input = .{ .resolver = resolver, .columns = &self.columns };
     }
 };
