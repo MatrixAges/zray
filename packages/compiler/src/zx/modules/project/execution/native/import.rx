@@ -1,8 +1,11 @@
 <Module>
     <Type from="model" as="Native" />
 
-    <Args in={Native.Import} out={void} />
+    <Args in={Native.Import} out={Native.Verification} />
 
-    <Call fn="load" in={$in.omit(["verified"])} />
-    <Call fn="invalidate" in={$in.verified} />
+    <Call fn="load" in={$in} />
+
+    <Call fn="invalidate" />
+
+    <Return value={$ctx.invalidate} />
 </Module>

@@ -7,20 +7,6 @@ const Verified = @import("../../../ir/validate.zig").Verified;
 const Loaded = @import("../../native.zig");
 const generated = @import("parser_options").generated_parser;
 
-const Verification = struct {
-    slot: [1]*usize,
-    functions: zx.memory.ColumnLengths,
-    native: []u8,
-    fn init(self: *Verification, verified: *Verified) void {
-        self.slot = .{&verified.functions};
-        self.functions = &self.slot;
-        self.native = @as(*[1]u8, @ptrCast(&verified.native));
-    }
-    fn input(self: *Verification, comptime Input: type) Input {
-        return .{ .functions = @ptrCast(&self.functions), .native = @ptrCast(&self.native) };
-    }
-};
-
 const Frame = struct {
     project: *Project,
     native: *const Native,
@@ -40,18 +26,19 @@ pub fn invalidateSeed(verified: *Verified) void {
 pub fn register(project: *Project, source: []const u8, identity: ?[]const u8, name: []const u8, span: zx.Span) zx.Error!zx.ir.NativeModuleId {
     const rule = @import("generated_project_register_native");
     const Input = std.meta.Child(rule.Input);
-    var columns: Verification = undefined;
-
-    columns.init(&project.verified);
 
     const input: Input = .{
         .registry = @ptrCast(project),
         .modules = &zx.columns.columns(std.meta.Child(@FieldType(Input, "modules")), project.native_modules.view()),
         .names = &.{ .specifier = source, .identity = identity, .import_name = name },
-        .verified = &columns.input(std.meta.Child(@FieldType(Input, "verified"))),
     };
 
     const selected = rule.executeIn(project.allocator, &input) catch |err| return @import("invoke.zig").errorSet(err);
+
+    if (selected.verified) |reset| {
+        project.verified.functions = @intCast(reset.functions);
+        project.verified.native = reset.native;
+    }
 
     if (!selected.valid) return project.reporter.fail(.module, span, "native import names must be nonempty UTF-8 strings");
 
@@ -71,14 +58,11 @@ pub fn load(project: *Project, native: *const Native, module: zx.ir.NativeModule
     if (comptime generated) {
         const entry = @import("generated_project_execute_native");
         const Input = std.meta.Child(entry.Input);
-        var columns: Verification = undefined;
-
-        columns.init(&project.verified);
-
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const input: Input = .{ .frame = @ptrCast(&frame), .cached = cached, .verified = &columns.input(std.meta.Child(@FieldType(Input, "verified"))) };
-
-        entry.executeIn(empty.allocator(), &input) catch |err| return @import("invoke.zig").errorSet(err);
+        const input: Input = .{ .frame = @ptrCast(&frame), .cached = cached };
+        const reset = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch |err| return @import("invoke.zig").errorSet(err);
+        project.verified.functions = @intCast(reset.functions);
+        project.verified.native = reset.native;
     } else if (cached) {
         try loadCachedProjectNative(&frame);
     } else {

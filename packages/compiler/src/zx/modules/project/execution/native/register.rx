@@ -1,8 +1,7 @@
 <Module>
     <Type from="model" as="Native" />
-    <Type from="../../target/interface/registry_slot" as="Slot" />
 
-    <Args in={Native.Registration} out={Slot.Output} />
+    <Args in={Native.Registration} out={Native.Registered} />
 
     <Call
         module="../../target/interface/register"
@@ -26,8 +25,20 @@
             ]}
         />
 
-        <Call fn="invalidate" in={$in.verified} />
+        <Call fn="invalidate" />
+
+        <Return
+            value={{
+                ...$ctx.register,
+                verified: $ctx.invalidate
+            }}
+        />
     </If>
 
-    <Return value={$ctx.register} />
+    <Return
+        value={{
+            ...$ctx.register,
+            verified: null
+        }}
+    />
 </Module>

@@ -154,7 +154,6 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const Input = std.meta.Child(generated.Input);
         var marks = std.mem.sliceAsBytes(state_column);
-        var cursor: []u64 = @as(*[1]u64, @ptrCast(request.cursor));
 
         const input: Input = .{
             .path = request.path,
@@ -164,7 +163,6 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
             .depth = request.depth,
             .row = if (request.row) |row| row else null,
             .import_row = request.import_row,
-            .cursor = @ptrCast(&cursor),
             .keys = index.keys,
             .buckets = @ptrCast(&index.buckets),
             .capacity = index.buckets.len,
@@ -173,6 +171,8 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
         };
 
         const plan = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
+
+        if (plan.cursor) |value| request.cursor.* = value;
 
         return .{ .action = plan.action, .index = if (plan.index) |row| @intCast(row) else null };
     }

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Link" />
 
-    <Args in={Link.Request} out={string?} />
+    <Args in={Link.Request} out={Link.Result} />
 
     <Call fn="types" in={$in.boundary} />
 
@@ -16,21 +16,20 @@
     />
 
     <If on={$ctx.appendSourceBody != null}>
-        <Call
-            fn="commit"
-            in={{
-                ...$in.pick([
-                    "verified",
-                    "present"
-                ]),
-                count: $ctx.appendSourceBody
+        <Return
+            value={{
+                verified: $ctx.appendSourceBody,
+                message: null
             }}
         />
-
-        <Return value={null} />
     </If>
 
     <Call fn="reject" in={$in.pick(["source"])} />
 
-    <Return value={$ctx.reject} />
+    <Return
+        value={{
+            verified: null,
+            message: $ctx.reject
+        }}
+    />
 </Module>

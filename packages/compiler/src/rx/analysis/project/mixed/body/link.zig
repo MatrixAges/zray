@@ -1,7 +1,7 @@
 const std = @import("std");
+const zx = @import("zx");
 const frontend = @import("frontend");
 const rx = @import("rx");
-const memory = @import("zx").memory;
 const Finished = @import("../finished.zig");
 const State = @import("../state.zig");
 const generated = @import("rx_options").generated_graph;
@@ -26,22 +26,12 @@ pub fn publish(state: *State, body: *const Source.Input, prepared: Boundary, flo
 
     if (comptime generated) {
         const rule = @import("generated_rx_mixed_body_link");
-        var present: ?[]bool = if (destination.present) |cell| @as(*[1]bool, @ptrCast(cell)) else null;
-
-        var verified: memory.WriteColumn = .{
-            .items = std.mem.asBytes(&state.verified),
-            .count = 1,
-            .stride = @sizeOf(usize),
-            .width = @sizeOf(usize),
-        };
 
         const input: std.meta.Child(rule.Input) = .{
             .body = @ptrCast(&link),
             .source = source,
             .initializers = std.mem.sliceAsBytes(body.store_initializers),
             .shared = std.mem.sliceAsBytes(link.shared_initializers),
-            .verified = @ptrCast(&verified),
-            .present = if (present) |*rows| @ptrCast(rows) else null,
             .boundary = &.{
                 .prepared = &.{ .functions = prepared.functions, .types = prepared.types },
                 .current = &.{ .functions = current.functions, .types = current.types },
@@ -51,14 +41,20 @@ pub fn publish(state: *State, body: *const Source.Input, prepared: Boundary, flo
 
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-        const message = rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+        const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
 
-        if (message) |text| return state.fail(location, text);
+        if (result.verified) |count| {
+            state.verified = @intCast(count);
 
-        return;
+            if (destination.present) |cell| cell.* = true;
+
+            return;
+        }
+
+        return state.fail(location, result.message.?);
     }
 
     const types = if (current.functions == prepared.functions and current.types == prepared.types) null else prepared.types;

@@ -435,7 +435,6 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
         const prior: Prior = if (previous) |entry| .{ .pending = entry.pending, .source = entry.source, .owner = @ptrCast(&owner) } else undefined;
         const sources = memory.borrowReadColumn([]u8, "source", self.unwritten.records.items);
         var retired = memory.borrowWriteColumn(bool, "retired", self.unwritten.records.items);
-        var has_retired: []bool = @as(*[1]bool, @ptrCast(&self.unwritten.has_retired));
         var ranges: memory.ColumnRangeGroup(1) = .{};
         const tail = ranges.bind(&self.unwritten.records, 1, true);
 
@@ -456,16 +455,19 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
                 .bytes = std.mem.asBytes(&queued),
                 .retired = @ptrCast(&retired),
                 .retired_offset = @offsetOf(Unwritten, "retired"),
-                .has_retired = @ptrCast(&has_retired),
             },
         };
 
         var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-        return rule.executeIn(fixed.allocator(), &input) catch |err| switch (err) {
-            error.OutOfMemory => error.OutOfMemory,
+        const retired_previous = rule.executeIn(fixed.allocator(), &input) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
+
+        if (retired_previous) self.unwritten.has_retired = true;
+
+        return;
     }
 
     const prior: ?policy.Previous = if (previous) |entry| if (entry.pending) |row| .{ .pending = row, .source = entry.source } else null else null;

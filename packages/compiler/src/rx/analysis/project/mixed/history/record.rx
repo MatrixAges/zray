@@ -1,10 +1,9 @@
 <Module>
     <Type from="model" as="History" />
 
-    <Args in={History.Record} out={void} />
+    <Args in={History.Record} out={History.Recorded} />
 
     <Call fn="snapshot" in={$in.capture} />
-    <Call fn="record_analyzed" in={$in.target} />
 
     <If on={$in.analysis != null}>
         <Call module="assess" in={$in.analysis} />
@@ -12,9 +11,21 @@
         <Call
             fn="record_assessment"
             in={{
-                target: $in.target,
+                ...$in.target,
                 assessment: $ctx.assess
             }}
         />
+
+        <Return value={$ctx.record_assessment} />
     </If>
+
+    <Call
+        fn="record_assessment"
+        in={{
+            ...$in.target,
+            assessment: null
+        }}
+    />
+
+    <Return value={$ctx.record_assessment} />
 </Module>

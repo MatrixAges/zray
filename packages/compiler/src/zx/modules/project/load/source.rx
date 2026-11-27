@@ -44,16 +44,13 @@
 
         <Switch on={$ctx.admit}>
             <Case value={Load.Admission.Push}>
-                <Call
-                    fn="suspend"
-                    in={{
-                        child: $ctx.lookup,
-                        import_row: $in.import_row,
-                        cursor: $in.cursor
+                <Return
+                    value={{
+                        action: Load.SourceAction.Descend,
+                        index: $ctx.lookup,
+                        cursor: $in.import_row
                     }}
                 />
-
-                <Return value={$ctx.suspend} />
             </Case>
 
             <Case value={Load.Admission.Cycle}>

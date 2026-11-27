@@ -1,16 +1,15 @@
 import type { Modules } from "core/native_module_table/model"
-import type { ColumnLengths, U8Buffer } from "memory"
 import type { ProjectNative, ProjectNativeRegistry } from "project_host"
+import type { Output as Slot } from "../../target/interface/registry_slot"
 
 export type Verification = {
-    functions: ColumnLengths,
-    native: U8Buffer
+    functions: u64,
+    native: bool
 }
 
 export type Import = {
     frame: ProjectNative,
-    cached: bool,
-    verified: Verification
+    cached: bool
 }
 
 export type Names = {
@@ -22,6 +21,9 @@ export type Names = {
 export type Registration = {
     registry: ProjectNativeRegistry,
     modules: Modules,
-    names: Names,
-    verified: Verification
+    names: Names
+}
+
+export type Registered = Slot & {
+    verified?: Verification
 }

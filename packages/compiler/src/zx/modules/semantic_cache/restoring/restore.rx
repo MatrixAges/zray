@@ -72,7 +72,12 @@
             }}
         />
 
-        <Return value={$ctx.plan} />
+        <Return
+            value={{
+                plan: $ctx.plan,
+                saved: $ctx.snapshot
+            }}
+        />
     </If>
 
     <Return value={null} />

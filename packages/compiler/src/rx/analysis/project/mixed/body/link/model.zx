@@ -1,4 +1,3 @@
-import type { BoolBuffer, WriteColumn } from "memory"
 import type { SourceBody } from "project_host"
 
 export type Boundary = {
@@ -12,15 +11,15 @@ export type Body = {
     body_functions: u64
 }
 
-export type Publication = {
-    verified: WriteColumn,
-    present?: BoolBuffer
-}
-
-export type Request = Publication & {
+export type Request = {
     body: SourceBody,
     source: bool,
     initializers: u8[],
     shared: u8[],
     boundary: Body
+}
+
+export type Result = {
+    verified?: u64,
+    message?: string
 }

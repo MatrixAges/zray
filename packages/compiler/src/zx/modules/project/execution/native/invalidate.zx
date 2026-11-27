@@ -1,12 +1,14 @@
-import memory from "memory"
+import { empty_verified_prefix } from "./const"
 
-import { empty_verified_prefix, unverified_native } from "./const"
+import type { Verification } from "./model"
 
-import type { Verification as Input } from "./model"
+export type Input = void
 
-export type Output = void
+export type Output = Verification
 
 export default function (in: Input): Output {
-    memory.shrinkLengthSlot(in.functions, 0, empty_verified_prefix)
-    memory.writeU8(in.native, 0, unverified_native)
+    return {
+        functions: empty_verified_prefix,
+        native: false
+    }
 }

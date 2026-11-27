@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { Form } from "./model"
 
@@ -11,7 +10,8 @@ export default function (in: Input): Output {
     if (next == in.ids.length) {
         return {
             id: 0,
-            form: Form.Done
+            form: Form.Done,
+            next
         }
     }
 
@@ -19,10 +19,9 @@ export default function (in: Input): Output {
     const local = in.native_modules[integers.widen(id)] == null
     const form = local ? in.forms[next] : Form.Native
 
-    memory.writeU64(in.cursor, 0, next + 1)
-
     return {
         id,
-        form
+        form,
+        next: next + 1
     }
 }

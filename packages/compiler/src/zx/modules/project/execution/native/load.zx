@@ -2,7 +2,7 @@ import host from "project_host"
 
 import type { Import } from "./model"
 
-export type Input = Import.Omit("verified")
+export type Input = Import
 
 export type Output = void
 

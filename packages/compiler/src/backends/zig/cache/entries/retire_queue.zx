@@ -2,16 +2,15 @@ import memory from "memory"
 
 import type { Queue } from "./store_model"
 
-export type Input = Queue.Pick("ranges", "retired", "retired_offset", "has_retired") & {
+export type Input = Queue.Pick("ranges", "retired", "retired_offset") & {
     row: u64
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { ranges, retired, retired_offset, has_retired } = in
+    const { ranges, retired, retired_offset } = in
 
     memory.bindRangeWriteColumn(ranges, 0, retired, retired_offset)
     memory.writeColumnBool(retired, in.row, true)
-    memory.writeBool(has_retired, 0, true)
 }

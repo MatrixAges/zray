@@ -1,7 +1,7 @@
 import { capture } from "core/column_lengths"
 import memory from "memory"
 
-import type { BoolBuffer, ColumnLengths, U64Buffer } from "memory"
+import type { ColumnLengths, U64Buffer } from "memory"
 
 export type Columns = {
     types: ColumnLengths,
@@ -10,13 +10,13 @@ export type Columns = {
 }
 
 export type Input = Columns & {
-    type_counts: U64Buffer,
-    function_count: U64Buffer,
-    origin_count: U64Buffer,
-    saved: BoolBuffer
+    type_counts: U64Buffer
 }
 
-export type Output = void
+export type Output = {
+    function_count: u64,
+    origin_count: u64
+}
 
 export default function (in: Input): Output {
     capture({
@@ -24,7 +24,8 @@ export default function (in: Input): Output {
         target: in.type_counts
     })
 
-    memory.writeU64(in.function_count, 0, memory.readLengthSlot(in.functions, 0))
-    memory.writeU64(in.origin_count, 0, memory.readLengthSlot(in.origins, 0))
-    memory.writeBool(in.saved, 0, true)
+    return {
+        function_count: memory.readLengthSlot(in.functions, 0),
+        origin_count: memory.readLengthSlot(in.origins, 0)
+    }
 }

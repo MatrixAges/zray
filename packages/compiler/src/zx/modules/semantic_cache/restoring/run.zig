@@ -23,9 +23,6 @@ pub const Frame = struct {
     scratch: std.mem.Allocator,
     payload: std.mem.Allocator,
     publication: Publication = undefined,
-    saved: bool = false,
-    function_count: u64 = undefined,
-    origin_count: u64 = undefined,
     pub fn execute(self: *Frame, planning: @FieldType(Input, "planning")) Artifact.Error!restore.Restored {
         const current = self.current;
         const type_slots = memory.borrowColumnLengths(current.types);
@@ -36,29 +33,9 @@ pub const Frame = struct {
         const functions: memory.ColumnLengths = &function_slots;
         var counts: [type_fields.len]u64 = undefined;
         var count_view: []u64 = &counts;
-        var saved_functions = slot(&self.function_count);
-        var saved_origins = slot(&self.origin_count);
-        var saved_columns = slot(&self.saved);
         const payload_position = current.payloads.checkpoint();
 
         self.publication.bind(self);
-
-        errdefer if (self.saved) {
-            self.publication.surface.release(self.payload);
-
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            rollback.executeIn(empty.allocator(), &.{
-                .functions = @ptrCast(&functions),
-                .function_count = self.function_count,
-                .types = @ptrCast(&types),
-                .type_counts = &counts,
-                .origins = @ptrCast(&origins),
-                .origin_count = self.origin_count,
-            }) catch unreachable;
-
-            current.payloads.rewind(payload_position);
-        };
 
         const input: Input = .{
             .planning = planning,
@@ -67,22 +44,34 @@ pub const Frame = struct {
                 .origins = @ptrCast(&origins),
                 .functions = @ptrCast(&functions),
                 .type_counts = @ptrCast(&count_view),
-                .function_count = @ptrCast(&saved_functions),
-                .origin_count = @ptrCast(&saved_origins),
-                .saved = @ptrCast(&saved_columns),
             },
             .columns = if (self.publication.has_columns) &self.publication.columns else null,
             .mappings = &self.publication.mappings,
         };
 
-        const plan = generated.executeIn(self.workspace, &input) catch |err|
-            return verification.publicationError(err);
+        const restored = (generated.executeIn(self.workspace, &input) catch |err|
+            return verification.publicationError(err)) orelse return error.InvalidModule;
 
-        const type_plan = plan orelse return error.InvalidModule;
+        errdefer {
+            self.publication.surface.release(self.payload);
+
+            var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+            rollback.executeIn(empty.allocator(), &.{
+                .functions = @ptrCast(&functions),
+                .function_count = restored.saved.function_count,
+                .types = @ptrCast(&types),
+                .type_counts = &counts,
+                .origins = @ptrCast(&origins),
+                .origin_count = restored.saved.origin_count,
+            }) catch unreachable;
+
+            current.payloads.rewind(payload_position);
+        }
 
         const publish_input: PublishInput = .{
             .views = &self.publication.input,
-            .plan = try zx.columns.bridge(@FieldType(PublishInput, "plan"), self.workspace, type_plan),
+            .plan = try zx.columns.bridge(@FieldType(PublishInput, "plan"), self.workspace, &restored.plan),
         };
 
         const published = publish_entry.executeIn(self.payload, &publish_input) catch |err|

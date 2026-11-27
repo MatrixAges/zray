@@ -1,7 +1,7 @@
 <Module>
     <Type from="store_model" as="Store" />
 
-    <Args in={Store.Input} out={void} />
+    <Args in={Store.Input} out={bool} />
 
     <Call
         fn="replace"
@@ -51,8 +51,7 @@
                     ...$in.destination.pick([
                         "ranges",
                         "retired",
-                        "retired_offset",
-                        "has_retired"
+                        "retired_offset"
                     ]),
                     row: $ctx.replace.retire
                 }}
@@ -88,4 +87,6 @@
             ])}
         />
     </If>
+
+    <Return value={$in.previous != null && $ctx.replace.retire != null} />
 </Module>

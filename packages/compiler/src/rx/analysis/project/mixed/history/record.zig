@@ -7,7 +7,6 @@ const alignment = @import("alignment.zig");
 const compare = @import("frontend").compare_ir;
 const linked = @import("linked.zig");
 const Snapshot = @import("snapshot.zig").Storage;
-const columns = @import("../../history/columns.zig");
 
 pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: usize, position: usize) void {
     const rule = @import("generated_rx_mixed_history_record");
@@ -17,8 +16,6 @@ pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: us
     const after = &reuse.boundaries[position + 1];
     var storage: Snapshot = undefined;
     const capture = storage.bind(state, after);
-    var aligned: []bool = @as(*[1]bool, @ptrCast(&reuse.aligned));
-    var counter = columns.wordTarget(std.mem.asBytes(&owner.analyzed));
     var borrowed: alignment.Borrowed = undefined;
     var types: std.meta.Child(@FieldType(Analysis, "alignment")) = undefined;
     var edges_input: std.meta.Child(@FieldType(Analysis, "dependencies")) = undefined;
@@ -65,16 +62,15 @@ pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: us
     const input: Input = .{
         .capture = &capture,
         .target = &.{
-            .row = index,
             .analyzed = owner.analyzed,
-            .counter = @ptrCast(&counter),
-            .redone = @ptrCast(&reuse.redone),
-            .aligned = @ptrCast(&aligned),
+            .aligned = reuse.aligned,
         },
         .analysis = if (prior != null) &analysis else null,
     };
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+    const recorded = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+    owner.analyzed = @intCast(recorded.analyzed);
+    reuse.redone[index] = recorded.redone;
+    reuse.aligned = recorded.aligned;
 }

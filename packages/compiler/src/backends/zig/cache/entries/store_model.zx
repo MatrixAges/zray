@@ -1,4 +1,4 @@
-import type { Allocator, BoolBuffer, ColumnRanges, U8Buffer, WriteColumn } from "memory"
+import type { Allocator, ColumnRanges, U8Buffer, WriteColumn } from "memory"
 import type { CacheWriter, GenerationCacheRecord } from "output_host"
 import type { Input as WriteSchedule } from "../writes/model"
 import type { Input as Replacement } from "./replace"
@@ -8,8 +8,7 @@ export type Queue = {
     tail: U8Buffer,
     bytes: u8[],
     retired: WriteColumn,
-    retired_offset: u64,
-    has_retired: BoolBuffer
+    retired_offset: u64
 }
 
 export type Input = Replacement &
