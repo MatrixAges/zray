@@ -54,16 +54,24 @@ pub fn validateLinked(allocator: std.mem.Allocator, library: model.Graph) LinkEr
 
     graph.init(temporary, &library);
 
-    var ir_started = [_]u8{0};
-    var surface_started = [_]u8{0};
-    var ir_mark: []u8 = &ir_started;
-    var surface_mark: []u8 = &surface_started;
-    const input: Input = .{ .graph = &graph.input, .ir_started = @ptrCast(&ir_mark), .surface_started = @ptrCast(&surface_mark) };
+    const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
-    const status = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const StoreHost = struct {
+        store_0: *StoreState,
+        pub fn commit(self: *@This(), pending: anytype) error{}!void {
+            if (pending.store_0) |next| self.store_0.* = next;
+        }
+    };
+
+    var state_value: std.meta.Child(StoreState) = .{ .ir_started = false, .surface_started = false };
+    var state_ptr: StoreState = &state_value;
+    var host: StoreHost = .{ .store_0 = &state_ptr };
+    const input: Input = .{ .graph = &graph.input };
+
+    const status = rule.executeIn(temporary, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.IntegerOverflow, error.Overflow => return if (ir_started[0] != 0) error.OutOfMemory else error.InvalidIr,
-        else => return if (surface_started[0] != 0) error.InvalidLibrary else error.InvalidIr,
+        error.IntegerOverflow, error.Overflow => return if (state_ptr.ir_started) error.OutOfMemory else error.InvalidIr,
+        else => return if (state_ptr.surface_started) error.InvalidLibrary else error.InvalidIr,
     };
 
     return switch (status) {

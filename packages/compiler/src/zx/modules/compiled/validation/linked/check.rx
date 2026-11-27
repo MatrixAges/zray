@@ -3,6 +3,8 @@
 
     <Args in={Linked.Input} out={Linked.Status} />
 
+    <Store from="progress" as="progress" />
+
     <Call
         fn="../stores"
         in={{
@@ -14,7 +16,14 @@
         <Return value={Linked.Status.ConflictingStore} />
     </If>
 
-    <Call fn="started" in={$in.ir_started} />
+    <Call
+        fn="set_progress"
+        in={{
+            ir_started: true,
+            surface_started: false
+        }}
+        setter={[$store.progress.state]}
+    />
 
     <Call module="../../../../ir/canonical/validation/validate" in={$in.graph.program} />
 
@@ -22,7 +31,15 @@
         <Return value={Linked.Status.InvalidIr} />
     </If>
 
-    <Call fn="started" in={$in.surface_started} />
+    <Call
+        fn="set_progress"
+        in={{
+            ir_started: true,
+            surface_started: true
+        }}
+        setter={[$store.progress.state]}
+    />
+
     <Call fn="../header" in={$in.graph} />
 
     <If on={!$ctx.header}>

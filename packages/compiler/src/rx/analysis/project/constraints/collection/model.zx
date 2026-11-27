@@ -1,4 +1,4 @@
-import type { BoolBuffer, U32Buffer, U64Buffer } from "memory"
+import type { BoolBuffer, U32Buffer } from "memory"
 import type { ConstraintCollection } from "rx_project_host"
 import type { Edges } from "../../../inference/assignment/model"
 import type { Ports } from "../ports/model"
@@ -15,7 +15,6 @@ export type Request = {
     frame: ConstraintCollection,
     modules: u64,
     parents: U32Buffer,
-    unused: U64Buffer,
     marked: BoolBuffer,
     ports: Publication,
     default_columns: DefaultColumns
@@ -23,5 +22,10 @@ export type Request = {
 
 export type Cursor = {
     request: Request,
-    row: u64
+    row: u64,
+    unused: u64
+}
+
+export type Defaults = Request & {
+    unused: u64
 }

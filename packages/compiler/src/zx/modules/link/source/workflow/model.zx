@@ -3,7 +3,6 @@ import type {
     Allocator,
     ColumnLengths,
     OptionalU32Buffer,
-    U8Buffer,
     U64Buffer
 } from "memory"
 import type {
@@ -41,7 +40,6 @@ export type Native = {
 
 export type Check = {
     validation?: Program,
-    registration_started: U8Buffer,
     types: TypeRegistration,
     range: RangeRequest,
     natives?: Native,

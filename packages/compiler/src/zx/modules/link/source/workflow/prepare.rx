@@ -5,6 +5,8 @@
 
     <Args in={Source.Check} out={Source.Output} />
 
+    <Store from="progress" as="progress" />
+
     <If on={$in.validation != null}>
         <Call module="../../../../ir/canonical/validation/validate" in={$in.validation} />
 
@@ -13,8 +15,9 @@
         </If>
 
         <Call
-            fn="../../../compiled/validation/linked/started"
-            in={$in.registration_started}
+            fn="set_started"
+            in={true}
+            setter={[$store.progress.state]}
         />
     </If>
 

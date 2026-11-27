@@ -68,7 +68,6 @@ pub fn Frame(comptime kind: Memo.Kind, comptime Target: type) type {
             self.writer = .{
                 .table = &self.store,
                 .value = std.mem.asBytes(&self.value),
-                .limit = @ptrCast(&self.table.limit),
             };
 
             self.phase = switch (kind) {

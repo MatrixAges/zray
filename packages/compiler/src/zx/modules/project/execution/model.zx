@@ -32,6 +32,11 @@ export type Body = {
     installation: Installation
 }
 
+export type BodyResult = {
+    duplicate?: string,
+    cache_root?: u64
+}
+
 export type Entry = {
     entry: ProjectEntry,
     publication: EntryPublication,

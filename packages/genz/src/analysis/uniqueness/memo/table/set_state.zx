@@ -1,0 +1,17 @@
+export type Input = {
+    used: u32,
+    limit: u64,
+    changed: bool
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.memo.state = {
+        used: in.used,
+        limit: in.limit,
+        changed: in.changed
+    }
+}

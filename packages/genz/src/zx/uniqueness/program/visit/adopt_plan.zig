@@ -3,18 +3,20 @@ const zx = @import("zx");
 const Function = @import("../../function.zig");
 const Memo = @import("../../memo.zig");
 const record = @import("../../memo/record.zig");
+const publication = @import("../../memo/table/publication.zig");
 const rows = @import("../../row_output.zig");
 const entry = @import("generated_uniqueness_visit_adopt_plan");
 const Input = std.meta.Child(entry.Input);
-
 pub const Adopted = struct { record: Memo.Planned, row: ?u32 };
 
 pub fn adopt(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo) std.mem.Allocator.Error!Adopted {
     var stored: record.Frame(.planned, rows.Target(Input, "memo")) = undefined;
+    var host: publication.StoreHost(entry) = .{};
 
     if (memo) |cache| stored.open(cache, {});
 
-    defer if (memo != null) stored.table.finish();
+    host.init(if (memo != null) stored.table.initial_used else 0, 0, false);
+    defer if (memo != null) stored.table.finish(host.state.*);
 
     const Source = rows.Target(Input, "source");
 
@@ -27,7 +29,7 @@ pub fn adopt(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo)
 
     const input: Input = .{ .source = &source, .memo = if (memo != null) &stored.target else null };
 
-    const retained = zx.columns.invoke(entry.executeValue, owner, &input) catch |err| switch (@as(anyerror, err)) {
+    const retained = entry.executeIn(owner, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("plan adoption failed: {s}", .{@errorName(err)}),
     };

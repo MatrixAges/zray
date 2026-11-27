@@ -1,18 +1,16 @@
 import memory from "memory"
 
-import type { U64Buffer } from "memory"
 import type { Publication } from "./model"
 
 export type Input = {
     ports: Publication,
     row: u64,
-    unused: U64Buffer,
     used: bool,
     binding_end: u64,
     task_end: u64
 }
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
     const { ports, row } = in
@@ -25,9 +23,5 @@ export default function (in: Input): Output {
     memory.writeU64(binding_ends, row, in.binding_end)
     memory.writeU64(task_ends, row, in.task_end)
 
-    if (!used) {
-        const count = memory.readU64(in.unused, 0)
-
-        memory.writeU64(in.unused, 0, count + 1)
-    }
+    return used ? 0 : 1
 }

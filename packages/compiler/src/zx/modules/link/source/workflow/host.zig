@@ -12,6 +12,15 @@ const remap = @import("../../../artifact/nodes/remap.zig");
 const validation = @import("../../../../ir/validate.zig");
 const generated = @import("generated_source_link_publication");
 const preparation = @import("generated_source_link_preparation");
+const StoreState = std.meta.Child(@FieldType(preparation.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
+
 const Input = std.meta.Child(generated.Input);
 const Reservation = std.meta.Child(@typeInfo(@FieldType(Input, "reserve")).optional.child);
 const Check = std.meta.Child(preparation.Input);
@@ -99,22 +108,22 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
         };
     }
 
-    var started: [1]u8 = .{0};
-    var marker: []u8 = &started;
+    var state_value: std.meta.Child(StoreState) = .{ .started = false };
+    var state_ptr: StoreState = &state_value;
+    var host: StoreHost = .{ .store_0 = &state_ptr };
     const registration_view = view.bind(Types);
     const range: std.meta.Child(@FieldType(Check, "range")) = .{ .first = first, .count = count, .prefix = base, .types = source_first + source_types.count(), .native_modules = native_count };
 
     const check: Check = .{
         .validation = if (complete) &checked.input else null,
-        .registration_started = @ptrCast(&marker),
         .types = &registration_view,
         .range = &range,
         .natives = if (has_natives) &bindings else null,
     };
 
-    const prepared = preparation.executeIn(temporary, &check) catch |err| switch (@as(anyerror, err)) {
+    const prepared = preparation.executeIn(temporary, &check, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return if (complete and started[0] == 0) error.InvalidIr else error.InvalidModule,
+        else => return if (complete and !state_ptr.started) error.InvalidIr else error.InvalidModule,
     };
 
     try requireReady(prepared);

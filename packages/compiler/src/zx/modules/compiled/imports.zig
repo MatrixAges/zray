@@ -58,9 +58,9 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
     const rule = @import("generated_compiled_import_execute");
     var frame: Load = .{ .allocator = allocator, .project = project, .target = &target, .destination = destination, .cache = cache, .first = initializers.items.len };
     frame.rows.bytes = std.mem.sliceAsBytes(initializers.allocatedSlice());
+
     const first = frame.first;
-    var published = [1]u64{first};
-    var used: []u64 = &published;
+    var published_count: usize = first;
 
     defer frame.pending.deinit(allocator);
 
@@ -68,7 +68,7 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
         const rows = frame.rows.rows(compiled.StoreInitializer);
 
         if (rows.len != 0) {
-            initializers.items = rows[0..@intCast(published[0])];
+            initializers.items = rows[0..published_count];
             initializers.capacity = rows.len;
         }
     }
@@ -76,15 +76,15 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
     const input: std.meta.Child(rule.Input) = .{
         .frame = @ptrCast(&frame),
         .owner = @ptrCast(&allocator),
-        .initializers = &.{ .rows = @ptrCast(&frame.rows), .owner = @ptrCast(&allocator), .used = @ptrCast(&used), .first = first },
+        .initializers = &.{ .rows = @ptrCast(&frame.rows), .owner = @ptrCast(&allocator), .first = first },
         .index = @ptrCast(&frame.pending.storage),
         .member = &.{ .names = @ptrCast(&frame.names), .buckets = @ptrCast(&frame.buckets), .name = target.name },
     };
 
-    var buffer: [128]u8 = undefined;
+    var buffer: [256]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
-    const row = rule.executeIn(scratch.allocator(), &input) catch |err| return switch (@as(anyerror, err)) {
+    const result = rule.executeIn(scratch.allocator(), &input) catch |err| return switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         error.MissingLibrary => error.MissingLibrary,
         error.ConflictingArtifact => error.ConflictingArtifact,
@@ -92,7 +92,9 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
         else => unreachable,
     };
 
-    return &frame.exports[@intCast(row orelse return error.MissingPublicModule)];
+    published_count = @intCast(result.published);
+
+    return &frame.exports[@intCast(result.row orelse return error.MissingPublicModule)];
 }
 
 pub fn resolve(allocator: std.mem.Allocator, project: *const Project, target: compiled.Target) ResolutionError!usize {

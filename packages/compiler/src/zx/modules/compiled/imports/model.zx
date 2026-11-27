@@ -8,7 +8,6 @@ export type Member = Search.Omit("count", "capacity")
 export type Initializers = {
     rows: RowBuffer,
     owner: ColumnAllocator,
-    used: U64Buffer,
     first: u64
 }
 
@@ -18,4 +17,9 @@ export type Input = {
     initializers: Initializers,
     index: U64Buffer,
     member: Member
+}
+
+export type Result = {
+    row?: u64,
+    published: u64
 }

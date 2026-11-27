@@ -1,0 +1,6 @@
+<Store name="compiled_linked_validation_progress" version={1}>
+    <Object name="state">
+        <Field name="ir_started" type={bool} value={false} />
+        <Field name="surface_started" type={bool} value={false} />
+    </Object>
+</Store>

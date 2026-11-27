@@ -1,4 +1,4 @@
-import type { U64Buffer, WriteColumn } from "memory"
+import type { WriteColumn } from "memory"
 import type { RowBuffer, WriteColumn as RowColumn } from "memory/columns"
 import type { Planned } from "../../replay/ordered/model"
 import type { PlanWrites } from "../../replay/shortcut/model"
@@ -6,8 +6,7 @@ import type { Store } from "../table/model"
 
 export type Writer = {
     table: Store.Omit("value"),
-    value: u8[],
-    limit: U64Buffer
+    value: u8[]
 }
 
 export type Settlement = {

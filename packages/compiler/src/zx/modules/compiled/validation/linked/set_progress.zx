@@ -1,0 +1,15 @@
+export type Input = {
+    ir_started: bool,
+    surface_started: bool
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.progress.state = {
+        ir_started: in.ir_started,
+        surface_started: in.surface_started
+    }
+}

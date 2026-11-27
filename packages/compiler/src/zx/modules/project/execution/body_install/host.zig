@@ -18,7 +18,6 @@ const native_layout = zx.memory.functionNativeLayout(native_shape, target, @as(?
 const empty_native = zx.memory.emptyFunctionNativeRecord(native_shape, @as(?@FieldType(Functions, "empty_native"), null));
 const Rows = std.meta.Child(@FieldType(Input, "records"));
 const Self = @This();
-pub const no_root = std.math.maxInt(u64);
 
 slots: [@typeInfo(Layouts.FunctionRow).@"struct".field_names.len]*anyopaque,
 columns: zx.memory.ColumnSet,
@@ -29,8 +28,6 @@ modules: tail.Tail(Record, Rows, .{}),
 cache: tail.Tail(usize, Rows, .{}),
 record_rows: Rows,
 cache_rows: Rows,
-cache_root: u64,
-root_view: []u64,
 input: Input,
 pub fn bind(self: *Self, project: *Project) void {
     self.slots = zx.memory.bindColumnSet(Layouts.FunctionRow, true, &project.functions);
@@ -49,8 +46,6 @@ pub fn bind(self: *Self, project: *Project) void {
     self.modules.init(&project.modules);
     self.cache.init(&project.cache_records);
 
-    self.cache_root = no_root;
-    self.root_view = @as(*[1]u64, @ptrCast(&self.cache_root));
     self.record_rows = .{ .storage = @ptrCast(&self.modules.output.buffer), .used = @ptrCast(&self.modules.used) };
     self.cache_rows = .{ .storage = @ptrCast(&self.cache.output.buffer), .used = @ptrCast(&self.cache.used) };
 
@@ -61,7 +56,6 @@ pub fn bind(self: *Self, project: *Project) void {
         .records = &self.record_rows,
         .cache = &self.cache_rows,
         .backing = @ptrCast(&project.arena.child_allocator),
-        .cache_root = @ptrCast(&self.root_view),
     };
 }
 

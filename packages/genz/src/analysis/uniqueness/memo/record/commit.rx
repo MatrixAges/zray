@@ -11,14 +11,5 @@
         }}
     />
 
-    <Call
-        fn="limit.writeU64"
-        in={[
-            $in.limit,
-            0,
-            $ctx.store.limit
-        ]}
-    />
-
-    <Return value={$ctx.store.row} />
+    <Return value={$ctx.store} />
 </Module>

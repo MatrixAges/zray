@@ -1,7 +1,9 @@
 <Module>
     <Type from="model" as="Table" />
 
-    <Args in={Table.Store} out={Table.Stored} />
+    <Args in={Table.Store} out={u64} />
+
+    <Store from="state" as="memo" />
 
     <If on={$in.current == $in.limit}>
         <Call
@@ -26,19 +28,23 @@
                     "owner",
                     "owner_rows",
                     "next_buckets",
-                    "current",
                     "limit"
                 ]),
                 buckets: $in.next_buckets
             }}
         />
 
-        <Return
-            value={{
-                row: $ctx.publish,
-                limit: $ctx.reserve
+        <Call
+            fn="set_state"
+            in={{
+                used: $ctx.publish.used,
+                limit: $ctx.reserve,
+                changed: true
             }}
+            setter={[$store.memo.state]}
         />
+
+        <Return value={$ctx.publish.row} />
     </If>
 
     <Call
@@ -47,15 +53,19 @@
             "owner",
             "owner_rows",
             "next_buckets",
-            "current",
             "limit"
         ])}
     />
 
-    <Return
-        value={{
-            row: $ctx.publish,
-            limit: $in.limit
+    <Call
+        fn="set_state"
+        in={{
+            used: $ctx.publish.used,
+            limit: $in.limit,
+            changed: true
         }}
+        setter={[$store.memo.state]}
     />
+
+    <Return value={$ctx.publish.row} />
 </Module>

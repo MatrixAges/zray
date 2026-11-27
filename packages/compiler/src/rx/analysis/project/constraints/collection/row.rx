@@ -31,7 +31,6 @@
         fn="publish"
         in={{
             ports: $in.request.ports,
-            unused: $in.request.unused,
             row: $in.row,
             used: $ctx.constraintInputUsed,
             binding_end: $ctx.constraintBindingEnd,
@@ -42,7 +41,8 @@
     <Return
         value={{
             request: $in.request,
-            row: $in.row + 1
+            row: $in.row + 1,
+            unused: $in.unused + $ctx.publish
         }}
     />
 </Module>

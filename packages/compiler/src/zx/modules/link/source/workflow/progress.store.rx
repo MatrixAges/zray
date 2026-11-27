@@ -1,0 +1,5 @@
+<Store name="source_link_progress" version={1}>
+    <Object name="state">
+        <Field name="started" type={bool} value={false} />
+    </Object>
+</Store>

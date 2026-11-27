@@ -4,6 +4,8 @@
 
     <Args in={Initializer.Input} out={Initializer.Plan} />
 
+    <Store from="progress" as="progress" />
+
     <Call
         fn="../../../../backends/zig/store_initializers/validation/eligible"
         in={$in.eligibility}
@@ -17,8 +19,9 @@
 
         <If on={$ctx.validate}>
             <Call
-                fn="../../compiled/validation/linked/started"
-                in={$in.registration_started}
+                fn="set_started"
+                in={true}
+                setter={[$store.progress.state]}
             />
 
             <Call module="../../../analysis/semantic/merging/register" in={$in.types} />

@@ -8,6 +8,7 @@ const rowInput = @import("../../retain.zig").rowInput;
 const rows = @import("../../row_output.zig");
 const Memo = @import("../../memo.zig");
 const record = @import("../../memo/record.zig");
+const publication = @import("../../memo/table/publication.zig");
 const entry = @import("generated_uniqueness_visit_demand");
 const Input = std.meta.Child(entry.Input);
 const Origin = @FieldType(Input, "origin");
@@ -20,6 +21,7 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
     const Save = rows.Target(Input, "save");
     var retained_marks = zx.memory.RowBuffer.empty(Function.Mark);
     var stored: record.Frame(.demanded, rows.Target(Save, "memo")) = undefined;
+    var host: publication.StoreHost(entry) = .{};
     var normalized = zx.memory.RowBuffer.empty(Growth.Normalized);
     var renewed = zx.memory.RowBuffer.empty(Growth.Renewed);
     const output_rows: []Growth.Rows = @as(*[1]Growth.Rows, @ptrCast(target));
@@ -40,7 +42,8 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
 
     if (memo) |cache| stored.open(cache, .{ .marks = &retained_marks, .growth = target });
 
-    defer if (memo != null) stored.table.finish();
+    host.init(if (memo != null) stored.table.initial_used else 0, 0, false);
+    defer if (memo != null) stored.table.finish(host.state.*);
 
     const input: Input = .{
         .inputs = @ptrCast(&summaries.inputs),
@@ -73,7 +76,7 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
         } else null,
     };
 
-    const changed = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const changed = entry.executeIn(allocator, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("demand visitation failed: {s}", .{@errorName(err)}),
     };

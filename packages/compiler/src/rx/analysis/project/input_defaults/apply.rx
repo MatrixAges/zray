@@ -1,7 +1,7 @@
 <Module>
     <Type from="../constraints/collection/model" as="Collection" />
 
-    <Args in={Collection.Request} out={void} />
+    <Args in={Collection.Defaults} out={void} />
 
     <Call fn="host.openConstraintDefaults" in={$in.frame} />
 

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Import" />
 
-    <Args in={Import.Input} out={u64?} />
+    <Args in={Import.Input} out={Import.Result} />
 
     <Call fn="index.resolveCompiledImport" in={$in.frame} />
 
@@ -23,7 +23,12 @@
             }}
         />
 
-        <Return value={$ctx.select} />
+        <Return
+            value={{
+                row: $ctx.select,
+                published: $in.initializers.first
+            }}
+        />
     </If>
 
     <Call
@@ -44,7 +49,12 @@
             }}
         />
 
-        <Return value={$ctx.select} />
+        <Return
+            value={{
+                row: $ctx.select,
+                published: $in.initializers.first
+            }}
+        />
     </If>
 
     <Call
@@ -75,14 +85,6 @@
     />
 
     <Call
-        fn="publish"
-        in={{
-            target: $in.initializers,
-            added: $ctx.reserveCompiledUnit.initializers
-        }}
-    />
-
-    <Call
         fn="index.rememberCompiledLibrary"
         in={[
             $in.frame,
@@ -98,5 +100,10 @@
         }}
     />
 
-    <Return value={$ctx.select} />
+    <Return
+        value={{
+            row: $ctx.select,
+            published: $in.initializers.first + $ctx.reserveCompiledUnit.initializers
+        }}
+    />
 </Module>

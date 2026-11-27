@@ -1,4 +1,4 @@
-import type { U32Buffer, U8Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type {
     Eligibility
 } from "../../../../backends/zig/store_initializers/validation/model"
@@ -30,7 +30,6 @@ export type Input = {
     eligibility: Eligibility,
     program: Program,
     types: Types,
-    registration_started: U8Buffer,
     registry: Registry
 }
 

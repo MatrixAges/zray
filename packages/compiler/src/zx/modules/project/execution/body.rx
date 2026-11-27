@@ -2,7 +2,7 @@
     <Type from="model" as="Execution" />
     <Type from="../publication/model" as="Body" />
 
-    <Args in={Execution.Body} out={string?} />
+    <Args in={Execution.Body} out={Execution.BodyResult} />
 
     <If on={$in.cache != null}>
         <Call module="cache/restore" in={$in.cache} />
@@ -71,7 +71,11 @@
     <Call module="body_exports/publish" in={$in.exports} />
 
     <If on={$ctx.publish.duplicate != null}>
-        <Return value={$ctx.publish.duplicate} />
+        <Return
+            value={{
+                duplicate: $ctx.publish.duplicate
+            }}
+        />
     </If>
 
     <Call
@@ -129,16 +133,18 @@
         <Call fn="index.moveProjectEntryBody" in={$in.body} />
 
         <If on={$ctx.plan.publish_artifact}>
-            <Call
-                fn="index.writeU64"
-                in={[
-                    $in.installation.cache_root,
-                    0,
-                    $ctx.readU64
-                ]}
+            <Return
+                value={{
+                    duplicate: $ctx.publish.duplicate,
+                    cache_root: $ctx.readU64
+                }}
             />
         </If>
     </If>
 
-    <Return value={null} />
+    <Return
+        value={{
+            duplicate: $ctx.publish.duplicate
+        }}
+    />
 </Module>

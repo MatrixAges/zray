@@ -49,6 +49,27 @@ pub fn writeColumn(items: anytype, comptime field: ?[]const u8) zx.memory.WriteC
     };
 }
 
+pub fn StoreHost(comptime Entry: type) type {
+    const State = std.meta.Child(@FieldType(Entry.zx_pending, "store_0"));
+    const Value = std.meta.Child(State);
+
+    return struct {
+        const Self = @This();
+        value: Value = .{ .used = 0, .limit = 0, .changed = false },
+        state: State = undefined,
+        store_0: *State = undefined,
+        pub fn init(self: *Self, used: u32, limit: u64, changed: bool) void {
+            self.value = .{ .used = used, .limit = limit, .changed = changed };
+            self.state = &self.value;
+            self.store_0 = &self.state;
+        }
+
+        pub fn commit(self: *Self, pending: anytype) error{}!void {
+            if (pending.store_0) |next| self.store_0.* = next;
+        }
+    };
+}
+
 pub fn Write(comptime Table: type) type {
     return struct {
         const Self = @This();
@@ -57,21 +78,16 @@ pub fn Write(comptime Table: type) type {
         keys: zx.memory.RowBuffer,
         values: zx.memory.RowBuffer,
         next_buckets: []u32 = &.{},
-        used: [1]u32,
-        count: []u32,
-        dirty: []u8,
-        published: [1]u64 = .{0},
-        limit: []u64,
+        initial_used: u32,
+        changed: *bool,
         pub fn open(self: *Self, table: *Table, allocator: std.mem.Allocator, changed: *bool) void {
             self.* = .{
                 .table = table,
                 .allocator = allocator,
                 .keys = reserve.bind(&table.keys),
                 .values = reserve.bind(&table.values),
-                .used = .{@intCast(table.keys.items.len)},
-                .count = &self.used,
-                .dirty = std.mem.asBytes(changed),
-                .limit = &self.published,
+                .initial_used = @intCast(table.keys.items.len),
+                .changed = changed,
             };
         }
         pub fn view(self: *Self, comptime View: type, digest: []const u8) View {
@@ -82,24 +98,24 @@ pub fn Write(comptime Table: type) type {
                 .owner = @ptrCast(&self.allocator),
                 .owner_rows = @ptrCast(&self.allocator),
                 .next_buckets = @ptrCast(&self.next_buckets),
-                .current = self.used[0],
+                .current = self.initial_used,
                 .limit = self.table.limit,
-                .used = @ptrCast(&self.count),
-                .changed = @ptrCast(&self.dirty),
                 .digest = digest,
             };
         }
 
-        pub fn finish(self: *Self) void {
+        pub fn finish(self: *Self, state: anytype) void {
             const table = self.table;
 
             reserve.sync(&table.keys, &self.keys);
             reserve.sync(&table.values, &self.values);
 
-            table.keys.items.len = self.used[0];
-            table.values.items.len = self.used[0];
+            table.keys.items.len = state.used;
+            table.values.items.len = state.used;
 
-            if (self.published[0] == 0) {
+            if (state.changed) self.changed.* = true;
+
+            if (state.limit == 0) {
                 self.allocator.free(self.next_buckets);
 
                 return;
@@ -111,16 +127,18 @@ pub fn Write(comptime Table: type) type {
                 table.buckets = self.next_buckets;
             }
 
-            table.limit = @intCast(self.published[0]);
+            table.limit = @intCast(state.limit);
         }
     };
 }
 
 pub fn put(table: anytype, allocator: std.mem.Allocator, key: anytype, value: anytype, changed: *bool) std.mem.Allocator.Error!u32 {
     var frame: Write(@TypeOf(table.*)) = undefined;
+    var host: StoreHost(entry) = .{};
 
     frame.open(table, allocator, changed);
-    defer frame.finish();
+    host.init(frame.initial_used, 0, false);
+    defer frame.finish(host.state.*);
 
     const view = frame.view(Fields, key);
 
@@ -131,20 +149,19 @@ pub fn put(table: anytype, allocator: std.mem.Allocator, key: anytype, value: an
     input.value = std.mem.asBytes(value);
 
     const source: *const Input = &input;
+    var scratch_buf: [256]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&scratch_buf);
 
-    const stored = zx.columns.invoke(entry.executeValue, allocator, source) catch |err| switch (@as(anyerror, err)) {
+    const row = entry.executeIn(scratch.allocator(), source, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("memo publication failed: {s}", .{@errorName(err)}),
     };
 
-    frame.published[0] = stored.limit;
-
-    return @intCast(stored.row);
+    return @intCast(row);
 }
 
 const Fields = struct {
     buckets: @FieldType(Input, "buckets"),
-    changed: @FieldType(Input, "changed"),
     current: @FieldType(Input, "current"),
     digest: @FieldType(Input, "digest"),
     keys: @FieldType(Input, "keys"),
@@ -152,6 +169,5 @@ const Fields = struct {
     next_buckets: @FieldType(Input, "next_buckets"),
     owner: @FieldType(Input, "owner"),
     owner_rows: @FieldType(Input, "owner_rows"),
-    used: @FieldType(Input, "used"),
     values: @FieldType(Input, "values"),
 };

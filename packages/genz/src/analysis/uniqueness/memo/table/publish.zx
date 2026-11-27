@@ -1,17 +1,15 @@
+import integers from "std:integer"
 import memory from "memory"
 import columns from "memory/columns"
 
 import claim from "./claim"
-import complete from "./complete"
 
-import type { Publication as Input } from "./model"
-
-export type Output = u64
+import type { Publication as Input, Published as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { keys, buckets, digest, values, value } = in
+    const { keys, buckets, digest, values, value, current } = in
 
-    const used = memory.readU32(in.used, 0)
+    const used = integers.narrow(current)
 
     const row = claim({
         keys: columns.rowBufferBytes(keys),
@@ -24,13 +22,8 @@ export default function (in: Input): Output {
 
     columns.writeRow(values, row, value)
 
-    const completed = complete({
-        target: in.used,
-        used,
-        row
-    })
-
-    memory.writeU8(in.changed, 0, 1)
-
-    return row
+    return {
+        row,
+        used: row == current ? used + 1 : used
+    }
 }

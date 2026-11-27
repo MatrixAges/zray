@@ -10,6 +10,15 @@ const publication = @import("../source/workflow/host.zig");
 const comparison = @import("../../../ir/compare/initializer.zig");
 const merge = @import("../../../analysis/semantic/merge.zig");
 const plan = @import("generated_source_initializer_prepare");
+const StoreState = std.meta.Child(@FieldType(plan.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
+
 const Input = std.meta.Child(plan.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
 const Validation = @import("../../../ir/canonical/validation/input.zig").Storage(Program);
@@ -91,8 +100,9 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
 
     const rows = Registry.readRows(registry.rows.items);
     const keys = rows.bind(std.meta.Child(@FieldType(Lookup, "source")));
-    var started: [1]u8 = .{0};
-    var marker: []u8 = &started;
+    var state_value: std.meta.Child(StoreState) = .{ .started = false };
+    var state_ptr: StoreState = &state_value;
+    var host: StoreHost = .{ .store_0 = &state_ptr };
 
     const input: Input = .{
         .eligibility = &.{
@@ -105,7 +115,6 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
         },
         .program = &validation.input,
         .types = &view.bind(TypeRegistration),
-        .registration_started = @ptrCast(&marker),
         .registry = &.{
             .source = &keys,
             .buckets = @ptrCast(&registry.buckets),
@@ -116,10 +125,10 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
         },
     };
 
-    const result = plan.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const result = plan.executeIn(temporary, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.Overflow, error.IntegerOverflow => return if (started[0] == 0) error.OutOfMemory else error.InvalidModule,
-        else => return if (started[0] == 0) error.InvalidInitializer else error.InvalidModule,
+        error.Overflow, error.IntegerOverflow => return if (!state_ptr.started) error.OutOfMemory else error.InvalidModule,
+        else => return if (!state_ptr.started) error.InvalidInitializer else error.InvalidModule,
     };
 
     return result.*;

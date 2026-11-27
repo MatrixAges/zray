@@ -77,16 +77,13 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             .installation = &body.installation.input,
         };
 
-        const duplicate = zx.columns.invoke(entry.executeIn, project.allocator, &request) catch |err| return switch (@as(anyerror, err)) {
+        const outcome = zx.columns.invoke(entry.executeIn, project.allocator, &request) catch |err| return switch (@as(anyerror, err)) {
             error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => errorSet(err),
         };
 
-        if (duplicate) |name| return exports.reportDuplicate(project.allocator, project.reporter, name);
-
-        const root = body.installation.cache_root;
-
-        if (root != @TypeOf(body.installation).no_root) project.cache_root = @intCast(root);
+        if (outcome.duplicate) |name| return exports.reportDuplicate(project.allocator, project.reporter, name);
+        if (outcome.cache_root) |root| project.cache_root = @intCast(root);
 
         return;
     }

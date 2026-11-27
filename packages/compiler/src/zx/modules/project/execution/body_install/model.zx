@@ -30,8 +30,7 @@ export type Installation = {
     function: ColumnRecord,
     records: Rows,
     cache: Rows,
-    backing: ColumnAllocator,
-    cache_root: U64Buffer
+    backing: ColumnAllocator
 }
 
 export type Reservation = {

@@ -9,6 +9,7 @@ const Summaries = @import("../../summaries.zig");
 const compute = @import("compute.zig");
 const rows = @import("../../row_output.zig");
 const record = @import("../../memo/record.zig");
+const publication = @import("../../memo/table/publication.zig");
 const adopt_plan = @import("adopt_plan.zig");
 const generated = @import("generated_uniqueness_function_visit");
 const body_view = @import("generated_uniqueness_body_view");
@@ -130,6 +131,7 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     var install_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", target);
     var install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
     var stored: record.Frame(kind, rows.Target(Input, "memo")) = undefined;
+    var host: publication.StoreHost(generated) = .{};
     const inline_memo = kind != .planned and frame.memo != null;
 
     if (inline_memo) stored.open(frame.memo.?, switch (kind) {
@@ -138,7 +140,8 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         .planned => unreachable,
     });
 
-    defer if (inline_memo) stored.table.finish();
+    host.init(if (inline_memo) stored.table.initial_used else 0, 0, false);
+    defer if (inline_memo) stored.table.finish(host.state.*);
 
     const input: Input = .{
         .view = zx.columns.pointer(@FieldType(Input, "view"), view),
@@ -176,7 +179,7 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         } else null,
     };
 
-    const value = zx.columns.invoke(generated.executeValue, frame.scratch, &input) catch |err| switch (@as(anyerror, err)) {
+    const value = generated.executeIn(frame.scratch, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership visit failed: {s}", .{@errorName(err)}),
     };
