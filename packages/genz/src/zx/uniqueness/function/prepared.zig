@@ -12,16 +12,6 @@ pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, body: View,
 
     defer scratch.deinit();
 
-    var time: []u32 = &.{};
-    var finish: []u32 = &.{};
-    var region: []u32 = &.{};
-    var repeated: []u32 = &.{};
-
-    errdefer owner.free(time);
-    errdefer owner.free(finish);
-    errdefer owner.free(region);
-    errdefer owner.free(repeated);
-
     const Source = std.meta.Child(@FieldType(Input, "source"));
     const block = body.control.block();
 
@@ -41,13 +31,6 @@ pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, body: View,
         .held = summaries.held,
         .written = summaries.written,
         .effects = summaries.effects,
-        .nodes = &.{
-            .time = @ptrCast(&time),
-            .finish = @ptrCast(&finish),
-            .region = @ptrCast(&region),
-            .repeated = @ptrCast(&repeated),
-        },
-        .owner = @ptrCast(&owner),
     };
 
     const built = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
@@ -70,28 +53,10 @@ fn retainStruct(comptime T: type, owner: std.mem.Allocator, value: T) std.mem.Al
     var result: T = undefined;
 
     inline for (@typeInfo(T).@"struct".field_names) |name| {
-        if (T == Facts and comptime std.mem.eql(u8, name, "nodes")) {
-            @field(result, name) = try retainHeader(@FieldType(T, name), owner, @field(value, name));
-        } else {
-            @field(result, name) = try retainValue(@FieldType(T, name), owner, @field(value, name));
-        }
+        @field(result, name) = try retainValue(@FieldType(T, name), owner, @field(value, name));
     }
 
     return result;
-}
-
-fn retainHeader(comptime T: type, owner: std.mem.Allocator, value: T) std.mem.Allocator.Error!T {
-    switch (@typeInfo(T)) {
-        .pointer => |ptr| {
-            const copy = try owner.create(ptr.child);
-
-            copy.* = value.*;
-
-            return copy;
-        },
-        .@"struct" => return value,
-        else => @compileError("unexpected nodes field type"),
-    }
 }
 
 fn retainValue(comptime T: type, owner: std.mem.Allocator, value: T) std.mem.Allocator.Error!T {

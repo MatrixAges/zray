@@ -4,7 +4,8 @@
     <Args in={LinkGraph.Input} out={LinkGraph.Output} />
 
     <Call fn="paths" in={$in.path_columns} />
-    <Call fn="registry" in={$in.paths} />
+
+    <Call fn="registry" />
 
     <If on={!$ctx.registry.valid}>
         <Return
@@ -13,7 +14,9 @@
                 registration: [],
                 entry: null,
                 dependencies: [],
+                paths: [],
                 buckets: [],
+                offsets: [],
                 targets: []
             }}
         />
@@ -34,7 +37,9 @@
                 registration: [],
                 entry: null,
                 dependencies: [],
+                paths: [],
                 buckets: [],
+                offsets: [],
                 targets: []
             }}
         />
@@ -45,28 +50,18 @@
         in={{
             index: $ctx.registry.index,
             dependencies: $in.dependencies,
-            offsets: $in.offsets,
-            offset_target: $in.offset_target,
             root: $ctx.locate ?? 0
         }}
     />
 
-    <Call
-        fn="../../../../rx/dependency_graph/walk"
-        in={{
-            ...$ctx.edges,
-            order: $in.order,
-            capacity: $in.capacity
-        }}
-    />
-
+    <Call fn="../../../../rx/dependency_graph/walk" />
     <Call fn="status" />
 
     <If on={$ctx.status == LinkGraph.Status.Ready}>
         <Call
             fn="phases"
             in={{
-                order: $in.order_rows,
+                order: $ctx.walk.order,
                 count: $ctx.walk.count
             }}
         />
@@ -76,7 +71,9 @@
                 ...$ctx.phases,
                 status: $ctx.status,
                 entry: $ctx.locate,
+                paths: $ctx.paths,
                 buckets: $ctx.registry.index.buckets,
+                offsets: $ctx.edges.offsets,
                 targets: $ctx.edges.targets
             }}
         />
@@ -88,7 +85,9 @@
             registration: [],
             entry: null,
             dependencies: [],
+            paths: $ctx.paths,
             buckets: $ctx.registry.index.buckets,
+            offsets: $ctx.edges.offsets,
             targets: $ctx.edges.targets
         }}
     />

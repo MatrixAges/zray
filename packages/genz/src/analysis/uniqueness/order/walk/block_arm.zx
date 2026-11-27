@@ -1,0 +1,72 @@
+import integers from "std:integer"
+
+import { Action } from "../model"
+import push from "../push"
+import arm from "./arm"
+
+import type { Control } from "core/control_table/model"
+import type { Frame, Region, Stack } from "../model"
+
+export type Input = {
+    control: Control,
+    returns: bool[],
+    regions: Region[],
+    stack: Stack,
+    active_region: u32,
+    detailed: bool,
+    event: Frame
+}
+
+export type Output = {
+    regions: Region[],
+    stack: Stack,
+    active_region: u32
+}
+
+export default function (in: Input): Output {
+    const { control, returns, detailed, event } = in
+
+    const block = event.action == Action.BlockArm
+    const target = integers.widen(event.fourth)
+    const parent = in.active_region
+
+    if (!detailed) {
+        return {
+            regions: in.regions,
+            active_region: parent,
+            stack: arm({
+                stack: in.stack,
+                control,
+                event
+            })
+        }
+    }
+
+    const active_region = integers.narrow(in.regions.length)
+
+    const regions = in.regions.push({
+        parent,
+        fork: event.second,
+        arm: event.third,
+        depth: in.regions[integers.widen(parent)].depth + 1,
+        returns: block && returns[target]
+    })[0]
+
+    const restored = push({
+        stack: in.stack,
+        event: {
+            action: Action.RestoreRegion,
+            first: parent
+        }
+    })
+
+    return {
+        regions,
+        active_region,
+        stack: arm({
+            stack: restored,
+            control,
+            event
+        })
+    }
+}

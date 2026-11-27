@@ -1,10 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const size = @import("generated_native_catalog_size");
 const write = @import("generated_native_catalog_write");
-const Input = std.meta.Child(write.Input);
-const Names = std.meta.Child(@FieldType(Input, "source"));
+const Names = std.meta.Child(write.Input);
 
 pub fn create(owned: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.Allocator.Error!ir.NativeModuleTable {
     const count = modules.count();
@@ -13,18 +11,23 @@ pub fn create(owned: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.A
     if (comptime !@import("parser_options").generated_parser) return seed(owned, modules);
 
     const source: Names = .{ .identities = modules.identities, .import_names = modules.import_names, .specifiers = modules.specifiers };
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(owned);
 
-    const total = zx.columns.invoke(size.executeValue, fixed.allocator(), &source) catch |err| switch (@as(anyerror, err)) {
+    defer arena.deinit();
+
+    var buffer: [4096]u8 = undefined;
+    var buffered = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const result = zx.columns.invoke(write.executeValue, buffered.allocator(), &source) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    var data = try owned.alloc(u8, std.math.cast(usize, total) orelse return error.OutOfMemory);
+    const data = try owned.dupe(u8, result.data);
 
     errdefer owned.free(data);
 
-    var identities = try owned.alloc(?[]const u8, count);
+    const identities = try owned.alloc(?[]const u8, count);
 
     errdefer owned.free(identities);
 
@@ -33,8 +36,29 @@ pub fn create(owned: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.A
 
     errdefer owned.free(views);
 
-    var specifiers = views[0..count];
-    var import_names = views[count..];
+    const specifiers = views[0..count];
+    const import_names = views[count..];
+    var offset: usize = 0;
+
+    for (0..count) |index| {
+        const specifier_len: usize = @intCast(result.specifier_lens[index]);
+        specifiers[index] = data[offset..][0..specifier_len];
+        offset += specifier_len;
+
+        const import_len: usize = @intCast(result.import_lens[index]);
+
+        import_names[index] = data[offset..][0..import_len];
+        offset += import_len;
+
+        identities[index] = if (result.identity_lens[index]) |len| item: {
+            const width: usize = @intCast(len);
+            const slice = data[offset..][0..width];
+            offset += width;
+
+            break :item slice;
+        } else null;
+    }
+
     const empty_names = try owned.alloc([]const []const u8, count);
 
     errdefer owned.free(empty_names);
@@ -43,14 +67,6 @@ pub fn create(owned: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.A
 
     @memset(empty_names, &.{});
     @memset(empty_ids, &.{});
-
-    const input: Input = .{
-        .source = &source,
-        .text = &.{ .data = data, .bytes = @ptrCast(&data) },
-        .target = &.{ .identities = @ptrCast(&identities), .import_names = @ptrCast(&import_names), .specifiers = @ptrCast(&specifiers) },
-    };
-
-    zx.columns.invoke(write.executeValue, fixed.allocator(), &input) catch unreachable;
 
     return .{
         .identities = identities,

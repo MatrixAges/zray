@@ -1,18 +1,17 @@
-import memory from "memory"
-
 import type { Step } from "./scan_shape"
 
-export type Input = Step
+export type Input = {
+    step: Step,
+    parents: string[]
+}
 
 export type Output = Step
 
 export default function (in: Input): Output {
-    const parents = memory.stringViews(in.scan.next)
-
     return {
-        scan: in.scan,
-        parents,
-        frontier: 1 - in.frontier,
-        running: parents.length != 0
+        scan: in.step.scan,
+        parents: in.parents,
+        frontier: 1 - in.step.frontier,
+        running: in.parents.length != 0
     }
 }

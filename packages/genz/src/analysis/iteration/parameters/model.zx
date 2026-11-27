@@ -1,5 +1,5 @@
 import type { LoopParameterLayout } from "lowering_host"
-import type { BoolBuffer, U32Buffer, U8ListBuffer } from "memory"
+import type { U32Buffer, U8ListBuffer } from "memory"
 
 export type Layout = LoopParameterLayout
 
@@ -20,9 +20,12 @@ export type Input = Slots & {
 }
 
 export type View = Input.Omit("layout") & {
-    target: U8ListBuffer,
-    previous: U8ListBuffer,
-    flags: BoolBuffer
+    target: U8ListBuffer
+}
+
+export type Captured = {
+    previous_condition: u8[],
+    previous_step: u8[]
 }
 
 export type Pair = Slots & {

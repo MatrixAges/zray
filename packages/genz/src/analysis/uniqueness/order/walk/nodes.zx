@@ -1,0 +1,34 @@
+import { max_u32 } from "core/const"
+
+import type { Nodes } from "../model"
+
+export type Input = {
+    seen: bool[],
+    detailed: bool
+}
+
+export type Output = Nodes
+
+export default function (in: Input): Output {
+    const { seen, detailed } = in
+
+    if (!detailed) {
+        const empty: u32[] = []
+
+        return {
+            time: empty,
+            finish: empty,
+            region: empty,
+            repeated: empty
+        }
+    }
+
+    const zero: u32 = 0
+
+    return {
+        time: seen.map(flag => max_u32)[0],
+        finish: seen.map(flag => max_u32)[0],
+        region: seen.map(flag => zero)[0],
+        repeated: seen.map(flag => max_u32)[0]
+    }
+}

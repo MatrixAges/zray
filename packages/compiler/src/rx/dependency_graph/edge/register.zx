@@ -5,7 +5,7 @@ import { issue_invalid_path, issue_missing, issue_none } from "../const"
 import { Issue } from "../model"
 import resolve from "./resolve"
 
-import type { Allocator, ReadColumn, U64Buffer, U8Buffer } from "memory"
+import type { Allocator, ReadColumn } from "memory"
 import type { IndirectTextColumn } from "memory/columns"
 import type { Input as Edge } from "./model"
 
@@ -23,22 +23,19 @@ export type Candidates = {
     indexed?: Indexed
 }
 
-export type Columns = {
-    targets: U64Buffer,
-    issues: U8Buffer,
-    references: U64Buffer
-}
-
 export type Input = Edge.Omit("reference", "package_allowed") & {
     allocator: Allocator,
-    candidates: Candidates,
-    output: Columns
+    candidates: Candidates
 }
 
-export type Output = u64
+export type Output = {
+    targets: u64[],
+    issues: u8[],
+    references: u64[]
+}
 
 export default function (in: Input): Output {
-    const { candidates, output, workspace } = in
+    const { candidates, workspace } = in
 
     const indexed = candidates.indexed
 
@@ -47,10 +44,16 @@ export default function (in: Input): Output {
         _ => indexed.count - candidates.first
     }
 
+    const targets: u64[] = []
+    const issues: u8[] = []
+    const references: u64[] = []
+
     return loop({
         processed: 0,
-        written: 0,
-        bytes: workspace.bytes
+        bytes: workspace.bytes,
+        targets,
+        issues,
+        references
     }, {
         while: state => state.processed < count,
         next: state => {
@@ -111,16 +114,18 @@ export default function (in: Input): Output {
 
                     const original = indexed == null ? position : row
 
-                    memory.writeU64(output.targets, state.written, edge.target)
-                    memory.writeU8(output.issues, state.written, issue)
-                    memory.writeU64(output.references, state.written, original)
-
-                    state.written += 1
+                    state.targets = state.targets.push(edge.target)[0]
+                    state.issues = state.issues.push(issue)[0]
+                    state.references = state.references.push(original)[0]
                 }
             }
 
             state.processed += 1
         },
-        return: state => state.written
+        return: state => ({
+            targets: state.targets,
+            issues: state.issues,
+            references: state.references
+        })
     })
 }

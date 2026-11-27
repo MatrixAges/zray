@@ -66,12 +66,6 @@ export declare function writeColumnU32Lists(
     value: u32[][]
 ): void throws { IndexOutOfBounds }
 
-export declare function writeNamedRowList(
-    column: WriteColumn,
-    index: u64,
-    source: NamedRowBuffer
-): void throws { IndexOutOfBounds }
-
 export declare function copyColumnValue(
     target: WriteColumn,
     index: u64,

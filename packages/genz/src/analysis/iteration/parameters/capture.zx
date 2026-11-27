@@ -1,39 +1,22 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import {
-    active_slot,
-    condition_slot,
-    stack_condition_slot,
-    stack_step_slot,
-    state_condition_slot,
-    state_step_slot,
-    step_slot
-} from "./const"
 import rename from "./rename"
 
-import type { RemovalFlags, View } from "./model"
+import type { Captured, View } from "./model"
 
 export type Input = View.Omit("state", "stack") & {
-    name: u8[],
-    removal: RemovalFlags
+    name: u8[]
 }
 
-export type Output = void
+export type Output = Captured
 
 export default function (in: Input): Output {
-    const { target, previous, flags, condition, step, removal, name } = in
+    const { target, condition, step, name } = in
 
     const names = memory.u8ListViews(target)
-
-    memory.writeU8List(previous, condition_slot, names[integers.widen(condition)])
-    memory.writeU8List(previous, step_slot, names[integers.widen(step)])
-
-    memory.writeBool(flags, state_condition_slot, removal.remove_state_condition)
-    memory.writeBool(flags, state_step_slot, removal.remove_state_step)
-    memory.writeBool(flags, stack_condition_slot, removal.remove_stack_condition)
-    memory.writeBool(flags, stack_step_slot, removal.remove_stack_step)
-    memory.writeBool(flags, active_slot, true)
+    const previous_condition = names[integers.widen(condition)]
+    const previous_step = names[integers.widen(step)]
 
     rename({
         target,
@@ -42,4 +25,9 @@ export default function (in: Input): Output {
         condition_name: name,
         step_name: name
     })
+
+    return {
+        previous_condition,
+        previous_step
+    }
 }

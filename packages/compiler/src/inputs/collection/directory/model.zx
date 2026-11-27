@@ -1,4 +1,4 @@
-import type { ListColumn, ReadColumn, StringBuffer } from "memory"
+import type { ListColumn, ReadColumn } from "memory"
 
 export type Level = {
     parents: string[],
@@ -9,9 +9,4 @@ export type Level = {
 export type Counts = {
     directories: u64,
     files: u64
-}
-
-export type Target = {
-    level: Level,
-    next: StringBuffer
 }

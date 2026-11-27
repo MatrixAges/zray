@@ -37,12 +37,7 @@ pub fn parameters(self: *Lower, value: ir.Transform) Lower.Error!@import("../mem
     };
 
     const before = self.state_symbols.checkpoint();
-
-    const index = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| {
-        self.state_symbols.restoreBuckets();
-
-        return failure(err);
-    };
+    const index = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 
     self.state_symbols.current().* = zx.columns.view(@TypeOf(self.state_symbols.current().*), index);
 

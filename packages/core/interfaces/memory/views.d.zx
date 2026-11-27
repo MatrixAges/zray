@@ -13,12 +13,6 @@ export declare function allocateStringViews(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function allocateU8ListViews(
-    allocator,
-    target: U8ListBuffer,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function allocateBoolViews(
     allocator,
     target: BoolBuffer,
@@ -129,17 +123,6 @@ export declare function borrowOptionalU32Range(
 ): u32?[] throws { IndexOutOfBounds } concurrent
 
 export declare function u32BufferLength(source: U32Buffer): u64
-
-export declare function clearU32Buffer(
-    target: U32Buffer,
-    count: u64
-): void throws { IndexOutOfBounds }
-
-export declare function fillU32Buffer(
-    target: U32Buffer,
-    count: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
 
 export declare function borrowTextRange(
     source: string,

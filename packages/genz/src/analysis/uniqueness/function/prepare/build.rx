@@ -3,24 +3,12 @@
 
     <Args in={Function.Input} out={Function.Output} />
 
-    <Call
-        fn="allocate_nodes"
-        in={{
-            ...$in.pick([
-                "nodes",
-                "owner"
-            ]),
-            count: $in.source.expressions.kinds.length
-        }}
-    />
-
     <Task name="order" out={$ctx.build}>
         <Call
             module="../../order/build"
-            in={$in.pick([
-                "source",
-                "nodes"
-            ])}
+            in={{
+                source: $in.source
+            }}
         />
     </Task>
 

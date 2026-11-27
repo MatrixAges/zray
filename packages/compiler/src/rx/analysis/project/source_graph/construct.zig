@@ -126,11 +126,9 @@ const Build = struct {
         const zx_paths = memory.borrowTextColumn("path", opts.sources);
         const rx_paths = memory.borrowTextColumn("path", opts.modules);
         const stores = memory.borrowTextColumn("path", opts.stores);
-        const order_allocator = if (native_width) self.allocator else self.scratch;
         const frontier_allocator = self.scanner.collector.backing;
         var queue: []u64 = &.{};
         var seen: []u32 = &.{};
-        var ranked: []u64 = &.{};
 
         defer {
             frontier_allocator.free(queue);
@@ -168,15 +166,11 @@ const Build = struct {
             },
             .edge_allocator = @ptrCast(&self.scanner.collector.target_allocator),
             .frontier_allocator = @ptrCast(&frontier_allocator),
-            .order_allocator = @ptrCast(&order_allocator),
-            .order = @ptrCast(&ranked),
             .retain_parses = opts.prefetched != null,
             .retain_dependencies = opts.retain_source_dependencies,
         };
 
         const result = rule.executeIn(self.scratch, &input) catch |err| {
-            if (native_width) order_allocator.free(ranked);
-
             return switch (@as(anyerror, err)) {
                 error.InvalidGraph => error.InvalidGraph,
                 error.OutOfMemory, error.Overflow => error.OutOfMemory,
@@ -187,7 +181,7 @@ const Build = struct {
         std.debug.assert(result.count == result.order.len);
 
         const schedule: model.Schedule = .{
-            .order = try self.indices(result.order, false),
+            .order = try self.indices(result.order, true),
             .batch_ends = try self.indices(result.batch_ends, true),
         };
 

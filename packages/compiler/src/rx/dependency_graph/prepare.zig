@@ -8,8 +8,7 @@ const memory = @import("zx").memory;
 const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
 pub const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
 const Issue = @typeInfo(@FieldType(Input, "issues")).pointer.child;
-const Batch = std.meta.Child(publish.Input);
-const Edges = std.meta.Child(@FieldType(Batch, "edges"));
+const Edges = std.meta.Child(publish.Input);
 const Registry = std.meta.Child(@FieldType(Edges, "registry"));
 const inline_path_bytes = 512;
 const batch_size = 16;
@@ -46,7 +45,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
             const package_column = memory.borrowReadColumn(bool, "package_allowed", indexed.entries);
             const packages = memory.borrowTextColumn("specifier", source.packages);
 
-            try graph.append(allocator, owner, &path, indexed.count, .{
+            try graph.append(allocator, owner, &path, .{
                 .directory = std.fs.path.dirname(entries[owner]) orelse ".",
                 .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
                 .registry = &registry,
@@ -62,7 +61,6 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
                     },
                 },
                 .workspace = undefined,
-                .output = undefined,
                 .allocator = undefined,
             });
 
@@ -76,13 +74,12 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
         var first: usize = 0;
 
         while (try cursor.batch(allocator, &references, &package_allowed)) |count| {
-            try graph.append(allocator, owner, &path, count, .{
+            try graph.append(allocator, owner, &path, .{
                 .directory = directory,
                 .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
                 .registry = &registry,
                 .candidates = &.{ .references = references[0..count], .package_allowed = package_allowed[0..count], .first = first, .indexed = null },
                 .workspace = undefined,
-                .output = undefined,
                 .allocator = undefined,
             });
 
@@ -90,17 +87,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
         }
     }
 
-    const empty = memory.borrowTextColumn("specifier", @as([]const @import("frontend").project.Package, &.{}));
-
-    try graph.append(allocator, sources.len, &path, 0, .{
-        .directory = "",
-        .packages = &.{ .items = @ptrCast(&empty), .length = 0 },
-        .registry = &registry,
-        .candidates = &.{ .references = &.{}, .package_allowed = &.{}, .first = 0, .indexed = null },
-        .workspace = undefined,
-        .output = undefined,
-        .allocator = undefined,
-    });
+    @memset(graph.offsets[graph.next_owner .. sources.len + 1], graph.targets.items.len);
 
     return .{
         .offsets = graph.offsets,
@@ -133,33 +120,22 @@ const Graph = struct {
     issues: std.ArrayList(u8) = .empty,
     references: std.ArrayList(u64) = .empty,
     next_owner: usize = 0,
-    fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, path: *[]u8, capacity: usize, request: Edges) std.mem.Allocator.Error!void {
+    fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, path: *[]u8, request: Edges) std.mem.Allocator.Error!void {
         var input = request;
 
-        try self.targets.ensureUnusedCapacity(allocator, capacity);
-        try self.issues.ensureUnusedCapacity(allocator, capacity);
-        try self.references.ensureUnusedCapacity(allocator, capacity);
-
-        var targets = self.targets.unusedCapacitySlice()[0..capacity];
-        var issues = self.issues.unusedCapacitySlice()[0..capacity];
-        var references = self.references.unusedCapacitySlice()[0..capacity];
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-        input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
-        input.output = &.{ .targets = @ptrCast(&targets), .issues = @ptrCast(&issues), .references = @ptrCast(&references) };
-        input.allocator = @ptrCast(&allocator);
-
-        const written: usize = @intCast(publish.executeValue(scratch.allocator(), &.{
-            .offsets = &.{ .offsets = @ptrCast(&self.offsets), .first = self.next_owner, .end = owner + 1, .edge = self.targets.items.len },
-            .edges = &input,
-        }) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => unreachable,
-        });
+        @memset(self.offsets[self.next_owner .. owner + 1], self.targets.items.len);
 
         self.next_owner = owner + 1;
-        self.targets.items.len += written;
-        self.issues.items.len += written;
-        self.references.items.len += written;
+        input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
+        input.allocator = @ptrCast(&allocator);
+
+        const result = publish.executeValue(allocator, &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        try self.targets.appendSlice(allocator, result.targets);
+        try self.issues.appendSlice(allocator, result.issues);
+        try self.references.appendSlice(allocator, result.references);
     }
 };

@@ -20,6 +20,7 @@
         <Return
             value={{
                 count: 0,
+                order: [],
                 owner: $ctx.walk.owner,
                 edge: $ctx.walk.edge,
                 message: $ctx.diagnostic
@@ -30,6 +31,7 @@
     <Return
         value={{
             count: $ctx.walk.count,
+            order: $ctx.walk.order,
             owner: 0,
             edge: 0,
             message: null

@@ -10,16 +10,16 @@
         module="traverse"
         in={{
             ...$in,
-            returns: $ctx.terminates
+            returns: $ctx.terminates,
+            detailed: true
         }}
     />
 
     <Call fn="publish" in={$ctx.traverse.graph} />
-    <Call fn="node_views" in={$in.nodes} />
 
     <Return
         value={{
-            nodes: $ctx.node_views,
+            nodes: $ctx.traverse.nodes,
             graph: $ctx.publish
         }}
     />

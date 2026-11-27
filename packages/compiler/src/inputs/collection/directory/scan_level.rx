@@ -31,15 +31,11 @@
     <Call
         fn="children"
         in={{
-            target: {
-                level: {
-                    parents: $in.parents,
-                    directories: $in.scan.directories,
-                    files: $in.scan.files
-                },
-                next: $in.scan.next
-            },
-            counts: $ctx.count
+            level: {
+                parents: $in.parents,
+                directories: $in.scan.directories,
+                files: $in.scan.files
+            }
         }}
     />
 
@@ -82,7 +78,13 @@
         ]}
     />
 
-    <Call fn="next_level" in={$in} />
+    <Call
+        fn="next_level"
+        in={{
+            step: $in,
+            parents: $ctx.children
+        }}
+    />
 
     <Return value={$ctx.next_level} />
 </Module>

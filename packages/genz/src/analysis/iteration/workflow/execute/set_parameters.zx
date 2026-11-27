@@ -1,0 +1,19 @@
+import type { Captured, RemovalFlags } from "../../parameters/model"
+
+export type Input = Captured & RemovalFlags
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.loop_state.parameters = {
+        active: true,
+        previous_condition: in.previous_condition,
+        previous_step: in.previous_step,
+        remove_state_condition: in.remove_state_condition,
+        remove_state_step: in.remove_state_step,
+        remove_stack_condition: in.remove_stack_condition,
+        remove_stack_step: in.remove_stack_step
+    }
+}

@@ -116,7 +116,6 @@ const Scan = struct {
         const rule = @import("generated_scan_input_directory");
         self.scope = .{ .active = self.paths };
 
-        var next: []const []const u8 = &.{};
         const views = &self.views;
 
         rule.executeIn(self.scope.allocator(), &.{
@@ -131,7 +130,6 @@ const Scan = struct {
                 .width = @sizeOf(Entry),
                 .prefix_length = self.prefix.len,
             },
-            .next = @ptrCast(&next),
             .initial = &.{""},
         }) catch |err| return self.failure orelse err;
     }

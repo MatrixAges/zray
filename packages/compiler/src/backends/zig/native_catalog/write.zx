@@ -1,54 +1,44 @@
-import memory from "memory"
-
-import pack from "./text"
-
-import type { Publication as Input } from "./model"
-
-export type Output = void
+import type { Names as Input, Packed as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { source, text, target } = in
+    const data: u8[] = []
+    const specifier_lens: u64[] = []
+    const import_lens: u64[] = []
+    const identity_lens: u64?[] = []
 
-    const written = loop({
+    return loop({
         index: 0,
-        offset: 0
+        data,
+        specifier_lens,
+        import_lens,
+        identity_lens
     }, {
-        while: state => state.index < source.specifiers.length,
+        while: state => state.index < in.specifiers.length,
         next: state => {
-            const { index, offset } = state
-            const specifier = pack({
-                target: text,
-                start: offset,
-                name: source.specifiers[index]
-            })
-            const imported = pack({
-                target: text,
-                start: offset + specifier.length,
-                name: source.import_names[index]
-            })
+            const { index } = state
+            const specifier = in.specifiers[index]
+            const imported = in.import_names[index]
+            const identity = in.identities[index]
 
-            memory.writeString(target.specifiers, index, specifier)
-            memory.writeString(target.import_names, index, imported)
-
-            state.offset += specifier.length + imported.length
-
-            const source_identity = source.identities[index]
-            const identity: string? = match {
-                source_identity != null => pack({
-                    target: text,
-                    start: state.offset,
-                    name: source_identity
-                }),
-                _ => null
-            }
-
-            memory.writeOptionalString(target.identities, index, identity)
+            state.data = state.data.concatText(specifier)[0]
+            state.data = state.data.concatText(imported)[0]
+            state.specifier_lens = state.specifier_lens.push(specifier.length)[0]
+            state.import_lens = state.import_lens.push(imported.length)[0]
 
             if (identity != null) {
-                state.offset += identity.length
+                state.data = state.data.concatText(identity)[0]
+                state.identity_lens = state.identity_lens.push(identity.length)[0]
+            } else {
+                state.identity_lens = state.identity_lens.push(null)[0]
             }
 
             state.index += 1
-        }
+        },
+        return: state => ({
+            data: state.data,
+            specifier_lens: state.specifier_lens,
+            import_lens: state.import_lens,
+            identity_lens: state.identity_lens
+        })
     })
 }

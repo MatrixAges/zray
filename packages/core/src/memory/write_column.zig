@@ -249,12 +249,6 @@ pub inline fn writeRowListCount(column: *anyopaque, index: u64, source: *const a
     try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
 }
 
-pub fn writeNamedRowList(column: *anyopaque, index: u64, source: *const anyopaque) IndexError!void {
-    const output: *const []@import("rows.zig").NamedId = @ptrCast(@alignCast(source));
-
-    try write([]const u8, column, index, @as([*]const u8, @ptrCast(output.ptr))[0..output.len]);
-}
-
 pub fn copyRow(target: *anyopaque, source: u64, destination: u64) IndexError!void {
     const output: *RowBuffer = @ptrCast(@alignCast(target));
     const count = output.bytes.len / output.stride;
@@ -383,27 +377,12 @@ pub inline fn writeOptionalU8(target: *anyopaque, index: u64, value: ?u8) IndexE
     return write(?u8, target, index, value);
 }
 
-pub inline fn writeText(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
-    return write([]const u8, target, index, value);
-}
-
 pub inline fn writeOptionalText(target: *anyopaque, index: u64, value: ?[]const u8) IndexError!void {
     return write(?[]const u8, target, index, value);
 }
 
 pub inline fn writeTextList(target: *anyopaque, index: u64, value: []const []const u8) IndexError!void {
     return write([]const []const u8, target, index, value);
-}
-
-pub inline fn writeRowRange(target: *anyopaque, index: u64, storage: []const u8, width: u64, first: u64, count: u64) IndexError!void {
-    const rows = storage.len / width;
-
-    if (first > rows or count > rows - first) return error.IndexOutOfBounds;
-
-    const start: usize = @intCast(first * width);
-
-    // The destination's typed slice stores its length in rows.
-    try write([]const u8, target, index, storage[start..][0..@intCast(count)]);
 }
 
 pub inline fn writeRowReference(target: *anyopaque, index: u64, storage: []const u8, width: u64, row: ?u64) IndexError!void {
@@ -424,14 +403,6 @@ pub inline fn writeListReference(target: *anyopaque, index: u64, source: *const 
     const address = column.bytes.ptr + column.offset + @as(usize, @intCast(member)) * column.stride;
 
     try write(?[*]const u8, target, index, address);
-}
-
-pub inline fn writeOptionalTextList(target: *anyopaque, index: u64, value: ?[]const []const u8) IndexError!void {
-    return write(?[]const []const u8, target, index, value);
-}
-
-pub fn clearOptionalRowList(target: *anyopaque, index: u64) IndexError!void {
-    return write(?[]const u8, target, index, null);
 }
 
 /// Transfers a single cell's representation between compatible, disjoint borrowed fields.

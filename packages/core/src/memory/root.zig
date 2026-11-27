@@ -14,7 +14,6 @@ pub const atomicRowsCount = AtomicRows.count;
 pub const atomicRowLength = AtomicRows.rowLength;
 pub const loadAtomicCell = AtomicRows.load;
 pub const storeAtomicCell = AtomicRows.store;
-pub const fillAtomicRow = AtomicRows.fill;
 const column_set = @import("column_set.zig");
 pub const ByteWriter = @import("byte_writer.zig");
 pub const appendByte = ByteWriter.appendByte;
@@ -171,8 +170,6 @@ pub inline fn u64View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf
 pub fn allocateStringViews(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews([]const u8, allocator, target, count);
 }
-
-pub const allocateU8ListViews = allocateStringViews;
 
 pub fn allocateBoolViews(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(bool, allocator, target, count);
@@ -335,7 +332,6 @@ pub const readOptionalTextColumn = rows.readOptionalText;
 pub const readTextListColumn = rows.readTextList;
 pub const readOptionalTextListColumn = rows.readOptionalTextList;
 pub const readIndirectTextColumn = rows.readIndirectText;
-pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
 pub const readColumnU8 = rows.readColumnU8;
 pub const readColumnBool = rows.readColumnBool;
 pub const readColumnOptionalBool = rows.readColumnOptionalBool;
@@ -393,7 +389,6 @@ pub const allocateRowStorage = column.allocateRowStorage;
 pub const rowBufferBytes = column.rowBufferBytes;
 pub const writeRowList = column.writeRowList;
 pub const writeRowListCount = column.writeRowListCount;
-pub const writeNamedRowList = column.writeNamedRowList;
 pub const copyRow = column.copyRow;
 pub const writeRow = column.writeRow;
 pub const writeRowIndex = column.writeRowIndex;
@@ -414,15 +409,10 @@ pub const writeColumnU64List = column.writeU64List;
 pub const writeColumnU32Lists = column.writeU32Lists;
 pub const writeColumnOptionalU32 = column.writeOptionalU32;
 pub const writeColumnOptionalU8 = column.writeOptionalU8;
-pub const writeColumnText = column.writeText;
 pub const writeColumnOptionalText = column.writeOptionalText;
-pub const writeColumnOptionalTextList = column.writeOptionalTextList;
-pub const clearOptionalRowList = column.clearOptionalRowList;
 pub const writeColumnTextList = column.writeTextList;
-pub const writeColumnRowRange = column.writeRowRange;
 pub const writeColumnRowReference = column.writeRowReference;
 pub const writeListReference = column.writeListReference;
-pub const writeColumnByteList = column.writeTextList;
 pub const copyColumnValue = column.copyValue;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
@@ -522,10 +512,6 @@ pub inline fn copyU32s(target: *anyopaque, source: []const u32) error{IndexOutOf
     return copySlice(u32, target, source);
 }
 
-pub inline fn copyU64s(target: *anyopaque, source: []const u64) error{IndexOutOfBounds}!void {
-    return copySlice(u64, target, source);
-}
-
 pub inline fn copyU32sAt(target: *anyopaque, offset: u64, source: []const u32) error{IndexOutOfBounds}!void {
     return copySliceAt(u32, target, offset, source);
 }
@@ -558,16 +544,6 @@ inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) err
     @memmove(buffer.*, source);
 }
 
-pub inline fn writeUtf8Scalar(target: *anyopaque, offset: u64, codepoint: u64) error{ IndexOutOfBounds, InvalidUnicodeScalar }!u64 {
-    const output: *const []u8 = @ptrCast(@alignCast(target));
-    const scalar = std.math.cast(u21, codepoint) orelse return error.InvalidUnicodeScalar;
-    const count = std.unicode.utf8CodepointSequenceLength(scalar) catch return error.InvalidUnicodeScalar;
-
-    if (offset > output.len or count > output.len - offset) return error.IndexOutOfBounds;
-
-    return std.unicode.utf8Encode(scalar, output.*[@intCast(offset)..]) catch return error.InvalidUnicodeScalar;
-}
-
 pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) error{IndexOutOfBounds}!void {
     return write(u32, target, index, value);
 }
@@ -576,18 +552,6 @@ pub inline fn u32BufferLength(source: *const anyopaque) u64 {
     const view: *const []u32 = @ptrCast(@alignCast(source));
 
     return view.len;
-}
-
-pub inline fn clearU32Buffer(target: *anyopaque, count: u64) error{IndexOutOfBounds}!void {
-    return fillU32Buffer(target, count, 0);
-}
-
-pub inline fn fillU32Buffer(target: *anyopaque, count: u64, value: u32) error{IndexOutOfBounds}!void {
-    const view: *const []u32 = @ptrCast(@alignCast(target));
-
-    if (count > view.len) return error.IndexOutOfBounds;
-
-    @memset(view.*[0..@intCast(count)], value);
 }
 
 pub fn allocateU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
@@ -769,16 +733,8 @@ pub inline fn writeU8List(target: *anyopaque, index: u64, value: []const u8) err
     return write([]const u8, target, index, value);
 }
 
-pub inline fn writeBoolList(target: *anyopaque, index: u64, value: []const bool) error{IndexOutOfBounds}!void {
-    return write([]const bool, target, index, value);
-}
-
 pub inline fn writeU32List(target: *anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {
     return write([]const u32, target, index, value);
-}
-
-pub inline fn writeU64List(target: *anyopaque, index: u64, value: []const u64) error{IndexOutOfBounds}!void {
-    return write([]const u64, target, index, value);
 }
 
 pub inline fn writeStringList(target: *anyopaque, index: u64, value: []const []const u8) error{IndexOutOfBounds}!void {

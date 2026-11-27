@@ -13,16 +13,34 @@ const entry = if (generated) @import("generated_lower_loop") else struct {};
 const Input = if (generated) std.meta.Child(entry.Input) else void;
 const RenewalSource = if (generated) std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_source"))) else void;
 const StoreState = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_0")) else void;
+const StoreParameters = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_1")) else void;
 
 const StoreHost = if (generated) struct {
     frame: *Frame,
     store_0: *StoreState,
+    store_1: *StoreParameters,
     pub fn commit(self: *@This(), pending: anytype) error{}!void {
         if (pending.store_0) |next| {
             self.store_0.* = next;
 
             if (next.has_seed) self.frame.seed = @fromBackingInt(next.seed);
             if (next.changed_name.len != 0) self.frame.changed_name = next.changed_name;
+        }
+
+        if (pending.store_1) |next| {
+            self.store_1.* = next;
+
+            if (next.active) {
+                self.frame.parameters.flags = .{
+                    true,
+                    next.remove_state_condition,
+                    next.remove_state_step,
+                    next.remove_stack_condition,
+                    next.remove_stack_step,
+                };
+
+                self.frame.parameters.previous = .{ next.previous_condition, next.previous_step };
+            }
         }
     }
 } else void;
@@ -88,8 +106,6 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const self = frame.lowering;
     const state = self.state_symbols.current();
     const stack = self.stack_symbols.current();
-    var flags: []bool = &frame.parameters.flags;
-    var previous: [][]const u8 = &frame.parameters.previous;
     const initial_plan: *const @TypeOf(frame.initial) = &frame.initial;
     var origin: @import("construction/publication.zig").OriginBuffer = .{};
 
@@ -107,8 +123,6 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .condition = @backingInt(frame.iteration.condition_parameter),
         .step = @backingInt(frame.iteration.parameter),
         .target = @ptrCast(&self.names),
-        .previous = @ptrCast(&previous),
-        .flags = @ptrCast(&flags),
         .state = &state_view,
         .stack = &stack_view,
     };
@@ -119,7 +133,19 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const guard_info: *const Frame.GuardInfo = &frame.guard_info;
     var store_value: std.meta.Child(StoreState) = .{ .has_seed = false, .seed = 0, .changed_name = &.{} };
     var store_ptr: StoreState = &store_value;
-    var host: StoreHost = .{ .frame = frame, .store_0 = &store_ptr };
+
+    var store_1_value: std.meta.Child(StoreParameters) = .{
+        .active = false,
+        .previous_condition = &.{},
+        .previous_step = &.{},
+        .remove_state_condition = false,
+        .remove_state_step = false,
+        .remove_stack_condition = false,
+        .remove_stack_step = false,
+    };
+
+    var store_1_ptr: StoreParameters = &store_1_value;
+    var host: StoreHost = .{ .frame = frame, .store_0 = &store_ptr, .store_1 = &store_1_ptr };
 
     const input: Input = .{
         .frame = @ptrCast(self),
@@ -144,6 +170,13 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (store_1_ptr.active) {
+        frame.parameters.previous = .{
+            try self.allocator.dupe(u8, store_1_ptr.previous_condition),
+            try self.allocator.dupe(u8, store_1_ptr.previous_step),
+        };
+    }
 
     return if (output.expression) |expression| @fromBackingInt(expression) else null;
 }

@@ -52,8 +52,6 @@ export type Input = RootPaths & {
     columns: Columns,
     edge_allocator: Allocator,
     frontier_allocator: Allocator,
-    order_allocator: Allocator,
-    order: U64Buffer,
     retain_parses: bool,
     retain_dependencies: bool
 }

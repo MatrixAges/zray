@@ -23,8 +23,6 @@
             "columns",
             "edge_allocator",
             "frontier_allocator",
-            "order_allocator",
-            "order",
             "retain_parses",
             "retain_dependencies"
         ])}
@@ -100,15 +98,6 @@
     />
 
     <Call
-        fn="order_buffer"
-        in={{
-            allocator: $in.order_allocator,
-            order: $in.order,
-            count: $ctx.visit
-        }}
-    />
-
-    <Call
         fn="adjacency"
         in={{
             columns: $in.columns.pick([
@@ -125,9 +114,7 @@
             offsets: $ctx.adjacency.starts,
             ends: $ctx.adjacency.ends,
             targets: $ctx.adjacency.targets,
-            roots: $ctx.u64Views,
-            order: $ctx.order_buffer,
-            order_out: $in.order
+            roots: $ctx.u64Views
         }}
     />
 
@@ -146,7 +133,7 @@
         value={{
             entry: $ctx.u64Views[0],
             additional: $ctx.roots,
-            order: $ctx.order_buffer,
+            order: $ctx.schedule.order,
             count: $ctx.schedule.count,
             batch_ends: $ctx.schedule.batch_ends,
             retain_parses: $in.retain_parses,

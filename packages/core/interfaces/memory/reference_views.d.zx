@@ -105,11 +105,6 @@ export declare function readIndirectTextColumn(
     index: u64
 ): string throws { IndexOutOfBounds, MissingField }
 
-export declare function readOptionalIndirectTextColumn(
-    source: IndirectTextColumn,
-    index: u64
-): string? throws { IndexOutOfBounds }
-
 export declare function readBorrowedRowText(
     row: u8[],
     offset: u64

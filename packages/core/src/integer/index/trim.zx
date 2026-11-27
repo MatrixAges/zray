@@ -1,39 +1,44 @@
-import memory from "memory"
-
 import eraseSlot from "./erase_slot"
 import probe from "./probe"
 
-import type { Mutable } from "./model"
+import type { Index } from "./model"
 
 export type Input = {
-    index: Mutable,
+    index: Index,
     first: u64
 }
 
-export type Output = void
+export type Output = Index
 
 export default function (in: Input): Output {
-    const { index, first } = in
+    const { keys } = in.index
 
-    const keys = memory.u32Views(index.keys)
-    const buckets = memory.u32Views(index.buckets)
-
-    const removed = loop(index.count, {
-        while: count => count > first,
-        next: count => {
-            count -= 1
+    const buckets = loop({
+        count: in.index.count,
+        buckets: in.index.buckets
+    }, {
+        while: state => state.count > in.first,
+        next: state => {
+            state.count -= 1
 
             const slot = probe({
                 keys,
-                buckets,
-                key: keys[count]
+                buckets: state.buckets,
+                key: keys[state.count]
             })
 
-            eraseSlot({
-                keys: index.keys,
-                buckets: index.buckets,
+            state.buckets = eraseSlot({
+                keys,
+                buckets: state.buckets,
                 slot
             })
-        }
+        },
+        return: state => state.buckets
     })
+
+    return {
+        count: in.first,
+        keys,
+        buckets
+    }
 }

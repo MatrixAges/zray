@@ -1,5 +1,3 @@
-import type { U64Buffer } from "memory"
-
 export enum Issue {
     None,
     InvalidPath,
@@ -23,18 +21,13 @@ export type Graph = {
     ranked: bool
 }
 
-export type OrderTarget = {
-    order: U64Buffer,
-    capacity: u64
-}
+export type Request = Graph
 
-export type Request = Graph & OrderTarget
-
-export type ValidationInput = Graph.Pick("offsets", "targets", "issues") &
-    OrderTarget
+export type ValidationInput = Graph.Pick("offsets", "targets", "issues")
 
 export type Validation = {
     count: u64,
+    order: u64[],
     owner: u64,
     edge: u64,
     message?: string
@@ -42,6 +35,7 @@ export type Validation = {
 
 export type State = {
     graph: Graph,
+    order: u64[],
     marks: Mark[],
     depths: u64[],
     cursors: u64[],

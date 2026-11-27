@@ -1,6 +1,5 @@
 import type { Index } from "core/bytes/index/model"
-import type { ListColumn, U64Buffer } from "memory"
-import type { OrderTarget } from "../../../../rx/dependency_graph/model"
+import type { ListColumn } from "memory"
 import type { Input as Paths } from "./paths"
 
 export enum Status {
@@ -10,13 +9,9 @@ export enum Status {
     Cycle
 }
 
-export type Input = OrderTarget & {
-    paths: u8[][],
+export type Input = {
     path_columns: Paths,
     dependencies: Dependencies,
-    offsets: u64[],
-    offset_target: U64Buffer,
-    order_rows: u64[],
     entry: u8[]
 }
 
@@ -37,6 +32,8 @@ export type Output = {
     entry?: u64,
     dependencies: u64[],
     status: Status,
+    paths: u8[][],
     buckets: u32?[],
+    offsets: u64[],
     targets: u64[]
 }

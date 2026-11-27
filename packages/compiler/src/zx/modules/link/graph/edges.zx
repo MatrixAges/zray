@@ -4,30 +4,27 @@ import memory from "memory"
 import locate from "./locate"
 
 import type { Index } from "core/bytes/index/model"
-import type { U64Buffer } from "memory"
 import type { Graph } from "../../../../rx/dependency_graph/model"
 import type { Dependencies } from "./model"
 
 export type Input = {
     index: Index,
     dependencies: Dependencies,
-    offsets: u64[],
-    offset_target: U64Buffer,
     root: u64
 }
 
 export type Output = Graph
 
 export default function (in: Input): Output {
-    const { index, dependencies, offsets, offset_target } = in
+    const { index, dependencies } = in
 
     const count = index.keys.length
+    const offsets: u64[] = [0]
     const empty: u64[] = []
 
-    memory.writeU64(offset_target, 0, 0)
-
-    const targets = loop({
+    const built = loop({
         owner: 0,
+        offsets,
         targets: empty
     }, {
         while: state => state.owner < count,
@@ -62,14 +59,17 @@ export default function (in: Input): Output {
             })
 
             state.owner += 1
-            memory.writeU64(offset_target, state.owner, state.targets.length)
+            state.offsets = state.offsets.push(state.targets.length)[0]
         },
-        return: state => state.targets
+        return: state => ({
+            offsets: state.offsets,
+            targets: state.targets
+        })
     })
 
     return {
-        offsets,
-        targets,
+        offsets: built.offsets,
+        targets: built.targets,
         issues: [],
         root: in.root,
         roots: null,

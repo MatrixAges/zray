@@ -24,9 +24,6 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
         return .{ .registration = order, .entry = @intCast(order[order.len - 1]), .dependencies = order[0 .. order.len - 1] };
     }
 
-    const paths = try allocator.alloc([]const u8, modules.len);
-    const offsets = try allocator.alloc(u64, modules.len + 1);
-    const order = try allocator.alloc(u64, modules.len);
     const source_paths = zx.memory.borrowTextColumn("path", modules);
     const generated = @import("generated_artifact_graph");
     const Input = std.meta.Child(generated.Input);
@@ -34,20 +31,14 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
     const dependency_paths = zx.memory.borrowNestedListColumn([]const u8, "dependencies", &.{ "target", "path" }, modules);
 
     const input: Input = .{
-        .paths = paths,
-        .path_columns = &.{ .source = @ptrCast(&source_paths), .target = @ptrCast(&paths), .count = paths.len },
+        .path_columns = &.{ .source = @ptrCast(&source_paths), .count = modules.len },
         .dependencies = &.{
             .kinds = @ptrCast(&kinds),
             .paths = @ptrCast(&dependency_paths),
             .kind_stride = kinds.stride,
             .source_kind = @backingInt(Target.Kind.source),
         },
-        .offsets = offsets,
-        .offset_target = @ptrCast(&offsets),
         .entry = entry,
-        .order = @ptrCast(&order),
-        .order_rows = order,
-        .capacity = order.len,
     };
 
     const plan = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -66,9 +57,9 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
         .registration = plan.registration,
         .entry = @intCast(plan.entry orelse return error.InvalidModule),
         .dependencies = plan.dependencies,
-        .paths = paths,
+        .paths = plan.paths,
         .buckets = plan.buckets,
-        .offsets = offsets,
+        .offsets = plan.offsets,
         .targets = plan.targets,
     };
 }

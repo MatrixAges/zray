@@ -18,6 +18,7 @@ export default function (in: Input): Output {
 
     return {
         graph: in,
+        order: in.offsets.map(offset => 0)[0].pop()[0],
         marks: in.offsets.map(offset => Mark.Unseen)[0].pop()[0],
         depths,
         cursors: in.offsets.map(offset => offset)[0].pop()[0],

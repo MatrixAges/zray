@@ -73,14 +73,7 @@ pub fn scope(self: *Lower, value: ir.ScopeRow, layout: bool) Lower.Error!Registe
 fn apply(self: *Lower, comptime execute: anytype, input: anytype) Lower.Error!Registered {
     const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
     const before: Registered = .{ .state = self.state_symbols.checkpoint(), .stack = self.stack_symbols.checkpoint() };
-
-    const value = execute(self.allocator, if (@typeInfo(Parameter) == .pointer) input else input.*) catch |err| {
-        // Registration only appends keys. The old counts and key prefixes still define both indexes.
-        self.stack_symbols.restoreBuckets();
-        self.state_symbols.restoreBuckets();
-
-        return failure(err);
-    };
+    const value = execute(self.allocator, if (@typeInfo(Parameter) == .pointer) input else input.*) catch |err| return failure(err);
 
     install(&self.state_symbols, value.state_count, value.state_keys, value.state_buckets);
     install(&self.stack_symbols, value.stack_count, value.stack_keys, value.stack_buckets);

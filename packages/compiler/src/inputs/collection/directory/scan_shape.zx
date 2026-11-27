@@ -2,7 +2,6 @@ import type { DirectoryScan } from "generation_host"
 import type {
     ListColumn,
     ReadColumn,
-    StringBuffer,
     U8Buffer,
     WriteColumn
 } from "memory"
@@ -21,7 +20,6 @@ export type Input = {
     files: ListColumn,
     paths: ListColumn,
     target: Files,
-    next: StringBuffer,
     initial: string[]
 }
 

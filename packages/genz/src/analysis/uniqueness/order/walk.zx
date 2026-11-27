@@ -1,13 +1,13 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
-import memory from "memory"
 
 import alternatives from "./alternatives"
 import expression from "./expression"
 import { Action, Definition } from "./model"
 import push from "./push"
 import statement from "./statement"
-import arm from "./walk/arm"
+import blockArm from "./walk/block_arm"
+import nodes from "./walk/nodes"
 import parts from "./walk/parts"
 import repetition from "./walk/repetition"
 import scope from "./walk/scope"
@@ -15,13 +15,26 @@ import scope from "./walk/scope"
 import type { Walk as Input, Trace as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { source, returns, nodes } = in
+    const { source, returns, detailed } = in
 
-    const detailed = nodes != null
+    const seen = source.expressions.kinds.map(kind => false)[0]
+
+    const initial_nodes = nodes({
+        seen,
+        detailed
+    })
 
     const result = loop({
-        ...in.state.graph,
-        seen: source.expressions.kinds.map(kind => false)[0],
+        regions: in.state.graph.regions,
+        edges: in.state.graph.edges,
+        definitions: in.state.graph.definitions,
+        results: in.state.graph.results,
+        repetitions: in.state.graph.repeated,
+        seen,
+        time: initial_nodes.time,
+        finish: initial_nodes.finish,
+        region: initial_nodes.region,
+        repeated: initial_nodes.repeated,
         stack: in.state.stack,
         clock: in.state.clock,
         forks: in.state.forks,
@@ -88,7 +101,7 @@ export default function (in: Input): Output {
                     }
 
                     if (!current.seen[child]) {
-                        const time = current.clock
+                        const time_stamp = current.clock
 
                         current.seen[child] = true
                         current.clock += 1
@@ -99,7 +112,7 @@ export default function (in: Input): Output {
                                 event: {
                                     action: Action.Finish,
                                     first: second,
-                                    second: time,
+                                    second: time_stamp,
                                     third: current.active_region,
                                     fourth: current.active_loop
                                 }
@@ -115,11 +128,11 @@ export default function (in: Input): Output {
                     }
 
                 case Action.Finish:
-                    if (nodes != null) {
-                        memory.writeU32(nodes.time, index, second)
-                        memory.writeU32(nodes.finish, index, current.clock)
-                        memory.writeU32(nodes.region, index, third)
-                        memory.writeU32(nodes.repeated, index, fourth)
+                    if (detailed) {
+                        current.time[index] = second
+                        current.finish[index] = current.clock
+                        current.region[index] = third
+                        current.repeated[index] = fourth
                     }
 
                 case Action.RestoreRegion:
@@ -155,35 +168,19 @@ export default function (in: Input): Output {
                     })
 
                 case Action.BlockArm:
-                    const block = action == Action.BlockArm
-                    const target = integers.widen(fourth)
-                    const parent = current.active_region
-
-                    if (detailed) {
-                        current.active_region = integers.narrow(current.regions.length)
-                        current.regions = current.regions.push({
-                            parent,
-                            fork: second,
-                            arm: third,
-                            depth: current.regions[integers.widen(
-                                parent
-                            )].depth + 1,
-                            returns: block && returns[target]
-                        })[0]
-                        current.stack = push({
-                            stack: current.stack,
-                            event: {
-                                action: Action.RestoreRegion,
-                                first: parent
-                            }
-                        })
-                    }
-
-                    current.stack = arm({
-                        stack: current.stack,
+                    const arm_next = blockArm({
                         control,
+                        returns,
+                        regions: current.regions,
+                        stack: current.stack,
+                        active_region: current.active_region,
+                        detailed,
                         event
                     })
+
+                    current.regions = arm_next.regions
+                    current.stack = arm_next.stack
+                    current.active_region = arm_next.active_region
 
                 case Action.Branch:
                     current.forks += 1
@@ -196,19 +193,19 @@ export default function (in: Input): Output {
                     })
 
                 case Action.Repeat:
-                    const repeated = repetition({
+                    const repeated_next = repetition({
                         table,
                         stack: current.stack,
                         definitions: current.definitions,
-                        repetitions: current.repeated,
+                        repetitions: current.repetitions,
                         parent: current.active_loop,
                         event
                     })
 
-                    current.repeated = repeated.repetitions
-                    current.active_loop = repeated.active
-                    current.definitions = repeated.definitions
-                    current.stack = repeated.stack
+                    current.repetitions = repeated_next.repetitions
+                    current.active_loop = repeated_next.active
+                    current.definitions = repeated_next.definitions
+                    current.stack = repeated_next.stack
 
                 default:
             }
@@ -217,12 +214,18 @@ export default function (in: Input): Output {
 
     return {
         seen: result.seen,
+        nodes: {
+            time: result.time,
+            finish: result.finish,
+            region: result.region,
+            repeated: result.repeated
+        },
         graph: {
             regions: result.regions,
             edges: result.edges,
             definitions: result.definitions,
             results: result.results,
-            repeated: result.repeated
+            repeated: result.repetitions
         }
     }
 }

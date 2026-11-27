@@ -7,7 +7,11 @@
             graph: Graph.ValidationInput,
             selection: Reachability.Selection
         }}
-        out={Graph.Validation}
+        out={
+        Graph.Validation & {
+            marks: u32[]
+        }
+        }
     />
 
     <Call module="validate" in={$in.graph} />
@@ -18,14 +22,26 @@
             in={{
                 ...$in.graph.pick([
                     "offsets",
-                    "targets",
-                    "order"
+                    "targets"
                 ]),
                 ...$in.selection,
+                order: $ctx.validate.order,
                 count: $ctx.validate.count
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.validate,
+                marks: $ctx.reachable
             }}
         />
     </If>
 
-    <Return value={$ctx.validate} />
+    <Return
+        value={{
+            ...$ctx.validate,
+            marks: []
+        }}
+    />
 </Module>

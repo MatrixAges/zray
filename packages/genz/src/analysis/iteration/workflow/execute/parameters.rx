@@ -77,12 +77,20 @@
                 "state",
                 "stack"
             ]),
-            name: $in.name,
-            removal: $ctx.plan.omit([
+            name: $in.name
+        }}
+    />
+
+    <Call
+        fn="set_parameters"
+        in={{
+            ...$ctx.capture,
+            ...$ctx.plan.omit([
                 "add_condition",
                 "add_step"
             ])
         }}
+        setter={[$store.loop_state.parameters]}
     />
 
     <If on={$ctx.parameter_layout != Native.LoopParameterLayout.Plain}>

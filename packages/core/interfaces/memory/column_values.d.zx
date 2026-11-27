@@ -60,23 +60,6 @@ export declare function writeColumnOptionalBool(
     value: bool?
 ): void throws { IndexOutOfBounds }
 
-export declare function writeColumnText(
-    target: WriteColumn,
-    index: u64,
-    value: string
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnOptionalTextList(
-    target: WriteColumn,
-    index: u64,
-    value: string[]?
-): void throws { IndexOutOfBounds }
-
-export declare function clearOptionalRowList(
-    target: WriteColumn,
-    index: u64
-): void throws { IndexOutOfBounds }
-
 export declare function writeColumnOptionalText(
     target: WriteColumn,
     index: u64,
@@ -87,21 +70,6 @@ export declare function writeColumnTextList(
     target: WriteColumn,
     index: u64,
     value: string[]
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnByteList(
-    target: WriteColumn,
-    index: u64,
-    value: u8[][]
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnRowRange(
-    target: WriteColumn,
-    index: u64,
-    storage: u8[],
-    width: u64,
-    first: u64,
-    count: u64
 ): void throws { IndexOutOfBounds }
 
 export declare function writeColumnRowReference(

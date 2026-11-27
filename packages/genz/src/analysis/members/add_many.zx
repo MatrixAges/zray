@@ -1,109 +1,25 @@
-import integers from "std:integer"
-import { max_u32 } from "core/const"
-import {
-    capacity_growth,
-    initial_capacity,
-    load_denominator,
-    load_numerator
-} from "core/integer/index/const"
-import probe from "core/integer/index/probe"
-import memory from "memory"
-
-import add from "./add"
+import insert from "core/integer/index/insert"
 
 import type { Index as Output } from "core/integer/index/model"
-import type { U32Buffer } from "memory"
 
 export type Input = {
     index: Output,
-    keys: u32[],
-    key_buffer: U32Buffer,
-    bucket_buffer: U32Buffer
+    keys: u32[]
 }
 
 export default function (in: Input): Output {
-    if (in.keys.length == 0) {
-        return in.index
-    }
-
-    if (in.keys.length == 1) {
-        return add({
-            index: in.index,
-            key: in.keys[0]
-        })
-    }
-
-    const required = integers.widen(integers.narrow(in.index.count + in.keys.length))
-    const previous = in.index.buckets.length
-    const first = previous == 0 ? initial_capacity : previous
-
-    const capacity = loop(first, {
-        while: size => required > size * load_numerator / load_denominator,
-        next: size => {
-            size *= capacity_growth
-        }
-    })
-
-    if (required > in.index.keys.length) {
-        memory.allocateU32Views(in.key_buffer, required)
-
-        if (in.index.count != 0) {
-            memory.copyU32Range(in.key_buffer, 0, in.index.keys, 0, in.index.count)
-        }
-    }
-
-    if (capacity != previous) {
-        memory.allocateU32Views(in.bucket_buffer, capacity)
-        memory.fillU32Buffer(in.bucket_buffer, capacity, max_u32)
-
-        const rehashed = loop(0, {
-            while: pos => pos < in.index.count,
-            next: pos => {
-                const slot = probe({
-                    keys: in.index.keys,
-                    buckets: memory.u32Views(in.bucket_buffer),
-                    key: in.index.keys[pos]
-                })
-
-                memory.writeU32(in.bucket_buffer, slot, integers.narrow(pos))
-                pos += 1
-            }
-        })
-    }
-
-    const keys = memory.u32Views(in.key_buffer)
-
-    const count = loop({
-        count: in.index.count,
+    return loop({
+        index: in.index,
         position: 0
     }, {
         while: state => state.position < in.keys.length,
         next: state => {
-            const key = in.keys[state.position]
-            const bucket = probe({
-                keys,
-                buckets: memory.u32Views(in.bucket_buffer),
-                key
-            })
-
-            if (memory.readU32(in.bucket_buffer, bucket) == max_u32) {
-                memory.writeU32(in.key_buffer, state.count, key)
-                memory.writeU32(
-                    in.bucket_buffer,
-                    bucket,
-                    integers.narrow(state.count)
-                )
-                state.count += 1
-            }
-
+            state.index = insert({
+                index: state.index,
+                key: in.keys[state.position]
+            }).index
             state.position += 1
         },
-        return: state => state.count
+        return: state => state.index
     })
-
-    return {
-        count,
-        keys: memory.u32Views(in.key_buffer),
-        buckets: memory.u32Views(in.bucket_buffer)
-    }
 }

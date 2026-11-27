@@ -2,51 +2,48 @@ import memory from "memory"
 
 import qualify from "../qualify"
 
-import type { Counts, Target } from "./model"
+import type { Level } from "./model"
 
 export type Input = {
-    target: Target,
-    counts: Counts
+    level: Level
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { level, next } = in.target
-    const { parents, directories } = level
+    const { parents, directories } = in.level
 
-    memory.allocateStringViews(next, in.counts.directories)
+    const empty: string[] = []
 
-    const written = loop({
+    return loop({
         group: 0,
-        next: 0
+        next: empty
     }, {
         while: state => state.group < parents.length,
         next: state => {
             const parent = parents[state.group]
             const names = memory.readTextListColumn(directories, state.group)
 
-            const end = loop({
+            state.next = loop({
                 row: 0,
                 next: state.next
             }, {
-                while: row => row.row < names.length,
-                next: row => {
+                while: item => item.row < names.length,
+                next: item => {
                     const path = qualify({
                         prefix: "",
                         parent,
-                        name: names[row.row]
+                        name: names[item.row]
                     })
 
-                    memory.writeString(next, row.next, path)
-                    row.row += 1
-                    row.next += 1
+                    item.next = item.next.push(path)[0]
+                    item.row += 1
                 },
-                return: row => row.next
+                return: item => item.next
             })
 
-            state.next = end
             state.group += 1
-        }
+        },
+        return: state => state.next
     })
 }

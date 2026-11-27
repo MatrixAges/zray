@@ -1,42 +1,51 @@
-import memory from "memory"
-
-import type { U32Buffer } from "memory"
 import type { ValidationInput } from "./model"
 
 export type Selection = {
-    root: u64,
-    marks: U32Buffer
+    root: u64
 }
 
-export type Input = ValidationInput.Pick("offsets", "targets", "order") &
+export type Input = ValidationInput.Pick("offsets", "targets") &
     Selection & {
+        order: u64[],
         count: u64
     }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { offsets, targets, order, marks } = in
+    const { offsets, targets, order } = in
 
-    memory.writeU32(marks, in.root, 1)
+    const zero: u32 = 0
+    const one: u32 = 1
 
-    const visited = loop(in.count, {
-        while: position => position != 0,
-        next: position => {
-            position -= 1
-            const owner = memory.readU64(order, position)
+    const empty = offsets.map(offset => zero)[0].pop()[0]
+
+    return loop({
+        position: in.count,
+        marks: empty.with(in.root, one)
+    }, {
+        while: state => state.position != 0,
+        next: state => {
+            state.position -= 1
+            const owner = order[state.position]
 
             // In reverse dependency order, every owner precedes its dependencies.
-            if (memory.readU32(marks, owner) != 0) {
+            if (state.marks[owner] != 0) {
                 const end = offsets[owner + 1]
-                const marked = loop(offsets[owner], {
-                    while: edge => edge < end,
-                    next: edge => {
-                        memory.writeU32(marks, targets[edge], 1)
-                        edge += 1
-                    }
+
+                state.marks = loop({
+                    edge: offsets[owner],
+                    marks: state.marks
+                }, {
+                    while: step => step.edge < end,
+                    next: step => {
+                        step.marks[targets[step.edge]] = one
+                        step.edge += 1
+                    },
+                    return: step => step.marks
                 })
             }
-        }
+        },
+        return: state => state.marks
     })
 }

@@ -1,23 +1,31 @@
+import bytes from "std:bytes"
 import memory from "memory"
 
-import type { StringBuffer, TextColumn } from "memory"
+import type { TextColumn } from "memory"
 
 export type Input = {
     source: TextColumn,
-    target: StringBuffer,
     count: u64
 }
 
-export type Output = void
+export type Output = u8[][]
 
 export default function (in: Input): Output {
-    const { source, target, count } = in
+    const { source, count } = in
 
-    const filled = loop(0, {
-        while: row => row < count,
-        next: row => {
-            memory.writeString(target, row, memory.readTextColumn(source, row))
-            row += 1
-        }
+    const empty: u8[][] = []
+
+    return loop({
+        row: 0,
+        paths: empty
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const path = bytes.fromText(memory.readTextColumn(source, state.row))
+
+            state.paths = state.paths.push(path)[0]
+            state.row += 1
+        },
+        return: state => state.paths
     })
 }

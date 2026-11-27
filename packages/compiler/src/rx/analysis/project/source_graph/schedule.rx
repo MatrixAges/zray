@@ -13,15 +13,14 @@
             issues: [],
             root: null,
             roots: $in.roots,
-            ranked: true,
-            order: $in.order_out,
-            capacity: $in.order.length
+            ranked: true
         }}
     />
 
     <If on={$ctx.walk.issue != Graph.Issue.None}>
         <Return
             value={{
+                order: [],
                 count: 0,
                 batch_ends: [],
                 cycle: {
@@ -35,18 +34,17 @@
     <Call
         fn="rank"
         in={{
-            order: $in.order,
+            order: $ctx.walk.order,
             depths: $ctx.walk.depths,
             count: $ctx.walk.count,
-            first_end: $ctx.walk.first_end,
-            target: $in.order_out
+            first_end: $ctx.walk.first_end
         }}
     />
 
     <Call
         fn="batches"
         in={{
-            order: $in.order,
+            order: $ctx.rank,
             depths: $ctx.walk.depths,
             count: $ctx.walk.count
         }}
@@ -54,6 +52,7 @@
 
     <Return
         value={{
+            order: $ctx.rank,
             count: $ctx.walk.count,
             batch_ends: $ctx.batches,
             cycle: null

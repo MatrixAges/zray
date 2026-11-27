@@ -4,4 +4,14 @@
         <Field name="seed" type={u32} value={0} />
         <Field name="changed_name" type={u8[]} value={[]} />
     </Object>
+
+    <Object name="parameters">
+        <Field name="active" type={bool} value={false} />
+        <Field name="previous_condition" type={u8[]} value={[]} />
+        <Field name="previous_step" type={u8[]} value={[]} />
+        <Field name="remove_state_condition" type={bool} value={false} />
+        <Field name="remove_state_step" type={bool} value={false} />
+        <Field name="remove_stack_condition" type={bool} value={false} />
+        <Field name="remove_stack_step" type={bool} value={false} />
+    </Object>
 </Store>

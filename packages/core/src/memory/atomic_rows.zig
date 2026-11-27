@@ -25,13 +25,6 @@ pub fn store(in: *const anyopaque, row: u64, index: u64, value: u8) error{IndexO
     @atomicStore(u8, target, value, .monotonic);
 }
 
-pub fn fill(in: *const anyopaque, row: u64, value: u8) error{IndexOutOfBounds}!void {
-    const table = rows(in);
-
-    if (row >= table.len) return error.IndexOutOfBounds;
-    for (table[@intCast(row)]) |*target| @atomicStore(u8, target, value, .monotonic);
-}
-
 fn cell(in: *const anyopaque, row: u64, index: u64) error{IndexOutOfBounds}!*u8 {
     const table = rows(in);
 

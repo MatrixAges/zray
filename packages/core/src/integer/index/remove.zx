@@ -1,27 +1,32 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { max_u32 } from "../../const"
 import eraseSlot from "./erase_slot"
 import probe from "./probe"
 
-import type { Mutable } from "./model"
+import type { Index } from "./model"
 
-export type Input = Mutable & {
+export type Input = {
+    index: Index,
     key: u32
 }
 
-export type Output = u64?
+export type Output = {
+    index: Index,
+    position?: u64
+}
 
 export default function (in: Input): Output {
-    const buckets = memory.u32Views(in.buckets)
+    const { count, keys, buckets } = in.index
+
     const capacity = buckets.length
 
     if (capacity == 0) {
-        return null
+        return {
+            index: in.index,
+            position: null
+        }
     }
-
-    const keys = memory.u32Views(in.keys)
 
     const slot = probe({
         keys,
@@ -32,11 +37,14 @@ export default function (in: Input): Output {
     const entry = buckets[slot]
 
     if (entry == max_u32) {
-        return null
+        return {
+            index: in.index,
+            position: null
+        }
     }
 
     const position = integers.widen(entry)
-    const last = in.count - 1
+    const last = count - 1
 
     if (position != last) {
         const moved = keys[last]
@@ -47,15 +55,34 @@ export default function (in: Input): Output {
             key: moved
         })
 
-        memory.writeU32(in.keys, position, moved)
-        memory.writeU32(in.buckets, replacement, entry)
+        const next_keys = keys.with(position, moved)
+
+        const next_buckets = eraseSlot({
+            keys: next_keys,
+            buckets: buckets.with(replacement, entry),
+            slot
+        })
+
+        return {
+            index: {
+                count: last,
+                keys: next_keys,
+                buckets: next_buckets
+            },
+            position
+        }
     }
 
-    eraseSlot({
-        keys: in.keys,
-        buckets: in.buckets,
-        slot
-    })
-
-    return position
+    return {
+        index: {
+            count: last,
+            keys,
+            buckets: eraseSlot({
+                keys,
+                buckets,
+                slot
+            })
+        },
+        position
+    }
 }

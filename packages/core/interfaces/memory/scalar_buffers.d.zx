@@ -124,12 +124,6 @@ export declare function copyBytes(
     end: u64
 ): u64 throws { IndexOutOfBounds }
 
-export declare function writeUtf8Scalar(
-    target: U8Buffer,
-    offset: u64,
-    codepoint: u64
-): u64 throws { IndexOutOfBounds, InvalidUnicodeScalar }
-
 export declare function writeOptionalU32(
     target: OptionalU32Buffer,
     index: u64,
