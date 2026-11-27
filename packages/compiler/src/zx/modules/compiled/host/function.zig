@@ -8,8 +8,6 @@ const Target = std.meta.Child(@FieldType(Input, "target"));
 const Source = std.meta.Child(@FieldType(Input, "source"));
 
 pub const View = struct {
-    completed: [1]u64,
-    progress: []u64,
     slots: [@typeInfo(ir.FunctionStorage).@"struct".field_names.len]*usize,
     lengths: zx.memory.ColumnLengths,
     tail: columns.Tail(Target),
@@ -17,8 +15,6 @@ pub const View = struct {
     source: Source,
     input: Input,
     pub fn init(self: *View, functions: *ir.FunctionStorage, source: ir.FunctionTable, first: usize, instance: []const u8) void {
-        self.completed = .{0};
-        self.progress = &self.completed;
         self.slots = zx.memory.borrowColumnLengths(functions);
         self.lengths = &self.slots;
 
@@ -36,7 +32,6 @@ pub const View = struct {
             .target = &self.target,
             .first = first,
             .instance = instance,
-            .progress = @ptrCast(&self.progress),
         };
     }
 };

@@ -1,4 +1,4 @@
-import output from "manifest_output"
+import strings from "std:string"
 import memory from "memory"
 
 import {
@@ -9,63 +9,63 @@ import {
 } from "../schema/const"
 import { line_end, list_item } from "./const"
 import implementation from "./implementation"
+import object from "./json/object"
+import textField from "./json/text_field"
 import section from "./section"
 
-import type { Externals, Implementations, Writer } from "./model"
+import type { Externals, Implementations } from "./model"
 
-export type Input = Writer & {
+export type Input = {
     rows: Externals,
     implementations: Implementations
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, rows, implementations } = in
+    const { rows, implementations } = in
 
     if (rows.count == 0) {
-        return
+        return ""
     }
 
-    section({
-        writer,
-        key: externals_key
-    })
+    const initial: string[] = [section(externals_key)]
 
-    const written = loop(0, {
-        while: row => row < rows.count,
-        next: row => {
-            output.raw(writer, list_item)
-            output.beginRecord(writer)
+    const parts = loop({
+        row: 0,
+        out: initial
+    }, {
+        while: state => state.row < rows.count,
+        next: state => {
+            const base: string[] = [textField({
+                key: specifier_key,
+                value: memory.readTextColumn(rows.specifier, state.row)
+            })]
 
-            output.textField(
-                writer,
-                specifier_key,
-                memory.readTextColumn(rows.specifier, row)
-            )
+            const export_name =
+                memory.readOptionalTextColumn(rows.export_name, state.row)
 
-            const export_name = memory.readOptionalTextColumn(rows.export_name, row)
-
-            if (export_name != null) {
-                output.textField(writer, export_name_key, export_name)
+            const with_export: string[] = match {
+                export_name == null => base,
+                _ => base.push(textField({
+                    key: export_name_key,
+                    value: export_name
+                }))[0]
             }
 
-            output.textField(
-                writer,
-                signature_key,
-                memory.readTextColumn(rows.signature, row)
-            )
-
-            implementation({
-                writer,
+            const fields = with_export.push(textField({
+                key: signature_key,
+                value: memory.readTextColumn(rows.signature, state.row)
+            }))[0].push(implementation({
                 rows: implementations,
-                row
-            })
+                row: state.row
+            }))[0]
 
-            output.endObject(writer)
-            output.raw(writer, line_end)
-
-            row += 1
-        }
+            state.out = state.out.push(`${list_item}${object(fields)}${line_end}`)[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
+
+    return strings.join("", parts)
 }

@@ -1,48 +1,62 @@
-import output from "manifest_output"
+import strings from "std:string"
 import memory from "memory"
 
 import { abi_aliases_key, name_key, specifier_key } from "../schema/const"
+import object from "./json/object"
+import quote from "./json/quote"
+import textField from "./json/text_field"
 
-import type { AbiAliases, Writer } from "./model"
+import type { AbiAliases } from "./model"
 
-export type Input = Writer & {
+export type Input = {
     aliases: AbiAliases,
     row: u64
 }
 
-export type Output = void
+export type Output = string?
 
 export default function (in: Input): Output {
-    const { writer, aliases, row } = in
+    const { aliases, row } = in
 
     const count = memory.optionalListLength(aliases.name, row)
 
     if (count == null) {
-        return
+        return null
     }
 
-    output.member(writer, abi_aliases_key)
-    output.beginArray(writer)
+    const initial: string[] = []
 
-    const written = loop(0, {
-        while: index => index < count,
-        next: index => {
-            output.beginObject(writer)
-            output.textField(
-                writer,
-                name_key,
-                memory.readOptionalTextListItem(aliases.name, row, index)
-            )
-            output.textField(
-                writer,
-                specifier_key,
-                memory.readOptionalTextListItem(aliases.specifier, row, index)
-            )
-            output.endObject(writer)
+    const items = loop({
+        index: 0,
+        out: initial
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const fields: string[] = [
+                textField({
+                    key: name_key,
+                    value:
+                        memory.readOptionalTextListItem(
+                            aliases.name,
+                            row,
+                            state.index
+                        )
+                }),
+                textField({
+                    key: specifier_key,
+                    value: memory.readOptionalTextListItem(
+                        aliases.specifier,
+                        row,
+                        state.index
+                    )
+                })
+            ]
 
-            index += 1
-        }
+            state.out = state.out.push(object(fields))[0]
+            state.index += 1
+        },
+        return: state => state.out
     })
 
-    output.endArray(writer)
+    return `${quote(abi_aliases_key)}:[${strings.join(",", items)}]`
 }

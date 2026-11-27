@@ -14,7 +14,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, o
 
     defer source.deinit();
 
-    try @import("manifest/write.zig").write(&source.writer, data);
+    try @import("manifest/write.zig").write(allocator, &source.writer, data);
 
     var parsed = try manifest.parse(allocator, source.written());
 

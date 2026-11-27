@@ -55,7 +55,7 @@ pub fn init(self: *Self, list: List) void {
     self.input = .{
         .target = &self.tail.output.view,
         .storage = @ptrCast(&self.tail.output.buffer),
-        .used = @ptrCast(&self.tail.used),
+        .used = self.tail.length,
         .buffer = @ptrCast(&self.tail.output.buffer.bytes),
         .signatures = std.mem.sliceAsBytes(list.signatures),
         .stride = @sizeOf(Signature.Member),

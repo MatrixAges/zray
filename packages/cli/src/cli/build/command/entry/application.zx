@@ -1,5 +1,4 @@
-import memory from "memory"
-
+import append from "../append"
 import {
     abi_module,
     application_module,
@@ -7,46 +6,39 @@ import {
     dependency_flag,
     module_prefix
 } from "../const"
-import copy from "../copy"
 import pairs from "../pairs"
 
-import type { Application as Input } from "./model"
+import type { Input } from "./model"
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, at, spec } = in
+    const { spec } = in
 
-    const after_settings = copy({
-        out,
-        at,
-        values: spec.settings
-    })
-
-    memory.writeString(out, after_settings, dependency_flag)
-    memory.writeString(out, after_settings + 1, abi_module)
+    const head: string[] = [
+        dependency_flag,
+        abi_module
+    ]
 
     const imports = pairs({
-        out,
-        at: after_settings + 2,
         flag: dependency_flag,
         values: spec.imports
     })
 
-    const next = pairs({
-        out,
-        at: imports,
+    const natives = pairs({
         flag: dependency_flag,
         values: spec.natives
     })
 
-    const directory = spec.directory
+    const tail: string[] = [
+        `${module_prefix}${application_module}=${spec.directory}/${application_source}`
+    ]
 
-    memory.writeString(
-        out,
-        next,
-        `${module_prefix}${application_module}=${directory}/${application_source}`
-    )
-
-    return next + 1
+    return append([
+        spec.settings,
+        head,
+        imports,
+        natives,
+        tail
+    ])
 }

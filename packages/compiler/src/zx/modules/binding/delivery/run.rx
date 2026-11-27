@@ -26,14 +26,39 @@
                     indices: $ctx.bind.function_indices
                 }}
             />
+
+            <Return
+                value={{
+                    ...$ctx.bind.pick([
+                        "message",
+                        "start",
+                        "end"
+                    ]),
+                    ...$ctx.publish,
+                    reexports: $ctx.publish_reexports
+                }}
+            />
         </If>
+
+        <Return
+            value={{
+                ...$ctx.bind.pick([
+                    "message",
+                    "start",
+                    "end"
+                ]),
+                ...$ctx.publish
+            }}
+        />
     </If>
 
     <Return
-        value={$ctx.bind.pick([
-            "message",
-            "start",
-            "end"
-        ])}
+        value={{
+            ...$ctx.bind.pick([
+                "message",
+                "start",
+                "end"
+            ])
+        }}
     />
 </Module>

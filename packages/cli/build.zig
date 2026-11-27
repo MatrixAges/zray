@@ -36,7 +36,6 @@ pub fn build(b: *std.Build) void {
 
     host.addImport("backend_protocol", @import("build/source.zig").backend(b, core, target, optimize, cli_source));
     host.addImport("watch_inputs", @import("build/source.zig").observations(b, compiler, core, target, optimize, cli_source));
-    host.addImport("manifest_output", b.modules.get("manifest_output").?);
     host.addImport("artifact_io", b.modules.get("artifact_io").?);
 
     const dependency_host = b.addModule("backend_input_host", .{

@@ -13,11 +13,23 @@ const validation = @import("../../../../ir/validate.zig");
 const generated = @import("generated_source_link_publication");
 const preparation = @import("generated_source_link_preparation");
 const StoreState = std.meta.Child(@FieldType(preparation.zx_pending, "store_0"));
+const PublicationStoreState = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
 
 const StoreHost = struct {
     store_0: *StoreState,
     pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
         if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
+
+const PublicationStoreHost = struct {
+    completed: *u64,
+    store_0: *PublicationStoreState,
+    pub fn commit(self: *PublicationStoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| {
+            self.store_0.* = next;
+            self.completed.* = next.completed;
+        }
     }
 };
 
@@ -201,10 +213,13 @@ fn execute(value: anytype, storage: *ir.FunctionStorage, scratch: std.mem.Alloca
     input.mappings = mappings;
 
     const reserve: Reservation = .{ .storage = input.target.storage, .shape = null, .resource = @ptrCast(owner), .count = count };
-    const commit: std.meta.Child(@FieldType(Write, "commit")) = .{ .lengths = @ptrCast(&binding.lengths), .progress = input.progress };
+    const commit: std.meta.Child(@FieldType(Write, "commit")) = .{ .lengths = @ptrCast(&binding.lengths) };
     const write: Write = .{ .batch = if (batch) &input else null, .root = if (batch) null else &input, .initializer = initializer, .commit = &commit };
+    var state_value: std.meta.Child(PublicationStoreState) = .{ .completed = 0 };
+    var state_ptr: PublicationStoreState = &state_value;
+    var host: PublicationStoreHost = .{ .completed = &binding.completed, .store_0 = &state_ptr };
 
-    return generated.executeIn(allocator, &.{ .reserve = if (count != 0) &reserve else null, .write = if (count != 0) &write else null });
+    return generated.executeIn(allocator, &.{ .reserve = if (count != 0) &reserve else null, .write = if (count != 0) &write else null }, &host);
 }
 
 fn borrow(comptime Target: type, pointer: anytype) Target {

@@ -1,28 +1,29 @@
 <Module>
     <Type from="model" as="Prefix" />
 
-    <Args in={Prefix.Input} out={u64} />
+    <Args in={Prefix.Input} out={string[]} />
 
     <Call fn="start" in={$in} />
 
-    <Call
-        module="destination"
-        in={{
-            request: $in,
-            at: $ctx.start
-        }}
-    />
+    <Call module="destination" in={$in} />
 
     <Call
         fn="link"
         in={{
-            out: $in.out,
-            at: $ctx.destination,
             libraries: $in.spec.libraries,
             paths: $in.spec.library_paths,
             libc: $in.spec.libc
         }}
     />
 
-    <Return value={$ctx.link} />
+    <Call
+        fn="../append"
+        in={[
+            $ctx.start,
+            $ctx.destination,
+            $ctx.link
+        ]}
+    />
+
+    <Return value={$ctx.append} />
 </Module>

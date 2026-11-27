@@ -2,8 +2,7 @@ import type { Modules } from "core/native_module_table/model"
 import type {
     Allocator,
     ColumnLengths,
-    OptionalU32Buffer,
-    U64Buffer
+    OptionalU32Buffer
 } from "memory"
 import type {
     Append as TypeRegistration
@@ -46,8 +45,7 @@ export type Check = {
 }
 
 export type Commit = {
-    lengths: ColumnLengths,
-    progress: U64Buffer
+    lengths: ColumnLengths
 }
 
 export type Write = {

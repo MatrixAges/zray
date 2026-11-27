@@ -61,14 +61,14 @@ pub const Publication = struct {
             .source = @ptrCast(&self.alias_source),
             .target = &self.aliases.output.view,
             .storage = @ptrCast(&self.aliases.output.buffer),
-            .used = @ptrCast(&self.aliases.used),
+            .used = self.aliases.length,
         };
 
         self.constants_input = .{
             .source = &self.constant_source,
             .target = &self.constants.output.view,
             .storage = @ptrCast(&self.constants.output.buffer),
-            .used = @ptrCast(&self.constants.used),
+            .used = self.constants.length,
         };
 
         if (functions) |list| {
@@ -84,7 +84,7 @@ pub const Publication = struct {
                 .fallback = if (list.members.default != null) &self.fallback else null,
                 .target = &self.functions.output.view,
                 .storage = @ptrCast(&self.functions.output.buffer),
-                .used = @ptrCast(&self.functions.used),
+                .used = self.functions.length,
             };
         }
 

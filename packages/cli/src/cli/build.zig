@@ -35,7 +35,6 @@ pub const State = struct {
     module: @import("cli_abi").layouts.@"zig:native_build_host".NativeBackendModule = undefined,
     workspace: @import("artifacts.zig").Prepared = undefined,
     native_names: [][]const u8 = undefined,
-    settings_buffer: [Command.constants.settings_capacity][]const u8 = undefined,
     settings: []const []const u8 = undefined,
     native: PendingNative = undefined,
     pub const PendingNative = struct {

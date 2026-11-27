@@ -1,40 +1,21 @@
 <Module>
     <Type from="model" as="ModuleCommand" />
 
-    <Args in={ModuleCommand.Input} out={u64} />
+    <Args in={ModuleCommand.Input} out={string[]} />
+
+    <Call fn="abi" in={$in} />
+    <Call fn="imports" in={$in} />
+    <Call fn="define" in={$in} />
 
     <Call
-        fn="../copy"
-        in={{
-            out: $in.out,
-            at: 0,
-            values: $in.spec.settings
-        }}
+        fn="../append"
+        in={[
+            $in.spec.settings,
+            $ctx.abi,
+            $ctx.imports,
+            $ctx.define
+        ]}
     />
 
-    <Call
-        fn="abi"
-        in={{
-            ...$in,
-            at: $ctx.copy
-        }}
-    />
-
-    <Call
-        fn="imports"
-        in={{
-            ...$in,
-            at: $ctx.abi
-        }}
-    />
-
-    <Call
-        fn="define"
-        in={{
-            ...$in,
-            at: $ctx.imports
-        }}
-    />
-
-    <Return value={$ctx.define} />
+    <Return value={$ctx.append} />
 </Module>

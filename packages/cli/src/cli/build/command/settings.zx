@@ -1,8 +1,4 @@
-import memory from "memory"
-
 import { cpu_flag, optimize_flag, target_flag } from "./const"
-
-import type { StringBuffer } from "memory"
 
 export type Spec = {
     optimize: string,
@@ -11,33 +7,27 @@ export type Spec = {
 }
 
 export type Input = {
-    out: StringBuffer,
     spec: Spec
 }
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, spec } = in
+    const { spec } = in
 
-    memory.writeString(out, 0, optimize_flag)
-    memory.writeString(out, 1, spec.optimize)
+    const base: string[] = [
+        optimize_flag,
+        spec.optimize
+    ]
 
-    const target = spec.target
-
-    if (target != null) {
-        memory.writeString(out, 2, target_flag)
-        memory.writeString(out, 3, target)
+    const with_target: string[] = match {
+        spec.target == null => base,
+        _ => base.push(target_flag)[0].push(spec.target)[0]
     }
-
-    const after_target = target == null ? 2 : 4
 
     if (spec.cpu == null) {
-        return after_target
+        return with_target
     }
 
-    memory.writeString(out, after_target, cpu_flag)
-    memory.writeString(out, after_target + 1, spec.cpu)
-
-    return after_target + 2
+    return with_target.push(cpu_flag)[0].push(spec.cpu)[0]
 }

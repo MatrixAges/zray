@@ -1,0 +1,34 @@
+export type Input = string[][]
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const empty: string[] = []
+
+    return loop({
+        chunks: in,
+        index: 0,
+        out: empty
+    }, {
+        while: state => state.index < state.chunks.length,
+        next: state => {
+            const chunk = state.chunks[state.index]
+
+            state.out = loop({
+                items: chunk,
+                position: 0,
+                acc: state.out
+            }, {
+                while: inner => inner.position < inner.items.length,
+                next: inner => {
+                    inner.acc = inner.acc.push(inner.items[inner.position])[0]
+                    inner.position += 1
+                },
+                return: inner => inner.acc
+            })
+
+            state.index += 1
+        },
+        return: state => state.out
+    })
+}

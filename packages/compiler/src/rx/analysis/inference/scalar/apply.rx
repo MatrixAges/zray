@@ -1,7 +1,7 @@
 <Module>
     <Type from="publication/model" as="Publication" />
 
-    <Args in={Publication.Request} out={string?} />
+    <Args in={Publication.Request} out={Publication.Outcome} />
 
     <Call module="restrict" in={$in.omit(["storage"])} />
 

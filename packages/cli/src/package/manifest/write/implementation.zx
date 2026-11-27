@@ -1,4 +1,3 @@
-import output from "manifest_output"
 import memory from "memory"
 
 import {
@@ -13,62 +12,69 @@ import {
     module_key,
     process_argument_key
 } from "../schema/const"
+import boolField from "./json/bool_field"
+import object from "./json/object"
+import quote from "./json/quote"
+import stringsField from "./json/strings_field"
+import textField from "./json/text_field"
 
-import type { Implementations, Writer } from "./model"
+import type { Implementations } from "./model"
 
-export type Input = Writer & {
+export type Input = {
     rows: Implementations,
     row: u64
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, rows, row } = in
+    const { rows, row } = in
 
-    output.member(writer, implementation_key)
-    output.beginObject(writer)
-
-    output.textField(writer, module_key, memory.readTextColumn(rows.module, row))
-    output.textField(writer, member_key, memory.readTextColumn(rows.member, row))
-
-    output.boolField(
-        writer,
-        allocator_argument_key,
-        memory.readColumnBool(rows.allocator_argument, row)
-    )
-
-    output.boolField(
-        writer,
-        io_argument_key,
-        memory.readColumnBool(rows.io_argument, row)
-    )
-
-    output.boolField(
-        writer,
-        process_argument_key,
-        memory.readColumnBool(rows.process_argument, row)
-    )
-
-    output.boolField(
-        writer,
-        expand_tuple_key,
-        memory.readColumnBool(rows.expand_tuple, row)
-    )
-
-    output.boolField(writer, fallible_key, memory.readColumnBool(rows.fallible, row))
+    const base: string[] = [
+        textField({
+            key: module_key,
+            value: memory.readTextColumn(rows.module, row)
+        }),
+        textField({
+            key: member_key,
+            value: memory.readTextColumn(rows.member, row)
+        }),
+        boolField({
+            key: allocator_argument_key,
+            value: memory.readColumnBool(rows.allocator_argument, row)
+        }),
+        boolField({
+            key: io_argument_key,
+            value: memory.readColumnBool(rows.io_argument, row)
+        }),
+        boolField({
+            key: process_argument_key,
+            value: memory.readColumnBool(rows.process_argument, row)
+        }),
+        boolField({
+            key: expand_tuple_key,
+            value: memory.readColumnBool(rows.expand_tuple, row)
+        }),
+        boolField({
+            key: fallible_key,
+            value: memory.readColumnBool(rows.fallible, row)
+        })
+    ]
 
     const errors = memory.readOptionalTextListColumn(rows.errors, row)
 
-    if (errors != null) {
-        output.stringsField(writer, errors_key, errors)
+    const with_errors: string[] = match {
+        errors == null => base,
+        _ => base.push(stringsField({
+            key: errors_key,
+            values: errors
+        }))[0]
     }
 
-    output.boolField(
-        writer,
-        concurrent_key,
-        memory.readColumnBool(rows.concurrent, row)
-    )
+    const fields = with_errors.push(boolField({
+        key: concurrent_key,
+        value: memory.readColumnBool(rows.concurrent, row)
+    }))[0]
 
-    output.endObject(writer)
+    return `${quote(implementation_key)}:${object(fields)}`
 }

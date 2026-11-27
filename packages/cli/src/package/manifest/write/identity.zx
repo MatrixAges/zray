@@ -1,43 +1,43 @@
+import strings from "std:string"
+
 import { entry_key, library_key, name_key, version_key } from "../schema/const"
 import field from "./field"
 
-import type { Identity, Writer } from "./model"
+import type { Identity } from "./model"
 
-export type Input = Writer & {
-    identity: Identity
-}
+export type Input = Identity
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, identity } = in
-    const { name, version, entry, library } = identity
+    const { name, version, entry, library } = in
 
-    field({
-        writer,
-        key: name_key,
-        text: name
-    })
-
-    field({
-        writer,
-        key: version_key,
-        text: version
-    })
-
-    if (entry != null) {
+    const base: string[] = [
         field({
-            writer,
+            key: name_key,
+            text: name
+        }),
+        field({
+            key: version_key,
+            text: version
+        })
+    ]
+
+    const with_entry: string[] = match {
+        entry == null => base,
+        _ => base.push(field({
             key: entry_key,
             text: entry
-        })
+        }))[0]
     }
 
-    if (library != null) {
-        field({
-            writer,
+    const parts: string[] = match {
+        library == null => with_entry,
+        _ => with_entry.push(field({
             key: library_key,
             text: library
-        })
+        }))[0]
     }
+
+    return strings.join("", parts)
 }

@@ -26,7 +26,6 @@
         in={$in.pick([
             "parent",
             "storage",
-            "object_revision",
             "left",
             "right"
         ])}
@@ -45,7 +44,7 @@
             }}
         />
 
-        <Return value={$ctx.apply} />
+        <Return value={$ctx.apply.message} />
     </If>
 
     <Return value={null} />

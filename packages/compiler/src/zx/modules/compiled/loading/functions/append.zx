@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import readAttributes from "../../../artifact/materializing/publication/attributes"
 import write from "../../../artifact/materializing/publication/write"
 
@@ -7,7 +5,7 @@ import type { Append as Input, Traversal as Output } from "./batch_model"
 
 export default function (in: Input): Output {
     const { state, owned } = in
-    const { source, target, progress } = state.input
+    const { source, target } = state.input
     const { row } = state
 
     write({
@@ -34,8 +32,6 @@ export default function (in: Input): Output {
     })
 
     const next = row + 1
-
-    memory.writeU64(progress, 0, next)
 
     return {
         ...state,

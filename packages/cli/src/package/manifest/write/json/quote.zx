@@ -1,0 +1,56 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import strings from "std:string"
+
+import escapeByte from "./escape_byte"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const raw = bytes.fromText(in)
+
+    const initial: string[] = ["\""]
+
+    const result = loop({
+        index: 0,
+        start: 0,
+        parts: initial
+    }, {
+        while: state => state.index < raw.length,
+        next: state => {
+            const escaped = escapeByte(raw[state.index])
+
+            if (escaped != null) {
+                if (state.index > state.start) {
+                    const chunk = encoding.sliceBytes(in, state.start, state.index)
+
+                    state.parts = state.parts.push(chunk)[0]
+                }
+
+                state.parts = state.parts.push(escaped)[0]
+                state.start = state.index + 1
+            }
+
+            state.index += 1
+        },
+        return: state => state
+    })
+
+    if (result.start == 0) {
+        return `"${in}"`
+    }
+
+    const tail: string = match {
+        result.start < raw.length => encoding.sliceBytes(in, result.start, raw.length),
+        _ => ""
+    }
+
+    const finished: string[] = match {
+        tail.length == 0 => result.parts.push("\"")[0],
+        _ => result.parts.push(tail)[0].push("\"")[0]
+    }
+
+    return strings.join("", finished)
+}

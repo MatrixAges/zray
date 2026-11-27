@@ -7,7 +7,7 @@ import write from "./write"
 
 import type { Reexports as Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
     const { names, indices, rows, first, owner } = in
@@ -64,5 +64,6 @@ export default function (in: Input): Output {
     })
 
     columns.requireColumnBounds(valid)
-    memory.writeU64(rows.used, 0, first + names.length)
+
+    return first + names.length
 }

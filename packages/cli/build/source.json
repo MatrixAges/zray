@@ -742,10 +742,6 @@
             "module": "manifest_yaml_scanner"
         },
         {
-            "path": "package_manifest/write/output.d.zx",
-            "module": "manifest_output"
-        },
-        {
             "path": "package_manifest/decode/document.d.zx",
             "module": "manifest_yaml_document"
         },

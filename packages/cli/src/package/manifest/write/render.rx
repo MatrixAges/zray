@@ -1,28 +1,14 @@
 <Module>
     <Type from="model" as="Manifest" />
 
-    <Args in={Manifest.Input} out={void} />
+    <Args in={Manifest.Input} out={string} />
 
-    <Call
-        fn="identity"
-        in={{
-            writer: $in.writer,
-            identity: $in.identity
-        }}
-    />
-
-    <Call
-        fn="exports"
-        in={{
-            writer: $in.writer,
-            exports: $in.exports
-        }}
-    />
+    <Call fn="identity" in={$in.identity} />
+    <Call fn="exports" in={$in.exports} />
 
     <Call
         fn="visibility"
         in={{
-            writer: $in.writer,
             private: $in.private,
             has_exports: $in.exports.count != 0
         }}
@@ -31,32 +17,17 @@
     <Call
         fn="dependency_sections"
         in={{
-            writer: $in.writer,
             dependencies: $in.dependencies,
             dev_dependencies: $in.dev_dependencies
         }}
     />
 
-    <Call
-        fn="workspace"
-        in={{
-            writer: $in.writer,
-            packages: $in.workspace
-        }}
-    />
-
-    <Call
-        fn="interfaces"
-        in={{
-            writer: $in.writer,
-            rows: $in.interfaces
-        }}
-    />
+    <Call fn="workspace" in={$in.workspace} />
+    <Call fn="interfaces" in={$in.interfaces} />
 
     <Call
         fn="externals"
         in={{
-            writer: $in.writer,
             rows: $in.externals,
             implementations: $in.implementations
         }}
@@ -65,7 +36,6 @@
     <Call
         fn="modules"
         in={{
-            writer: $in.writer,
             rows: $in.modules,
             aliases: $in.aliases
         }}
@@ -74,10 +44,29 @@
     <Call
         fn="paths"
         in={{
-            writer: $in.writer,
             libraries: $in.libraries,
             include_paths: $in.include_paths,
             library_paths: $in.library_paths
         }}
     />
+
+    <Call
+        fn="text.join"
+        in={[
+            "",
+            [
+                $ctx.identity,
+                $ctx.exports,
+                $ctx.visibility,
+                $ctx.dependency_sections,
+                $ctx.workspace,
+                $ctx.interfaces,
+                $ctx.externals,
+                $ctx.modules,
+                $ctx.paths
+            ]
+        ]}
+    />
+
+    <Return value={$ctx.join} />
 </Module>

@@ -4,6 +4,8 @@
 
     <Args in={Source.RootRequest} out={Source.Output} />
 
+    <Store from="progress" as="progress" />
+
     <Call fn="root_request" in={$in} />
 
     <Call module="link" />
@@ -14,12 +16,17 @@
             in={{
                 ...$in.pick([
                     "target",
-                    "empty",
-                    "progress"
+                    "empty"
                 ]),
                 value: $ctx.link,
                 row: 0
             }}
+        />
+
+        <Call
+            fn="set_completed"
+            in={1}
+            setter={[$store.progress.state]}
         />
 
         <Return value={Publication.PublicationStatus.Complete} />

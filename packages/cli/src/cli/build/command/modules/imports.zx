@@ -1,24 +1,26 @@
+import append from "../append"
 import { dependency_flag, include_flag } from "../const"
 import pairs from "../pairs"
 
-import type { Definition as Input } from "./model"
+import type { Input } from "./model"
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, at, spec } = in
+    const { spec } = in
 
     const imports = pairs({
-        out,
-        at,
         flag: dependency_flag,
         values: spec.imports
     })
 
-    return pairs({
-        out,
-        at: imports,
+    const includes = pairs({
         flag: include_flag,
         values: spec.includes
     })
+
+    return append([
+        imports,
+        includes
+    ])
 }

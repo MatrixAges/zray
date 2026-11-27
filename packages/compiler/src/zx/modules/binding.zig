@@ -47,6 +47,17 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
         .{ .start = @intCast(result.start), .end = @intCast(result.end) },
         try allocator.dupe(u8, result.message),
     );
+
+    if (result.aliases) |count| publisher.aliases.length = count;
+    if (result.constants) |count| publisher.constants.length = count;
+
+    if (lists.functions != null) {
+        if (result.functions) |count| publisher.functions.length = count;
+    }
+
+    if (lists.reexports != null) {
+        if (result.reexports) |count| reexports.tail.length = count;
+    }
 }
 
 fn bindingFailure(allocator: std.mem.Allocator, span: zx.Span, reporter: *zx.Reporter, err: anyerror) zx.Error {

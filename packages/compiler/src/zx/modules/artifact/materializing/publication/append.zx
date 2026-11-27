@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import write from "./write"
 
 import type { Append as Input } from "./source_model"
@@ -23,6 +21,4 @@ export default function (in: Input): Output {
         },
         row
     })
-
-    memory.writeU64(in.progress, 0, row + 1)
 }

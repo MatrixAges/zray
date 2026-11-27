@@ -3,6 +3,8 @@
 
     <Args in={Batch.Traversal} out={Batch.Traversal} />
 
+    <Store from="../../../artifact/materializing/publication/progress" as="progress" />
+
     <Call fn="remap_request" in={$in} />
 
     <Call module="remap" />
@@ -13,6 +15,12 @@
             state: $in,
             owned: $ctx.remap
         }}
+    />
+
+    <Call
+        fn="../../../artifact/materializing/publication/set_completed"
+        in={$ctx.append.row}
+        setter={[$store.progress.state]}
     />
 
     <Return value={$ctx.append} />

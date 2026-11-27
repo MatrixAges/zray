@@ -15,7 +15,7 @@ pub const Session = struct {
         const cache = &self.closure.cache;
 
         self.cache = .{
-            .revision = &cache.revision,
+            .revision = cache.revision,
             .index = &cache.index,
             .edges = &cache.edges,
             .marks = &cache.marks,
@@ -54,7 +54,6 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
     }
 
     const allocator = closure.arena.allocator();
-    var revision: []u64 = &cache.revision;
     var index: [][]const u32 = &cache.index;
     var edges: [][]const u64 = &cache.edges;
     var marks: [][]const bool = &cache.marks;
@@ -78,7 +77,6 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
     const input: Update = .{
         .cache = @ptrCast(&session.cache),
         .slots = &.{
-            .revision = @ptrCast(&revision),
             .index = @ptrCast(&index),
             .edges = @ptrCast(&edges),
             .marks = @ptrCast(&marks),
@@ -109,8 +107,15 @@ pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, s
         .shared = shared,
     };
 
-    return update.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+    const outcome = update.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (outcome.revision) |next| {
+        cache.revision = next;
+        session.cache.revision = next;
+    }
+
+    return outcome.ready;
 }

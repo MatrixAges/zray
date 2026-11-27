@@ -3,7 +3,6 @@ import type { Control } from "core/control_table/model"
 import type { Expressions } from "core/expression_table/model"
 import type { Stores } from "core/store_table/model"
 import type { Symbols } from "core/symbol_table/model"
-import type { U64Buffer } from "memory"
 import type { Mapping } from "../../remapping/model"
 import type { Output as External } from "../copy_external"
 import type { Input as FunctionInput, Owned } from "../function_model"
@@ -31,8 +30,7 @@ export type Link = Owned?
 export type Binding = {
     target: Target,
     empty: Empty,
-    max_offset: u64,
-    progress: U64Buffer
+    max_offset: u64
 }
 
 export type Batch = Binding & {
@@ -70,7 +68,7 @@ export type Traversal = {
     running: bool
 }
 
-export type Append = Input.Pick("target", "empty", "progress") & {
+export type Append = Input.Pick("target", "empty") & {
     value: Owned,
     row: u64
 }

@@ -1,48 +1,46 @@
-import memory from "memory"
-
+import append from "../append"
 import { libc_flag, library_path_flag, library_prefix } from "../const"
 import pairs from "../pairs"
 
-import type { StringBuffer } from "memory"
-
 export type Input = {
-    out: StringBuffer,
-    at: u64,
     libraries: string[],
     paths: string[],
     libc: bool
 }
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, at, libraries } = in
+    const { libraries } = in
 
-    const next = loop(0, {
-        while: index => index < libraries.length,
-        next: index => {
-            memory.writeString(
-                out,
-                at + index,
-                `${library_prefix}${libraries[index]}`
-            )
-            index += 1
+    const empty: string[] = []
+
+    const lib_flags = loop({
+        index: 0,
+        out: empty
+    }, {
+        while: state => state.index < libraries.length,
+        next: state => {
+            state.out =
+                state.out.push(`${library_prefix}${libraries[state.index]}`)[0]
+            state.index += 1
         },
-        return: index => at + index
+        return: state => state.out
     })
 
     const linked = pairs({
-        out,
-        at: next,
         flag: library_path_flag,
         values: in.paths
     })
 
+    const combined = append([
+        lib_flags,
+        linked
+    ])
+
     if (!in.libc) {
-        return linked
+        return combined
     }
 
-    memory.writeString(out, linked, libc_flag)
-
-    return linked + 1
+    return combined.push(libc_flag)[0]
 }

@@ -1,5 +1,5 @@
 import type { Rows } from "core/constant/rows"
-import type { Allocator, NamedRows, U64Buffer, WriteColumn } from "memory"
+import type { Allocator, NamedRows, WriteColumn } from "memory"
 import type { ColumnAllocator, RowBuffer } from "memory/columns"
 import type { Source, Target } from "../../artifact/surface/bindings"
 import type { Target as ConstantTarget } from "../../artifact/surface/constants"
@@ -7,7 +7,7 @@ import type { Bindings, PortShape, Result } from "../model"
 
 export type RowsTarget = {
     storage: RowBuffer,
-    used: U64Buffer
+    used: u64
 }
 
 export type AliasColumns = {
@@ -53,6 +53,12 @@ export type Input = {
 }
 
 export type Selected = Bindings & {
-    used: U64Buffer,
+    used: u64,
     owner: Allocator
+}
+
+export type Outcome = {
+    aliases: u64,
+    constants: u64,
+    functions: u64
 }

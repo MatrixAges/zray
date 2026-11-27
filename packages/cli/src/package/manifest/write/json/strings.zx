@@ -1,0 +1,25 @@
+import strings from "std:string"
+
+import quote from "./quote"
+
+export type Input = string[]
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const empty: string[] = []
+
+    const quoted = loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < in.length,
+        next: state => {
+            state.items = state.items.push(quote(in[state.index]))[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
+
+    return `[${strings.join(",", quoted)}]`
+}

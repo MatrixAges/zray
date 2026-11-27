@@ -17,8 +17,7 @@ pub fn Storage(comptime Input: type) type {
         target: Target,
         lengths_array: [@typeInfo(ir.FunctionStorage).@"struct".field_names.len]*usize,
         lengths: zx.memory.ColumnLengths,
-        completed: [1]u64,
-        progress: []u64,
+        completed: u64,
         pub fn init(self: *@This(), destination: *ir.FunctionStorage, temporary: std.mem.Allocator) Input {
             _ = temporary;
 
@@ -27,8 +26,7 @@ pub fn Storage(comptime Input: type) type {
             self.target = .{ .storage = @ptrCast(&self.tail.storage), .shape = null };
             self.lengths_array = zx.memory.borrowColumnLengths(destination);
             self.lengths = &self.lengths_array;
-            self.completed = .{0};
-            self.progress = &self.completed;
+            self.completed = 0;
 
             return .{
                 .source = undefined,
@@ -36,12 +34,11 @@ pub fn Storage(comptime Input: type) type {
                 .target = &self.target,
                 .empty = &empty,
                 .max_offset = std.math.maxInt(usize),
-                .progress = @ptrCast(&self.progress),
             };
         }
 
         pub fn deinit(self: *@This()) void {
-            if (self.completed[0] != 0) @import("../../../column_lengths.zig").publish(&self.lengths, self.completed[0]);
+            if (self.completed != 0) @import("../../../column_lengths.zig").publish(&self.lengths, self.completed);
         }
     };
 }

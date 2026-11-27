@@ -1,5 +1,5 @@
 import type { State as Known } from "core/integer/map/model"
-import type { Allocator, U32Buffer, U64Buffer } from "memory"
+import type { Allocator, U32Buffer } from "memory"
 import type { FieldAccess } from "rx_project_host"
 import type { Input as Shape } from "../unification/commit/publish_shape"
 import type { Object, Output as Field } from "./existing"
@@ -19,8 +19,7 @@ export type Site = Shape.Omit("shape") & {
     members: Members,
     storage: Storage,
     allocator: Allocator,
-    object_kind: u8,
-    revision: U64Buffer
+    object_kind: u8
 }
 
 export type Write = {
@@ -34,4 +33,9 @@ export type Read = Write & {
 
 export type Target = Write & {
     choice: Field
+}
+
+export type Outcome = {
+    value: u32,
+    revised: bool
 }

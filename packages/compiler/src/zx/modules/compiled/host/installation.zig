@@ -49,8 +49,7 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
     if (self.needs_interface) self.public.init(input, library.instance, self.first, initializer_tail);
 
     self.reserve = .{ .storage = self.functions.target.storage, .resource = @ptrCast(&self.owner), .shape = null, .count = source.count() };
-    self.commit = .{ .lengths = @ptrCast(&self.functions.lengths), .progress = self.functions.input.progress };
-
+    self.commit = .{ .lengths = @ptrCast(&self.functions.lengths) };
     const types: *const TypeView.Target = &self.types.target;
     const natives: *const @TypeOf(self.natives.destination) = &self.natives.destination;
 

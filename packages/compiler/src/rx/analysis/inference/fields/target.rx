@@ -15,7 +15,7 @@
                 }}
             />
 
-            <Return value={$ctx.read} />
+            <Return value={$ctx.read.value} />
         </Case>
 
         <Case value={Fields.Action.Append}>

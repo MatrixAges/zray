@@ -1,37 +1,31 @@
 <Module>
     <Type from="model" as="Bindings" />
 
-    <Args in={Bindings.Input} out={void} />
+    <Args in={Bindings.Input} out={Bindings.Outcome} />
 
     <Call fn="reserve" in={$in} />
 
-    <If on={$in.selected.alias_names.length != 0}>
-        <Call
-            fn="aliases"
-            in={{
-                ...$in.destinations.aliases.omit(["storage"]),
-                names: $in.selected.alias_names,
-                indices: $in.selected.alias_indices,
-                owner: $in.owner
-            }}
-        />
-    </If>
+    <Call
+        fn="aliases"
+        in={{
+            ...$in.destinations.aliases.omit(["storage"]),
+            names: $in.selected.alias_names,
+            indices: $in.selected.alias_indices,
+            owner: $in.owner
+        }}
+    />
 
-    <If on={$in.selected.constant_names.length != 0}>
-        <Call
-            fn="constants"
-            in={{
-                ...$in.destinations.constants.omit(["storage"]),
-                names: $in.selected.constant_names,
-                indices: $in.selected.constant_indices,
-                owner: $in.owner
-            }}
-        />
-    </If>
+    <Call
+        fn="constants"
+        in={{
+            ...$in.destinations.constants.omit(["storage"]),
+            names: $in.selected.constant_names,
+            indices: $in.selected.constant_indices,
+            owner: $in.owner
+        }}
+    />
 
-    <If
-        on={$in.destinations.functions != null && $in.selected.function_names.length != 0}
-    >
+    <If on={$in.destinations.functions != null}>
         <Call
             fn="functions"
             in={{
@@ -42,5 +36,21 @@
                 owner: $in.owner
             }}
         />
+
+        <Return
+            value={{
+                aliases: $ctx.aliases,
+                constants: $ctx.constants,
+                functions: $ctx.functions
+            }}
+        />
     </If>
+
+    <Return
+        value={{
+            aliases: $ctx.aliases,
+            constants: $ctx.constants,
+            functions: 0
+        }}
+    />
 </Module>

@@ -1,0 +1,14 @@
+import quote from "./quote"
+
+export type Input = {
+    key: string,
+    value: bool
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const literal = in.value ? "true" : "false"
+
+    return `${quote(in.key)}:${literal}`
+}

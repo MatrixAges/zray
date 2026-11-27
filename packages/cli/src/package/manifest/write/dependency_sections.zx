@@ -1,27 +1,30 @@
+import strings from "std:string"
+
 import { dependencies_key, dev_dependencies_key } from "../schema/const"
 import dependencies from "./dependencies"
 
-import type { Dependencies, Writer } from "./model"
+import type { Dependencies } from "./model"
 
-export type Input = Writer & {
+export type Input = {
     dependencies: Dependencies,
     dev_dependencies: Dependencies
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer } = in
-
-    dependencies({
-        writer,
+    const first = dependencies({
         key: dependencies_key,
         rows: in.dependencies
     })
 
-    dependencies({
-        writer,
+    const second = dependencies({
         key: dev_dependencies_key,
         rows: in.dev_dependencies
     })
+
+    return strings.join("", [
+        first,
+        second
+    ])
 }

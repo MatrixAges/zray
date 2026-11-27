@@ -4,7 +4,6 @@ import { Kind } from "../unification/model"
 import {
     buckets_slot,
     keys_slot,
-    revision_slot,
     selection_slot,
     spread_slot
 } from "./const"
@@ -56,7 +55,7 @@ export default function (in: Input): Output {
     const cache = in.cache
     const keys = cache.index[keys_slot]
 
-    if (keys.length == 0 || cache.revision[revision_slot] != in.revision) {
+    if (keys.length == 0 || cache.revision != in.revision) {
         return {
             ...rejected,
             action: Action.Rebuild

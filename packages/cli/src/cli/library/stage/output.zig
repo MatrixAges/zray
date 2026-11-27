@@ -37,7 +37,10 @@ fn writeManifest(self: *State) !void {
     var buffer: [4096]u8 = undefined;
     var writer = file.file.writerStreaming(request.io, &buffer);
 
-    @import("../../../package/manifest/write.zig").write(&writer.interface, self.config) catch return writer.err.?;
+    @import("../../../package/manifest/write.zig").write(request.backing, &writer.interface, self.config) catch |err| return switch (err) {
+        error.WriteFailed => writer.err.?,
+        else => err,
+    };
 
     writer.interface.flush() catch return writer.err.?;
 

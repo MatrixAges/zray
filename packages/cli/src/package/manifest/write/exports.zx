@@ -1,4 +1,4 @@
-import output from "manifest_output"
+import strings from "std:string"
 import memory from "memory"
 
 import { exports_key, module_key } from "../schema/const"
@@ -6,53 +6,46 @@ import { indent, nested_indent, section_end } from "./const"
 import field from "./field"
 import section from "./section"
 
-import type { Exports, Writer } from "./model"
+import type { Exports } from "./model"
 
-export type Input = Writer & {
-    exports: Exports
-}
+export type Input = Exports
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, exports } = in
-
-    if (exports.count == 0) {
-        return
+    if (in.count == 0) {
+        return ""
     }
 
-    section({
-        writer,
-        key: exports_key
-    })
+    const initial: string[] = [section(exports_key)]
 
-    const written = loop(0, {
-        while: row => row < exports.count,
-        next: row => {
-            const path = memory.readTextColumn(exports.path, row)
-            const module = memory.readOptionalTextColumn(exports.module, row)
+    const parts = loop({
+        row: 0,
+        out: initial
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const path = memory.readTextColumn(in.path, state.row)
+            const module = memory.readOptionalTextColumn(in.module, state.row)
 
-            output.raw(writer, indent)
-
-            if (module != null) {
-                output.raw(writer, path)
-                output.raw(writer, section_end)
-                output.raw(writer, nested_indent)
-
-                field({
-                    writer,
-                    key: module_key,
-                    text: module
-                })
-            } else {
-                field({
-                    writer,
+            const line = match {
+                module != null =>
+                    `${indent}${path}${section_end}${nested_indent}${field({
+                        key: module_key,
+                        text: module
+                    })}`,
+                _ =>
+                    `${indent}${field({
                     key: path,
-                    text: memory.readTextColumn(exports.source, row)
-                })
+                    text: memory.readTextColumn(in.source, state.row)
+                })}`
             }
 
-            row += 1
-        }
+            state.out = state.out.push(line)[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
+
+    return strings.join("", parts)
 }

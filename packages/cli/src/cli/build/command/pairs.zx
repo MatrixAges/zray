@@ -1,27 +1,26 @@
-import memory from "memory"
-
-import type { Input as CopyInput } from "./copy"
-
-export type Input = CopyInput & {
-    flag: string
+export type Input = {
+    flag: string,
+    values: string[]
 }
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, at, values, flag } = in
+    const { flag, values } = in
+
+    const empty: string[] = []
 
     return loop({
         index: 0,
-        offset: at
+        out: empty
     }, {
         while: current => current.index < values.length,
         next: current => {
-            memory.writeString(out, current.offset, flag)
-            memory.writeString(out, current.offset + 1, values[current.index])
-            current.offset += 2
+            const with_flag = current.out.push(flag)[0]
+
+            current.out = with_flag.push(values[current.index])[0]
             current.index += 1
         },
-        return: current => current.offset
+        return: current => current.out
     })
 }

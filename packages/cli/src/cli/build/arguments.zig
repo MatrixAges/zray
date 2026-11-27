@@ -38,7 +38,7 @@ pub fn appendBackendEntry(handle: *const anyopaque) Error!void {
     const options = self.context.options;
     const target = targetOptions(allocator, options) catch |err| return self.failure.save(err);
 
-    self.settings = Command.settings(allocator, &self.settings_buffer, target) catch |err| return self.failure.save(err);
+    self.settings = Command.settings(allocator, target) catch |err| return self.failure.save(err);
 
     self.command.entry(.{
         .settings = self.settings,

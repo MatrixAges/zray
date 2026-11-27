@@ -1,4 +1,4 @@
-import type { U8Buffer, U32Buffer, U32ListBuffer, U64Buffer } from "memory"
+import type { U8Buffer, U32Buffer, U32ListBuffer } from "memory"
 import type { Constraints } from "../../scalar/model"
 import type { Storage } from "../../scalar/publication/model"
 import type { Graph } from "../../scalar/restriction"
@@ -11,7 +11,6 @@ export type Input = {
     columns: Columns,
     shape: Shape,
     storage: Storage,
-    object_revision: U64Buffer,
     left: Constraints,
     right: Constraints
 }

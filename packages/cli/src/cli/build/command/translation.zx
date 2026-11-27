@@ -1,5 +1,4 @@
-import memory from "memory"
-
+import append from "./append"
 import {
     cache_flag,
     global_cache_flag,
@@ -9,10 +8,8 @@ import {
     listen_flag,
     translate_c
 } from "./const"
-import copy from "./copy"
 import pairs from "./pairs"
 
-import type { StringBuffer } from "memory"
 import type { Cache, Toolchain } from "./prefix/model"
 
 export type Spec = Toolchain & Cache & {
@@ -22,40 +19,38 @@ export type Spec = Toolchain & Cache & {
 }
 
 export type Input = {
-    out: StringBuffer,
     spec: Spec
 }
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, spec } = in
+    const { spec } = in
 
-    memory.writeString(out, 0, spec.tool)
-    memory.writeString(out, 1, translate_c)
-    memory.writeString(out, 2, library_directory_flag)
-    memory.writeString(out, 3, spec.library)
-    memory.writeString(out, 4, libc_flag)
-    memory.writeString(out, 5, listen_flag)
-    memory.writeString(out, 6, cache_flag)
-    memory.writeString(out, 7, spec.local)
-    memory.writeString(out, 8, global_cache_flag)
-    memory.writeString(out, 9, spec.global)
-
-    const settings = copy({
-        out,
-        at: 10,
-        values: spec.settings
-    })
+    const head: string[] = [
+        spec.tool,
+        translate_c,
+        library_directory_flag,
+        spec.library,
+        libc_flag,
+        listen_flag,
+        cache_flag,
+        spec.local,
+        global_cache_flag,
+        spec.global
+    ]
 
     const includes = pairs({
-        out,
-        at: settings,
         flag: include_flag,
         values: spec.includes
     })
 
-    memory.writeString(out, includes, spec.header)
+    const tail: string[] = [spec.header]
 
-    return includes + 1
+    return append([
+        head,
+        spec.settings,
+        includes,
+        tail
+    ])
 }

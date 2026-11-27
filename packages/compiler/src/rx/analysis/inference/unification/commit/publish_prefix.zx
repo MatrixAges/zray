@@ -2,17 +2,16 @@ import integers from "std:integer"
 
 import combineFallback from "../../scalar/combine_fallback"
 import intersect from "../../scalar/intersect"
-import advanceRevision from "../../scalar/publication/advance_revision"
 import writeFallback from "../../scalar/publication/write_fallback"
 
 import type { Input as Commit } from "./model"
 
-export type Input = Commit.Pick("parent", "storage", "object_revision", "left", "right")
+export type Input = Commit.Pick("parent", "storage", "left", "right")
 
 export type Output = u64?
 
 export default function (in: Input): Output {
-    const { parent, storage, object_revision, left, right } = in
+    const { parent, storage, left, right } = in
 
     const allowed = intersect({
         left: left.allowed,
@@ -29,9 +28,6 @@ export default function (in: Input): Output {
         row: integers.widen(parent),
         value: fallback
     })
-
-    advanceRevision(storage.revision)
-    advanceRevision(object_revision)
 
     return allowed
 }

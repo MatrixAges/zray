@@ -13,8 +13,7 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
     const Columns = std.meta.Child(@FieldType(Input, "columns"));
     const rows = graph.nodes.slice();
     var topology = Nodes.writable(rows);
-    var publication = Restriction.Publication.init(graph, rows);
-    var object_revision: []u64 = (&graph.object_revision)[0..1];
+    var publication = Restriction.Publication.init(rows);
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const message = generated.executeIn(scratch.allocator(), &.{
@@ -24,7 +23,6 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
         .child = @backingInt(child),
         .columns = &topology.borrow(Columns),
         .storage = &publication.borrow(std.meta.Child(@FieldType(Input, "storage"))),
-        .object_revision = @ptrCast(&object_revision),
         .shape = &.{ .kind = @backingInt(shape.kind), .argument = shape.argument, .members = shape.members },
         .left = &.{
             .allowed = if (first.allowed) |mask| @as(u64, mask) else null,
@@ -35,6 +33,9 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
             .fallback = if (second.fallback) |code| @as(u32, code) else null,
         },
     }) catch unreachable;
+
+    graph.revision += 1;
+    graph.object_revision += 1;
 
     if (message) |text| return graph.reporter.fail(.type_mismatch, span, text);
 }

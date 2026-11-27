@@ -1,12 +1,16 @@
-import type { OptionalU8Buffer, OptionalU16Buffer, U64Buffer } from "memory"
+import type { OptionalU8Buffer, OptionalU16Buffer } from "memory"
 import type { Input as Query } from "../restriction"
 
 export type Storage = {
     allowed: OptionalU16Buffer,
-    fallback: OptionalU8Buffer,
-    revision: U64Buffer
+    fallback: OptionalU8Buffer
 }
 
 export type Request = Query & {
     storage: Storage
+}
+
+export type Outcome = {
+    message?: string,
+    changed: bool
 }

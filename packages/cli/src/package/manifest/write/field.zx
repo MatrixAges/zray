@@ -1,21 +1,13 @@
-import output from "manifest_output"
-
 import { field_separator, line_end } from "./const"
+import quote from "./json/quote"
 
-import type { Writer } from "./model"
-
-export type Input = Writer & {
+export type Input = {
     key: string,
     text: string
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, key, text } = in
-
-    output.raw(writer, key)
-    output.raw(writer, field_separator)
-    output.quoted(writer, text)
-    output.raw(writer, line_end)
+    return `${in.key}${field_separator}${quote(in.text)}${line_end}`
 }

@@ -31,8 +31,7 @@
             position: $in.site.storage.source_values.length,
             name: $ctx.copyColumnText,
             value: $ctx.addFieldNode,
-            object_kind: $in.site.object_kind,
-            revision: $in.site.revision
+            object_kind: $in.site.object_kind
         }}
     />
 

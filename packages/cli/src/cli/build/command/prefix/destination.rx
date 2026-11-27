@@ -1,39 +1,29 @@
 <Module>
     <Type from="model" as="Prefix" />
 
-    <Args
-        in={{
-            request: Prefix.Input,
-            at: u64
-        }}
-        out={u64}
-    />
+    <Args in={Prefix.Input} out={string[]} />
 
-    <If on={$in.request.spec.server != null}>
+    <If on={$in.spec.server != null}>
         <Call
             fn="listen"
             in={{
-                out: $in.request.out,
-                at: $in.at,
-                server: $in.request.spec.server
+                server: $in.spec.server
             }}
         />
 
         <Return value={$ctx.listen} />
     </If>
 
-    <If on={$in.request.spec.files != null}>
+    <If on={$in.spec.files != null}>
         <Call
             fn="output"
             in={{
-                out: $in.request.out,
-                at: $in.at,
-                files: $in.request.spec.files
+                files: $in.spec.files
             }}
         />
 
         <Return value={$ctx.output} />
     </If>
 
-    <Return value={$in.at} />
+    <Return value={[]} />
 </Module>

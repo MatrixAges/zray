@@ -1,7 +1,6 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import advanceRevision from "./advance_revision"
 import writeFallback from "./write_fallback"
 
 import type { Output as Literal } from "../literal"
@@ -24,6 +23,4 @@ export default function (in: Input): Output {
         row,
         value: in.fallback
     })
-
-    advanceRevision(storage.revision)
 }

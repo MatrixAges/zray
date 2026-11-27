@@ -1,5 +1,4 @@
 import { reserveAppend } from "core/row_buffer"
-import memory from "memory"
 
 import type { ColumnAllocator } from "memory/columns"
 import type { RowsTarget } from "../../../binding/publication/model"
@@ -12,7 +11,7 @@ export type Input = RowsTarget & {
 export type Output = u64
 
 export default function (in: Input): Output {
-    const first = memory.readU64(in.used, 0)
+    const first = in.used
 
     const capacity = reserveAppend([
         in.storage,

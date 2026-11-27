@@ -9,3 +9,5 @@ export const indent: string = "  "
 export const nested_indent: string = "    "
 
 export const list_item: string = "  - "
+
+export const hex_digits: string = "0123456789abcdef"

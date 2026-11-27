@@ -50,3 +50,8 @@ export type Update = {
     spread: bool,
     shared: bool
 }
+
+export type UpdateOutcome = {
+    ready: bool,
+    revision?: u64
+}

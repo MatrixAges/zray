@@ -1,4 +1,3 @@
-import type { OutputWriter } from "manifest_output"
 import type { OptionalListColumn, ReadColumn, TextColumn } from "memory"
 
 export type Identity = {
@@ -63,11 +62,7 @@ export type AbiAliases = {
     specifier: OptionalListColumn
 }
 
-export type Writer = {
-    writer: OutputWriter
-}
-
-export type Input = Writer & {
+export type Input = {
     identity: Identity,
     exports: Exports,
     private: bool,

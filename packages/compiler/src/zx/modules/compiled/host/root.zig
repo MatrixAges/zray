@@ -7,10 +7,18 @@ const generated_publish = @import("generated_compiled_library_publish");
 const Input = @import("input.zig");
 const Installation = @import("installation.zig");
 const StoreState = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
+const PublishStoreState = std.meta.Child(@FieldType(generated_publish.zx_pending, "store_0"));
 
 const StoreHost = struct {
     store_0: *StoreState,
     pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
+
+const PublishStoreHost = struct {
+    store_0: *PublishStoreState,
+    pub fn commit(self: *PublishStoreHost, pending: anytype) error{}!void {
         if (pending.store_0) |next| self.store_0.* = next;
     }
 };
@@ -58,10 +66,13 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
     var state_value: std.meta.Child(StoreState) = .{ .preparing = false };
     var state_ptr: StoreState = &state_value;
     var host: StoreHost = .{ .store_0 = &state_ptr };
+    var publish_value: std.meta.Child(PublishStoreState) = .{ .completed = 0 };
+    var publish_ptr: PublishStoreState = &publish_value;
+    var publish_host: PublishStoreHost = .{ .store_0 = &publish_ptr };
 
     input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
     installation.init(&allocator, &input, &library, destination, options.call_scratch, options.initializer_tail);
-    defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, installation.functions.completed[0]);
+    defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, publish_ptr.completed);
     errdefer installation.types.release();
 
     const request: std.meta.Child(generated.Input) = .{
@@ -92,7 +103,7 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
         .plan = if (@typeInfo(@TypeOf(plan)) == .pointer) plan else &plan,
     };
 
-    generated_publish.executeIn(installation.owner, &publication) catch |err| switch (@as(anyerror, err)) {
+    generated_publish.executeIn(installation.owner, &publication, &publish_host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };

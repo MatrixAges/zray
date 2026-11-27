@@ -1,4 +1,4 @@
-import output from "manifest_output"
+import strings from "std:string"
 import memory from "memory"
 
 import {
@@ -12,80 +12,102 @@ import {
 } from "../schema/const"
 import aliasField from "./aliases"
 import { line_end, list_item } from "./const"
+import object from "./json/object"
+import stringsField from "./json/strings_field"
+import textField from "./json/text_field"
 import section from "./section"
 
-import type { AbiAliases, NativeModules, Writer } from "./model"
+import type { AbiAliases, NativeModules } from "./model"
 
-export type Input = Writer & {
+export type Input = {
     rows: NativeModules,
     aliases: AbiAliases
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, rows, aliases } = in
+    const { rows, aliases } = in
 
     if (rows.count == 0) {
-        return
+        return ""
     }
 
-    section({
-        writer,
-        key: native_modules_key
-    })
+    const initial: string[] = [section(native_modules_key)]
 
-    const written = loop(0, {
-        while: row => row < rows.count,
-        next: row => {
-            output.raw(writer, list_item)
-            output.beginRecord(writer)
+    const parts = loop({
+        row: 0,
+        out: initial
+    }, {
+        while: state => state.row < rows.count,
+        next: state => {
+            const base: string[] = [textField({
+                key: name_key,
+                value: memory.readTextColumn(rows.name, state.row)
+            })]
 
-            output.textField(
-                writer,
-                name_key,
-                memory.readTextColumn(rows.name, row)
-            )
+            const path = memory.readOptionalTextColumn(rows.path, state.row)
 
-            const path = memory.readOptionalTextColumn(rows.path, row)
-            const header = memory.readOptionalTextColumn(rows.header, row)
-
-            if (path != null) {
-                output.textField(writer, path_key, path)
+            const with_path: string[] = match {
+                path == null => base,
+                _ => base.push(textField({
+                    key: path_key,
+                    value: path
+                }))[0]
             }
 
-            if (header != null) {
-                output.textField(writer, header_key, header)
+            const header = memory.readOptionalTextColumn(rows.header, state.row)
+
+            const with_header: string[] = match {
+                header == null => with_path,
+                _ => with_path.push(textField({
+                    key: header_key,
+                    value: header
+                }))[0]
             }
 
-            output.stringsField(
-                writer,
-                dependencies_key,
-                memory.readTextListColumn(rows.dependencies, row)
-            )
-            output.stringsField(
-                writer,
-                bundle_files_key,
-                memory.readTextListColumn(rows.bundle_files, row)
+            const with_deps = with_header.push(stringsField({
+                key: dependencies_key,
+                values: memory.readTextListColumn(
+                    rows.dependencies,
+                    state.row
+                )
+            }))[0].push(stringsField({
+                key: bundle_files_key,
+                values: memory.readTextListColumn(
+                    rows.bundle_files,
+                    state.row
+                )
+            }))[0]
+
+            const include_paths = memory.readOptionalTextListColumn(
+                rows.include_paths,
+                state.row
             )
 
-            const include_paths =
-                memory.readOptionalTextListColumn(rows.include_paths, row)
-
-            if (include_paths != null) {
-                output.stringsField(writer, include_paths_key, include_paths)
+            const with_include: string[] = match {
+                include_paths == null => with_deps,
+                _ => with_deps.push(stringsField({
+                    key: include_paths_key,
+                    values: include_paths
+                }))[0]
             }
 
-            aliasField({
-                writer,
+            const alias = aliasField({
                 aliases,
-                row
+                row: state.row
             })
 
-            output.endObject(writer)
-            output.raw(writer, line_end)
+            const fields: string[] = match {
+                alias == null => with_include,
+                _ => with_include.push(alias)[0]
+            }
 
-            row += 1
-        }
+            state.out = state.out.push(`${list_item}${object(fields)}${line_end}`)[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
+
+    return strings.join("", parts)
 }

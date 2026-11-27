@@ -69,12 +69,6 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
 
     const generated = generate(b, compiler, files, "build/source.json", "cli");
 
-    const manifest_output = b.addModule("manifest_output", .{
-        .root_source_file = b.path("src/package/manifest/write/output.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const artifact_io = b.addModule("artifact_io", .{
         .root_source_file = b.path("src/cli/build/workspace/io.zig"),
         .target = target,
@@ -99,7 +93,6 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
             .{ .name = "memory/columns", .module = core.module("memory") },
             .{ .name = "memory/maps", .module = maps },
             .{ .name = "lexical_path", .module = compiler.module("generated_standard") },
-            .{ .name = "manifest_output", .module = manifest_output },
             .{ .name = "artifact_io", .module = artifact_io },
         },
     });

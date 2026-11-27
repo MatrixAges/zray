@@ -3,6 +3,8 @@
 
     <Args in={Install.Publication} out={void} />
 
+    <Store from="../../../artifact/materializing/publication/progress" as="progress" />
+
     <Call
         module="../functions/batch"
         in={{
@@ -27,5 +29,12 @@
         </If>
     </If>
 
-    <Call fn="../../../link/source/workflow/settle" in={$in.installation.commit} />
+    <Call
+        fn="../../../link/source/workflow/settle"
+        in={{
+            lengths: $in.installation.commit.lengths,
+            completed: $store.progress.state.completed
+        }}
+        setter={[$store.progress.state]}
+    />
 </Module>

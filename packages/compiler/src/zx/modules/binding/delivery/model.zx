@@ -12,4 +12,9 @@ export type Input = {
     owner_rows: ColumnAllocator
 }
 
-export type Outcome = Result.Pick("message", "start", "end")
+export type Outcome = Result.Pick("message", "start", "end") & {
+    aliases?: u64,
+    constants?: u64,
+    functions?: u64,
+    reexports?: u64
+}

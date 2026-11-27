@@ -1,5 +1,4 @@
-import memory from "memory"
-
+import append from "../append"
 import {
     application_module,
     dependency_flag,
@@ -8,45 +7,42 @@ import {
     root_module,
     root_source
 } from "../const"
-import copy from "../copy"
 
 import type { Input } from "./model"
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { out, spec } = in
+    const { spec } = in
 
-    const base = copy({
-        out,
-        at: 0,
-        values: spec.settings
-    })
-
-    if (spec.node) {
-        memory.writeString(out, base, dependency_flag)
-        memory.writeString(out, base + 1, napi_module)
+    const node_args: string[] = match {
+        spec.node => [
+            dependency_flag,
+            napi_module
+        ],
+        _ => []
     }
 
-    const after_node = spec.node ? base + 2 : base
     const state = spec.state
 
-    if (state != null) {
-        memory.writeString(out, after_node, dependency_flag)
-        memory.writeString(out, after_node + 1, state)
+    const state_args: string[] = match {
+        state == null => [],
+        _ => [
+            dependency_flag,
+            state
+        ]
     }
 
-    const next = state == null ? after_node : after_node + 2
-    const directory = spec.directory
+    const tail: string[] = [
+        dependency_flag,
+        application_module,
+        `${module_prefix}${root_module}=${spec.directory}/${root_source}`
+    ]
 
-    memory.writeString(out, next, dependency_flag)
-    memory.writeString(out, next + 1, application_module)
-
-    memory.writeString(
-        out,
-        next + 2,
-        `${module_prefix}${root_module}=${directory}/${root_source}`
-    )
-
-    return next + 3
+    return append([
+        spec.settings,
+        node_args,
+        state_args,
+        tail
+    ])
 }

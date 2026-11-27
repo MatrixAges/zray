@@ -1,37 +1,38 @@
-import output from "manifest_output"
+import strings from "std:string"
 
 import { line_end, list_item } from "./const"
+import quote from "./json/quote"
 import section from "./section"
 
-import type { Writer } from "./model"
-
-export type Input = Writer & {
+export type Input = {
     key: string,
     values: string[]
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, key, values } = in
+    const { key, values } = in
 
     if (values.length == 0) {
-        return
+        return ""
     }
 
-    section({
-        writer,
-        key
+    const initial: string[] = [section(key)]
+
+    const parts = loop({
+        index: 0,
+        out: initial
+    }, {
+        while: state => state.index < values.length,
+        next: state => {
+            const line = `${list_item}${quote(values[state.index])}${line_end}`
+
+            state.out = state.out.push(line)[0]
+            state.index += 1
+        },
+        return: state => state.out
     })
 
-    const written = loop(0, {
-        while: index => index < values.length,
-        next: index => {
-            output.raw(writer, list_item)
-            output.quoted(writer, values[index])
-            output.raw(writer, line_end)
-
-            index += 1
-        }
-    })
+    return strings.join("", parts)
 }

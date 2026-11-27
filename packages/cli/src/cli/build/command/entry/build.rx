@@ -1,17 +1,18 @@
 <Module>
     <Type from="model" as="Entry" />
 
-    <Args in={Entry.Input} out={u64} />
+    <Args in={Entry.Input} out={string[]} />
 
     <Call fn="runner" in={$in} />
+    <Call fn="application" in={$in} />
 
     <Call
-        fn="application"
-        in={{
-            ...$in,
-            at: $ctx.runner
-        }}
+        fn="../append"
+        in={[
+            $ctx.runner,
+            $ctx.application
+        ]}
     />
 
-    <Return value={$ctx.application} />
+    <Return value={$ctx.append} />
 </Module>

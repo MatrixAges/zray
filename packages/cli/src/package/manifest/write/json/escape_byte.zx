@@ -1,0 +1,36 @@
+import encoding from "std:encoding"
+import integers from "std:integer"
+
+import { hex_digits } from "../const"
+
+export type Input = u8
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const simple: string? = match {
+        in == 34 => "\\\"",
+        in == 92 => "\\\\",
+        in == 8 => "\\b",
+        in == 12 => "\\f",
+        in == 10 => "\\n",
+        in == 13 => "\\r",
+        in == 9 => "\\t",
+        _ => null
+    }
+
+    if (simple != null) {
+        return simple
+    }
+
+    if (in >= 32) {
+        return null
+    }
+
+    const wide = integers.widenByte(in)
+    const high = wide < 16 ? "0" : "1"
+    const nibble = wide % 16
+    const low = encoding.sliceBytes(hex_digits, nibble, nibble + 1)
+
+    return `\\u00${high}${low}`
+}

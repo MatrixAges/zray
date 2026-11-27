@@ -1,5 +1,3 @@
-import type { StringBuffer } from "memory"
-
 export type Spec = {
     settings: string[],
     directory: string,
@@ -10,10 +8,5 @@ export type Spec = {
 }
 
 export type Input = {
-    out: StringBuffer,
     spec: Spec
-}
-
-export type Application = Input & {
-    at: u64
 }

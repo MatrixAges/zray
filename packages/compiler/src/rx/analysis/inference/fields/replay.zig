@@ -17,6 +17,7 @@ pub const Frame = struct {
     object: FieldView = undefined,
     known: Known = undefined,
     parents: []u32 = undefined,
+    bound: bool = false,
     pub fn bind(self: *Frame) void {
         self.access = .{
             .graph = self.graph,
@@ -37,6 +38,7 @@ pub const Frame = struct {
         self.known = self.graph.pending.known_types.borrow(Known);
         self.parents = self.graph.parents();
         self.view = .{ .object = &self.object, .parents = @ptrCast(&self.parents), .known = &self.known, .site = &self.access.site };
+        self.bound = true;
     }
 
     pub fn from(handle: *anyopaque) *Frame {
@@ -45,7 +47,16 @@ pub const Frame = struct {
 };
 
 pub fn refreshObjectReplayFields(handle: *anyopaque) void {
-    Frame.from(handle).bind();
+    const frame = Frame.from(handle);
+    const was_bound = frame.bound;
+    const previous_kind = if (was_bound) frame.access.receiver.kind else undefined;
+    const previous_count = if (was_bound) frame.access.members.values.len else 0;
+
+    frame.bind();
+
+    if (was_bound and (frame.access.receiver.kind != previous_kind or frame.access.members.values.len != previous_count)) {
+        frame.graph.revision += 1;
+    }
 }
 
 pub fn expectObjectReplayField(handle: *anyopaque, source: u32, target: u32) zx.Error!void {

@@ -1,5 +1,3 @@
-import type { StringBuffer } from "memory"
-
 export type Toolchain = {
     tool: string,
     library: string
@@ -33,6 +31,5 @@ export type Spec = Toolchain & {
 }
 
 export type Input = {
-    out: StringBuffer,
     spec: Spec
 }

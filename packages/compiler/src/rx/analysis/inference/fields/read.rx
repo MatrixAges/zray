@@ -2,7 +2,7 @@
     <Type from="workflow" as="Access" />
     <Type from="model" as="Fields" />
 
-    <Args in={Access.Read} out={u32} />
+    <Args in={Access.Read} out={Access.Outcome} />
 
     <Call
         fn="plan"
@@ -18,13 +18,23 @@
 
     <Switch on={$ctx.plan.route}>
         <Case value={Fields.Route.Member}>
-            <Return value={$ctx.plan.value} />
+            <Return
+                value={{
+                    value: $ctx.plan.value,
+                    revised: false
+                }}
+            />
         </Case>
 
         <Case value={Fields.Route.AppendMember}>
             <Call module="write" in={$in.omit(["open"])} />
 
-            <Return value={$ctx.write} />
+            <Return
+                value={{
+                    value: $ctx.write,
+                    revised: true
+                }}
+            />
         </Case>
 
         <Case value={Fields.Route.DeferLength}>
@@ -38,7 +48,12 @@
                 ]}
             />
 
-            <Return value={$ctx.addFieldNode} />
+            <Return
+                value={{
+                    value: $ctx.addFieldNode,
+                    revised: false
+                }}
+            />
         </Case>
 
         <Case value={Fields.Route.RequireList}>
@@ -71,5 +86,10 @@
         ]}
     />
 
-    <Return value={$ctx.registerFieldType} />
+    <Return
+        value={{
+            value: $ctx.registerFieldType,
+            revised: false
+        }}
+    />
 </Module>

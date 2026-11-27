@@ -1,20 +1,20 @@
 import memory from "memory"
 
 import { buckets_slot, dependents_slot, keys_slot, known_slot } from "./const"
-import { offsets_slot, results_slot, revision_slot, sizes_slot } from "./const"
+import { offsets_slot, results_slot, sizes_slot } from "./const"
 import { selection_slot, spread_slot } from "./const"
 
 import type { Snapshot } from "./layout/model"
 import type { Update } from "./model"
 
-export type Input = Update.Pick("slots", "revision") & {
+export type Input = Update.Pick("slots") & {
     layout: Snapshot
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { slots, layout, revision } = in
+    const { slots, layout } = in
 
     memory.writeU64List(slots.edges, sizes_slot, layout.sizes)
     memory.writeU64List(slots.edges, results_slot, layout.results)
@@ -25,7 +25,6 @@ export default function (in: Input): Output {
     memory.writeBoolList(slots.marks, spread_slot, [])
     memory.writeBoolList(slots.marks, selection_slot, [])
 
-    memory.writeU64(slots.revision, revision_slot, revision)
     memory.writeU32List(slots.index, buckets_slot, layout.buckets)
     memory.writeU32List(slots.index, keys_slot, layout.keys)
 }

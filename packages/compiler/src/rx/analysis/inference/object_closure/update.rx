@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Readiness" />
 
-    <Args in={Readiness.Update} out={bool} />
+    <Args in={Readiness.Update} out={Readiness.UpdateOutcome} />
 
     <If on={$in.rebuild}>
         <Call module="layout/snapshot" in={$in.layout} />
@@ -10,14 +10,16 @@
             fn="publish_snapshot"
             in={{
                 layout: $ctx.snapshot,
-                ...$in.pick([
-                    "revision",
-                    "slots"
-                ])
+                slots: $in.slots
             }}
         />
 
-        <Return value={false} />
+        <Return
+            value={{
+                ready: false,
+                revision: $in.revision
+            }}
+        />
     </If>
 
     <Call
@@ -49,5 +51,9 @@
         }}
     />
 
-    <Return value={$ctx.prove} />
+    <Return
+        value={{
+            ready: $ctx.prove
+        }}
+    />
 </Module>

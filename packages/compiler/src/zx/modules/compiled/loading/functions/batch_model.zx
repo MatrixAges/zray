@@ -1,4 +1,3 @@
-import type { U64Buffer } from "memory"
 import type {
     Columns,
     Target
@@ -10,8 +9,7 @@ export type Input = {
     target: Target,
     mapping: Mapping,
     instance: string,
-    first: u64,
-    progress: U64Buffer
+    first: u64
 }
 
 export type Output = void

@@ -71,13 +71,3 @@ export const module_prefix: string = "-M"
 export const translation_prefix: string = "zxc_c_"
 
 export const translation_dependency: string = "zxc_c="
-
-export const settings_capacity: u64 = 6
-
-export const prefix_capacity: u64 = 18
-
-export const entry_capacity: u64 = 10
-
-export const module_capacity: u64 = 6
-
-export const translation_capacity: u64 = 11

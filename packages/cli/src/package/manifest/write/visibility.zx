@@ -1,30 +1,19 @@
-import output from "manifest_output"
-
 import { private_key, true_scalar } from "../schema/const"
 import { field_separator, line_end } from "./const"
 
-import type { Writer } from "./model"
-
-export type Input = Writer & {
+export type Input = {
     private: bool,
     has_exports: bool
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, private, has_exports } = in
-
-    if (!private) {
-        return
+    if (!in.private) {
+        return ""
     }
 
-    if (has_exports) {
-        output.raw(writer, line_end)
-    }
+    const prefix = in.has_exports ? line_end : ""
 
-    output.raw(writer, private_key)
-    output.raw(writer, field_separator)
-    output.raw(writer, true_scalar)
-    output.raw(writer, line_end)
+    return `${prefix}${private_key}${field_separator}${true_scalar}${line_end}`
 }

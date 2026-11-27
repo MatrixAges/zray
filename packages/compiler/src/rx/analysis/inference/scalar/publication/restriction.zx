@@ -2,7 +2,6 @@ import integers from "std:integer"
 import memory from "memory"
 
 import { Issue } from "../model"
-import advanceRevision from "./advance_revision"
 import {
     incompatible_operator,
     incompatible_requirements,
@@ -10,13 +9,13 @@ import {
 } from "./const"
 
 import type { Output as Decision } from "../restriction"
-import type { Storage } from "./model"
+import type { Outcome, Storage } from "./model"
 
 export type Input = Decision & {
     storage: Storage
 }
 
-export type Output = string?
+export type Output = Outcome
 
 export default function (in: Input): Output {
     const message: string? = match in.issue {
@@ -27,7 +26,10 @@ export default function (in: Input): Output {
     }
 
     if (message != null) {
-        return message
+        return {
+            message,
+            changed: false
+        }
     }
 
     const row = integers.widen(in.root)
@@ -38,9 +40,8 @@ export default function (in: Input): Output {
         integers.narrowShort(in.allowed)
     )
 
-    if (in.changed) {
-        advanceRevision(in.storage.revision)
+    return {
+        message: null,
+        changed: in.changed
     }
-
-    return null
 }

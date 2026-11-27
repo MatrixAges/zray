@@ -1,12 +1,10 @@
 const std = @import("std");
 const model = @import("model.zig");
 const memory = @import("zx").memory;
-const Output = @import("manifest_output");
 const rule = @import("cli_source").manifest_write;
 const Input = std.meta.Child(rule.Input);
 
-pub fn write(target: *std.Io.Writer, data: model.Manifest) std.Io.Writer.Error!void {
-    var output: Output = .{ .target = target };
+pub fn write(allocator: std.mem.Allocator, target: *std.Io.Writer, data: model.Manifest) (std.Io.Writer.Error || std.mem.Allocator.Error)!void {
     const exports = columns("exports", &.{}, data.exports);
     const dependencies = columns("dependencies", &.{}, data.dependencies);
     const dev_dependencies = columns("dev_dependencies", &.{}, data.dev_dependencies);
@@ -16,10 +14,11 @@ pub fn write(target: *std.Io.Writer, data: model.Manifest) std.Io.Writer.Error!v
     const modules = columns("modules", &.{}, data.native_modules);
     const names = memory.borrowOptionalListColumn("abi_aliases", "name", data.native_modules);
     const specifiers = memory.borrowOptionalListColumn("abi_aliases", "specifier", data.native_modules);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    rule.executeValue(scratch.allocator(), &Input{
-        .writer = @ptrCast(&output),
+    defer arena.deinit();
+
+    const rendered = rule.executeValue(arena.allocator(), &Input{
         .identity = &.{
             .name = data.name,
             .version = data.version,
@@ -43,9 +42,11 @@ pub fn write(target: *std.Io.Writer, data: model.Manifest) std.Io.Writer.Error!v
         .include_paths = data.include_paths,
         .library_paths = data.library_paths,
     }) catch |err| switch (err) {
-        error.WriteFailed => return error.WriteFailed,
+        error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
+
+    try target.writeAll(rendered);
 }
 
 fn columns(comptime name: []const u8, comptime prefix: []const []const u8, rows: anytype) Columns(std.meta.Child(@FieldType(Input, name))) {

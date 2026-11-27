@@ -9,7 +9,6 @@ pub fn Tail(comptime Row: type, comptime Destination: type, comptime fields: any
         list: *std.ArrayList(Row),
         output: memory.RowOutput(Row, Columns, fields),
         length: u64,
-        used: []u64,
         pub fn init(self: *Self, list: *std.ArrayList(Row)) void {
             self.list = list;
 
@@ -17,7 +16,6 @@ pub fn Tail(comptime Row: type, comptime Destination: type, comptime fields: any
             self.output.bind(list.allocatedSlice());
 
             self.length = list.items.len;
-            self.used = @as(*[1]u64, @ptrCast(&self.length));
         }
 
         pub fn commit(self: *Self) void {

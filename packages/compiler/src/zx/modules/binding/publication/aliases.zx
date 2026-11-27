@@ -5,12 +5,14 @@ import type { Aliases, Selected } from "./model"
 
 export type Input = Selected & Aliases.Pick("source", "target")
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { names, indices, source, target, used, owner } = in
+    const { names, indices, source, target, used: first, owner } = in
 
-    const first = memory.readU64(used, 0)
+    if (names.length == 0) {
+        return first
+    }
 
     const published = loop(0, {
         while: row => row < names.length,
@@ -27,7 +29,8 @@ export default function (in: Input): Output {
             )
             memory.writeColumnU32(target.id, destination, id)
             row += 1
-            memory.writeU64(used, 0, first + row)
         }
     })
+
+    return first + names.length
 }

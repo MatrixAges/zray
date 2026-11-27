@@ -24,7 +24,6 @@ pub const Frame = struct {
     storage: Storage = undefined,
     writable: Nodes.Writable = undefined,
     columns: Columns = undefined,
-    revision: []u64 = undefined,
     pub fn bind(self: *Frame) View.Shape {
         const graph = self.graph;
         const shape = View.describe(graph, self.root);
@@ -40,7 +39,6 @@ pub const Frame = struct {
 
         self.resize = .{ .buffers = &graph.field_buffers, .allocator = graph.allocator, .fields = inferred };
         self.storage = self.resize.borrow(Storage);
-        self.revision = (&graph.revision)[0..1];
 
         self.members = if (known and shape.type_kind == @backingInt(@as(std.meta.Tag(zx.ir.Type), .object))) members: {
             const count = types.second.items[shape.argument];
@@ -67,7 +65,6 @@ pub const Frame = struct {
             .columns = &self.columns,
             .parent = @backingInt(self.root),
             .object_kind = @backingInt(Nodes.Kind.Object),
-            .revision = @ptrCast(&self.revision),
         };
 
         return shape;
@@ -83,9 +80,11 @@ pub fn read(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, s
 
     const input: Input = .{ .site = &frame.site, .name = name, .open = open };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const value = rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
+    const outcome = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| return errors.errorSet(err);
 
-    return @fromBackingInt(value);
+    if (outcome.revised) graph.revision += 1;
+
+    return @fromBackingInt(outcome.value);
 }
 
 pub fn addFieldNode(handle: *anyopaque) zx.Error!u32 {

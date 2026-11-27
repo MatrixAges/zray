@@ -1,5 +1,4 @@
 import { reserveAppend } from "core/row_buffer"
-import memory from "memory"
 
 import type { Input } from "./model"
 
@@ -12,7 +11,7 @@ export default function (in: Input): Output {
     if (selected.alias_names.length != 0) {
         const capacity = reserveAppend([
             aliases.storage,
-            memory.readU64(aliases.used, 0),
+            aliases.used,
             selected.alias_names.length,
             owner_rows
         ])
@@ -21,7 +20,7 @@ export default function (in: Input): Output {
     if (selected.constant_names.length != 0) {
         const capacity = reserveAppend([
             constants.storage,
-            memory.readU64(constants.used, 0),
+            constants.used,
             selected.constant_names.length,
             owner_rows
         ])
@@ -30,7 +29,7 @@ export default function (in: Input): Output {
     if (functions != null && selected.function_names.length != 0) {
         const capacity = reserveAppend([
             functions.storage,
-            memory.readU64(functions.used, 0),
+            functions.used,
             selected.function_names.length,
             owner_rows
         ])

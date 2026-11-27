@@ -1,4 +1,4 @@
-import output from "manifest_output"
+import strings from "std:string"
 import memory from "memory"
 
 import {
@@ -9,59 +9,54 @@ import {
     specifier_key
 } from "../schema/const"
 import { line_end, list_item } from "./const"
+import object from "./json/object"
+import stringsField from "./json/strings_field"
+import textField from "./json/text_field"
 import section from "./section"
 
-import type { Interfaces, Writer } from "./model"
+import type { Interfaces } from "./model"
 
-export type Input = Writer & {
-    rows: Interfaces
-}
+export type Input = Interfaces
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, rows } = in
-
-    if (rows.count == 0) {
-        return
+    if (in.count == 0) {
+        return ""
     }
 
-    section({
-        writer,
-        key: native_interfaces_key
+    const initial: string[] = [section(native_interfaces_key)]
+
+    const parts = loop({
+        row: 0,
+        out: initial
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const fields: string[] = [
+                textField({
+                    key: specifier_key,
+                    value: memory.readTextColumn(in.specifier, state.row)
+                }),
+                textField({
+                    key: path_key,
+                    value: memory.readTextColumn(in.path, state.row)
+                }),
+                textField({
+                    key: module_key,
+                    value: memory.readTextColumn(in.module, state.row)
+                }),
+                stringsField({
+                    key: namespace_key,
+                    values: memory.readTextListColumn(in.namespace, state.row)
+                })
+            ]
+
+            state.out = state.out.push(`${list_item}${object(fields)}${line_end}`)[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
 
-    const written = loop(0, {
-        while: row => row < rows.count,
-        next: row => {
-            output.raw(writer, list_item)
-            output.beginRecord(writer)
-
-            output.textField(
-                writer,
-                specifier_key,
-                memory.readTextColumn(rows.specifier, row)
-            )
-            output.textField(
-                writer,
-                path_key,
-                memory.readTextColumn(rows.path, row)
-            )
-            output.textField(
-                writer,
-                module_key,
-                memory.readTextColumn(rows.module, row)
-            )
-            output.stringsField(
-                writer,
-                namespace_key,
-                memory.readTextListColumn(rows.namespace, row)
-            )
-
-            output.endObject(writer)
-            output.raw(writer, line_end)
-
-            row += 1
-        }
-    })
+    return strings.join("", parts)
 }

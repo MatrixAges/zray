@@ -1,40 +1,46 @@
-import output from "manifest_output"
+import strings from "std:string"
 import memory from "memory"
 
 import { field_separator, indent, line_end } from "./const"
+import quote from "./json/quote"
 import section from "./section"
 
-import type { Dependencies, Writer } from "./model"
+import type { Dependencies } from "./model"
 
-export type Input = Writer & {
+export type Input = {
     key: string,
     rows: Dependencies
 }
 
-export type Output = void
+export type Output = string
 
 export default function (in: Input): Output {
-    const { writer, key, rows } = in
+    const { key, rows } = in
 
     if (rows.count == 0) {
-        return
+        return ""
     }
 
-    section({
-        writer,
-        key
+    const initial: string[] = [section(key)]
+
+    const parts = loop({
+        row: 0,
+        out: initial
+    }, {
+        while: state => state.row < rows.count,
+        next: state => {
+            const name = quote(memory.readTextColumn(rows.name, state.row))
+            const requirement =
+                quote(memory.readTextColumn(rows.requirement, state.row))
+
+            state.out =
+                state.out.push(
+                    `${indent}${name}${field_separator}${requirement}${line_end}`
+                )[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
 
-    const written = loop(0, {
-        while: row => row < rows.count,
-        next: row => {
-            output.raw(writer, indent)
-            output.quoted(writer, memory.readTextColumn(rows.name, row))
-            output.raw(writer, field_separator)
-            output.quoted(writer, memory.readTextColumn(rows.requirement, row))
-            output.raw(writer, line_end)
-
-            row += 1
-        }
-    })
+    return strings.join("", parts)
 }

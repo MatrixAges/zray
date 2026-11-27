@@ -3,6 +3,8 @@
 
     <Args in={Source.Traversal} out={Source.Traversal} />
 
+    <Store from="progress" as="progress" />
+
     <Call
         fn="read"
         in={{
@@ -23,12 +25,17 @@
             in={{
                 ...$in.input.pick([
                     "target",
-                    "empty",
-                    "progress"
+                    "empty"
                 ]),
                 value: $ctx.link,
                 row: $in.row
             }}
+        />
+
+        <Call
+            fn="set_completed"
+            in={$in.row + 1}
+            setter={[$store.progress.state]}
         />
 
         <Return
