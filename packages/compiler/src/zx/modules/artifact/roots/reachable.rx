@@ -5,7 +5,7 @@
 
     <Call fn="collect" in={$in.request} />
 
-    <If on={!$ctx.collect}>
+    <If on={$ctx.collect == null}>
         <Return value={null} />
     </If>
 
@@ -14,12 +14,13 @@
             fn="function_root"
             in={{
                 request: $in.request,
+                roots: $ctx.collect,
                 bindings: $in.request.record.function_imports
             }}
         />
     </Task>
 
-    <If on={!$ctx.task.function_imports}>
+    <If on={$ctx.task.function_imports == null}>
         <Return value={null} />
     </If>
 
@@ -27,22 +28,24 @@
         fn="function_root"
         in={{
             request: $in.request,
+            roots: $ctx.task.function_imports,
             bindings: $in.request.record.function_exports
         }}
     />
 
-    <If on={!$ctx.function_root}>
+    <If on={$ctx.function_root == null}>
         <Return value={null} />
     </If>
 
     <Call
         fn="native_root"
         in={{
-            request: $in.request
+            request: $in.request,
+            roots: $ctx.function_root
         }}
     />
 
-    <If on={!$ctx.native_root}>
+    <If on={$ctx.native_root == null}>
         <Return value={null} />
     </If>
 
@@ -50,12 +53,11 @@
         fn="body_root"
         in={{
             body: $in.body,
-            buffer: $in.request.buffer,
-            count: $in.request.roots.length
+            roots: $ctx.native_root
         }}
     />
 
-    <If on={!$ctx.body_root}>
+    <If on={$ctx.body_root == null}>
         <Return value={null} />
     </If>
 
@@ -63,10 +65,9 @@
         fn="closure"
         in={{
             table: $in.request.table,
-            needed: $in.request.roots,
-            buffer: $in.request.buffer
+            needed: $ctx.body_root
         }}
     />
 
-    <Return value={$ctx.closure ? $in.request.roots : null} />
+    <Return value={$ctx.closure} />
 </Module>

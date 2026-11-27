@@ -1,22 +1,29 @@
 import memory from "memory"
 
-import type { Retained, Target } from "./model"
+import type { DigestRow, Retained } from "./model"
 
 export type Input = {
     retained: Retained,
-    target: Target,
+    width: u64,
     first: u64,
     end: u64
 }
 
-export type Output = u64
+export type Output = {
+    next: u64,
+    rows: DigestRow[]
+}
 
 export default function (in: Input): Output {
-    const { retained, target, first, end } = in
+    const { retained, width, first, end } = in
 
-    const next = loop({
+    const empty_rows: DigestRow[] = []
+    const empty_bytes: u8[] = []
+
+    return loop({
         row: first,
-        changed: false
+        changed: false,
+        rows: empty_rows
     }, {
         while: state => !state.changed && state.row < end,
         next: state => {
@@ -25,30 +32,24 @@ export default function (in: Input): Output {
             const incoming = memory.readTextColumn(retained.current, row)
 
             if (previous == incoming) {
+                const present = retained.present[row] != 0
+                const bytes = match {
+                    present => memory.borrowU8Range(retained.data, row * width, width),
+                    _ => empty_bytes
+                }
+
+                state.rows = state.rows.push({
+                    present,
+                    bytes
+                })[0]
                 state.row += 1
             } else {
                 state.changed = true
             }
         },
-        return: state => state.row
+        return: state => ({
+            next: state.row,
+            rows: state.rows
+        })
     })
-
-    if (next != first) {
-        const first_byte = first * target.width
-        const end_byte = next * target.width
-
-        const data =
-            memory.copyBytes(
-                target.data,
-                first_byte,
-                retained.data,
-                first_byte,
-                end_byte
-            )
-
-        const present =
-            memory.copyBytes(target.present, first, retained.present, first, next)
-    }
-
-    return next
 }

@@ -59,15 +59,6 @@
     <Call fn="workflow.requireAllocation" in={$ctx.plan.valid} />
 
     <Call
-        fn="workflow.createU32Buffer"
-        in={[
-            $in.resource,
-            $ctx.plan.operations.length,
-            null
-        ]}
-    />
-
-    <Call
         fn="evaluate"
         in={{
             operations: $ctx.plan.operations,
@@ -77,8 +68,7 @@
             writer: $in.writer,
             origin: $in.origin,
             binary_expressions: $in.binary_expressions,
-            types: $in.source.types,
-            values: $ctx.createU32Buffer
+            types: $in.source.types
         }}
     />
 
@@ -88,7 +78,7 @@
             selected: $ctx.plan.selected,
             count: $ctx.plan.count,
             positions: $in.positions,
-            values: $ctx.createU32Buffer,
+            values: $ctx.evaluate,
             fallback: $ctx.fallback
         }}
     />

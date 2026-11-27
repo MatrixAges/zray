@@ -1,35 +1,24 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
-import memory from "memory"
 
-import type { Tables } from "./model"
-
-export type Input = Tables & {
+export type Input = {
+    touched: u32[],
     dirty: u32
 }
 
-export type Output = void
+export type Output = {
+    count: u64,
+    sentinel: u32
+}
 
 export default function (in: Input): Output {
-    const length = integers.widen(in.dirty)
+    const requested = integers.widen(in.dirty)
 
-    if (length == 0) {
-        return
+    return {
+        count: match {
+            requested <= in.touched.length => requested,
+            _ => in.touched.length
+        },
+        sentinel: max_u32
     }
-
-    const rows = memory.u32Views(in.touched)
-    const first: u64 = 0
-
-    const reset = loop(first, {
-        while: index => index < length,
-        next: index => {
-            const row = integers.widen(rows[index])
-            memory.writeU32(in.abi_types, row, max_u32)
-            memory.writeU32(in.abi_layouts, row, max_u32)
-            memory.writeU32(in.state_types, row, max_u32)
-            memory.writeU32(in.state_layouts, row, max_u32)
-            memory.writeU32(in.views, row, max_u32)
-            index += 1
-        }
-    })
 }

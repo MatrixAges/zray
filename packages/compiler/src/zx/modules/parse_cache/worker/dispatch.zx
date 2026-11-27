@@ -6,7 +6,7 @@ import type { Dispatch as Input } from "./model"
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { worker, sources, buffers, range, has_output } = in
+    const { worker, sources, hits, digests, range, has_output } = in
 
     return loop({
         row: 0,
@@ -16,21 +16,15 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.row
             const index = range.first + row
-            const hit = buffers.hit_rows[row]
+            const hit = hits[row]
 
             if (hit == 0) {
-                const digest = memory.borrowU8Range(
-                    buffers.digest_bytes,
-                    row * buffers.digest_width,
-                    buffers.digest_width
-                )
-
                 state.success = host.stageParseWorkerResult(
                     worker,
                     index,
                     memory.readTextColumn(sources.texts, index),
                     memory.readTextColumn(sources.paths, index),
-                    digest
+                    digests[row]
                 )
             } else if (has_output) {
                 host.bindParseWorkerHit(worker, index, hit - 1)

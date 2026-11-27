@@ -1,9 +1,8 @@
+import crypto from "std:crypto"
 import encoding from "std:encoding"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
-import flags from "../facts/flags"
 import {
     state_key_size,
     value_layout_identity,
@@ -20,7 +19,7 @@ import type { State } from "../model"
 export type Input = {
     types: Table,
     element_storage: bool[],
-    boxed: bool[]
+    boxed: bool[],
     borrowed: bool[],
     allocator: Allocator
 }
@@ -28,19 +27,8 @@ export type Input = {
 export type Output = State
 
 export default function (in: Input): Output {
-    const selected = flags({
-        count: in.types.kinds.length,
-        allocator: in.allocator
-    })
-
-    const buffer =
-        memory.createU8Buffer(
-            in.allocator,
-            in.types.kinds.length * state_key_size,
-            null
-        )
-
-    const keys = memory.u8Views(buffer)
+    const initial_selected: bool[] = []
+    const initial_keys: u8[] = []
 
     const processed = loop({
         types: in.types,
@@ -48,6 +36,8 @@ export default function (in: Input): Output {
         boxed: in.boxed,
         borrowed: in.borrowed,
         prefix: encoding.encodeUtf8(value_layout_identity),
+        selected: initial_selected,
+        keys: initial_keys,
         index: 0
     }, {
         while: current => current.index < current.types.kinds.length,
@@ -65,10 +55,9 @@ export default function (in: Input): Output {
                 chosen => inline_layout_flag,
                 _ => 0
             }
-            const offset = index * state_key_size
             const bytes = material({
                 types: current.types,
-                keys: memory.borrowU8Range(keys, 0, offset),
+                keys: current.keys,
                 bytes: current.prefix.push(
                     match {
                         current.element_storage[current.index] =>
@@ -79,17 +68,18 @@ export default function (in: Input): Output {
                 index: current.index,
                 chosen
             })
+            const digest = crypto.sha256(bytes)
 
-            memory.sha256IntoRange(buffer, offset, bytes)
-            memory.writeBool(selected.buffer, index, chosen)
+            current.keys = current.keys.concat(digest)[0]
+            current.selected = current.selected.push(chosen)[0]
             current.index += 1
         }
     })
 
     return {
         element_storage: in.element_storage,
-        selected: selected.values,
+        selected: processed.selected,
         borrowed: in.borrowed,
-        keys
+        keys: processed.keys
     }
 }

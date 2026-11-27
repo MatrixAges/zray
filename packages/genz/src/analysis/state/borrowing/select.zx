@@ -2,9 +2,7 @@ import integers from "std:integer"
 import { scalar_string, scalar_void } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
-import flags from "../../facts/flags"
 import { minimum_words, list_words, string_words } from "./const"
 
 import type { Table } from "core/type_table/model"
@@ -22,16 +20,12 @@ export type Output = bool[]
 
 export default function (in: Input): Output {
     const words: u64[] = []
-
-    const chosen = flags({
-        count: in.types.first.length,
-        allocator: in.allocator
-    })
-
+    const chosen: bool[] = []
     const managed: bool[] = []
 
-    const processed = loop({
+    return loop({
         words,
+        chosen,
         managed,
         index: 0
     }, {
@@ -102,12 +96,11 @@ export default function (in: Input): Output {
                     - and width >= minimum_words
                 )
 
-            memory.writeBool(chosen.buffer, index, borrowed)
+            state.chosen = state.chosen.push(borrowed)[0]
             state.words = state.words.push(borrowed ? 1 : width)[0]
             state.managed = state.managed.push(nested)[0]
             state.index += 1
-        }
+        },
+        return: state => state.chosen
     })
-
-    return chosen.values
 }

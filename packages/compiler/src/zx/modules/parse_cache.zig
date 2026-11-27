@@ -390,12 +390,11 @@ const ParseWork = struct {
         const entries = &work.cache.entries;
         const cached_text = memory.borrowReferenceColumn("text", entries.values.items);
         const cached_digest = memory.borrowReferenceColumn("digest", entries.values.items);
-        var hits: [max_parse_batch]u64 = undefined;
-        var digests: [max_parse_batch]Digest = undefined;
-        var hit_rows: []u64 = &hits;
-        var digest_bytes = std.mem.sliceAsBytes(digests[0..]);
         const input_type = std.meta.Child(rule.Input);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var batch_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+        defer batch_arena.deinit();
+
         const width = @min(max_parse_batch, @max(1, work.results.len / work.staging.len));
 
         const cache_view: std.meta.Child(@FieldType(input_type, "cache")) = .{
@@ -411,14 +410,6 @@ const ParseWork = struct {
             .texts = @ptrCast(work.texts),
         };
 
-        const buffers_view: std.meta.Child(@FieldType(input_type, "buffers")) = .{
-            .hits = @ptrCast(&hit_rows),
-            .hit_rows = hit_rows,
-            .digests = @ptrCast(&digest_bytes),
-            .digest_bytes = digest_bytes,
-            .digest_width = @sizeOf(Digest),
-        };
-
         while (!work.failed.load(.monotonic)) {
             const first = work.next.fetchAdd(width, .monotonic);
 
@@ -430,12 +421,17 @@ const ParseWork = struct {
                 .worker = @ptrCast(&worker),
                 .cache = &cache_view,
                 .sources = &sources_view,
-                .buffers = &buffers_view,
                 .range = &range_view,
                 .has_output = work.output != .none,
             };
 
-            const ok = rule.executeIn(empty.allocator(), &input) catch unreachable;
+            const ok = ok: {
+                defer _ = batch_arena.reset(.retain_capacity);
+                var batch_buf: [4096]u8 = undefined;
+                var batch_fallback = std.heap.BufferFirstAllocator.init(&batch_buf, batch_arena.allocator());
+
+                break :ok rule.executeIn(batch_fallback.allocator(), &input) catch unreachable;
+            };
 
             if (!ok) {
                 work.failed.store(true, .monotonic);

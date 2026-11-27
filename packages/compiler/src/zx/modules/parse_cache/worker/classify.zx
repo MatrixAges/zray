@@ -1,19 +1,27 @@
 import bytes from "std:bytes"
+import crypto from "std:crypto"
 import slot from "core/bytes/index/slot"
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { Classification as Input } from "./model"
+import type { Classification as Input, ClassificationResult } from "./model"
 
-export type Output = void
+export type Output = ClassificationResult
 
 export default function (in: Input): Output {
-    const { cache, sources, buffers, range } = in
+    const { cache, sources, range } = in
 
-    const classified = loop(0, {
-        while: row => row < range.count,
-        next: row => {
-            const index = range.first + row
+    const empty_hits: u64[] = []
+    const empty_digests: u8[][] = []
+
+    return loop({
+        row: 0,
+        hits: empty_hits,
+        digests: empty_digests
+    }, {
+        while: state => state.row < range.count,
+        next: state => {
+            const index = range.first + state.row
             const source = bytes.fromText(
                 memory.readTextColumn(sources.texts, index)
             )
@@ -41,11 +49,12 @@ export default function (in: Input): Output {
             }
 
             if (text != null && bytes.equals(text, source)) {
-                memory.writeU64(buffers.hits, row, entry)
-            } else {
-                const offset = row * buffers.digest_width
+                const empty: u8[] = []
 
-                memory.sha256IntoRange(buffers.digests, offset, source)
+                state.hits = state.hits.push(entry)[0]
+                state.digests = state.digests.push(empty)[0]
+            } else {
+                const digest = crypto.sha256(source)
 
                 const matching = match entry {
                     0 => false,
@@ -54,18 +63,19 @@ export default function (in: Input): Output {
                             cache.digests,
                             entry - 1
                         ),
-                        memory.borrowU8Range(
-                            buffers.digest_bytes,
-                            offset,
-                            buffers.digest_width
-                        )
+                        digest
                     )
                 }
 
-                memory.writeU64(buffers.hits, row, matching ? entry : 0)
+                state.hits = state.hits.push(matching ? entry : 0)[0]
+                state.digests = state.digests.push(digest)[0]
             }
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => ({
+            hits: state.hits,
+            digests: state.digests
+        })
     })
 }

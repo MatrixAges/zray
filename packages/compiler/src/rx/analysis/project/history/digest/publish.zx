@@ -1,7 +1,8 @@
 import find from "core/bytes/index/sorted_text"
 import memory from "memory"
 
-import type { TextColumn, U8Buffer } from "memory"
+import type { TextColumn } from "memory"
+import type { DigestRow } from "./model"
 
 export type Digests = {
     paths: TextColumn,
@@ -14,37 +15,45 @@ export type Digests = {
 export type Input = {
     paths: string[],
     digests: Digests,
-    width: u64,
-    data: U8Buffer,
-    present: U8Buffer
+    width: u64
 }
 
-export type Output = void
+export type Output = DigestRow[]
 
 export default function (in: Input): Output {
-    const { paths, digests, width, data, present } = in
+    const { paths, digests, width } = in
 
-    const written = loop(0, {
-        while: row => row < paths.length,
-        next: row => {
+    const empty_rows: DigestRow[] = []
+    const empty_bytes: u8[] = []
+
+    return loop({
+        row: 0,
+        rows: empty_rows
+    }, {
+        while: state => state.row < paths.length,
+        next: state => {
             const previous = find({
-                path: paths[row],
+                path: paths[state.row],
                 paths: digests.paths,
                 count: digests.count
             })
 
             if (previous == null) {
-                memory.writeU8(present, row, 0)
+                state.rows = state.rows.push({
+                    present: false,
+                    bytes: empty_bytes
+                })[0]
             } else {
                 const first = digests.first + previous * digests.stride
-                const end = first + width
-                const copied =
-                    memory.copyBytes(data, row * width, digests.bytes, first, end)
 
-                memory.writeU8(present, row, 1)
+                state.rows = state.rows.push({
+                    present: true,
+                    bytes: memory.borrowU8Range(digests.bytes, first, width)
+                })[0]
             }
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.rows
     })
 }

@@ -1,8 +1,5 @@
-import memory from "memory"
-
 import body from "../calls/body"
 import parallel from "../control/parallel"
-import flags from "../facts/flags"
 import boundary from "./boundary"
 
 import type { Allocator } from "memory"
@@ -16,15 +13,13 @@ export type Input = {
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const { program, allocator } = in
+    const { program } = in
 
-    const pure = flags({
-        count: program.functions.output_types.length,
-        allocator
-    })
+    const pure: bool[] = []
 
-    const processed = loop({
+    return loop({
         program,
+        pure,
         index: 0
     }, {
         while: current =>
@@ -33,35 +28,29 @@ export default function (in: Input): Output {
             const index = current.index
             const functions = current.program.functions
 
-            if (functions.native_modules[index] != null) {
-                const supported = boundary({
+            const supported = match {
+                functions.native_modules[index] != null => boundary({
                     program: current.program,
                     position: index,
                     borrowed: false
-                })
-
-                memory.writeBool(pure.buffer, index, supported)
-            } else {
-                const plain =
-                    functions.stores[index].paths.length == 0 && !parallel({
+                }),
+                _ => functions.stores[index].paths.length == 0 &&
+                    !parallel({
                         control: functions.control[index],
                         root: functions.roots[index]
+                    }) &&
+                    body({
+                        expressions: functions.expressions[index],
+                        contracts: functions.contracts[index],
+                        allowed: current.pure,
+                        self_function: index,
+                        limit: index
                     })
-
-                const supported = plain && body({
-                    expressions: functions.expressions[index],
-                    contracts: functions.contracts[index],
-                    allowed: pure.values,
-                    self_function: index,
-                    limit: index
-                })
-
-                memory.writeBool(pure.buffer, index, supported)
             }
 
+            current.pure = current.pure.push(supported)[0]
             current.index += 1
-        }
+        },
+        return: current => current.pure
     })
-
-    return pure.values
 }

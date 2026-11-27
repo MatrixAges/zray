@@ -1,7 +1,5 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import flags from "../facts/flags"
 import children from "./fresh_outputs/children"
 
 import type { Allocator } from "memory"
@@ -15,21 +13,18 @@ export type Input = {
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const { program, allocator } = in
+    const { program } = in
 
     const seen: u32[] = program.types.kinds.map(kind => 0)[0]
     const pending: u32[] = []
+    const fresh: bool[] = []
 
-    const fresh = flags({
-        count: program.functions.input_types.length,
-        allocator
-    })
-
-    const processed = loop({
+    return loop({
         types: program.types,
         functions: program.functions,
         seen,
         pending,
+        fresh,
         index: 0
     }, {
         while: current => current.index < current.functions.input_types.length,
@@ -77,11 +72,9 @@ export default function (in: Input): Output {
 
             current.seen = visited.seen
             current.pending = visited.pending
-
-            memory.writeBool(fresh.buffer, current.index, visited.fresh)
+            current.fresh = current.fresh.push(visited.fresh)[0]
             current.index += 1
-        }
+        },
+        return: current => current.fresh
     })
-
-    return fresh.values
 }

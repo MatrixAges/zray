@@ -19,12 +19,13 @@ table: std.meta.Child(@FieldType(Source, "table")),
 origins: std.meta.Child(@FieldType(Input, "origins")),
 functions: std.meta.Child(@FieldType(Source, "functions")),
 entry: std.meta.Child(@FieldType(Source, "entry")),
-root_bytes: []u8,
 source: Source,
 body: std.meta.Child(@FieldType(Input, "body")),
 constants: @import("../../../analysis/constants/columns.zig").Pair(Constants),
 input: Input,
 pub fn bind(self: *Self, temporary: std.mem.Allocator, analysis: *const Analysis.Result, record: *const Record) Error!void {
+    _ = temporary;
+
     const program = &analysis.value.ir;
 
     self.view.init(record.*);
@@ -34,15 +35,7 @@ pub fn bind(self: *Self, temporary: std.mem.Allocator, analysis: *const Analysis
     self.functions = source_view.functions(std.meta.Child(@FieldType(Source, "functions")), program);
     self.entry = source_view.body(std.meta.Child(@FieldType(Source, "entry")), program);
 
-    const roots = try temporary.alloc(bool, program.types.count());
-
-    @memset(roots, false);
-
-    self.root_bytes = std.mem.sliceAsBytes(roots);
-
     self.source = .{
-        .roots = roots,
-        .buffer = @ptrCast(&self.root_bytes),
         .file_name = program.file_name,
         .type_only = program.type_only,
         .table = &self.table,

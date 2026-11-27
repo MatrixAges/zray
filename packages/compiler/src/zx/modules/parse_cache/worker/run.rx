@@ -8,20 +8,22 @@
         in={$in.pick([
             "cache",
             "sources",
-            "buffers",
             "range"
         ])}
     />
 
     <Call
         fn="dispatch"
-        in={$in.pick([
-            "worker",
-            "sources",
-            "buffers",
-            "range",
-            "has_output"
-        ])}
+        in={{
+            ...$in.pick([
+                "worker",
+                "sources",
+                "range",
+                "has_output"
+            ]),
+            hits: $ctx.classify.hits,
+            digests: $ctx.classify.digests
+        }}
     />
 
     <Return value={$ctx.dispatch} />

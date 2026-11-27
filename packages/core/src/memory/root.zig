@@ -1,12 +1,7 @@
 const std = @import("std");
 const sha256 = @import("sha256.zig");
 pub const sha256Into = sha256.into;
-pub const sha256IntoRange = sha256.intoRange;
 pub const sha256FramedInto = sha256.framedInto;
-const buffer_owner = @import("buffer_owner.zig");
-pub const createBoolBuffer = buffer_owner.bools;
-pub const createU8Buffer = buffer_owner.bytes;
-pub const createU32Buffer = buffer_owner.u32s;
 pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
 const stream = @import("stream.zig");

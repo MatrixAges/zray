@@ -5,20 +5,26 @@ import mark from "./mark"
 import type { Request } from "./model"
 
 export type Input = {
-    request: Request
+    request: Request,
+    roots?: bool[]
 }
 
-export type Output = bool
+export type Output = bool[]?
 
 export default function (in: Input): Output {
-    const { modules, record, buffer, roots } = in.request
+    const { modules, record } = in.request
+    const { roots } = in
 
-    const count = roots.length
+    if (roots == null) {
+        return null
+    }
+
     const edges = record.dependencies
 
     return loop({
         index: 0,
-        valid: true
+        valid: true,
+        roots
     }, {
         while: state => state.valid && state.index < edges.count,
         next: state => {
@@ -29,27 +35,41 @@ export default function (in: Input): Output {
 
                 const matched = loop({
                     index: 0,
-                    valid: true
+                    valid: true,
+                    roots: state.roots
                 }, {
                     while: row => row.valid && row.index < modules.specifiers.length,
                     next: row => {
                         if (specifier == modules.specifiers[row.index]) {
-                            row.valid = mark({
-                                buffer,
-                                count,
+                            const updated = mark({
+                                roots: row.roots,
                                 values: modules.type_ids[row.index]
                             })
+
+                            if (updated == null) {
+                                row.valid = false
+                            } else {
+                                row.roots = updated
+                            }
                         }
 
                         row.index += 1
-                    }
+                    },
+                    return: row => ({
+                        valid: row.valid,
+                        roots: row.roots
+                    })
                 })
 
                 state.valid = matched.valid
+                state.roots = matched.roots
             }
 
             state.index += 1
         },
-        return: state => state.valid
+        return: state => match {
+            state.valid => state.roots,
+            _ => null
+        }
     })
 }

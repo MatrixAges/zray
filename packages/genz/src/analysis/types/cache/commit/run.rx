@@ -12,15 +12,14 @@
                 fn="../publish_abi"
                 in={{
                     nodes: $in.abi,
-                    columns: $in.columns,
-                    dirty: $in.dirty
+                    columns: $in.columns
                 }}
             />
 
             <Return
                 value={{
                     check: $ctx.validated,
-                    dirty: $ctx.publish_abi
+                    touched: $ctx.publish_abi
                 }}
             />
         </If>
@@ -30,15 +29,14 @@
                 fn="../publish_shared"
                 in={{
                     entries: $in.state,
-                    columns: $in.columns,
-                    dirty: $in.dirty
+                    columns: $in.columns
                 }}
             />
 
             <Return
                 value={{
                     check: $ctx.validated,
-                    dirty: $ctx.publish_shared
+                    touched: $ctx.publish_shared
                 }}
             />
         </If>
@@ -47,7 +45,7 @@
     <Return
         value={{
             check: $ctx.validated,
-            dirty: $in.dirty
+            touched: []
         }}
     />
 </Module>

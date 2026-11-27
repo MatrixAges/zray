@@ -1,7 +1,3 @@
-import integers from "std:integer"
-import memory from "memory"
-
-import { Mode } from "../shared/model"
 import record from "./record"
 
 import type { Entry } from "../shared/model"
@@ -9,45 +5,47 @@ import type { Columns } from "./model"
 
 export type Input = {
     entries: Entry[],
-    columns: Columns,
-    dirty: u32
+    columns: Columns
 }
 
-export type Output = u32
+export type Output = u32[]
 
 export default function (in: Input): Output {
     const { entries, columns } = in
 
-    const first: u64 = 0
+    const empty: u32[] = []
 
     return loop({
-        index: first,
-        dirty: in.dirty
+        index: 0,
+        touched: empty
     }, {
         while: state => state.index < entries.length,
         next: state => {
-            const entry = entries[state.index]
-            const row = entry.request.id
-            const position = integers.widen(row)
+            const row = entries[state.index].request.id
 
-            state.dirty = record({
+            if (record({
                 columns,
-                row,
-                dirty: state.dirty
-            })
+                row
+            })) {
+                const seen = loop({
+                    position: 0,
+                    found: false
+                }, {
+                    while: check => !check.found && check.position < state.touched.length,
+                    next: check => {
+                        check.found = state.touched[check.position] == row
+                        check.position += 1
+                    },
+                    return: check => check.found
+                })
 
-            if (entry.request.mode == Mode.Abi) {
-                memory.writeU32(columns.abi_types, position, entry.value)
-                memory.writeU32(columns.abi_layouts, position, entry.layout)
-            } else if (entry.request.mode == Mode.State) {
-                memory.writeU32(columns.state_types, position, entry.value)
-                memory.writeU32(columns.state_layouts, position, entry.layout)
-            } else {
-                memory.writeU32(columns.views, position, entry.value)
+                if (!seen) {
+                    state.touched = state.touched.push(row)[0]
+                }
             }
 
             state.index += 1
         },
-        return: state => state.dirty
+        return: state => state.touched
     })
 }

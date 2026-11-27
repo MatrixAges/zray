@@ -1,15 +1,14 @@
 import type { Lookup } from "core/bytes/index/slot"
-import type { TextColumn, U8Buffer } from "memory"
+import type { TextColumn } from "memory"
 import type { ReferenceColumn } from "memory/columns"
 
 export type Cache = Lookup.Omit("key") & {
     digests: ReferenceColumn
 }
 
-export type Target = {
-    data: U8Buffer,
-    present: U8Buffer,
-    width: u64
+export type DigestRow = {
+    present: bool,
+    bytes: u8[]
 }
 
 export type Retained = {
@@ -21,7 +20,7 @@ export type Retained = {
 
 export type Publication = {
     cache: Cache,
-    target: Target,
     paths: string[],
+    width: u64,
     retained?: Retained
 }

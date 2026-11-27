@@ -1,40 +1,49 @@
 import retain from "./retain"
 import write from "./write"
 
-import type { Publication as Input } from "./model"
+import type { DigestRow, Publication as Input } from "./model"
 
-export type Output = void
+export type Output = DigestRow[]
 
 export default function (in: Input): Output {
-    const { cache, target, paths, retained } = in
+    const { cache, paths, width, retained } = in
 
     const end = paths.length
+    const empty_rows: DigestRow[] = []
 
-    const published = loop(0, {
-        while: first => first < end,
-        next: first => {
-            const row = match {
-                retained == null => first,
+    return loop({
+        first: 0,
+        rows: empty_rows
+    }, {
+        while: state => state.first < end,
+        next: state => {
+            const batch = match {
+                retained == null => {
+                    next: state.first,
+                    rows: empty_rows
+                },
                 _ => retain({
                     retained,
-                    target,
-                    first,
+                    width,
+                    first: state.first,
                     end
                 })
             }
 
-            if (row == end) {
-                first = end
+            state.rows = state.rows.concat(batch.rows)[0]
+
+            if (batch.next == end) {
+                state.first = end
             } else {
-                write({
+                const entry = write({
                     cache,
-                    target,
-                    path: paths[row],
-                    row
+                    path: paths[batch.next]
                 })
 
-                first = row + 1
+                state.rows = state.rows.push(entry)[0]
+                state.first = batch.next + 1
             }
-        }
+        },
+        return: state => state.rows
     })
 }

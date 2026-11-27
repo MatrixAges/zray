@@ -1,21 +1,18 @@
 import bytes from "std:bytes"
 import locate from "core/bytes/index/slot"
-import memory from "memory"
 import columns from "memory/columns"
 
-import type { Cache, Target } from "./model"
+import type { Cache, DigestRow } from "./model"
 
 export type Input = {
     cache: Cache,
-    target: Target,
-    path: string,
-    row: u64
+    path: string
 }
 
-export type Output = void
+export type Output = DigestRow
 
 export default function (in: Input): Output {
-    const { cache, target, path, row } = in
+    const { cache, path } = in
 
     const entry = match {
         cache.capacity == 0 => 0,
@@ -30,15 +27,14 @@ export default function (in: Input): Output {
     }
 
     if (entry == 0) {
-        memory.writeU8(target.present, row, 0)
-
-        return
+        return {
+            present: false,
+            bytes: []
+        }
     }
 
-    const digest = columns.readReferencedBytes(cache.digests, entry - 1)
-
-    const copied =
-        memory.copyBytes(target.data, row * target.width, digest, 0, digest.length)
-
-    memory.writeU8(target.present, row, 1)
+    return {
+        present: true,
+        bytes: columns.readReferencedBytes(cache.digests, entry - 1)
+    }
 }

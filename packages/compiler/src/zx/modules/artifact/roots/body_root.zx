@@ -1,87 +1,98 @@
-import integers from "std:integer"
-import memory from "memory"
-
 import mark from "./mark"
 
-import type { U8Buffer } from "memory"
 import type { Body } from "./model"
 
 export type Input = {
     body?: Body,
-    buffer: U8Buffer,
-    count: u64
+    roots?: bool[]
 }
 
-export type Output = bool
+export type Output = bool[]?
 
 export default function (in: Input): Output {
-    const { body, buffer, count } = in
+    const { body, roots } = in
+
+    if (roots == null) {
+        return null
+    }
 
     if (body == null) {
-        return true
+        return roots
     }
 
-    const input = integers.widen(body.input_type)
-    const output = integers.widen(body.output_type)
+    const with_ports = mark({
+        roots,
+        values: [
+            body.input_type,
+            body.output_type
+        ]
+    })
 
-    if (input >= count || output >= count) {
-        return false
+    if (with_ports == null) {
+        return null
     }
 
-    memory.writeU8(buffer, input, 1)
-    memory.writeU8(buffer, output, 1)
-
-    const symbols = mark({
-        buffer,
-        count,
+    const with_symbols = mark({
+        roots: with_ports,
         values: body.symbols.types
     })
 
-    if (!symbols) {
-        return false
+    if (with_symbols == null) {
+        return null
     }
 
-    const expressions = mark({
-        buffer,
-        count,
+    const with_expressions = mark({
+        roots: with_symbols,
         values: body.expressions.types
     })
 
-    if (!expressions) {
-        return false
+    if (with_expressions == null) {
+        return null
     }
 
     const contracts = body.contracts
 
     const checked = loop({
         index: 0,
-        valid: true
+        valid: true,
+        roots: with_expressions
     }, {
         while: state => state.valid && state.index < contracts.kinds.length,
         next: state => {
             const symbols = mark({
-                buffer,
-                count,
+                roots: state.roots,
                 values: contracts.symbols[state.index].types
             })
 
-            state.valid = symbols && mark({
-                buffer,
-                count,
-                values: contracts.expressions[state.index].types
-            })
+            if (symbols == null) {
+                state.valid = false
+            } else {
+                const expressions = mark({
+                    roots: symbols,
+                    values: contracts.expressions[state.index].types
+                })
+
+                if (expressions == null) {
+                    state.valid = false
+                } else {
+                    state.roots = expressions
+                }
+            }
 
             state.index += 1
-        }
+        },
+        return: state => ({
+            valid: state.valid,
+            roots: state.roots
+        })
     })
 
     if (!checked.valid) {
-        return false
+        return null
     }
 
     return mark({
-        buffer,
-        count,
+        roots: checked.roots,
         values: body.stores.types
     })
 }

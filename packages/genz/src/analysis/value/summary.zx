@@ -1,9 +1,7 @@
 import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
-import flags from "../facts/flags"
 import { Property } from "../state/queries/model"
 import query from "../state/queries/read"
 import purity from "./pure"
@@ -22,14 +20,12 @@ export type Input = {
 export type Output = Values
 
 export default function (in: Input): Output {
-    const values = flags({
-        count: in.program.functions.output_types.length,
-        allocator: in.allocator
-    })
+    const initial_values: bool[] = []
 
-    const processed = loop({
+    const values = loop({
         program: in.program,
         queries: in.queries,
+        values: initial_values,
         index: 0
     }, {
         while: current =>
@@ -62,9 +58,10 @@ export default function (in: Input): Output {
 
             const enabled = in.local[index] && (object || state)
 
-            memory.writeBool(values.buffer, index, enabled)
+            current.values = current.values.push(enabled)[0]
             current.index += 1
-        }
+        },
+        return: current => current.values
     })
 
     return {
@@ -73,6 +70,6 @@ export default function (in: Input): Output {
             allocator: in.allocator
         }),
         local: in.local,
-        values: values.values
+        values
     }
 }

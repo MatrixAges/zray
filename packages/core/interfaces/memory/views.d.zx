@@ -1,11 +1,5 @@
 export declare function sha256Into(target: U8Buffer, input: u8[]): u8[]
 
-export declare function sha256IntoRange(
-    target: U8Buffer,
-    offset: u64,
-    input: u8[]
-): void throws { IndexOutOfBounds }
-
 export declare function sha256FramedInto(
     target: U8Buffer,
     prefix: u8[],

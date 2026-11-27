@@ -1,8 +1,5 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
-
-import type { U8Buffer } from "memory"
 
 export type Ids = {
     data: u8[],
@@ -13,19 +10,21 @@ export type Ids = {
 }
 
 export type Input = {
-    buffer: U8Buffer,
-    count: u64,
+    roots: bool[],
     constants: Ids
 }
 
-export type Output = bool
+export type Output = bool[]?
 
 export default function (in: Input): Output {
-    const { buffer, count, constants } = in
+    const { constants } = in
+
+    const count = in.roots.length
 
     return loop({
         row: 0,
-        valid: true
+        valid: true,
+        roots: in.roots
     }, {
         while: state => state.valid && state.row < constants.rows,
         next: state => {
@@ -36,11 +35,14 @@ export default function (in: Input): Output {
             state.valid = index < count
 
             if (state.valid) {
-                memory.writeU8(buffer, index, 1)
+                state.roots[index] = true
             }
 
             state.row += 1
         },
-        return: state => state.valid
+        return: state => match {
+            state.valid => state.roots,
+            _ => null
+        }
     })
 }

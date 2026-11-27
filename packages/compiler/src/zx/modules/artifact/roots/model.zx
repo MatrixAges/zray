@@ -4,21 +4,20 @@ import type { Modules } from "core/native_module_table/model"
 import type { Stores } from "core/store_table/model"
 import type { Symbols } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
-import type { U8Buffer } from "memory"
 import type { Rows } from "../../../ir/canonical/validation/names/model"
 import type { PortRows } from "../../binding/model"
 import type { Header } from "../../module_record/model"
 import type { Ids } from "./mark_constants"
 
 export type Functions = {
-    count: u64
-    files: string[]
-    input_types: u32[]
-    output_types: u32[]
-    native_modules: u32?[]
-    symbols: Symbols[]
-    expressions: Expressions[]
-    contracts: Contracts[]
+    count: u64,
+    files: string[],
+    input_types: u32[],
+    output_types: u32[],
+    native_modules: u32?[],
+    symbols: Symbols[],
+    expressions: Expressions[],
+    contracts: Contracts[],
     stores: Stores[]
 }
 
@@ -32,30 +31,28 @@ export type Body = {
 }
 
 export type Record = {
-    path: string
-    start: u64
-    end: u64
-    exports: Rows
-    constant_exports: Ids
-    constant_imports: Ids
-    type_imports: Rows
-    function_imports: PortRows
-    function_exports: PortRows
-    dependencies: Header
-    has_body: bool
+    path: string,
+    start: u64,
+    end: u64,
+    exports: Rows,
+    constant_exports: Ids,
+    constant_imports: Ids,
+    type_imports: Rows,
+    function_imports: PortRows,
+    function_exports: PortRows,
+    dependencies: Header,
+    has_body: bool,
     body_function?: u32
 }
 
 export type Request = {
-    roots: bool[],
-    buffer: U8Buffer,
     file_name: string,
     type_only: bool,
     table: Table,
     functions: Functions,
     modules: Modules,
     entry: Body,
-    record: Record,
+    record: Record
 }
 
 export type Selection = {

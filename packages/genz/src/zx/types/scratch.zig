@@ -81,21 +81,25 @@ pub fn reset(self: *Self) void {
     if (self.dirty == 0) return;
 
     const entry = @import("generated_type_scratch_reset");
-    const Input = std.meta.Child(entry.Input);
+    const Parameter = entry.Input;
+    const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{
-        .abi_types = @ptrCast(&self.columns.abi_types),
-        .abi_layouts = @ptrCast(&self.columns.abi_layouts),
-        .state_types = @ptrCast(&self.columns.state_types),
-        .state_layouts = @ptrCast(&self.columns.state_layouts),
-        .views = @ptrCast(&self.columns.views),
-        .touched = @ptrCast(&self.columns.touched),
+        .touched = self.columns.touched,
         .dirty = self.dirty,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const result = entry.executeValue(fixed.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch unreachable;
+    const fill: Id = @fromBackingInt(result.sentinel);
 
-    entry.executeIn(fixed.allocator(), &input) catch unreachable;
+    for (self.columns.touched[0..@intCast(result.count)]) |row| {
+        self.columns.abi_types[row] = fill;
+        self.columns.abi_layouts[row] = fill;
+        self.columns.state_types[row] = fill;
+        self.columns.state_layouts[row] = fill;
+        self.columns.views[row] = fill;
+    }
 
     self.dirty = 0;
 }

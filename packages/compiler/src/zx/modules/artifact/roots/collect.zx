@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import markConstants from "./mark_constants"
 import markNamed from "./mark_named"
 
@@ -7,50 +5,54 @@ import type { Request } from "./model"
 
 export type Input = Request
 
-export type Output = bool
+export type Output = bool[]?
 
 export default function (in: Input): Output {
-    const { record, roots, buffer } = in
+    const { record, table } = in
 
-    const initialized = loop({
-        index: record.start
+    const empty_roots: bool[] = table.kinds.map(item => false)[0]
+
+    const own = loop({
+        index: record.start,
+        roots: empty_roots
     }, {
         while: state => state.index < record.end,
         next: state => {
-            memory.writeU8(buffer, state.index, 1)
+            state.roots[state.index] = true
             state.index += 1
-        }
+        },
+        return: state => state.roots
     })
 
-    const count = roots.length
-
-    if (!markNamed({
-        buffer,
-        count,
+    const with_exports = markNamed({
+        roots: own,
         declarations: record.exports
-    })) {
-        return false
+    })
+
+    if (with_exports == null) {
+        return null
     }
 
-    if (!markConstants({
-        buffer,
-        count,
+    const with_constant_exports = markConstants({
+        roots: with_exports,
         constants: record.constant_exports
-    })) {
-        return false
+    })
+
+    if (with_constant_exports == null) {
+        return null
     }
 
-    if (!markConstants({
-        buffer,
-        count,
+    const with_constant_imports = markConstants({
+        roots: with_constant_exports,
         constants: record.constant_imports
-    })) {
-        return false
+    })
+
+    if (with_constant_imports == null) {
+        return null
     }
 
     return markNamed({
-        buffer,
-        count,
+        roots: with_constant_imports,
         declarations: record.type_imports
     })
 }

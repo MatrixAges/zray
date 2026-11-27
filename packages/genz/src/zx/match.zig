@@ -79,7 +79,6 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
         .fallback = @backingInt(selection.fallback),
         .layout = layout,
         .positions = @ptrCast(&positions),
-        .resource = @ptrCast(&allocator),
     };
 
     const output = zx.columns.invoke(entry.executeIn, allocator, &input) catch |err| return failure(err);

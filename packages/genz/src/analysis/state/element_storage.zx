@@ -1,9 +1,7 @@
 import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
-import flags from "../facts/flags"
 import nestedAppend from "./nested_append"
 
 import type { Allocator } from "memory"
@@ -17,24 +15,22 @@ export type Input = {
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const { program, allocator } = in
+    const { program } = in
 
     const tables = [program.expressions].concat(program.functions.expressions)[0]
+    const initial_values: bool[] = program.types.kinds.map(item => false)[0]
 
-    const values = flags({
-        count: program.types.kinds.length,
-        allocator
-    })
-
-    const marked = loop({
-        index: 0
+    const values = loop({
+        index: 0,
+        values: initial_values
     }, {
         while: state => state.index < tables.length,
         next: state => {
             const expressions = tables[state.index]
 
-            const written = loop({
-                node: 0
+            state.values = loop({
+                node: 0,
+                values: state.values
             }, {
                 while: row => row.node < expressions.update_targets.length,
                 next: row => {
@@ -46,24 +42,26 @@ export default function (in: Input): Output {
                             expressions.update_targets[row.node]
                         )
 
-                        memory.writeBool(
-                            values.buffer,
-                            integers.widen(expressions.types[target]),
-                            true
-                        )
+                        row.values[integers.widen(
+                            expressions.types[target]
+                        )] = true
                     }
 
                     row.node += 1
-                }
+                },
+                return: row => row.values
             })
+
             state.index += 1
-        }
+        },
+        return: state => state.values
     })
 
     const readonly_types = program.types
 
-    const propagated = loop({
-        index: 0
+    return loop({
+        index: 0,
+        values
     }, {
         while: state => state.index < readonly_types.kinds.length,
         next: state => {
@@ -72,15 +70,14 @@ export default function (in: Input): Output {
 
                 if (
                     kind(readonly_types.kinds[child]) == Kind.List &&
-                        values.values[child]
+                        state.values[child]
                 ) {
-                    memory.writeBool(values.buffer, state.index, true)
+                    state.values[state.index] = true
                 }
             }
 
             state.index += 1
-        }
+        },
+        return: state => state.values
     })
-
-    return values.values
 }

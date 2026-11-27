@@ -21,14 +21,20 @@ pub fn publishSource(cache: *const project.ParseCache, paths: []const []const u8
     }
 }
 
+fn writeRows(target: History.SourceDigests, rows: anytype) void {
+    for (rows, 0..) |row, index| {
+        target.present[index] = row.present;
+
+        if (row.present) @memcpy(std.mem.asBytes(&target.words[index]), row.bytes);
+    }
+}
+
 fn writeSource(cache: *const project.ParseCache, paths: []const []const u8, sources: []const project.Source, retained: ?*const History.Retained, target: History.SourceDigests) void {
     const rule = @import("generated_rx_history_digest_source");
     const Input = std.meta.Child(rule.Input);
     const Retained = std.meta.Child(@typeInfo(@FieldType(Input, "retained")).optional.child);
     const entries = &cache.entries;
     const digests = memory.borrowReferenceColumn("digest", entries.values.items);
-    var data = std.mem.sliceAsBytes(target.words);
-    var present = std.mem.sliceAsBytes(target.present);
     const current = memory.borrowTextColumn("source", sources);
     const earlier = if (retained) |previous| memory.borrowTextColumn("source", previous.sources) else undefined;
 
@@ -46,18 +52,20 @@ fn writeSource(cache: *const project.ParseCache, paths: []const []const u8, sour
             .capacity = entries.buckets.len,
             .digests = @ptrCast(&digests),
         },
-        .target = &.{
-            .data = @ptrCast(&data),
-            .present = @ptrCast(&present),
-            .width = @sizeOf(std.meta.Elem(@TypeOf(target.words))),
-        },
         .paths = paths,
+        .width = @sizeOf(std.meta.Elem(@TypeOf(target.words))),
         .retained = if (retained != null) &borrowed else null,
     };
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
-    rule.executeValue(scratch.allocator(), &input) catch unreachable;
+    defer arena.deinit();
+
+    var scratch_buf: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const rows = rule.executeValue(fallback.allocator(), &input) catch unreachable;
+
+    writeRows(target, rows);
 }
 
 fn setFromCache(cache: *const project.ParseCache, path: []const u8, target: History.SourceDigests, index: usize) void {
@@ -77,11 +85,14 @@ pub fn publish(digests: []const History.Digest, paths: []const []const u8, targe
 
     const rule = @import("generated_rx_history_digest_publish");
     const names = memory.borrowTextColumn("path", digests);
-    var data = std.mem.sliceAsBytes(target.words);
-    var present = std.mem.sliceAsBytes(target.present);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
-    rule.executeValue(empty.allocator(), &.{
+    defer arena.deinit();
+
+    var scratch_buf: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+
+    const rows = rule.executeValue(fallback.allocator(), &.{
         .digests = &.{
             .paths = @ptrCast(&names),
             .count = digests.len,
@@ -91,7 +102,7 @@ pub fn publish(digests: []const History.Digest, paths: []const []const u8, targe
         },
         .paths = paths,
         .width = @sizeOf(@FieldType(History.Digest, "digest")),
-        .data = @ptrCast(&data),
-        .present = @ptrCast(&present),
     }) catch unreachable;
+
+    writeRows(target, rows);
 }

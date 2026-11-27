@@ -1,42 +1,30 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
-import memory from "memory"
 
 import type { Columns } from "./model"
 
 export type Input = {
     columns: Columns,
-    row: u32,
-    dirty: u32
+    row: u32
 }
 
-export type Output = u32
+export type Output = bool
 
 export default function (in: Input): Output {
-    const { columns, row, dirty } = in
+    const { columns, row } = in
 
-    const touched = columns.touched
-
-    if (touched == null) {
-        return dirty
+    if (!columns.track_touched) {
+        return false
     }
 
     const index = integers.widen(row)
-    const has_abi = memory.readU32(columns.abi_types, index) != max_u32
-    const has_state = memory.readU32(columns.state_types, index) != max_u32
-    const has_view = memory.readU32(columns.views, index) != max_u32
+    const no_abi = columns.abi_types[index] == max_u32
+    const no_state = columns.state_types[index] == max_u32
+    const no_view = columns.views[index] == max_u32
 
-    const registered = (
-        - has_abi
-        - or has_state
-        - or has_view
+    return (
+        - no_abi
+        - and no_state
+        - and no_view
     )
-
-    if (registered) {
-        return dirty
-    }
-
-    memory.writeU32(touched, integers.widen(dirty), row)
-
-    return dirty + 1
 }

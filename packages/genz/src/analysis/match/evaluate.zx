@@ -1,6 +1,5 @@
 import { BinaryOperator } from "core/expression_table/kinds"
 import host from "lowering_host"
-import memory from "memory"
 
 import binary from "../expressions/evaluate/binary"
 import { Operation } from "./model"
@@ -8,7 +7,6 @@ import { Operation } from "./model"
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
-import type { U32Buffer } from "memory"
 import type { BinaryExpressions } from "../expressions/evaluate/model"
 import type { Plan } from "./model"
 
@@ -17,11 +15,10 @@ export type Input = Plan.Pick("operations", "first", "second") & {
     writer: AstWriter,
     origin: AstOriginBuffer,
     binary_expressions: BinaryExpressions,
-    types: Table,
-    values: U32Buffer
+    types: Table
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
     const {
@@ -32,12 +29,14 @@ export default function (in: Input): Output {
         types,
         operations,
         first,
-        second,
-        values
+        second
     } = in
 
-    const lowered = loop({
-        index: 0
+    const empty: u32[] = []
+
+    return loop({
+        index: 0,
+        values: empty
     }, {
         while: state => state.index < operations.length,
         next: state => {
@@ -60,9 +59,9 @@ export default function (in: Input): Output {
                 _ => host.lowerRegular(frame, item, true, null)
             }
 
-            memory.writeU32(values, index, value)
+            state.values = state.values.push(value)[0]
             state.index = index + 1
         },
-        return: state => state.index
+        return: state => state.values
     })
 }

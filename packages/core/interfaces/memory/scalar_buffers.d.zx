@@ -28,24 +28,6 @@ export declare function writeU8(
     value: u8
 ): void throws { IndexOutOfBounds }
 
-export declare function createBoolBuffer(
-    resource: Allocator,
-    count: u64,
-    shape: BoolBuffer?
-): BoolBuffer throws { OutOfMemory }
-
-export declare function createU8Buffer(
-    resource: Allocator,
-    count: u64,
-    shape: U8Buffer?
-): U8Buffer throws { OutOfMemory }
-
-export declare function createU32Buffer(
-    resource: Allocator,
-    count: u64,
-    shape: U32Buffer?
-): U32Buffer throws { OutOfMemory }
-
 export declare function allocateU8Buffer(
     resource: Allocator,
     target: U8Buffer,
