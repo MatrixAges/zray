@@ -1,13 +1,11 @@
 import integers from "std:integer"
 import host from "lowering_host"
-import memory from "memory"
 
 import resolve from "./cache"
 import select from "./conversion"
 import { Resource } from "./model"
 
 import type { Lowering } from "lowering_host"
-import type { U32Buffer, U8ListBuffer } from "memory"
 import type { Plan } from "../conversion/model"
 import type { Types } from "./cache"
 
@@ -16,28 +14,34 @@ export type Input = {
     plan: Plan,
     types: Types,
     children: u32[],
-    referenced: bool[],
-    layouts: U32Buffer,
-    targets: U32Buffer,
-    elements: U32Buffer,
-    origins: U8ListBuffer
+    referenced: bool[]
 }
 
-export type Output = void
+export type Output = {
+    layouts: u32[],
+    targets: u32[],
+    elements: u32[],
+    origins: u8[][]
+}
 
 export default function (in: Input): Output {
     const { frame, plan, types, children, referenced } = in
 
-    const count = plan.types.length
+    const layouts: u32[] = []
+    const targets: u32[] = []
+    const elements: u32[] = []
+    const origins: u8[][] = []
 
-    memory.allocateU32Views(in.layouts, count)
-    memory.allocateU32Views(in.targets, count)
-    memory.allocateU32Views(in.elements, count)
-    memory.allocateU8ListViews(in.origins, count)
-
-    const resolved = loop(0, {
-        while: row => row < plan.types.length,
-        next: row => {
+    return loop({
+        row: 0,
+        layouts,
+        targets,
+        elements,
+        origins
+    }, {
+        while: state => state.row < plan.types.length,
+        next: state => {
+            const row = state.row
             const id = plan.types[row]
             const type_index = integers.widen(id)
             const resource = select({
@@ -74,17 +78,22 @@ export default function (in: Input): Output {
                 }),
             }
 
-            const origin = match {
+            const origin: u8[] = match {
                 resource.origin => host.loweringOrigin(frame, id),
                 _ => []
             }
 
-            memory.writeU32(in.layouts, row, layout)
-            memory.writeU32(in.targets, row, target)
-            memory.writeU32(in.elements, row, element)
-            memory.writeU8List(in.origins, row, origin)
-
-            row += 1
-        }
+            state.layouts = state.layouts.push(layout)[0]
+            state.targets = state.targets.push(target)[0]
+            state.elements = state.elements.push(element)[0]
+            state.origins = state.origins.push(origin)[0]
+            state.row += 1
+        },
+        return: state => ({
+            layouts: state.layouts,
+            targets: state.targets,
+            elements: state.elements,
+            origins: state.origins
+        })
     })
 }

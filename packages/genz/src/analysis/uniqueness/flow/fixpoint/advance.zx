@@ -4,13 +4,5 @@ import take from "./take"
 import type { Advance as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
-    const count = requeue(in)
-
-    return take({
-        count,
-        ...in.pick([
-            "indices",
-            "queued"
-        ])
-    })
+    return take(requeue(in))
 }

@@ -30,8 +30,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
 
     defer body.deinit();
 
-    const expressions = try self.allocator.alloc(node.ExpressionId, items.len);
-    var raw_expressions: []u32 = @as([*]u32, @ptrCast(expressions.ptr))[0..expressions.len];
     var frame: Frame = .{ .lowering = self, .body = &body, .type_id = value.type_id };
     var origin: publication.OriginBuffer = undefined;
     const execute = @import("generated_lower_sequence_elements");
@@ -49,7 +47,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
         .state_active = self.state_active,
         .selected = selected,
         .items = @ptrCast(items),
-        .expressions = @ptrCast(&raw_expressions),
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -63,8 +60,17 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
     const result = switch (output.result) {
         .Tuple => try self.construct(value.type_id, @fromBackingInt(output.tuple.?)),
         .LayoutTuple => try @import("../state_value/origin.zig").tuple(self, value.type_id, @fromBackingInt(output.tuple.?)),
-        .List => try @import("../state_value/list.zig").wrap(self, value.type_id, try @import("list.zig").literal(self, value.type_id, expressions), false),
-        .Template => try @import("../templates.zig").lower(self, items, expressions),
+        .List, .Template => items: {
+            const expressions = try self.allocator.alloc(node.ExpressionId, output.expressions.len);
+
+            for (output.expressions, 0..) |item_id, idx| expressions[idx] = @fromBackingInt(item_id);
+
+            break :items switch (output.result) {
+                .List => try @import("../state_value/list.zig").wrap(self, value.type_id, try @import("list.zig").literal(self, value.type_id, expressions), false),
+                .Template => try @import("../templates.zig").lower(self, items, expressions),
+                else => unreachable,
+            };
+        },
     };
 
     return aggregate.finish(self, &body, result);

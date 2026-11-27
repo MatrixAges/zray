@@ -1,18 +1,21 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { queued, unlisted } from "./const"
 
-import type { Input as Program } from "./model"
+import type { Input as Program, Seed as Output } from "./model"
 
-export type Input = Program.Pick("indices", "queued", "native_modules", "held")
-
-export type Output = u64
+export type Input = Program.Pick("native_modules", "held")
 
 export default function (in: Input): Output {
+    const zero: u32 = 0
+    const initial_indices: u32[] = in.native_modules.map(item => zero)[0]
+    const initial_queued: u8[] = in.native_modules.map(item => unlisted)[0]
+
     return loop({
         remaining: in.native_modules.length,
-        count: 0
+        count: 0,
+        indices: initial_indices,
+        queued: initial_queued
     }, {
         while: state => state.remaining != 0,
         next: state => {
@@ -21,18 +24,18 @@ export default function (in: Input): Output {
             const body = state.remaining
             const active =
                 in.native_modules[body] == null && in.held[body].length != 0
-            const membership = active ? queued : unlisted
-            memory.writeU8(in.queued, body, membership)
+
+            state.queued[body] = active ? queued : unlisted
 
             if (active) {
-                memory.writeU32(
-                    in.indices,
-                    state.count,
-                    integers.narrow(state.remaining)
-                )
+                state.indices[state.count] = integers.narrow(body)
                 state.count += 1
             }
         },
-        return: state => state.count
+        return: state => ({
+            indices: state.indices,
+            queued: state.queued,
+            count: state.count
+        })
     })
 }

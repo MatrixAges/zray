@@ -153,13 +153,13 @@ fn copyPrefix(builder: *Builder, control: *ir.ControlStorage, request: Request, 
 }
 
 fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStorage, request: Request, output: if (is_argument) Output else Parameters) std.mem.Allocator.Error!void {
-    var scratch_bytes: [4096]u8 = undefined;
-    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, builder.allocator);
-    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+    var arena = std.heap.ArenaAllocator.init(builder.allocator);
 
     defer arena.deinit();
 
-    const scratch = arena.allocator();
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, arena.allocator());
+    const scratch = fallback.allocator();
     const rule = if (comptime is_argument) argument_rule else binding_rule;
     const Parameter = rule.Input;
     const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;

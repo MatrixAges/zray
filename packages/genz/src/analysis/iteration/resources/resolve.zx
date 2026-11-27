@@ -1,18 +1,15 @@
 import host from "lowering_host"
 import { IterationResource } from "lowering_host"
-import memory from "memory"
 
 import { Operation as Borrow } from "../borrow/model"
 import { Operation } from "../conversion/model"
 import { Requirement } from "../conversion/output/model"
 import { Mode } from "./model"
 
-import type { Input } from "./model"
-
-export type Output = void
+import type { Input, Resolved as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { frame, mode, operands } = in
+    const { frame, mode, with_operands } = in
 
     const base_kind = match mode {
         Mode.Input => IterationResource.IterationType,
@@ -20,9 +17,16 @@ export default function (in: Input): Output {
         _ => IterationResource.NativeLayout
     }
 
-    const resolved = loop(0, {
-        while: row => row < in.types.length,
-        next: row => {
+    const empty: u32[] = []
+
+    return loop({
+        row: 0,
+        layouts: empty,
+        operands: empty
+    }, {
+        while: state => state.row < in.types.length,
+        next: state => {
+            const row = state.row
             const id = in.types[row]
             const base = match {
                 row == 0 && mode != Mode.Leaves => in.root,
@@ -45,9 +49,9 @@ export default function (in: Input): Output {
                 _ => base
             }
 
-            memory.writeU32(in.layouts, row, layout)
+            state.layouts = state.layouts.push(layout)[0]
 
-            if (operands != null) {
+            if (with_operands) {
                 const kind = match mode {
                     Mode.Input => match in.operations[row] {
                         Operation.Buffer => IterationResource.IterationItem,
@@ -66,10 +70,14 @@ export default function (in: Input): Output {
                     _ => host.materializeIterationResource(frame, id, kind)
                 }
 
-                memory.writeU32(operands, row, value)
+                state.operands = state.operands.push(value)[0]
             }
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => ({
+            layouts: state.layouts,
+            operands: state.operands
+        })
     })
 }

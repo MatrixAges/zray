@@ -1,12 +1,31 @@
 <Module>
     <Type from="model" as="Trace" />
 
-    <Args in={Trace.Input} out={void} />
+    <Args in={Trace.Input} out={Trace.Output} />
 
     <Call fn="identities" in={$in.identities} />
 
     <Call module="../graph/capture" in={$in.graph} />
-    <Call module="../../group/borrowed/build" in={$in.settled} />
-    <Call module="../../group/borrowed/build" in={$in.demanded} />
-    <Call module="../../group/borrowed/build" in={$in.planned} />
+
+    <Task name="settled" out={$ctx.build}>
+        <Call module="../../group/borrowed/build" in={$in.settled} />
+    </Task>
+
+    <Task name="demanded" out={$ctx.build}>
+        <Call module="../../group/borrowed/build" in={$in.demanded} />
+    </Task>
+
+    <Task name="planned" out={$ctx.build}>
+        <Call module="../../group/borrowed/build" in={$in.planned} />
+    </Task>
+
+    <Return
+        value={{
+            identities: $ctx.identities,
+            graph: $ctx.capture,
+            settled: $ctx.task.settled,
+            demanded: $ctx.task.demanded,
+            planned: $ctx.task.planned
+        }}
+    />
 </Module>

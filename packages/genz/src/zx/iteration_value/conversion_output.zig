@@ -36,12 +36,10 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         .borrowed = self.state_plan.borrowed,
     };
 
-    var columns: @import("resources.zig").Columns = .{};
-
     const prepare: Prepare = .{
         .source = &.{ .source = &request, .facts = &facts },
         .root = @backingInt(root_layout),
-        .buffers = &columns.bind(std.meta.Child(@FieldType(Prepare, "buffers")), context, true),
+        .frame = @ptrCast(context),
     };
 
     const serial = self.serial;
@@ -61,8 +59,8 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const ast = @import("../construction/ast.zig").borrow(std.meta.Child(@FieldType(Input, "ast")), self);
 
     const source: Source = .{
-        .plan = zx.columns.pointer(@FieldType(Source, "plan"), prepared.plan),
-        .layouts = columns.layouts,
+        .plan = zx.columns.pointer(@FieldType(Source, "plan"), prepared.plan.plan),
+        .layouts = prepared.layouts,
         .elements = &.{},
         .value = @backingInt(value),
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
@@ -74,9 +72,9 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
 
     const input: Input = .{
         .source = &source,
-        .requirements = zx.columns.slice(@FieldType(Input, "requirements"), prepared.requirements),
+        .requirements = zx.columns.slice(@FieldType(Input, "requirements"), prepared.plan.requirements),
         .ast = &ast,
-        .operands = columns.operands,
+        .operands = prepared.operands,
     };
 
     const call: Call = .{

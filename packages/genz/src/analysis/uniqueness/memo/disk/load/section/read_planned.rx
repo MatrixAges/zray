@@ -13,10 +13,9 @@
 
     <If on={$ctx.plan != null}>
         <Call
-            fn="write_planned"
+            fn="append_planned"
             in={{
-                section: $in.section,
-                used: $in.used,
+                records: $in.records,
                 record: $ctx.plan
             }}
         />
@@ -26,7 +25,7 @@
                 ...$in,
                 offset: $ctx.plan.end,
                 remaining: $in.remaining - 1,
-                used: $ctx.write_planned,
+                records: $ctx.append_planned,
                 running: $in.remaining != 1 && $ctx.plan.end != 0
             }}
         />

@@ -1,15 +1,9 @@
-import { allocateRows } from "core/row_buffer"
-import columns from "memory/columns"
+import bytes from "std:bytes"
 
 import type { Identities as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    allocateRows({
-        target: in.target,
-        count: in.count
-    })
-
-    columns.copyRowPrefix(in.target, in.source, in.count)
+    return bytes.readU8s(in.source, 0, in.count * in.width)
 }

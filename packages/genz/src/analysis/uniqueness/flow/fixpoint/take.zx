@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { retained_queued, retained_unlisted, unlisted } from "./const"
 
@@ -12,20 +11,34 @@ export default function (in: Input): Output {
         return {
             count: 0,
             index: null,
-            retain: false
+            retain: false,
+            indices: in.indices,
+            queued: in.queued
         }
     }
 
     const count = in.count - 1
-    const index = memory.readU32(in.indices, count)
+    const index = in.indices[count]
     const body = integers.widen(index)
-    const retain = memory.readU8(in.queued, body) == retained_queued
+    const retain = in.queued[body] == retained_queued
 
-    memory.writeU8(in.queued, body, retain ? retained_unlisted : unlisted)
+    const next_queued = loop({
+        done: false,
+        queued: in.queued
+    }, {
+        while: state => !state.done,
+        next: state => {
+            state.queued[body] = retain ? retained_unlisted : unlisted
+            state.done = true
+        },
+        return: state => state.queued
+    })
 
     return {
         count,
         index,
-        retain
+        retain,
+        indices: in.indices,
+        queued: next_queued
     }
 }

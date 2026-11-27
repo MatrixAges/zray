@@ -16,10 +16,6 @@ const Frame = struct {
 };
 
 pub fn lower(lowering: *Lower, allocator: std.mem.Allocator, bindings: Bindings, operands: []const ir.ExprId, fields: ?[]const u32, observation: ?Observation) Lower.Error![]const u32 {
-    var names = bindings.names;
-    var values = bindings.values;
-    var references = bindings.references;
-    var field_values: []u32 = if (fields) |items| try allocator.alloc(u32, items.len) else &.{};
     var origin: publication.OriginBuffer = undefined;
     var frame: Frame = .{ .lowering = lowering, .observation = observation };
 
@@ -31,15 +27,15 @@ pub fn lower(lowering: *Lower, allocator: std.mem.Allocator, bindings: Bindings,
         .operands = @ptrCast(operands),
         .fields = fields,
         .observe = observation != null,
-        .names = @ptrCast(&names),
-        .values = @ptrCast(&values),
-        .references = @ptrCast(&references),
-        .field_values = @ptrCast(&field_values),
     };
 
-    entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
+    const output = entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
 
-    return field_values;
+    @memcpy(bindings.names, output.names);
+    @memcpy(bindings.values, output.values);
+    @memcpy(bindings.references, output.references);
+
+    return output.field_values;
 }
 
 pub fn publishIterationOperand(handle: *anyopaque, index: u64, item: u32, reference: u32) Lower.Error!void {

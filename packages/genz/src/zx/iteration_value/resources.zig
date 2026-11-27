@@ -5,18 +5,6 @@ const Lower = @import("../lower.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const Error = Lower.Error;
 
-pub const Columns = struct {
-    layouts: []u32 = undefined,
-    operands: []u32 = undefined,
-    pub fn bind(self: *Columns, comptime Shape: type, context: *Context, with_operands: bool) Shape {
-        return .{
-            .frame = @ptrCast(context),
-            .layouts = @ptrCast(&self.layouts),
-            .operands = if (with_operands) @ptrCast(&self.operands) else null,
-        };
-    }
-};
-
 pub fn materializeIterationResource(handle: *anyopaque, id: u32, resource: evaluation.Api.IterationResource) Error!u32 {
     const context: *Context = @ptrCast(@alignCast(handle));
     const self = context.lowering;

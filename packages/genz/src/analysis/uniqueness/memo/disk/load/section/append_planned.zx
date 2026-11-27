@@ -1,0 +1,8 @@
+import type { Plan } from "../model"
+import type { PlannedAppend as Input } from "./model"
+
+export type Output = Plan[]
+
+export default function (in: Input): Output {
+    return in.records.push(in.record)[0]
+}

@@ -14,7 +14,8 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
     const rows = graph.nodes.slice();
     var topology = Nodes.writable(rows);
     var publication = Restriction.Publication.init(rows);
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [128]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
 
     const message = generated.executeIn(scratch.allocator(), &.{
         .parents = @ptrCast(&parents),

@@ -1,25 +1,23 @@
-import memory from "memory"
-
 import type { Capture } from "./model"
 
-export type Input = Capture.Omit("edges")
+export type Input = Capture
 
-export type Output = u64
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    memory.allocateU64Views(in.starts, in.callees.length + 1)
-    memory.writeU64(in.starts, 0, 0)
+    const initial: u64[] = [0]
 
     return loop({
         row: 0,
-        end: 0
+        end: 0,
+        starts: initial
     }, {
         while: state => state.row < in.callees.length,
         next: state => {
             state.end += in.callees[state.row].length
+            state.starts = state.starts.push(state.end)[0]
             state.row += 1
-            memory.writeU64(in.starts, state.row, state.end)
         },
-        return: state => state.end
+        return: state => state.starts
     })
 }

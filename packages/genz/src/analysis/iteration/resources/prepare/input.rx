@@ -12,17 +12,23 @@
     <Call module="../../conversion/plan" in={$in.source} />
 
     <Call
-        module="fill"
+        fn="../resolve"
         in={{
-            buffers: $in.buffers,
+            frame: $in.frame,
             mode: Preparation.Mode.Input,
             root: $in.root,
             types: $ctx.plan.types,
             borrowed: [],
             operations: $ctx.plan.kinds,
-            requirements: []
+            requirements: [],
+            with_operands: true
         }}
     />
 
-    <Return value={$ctx.plan} />
+    <Return
+        value={{
+            plan: $ctx.plan,
+            ...$ctx.resolve
+        }}
+    />
 </Module>

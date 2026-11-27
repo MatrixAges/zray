@@ -1,33 +1,38 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { Edges } from "./model"
+import type { Graph } from "./model"
 
-export type Input = Edges.Pick("first", "items", "fill") & {
+export type Input = Graph & {
     calls: u32[],
-    caller: u32
+    caller: u32,
+    fill: bool
 }
 
-export type Output = void
+export type Output = Graph
 
 export default function (in: Input): Output {
-    const result = loop({
-        index: in.calls.length
+    return loop({
+        index: in.calls.length,
+        first: in.first,
+        items: in.items
     }, {
         while: row => row.index != 0,
         next: row => {
             row.index -= 1
 
-            const { calls, first, items, fill, caller } = in
-            const target = integers.widen(calls[row.index])
-            const end = memory.readU64(first, target)
+            const target = integers.widen(in.calls[row.index])
+            const end = row.first[target]
 
-            if (fill) {
-                memory.writeU64(first, target, end - 1)
-                memory.writeU32(items, end - 1, caller)
+            if (in.fill) {
+                row.first[target] = end - 1
+                row.items[end - 1] = in.caller
             } else {
-                memory.writeU64(first, target, end + 1)
+                row.first[target] = end + 1
             }
-        }
+        },
+        return: row => ({
+            first: row.first,
+            items: row.items
+        })
     })
 }

@@ -1,41 +1,57 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import type { Count as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { owners, first, count } = in
+    const { owners, count } = in
 
     const length = count + 1
+    const zero: u32 = 0
+    const empty: u32[] = []
 
-    memory.allocateU32Views(first, length)
-    memory.clearU32Buffer(first, length)
-
-    const start: u64 = 0
-    const first_end: u64 = 1
-
-    const visits = loop(start, {
-        while: index => index < owners.length,
-        next: index => {
-            const owner = integers.widen(owners[index])
-
-            memory.writeU32(first, owner, memory.readU32(first, owner) + 1)
-            index += 1
-        }
+    const blank = loop({
+        index: 0,
+        first: empty
+    }, {
+        while: state => state.index < length,
+        next: state => {
+            state.first = state.first.push(zero)[0]
+            state.index += 1
+        },
+        return: state => state.first
     })
 
-    memory.writeU32(first, count, integers.narrow(visits))
+    const counted = loop({
+        index: 0,
+        first: blank
+    }, {
+        while: state => state.index <= owners.length,
+        next: state => {
+            if (state.index < owners.length) {
+                const owner = integers.widen(owners[state.index])
 
-    const accumulated = loop(first_end, {
-        while: index => index < count,
-        next: index => {
-            const total = memory.readU32(first, index - 1) +
-                memory.readU32(first, index)
+                state.first[owner] += 1
+            } else {
+                state.first[count] = integers.narrow(owners.length)
+            }
+            state.index += 1
+        },
+        return: state => state.first
+    })
 
-            memory.writeU32(first, index, total)
-            index += 1
-        }
+    return loop({
+        index: 1,
+        first: counted
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const total = state.first[state.index - 1] + state.first[state.index]
+
+            state.first[state.index] = total
+            state.index += 1
+        },
+        return: state => state.first
     })
 }

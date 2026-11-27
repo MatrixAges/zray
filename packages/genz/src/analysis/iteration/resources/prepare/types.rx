@@ -12,17 +12,23 @@
     <Call module="../../types/plan" in={$in.source} />
 
     <Call
-        module="fill"
+        fn="../resolve"
         in={{
-            buffers: $in.buffers,
+            frame: $in.frame,
             mode: Preparation.Mode.Leaves,
             root: 0,
             types: $ctx.plan.leaves,
             borrowed: [],
             operations: [],
-            requirements: []
+            requirements: [],
+            with_operands: false
         }}
     />
 
-    <Return value={$ctx.plan} />
+    <Return
+        value={{
+            plan: $ctx.plan,
+            layouts: $ctx.resolve.layouts
+        }}
+    />
 </Module>

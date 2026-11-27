@@ -19,31 +19,21 @@ const Frame = struct {
 };
 
 pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!void {
-    var owner = owner_arg;
+    const owner = owner_arg;
     const size = functions.count();
-    var indices = try owner.alloc(u32, size);
-    var queued = try owner.alloc(u8, size);
-    var first = try owner.alloc(u64, size + 1);
-
-    @memset(first, 0);
-
-    var items: []u32 = &.{};
     const Input = std.meta.Child(create.Input);
 
     const input: Input = .{
         .expressions = zx.columns.slice(@FieldType(Input, "expressions"), functions.expressions),
         .native_modules = functions.native_modules,
         .held = flow.held,
-        .first = @ptrCast(&first),
-        .items = @ptrCast(&items),
-        .owner = @ptrCast(&owner),
-        .indices = @ptrCast(&indices),
-        .queued = @ptrCast(&queued),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(workspace);
 
-    const count = zx.columns.invoke(create.executeValue, empty.allocator(), &input) catch |err| switch (err) {
+    defer scratch.deinit();
+
+    const queue = zx.columns.invoke(create.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
@@ -64,16 +54,16 @@ pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Alloc
     const request: std.meta.Child(run.Input) = .{
         .flow = @ptrCast(&frame),
         .queue = &.{
-            .indices = @ptrCast(&indices),
-            .queued = @ptrCast(&queued),
-            .first = first,
-            .items = items,
-            .count = count,
+            .indices = queue.indices,
+            .queued = queue.queued,
+            .first = queue.first,
+            .items = queue.items,
+            .count = queue.count,
             .changed = null,
         },
     };
 
-    run.executeIn(empty.allocator(), &request) catch |err| switch (err) {
+    run.executeIn(scratch.allocator(), &request) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

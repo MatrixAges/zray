@@ -107,7 +107,7 @@ export default function (in: Input): Output {
                     phase: Phase.Expression,
                     a: integers.widen(expressions.transform_bodies[payload]),
                     b: in.frame.b + 1,
-                    c: in.frame.c >= 2 ? 3 : 1
+                    c: in.frame.c == 2 || in.frame.c == 3 ? 3 : 1
                 }
             }),
             valid: true
@@ -152,13 +152,27 @@ export default function (in: Input): Output {
         _ => declared.state
     }
 
+    const in_task = in.frame.c == 2 || in.frame.c == 3
+    const orchestration_root = in.frame.c == 0 || in.frame.c == 4
+
+    const orchestration_body =
+        !condition &&
+        !program.transaction &&
+        orchestration_root
+
+    const next_context = match {
+        in_task => 3,
+        orchestration_body => 4,
+        _ => 1
+    }
+
     const computed_state = schedule({
         state: continuation,
         frame: {
             phase: Phase.Expression,
             a: integers.widen(value),
             b: in.frame.b + 1,
-            c: in.frame.c >= 2 ? 3 : 1
+            c: next_context
         }
     })
 

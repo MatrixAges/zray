@@ -1,8 +1,4 @@
-import type { ContributionTarget, MarkTarget } from "../../../function/result/columns"
-import type {
-    Target as GrowthTarget,
-    Targets as GrowthTargets
-} from "../../../growth/output"
+import type { Target as GrowthTarget } from "../../../growth/output"
 import type { Planned } from "../../../replay/ordered/model"
 import type { Input as Cursor } from "../rows/model"
 
@@ -12,24 +8,30 @@ export type Rows = Input & {
     count: u32
 }
 
-export type Contributions = Rows & {
-    target: ContributionTarget
-}
-
-export type Marks = Rows & {
-    target: MarkTarget
-}
-
 export type Growth = Rows & {
     target: GrowthTarget
 }
 
-export type Settlement = Input & {
-    passed: ContributionTarget
+export type ContributionRow = {
+    callee: u32,
+    levels: u8[]
 }
 
-export type Demand = Input & GrowthTargets & {
-    marks: MarkTarget
+export type MarkRow = {
+    output: bool,
+    function: u32,
+    slot: u32,
+    want: u8
+}
+
+export type NormalizedRow = {
+    id: u32,
+    want: u8
+}
+
+export type RenewedRow = {
+    key: u64,
+    want: u8
 }
 
 export type Record = {
@@ -38,10 +40,14 @@ export type Record = {
 }
 
 export type SettlementResult = Record & {
+    passed: ContributionRow[],
     output: u8[]
 }
 
 export type DemandResult = Record & {
+    marks: MarkRow[],
+    normalized: NormalizedRow[],
+    renewed: RenewedRow[],
     grew: bool
 }
 

@@ -79,8 +79,10 @@ export default function (in: Input): Output {
             }
         }
 
+        const in_task = frame.c == 2 || frame.c == 3
+
         if (
-            frame.c >= 2 &&
+            in_task &&
                 !in.context.prepared
                 .concurrent[integers.widen(
                     expressions.call_functions[payload]

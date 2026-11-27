@@ -1,33 +1,52 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { unlisted } from "./const"
 import row from "./row"
 
-import type { Edges as Input } from "./model"
+import type { Expressions } from "core/expression_table/model"
+import type { Graph } from "./model"
 
-export type Output = void
+export type Input = Graph & {
+    expressions: Expressions[],
+    queued: u8[],
+    fill: bool
+}
+
+export type Output = Graph
 
 export default function (in: Input): Output {
-    loop({
-        source: in,
-        body: in.expressions.length
+    const zero: u64 = 0
+
+    const initial_first: u64[] = match {
+        in.fill => in.first,
+        _ => in.expressions.map(item => zero)[0].push(zero)[0]
+    }
+
+    return loop({
+        body: in.expressions.length,
+        first: initial_first,
+        items: in.items
     }, {
         while: state => state.body != 0,
         next: state => {
             state.body -= 1
 
-            const { expressions, queued, first, items, fill } = state.source
-
-            if (memory.readU8(queued, state.body) != unlisted) {
-                row({
-                    calls: expressions[state.body].call_functions,
+            if (in.queued[state.body] != unlisted) {
+                const updated = row({
+                    calls: in.expressions[state.body].call_functions,
                     caller: integers.narrow(state.body),
-                    first,
-                    items,
-                    fill
+                    first: state.first,
+                    items: state.items,
+                    fill: in.fill
                 })
+
+                state.first = updated.first
+                state.items = updated.items
             }
-        }
+        },
+        return: state => ({
+            first: state.first,
+            items: state.items
+        })
     })
 }

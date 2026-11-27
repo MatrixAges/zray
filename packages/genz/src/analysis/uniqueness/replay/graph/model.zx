@@ -1,12 +1,8 @@
-import type { U32Buffer, U64Buffer } from "memory"
-
 export type Graph = {
     starts: u64[],
     edges: u32[]
 }
 
 export type Capture = {
-    callees: u32[][],
-    starts: U64Buffer,
-    edges: U32Buffer
+    callees: u32[][]
 }

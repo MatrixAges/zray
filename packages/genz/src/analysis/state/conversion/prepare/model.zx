@@ -1,4 +1,4 @@
-import type { Input as Resolve } from "../../resources/resolve"
+import type { Input as Resolve, Output as Resolved } from "../../resources/resolve"
 import type { Plan } from "../model"
 import type { Input as View } from "../view/walk"
 
@@ -10,6 +10,10 @@ export type Input = {
     check_view: bool
 }
 
-export type Output = Plan?
+export type Output = (
+    {
+        plan: Plan
+    } & Resolved
+)?
 
 export { Operation } from "../model"

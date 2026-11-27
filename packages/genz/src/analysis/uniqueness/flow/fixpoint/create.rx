@@ -1,61 +1,63 @@
 <Module>
     <Type from="model" as="Flow" />
 
-    <Args in={Flow.Input} out={u64} />
+    <Args in={Flow.Input} out={Flow.Queue} />
 
     <Call
         fn="seed"
         in={$in.pick([
-            "indices",
-            "queued",
             "native_modules",
             "held"
         ])}
     />
 
-    <Call
-        fn="edges"
-        in={{
-            ...$in.pick([
-                "expressions",
-                "queued",
-                "first",
-                "items"
-            ]),
-            fill: false
-        }}
-    />
+    <Task name="counts" out={$ctx.edges}>
+        <Call
+            fn="edges"
+            in={{
+                expressions: $in.expressions,
+                queued: $ctx.seed.queued,
+                first: [],
+                items: [],
+                fill: false
+            }}
+        />
+    </Task>
 
     <Call
         fn="allocate"
         in={{
-            owner: $in.owner,
-            first: $in.first,
-            count: $in.expressions.length,
-            items: $in.items
+            first: $ctx.task.counts.first,
+            count: $in.expressions.length
         }}
     />
 
     <Call
         fn="edges"
         in={{
-            ...$in.pick([
-                "expressions",
-                "queued",
-                "first",
-                "items"
-            ]),
+            expressions: $in.expressions,
+            queued: $ctx.seed.queued,
+            first: $ctx.allocate.first,
+            items: $ctx.allocate.items,
             fill: true
         }}
     />
 
     <Call
         fn="retention"
-        in={$in.pick([
-            "expressions",
-            "queued"
-        ])}
+        in={{
+            expressions: $in.expressions,
+            queued: $ctx.seed.queued
+        }}
     />
 
-    <Return value={$ctx.seed} />
+    <Return
+        value={{
+            indices: $ctx.seed.indices,
+            queued: $ctx.retention,
+            first: $ctx.edges.first,
+            items: $ctx.edges.items,
+            count: $ctx.seed.count
+        }}
+    />
 </Module>

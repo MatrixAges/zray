@@ -1,5 +1,4 @@
 import type { IterationResourceFrame } from "lowering_host"
-import type { U32Buffer } from "memory"
 import type { Operation as Borrow } from "../borrow/model"
 import type { Operation } from "../conversion/model"
 import type { Requirement } from "../conversion/output/model"
@@ -19,8 +18,12 @@ export type Input = {
     borrowed: Borrow[],
     operations: Operation[],
     requirements: Requirement[],
-    layouts: U32Buffer,
-    operands?: U32Buffer
+    with_operands: bool
+}
+
+export type Resolved = {
+    layouts: u32[],
+    operands: u32[]
 }
 
 export type Cache = {

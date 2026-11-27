@@ -1,3 +1,4 @@
+import type { IterationResourceFrame } from "lowering_host"
 import type { Input as BorrowInput, Plan as BorrowPlan } from "../../borrow/model"
 import type {
     Input as ConversionInput,
@@ -5,17 +6,14 @@ import type {
 } from "../../conversion/model"
 import type { Prepare, Prepared } from "../../conversion/output/model"
 import type { Input as TypeInput, Plan as TypePlan } from "../../types/model"
-import type { Input as Resolve } from "../model"
 
 export { Operation as BorrowOperation } from "../../borrow/model"
 export { Operation as ConversionOperation } from "../../conversion/model"
 export { Operation as TypeOperation } from "../../types/model"
 export { Mode } from "../model"
 
-export type Buffers = Resolve.Pick("frame", "layouts", "operands")
-
 export type Root = {
-    buffers: Buffers,
+    frame: IterationResourceFrame,
     root: u32
 }
 
@@ -33,17 +31,35 @@ export type Returned = Root & {
 
 export type Types = {
     source: TypeInput,
-    buffers: Buffers
+    frame: IterationResourceFrame
 }
 
-export type Fill = Resolve.Omit("frame", "layouts", "operands") & {
-    buffers: Buffers
+export type BorrowPrepared = {
+    plan: BorrowPlan,
+    layouts: u32[]
 }
 
-export type BorrowOutput = BorrowPlan?
+export type InputPrepared = {
+    plan: ConversionPlan,
+    layouts: u32[],
+    operands: u32[]
+}
 
-export type InputOutput = ConversionPlan?
+export type ReturnedPrepared = {
+    plan: Prepared,
+    layouts: u32[],
+    operands: u32[]
+}
 
-export type ReturnedOutput = Prepared?
+export type TypesPrepared = {
+    plan: TypePlan,
+    layouts: u32[]
+}
 
-export type TypesOutput = TypePlan?
+export type BorrowOutput = BorrowPrepared?
+
+export type InputOutput = InputPrepared?
+
+export type ReturnedOutput = ReturnedPrepared?
+
+export type TypesOutput = TypesPrepared?

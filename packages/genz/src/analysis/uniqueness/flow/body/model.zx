@@ -1,5 +1,4 @@
 import type { Expressions } from "core/expression_table/model"
-import type { BoolBuffer } from "memory"
 import type { Input as Order } from "../../order/model"
 import type { Definitions } from "../../order/plan"
 import type { Flowed } from "../../replay/ordered/model"
@@ -45,12 +44,6 @@ export type Body = Facts & Environment & {
 
 export type Summary = Flowed
 
-export type Target = {
-    held: BoolBuffer,
-    text_held: BoolBuffer,
-    written: BoolBuffer
-}
-
 export type Input = {
     function_index: u32,
     body: Body,
@@ -67,7 +60,6 @@ export type Selection = Build & {
 export type Visit = Input.Omit("body") & {
     source: Order,
     environment: Environment,
-    target: Target,
     facts?: Facts
 }
 

@@ -280,7 +280,7 @@ pub const Host = struct {
         const selected = &current.payload.Selection;
         const plan = &compiler.plan.selections[selected.item];
         const labels = compiler.compiled.cases.items(.value)[current.body.first..][0..current.body.count];
-        const checked = try @import("../selection.zig").check(compiler.allocator, selected.subject, plan.subject.*, labels, plan.cases);
+        const checked = try @import("../selection.zig").check(compiler.allocator, compiler.types, selected.subject, plan.subject.*, labels, plan.cases);
 
         if (checked == .exhaustive) return checked.exhaustive;
 

@@ -9,8 +9,9 @@
         fn="publish"
         in={{
             bytes: $ctx.pack,
-            count: $in.count,
-            target: $in.target
+            count: $in.count
         }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>

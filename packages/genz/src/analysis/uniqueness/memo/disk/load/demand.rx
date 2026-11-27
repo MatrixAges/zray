@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Load" />
 
-    <Args in={Load.Demand} out={Load.DemandResult?} />
+    <Args in={Load.Input} out={Load.DemandResult?} />
 
     <Call
         fn="split"
@@ -26,28 +26,25 @@
             in={{
                 source: $in.source,
                 start: $ctx.demanded.marks_start,
-                count: $ctx.demanded.marks_count,
-                target: $in.marks
+                count: $ctx.demanded.marks_count
             }}
         />
 
         <Call
-            fn="normalized"
+            fn="normalized_rows"
             in={{
                 source: $in.source,
                 start: $ctx.demanded.normalized_start,
-                count: $ctx.demanded.normalized_count,
-                target: $in.normalized
+                count: $ctx.demanded.normalized_count
             }}
         />
 
         <Call
-            fn="renewed"
+            fn="renewed_rows"
             in={{
                 source: $in.source,
                 start: $ctx.demanded.renewed_start,
-                count: $ctx.demanded.renewed_count,
-                target: $in.renewed
+                count: $ctx.demanded.renewed_count
             }}
         />
 
@@ -55,6 +52,9 @@
             value={{
                 digest: $ctx.split.digest,
                 end: $ctx.demanded.end,
+                marks: $ctx.marks,
+                normalized: $ctx.normalized_rows,
+                renewed: $ctx.renewed_rows,
                 grew: $ctx.demanded.grew
             }}
         />

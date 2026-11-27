@@ -1,17 +1,22 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { queued, retained_queued, retained_unlisted, unlisted } from "./const"
 
-import type { Advance as Input } from "./model"
+import type { Advance as Input, Stack } from "./model"
 
-export type Output = u64
+export type Output = Stack & {
+    count: u64
+}
 
 export default function (in: Input): Output {
     const changed = in.changed
 
     if (changed == null) {
-        return in.count
+        return {
+            indices: in.indices,
+            queued: in.queued,
+            count: in.count
+        }
     }
 
     const body = integers.widen(changed)
@@ -19,14 +24,16 @@ export default function (in: Input): Output {
 
     return loop({
         count: in.count,
-        position: in.first[body]
+        position: in.first[body],
+        indices: in.indices,
+        queued: in.queued
     }, {
         while: state => state.position < end,
         next: state => {
             const caller = in.items[state.position]
             const index = integers.widen(caller)
 
-            const status = memory.readU8(in.queued, index)
+            const status = state.queued[index]
             const next = match status {
                 unlisted => queued,
                 retained_unlisted => retained_queued,
@@ -34,13 +41,17 @@ export default function (in: Input): Output {
             }
 
             if (next != status) {
-                memory.writeU8(in.queued, index, next)
-                memory.writeU32(in.indices, state.count, caller)
+                state.queued[index] = next
+                state.indices[state.count] = caller
                 state.count += 1
             }
 
             state.position += 1
         },
-        return: state => state.count
+        return: state => ({
+            indices: state.indices,
+            queued: state.queued,
+            count: state.count
+        })
     })
 }

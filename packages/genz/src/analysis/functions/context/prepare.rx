@@ -5,7 +5,12 @@
 
     <Args
         in={Allocation.Input & Names.Target & Initialize.Input}
-        out={Allocation.Output}
+        out={{
+            allows_allocation: Allocation.Output,
+            names: Names.Output,
+            used_fill: bool,
+            read_fill: u64
+        }}
     />
 
     <Call
@@ -17,21 +22,23 @@
 
     <Call
         module="../symbol_names/build"
-        in={$in.pick([
-            "count",
-            "target"
-        ])}
+        in={$in.pick(["count"])}
     />
 
     <Call
         fn="initialize"
         in={$in.pick([
-            "used",
-            "used_bytes",
-            "reads",
-            "read_bytes"
+            "used_count",
+            "read_count"
         ])}
     />
 
-    <Return value={$ctx.allocation} />
+    <Return
+        value={{
+            allows_allocation: $ctx.allocation,
+            names: $ctx.build,
+            used_fill: $ctx.initialize.used_fill,
+            read_fill: $ctx.initialize.read_fill
+        }}
+    />
 </Module>

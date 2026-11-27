@@ -16,8 +16,8 @@ const Reader = struct {
     current: View = undefined,
 };
 
-pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) std.mem.Allocator.Error!Result {
-    if (comptime !enabled) return seed(subject, attribute, cases, sources);
+pub fn check(allocator: std.mem.Allocator, types: zx.ir.TypeTable, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) std.mem.Allocator.Error!Result {
+    if (comptime !enabled) return seed(types, subject, attribute, cases, sources);
 
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.heap.page_size_min / 8]u8 = undefined;
@@ -26,7 +26,7 @@ pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attrib
     defer arena.deinit();
 
     const temporary = scratch.allocator();
-    const target = subject.typeOf(subject.output_type);
+    const target = types.get(subject.output_type);
     var reader: Reader = .{ .cases = cases };
 
     const input: Input = .{
@@ -71,9 +71,9 @@ pub fn borrowFlowSelectionLabel(handle: *anyopaque, row: u64) bool {
     return true;
 }
 
-fn seed(subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) Result {
+fn seed(types: zx.ir.TypeTable, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) Result {
     const type_id = subject.output_type;
-    const value_type = subject.typeOf(type_id);
+    const value_type = types.get(type_id);
     const integer = @backingInt(type_id) >= @backingInt(zx.ir.Scalar.u8) and @backingInt(type_id) <= @backingInt(zx.ir.Scalar.i64);
     const boolean = @backingInt(type_id) == @backingInt(zx.ir.Scalar.bool);
     const string = @backingInt(type_id) == @backingInt(zx.ir.Scalar.string);

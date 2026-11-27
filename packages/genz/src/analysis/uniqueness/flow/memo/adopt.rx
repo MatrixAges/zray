@@ -3,19 +3,7 @@
 
     <Args in={Memo.Adoption} out={bool} />
 
-    <Call fn="compatible" in={$in.omit(["target"])} />
+    <Call fn="compatible" in={$in} />
 
-    <If on={!$ctx.compatible}>
-        <Return value={false} />
-    </If>
-
-    <Call
-        fn="../body/publish"
-        in={{
-            target: $in.target,
-            summary: $in.cached
-        }}
-    />
-
-    <Return value={true} />
+    <Return value={$ctx.compatible} />
 </Module>

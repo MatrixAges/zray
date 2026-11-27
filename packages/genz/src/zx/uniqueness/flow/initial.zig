@@ -22,12 +22,38 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, slots: Slots, t
         .layout = &layout,
     };
 
-    const output = generated.executeIn(allocator, &input) catch |err| switch (err) {
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
+
+    const output = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return .{ .held = output.held, .text_held = output.text_held, .written = output.written };
+    const count = output.held.len;
+    const held = try allocator.alloc([]bool, count);
+    const text_held = try allocator.alloc([]bool, count);
+    const written = try allocator.alloc([]bool, count);
+    const held_views = try allocator.alloc([]const bool, count);
+    const text_held_views = try allocator.alloc([]const bool, count);
+    const written_views = try allocator.alloc([]const bool, count);
+
+    for (0..count) |index| {
+        held[index] = try allocator.dupe(bool, output.held[index]);
+        text_held[index] = try allocator.dupe(bool, output.text_held[index]);
+        written[index] = try allocator.dupe(bool, output.written[index]);
+        held_views[index] = held[index];
+        text_held_views[index] = text_held[index];
+        written_views[index] = written[index];
+    }
+
+    return .{
+        .held = held_views,
+        .text_held = text_held_views,
+        .written = written_views,
+        .mutable = .{ .held = held, .text_held = text_held, .written = written },
+    };
 }
 
 fn seed(allocator: std.mem.Allocator, program: ir.Program, slots: Slots, texts: []const bool) std.mem.Allocator.Error!Flow {

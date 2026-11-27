@@ -1,27 +1,49 @@
-import memory from "memory"
+import type { Graph as Output } from "./model"
 
-import type { Input as Program } from "./model"
-
-export type Input = Program.Pick("first", "items", "owner") & {
+export type Input = {
+    first: u64[],
     count: u64
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const total = loop({
+    const prefix = loop({
         row: 0,
-        total: 0
+        total: 0,
+        first: in.first
     }, {
-        while: state => state.row < in.count,
+        while: state => state.row <= in.count,
         next: state => {
-            state.total += memory.readU64(in.first, state.row)
-            memory.writeU64(in.first, state.row, state.total)
+            if (state.row < in.count) {
+                state.total += state.first[state.row]
+                state.first[state.row] = state.total
+            } else {
+                state.first[in.count] = state.total
+            }
             state.row += 1
         },
-        return: state => state.total
+        return: state => ({
+            total: state.total,
+            first: state.first
+        })
     })
 
-    memory.writeU64(in.first, in.count, total)
-    memory.allocateU32Buffer(in.owner, in.items, total)
+    const empty: u32[] = []
+    const zero: u32 = 0
+
+    const items = loop({
+        row: 0,
+        values: empty
+    }, {
+        while: state => state.row < prefix.total,
+        next: state => {
+            state.values = state.values.push(zero)[0]
+            state.row += 1
+        },
+        return: state => state.values
+    })
+
+    return {
+        first: prefix.first,
+        items
+    }
 }

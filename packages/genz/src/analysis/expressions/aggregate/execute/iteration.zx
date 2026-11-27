@@ -1,6 +1,5 @@
 import { appendAstIdentifierRows, readAstOrigin } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 import { requireAllocation } from "memory"
 
 import identifierRows from "../../../aggregate/binding/identifier_rows"
@@ -8,7 +7,6 @@ import reference from "../../../aggregate/binding/reference"
 
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { IterationOperands, Lowering } from "lowering_host"
-import type { U32Buffer, U8ListBuffer } from "memory"
 
 export type Input = {
     frame: Lowering,
@@ -17,70 +15,85 @@ export type Input = {
     batch: IterationOperands,
     operands: u32[],
     fields?: u32[],
-    observe: bool,
-    names: U8ListBuffer,
-    values: U32Buffer,
-    references: U32Buffer,
-    field_values: U32Buffer
+    observe: bool
 }
 
-export type Output = void
+export type Output = {
+    names: u8[][],
+    values: u32[],
+    references: u32[],
+    field_values: u32[]
+}
 
 export default function (in: Input): Output {
-    const {
-        frame,
-        writer,
-        origin,
-        batch,
-        operands,
-        fields,
-        observe,
-        names,
-        values,
-        references,
-        field_values
-    } = in
+    const { frame, writer, origin, batch, operands, fields, observe } = in
 
-    const bound_operands = loop(0, {
-        while: index => index < operands.length,
-        next: index => {
+    const empty_names: u8[][] = []
+    const empty_u32: u32[] = []
+
+    const bound = loop({
+        index: 0,
+        names: empty_names,
+        values: empty_u32,
+        references: empty_u32
+    }, {
+        while: state => state.index < operands.length,
+        next: state => {
+            const index = state.index
             const item = operands[index]
             const value = host.lowerExpression(frame, item, false, null)
             const current = readAstOrigin(writer, origin)
 
-            const bound = reference({
+            const ref = reference({
                 expression_base: current.expression_base,
                 serial: current.serial
             })
 
-            requireAllocation(bound.valid)
+            requireAllocation(ref.valid)
 
-            const name = host.retainLoweringText(frame, bound.name)
+            const name = host.retainLoweringText(frame, ref.name)
 
             appendAstIdentifierRows(writer, identifierRows(name))
-            host.finishGeneratedAst(frame, bound.serial, false)
-            memory.writeU8List(names, index, name)
-            memory.writeU32(values, index, value)
-            memory.writeU32(references, index, bound.root)
+            host.finishGeneratedAst(frame, ref.serial, false)
 
             if (observe) {
-                host.publishIterationOperand(batch, index, item, bound.root)
+                host.publishIterationOperand(batch, index, item, ref.root)
             }
 
-            index += 1
-        }
+            state.names = state.names.push(name)[0]
+            state.values = state.values.push(value)[0]
+            state.references = state.references.push(ref.root)[0]
+            state.index += 1
+        },
+        return: state => ({
+            names: state.names,
+            values: state.values,
+            references: state.references
+        })
     })
 
-    if (fields != null) {
-        const lowered = loop(0, {
-            while: index => index < fields.length,
-            next: index => {
-                const value = host.lowerExpression(frame, fields[index], false, null)
+    const field_values = match {
+        fields == null => empty_u32,
+        _ => loop({
+            index: 0,
+            values: empty_u32
+        }, {
+            while: state => state.index < fields.length,
+            next: state => {
+                const value =
+                    host.lowerExpression(frame, fields[state.index], false, null)
 
-                memory.writeU32(field_values, index, value)
-
-                index += 1
-            }
+                state.values = state.values.push(value)[0]
+                state.index += 1
+            },
+            return: state => state.values
         })
+    }
+
+    return {
+        names: bound.names,
+        values: bound.values,
+        references: bound.references,
+        field_values
     }
 }

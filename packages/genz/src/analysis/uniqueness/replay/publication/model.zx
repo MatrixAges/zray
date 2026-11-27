@@ -1,11 +1,13 @@
-import type { RowBuffer } from "memory/columns"
-import type { Input as Group } from "../../group/borrowed/model"
-import type { Capture } from "../graph/model"
+import type {
+    Input as Group,
+    Output as GroupOutput
+} from "../../group/borrowed/model"
+import type { Capture, Graph } from "../graph/model"
 
 export type Identities = {
     source: u8[],
-    target: RowBuffer,
-    count: u64
+    count: u64,
+    width: u64
 }
 
 export type Input = {
@@ -14,4 +16,12 @@ export type Input = {
     settled: Group,
     demanded: Group,
     planned: Group
+}
+
+export type Output = {
+    identities: u8[],
+    graph: Graph,
+    settled: GroupOutput,
+    demanded: GroupOutput,
+    planned: GroupOutput
 }

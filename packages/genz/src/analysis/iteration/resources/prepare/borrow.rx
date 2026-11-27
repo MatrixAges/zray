@@ -12,17 +12,23 @@
     <Call module="../../borrow/plan" in={$in.source} />
 
     <Call
-        module="fill"
+        fn="../resolve"
         in={{
-            buffers: $in.buffers,
+            frame: $in.frame,
             mode: Preparation.Mode.Borrow,
             root: $in.root,
             types: $ctx.plan.types,
             borrowed: $ctx.plan.kinds,
             operations: [],
-            requirements: []
+            requirements: [],
+            with_operands: false
         }}
     />
 
-    <Return value={$ctx.plan} />
+    <Return
+        value={{
+            plan: $ctx.plan,
+            layouts: $ctx.resolve.layouts
+        }}
+    />
 </Module>

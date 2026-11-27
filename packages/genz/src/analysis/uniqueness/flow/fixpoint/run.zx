@@ -20,12 +20,17 @@ export default function (in: Input): Output {
     const settled = loop({
         count: queue.count,
         changed,
+        indices: queue.indices,
+        queued: queue.queued,
         active: true
     }, {
         while: state => state.active,
         next: state => {
             const visit = advance({
-                ...queue,
+                first: queue.first,
+                items: queue.items,
+                indices: state.indices,
+                queued: state.queued,
                 count: state.count,
                 changed: state.changed
             })
@@ -41,6 +46,8 @@ export default function (in: Input): Output {
                 const grew = host.visitRecursiveFlow(flow, index, visit.retain)
 
                 state.count = visit.count
+                state.indices = visit.indices
+                state.queued = visit.queued
                 state.changed = grew ? index : null
             }
         }

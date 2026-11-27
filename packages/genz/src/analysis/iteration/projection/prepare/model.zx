@@ -1,4 +1,7 @@
-import type { Input as Resources } from "../../resources/projection"
+import type {
+    Input as Resources,
+    Output as Resolved
+} from "../../resources/projection"
 import type { Input as Projection, Plan } from "../model"
 
 export type Input = {
@@ -6,4 +9,6 @@ export type Input = {
     resources: Resources.Omit("plan")
 }
 
-export type Output = Plan
+export type Output = {
+    plan: Plan
+} & Resolved

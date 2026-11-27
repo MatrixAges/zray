@@ -1,27 +1,21 @@
-import memory from "memory"
-
 import type { Capture } from "./model"
 
-export type Input = Capture.Omit("starts") & {
-    count: u64
-}
+export type Input = Capture
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    memory.allocateU32Views(in.edges, in.count)
+    const empty: u32[] = []
 
-    const written = loop({
+    return loop({
         row: 0,
-        offset: 0
+        edges: empty
     }, {
         while: state => state.row < in.callees.length,
         next: state => {
-            const children = in.callees[state.row]
-
-            memory.copyU32sAt(in.edges, state.offset, children)
-            state.offset += children.length
+            state.edges = state.edges.concat(in.callees[state.row])[0]
             state.row += 1
-        }
+        },
+        return: state => state.edges
     })
 }

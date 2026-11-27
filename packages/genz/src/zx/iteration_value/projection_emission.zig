@@ -39,16 +39,13 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
             .frame = @ptrCast(self),
             .context = @ptrCast(context),
             .history = @ptrCast(&timeline),
-            .prepared = @ptrCast(&timeline.prepared),
-            .serials = @ptrCast(&timeline.serials),
-            .history_count = @ptrCast(&timeline.history_count),
         },
     };
 
-    const plan = preparer.executeIn(temporary, &preparation) catch |err| return emissionFailure(err);
+    const prepared = preparer.executeIn(temporary, &preparation) catch |err| return emissionFailure(err);
 
-    if (!plan.valid) unreachable;
-    if (plan.operations.len == 0) return value;
+    if (!prepared.plan.valid) unreachable;
+    if (prepared.plan.operations.len == 0) return value;
 
     const emitter = @import("generated_projection_emit");
     const Call = std.meta.Child(emitter.Input);
@@ -56,10 +53,10 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     const history = context.transfers.view(std.meta.Child(@FieldType(Input, "history")));
 
     const input: Input = .{
-        .plan = zx.columns.pointer(@FieldType(Input, "plan"), plan),
-        .prepared = timeline.prepared,
-        .serials = timeline.serials,
-        .history_count = timeline.history_count,
+        .plan = zx.columns.pointer(@FieldType(Input, "plan"), prepared.plan),
+        .prepared = prepared.prepared,
+        .serials = prepared.serials,
+        .history_count = prepared.history_count,
         .history = &history,
         .value = @backingInt(value),
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
@@ -81,9 +78,6 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
 
 const Timeline = struct {
     context: *Context,
-    prepared: []u32 = undefined,
-    serials: []u64 = undefined,
-    history_count: []u64 = undefined,
     stamp: Api.IterationProjectionStamp = undefined,
 };
 

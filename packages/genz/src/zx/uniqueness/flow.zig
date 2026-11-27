@@ -16,7 +16,7 @@ const Walk = if (generated_analysis) @import("flow/walk.zig") else Seed.Walk;
 held: []const []const bool,
 text_held: []const []const bool,
 written: []const []const bool,
-mutable: if (generated_analysis) void else struct { held: [][]bool, text_held: [][]bool, written: [][]bool } = if (generated_analysis) {} else undefined,
+mutable: struct { held: [][]bool, text_held: [][]bool, written: [][]bool },
 /// `memo` keeps the summaries of each body by its `contents` and its callees' summaries, so a later program walks only
 /// the bodies whose content or callees changed.
 pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, slots: Slots, texts: []const bool, contents: []const [32]u8, types: [32]u8, memo: ?*Memo) std.mem.Allocator.Error!Self {

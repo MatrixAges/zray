@@ -1,36 +1,32 @@
 import encoding from "std:encoding"
 import { decimal_radix } from "core/const"
-import memory from "memory"
 
 import { input_name, local_prefix } from "./const"
 
-import type { StringBuffer } from "memory"
-
 export type Target = {
-    count: u64,
-    target: StringBuffer
+    count: u64
 }
 
 export type Input = Target & {
     bytes: u8[]
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
     if (in.count == 0) {
-        return
+        return []
     }
 
     const text = encoding.decodeUtf8(in.bytes)
+    const initial: string[] = [input_name]
 
-    memory.writeString(in.target, 0, input_name)
-
-    const written = loop({
+    return loop({
         start: input_name.length,
         index: 1,
         width: local_prefix.length + 1,
-        next_width: decimal_radix
+        next_width: decimal_radix,
+        names: initial
     }, {
         while: state => state.index < in.count,
         next: state => {
@@ -39,11 +35,13 @@ export default function (in: Input): Output {
                 state.next_width *= decimal_radix
             }
 
-            const name = memory.borrowTextRange(text, state.start, state.width)
+            const name =
+                encoding.sliceBytes(text, state.start, state.start + state.width)
 
-            memory.writeString(in.target, state.index, name)
+            state.names = state.names.push(name)[0]
             state.start += state.width
             state.index += 1
-        }
+        },
+        return: state => state.names
     })
 }

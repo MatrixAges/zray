@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Flow" />
 
-    <Args in={Flow.Visit} out={bool} />
+    <Args in={Flow.Visit} out={Flow.Output} />
 
     <Call
         module="select"
@@ -18,7 +18,6 @@
             ...$in.omit([
                 "environment",
                 "source",
-                "target",
                 "facts"
             ]),
             body: {
@@ -29,13 +28,5 @@
         }}
     />
 
-    <Call
-        fn="publish"
-        in={{
-            target: $in.target,
-            summary: $ctx.analyze.omit(["changed"])
-        }}
-    />
-
-    <Return value={$ctx.analyze.changed} />
+    <Return value={$ctx.analyze} />
 </Module>

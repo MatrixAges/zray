@@ -1,41 +1,37 @@
 import integers from "std:integer"
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
 
-import { false_byte, true_byte, mark_width } from "../const"
+import { mark_width } from "../const"
 import mark from "../rows/mark"
 
-import type { Marks as Input } from "./model"
+import type { MarkRow, Rows as Input } from "./model"
 
-export type Output = void
+export type Output = MarkRow[]
 
 export default function (in: Input): Output {
-    const { source, start, target } = in
-    const { output, functions, slots, wants } = target.columns
+    const { source, start } = in
 
     const count = integers.widen(in.count)
+    const empty: MarkRow[] = []
 
-    allocateRows({
-        target: target.storage,
-        count
-    })
-
-    const first: u64 = 0
-
-    const written = loop(first, {
-        while: index => index < count,
-        next: index => {
+    return loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < count,
+        next: state => {
             const row = mark({
                 source,
-                start: start + index * mark_width
+                start: start + state.index * mark_width
             })
-            const flag = row.output ? true_byte : false_byte
 
-            memory.writeColumnU8(output, index, flag)
-            memory.writeColumnU32(functions, index, row.function)
-            memory.writeColumnU32(slots, index, row.slot)
-            memory.writeColumnU8(wants, index, row.want)
-            index += 1
-        }
+            state.items = state.items.push({
+                output: row.output,
+                function: row.function,
+                slot: row.slot,
+                want: row.want
+            })[0]
+            state.index += 1
+        },
+        return: state => state.items
     })
 }

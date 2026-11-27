@@ -32,7 +32,12 @@
             }}
         />
 
-        <Return value={$ctx.walk} />
+        <Return
+            value={{
+                plan: $ctx.walk,
+                ...$ctx.resolve
+            }}
+        />
     </If>
 
     <Call module="../plan/build" in={$in.view.source.source} />
@@ -45,5 +50,10 @@
         }}
     />
 
-    <Return value={$ctx.build} />
+    <Return
+        value={{
+            plan: $ctx.build,
+            ...$ctx.resolve
+        }}
+    />
 </Module>

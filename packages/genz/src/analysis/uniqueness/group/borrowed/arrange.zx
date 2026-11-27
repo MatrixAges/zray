@@ -1,33 +1,31 @@
 import integers from "std:integer"
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
-import columns from "memory/columns"
 
-import type { Arrange as Input } from "./model"
-
-export type Output = void
+import type { Arrange as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { owners, first, width, source, target } = in
+    const { owners } = in
 
-    allocateRows({
-        target,
-        count: owners.length
-    })
+    const zero: u32 = 0
+    const initial_order: u32[] = owners.map(item => zero)[0]
 
-    const grouped = loop(owners.length, {
-        while: index => index != 0,
-        next: index => {
-            index -= 1
+    return loop({
+        index: owners.length,
+        first: in.first,
+        order: initial_order
+    }, {
+        while: state => state.index != 0,
+        next: state => {
+            state.index -= 1
 
-            const owner = integers.widen(owners[index])
-            const position = memory.readU32(first, owner) - 1
-            const offset = index * width
-            const row = memory.borrowU8Range(source, offset, width)
+            const owner = integers.widen(owners[state.index])
+            const position = state.first[owner] - 1
 
-            memory.writeU32(first, owner, position)
-
-            columns.writeRow(target, integers.widen(position), row)
-        }
+            state.first[owner] = position
+            state.order[integers.widen(position)] = integers.narrow(state.index)
+        },
+        return: state => ({
+            starts: state.first,
+            order: state.order
+        })
     })
 }

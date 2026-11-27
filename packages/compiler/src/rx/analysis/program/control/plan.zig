@@ -49,11 +49,12 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks: Blocks, c
     const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const Columns = std.meta.Child(@FieldType(Input, "shape"));
     const Steps = std.meta.Child(@FieldType(Columns, "steps"));
-    var scratch_bytes: [4096]u8 = undefined;
-    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, allocator);
-    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
+
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, arena.allocator());
 
     const input: Input = .{
         .shape = &.{
@@ -72,7 +73,7 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks: Blocks, c
         .void_output = void_output,
     };
 
-    const result = rule.executeValue(arena.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+    const result = rule.executeValue(fallback.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
         error.IndexOutOfBounds => return error.InvalidModule,
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,

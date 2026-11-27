@@ -20,34 +20,36 @@ pub fn deinit(self: *Self) void {
     if (self.scratch) |*scratch| scratch.deinit();
 }
 
+fn copyRow(dest: []bool, src: []const bool) void {
+    if (dest.ptr != src.ptr) @memcpy(dest, src);
+}
+
 pub fn adopt(self: *const Self, index: u32, cached: Memo.Flowed) bool {
     const entry = @import("generated_uniqueness_flow_adopt");
     const Adoption = std.meta.Child(entry.Input);
-    var current = self.row(index);
+    const current = self.row(index);
 
     const input: Adoption = .{
-        .current = zx.columns.pointer(@FieldType(Adoption, "current"), @as(*const Current, &current)),
-        .target = &target(std.meta.Child(@FieldType(Adoption, "target")), &current),
+        .current = zx.columns.pointer(@FieldType(Adoption, "current"), &current),
         .cached = &.{ .held = cached.held, .text_held = cached.text_held, .written = cached.written },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const ok = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+    if (ok) {
+        copyRow(self.flow.mutable.held[index], cached.held);
+        copyRow(self.flow.mutable.text_held[index], cached.text_held);
+        copyRow(self.flow.mutable.written[index], cached.written);
+    }
+
+    return ok;
 }
 
 fn row(self: *const Self, index: u32) Current {
     const flow = self.flow;
 
     return .{ .held = flow.held[index], .text_held = flow.text_held[index], .written = flow.written[index] };
-}
-
-fn target(comptime Target: type, current: *Current) Target {
-    return .{
-        .held = @ptrCast(&current.held),
-        .text_held = @ptrCast(&current.text_held),
-        .written = @ptrCast(&current.written),
-    };
 }
 
 fn workspace(self: *Self) std.mem.Allocator {
@@ -83,11 +85,16 @@ pub fn visit(self: *Self, index: u32, view: Body.View, saved: ?*const Body.Facts
         .text_held = self.flow.text_held,
         .written = self.flow.written,
         .current = &current,
-        .target = &target(std.meta.Child(@FieldType(Input, "target")), &current),
     };
 
-    return zx.columns.invoke(generated.executeValue, self.workspace(), &input) catch |err| switch (err) {
+    const res = zx.columns.invoke(generated.executeValue, self.workspace(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
+
+    copyRow(self.flow.mutable.held[index], res.held);
+    copyRow(self.flow.mutable.text_held[index], res.text_held);
+    copyRow(self.flow.mutable.written[index], res.written);
+
+    return res.changed;
 }

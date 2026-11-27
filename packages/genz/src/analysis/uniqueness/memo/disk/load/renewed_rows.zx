@@ -1,0 +1,35 @@
+import integers from "std:integer"
+
+import { renewed_width } from "../const"
+import entry from "../rows/renewed"
+
+import type { RenewedRow, Rows as Input } from "./model"
+
+export type Output = RenewedRow[]
+
+export default function (in: Input): Output {
+    const { source, start } = in
+
+    const count = integers.widen(in.count)
+    const empty: RenewedRow[] = []
+
+    return loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const row = entry({
+                source,
+                start: start + state.index * renewed_width
+            })
+
+            state.items = state.items.push({
+                key: row.key,
+                want: row.want
+            })[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
+}

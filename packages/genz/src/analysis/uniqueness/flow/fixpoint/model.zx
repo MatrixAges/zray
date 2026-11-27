@@ -1,31 +1,35 @@
-import type { Allocator, U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type { Functions } from "../../layers/model"
 
 export type Stack = {
-    indices: U32Buffer,
-    queued: U8Buffer
+    indices: u32[],
+    queued: u8[]
 }
 
-export type Input = Functions & Stack & {
-    held: bool[][],
-    first: U64Buffer,
-    items: U32Buffer,
-    owner: Allocator
+export type Input = Functions & {
+    held: bool[][]
 }
 
-export type Edges = Input.Pick("expressions", "queued", "first", "items") & {
-    fill: bool
-}
-
-export type Advance = Stack & {
+export type Queue = Stack & {
     first: u64[],
     items: u32[],
-    count: u64,
+    count: u64
+}
+
+export type Advance = Queue & {
     changed?: u32
 }
 
-export type Visit = {
+export type Visit = Stack & {
     count: u64,
     index?: u32,
     retain: bool
+}
+
+export type Graph = {
+    first: u64[],
+    items: u32[]
+}
+
+export type Seed = Stack & {
+    count: u64
 }

@@ -1,28 +1,22 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
 
 import contribution from "../rows/contribution"
 
-import type { Contributions as Input } from "./model"
+import type { ContributionRow, Rows as Input } from "./model"
 
-export type Output = void
+export type Output = ContributionRow[]
 
 export default function (in: Input): Output {
-    const { source, start, target } = in
-    const { callees, levels } = target.columns
+    const { source, start } = in
 
     const count = integers.widen(in.count)
+    const empty: ContributionRow[] = []
 
-    allocateRows({
-        target: target.storage,
-        count
-    })
-
-    const written = loop({
+    return loop({
         offset: start,
-        index: 0
+        index: 0,
+        items: empty
     }, {
         while: state => state.index < count,
         next: state => {
@@ -30,12 +24,15 @@ export default function (in: Input): Output {
                 source,
                 start: state.offset
             })
-            const values = bytes.readU8s(source, row.start, row.end)
+            const levels = bytes.readU8s(source, row.start, row.end)
 
-            memory.writeColumnU32(callees, state.index, row.callee)
-            memory.writeColumnBytes(levels, state.index, values)
+            state.items = state.items.push({
+                callee: row.callee,
+                levels
+            })[0]
             state.offset = row.end
             state.index += 1
-        }
+        },
+        return: state => state.items
     })
 }

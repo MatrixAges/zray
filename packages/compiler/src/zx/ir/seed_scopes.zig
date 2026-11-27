@@ -13,6 +13,7 @@ declared: []bool,
 declaration_owner: []?ir.ExprId,
 pure_functions: ?@import("parallel.zig").Result = null,
 callback_depth: usize = 0,
+pure_callback_depth: usize = 0,
 task_depth: usize = 0,
 refinement: zx.Refinement = .{},
 pub fn validate(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!bool {
@@ -194,7 +195,15 @@ fn expression(self: *Self, id: ir.ExprId, depth: usize) std.mem.Allocator.Error!
             const parameters = [_]ir.SymbolId{ iteration.condition_parameter, iteration.parameter };
             const callbacks = [_]ir.ExprId{ iteration.condition, iteration.body };
 
-            for (parameters, callbacks) |parameter, callback| {
+            for (parameters, callbacks, 0..) |parameter, callback, step| {
+                const pure = step == 0 or self.program.store_mode == .transaction;
+
+                if (pure) self.pure_callback_depth += 1;
+
+                defer if (pure) {
+                    self.pure_callback_depth -= 1;
+                };
+
                 @memset(self.active, false);
 
                 if (iteration.environment_symbol) |symbol| self.active[@backingInt(symbol)] = true;
@@ -337,7 +346,7 @@ fn expression(self: *Self, id: ir.ExprId, depth: usize) std.mem.Allocator.Error!
 
             break :blk true;
         },
-        .call => |call| (self.callback_depth == 0 or call.stores.len == 0) and (self.task_depth == 0 or try @import("tasks.zig").callSafe(self.allocator, self.program.functions, call.function)) and try self.expression(call.argument, depth + 1),
+        .call => |call| (self.pure_callback_depth == 0 or call.stores.len == 0) and (self.task_depth == 0 or try @import("tasks.zig").callSafe(self.allocator, self.program.functions, call.function)) and try self.expression(call.argument, depth + 1),
         .list_operation => |operation| try self.expression(operation.target, depth + 1) and try self.sequence(operation.arguments, depth + 1),
         .transform => |transform| blk: {
             if (!try self.expression(transform.target, depth + 1)) break :blk false;
@@ -354,6 +363,8 @@ fn expression(self: *Self, id: ir.ExprId, depth: usize) std.mem.Allocator.Error!
 
             self.callback_depth += 1;
             defer self.callback_depth -= 1;
+            self.pure_callback_depth += 1;
+            defer self.pure_callback_depth -= 1;
 
             for (transform.parameters) |symbol| {
                 const index = @backingInt(symbol);

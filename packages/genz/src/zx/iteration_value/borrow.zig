@@ -28,15 +28,14 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var columns: @import("resources.zig").Columns = .{};
 
     const prepare: Prepare = .{
         .source = &request,
         .root = @backingInt(root_layout),
-        .buffers = &columns.bind(std.meta.Child(@FieldType(Prepare, "buffers")), self, false),
+        .frame = @ptrCast(self),
     };
 
-    const plan = (preparation.executeIn(temporary, &prepare) catch |err|
+    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
         return @import("../construction/publication.zig").failure(err)) orelse return value;
 
     const emitter = @import("generated_iteration_borrow_emit");
@@ -44,8 +43,8 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
     const EmitInput = std.meta.Child(@FieldType(Call, "request"));
 
     const input: EmitInput = .{
-        .plan = zx.columns.pointer(@FieldType(EmitInput, "plan"), plan),
-        .layouts = columns.layouts,
+        .plan = zx.columns.pointer(@FieldType(EmitInput, "plan"), prepared.plan),
+        .layouts = prepared.layouts,
         .value = @backingInt(value),
         .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(lowering.builder.nodes.field_columns.count()),

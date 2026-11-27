@@ -21,11 +21,12 @@ pub fn decode(buffer: []const u8, offset: usize, rows: []Record, endian: std.bui
     const rule = @import("generated_input_darwin_decode");
     const Parameter = rule.Input;
     const Input = if (comptime @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    var scratch_bytes: [4096]u8 = undefined;
-    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, std.heap.smp_allocator);
-    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+    var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
     defer arena.deinit();
+
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, arena.allocator());
 
     const input: Input = .{
         .buffer = buffer,
@@ -34,7 +35,7 @@ pub fn decode(buffer: []const u8, offset: usize, rows: []Record, endian: std.bui
         .little_endian = endian == .little,
     };
 
-    const decoded = (rule.executeValue(arena.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch return error.InvalidDirectoryRecord) orelse return error.InvalidDirectoryRecord;
+    const decoded = (rule.executeValue(fallback.allocator(), if (comptime @typeInfo(Parameter) == .pointer) &input else input) catch return error.InvalidDirectoryRecord) orelse return error.InvalidDirectoryRecord;
 
     if (decoded.rows.len != rows.len) return error.InvalidDirectoryRecord;
 

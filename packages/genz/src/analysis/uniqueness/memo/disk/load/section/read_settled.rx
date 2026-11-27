@@ -7,17 +7,15 @@
         module="../settlement"
         in={{
             source: $in.section.source,
-            start: $in.offset,
-            passed: $in.section.passed
+            start: $in.offset
         }}
     />
 
     <If on={$ctx.settlement != null}>
         <Call
-            fn="write_settled"
+            fn="append_settled"
             in={{
-                section: $in.section,
-                used: $in.used,
+                records: $in.records,
                 record: $ctx.settlement
             }}
         />
@@ -27,7 +25,7 @@
                 ...$in,
                 offset: $ctx.settlement.end,
                 remaining: $in.remaining - 1,
-                used: $ctx.write_settled,
+                records: $ctx.append_settled,
                 running: $in.remaining != 1 && $ctx.settlement.end != 0
             }}
         />

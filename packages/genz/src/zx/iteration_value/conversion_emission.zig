@@ -27,18 +27,17 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var columns: @import("resources.zig").Columns = .{};
 
     const prepare: Prepare = .{
         .source = &request,
         .root = @backingInt(root_layout),
-        .buffers = &columns.bind(std.meta.Child(@FieldType(Prepare, "buffers")), context, true),
+        .frame = @ptrCast(context),
     };
 
     const serial = self.serial;
     const declarations = context.declarations.last;
 
-    const plan = (preparation.executeIn(temporary, &prepare) catch |err|
+    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
         return @import("../construction/publication.zig").failure(err)) orelse return value;
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last));
@@ -48,9 +47,9 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const Input = std.meta.Child(@FieldType(Call, "conversion"));
 
     const input: Input = .{
-        .plan = zx.columns.pointer(@FieldType(Input, "plan"), plan),
-        .layouts = columns.layouts,
-        .elements = columns.operands,
+        .plan = zx.columns.pointer(@FieldType(Input, "plan"), prepared.plan),
+        .layouts = prepared.layouts,
+        .elements = prepared.operands,
         .value = @backingInt(value),
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),

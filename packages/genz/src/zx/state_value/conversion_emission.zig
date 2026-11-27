@@ -16,13 +16,6 @@ pub const Input = std.meta.Child(@FieldType(Call, "conversion"));
 pub const Capture = std.meta.Child(std.meta.Child(@FieldType(Input, "capture")));
 pub const PlanningMode = @FieldType(Conversion, "mode");
 
-const Columns = struct {
-    layouts: []u32 = undefined,
-    targets: []u32 = undefined,
-    elements: []u32 = undefined,
-    origins: [][]const u8 = undefined,
-};
-
 pub fn lower(self: *Lower, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     return lowerWithStorage(self, body, body, id, value, mode);
 }
@@ -97,32 +90,26 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: nod
         .views = source.views,
     };
 
-    var columns: Columns = .{};
-
     const resources: Resources = .{
         .frame = view.frame,
         .types = &tables,
         .children = self.program.types.first,
         .referenced = self.state_plan.borrowed,
-        .layouts = @ptrCast(&columns.layouts),
-        .targets = @ptrCast(&columns.targets),
-        .elements = @ptrCast(&columns.elements),
-        .origins = @ptrCast(&columns.origins),
     };
 
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const request: Request = .{ .view = &view, .resources = &resources, .check_view = check_view };
-    const plan = (runner.executeIn(temporary, &request) catch |err| return failure(err)) orelse return null;
+    const prepared = (runner.executeIn(temporary, &request) catch |err| return failure(err)) orelse return null;
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
 
     return .{
-        .plan = zx.columns.pointer(@FieldType(Input, "plan"), plan),
-        .layouts = columns.layouts,
-        .targets = columns.targets,
-        .elements = columns.elements,
-        .origins = columns.origins,
+        .plan = zx.columns.pointer(@FieldType(Input, "plan"), prepared.plan),
+        .layouts = prepared.layouts,
+        .targets = prepared.targets,
+        .elements = prepared.elements,
+        .origins = prepared.origins,
         .referenced = self.state_plan.borrowed,
         .value = @backingInt(value),
         .shared = self.shared_types,

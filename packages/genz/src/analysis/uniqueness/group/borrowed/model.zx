@@ -1,16 +1,16 @@
-import type { U32Buffer } from "memory"
-import type { RowBuffer } from "memory/columns"
-
 export type Count = {
     count: u64,
+    owners: u32[]
+}
+
+export type Input = Count
+
+export type Arrange = {
     owners: u32[],
-    first: U32Buffer
+    first: u32[]
 }
 
-export type Input = Count & {
-    source: u8[],
-    target: RowBuffer,
-    width: u64
+export type Output = {
+    starts: u32[],
+    order: u32[]
 }
-
-export type Arrange = Input.Omit("count")

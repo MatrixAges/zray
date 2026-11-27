@@ -28,11 +28,12 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
 
     const getters_view = Columns.init(getters);
     const Kind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
-    var scratch_bytes: [4096]u8 = undefined;
-    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, builder.allocator);
-    var arena = std.heap.ArenaAllocator.init(fallback.allocator());
+    var arena = std.heap.ArenaAllocator.init(builder.allocator);
 
     defer arena.deinit();
+
+    var scratch_bytes: [4096]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_bytes, arena.allocator());
 
     const input: Input = .{
         .getters = &getters_view.view(std.meta.Child(@FieldType(Input, "getters"))),
@@ -44,7 +45,7 @@ pub fn publish(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, gette
         .first_expression = @intCast(expressions.count()),
     };
 
-    const result = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(rule.executeValue, fallback.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };

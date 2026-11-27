@@ -30,14 +30,13 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var columns: @import("resources.zig").Columns = .{};
 
     const prepare: Prepare = .{
         .source = &request,
-        .buffers = &columns.bind(std.meta.Child(@FieldType(Prepare, "buffers")), self, false),
+        .frame = @ptrCast(self),
     };
 
-    const plan = (preparation.executeIn(temporary, &prepare) catch |err|
+    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
         return @import("../construction/publication.zig").failure(err)) orelse return lowering.typeExpr(id);
 
     const emitter = @import("generated_iteration_types_emit");
@@ -46,8 +45,8 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
 
     const input: EmitInput = .{
         .types = zx.columns.pointer(@FieldType(EmitInput, "types"), &types),
-        .plan = zx.columns.pointer(@FieldType(EmitInput, "plan"), plan),
-        .prepared = columns.layouts,
+        .plan = zx.columns.pointer(@FieldType(EmitInput, "plan"), prepared.plan),
+        .prepared = prepared.layouts,
         .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(lowering.builder.nodes.field_columns.count()),
         .serial = lowering.serial,

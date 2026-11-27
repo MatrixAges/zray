@@ -1,6 +1,5 @@
 import host from "lowering_host"
 import { IterationResource } from "lowering_host"
-import memory from "memory"
 
 import { Requirement } from "../projection/model"
 
@@ -9,35 +8,36 @@ import type {
     IterationResourceFrame,
     Lowering
 } from "lowering_host"
-import type { U32Buffer, U64Buffer } from "memory"
 import type { Plan } from "../projection/model"
 
 export type Input = {
     frame: Lowering,
     context: IterationResourceFrame,
     history: IterationProjectionFrame,
-    plan: Plan,
-    prepared: U32Buffer,
-    serials: U64Buffer,
-    history_count: U64Buffer
+    plan: Plan
 }
 
-export type Output = void
+export type Output = {
+    prepared: u32[],
+    serials: u64[],
+    history_count: u64[]
+}
 
 export default function (in: Input): Output {
-    const count = in.plan.operations.length
+    const empty_u32: u32[] = []
+    const empty_u64: u64[] = []
 
-    memory.allocateU32Views(in.prepared, count)
-    memory.allocateU64Views(in.serials, count)
-    memory.allocateU64Views(in.history_count, count)
-
-    const resolved = loop(0, {
-        while: row => row < in.plan.operations.length,
-        next: row => {
-            const { frame, context, history, plan, prepared } = in
-            const { serials, history_count } = in
-            const id = plan.values[row]
-            const value = match plan.requirements[row] {
+    return loop({
+        row: 0,
+        prepared: empty_u32,
+        serials: empty_u64,
+        history_count: empty_u64
+    }, {
+        while: state => state.row < in.plan.operations.length,
+        next: state => {
+            const { frame, context, history, plan } = in
+            const id = plan.values[state.row]
+            const value = match plan.requirements[state.row] {
                 Requirement.None => 0,
                 Requirement.Expression => host.lowerExpression(frame, id, false, null),
                 Requirement.IterationType =>
@@ -54,13 +54,18 @@ export default function (in: Input): Output {
                     ),
             }
 
-            memory.writeU32(prepared, row, value)
-            const stamp = host.reserveIterationProjection(history, plan.fresh[row])
+            const stamp =
+                host.reserveIterationProjection(history, plan.fresh[state.row])
 
-            memory.writeU64(serials, row, stamp.serial)
-            memory.writeU64(history_count, row, stamp.history_count)
-
-            row += 1
-        }
+            state.prepared = state.prepared.push(value)[0]
+            state.serials = state.serials.push(stamp.serial)[0]
+            state.history_count = state.history_count.push(stamp.history_count)[0]
+            state.row += 1
+        },
+        return: state => ({
+            prepared: state.prepared,
+            serials: state.serials,
+            history_count: state.history_count
+        })
     })
 }

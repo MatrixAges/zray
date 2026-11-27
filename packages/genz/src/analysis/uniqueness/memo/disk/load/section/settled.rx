@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Cache" />
 
-    <Args in={Cache.SettledSection} out={Cache.Outcome} />
+    <Args in={Cache.Section} out={Cache.SettledOutcome} />
 
     <Loop on={$in.running}>
         <Call
@@ -10,7 +10,7 @@
                 section: $in,
                 offset: $in.start,
                 remaining: $in.count,
-                used: $in.used,
+                records: [],
                 running: $in.count != 0 && $in.start != 0
             }}
         />
@@ -19,7 +19,7 @@
     <Return
         value={{
             valid: $ctx.read_settled.remaining == 0,
-            used: $ctx.read_settled.used
+            records: $ctx.read_settled.records
         }}
     />
 </Module>

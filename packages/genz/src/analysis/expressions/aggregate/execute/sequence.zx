@@ -1,6 +1,5 @@
-import { appendAstOperandRows, astExpressionCount } from "ast_rows"
+import { appendAstOperandRows, astExpressionCount, retainAstIds } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 import bindOperand from "../../../aggregate/execute/bind_operand"
@@ -10,7 +9,6 @@ import { Element, Result } from "../../../aggregate/sequence"
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Lowering, SequenceFrame } from "lowering_host"
-import type { U32Buffer } from "memory"
 
 export type Input = {
     frame: Lowering,
@@ -22,17 +20,17 @@ export type Input = {
     layout: bool,
     state_active: bool,
     selected: bool,
-    items: u32[],
-    expressions: U32Buffer
+    items: u32[]
 }
 
 export type Output = {
     result: Result,
-    tuple?: u32
+    tuple?: u32,
+    expressions: u32[]
 }
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, sequence, batch, items, expressions } = in
+    const { frame, writer, origin, sequence, batch, items } = in
 
     const plan = policy({
         kind: in.kind,
@@ -41,10 +39,15 @@ export default function (in: Input): Output {
         selected: in.selected
     })
 
-    const lowered = loop(0, {
-        while: index => index < items.length,
-        next: index => {
-            const item = items[index]
+    const empty: u32[] = []
+
+    const expressions = loop({
+        index: 0,
+        values: empty
+    }, {
+        while: state => state.index < items.length,
+        next: state => {
+            const item = items[state.index]
             const value = host.lowerExpression(frame, item, false, null)
 
             const bound = bindOperand({
@@ -61,19 +64,20 @@ export default function (in: Input): Output {
                 _ => host.publishSequenceElement(batch, item, bound, false)
             }
 
-            memory.writeU32(expressions, index, element)
-
-            index += 1
-        }
+            state.values = state.values.push(element)[0]
+            state.index += 1
+        },
+        return: state => state.values
     })
 
     if (plan.result == Result.Tuple || plan.result == Result.LayoutTuple) {
         const base = astExpressionCount(writer)
+        const retained = retainAstIds(writer, expressions)
 
         appendAstOperandRows(writer, {
             tags: [ExpressionsKind.Tuple],
             offsets: [0],
-            tuple: [memory.u32Views(expressions)],
+            tuple: [retained],
             builtin_name: [],
             builtin_arguments: [],
             identifier: [],
@@ -83,18 +87,16 @@ export default function (in: Input): Output {
             object_fields_len: []
         })
 
-        const output: Output = {
+        return {
             result: plan.result,
-            tuple: base
+            tuple: base,
+            expressions
         }
-
-        return output
     }
 
-    const output: Output = {
+    return {
         result: plan.result,
-        tuple: null
+        tuple: null,
+        expressions
     }
-
-    return output
 }

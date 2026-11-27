@@ -1,13 +1,11 @@
-import type { Summary, Target } from "../body/model"
+import type { Summary } from "../body/model"
 
 export type Input = {
     current: Summary,
     cached: Summary
 }
 
-export type Adoption = Input & {
-    target: Target
-}
+export type Adoption = Input
 
 export type Output = bool
 

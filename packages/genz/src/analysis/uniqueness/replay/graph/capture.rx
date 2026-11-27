@@ -1,16 +1,15 @@
 <Module>
     <Type from="model" as="Graph" />
 
-    <Args in={Graph.Capture} out={void} />
+    <Args in={Graph.Capture} out={Graph.Graph} />
 
-    <Call fn="offsets" in={$in.omit(["edges"])} />
+    <Call fn="offsets" in={$in} />
+    <Call fn="edges" in={$in} />
 
-    <Call
-        fn="edges"
-        in={{
-            callees: $in.callees,
-            edges: $in.edges,
-            count: $ctx.offsets
+    <Return
+        value={{
+            starts: $ctx.offsets,
+            edges: $ctx.edges
         }}
     />
 </Module>

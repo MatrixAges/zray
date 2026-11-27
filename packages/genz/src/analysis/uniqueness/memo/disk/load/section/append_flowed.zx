@@ -1,0 +1,8 @@
+import type { Flow } from "../model"
+import type { FlowedAppend as Input } from "./model"
+
+export type Output = Flow[]
+
+export default function (in: Input): Output {
+    return in.records.push(in.record)[0]
+}

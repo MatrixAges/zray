@@ -6,7 +6,14 @@
     <Call module="../plan" in={$in.source} />
 
     <If on={!$ctx.plan.valid || $ctx.plan.operations.length == 0}>
-        <Return value={$ctx.plan} />
+        <Return
+            value={{
+                plan: $ctx.plan,
+                prepared: [],
+                serials: [],
+                history_count: []
+            }}
+        />
     </If>
 
     <Call
@@ -17,5 +24,10 @@
         }}
     />
 
-    <Return value={$ctx.plan} />
+    <Return
+        value={{
+            plan: $ctx.plan,
+            ...$ctx.projection
+        }}
+    />
 </Module>

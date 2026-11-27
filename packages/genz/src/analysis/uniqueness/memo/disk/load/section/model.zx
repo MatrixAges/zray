@@ -1,104 +1,70 @@
-import type { WriteColumn } from "memory"
-import type { WriteColumn as ListTarget } from "memory/columns"
-import type { PlanWrites } from "../../../../replay/shortcut/model"
-import type { Index } from "../../../table/model"
 import type { Input, Span } from "../../model"
-import type {
-    Demand,
-    DemandResult,
-    Flow,
-    Plan,
-    Settlement,
-    SettlementResult
-} from "../model"
+import type { DemandResult, Flow, Plan, SettlementResult } from "../model"
 
-export type Section = Input & Span.Pick("start", "count") & {
-    index: Index,
-    used: u32
-}
+export type Section = Input & Span.Pick("start", "count")
 
-export type Outcome = {
+export type SettledOutcome = {
     valid: bool,
-    used: u32
+    records: SettlementResult[]
 }
 
-export type SettlementColumns = {
-    passed: ListTarget,
-    output: WriteColumn,
-    used: WriteColumn
+export type DemandedOutcome = {
+    valid: bool,
+    records: DemandResult[]
 }
 
-export type DemandColumns = {
-    marks: ListTarget,
-    normalized: ListTarget,
-    renewed: ListTarget,
-    grew: WriteColumn,
-    used: WriteColumn
+export type PlannedOutcome = {
+    valid: bool,
+    records: Plan[]
 }
 
-export type PlanColumns = PlanWrites & {
-    used: WriteColumn
-}
-
-export type FlowColumns = {
-    held: WriteColumn,
-    text_held: WriteColumn,
-    written: WriteColumn,
-    used: WriteColumn
-}
-
-export type SettledSection = Section & Settlement.Pick("passed") & {
-    target: SettlementColumns
-}
-
-export type DemandedSection =
-    Section & Demand.Pick("marks", "normalized", "renewed") & {
-        target: DemandColumns
-    }
-
-export type PlannedSection = Section & {
-    target: PlanColumns
-}
-
-export type FlowedSection = Section & {
-    target: FlowColumns
+export type FlowedOutcome = {
+    valid: bool,
+    records: Flow[]
 }
 
 export type Position = {
     offset: u64,
     remaining: u32,
-    used: u32,
     running: bool
 }
 
 export type SettledTraversal = Position & {
-    section: SettledSection
+    section: Section,
+    records: SettlementResult[]
 }
 
-export type SettledWrite = SettledTraversal.Pick("section", "used") & {
+export type SettledAppend = {
+    records: SettlementResult[],
     record: SettlementResult
 }
 
 export type DemandedTraversal = Position & {
-    section: DemandedSection
+    section: Section,
+    records: DemandResult[]
 }
 
-export type DemandedWrite = DemandedTraversal.Pick("section", "used") & {
+export type DemandedAppend = {
+    records: DemandResult[],
     record: DemandResult
 }
 
 export type PlannedTraversal = Position & {
-    section: PlannedSection
+    section: Section,
+    records: Plan[]
 }
 
-export type PlannedWrite = PlannedTraversal.Pick("section", "used") & {
+export type PlannedAppend = {
+    records: Plan[],
     record: Plan
 }
 
 export type FlowedTraversal = Position & {
-    section: FlowedSection
+    section: Section,
+    records: Flow[]
 }
 
-export type FlowedWrite = FlowedTraversal.Pick("section", "used") & {
+export type FlowedAppend = {
+    records: Flow[],
     record: Flow
 }
