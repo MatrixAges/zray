@@ -1,23 +1,18 @@
-import memory from "memory"
-
-import ownDeclaration from "../own_declaration"
+import scope from "../scope"
 import { Status } from "./model"
 import resolve from "./resolve"
-import write from "./write"
 
-import type { CompiledInput as Input } from "./model"
-
-export type Output = Status
+import type { CompiledInput as Input, Result as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { library, configured, output } = in
+    const { library, configured } = in
 
-    const own_name = configured == null
+    const empty: string[] = []
 
     return loop({
         cursor: 0,
-        count: 0,
-        capacity: 0,
+        names: empty,
+        specifiers: empty,
         status: Status.Ready
     }, {
         while: state => state.status == Status.Ready,
@@ -34,27 +29,18 @@ export default function (in: Input): Output {
             const { identity, name } = item
 
             if (identity != null && name != null) {
-                const target = ownDeclaration({
-                    instance: library.instance,
-                    value: identity,
-                    shared: item.shared
-                })
+                const target = match {
+                    item.shared => identity,
+                    _ => scope({
+                        instance: library.instance,
+                        value: identity
+                    })
+                }
 
-                memory.writeOptionalTextSlot(output.pending, 0, target)
-
-                state.capacity = write({
-                    rows: output.rows,
-                    count: state.count,
-                    capacity: state.capacity,
-                    name,
-                    specifier: target,
-                    own_name
-                })
-
-                memory.writeOptionalTextSlot(output.pending, 0, null)
-                state.count += 1
+                state.names = state.names.push(name)[0]
+                state.specifiers = state.specifiers.push(target)[0]
             }
         },
-        return: state => state.status
+        return: state => state.omit(["cursor"])
     })
 }

@@ -1,28 +1,27 @@
 import { Status } from "../model"
-import write from "../write"
 import check from "./check"
 import select from "./select"
 
-import type { Configured, Declarations, Rows } from "../model"
+import type { Configured, Declarations, Result } from "../model"
 
 export type Input = {
     declarations: Declarations,
-    configured?: Configured,
-    output: Rows
+    configured?: Configured
 }
 
-export type Output = Status
+export type Output = Result
 
 export default function (in: Input): Output {
-    const { declarations, configured, output } = in
+    const { declarations, configured } = in
 
     const total = declarations.interfaces.count + declarations.externals.count
     const count = configured == null ? total : configured.count
+    const empty: string[] = []
 
     return loop({
         index: 0,
-        written: 0,
-        capacity: 0,
+        names: empty,
+        specifiers: empty,
         status: Status.Done
     }, {
         while: current => current.index < count && current.status == Status.Done,
@@ -40,23 +39,17 @@ export default function (in: Input): Output {
                 current.status = Status.Unknown
             } else {
                 const status = check({
-                    published: output.published,
-                    count: current.written,
+                    published: current.pick([
+                        "names",
+                        "specifiers"
+                    ]),
                     name: selected.name,
                     specifier: target
                 })
 
                 if (status == Status.Ready) {
-                    current.capacity = write({
-                        rows: output,
-                        count: current.written,
-                        capacity: current.capacity,
-                        name: selected.name,
-                        specifier: target,
-                        own_name: false
-                    })
-
-                    current.written += 1
+                    current.names = current.names.push(selected.name)[0]
+                    current.specifiers = current.specifiers.push(target)[0]
                 } else {
                     current.status = status
                 }
@@ -64,6 +57,6 @@ export default function (in: Input): Output {
 
             current.index += 1
         },
-        return: current => current.status
+        return: current => current.omit(["index"])
     })
 }

@@ -10,6 +10,7 @@ import type { Published } from "../plan/model"
 import type { Output as Facts } from "../prepare/model"
 import type { EncodedMark, EncodedRead } from "../result/columns"
 import type { Contribution } from "../summary/model"
+import type { Batch } from "../updates/model"
 
 export type Body = FactsContext.Pick("normalized", "renewed") & {
     facts: Facts,
@@ -50,13 +51,12 @@ export type Input = {
     independent: bool
 }
 
-export type Output = {
+export type Output = Batch & {
     levels: u8[],
     passed: Contribution[],
     marks: EncodedMark[],
     reads: EncodedRead[],
     growth?: Snapshot,
-    changed: u64[],
     grew: bool,
     plan?: Published
 }

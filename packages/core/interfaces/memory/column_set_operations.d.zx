@@ -150,30 +150,3 @@ export declare function writeColumnCell(
     slot: u64,
     index: u64?
 ): void
-
-export declare function allocateColumnU32s(
-    resource: ColumnAllocator,
-    target: ColumnU32s,
-    count: u64
-): u32[] throws { OutOfMemory }
-
-export declare function writeColumnU32s(
-    target: ColumnU32s,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
-export declare function copyColumnText(
-    resource: ColumnAllocator,
-    source: string
-): string throws { OutOfMemory }
-
-export declare function copyColumnBytes(
-    resource: ColumnAllocator,
-    source: u8[]
-): u8[] throws { OutOfMemory }
-
-export declare function copyColumnTextViews(
-    resource: ColumnAllocator,
-    source: string[]
-): string[] throws { OutOfMemory }

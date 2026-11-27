@@ -5,42 +5,47 @@ import merge from "./merge"
 
 import type { AtomicRows } from "memory"
 import type { ContributionRows } from "../result/columns"
+import type { Batch as Output, Cell } from "./model"
 
 export type Input = {
     inputs: AtomicRows,
     contributions: ContributionRows
 }
 
-export type Output = u64[]
-
 export default function (in: Input): Output {
     const { inputs, contributions } = in
 
     const changed: u64[] = []
+    const updates: Cell[] = []
 
     return loop({
         changed,
+        updates,
         index: 0
     }, {
         while: state => state.index < contributions.count,
         next: state => {
             const callee = memory.readColumnU32(contributions.callees, state.index)
             const levels = memory.borrowListBytes(contributions.levels, state.index)
+            const previous_count = state.updates.length
 
-            const changes = merge({
+            state.updates = merge({
                 rows: inputs,
+                updates: state.updates,
                 row: callee,
-                first: 0,
                 levels,
-                joining: false
+                output: false
             })
 
-            if (changes != 0) {
+            if (state.updates.length != previous_count) {
                 state.changed = state.changed.push(integers.widen(callee))[0]
             }
 
             state.index += 1
         },
-        return: state => state.changed
+        return: state => ({
+            changed: state.changed,
+            updates: state.updates
+        })
     })
 }

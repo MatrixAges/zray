@@ -1,22 +1,27 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
 
 import { level_modulus } from "../../replay/ordered/const"
 import { level_pair_radix, word_width } from "../encoding/const"
 
-import type { AtomicRows } from "memory"
+import type { Cell } from "../../function/updates/model"
 
 export type Input = {
     source: u8[],
     offset: u64,
-    target: AtomicRows,
+    updates: Cell[],
+    output: bool,
     row: u64,
     length: u64,
-    apply: bool
+    collect: bool
 }
 
-export type Output = u64?
+export type Decoded = {
+    end: u64,
+    updates: Cell[]
+}
+
+export type Output = Decoded?
 
 export default function (in: Input): Output {
     if (in.offset > in.source.length || in.source.length - in.offset < word_width) {
@@ -31,38 +36,52 @@ export default function (in: Input): Output {
         return null
     }
 
-    if (in.apply) {
-        const modulus = integers.widenByte(level_modulus)
-
-        const progress = loop({
-            column: 0,
-            offset: first
-        }, {
-            while: state => state.column < length,
-            next: state => {
-                const encoded = integers.widenByte(in.source[state.offset])
-                const lower = integers.narrowByte(encoded % modulus)
-
-                memory.storeAtomicCell(in.target, in.row, state.column, lower)
-
-                if (state.column + 1 < length) {
-                    const upper = integers.narrowByte(
-                        encoded / level_pair_radix % modulus
-                    )
-
-                    memory.storeAtomicCell(
-                        in.target,
-                        in.row,
-                        state.column + 1,
-                        upper
-                    )
-                }
-
-                state.column += 2
-                state.offset += 1
-            }
-        })
+    if (!in.collect) {
+        return {
+            end,
+            updates: in.updates
+        }
     }
 
-    return end
+    const modulus = integers.widenByte(level_modulus)
+
+    const { source, row, output } = in
+
+    const updates = loop({
+        updates: in.updates,
+        column: 0,
+        offset: first
+    }, {
+        while: state => state.column < length,
+        next: state => {
+            const encoded = integers.widenByte(source[state.offset])
+
+            state.updates = state.updates.push({
+                row,
+                slot: state.column,
+                output,
+                value: integers.narrowByte(encoded % modulus)
+            })[0]
+
+            if (state.column + 1 < length) {
+                state.updates = state.updates.push({
+                    row,
+                    slot: state.column + 1,
+                    output,
+                    value: integers.narrowByte(
+                        encoded / level_pair_radix % modulus
+                    )
+                })[0]
+            }
+
+            state.column += 2
+            state.offset += 1
+        },
+        return: state => state.updates
+    })
+
+    return {
+        end,
+        updates
+    }
 }

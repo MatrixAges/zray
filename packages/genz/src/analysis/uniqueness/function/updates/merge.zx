@@ -1,45 +1,62 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import cell from "./cell"
+import load from "./pending/load"
 
 import type { AtomicRows } from "memory"
+import type { Cell } from "./model"
 
 export type Input = {
     rows: AtomicRows,
+    updates: Cell[],
     row: u32,
-    first: u32,
     levels: u8[],
-    joining: bool
+    output: bool
 }
 
-export type Output = u64
+export type Output = Cell[]
 
 export default function (in: Input): Output {
     const row = integers.widen(in.row)
-    const first = integers.widen(in.first)
 
-    const { rows, levels, joining } = in
+    const { rows, levels, output, updates } = in
 
     return loop({
         index: 0,
-        changed: 0
+        updates
     }, {
         while: state => state.index < levels.length,
         next: state => {
-            const changed = cell({
-                rows,
-                row,
-                slot: first + state.index,
+            const slot = state.index
+            const before = match {
+                updates.length == 0 => memory.loadAtomicCell(rows, row, slot),
+                _ => load({
+                    updates,
+                    rows,
+                    row,
+                    slot,
+                    output
+                })
+            }
+
+            const next = cell({
+                before,
                 level: levels[state.index],
-                joining
+                joining: false
             })
 
-            if (changed) {
-                state.changed += 1
+            if (next != null) {
+                state.updates = state.updates.push({
+                    row,
+                    slot,
+                    output,
+                    value: next
+                })[0]
             }
 
             state.index += 1
         },
-        return: state => state.changed
+        return: state => state.updates
     })
 }

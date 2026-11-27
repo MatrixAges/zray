@@ -1,23 +1,29 @@
-import rebuild from "core/bytes/index/rebuild"
-import { truncate as truncateLengths } from "core/column_lengths"
-import memory from "memory"
+import probe from "core/bytes/index/slot"
 
-import type { Input as Table } from "core/bytes/index/rebuild"
-import type { ColumnLengths } from "memory"
+import type { Table } from "core/bytes/index/slot"
 
 export type Input = Table & {
-    lengths: ColumnLengths
+    row: u64
 }
 
-export type Output = void
+export type Output = {
+    slot: u64,
+    entry: u64
+}
 
 export default function (in: Input): Output {
-    memory.clearU64Buffer(in.buckets)
+    const { keys, buckets, capacity, row } = in
 
-    const length = rebuild(in.omit(["lengths"]))
-
-    truncateLengths({
-        target: in.lengths,
-        count: length
+    const found = probe({
+        keys,
+        buckets,
+        capacity,
+        key: keys[row],
+        rows: null
     })
+
+    return {
+        slot: found.slot,
+        entry: row + 1
+    }
 }

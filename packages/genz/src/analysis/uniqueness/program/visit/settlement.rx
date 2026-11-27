@@ -15,7 +15,7 @@
 
         <Return
             value={{
-                changed: $ctx.contributions,
+                ...$ctx.contributions,
                 retained: $ctx.retain
             }}
         />
@@ -28,7 +28,7 @@
 
     <Return
         value={{
-            changed: $ctx.contributions,
+            ...$ctx.contributions,
             retained: null
         }}
     />

@@ -18,30 +18,7 @@ export declare function readU64View(
     index: u64
 ): u64 throws { IndexOutOfBounds }
 
-export declare function u64Views(source: U64Buffer): u64[]
-
 export declare function u64ViewSlice(source: U64View): u64[]
-
-export declare function writeU8(
-    target: U8Buffer,
-    index: u64,
-    value: u8
-): void throws { IndexOutOfBounds }
-
-export declare function boolViews(source: BoolBuffer): bool[]
-
-export declare function writeBool(
-    target: BoolBuffer,
-    index: u64,
-    value: bool
-): void throws { IndexOutOfBounds }
-
-export declare function fillByteRange(
-    target: U8Buffer,
-    first: u64,
-    count: u64,
-    value: u8
-): void throws { IndexOutOfBounds }
 
 export declare function writeU32(
     target: U32Buffer,
@@ -79,34 +56,6 @@ export declare function clearU64Buffer(target: U64Buffer): void
 export declare function swapU64Buffers(left: U64Buffer, right: U64Buffer): void
 
 export declare function releaseU64Buffer(resource: Allocator, target: U64Buffer): void
-
-export declare function copyBytes(
-    target: U8Buffer,
-    offset: u64,
-    source: u8[],
-    start: u64,
-    end: u64
-): u64 throws { IndexOutOfBounds }
-
-export declare function writeOptionalU32(
-    target: OptionalU32Buffer,
-    index: u64,
-    value: u32?
-): void throws { IndexOutOfBounds }
-
-export declare function allocateOptionalU32Buffer(
-    allocator,
-    target: OptionalU32Buffer,
-    count: u64,
-    clear: bool
-): void throws { OutOfMemory }
-
-export declare function allocateOptionalU32WithAllocator(
-    resource: Allocator,
-    target: OptionalU32Buffer,
-    count: u64,
-    clear: bool
-): void throws { OutOfMemory }
 
 export declare function bindU32Range(
     source: U32Buffer,

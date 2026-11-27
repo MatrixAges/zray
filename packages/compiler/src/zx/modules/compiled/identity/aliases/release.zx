@@ -1,10 +1,10 @@
 import memory from "memory"
 
 import type { Allocator } from "memory"
-import type { Request } from "./model"
+import type { ReleaseRequest } from "./model"
 
 export type Input = {
-    request: Request,
+    request: ReleaseRequest,
     owner: Allocator
 }
 

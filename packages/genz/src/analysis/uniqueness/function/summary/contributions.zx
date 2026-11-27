@@ -5,6 +5,7 @@ import encode from "../levels/encode"
 import query from "../levels/query"
 import publish from "./publish"
 
+import type { Cell } from "../updates/model"
 import type {
     ArgumentStage as Input,
     Contributed as Output,
@@ -13,14 +14,14 @@ import type {
 
 export default function (in: Input): Output {
     const passed: Contribution[] = []
-    const changed: u64[] = []
+    const updates: Cell[] = []
 
     const loop_initial = {
         known: in.working.known,
         reads: in.working.reads,
         index: 0,
         passed,
-        changed
+        updates
     }
 
     const readonly_source = in.source
@@ -35,13 +36,16 @@ export default function (in: Input): Output {
             const payload = integers.widen(expressions.payloads[node])
             const callee = expressions.call_functions[payload]
             const count =
-                memory.atomicRowLength(readonly_source.inputs, integers.widen(callee))
+                memory.atomicRowLength(
+                    readonly_source.inputs,
+                    integers.widen(callee)
+                )
             const levels: u8[] = []
 
             const row_initial = {
                 known: state.known,
                 reads: state.reads,
-                changed: state.changed,
+                updates: state.updates,
                 levels,
                 slot: 0
             }
@@ -56,8 +60,19 @@ export default function (in: Input): Output {
             const row = loop(row_initial, {
                 while: current => current.slot < row_scope.count,
                 next: current => {
+                    const context = row_scope.source.context
+
+                    // Recursive calls can change the input guarantee read later in this visit.
+                    const view = match {
+                        current.updates.length == 0 => context,
+                        _ => {
+                            ...context,
+                            pending_input: current.updates
+                        }
+                    }
+
                     const result = query({
-                        context: row_scope.source.context,
+                        context: view,
                         state: {
                             known: current.known,
                             carried: row_scope.source.carried,
@@ -75,12 +90,12 @@ export default function (in: Input): Output {
                     current.levels = current.levels.push(encode(result.value))[0]
 
                     if (!row_scope.source.deferred) {
-                        current.changed = publish({
+                        current.updates = publish({
                             inputs: row_scope.source.inputs,
                             callee: row_scope.callee,
                             slot: current.slot,
                             value: result.value,
-                            changed: current.changed
+                            updates: current.updates
                         })
                     }
 
@@ -90,7 +105,7 @@ export default function (in: Input): Output {
 
             state.known = row.known
             state.reads = row.reads
-            state.changed = row.changed
+            state.updates = row.updates
             state.passed = state.passed.push({
                 callee,
                 guarantees: row.levels
@@ -98,11 +113,14 @@ export default function (in: Input): Output {
 
             state.index += 1
         },
-        return: state => state.pick([
-            "known",
-            "reads",
-            "passed",
-            "changed"
-        ])
+        return: state => ({
+            ...state.pick([
+                "known",
+                "reads",
+                "passed"
+            ]),
+            changed: state.updates.map(update => update.row)[0],
+            updates: state.updates
+        })
     })
 }

@@ -8,7 +8,8 @@
         in={{
             ...$in.result.omit([
                 "grew",
-                "changed"
+                "changed",
+                "updates"
             ]),
             deferred: $in.deferred,
             save_growth: $in.result.grew || $in.restored_growth
@@ -20,7 +21,8 @@
             ...$ctx.demand,
             ...$in.result.pick([
                 "grew",
-                "changed"
+                "changed",
+                "updates"
             ])
         }}
     />

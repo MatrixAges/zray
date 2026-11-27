@@ -73,10 +73,6 @@ pub inline fn length(target: *const anyopaque, index: u64) u64 {
     return view(target)[@intCast(index)].storage.items.len;
 }
 
-pub inline fn tailAt(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(view(target)[@intCast(index)].tail);
-}
-
 pub inline fn count(target: *const anyopaque, index: u64) u64 {
     return view(target)[@intCast(index)].count;
 }

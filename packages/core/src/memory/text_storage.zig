@@ -15,12 +15,6 @@ pub fn write(comptime T: type, target: *anyopaque, index: u64, value: T) void {
     items[@intCast(index)] = value;
 }
 
-pub fn read(comptime T: type, source: *const anyopaque, index: u64) T {
-    const items: [*]const T = @ptrCast(@alignCast(source));
-
-    return items[@intCast(index)];
-}
-
 pub fn borrow(comptime T: type, source: *const anyopaque, count: u64) []const T {
     const items: [*]const T = @ptrCast(@alignCast(source));
 

@@ -112,18 +112,6 @@ pub inline fn borrowedList(row: []const u8, offset: u64, width: u64) IndexError!
     return slice.ptr[0..length];
 }
 
-pub inline fn appendByteView(resource: *const anyopaque, storage: *anyopaque, bytes_view: []const u8) std.mem.Allocator.Error!void {
-    const target: *std.ArrayList([]const u8) = @ptrCast(@alignCast(storage));
-
-    try target.append(@import("column_set.zig").borrowAllocator(resource), bytes_view);
-}
-
-pub inline fn popByteView(storage: *anyopaque) ?[]const u8 {
-    const target: *std.ArrayList([]const u8) = @ptrCast(@alignCast(storage));
-
-    return target.pop();
-}
-
 inline fn rows(source: *const anyopaque) Rows {
     return @as(*const Rows, @ptrCast(@alignCast(source))).*;
 }

@@ -1,49 +1,64 @@
 const std = @import("std");
+const zx = @import("zx");
 const ast = @import("dsl").ast;
 const layout = @import("../../syntax/tree/layout.zig").bind;
 const Entry = @import("frontend").xml_references.Entry;
 const rule = @import("generated_rx_ast_reference_next");
 const select_rule = @import("generated_rx_ast_reference_select");
-const Input = @typeInfo(@TypeOf(rule.executeValue)).@"fn".param_types[1].?;
+const Input = std.meta.Child(rule.Input);
 
 pub const Cursor = struct {
-    pending: []const u8 = &.{},
-    ancestors: std.ArrayList([]const u8) = .empty,
+    root: ?[1][]const u8 = null,
+    pending: std.ArrayList([]const u8) = .empty,
     pub fn reset(self: *Cursor, root: *const ast.Node) void {
-        std.debug.assert(self.ancestors.items.len == 0);
+        std.debug.assert(self.pending.items.len == 0);
 
-        self.pending = std.mem.asBytes(root);
+        self.root = .{std.mem.asBytes(root)};
     }
 
     pub fn deinit(self: *Cursor, allocator: std.mem.Allocator) void {
-        self.ancestors.deinit(allocator);
+        self.pending.deinit(allocator);
     }
 
-    pub fn borrow(self: *Cursor, comptime Wire: type, allocator: *const std.mem.Allocator) Wire {
+    pub fn borrow(self: *const Cursor, comptime Wire: type, _: *const std.mem.Allocator) Wire {
         const geometry = comptime layout(std.meta.Child(@FieldType(Wire, "layout")));
 
         return .{
-            .pending = self.pending,
-            .ancestors = @ptrCast(&self.ancestors),
-            .allocator = @ptrCast(allocator),
+            .pending = if (self.root) |*root| root else self.pending.items,
             .layout = &geometry,
         };
     }
+    fn retainPending(self: *Cursor, allocator: std.mem.Allocator, pending: []const []const u8) std.mem.Allocator.Error!void {
+        if (pending.ptr == self.pending.items.ptr) {
+            self.pending.shrinkRetainingCapacity(pending.len);
+        } else {
+            try self.pending.ensureTotalCapacity(allocator, pending.len);
+
+            self.pending.clearRetainingCapacity();
+            self.pending.appendSliceAssumeCapacity(pending);
+        }
+
+        self.root = null;
+    }
     pub fn seek(self: *Cursor, allocator: std.mem.Allocator, graph_only: bool, skip: u64) std.mem.Allocator.Error!?Entry {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var buffer: [1024]u8 = undefined;
+        var first = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+        var arena = std.heap.ArenaAllocator.init(first.allocator());
+
+        defer arena.deinit();
 
         const request: Input = .{
-            .cursor = self.borrow(@FieldType(Input, "cursor"), &allocator),
+            .cursor = &self.borrow(std.meta.Child(@FieldType(Input, "cursor")), &allocator),
             .graph_only = graph_only,
             .skip = skip,
         };
 
-        const step = rule.executeValue(empty.allocator(), request) catch |err| switch (@as(anyerror, err)) {
+        const step = zx.columns.invoke(rule.executeValue, arena.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => unreachable,
         };
 
-        self.pending = step.pending;
+        try self.retainPending(allocator, step.pending);
 
         return if (step.reference) |item| fromWire(item) else null;
     }
@@ -65,8 +80,7 @@ pub const Cursor = struct {
             else => unreachable,
         };
 
-        self.pending = result.pending;
-
+        try self.retainPending(allocator, result.pending);
         if (result.references.len == 0) return null;
 
         @memcpy(references_arg[0..result.references.len], result.references);

@@ -1,6 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const aliases = @import("aliases.zig");
+const Alias = @import("../../../package/manifest/model.zig").AbiAlias;
 const State = @import("state.zig");
 const effects = @import("../../sources/effects.zig");
 const zx = @import("zx");
@@ -283,32 +284,58 @@ pub fn prepareNativeScopeAliases(handle: *const anyopaque) void {
     const self = State.get(handle);
     const configured = self.module.abi_aliases;
 
-    self.alias_storage.init(configured);
+    if (configured) |entries| self.alias_configured.init(entries);
 
     self.alias_input = .{
         .compiled = if (self.compiled != null) &self.compiled_view else null,
         .source = if (self.compiled == null) &self.alias_declarations else null,
-        .configured = if (configured != null) &self.alias_storage.configured else null,
-        .output = &self.alias_storage.output,
+        .configured = if (configured != null) &self.alias_configured.view else null,
     };
 
     self.alias_active = true;
-    self.active.active = self.allocator;
 }
 
-pub fn publishNativeScopeModule(handle: *const anyopaque) effects.Error!void {
+pub fn publishNativeScopeModule(handle: *const anyopaque, names: []const []const u8, specifiers: []const []const u8) effects.Error!void {
     const self = State.get(handle);
     const module = &self.module;
-
-    module.abi_aliases = self.alias_storage.rows.rows();
-    self.alias_active = false;
-    self.active.active = self.scratch;
-
     const previous = self.registry.register(self.registry_owner, module.name, self.modules.items.len) catch |err| return self.failure.save(err);
 
     if (previous != null) return self.failure.save(error.DuplicateNativeModule);
 
+    module.abi_aliases = ownAliases(self.allocator, names, specifiers, self.compiled != null, module.abi_aliases == null) catch |err| return self.failure.save(err);
+    self.alias_active = false;
+
     self.modules.appendAssumeCapacity(module.*);
+}
+
+fn ownAliases(allocator: std.mem.Allocator, names: []const []const u8, specifiers: []const []const u8, compiled: bool, implicit_names: bool) std.mem.Allocator.Error![]const Alias {
+    const copy_names = compiled and implicit_names;
+    const rows = try allocator.alloc(Alias, names.len);
+    var initialized: usize = 0;
+
+    errdefer {
+        for (rows[0..initialized]) |row| {
+            if (copy_names) allocator.free(row.name);
+            if (compiled) allocator.free(row.specifier);
+        }
+
+        allocator.free(rows);
+    }
+
+    for (names, specifiers, rows) |name, specifier, *row| {
+        const stable_name = if (copy_names) try dupeText(allocator, name) else name;
+
+        errdefer if (copy_names) allocator.free(stable_name);
+
+        row.* = .{
+            .name = stable_name,
+            .specifier = if (compiled) try dupeText(allocator, specifier) else specifier,
+        };
+
+        initialized += 1;
+    }
+
+    return rows;
 }
 
 pub fn reserveNativeScopeSettings(handle: *const anyopaque) std.mem.Allocator.Error!void {

@@ -1,45 +1,6 @@
-export declare function sha256Into(target: U8Buffer, input: u8[]): u8[]
-
-export declare function sha256FramedInto(
-    target: U8Buffer,
-    prefix: u8[],
-    input: u8[],
-    suffix: u8[]
-): u8[]
-
-export declare function allocateStringViews(
-    allocator,
-    target: StringBuffer,
-    count: u64
-): void throws { OutOfMemory }
-
-export declare function allocateU32Views(
-    allocator,
-    target: U32Buffer,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function columnRangeSlotCount(source: ColumnRanges): u64
 
 export declare function columnRangeLength(source: ColumnRanges, slot: u64): u64
-
-export declare function columnRangeU8Tail(
-    source: ColumnRanges,
-    slot: u64,
-    shape: U8Buffer?
-): U8Buffer
-
-export declare function columnRangeU32Tail(
-    source: ColumnRanges,
-    slot: u64,
-    shape: U32Buffer?
-): U32Buffer
-
-export declare function columnRangeOptionalU32Tail(
-    source: ColumnRanges,
-    slot: u64,
-    shape: OptionalU32Buffer?
-): OptionalU32Buffer
 
 export declare function columnRangeCount(source: ColumnRanges, slot: u64): u64
 
@@ -71,38 +32,7 @@ export declare function u64View(source: U64Buffer, shape: U64View?): U64View
 
 export declare function u32Views(source: U32Buffer): u32[]
 
-export declare function reserveU8Tail(
-    resource: Allocator,
-    storage: U8Storage,
-    source: U8Buffer,
-    tail: U8Buffer,
-    count: u64,
-    limit: u64
-): void throws { OutOfMemory }
-
-export declare function reserveU32Tail(
-    resource: Allocator,
-    storage: U32Storage,
-    source: U32Buffer,
-    tail: U32Buffer,
-    count: u64,
-    limit: u64
-): void throws { OutOfMemory }
-
 export declare function optionalU32Views(source: OptionalU32Buffer): u32?[]
-
-export declare function refreshOptionalU32View(
-    target: OptionalU32Buffer,
-    source: OptionalU32Buffer
-): void
-
-export declare function borrowOptionalU32Range(
-    source: u32?[],
-    first: u64,
-    count: u64
-): u32?[] throws { IndexOutOfBounds } concurrent
-
-export declare function u32BufferLength(source: U32Buffer): u64
 
 export declare function borrowTextRange(
     source: string,

@@ -1,12 +1,9 @@
-import memory from "memory"
-
 import { Status } from "../model"
 
-import type { Published } from "../model"
+import type { Aliases } from "../model"
 
 export type Input = {
-    published: Published,
-    count: u64,
+    published: Aliases,
     name: string,
     specifier: string
 }
@@ -14,17 +11,17 @@ export type Input = {
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { published, count, name, specifier } = in
+    const { name, specifier, published } = in
+    const { names, specifiers } = published
 
     return loop({
         row: 0,
         status: Status.Ready
     }, {
-        while: current => current.row < count && current.status == Status.Ready,
+        while: current => current.row < names.length && current.status == Status.Ready,
         next: current => {
-            if (memory.readTextColumn(published.names, current.row) == name) {
-                const previous =
-                    memory.readTextColumn(published.specifiers, current.row)
+            if (names[current.row] == name) {
+                const previous = specifiers[current.row]
 
                 current.status = previous == specifier ? Status.Done : Status.Conflict
             }

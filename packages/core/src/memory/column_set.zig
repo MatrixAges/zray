@@ -230,37 +230,8 @@ fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
     return @ptrCast(@alignCast(storage));
 }
 
-pub fn reserveTail(comptime Item: type, resource: *const anyopaque, storage: *anyopaque, source: *anyopaque, tail: *anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
-    const column = list(Item, storage);
-
-    if (column.items.len > limit or count > limit - column.items.len) return error.OutOfMemory;
-
-    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
-    const existing: *[]const Item = @ptrCast(@alignCast(source));
-    const writable: *[]Item = @ptrCast(@alignCast(tail));
-
-    try column.ensureUnusedCapacity(borrowAllocator(resource), length);
-
-    existing.* = column.items;
-    writable.* = column.unusedCapacitySlice()[0..length];
-}
-
 pub fn copyText(resource: *const anyopaque, source: []const u8) std.mem.Allocator.Error![]const u8 {
     return borrowAllocator(resource).dupe(u8, source);
-}
-
-pub fn allocateU32s(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error![]const u32 {
-    const output: *[]u32 = @ptrCast(@alignCast(target));
-    const size = std.math.cast(usize, count) orelse return error.OutOfMemory;
-    const items = try borrowAllocator(resource).alloc(u32, size);
-
-    output.* = items;
-
-    return items;
-}
-
-pub fn copyTextViews(resource: *const anyopaque, source: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
-    return borrowAllocator(resource).dupe([]const u8, source);
 }
 
 pub fn borrowAllocator(resource: *const anyopaque) std.mem.Allocator {

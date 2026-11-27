@@ -80,6 +80,7 @@
             marks: [],
             growth: null,
             changed: [],
+            updates: [],
             grew: false,
             plan: $ctx.visit
         }}

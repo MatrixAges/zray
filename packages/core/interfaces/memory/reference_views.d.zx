@@ -133,11 +133,3 @@ export declare function borrowedByteOffset(
     storage: u8[],
     view: u8[]
 ): u64 throws { IndexOutOfBounds }
-
-export declare function appendByteView(
-    resource: ColumnAllocator,
-    storage: ByteViewStorage,
-    bytes: u8[]
-): void throws { OutOfMemory }
-
-export declare function popByteView(storage: ByteViewStorage): u8[]?

@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import memory from "memory"
 
+import load from "../updates/pending/load"
 import decode from "./decode"
 import { Table } from "./model"
 
@@ -25,13 +26,23 @@ export default function (in: Input): Output {
         _ => in.context.metadata.output
     }
 
-    const value = decode(
-        memory.loadAtomicCell(
+    const row = integers.widen(in.function_index)
+    const slot = integers.widen(in.slot)
+    const updates = in.context.pending_input
+
+    const stored = match {
+        in.table != Table.Input || updates.length == 0 =>
+            memory.loadAtomicCell(rows, row, slot),
+        _ => load({
+            updates,
             rows,
-            integers.widen(in.function_index),
-            integers.widen(in.slot)
-        )
-    )
+            row,
+            slot,
+            output: false
+        })
+    }
+
+    const value = decode(stored)
 
     return {
         reads: match {

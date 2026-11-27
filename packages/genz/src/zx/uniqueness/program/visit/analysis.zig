@@ -1,4 +1,5 @@
 const std = @import("std");
+const updates = @import("../../function/updates.zig");
 const zx = @import("zx");
 const Bodies = @import("../bodies.zig");
 const Function = @import("../../function.zig");
@@ -147,6 +148,8 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
 
     errdefer if (deferred) frame.owner.free(retained_reads);
 
+    var next_growth: ?Growth.Rows = null;
+
     const published: Memo.Result(kind) = switch (kind) {
         .settled => try rows.settlement(frame.owner, value),
         .demanded => demand: {
@@ -154,12 +157,14 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
 
             errdefer frame.owner.free(marks);
 
-            if (value.growth) |snapshot| growth.* = try rows.growth(frame.owner, snapshot);
+            const updated = if (value.growth) |snapshot| try rows.growth(frame.owner, snapshot) else growth.*;
+
+            next_growth = updated;
 
             break :demand .{
                 .marks = marks,
-                .normalized = growth.normalized,
-                .renewed = growth.renewed,
+                .normalized = updated.normalized,
+                .renewed = updated.renewed,
                 .grew = value.grew,
             };
         },
@@ -170,6 +175,16 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         stored.value = published;
 
         try stored.table.finish(host.state.*);
+    }
+
+    if (next_growth) |updated| growth.* = updated;
+
+    if (!deferred) {
+        switch (kind) {
+            .settled => updates.commit(metadata.input, &.{}, value.updates),
+            .demanded => updates.commit(metadata.inputs, metadata.outputs, value.updates),
+            .planned => unreachable,
+        }
     }
 
     return .{

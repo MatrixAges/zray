@@ -32,6 +32,7 @@
             ...$ctx.take,
             additions: $ctx.enqueue,
             dirty: $ctx.feedback.dirty,
+            updates: $ctx.feedback.updates,
             plan: $ctx.feedback.plan
         }}
     />

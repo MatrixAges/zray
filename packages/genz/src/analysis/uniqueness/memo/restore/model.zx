@@ -1,4 +1,5 @@
 import type { AtomicRows } from "memory"
+import type { Cell } from "../../function/updates/model"
 import type { NormalizedRow, RenewedRow } from "../disk/load/model"
 import type { GrowthLayout } from "../disk/model"
 
@@ -18,6 +19,10 @@ export type Cursor = {
     valid: bool
 }
 
+export type LevelScan = Cursor & {
+    updates: Cell[]
+}
+
 export type Decoded = GrowthLayout & {
     facts_start: u64,
     wants_start: u64
@@ -31,7 +36,12 @@ export type Publication = {
     wants_start: u64
 }
 
-export type Restored = {
+export type Updates = {
+    facts: Cell[],
+    wants: Cell[]
+}
+
+export type Restored = Updates & {
     normalized: NormalizedRow[],
     renewed: RenewedRow[]
 }

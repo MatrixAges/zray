@@ -23,7 +23,8 @@
 
         <Return
             value={{
-                dirty: $ctx.publish,
+                dirty: $ctx.publish.changed,
+                updates: $ctx.publish.updates,
                 plan: null
             }}
         />
@@ -43,6 +44,7 @@
         <Return
             value={{
                 dirty: $ctx.notify,
+                updates: [],
                 plan: null
             }}
         />
@@ -54,6 +56,7 @@
         <Return
             value={{
                 dirty: [],
+                updates: [],
                 plan: $ctx.publish
             }}
         />
@@ -62,6 +65,7 @@
     <Return
         value={{
             dirty: [],
+            updates: [],
             plan: null
         }}
     />

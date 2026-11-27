@@ -18,6 +18,7 @@ export default function (in: Input): Output {
         },
         marks,
         changed,
+        updates: [],
         grew: false
     }
 }

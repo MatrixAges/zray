@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Round" />
+    <Type from="../../function/updates/model" as="Updates" />
 
-    <Args in={Round.Settlement} out={u64[]} />
+    <Args in={Round.Settlement} out={Updates.Batch} />
 
     <Call
         fn="../notify"
@@ -28,12 +29,22 @@
             fn="join_indices"
             in={{
                 first: $ctx.notify,
-                second: $ctx.publish_output
+                second: $ctx.publish_output.changed
             }}
         />
 
-        <Return value={$ctx.join_indices} />
+        <Return
+            value={{
+                changed: $ctx.join_indices,
+                updates: $ctx.publish_output.updates
+            }}
+        />
     </If>
 
-    <Return value={$ctx.notify} />
+    <Return
+        value={{
+            changed: $ctx.notify,
+            updates: []
+        }}
+    />
 </Module>

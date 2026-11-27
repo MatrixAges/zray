@@ -1,44 +1,24 @@
 import memory from "memory"
 
-import type { Allocator, TransferGroup } from "memory"
+import type { TransferGroup } from "memory"
 
 export type Input = {
-    allocator: Allocator,
     group: TransferGroup
 }
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { allocator, group } = in
+    const { group } = in
 
     const columns = memory.transferColumnCount(group)
+    const empty: u64[] = []
 
-    const reserved = loop(0, {
-        while: column => column < columns,
-        next: column => {
-            const count = memory.transferColumnLength(group, column)
-
-            if (count != 0) {
-                const length =
-                    memory.reserveTransferColumn(allocator, group, column, count)
-            }
-
-            column += 1
-        }
-    })
-
-    const published = loop(0, {
-        while: column => column < columns,
-        next: column => {
-            const count = memory.transferColumnLength(group, column)
-
-            if (count != 0) {
-                memory.copyTransferRange(group, column, 0, count)
-                memory.publishTransferColumn(group, column, count)
-            }
-
-            column += 1
+    return loop(empty, {
+        while: counts => counts.length < columns,
+        next: counts => {
+            const count = memory.transferColumnLength(group, counts.length)
+            counts = counts.push(count)[0]
         }
     })
 }

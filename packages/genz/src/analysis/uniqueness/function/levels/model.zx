@@ -3,6 +3,7 @@ import type { AtomicRows, ReadColumn } from "memory"
 import type { Definitions } from "../../order/plan"
 import type { Query, Usage } from "../../sites/model"
 import type { Layout } from "../../slots/model"
+import type { Cell } from "../updates/model"
 
 export enum Knowledge {
     None,
@@ -71,6 +72,7 @@ export type Metadata = {
 
 export type Context = {
     metadata: Metadata,
+    pending_input: Cell[],
     normalized: GrowthRows,
     renewed: GrowthRows
 }

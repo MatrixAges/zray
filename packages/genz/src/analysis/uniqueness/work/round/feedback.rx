@@ -35,6 +35,7 @@
         value={{
             cursor: $in.state.cursor,
             dirty: [],
+            updates: [],
             plan: null
         }}
     />

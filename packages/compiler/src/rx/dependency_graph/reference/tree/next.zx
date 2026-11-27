@@ -10,7 +10,7 @@ export type Input = {
 }
 
 export type Output = {
-    pending: u8[],
+    pending: u8[][],
     reference?: Reference
 }
 

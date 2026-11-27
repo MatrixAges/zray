@@ -13,7 +13,7 @@
         in={$in.aliases}
     />
 
-    <Switch on={$ctx.build}>
+    <Switch on={$ctx.build.status}>
         <Case value={Alias.Status.Conflict}>
             <Call
                 fn="index.requireNativeScopeAdmission"
@@ -35,7 +35,14 @@
         </Case>
     </Switch>
 
-    <Call fn="index.publishNativeScopeModule" in={$in.binding.window.frame} />
+    <Call
+        fn="index.publishNativeScopeModule"
+        in={[
+            $in.binding.window.frame,
+            $ctx.build.names,
+            $ctx.build.specifiers
+        ]}
+    />
 
     <Return
         value={{

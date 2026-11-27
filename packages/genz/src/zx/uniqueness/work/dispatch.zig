@@ -1,4 +1,5 @@
 const std = @import("std");
+const updates = @import("../function/updates.zig");
 const zx = @import("zx");
 const Ahead = @import("../ahead.zig");
 const Memo = @import("../memo.zig");
@@ -27,6 +28,8 @@ pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership work dispatch failed: {s}", .{@errorName(err)}),
     };
+
+    updates.commit(&.{}, frame.outputs, chosen.updates);
 
     for (chosen.dirty) |index| frame.dirty[index] = true;
 

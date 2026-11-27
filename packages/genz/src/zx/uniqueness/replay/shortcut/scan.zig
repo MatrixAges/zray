@@ -1,4 +1,5 @@
 const std = @import("std");
+const updates = @import("../../function/updates.zig");
 const zx = @import("zx");
 const Context = @import("../../program/host.zig").Context;
 const Memo = @import("../../memo.zig");
@@ -81,6 +82,8 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
 
     try replacements.items.ensureUnusedCapacity(staged, result.replacements.len);
 
+    const growth = if (result.restored) |restored| try installGrowth(scratch, restored) else Growth.Rows{};
+
     for (result.replacements) |replacement| {
         replacements.items.appendAssumeCapacity(.{
             .visit = replacement.visit,
@@ -98,7 +101,12 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
         else => unreachable,
     };
 
-    const growth = if (result.restored) |restored| try installGrowth(scratch, restored) else Growth.Rows{};
+    if (result.restored) |restored| {
+        const summaries = ctx.summaries;
+
+        updates.commit(summaries.input, summaries.output, restored.facts);
+        updates.commit(summaries.inputs, summaries.outputs, restored.wants);
+    }
 
     return .{
         .cursor = .{

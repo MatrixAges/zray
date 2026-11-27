@@ -2,9 +2,11 @@ import integers from "std:integer"
 import memory from "memory"
 
 import decode from "../levels/decode"
+import { Table } from "../levels/model"
+import load from "../updates/pending/load"
 
 import type { AtomicRows } from "memory"
-import type { Knowledge, Table } from "../levels/model"
+import type { Knowledge } from "../levels/model"
 import type { Working } from "./model"
 
 export type Input = {
@@ -21,15 +23,24 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const working = in.working
+    const { working, rows } = in
 
-    const value = decode(
-        memory.loadAtomicCell(
-            in.rows,
-            integers.widen(in.function_index),
-            integers.widen(in.slot)
-        )
-    )
+    const row = integers.widen(in.function_index)
+    const slot = integers.widen(in.slot)
+    const updates = working.updates
+
+    const stored = match {
+        updates.length == 0 => memory.loadAtomicCell(rows, row, slot),
+        _ => load({
+            updates,
+            rows,
+            row,
+            slot,
+            output: in.table == Table.Outputs
+        })
+    }
+
+    const value = decode(stored)
 
     return {
         working: {

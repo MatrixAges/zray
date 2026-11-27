@@ -1,0 +1,11 @@
+export type Cell = {
+    row: u64,
+    slot: u64,
+    output: bool,
+    value: u8
+}
+
+export type Batch = {
+    changed: u64[],
+    updates: Cell[]
+}

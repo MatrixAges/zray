@@ -1,5 +1,6 @@
 import type { AtomicRows } from "memory"
 import type { Context, Knowledge, Read } from "../levels/model"
+import type { Cell } from "../updates/model"
 import type { Seen } from "./seen/model"
 
 export type Mark = {
@@ -32,6 +33,7 @@ export type Working = {
     seen: Seen,
     marks: Mark[],
     changed: u64[],
+    updates: Cell[],
     grew: bool
 }
 
@@ -74,7 +76,7 @@ export type Visit = {
 }
 
 export type Demanded = Context.Pick("normalized", "renewed") &
-    Output.Pick("marks", "changed", "grew") & {
+    Output.Pick("marks", "changed", "updates", "grew") & {
         before: Read[],
         after: Read[]
     }

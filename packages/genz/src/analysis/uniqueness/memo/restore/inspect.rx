@@ -28,7 +28,7 @@
                 own: $in.input,
                 called: $in.output,
                 trailing: false,
-                apply: false
+                collect: false
             }}
         />
     </Task>
@@ -80,7 +80,7 @@
                 own: $in.outputs,
                 called: $in.inputs,
                 trailing: true,
-                apply: false
+                collect: false
             }}
         />
 

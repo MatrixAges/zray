@@ -1,11 +1,9 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import join from "../../level/join"
-import decode from "../levels/decode"
 import encode from "../levels/encode"
-import knowledge from "../levels/knowledge"
-import value from "../levels/value"
+import cell from "../updates/cell"
+import load from "../updates/pending/load"
 
 import type { Exchange, Mark, Working } from "./model"
 
@@ -27,24 +25,42 @@ export default function (in: Input): Output {
         return working
     }
 
-    const rows = in.mark.output ? in.exchange.outputs : in.exchange.inputs
+    const { output } = in.mark
+
+    const rows = output ? in.exchange.outputs : in.exchange.inputs
     const row = integers.widen(in.mark.function_index)
     const slot = integers.widen(in.mark.slot)
-    const before = decode(memory.loadAtomicCell(rows, row, slot))
+    const updates = working.updates
 
-    const next = knowledge(join({
-        left: value(before),
-        right: value(in.mark.want)
-    }))
+    const before = match {
+        updates.length == 0 => memory.loadAtomicCell(rows, row, slot),
+        _ => load({
+            updates,
+            rows,
+            row,
+            slot,
+            output
+        })
+    }
 
-    if (next == before) {
+    const next = cell({
+        before,
+        level: encode(in.mark.want),
+        joining: true
+    })
+
+    if (next == null) {
         return working
     }
 
-    memory.storeAtomicCell(rows, row, slot, encode(next))
-
     return {
         ...working,
-        changed: working.changed.push(row)[0]
+        changed: working.changed.push(row)[0],
+        updates: updates.push({
+            row,
+            slot,
+            output,
+            value: next
+        })[0]
     }
 }

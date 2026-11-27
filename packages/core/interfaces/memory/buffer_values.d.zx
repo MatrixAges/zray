@@ -8,19 +8,6 @@ export declare function readRowId(
     index: u64
 ): u32 throws { IndexOutOfBounds }
 
-export declare function writeNamedRow(
-    target: NamedRowBuffer,
-    index: u64,
-    name: string,
-    id: u32
-): void throws { IndexOutOfBounds }
-
-export declare function allocateNamedRows(
-    allocator,
-    target: NamedRowBuffer,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function bindNamedRowView(
     source: ReadColumn,
     index: u64,
@@ -52,18 +39,6 @@ export declare function initializeU32ListSlot(
     shape: U32Buffer?
 ): U32Buffer throws { IndexOutOfBounds }
 
-export declare function writeU32List(
-    target: U32ListBuffer,
-    index: u64,
-    value: u32[]
-): void throws { IndexOutOfBounds }
-
-export declare function writeStringList(
-    target: StringListBuffer,
-    index: u64,
-    value: string[]
-): void throws { IndexOutOfBounds }
-
 export declare function copyU8s(
     target: U8Buffer,
     source: u8[]
@@ -74,38 +49,7 @@ export declare function copyU32s(
     source: u32[]
 ): void throws { IndexOutOfBounds }
 
-export declare function copyU32Range(
-    target: U32Buffer,
-    offset: u64,
-    source: u32[],
-    start: u64,
-    end: u64
-): void throws { IndexOutOfBounds }
-
 export declare function copyStringViews(
     target: StringBuffer,
     source: string[]
 ): void throws { IndexOutOfBounds }
-
-export declare function appendByte(
-    target: ByteWriter,
-    byte: u8
-): void throws { OutOfMemory }
-
-export declare function appendBytes(
-    target: ByteWriter,
-    bytes: u8[]
-): void throws { OutOfMemory }
-
-export declare function appendText(
-    target: ByteWriter,
-    text: string
-): void throws { OutOfMemory }
-
-export declare function byteWriterLength(target: ByteWriter): u64
-
-export declare function borrowByteWriterBytes(target: ByteWriter): u8[]
-
-export declare function clearByteWriter(target: ByteWriter): void
-
-export declare function reverseByteWriterTail(target: ByteWriter, start: u64): void

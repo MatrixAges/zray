@@ -4,7 +4,8 @@ import memory from "memory"
 import row from "./row"
 
 import type { AtomicRows } from "memory"
-import type { Cursor as Output } from "./model"
+import type { Cell } from "../../function/updates/model"
+import type { LevelScan as Output } from "./model"
 
 export type Input = {
     source: u8[],
@@ -14,17 +15,19 @@ export type Input = {
     body: u64,
     callees: u32[],
     trailing: bool,
-    apply: bool
+    collect: bool
 }
 
 export default function (in: Input): Output {
     const own_index = in.trailing ? in.callees.length : 0
     const end = in.callees.length + 1
+    const updates: Cell[] = []
 
     return loop({
         index: 0,
         offset: in.first,
-        valid: true
+        valid: true,
+        updates
     }, {
         while: state => state.index < end && state.valid,
         next: state => {
@@ -40,26 +43,29 @@ export default function (in: Input): Output {
                 _ => memory.atomicRowLength(target, selected)
             }
 
-            const offset = row({
+            const decoded = row({
                 source: in.source,
                 offset: state.offset,
-                target,
+                updates: state.updates,
+                output: own == in.trailing,
                 row: selected,
                 length,
-                apply: in.apply
+                collect: in.collect
             })
 
-            if (offset == null) {
+            if (decoded == null) {
                 state.valid = false
             } else {
-                state.offset = offset
+                state.offset = decoded.end
+                state.updates = decoded.updates
             }
 
             state.index += 1
         },
         return: state => ({
             end: state.offset,
-            valid: state.valid
+            valid: state.valid,
+            updates: state.updates
         })
     })
 }

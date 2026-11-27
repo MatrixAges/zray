@@ -35,6 +35,7 @@
 
         <Return
             value={{
+                ...$ctx.publish,
                 normalized: $ctx.normalized_rows,
                 renewed: $ctx.renewed_rows
             }}

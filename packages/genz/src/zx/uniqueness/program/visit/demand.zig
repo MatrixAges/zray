@@ -1,4 +1,5 @@
 const std = @import("std");
+const updates = @import("../../function/updates.zig");
 const zx = @import("zx");
 const Function = @import("../../function.zig");
 const Growth = @import("../../growth.zig");
@@ -51,29 +52,35 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
         else => std.debug.panic("demand visitation failed: {s}", .{@errorName(err)}),
     };
 
+    var next_growth = target.*;
+
     if (result.retain_growth) {
         const normalized = try owner.dupe(Growth.Normalized, growth.normalized);
 
         errdefer owner.free(normalized);
 
-        target.* = .{
+        next_growth = .{
             .normalized = normalized,
             .renewed = try owner.dupe(Growth.Renewed, growth.renewed),
         };
     } else if (result.install_growth) {
-        target.* = growth;
+        next_growth = growth;
     }
 
     if (result.marks) |retained| {
         stored.value = .{
             .marks = try retention.copyRows(Function.Mark, owner, retained),
-            .normalized = target.normalized,
-            .renewed = target.renewed,
+            .normalized = next_growth.normalized,
+            .renewed = next_growth.renewed,
             .grew = grew,
         };
 
         try stored.table.finish(host.state.*);
     }
+
+    target.* = next_growth;
+
+    updates.commit(summaries.inputs, summaries.outputs, result.updates);
 
     return .{ .changed = result.changed, .stored = if (memo != null) stored.value else null };
 }

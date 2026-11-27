@@ -41,7 +41,7 @@ alias_declarations: aliases.Declarations = undefined,
 alias_native: aliases.Rows = undefined,
 alias_external: aliases.Rows = undefined,
 alias_input: aliases.Input = undefined,
-alias_storage: aliases.Storage = undefined,
+alias_configured: aliases.Configuration = undefined,
 alias_active: bool = false,
 native: []compiler.project.NativeInterface = undefined,
 legacy: []compiler.project.External = undefined,
@@ -85,12 +85,7 @@ pub fn scope(self: *const Self) *compiler.project.PackageScope {
 }
 
 pub fn close(self: *Self) void {
-    if (self.alias_active) {
-        aliases.discard(self.allocator, &self.alias_input, &self.alias_storage);
-
-        self.active.active = self.scratch;
-        self.alias_active = false;
-    }
+    self.alias_active = false;
 
     if (self.names.len != 0 or self.buckets.len != 0) {
         const temporary = self.name_memory.allocator();

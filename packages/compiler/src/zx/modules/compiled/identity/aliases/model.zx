@@ -81,12 +81,23 @@ export type Output = {
 export type Request = {
     compiled?: Compiled,
     source?: Declarations,
-    configured?: Configured,
+    configured?: Configured
+}
+
+export type ReleaseRequest = Request & {
     output: Output
+}
+
+export type Aliases = {
+    names: string[],
+    specifiers: string[]
+}
+
+export type Result = Aliases & {
+    status: Status
 }
 
 export type CompiledInput = {
     library: Compiled,
-    configured?: Configured,
-    output: Output
+    configured?: Configured
 }

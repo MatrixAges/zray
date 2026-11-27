@@ -2,8 +2,10 @@ import integers from "std:integer"
 import memory from "memory"
 
 import cell from "./cell"
+import load from "./pending/load"
 
 import type { AtomicRows, ReadColumn } from "memory"
+import type { Batch as Output, Cell } from "./model"
 
 export type Marks = {
     output: ReadColumn,
@@ -19,15 +21,15 @@ export type Input = {
     marks: Marks
 }
 
-export type Output = u64[]
-
 export default function (in: Input): Output {
     const { inputs, outputs, marks } = in
 
     const changed: u64[] = []
+    const updates: Cell[] = []
 
     return loop({
         changed,
+        updates,
         index: 0
     }, {
         while: state => state.index < marks.count,
@@ -36,20 +38,40 @@ export default function (in: Input): Output {
             const output = memory.readColumnBool(marks.output, index)
             const rows = output ? outputs : inputs
             const row = integers.widen(memory.readColumnU32(marks.functions, index))
+            const slot = integers.widen(memory.readColumnU32(marks.slots, index))
+
+            const before = match {
+                state.updates.length == 0 => memory.loadAtomicCell(rows, row, slot),
+                _ => load({
+                    updates: state.updates,
+                    rows,
+                    row,
+                    slot,
+                    output
+                })
+            }
+
             const updated = cell({
-                rows,
-                row,
-                slot: integers.widen(memory.readColumnU32(marks.slots, index)),
+                before,
                 level: memory.readColumnU8(marks.wants, index),
                 joining: true
             })
 
-            if (updated) {
+            if (updated != null) {
+                state.updates = state.updates.push({
+                    row,
+                    slot,
+                    output,
+                    value: updated
+                })[0]
                 state.changed = state.changed.push(row)[0]
             }
 
             state.index += 1
         },
-        return: state => state.changed
+        return: state => ({
+            changed: state.changed,
+            updates: state.updates
+        })
     })
 }

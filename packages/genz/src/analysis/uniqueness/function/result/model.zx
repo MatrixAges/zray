@@ -6,6 +6,7 @@ import type {
     Settled,
     Settlement as SettlementInput
 } from "../summary/model"
+import type { Batch } from "../updates/model"
 import type { EncodedMark, EncodedRead } from "./columns"
 
 export type Reads = {
@@ -14,7 +15,7 @@ export type Reads = {
     after: Read[]
 }
 
-export type Demand = Demanded.Omit("grew", "changed") & {
+export type Demand = Demanded.Omit("grew", "changed", "updates") & {
     deferred: bool,
     save_growth: bool
 }
@@ -53,8 +54,6 @@ export type DemandResult = {
     growth?: Snapshot
 }
 
-export type PublishedSettlement = SettlementResult & {
-    changed: u64[]
-}
+export type PublishedSettlement = SettlementResult & Batch
 
-export type PublishedDemand = DemandResult & Demanded.Pick("grew", "changed")
+export type PublishedDemand = DemandResult & Demanded.Pick("grew", "changed", "updates")

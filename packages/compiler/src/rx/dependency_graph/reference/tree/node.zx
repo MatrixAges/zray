@@ -4,36 +4,36 @@ import columns from "memory/columns"
 import type { Cursor as Input } from "./model"
 
 export type Output = {
-    pending: u8[],
+    pending: u8[][],
     node?: u8[]
 }
 
 export default function (in: Input): Output {
-    const { layout, ancestors } = in
+    const { layout, pending } = in
 
-    const available = match in.pending.length {
-        0 => columns.popByteView(ancestors),
-        _ => in.pending
-    }
-
-    if (available == null) {
+    if (pending.length == 0) {
         return {
             pending: [],
             node: null
         }
     }
 
+    const last = pending.length - 1
+    const available = pending[last]
     const width = layout.node_width
     const node = memory.borrowU8Range(available, 0, width)
     const siblings = memory.borrowU8Range(available, width, available.length - width)
     const children = columns.readBorrowedRowList(node, layout.node_children, width)
 
-    if (children.length != 0 && siblings.length != 0) {
-        columns.appendByteView(in.allocator, ancestors, siblings)
+    const next = match {
+        children.length == 0 && siblings.length == 0 => pending.pop()[0],
+        children.length == 0 => pending.with(last, siblings),
+        siblings.length == 0 => pending.with(last, children),
+        _ => pending.with(last, siblings).push(children)[0]
     }
 
     return {
         node,
-        pending: children.length != 0 ? children : siblings
+        pending: next
     }
 }

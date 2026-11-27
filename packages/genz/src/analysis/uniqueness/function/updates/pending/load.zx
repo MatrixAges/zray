@@ -1,0 +1,44 @@
+import memory from "memory"
+
+import type { AtomicRows } from "memory"
+import type { Cell } from "../model"
+
+export type Input = {
+    updates: Cell[],
+    rows: AtomicRows,
+    row: u64,
+    slot: u64,
+    output: bool
+}
+
+export type Output = u8
+
+export default function (in: Input): Output {
+    const { updates, row, slot, output } = in
+
+    const value: u8? = null
+
+    const found = loop({
+        index: updates.length,
+        value
+    }, {
+        while: state => state.index != 0 && state.value == null,
+        next: state => {
+            const entry = updates[state.index - 1]
+            const same_row = entry.output == output && entry.row == row
+
+            if (same_row && entry.slot == slot) {
+                state.value = entry.value
+            }
+
+            state.index -= 1
+        },
+        return: state => state.value
+    })
+
+    if (found != null) {
+        return found
+    }
+
+    return memory.loadAtomicCell(in.rows, row, slot)
+}

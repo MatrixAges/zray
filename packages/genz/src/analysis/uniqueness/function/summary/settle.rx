@@ -46,11 +46,12 @@
 
         <Return
             value={{
-                reads: $ctx.contributions.reads,
                 ...$ctx.contributions.pick([
-                    "passed",
-                    "changed"
+                    "changed",
+                    "updates"
                 ]),
+                reads: $ctx.contributions.reads,
+                passed: $ctx.contributions.passed,
                 levels: $ctx.empty_output
             }}
         />
@@ -61,10 +62,13 @@
                 in={{
                     source: {
                         ...$in.pick([
-                            "context",
                             "results",
                             "count"
                         ]),
+                        context: {
+                            ...$in.context,
+                            pending_input: $ctx.contributions.updates
+                        },
                         carried: $ctx.close.carried
                     },
                     working: $ctx.contributions.pick([
@@ -76,11 +80,12 @@
 
             <Return
                 value={{
-                    reads: $ctx.outputs.reads,
                     ...$ctx.contributions.pick([
-                        "passed",
-                        "changed"
+                        "changed",
+                        "updates"
                     ]),
+                    reads: $ctx.outputs.reads,
+                    passed: $ctx.contributions.passed,
                     levels: $ctx.outputs.levels
                 }}
             />

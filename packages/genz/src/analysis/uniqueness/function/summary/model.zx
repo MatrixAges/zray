@@ -1,5 +1,6 @@
 import type { AtomicRows } from "memory"
 import type { Context, Knowledge, Read } from "../levels/model"
+import type { Batch } from "../updates/model"
 
 export type Working = {
     known: Knowledge[],
@@ -42,11 +43,10 @@ export type Contribution = {
     guarantees: u8[]
 }
 
-export type Contributed = {
+export type Contributed = Batch & {
     known: Knowledge[],
     reads: Read[],
-    passed: Contribution[],
-    changed: u64[]
+    passed: Contribution[]
 }
 
 export type Settlement = {
@@ -59,9 +59,8 @@ export type Settlement = {
     count: u64
 }
 
-export type Settled = {
+export type Settled = Batch & {
     reads: Read[],
     passed: Contribution[],
-    changed: u64[],
     levels: Knowledge[]
 }

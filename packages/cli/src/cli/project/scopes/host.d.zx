@@ -113,8 +113,11 @@ export declare function prepareNativeScopeModule(
     includes: string[]
 ): void throws { OutOfMemory }
 export declare function prepareNativeScopeAliases(frame: NativeScopeLoad): void
-export declare function publishNativeScopeModule(frame: NativeScopeLoad): void
-    throws { SourceLoadFailure }
+export declare function publishNativeScopeModule(
+    frame: NativeScopeLoad,
+    names: string[],
+    specifiers: string[]
+): void throws { SourceLoadFailure }
 export declare function reserveNativeScopeSettings(frame: NativeScopeLoad): void
     throws { OutOfMemory }
 export declare function publishNativeScopeSettings(

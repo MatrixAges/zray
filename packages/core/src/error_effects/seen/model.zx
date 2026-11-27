@@ -1,4 +1,0 @@
-export type Seen = {
-    slots: u64[],
-    count: u64
-}

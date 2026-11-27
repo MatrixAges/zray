@@ -28,6 +28,7 @@
             ...$ctx.analyze.pick([
                 "marks",
                 "changed",
+                "updates",
                 "grew"
             ]),
             ...$ctx.analyze.context.pick([

@@ -18,14 +18,6 @@ pub fn readNamedColumnId(source: *const anyopaque, index: u64) error{IndexOutOfB
     return columns.ids[@intCast(index)];
 }
 
-pub fn allocateNamedRows(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const output: *[]NamedId = @ptrCast(@alignCast(target));
-
-    std.debug.assert(output.len == 0);
-
-    output.* = try allocator.alloc(NamedId, std.math.cast(usize, count) orelse return error.OutOfMemory);
-}
-
 pub const ReadColumn = struct {
     bytes: []const u8,
     count: usize,
@@ -497,14 +489,6 @@ pub inline fn readColumn(comptime T: type, source: *const anyopaque, index: u64)
     const item = column.bytes.ptr + @as(usize, @intCast(index)) * column.stride + column.offset;
 
     return @as(*align(1) const T, @ptrCast(item)).*;
-}
-
-pub inline fn write(target: *const anyopaque, index: u64, name: []const u8, id: u32) error{IndexOutOfBounds}!void {
-    const rows: *const []NamedId = @ptrCast(@alignCast(target));
-
-    if (index >= rows.len) return error.IndexOutOfBounds;
-
-    rows.*[@intCast(index)] = .{ .name = name, .id = id };
 }
 
 inline fn read(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!*const NamedId {

@@ -8,7 +8,10 @@
     <Return
         value={{
             ...$ctx.settlement,
-            changed: $in.result.changed
+            ...$in.result.pick([
+                "changed",
+                "updates"
+            ])
         }}
     />
 </Module>

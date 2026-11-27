@@ -2,6 +2,7 @@ import type { SettlementRecord } from "../../function/result/model"
 import type { Input as RetainSettlement } from "../../function/result/retain"
 import type { Input as Contributions } from "../../function/updates/contributions"
 import type { Input as Marks } from "../../function/updates/marks"
+import type { Batch } from "../../function/updates/model"
 import type { Store as MemoTarget } from "../../memo/table/model"
 import type { Planned } from "../../replay/ordered/model"
 import type { Input as RetainRows } from "../../retain/rows"
@@ -28,8 +29,7 @@ export type DemandSave = {
     marks: RetainRows
 }
 
-export type AdoptedDemand = {
-    changed: u64[],
+export type AdoptedDemand = Batch & {
     marks?: u8[],
     retain_growth: bool,
     install_growth: bool
@@ -39,8 +39,7 @@ export type Settlement = Contributions & {
     save?: SettlementSave
 }
 
-export type AdoptedSettlement = {
-    changed: u64[],
+export type AdoptedSettlement = Batch & {
     retained?: SettlementRecord
 }
 

@@ -58,10 +58,31 @@ pub fn transplant(allocator: std.mem.Allocator, ranges: anytype) std.mem.Allocat
         }
 
         const group: []const Transfer.Column = &columns;
-        const input: Input = .{ .allocator = @ptrCast(&allocator), .group = @ptrCast(&group) };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const target: *const anyopaque = @ptrCast(&group);
+        const input: Input = .{ .group = @ptrCast(&group) };
+        var buffer: [1024]u8 = undefined;
+        var first = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+        var arena = std.heap.ArenaAllocator.init(first.allocator());
 
-        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
+        defer arena.deinit();
+
+        const counts = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        for (counts, 0..) |count, column| {
+            if (count != 0) _ = try Transfer.reserveOne(&allocator, target, column, count);
+        }
+
+        for (counts, 0..) |count, column| {
+            if (count == 0) continue;
+
+            Transfer.copyRange(target, column, 0, count);
+            Transfer.publishOne(target, column, count);
+        }
+
+        return;
     }
 
     inline for (ranges) |range| {

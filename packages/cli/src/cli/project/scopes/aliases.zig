@@ -2,17 +2,14 @@ const std = @import("std");
 const zx = @import("zx");
 const memory = zx.memory;
 const Alias = @import("../../../package/manifest/model.zig").AbiAlias;
-const release = @import("cli_source").native_scope_release_aliases;
-const Release = std.meta.Child(release.Input);
-pub const Input = std.meta.Child(@FieldType(Release, "request"));
+const ScopeLoad = std.meta.Child(@import("cli_source").native_scope_load.Input);
+const Workspace = std.meta.Child(@FieldType(ScopeLoad, "workspace"));
+const Traversal = std.meta.Child(@FieldType(Workspace, "traversal"));
+pub const Input = std.meta.Child(@FieldType(Traversal, "aliases"));
 pub const Compiled = optionalField(Input, "compiled");
 pub const Modules = std.meta.Child(@FieldType(Compiled, "modules"));
 pub const Declarations = optionalField(Input, "source");
 const Configured = optionalField(Input, "configured");
-const Output = std.meta.Child(@FieldType(Input, "output"));
-const Destination = std.meta.Child(@FieldType(Output, "rows"));
-const Fields = std.meta.Child(@FieldType(Destination, "fields"));
-const Published = std.meta.Child(@FieldType(Destination, "published"));
 const declared_fields = .{ .names = "specifier", .identities = "identity" };
 const configured_fields = .{ .names = "name", .requests = "specifier" };
 
@@ -25,54 +22,14 @@ pub const Rows = struct {
     }
 };
 
-pub const Storage = struct {
-    rows: memory.RowOutput(Alias, Fields, .{ .names = &.{"name"}, .specifiers = &.{"specifier"} }),
-    read: [@typeInfo(Fields).@"struct".field_names.len]memory.ReadColumn,
-    growth: memory.RowGrowth,
-    published: Published,
-    progress: [1]u64,
-    count: []u64,
-    pending_text: [1]?[]const u8,
-    destination: Destination,
-    output: Output,
-    configured_columns: memory.ReadFields(configured_fields),
-    configured: Configured,
-    pub fn init(self: *@This(), configured: ?[]const Alias) void {
-        self.rows.init();
-
-        self.growth = .{ .target = &self.rows.buffer, .reads = &self.read };
-
-        inline for (@typeInfo(Fields).@"struct".field_names, 0..) |name, index| {
-            self.growth.refreshCell(index, 0);
-            @field(self.published, name) = @ptrCast(&self.read[index]);
-        }
-
-        self.progress = .{0};
-        self.count = &self.progress;
-        self.pending_text = .{null};
-
-        self.destination = .{
-            .fields = &self.rows.view,
-            .published = &self.published,
-            .growth = @ptrCast(&self.growth),
-            .progress = @ptrCast(&self.count),
-        };
-
-        self.output = .{ .rows = &self.destination, .pending = @ptrCast(&self.pending_text) };
-
-        if (configured) |entries| {
-            self.configured_columns = memory.borrowReadFields(configured_fields, entries);
-            self.configured = self.configured_columns.bind(Configured);
-        }
+pub const Configuration = struct {
+    columns: memory.ReadFields(configured_fields),
+    view: Configured,
+    pub fn init(self: *@This(), entries: []const Alias) void {
+        self.columns = memory.borrowReadFields(configured_fields, entries);
+        self.view = self.columns.bind(Configured);
     }
 };
-
-pub fn discard(allocator: std.mem.Allocator, input: *const Input, storage: *Storage) void {
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    release.executeIn(scratch.allocator(), &.{ .request = input, .owner = @ptrCast(&allocator) }) catch unreachable;
-    allocator.free(storage.rows.rows());
-}
 
 fn optionalField(comptime T: type, comptime name: []const u8) type {
     return std.meta.Child(@typeInfo(@FieldType(T, name)).optional.child);

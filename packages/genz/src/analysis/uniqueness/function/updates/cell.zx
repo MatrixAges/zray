@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import join from "../../level/join"
 import decode from "../levels/decode"
 import encode from "../levels/encode"
@@ -7,26 +5,20 @@ import knowledge from "../levels/knowledge"
 import meet from "../levels/meet"
 import value from "../levels/value"
 
-import type { AtomicRows } from "memory"
-
 export type Input = {
-    rows: AtomicRows,
-    row: u64,
-    slot: u64,
+    before: u8,
     level: u8,
     joining: bool
 }
 
-export type Output = bool
+export type Output = u8?
 
 export default function (in: Input): Output {
-    const { rows, row, slot, level, joining } = in
-
-    const before = decode(memory.loadAtomicCell(rows, row, slot))
-    const incoming = decode(level)
+    const before = decode(in.before)
+    const incoming = decode(in.level)
 
     const next = match {
-        joining => knowledge(join({
+        in.joining => knowledge(join({
             left: value(before),
             right: value(incoming)
         })),
@@ -36,11 +28,5 @@ export default function (in: Input): Output {
         })
     }
 
-    if (next == before) {
-        return false
-    }
-
-    memory.storeAtomicCell(rows, row, slot, encode(next))
-
-    return true
+    return next == before ? null : encode(next)
 }

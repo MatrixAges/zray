@@ -1,5 +1,6 @@
 const std = @import("std");
 const Function = @import("../function.zig");
+const Level = @import("../level.zig").Level;
 const Summaries = @import("../summaries.zig");
 const rows = @import("../row_output.zig");
 
@@ -16,7 +17,28 @@ pub fn contributions(allocator: std.mem.Allocator, summaries: *Summaries, values
         .contributions = &source.view(rows.Target(Input, "contributions")),
     };
 
-    return entry.executeValue(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return replayError(err);
+    var buffer: [4096]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    const result = entry.executeValue(scratch.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return replayError(err);
+    const changed = try allocator.dupe(u64, result.changed);
+
+    commit(summaries.input, &.{}, result.updates);
+
+    return changed;
+}
+
+/// Foreground visits publish while workers may still read these same bytes.
+pub fn commit(inputs: [][]Level, outputs: [][]Level, updates: anytype) void {
+    for (updates) |update| {
+        const target = if (update.output) outputs else inputs;
+        const byte: *u8 = @ptrCast(&target[update.row][update.slot]);
+
+        @atomicStore(u8, byte, update.value, .monotonic);
+    }
 }
 
 fn replayError(err: anyerror) std.mem.Allocator.Error {

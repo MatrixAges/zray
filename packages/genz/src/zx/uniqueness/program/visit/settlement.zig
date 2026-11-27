@@ -1,4 +1,5 @@
 const std = @import("std");
+const updates = @import("../../function/updates.zig");
 const Memo = @import("../../memo.zig");
 const Summaries = @import("../../summaries.zig");
 const rows = @import("../../row_output.zig");
@@ -44,6 +45,8 @@ pub fn apply(scratch: std.mem.Allocator, summaries: *Summaries, value: *const Me
 
         try stored.table.finish(host.state.*);
     }
+
+    updates.commit(summaries.input, &.{}, result.updates);
 
     return .{ .changed = result.changed, .stored = if (memo != null) stored.value else null };
 }

@@ -137,30 +137,30 @@ pub fn Map(comptime Value: type) type {
 
         /// Rebuilds the index after its owner compacts the retained rows in place.
         pub fn truncate(self: *Self, count: usize) void {
-            if (comptime generated) {
-                const rule = @import("generated_source_index_truncate");
-                const pointers = self.lengths();
-                const counts: zx.memory.ColumnLengths = &pointers;
-
-                const input: std.meta.Child(rule.Input) = .{
-                    .keys = self.keys.items[0..count],
-                    .buckets = @ptrCast(&self.buckets),
-                    .capacity = self.buckets.len,
-                    .lengths = @ptrCast(&counts),
-                };
-
-                var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-                return rule.executeIn(scratch.allocator(), &input) catch unreachable;
-            }
-
             self.keys.shrinkRetainingCapacity(count);
             self.values.shrinkRetainingCapacity(count);
             @memset(self.buckets, 0);
-            self.rebuildSeed(self.buckets);
-        }
-        fn lengths(self: *Self) [2]*usize {
-            return .{ &self.keys.items.len, &self.values.items.len };
+
+            if (comptime generated) {
+                const rule = @import("generated_source_index_truncate");
+                const view: []const u64 = self.buckets;
+                var buffer: [256]u8 = undefined;
+
+                for (0..count) |row| {
+                    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+
+                    const input: std.meta.Child(rule.Input) = .{
+                        .keys = self.keys.items,
+                        .buckets = @ptrCast(&view),
+                        .capacity = view.len,
+                        .row = row,
+                    };
+
+                    const update = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+
+                    self.buckets[@intCast(update.slot)] = update.entry;
+                }
+            } else self.rebuildSeed(self.buckets);
         }
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
             self.keys.deinit(allocator);

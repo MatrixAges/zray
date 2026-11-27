@@ -1,37 +1,55 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import decode from "../levels/decode"
 import encode from "../levels/encode"
-import meet from "../levels/meet"
+import cell from "../updates/cell"
+import load from "../updates/pending/load"
 
 import type { AtomicRows } from "memory"
 import type { Knowledge } from "../levels/model"
+import type { Cell } from "../updates/model"
 
 export type Input = {
     inputs: AtomicRows,
     callee: u32,
     slot: u64,
     value: Knowledge,
-    changed: u64[]
+    updates: Cell[]
 }
 
-export type Output = u64[]
+export type Output = Cell[]
 
 export default function (in: Input): Output {
-    const row = integers.widen(in.callee)
-    const previous = decode(memory.loadAtomicCell(in.inputs, row, in.slot))
+    const { callee, slot, updates } = in
 
-    const next = meet({
-        left: previous,
-        right: in.value
-    })
+    const row = integers.widen(callee)
+    const rows = in.inputs
 
-    if (next == previous) {
-        return in.changed
+    const before = match {
+        updates.length == 0 => memory.loadAtomicCell(rows, row, slot),
+        _ => load({
+            updates,
+            rows,
+            row,
+            slot,
+            output: false
+        })
     }
 
-    memory.storeAtomicCell(in.inputs, row, in.slot, encode(next))
+    const next = cell({
+        before,
+        level: encode(in.value),
+        joining: false
+    })
 
-    return in.changed.push(row)[0]
+    if (next == null) {
+        return updates
+    }
+
+    return updates.push({
+        row,
+        slot,
+        output: false,
+        value: next
+    })[0]
 }

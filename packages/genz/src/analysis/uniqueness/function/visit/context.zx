@@ -46,6 +46,7 @@ export default function (in: Input): Output {
     return {
         context: {
             metadata,
+            pending_input: [],
             normalized: in.normalized,
             renewed: in.renewed
         },

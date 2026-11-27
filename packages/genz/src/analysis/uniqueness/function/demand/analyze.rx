@@ -15,16 +15,7 @@
 
     <If on={$in.source.function_index == null}>
         <Return
-            value={$ctx.operations.pick(
-                [
-                    "context",
-                    "known",
-                    "reads",
-                    "marks",
-                    "changed",
-                    "grew"
-                ]
-            )}
+            value={$ctx.operations.omit(["seen"])}
         />
 
         <Else>
@@ -38,16 +29,7 @@
             />
 
             <Return
-                value={$ctx.returns.pick(
-                    [
-                        "context",
-                        "known",
-                        "reads",
-                        "marks",
-                        "changed",
-                        "grew"
-                    ]
-                )}
+                value={$ctx.returns.omit(["seen"])}
             />
         </Else>
     </If>
