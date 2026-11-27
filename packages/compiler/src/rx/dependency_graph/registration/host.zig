@@ -29,27 +29,21 @@ pub fn run(allocator: std.mem.Allocator, schemas: std.mem.Allocator, data: ?[]mo
         .reporter = reporter,
     };
 
-    var path: []u8 = &.{};
-
     const input: std.meta.Child(rule.Input) = .{
         .frame = @ptrCast(&frame),
         .paths = &.{
             .source = @ptrCast(&paths),
             .count = sources.len,
             .slots = @ptrCast(&registry.keys),
-            .path = @ptrCast(&path),
             .registry = &.{
                 .keys = registry.keys,
                 .buckets = @ptrCast(&registry.buckets),
                 .capacity = registry.buckets.len,
             },
-            .allocator = @ptrCast(&allocator),
         },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(rule.executeIn, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    zx.columns.invoke(rule.executeIn, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.InvalidDsl => return error.InvalidDsl,
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,

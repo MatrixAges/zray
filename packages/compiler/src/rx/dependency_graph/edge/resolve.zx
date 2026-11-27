@@ -1,6 +1,5 @@
 import select from "../../../zx/modules/project/target/select"
 import { Kind } from "../../path_kind/model"
-import { State } from "../../path_segments/reference/model"
 import resolve from "../../path_segments/reference/resolve"
 import { Issue } from "../model"
 import lookup from "./lookup"
@@ -19,36 +18,27 @@ export default function (in: Input): Output {
             return {
                 included: false,
                 target: 0,
-                issue: Issue.None,
-                required: 0
+                issue: Issue.None
             }
         }
     }
 
-    const path = resolve({
+    const resolved = resolve({
         directory: in.directory,
         reference: in.reference,
-        kind: Kind.ModuleReference,
-        workspace: in.workspace
+        kind: Kind.ModuleReference
     })
 
-    return match path.state {
-        State.Invalid => {
+    if (!resolved.valid) {
+        return {
             included: true,
             target: 0,
-            issue: Issue.InvalidPath,
-            required: 0
-        },
-        State.NeedSpace => {
-            included: true,
-            target: 0,
-            issue: Issue.None,
-            required: path.length
-        },
-        _ => lookup({
-            registry: in.registry,
-            bytes: in.workspace.bytes,
-            length: path.length
-        })
+            issue: Issue.InvalidPath
+        }
     }
+
+    return lookup({
+        registry: in.registry,
+        path: resolved.path
+    })
 }

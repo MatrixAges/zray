@@ -63,14 +63,12 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     const execute = @import("generated_rebuild_loop_fields");
     const ExecInput = std.meta.Child(execute.Input);
-    var replacements = if (planned.requests.fields.len != 0) try temporary.alloc(u32, planned.requests.fields.len) else &.{};
 
     var work: Rebuild = .{
         .context = self,
         .projection = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) },
         .planned = planned,
         .value = request.value,
-        .replacements = replacements,
     };
 
     const request_execution: ExecInput = .{
@@ -81,7 +79,6 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
         .expressions = zx.columns.pointer(@FieldType(ExecInput, "expressions"), planned.expressions),
         .requests = zx.columns.pointer(@FieldType(ExecInput, "requests"), planned.requests),
         .values = planned.values,
-        .replacements = @ptrCast(&replacements),
         .type_id = @backingInt(self.type_id),
         .layout = if (request.layout) |layout| @backingInt(layout) else null,
     };
@@ -96,19 +93,18 @@ const Rebuild = struct {
     projection: Frame,
     planned: @typeInfo(entry.Output).optional.child,
     value: node.ExpressionId,
-    replacements: []const u32,
     fn borrow(handle: *anyopaque) *Rebuild {
         return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn rebuildLoopFields(handle: *anyopaque, layout: u32) Lower.Error!u32 {
+pub fn rebuildLoopFields(handle: *anyopaque, layout: u32, replacements: []const u32) Lower.Error!u32 {
     const work = Rebuild.borrow(handle);
 
     return @backingInt(try projection.rebuild(work.context, work.projection.lowering, work.value, @fromBackingInt(layout), .{
         .values = work.planned.values,
         .changed = work.planned.requests.fields,
-        .replacements = work.replacements,
+        .replacements = replacements,
     }));
 }
 

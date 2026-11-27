@@ -19,7 +19,6 @@ export default function (in: Input): Output {
 
     const scanned = loop({
         pending: cursor.pending,
-        bytes: xml.workspace.bytes,
         done: false
     }, {
         while: state => !state.done,
@@ -45,10 +44,9 @@ export default function (in: Input): Output {
                     _ => role_dependency
                 }
 
-                state.bytes = deliver({
+                deliver({
                     scan,
                     xml,
-                    bytes: state.bytes,
                     node: item.node,
                     attribute: item.attribute,
                     target: item.target,

@@ -22,14 +22,23 @@ pub const Arenas = struct {
     }
 };
 
+pub const HashOutput = struct { paths: [][]const u8, hashes: []u64 };
+
 pub fn each(arenas: Arenas, request: Request) !void {
     var work: Work = .{ .request = request };
 
     return spread(arenas, &work, Work.run);
 }
 
+pub fn eachHash(arenas: Arenas, request: Request, hash_output: HashOutput) !void {
+    var work: Work = .{ .request = request, .hash_output = hash_output };
+
+    return spread(arenas, &work, Work.run);
+}
+
 const Work = struct {
     request: Request,
+    hash_output: ?HashOutput = null,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
@@ -46,13 +55,20 @@ const Work = struct {
                 .row = row,
             };
 
-            const code = worker.executeIn(allocator, &input) catch unreachable;
+            const outcome = worker.executeIn(allocator, &input) catch unreachable;
 
-            if (code != 0) {
-                _ = self.failure.cmpxchgStrong(0, code, .monotonic, .monotonic);
+            if (outcome.code != 0) {
+                _ = self.failure.cmpxchgStrong(0, outcome.code, .monotonic, .monotonic);
 
                 return;
             }
+
+            if (self.hash_output) |output| if (outcome.marked) |marked| {
+                const start: usize = @intCast(marked.offset);
+
+                @memcpy(output.paths[start..][0..marked.paths.len], marked.paths);
+                @memcpy(output.hashes[start..][0..marked.hashes.len], marked.hashes);
+            };
         }
     }
 };

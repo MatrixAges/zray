@@ -1,28 +1,28 @@
 import host from "lowering_host"
-import memory from "memory"
 
 import type { Lowering } from "lowering_host"
-import type { U32Buffer } from "memory"
 
 export type Input = {
     frame: Lowering,
-    types: u32[],
-    target: U32Buffer
+    types: u32[]
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { frame, types, target } = in
+    const empty: u32[] = []
 
-    const resolved = loop(0, {
-        while: index => index < types.length,
-        next: index => {
-            const value = host.lowerType(frame, types[index], false)
+    return loop({
+        index: 0,
+        values: empty
+    }, {
+        while: state => state.index < in.types.length,
+        next: state => {
+            const value = host.lowerType(in.frame, in.types[state.index], false)
 
-            memory.writeU32(target, index, value)
-
-            index += 1
-        }
+            state.values = state.values.push(value)[0]
+            state.index += 1
+        },
+        return: state => state.values
     })
 }

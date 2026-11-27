@@ -29,14 +29,9 @@ pub fn declaration(self: *Lower, output: *@import("../../node/declarations.zig")
     const entry = @import("generated_store_pending_type");
     const Input = std.meta.Child(entry.Input);
     const Types = std.meta.Child(@FieldType(Input, "types"));
-    var types = try self.workspace.alloc(u32, self.program.stores.count());
-
-    defer self.workspace.free(types);
 
     const request: Types = .{
         .frame = @ptrCast(self),
-        .buffer = @ptrCast(&types),
-        .values = types,
         .ids = self.program.stores.types,
     };
 

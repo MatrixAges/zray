@@ -7,7 +7,7 @@ import { batch_size } from "../../partition/scanning/const"
 import mark from "../assembly/mark"
 
 import type { BootstrapWorkerAllocator } from "output_host"
-import type { Work } from "./model"
+import type { Marked, Work } from "./model"
 
 export type Input = {
     jobs: Work,
@@ -15,27 +15,34 @@ export type Input = {
     row: u64
 }
 
-export type Output = u32
+export type Output = {
+    code: u32,
+    marked?: Marked
+}
 
 export default function (in: Input): Output {
     const { jobs, row } = in
     const { scan, render: rendering, hash, write } = jobs
 
     if (hash != null) {
-        mark({
-            plan: hash,
-            block: row
-        })
-
-        return 0
+        return {
+            code: 0,
+            marked: mark({
+                plan: hash,
+                block: row
+            })
+        }
     }
 
     if (rendering != null) {
-        return render({
-            target: rendering.target,
-            row,
-            root: memory.readColumnBool(rendering.roots, row)
-        })
+        return {
+            code: render({
+                target: rendering.target,
+                row,
+                root: memory.readColumnBool(rendering.roots, row)
+            }),
+            marked: null
+        }
     }
 
     if (scan != null) {
@@ -43,11 +50,17 @@ export default function (in: Input): Output {
         const remaining = scan.length - first
         const end = first + (remaining < batch_size ? remaining : batch_size)
 
-        return host.scanPartitionRange(scan.target, in.allocator, first, end)
+        return {
+            code: host.scanPartitionRange(scan.target, in.allocator, first, end),
+            marked: null
+        }
     }
 
     if (write == null) {
-        return 0
+        return {
+            code: 0,
+            marked: null
+        }
     }
 
     const { head, functions } = write.sections
@@ -59,5 +72,8 @@ export default function (in: Input): Output {
     const path = memory.readTextColumn(source.paths, index)
     const body = memory.readTextColumn(source.bodies, index)
 
-    return host.writeBootstrapFile(write.target, path, body)
+    return {
+        code: host.writeBootstrapFile(write.target, path, body),
+        marked: null
+    }
 }

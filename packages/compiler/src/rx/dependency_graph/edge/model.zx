@@ -1,6 +1,5 @@
 import type { Table } from "core/bytes/index/slot"
 import type { Rows as Packages } from "../../../zx/modules/project/target/select"
-import type { Workspace } from "../../path_segments/reference/model"
 import type { Issue } from "../model"
 
 export type Registry = Table
@@ -10,13 +9,11 @@ export type Input = {
     reference: string,
     package_allowed: bool,
     packages: Packages,
-    registry: Registry,
-    workspace: Workspace
+    registry: Registry
 }
 
 export type Output = {
     included: bool,
     target: u64,
-    issue: Issue,
-    required: u64
+    issue: Issue
 }

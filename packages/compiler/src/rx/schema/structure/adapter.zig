@@ -9,12 +9,19 @@ pub const supports = rows.supports;
 pub fn bind(node: anytype, fields: []const []const u8, required: []const u64, slots_arg: []u64) struct { issue: @FieldType(BindOutput, "issue"), row: usize } {
     if (node.attributeCount() == 0 and required.len == 0) return .{ .issue = .None, .row = 0 };
 
-    var slots = slots_arg;
     const Input = std.meta.Child(binding.Input);
     const Columns = std.meta.Child(@FieldType(Input, "rows"));
     const borrowed = rows.bind(node);
     const view = borrowed.wire(Columns, node);
-    const finding = execute(binding, &.{ .rows = &view, .fields = fields, .required = required, .slots = @ptrCast(&slots) });
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    const finding = zx.columns.invoke(binding.executeValue, scratch.allocator(), &.{ .rows = &view, .fields = fields, .required = required }) catch unreachable;
+
+    @memcpy(slots_arg, finding.slots);
 
     return .{ .issue = finding.issue, .row = @intCast(finding.row) };
 }

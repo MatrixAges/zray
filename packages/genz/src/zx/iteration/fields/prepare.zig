@@ -54,17 +54,14 @@ pub fn prepare(self: *Lower, iteration: ir.Iteration, type_id: ir.TypeId, body: 
 
     const resolver = @import("generated_resolve_loop_field_types");
     const Resolve = std.meta.Child(resolver.Input);
-    var field_types = try memory.allocator().alloc(u32, fields.len);
     const first = types.first[@backingInt(type_id)];
 
     const resolution: Resolve = .{
         .frame = @ptrCast(self),
         .types = types.field_types[first..][0..fields.len],
-        .target = @ptrCast(&field_types),
     };
 
-    try @import("../../expressions/evaluate.zig").execute(resolver, &resolution);
-
+    const field_types = resolver.executeIn(memory.allocator(), &resolution) catch |err| return failure(err);
     const abi_type = try @import("../../types.zig").get(self, self.abi_types, type_id);
 
     const layout = try @import("layout.zig").build(self, body, .{

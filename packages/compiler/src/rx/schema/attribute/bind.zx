@@ -1,9 +1,6 @@
-import memory from "memory"
-
 import position from "../structure/position"
 import name from "./rows/name"
 
-import type { U64Buffer } from "memory"
 import type { Rows } from "./rows/model"
 
 export enum Issue {
@@ -16,21 +13,34 @@ export enum Issue {
 export type Input = {
     rows: Rows,
     fields: string[],
-    required: u64[],
-    slots: U64Buffer
+    required: u64[]
 }
 
 export type Output = {
     issue: Issue,
-    row: u64
+    row: u64,
+    slots: u64[]
 }
 
 export default function (in: Input): Output {
-    const { rows, fields, required, slots } = in
+    const { rows, fields, required } = in
+
+    const initial: u64[] = []
+
+    const empty = loop({
+        slots: initial
+    }, {
+        while: state => state.slots.length < fields.length,
+        next: state => {
+            state.slots = state.slots.push(0)[0]
+        },
+        return: state => state.slots
+    })
 
     const bound = loop({
         row: 0,
-        issue: Issue.None
+        issue: Issue.None,
+        slots: empty
     }, {
         while: state => state.issue == Issue.None && state.row < rows.count,
         next: state => {
@@ -44,10 +54,10 @@ export default function (in: Input): Output {
 
             if (slot == null) {
                 state.issue = Issue.Unknown
-            } else if (memory.readU64(slots, slot) != 0) {
+            } else if (state.slots[slot] != 0) {
                 state.issue = Issue.Duplicate
             } else {
-                memory.writeU64(slots, slot, state.row + 1)
+                state.slots[slot] = state.row + 1
                 state.row += 1
             }
         }
@@ -66,16 +76,17 @@ export default function (in: Input): Output {
         next: state => {
             const field = required[state.next]
 
-            if (memory.readU64(slots, field) == 0) {
+            if (bound.slots[field] == 0) {
                 state.row = field
                 state.issue = Issue.Missing
             }
 
             state.next += 1
         },
-        return: state => state.pick([
-            "issue",
-            "row"
-        ])
+        return: state => ({
+            issue: state.issue,
+            row: state.row,
+            slots: bound.slots
+        })
     })
 }

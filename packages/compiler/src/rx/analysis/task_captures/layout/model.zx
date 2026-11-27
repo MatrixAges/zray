@@ -1,10 +1,7 @@
-import type { U32Buffer } from "memory"
-
 export type Input = {
     types: u32[],
     parameters: u32[],
     marked: bool[],
-    positions: U32Buffer,
     count: u64
 }
 
@@ -16,6 +13,7 @@ export type Selection = {
 }
 
 export type Output = {
+    positions: u32[],
     source_types: u32[],
     parameter_types: u32[],
     optional_count: u64

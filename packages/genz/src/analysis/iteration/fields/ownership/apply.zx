@@ -1,36 +1,39 @@
 import integers from "std:integer"
 import host from "lowering_host"
-import memory from "memory"
 
 import type { FieldProjection } from "lowering_host"
-import type { U32Buffer } from "memory"
 import type { Requests } from "./model"
 
 export type Input = {
     target: FieldProjection,
     requests: Requests,
-    values: u32[],
-    replacements: U32Buffer
+    values: u32[]
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { target, requests, values, replacements } = in
+    const { target, requests, values } = in
 
-    const projected = loop(0, {
-        while: row => row < requests.fields.length,
-        next: row => {
-            const field = integers.widen(requests.fields[row])
+    const empty: u32[] = []
+
+    return loop({
+        row: 0,
+        replacements: empty
+    }, {
+        while: state => state.row < requests.fields.length,
+        next: state => {
+            const field = integers.widen(requests.fields[state.row])
             const value = host.projectLoopField(
                 target,
-                requests.types[row],
+                requests.types[state.row],
                 values[field],
-                requests.slots[row]
+                requests.slots[state.row]
             )
 
-            memory.writeU32(replacements, row, value)
-            row += 1
-        }
+            state.replacements = state.replacements.push(value)[0]
+            state.row += 1
+        },
+        return: state => state.replacements
     })
 }

@@ -69,8 +69,6 @@ export type PortGraph = mutable_opaque
 
 export type ConstraintCollection = mutable_opaque
 
-export type ConditionFacts = mutable_opaque
-
 export type FlowTraversal = mutable_opaque
 
 export type SelectionLabels = mutable_opaque

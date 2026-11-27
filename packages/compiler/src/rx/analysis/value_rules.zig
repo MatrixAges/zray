@@ -9,28 +9,24 @@ pub fn indexed(allocator: std.mem.Allocator, view: *const frontend.ExpressionInp
     const rule = @import("generated_rx_value_policy");
     const Input = std.meta.Child(rule.Input);
     const tree = view.storage.expressions;
-    const depth: usize = @intCast(tree.nodes[@intCast(root)].depth);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
     var buffer: [64 * @sizeOf(u64)]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
-    const memory = scratch.allocator();
-    const frames = try memory.alloc(u64, depth * 2);
-
-    defer memory.free(frames);
-
-    var ancestors = frames[0..depth];
-    var positions = frames[depth..];
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     const input: Input = .{
         .source = view.source,
         .tree = zx.columns.pointer(@FieldType(Input, "tree"), tree),
         .order = &.{ .offsets = view.order.expressions, .edges = view.order.edges },
         .root = root,
-        .ancestors = @ptrCast(&ancestors),
-        .positions = @ptrCast(&positions),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     const detail: struct { @FieldType(zx.Diagnostic, "code"), []const u8 } = switch (result.issue) {
         .None => return null,

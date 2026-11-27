@@ -1,5 +1,4 @@
 import probe from "core/bytes/index/slot"
-import memory from "memory"
 
 import { Issue } from "../model"
 
@@ -7,24 +6,20 @@ import type { Output as Edge, Registry } from "./model"
 
 export type Input = {
     registry: Registry,
-    bytes: u8[],
-    length: u64
+    path: u8[]
 }
 
 export type Output = Edge
 
 export default function (in: Input): Output {
-    const key = memory.borrowU8Range(in.bytes, 0, in.length)
-
     const found = probe({
         ...in.registry,
-        key
+        key: in.path
     })
 
     return {
         included: true,
         target: found.entry == 0 ? 0 : found.entry - 1,
-        issue: found.entry == 0 ? Issue.Missing : Issue.None,
-        required: 0
+        issue: found.entry == 0 ? Issue.Missing : Issue.None
     }
 }

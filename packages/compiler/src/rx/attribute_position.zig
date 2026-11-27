@@ -59,21 +59,17 @@ pub fn rawLocation(raw: []const u8, start: ast.Location, offset: usize, xml_newl
     if (offset == start.offset) return start;
     if (!generated) return rawSeed(raw, start, offset, xml_newlines);
 
-    var result: [2]u64 = undefined;
-    var destination: []u64 = &result;
-    var buffer: [@sizeOf([8]u64) + @alignOf(u64)]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    @import("generated_rx_attribute_coordinates").executeValue(scratch.allocator(), &.{
+    const coords = @import("generated_rx_attribute_coordinates").executeValue(empty.allocator(), &.{
         .raw = raw,
         .count = offset - start.offset,
         .line = start.line,
         .column = start.column,
         .xml_newlines = xml_newlines,
-        .position = @ptrCast(&destination),
     }) catch unreachable;
 
-    return .{ .offset = offset, .line = @intCast(result[0]), .column = @intCast(result[1]) };
+    return .{ .offset = offset, .line = @intCast(coords.line), .column = @intCast(coords.column) };
 }
 
 fn rawSeed(raw: []const u8, start: ast.Location, offset: usize, xml_newlines: bool) ast.Location {

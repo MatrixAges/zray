@@ -109,21 +109,28 @@ pub fn indexedView(allocator: std.mem.Allocator, source: []const u8, nodes: Inde
 }
 
 pub fn renderIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: IndexedNodes, index: u64, length: u64) std.mem.Allocator.Error!Path {
-    var text = try allocator.alloc(u8, @intCast(length));
+    _ = length;
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
     const rule = @import("generated_binding_path_write");
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(rule.Input) = .{
         .source = source,
         .nodes = nodes,
         .node = index,
-        .length = length,
-        .target = @ptrCast(&text),
     };
 
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    const rendered = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IndexOutOfBounds => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    return .{ .text = text, .allocated = true };
+    return .{ .text = try allocator.dupe(u8, rendered), .allocated = true };
 }
 
 fn copy(allocator: std.mem.Allocator, expression: anytype, length: usize) std.mem.Allocator.Error![]const u8 {

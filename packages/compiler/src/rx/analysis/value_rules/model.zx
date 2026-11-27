@@ -1,4 +1,3 @@
-import type { U64Buffer } from "memory"
 import type { ExprTree } from "../../../zx/frontend/parser/expressions/state/model"
 
 export enum Issue {
@@ -19,9 +18,7 @@ export type Input = {
     source: string,
     tree: ExprTree,
     order: Order,
-    root: u64,
-    ancestors: U64Buffer,
-    positions: U64Buffer
+    root: u64
 }
 
 export type Cursor = {

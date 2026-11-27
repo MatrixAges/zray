@@ -10,7 +10,6 @@ pub const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter
 const Issue = @typeInfo(@FieldType(Input, "issues")).pointer.child;
 const Edges = std.meta.Child(publish.Input);
 const Registry = std.meta.Child(@FieldType(Edges, "registry"));
-const inline_path_bytes = 512;
 const batch_size = 16;
 const Link = struct { node: *const dsl.ast.Node, attribute: *const dsl.ast.Attribute };
 const Result = struct { offsets: []const u64, targets: []const u64, issues: []const Issue, references: []const u64 };
@@ -23,8 +22,6 @@ comptime {
 pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, sources: []const modules.Source, entries: []const []const u8) std.mem.Allocator.Error!Result {
     var graph: Graph = .{ .offsets = try allocator.alloc(u64, sources.len + 1) };
     var cursor: Tree.Cursor = .{};
-    var inline_path: [inline_path_bytes]u8 = undefined;
-    var path: []u8 = &inline_path;
     var references: [batch_size][]const u8 = undefined;
     var package_allowed: [batch_size]u8 = undefined;
 
@@ -45,7 +42,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
             const package_column = memory.borrowReadColumn(bool, "package_allowed", indexed.entries);
             const packages = memory.borrowTextColumn("specifier", source.packages);
 
-            try graph.append(allocator, owner, &path, .{
+            try graph.append(allocator, owner, .{
                 .directory = std.fs.path.dirname(entries[owner]) orelse ".",
                 .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
                 .registry = &registry,
@@ -60,8 +57,6 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
                         .count = indexed.entries.len,
                     },
                 },
-                .workspace = undefined,
-                .allocator = undefined,
             });
 
             continue;
@@ -74,13 +69,11 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
         var first: usize = 0;
 
         while (try cursor.batch(allocator, &references, &package_allowed)) |count| {
-            try graph.append(allocator, owner, &path, .{
+            try graph.append(allocator, owner, .{
                 .directory = directory,
                 .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
                 .registry = &registry,
                 .candidates = &.{ .references = references[0..count], .package_allowed = package_allowed[0..count], .first = first, .indexed = null },
-                .workspace = undefined,
-                .allocator = undefined,
             });
 
             first += count;
@@ -120,16 +113,18 @@ const Graph = struct {
     issues: std.ArrayList(u8) = .empty,
     references: std.ArrayList(u64) = .empty,
     next_owner: usize = 0,
-    fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, path: *[]u8, request: Edges) std.mem.Allocator.Error!void {
-        var input = request;
-
+    fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, request: Edges) std.mem.Allocator.Error!void {
         @memset(self.offsets[self.next_owner .. owner + 1], self.targets.items.len);
 
         self.next_owner = owner + 1;
-        input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
-        input.allocator = @ptrCast(&allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
 
-        const result = publish.executeValue(allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        defer arena.deinit();
+
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+        const result = publish.executeValue(scratch.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };

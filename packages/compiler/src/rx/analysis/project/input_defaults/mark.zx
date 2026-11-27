@@ -1,39 +1,36 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import representative from "../../inference/forest/borrowed_root"
 
-import type { BoolBuffer, U32Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type { Edges } from "../../inference/assignment/model"
 
 export type Input = {
     edges: Edges,
     parents: U32Buffer,
-    marked: BoolBuffer,
     count: u64
 }
 
 export type Output = bool[]
 
 export default function (in: Input): Output {
-    const { edges, marked, parents, count } = in
+    const { edges, parents, count } = in
 
-    memory.allocateBoolViews(marked, count)
+    const initial: bool[] = []
 
-    const first = loop({
-        remaining: count
+    const marked = loop({
+        items: initial
     }, {
-        while: state => state.remaining != 0,
+        while: state => state.items.length < count,
         next: state => {
-            state.remaining -= 1
-
-            memory.writeBool(marked, state.remaining, false)
+            state.items = state.items.push(false)[0]
         },
-        return: state => state.remaining
+        return: state => state.items
     })
 
     return loop({
-        row: first
+        row: 0,
+        items: marked
     }, {
         while: state => state.row < edges.left.length,
         next: state => {
@@ -47,11 +44,10 @@ export default function (in: Input): Output {
                 value: edges.right[row]
             })
 
-            memory.writeBool(marked, integers.widen(left), true)
-            memory.writeBool(marked, integers.widen(right), true)
-
+            state.items[integers.widen(left)] = true
+            state.items[integers.widen(right)] = true
             state.row += 1
         },
-        return: state => memory.boolViews(marked)
+        return: state => state.items
     })
 }

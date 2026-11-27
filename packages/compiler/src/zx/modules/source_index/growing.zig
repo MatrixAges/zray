@@ -117,24 +117,16 @@ pub fn Map(comptime Value: type) type {
             std.debug.assert(self.buckets[slot] == 0);
 
             if (comptime generated) {
-                self.values.unusedCapacitySlice()[0] = entry;
-
                 const rule = @import("generated_source_index_publish");
-                var row: [][]const u8 = self.keys.unusedCapacitySlice()[0..1];
-                const pointers = self.lengths();
-                const counts: zx.memory.ColumnLengths = &pointers;
-
-                const input: std.meta.Child(rule.Input) = .{
-                    .buckets = @ptrCast(&self.buckets),
-                    .key = key,
-                    .target = @ptrCast(&row),
-                    .lengths = @ptrCast(&counts),
-                    .slot = slot,
-                };
-
                 var scratch = std.heap.FixedBufferAllocator.init(&.{});
+                const entry_index = rule.executeValue(scratch.allocator(), &.{ .length = self.keys.items.len }) catch unreachable;
 
-                return rule.executeIn(scratch.allocator(), &input) catch unreachable;
+                self.keys.appendAssumeCapacity(key);
+                self.values.appendAssumeCapacity(entry);
+
+                self.buckets[slot] = entry_index;
+
+                return;
             }
 
             self.keys.appendAssumeCapacity(key);
@@ -142,6 +134,7 @@ pub fn Map(comptime Value: type) type {
 
             self.buckets[slot] = self.keys.items.len;
         }
+
         /// Rebuilds the index after its owner compacts the retained rows in place.
         pub fn truncate(self: *Self, count: usize) void {
             if (comptime generated) {

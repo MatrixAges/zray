@@ -9,7 +9,6 @@ import type { Scan, Xml } from "./model"
 export type Input = {
     scan: Scan,
     xml: Xml,
-    bytes: u8[],
     node?: u8[],
     attribute?: u8[],
     target: Target,
@@ -17,7 +16,7 @@ export type Input = {
     package_allowed: bool
 }
 
-export type Output = u8[]
+export type Output = void
 
 export default function (in: Input): Output {
     const { attribute, node, xml } = in
@@ -42,17 +41,10 @@ export default function (in: Input): Output {
         _ => columns.readBorrowedRowText(attribute, layout.attribute_value)
     }
 
-    return deliver({
+    deliver({
         scan: in.scan,
-        ...xml.pick([
-            "owner",
-            "directory",
-            "allocator"
-        ]),
-        workspace: {
-            ...xml.workspace,
-            bytes: in.bytes
-        },
+        owner: xml.owner,
+        directory: xml.directory,
         target: in.target,
         package_allowed: in.package_allowed,
         reference,

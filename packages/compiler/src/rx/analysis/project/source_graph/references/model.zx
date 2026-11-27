@@ -1,4 +1,3 @@
-import type { Allocator } from "memory"
 import type { GraphEdgeScan } from "rx_graph_host"
 import type { Import } from "../../../../../zx/frontend/parser/imports/model"
 import type { Cursor } from "../../../../dependency_graph/reference/tree/model"
@@ -24,9 +23,8 @@ export type Scan = Route.Pick("packages") & {
     discover: bool
 }
 
-export type Xml = Route.Pick("directory", "workspace") & {
+export type Xml = Route.Pick("directory") & {
     owner: string,
-    allocator: Allocator,
     layout: Layout
 }
 

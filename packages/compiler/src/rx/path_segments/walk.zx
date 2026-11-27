@@ -1,45 +1,58 @@
 import bytes from "std:bytes"
-import memory from "memory"
 
 import scan from "./scan"
 
-import type { Position, Walk } from "./model"
+import type { Output, Walk } from "./model"
 
 export type Input = Walk
 
-export type Output = Position
-
 export default function (in: Input): Output {
     const suffix = bytes.fromText(in.suffix)
-    const target = in.target
-    const capacity = in.capacity
+    const empty: u8[][] = []
 
-    if (target != null && suffix.length != 0) {
-        const copied =
-            memory.copyBytes(
-                target,
-                capacity - suffix.length,
-                suffix,
-                0,
-                suffix.length
-            )
-    }
+    const initial =
+        in.collect && suffix.length != 0 ? empty.push(suffix)[0] : empty
 
     const tail = scan({
         source: in.path,
         initial: {
             parents: 0,
             length: suffix.length,
-            attached: in.attached
+            attached: in.attached,
+            parts: initial
         },
-        capacity,
-        target
+        collect: in.collect
     })
 
-    return scan({
+    const done = scan({
         source: in.directory,
         initial: tail,
-        capacity,
-        target
+        collect: in.collect
     })
+
+    if (!in.collect || done.parts.length == 0) {
+        return {
+            ...done,
+            text: []
+        }
+    }
+
+    const forward: u8[][] = []
+
+    const ordered = loop({
+        index: done.parts.length,
+        items: forward
+    }, {
+        while: state => state.index != 0,
+        next: state => {
+            state.index -= 1
+            state.items = state.items.push(done.parts[state.index])[0]
+        },
+        return: state => state.items
+    })
+
+    return {
+        ...done,
+        text: bytes.join([], ordered)
+    }
 }

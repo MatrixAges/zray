@@ -1,6 +1,3 @@
-import memory from "memory"
-
-import type { U64Buffer } from "memory"
 import type { ExprTree } from "../../../../zx/frontend/parser/expressions/state/model"
 
 export enum Kind {
@@ -13,22 +10,19 @@ export type Input = {
     order: u64[],
     first: u64,
     end: u64,
-    capacity: u64,
-    kind: Kind,
-    target: U64Buffer
+    kind: Kind
 }
 
-export type Output = {
-    next: u64,
-    written: u64
-}
+export type Output = u64[]
 
 export default function (in: Input): Output {
+    const empty: u64[] = []
+
     return loop({
         next: in.first,
-        written: 0
+        values: empty
     }, {
-        while: state => state.next < in.end && state.written < in.capacity,
+        while: state => state.next < in.end,
         next: state => {
             const row = in.order[state.next]
 
@@ -36,19 +30,17 @@ export default function (in: Input): Output {
                 const part = in.tree.parts[row]
 
                 if (part.expression) {
-                    memory.writeU64(in.target, state.written, part.value)
-                    state.written += 1
+                    state.values = state.values.push(part.value)[0]
                 }
             } else {
                 const arm = in.tree.arms[row]
-                const first = state.written * 2
 
-                memory.writeU64(in.target, first, arm.condition)
-                memory.writeU64(in.target, first + 1, arm.result)
-                state.written += 1
+                state.values = state.values.push(arm.condition)[0]
+                state.values = state.values.push(arm.result)[0]
             }
 
             state.next += 1
-        }
+        },
+        return: state => state.values
     })
 }

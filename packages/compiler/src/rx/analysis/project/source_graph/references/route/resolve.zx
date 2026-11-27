@@ -1,5 +1,4 @@
 import select from "../../../../../../zx/modules/project/target/select"
-import { State } from "../../../../../path_segments/reference/model"
 import resolve from "../../../../../path_segments/reference/resolve"
 import { Kind } from "./model"
 import pathKind from "./path_kind"
@@ -19,32 +18,25 @@ export default function (in: Input): Output {
                 kind: Kind.Package,
                 first: found.first,
                 duplicate: found.duplicate,
-                length: 0
+                path: []
             }
         }
     }
 
     const placement = pathKind(in.target)
 
-    const path = resolve({
+    const resolved = resolve({
         kind: placement.path,
-        ...in.pick([
-            "directory",
-            "reference",
-            "workspace"
-        ])
+        directory: in.directory,
+        reference: in.reference
     })
 
-    const kind = match path.state {
-        State.Invalid => Kind.Invalid,
-        State.NeedSpace => Kind.NeedSpace,
-        _ => placement.destination
-    }
+    const kind = resolved.valid ? placement.destination : Kind.Invalid
 
     return {
         kind,
         first: null,
         duplicate: false,
-        length: path.length
+        path: resolved.path
     }
 }

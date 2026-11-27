@@ -38,16 +38,13 @@ export default function (in: Input): Output {
         }
     }
 
-    const normalized = memory.allocateU8Buffer(paths.allocator, paths.path, plan.length)
-
-    const written = write({
+    const normalized = write({
         directory: [],
         path,
         suffix: plan.suffix,
         attached: plan.attached,
-        capacity: plan.length,
-        target: paths.path
-    })
+        collect: true
+    }).text
 
     const previous = index({
         ...paths.registry,

@@ -166,10 +166,6 @@ pub fn allocateStringViews(allocator: std.mem.Allocator, target: *anyopaque, cou
     try allocateViews([]const u8, allocator, target, count);
 }
 
-pub fn allocateBoolViews(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    try allocateViews(bool, allocator, target, count);
-}
-
 pub fn allocateU32Views(allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(u32, allocator, target, count);
 }
@@ -182,21 +178,9 @@ pub inline fn allocateU64Buffer(resource: *const anyopaque, target: *anyopaque, 
     try allocateU64Views(column_set.borrowAllocator(resource), target, count);
 }
 
-pub inline fn allocateU8Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error![]const u8 {
-    try allocateViews(u8, column_set.borrowAllocator(resource), target, count);
-
-    return u8Views(target);
-}
-
 fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const output: *[]T = @ptrCast(@alignCast(target));
     output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
-}
-
-pub inline fn u8Views(source: *const anyopaque) []const u8 {
-    const view: *const []const u8 = @ptrCast(@alignCast(source));
-
-    return view.*;
 }
 
 pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {

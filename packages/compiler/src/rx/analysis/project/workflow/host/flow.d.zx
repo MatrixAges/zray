@@ -31,14 +31,6 @@ export declare function constraintVoidNode(state: ConstraintCollection): u32?
 export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function publishConditionFacts(
-    facts: ConditionFacts,
-    written: u64,
-    node: u64?,
-    start: u64?,
-    length: u64
-): void throws { OutOfMemory, InvalidSource }
-
 export declare function refreshFlowCursor(state: FlowTraversal): void
 
 export declare function prepareFlowCall(state: FlowTraversal, item: u32): bool

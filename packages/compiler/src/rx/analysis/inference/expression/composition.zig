@@ -5,7 +5,6 @@ const Graph = @import("../types.zig");
 const Expression = @import("../expression.zig");
 const generated = @import("rx_options").generated_graph;
 const Kind = enum { Template, Match };
-const batch_size = 16;
 
 pub fn template(self: *Expression, parts: anytype, span: zx.Span) zx.Error!Graph.Id {
     try visit(.Template, self, parts, null);
@@ -28,40 +27,39 @@ const Hints = struct { subject: Graph.Id, result: Graph.Id };
 
 fn visit(comptime kind: Kind, self: *Expression, items: anytype, hints: if (kind == .Match) Hints else @TypeOf(null)) zx.Error!void {
     if (comptime generated and @typeInfo(@TypeOf(items)) == .@"struct") {
+        if (items.len == 0) return;
+
         const rule = @import("generated_rx_inference_operands");
         const Input = std.meta.Child(rule.Input);
         const context = items.context;
-        const width = if (kind == .Template) 1 else 2;
-        var values: [batch_size * width]u64 = undefined;
-        var target: []u64 = &values;
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        var position = items.first;
-        const end = position + items.len;
+        var arena = std.heap.ArenaAllocator.init(self.graph.allocator);
 
-        while (position < end) {
-            const input: Input = .{
-                .tree = zx.columns.pointer(@FieldType(Input, "tree"), context.storage.expressions),
-                .order = context.order.edges,
-                .first = position,
-                .end = end,
-                .capacity = batch_size,
-                .kind = if (kind == .Template) .Template else .Match,
-                .target = @ptrCast(&target),
-            };
+        defer arena.deinit();
 
-            const page = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
-            position = @intCast(page.next);
+        const input: Input = .{
+            .tree = zx.columns.pointer(@FieldType(Input, "tree"), context.storage.expressions),
+            .order = context.order.edges,
+            .first = items.first,
+            .end = items.first + items.len,
+            .kind = if (kind == .Template) .Template else .Match,
+        };
 
-            for (0..@intCast(page.written)) |index| {
-                const left = context.expression(values[index * width]);
+        const values = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
 
-                if (kind == .Template) {
-                    _ = try self.infer(left, null);
-                } else {
-                    _ = try self.infer(left, hints.subject);
-                    _ = try self.infer(context.expression(values[index * width + 1]), hints.result);
-                }
+        if (kind == .Template) {
+            for (values) |value| _ = try self.infer(context.expression(value), null);
+        } else {
+            var index: usize = 0;
+
+            while (index < values.len) : (index += 2) {
+                _ = try self.infer(context.expression(values[index]), hints.subject);
+                _ = try self.infer(context.expression(values[index + 1]), hints.result);
             }
         }
 

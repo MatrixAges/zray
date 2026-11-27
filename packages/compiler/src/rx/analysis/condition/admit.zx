@@ -8,19 +8,17 @@ import { Action } from "./model"
 import type { Fact as Output, Scope } from "./model"
 
 export type Input = Scope & {
-    node: u64,
-    written: u64
+    node: u64
 }
 
 export default function (in: Input): Output {
-    const { node, written } = in
+    const { node } = in
 
     const skip: Output = {
+        action: Action.Scan,
         node,
-        written,
-        start: 0,
         length: 0,
-        action: Action.Scan
+        view: []
     }
 
     const kind = in.nodes[node].kind
@@ -40,9 +38,10 @@ export default function (in: Input): Output {
 
     if (!path.contiguous) {
         return {
-            ...skip,
             action: Action.Render,
-            length: path.length
+            node,
+            length: path.length,
+            view: []
         }
     }
 
@@ -56,19 +55,10 @@ export default function (in: Input): Output {
         return skip
     }
 
-    if (written == in.capacity) {
-        return {
-            ...skip,
-            action: Action.Borrow,
-            start: path.start,
-            length: path.length
-        }
-    }
-
-    memory.writeU8List(in.target, written, view)
-
     return {
-        ...skip,
-        written: written + 1
+        action: Action.Borrow,
+        node,
+        length: path.length,
+        view
     }
 }

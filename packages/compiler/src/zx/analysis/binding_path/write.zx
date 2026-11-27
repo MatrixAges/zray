@@ -1,47 +1,53 @@
-import { ascii_dot } from "core/ascii/const"
-import memory from "memory"
+import bytes from "std:bytes"
 
 import { ExprKind } from "../../frontend/parser/expressions/state/model"
 
-import type { U8Buffer } from "memory"
 import type { ExprNode } from "../../frontend/parser/expressions/state/model"
 
 export type Input = {
     source: u8[],
     nodes: ExprNode[],
-    node: u64,
-    length: u64,
-    target: U8Buffer
+    node: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const written = loop({
+    const empty: u8[][] = []
+
+    const reversed = loop({
         node: in.node,
-        end: in.length,
+        parts: empty,
         complete: false
     }, {
         while: state => !state.complete,
         next: state => {
             const node = in.nodes[state.node]
             const span = node.name
-            const start = state.end - (span.end - span.start)
-            const copied = memory.copyBytes(
-                in.target,
-                start,
-                in.source,
-                span.start,
-                span.end
-            )
+            const segment = bytes.readU8s(in.source, span.start, span.end)
+
+            state.parts = state.parts.push(segment)[0]
 
             if (node.kind == ExprKind.Identifier) {
                 state.complete = true
             } else {
-                state.end = start - 1
-                memory.writeU8(in.target, state.end, ascii_dot)
                 state.node = node.first
             }
-        }
+        },
+        return: state => state.parts
     })
+
+    const ordered = loop({
+        index: reversed.length,
+        parts: empty
+    }, {
+        while: state => state.index != 0,
+        next: state => {
+            state.index -= 1
+            state.parts = state.parts.push(reversed[state.index])[0]
+        },
+        return: state => state.parts
+    })
+
+    return bytes.join(bytes.fromText("."), ordered)
 }

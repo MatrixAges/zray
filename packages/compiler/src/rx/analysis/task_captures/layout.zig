@@ -51,13 +51,11 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, captures: @i
     }
 
     const rule = @import("generated_rx_task_capture_layout");
-    var positions: []u32 = &.{};
 
     const input: std.meta.Child(rule.Input) = .{
         .types = @ptrCast(types),
         .parameters = @ptrCast(parameters),
         .marked = captures.marked.items,
-        .positions = @ptrCast(&positions),
         .count = count,
     };
 
@@ -67,7 +65,7 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, captures: @i
     };
 
     return .{
-        .positions = positions,
+        .positions = result.positions,
         .source_types = @ptrCast(result.source_types),
         .parameter_types = @ptrCast(result.parameter_types),
         .optional_count = @intCast(result.optional_count),
@@ -97,7 +95,12 @@ pub fn scope(allocator: std.mem.Allocator, types: ir.TypeTable, bindings: Expres
 
     const rule = @import("generated_rx_task_capture_narrow");
     const Input = std.meta.Child(rule.Input);
-    var output: []u32 = @ptrCast(selected_types);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     const input: Input = .{
         .names = bindings.names,
@@ -105,12 +108,14 @@ pub fn scope(allocator: std.mem.Allocator, types: ir.TypeTable, bindings: Expres
         .kinds = types.kinds,
         .children = types.first,
         .facts = facts,
-        .narrowed = @ptrCast(&output),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const narrowed = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    @memcpy(selected_types, @as([]const ir.TypeId, @ptrCast(narrowed)));
 
     return selected;
 }

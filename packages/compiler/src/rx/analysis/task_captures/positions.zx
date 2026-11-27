@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import type { Input as Request, Selection } from "./layout/model"
 
@@ -8,40 +7,34 @@ export type Input = Request
 export type Output = Selection
 
 export default function (in: Input): Output {
-    memory.allocateU32Views(in.positions, in.count)
+    const empty: u32[] = []
 
     return loop({
         cursor: 0,
-        written: 0,
+        positions: empty,
         first: 0,
         optional_count: 0
     }, {
-        while: state => state.written < in.count,
+        while: state => state.positions.length < in.count,
         next: state => {
             const row = state.cursor
 
             if (in.marked[row]) {
-                if (state.written == 0) {
+                if (state.positions.length == 0) {
                     state.first = row
                 }
 
-                memory.writeU32(
-                    in.positions,
-                    state.written,
-                    integers.narrow(row)
-                )
+                state.positions = state.positions.push(integers.narrow(row))[0]
 
                 if (in.types[row] != in.parameters[row]) {
                     state.optional_count += 1
                 }
-
-                state.written += 1
             }
 
             state.cursor += 1
         },
         return: state => ({
-            positions: memory.u32Views(in.positions),
+            positions: state.positions,
             first: state.first,
             contiguous: state.cursor - state.first == in.count,
             optional_count: state.optional_count

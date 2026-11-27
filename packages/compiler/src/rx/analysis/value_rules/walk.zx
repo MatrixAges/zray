@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
 import admit from "./admit"
 import child from "./child"
@@ -10,6 +8,7 @@ import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const missing: u64? = null
+    const empty_stack: u64[] = []
 
     const empty: Output = {
         issue: Issue.None,
@@ -20,6 +19,8 @@ export default function (in: Input): Output {
         node: in.root,
         ordinal: 0,
         depth: 0,
+        ancestors: empty_stack,
+        positions: empty_stack,
         condition: missing,
         policy: empty,
         style: empty,
@@ -63,8 +64,14 @@ export default function (in: Input): Output {
                 }
 
                 if (next.node != null) {
-                    memory.writeU64(in.ancestors, state.depth, state.node)
-                    memory.writeU64(in.positions, state.depth, next.next)
+                    if (state.depth < state.ancestors.length) {
+                        state.ancestors[state.depth] = state.node
+                        state.positions[state.depth] = next.next
+                    } else {
+                        state.ancestors = state.ancestors.push(state.node)[0]
+                        state.positions = state.positions.push(next.next)[0]
+                    }
+
                     state.node = next.node
                     state.ordinal = 0
                     state.depth += 1
@@ -77,11 +84,8 @@ export default function (in: Input): Output {
                         state.active = false
                     } else {
                         state.depth -= 1
-                        state.node = memory.readU64(in.ancestors, state.depth)
-                        state.ordinal = memory.readU64(
-                            in.positions,
-                            state.depth
-                        )
+                        state.node = state.ancestors[state.depth]
+                        state.ordinal = state.positions[state.depth]
                     }
                 }
             }

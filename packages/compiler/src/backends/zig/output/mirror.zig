@@ -313,7 +313,7 @@ const Hashing = struct {
         var columns: FileColumns = undefined;
         const view = columns.bind(self.files);
 
-        try parallel.each(arenas, .{
+        try parallel.eachHash(arenas, .{
             .count = count,
             .render = null,
             .scan = null,
@@ -321,9 +321,10 @@ const Hashing = struct {
             .hash = &.{
                 .sections = &view,
                 .head_blocks = head_blocks,
-                .names = @ptrCast(&self.paths),
-                .hashes = @ptrCast(&self.hashes),
             },
+        }, .{
+            .paths = self.paths,
+            .hashes = self.hashes,
         });
     }
     pub fn step(self: *const Hashing, _: std.mem.Allocator, index: usize) !void {

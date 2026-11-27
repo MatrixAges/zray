@@ -13,12 +13,6 @@ export declare function allocateStringViews(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function allocateBoolViews(
-    allocator,
-    target: BoolBuffer,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function allocateU32Views(
     allocator,
     target: U32Buffer,

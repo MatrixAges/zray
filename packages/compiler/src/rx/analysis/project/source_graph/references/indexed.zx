@@ -18,14 +18,11 @@ export type Output = void
 export default function (in: Input): Output {
     const { references, xml, scan } = in
 
-    const scanned = loop({
-        next: references.count,
-        bytes: xml.workspace.bytes
-    }, {
-        while: state => state.next != 0,
-        next: state => {
-            state.next -= 1
-            const start = state.next * references.width
+    const scanned = loop(references.count, {
+        while: next => next != 0,
+        next: next => {
+            const row_index = next - 1
+            const start = row_index * references.width
             const row = memory.borrowU8Range(references.bytes, start, references.width)
             const attribute = columns.readBorrowedRowReference(
                 row,
@@ -46,16 +43,17 @@ export default function (in: Input): Output {
                 _ => Target.Store
             }
 
-            state.bytes = deliver({
+            deliver({
                 scan,
                 xml,
-                bytes: state.bytes,
                 node,
                 attribute,
                 target,
                 role: row[references.role],
                 package_allowed: row[references.package_allowed] != 0
             })
+
+            next = row_index
         }
     })
 }

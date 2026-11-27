@@ -1,20 +1,10 @@
-import type { U64Buffer, U8ListBuffer } from "memory"
 import type { ExprNode } from "../../../zx/frontend/parser/expressions/state/model"
 
 export type Scope = {
     source: u8[],
     nodes: ExprNode[],
     names: string[],
-    implicit_input: bool,
-    target: U8ListBuffer,
-    capacity: u64
-}
-
-export type Walk = {
-    condition: u64,
-    truth: bool,
-    depth: u64,
-    active: bool
+    implicit_input: bool
 }
 
 export enum Action {
@@ -26,13 +16,21 @@ export enum Action {
 export type Fact = {
     action: Action,
     node: u64,
-    start: u64,
     length: u64,
-    written: u64
+    view: u8[]
 }
 
-export type Input = Scope & Walk & {
-    pending: U64Buffer
+export type Render = {
+    node: u64,
+    length: u64
 }
 
-export type Output = Walk & Fact
+export type Input = Scope & {
+    condition: u64,
+    truth: bool
+}
+
+export type Output = {
+    borrowed: u8[][],
+    rendered: Render[]
+}

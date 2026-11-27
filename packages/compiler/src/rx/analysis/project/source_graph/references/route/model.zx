@@ -14,13 +14,12 @@ export enum Kind {
     Package,
     Source,
     Store,
-    Invalid,
-    NeedSpace
+    Invalid
 }
 
 export type Output = {
     kind: Kind,
     first?: u64,
     duplicate: bool,
-    length: u64
+    path: u8[]
 }

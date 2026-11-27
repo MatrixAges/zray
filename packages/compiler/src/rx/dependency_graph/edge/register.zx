@@ -5,7 +5,7 @@ import { issue_invalid_path, issue_missing, issue_none } from "../const"
 import { Issue } from "../model"
 import resolve from "./resolve"
 
-import type { Allocator, ReadColumn } from "memory"
+import type { ReadColumn } from "memory"
 import type { IndirectTextColumn } from "memory/columns"
 import type { Input as Edge } from "./model"
 
@@ -24,7 +24,6 @@ export type Candidates = {
 }
 
 export type Input = Edge.Omit("reference", "package_allowed") & {
-    allocator: Allocator,
     candidates: Candidates
 }
 
@@ -35,7 +34,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { candidates, workspace } = in
+    const { candidates } = in
 
     const indexed = candidates.indexed
 
@@ -50,7 +49,6 @@ export default function (in: Input): Output {
 
     return loop({
         processed: 0,
-        bytes: workspace.bytes,
         targets,
         issues,
         references
@@ -72,38 +70,13 @@ export default function (in: Input): Output {
                     _ => memory.readColumnBool(indexed.packages, row)
                 }
 
-                const request = {
+                const edge = resolve({
                     directory: in.directory,
                     packages: in.packages,
                     registry: in.registry,
-                    workspace: {
-                        ...workspace,
-                        bytes: state.bytes
-                    },
                     reference,
                     package_allowed
-                }
-
-                const first = resolve(request)
-
-                if (first.required != 0) {
-                    state.bytes = memory.allocateU8Buffer(
-                        in.allocator,
-                        workspace.target,
-                        workspace.start + first.required
-                    )
-                }
-
-                const edge = match first.required {
-                    0 => first,
-                    _ => resolve({
-                        ...request,
-                        workspace: {
-                            ...request.workspace,
-                            bytes: state.bytes
-                        }
-                    })
-                }
+                })
 
                 if (edge.included) {
                     const issue = match edge.issue {

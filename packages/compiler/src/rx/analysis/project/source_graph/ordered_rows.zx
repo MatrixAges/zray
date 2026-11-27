@@ -1,34 +1,28 @@
-import memory from "memory"
-
-import type { U64Buffer } from "memory"
-
 export type Input = {
     order: u64[],
     first: u64,
-    end: u64,
-    entries: U64Buffer
+    end: u64
 }
 
-export type Output = u64
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { order, first, end, entries } = in
+    const empty: u64[] = []
 
     return loop({
         position: 0,
-        count: 0
+        entries: empty
     }, {
-        while: state => state.position < order.length,
+        while: state => state.position < in.order.length,
         next: state => {
-            const row = order[state.position]
+            const row = in.order[state.position]
 
-            if (row >= first && row < end) {
-                memory.writeU64(entries, state.count, row - first)
-                state.count += 1
+            if (row >= in.first && row < in.end) {
+                state.entries = state.entries.push(row - in.first)[0]
             }
 
             state.position += 1
         },
-        return: state => state.count
+        return: state => state.entries
     })
 }

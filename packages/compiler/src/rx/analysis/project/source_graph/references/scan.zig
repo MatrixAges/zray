@@ -63,8 +63,6 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
     var scan = Scan.bind(collector);
     const packages = zx.memory.borrowTextColumn("specifier", collector.dependencies());
     const allocator = collector.temporary.allocator();
-    var buffer: [512]u8 = undefined;
-    var workspace: []u8 = &buffer;
     var cursor: Cursor = .{};
 
     defer cursor.deinit(allocator);
@@ -84,8 +82,6 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
         .xml = &.{
             .owner = source.path,
             .directory = std.fs.path.dirname(source.path) orelse ".",
-            .allocator = @ptrCast(&allocator),
-            .workspace = &.{ .bytes = workspace, .target = @ptrCast(&workspace), .start = 0 },
             .layout = &comptime rx.astLayout(Layout),
         },
         .indexed = if (indexed) |entries| &.{
@@ -132,9 +128,10 @@ pub fn collectZx(collector: anytype, header: anytype) @TypeOf(collector.*).Error
 }
 
 fn execute(collector: anytype, scan: *Scan, input: *const Input) @TypeOf(collector.*).Error!void {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, collector.temporary.allocator());
 
-    rule.executeIn(empty.allocator(), input) catch |err| {
+    rule.executeIn(scratch.allocator(), input) catch |err| {
         if (comptime @TypeOf(collector) != *Collector) {
             if (scan.failure) |failure| return @errorCast(failure);
         }
@@ -190,7 +187,7 @@ pub fn deliverSourceGraphReference(
     const delivery: Delivery = .{
         .kind = kind,
         .location = location,
-        .role = @enumFromInt(role),
+        .role = @fromBackingInt(@intCast(role)),
         .value = value,
         .path = path,
         .member = member,

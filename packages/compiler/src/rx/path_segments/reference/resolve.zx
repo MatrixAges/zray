@@ -1,29 +1,17 @@
 import normalize from "../normalize"
 import walk from "../walk"
-import { State } from "./model"
 import request from "./request"
 
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const path = request(in.omit(["workspace"]))
+    const path = request(in)
     const normalized = normalize(path)
 
     if (!normalized.valid) {
         return {
-            state: State.Invalid,
-            length: 0
-        }
-    }
-
-    const { workspace } = in
-
-    const available = workspace.bytes.length - workspace.start
-
-    if (normalized.length > available) {
-        return {
-            state: State.NeedSpace,
-            length: normalized.length
+            valid: false,
+            path: []
         }
     }
 
@@ -32,12 +20,11 @@ export default function (in: Input): Output {
         path: path.path,
         suffix: normalized.suffix,
         attached: normalized.attached,
-        capacity: workspace.start + normalized.length,
-        target: workspace.target
+        collect: true
     })
 
     return {
-        state: State.Ready,
-        length: written.length
+        valid: true,
+        path: written.text
     }
 }

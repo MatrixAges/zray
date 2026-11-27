@@ -1,6 +1,6 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import { max_u32 } from "core/const"
-import memory from "memory/columns"
 
 import { DeclarationsKind } from "../../../printer/model/declarations"
 
@@ -28,7 +28,7 @@ export default function (in: Input): Output {
 
             const owned = match {
                 in.borrow_text => name,
-                _ => memory.copyColumnBytes(in.allocator, name)
+                _ => bytes.readU8s(name, 0, name.length)
             }
 
             current.tags = current.tags.push(DeclarationsKind.Constant)[0]

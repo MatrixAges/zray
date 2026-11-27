@@ -43,7 +43,6 @@ pub fn appendConstants(self: *Self, allocator: std.mem.Allocator, source: anytyp
     try self.apply(allocator, entry, .{
         .state = self.state,
         .source = if (@typeInfo(Source) == .pointer) &columns else columns,
-        .allocator = @ptrCast(&allocator),
         .borrow_text = borrow_text,
     });
 

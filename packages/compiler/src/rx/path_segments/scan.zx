@@ -1,32 +1,28 @@
 import bytes from "std:bytes"
 import { ascii_dot, ascii_slash } from "core/ascii/const"
-import memory from "memory"
 
 import { directory_separator } from "../../zx/modules/path/const"
 
-import type { U8Buffer } from "memory"
 import type { Position } from "./model"
 
 export type Input = {
     source: u8[],
     initial: Position,
-    capacity: u64,
-    target?: U8Buffer
+    collect: bool
 }
 
 export type Output = Position
 
 export default function (in: Input): Output {
     const source = in.source
-    const target = in.target
-    const capacity = in.capacity
     const separator = bytes.fromText(directory_separator)
 
     return loop({
         offset: source.length,
         parents: in.initial.parents,
         length: in.initial.length,
-        attached: in.initial.attached
+        attached: in.initial.attached,
+        parts: in.initial.parts
     }, {
         while: state => state.offset != 0,
         next: state => {
@@ -60,28 +56,22 @@ export default function (in: Input): Output {
                         if (state.length != 0 && !state.attached) {
                             state.length += 1
 
-                            if (target != null) {
-                                const copied = memory.copyBytes(
-                                    target,
-                                    capacity - state.length,
-                                    separator,
-                                    0,
-                                    separator.length
-                                )
+                            if (in.collect) {
+                                state.parts = state.parts.push(separator)[0]
                             }
                         }
 
                         state.length += width
                         state.attached = false
 
-                        if (target != null) {
-                            const copied = memory.copyBytes(
-                                target,
-                                capacity - state.length,
-                                source,
-                                start,
-                                end
-                            )
+                        if (in.collect) {
+                            state.parts = state.parts.push(
+                                bytes.readU8s(
+                                    source,
+                                    start,
+                                    end
+                                )
+                            )[0]
                         }
                     }
                 }
@@ -90,7 +80,8 @@ export default function (in: Input): Output {
         return: state => ({
             parents: state.parents,
             length: state.length,
-            attached: state.attached
+            attached: state.attached,
+            parts: state.parts
         })
     })
 }

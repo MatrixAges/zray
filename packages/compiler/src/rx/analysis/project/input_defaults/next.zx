@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import representative from "../../inference/forest/borrowed_root"
 import referenced from "./referenced"
@@ -16,8 +15,6 @@ export type Output = {
 export default function (in: Input): Output {
     const { columns, parents, marked, protected } = in
     const { edges, fixed, inputs } = columns
-
-    const marks = memory.boolViews(marked)
 
     const initial: Output = {
         next: in.next,
@@ -38,7 +35,7 @@ export default function (in: Input): Output {
                     value
                 })
 
-                if (marks.length == 0) {
+                if (marked.length == 0) {
                     const result = referenced({
                         edges,
                         parents,
@@ -50,7 +47,7 @@ export default function (in: Input): Output {
                     if (!result.found) {
                         state.input = value
                     }
-                } else if (!marks[integers.widen(root)]) {
+                } else if (!marked[integers.widen(root)]) {
                     if (protected == null) {
                         state.input = value
                     } else {

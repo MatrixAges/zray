@@ -1,4 +1,3 @@
-import memory from "memory"
 import { GraphReferenceKind } from "rx_graph_host"
 
 import classify from "../../../../../zx/modules/project/target/classify"
@@ -11,23 +10,21 @@ import { Kind } from "./route/model"
 import resolve from "./route/resolve"
 import send from "./send"
 
-import type { Allocator } from "memory"
 import type { Scan } from "./model"
 import type { Input as Route } from "./route/model"
 import type { Site } from "./send"
 
 export type Input = Route.Omit("packages", "reference") & {
     scan: Scan,
-    allocator: Allocator,
     owner: string,
     reference?: string,
     site: Site
 }
 
-export type Output = u8[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const { scan, reference, site, workspace } = in
+    const { scan, reference, site } = in
 
     if (reference == null) {
         send({
@@ -37,41 +34,16 @@ export default function (in: Input): Output {
             value: missing_reference
         })
 
-        return workspace.bytes
+        return
     }
 
-    const request = {
-        ...in.pick([
-            "directory",
-            "target",
-            "package_allowed",
-            "workspace"
-        ]),
+    const route = resolve({
+        directory: in.directory,
+        target: in.target,
+        package_allowed: in.package_allowed,
         packages: scan.packages,
         reference
-    }
-
-    const first = resolve(request)
-
-    const bytes = match first.kind {
-        Kind.NeedSpace => memory.allocateU8Buffer(
-            in.allocator,
-            workspace.target,
-            first.length
-        ),
-        _ => workspace.bytes
-    }
-
-    const route = match first.kind {
-        Kind.NeedSpace => resolve({
-            ...request,
-            workspace: {
-                ...workspace,
-                bytes
-            }
-        }),
-        _ => first
-    }
+    })
 
     switch (route.kind) {
         case Kind.Package:
@@ -109,7 +81,6 @@ export default function (in: Input): Output {
             }
         case Kind.Source:
             const named = site.role == role_call && in.target == Target.Function
-            const path = memory.borrowU8Range(bytes, 0, route.length)
 
             const export_name: string? = match {
                 named => member(reference),
@@ -120,7 +91,7 @@ export default function (in: Input): Output {
                 target: scan.target,
                 kind: GraphReferenceKind.Source,
                 site,
-                path,
+                path: route.path,
                 member: export_name
             })
         case Kind.Store:
@@ -129,7 +100,7 @@ export default function (in: Input): Output {
                 kind: GraphReferenceKind.Store,
                 site,
                 value: in.owner,
-                path: memory.borrowU8Range(bytes, 0, route.length)
+                path: route.path
             })
         default:
             send({
@@ -139,6 +110,4 @@ export default function (in: Input): Output {
                 value: invalid_reference
             })
     }
-
-    return bytes
 }

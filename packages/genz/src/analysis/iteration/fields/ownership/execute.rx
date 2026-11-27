@@ -11,19 +11,27 @@
         ])}
     />
 
-    <If on={$in.requests.fields.length != 0}>
-        <Call
-            fn="apply"
-            in={{
-                target: $in.projection,
-                requests: $in.requests,
-                values: $in.values,
-                replacements: $in.replacements
-            }}
-        />
-    </If>
+    <Call
+        fn="apply"
+        in={{
+            target: $in.projection,
+            requests: $in.requests,
+            values: $in.values
+        }}
+    />
 
-    <Call fn="rebuild" in={$in} />
+    <Call
+        fn="rebuild"
+        in={{
+            ...$in.pick([
+                "target",
+                "frame",
+                "type_id",
+                "layout"
+            ]),
+            replacements: $ctx.apply
+        }}
+    />
 
     <Return value={$ctx.rebuild} />
 </Module>

@@ -10,7 +10,6 @@ pub const Frame = struct {
     input: Input = undefined,
     ports: std.meta.Child(@FieldType(Input, "ports")) = undefined,
     parents: []u32 = undefined,
-    marked: []bool = &.{},
     edges: std.meta.Child(@FieldType(Columns, "edges")) = undefined,
     columns: Columns = undefined,
     pub fn bind(self: *Frame, state: *Collection, port_columns: anytype) void {
@@ -26,7 +25,6 @@ pub const Frame = struct {
             .frame = @ptrCast(self),
             .modules = state.modules.len,
             .parents = @ptrCast(&self.parents),
-            .marked = @ptrCast(&self.marked),
             .default_columns = &self.columns,
             .ports = &self.ports,
         };

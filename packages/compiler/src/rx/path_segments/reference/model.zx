@@ -1,24 +1,10 @@
-import type { U8Buffer } from "memory"
 import type { Request } from "../model"
 
-export type Workspace = {
-    bytes: u8[],
-    target: U8Buffer,
-    start: u64
-}
-
 export type Input = Request.Pick("directory", "kind") & {
-    reference: string,
-    workspace: Workspace
-}
-
-export enum State {
-    Invalid,
-    NeedSpace,
-    Ready
+    reference: string
 }
 
 export type Output = {
-    state: State,
-    length: u64
+    valid: bool,
+    path: u8[]
 }

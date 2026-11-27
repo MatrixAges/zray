@@ -1,51 +1,92 @@
-import memory from "memory"
-import { publishConditionFacts } from "rx_project_host"
-
+import { Operator } from "../../../zx/frontend/parser/expressions/prepare/model"
+import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import admit from "./admit"
 import { Action } from "./model"
-import plan from "./plan"
 
-import type { U64Buffer } from "memory"
-import type { ConditionFacts } from "rx_project_host"
-import type { Scope, Walk } from "./model"
-
-export type Input = Scope.Omit("capacity") & Walk.Pick("condition", "truth") & {
-    facts: ConditionFacts,
-    pending: U64Buffer
-}
-
-export type Output = void
+import type { Input, Output, Render } from "./model"
 
 export default function (in: Input): Output {
-    const { facts, source, nodes, names, implicit_input, target, pending } = in
+    const empty_borrowed: u8[][] = []
+    const empty_rendered: Render[] = []
+    const empty_pending: u64[] = []
 
-    const published = loop({
+    return loop({
         condition: in.condition,
         truth: in.truth,
         depth: 0,
-        active: true
+        active: true,
+        pending: empty_pending,
+        borrowed: empty_borrowed,
+        rendered: empty_rendered
     }, {
         while: state => state.active,
         next: state => {
-            const step = plan({
-                ...state,
-                source,
-                nodes,
-                names,
-                implicit_input,
-                target,
-                capacity: memory.u8ListViews(target).length,
-                pending
-            })
+            const node = in.nodes[state.condition]
+            const negate = node.kind == ExprKind.Unary && !node.flag
+            const binary = node.kind == ExprKind.Binary
+            const conjunction = node.operator == Operator.And && state.truth
+            const disjunction = node.operator == Operator.Or && !state.truth
+            const split = binary && (conjunction || disjunction)
 
-            const node: u64? = step.action == Action.Render ? step.node : null
-            const start: u64? = step.action == Action.Borrow ? step.start : null
+            if (negate) {
+                state.condition = node.first
+                state.truth = !state.truth
+            } else if (split) {
+                if (state.depth < state.pending.length) {
+                    state.pending[state.depth] = state.condition
+                } else {
+                    state.pending = state.pending.push(state.condition)[0]
+                }
 
-            publishConditionFacts(facts, step.written, node, start, step.length)
+                state.depth += 1
+                state.condition = node.first
+            } else {
+                const equality = node.operator == Operator.Equal && !state.truth
+                const inequality = node.operator == Operator.NotEqual && state.truth
+                const confirms = binary && (equality || inequality)
 
-            state.condition = step.condition
-            state.truth = step.truth
-            state.depth = step.depth
-            state.active = step.active
-        }
+                if (confirms) {
+                    const value: u64? = match {
+                        in.nodes[node.first].kind == ExprKind.Null => node.second,
+                        in.nodes[node.second].kind == ExprKind.Null => node.first,
+                        _ => null
+                    }
+
+                    if (value != null) {
+                        const fact = admit({
+                            source: in.source,
+                            nodes: in.nodes,
+                            names: in.names,
+                            implicit_input: in.implicit_input,
+                            node: value
+                        })
+
+                        if (fact.action == Action.Borrow) {
+                            state.borrowed = state.borrowed.push(fact.view)[0]
+                        } else if (fact.action == Action.Render) {
+                            state.rendered = state.rendered.push({
+                                node: fact.node,
+                                length: fact.length
+                            })[0]
+                        }
+                    }
+                }
+
+                if (state.depth == 0) {
+                    state.active = false
+                } else {
+                    state.depth -= 1
+
+                    const group = in.nodes[state.pending[state.depth]]
+
+                    state.condition = group.second
+                    state.truth = group.operator == Operator.And
+                }
+            }
+        },
+        return: state => ({
+            borrowed: state.borrowed,
+            rendered: state.rendered
+        })
     })
 }

@@ -1,67 +1,69 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
+import strings from "std:string"
 
-import type { U8Buffer } from "memory"
 import type { Input as Rows } from "./model"
 
 export type Input = Rows & {
-    lengths: u64[],
-    target: U8Buffer
+    lengths: u64[]
 }
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
+    const empty: string[] = []
+
     return loop({
         row: 0,
-        offset: 0
+        paths: empty
     }, {
         while: state => state.row < in.lengths.length,
         next: state => {
             const row = state.row
 
-            if (!in.groups[row]) {
-                const length = in.lengths[row]
-                const start = loop({
+            if (in.groups[row]) {
+                state.paths = state.paths.push("")[0]
+            } else {
+                const initial: string[] = []
+
+                const reversed = loop({
                     current: row,
-                    end: state.offset + length,
+                    parts: initial,
                     active: true
                 }, {
-                    while: path => path.active,
-                    next: path => {
-                        const current = path.current
+                    while: cursor => cursor.active,
+                    next: cursor => {
+                        const current = cursor.current
                         const parent = in.parents[current]
-                        const prefix = match {
-                            parent != null => in.lengths[integers.widen(parent)],
-                            _ => 0
-                        }
-                        const count = in.lengths[current] - prefix
 
-                        const copied = memory.copyBytes(
-                            in.target,
-                            path.end - count,
-                            bytes.fromText(in.parts[current]),
-                            0,
-                            count
-                        )
-
-                        path.end -= copied
+                        cursor.parts = cursor.parts.push(in.parts[current])[0]
 
                         if (parent == null) {
-                            path.active = false
+                            cursor.active = false
                         } else {
-                            path.current = integers.widen(parent)
+                            cursor.current = integers.widen(parent)
                         }
                     },
-                    return: path => path.end
+                    return: cursor => cursor.parts
                 })
 
-                state.offset = start + length
+                const ordered = loop({
+                    index: reversed.length,
+                    parts: initial
+                }, {
+                    while: cursor => cursor.index != 0,
+                    next: cursor => {
+                        cursor.index -= 1
+                        cursor.parts =
+                            cursor.parts.push(reversed[cursor.index])[0]
+                    },
+                    return: cursor => cursor.parts
+                })
+
+                state.paths = state.paths.push(strings.join("", ordered))[0]
             }
 
             state.row += 1
         },
-        return: state => state.offset
+        return: state => state.paths
     })
 }

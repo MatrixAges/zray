@@ -1,4 +1,3 @@
-import type { U8Buffer } from "memory"
 import type { Kind } from "../path_kind/model"
 
 export type Request = {
@@ -21,7 +20,8 @@ export type Plan = Tail & {
 export type Position = {
     parents: u64,
     length: u64,
-    attached: bool
+    attached: bool,
+    parts: u8[][]
 }
 
 export type Walk = {
@@ -29,6 +29,9 @@ export type Walk = {
     path: u8[],
     suffix: string,
     attached: bool,
-    capacity: u64,
-    target?: U8Buffer
+    collect: bool
+}
+
+export type Output = Position & {
+    text: u8[]
 }

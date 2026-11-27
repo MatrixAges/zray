@@ -1,11 +1,15 @@
 import host from "lowering_host"
 
-import type { Input } from "./execute_model"
+import type { Input as Execution } from "./execute_model"
+
+export type Input = Execution.Pick("target", "frame", "type_id", "layout") & {
+    replacements: u32[]
+}
 
 export type Output = u32
 
 export default function (in: Input): Output {
     const layout = in.layout ?? host.lowerLayout(in.frame, in.type_id)
 
-    return host.rebuildLoopFields(in.target, layout)
+    return host.rebuildLoopFields(in.target, layout, in.replacements)
 }

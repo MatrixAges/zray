@@ -9,21 +9,27 @@ import type { Index } from "./model"
 
 export type Input = Index
 
-export type Output = u32?
+export type Output = {
+    marked: bool[],
+    protected?: u32
+}
 
 export default function (in: Input): Output {
-    const { columns, parents, marked, unused } = in
+    const { columns, parents, unused } = in
 
     const count = memory.u32Views(parents).length
+    const empty: bool[] = []
 
     if (unused <= 1 || columns.edges.left.length <= count / (unused - 1)) {
-        return null
+        return {
+            marked: empty,
+            protected: null
+        }
     }
 
-    const marks = mark({
+    const marked = mark({
         edges: columns.edges,
         parents,
-        marked,
         count
     })
 
@@ -35,10 +41,16 @@ export default function (in: Input): Output {
             value: candidate
         })
 
-        if (marks[integers.widen(root)]) {
-            return candidate
+        if (marked[integers.widen(root)]) {
+            return {
+                marked,
+                protected: candidate
+            }
         }
     }
 
-    return null
+    return {
+        marked,
+        protected: null
+    }
 }

@@ -1,6 +1,5 @@
 import type { AstWriter } from "ast_rows"
 import type { FieldProjection, LoopFieldRebuild, Lowering } from "lowering_host"
-import type { U32Buffer } from "memory"
 import type { Expressions, Requests } from "./model"
 
 export type Input = {
@@ -11,7 +10,6 @@ export type Input = {
     expressions: Expressions,
     requests: Requests,
     values: u32[],
-    replacements: U32Buffer,
     type_id: u32,
     layout?: u32
 }

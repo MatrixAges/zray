@@ -1,4 +1,4 @@
-import type { ReadColumn, StringBuffer, U64Buffer } from "memory"
+import type { ReadColumn } from "memory"
 import type {
     BootstrapPartitionJobs,
     BootstrapPartitionScan,
@@ -23,9 +23,13 @@ export type Render = {
 
 export type Hash = {
     sections: Sections,
-    head_blocks: u64,
-    names: StringBuffer,
-    hashes: U64Buffer
+    head_blocks: u64
+}
+
+export type Marked = {
+    offset: u64,
+    paths: string[],
+    hashes: u64[]
 }
 
 export type Write = {

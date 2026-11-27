@@ -26,28 +26,33 @@ pub fn buildWithRoots(allocator: std.mem.Allocator, options: Options, roots: any
 pub fn orderedRows(allocator: std.mem.Allocator, graph: *const Graph, kind: enum { zx, rx }) std.mem.Allocator.Error![]const u64 {
     const first = if (kind == .zx) 0 else graph.sources.zx_count;
     const end = if (kind == .zx) graph.sources.zx_count else graph.sources.rx_end;
-    var entries = try allocator.alloc(u64, @min(end - first, graph.order.len));
 
-    if (entries.len == 0) return entries;
-
-    errdefer allocator.free(entries);
+    if (first >= end or graph.order.len == 0) return &.{};
 
     if (comptime @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64)) {
         const rule = @import("generated_source_graph_ordered_rows");
+        var arena = std.heap.ArenaAllocator.init(allocator);
+
+        defer arena.deinit();
+
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
         const input: std.meta.Child(rule.Input) = .{
             .order = @ptrCast(graph.order),
             .first = first,
             .end = end,
-            .entries = @ptrCast(&entries),
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const count = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        const rows = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
 
-        return allocator.realloc(entries, @intCast(count));
+        return try allocator.dupe(u64, rows);
     }
 
+    var entries = try allocator.alloc(u64, @min(end - first, graph.order.len));
     var count: usize = 0;
 
     for (graph.order) |row| {

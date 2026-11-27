@@ -30,23 +30,29 @@ fn plan(request: Request) Error!Plan {
 pub fn resolve(allocator: std.mem.Allocator, directory: []const u8, path: []const u8, kind: Kind, suffix: []const u8) Error![]const u8 {
     const result = try plan(.{ .directory = directory, .path = path, .kind = kind, .suffix = suffix });
     const length = std.math.cast(usize, result.length) orelse return error.OutOfMemory;
-    var output = try allocator.alloc(u8, length);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     const emit: Input(write) = .{
         .directory = directory,
         .path = path,
         .suffix = result.suffix,
         .attached = result.attached,
-        .capacity = output.len,
-        .target = @ptrCast(&output),
+        .collect = true,
     };
 
-    const completed = invoke(write, empty.allocator(), &emit) catch unreachable;
+    const completed = invoke(write, scratch.allocator(), &emit) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    std.debug.assert(completed.parents == 0 and completed.length == output.len);
+    std.debug.assert(completed.parents == 0 and completed.length == length and completed.text.len == length);
 
-    return output;
+    return try allocator.dupe(u8, completed.text);
 }
 
 fn Input(comptime function: anytype) type {

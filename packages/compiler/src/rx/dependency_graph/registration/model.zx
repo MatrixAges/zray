@@ -1,14 +1,12 @@
 import type { Table } from "core/bytes/index/fixed"
-import type { Allocator, TextColumn, U8Buffer, U8ListBuffer } from "memory"
+import type { TextColumn, U8ListBuffer } from "memory"
 import type { GraphModuleRegistration } from "rx_graph_host"
 
 export type Paths = {
     source: TextColumn,
     count: u64,
     slots: U8ListBuffer,
-    path: U8Buffer,
-    registry: Table,
-    allocator: Allocator
+    registry: Table
 }
 
 export type Request = {
