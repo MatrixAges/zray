@@ -18,7 +18,6 @@ const Members = std.meta.Child(@FieldType(Input, "members"));
 const Ports = std.meta.Child(@FieldType(Input, "ports"));
 const Mapping = std.meta.Child(@FieldType(Ports, "types"));
 const Prefix = std.meta.Child(@typeInfo(@FieldType(Initializers, "prefix")).optional.child);
-const MemberTarget = std.meta.Child(@FieldType(Members, "target"));
 
 const InitializerHost = struct {
     allocator: std.mem.Allocator,
@@ -102,23 +101,9 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     const member_source = input.members;
     const member_rows = memory.borrowReadFields(.{ .names = "name", .intrinsics = "intrinsic", .ids = "id", .inputs = "input_type", .outputs = "output_type" }, member_source);
 
-    var member_output: memory.RowOutput(Binding, MemberTarget, .{
-        .names = &.{"name"},
-        .intrinsics = &.{"intrinsic"},
-        .ids = &.{"id"},
-        .inputs = &.{"input_type"},
-        .outputs = &.{"output_type"},
-        .namespaces = &.{"namespace"},
-    }) = undefined;
-
-    member_output.init();
-
     const members: Members = .{
         .anonymous = .Entry,
-        .first = 0,
         .source = &member_rows.bind(std.meta.Child(@FieldType(Members, "source"))),
-        .target = &member_output.view,
-        .entry = null,
         .type_ids = if (member_source.len == 0) &.{} else @ptrCast(nodes.types.mapped),
         .functions = zx.columns.pointer(@FieldType(Members, "functions"), &functions),
     };
@@ -145,7 +130,6 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
         .declarations = if (declared) &declarations else null,
         .initializers = &initializers,
         .members = &members,
-        .member_storage = @ptrCast(&member_output.buffer),
         .ports = &.{
             .declared = &.{ .input_type = @backingInt(input.program.input_type), .output_type = @backingInt(input.program.output_type) },
             .inputs = @ptrCast(&storage.input_types.items),
@@ -155,7 +139,6 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     };
 
     errdefer initial_output.release();
-    errdefer allocator.free(member_output.rows());
 
     const selected = generated.executeIn(allocator, &request, &initial_output) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
@@ -165,6 +148,19 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     const published = selected orelse return error.InvalidModule;
     const first: usize = @intCast(published.initializer_prefix);
     const owned = initial_output.rows;
+    const member_output = try allocator.alloc(Binding, published.rows.len);
+
+    for (published.rows, member_output) |row, *slot| {
+        slot.* = .{
+            .name = row.name,
+            .namespace = row.namespace,
+            .id = if (row.id) |id| @fromBackingInt(id) else null,
+            .input_type = if (row.input_type) |id| @fromBackingInt(id) else null,
+            .output_type = if (row.output_type) |id| @fromBackingInt(id) else null,
+            .intrinsic = if (row.intrinsic) |id| @fromBackingInt(id) else null,
+        };
+    }
+
     const result = output.surface;
 
     result.exports = if (declared and surface.exports().len != 0) surface.exports() else program.exports;
@@ -173,5 +169,5 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     result.input_type = @fromBackingInt(published.input_type);
     result.output_type = @fromBackingInt(published.output_type);
     result.store_initializers = if (owned.len != 0) owned else if (first != 0) shared[0..first] else &.{};
-    result.members = member_output.rows()[0..@intCast(published.written)];
+    result.members = member_output;
 }

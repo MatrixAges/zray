@@ -4,6 +4,7 @@ const ir = zx.ir;
 const memory = zx.memory;
 const model = @import("../../compiled.zig");
 const Input = @import("input.zig");
+const surface = @import("../../artifact/surface.zig");
 const Layout = @import("installation.zig").Layout;
 const Request = std.meta.Child(@typeInfo(@FieldType(Layout, "interface")).optional.child);
 const Targets = std.meta.Child(@FieldType(Request, "targets"));
@@ -20,7 +21,6 @@ pub const View = struct {
         .functions = &.{"function"},
         .types = &.{"types"},
         .members = &.{"members"},
-        .constants = &.{"constants"},
     }),
     types: memory.RowOutput(ir.Export, Field("types"), .{ .names = &.{"name"}, .ids = &.{"type_id"} }),
     members: memory.RowOutput(@import("../../function_import.zig"), Field("members"), .{
@@ -31,7 +31,6 @@ pub const View = struct {
         .outputs = &.{"output_type"},
         .intrinsics = &.{"intrinsic"},
     }),
-    constants: memory.RowOutput(ir.Constant, Field("constants"), .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} }),
     initializers: memory.RowOutput(model.StoreInitializer, Field("initializers"), .{ .identities = &.{"identity"}, .versions = &.{"schema_version"}, .functions = &.{"function"} }),
     buffers: std.meta.Child(@FieldType(Request, "buffers")),
     targets: Targets,
@@ -116,6 +115,9 @@ pub const View = struct {
 
                 self.members_written = row + 1;
             },
+            .Constants => {
+                self.exports.rows()[row].constants = try surface.ownConstants(allocator, entry.constants.?);
+            },
             .Initializer => {
                 errdefer allocator.free(entry.text);
 
@@ -148,7 +150,7 @@ pub const View = struct {
         }
 
         if (self.active_export) |index| {
-            releaseExport(allocator, published[index], self.types_written, self.members_written, 0);
+            releaseExport(allocator, published[index], self.types_written, self.members_written, published[index].constants.len);
         }
 
         allocator.free(published);

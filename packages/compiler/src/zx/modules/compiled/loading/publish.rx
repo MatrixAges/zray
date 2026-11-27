@@ -46,7 +46,7 @@
             origins: $in.merged.origins,
             natives: $in.native.delta,
             functions: {
-                types: $in.native.type_ids,
+                types: $in.merged.mapping,
                 natives: $in.native.mapping
             },
             selection: $ctx.plan.selection,

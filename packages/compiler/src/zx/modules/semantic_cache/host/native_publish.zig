@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Current = @import("../native_restore.zig").Current;
 const Loaded = @import("../../native.zig");
-const OriginTable = @import("../../nominal_origins.zig").Table;
 const publication = @import("../../native/publication/host.zig");
 const function_target = @import("../../link/signature/publication/destination.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
@@ -14,20 +13,17 @@ const Self = @This();
 
 members: Members,
 offsets: TypeTail.Offsets,
-options: TypeTail.Options,
 tail: TypeTail,
 pub fn init(self: *Self, allocator: std.mem.Allocator, current: Current) void {
     self.offsets = TypeTail.offsets(current.types);
 
-    self.options = .{
+    self.tail.init(.{
         .allocator = allocator,
         .payload = allocator,
         .types = current.types,
         .origins = &current.origins.items,
         .offsets = &self.offsets,
-    };
-
-    self.tail.init(&self.options, .{}, OriginTable{});
+    });
 
     self.members = .{ .first = current.functions.count(), .empty = &empty };
 }
@@ -46,6 +42,7 @@ pub fn commit(self: *Self, allocator: std.mem.Allocator, current: Current, value
     errdefer allocator.free(members);
 
     try current.functions.reserve(allocator, value.functions.len);
+    try self.tail.commit(value.publication);
 
     const module = @backingInt(current.module);
 
@@ -54,8 +51,6 @@ pub fn commit(self: *Self, allocator: std.mem.Allocator, current: Current, value
     current.modules.type_namespaces.items[module] = value.namespace;
     current.modules.type_names.items[module] = value.exports.names;
     current.modules.type_ids.items[module] = value.exports.ids;
-
-    publication.publishTypes(&self.tail);
 
     return .{ .types = current.types.view(), .exports = exports, .members = members };
 }

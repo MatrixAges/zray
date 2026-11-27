@@ -1,0 +1,39 @@
+<Module>
+    <Type from="publication" as="Publication" />
+
+    <Args in={Publication.ConstantList} out={void} />
+
+    <Store from="rows" as="rows" />
+
+    <Call
+        fn="list_count"
+        in={{
+            names: $in.source.names,
+            row: $in.row
+        }}
+    />
+
+    <If on={$ctx.list_count != 0}>
+        <Call
+            fn="../../../../../core/column_set/project_lists"
+            in={[
+                $in.source.projection,
+                $in.row
+            ]}
+        />
+
+        <Call
+            fn="constants"
+            in={{
+                source: {
+                    ...$in.source.rows,
+                    count: $ctx.list_count
+                },
+                output: $in.output,
+                mapping: $in.mapping
+            }}
+        />
+
+        <Call fn="stage" setter={[$store.rows.pending]} />
+    </If>
+</Module>

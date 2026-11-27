@@ -1,61 +1,36 @@
-import { projectLists } from "core/column_set"
-import { allocateRowList } from "core/row_buffer"
-import memory from "memory"
-
-import { Kind } from "../../../artifact/remapping/model"
+import { Kind as MappingKind } from "../../../artifact/remapping/model"
 import publish from "../../../artifact/surface/constants"
+import { Kind } from "./publication"
 
-import type { RowBuffer, WriteColumn } from "memory/columns"
-import type { Target } from "../../../artifact/surface/constants"
-import type { Constants } from "../../model"
+import type { Rows } from "core/constant/rows"
+import type { Pending as Output } from "./publication"
 
 export type Input = {
-    source: Constants,
-    row: u64,
+    source: Rows,
     output: u64,
-    mapping: u32[],
-    column: WriteColumn,
-    buffer: RowBuffer,
-    target: Target
+    mapping: u32[]
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { source } = in
+    const { source, output, mapping } = in
 
-    const count = memory.listLength(source.names, in.row)
-
-    allocateRowList([
-        in.column,
-        in.output,
-        in.buffer,
-        count
-    ])
-
-    if (count == 0) {
-        return
-    }
-
-    projectLists([
-        source.projection,
-        in.row
-    ])
-
-    publish({
-        source: {
-            ...source.rows,
-            count
-        },
-        target: in.target,
+    const constants = publish({
+        source,
         types: {
-            kind: Kind.Dense,
-            dense: in.mapping,
+            kind: MappingKind.Dense,
+            dense: mapping,
             sparse: [],
             planned: [],
             first: 0,
             prefix: 0,
-            count: in.mapping.length
+            count: mapping.length
         }
     })
+
+    return {
+        kind: Kind.Constants,
+        row: output,
+        text: "",
+        constants
+    }
 }

@@ -4,24 +4,24 @@ import memory from "memory"
 import { Anonymous } from "../../zx/modules/link/source/members/model"
 import publish from "../../zx/modules/link/source/members/publish"
 
-import type { Input as Library, Range } from "./model"
+import type { Row } from "../../zx/modules/link/source/members/model"
+import type { Input as Library } from "./model"
 
-export type Input = Library.Omit("storage") & {
-    selected: Range,
-    first: u64
+export type Input = Library & {
+    rows: Row[]
 }
 
-export type Output = bool
+export type Output = Row[]?
 
 export default function (in: Input): Output {
-    const { records, members, selected, public_members } = in
+    const { records, members, public_members } = in
 
     return loop({
-        row: selected.first,
-        written: in.first,
+        row: 0,
+        rows: in.rows,
         valid: true
     }, {
-        while: state => state.valid && state.row < selected.end,
+        while: state => state.valid && state.row < records.count,
         next: state => {
             const row = state.row
 
@@ -35,7 +35,7 @@ export default function (in: Input): Output {
 
                 const result = publish({
                     ...public_members,
-                    first: state.written,
+                    rows: state.rows,
                     anonymous: Anonymous.Skip,
                     source: {
                         ...members,
@@ -46,12 +46,15 @@ export default function (in: Input): Output {
                 if (result == null) {
                     state.valid = false
                 } else {
-                    state.written = result.written
+                    state.rows = result.rows
                 }
             }
 
             state.row += 1
         },
-        return: state => state.valid
+        return: state => match {
+            state.valid => state.rows,
+            _ => null
+        }
     })
 }

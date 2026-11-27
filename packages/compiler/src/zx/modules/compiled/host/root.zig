@@ -73,25 +73,25 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
     var publish_value: std.meta.Child(PublishStoreState) = .{ .completed = 0 };
     var publish_ptr: PublishStoreState = &publish_value;
 
-    try input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
-
+    input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
     installation.init(&allocator, &input, &library, destination, options.call_scratch, options.initializer_tail);
 
     var host: StoreHost = .{ .store_0 = &state_ptr, .natives = &installation.natives };
     var publish_host: PublishStoreHost = .{ .store_0 = &publish_ptr, .interface = &installation.public, .allocator = installation.owner };
 
     defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, publish_ptr.completed);
-    errdefer installation.types.release();
 
     const request: std.meta.Child(generated.Input) = .{
         .plan = &input.input,
         .installation = &installation.input,
     };
 
-    const plan = generated.executeIn(temporary, &request, &host) catch |err| switch (@as(anyerror, err)) {
+    const result = generated.executeIn(temporary, &request, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return if (state_ptr.preparing) error.OutOfMemory else error.InvalidModule,
     };
+
+    const plan = result.plan;
 
     switch (plan.status) {
         .Ready => {},
@@ -105,9 +105,13 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
         .MissingPublicModule => return error.MissingPublicModule,
     }
 
+    var types = try installation.types.stage(result.publication.?);
+
+    errdefer types.release();
+
     const publication: std.meta.Child(generated_publish.Input) = .{
         .installation = &installation.input,
-        .plan = if (@typeInfo(@TypeOf(plan)) == .pointer) plan else &plan,
+        .plan = plan,
     };
 
     errdefer if (installation.needs_interface) installation.public.release(installation.owner, plan.selection);
@@ -116,6 +120,8 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
+
+    types.publish();
 
     if (options.export_buckets) |buckets| {
         if (buckets.len != 0) @memcpy(buckets, plan.export_index);

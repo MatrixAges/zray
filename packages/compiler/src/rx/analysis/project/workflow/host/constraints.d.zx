@@ -49,7 +49,7 @@ export declare function bindResolvedType(
     field_names: string[],
     field_types: u32[],
     names: string[]
-): void
+): void throws { OutOfMemory }
 
 export declare function finishResolveConstruction(frame: TypeResolver): void
 

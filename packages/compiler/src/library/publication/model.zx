@@ -1,5 +1,8 @@
-import type { Input as Allocate } from "../../zx/modules/artifact/surface/allocate_rows"
-import type { Input as Constants } from "../../zx/modules/artifact/surface/constants"
+import type {
+    Input as Constants,
+    Row as ConstantRow
+} from "../../zx/modules/artifact/surface/constants"
+import type { Row as MemberRow } from "../../zx/modules/link/source/members/model"
 import type { Input as Types, Row as ExportRow, Status } from "../interface/model"
 import type { Input as Members } from "../members/model"
 
@@ -10,7 +13,7 @@ export type Row = {
 
 export type Input = {
     types: Types,
-    constants: Constants & Allocate.Pick("storage"),
+    constants: Constants,
     members: Members,
     row: Row
 }
@@ -19,5 +22,7 @@ export type Output = {
     status: Status,
     name: string,
     path: string,
-    exports: ExportRow[]
+    exports: ExportRow[],
+    constants: ConstantRow[],
+    members: MemberRow[]
 }

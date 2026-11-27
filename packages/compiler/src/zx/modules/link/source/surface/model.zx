@@ -1,4 +1,3 @@
-import type { RowBuffer } from "memory/columns"
 import type { SourceEntry } from "project_host"
 import type { Input as Declarations } from "../declarations/model"
 import type { Input as Entry } from "../entry/model"
@@ -11,8 +10,7 @@ export type Input = {
     function_storage: SourceEntry,
     declarations?: Declarations,
     initializers: Initializers,
-    members: Members,
-    member_storage: RowBuffer,
+    members: Members.Omit("rows", "entry"),
     ports: Ports.Omit("entry")
 }
 

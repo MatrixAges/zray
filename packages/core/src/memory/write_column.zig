@@ -216,13 +216,6 @@ pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopa
     return true;
 }
 
-pub fn writeRowList(column: *anyopaque, index: u64, source: *const anyopaque) IndexError!void {
-    const output: *const RowBuffer = @ptrCast(@alignCast(source));
-    const count = if (output.bytes.len == 0) 0 else output.bytes.len / output.stride;
-
-    try writeRowListCount(column, index, source, count);
-}
-
 pub inline fn writeRowListCount(column: *anyopaque, index: u64, source: *const anyopaque, count: u64) IndexError!void {
     const output = rowBufferConst(source);
 

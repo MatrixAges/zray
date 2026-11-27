@@ -29,7 +29,6 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
     const decoded = frame.decoded;
     const current_types = current.types.view();
     const source = ir.TypeTable.borrow(Table, module.types);
-    var type_ids = try temporary.alloc(u32, module.types.count());
     const destination = ir.TypeTable.borrow(Table, current_types);
     const base = ir.TypeTable.borrow(Table, if (current_types.count() == 0) scalar_rows else current_types);
     const empty = ir.TypeTable.borrow(Table, .{});
@@ -42,7 +41,6 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
         .names = module.nominal_types.names,
         .base = &base,
         .base_origins = &base_origins,
-        .mapping = @ptrCast(&type_ids),
     };
 
     const types_request: TypeRequest = .{
@@ -91,7 +89,6 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
         .preflight = &preflight.input,
         .types = &types_request,
         .rebind = &input,
-        .type_ids = type_ids,
     };
 
     return frame.execute(&transaction);

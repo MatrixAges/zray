@@ -3,11 +3,30 @@ const zx = @import("zx");
 const ir = zx.ir;
 const memory = zx.memory;
 const Module = @import("../../artifact/model.zig").Module;
-const Origins = @import("../../nominal_origins.zig");
 const Types = @import("../types.zig");
 const Publication = @import("../../../analysis/semantic/merging/publication/view.zig");
 const generated = @import("generated_artifact_type_registration");
 const Input = std.meta.Child(generated.Input);
+const State = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
+
+const Host = struct {
+    store_0: *State,
+    output: *Publication,
+    allocator: std.mem.Allocator,
+    mappings: [][]const ir.TypeId,
+    pub fn commit(self: *Host, pending: anytype) std.mem.Allocator.Error!void {
+        if (pending.store_0) |row| {
+            const mapping = try self.allocator.dupe(u32, row.mapping);
+
+            errdefer self.allocator.free(mapping);
+
+            try self.output.commit(row.publication.?);
+
+            self.mappings[row.row] = @ptrCast(mapping);
+        }
+    }
+};
+
 const Tables = std.meta.Child(@FieldType(Input, "types"));
 const Preparation = @import("../../../analysis/semantic/merging/commit.zig").Preparation;
 const Request = std.meta.Child(@FieldType(Preparation, "request"));
@@ -25,7 +44,7 @@ pub fn register(types: *Types, modules: []const Module, order: []const u64, mapp
 
     var output: Publication = undefined;
 
-    output.init(&options, .{}, @as(Origins.Table, .{}));
+    output.init(options);
 
     const type_rows = memory.bindSliceColumns(TypeTable, "types", modules);
     const origin_rows = memory.bindSliceColumns(Bindings, "nominal_types", modules);
@@ -58,14 +77,16 @@ pub fn register(types: *Types, modules: []const Module, order: []const u64, mapp
             .base_view = @ptrCast(&known),
         },
         .names = @ptrCast(&names),
-        .mappings = @ptrCast(&mappings),
-        .resource = @ptrCast(&mapping_allocator),
         .limits = &limits,
         .publication = zx.columns.pointer(@FieldType(Input, "publication"), &publication),
     };
 
     // The caller releases both owning arenas if a row fails after publishing data.
-    const status = generated.executeIn(scratch.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
+    var state: std.meta.Child(State) = .{ .row = 0, .mapping = &.{}, .publication = null };
+    var state_ptr: State = &state;
+    var host: Host = .{ .store_0 = &state_ptr, .output = &output, .allocator = mapping_allocator, .mappings = mappings };
+
+    const status = generated.executeIn(scratch.allocator(), &request, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };

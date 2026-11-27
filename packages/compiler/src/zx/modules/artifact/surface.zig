@@ -8,6 +8,7 @@ const Error = @import("model.zig").Error;
 const names = @import("../../ir/canonical/validation/names/view.zig");
 const constants = @import("generated_artifact_surface_constants");
 const memory = zx.memory;
+const constant_value = @import("../../analysis/constants/input.zig");
 const ConstantRows = @import("../../analysis/constants/columns.zig").Rows;
 const ConstantInput = std.meta.Child(constants.Input);
 pub const Mapping = std.meta.Child(@FieldType(ConstantInput, "types"));
@@ -24,50 +25,65 @@ pub const Surface = struct {
 pub fn copyConstants(allocator: std.mem.Allocator, source: []const ir.Constant, types: *const Mapping) Error![]const ir.Constant {
     if (source.len == 0) return &.{};
 
-    const result = try allocator.alloc(ir.Constant, source.len);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
     const rows = ConstantRows.borrow(source);
-    const target = ConstantTarget.borrow(result);
 
     const input: ConstantInput = .{
         .source = &rows.view(std.meta.Child(@FieldType(ConstantInput, "source"))),
-        .target = &target.view(std.meta.Child(@FieldType(ConstantInput, "target"))),
         .types = types,
     };
 
-    zx.columns.invoke(constants.executeValue, allocator, &input) catch |err| return failure(err);
+    const plan = zx.columns.invoke(constants.executeValue, arena.allocator(), &input) catch |err| return failure(err);
+
+    return ownConstants(allocator, plan);
+}
+
+pub fn ownConstants(allocator: std.mem.Allocator, rows: anytype) std.mem.Allocator.Error![]ir.Constant {
+    const result = try allocator.alloc(ir.Constant, rows.len);
+    var written: usize = 0;
+
+    errdefer {
+        releaseConstants(allocator, result[0..written]);
+        allocator.free(result);
+    }
+
+    for (rows, result) |row, *slot| {
+        const name = try allocator.dupe(u8, row.name);
+
+        errdefer allocator.free(name);
+
+        slot.* = .{
+            .name = name,
+            .type_id = @fromBackingInt(row.value.type_id),
+            .value = try constant_value.own(allocator, row.value),
+        };
+
+        written += 1;
+    }
 
     return result;
 }
 
-pub const ConstantTarget = struct {
-    names: zx.memory.WriteColumn,
-    types: zx.memory.WriteColumn,
-    values: zx.memory.WriteColumn,
-    pub fn borrow(target: []ir.Constant) ConstantTarget {
-        return .{
-            .names = zx.memory.borrowWriteColumn([]const u8, "name", target),
-            .types = zx.memory.borrowWriteColumn(u32, "type_id", target),
-            .values = zx.memory.borrowWriteColumn(ir.ConstantValue, "value", target),
-        };
-    }
+fn releaseConstants(allocator: std.mem.Allocator, rows: []const ir.Constant) void {
+    for (rows) |row| {
+        allocator.free(row.name);
 
-    pub fn view(self: *const ConstantTarget, comptime Target: type) Target {
-        return .{
-            .names = @ptrCast(&self.names),
-            .types = @ptrCast(&self.types),
-            .values = @ptrCast(&self.values),
-        };
+        if (row.value == .string) allocator.free(row.value.string);
     }
-};
-
-pub fn constantOutput(comptime Target: type) type {
-    return memory.RowOutput(ir.Constant, Target, .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} });
 }
+
+const ConstantOutput = memory.RowOutput(ir.Constant, struct {
+    names: *anyopaque,
+    types: *anyopaque,
+    values: *anyopaque,
+}, .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} });
 
 pub fn Publication(comptime Input: type) type {
     const Exports = std.meta.Child(@FieldType(Input, "exports"));
     const Constants = std.meta.Child(@FieldType(Input, "constants"));
-    const Target = std.meta.Child(@FieldType(Input, "constant_target"));
 
     return struct {
         const Self = @This();
@@ -78,7 +94,7 @@ pub fn Publication(comptime Input: type) type {
         written: usize,
         constant_rows: ConstantRows,
         constant_source: Constants,
-        constant_output: constantOutput(Target),
+        constant_output: ConstantOutput,
         mapping: std.meta.Child(@FieldType(Input, "types")),
         input: Input,
         pub fn init(self: *Self, export_rows: []const ir.Export, constant_rows: []const ir.Constant, types: Nodes.TypeMap) void {
@@ -98,11 +114,15 @@ pub fn Publication(comptime Input: type) type {
                 .types = &self.mapping,
                 .exports = &self.export_source,
                 .constants = &self.constant_source,
-                .constant_target = &self.constant_output.view,
-                .constant_storage = @ptrCast(&self.constant_output.buffer),
             };
         }
         pub fn publishExport(self: *Self, allocator: std.mem.Allocator, entry: anytype) std.mem.Allocator.Error!void {
+            if (entry.constants) |rows| {
+                self.constant_output.bind(try ownConstants(allocator, rows));
+
+                return;
+            }
+
             if (self.export_target.len == 0) self.export_target = try allocator.alloc(ir.Export, self.export_count);
 
             self.export_target[@intCast(entry.row)] = .{ .name = try allocator.dupe(u8, entry.name), .type_id = @fromBackingInt(entry.id) };
@@ -124,6 +144,7 @@ pub fn Publication(comptime Input: type) type {
             for (self.export_target[0..self.written]) |item| allocator.free(item.name);
 
             allocator.free(self.export_target);
+            releaseConstants(allocator, self.constant_output.rows());
             allocator.free(self.constant_output.rows());
         }
 

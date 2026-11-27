@@ -1,6 +1,5 @@
 import type { TextColumn, WriteColumn } from "memory"
 import type { RowBuffer, WriteColumn as Cell } from "memory/columns"
-import type { Target as ConstantFields } from "../../../artifact/surface/constants"
 import type { Exports, Initializers, SelectionPlan } from "../../model"
 
 export type ExportFields = {
@@ -8,8 +7,7 @@ export type ExportFields = {
     paths: WriteColumn,
     functions: Cell,
     types: Cell,
-    members: Cell,
-    constants: Cell
+    members: Cell
 }
 
 export type TypeFields = {
@@ -36,7 +34,6 @@ export type Buffers = {
     exports: RowBuffer,
     types: RowBuffer,
     members: RowBuffer,
-    constants: RowBuffer,
     initializers: RowBuffer
 }
 
@@ -44,7 +41,6 @@ export type Targets = {
     exports: ExportFields,
     types: TypeFields,
     members: MemberFields,
-    constants: ConstantFields,
     initializers: InitializerFields
 }
 

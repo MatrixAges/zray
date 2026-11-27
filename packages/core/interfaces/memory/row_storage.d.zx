@@ -31,12 +31,6 @@ export declare function reserveRowStorage(
     count: u64
 ): bool throws { OutOfMemory }
 
-export declare function writeRowList(
-    column: WriteColumn,
-    index: u64,
-    source: RowBuffer
-): void throws { IndexOutOfBounds }
-
 export declare function writeRowListCount(
     column: WriteColumn,
     index: u64,

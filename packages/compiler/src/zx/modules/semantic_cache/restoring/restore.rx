@@ -10,13 +10,7 @@
         <Return value={null} />
     </If>
 
-    <Call
-        module="types/plan"
-        in={{
-            ...$in.planning.types,
-            type_ids: $in.planning.type_ids
-        }}
-    />
+    <Call module="types/plan" in={$in.planning.types} />
 
     <If on={$ctx.plan != null}>
         <Call
@@ -28,7 +22,7 @@
             fn="rebind/input"
             in={{
                 source: $in.planning.rebind,
-                types: $in.planning.type_ids,
+                types: $ctx.plan.mapping,
                 functions: $ctx.reserve
             }}
         />
@@ -60,7 +54,7 @@
         <Call
             fn="publication/mapping"
             in={{
-                types: $in.planning.type_ids,
+                types: $ctx.plan.mapping,
                 functions: $ctx.check.functions ?? [],
                 modules: $ctx.check.modules ?? [],
                 candidate: $ctx.check.entry

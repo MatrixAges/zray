@@ -21,9 +21,8 @@ natives: std.meta.Child(@FieldType(Destination, "natives")),
 destination: Destination,
 selection: Selection,
 selection_rows: memory.ReadFields(selection_fields),
-type_ids: []u32,
 input: Input,
-pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: load.Destination, seed: bool, selected: ?[]const model.PublicReference, export_buckets: ?[]u64) std.mem.Allocator.Error!void {
+pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: load.Destination, seed: bool, selected: ?[]const model.PublicReference, export_buckets: ?[]u64) void {
     self.graph.init(allocator, graph);
 
     const origins = destination.origins.items.view();
@@ -38,10 +37,6 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
         self.selection = self.selection_rows.bind(Selection);
     }
 
-    self.type_ids = try allocator.alloc(u32, graph.program.types.count());
-
-    @memset(self.type_ids, 0);
-
     self.input = .{
         .graph = &self.graph.input,
         .index_capacity = if (export_buckets) |buckets| buckets.len else 0,
@@ -49,7 +44,6 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
         .artifact = artifact,
         .seed = seed,
         .destination = &self.destination,
-        .type_mapping = @ptrCast(&self.type_ids),
         .selection = if (selected != null) &self.selection else null,
     };
 }

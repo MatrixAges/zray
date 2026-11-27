@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const FunctionImport = @import("../../function_import.zig");
-const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
 
 pub fn ownBindings(allocator: std.mem.Allocator, rows: anytype) std.mem.Allocator.Error![]const FunctionImport {
     const bindings = try allocator.alloc(FunctionImport, rows.len);
@@ -27,11 +26,4 @@ pub fn appendColumnsAssumeCapacity(storage: anytype, rows: anytype) void {
 
         for (rows) |row| column.appendAssumeCapacity(zx.columns.view(Item, @field(row, name)));
     }
-}
-
-pub fn publishTypes(tail: *TypeTail) void {
-    for (tail.ranges, 0..) |_, index| zx.memory.publishColumnRange(@ptrCast(&tail.ranges), index);
-    for (tail.nominal_ranges, 0..) |_, index| zx.memory.publishColumnRange(@ptrCast(&tail.nominal_ranges), index);
-
-    tail.copied[0] = 0;
 }

@@ -1,0 +1,9 @@
+<Store name="registered_type_rows" version={1}>
+    <Type from="../../../analysis/semantic/merging/publication/model" as="Types" />
+
+    <Object name="pending">
+        <Field name="row" type={u64} value={0} />
+        <Field name="mapping" type={u32[]} value={[]} />
+        <Field name="publication" type={Types.Plan?} value={null} />
+    </Object>
+</Store>

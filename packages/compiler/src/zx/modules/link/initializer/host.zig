@@ -33,15 +33,20 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var mapping: []u32 = &.{};
-    const selected = try prepare(types, temporary, functions.count(), registry, initial, origins, &mapping);
+    var view: merge.Registration = undefined;
+    const selected = try prepare(types, temporary, functions.count(), registry, initial, origins, &view);
+    var pending = if (selected.publication) |plan_value| try view.output.stage(plan_value) else null;
+
+    errdefer if (pending) |*rows| rows.release();
 
     switch (selected.status) {
         .Append => {},
         .Compare => {
             const table = functions.view();
 
-            if (!comparison.source(&table, selected.function, initial, mapping)) return error.ConflictingInitializer;
+            if (!comparison.source(&table, selected.function, initial, selected.mapping.?)) return error.ConflictingInitializer;
+
+            pending.?.publish();
 
             return;
         },
@@ -55,7 +60,7 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
 
     const nodes: Nodes = .{
         .allocator = types.allocator,
-        .types = .{ .mapped = @ptrCast(mapping) },
+        .types = .{ .mapped = @ptrCast(selected.mapping.?) },
         .functions = .{ .indexed = &.{} },
         .native_modules = .{ .indexed = &.{} },
     };
@@ -65,9 +70,11 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
         .version = initial.schema_version,
         .function = selected.function,
     }, registry);
+
+    pending.?.publish();
 }
 
-fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, registry: *Registry, initial: Initializer.Borrowed, origins: Origins.Table, mapping: *[]u32) Error!std.meta.Child(plan.Output) {
+fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, registry: *Registry, initial: Initializer.Borrowed, origins: Origins.Table, view: *merge.Registration) Error!std.meta.Child(plan.Output) {
     const program = initial.program;
     var validation: Validation = undefined;
 
@@ -86,10 +93,7 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
         .complete = true,
     };
 
-    var view: merge.Registration = undefined;
-
-    view.init(&request, mapping);
-    errdefer view.output.release();
+    view.init(&request);
 
     const rows = Registry.readRows(registry.rows.items);
     const keys = rows.bind(std.meta.Child(@FieldType(Lookup, "source")));

@@ -23,16 +23,13 @@
         }}
     />
 
-    <If on={$ctx.load.publish}>
-        <Call
-            module="../../../analysis/semantic/merging/publication/append"
-            in={{
-                ...$in.types,
-                delta: $ctx.load.type_delta,
-                origins: $ctx.load.nominal_delta
-            }}
-        />
-    </If>
+    <Call
+        module="publication"
+        in={{
+            types: $in.types,
+            result: $ctx.load
+        }}
+    />
 
     <If on={$ctx.load.diagnostic.message.length == 0}>
         <Call
@@ -52,7 +49,8 @@
                     "input_type",
                     "output_type"
                 ]),
-                prepared: $ctx.prepare
+                prepared: $ctx.prepare,
+                publication: $ctx.publication
             }}
         />
     </If>
@@ -64,7 +62,8 @@
                 "input_type",
                 "output_type"
             ]),
-            prepared: null
+            prepared: null,
+            publication: $ctx.publication
         }}
     />
 </Module>

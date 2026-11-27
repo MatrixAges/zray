@@ -33,7 +33,6 @@ pub fn publish(allocator: std.mem.Allocator, exports: []model.Export, index: usi
     const Input = std.meta.Child(rule.Input);
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Constants = std.meta.Child(@FieldType(Input, "constants"));
-    const ConstantTarget = std.meta.Child(@FieldType(Constants, "target"));
     const Mapping = std.meta.Child(@FieldType(Constants, "types"));
     const MemberInput = std.meta.Child(@FieldType(Input, "members"));
     const type_rows = memory.borrowNamedRows("type_id", program.exports);
@@ -51,29 +50,19 @@ pub fn publish(allocator: std.mem.Allocator, exports: []model.Export, index: usi
     const constant_source = values.view(std.meta.Child(@FieldType(Constants, "source")));
     const mapping = Nodes.typeMapping(Mapping, nodes.types);
 
-    var constant_output: memory.RowOutput(ir.Constant, ConstantTarget, .{
-        .names = &.{"name"},
-        .types = &.{"type_id"},
-        .values = &.{"value"},
-    }) = undefined;
-
-    constant_output.init();
-
     const constants: Constants = .{
         .source = &constant_source,
-        .target = &constant_output.view,
         .types = &mapping,
-        .storage = @ptrCast(&constant_output.buffer),
     };
 
-    var member_output: members.View(MemberInput) = undefined;
+    var member_input: members.View(MemberInput) = undefined;
 
-    member_output.init(source.analysis, program.file_name, nodes);
+    member_input.init(source.analysis, program.file_name, nodes);
 
     const input: Input = .{
         .types = &types,
         .constants = &constants,
-        .members = &member_output.input,
+        .members = &member_input.input,
         .row = &.{
             .name = source.name,
             .path = program.file_name,
@@ -98,11 +87,34 @@ pub fn publish(allocator: std.mem.Allocator, exports: []model.Export, index: usi
                 .path = result.path,
                 .function = entry,
                 .types = public_types,
-                .constants = constant_output.rows(),
-                .members = member_output.output.rows(),
+                .constants = try ownConstants(allocator, result.constants),
+                .members = try members.publish(allocator, result.members),
             };
         },
         .ConflictingInterface => return error.ConflictingInterface,
         .InvalidModule => return error.InvalidModule,
     }
+}
+
+fn ownConstants(allocator: std.mem.Allocator, rows: anytype) std.mem.Allocator.Error![]const ir.Constant {
+    const result = try allocator.alloc(ir.Constant, rows.len);
+
+    for (rows, result) |row, *slot| {
+        const value = row.value;
+
+        slot.* = .{
+            .name = try allocator.dupe(u8, row.name),
+            .type_id = @fromBackingInt(value.type_id),
+            .value = switch (value.kind) {
+                .Integer => if (value.negative) .{ .negative_integer = value.integer } else .{ .integer = value.integer },
+                .Float => .{ .float = value.floating },
+                .String => .{ .string = try allocator.dupe(u8, value.text) },
+                .Boolean => .{ .boolean = value.boolean },
+                .EnumValue => .{ .enumeration = value.enumeration },
+                else => unreachable,
+            },
+        };
+    }
+
+    return result;
 }

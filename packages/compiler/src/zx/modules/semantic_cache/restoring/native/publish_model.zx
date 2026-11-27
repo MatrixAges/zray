@@ -1,5 +1,6 @@
 import type { Table as Signatures } from "core/signature_table/model"
 import type {
+    Plan,
     Target as TypeTarget
 } from "../../../../analysis/semantic/merging/publication/model"
 import type { Rows } from "../../../../ir/canonical/validation/names/model"
@@ -23,7 +24,8 @@ export type Input = Value & {
 
 export type Installation = Batch & {
     namespace: string[],
-    exports: ExportBindings
+    exports: ExportBindings,
+    publication: Plan
 }
 
 export type Output = {

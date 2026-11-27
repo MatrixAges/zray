@@ -60,13 +60,16 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
         release.executeIn(empty.allocator(), &release_input) catch unreachable;
     }
 
-    var scratch_buf: [256]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&scratch_buf);
+    var scratch = std.heap.ArenaAllocator.init(allocator);
 
-    generated.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
+    defer scratch.deinit();
+
+    const bound_names = generated.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (labels != null) @memcpy(names, bound_names);
 
     if (!own_origins) {
         @memcpy(owners, source.owners);

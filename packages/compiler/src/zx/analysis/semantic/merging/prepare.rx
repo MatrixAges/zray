@@ -18,17 +18,6 @@
     />
 
     <If on={$ctx.preflight != null}>
-        <If on={$in.resource != null}>
-            <Call
-                fn="preflight/allocate"
-                in={{
-                    resource: $in.resource,
-                    mapping: $in.request.mapping,
-                    count: $in.request.source_first + $in.request.source.kinds.length
-                }}
-            />
-        </If>
-
         <Call fn="initial" in={Merge.Status.Ready} />
 
         <Call

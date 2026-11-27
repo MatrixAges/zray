@@ -17,8 +17,7 @@
         in={{
             source: $in.constants,
             types: $in.types,
-            target: $in.constant_target,
-            storage: $in.constant_storage
+            imported: false
         }}
     />
 </Module>

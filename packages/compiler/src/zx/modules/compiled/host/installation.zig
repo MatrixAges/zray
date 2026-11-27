@@ -7,14 +7,12 @@ const function = @import("function.zig");
 const interface = @import("interface.zig");
 const native = @import("../../link/native/host.zig");
 const TypeView = @import("../../../analysis/semantic/merging/publication/view.zig");
-const Origins = @import("../../nominal_origins.zig");
 const Request = std.meta.Child(@import("generated_compiled_library").Input);
 pub const Layout = std.meta.Child(@FieldType(Request, "installation"));
 const Self = @This();
 
 functions: function.View,
 offsets: TypeView.Offsets,
-options: TypeView.Options,
 types: TypeView,
 natives: native.View,
 public: interface.View,
@@ -35,15 +33,14 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
 
     self.offsets = TypeView.offsets(destination.types);
 
-    self.options = .{
+    self.types.init(.{
         .allocator = allocator.*,
         .payload = allocator.*,
         .types = destination.types,
         .origins = &destination.origins.items,
         .offsets = &self.offsets,
-    };
+    });
 
-    self.types.init(&self.options, .{}, @as(Origins.Table, .{}));
     self.natives.init(allocator, destination.native_modules, .{}, &.{}, false);
 
     if (self.needs_interface) self.public.init(input, library.instance, self.first, initializer_tail);

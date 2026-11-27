@@ -1,7 +1,6 @@
 import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
 import delta from "../constructing/delta"
 import candidate from "./candidate"
@@ -30,7 +29,7 @@ export default function (in: Input): Output {
             const remapped = references({
                 source: request.source,
                 index,
-                mapping: request.mapping,
+                mapping: current.state.mapping,
                 references: current.state.references
             })
             const value = candidate({
@@ -116,15 +115,13 @@ export default function (in: Input): Output {
                         }),
                         _ => current.state.origins
                     }
-                    memory.writeU32(
-                        request.mapping,
-                        request.source_first + index,
-                        id
-                    )
-
                     current.state = {
                         delta: added,
                         origins: bound,
+                        mapping: current.state.mapping.with(
+                            request.source_first + index,
+                            id
+                        ),
                         references: remapped,
                         status: Status.Ready
                     }

@@ -11,6 +11,7 @@ const Frame = struct {
     imports: *std.ArrayList(Function),
     span: zx.Span,
     function: Function = undefined,
+    namespace: ?[]const u8 = null,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -24,7 +25,6 @@ pub fn bind(project: *Project, registry: []const External, first: usize, item: a
 
     const input: std.meta.Child(rule.Input) = .{
         .target = @ptrCast(&frame),
-        .resource = @ptrCast(&project.allocator),
         .specifiers = &.{ .items = @ptrCast(&specifiers), .length = specifiers.count },
         .exports = @ptrCast(&exports),
         .first = first,
@@ -52,9 +52,20 @@ pub fn materializeProjectExternal(handle: *anyopaque, row: u64) zx.Error!void {
 
 pub fn appendProjectExternal(handle: *anyopaque, name: []const u8, namespace: ?[]const u8) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
+    const allocator = frame.project.allocator;
 
-    frame.function.name = name;
-    frame.function.namespace = namespace;
+    try frame.imports.ensureUnusedCapacity(allocator, 1);
 
-    try frame.imports.append(frame.project.allocator, frame.function);
+    const owned_name = try allocator.dupe(u8, name);
+
+    errdefer allocator.free(owned_name);
+
+    if (namespace) |label| {
+        if (frame.namespace == null) frame.namespace = try allocator.dupe(u8, label);
+    }
+
+    frame.function.name = owned_name;
+    frame.function.namespace = frame.namespace;
+
+    frame.imports.appendAssumeCapacity(frame.function);
 }

@@ -16,22 +16,12 @@ const fields = .{
 pub fn View(comptime Input: type) type {
     const Publication = std.meta.Child(@FieldType(Input, "public_members"));
     const Source = std.meta.Child(@FieldType(Publication, "source"));
-    const Target = std.meta.Child(@FieldType(Publication, "target"));
     const Records = std.meta.Child(@FieldType(Input, "records"));
     const Members = std.meta.Child(@FieldType(Input, "members"));
     const Mapping = std.meta.Child(@FieldType(Publication, "functions"));
 
     return struct {
         const Self = @This();
-
-        output: memory.RowOutput(Member, Target, .{
-            .names = &.{"name"},
-            .intrinsics = &.{"intrinsic"},
-            .ids = &.{"id"},
-            .inputs = &.{"input_type"},
-            .outputs = &.{"output_type"},
-            .namespaces = &.{"namespace"},
-        }),
         paths: memory.TextColumn,
         direct: memory.ReadFields(fields),
         lists: memory.ListFields(fields),
@@ -44,8 +34,6 @@ pub fn View(comptime Input: type) type {
         publication: Publication,
         input: Input,
         pub fn init(self: *Self, analysis: *const frontend.AnalysisResult, entry_path: []const u8, nodes: *const Nodes) void {
-            self.output.init();
-
             self.direct = memory.borrowReadFields(fields, analysis.public_functions);
             self.lists = memory.borrowListFields(&.{ "reexports", "functions" }, fields, analysis.modules);
             self.source = self.direct.bind(Source);
@@ -54,27 +42,40 @@ pub fn View(comptime Input: type) type {
             self.projection = .{ .sources = &self.lists.columns, .target = &self.projected.columns };
             const range = nodes.functions.range;
             self.mapping = .{ .kind = .Range, .dense = &.{}, .sparse = &.{}, .planned = &.{}, .first = range.first, .prefix = range.prefix, .count = range.count };
-            self.records = .{ .paths = @ptrCast(&self.paths), .names = @ptrCast(self.lists.column("names")), .intrinsics = @ptrCast(self.lists.column("intrinsics")), .count = analysis.modules.len, .entry_path = entry_path };
+            self.records = .{ .paths = @ptrCast(&self.paths), .names = @ptrCast(self.lists.column("names")), .count = analysis.modules.len, .entry_path = entry_path };
 
             self.publication = .{
                 .source = &self.source,
-                .target = &self.output.view,
                 .type_ids = @ptrCast(nodes.types.mapped),
                 .functions = &self.mapping,
-                .entry = null,
-                .first = 0,
                 .anonymous = .Keep,
             };
 
             self.input = .{
                 .public_members = &self.publication,
                 .records = &self.records,
-                .storage = @ptrCast(&self.output.buffer),
                 .members = &self.members,
                 .projection = @ptrCast(&self.projection),
             };
         }
     };
+}
+
+pub fn publish(allocator: std.mem.Allocator, rows: anytype) std.mem.Allocator.Error![]const Member {
+    const result = try allocator.alloc(Member, rows.len);
+
+    for (rows, result) |row, *slot| {
+        slot.* = .{
+            .name = row.name,
+            .namespace = row.namespace,
+            .id = if (row.id) |id| @fromBackingInt(id) else null,
+            .input_type = if (row.input_type) |id| @fromBackingInt(id) else null,
+            .output_type = if (row.output_type) |id| @fromBackingInt(id) else null,
+            .intrinsic = if (row.intrinsic) |id| @fromBackingInt(id) else null,
+        };
+    }
+
+    return result;
 }
 
 pub fn completeSeed(owned: std.mem.Allocator, analysis: *const frontend.AnalysisResult, entry_path: []const u8, nodes: *Nodes) Error![]const Member {

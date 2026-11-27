@@ -2,7 +2,7 @@ import type { Rows } from "core/constant/rows"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { ListColumn, ReadColumn, TextColumn, U32Buffer } from "memory"
+import type { ListColumn, ReadColumn, TextColumn } from "memory"
 import type { ListColumn as ByteList, ListProjection } from "memory/columns"
 import type { Program } from "../../ir/canonical/validation/model"
 import type { Mapping as FunctionMapping } from "./loading/functions/model"
@@ -84,7 +84,6 @@ export type Input = Validation & {
     artifact: string,
     seed: bool,
     destination: Destination,
-    type_mapping: U32Buffer,
     selection?: Selection
 }
 

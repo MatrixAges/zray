@@ -41,16 +41,7 @@
     </If>
 
     <Call
-        fn="../../../../analysis/semantic/merging/publication/size"
-        in={{
-            delta: $in.types,
-            origins: $in.origins,
-            destination: $in.destination.destination
-        }}
-    />
-
-    <Call
-        module="../../../../analysis/semantic/merging/publication/stage"
+        module="../../../../analysis/semantic/merging/publication/write"
         in={{
             ...$in.destination,
             delta: $in.types,
@@ -64,7 +55,8 @@
             installation: {
                 ...$ctx.publish_members,
                 namespace: $ctx.namespace,
-                exports: $ctx.bindings.omit(["valid"])
+                exports: $ctx.bindings.omit(["valid"]),
+                publication: $ctx.write
             }
         }}
     />

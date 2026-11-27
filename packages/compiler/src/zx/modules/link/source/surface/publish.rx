@@ -15,31 +15,11 @@
 
     <Call module="../initializers/resolve" in={$in.initializers} />
 
-    <If on={$in.members.source.count != 0}>
-        <Call
-            fn="../members/needs_storage"
-            in={$in.members.source.pick([
-                "names",
-                "intrinsics",
-                "count"
-            ])}
-        />
-
-        <If on={$ctx.needs_storage}>
-            <Call
-                fn="../../../artifact/surface/allocate_rows"
-                in={{
-                    storage: $in.member_storage,
-                    count: $in.members.source.count
-                }}
-            />
-        </If>
-    </If>
-
     <Call
         fn="../members/publish"
         in={{
             ...$in.members,
+            rows: [],
             entry: $ctx.entry.function
         }}
     />

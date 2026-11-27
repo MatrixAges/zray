@@ -42,9 +42,7 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
     const offsets = TypeTail.offsets(&project.types);
     const options: TypeTail.Options = .{ .allocator = allocator, .payload = allocator, .types = &project.types, .origins = &project.nominal_origins.items, .offsets = &offsets, .native_owner = owner };
 
-    types.init(&options, .{}, Origins.Table{});
-
-    errdefer types.release();
+    types.init(options);
 
     const input: Input = .{
         .delta = try zx.columns.bridge(@FieldType(Input, "delta"), temp, loaded.delta),
@@ -77,6 +75,7 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
     errdefer allocator.free(members);
 
     try project.functions.reserve(allocator, delivered.functions.len);
+    try types.commit(delivered.publication);
 
     const module_index = @backingInt(module);
 
@@ -85,8 +84,6 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
     project.native_modules.type_namespaces.items[module_index] = delivered.namespace;
     project.native_modules.type_names.items[module_index] = delivered.names;
     project.native_modules.type_ids.items[module_index] = delivered.ids;
-
-    publication.publishTypes(&types);
 
     return .{ .types = project.types.view(), .exports = exports, .members = members };
 }

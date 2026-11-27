@@ -1,6 +1,4 @@
-import bytes from "std:bytes"
 import memory from "memory"
-import columns from "memory/columns"
 
 import map from "../member"
 import { Anonymous } from "./model"
@@ -10,11 +8,11 @@ import type { Input, Result } from "./model"
 export type Output = Result?
 
 export default function (in: Input): Output {
-    const { source, target, type_ids, functions } = in
+    const { source, type_ids, functions } = in
 
     return loop({
         row: 0,
-        written: in.first,
+        rows: in.rows,
         entry: in.entry,
         valid: true
     }, {
@@ -49,43 +47,20 @@ export default function (in: Input): Output {
                     state.valid = state.entry == null
                     state.entry = member.id
                 } else {
-                    memory.writeColumnBytes(
-                        target.names,
-                        state.written,
-                        bytes.fromText(member.name)
-                    )
-                    columns.writeColumnOptionalU32(
-                        target.ids,
-                        state.written,
-                        member.id
-                    )
-                    columns.writeColumnOptionalU32(
-                        target.inputs,
-                        state.written,
-                        member.input_type
-                    )
-                    columns.writeColumnOptionalU32(
-                        target.outputs,
-                        state.written,
-                        member.output_type
-                    )
-                    columns.writeColumnOptionalU8(
-                        target.intrinsics,
-                        state.written,
-                        intrinsic
-                    )
-                    columns.writeColumnOptionalText(
-                        target.namespaces,
-                        state.written,
-                        null
-                    )
-                    state.written += 1
+                    state.rows = state.rows.push({
+                        name: member.name,
+                        id: member.id,
+                        input_type: member.input_type,
+                        output_type: member.output_type,
+                        intrinsic,
+                        namespace: null
+                    })[0]
                 }
             }
         },
         return: state => match {
             state.valid => {
-                written: state.written,
+                rows: state.rows,
                 entry: state.entry
             },
             _ => null

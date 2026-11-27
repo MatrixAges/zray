@@ -1,5 +1,4 @@
 import type { StringBuffer, TextColumnBuffer, U32Buffer } from "memory"
-import type { Input as TypePublication } from "../../merging/publication/model"
 import type { Cache } from "../model"
 
 export type Index = {
@@ -16,10 +15,6 @@ export type Destination = {
 export type Names = {
     cache: Cache,
     destination: Destination
-}
-
-export type Input = Names & {
-    types?: TypePublication
 }
 
 export type Suffix = Names & {

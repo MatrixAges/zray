@@ -47,8 +47,6 @@ export default function (in: Input): Output {
         names: integers.narrow(base.names.length)
     }
 
-    const mapping = memory.initializeU32ListSlot(state.mappings, row, null)
-
     return {
         preparation: {
             request: {
@@ -56,18 +54,17 @@ export default function (in: Input): Output {
                 origins: declared,
                 base,
                 base_origins: known,
-                mapping,
                 first: 0,
                 source_first: 0,
                 checked: true
             },
             names: memory.readTextListColumn(state.names, row),
             complete: true,
-            validation: state.limits,
-            resource: state.resource
+            validation: state.limits
         },
         publication: {
             ...publication,
+            base_labels: base.labels,
             offsets
         }
     }

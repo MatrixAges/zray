@@ -49,17 +49,14 @@
     />
 
     <Call
-        fn="constants"
+        module="constant_rows"
         in={{
             ...$in.pick([
                 "row",
                 "mapping"
             ]),
             output: $ctx.stage,
-            source: $in.exports.constants,
-            column: $in.targets.exports.constants,
-            buffer: $in.buffers.constants,
-            target: $in.targets.constants
+            source: $in.exports.constants
         }}
     />
 </Module>

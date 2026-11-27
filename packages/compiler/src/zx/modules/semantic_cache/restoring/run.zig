@@ -79,7 +79,20 @@ pub const Frame = struct {
             return verification.publicationError(err);
 
         const committed = published orelse return error.InvalidModule;
+        var types_pending = try self.publication.types.stage(committed.publication);
+
+        errdefer types_pending.release();
+
+        self.publication.validation.init(.{
+            .types = &types_pending.types,
+            .functions = current.functions,
+            .native_modules = &current.native_modules,
+            .verified = current.verified.*,
+        }, &self.publication.surface, self.scratch);
+
         const verified = try self.publication.validation.execute(self.scratch, committed, &self.publication.empty);
+
+        types_pending.publish();
 
         return self.publication.finish(current, committed, verified);
     }

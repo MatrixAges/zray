@@ -1,4 +1,4 @@
-import type { Output as Input } from "./exports"
+import type { Published as Input } from "./model"
 
 export type Output = u64
 

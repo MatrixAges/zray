@@ -3,6 +3,9 @@ import type {
     Eligibility
 } from "../../../../backends/zig/store_initializers/validation/model"
 import type { Append as Types } from "../../../analysis/semantic/merging/model"
+import type {
+    Plan as Publication
+} from "../../../analysis/semantic/merging/publication/model"
 import type { Program } from "../../../ir/canonical/validation/model"
 import type { Source } from "../source/initializers/model"
 
@@ -33,8 +36,13 @@ export type Input = {
     registry: Registry
 }
 
-export type Plan = {
+export type Selection = {
     status: Status,
     function: u32,
     slot: u64
+}
+
+export type Plan = Selection & {
+    mapping?: u32[],
+    publication?: Publication
 }

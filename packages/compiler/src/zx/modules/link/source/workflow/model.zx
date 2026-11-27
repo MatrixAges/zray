@@ -1,7 +1,8 @@
 import type { Modules } from "core/native_module_table/model"
 import type { ColumnLengths } from "memory"
 import type {
-    Append as TypeRegistration
+    Append as TypeRegistration,
+    Registration
 } from "../../../../analysis/semantic/merging/model"
 import type { Program } from "../../../../ir/canonical/validation/model"
 import type {
@@ -57,7 +58,8 @@ export type Input = {
 
 export type Output = {
     status: Status,
-    native_ids: u32?[]
+    native_ids: u32?[],
+    registration?: Registration
 }
 
 export type Publication = {

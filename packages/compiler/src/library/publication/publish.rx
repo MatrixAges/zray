@@ -12,33 +12,40 @@
                 status: $ctx.complete.status,
                 name: "",
                 path: "",
-                exports: []
+                exports: [],
+                constants: [],
+                members: []
             }}
         />
     </If>
 
-    <Call module="../../zx/modules/artifact/surface/own_constants" in={$in.constants} />
+    <Call fn="../../zx/modules/artifact/surface/constants" in={$in.constants} />
+
     <Call module="../members/build" in={$in.members} />
 
-    <If on={!$ctx.build}>
+    <If on={$ctx.build != null}>
+        <Call fn="row" in={$in.row} />
+
         <Return
             value={{
-                status: Interface.Status.InvalidModule,
-                name: "",
-                path: "",
-                exports: []
+                status: Interface.Status.Valid,
+                name: $ctx.row.name,
+                path: $ctx.row.path,
+                exports: $ctx.complete.exports,
+                constants: $ctx.constants,
+                members: $ctx.build
             }}
         />
     </If>
-
-    <Call fn="row" in={$in.row} />
 
     <Return
         value={{
-            status: Interface.Status.Valid,
-            name: $ctx.row.name,
-            path: $ctx.row.path,
-            exports: $ctx.complete.exports
+            status: Interface.Status.InvalidModule,
+            name: "",
+            path: "",
+            exports: [],
+            constants: [],
+            members: []
         }}
     />
 </Module>

@@ -1,18 +1,29 @@
 <Module>
-    <Type from="constants" as="Constants" />
-    <Type from="allocate_rows" as="Storage" />
+    <Type from="model" as="Surface" />
 
-    <Args in={Constants.Input & Storage.Input.Pick("storage")} out={void} />
+    <Args in={Surface.ConstantRequest} out={void} />
+
+    <Store from="export_rows" as="rows" />
 
     <If on={$in.source.count != 0}>
         <Call
-            fn="allocate_rows"
+            fn="constants"
             in={{
-                storage: $in.storage,
-                count: $in.source.count
+                source: $in.source,
+                types: $in.types
             }}
         />
 
-        <Call fn="constants" in={$in.omit(["storage"])} />
+        <Call
+            fn="commit_export"
+            in={{
+                name: "",
+                id: 0,
+                row: 0,
+                imported: $in.imported,
+                constants: $ctx.constants
+            }}
+            setter={[$store.rows.pending]}
+        />
     </If>
 </Module>

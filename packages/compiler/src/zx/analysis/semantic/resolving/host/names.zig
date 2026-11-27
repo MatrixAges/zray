@@ -7,7 +7,6 @@ const Input = std.meta.Child(publication.Input);
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Index = std.meta.Child(@FieldType(Destination, "index"));
 pub const Cache = std.meta.Child(@FieldType(Input, "cache"));
-pub const TypePublication = std.meta.Child(@typeInfo(@FieldType(Input, "types")).optional.child);
 const Self = @This();
 
 const Columns = struct {
@@ -52,10 +51,10 @@ pub fn put(self: *Self, allocator: std.mem.Allocator, name: []const u8, id: zx.i
         return;
     }
 
-    try self.publish(allocator, &.{ .names = &.{name}, .ids = &.{@backingInt(id)} }, null);
+    try self.publish(allocator, &.{ .names = &.{name}, .ids = &.{@backingInt(id)} });
 }
 
-pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, types: ?*const TypePublication) std.mem.Allocator.Error!void {
+pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache) std.mem.Allocator.Error!void {
     const first = self.columns.names.items.len;
 
     if (cache.names.len != 0) {
@@ -83,7 +82,7 @@ pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, t
         .first = first,
     };
 
-    const input: Input = .{ .cache = cache, .destination = &target, .types = types };
+    const input: Input = .{ .cache = cache, .destination = &target };
 
     const updated = publication.executeIn(allocator, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

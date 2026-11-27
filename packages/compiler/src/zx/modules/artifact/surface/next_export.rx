@@ -7,7 +7,14 @@
 
     <Call fn="exports" in={$in} />
 
-    <Call fn="commit_export" setter={[$store.rows.pending]} />
+    <Call
+        fn="commit_export"
+        in={{
+            ...$ctx.exports,
+            constants: null
+        }}
+        setter={[$store.rows.pending]}
+    />
 
     <Return
         value={{

@@ -1,0 +1,27 @@
+<Module>
+    <Type from="../../../analysis/semantic/merging/publication/model" as="Types" />
+    <Type from="../model" as="External" />
+
+    <Args
+        in={{
+            types: Types.Target,
+            result: External.Result
+        }}
+        out={Types.Plan?}
+    />
+
+    <If on={$in.result.publish}>
+        <Call
+            module="../../../analysis/semantic/merging/publication/write"
+            in={{
+                ...$in.types,
+                delta: $in.result.type_delta,
+                origins: $in.result.nominal_delta
+            }}
+        />
+
+        <Return value={$ctx.write} />
+    </If>
+
+    <Return value={null} />
+</Module>

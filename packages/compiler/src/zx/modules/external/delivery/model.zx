@@ -1,4 +1,4 @@
-import type { Target } from "../../../analysis/semantic/merging/publication/model"
+import type { Plan, Target } from "../../../analysis/semantic/merging/publication/model"
 import type { Diagnostic } from "../../../analysis/semantic/resolving/model"
 import type { Span } from "../../../frontend/lexer/token_model"
 import type { Flags, Signature } from "../../artifact/materializing/publication/model"
@@ -34,5 +34,6 @@ export type Input = {
 
 export type Output = Result.Pick("input_type", "output_type") & {
     diagnostic: Diagnostic,
-    prepared?: Prepared
+    prepared?: Prepared,
+    publication?: Plan
 }

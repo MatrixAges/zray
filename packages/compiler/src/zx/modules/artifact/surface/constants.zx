@@ -1,58 +1,85 @@
-import bytes from "std:bytes"
-import strings from "std:string"
+import {
+    scalar_integer,
+    scalar_negative_integer,
+    scalar_float,
+    scalar_string,
+    scalar_boolean,
+    scalar_enumeration
+} from "core/constant/const"
+import { ExpressionKind } from "core/expression_table/kinds"
 import memory from "memory"
 import columns from "memory/columns"
 
 import remap from "../remapping/id"
 
+import type { Literal } from "core/constant/model"
 import type { Rows } from "core/constant/rows"
-import type { WriteColumn } from "memory"
-import type { WriteColumn as ScalarTarget } from "memory/columns"
 import type { Mapping } from "../remapping/model"
 
-export type Target = {
-    names: WriteColumn,
-    types: WriteColumn,
-    values: ScalarTarget
+export type Row = {
+    name: string,
+    value: Literal
 }
 
 export type Input = {
     source: Rows,
-    target: Target,
     types: Mapping
 }
 
-export type Output = void
+export type Output = Row[]
 
 export default function (in: Input): Output {
-    const { source, target, types } = in
+    const { source, types } = in
 
-    const published = loop(0, {
-        while: row => row < source.count,
-        next: row => {
-            const text = columns.readScalarText(source.values, row)
+    const rows: Row[] = []
 
-            const owned: string? = match {
-                text == null => null,
-                _ => strings.copy(text)
-            }
+    return loop({
+        row: 0,
+        rows
+    }, {
+        while: state => state.row < source.count,
+        next: state => {
+            const row = state.row
+            const values = source.values
+            const kind = columns.readScalarKind(values, row)
+            const integer = kind == scalar_integer || kind == scalar_negative_integer
 
-            const name = strings.copy(memory.readTextColumn(source.names, row))
-            const type_id = remap({
-                id: columns.readColumnU32(source.types, row),
-                mapping: types
-            })
+            state.rows = state.rows.push({
+                name: memory.readTextColumn(source.names, row),
+                value: {
+                    type_id: remap({
+                        id: columns.readColumnU32(source.types, row),
+                        mapping: types
+                    }),
+                    kind: match kind {
+                        scalar_integer => ExpressionKind.Integer,
+                        scalar_negative_integer => ExpressionKind.Integer,
+                        scalar_float => ExpressionKind.Float,
+                        scalar_string => ExpressionKind.String,
+                        scalar_boolean => ExpressionKind.Boolean,
+                        scalar_enumeration => ExpressionKind.EnumValue,
+                        _ => ExpressionKind.None
+                    },
+                    integer: integer ? columns.readScalarMagnitude(values, row) : 0,
+                    negative: kind == scalar_negative_integer,
+                    floating: match {
+                        kind == scalar_float => columns.readScalarFloat(values, row),
+                        _ => 0.0
+                    },
+                    text: columns.readScalarText(values, row) ?? "",
+                    boolean:
+                        kind == scalar_boolean &&
+                        columns.readScalarBoolean(values, row),
+                    enumeration: match {
+                        kind == scalar_enumeration =>
+                            columns.readScalarEnumeration(values, row),
+                        _ => 0
+                    }
+                }
+            })[0]
 
-            memory.writeColumnBytes(target.names, row, bytes.fromText(name))
-            memory.writeColumnU32(target.types, row, type_id)
-
-            if (owned != null) {
-                columns.writeScalarText(target.values, row, owned)
-            } else {
-                columns.copyScalar(source.values, target.values, row)
-            }
-
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.rows
     })
 }

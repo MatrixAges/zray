@@ -2,6 +2,7 @@ import type { Modules } from "core/native_module_table/model"
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
 import type {
+    Plan,
     Target as TypeTail
 } from "../../../analysis/semantic/merging/publication/model"
 import type { Diagnostic } from "../../../frontend/lexer/model"
@@ -35,10 +36,6 @@ export type Outcome = {
     artifact?: Artifact
 }
 
-export type OwnedOrigins = Origins & {
-    names: string[]
-}
-
 export type Publish = Artifact & {
     declaration: Declaration,
     key: string,
@@ -47,7 +44,7 @@ export type Publish = Artifact & {
 
 export type Published = {
     path: string,
-    origins: OwnedOrigins,
+    publication: Plan,
     modules: Modules,
     exports: Surface,
     members: PublishedMembers

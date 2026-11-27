@@ -32,7 +32,7 @@ pub const View = struct {
     data: Data,
     limits: Limits,
     input: Preparation,
-    pub fn init(self: *View, request: *const Request, mapping: *[]u32) void {
+    pub fn init(self: *View, request: *const Request) void {
         self.source = ir.TypeTable.borrow(Table, request.source);
         self.base = ir.TypeTable.borrow(Table, request.items.view());
         self.origins = Origins.Table.borrow(Bindings, request.origins);
@@ -44,7 +44,6 @@ pub const View = struct {
             .origins = &self.origins,
             .base = &self.base,
             .base_origins = &self.base_origins,
-            .mapping = @ptrCast(mapping),
             .first = request.first,
             .source_first = request.source_first,
             .checked = request.checked,
@@ -53,7 +52,6 @@ pub const View = struct {
         self.input = .{
             .request = &self.data,
             .names = request.origins.names,
-            .resource = @ptrCast(&request.mapping_allocator),
             .complete = request.complete,
             .validation = if (request.source_first == 0 and (request.first == 0 or request.checked)) &self.limits else null,
         };
@@ -66,21 +64,18 @@ pub const Registration = struct {
     mapping: View,
     output: Output,
     offsets: Output.Offsets,
-    options: Output.Options,
-    pub fn init(self: *Registration, request: *const Request, mapping: *[]u32) void {
-        self.mapping.init(request, mapping);
+    pub fn init(self: *Registration, request: *const Request) void {
+        self.mapping.init(request);
 
         self.offsets = Output.offsets(request.items);
 
-        self.options = .{
+        self.output.init(.{
             .allocator = request.allocator,
             .payload = request.allocator,
             .types = request.items,
             .origins = request.nominal,
             .offsets = &self.offsets,
-        };
-
-        self.output.init(&self.options, .{}, Origins.Table{});
+        });
     }
     pub fn bind(self: *const Registration, comptime Target: type) Target {
         return .{
@@ -91,23 +86,22 @@ pub const Registration = struct {
 };
 
 pub fn append(request: Request) Error![]const ir.TypeId {
-    var mapping: []u32 = &.{};
     var arena = std.heap.ArenaAllocator.init(request.temporary);
 
     defer arena.deinit();
-    errdefer request.mapping_allocator.free(mapping);
 
     var preparation: View = undefined;
 
-    preparation.init(&request, &mapping);
+    preparation.init(&request);
 
-    const status = try publication.register(request.allocator, request.items, request.nominal, .{
+    const result = try publication.register(request.allocator, request.items, request.nominal, .{
         .temporary = arena.allocator(),
         .preparation = &preparation.input,
+        .mapping_allocator = request.mapping_allocator,
     });
 
-    return switch (status) {
-        .Ready => @ptrCast(mapping),
+    return switch (result.status) {
+        .Ready => result.mapping,
         .MissingOrigin => error.MissingNominalOrigin,
         .Conflict => error.ConflictingNominalType,
         .Invalid => error.InvalidModule,

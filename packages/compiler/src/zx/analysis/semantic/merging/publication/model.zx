@@ -1,15 +1,6 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { Offsets } from "core/type_table/write_first"
-import type {
-    Allocator,
-    ColumnRanges,
-    StringBuffer,
-    StringViews,
-    U8Buffer,
-    U32Buffer,
-    U64Buffer
-} from "memory"
+import type { Offsets } from "./first"
 
 export enum TextMode {
     Own,
@@ -18,42 +9,18 @@ export enum TextMode {
     OwnSharedOrigin
 }
 
-export type TypeTail = {
-    kinds: U8Buffer,
-    first: U32Buffer,
-    second: U32Buffer,
-    labels: StringBuffer,
-    children: U32Buffer,
-    field_types: U32Buffer,
-    field_names: StringBuffer,
-    names: StringBuffer
-}
-
-export type NominalTail = {
-    ids: U32Buffer,
-    kinds: U8Buffer,
-    owners: StringBuffer,
-    members: StringBuffer,
-    names: StringBuffer
-}
-
-export type Destination = {
-    ranges: ColumnRanges,
-    nominal_ranges?: ColumnRanges,
-    resource: Allocator,
-    precise: bool
+export enum OriginText {
+    Borrow,
+    Own,
+    Shared,
+    Native
 }
 
 export type Target = {
-    target: TypeTail,
-    nominal: NominalTail,
     offsets?: Offsets,
-    base_labels: StringViews,
+    base_labels: string[],
     text_mode: TextMode,
-    native_owner?: string,
-    progress: U64Buffer,
-    destination: Destination,
-    payload: Allocator
+    native_owner?: string
 }
 
 export type Input = Target & {
@@ -61,15 +28,17 @@ export type Input = Target & {
     origins: Bindings
 }
 
-export type Text = Input.Pick(
-    "delta",
-    "origins",
-    "target",
-    "nominal",
-    "text_mode",
-    "native_owner",
-    "progress",
-    "payload"
-)
+export type Text = {
+    own_labels: bool,
+    own_names: bool,
+    origin_text: OriginText,
+    native_owner?: string
+}
 
-export type Payload = Input.Pick("delta", "origins", "target", "nominal")
+export type Plan = {
+    delta: Table,
+    origins: Bindings,
+    nominal_names: string[],
+    label_rows: u64?[],
+    text: Text
+}

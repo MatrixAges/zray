@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Install" />
+    <Type from="../../../../analysis/semantic/merging/publication/model" as="Types" />
 
-    <Args in={Install.Publication} out={void} />
+    <Args in={Install.Publication} out={Types.Plan} />
 
     <Store from="progress" as="progress" />
 
@@ -9,15 +10,6 @@
         fn="set_preparing"
         in={true}
         setter={[$store.progress.state]}
-    />
-
-    <Call
-        fn="../../../../analysis/semantic/merging/publication/size"
-        in={{
-            delta: $in.plan.types,
-            origins: $in.plan.origins,
-            destination: $in.installation.types.destination
-        }}
     />
 
     <Call
@@ -53,4 +45,6 @@
         in={false}
         setter={[$store.progress.state]}
     />
+
+    <Return value={$ctx.write} />
 </Module>

@@ -7,10 +7,3 @@ export declare function atomicRowLength(in: AtomicRows, row: u64): u64 throws {
 export declare function loadAtomicCell(in: AtomicRows, row: u64, index: u64): u8 throws {
     IndexOutOfBounds
 }
-
-export declare function storeAtomicCell(
-    in: AtomicRows,
-    row: u64,
-    index: u64,
-    value: u8
-): void throws { IndexOutOfBounds }

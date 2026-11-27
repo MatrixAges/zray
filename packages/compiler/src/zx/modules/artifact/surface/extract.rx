@@ -10,8 +10,7 @@
         in={{
             source: $in.imported.constants,
             types: $in.imported.types,
-            target: $in.imported.constant_target,
-            storage: $in.imported.constant_storage
+            imported: true
         }}
     />
 

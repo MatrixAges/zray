@@ -4,6 +4,7 @@ import type { Stores } from "core/store_table/model"
 import type { Ownership } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
 import type {
+    Plan as TypePublication,
     Target as TypeTail
 } from "../../../../analysis/semantic/merging/publication/model"
 import type { FunctionInput } from "../../../artifact/remapping/model"
@@ -48,3 +49,7 @@ export type Entry = Unit & {
 }
 
 export type Plan = Program & Entry.Pick("recursive")
+
+export type Published = Plan & {
+    publication: TypePublication
+}

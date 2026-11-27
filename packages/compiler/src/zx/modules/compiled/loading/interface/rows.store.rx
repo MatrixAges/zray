@@ -1,5 +1,6 @@
 <Store name="compiled_interface_rows" version={1}>
     <Type from="publication" as="Publication" />
+    <Type from="../../../artifact/surface/constants" as="Constants" />
 
     <Object name="pending">
         <Field name="kind" type={Publication.Kind} value={Publication.Kind.Name} />
@@ -10,5 +11,6 @@
         <Field name="output" type={u32?} value={null} />
         <Field name="intrinsic" type={u8?} value={null} />
         <Field name="version" type={u32?} value={null} />
+        <Field name="constants" type={Constants.Row[]?} value={null} />
     </Object>
 </Store>

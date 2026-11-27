@@ -1,0 +1,50 @@
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+
+export type Offsets = {
+    children: u32,
+    fields: u32,
+    names: u32
+}
+
+export type Input = {
+    kinds: u8[],
+    first: u32[],
+    offsets?: Offsets
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const { kinds, first, offsets } = in
+
+    if (offsets == null) {
+        return first
+    }
+
+    const { children, fields, names } = offsets
+
+    const unchanged = (
+        - children == 0
+        - and fields == 0
+        - and names == 0
+    )
+
+    if (unchanged) {
+        return first
+    }
+
+    return kinds.map(
+        (code, index) => {
+            const offset = match kind(code) {
+                Kind.Object => fields,
+                Kind.Tuple => children,
+                Kind.ErrorSet => names,
+                Kind.Enumeration => names,
+                _ => 0
+            }
+
+            return first[index] + offset
+        }
+    )[0]
+}

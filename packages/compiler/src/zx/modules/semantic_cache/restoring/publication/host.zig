@@ -11,7 +11,6 @@ const Surface = @import("../../../artifact/surface.zig").Publication;
 const Current = @import("../../restore.zig").Current;
 const Restored = @import("../../restore.zig").Restored;
 const TypeTail = @import("../../../../analysis/semantic/merging/publication/view.zig");
-const Origins = @import("../../../nominal_origins.zig");
 const scalar_rows = @import("../../../../analysis/type_table.zig").scalar_rows;
 const restore_entry = @import("generated_semantic_restore");
 const publish_entry = @import("generated_semantic_restore_publish");
@@ -29,7 +28,6 @@ const Columns = std.meta.Child(@typeInfo(@FieldType(RestoreInput, "columns")).op
 const Self = @This();
 
 offsets: TypeTail.Offsets,
-options: TypeTail.Options,
 types: TypeTail,
 scalars: Table,
 body: remap.FunctionView(Body),
@@ -77,9 +75,8 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
     }
 
     self.offsets = TypeTail.offsets(target.types);
-    self.options = .{ .allocator = target.allocator, .payload = frame.payload, .types = target.types, .origins = &target.origins.items, .offsets = &self.offsets };
 
-    self.types.init(&self.options, .{}, @as(Origins.Table, .{}));
+    self.types.init(.{ .allocator = target.allocator, .payload = frame.payload, .types = target.types, .origins = &target.origins.items, .offsets = &self.offsets });
 
     const empty_types = target.types.count() == 0;
 
@@ -90,13 +87,6 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
     self.functions.init(&target.allocator, target.functions);
 
     self.empty = destination.empty(Empty);
-
-    self.validation.init(.{
-        .types = target.types,
-        .functions = target.functions,
-        .native_modules = &target.native_modules,
-        .verified = target.verified.*,
-    }, &self.surface, frame.scratch);
 
     self.input = .{
         .body = if (source != null) &self.body.input else null,

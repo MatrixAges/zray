@@ -1,0 +1,17 @@
+import type { Plan } from "../../../analysis/semantic/merging/publication/model"
+
+export type Input = {
+    row: u64,
+    mapping: u32[],
+    publication?: Plan
+}
+
+export type Output = u64
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.rows.pending = in
+
+    return in.row
+}

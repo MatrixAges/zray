@@ -15,8 +15,7 @@
             },
             names: $in.names,
             complete: true,
-            validation: null,
-            resource: null
+            validation: null
         }}
     />
 

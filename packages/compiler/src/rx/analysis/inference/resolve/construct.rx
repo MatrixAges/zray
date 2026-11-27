@@ -72,11 +72,6 @@
                 $ctx.construct_type.row.names
             ]}
         />
-
-        <Call
-            module="../../../../zx/analysis/semantic/merging/publication/write"
-            in={$in.resolver.write}
-        />
     </If>
 
     <Call fn="host.finishResolveConstruction" in={$in.resolver.frame} />

@@ -1,32 +1,28 @@
 <Module>
     <Type from="model" as="Members" />
+    <Type from="../../zx/modules/link/source/members/model" as="Source" />
 
-    <Args in={Members.Input} out={bool} />
-
-    <Call fn="select" in={$in.records} />
+    <Args in={Members.Input} out={Source.Row[]?} />
 
     <Call
-        fn="../../zx/modules/artifact/surface/allocate_rows"
+        fn="../../zx/modules/link/source/members/publish"
         in={{
-            storage: $in.storage,
-            count: $in.public_members.source.count + $ctx.select.count
+            ...$in.public_members,
+            rows: []
         }}
     />
-
-    <Call fn="../../zx/modules/link/source/members/publish" in={$in.public_members} />
 
     <If on={$ctx.publish != null}>
         <Call
             fn="reexports"
             in={{
-                ...$in.omit(["storage"]),
-                selected: $ctx.select,
-                first: $ctx.publish.written
+                ...$in,
+                rows: $ctx.publish.rows
             }}
         />
 
         <Return value={$ctx.reexports} />
     </If>
 
-    <Return value={false} />
+    <Return value={null} />
 </Module>

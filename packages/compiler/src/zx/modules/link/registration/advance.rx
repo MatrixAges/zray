@@ -3,15 +3,29 @@
 
     <Args in={Types.Traversal} out={Types.Traversal} />
 
+    <Store from="rows" as="rows" />
+
     <Call fn="request" in={$in} />
 
     <Call module="../../../analysis/semantic/merging/register" />
+
+    <If on={$ctx.register.publication != null}>
+        <Call
+            fn="commit"
+            in={{
+                row: $in.source.order[$in.position],
+                mapping: $ctx.register.mapping,
+                publication: $ctx.register.publication
+            }}
+            setter={[$store.rows.pending]}
+        />
+    </If>
 
     <Call
         fn="publish_cursor"
         in={{
             ...$in,
-            status: $ctx.register
+            status: $ctx.register.status
         }}
     />
 

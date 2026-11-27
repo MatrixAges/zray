@@ -2,18 +2,15 @@
     <Type from="model" as="Publication" />
     <Type from="../../../../analysis/semantic/merging/publication/model" as="Tail" />
 
-    <Args in={Publication.Types} out={void} />
+    <Args in={Publication.Types} out={Tail.Plan} />
 
     <If on={$in.scalars != null}>
         <Call
-            fn="../../../../analysis/semantic/merging/publication/size"
+            fn="../../../compiled/loading/type_delta"
             in={{
-                delta: $in.scalars,
-                origins: $in.plan.origins,
-                destination: {
-                    ...$in.target.destination,
-                    nominal_ranges: null
-                }
+                base: $in.scalars,
+                delta: $in.plan.delta,
+                existing_count: 0
             }}
         />
 
@@ -21,35 +18,22 @@
             module="../../../../analysis/semantic/merging/publication/write"
             in={{
                 ...$in.target,
-                delta: $in.scalars,
-                origins: {
-                    ids: [],
-                    kinds: [],
-                    owners: [],
-                    members: []
-                },
-                destination: {
-                    ...$in.target.destination,
-                    nominal_ranges: null
-                },
-                text_mode: Tail.TextMode.Borrow
+                delta: $ctx.type_delta,
+                origins: $in.plan.origins
             }}
         />
-    </If>
 
-    <Call
-        fn="../../../../analysis/semantic/merging/publication/size"
-        in={{
-            ...$in.plan,
-            destination: $in.target.destination
-        }}
-    />
+        <Return value={$ctx.write} />
+    </If>
 
     <Call
         module="../../../../analysis/semantic/merging/publication/write"
         in={{
             ...$in.target,
-            ...$in.plan
+            delta: $in.plan.delta,
+            origins: $in.plan.origins
         }}
     />
+
+    <Return value={$ctx.write} />
 </Module>

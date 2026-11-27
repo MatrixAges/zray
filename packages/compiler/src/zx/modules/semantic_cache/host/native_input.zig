@@ -26,14 +26,13 @@ export_rows: names.Rows,
 exports: std.meta.Child(@FieldType(Request, "exports")),
 request: Request,
 validation: Validation,
-type_ids: []u32,
 ports: FunctionImport.Readable,
 binding_names: zx.memory.TextColumn,
 namespaces: zx.memory.ReadColumn,
 port_rows: Ports,
 admission: Admission,
 input: Input,
-pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool, type_ids: []u32) void {
+pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool) void {
     self.signatures = borrow.columns(@TypeOf(self.signatures), artifact.functions);
     self.modules = borrow.columns(@TypeOf(self.modules), artifact.native_modules);
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), artifact.nominal_types);
@@ -67,8 +66,6 @@ pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, curren
         .maximum_count = std.math.maxInt(u32),
     };
 
-    self.type_ids = type_ids;
-
     if (!admitted) {
         self.ports = FunctionImport.Readable.borrowRows(artifact.function_imports);
         self.binding_names = zx.memory.borrowTextColumn("name", artifact.function_imports);
@@ -87,8 +84,6 @@ pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, curren
         .origin_names = artifact.nominal_types.names,
         .base = &self.base,
         .base_origins = &self.base_origins,
-        .mapping = @ptrCast(&self.type_ids),
-        .type_ids = self.type_ids,
         .admission = if (admitted) null else &self.admission,
     };
 }

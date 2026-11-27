@@ -83,18 +83,15 @@ pub fn execute(types: *Types, view: anytype, request: Request(@TypeOf(view))) zx
 
         var transaction: TypeTail = undefined;
 
-        transaction.init(&options, .{}, Origins.Table{});
-        errdefer transaction.release();
+        transaction.init(options);
 
-        const Publication = Names.TypePublication;
+        var pending = try transaction.prepare(allocator, zx.columns.view(zx.ir.TypeTable, result.delta), result.origins);
 
-        const request_view = transaction.request(
-            Publication,
-            zx.columns.pointer(@FieldType(Publication, "delta"), result.delta),
-            zx.columns.pointer(@FieldType(Publication, "origins"), result.origins),
-        );
+        errdefer pending.release();
 
-        try types.resolved.publish(types.allocator, zx.columns.pointer(*const Names.Cache, result.cache), &request_view);
+        try types.resolved.publish(types.allocator, zx.columns.pointer(*const Names.Cache, result.cache));
+
+        pending.publish();
     }
 
     if (result.diagnostic.message.len != 0) return types.reporter.fail(

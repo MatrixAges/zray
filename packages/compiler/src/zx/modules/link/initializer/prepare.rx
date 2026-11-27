@@ -26,11 +26,17 @@
 
             <Call module="../../../analysis/semantic/merging/register" in={$in.types} />
 
-            <Switch on={$ctx.register}>
+            <Switch on={$ctx.register.status}>
                 <Case value={Types.Status.Ready}>
                     <Call fn="select" in={$in.registry} />
 
-                    <Return value={$ctx.select} />
+                    <Return
+                        value={{
+                            ...$ctx.select,
+                            mapping: $ctx.register.mapping,
+                            publication: $ctx.register.publication
+                        }}
+                    />
                 </Case>
 
                 <Case value={Types.Status.MissingOrigin}>

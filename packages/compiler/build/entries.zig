@@ -193,7 +193,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/semantic/produce.rx", .name = "origin_production" },
     .{ .path = "zx/analysis/semantic/merging/register.rx", .name = "type_merge" },
     .{ .path = "zx/analysis/semantic/merging/publication/write.rx", .name = "type_merge_publication" },
-    .{ .path = "zx/analysis/semantic/merging/publication/release.zx", .name = "type_merge_release" },
     .{ .path = "core/type_table/retained.zx", .name = "type_retained_payload", .owner = .core },
     .{ .path = "core/type_table/write_first.zx", .name = "type_delta_first", .owner = .core },
     .{ .path = "core/function_table/publication/publish.zx", .name = "function_table_publish", .owner = .core },

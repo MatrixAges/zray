@@ -26,12 +26,22 @@
     <Call
         fn="merging/initialize"
         in={{
-            mapping: $in.request.mapping,
-            first: $in.request.first
+            kinds: $in.request.source.kinds,
+            first: $in.request.first,
+            source_first: $in.request.source_first
         }}
     />
 
-    <Call fn="merging/append" in={$in} />
+    <Call
+        fn="merging/append"
+        in={{
+            request: $in.request,
+            state: {
+                ...$in.state,
+                mapping: $ctx.initialize
+            }
+        }}
+    />
 
     <Return value={$ctx.append} />
 </Module>

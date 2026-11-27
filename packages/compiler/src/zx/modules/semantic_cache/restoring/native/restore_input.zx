@@ -1,6 +1,5 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { U32Buffer } from "memory"
 import type { Rows } from "./bindings"
 import type { Input as Validation } from "./validation"
 
@@ -8,8 +7,6 @@ export type Preparation = {
     base: Table,
     base_origins: Bindings,
     origin_names: string[],
-    mapping: U32Buffer,
-    type_ids: u32[],
     validation: Validation,
     admission?: Rows
 }

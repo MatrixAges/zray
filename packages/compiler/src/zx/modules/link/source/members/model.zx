@@ -1,5 +1,4 @@
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { WriteColumn as OptionalColumn } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 import type { Mapping } from "../../../artifact/remapping/model"
 
 export type Names = {
@@ -14,13 +13,13 @@ export type Source = Names & {
     outputs: ReadColumn
 }
 
-export type Target = {
-    names: WriteColumn,
-    intrinsics: OptionalColumn,
-    ids: OptionalColumn,
-    inputs: OptionalColumn,
-    outputs: OptionalColumn,
-    namespaces: OptionalColumn
+export type Row = {
+    name: string,
+    id?: u32,
+    input_type?: u32,
+    output_type?: u32,
+    intrinsic?: u8,
+    namespace?: string
 }
 
 export enum Anonymous {
@@ -31,15 +30,14 @@ export enum Anonymous {
 
 export type Input = {
     anonymous: Anonymous,
-    first: u64,
     source: Source,
-    target: Target,
+    rows: Row[],
     entry?: u32,
     type_ids: u32[],
     functions: Mapping
 }
 
 export type Result = {
-    written: u64,
+    rows: Row[],
     entry?: u32
 }

@@ -1,4 +1,5 @@
 import type {
+    Plan,
     Target as TypeTarget
 } from "../../../../analysis/semantic/merging/publication/model"
 import type {
@@ -22,6 +23,11 @@ export type Installation = {
 export type Request = {
     plan: Planning,
     installation: Installation
+}
+
+export type Execution = {
+    plan: Result,
+    publication?: Plan
 }
 
 export type Publication = {

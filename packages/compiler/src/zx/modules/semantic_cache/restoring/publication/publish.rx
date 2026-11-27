@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Input} out={Publication.Plan?} />
+    <Args in={Publication.Input} out={Publication.Published?} />
 
     <Call
         module="types"
@@ -70,7 +70,8 @@
     <Return
         value={{
             ...$ctx.entry,
-            stores: $ctx.stores
+            stores: $ctx.stores,
+            publication: $ctx.types
         }}
     />
 </Module>

@@ -3,31 +3,6 @@
 
     <Args in={Artifact.Publish} out={Artifact.Published} />
 
-    <If on={$in.types.kinds.length != 0}>
-        <Call
-            fn="../../../analysis/semantic/merging/publication/size"
-            in={{
-                delta: $in.types,
-                origins: $in.origins,
-                destination: $in.target.destination
-            }}
-        />
-
-        <Call
-            module="../../../analysis/semantic/merging/publication/write"
-            in={{
-                ...$in.target,
-                delta: $in.types,
-                origins: {
-                    ids: [],
-                    kinds: [],
-                    owners: [],
-                    members: []
-                }
-            }}
-        />
-    </If>
-
     <Call
         fn="header"
         in={{
@@ -63,11 +38,12 @@
     />
 
     <Call
-        fn="origins"
+        module="../../../analysis/semantic/merging/publication/write"
         in={{
+            ...$in.target,
+            delta: $in.types,
             origins: $in.origins,
-            labels: $in.target.target.labels,
-            key: $ctx.header.key
+            native_owner: $ctx.header.key
         }}
     />
 
@@ -75,7 +51,7 @@
         value={{
             path: $ctx.header.key,
             modules: $ctx.modules,
-            origins: $ctx.origins,
+            publication: $ctx.write,
             exports: $ctx.surface,
             members: $ctx.publish_members
         }}

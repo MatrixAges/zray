@@ -4,7 +4,6 @@ import type { Input as TypeRequest } from "./types/model"
 
 export type Input = {
     preflight: Preflight,
-    types: TypeRequest.Omit("type_ids"),
-    rebind: Rebind,
-    type_ids: u32[]
+    types: TypeRequest,
+    rebind: Rebind
 }

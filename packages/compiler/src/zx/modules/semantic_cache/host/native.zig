@@ -20,11 +20,9 @@ pub fn restore(allocator: std.mem.Allocator, artifact: *const Artifact.Module, e
     var input: Input = undefined;
     var target: Target = undefined;
     const temp = scratch.allocator();
-    const type_ids = try temp.alloc(u32, artifact.types.count());
 
     target.init(allocator, current);
-    input.init(artifact, entry, current, admitted, type_ids);
-    errdefer target.tail.release();
+    input.init(artifact, entry, current, admitted);
 
     const prepared = generated.executeIn(temp, &input.input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,

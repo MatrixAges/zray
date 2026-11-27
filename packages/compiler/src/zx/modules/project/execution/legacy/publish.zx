@@ -6,13 +6,11 @@ import host from "project_host"
 import bind from "../../interface/legacy"
 
 import type { Index } from "core/bytes/index/model"
-import type { Allocator } from "memory"
 import type { ProjectExternalBindings } from "project_host"
 import type { External } from "../../interface/model"
 
 export type Input = External & {
-    target: ProjectExternalBindings,
-    resource: Allocator
+    target: ProjectExternalBindings
 }
 
 export type Output = bool
@@ -26,7 +24,7 @@ export default function (in: Input): Output {
         buckets: []
     }
 
-    const { specifiers, exports, specifier, local, target, resource } = in
+    const { specifiers, exports, specifier, local, target } = in
 
     return loop({
         index: in.first,
@@ -64,12 +62,14 @@ export default function (in: Input): Output {
                     const label = binding.namespace
 
                     if (state.namespace == null && label != null) {
-                        state.namespace = memory.copyColumnText(resource, label)
+                        state.namespace = label
                     }
 
-                    const name = memory.copyColumnText(resource, binding.name)
-
-                    host.appendProjectExternal(target, name, state.namespace)
+                    host.appendProjectExternal(
+                        target,
+                        binding.name,
+                        state.namespace
+                    )
 
                     state.keys = claimed.index
                     state.count += 1

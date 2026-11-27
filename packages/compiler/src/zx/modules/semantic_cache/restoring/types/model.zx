@@ -10,7 +10,6 @@ export type Input = {
     current_constants?: Values,
     cached_constants?: Values,
     cached_exports?: Values,
-    type_ids: u32[],
     scalar_count: u64,
     maximum_count: u64,
     decoded: bool
@@ -18,5 +17,6 @@ export type Input = {
 
 export type Plan = {
     delta: Table,
-    origins: Bindings
+    origins: Bindings,
+    mapping: u32[]
 }

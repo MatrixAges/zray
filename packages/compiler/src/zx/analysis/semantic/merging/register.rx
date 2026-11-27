@@ -1,31 +1,42 @@
 <Module>
     <Type from="model" as="Merge" />
 
-    <Args in={Merge.Append} out={Merge.Status} />
+    <Args in={Merge.Append} out={Merge.Registration} />
 
     <Call module="prepare" in={$in.preparation} />
 
     <If on={$ctx.prepare != null}>
-        <Call
-            fn="publication/size"
-            in={{
-                delta: $ctx.prepare.delta,
-                origins: $ctx.prepare.origins,
-                destination: $in.publication.destination
+        <If on={$ctx.prepare.status == Merge.Status.Ready}>
+            <Call
+                module="publication/write"
+                in={{
+                    ...$in.publication,
+                    delta: $ctx.prepare.delta,
+                    origins: $ctx.prepare.origins
+                }}
+            />
+
+            <Return
+                value={{
+                    status: $ctx.prepare.status,
+                    mapping: $ctx.prepare.mapping,
+                    publication: $ctx.write
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                status: $ctx.prepare.status,
+                mapping: []
             }}
         />
-
-        <Call
-            module="publication/write"
-            in={{
-                ...$in.publication,
-                delta: $ctx.prepare.delta,
-                origins: $ctx.prepare.origins
-            }}
-        />
-
-        <Return value={$ctx.prepare.status} />
     </If>
 
-    <Return value={Merge.Status.Invalid} />
+    <Return
+        value={{
+            status: Merge.Status.Invalid,
+            mapping: []
+        }}
+    />
 </Module>

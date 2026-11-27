@@ -1,9 +1,6 @@
 import type { Tables } from "core/type_table/model"
 import type { U32Buffer } from "memory"
 import type { TypeResolver } from "rx_project_host"
-import type {
-    Input as TypeWrite
-} from "../../../../zx/analysis/semantic/merging/publication/model"
 import type { Kind } from "../unification/model"
 import type { Payload } from "./continuation"
 
@@ -35,7 +32,6 @@ export type Session = {
     parents: U32Buffer,
     tables: Tables,
     payload: Payload,
-    write: TypeWrite
 }
 
 export type Input = {

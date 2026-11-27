@@ -1,8 +1,7 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { Allocator, U32Buffer } from "memory"
 import type { Input as Shape } from "../types/validation/shape"
-import type { Target as Publication } from "./publication/model"
+import type { Plan, Target as Publication } from "./publication/model"
 
 export type Request = {
     source: Table
@@ -10,7 +9,6 @@ export type Request = {
     origin_indices: u64[]
     base: Table
     base_origins: Bindings
-    mapping: U32Buffer
     first: u64
     source_first: u64
     checked: bool
@@ -26,6 +24,7 @@ export enum Status {
 export type State = {
     delta: Table
     origins: Bindings
+    mapping: u32[],
     references: u32[]
     status: Status
 }
@@ -39,11 +38,16 @@ export type Preparation = {
     request: Request.Omit("origin_indices"),
     names: string[],
     complete: bool,
-    validation?: Shape.Pick("maximum_count", "scalar_count"),
-    resource?: Allocator
+    validation?: Shape.Pick("maximum_count", "scalar_count")
 }
 
 export type Append = {
     preparation: Preparation,
     publication: Publication
+}
+
+export type Registration = {
+    status: Status,
+    mapping: u32[],
+    publication?: Plan
 }

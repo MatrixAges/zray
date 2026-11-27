@@ -12,6 +12,8 @@ export type Input = {
     names_out: StringBuffer
 }
 
+export type Names = string[]
+
 export type Release = Input.Pick("allocator", "owners_out", "members_out") & {
     completed: u64
 }

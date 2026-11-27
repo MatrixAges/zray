@@ -28,7 +28,7 @@
 
     <Call module="../../../../analysis/semantic/merging/register" in={$in.types} />
 
-    <Switch on={$ctx.register}>
+    <Switch on={$ctx.register.status}>
         <Case value={Types.Status.MissingOrigin}>
             <Return
                 value={{
@@ -70,21 +70,16 @@
 
     <If on={$in.natives != null}>
         <Call
-            fn="native_mapping"
-            in={$in.types.preparation.request.mapping}
-        />
-
-        <Call
             module="../../native/link"
             in={{
                 plan: {
                     source: $in.natives.source,
                     base: $in.natives.base,
-                    types: $ctx.native_mapping
+                    types: $ctx.register.mapping
                 },
                 publication: {
                     source: $in.natives.source,
-                    mapping: $ctx.native_mapping,
+                    mapping: $ctx.register.mapping,
                     destination: $in.natives.destination
                 }
             }}
@@ -124,7 +119,8 @@
         <Return
             value={{
                 status: Source.Status.Ready,
-                native_ids: $ctx.link.ids
+                native_ids: $ctx.link.ids,
+                registration: $ctx.register
             }}
         />
     </If>
@@ -132,7 +128,8 @@
     <Return
         value={{
             status: Source.Status.Ready,
-            native_ids: []
+            native_ids: [],
+            registration: $ctx.register
         }}
     />
 </Module>

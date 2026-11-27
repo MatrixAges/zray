@@ -68,7 +68,7 @@
             in={{
                 previous: $in.cached_constants,
                 current: $in.current_constants,
-                mapping: $in.type_ids
+                mapping: $ctx.types.mapping
             }}
         />
 
@@ -80,7 +80,8 @@
     <Return
         value={$ctx.types.pick([
             "delta",
-            "origins"
+            "origins",
+            "mapping"
         ])}
     />
 </Module>

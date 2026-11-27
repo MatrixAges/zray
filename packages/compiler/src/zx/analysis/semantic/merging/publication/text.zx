@@ -1,124 +1,28 @@
-import { into } from "core/owned_text"
-import memory from "memory"
+import { OriginText, TextMode } from "./model"
 
-import {
-    completed_fields,
-    completed_labels,
-    completed_members,
-    completed_names,
-    completed_owners
-} from "./const"
-import { TextMode } from "./model"
-import repeat from "./repeat_origin"
+import type { Target, Text } from "./model"
 
-import type { Text } from "./model"
+export type Input = Target.Pick("text_mode", "native_owner")
 
-export type Input = Text
-
-export type Output = void
+export type Output = Text
 
 export default function (in: Input): Output {
-    const { delta, origins, target, nominal, text_mode, progress, payload } = in
+    const { text_mode, native_owner } = in
 
-    if (text_mode == TextMode.Own || text_mode == TextMode.OwnSharedOrigin) {
-        into({
-            allocator: payload,
-            target: target.labels,
-            source: delta.labels
-        })
+    const own_labels = text_mode == TextMode.Own ||
+        text_mode == TextMode.OwnSharedOrigin
 
-        memory.writeU64(progress, 0, completed_labels)
-
-        into({
-            allocator: payload,
-            target: target.field_names,
-            source: delta.field_names
-        })
-
-        memory.writeU64(progress, 0, completed_fields)
-
-        into({
-            allocator: payload,
-            target: target.names,
-            source: delta.names
-        })
-
-        memory.writeU64(progress, 0, completed_names)
-
-        const owner = in.native_owner
-        const count = origins.ids.length
-
-        if (owner != null) {
-            repeat({
-                target: nominal.owners,
-                count,
-                text: owner
-            })
-
-            repeat({
-                target: nominal.members,
-                count,
-                text: ""
-            })
-
-            return
-        }
-
-        if (text_mode == TextMode.OwnSharedOrigin) {
-            if (count != 0) {
-                repeat({
-                    target: nominal.owners,
-                    count,
-                    text: memory.copyColumnText(payload, origins.owners[0])
-                })
-
-                memory.writeU64(progress, 0, completed_owners)
-
-                repeat({
-                    target: nominal.members,
-                    count,
-                    text: memory.copyColumnText(payload, origins.members[0])
-                })
-
-                memory.writeU64(progress, 0, completed_members)
-            }
-
-            return
-        }
-
-        into({
-            allocator: payload,
-            target: nominal.owners,
-            source: origins.owners
-        })
-
-        memory.writeU64(progress, 0, completed_owners)
-
-        into({
-            allocator: payload,
-            target: nominal.members,
-            source: origins.members
-        })
-
-        memory.writeU64(progress, 0, completed_members)
-
-        return
+    const origin_text = match {
+        !own_labels => OriginText.Borrow,
+        native_owner != null => OriginText.Native,
+        text_mode == TextMode.OwnSharedOrigin => OriginText.Shared,
+        _ => OriginText.Own
     }
 
-    memory.copyStringViews(target.labels, delta.labels)
-    memory.copyStringViews(target.field_names, delta.field_names)
-    memory.copyStringViews(nominal.owners, origins.owners)
-    memory.copyStringViews(nominal.members, origins.members)
-
-    if (text_mode == TextMode.OwnNames) {
-        into({
-            allocator: payload,
-            target: target.names,
-            source: delta.names
-        })
-
-        memory.writeU64(progress, 0, completed_names)
-    } else {
-        memory.copyStringViews(target.names, delta.names)
+    return {
+        own_labels,
+        own_names: own_labels || text_mode == TextMode.OwnNames,
+        origin_text,
+        native_owner
     }
 }

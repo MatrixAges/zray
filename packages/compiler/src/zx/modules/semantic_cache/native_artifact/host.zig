@@ -5,7 +5,6 @@ const Native = @import("../../interface.zig").Native;
 const Artifact = @import("../../artifact/model.zig");
 const Origins = @import("../../nominal_origins.zig");
 const publication = @import("../../native/publication/host.zig");
-const columns = @import("../../artifact/materializing/publication/columns.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
 const generated = @import("generated_native_artifact");
 const publishing = @import("generated_native_artifact_publish");
@@ -51,10 +50,11 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
     };
 
     var types: ir.TypeStorage = .{};
+    var nominal: Origins.Storage = .{};
     var type_tail: TypeTail = undefined;
-    const options: TypeTail.Options = .{ .allocator = payload, .payload = payload, .types = &types, .origins = null, .precise = true };
+    const options: TypeTail.Options = .{ .allocator = payload, .payload = payload, .types = &types, .origins = &nominal, .precise = true };
 
-    type_tail.init(&options, .{}, Origins.Table{});
+    type_tail.init(options);
 
     const publish_input: PublishInput = .{
         .declaration = &declaration,
@@ -70,6 +70,8 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    try type_tail.commit(value.publication);
 
     const exports = try payload.alloc(ir.Export, value.exports.names.len);
     const bindings = try publication.ownBindings(payload, value.members.bindings);
@@ -89,11 +91,11 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         .path = value.path,
         .source_digest = fingerprint,
         .types = types.view(),
-        .nominal_types = columns.view(Origins.Table, value.origins),
+        .nominal_types = nominal.view(),
         .exports = exports,
         .function_imports = bindings,
         .functions = signatures.view(),
-        .native_modules = columns.view(ir.NativeModuleTable, value.modules),
+        .native_modules = zx.columns.view(ir.NativeModuleTable, value.modules),
         .dependencies = &.{},
         .type_imports = &.{},
         .function = null,

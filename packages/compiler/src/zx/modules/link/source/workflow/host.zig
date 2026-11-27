@@ -64,12 +64,11 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     var mapped_natives: Mapping = .{ .kind = if (complete) .Sparse else .Range, .dense = &.{}, .sparse = &.{}, .planned = &.{}, .first = 0, .count = native_count, .prefix = 0 };
     const types: *[]u32 = @ptrCast(&mapped_types.dense);
     const natives: *[]?ir.NativeModuleId = @ptrCast(&mapped_natives.sparse);
-    var reserved = false;
 
-    errdefer if (!reserved) {
+    errdefer {
         type_allocator.free(types.*);
         destination.temporary.free(natives.*);
-    };
+    }
 
     var arena = std.heap.ArenaAllocator.init(destination.temporary);
     var arena_alive = true;
@@ -101,8 +100,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
 
     var view: merge_types.Registration = undefined;
 
-    view.init(&registration, types);
-    errdefer if (!reserved) view.output.release();
+    view.init(&registration);
 
     if (complete) view.mapping.input.validation = null;
 
@@ -140,12 +138,19 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
 
     try requireReady(prepared.status);
 
+    const registered = prepared.registration.?;
+
+    types.* = try type_allocator.dupe(u32, registered.mapping);
+
     if (has_natives) {
         const mapping: []const ?ir.NativeModuleId = @ptrCast(prepared.native_ids);
 
         natives.* = try destination.temporary.dupe(?ir.NativeModuleId, mapping);
     }
 
+    var type_rows = try view.output.stage(registered.publication.?);
+
+    errdefer type_rows.release();
     arena.deinit();
 
     arena_alive = false;
@@ -155,9 +160,9 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
         else => return error.InvalidModule,
     };
 
-    reserved = true;
-
     try requireReady(result.status);
+
+    type_rows.publish();
 
     return .{
         .allocator = destination.allocator,

@@ -21,8 +21,7 @@
             origins: $in.validation.request.origins,
             names: $in.origin_names,
             base: $ctx.type_base,
-            base_origins: $in.base_origins,
-            mapping: $in.mapping
+            base_origins: $in.base_origins
         }}
     />
 
@@ -34,7 +33,7 @@
                     "input_types",
                     "output_types"
                 ]),
-                types: $in.type_ids
+                types: $ctx.types.mapping
             }}
         />
 

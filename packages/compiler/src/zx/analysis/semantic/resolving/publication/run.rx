@@ -1,32 +1,18 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Input} out={u32[]?} />
+    <Args in={Publication.Names} out={u32[]?} />
 
     <If on={$in.cache.names.length == 0}>
-        <If on={$in.types != null}>
-            <Call
-                module="../../merging/publication/append"
-                in={$in.types}
-            />
-        </If>
-
         <Return value={null} />
     </If>
 
-    <Call fn="prepare" in={$in.omit(["types"])} />
-
-    <If on={$in.types != null}>
-        <Call
-            module="../../merging/publication/append"
-            in={$in.types}
-        />
-    </If>
+    <Call fn="prepare" in={$in} />
 
     <Call
         fn="index_suffix"
         in={{
-            ...$in.omit(["types"]),
+            ...$in,
             rebuilt: $ctx.prepare
         }}
     />

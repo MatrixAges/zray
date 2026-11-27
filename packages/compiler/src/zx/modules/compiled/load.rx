@@ -29,8 +29,7 @@
             origins: $ctx.origins,
             names: $in.graph.origin_names,
             base: $ctx.type_base,
-            base_origins: $in.destination.origins,
-            mapping: $in.type_mapping
+            base_origins: $in.destination.origins
         }}
     />
 
@@ -50,7 +49,7 @@
                 in={{
                     source: $in.graph.program.context.modules,
                     base: $in.destination.natives,
-                    type_mapping: $in.type_mapping,
+                    type_mapping: $ctx.types.mapping,
                     instance: $in.instance,
                     maximum: $in.graph.program.context.maximum_count
                 }}

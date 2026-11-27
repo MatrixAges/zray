@@ -40,8 +40,7 @@
             in={{
                 source: $in.rows.constants,
                 types: $in.rows.types,
-                target: $in.rows.constant_target,
-                storage: $in.rows.constant_storage
+                imported: false
             }}
         />
     </If>

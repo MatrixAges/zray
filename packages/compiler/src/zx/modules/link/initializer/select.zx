@@ -6,7 +6,7 @@ import columns from "memory/columns"
 
 import { Status } from "./model"
 
-import type { Plan as Output, Registry as Input } from "./model"
+import type { Selection as Output, Registry as Input } from "./model"
 
 export default function (in: Input): Output {
     const found = probe({

@@ -1,15 +1,45 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Input} out={void} />
-
-    <Call module="stage" in={$in} />
+    <Args in={Model.Input} out={Model.Plan} />
 
     <Call
-        fn="publish"
+        fn="first"
+        in={{
+            kinds: $in.delta.kinds,
+            first: $in.delta.first,
+            offsets: $in.offsets
+        }}
+    />
+
+    <Call
+        fn="text"
         in={$in.pick([
-            "destination",
-            "progress"
+            "text_mode",
+            "native_owner"
         ])}
+    />
+
+    <Call
+        fn="names"
+        in={{
+            origin_ids: $in.origins.ids,
+            base_labels: $in.base_labels,
+            delta_labels: $in.delta.labels,
+            own_labels: $ctx.text.own_labels
+        }}
+    />
+
+    <Return
+        value={{
+            delta: {
+                ...$in.delta,
+                first: $ctx.first
+            },
+            origins: $in.origins,
+            nominal_names: $ctx.names.values,
+            label_rows: $ctx.names.label_rows,
+            text: $ctx.text
+        }}
     />
 </Module>

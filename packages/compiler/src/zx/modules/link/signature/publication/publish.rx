@@ -12,8 +12,7 @@
                 "source",
                 "row",
                 "ports"
-            ]),
-            allocator: $in.destination.text_allocator
+            ])
         }}
     />
 

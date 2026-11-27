@@ -4,16 +4,7 @@
     <Args in={Delivery.Input} out={Delivery.Output} />
 
     <Call
-        fn="../../../analysis/semantic/merging/publication/size"
-        in={{
-            delta: $in.delta,
-            origins: $in.origins,
-            destination: $in.types.destination
-        }}
-    />
-
-    <Call
-        module="../../../analysis/semantic/merging/publication/stage"
+        module="../../../analysis/semantic/merging/publication/write"
         in={{
             ...$in.types,
             delta: $in.delta,
@@ -54,7 +45,8 @@
             ...$ctx.exports,
             namespace: $ctx.namespace,
             functions: $ctx.members.functions,
-            members: $ctx.members.members
+            members: $ctx.members.members,
+            publication: $ctx.write
         }}
     />
 </Module>

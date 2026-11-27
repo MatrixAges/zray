@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Origin" />
 
-    <Args in={Origin.Input} out={void} />
+    <Args in={Origin.Input} out={Origin.Names} />
 
     <Store from="progress" as="progress" />
 
@@ -37,26 +37,27 @@
         />
     </If>
 
-    <If on={$in.labels == null}>
+    <If on={$in.labels != null}>
         <Call
-            fn="../../../core/owned_text/into"
+            fn="bind_names"
             in={{
-                allocator: $in.allocator,
-                target: $in.names_out,
-                source: $in.names
+                origin_ids: $in.source.ids,
+                base_labels: $in.labels,
+                delta_labels: []
             }}
         />
 
-        <Else>
-            <Call
-                fn="bind_names"
-                in={{
-                    origin_ids: $in.source.ids,
-                    base_labels: $in.labels,
-                    delta_labels: [],
-                    origin_names_out: $in.names_out
-                }}
-            />
-        </Else>
+        <Return value={$ctx.bind_names} />
     </If>
+
+    <Call
+        fn="../../../core/owned_text/into"
+        in={{
+            allocator: $in.allocator,
+            target: $in.names_out,
+            source: $in.names
+        }}
+    />
+
+    <Return value={[]} />
 </Module>

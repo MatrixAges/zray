@@ -1,9 +1,8 @@
 <Module>
     <Type from="loading/install/model" as="Install" />
-    <Type from="model" as="Model" />
     <Type from="status" as="Link" />
 
-    <Args in={Install.Request} out={Model.Result} />
+    <Args in={Install.Request} out={Install.Execution} />
 
     <Call
         fn="loading/install/initialize"
@@ -23,7 +22,11 @@
     />
 
     <If on={$ctx.plan.status != Link.Status.Ready}>
-        <Return value={$ctx.plan} />
+        <Return
+            value={{
+                plan: $ctx.plan
+            }}
+        />
     </If>
 
     <Call
@@ -34,5 +37,10 @@
         }}
     />
 
-    <Return value={$ctx.plan} />
+    <Return
+        value={{
+            plan: $ctx.plan,
+            publication: $ctx.prepare
+        }}
+    />
 </Module>
