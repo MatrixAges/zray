@@ -1,32 +1,39 @@
-import bytes from "std:bytes"
 import { renderAbiFile } from "bundle_abi_host"
-import memory from "memory"
 
 import type { AbiFrame } from "bundle_abi_host"
-import type { Allocator } from "memory"
 import type { View } from "./plan/model"
-import type { Files } from "./workflow"
+import type { RenderedFile } from "./workflow"
 
-export type Input = [AbiFrame, Allocator, Files, View[]]
+export type Input = [AbiFrame, View[]]
 
-export type Output = void
+export type Output = RenderedFile[]
 
 export default function (in: Input): Output {
-    const written = loop(0, {
-        while: row => row < in[3].length,
-        next: row => {
-            const [frame, owner, files, views] = in
-            const { module, name, path, aliases } = views[row]
-            const owned_name = memory.copyColumnText(owner, name)
-            const owned_path = memory.copyColumnText(owner, path)
+    const [frame, views] = in
+
+    const empty: RenderedFile[] = []
+
+    if (views.length == 0) {
+        return empty
+    }
+
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < views.length,
+        next: state => {
+            const { module, name, path, aliases } = views[state.row]
             const source = renderAbiFile(frame, aliases)
 
-            memory.writeColumnBytes(files.modules, row, bytes.fromText(module))
-            memory.writeColumnBytes(files.names, row, bytes.fromText(owned_name))
-            memory.writeColumnBytes(files.paths, row, bytes.fromText(owned_path))
-            memory.writeColumnBytes(files.sources, row, bytes.fromText(source))
-
-            row += 1
-        }
+            state.items = state.items.push({
+                module,
+                name,
+                path,
+                source
+            })[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

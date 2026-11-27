@@ -114,7 +114,8 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     const graph = try references.plan(workspace, allocator, program.functions, entries.roots, publication.member_ids);
     const units = try @import("function_units.zig").create(workspace, graph, publication.regular);
     const generated = try @import("function_sources.zig").createJobs(owned, .{ .batch = &batch, .entries = public_batches, .types = true, .functions = units });
-    @import("library_publication.zig").complete(library.exports, program.type_only, public_modules, generated[0..public_batches.len]);
+
+    try @import("library_publication.zig").complete(workspace, library.exports, program.type_only, public_modules, generated[0..public_batches.len]);
 
     const type_source = generated[public_batches.len];
     const initializers = try @import("library_initializers.zig").createBacked(owned, allocator, library, identities, cache);

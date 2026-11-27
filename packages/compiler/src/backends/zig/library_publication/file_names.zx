@@ -1,45 +1,21 @@
-import bytes from "std:bytes"
-import memory from "memory"
-
 import { zig_suffix } from "./const"
 
-import type { StringBuffer, U8Buffer } from "memory"
+export type Input = string[]
 
-export type Input = {
-    names: string[],
-    data: string,
-    buffer: U8Buffer,
-    target: StringBuffer
-}
-
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const suffix = bytes.fromText(zig_suffix)
+    const empty: string[] = []
 
-    const completed = loop({
+    return loop({
         row: 0,
-        offset: 0
+        paths: empty
     }, {
-        while: state => state.row < in.names.length,
+        while: state => state.row < in.length,
         next: state => {
-            const name = in.names[state.row]
-            const start = state.offset
-            const length =
-                memory.copyBytes(
-                    in.buffer,
-                    start,
-                    bytes.fromText(name),
-                    0,
-                    name.length
-                )
-            const end = start + length
-            const extra = memory.copyBytes(in.buffer, end, suffix, 0, suffix.length)
-            const file = memory.borrowTextRange(in.data, start, length + extra)
-
-            memory.writeString(in.target, state.row, file)
-            state.offset = end + extra
+            state.paths = state.paths.push(`${in[state.row]}${zig_suffix}`)[0]
             state.row += 1
-        }
+        },
+        return: state => state.paths
     })
 }

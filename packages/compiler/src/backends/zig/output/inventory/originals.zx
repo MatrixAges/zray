@@ -1,32 +1,49 @@
-import bytes from "std:bytes"
+import encoding from "std:encoding"
 import path from "std:path"
 import memory from "memory"
 
 import { original_directory } from "../const"
 
-import type { Originals as Input } from "./model"
+import type { File, Originals as Input, OriginalsOutput } from "./model"
 
-export type Output = void
+export type Output = OriginalsOutput
 
 export default function (in: Input): Output {
     const prefix = `${original_directory}${in.separator}`
+    const empty_files: File[] = []
+    const empty_strings: string[] = []
+    const empty_sizes: u64[] = []
 
-    const completed = loop(0, {
-        while: row => row < in.length,
-        next: row => {
-            const file = memory.readTextColumn(in.names, row)
-            const source = memory.readTextColumn(in.bodies, row)
+    return loop({
+        row: 0,
+        files: empty_files,
+        paths: empty_strings,
+        names: empty_strings,
+        sizes: empty_sizes
+    }, {
+        while: state => state.row < in.length,
+        next: state => {
+            const file = memory.readTextColumn(in.names, state.row)
+            const source = memory.readTextColumn(in.bodies, state.row)
             const base = path.basename(file)
             const size = base.length - path.extname(file).length
-            const name = memory.borrowTextRange(base, 0, size)
+            const name = encoding.sliceBytes(base, 0, size)
             const target = `${prefix}${file}`
 
-            memory.writeString(in.function_paths, row, file)
-            memory.writeString(in.function_names, row, name)
-            memory.writeU64(in.function_sizes, row, source.length)
-            memory.writeColumnBytes(in.paths, row, bytes.fromText(target))
-            memory.writeColumnBytes(in.sources, row, bytes.fromText(source))
-            row += 1
-        }
+            state.files = state.files.push({
+                path: target,
+                source
+            })[0]
+            state.paths = state.paths.push(file)[0]
+            state.names = state.names.push(name)[0]
+            state.sizes = state.sizes.push(source.length)[0]
+            state.row += 1
+        },
+        return: state => state.pick([
+            "files",
+            "paths",
+            "names",
+            "sizes"
+        ])
     })
 }

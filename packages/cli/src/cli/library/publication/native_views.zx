@@ -1,9 +1,7 @@
 import locate from "cli/native_module_lookup"
 import memory from "memory"
-import columns from "memory/columns"
 
 import type { ReadColumn, TextColumn } from "memory"
-import type { WriteColumn } from "memory/columns"
 import type { Rows } from "./layout/model"
 
 export type NativeModules = Rows & {
@@ -13,13 +11,13 @@ export type NativeModules = Rows & {
     include_paths: ReadColumn
 }
 
-export type NativeOutput = {
-    names: WriteColumn,
-    paths: WriteColumn,
-    headers: WriteColumn,
-    dependencies: WriteColumn,
-    include_paths: WriteColumn,
-    abi_views: WriteColumn
+export type View = {
+    name: string,
+    path?: string,
+    header?: string,
+    dependencies: string[],
+    include_paths: string[],
+    abi_view?: string
 }
 
 export type Input = {
@@ -27,18 +25,23 @@ export type Input = {
     views: Rows & {
         paths: TextColumn
     },
-    includes: string[],
-    target: NativeOutput
+    includes: string[]
 }
 
-export type Output = void
+export type Output = View[]
 
 export default function (in: Input): Output {
-    const { modules, views, target } = in
+    const { modules, views } = in
 
-    const written = loop(0, {
-        while: index => index < modules.count,
-        next: index => {
+    const empty: View[] = []
+
+    return loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < modules.count,
+        next: state => {
+            const index = state.index
             const name = memory.readTextColumn(modules.names, index)
             const path = memory.readOptionalTextColumn(modules.paths, index)
             const header = memory.readOptionalTextColumn(modules.headers, index)
@@ -58,14 +61,16 @@ export default function (in: Input): Output {
                 _ => null
             }
 
-            columns.writeColumnText(target.names, index, name)
-            columns.writeColumnOptionalText(target.paths, index, path)
-            columns.writeColumnOptionalText(target.headers, index, header)
-            columns.writeColumnTextList(target.dependencies, index, dependencies)
-            columns.writeColumnTextList(target.include_paths, index, includes)
-            columns.writeColumnOptionalText(target.abi_views, index, abi)
-
-            index += 1
-        }
+            state.items = state.items.push({
+                name,
+                path,
+                header,
+                dependencies,
+                include_paths: includes,
+                abi_view: abi
+            })[0]
+            state.index += 1
+        },
+        return: state => state.items
     })
 }

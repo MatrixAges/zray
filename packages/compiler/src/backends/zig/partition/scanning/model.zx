@@ -1,6 +1,5 @@
 import type { Index } from "core/bytes/index/model"
-import type { TextColumn, U32ListBuffer } from "memory"
-import type { WriteColumn } from "memory/columns"
+import type { TextColumn } from "memory"
 
 export enum Status {
     Valid,
@@ -32,11 +31,20 @@ export type References = {
     variants: u8[][]
 }
 
+export type Row = {
+    callees: u32[],
+    variants: u8[][],
+    inline_names: u8[][]
+}
+
 export type Batch = {
     sources: TextColumn,
     index: Index,
     count: u64,
-    callees: U32ListBuffer,
-    variants: WriteColumn,
-    inline_names?: WriteColumn
+    need_inline_names: bool
+}
+
+export type BatchOutput = {
+    status: Status,
+    rows: Row[]
 }

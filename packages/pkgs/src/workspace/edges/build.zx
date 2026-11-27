@@ -1,35 +1,42 @@
+import appendEdges from "./append_edges"
 import { Status } from "./model"
 import visit from "./owner"
 
-import type { Build, Result } from "./model"
+import type { Built, Edge, Members } from "./model"
 
-export type Input = Build
+export type Input = Members
 
-export type Output = Result
+export type Output = Built
 
 export default function (in: Input): Output {
+    const empty_edges: Edge[] = []
+    const initial_offsets: u64[] = [0]
+
     return loop({
         owner: 0,
-        start: 0,
         edge: 0,
-        status: Status.Valid
+        status: Status.Valid,
+        edges: empty_edges,
+        offsets: initial_offsets
     }, {
         while: s => s.owner < in.count && s.status == Status.Valid,
         next: s => {
             const result = visit({
                 ...in,
-                row: s.owner,
-                start: s.start
+                row: s.owner
             })
             s.status = result.status
 
             if (s.status == Status.Valid) {
-                s.start += result.edge
+                s.edges = appendEdges({
+                    target: s.edges,
+                    items: result.edges
+                })
+                s.offsets = s.offsets.push(s.edges.length)[0]
                 s.owner += 1
             } else {
                 s.edge = result.edge
             }
-        },
-        return: s => s.omit(["start"])
+        }
     })
 }

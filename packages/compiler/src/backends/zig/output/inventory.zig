@@ -21,16 +21,24 @@ pub fn group(allocator: std.mem.Allocator, modules: []const ModuleFile) !Groups 
 fn split(allocator: std.mem.Allocator, modules: []const ModuleFile, files: []File) !usize {
     const entry = @import("generated_output_inventory");
     const source = memory.borrowReadFields(.{ .names = "name", .bodies = "source" }, modules);
-    var target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
     const Input = std.meta.Child(entry.Input);
     var input: Input = undefined;
 
     source.fill(&input);
-    target.fill(&input);
 
     input.length = modules.len;
 
-    return @intCast(try zx.columns.invoke(entry.executeValue, allocator, @as(*const Input, &input)));
+    const grouped = try zx.columns.invoke(entry.executeValue, allocator, @as(*const Input, &input));
+
+    for (grouped.functions, files[0..grouped.functions.len]) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    for (grouped.support, files[grouped.functions.len..]) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    return grouped.functions.len;
 }
 
 fn seedSplit(modules: []const ModuleFile, files: []File) usize {
@@ -59,12 +67,11 @@ fn seedSplit(modules: []const ModuleFile, files: []File) usize {
 }
 
 pub fn originals(allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: []const File, files: []File) !FunctionFiles {
-    var function_paths = try workspace.alloc([]const u8, functions.len);
-    var function_names = try workspace.alloc([]const u8, functions.len);
-    var function_sizes = try workspace.alloc(u64, functions.len);
-    const inventory: FunctionFiles = .{ .paths = function_paths, .names = function_names, .sizes = function_sizes };
-
     if (comptime !available) {
+        const function_paths = try workspace.alloc([]const u8, functions.len);
+        const function_names = try workspace.alloc([]const u8, functions.len);
+        const function_sizes = try workspace.alloc(u64, functions.len);
+
         for (functions, files, function_paths, function_names, function_sizes) |function, *file, *path, *name, *size| {
             path.* = function.path;
             name.* = std.fs.path.stem(function.path);
@@ -72,25 +79,28 @@ pub fn originals(allocator: std.mem.Allocator, workspace: std.mem.Allocator, fun
             file.* = .{ .path = try std.fs.path.join(allocator, &.{ "original", function.path }), .source = function.source };
         }
 
-        return inventory;
+        return .{ .paths = function_paths, .names = function_names, .sizes = function_sizes };
     }
 
     const entry = @import("generated_output_originals");
     const source = memory.borrowReadFields(.{ .names = "path", .bodies = "source" }, functions);
-    var target = memory.borrowWriteFields(.{ .paths = "path", .sources = "source" }, files);
     const Input = std.meta.Child(entry.Input);
     var input: Input = undefined;
 
     source.fill(&input);
-    target.fill(&input);
 
     input.length = functions.len;
     input.separator = std.fs.path.sep_str;
-    input.function_paths = @ptrCast(&function_paths);
-    input.function_names = @ptrCast(&function_names);
-    input.function_sizes = @ptrCast(&function_sizes);
 
-    try zx.columns.invoke(entry.executeValue, allocator, @as(*const Input, &input));
+    const result = try zx.columns.invoke(entry.executeValue, allocator, @as(*const Input, &input));
 
-    return inventory;
+    for (result.files, files) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    return .{
+        .paths = try workspace.dupe([]const u8, result.paths),
+        .names = try workspace.dupe([]const u8, result.names),
+        .sizes = try workspace.dupe(u64, result.sizes),
+    };
 }

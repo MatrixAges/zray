@@ -1,22 +1,28 @@
-import type { StringBuffer, TextColumn, U64Buffer, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
 
 export type Input = {
     names: TextColumn,
     bodies: TextColumn,
-    paths: WriteColumn,
-    sources: WriteColumn,
     length: u64
 }
 
-export type Count = Input.Pick("names", "length")
+export type File = {
+    path: string,
+    source: string
+}
 
-export type Split = Input & {
-    functions: u64
+export type Grouped = {
+    functions: File[],
+    support: File[]
 }
 
 export type Originals = Input & {
-    separator: string,
-    function_paths: StringBuffer,
-    function_names: StringBuffer,
-    function_sizes: U64Buffer
+    separator: string
+}
+
+export type OriginalsOutput = {
+    files: File[],
+    paths: string[],
+    names: string[],
+    sizes: u64[]
 }

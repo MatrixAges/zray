@@ -1,25 +1,21 @@
-import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 
+import appendEntries from "./append_entries"
 import publishGroup from "./publish_group"
 
-import type { Publication as Input } from "./model"
+import type { Entry, Input } from "./model"
 
-export type Output = void
+export type Output = Entry[]
 
 export default function (in: Input): Output {
-    const { bindings, owner, targets, aliases } = in
+    const { owner, targets, aliases, paths } = in
 
     const edges = memory.listLength(targets, owner)
+    const empty: Entry[] = []
 
-    allocateRows({
-        target: in.storage,
-        count: in.count
-    })
-
-    const result = loop({
+    return loop({
         index: 0,
-        first: 0
+        entries: empty
     }, {
         while: state => state.index <= edges,
         next: state => {
@@ -33,16 +29,19 @@ export default function (in: Input): Output {
                 _ => memory.readListText(aliases, owner, state.index)
             }
 
-            state.first = publishGroup({
-                rows: memory.borrowListBytes(bindings, target),
-                paths: in.paths,
+            const items = publishGroup({
+                count: memory.listLength(paths, target),
+                paths,
                 target,
-                width: in.width,
-                first: state.first,
-                name,
-                output: in.output
+                name
+            })
+
+            state.entries = appendEntries({
+                target: state.entries,
+                items
             })
             state.index += 1
-        }
+        },
+        return: state => state.entries
     })
 }

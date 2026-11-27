@@ -1,69 +1,48 @@
-import bytes from "std:bytes"
-import integers from "std:integer"
-import memory from "memory"
-import columns from "memory/columns"
+import stubScope from "./stub_scope"
 
 import type { Scope } from "../demand/model"
-import type { State, Jobs } from "./model"
+import type { Job, State, StubsOutput } from "./model"
 
 export type Input = {
     files: State,
     prefixes: string[],
     scopes: Scope[],
-    targets: Jobs,
     first: u64
 }
 
-export type Output = void
+export type Output = StubsOutput
 
 export default function (in: Input): Output {
-    const placed = loop({
+    const empty_paths: string[] = []
+    const empty_jobs: Job[] = []
+
+    return loop({
         scope: 0,
-        position: in.first
+        paths: empty_paths,
+        jobs: empty_jobs
     }, {
         while: state => state.scope < in.scopes.length,
         next: state => {
-            const demand = in.scopes[state.scope].stubs
             const use_prefix = state.scope < in.prefixes.length
             const prefix = use_prefix ? in.prefixes[state.scope] : ""
 
-            const written = loop(0, {
-                while: index => index < demand.callees.length,
-                next: index => {
-                    const callee = demand.callees[index]
-                    const name = in.files.paths[integers.widen(callee)]
-                    const path = match use_prefix {
-                        true => `${prefix}${name}`,
-                        _ => name
-                    }
-
-                    const row = state.position + index
-                    const job = row - in.first
-
-                    memory.writeColumnBytes(
-                        in.files.target_paths,
-                        row,
-                        bytes.fromText(path)
-                    )
-                    memory.writeColumnU64(in.targets.destinations, job, row)
-                    memory.writeColumnU32(in.targets.indices, job, callee)
-                    memory.writeColumnBool(in.targets.roots, job, false)
-                    columns.writeColumnByteList(
-                        in.targets.variants,
-                        job,
-                        demand.variants[index]
-                    )
-                    memory.writeColumnBool(
-                        in.targets.comptime_entries,
-                        job,
-                        !use_prefix
-                    )
-                    index += 1
-                }
+            const updated = stubScope({
+                files: in.files,
+                scope: in.scopes[state.scope],
+                prefix,
+                use_prefix,
+                first_destination: in.first + state.jobs.length,
+                paths: state.paths,
+                jobs: state.jobs
             })
 
-            state.position += written
+            state.paths = updated.paths
+            state.jobs = updated.jobs
             state.scope += 1
-        }
+        },
+        return: state => state.pick([
+            "paths",
+            "jobs"
+        ])
     })
 }

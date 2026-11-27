@@ -1,42 +1,39 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
-import type { Input as Selection } from "./model"
+import type { Reference, Rows } from "./model"
 
-export type Input = Selection.Omit("preserve_legacy")
+export type Input = Rows
 
-export type Output = bool
+export type Output = Reference[]?
 
 export default function (in: Input): Output {
-    const { source, target } = in
+    const empty: Reference[] = []
 
     return loop({
         index: 0,
-        valid: true
+        valid: true,
+        items: empty
     }, {
-        while: state => state.valid && state.index < source.count,
+        while: state => state.valid && state.index < in.count,
         next: state => {
             const index = state.index
-            const module = memory.readOptionalTextColumn(source.modules, index)
+            const module = memory.readOptionalTextColumn(in.modules, index)
 
             if (module == null) {
                 state.valid = false
             } else {
-                const name = memory.readTextColumn(source.names, index)
+                const name = memory.readTextColumn(in.names, index)
 
-                memory.writeColumnBytes(
-                    target.names,
-                    index,
-                    bytes.fromText(name)
-                )
-                memory.writeColumnBytes(
-                    target.modules,
-                    index,
-                    bytes.fromText(module)
-                )
+                state.items = state.items.push({
+                    name,
+                    module
+                })[0]
                 state.index += 1
             }
         },
-        return: state => state.valid
+        return: state => match state.valid {
+            true => state.items,
+            _ => null
+        }
     })
 }

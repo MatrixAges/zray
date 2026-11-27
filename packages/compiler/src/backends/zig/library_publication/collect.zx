@@ -1,15 +1,20 @@
-import integers from "std:integer"
 import memory from "memory"
 
-import type { Input, Output } from "./model"
+import type { Input, Member, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { source, target } = in
+    const { source } = in
+
+    const empty_ids: u32[] = []
+    const empty_members: Member[] = []
+    const empty_ends: u64[] = []
 
     return loop({
         module: 0,
-        roots: 0,
-        members: 0
+        roots: empty_ids,
+        member_ids: empty_ids,
+        members: empty_members,
+        ends: empty_ends
     }, {
         while: current => current.module < source.count,
         next: current => {
@@ -17,14 +22,14 @@ export default function (in: Input): Output {
             const entry = memory.readColumnOptionalU32(source.defaults, module)
 
             if (entry != null) {
-                memory.writeU32(target.roots, current.roots, entry)
-                current.roots += 1
+                current.roots = current.roots.push(entry)[0]
             }
 
             const count = memory.listLength(source.member_ids, module)
             const selected = loop({
                 row: 0,
                 roots: current.roots,
+                member_ids: current.member_ids,
                 members: current.members
             }, {
                 while: member => member.row < count,
@@ -42,35 +47,34 @@ export default function (in: Input): Output {
                             member.row
                         )
 
-                        memory.writeU32(target.roots, member.roots, id)
-                        memory.writeU32(target.member_ids, member.members, id)
-                        memory.writeNamedRow(
-                            target.members,
-                            member.members,
+                        member.roots = member.roots.push(id)[0]
+                        member.member_ids = member.member_ids.push(id)[0]
+                        member.members = member.members.push({
                             name,
-                            id
-                        )
-                        memory.writeU8(target.regular, integers.widen(id), 1)
-                        member.roots += 1
-                        member.members += 1
+                            function: id
+                        })[0]
                     }
 
                     member.row += 1
                 },
-                return: member => {
-                    roots: member.roots,
-                    members: member.members
-                }
+                return: member => member.pick([
+                    "roots",
+                    "member_ids",
+                    "members"
+                ])
             })
 
             current.roots = selected.roots
+            current.member_ids = selected.member_ids
             current.members = selected.members
-            memory.writeU64(target.ends, module, current.members)
+            current.ends = current.ends.push(current.members.length)[0]
             current.module += 1
         },
-        return: current => {
-            roots: current.roots,
-            members: current.members
-        }
+        return: current => current.pick([
+            "roots",
+            "member_ids",
+            "members",
+            "ends"
+        ])
     })
 }

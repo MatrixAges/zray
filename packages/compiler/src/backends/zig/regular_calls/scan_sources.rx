@@ -1,7 +1,7 @@
 <Module>
     <Type from="source" as="Job" />
 
-    <Args in={Job.Input} out={void} />
+    <Args in={Job.Input} out={u64[]} />
 
     <Call fn="source" in={$in} />
 
@@ -9,8 +9,9 @@
         fn="scan"
         in={{
             table: $in.table,
-            wanted: $in.wanted,
             source: $ctx.source
         }}
     />
+
+    <Return value={$ctx.scan} />
 </Module>

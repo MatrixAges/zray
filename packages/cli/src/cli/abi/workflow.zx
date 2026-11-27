@@ -1,19 +1,21 @@
 import type { AbiFrame } from "bundle_abi_host"
-import type { Allocator, WriteColumn } from "memory"
 import type { Input as Plan } from "./plan/model"
 
-export type Files = {
-    modules: WriteColumn,
-    names: WriteColumn,
-    paths: WriteColumn,
-    sources: WriteColumn
+export type RenderedFile = {
+    module: string,
+    name: string,
+    path: string,
+    source: string
 }
 
 export type Input = {
     frame: AbiFrame,
     source: string,
     identities: string?[],
-    plan: Plan,
-    files: Files,
-    owner: Allocator
+    plan: Plan
+}
+
+export type Output = {
+    source: string,
+    views: RenderedFile[]
 }

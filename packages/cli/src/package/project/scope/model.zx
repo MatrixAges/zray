@@ -1,24 +1,20 @@
-import type { ListColumn, WriteColumn } from "memory"
-import type { RowBuffer } from "memory/columns"
+import type { ListColumn } from "memory"
 
 export type Routes = {
     owner: u64,
     targets: ListColumn,
-    bindings: ListColumn
+    paths: ListColumn
 }
 
-export type Destinations = {
-    records: WriteColumn,
-    specifiers: WriteColumn
+export type Entry = {
+    target: u64,
+    row: u64,
+    specifier: string
 }
 
 export type Input = Routes & {
     name: string,
-    aliases: ListColumn,
-    paths: ListColumn,
-    width: u64,
-    storage: RowBuffer,
-    output: Destinations
+    aliases: ListColumn
 }
 
 export type Measurement = {
@@ -26,16 +22,13 @@ export type Measurement = {
     missing?: u64
 }
 
-export type Publication = Input & {
-    count: u64
+export type Result = Measurement & {
+    entries: Entry[]
 }
 
 export type Group = {
-    rows: u8[],
+    count: u64,
     paths: ListColumn,
     target: u64,
-    width: u64,
-    first: u64,
-    name: string,
-    output: Destinations
+    name: string
 }

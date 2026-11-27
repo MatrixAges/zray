@@ -1,34 +1,25 @@
-import memory from "memory"
-
 import { marked } from "./const"
 import { Wave } from "./model"
 
 import type { Selection as Input, Selected as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { pending, groups } = in.candidates
+    const empty: u64[] = []
 
     const result = loop({
         read: 0,
-        pending: 0,
-        ready: 0
+        pending: empty,
+        ready: empty
     }, {
-        while: current => current.read < in.count,
+        while: current => current.read < in.pending.length,
         next: current => {
-            const position = memory.readU64(pending, current.read)
-            const group = memory.readU64(groups, position)
-            const wanted = memory.loadAtomicCell(in.wanted, 0, group)
+            const position = in.pending[current.read]
+            const group = in.groups[position]
 
-            if (wanted == marked) {
-                memory.writeColumnBool(in.regular, position, true)
-                memory.writeU64(in.positions, current.ready, position)
-                current.ready += 1
+            if (in.wanted[group] == marked) {
+                current.ready = current.ready.push(position)[0]
             } else {
-                if (current.pending != current.read) {
-                    memory.writeU64(pending, current.pending, position)
-                }
-
-                current.pending += 1
+                current.pending = current.pending.push(position)[0]
             }
 
             current.read += 1
@@ -36,8 +27,8 @@ export default function (in: Input): Output {
     })
 
     const wave = match {
-        result.ready == 0 => Wave.Converged,
-        result.pending == 0 => Wave.Publish,
+        result.ready.length == 0 => Wave.Converged,
+        result.pending.length == 0 => Wave.Publish,
         _ => Wave.Rescan
     }
 

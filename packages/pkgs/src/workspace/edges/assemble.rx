@@ -4,21 +4,41 @@
 
     <Args in={Edges.Input} out={Edges.Result} />
 
-    <Call fn="build" in={$in.omit(["graph"])} />
+    <Call fn="build" in={$in.omit(["depth_limit"])} />
 
     <If on={$ctx.build.status != Edges.Status.Valid}>
-        <Return value={$ctx.build} />
+        <Return
+            value={{
+                ...$ctx.build.pick([
+                    "owner",
+                    "edge",
+                    "status"
+                ]),
+                edges: []
+            }}
+        />
     </If>
 
-    <Call module="../../graph/check" in={$in.graph} />
+    <Call fn="targets" in={$ctx.build.edges} />
 
-    <Switch on={$ctx.check.status}>
+    <Call
+        fn="../../graph/walk_flat"
+        in={{
+            edges: $ctx.targets,
+            offsets: $ctx.build.offsets,
+            count: $in.count,
+            limit: $in.depth_limit
+        }}
+    />
+
+    <Switch on={$ctx.walk_flat.status}>
         <Case value={Graph.Status.CyclicPackageDependencies}>
             <Return
                 value={{
                     status: Edges.Status.CyclicPackageDependencies,
-                    owner: $ctx.check.owner,
-                    edge: 0
+                    owner: $ctx.walk_flat.owner,
+                    edge: 0,
+                    edges: []
                 }}
             />
         </Case>
@@ -27,14 +47,24 @@
             <Return
                 value={{
                     status: Edges.Status.PackageDependencyDepthExceeded,
-                    owner: $ctx.check.owner,
-                    edge: 0
+                    owner: $ctx.walk_flat.owner,
+                    edge: 0,
+                    edges: []
                 }}
             />
         </Case>
 
         <Default>
-            <Return value={$ctx.build} />
+            <Return
+                value={{
+                    ...$ctx.build.pick([
+                        "owner",
+                        "edge",
+                        "status"
+                    ]),
+                    edges: $ctx.build.edges
+                }}
+            />
         </Default>
     </Switch>
 </Module>

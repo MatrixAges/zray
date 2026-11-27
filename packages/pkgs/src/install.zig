@@ -5,7 +5,6 @@ const Index = @import("index.zig");
 const Lock = @import("lock.zig");
 const Members = @import("workspace/selection.zig").Members;
 const Input = std.meta.Child(rules.install_advance.Input);
-const Columns = std.meta.Child(@FieldType(Input, "columns"));
 
 pub const Resolver = struct {
     members: Members,
@@ -42,21 +41,19 @@ const Entries = struct {
 pub const Dependencies = struct {
     production: Entries,
     development: Entries,
-    output: memory.RowOutput(Lock.Dependency, Columns, .{ .names = &.{"name"}, .requirements = &.{"requirement"}, .targets = &.{"target"}, .development = &.{"development"} }),
+    rows: std.ArrayList(Lock.Dependency) = .empty,
     cursor: u64,
     pub fn init(self: *Dependencies, manifest: anytype) void {
         self.production = Entries.borrow(manifest.dependencies);
         self.development = Entries.borrow(manifest.dev_dependencies);
-
-        self.output.init();
-
+        self.rows = .empty;
         self.cursor = 0;
     }
 
     pub const Pending = struct { name: []const u8, release: Index.Release };
 
     pub fn accept(self: *Dependencies, target: usize) void {
-        self.output.rows()[@intCast(self.cursor)].target = target;
+        self.rows.items[@intCast(self.cursor)].target = target;
 
         self.cursor += 1;
     }
@@ -69,17 +66,23 @@ pub const Dependencies = struct {
             .catalog = &.{ .names = @ptrCast(&resolver.names), .versions = @ptrCast(&resolver.versions), .count = resolver.index.packages.len, .limit = limit },
             .production = &self.production.input(),
             .development = &self.development.input(),
-            .columns = &self.output.view,
-            .storage = @ptrCast(&self.output.buffer),
             .owner = owner,
             .cursor = self.cursor,
-            .allocate = self.output.buffer.bytes.len == 0,
             .remaining = remaining,
             .limit = limit,
         }) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
+
+        for (next.rows) |row| {
+            try self.rows.append(allocator, .{
+                .name = row.name,
+                .requirement = row.requirement,
+                .target = @intCast(row.target),
+                .development = row.development,
+            });
+        }
 
         return switch (next.status) {
             .Done => done: {
@@ -91,7 +94,7 @@ pub const Dependencies = struct {
                 self.cursor = next.cursor - 1;
 
                 break :pending .{
-                    .name = self.output.rows()[@intCast(self.cursor)].name,
+                    .name = self.rows.items[@intCast(self.cursor)].name,
                     .release = resolver.index.packages[@intCast(next.package)].versions[@intCast(next.release)],
                 };
             },

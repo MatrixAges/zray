@@ -1,37 +1,39 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
 import isFunction from "./is_function"
 
-import type { Split as Input } from "./model"
+import type { File, Grouped, Input } from "./model"
 
-export type Output = u64
+export type Output = Grouped
 
 export default function (in: Input): Output {
+    const empty: File[] = []
+
     return loop({
         row: 0,
-        function_row: 0,
-        support_row: in.functions
+        functions: empty,
+        support: empty
     }, {
         while: state => state.row < in.length,
         next: state => {
-            const name = memory.readTextColumn(in.names, state.row)
+            const path = memory.readTextColumn(in.names, state.row)
             const source = memory.readTextColumn(in.bodies, state.row)
-            const function_file = isFunction(name)
+            const file: File = {
+                path,
+                source
+            }
 
-            const target = function_file ? state.function_row : state.support_row
-
-            memory.writeColumnBytes(in.paths, target, bytes.fromText(name))
-            memory.writeColumnBytes(in.sources, target, bytes.fromText(source))
-
-            if (function_file) {
-                state.function_row += 1
+            if (isFunction(path)) {
+                state.functions = state.functions.push(file)[0]
             } else {
-                state.support_row += 1
+                state.support = state.support.push(file)[0]
             }
 
             state.row += 1
         },
-        return: state => state.function_row
+        return: state => state.pick([
+            "functions",
+            "support"
+        ])
     })
 }

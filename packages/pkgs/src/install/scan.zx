@@ -1,14 +1,11 @@
-import bytes from "std:bytes"
-import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
 import { Kind } from "../workspace/specifier"
 import parse from "../workspace/specifier"
 import local from "./local"
 import { Status } from "./model"
 
-import type { Scan } from "./model"
+import type { Row, Scan } from "./model"
 
 export type Input = Scan
 
@@ -16,29 +13,23 @@ export type Output = {
     cursor: u64,
     status: Status,
     name: string,
-    range: string
+    range: string,
+    rows: Row[]
 }
 
 export default function (in: Input): Output {
     const { production, development, remaining } = in
-    const { names, requirements, targets } = in.columns
+
+    const empty: Row[] = []
 
     const count = production.count + (in.owner == null ? 0 : development.count)
-
-    if (in.allocate) {
-        const capacity = count < remaining ? count : remaining
-
-        allocateRows({
-            target: in.storage,
-            count: capacity
-        })
-    }
 
     return loop({
         cursor: in.cursor,
         status: Status.Done,
         name: "",
-        range: ""
+        range: "",
+        rows: empty
     }, {
         while: s => s.cursor < count && s.status == Status.Done,
         next: s => {
@@ -53,15 +44,13 @@ export default function (in: Input): Output {
                 const range = memory.readTextColumn(entries.requirements, row)
                 const spec = parse(range)
 
-                memory.writeColumnBytes(names, edge, bytes.fromText(name))
-                memory.writeColumnBytes(
-                    requirements,
-                    edge,
-                    bytes.fromText(range)
-                )
-                memory.writeColumnBool(in.columns.development, edge, dev)
-
                 if (spec.kind == Kind.External) {
+                    s.rows = s.rows.push({
+                        name,
+                        requirement: range,
+                        target: 0,
+                        development: dev
+                    })[0]
                     s.status = Status.Archive
                     s.name = name
                     s.range = range
@@ -78,7 +67,12 @@ export default function (in: Input): Output {
                     })
                     s.status = result.status
                     if (result.status == Status.Done) {
-                        memory.writeColumnIndex(targets, edge, result.row)
+                        s.rows = s.rows.push({
+                            name,
+                            requirement: range,
+                            target: result.row,
+                            development: dev
+                        })[0]
                     }
                 }
 

@@ -3,12 +3,17 @@
     <Type from="plan/model" as="Plan" />
     <Type from="index" as="Host" />
 
-    <Args in={Abi.Input} out={string} />
+    <Args in={Abi.Input} out={Abi.Output} />
 
     <Call fn="../compiler_rules/source_abi/scoped" in={$in.identities} />
 
     <If on={!$ctx.scoped}>
-        <Return value={$in.source} />
+        <Return
+            value={{
+                source: $in.source,
+                views: []
+            }}
+        />
     </If>
 
     <Call fn="index.borrowAbiInputs" in={$in.frame} />
@@ -25,25 +30,13 @@
         </Case>
     </Switch>
 
-    <If on={$ctx.build.views.length != 0}>
-        <Call
-            fn="index.reserveAbiFiles"
-            in={[
-                $in.frame,
-                $ctx.build.views.length
-            ]}
-        />
-
-        <Call
-            fn="files"
-            in={[
-                $in.frame,
-                $in.owner,
-                $in.files,
-                $ctx.build.views
-            ]}
-        />
-    </If>
+    <Call
+        fn="files"
+        in={[
+            $in.frame,
+            $ctx.build.views
+        ]}
+    />
 
     <Call
         fn="index.renderAbiRoot"
@@ -54,5 +47,10 @@
         ]}
     />
 
-    <Return value={$ctx.renderAbiRoot} />
+    <Return
+        value={{
+            source: $ctx.renderAbiRoot,
+            views: $ctx.files
+        }}
+    />
 </Module>

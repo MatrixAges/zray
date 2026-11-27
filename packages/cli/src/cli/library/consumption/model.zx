@@ -1,4 +1,4 @@
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
 
 export type Rows = {
     count: u64,
@@ -6,18 +6,18 @@ export type Rows = {
     modules: ReadColumn
 }
 
-export type References = {
-    names: WriteColumn,
-    modules: WriteColumn
+export type Reference = {
+    name: string,
+    module: string
 }
 
 export type Input = {
     source: Rows,
-    target: References,
     preserve_legacy: bool
 }
 
 export type Output = {
     valid: bool,
-    legacy: bool
+    legacy: bool,
+    references: Reference[]
 }

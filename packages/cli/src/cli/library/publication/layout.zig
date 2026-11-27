@@ -6,21 +6,7 @@ const rule = @import("cli_source").library_output_layout;
 const Export = @import("../../../package/manifest/model.zig").Export;
 const Module = compiler.zig.host.library.Module;
 const Input = std.meta.Child(rule.Input);
-const ModuleOutput = std.meta.Child(@FieldType(Input, "generated_rows"));
-const ExportOutput = std.meta.Child(@FieldType(Input, "export_rows"));
 const Modules = std.meta.Child(@FieldType(Input, "generated"));
-
-const Target = memory.RowOutput(Module, ModuleOutput, .{
-    .names = &.{"name"},
-    .paths = &.{"path"},
-    .dependencies = &.{"dependencies"},
-});
-
-const Exports = memory.RowOutput(Export, ExportOutput, .{
-    .paths = &.{"path"},
-    .modules = &.{"module"},
-    .sources = &.{"source"},
-});
 
 pub const Plan = struct {
     name: []const u8,
@@ -31,20 +17,6 @@ pub const Plan = struct {
 };
 
 pub fn create(allocator: std.mem.Allocator, config: @import("../../project.zig").Config, library: *const compiler.library.Result, bundle: *const compiler.zig.LibraryBundle) !Plan {
-    const generated = try allocator.alloc(Module, bundle.modules.len);
-    const public = try allocator.alloc(Module, bundle.public_modules.len);
-    const exports = try allocator.alloc(Export, library.exports.len);
-    var generated_target: Target = undefined;
-    var public_target: Target = undefined;
-    var export_target: Exports = undefined;
-
-    generated_target.init();
-    generated_target.bind(generated);
-    public_target.init();
-    public_target.bind(public);
-    export_target.init();
-    export_target.bind(exports);
-
     const exported = memory.borrowTextColumn("name", library.exports);
     const generated_input = Sources.init(&.{"name"}, &.{"imports"}, bundle.modules);
     const public_input = Sources.init(&.{ "file", "name" }, &.{ "file", "imports" }, bundle.public_modules);
@@ -53,14 +25,27 @@ pub fn create(allocator: std.mem.Allocator, config: @import("../../project.zig")
         .package = &.{ .name = config.name, .version = config.version },
         .legacy = config.exports.len == 0,
         .exports = &.{ .names = @ptrCast(&exported), .count = library.exports.len },
-        .export_rows = &export_target.view,
         .generated = &generated_input.input(),
-        .generated_rows = &generated_target.view,
         .public = &public_input.input(),
-        .public_rows = &public_target.view,
     });
 
     if (!plan.valid) return error.ConflictingModuleName;
+
+    const generated = try allocator.alloc(Module, plan.generated.len);
+    const public = try allocator.alloc(Module, plan.public.len);
+    const exports = try allocator.alloc(Export, plan.exports.len);
+
+    for (plan.exports, exports) |item, *slot| {
+        slot.* = .{ .path = item.path, .module = item.module, .source = item.source };
+    }
+
+    for (plan.generated, generated) |item, *slot| {
+        slot.* = .{ .name = item.name, .path = item.path, .dependencies = item.dependencies };
+    }
+
+    for (plan.public, public) |item, *slot| {
+        slot.* = .{ .name = item.name, .path = item.path, .dependencies = item.dependencies };
+    }
 
     return .{
         .name = plan.package.name,

@@ -1,0 +1,21 @@
+import type { Edge } from "./model"
+
+export type Input = Edge[]
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const initial: u64[] = []
+
+    return loop({
+        index: 0,
+        items: initial
+    }, {
+        while: s => s.index < in.length,
+        next: s => {
+            s.items = s.items.push(in[s.index].target)[0]
+            s.index += 1
+        },
+        return: s => s.items
+    })
+}

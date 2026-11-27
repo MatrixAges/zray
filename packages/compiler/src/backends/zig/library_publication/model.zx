@@ -1,12 +1,4 @@
-import type {
-    ListColumn,
-    NamedRowBuffer,
-    ReadColumn,
-    U32Buffer,
-    U64Buffer,
-    U8Buffer,
-    WriteColumn
-} from "memory"
+import type { ListColumn, ReadColumn } from "memory"
 
 export type Exports = {
     count: u64,
@@ -15,22 +7,20 @@ export type Exports = {
     member_names: ListColumn
 }
 
-export type Buffers = {
-    roots: U32Buffer,
-    member_ids: U32Buffer,
-    members: NamedRowBuffer,
-    ends: U64Buffer,
-    regular: U8Buffer
+export type Input = {
+    source: Exports
 }
 
-export type Input = {
-    source: Exports,
-    target: Buffers
+export type Member = {
+    name: string,
+    function: u32
 }
 
 export type Output = {
-    roots: u64,
-    members: u64
+    roots: u32[],
+    member_ids: u32[],
+    members: Member[],
+    ends: u64[]
 }
 
 export type CapacityInput = Exports.Pick("count", "member_ids")
@@ -44,8 +34,5 @@ export type Completed = CapacityInput & {
     defaults: ReadColumn,
     types: ListColumn,
     constants: ListColumn,
-    type_only: bool,
-    sources: string[],
-    source_files: WriteColumn,
-    constants_only: WriteColumn
+    type_only: bool
 }

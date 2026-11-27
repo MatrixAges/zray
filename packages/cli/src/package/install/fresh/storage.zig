@@ -98,7 +98,7 @@ pub fn acceptArchive(handle: *anyopaque, target: u64) void {
 
 pub fn finishDependencies(handle: *anyopaque, index: u64) u64 {
     const fresh = &host.State.get(handle).fresh;
-    const rows = fresh.dependencies.output.rows();
+    const rows = fresh.dependencies.rows.items;
 
     fresh.packages.items[@intCast(index)].dependencies = rows;
 

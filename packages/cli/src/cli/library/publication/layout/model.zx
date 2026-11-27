@@ -1,5 +1,4 @@
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { WriteColumn as Column } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 
 export enum Kind {
     Generated,
@@ -17,16 +16,16 @@ export type Modules = Rows & {
     dependencies: ReadColumn
 }
 
-export type ModuleOutput = {
-    names: WriteColumn,
-    paths: WriteColumn,
-    dependencies: Column
+export type ExportRow = {
+    path: string,
+    module?: string,
+    source: string
 }
 
-export type ExportOutput = {
-    paths: WriteColumn,
-    modules: Column,
-    sources: WriteColumn
+export type ModuleRow = {
+    name: string,
+    path: string,
+    dependencies: string[]
 }
 
 export type Package = {
@@ -34,18 +33,23 @@ export type Package = {
     version: string
 }
 
+export type ManifestOutput = {
+    package: Package,
+    exports: ExportRow[]
+}
+
 export type Input = {
     package: Package,
     legacy: bool,
     exports: Rows,
-    export_rows: ExportOutput,
     generated: Modules,
-    generated_rows: ModuleOutput,
-    public: Modules,
-    public_rows: ModuleOutput
+    public: Modules
 }
 
 export type Output = {
     package: Package,
-    valid: bool
+    valid: bool,
+    exports: ExportRow[],
+    generated: ModuleRow[],
+    public: ModuleRow[]
 }

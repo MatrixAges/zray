@@ -28,9 +28,7 @@ pub fn init(allocator: std.mem.Allocator, paths: []const []const u8) Error!Self 
     return .{ .index = try path_index.build(allocator, paths) };
 }
 
-pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, output_arg: Columns) Error!void {
-    var output = output_arg;
-
+pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, output: Columns) Error!void {
     if (comptime !generated) {
         const seed = @import("scanning_seed.zig");
 
@@ -49,19 +47,24 @@ pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, out
     const entry = @import("generated_partition_scan_batch");
     const Input = std.meta.Child(entry.Input);
     const sources = zx.memory.borrowTextColumn("source", files);
-    var variants = zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, output.variants);
-    var inline_names = if (output.inline_names) |names| zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, names) else null;
 
     const input: Input = .{
         .sources = @ptrCast(&sources),
         .index = &self.index,
         .count = files.len,
-        .callees = @ptrCast(&output.callees),
-        .variants = @ptrCast(&variants),
-        .inline_names = if (inline_names != null) @ptrCast(&inline_names.?) else null,
+        .need_inline_names = output.inline_names != null,
     };
 
-    return valid(zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err));
+    const result = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
+
+    try valid(result.status);
+
+    for (result.rows, output.callees, output.variants, 0..) |row, *callees, *variants, index| {
+        callees.* = row.callees;
+        variants.* = row.variants;
+
+        if (output.inline_names) |names| names[index] = row.inline_names;
+    }
 }
 
 fn valid(status: anytype) Error!void {

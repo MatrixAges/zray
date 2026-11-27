@@ -7,18 +7,16 @@
         fn="manifest"
         in={{
             package: $in.package,
-            exports: $in.exports,
-            rows: $in.export_rows
+            exports: $in.exports
         }}
     />
 
-    <Task name="generated">
+    <Task name="generated" out={$ctx.modules}>
         <Call
             fn="modules"
             in={{
                 kind: Layout.Kind.Generated,
-                modules: $in.generated,
-                rows: $in.generated_rows
+                modules: $in.generated
             }}
         />
     </Task>
@@ -28,16 +26,30 @@
             fn="modules"
             in={{
                 kind: $in.legacy ? Layout.Kind.Legacy : Layout.Kind.Public,
-                modules: $in.public,
-                rows: $in.public_rows
+                modules: $in.public
             }}
         />
     </Task>
 
+    <If on={$ctx.task.public == null}>
+        <Return
+            value={{
+                package: $ctx.manifest.package,
+                valid: false,
+                exports: [],
+                generated: [],
+                public: []
+            }}
+        />
+    </If>
+
     <Return
         value={{
-            package: $ctx.manifest,
-            valid: $ctx.task.public
+            package: $ctx.manifest.package,
+            valid: true,
+            exports: $ctx.manifest.exports,
+            generated: $ctx.task.generated ?? [],
+            public: $ctx.task.public ?? []
         }}
     />
 </Module>

@@ -1,49 +1,48 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
-import columns from "memory/columns"
 
 import { root_file, functions_file } from "./const"
 
-import type { WriteColumn } from "memory"
-import type { Jobs } from "./model"
+import type { Job, RootsOutput } from "./model"
 
 export type Input = {
-    paths: WriteColumn,
     prefixes: string[],
-    first: u64,
-    first_job: u64,
-    jobs: Jobs
+    first: u64
 }
 
-export type Output = void
+export type Output = RootsOutput
 
 export default function (in: Input): Output {
-    const placed = loop(0, {
-        while: scope => scope < in.prefixes.length,
-        next: scope => {
+    const empty_paths: string[] = []
+    const empty_jobs: Job[] = []
+    const empty_variants: u8[][] = []
+
+    return loop({
+        scope: 0,
+        paths: empty_paths,
+        jobs: empty_jobs
+    }, {
+        while: state => state.scope < in.prefixes.length,
+        next: state => {
+            const scope = state.scope
             const prefix = in.prefixes[scope]
             const row = in.first + scope * 2
-            const job = in.first_job + scope
 
-            memory.writeColumnBytes(
-                in.paths,
-                row,
-                bytes.fromText(`${prefix}${root_file}`)
-            )
-            memory.writeColumnBytes(
-                in.paths,
-                row + 1,
-                bytes.fromText(`${prefix}${functions_file}`)
-            )
-
-            memory.writeColumnU64(in.jobs.destinations, job, row)
-            memory.writeColumnU32(in.jobs.indices, job, integers.narrow(scope))
-            memory.writeColumnBool(in.jobs.roots, job, true)
-            columns.writeColumnByteList(in.jobs.variants, job, [])
-            memory.writeColumnBool(in.jobs.comptime_entries, job, false)
-
-            scope += 1
-        }
+            state.paths = state.paths.push(`${prefix}${root_file}`)[0]
+                .push(
+                    `${prefix}${functions_file}`
+                )[0]
+            state.jobs = state.jobs.push({
+                destination: row,
+                index: integers.narrow(scope),
+                root: true,
+                variants: empty_variants,
+                comptime_entry: false
+            })[0]
+            state.scope += 1
+        },
+        return: state => state.pick([
+            "paths",
+            "jobs"
+        ])
     })
 }

@@ -33,18 +33,21 @@ pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.R
     const exports = try owned.alloc(compiler.library.PublicReference, config.exports.len);
     const names = zx.memory.borrowTextColumn("path", config.exports);
     const modules = zx.memory.borrowReadColumn(?[]const u8, "module", config.exports);
-    var target_names = zx.memory.borrowWriteColumn([]const u8, "name", exports);
-    var target_modules = zx.memory.borrowWriteColumn([]const u8, "module", exports);
     const Selection = std.meta.Child(selection.Input);
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    const selected = zx.columns.invoke(selection.executeValue, fixed.allocator(), &Selection{
+    const selected = zx.columns.invoke(selection.executeValue, owned, &Selection{
         .source = &.{ .count = exports.len, .names = @ptrCast(&names), .modules = @ptrCast(&modules) },
-        .target = &.{ .names = @ptrCast(&target_names), .modules = @ptrCast(&target_modules) },
         .preserve_legacy = options.preserve_zig_entry,
-    }) catch unreachable;
+    }) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     if (!selected.valid) return error.InvalidCompiledExport;
+
+    for (selected.references, exports) |item, *slot| {
+        slot.* = .{ .name = item.name, .module = item.module };
+    }
 
     const legacy_single = selected.legacy and try legacySingle(owned, options);
 

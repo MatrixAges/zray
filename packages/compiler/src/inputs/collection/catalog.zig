@@ -5,7 +5,9 @@ const Kind = @import("../collection.zig").Kind;
 pub const Document = struct { path: []const u8, text: []const u8, kind: u8 };
 
 pub const Plan = struct {
-    ordered: []const u64,
+    source_rows: []const u64,
+    module_rows: []const u64,
+    template_rows: []const u64,
     sources: usize,
     modules: usize,
 };
@@ -13,7 +15,7 @@ pub const Plan = struct {
 pub fn prepare(allocator: std.mem.Allocator, files: []const Document) !Plan {
     const indices = try order.positions(allocator, files.len);
 
-    if (comptime !order.available) return prepareSeed(files, indices);
+    if (comptime !order.available) return try prepareSeed(allocator, files, indices);
 
     const rule = @import("generated_input_catalog_plan");
     const paths = zx.memory.borrowTextColumn("path", files);
@@ -26,90 +28,39 @@ pub fn prepare(allocator: std.mem.Allocator, files: []const Document) !Plan {
 
     const result = try zx.columns.invoke(rule.executeValue, allocator, &input);
 
-    return .{ .ordered = result.ordered, .sources = @intCast(result.counts.zx), .modules = @intCast(result.counts.rx) };
+    return .{
+        .source_rows = result.sources,
+        .module_rows = result.modules,
+        .template_rows = result.templates,
+        .sources = result.sources.len,
+        .modules = result.modules.len,
+    };
 }
 
 pub fn publish(files: []const Document, plan: Plan, output: anytype, packages: anytype, attach_templates: bool) !void {
     const Source = std.meta.Child(@TypeOf(output.sources));
-    const Module = std.meta.Child(@TypeOf(output.modules));
     const templates: @FieldType(Source, "templates") = if (attach_templates) output.templates else &.{};
-    const original: @FieldType(Source, "original") = null;
-    const origins: @FieldType(Source, "template_origins") = &.{};
 
-    if (comptime !order.available) {
-        var zxc: usize = 0;
-        var rxc: usize = 0;
-        var resources: usize = 0;
+    for (plan.source_rows, output.sources) |row, *slot| {
+        const file = files[@intCast(row)];
 
-        for (plan.ordered) |row| {
-            const file = files[@intCast(row)];
-
-            switch (@as(Kind, @fromBackingInt(@intCast(file.kind)))) {
-                .ZX => {
-                    output.sources[zxc] = .{ .path = file.path, .source = file.text, .templates = templates };
-                    zxc += 1;
-                },
-                .RX => {
-                    output.modules[rxc] = .{ .path = file.path, .source = file.text, .packages = packages };
-                    rxc += 1;
-                },
-                .Template => {
-                    output.templates[resources] = .{ .path = file.path, .source = file.text };
-                    resources += 1;
-                },
-                .Ignored => unreachable,
-            }
-        }
-
-        return;
+        slot.* = .{ .path = file.path, .source = file.text, .templates = templates };
     }
 
-    const memory = zx.memory;
-    const rule = @import("generated_input_catalog_publish");
-    const paths = memory.borrowTextColumn("path", files);
-    const bodies = memory.borrowTextColumn("text", files);
-    const kinds = memory.borrowReadColumn(u8, "kind", files);
-    const Input = std.meta.Child(rule.Input);
-    const Text = std.meta.Child(@FieldType(Input, "templates"));
-    const text = .{ .paths = "path", .bodies = "source" };
-    var source_text = memory.borrowWriteFields(text, output.sources);
-    var module_text = memory.borrowWriteFields(text, output.modules);
-    var resource_text = memory.borrowWriteFields(text, output.templates);
-    var source_templates = memory.borrowWriteColumn(@TypeOf(templates), "templates", output.sources);
-    var source_original = memory.borrowWriteColumn(?[]const u8, "original", output.sources);
-    var source_origins = memory.borrowWriteColumn(@TypeOf(origins), "template_origins", output.sources);
-    var module_packages = memory.borrowWriteColumn(@FieldType(Module, "packages"), "packages", output.modules);
-    const attached_packages: @FieldType(Module, "packages") = packages;
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    for (plan.module_rows, output.modules) |row, *slot| {
+        const file = files[@intCast(row)];
 
-    const input: std.meta.Child(rule.Input) = .{
-        .paths = @ptrCast(&paths),
-        .bodies = @ptrCast(&bodies),
-        .kinds = &.{ .rows = @ptrCast(&kinds), .zx = @backingInt(Kind.ZX), .rx = @backingInt(Kind.RX) },
-        .ordered = plan.ordered,
-        .sources = &.{
-            .text = &source_text.bind(Text),
-            .templates = @ptrCast(&source_templates),
-            .original = @ptrCast(&source_original),
-            .origins = @ptrCast(&source_origins),
-        },
-        .modules = &.{
-            .text = &module_text.bind(Text),
-            .packages = @ptrCast(&module_packages),
-        },
-        .templates = &resource_text.bind(Text),
-        .shared = &.{
-            .templates = std.mem.asBytes(&templates),
-            .packages = std.mem.asBytes(&attached_packages),
-            .original = std.mem.asBytes(&original),
-            .origins = std.mem.asBytes(&origins),
-        },
-    };
+        slot.* = .{ .path = file.path, .source = file.text, .packages = packages };
+    }
 
-    try zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
+    for (plan.template_rows, output.templates) |row, *slot| {
+        const file = files[@intCast(row)];
+
+        slot.* = .{ .path = file.path, .source = file.text };
+    }
 }
 
-fn prepareSeed(files: []const Document, indices: []u64) Plan {
+fn prepareSeed(allocator: std.mem.Allocator, files: []const Document, indices: []u64) !Plan {
     std.mem.sort(u64, indices, files, struct {
         fn less(items: []const Document, left: u64, right: u64) bool {
             return std.mem.lessThan(u8, items[@intCast(left)].path, items[@intCast(right)].path);
@@ -118,15 +69,47 @@ fn prepareSeed(files: []const Document, indices: []u64) Plan {
 
     var zxc: usize = 0;
     var rxc: usize = 0;
+    var txc: usize = 0;
 
     for (files) |file| {
         switch (@as(Kind, @fromBackingInt(@intCast(file.kind)))) {
             .ZX => zxc += 1,
             .RX => rxc += 1,
-            .Template => {},
+            .Template => txc += 1,
             .Ignored => unreachable,
         }
     }
 
-    return .{ .ordered = indices, .sources = zxc, .modules = rxc };
+    const source_rows = try allocator.alloc(u64, zxc);
+    const module_rows = try allocator.alloc(u64, rxc);
+    const template_rows = try allocator.alloc(u64, txc);
+    var si: usize = 0;
+    var mi: usize = 0;
+    var ti: usize = 0;
+
+    for (indices) |row| {
+        switch (@as(Kind, @fromBackingInt(@intCast(files[@intCast(row)].kind)))) {
+            .ZX => {
+                source_rows[si] = row;
+                si += 1;
+            },
+            .RX => {
+                module_rows[mi] = row;
+                mi += 1;
+            },
+            .Template => {
+                template_rows[ti] = row;
+                ti += 1;
+            },
+            .Ignored => unreachable,
+        }
+    }
+
+    return .{
+        .source_rows = source_rows,
+        .module_rows = module_rows,
+        .template_rows = template_rows,
+        .sources = zxc,
+        .modules = rxc,
+    };
 }

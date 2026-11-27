@@ -1,4 +1,4 @@
-import memory from "memory"
+import encoding from "std:encoding"
 
 import { export_prefix_length, root_export } from "./const"
 
@@ -13,14 +13,10 @@ export default function (in: Input): Output {
     const { name, path } = in
 
     if (path == root_export) {
-        return memory.copyText(name)
+        return name
     }
 
-    const suffix = memory.borrowTextRange(
-        path,
-        export_prefix_length,
-        path.length - export_prefix_length
-    )
+    const suffix = encoding.sliceBytes(path, export_prefix_length, path.length)
 
     return `${name}/${suffix}`
 }

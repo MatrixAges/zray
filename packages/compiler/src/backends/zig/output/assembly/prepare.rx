@@ -1,44 +1,33 @@
 <Module>
     <Type from="model" as="Assembly" />
 
-    <Args in={Assembly.Input} out={void} />
+    <Args in={Assembly.Input} out={Assembly.Output} />
 
-    <Call
-        fn="headers"
-        in={{
-            sections: $in.sections,
-            files: $in.files,
-            types: $in.types
-        }}
-    />
-
-    <Call
-        fn="public_files"
-        in={{
-            sections: $in.sections,
-            public: $in.public,
-            files: $in.files,
-            modules: $in.modules
-        }}
-    />
-
-    <Call
-        fn="support"
-        in={{
-            sections: $in.sections,
-            support: $in.support,
-            files: $in.files
-        }}
-    />
+    <Call fn="headers" in={$in.types} />
+    <Call fn="public_files" in={$in.public} />
+    <Call fn="support" in={$in.support} />
 
     <If on={$in.partitioned}>
-        <Call
-            fn="partition"
-            in={{
-                sections: $in.sections,
-                files: $in.files,
-                signatures: $in.signatures
+        <Call fn="partition" in={$in.signatures} />
+
+        <Return
+            value={{
+                ...$ctx.headers,
+                ...$ctx.public_files,
+                support: $ctx.support,
+                signatures_file: $ctx.partition.signatures_file,
+                original_root_path: $ctx.partition.original_root_path
             }}
         />
     </If>
+
+    <Return
+        value={{
+            ...$ctx.headers,
+            ...$ctx.public_files,
+            support: $ctx.support,
+            signatures_file: null,
+            original_root_path: null
+        }}
+    />
 </Module>

@@ -1,34 +1,53 @@
-import type { TextColumn, WriteColumn } from "memory"
-import type { WriteColumn as ListColumn } from "memory/columns"
+import type { TextColumn } from "memory"
 import type { Scope } from "../demand/model"
 import type { Placement } from "../layout/model"
 
 export type State = {
     paths: string[],
-    bodies: TextColumn,
-    target_paths: WriteColumn,
-    target_sources: WriteColumn
+    bodies: TextColumn
+}
+
+export type File = {
+    path: string,
+    source: string
+}
+
+export type Job = {
+    destination: u64,
+    index: u32,
+    root: bool,
+    variants: u8[][],
+    comptime_entry: bool
+}
+
+export type StubsOutput = {
+    paths: string[],
+    jobs: Job[]
+}
+
+export type RootsOutput = {
+    paths: string[],
+    jobs: Job[]
 }
 
 export type Input = {
     files: State,
     members: u32[][],
     scopes: Scope[],
-    placement: Placement,
-    jobs: Jobs
+    placement: Placement
 }
 
-export type Jobs = {
-    destinations: WriteColumn,
-    indices: WriteColumn,
-    roots: WriteColumn,
-    variants: ListColumn,
-    comptime_entries: WriteColumn
+export type Output = {
+    bodies: File[],
+    copies: File[],
+    stub_paths: string[],
+    root_paths: string[],
+    stub_jobs: Job[],
+    root_jobs: Job[]
 }
 
 export type BodyGroup = {
     files: State,
     rows: u32[],
-    prefix: string,
-    first: u64
+    prefix: string
 }

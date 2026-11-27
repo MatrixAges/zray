@@ -1,4 +1,4 @@
-import type { TextColumn, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
 
 export type Counts = {
     public_count: u64,
@@ -28,23 +28,47 @@ export type Public = Sources & {
     names: TextColumn
 }
 
-export type Destination = {
-    paths: WriteColumn,
-    bodies: WriteColumn
+export type File = {
+    path: string,
+    source: string
 }
 
-export type PublicModules = {
-    names: WriteColumn,
-    files: WriteColumn
+export type Module = {
+    name: string,
+    file: string
+}
+
+export type Headers = {
+    types_file: File,
+    root_path: string
+}
+
+export type Partition = {
+    signatures_file: File,
+    original_root_path: string
+}
+
+export type PublicOutput = {
+    adapters: string[],
+    public_files: File[],
+    modules: Module[]
 }
 
 export type Input = {
     partitioned: bool,
-    sections: Sections,
     public: Public,
     support: Sources,
-    files: Destination,
-    modules: PublicModules,
     types: string,
     signatures: string
+}
+
+export type Output = {
+    types_file: File,
+    root_path: string,
+    adapters: string[],
+    public_files: File[],
+    modules: Module[],
+    support: File[],
+    signatures_file?: File,
+    original_root_path?: string
 }

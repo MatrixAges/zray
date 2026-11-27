@@ -1,22 +1,21 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
-import probe from "core/bytes/index/slot"
-import memory from "memory"
 
-import { call_marker, quote, marked } from "./const"
+import { call_marker, quote } from "./const"
+import probe from "./probe"
 
 import type { Scan as Input } from "./model"
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { keys, buckets, capacity } = in.table
-
     const source = bytes.fromText(in.source)
+    const empty: u64[] = []
 
-    const result = loop({
+    return loop({
         cursor: 0,
-        done: false
+        done: false,
+        hits: empty
     }, {
         while: current => !current.done,
         next: current => {
@@ -38,22 +37,16 @@ export default function (in: Input): Output {
                             at
                         ))
                     const found = probe({
-                        keys,
-                        buckets,
-                        capacity,
+                        table: in.table,
                         key
                     })
 
-                    if (found.entry != 0) {
-                        memory.storeAtomicCell(
-                            in.wanted,
-                            0,
-                            found.entry - 1,
-                            marked
-                        )
+                    if (found != null) {
+                        current.hits = current.hits.push(found)[0]
                     }
                 }
             }
-        }
+        },
+        return: current => current.hits
     })
 }

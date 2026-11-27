@@ -10,20 +10,15 @@
         out={Catalog.Plan}
     />
 
-    <Call
-        fn="count"
-        in={{
-            kinds: $in.kinds,
-            count: $in.order.rows.length
-        }}
-    />
-
     <Call fn="../order" in={$in.order} />
 
-    <Return
-        value={{
-            ordered: $ctx.order,
-            counts: $ctx.count
+    <Call
+        fn="partition"
+        in={{
+            kinds: $in.kinds,
+            ordered: $ctx.order
         }}
     />
+
+    <Return value={$ctx.partition} />
 </Module>

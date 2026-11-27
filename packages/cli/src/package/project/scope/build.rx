@@ -1,28 +1,32 @@
 <Module>
     <Type from="model" as="Scope" />
 
-    <Args in={Scope.Input} out={Scope.Measurement} />
+    <Args in={Scope.Input} out={Scope.Result} />
 
     <Call
         fn="measure"
         in={$in.pick([
             "owner",
             "targets",
-            "bindings"
+            "paths"
         ])}
     />
 
     <If on={$ctx.measure.missing != null}>
-        <Return value={$ctx.measure} />
+        <Return
+            value={{
+                ...$ctx.measure,
+                entries: []
+            }}
+        />
     </If>
 
-    <Call
-        fn="write"
-        in={{
-            ...$in,
-            count: $ctx.measure.count
+    <Call fn="write" in={$in} />
+
+    <Return
+        value={{
+            ...$ctx.measure,
+            entries: $ctx.write
         }}
     />
-
-    <Return value={$ctx.measure} />
 </Module>

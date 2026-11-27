@@ -1,0 +1,48 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import type { Edge } from "./model"
+
+export type Input = {
+    keys: Edge[],
+    buckets: u64[],
+    name: string,
+    edge: u64
+}
+
+export type Output = {
+    duplicate: bool,
+    buckets: u64[]
+}
+
+export default function (in: Input): Output {
+    const { keys, name, edge } = in
+
+    const mask = in.buckets.length - 1
+
+    return loop({
+        slot: integers.andBits(bytes.hash(bytes.fromText(name)), mask),
+        duplicate: false,
+        done: false,
+        buckets: in.buckets
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const entry = state.buckets[state.slot]
+
+            if (entry == 0) {
+                state.buckets = state.buckets.splice(state.slot, 1, [edge + 1])[0]
+                state.done = true
+            } else if (keys[entry - 1].name == name) {
+                state.duplicate = true
+                state.done = true
+            } else {
+                state.slot = integers.andBits(state.slot + 1, mask)
+            }
+        },
+        return: state => state.pick([
+            "duplicate",
+            "buckets"
+        ])
+    })
+}

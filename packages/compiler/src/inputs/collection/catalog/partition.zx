@@ -1,0 +1,44 @@
+import memory from "memory"
+
+import type { Kinds, Plan } from "./model"
+
+export type Input = {
+    kinds: Kinds,
+    ordered: u64[]
+}
+
+export type Output = Plan
+
+export default function (in: Input): Output {
+    const { kinds, ordered } = in
+
+    const empty: u64[] = []
+
+    return loop({
+        cursor: 0,
+        sources: empty,
+        modules: empty,
+        templates: empty
+    }, {
+        while: state => state.cursor < ordered.length,
+        next: state => {
+            const row = ordered[state.cursor]
+            const kind = memory.readColumnU8(kinds.rows, row)
+
+            if (kind == kinds.zx) {
+                state.sources = state.sources.push(row)[0]
+            } else if (kind == kinds.rx) {
+                state.modules = state.modules.push(row)[0]
+            } else {
+                state.templates = state.templates.push(row)[0]
+            }
+
+            state.cursor += 1
+        },
+        return: state => state.pick([
+            "sources",
+            "modules",
+            "templates"
+        ])
+    })
+}

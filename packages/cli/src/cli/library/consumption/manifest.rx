@@ -3,23 +3,35 @@
 
     <Args in={Selection.Input} out={Selection.Output} />
 
-    <Call fn="references" in={$in.omit(["preserve_legacy"])} />
+    <Call fn="references" in={$in.source} />
 
-    <If on={$ctx.references && $in.preserve_legacy && $in.source.count == 1}>
+    <If on={$ctx.references == null}>
+        <Return
+            value={{
+                valid: false,
+                legacy: false,
+                references: []
+            }}
+        />
+    </If>
+
+    <If on={$in.preserve_legacy && $in.source.count == 1}>
         <Call fn="legacy_candidate" in={$in.source} />
 
         <Return
             value={{
                 valid: true,
-                legacy: $ctx.legacy_candidate
+                legacy: $ctx.legacy_candidate,
+                references: $ctx.references ?? []
             }}
         />
     </If>
 
     <Return
         value={{
-            valid: $ctx.references,
-            legacy: false
+            valid: true,
+            legacy: false,
+            references: $ctx.references ?? []
         }}
     />
 </Module>

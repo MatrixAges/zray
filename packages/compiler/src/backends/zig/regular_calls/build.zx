@@ -1,43 +1,54 @@
 import integers from "std:integer"
-import find from "core/bytes/index/fixed"
 import memory from "memory"
 
-import type { Indexed as Input } from "./model"
+import insert from "./insert"
+import zeroBuckets from "./zero_buckets"
 
-export type Output = u64
+import type { Built, Indexed as Input } from "./model"
+
+export type Output = Built
 
 export default function (in: Input): Output {
-    const { keys, buckets, capacity } = in.table
-    const { pending, groups } = in.candidates
-    const { units, values } = in
+    const { keys, capacity, units, values } = in
+
+    const empty_pending: u64[] = []
+    const empty_groups: u64[] = []
 
     return loop({
         position: 0,
-        count: 0
+        buckets: zeroBuckets(capacity),
+        pending: empty_pending,
+        groups: empty_groups
     }, {
         while: current => current.position < units.count,
         next: current => {
             const row = current.position
-            current.position += 1
+            const regular = memory.readColumnBool(units.regular, row)
+            const index = integers.widen(memory.readColumnU32(units.ids, row))
+            const wanted = !regular && values[index]
 
-            if (!memory.readColumnBool(units.regular, row)) {
-                const index = integers.widen(memory.readColumnU32(units.ids, row))
+            if (wanted) {
+                const inserted = insert({
+                    keys,
+                    buckets: current.buckets,
+                    capacity,
+                    key: keys[index],
+                    insert: index
+                })
 
-                if (values[index]) {
-                    const group = find({
-                        keys,
-                        buckets,
-                        capacity,
-                        key: keys[index],
-                        insert: index
-                    })
-
-                    memory.writeU64(groups, row, group ?? index)
-                    memory.writeU64(pending, current.count, row)
-                    current.count += 1
-                }
+                current.buckets = inserted.buckets
+                current.groups = current.groups.push(inserted.group ?? index)[0]
+                current.pending = current.pending.push(row)[0]
+            } else {
+                current.groups = current.groups.push(0)[0]
             }
+
+            current.position += 1
         },
-        return: current => current.count
+        return: current => current.pick([
+            "buckets",
+            "pending",
+            "groups"
+        ])
     })
 }

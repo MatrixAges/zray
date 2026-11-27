@@ -1,39 +1,47 @@
-import bytes from "std:bytes"
 import memory from "memory"
-import columns from "memory/columns"
 
 import { default_version, legacy_module } from "../const"
 
-import type { ExportOutput, Package, Rows } from "./model"
+import type { ExportRow, ManifestOutput, Package, Rows } from "./model"
 
 export type Input = {
     package: Package,
-    exports: Rows,
-    rows: ExportOutput
+    exports: Rows
 }
 
-export type Output = Package
+export type Output = ManifestOutput
 
 export default function (in: Input): Output {
-    const { exports, rows } = in
+    const { exports } = in
 
-    const written = loop(0, {
-        while: index => index < exports.count,
-        next: index => {
-            const name = memory.readTextColumn(exports.names, index)
+    const empty: ExportRow[] = []
 
-            memory.writeColumnBytes(rows.paths, index, bytes.fromText(name))
-            columns.writeColumnOptionalText(rows.modules, index, name)
-            memory.writeColumnBytes(rows.sources, index, [])
+    const items = loop({
+        index: 0,
+        items: empty
+    }, {
+        while: state => state.index < exports.count,
+        next: state => {
+            const name = memory.readTextColumn(exports.names, state.index)
+            const module: string? = name
 
-            index += 1
-        }
+            state.items = state.items.push({
+                path: name,
+                module,
+                source: ""
+            })[0]
+            state.index += 1
+        },
+        return: state => state.items
     })
 
     const { name, version } = in.package
 
     return {
-        name: name == "" ? legacy_module : name,
-        version: version == "" ? default_version : version
+        package: {
+            name: name == "" ? legacy_module : name,
+            version: version == "" ? default_version : version
+        },
+        exports: items
     }
 }

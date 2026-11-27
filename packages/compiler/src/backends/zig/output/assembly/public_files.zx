@@ -1,38 +1,48 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
 import { zig_suffix } from "./const"
 
-import type { Input as Assembly } from "./model"
+import type { File, Module, Public, PublicOutput } from "./model"
 
-export type Input = Assembly.Pick("sections", "public", "files", "modules")
+export type Input = Public
 
-export type Output = void
+export type Output = PublicOutput
 
 export default function (in: Input): Output {
-    const { files, modules, sections } = in
+    const empty_adapters: string[] = []
+    const empty_files: File[] = []
+    const empty_modules: Module[] = []
 
-    const written = loop(0, {
-        while: index => index < in.public.count,
-        next: index => {
-            const source = memory.readTextColumn(in.public.bodies, index)
-            const stem = memory.readTextColumn(in.public.paths, index)
-            const name = memory.readTextColumn(in.public.names, index)
-            const path = bytes.fromText(`${stem}${zig_suffix}`)
+    return loop({
+        index: 0,
+        adapters: empty_adapters,
+        public_files: empty_files,
+        modules: empty_modules
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            const index = state.index
+            const source = memory.readTextColumn(in.bodies, index)
+            const stem = memory.readTextColumn(in.paths, index)
+            const name = memory.readTextColumn(in.names, index)
+            const path = `${stem}${zig_suffix}`
             const adapter = `${name}${zig_suffix}`
-            const target = sections.public_files + index
 
-            memory.writeColumnBytes(files.paths, target, path)
-            memory.writeColumnBytes(files.bodies, target, bytes.fromText(source))
-            memory.writeColumnBytes(
-                files.paths,
-                sections.adapters + index,
-                bytes.fromText(adapter)
-            )
-            memory.writeColumnBytes(modules.names, index, bytes.fromText(name))
-            memory.writeColumnBytes(modules.files, index, path)
-
-            index += 1
-        }
+            state.adapters = state.adapters.push(adapter)[0]
+            state.public_files = state.public_files.push({
+                path,
+                source
+            })[0]
+            state.modules = state.modules.push({
+                name,
+                file: path
+            })[0]
+            state.index += 1
+        },
+        return: state => state.pick([
+            "adapters",
+            "public_files",
+            "modules"
+        ])
     })
 }

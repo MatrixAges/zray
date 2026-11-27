@@ -1,14 +1,19 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
 import type { Completed as Input } from "./model"
 
-export type Output = void
+export type Output = bool[]
 
 export default function (in: Input): Output {
-    const completed = loop(0, {
-        while: row => row < in.count,
-        next: row => {
+    const empty: bool[] = []
+
+    return loop({
+        row: 0,
+        flags: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const row = state.row
             const constant_only = match {
                 !in.type_only => false,
                 memory.readColumnOptionalU32(in.defaults, row) != null => false,
@@ -17,13 +22,9 @@ export default function (in: Input): Output {
                 _ => memory.listLength(in.member_ids, row) == 0
             }
 
-            memory.writeColumnBytes(
-                in.source_files,
-                row,
-                bytes.fromText(in.sources[row])
-            )
-            memory.writeColumnBool(in.constants_only, row, constant_only)
-            row += 1
-        }
+            state.flags = state.flags.push(constant_only)[0]
+            state.row += 1
+        },
+        return: state => state.flags
     })
 }

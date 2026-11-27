@@ -1,0 +1,52 @@
+import integers from "std:integer"
+
+import type { Scope } from "../demand/model"
+import type { Job, State, StubsOutput } from "./model"
+
+export type Input = {
+    files: State,
+    scope: Scope,
+    prefix: string,
+    use_prefix: bool,
+    first_destination: u64,
+    paths: string[],
+    jobs: Job[]
+}
+
+export type Output = StubsOutput
+
+export default function (in: Input): Output {
+    const demand = in.scope.stubs
+
+    return loop({
+        index: 0,
+        paths: in.paths,
+        jobs: in.jobs
+    }, {
+        while: state => state.index < demand.callees.length,
+        next: state => {
+            const index = state.index
+            const callee = demand.callees[index]
+            const name = in.files.paths[integers.widen(callee)]
+            const path = match in.use_prefix {
+                true => `${in.prefix}${name}`,
+                _ => name
+            }
+            const destination = in.first_destination + index
+
+            state.paths = state.paths.push(path)[0]
+            state.jobs = state.jobs.push({
+                destination,
+                index: callee,
+                root: false,
+                variants: demand.variants[index],
+                comptime_entry: !in.use_prefix
+            })[0]
+            state.index += 1
+        },
+        return: state => state.pick([
+            "paths",
+            "jobs"
+        ])
+    })
+}

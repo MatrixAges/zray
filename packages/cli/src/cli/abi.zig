@@ -2,15 +2,10 @@ const std = @import("std");
 const compiler = @import("compiler");
 const effects = @import("sources/effects.zig");
 const input = @import("abi/input.zig");
-const memory = @import("zx").memory;
 const view = compiler.zig.abi_view;
 const Loaded = @import("project.zig").Loaded;
 const rule = @import("cli_source").render_bundle_abi;
-const Request = std.meta.Child(rule.Input);
-const Columns = std.meta.Child(@FieldType(Request, "files"));
 const host = @import("cli_abi").native.@"zig:bundle_abi_host";
-const fields = .{ .modules = "module", .names = "name", .paths = "path", .sources = "source" };
-
 pub const File = struct { module: []const u8, name: []const u8, path: []const u8, source: []const u8 };
 pub const Result = struct { source: []const u8, views: []const File = &.{} };
 
@@ -21,11 +16,8 @@ const State = struct {
     native_modules: compiler.ir.NativeModuleTable,
     modules: []const compiler.zig.ModuleFile,
     loaded: *const Loaded,
-    rows: []File = &.{},
     borrowed: input.Borrowed = undefined,
     plan: input.Input = undefined,
-    fields: @TypeOf(memory.borrowWriteFields(fields, @as([]File, &.{}))) = undefined,
-    columns: Columns = undefined,
 };
 
 pub fn create(allocator: std.mem.Allocator, bundle: anytype, loaded: *const Loaded) !Result {
@@ -46,20 +38,29 @@ pub fn create(allocator: std.mem.Allocator, bundle: anytype, loaded: *const Load
 
     const reference = &state;
 
-    const source = rule.executeIn(state.temporary, &.{
+    const rendered = rule.executeIn(state.temporary, &.{
         .frame = @ptrCast(&reference),
         .source = bundle.types,
         .identities = bundle.native_modules.identities,
         .plan = &state.plan,
-        .files = &state.columns,
-        .owner = @ptrCast(&state.owner),
     }) catch |err| return switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         error.ConflictingNativeAbiAlias, error.NativeModuleNameConflict => err,
         else => unreachable,
     };
 
-    return .{ .source = source, .views = state.rows };
+    const views = try allocator.alloc(File, rendered.views.len);
+
+    for (rendered.views, views) |item, *slot| {
+        slot.* = .{
+            .module = item.module,
+            .name = try allocator.dupe(u8, item.name),
+            .path = try allocator.dupe(u8, item.path),
+            .source = item.source,
+        };
+    }
+
+    return .{ .source = rendered.source, .views = views };
 }
 
 pub fn borrowAbiInputs(handle: *const anyopaque) void {
@@ -72,14 +73,6 @@ pub fn rejectAbiPlan(conflict: host.AbiConflict) error{ ConflictingNativeAbiAlia
         .Alias => error.ConflictingNativeAbiAlias,
         .Name => error.NativeModuleNameConflict,
     };
-}
-
-pub fn reserveAbiFiles(handle: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const state = effects.state(State, handle);
-
-    state.rows = try state.owner.alloc(File, @intCast(count));
-    state.fields = memory.borrowWriteFields(fields, state.rows);
-    state.columns = state.fields.bind(Columns);
 }
 
 pub fn renderAbiFile(handle: *const anyopaque, aliases: []const host.AbiAlias) std.mem.Allocator.Error![]const u8 {

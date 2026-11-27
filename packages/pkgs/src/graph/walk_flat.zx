@@ -1,0 +1,85 @@
+import bytes from "std:bytes"
+
+import { finished, visiting, workspace_root } from "./const"
+import { Status } from "./model"
+
+import type { Result } from "./model"
+
+export type Input = {
+    edges: u64[],
+    offsets: u64[],
+    count: u64,
+    limit: u64
+}
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    const { edges, offsets } = in
+
+    const empty_stack: u64[] = []
+
+    return loop({
+        root: 0,
+        marks: bytes.repeat(in.count, workspace_root),
+        nodes: empty_stack,
+        cursors: empty_stack,
+        status: Status.Valid,
+        owner: 0
+    }, {
+        while: s => {
+            const more = s.root < in.count || s.nodes.length != 0
+
+            return more && s.status == Status.Valid
+        },
+        next: s => {
+            if (s.nodes.length == 0) {
+                const row = s.root
+                const mark = s.marks[row]
+                s.root += 1
+
+                if (mark == workspace_root) {
+                    s.marks = s.marks.splice(row, 1, [visiting])[0]
+                    s.nodes = [row]
+                    s.cursors = [0]
+                }
+            } else {
+                const frame = s.nodes.length - 1
+                const owner = s.nodes[frame]
+                const edge = s.cursors[frame]
+                const first = offsets[owner]
+                const length = offsets[owner + 1] - first
+
+                if (edge == length) {
+                    s.marks = s.marks.splice(owner, 1, [finished])[0]
+                    s.nodes = s.nodes.splice(frame, 1, [])[0]
+                    s.cursors = s.cursors.splice(frame, 1, [])[0]
+                } else {
+                    const target = edges[first + edge]
+                    const mark = s.marks[target]
+                    const check_depth = mark != finished
+                    const depth = s.nodes.length
+
+                    if (mark == visiting) {
+                        s.status = Status.CyclicPackageDependencies
+                        s.owner = target
+                    } else if (check_depth && depth >= in.limit) {
+                        s.status = Status.PackageDependencyDepthExceeded
+                        s.owner = target
+                    } else if (mark == finished) {
+                        s.cursors = s.cursors.splice(frame, 1, [edge + 1])[0]
+                    } else {
+                        s.cursors = s.cursors.splice(frame, 1, [edge + 1])[0]
+                        s.marks = s.marks.splice(target, 1, [visiting])[0]
+                        s.nodes = s.nodes.push(target)[0]
+                        s.cursors = s.cursors.push(0)[0]
+                    }
+                }
+            }
+        },
+        return: s => s.pick([
+            "status",
+            "owner"
+        ])
+    })
+}

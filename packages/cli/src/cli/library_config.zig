@@ -7,7 +7,6 @@ const memory = zx.memory;
 const bind_views = @import("cli_source").library_native_views;
 const Input = std.meta.Child(bind_views.Input);
 const input_fields = .{ .names = "name", .paths = "path", .headers = "header", .dependencies = "dependencies", .include_paths = "include_paths" };
-const output_fields = .{ .names = "name", .paths = "path", .headers = "header", .dependencies = "dependencies", .include_paths = "include_paths", .abi_views = "abi_view" };
 
 pub fn render(allocator: std.mem.Allocator, config: Config, public_modules: []const library.Module, generated: []const library.Module, views: []const @import("abi.zig").File) library.Error![]u8 {
     const native = try allocator.alloc(library.Native, config.native_modules.len);
@@ -16,17 +15,31 @@ pub fn render(allocator: std.mem.Allocator, config: Config, public_modules: []co
 
     if (native.len != 0) {
         const modules = memory.borrowReadFields(input_fields, config.native_modules);
-        var target = memory.borrowWriteFields(output_fields, native);
         const names = memory.borrowTextColumn("module", views);
         const paths = memory.borrowTextColumn("path", views);
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+        var scratch = std.heap.ArenaAllocator.init(allocator);
 
-        zx.columns.invoke(bind_views.executeValue, fixed.allocator(), &Input{
+        defer scratch.deinit();
+
+        const resolved = zx.columns.invoke(bind_views.executeValue, scratch.allocator(), &Input{
             .modules = &modules.bind(std.meta.Child(@FieldType(Input, "modules"))),
             .views = &.{ .count = views.len, .names = @ptrCast(&names), .paths = @ptrCast(&paths) },
             .includes = config.include_paths,
-            .target = &target.bind(std.meta.Child(@FieldType(Input, "target"))),
-        }) catch unreachable;
+        }) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        for (resolved, native) |item, *slot| {
+            slot.* = .{
+                .name = item.name,
+                .path = item.path,
+                .header = item.header,
+                .dependencies = item.dependencies,
+                .include_paths = item.include_paths,
+                .abi_view = item.abi_view,
+            };
+        }
     }
 
     return library.render(allocator, .{

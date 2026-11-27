@@ -1,0 +1,26 @@
+export type Input = u64
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const capacity = loop(4, {
+        while: size => size < in * 2,
+        next: size => {
+            size *= 2
+        }
+    })
+
+    const initial: u64[] = []
+
+    return loop({
+        index: 0,
+        items: initial
+    }, {
+        while: s => s.index < capacity,
+        next: s => {
+            s.items = s.items.push(0)[0]
+            s.index += 1
+        },
+        return: s => s.items
+    })
+}

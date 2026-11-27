@@ -1,7 +1,5 @@
-import bytes from "std:bytes"
 import locate from "cli/native_module_lookup"
 import memory from "memory"
-import columns from "memory/columns"
 
 import {
     module_prefix,
@@ -12,25 +10,26 @@ import {
 import { legacy_module } from "../const"
 import { Kind } from "./model"
 
-import type { ModuleOutput, Modules } from "./model"
+import type { ModuleRow, Modules } from "./model"
 
 export type Input = {
     kind: Kind,
-    modules: Modules,
-    rows: ModuleOutput
+    modules: Modules
 }
 
-export type Output = bool
+export type Output = ModuleRow[]?
 
 export default function (in: Input): Output {
-    const { kind, modules, rows } = in
+    const { kind, modules } = in
 
     const legacy = kind == Kind.Legacy
     const prefix = kind == Kind.Generated ? module_prefix : public_prefix
+    const empty: ModuleRow[] = []
 
     return loop({
         index: 0,
-        valid: true
+        valid: true,
+        items: empty
     }, {
         while: state => state.valid && state.index < modules.count,
         next: state => {
@@ -60,17 +59,18 @@ export default function (in: Input): Output {
                 const dependencies =
                     memory.readTextListColumn(modules.dependencies, index)
 
-                memory.writeColumnBytes(rows.names, index, bytes.fromText(name))
-                memory.writeColumnBytes(rows.paths, index, bytes.fromText(path))
-                columns.writeColumnTextList(
-                    rows.dependencies,
-                    index,
+                state.items = state.items.push({
+                    name,
+                    path,
                     dependencies
-                )
+                })[0]
             }
 
             state.index += 1
         },
-        return: state => state.valid
+        return: state => match state.valid {
+            true => state.items,
+            _ => null
+        }
     })
 }

@@ -1,4 +1,4 @@
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { ReadColumn } from "memory"
 
 export type Kinds = {
     rows: ReadColumn,
@@ -6,52 +6,8 @@ export type Kinds = {
     rx: u8
 }
 
-export type Files = {
-    kinds: Kinds,
-    count: u64
-}
-
-export type Counts = {
-    zx: u64,
-    rx: u64
-}
-
 export type Plan = {
-    ordered: u64[],
-    counts: Counts
-}
-
-export type Text = {
-    paths: WriteColumn,
-    bodies: WriteColumn
-}
-
-export type Sources = {
-    text: Text,
-    templates: WriteColumn,
-    original: WriteColumn,
-    origins: WriteColumn
-}
-
-export type Modules = {
-    text: Text,
-    packages: WriteColumn
-}
-
-export type Shared = {
-    templates: u8[],
-    packages: u8[],
-    original: u8[],
-    origins: u8[]
-}
-
-export type Publish = {
-    paths: TextColumn,
-    bodies: TextColumn,
-    kinds: Kinds,
-    ordered: u64[],
-    sources: Sources,
-    modules: Modules,
-    templates: Text,
-    shared: Shared
+    sources: u64[],
+    modules: u64[],
+    templates: u64[]
 }

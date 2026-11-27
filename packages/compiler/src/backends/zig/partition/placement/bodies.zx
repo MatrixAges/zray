@@ -1,6 +1,7 @@
+import appendFiles from "./append_files"
 import bodyGroup from "./body_group"
 
-import type { State } from "./model"
+import type { File, State } from "./model"
 
 export type Input = {
     files: State,
@@ -8,23 +9,29 @@ export type Input = {
     members: u32[][]
 }
 
-export type Output = u64
+export type Output = File[]
 
 export default function (in: Input): Output {
+    const empty: File[] = []
+
     return loop({
         scope: 0,
-        position: 0
+        files: empty
     }, {
         while: state => state.scope < in.members.length,
         next: state => {
-            state.position = bodyGroup({
+            const items = bodyGroup({
                 files: in.files,
                 rows: in.members[state.scope],
-                prefix: in.prefixes[state.scope],
-                first: state.position
+                prefix: in.prefixes[state.scope]
+            })
+
+            state.files = appendFiles({
+                target: state.files,
+                items
             })
             state.scope += 1
         },
-        return: state => state.position
+        return: state => state.files
     })
 }

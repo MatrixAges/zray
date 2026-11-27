@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Placement" />
 
-    <Args in={Placement.Input} out={void} />
+    <Args in={Placement.Input} out={Placement.Output} />
 
     <Call fn="prefixes" in={$in.members} />
 
@@ -19,8 +19,7 @@
         in={{
             files: $in.files,
             prefixes: $ctx.prefixes,
-            scopes: $in.scopes,
-            first: $ctx.bodies
+            scopes: $in.scopes
         }}
     />
 
@@ -30,7 +29,6 @@
             files: $in.files,
             prefixes: $ctx.prefixes,
             scopes: $in.scopes,
-            targets: $in.jobs,
             first: $in.placement.first_stub
         }}
     />
@@ -38,11 +36,19 @@
     <Call
         fn="roots"
         in={{
-            paths: $in.files.target_paths,
             prefixes: $ctx.prefixes,
-            first: $in.placement.first_root,
-            first_job: $in.placement.first_root - $in.placement.first_stub,
-            jobs: $in.jobs
+            first: $in.placement.first_root
+        }}
+    />
+
+    <Return
+        value={{
+            bodies: $ctx.bodies,
+            copies: $ctx.copies,
+            stub_paths: $ctx.stubs.paths,
+            root_paths: $ctx.roots.paths,
+            stub_jobs: $ctx.stubs.jobs,
+            root_jobs: $ctx.roots.jobs
         }}
     />
 </Module>

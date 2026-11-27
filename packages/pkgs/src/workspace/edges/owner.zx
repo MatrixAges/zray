@@ -1,33 +1,38 @@
-import bytes from "std:bytes"
-import claim from "core/bytes/index/column"
 import memory from "memory"
 
+import insertName from "./insert_name"
 import { Status } from "./model"
 import resolve from "./target"
+import zeroBuckets from "./zero_buckets"
 
-import type { Build } from "./model"
+import type { Edge, Members, OwnerResult } from "./model"
 
-export type Input = Build & {
-    row: u64,
-    start: u64
+export type Input = Members & {
+    row: u64
 }
 
-export type Output = {
-    edge: u64,
-    status: Status
-}
+export type Output = OwnerResult
 
 export default function (in: Input): Output {
-    const { manifests, output, row, start } = in
+    const { manifests, row } = in
     const { production_names, development_names } = manifests
 
     const production = memory.listLength(production_names, row)
     const length = production + memory.listLength(development_names, row)
     const owner = memory.readTextColumn(in.paths, row)
+    const empty_buckets: u64[] = []
+    const empty_edges: Edge[] = []
+
+    const initial_buckets = match {
+        length > 1 => zeroBuckets(length),
+        _ => empty_buckets
+    }
 
     return loop({
         edge: 0,
-        status: Status.Valid
+        status: Status.Valid,
+        buckets: initial_buckets,
+        edges: empty_edges
     }, {
         while: s => s.edge < length && s.status == Status.Valid,
         next: s => {
@@ -41,23 +46,26 @@ export default function (in: Input): Output {
             }
             const name = memory.readListText(names, row, index)
 
-            const duplicate = length > 1 && claim({
-                ...in.index,
-                key: name,
-                insert: start + edge,
-                first: start
-            }) != null
+            const inserted = match {
+                length > 1 => insertName({
+                    keys: s.edges,
+                    buckets: s.buckets,
+                    name,
+                    edge
+                }),
+                _ => {
+                    duplicate: false,
+                    buckets: s.buckets
+                }
+            }
 
-            if (duplicate) {
+            s.buckets = inserted.buckets
+
+            if (inserted.duplicate) {
                 s.status = Status.Duplicate
             } else {
                 const target = resolve({
-                    ...in.omit([
-                        "index",
-                        "output",
-                        "row",
-                        "start"
-                    ]),
+                    ...in.omit(["row"]),
                     name,
                     owner,
                     requirement: memory.readListText(requirements, row, index)
@@ -65,25 +73,19 @@ export default function (in: Input): Output {
 
                 s.status = target.status
                 if (target.status == Status.Valid) {
-                    const destination = start + edge
-                    memory.writeColumnBytes(
-                        output.names,
-                        destination,
-                        bytes.fromText(name)
-                    )
-                    memory.writeColumnIndex(
-                        output.targets,
-                        destination,
-                        target.row
-                    )
-                    memory.writeColumnBool(
-                        output.development,
-                        destination,
+                    s.edges = s.edges.push({
+                        name,
+                        target: target.row,
                         development
-                    )
+                    })[0]
                     s.edge += 1
                 }
             }
-        }
+        },
+        return: s => s.pick([
+            "edge",
+            "status",
+            "edges"
+        ])
     })
 }

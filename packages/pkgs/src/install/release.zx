@@ -4,7 +4,7 @@ import { Status } from "./model"
 import type { Selection } from "../registry/model"
 import type { Result } from "./model"
 
-export type Input = Selection & Result.Pick("cursor")
+export type Input = Selection & Result.Pick("cursor", "rows")
 
 export type Output = Result
 

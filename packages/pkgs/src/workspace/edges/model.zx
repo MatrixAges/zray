@@ -1,6 +1,4 @@
-import type { Table } from "core/bytes/index/column"
-import type { TextColumn, WriteColumn } from "memory"
-import type { Input as Graph } from "../../graph/model"
+import type { TextColumn } from "memory"
 import type { Manifests } from "../manifest/model"
 
 export enum Status {
@@ -24,23 +22,33 @@ export type Members = {
     limit: u64
 }
 
-export type Columns = {
-    names: WriteColumn,
-    targets: WriteColumn,
-    development: WriteColumn
+export type Edge = {
+    name: string,
+    target: u64,
+    development: bool
 }
 
-export type Build = Members & {
-    output: Columns,
-    index: Table
+export type Input = Members & {
+    depth_limit: u64
 }
 
-export type Input = Build & {
-    graph: Graph
+export type OwnerResult = {
+    edge: u64,
+    status: Status,
+    edges: Edge[]
+}
+
+export type Built = {
+    owner: u64,
+    edge: u64,
+    status: Status,
+    edges: Edge[],
+    offsets: u64[]
 }
 
 export type Result = {
     owner: u64,
     edge: u64,
-    status: Status
+    status: Status,
+    edges: Edge[]
 }

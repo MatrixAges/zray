@@ -1,0 +1,53 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+export type Input = {
+    keys: u8[][],
+    buckets: u64[],
+    capacity: u64,
+    key: u8[],
+    insert: u64
+}
+
+export type Output = {
+    group?: u64,
+    buckets: u64[]
+}
+
+export default function (in: Input): Output {
+    const { keys, key, insert } = in
+
+    const mask = in.capacity - 1
+    const none: u64? = null
+
+    return loop({
+        slot: integers.andBits(bytes.hash(key), mask),
+        buckets: in.buckets,
+        group: none,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const row = state.buckets[state.slot]
+
+            if (row == 0) {
+                state.buckets =
+                    state.buckets.splice(state.slot, 1, [insert + 1])[0]
+                state.done = true
+            } else {
+                const index = row - 1
+
+                if (bytes.equals(keys[index], key)) {
+                    state.group = index
+                    state.done = true
+                } else {
+                    state.slot = integers.andBits(state.slot + 1, mask)
+                }
+            }
+        },
+        return: state => state.pick([
+            "group",
+            "buckets"
+        ])
+    })
+}

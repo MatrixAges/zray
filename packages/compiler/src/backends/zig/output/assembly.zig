@@ -43,17 +43,13 @@ pub fn prepare(allocator: std.mem.Allocator, bundle: *const Bundle, groups: Grou
 
     const entry = @import("generated_output_assembly");
     const Input = std.meta.Child(entry.Input);
-    var files_view = memory.borrowWriteFields(.{ .paths = "path", .bodies = "source" }, files);
-    var modules_view = memory.borrowWriteFields(.{ .names = "name", .files = "file" }, modules);
     const support = memory.borrowReadFields(.{ .paths = "path", .bodies = "source" }, groups.support);
     const public_paths = memory.borrowNestedColumn([]const u8, &.{ "file", "name" }, bundle.public_modules);
     const public_bodies = memory.borrowNestedColumn([]const u8, &.{ "file", "source" }, bundle.public_modules);
     const public_names = memory.borrowTextColumn("name", bundle.public_modules);
-    const planned = sectionFields(std.meta.Child(@FieldType(Input, "sections")), sections);
 
     const input: Input = .{
         .partitioned = partitioned,
-        .sections = &planned,
         .public = &.{
             .paths = @ptrCast(&public_paths),
             .bodies = @ptrCast(&public_bodies),
@@ -61,13 +57,37 @@ pub fn prepare(allocator: std.mem.Allocator, bundle: *const Bundle, groups: Grou
             .names = @ptrCast(&public_names),
         },
         .support = &support.bind(std.meta.Child(@FieldType(Input, "support"))),
-        .files = &files_view.bind(std.meta.Child(@FieldType(Input, "files"))),
-        .modules = &modules_view.bind(std.meta.Child(@FieldType(Input, "modules"))),
         .types = bundle.types,
         .signatures = bundle.signatures orelse "",
     };
 
-    try zx.columns.invoke(entry.executeValue, allocator, &input);
+    const output = try zx.columns.invoke(entry.executeValue, allocator, &input);
+
+    files[0] = .{ .path = output.types_file.path, .source = output.types_file.source };
+    files[sections.root].path = output.root_path;
+
+    for (output.adapters, files[sections.adapters..][0..output.adapters.len]) |path, *slot| {
+        slot.path = path;
+    }
+
+    for (output.public_files, files[sections.public_files..][0..output.public_files.len]) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    for (output.modules, modules) |item, *slot| {
+        slot.* = .{ .name = item.name, .file = item.file };
+    }
+
+    for (output.support, files[sections.support..][0..output.support.len]) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    if (partitioned) {
+        const signatures_file = output.signatures_file.?;
+
+        files[sections.signatures] = .{ .path = signatures_file.path, .source = signatures_file.source };
+        files[sections.original_root].path = output.original_root_path.?;
+    }
 
     return assembly;
 }

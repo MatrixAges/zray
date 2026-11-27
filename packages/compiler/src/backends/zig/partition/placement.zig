@@ -26,22 +26,7 @@ pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, funct
     errdefer temporary.free(jobs);
 
     const bodies = memory.borrowTextColumn("source", functions);
-    var target = memory.borrowWriteFields(.{ .target_paths = "path", .target_sources = "source" }, files);
-
-    var publications = memory.borrowWriteFields(.{
-        .destinations = "destination",
-        .indices = "index",
-        .roots = "root",
-        .variants = "variants",
-        .comptime_entries = "comptime_entry",
-    }, jobs);
-
-    var state: State = undefined;
-
-    target.fill(&state);
-
-    state.paths = paths;
-    state.bodies = @ptrCast(&bodies);
+    const state: State = .{ .paths = paths, .bodies = @ptrCast(&bodies) };
 
     const counts: std.meta.Child(@FieldType(Input, "placement")) = .{
         .first_stub = plan.placement.first_stub,
@@ -55,13 +40,52 @@ pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, funct
         .members = plan.members,
         .scopes = plan.scopes,
         .placement = &counts,
-        .jobs = &publications.bind(std.meta.Child(@FieldType(Input, "jobs"))),
     };
 
-    generated.executeValue(allocator, &input) catch |err| switch (err) {
+    const output = generated.executeValue(allocator, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("invalid partition placement: {s}", .{@errorName(err)}),
     };
+
+    for (output.bodies, files[0..output.bodies.len]) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    for (output.copies, files[output.bodies.len..][0..output.copies.len]) |item, *slot| {
+        slot.* = .{ .path = item.path, .source = item.source };
+    }
+
+    const first_stub: usize = @intCast(plan.placement.first_stub);
+
+    for (output.stub_paths, files[first_stub..][0..output.stub_paths.len]) |path, *slot| {
+        slot.path = path;
+    }
+
+    const first_root: usize = @intCast(plan.placement.first_root);
+
+    for (output.root_paths, files[first_root..][0..output.root_paths.len]) |path, *slot| {
+        slot.path = path;
+    }
+
+    for (output.stub_jobs, jobs[0..output.stub_jobs.len]) |item, *slot| {
+        slot.* = .{
+            .destination = item.destination,
+            .index = item.index,
+            .root = item.root,
+            .variants = item.variants,
+            .comptime_entry = item.comptime_entry,
+        };
+    }
+
+    for (output.root_jobs, jobs[output.stub_jobs.len..][0..output.root_jobs.len]) |item, *slot| {
+        slot.* = .{
+            .destination = item.destination,
+            .index = item.index,
+            .root = item.root,
+            .variants = item.variants,
+            .comptime_entry = item.comptime_entry,
+        };
+    }
 
     return .{ .files = files, .jobs = jobs };
 }

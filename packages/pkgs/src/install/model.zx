@@ -1,5 +1,4 @@
-import type { TextColumn, WriteColumn } from "memory"
-import type { RowBuffer } from "memory/columns"
+import type { TextColumn } from "memory"
 import type { Catalog } from "../registry/model"
 import type { Rows } from "../workspace/target/model"
 
@@ -22,11 +21,11 @@ export type Entries = {
     count: u64
 }
 
-export type Columns = {
-    names: WriteColumn,
-    requirements: WriteColumn,
-    targets: WriteColumn,
-    development: WriteColumn
+export type Row = {
+    name: string,
+    requirement: string,
+    target: u64,
+    development: bool
 }
 
 export type Scan = {
@@ -34,10 +33,7 @@ export type Scan = {
     development: Entries,
     owner?: string,
     members: Rows,
-    columns: Columns,
-    storage: RowBuffer,
     cursor: u64,
-    allocate: bool,
     remaining: u64,
     limit: u64
 }
@@ -50,5 +46,6 @@ export type Result = {
     status: Status,
     cursor: u64,
     package: u64,
-    release: u64
+    release: u64,
+    rows: Row[]
 }

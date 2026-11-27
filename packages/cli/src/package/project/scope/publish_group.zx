@@ -1,37 +1,33 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
 import specifier from "./specifier"
 
-import type { Group as Input } from "./model"
+import type { Entry, Group as Input } from "./model"
 
-export type Output = u64
+export type Output = Entry[]
 
 export default function (in: Input): Output {
-    const { rows, width, output } = in
+    const empty: Entry[] = []
 
-    const count = rows.length / width
-
-    const end = loop(0, {
-        while: row => row < count,
-        next: row => {
-            const path = memory.readListText(in.paths, in.target, row)
+    return loop({
+        row: 0,
+        entries: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const path = memory.readListText(in.paths, in.target, state.row)
             const name = specifier({
                 path,
                 name: in.name
             })
-            const source = memory.borrowU8Range(rows, row * width, width)
-            const target = in.first + row
 
-            memory.copyColumnValue(output.records, target, source)
-            memory.writeColumnBytes(
-                output.specifiers,
-                target,
-                bytes.fromText(name)
-            )
-            row += 1
-        }
+            state.entries = state.entries.push({
+                target: in.target,
+                row: state.row,
+                specifier: name
+            })[0]
+            state.row += 1
+        },
+        return: state => state.entries
     })
-
-    return in.first + end
 }

@@ -1,0 +1,22 @@
+import type { Entry } from "./model"
+
+export type Input = {
+    target: Entry[],
+    items: Entry[]
+}
+
+export type Output = Entry[]
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        target: in.target
+    }, {
+        while: state => state.index < in.items.length,
+        next: state => {
+            state.target = state.target.push(in.items[state.index])[0]
+            state.index += 1
+        },
+        return: state => state.target
+    })
+}

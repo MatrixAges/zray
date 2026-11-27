@@ -2,6 +2,5 @@ export {
     AbiConflict,
     borrowAbiInputs,
     rejectAbiPlan,
-    reserveAbiFiles,
     renderAbiRoot
 } from "bundle_abi_host"
