@@ -11,14 +11,13 @@ export type Input = {
     proof: bool
 }
 
-export type Leaf = Input.Omit("types") & {
+export type Leaf = Input.Pick("type_id", "path", "index", "proof") & {
     width: u64,
     members: u64
 }
 
-export type Declaration = {
-    program: SymbolicProgram,
-    index: u64,
-    width: u64,
-    members: u64
+export type Publication = Leaf.Pick("type_id", "path") & {
+    symbol: string,
+    declaration?: string,
+    domain?: string
 }

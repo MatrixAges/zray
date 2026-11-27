@@ -102,8 +102,6 @@ export declare function evaluateSymbolicOperand(
     expression: u32
 ): SymbolicOutcome throws { OutOfMemory, InvalidSource }
 
-export declare function projectSymbolicOperand(frame: SymbolicExpression, index: u32): void
-
 export declare function selectSymbolicExpression(
     frame: SymbolicExpression,
     condition: string,

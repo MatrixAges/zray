@@ -9,5 +9,6 @@ export type Input = {
 }
 
 export type Objects = Input.Pick("state") & {
-    count: u64
+    count: u64,
+    row: u64
 }

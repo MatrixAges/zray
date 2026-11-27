@@ -8,7 +8,7 @@
         <Call fn="host.mergeUnificationFields" in={$in.target} />
 
         <Call
-            fn="commit"
+            module="commit"
             in={{
                 target: $in.target,
                 frame: $in.stack.frame.snapshot,
@@ -19,7 +19,7 @@
 
     <If on={$in.stack.frame.snapshot.action != Application.Action.Object}>
         <Call
-            fn="commit"
+            module="commit"
             in={{
                 target: $in.target,
                 frame: $in.stack.frame.snapshot,

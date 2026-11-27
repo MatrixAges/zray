@@ -6,21 +6,35 @@
     <Call
         fn="reserve"
         in={$in.pick([
-            "build",
             "inputs",
             "definitions"
         ])}
     />
 
     <Call
-        fn="inputs"
-        in={$in.pick([
-            "build",
-            "inputs",
-            "input_types",
-            "types"
-        ])}
+        fn="host.reserveHardwareGraph"
+        in={[
+            $in.build,
+            $ctx.reserve
+        ]}
     />
+
+    <Loop on={$in.row < $in.inputs}>
+        <Call
+            module="next_input"
+            in={{
+                ...$in.pick([
+                    "build",
+                    "inputs",
+                    "input_types",
+                    "types"
+                ]),
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call fn="host.bindHardwareInputs" in={$in.build} />
 
     <Call
         module="definitions"

@@ -7,7 +7,6 @@ const Failure = @import("../output/failure.zig");
 pub const File = generation.placement.File;
 const available = generation.groups.available and generation.layout.available;
 const native = if (available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
-const Plan = if (available) native.BootstrapPartitionPlan else void;
 const Kind = if (available) native.PartitionFile else void;
 
 /// Groups public entry closures into separately compiled units.
@@ -40,8 +39,9 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     const entry = @import("generated_bootstrap_partition");
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const emit = entry.executeIn(fixed.allocator(), @ptrCast(&frame)) catch |err| return frame.failure.restore(err);
 
-    _ = entry.executeIn(fixed.allocator(), @ptrCast(&frame)) catch |err| return frame.failure.restore(err);
+    if (emit) try emitJobs(&frame);
 
     return frame.publication.files;
 }
@@ -61,7 +61,6 @@ const Frame = struct {
     top_variants: [][]const []const u8 = undefined,
     planned: ?generation.layout.Owned = null,
     publication: generation.placement.Publication = undefined,
-    result: Plan = undefined,
     failure: Failure = .{},
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
@@ -111,19 +110,15 @@ pub fn planPartitionLayout(handle: *anyopaque) Failure.Error!void {
     frame.layout() catch |err| return frame.failure.save(err);
 }
 
-pub fn placePartitionFiles(handle: *anyopaque) Failure.Error!*const Plan {
+pub fn placePartitionFiles(handle: *anyopaque) Failure.Error!u64 {
     const frame = Frame.borrow(handle);
 
     frame.place() catch |err| return frame.failure.save(err);
 
-    frame.result = .{ .target = @ptrCast(frame), .jobs = frame.publication.jobs.len };
-
-    return &frame.result;
+    return frame.publication.jobs.len;
 }
 
-pub fn emitPartitionJobs(handle: *anyopaque) Failure.Error!void {
-    const frame = Frame.borrow(handle);
-
+fn emitJobs(frame: *const Frame) !void {
     const render: Rendering = .{
         .owner = frame.allocator,
         .workspace = frame.workspace,
@@ -135,13 +130,13 @@ pub fn emitPartitionJobs(handle: *anyopaque) Failure.Error!void {
 
     const roots = memory.borrowReadColumn(bool, "root", render.jobs);
 
-    parallel.each(frame.arenas, .{
+    try parallel.each(frame.arenas, .{
         .count = render.jobs.len,
         .scan = null,
         .hash = null,
         .write = null,
         .render = &.{ .target = @ptrCast(&render), .roots = @ptrCast(&roots) },
-    }) catch |err| return frame.failure.save(err);
+    });
 }
 
 const Rendering = struct {

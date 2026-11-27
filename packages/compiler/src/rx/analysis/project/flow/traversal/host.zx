@@ -1,6 +1,7 @@
 export { readLengthSlot } from "memory"
 export {
     FlowKind,
+    writeFlowStep,
     refreshFlowCursor,
     prepareFlowCall,
     bindFlowGetters,

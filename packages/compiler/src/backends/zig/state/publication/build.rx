@@ -1,17 +1,16 @@
 <Module>
     <Type from="model" as="Publish" />
 
-    <Args in={Publish.Input} out={void} />
+    <Args in={Publish.Input} out={Publish.Output} />
 
     <Call module="source" in={$in} />
 
-    <Call
-        fn="index.appendStateFile"
-        in={{
-            frame: $in.frame,
+    <Return
+        value={{
             name: $in.name,
-            source: $ctx.source,
-            imports: $in.key.imports
+            imports: $in.key.imports,
+            source: $ctx.source.source,
+            cache_key: $ctx.source.cache_key
         }}
     />
 </Module>

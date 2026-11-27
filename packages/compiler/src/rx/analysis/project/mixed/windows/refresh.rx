@@ -1,0 +1,53 @@
+<Module>
+    <Type from="../windows" as="Windows" />
+
+    <Args in={Windows.Cursor} out={Windows.Cursor} />
+
+    <If on={$in.position != $in.limit}>
+        <Return value={$in} />
+    </If>
+
+    <If on={$in.position == $in.end}>
+        <Call
+            fn="host.mixedBatchEnd"
+            in={[
+                $in.state,
+                $in.batch
+            ]}
+        />
+
+        <Call
+            fn="host.prefetchMixedWindow"
+            in={[
+                $in.state,
+                $in.position,
+                $ctx.mixedBatchEnd
+            ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                end: $ctx.mixedBatchEnd,
+                batch: $in.batch + 1,
+                limit: $in.position + $ctx.prefetchMixedWindow
+            }}
+        />
+    </If>
+
+    <Call
+        fn="host.prefetchMixedWindow"
+        in={[
+            $in.state,
+            $in.position,
+            $in.end
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            limit: $in.position + $ctx.prefetchMixedWindow
+        }}
+    />
+</Module>

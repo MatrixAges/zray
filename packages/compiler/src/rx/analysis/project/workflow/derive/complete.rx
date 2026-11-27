@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Shortcut" />
+
+    <Args in={Shortcut.Deferred} out={Shortcut.Deferred} />
+
+    <Call
+        fn="host.readColumnBool"
+        in={[
+            $in.shortcuts,
+            $in.row
+        ]}
+    />
+
+    <If on={$ctx.readColumnBool}>
+        <Call
+            fn="host.completeDerivedShortcut"
+            in={[
+                $in.state,
+                $in.row
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

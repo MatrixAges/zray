@@ -4,7 +4,7 @@ import slot from "core/bytes/map/slot"
 import host from "hardware_graph_host"
 import { Form, Kind } from "hardware_graph_host"
 
-import requireSpace from "./space"
+import space from "./space"
 
 import type { Store as Input } from "./model"
 
@@ -38,10 +38,14 @@ export default function (in: Input): Output {
         _ => found.position
     }
 
-    requireSpace({
-        build,
+    const valid = space({
+        node_count: host.hardwareNodeCount(build),
         width: in.width
     })
+
+    if (!valid) {
+        host.rejectHardwareTerm()
+    }
 
     const kind = match in.form {
         Form.Constant => Kind.Constant,

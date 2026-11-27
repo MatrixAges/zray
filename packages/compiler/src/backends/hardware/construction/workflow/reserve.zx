@@ -1,19 +1,22 @@
-import host from "hardware_graph_host"
-
 import { maximum_nodes } from "../../const"
 
-import type { Sizes as Input } from "./model"
+import type { GraphCapacity } from "hardware_graph_host"
+import type { Sizes } from "./model"
 
-export type Output = void
+export type Input = Sizes.Pick("inputs", "definitions")
+
+export type Output = GraphCapacity
 
 export default function (in: Input): Output {
-    const { build, inputs, definitions } = in
+    const { inputs, definitions } = in
 
     const symbols = inputs + definitions
     const nodes = symbols < maximum_nodes ? symbols : maximum_nodes
 
-    host.reserveHardwareVariables(build, symbols)
-    host.reserveHardwareCache(build, definitions)
-    host.reserveHardwareInputs(build, inputs)
-    host.reserveHardwareNodes(build, nodes)
+    return {
+        symbols,
+        definitions,
+        inputs,
+        nodes
+    }
 }

@@ -1,14 +1,9 @@
-import type { CacheWriter, GenerationCacheRecord } from "output_host"
-import type { Input as WriteSchedule } from "../writes/model"
-import type { Input as Replacement } from "./replace"
+import type { Action, Input as WriteSchedule } from "../writes/model"
+import type { Input as Replacement, Output as Change } from "./replace"
 
-export type Outcome = {
-    append: bool,
-    retire?: u64
+export type Outcome = Change & {
+    finish: Action,
+    release: bool
 }
 
-export type Input = Replacement &
-    WriteSchedule.Pick("active", "threaded") & {
-        cache: CacheWriter,
-        target: GenerationCacheRecord
-    }
+export type Input = Replacement & WriteSchedule.Pick("active", "threaded")

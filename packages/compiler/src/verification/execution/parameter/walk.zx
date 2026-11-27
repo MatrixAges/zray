@@ -8,6 +8,7 @@ import host from "verification_program_host"
 import fieldPath from "../../ports/path"
 import enumWidth from "../../scalar/enum_width"
 import symbolicWidth from "../../scalar/symbolic_width"
+import { invalid_parameter_type } from "../program/const"
 import leaf from "./leaf"
 
 import type { Input } from "./model"
@@ -66,8 +67,11 @@ export default function walk(in: Input): Output {
         return index
     }
 
-    leaf({
-        ...in.omit(["types"]),
+    const publication = leaf({
+        type_id,
+        path,
+        index,
+        proof,
         width: match shape {
             Kind.Enumeration => enumWidth(types.second[row]),
             Kind.Scalar => symbolicWidth(start),
@@ -79,5 +83,21 @@ export default function walk(in: Input): Output {
         }
     })
 
-    return index + 1
+    if (publication != null) {
+        host.publishSymbolicParameter(
+            program,
+            target,
+            publication.type_id,
+            publication.path,
+            publication.symbol,
+            publication.declaration,
+            publication.domain
+        )
+
+        return index + 1
+    }
+
+    host.rejectSymbolicProgram(program, invalid_parameter_type)
+
+    return index
 }

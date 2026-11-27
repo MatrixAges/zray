@@ -15,13 +15,29 @@
         />
 
         <Call
+            fn="host.readHardwareSort"
+            in={[
+                $in.build,
+                $ctx.run
+            ]}
+        />
+
+        <Call
             fn="write_output"
             in={{
-                build: $in.build,
+                sort: $ctx.readHardwareSort,
                 leaf: $ctx.next_leaf.leaf,
                 node: $ctx.run,
                 index: $in.output_count
             }}
+        />
+
+        <Call
+            fn="host.writeHardwareOutput"
+            in={[
+                $in.build,
+                $ctx.write_output
+            ]}
         />
 
         <Return

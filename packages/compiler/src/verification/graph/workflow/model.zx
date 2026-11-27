@@ -1,5 +1,5 @@
 import type { GraphRegistration } from "verification_publication_host"
-import type { Lookup, Origin, Selection } from "../model"
+import type { CommitResult, Identity, Lookup, Origin, Selection } from "../model"
 
 export type Input = {
     graph: GraphRegistration,
@@ -11,4 +11,13 @@ export type Input = {
 
 export type Bind = Input & {
     selected: Selection
+}
+
+export type Definition = Identity & CommitResult & {
+    resized: bool
+}
+
+export type Output = {
+    name: string,
+    definition?: Definition
 }

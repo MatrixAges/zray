@@ -1,5 +1,6 @@
 <Module>
     <Type from="../effect" as="Effect" />
+    <Type from="../host" as="Host" />
 
     <Args in={Effect.TaskClose} out={void} />
 
@@ -31,12 +32,15 @@
                 ]}
             />
 
+            <Call fn="publish" />
+
             <Call
-                fn="publish"
+                module="../write_step"
                 in={{
                     frame: $in.frame,
-                    visible: $ctx.finishLoweredFlowTask,
-                    index: $in.cursor.destination
+                    index: $in.cursor.destination,
+                    kind: Host.FlowKind.Task,
+                    output: $ctx.publish
                 }}
             />
         </Else>

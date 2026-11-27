@@ -1,10 +1,14 @@
-import type { Table } from "core/bytes/index/column"
 import type { TextColumn } from "memory"
 
-export type Initializers = Table & {
+export type Initializers = {
+    keys: TextColumn,
     modules: TextColumn,
     types: TextColumn,
     count: u64
+}
+
+export type Indexed = Initializers & {
+    buckets: u64[]
 }
 
 export enum Status {

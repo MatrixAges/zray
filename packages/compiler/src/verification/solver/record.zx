@@ -1,19 +1,22 @@
 import bytes from "std:bytes"
-import fs from "std:fs"
+
+import type { FileWrite } from "./model"
 
 export type Input = {
     path: string,
     status: string
 }
 
-export type Output = void
+export type Output = FileWrite?
 
 export default function (in: Input): Output {
-    if (in.status != "") {
-        fs.writeFileAtomic({
-            path: bytes.fromText(in.path),
-            data: bytes.fromText(in.status),
-            make_path: true
-        })
+    if (in.status == "") {
+        return null
+    }
+
+    return {
+        path: bytes.fromText(in.path),
+        data: bytes.fromText(in.status),
+        make_path: true
     }
 }

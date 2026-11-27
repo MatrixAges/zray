@@ -4,9 +4,7 @@ import host from "verification_host"
 import require from "../../contracts/require"
 import conjunction from "../../scalar/conjunction"
 
-import type { Calls as Input } from "./model"
-
-export type Output = string
+import type { Calls as Input, Completed as Output } from "./model"
 
 export default function (in: Input): Output {
     const { block, session, scope, payload, launch } = in
@@ -17,7 +15,7 @@ export default function (in: Input): Output {
 
     host.reserveSymbolicParallel(block, count)
 
-    return loop({
+    const path = loop({
         index: 0,
         path: launch
     }, {
@@ -29,11 +27,15 @@ export default function (in: Input): Output {
             ).safe
 
             host.saveSymbolicParallel(block, state.index)
-            require({
-                session,
-                path: launch,
-                predicate: safe
+            const violation = require({
+                left: launch,
+                right: safe
             })
+
+            if (violation != null) {
+                const obligation = host.bindSymbolicBoolean(session, violation)
+                host.publishClauseViolation(session, obligation)
+            }
 
             const joined = conjunction({
                 left: state.path,
@@ -44,4 +46,10 @@ export default function (in: Input): Output {
         },
         return: state => state.path
     })
+
+    return {
+        path,
+        first,
+        count
+    }
 }

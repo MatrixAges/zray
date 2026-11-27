@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Parallel" />
+
+    <Args in={Parallel.Bindings} out={Parallel.Bindings} />
+
+    <Call
+        fn="bind"
+        in={$in.pick([
+            "symbols",
+            "first",
+            "index"
+        ])}
+    />
+
+    <If on={$ctx.bind != null}>
+        <Call
+            fn="index.bindSymbolicParallel"
+            in={[
+                $in.block,
+                $in.index,
+                $ctx.bind
+            ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                index: $in.index + 1
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

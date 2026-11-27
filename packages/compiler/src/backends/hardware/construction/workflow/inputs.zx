@@ -1,45 +1,38 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 import { Kind } from "hardware_graph_host"
 import memory from "memory"
 
-import requireSpace from "../../terms/parse/space"
+import space from "../../terms/parse/space"
 import portType from "./port_type"
 
-import type { Input as Request } from "./model"
+import type { InputPort } from "hardware_graph_host"
+import type { InputWalk } from "./model"
 
-export type Input = Request.Pick("build", "inputs", "input_types", "types")
+export type Input = InputWalk.Pick("input_types", "types", "row")
 
-export type Output = void
+export type Output = InputPort?
 
 export default function (in: Input): Output {
-    const { build, inputs, input_types, types } = in
+    const { input_types, types, row } = in
 
-    const written = loop(0, {
-        while: row => row < inputs,
-        next: row => {
-            const port = portType({
-                types,
-                type_id: memory.readColumnU32(input_types, row)
-            })
-
-            requireSpace({
-                build,
-                width: port.width
-            })
-
-            host.writeHardwareInput(
-                build,
-                row,
-                Kind.Input,
-                integers.narrowShort(port.width),
-                port.boolean,
-                port.signed
-            )
-
-            row += 1
-        }
+    const port = portType({
+        types,
+        type_id: memory.readColumnU32(input_types, row)
     })
 
-    host.bindHardwareInputs(build)
+    const valid = space({
+        node_count: row,
+        width: port.width
+    })
+
+    if (!valid) {
+        return null
+    }
+
+    return {
+        kind: Kind.Input,
+        width: integers.narrowShort(port.width),
+        boolean: port.boolean,
+        signed: port.signed
+    }
 }

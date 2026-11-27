@@ -57,7 +57,7 @@
 
             <Else>
                 <Call
-                    fn="../publish_step"
+                    module="../write_step"
                     in={{
                         frame: $in.frame,
                         index:

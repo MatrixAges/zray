@@ -1,0 +1,36 @@
+<Module>
+    <Type from="../windows" as="Windows" />
+    <Type from="host" as="Host" />
+
+    <Args in={Windows.Body} out={u64} />
+
+    <Switch on={$in.action}>
+        <Case value={Host.MixedAction.Exhausted}>
+            <Return value={$in.limit} />
+        </Case>
+
+        <Case value={Host.MixedAction.MissingSignature}>
+            <Call fn="host.rejectMixedBody" in={$in.state} />
+
+            <Return value={$ctx.rejectMixedBody} />
+        </Case>
+
+        <Case value={Host.MixedAction.AnalyzeZX}>
+            <Call fn="../body/execute_zx" in={$in.state} />
+
+            <Return value={$ctx.execute_zx} />
+        </Case>
+
+        <Case value={Host.MixedAction.LowerRX}>
+            <Call fn="../body/execute_rx" in={$in.state} />
+
+            <Return value={$ctx.execute_rx} />
+        </Case>
+
+        <Default>
+            <Call fn="host.skipMixedBody" in={$in.state} />
+
+            <Return value={$ctx.skipMixedBody} />
+        </Default>
+    </Switch>
+</Module>

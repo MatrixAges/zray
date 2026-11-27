@@ -2,7 +2,7 @@ import type { Index } from "core/bytes/index/model"
 import type { Stores } from "core/store_table/model"
 import type { Table } from "core/type_table/model"
 import type { ReadColumn, TextColumn } from "memory"
-import type { Initializers } from "../../store_initializers/model"
+import type { Indexed, Initializers } from "../../store_initializers/model"
 
 export enum Status {
     Valid,
@@ -45,8 +45,12 @@ export type Input = {
     independent: bool
 }
 
+export type Prepared = Input.Omit("initializers") & {
+    initializers: Indexed
+}
+
 export type State = {
-    source: Input,
+    source: Prepared,
     status: Status,
     index: Index,
     types: u32[],

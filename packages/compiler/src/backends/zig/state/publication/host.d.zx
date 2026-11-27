@@ -6,24 +6,6 @@ export type Lookup = {
     key: u8[]
 }
 
-export type Source = {
-    frame: StatePublication,
-    name: string,
-    key: u8[],
-    source: u8[]
-}
-
-export type File = {
-    frame: StatePublication,
-    name: string,
-    source: u8[],
-    imports: string[]
-}
-
 export declare function lookupStateSource(in: Lookup): u8[]? throws { OutOfMemory }
 
 export declare function renderStateSource(frame: StatePublication): u8[] throws { OutOfMemory }
-
-export declare function cacheStateSource(in: Source): void throws { OutOfMemory }
-
-export declare function appendStateFile(in: File): void throws { OutOfMemory }

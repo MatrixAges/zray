@@ -1,9 +1,8 @@
-import { writeFlowStep, FlowPublish } from "rx_project_host"
+import { FlowPublish } from "rx_project_host"
 
 import type { FlowKind, FlowTraversal } from "rx_project_host"
 
 export type Input = {
-    frame: FlowTraversal,
     index: u64,
     kind: FlowKind,
     first?: u32,
@@ -11,15 +10,24 @@ export type Input = {
     output?: FlowPublish
 }
 
-export type Output = void
+export type Request = Input & {
+    frame: FlowTraversal
+}
+
+export type Output = {
+    index: u64,
+    kind: FlowKind,
+    first: u32,
+    exhaustive: bool,
+    output: FlowPublish
+}
 
 export default function (in: Input): Output {
-    writeFlowStep(
-        in.frame,
-        in.index,
-        in.kind,
-        in.first ?? 0,
-        in.exhaustive ?? false,
-        in.output ?? FlowPublish.None
-    )
+    return {
+        index: in.index,
+        kind: in.kind,
+        first: in.first ?? 0,
+        exhaustive: in.exhaustive ?? false,
+        output: in.output ?? FlowPublish.None
+    }
 }

@@ -82,5 +82,6 @@ export type BinaryFinish = {
 
 export type Outcome = {
     scalar?: string,
-    safe?: string
+    safe?: string,
+    projection?: u32
 }

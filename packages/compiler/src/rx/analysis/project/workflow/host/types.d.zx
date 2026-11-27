@@ -173,14 +173,6 @@ export type Mixed = mutable_opaque
 
 export type MixedState = opaque
 
-export type MixedEntry = opaque
-
-export type MixedExports = opaque
-
-export type MixedObservationCapture = opaque
-
-export type MixedObservationPublish = opaque
-
 export type MixedPreparation = mutable_opaque
 
 export type MixedWorkspace = mutable_opaque

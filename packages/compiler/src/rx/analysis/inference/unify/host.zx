@@ -4,6 +4,7 @@ export {
     alignUnificationFields,
     popUnificationFrame,
     mergeUnificationFields,
+    commitUnification,
     prepareUnificationFrame,
     internUnificationType
 } from "rx_project_host"

@@ -1,62 +1,43 @@
-import integers from "std:integer"
-import memory from "memory"
-import host from "output_host"
+import bytes from "std:bytes"
 
-import pathIndex from "../../path_index"
-import staleRows from "../stale_rows"
-import unrecorded from "./unrecorded"
+import { stamp_name } from "../../../../inputs/generation/const"
+import stale from "../stale"
 
-import type { U8ListBuffer } from "memory"
-import type { Plan } from "./model"
+import type { Index } from "core/bytes/index/model"
 
 export type Input = {
-    plan: Plan,
-    paths: U8ListBuffer
+    files: string[],
+    index: Index,
+    preserve_fingerprint: bool
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { plan, paths } = in
+    const fingerprint = bytes.fromText(stamp_name)
+    const paths: string[] = []
 
-    const index = pathIndex(memory.u8ListViews(paths))
+    return loop({
+        index: 0,
+        paths
+    }, {
+        while: state => state.index < in.files.length,
+        next: state => {
+            const path = in.files[state.index]
 
-    const { previous_paths, target } = plan
+            const selected = stale({
+                index: in.index,
+                path: bytes.fromText(path),
+                fingerprint,
+                preserve_fingerprint: in.preserve_fingerprint
+            })
 
-    if (previous_paths != null) {
-        const stale = staleRows({
-            index,
-            paths: previous_paths
-        })
-
-        const recorded = loop(0, {
-            while: row => row < stale.length,
-            next: row => {
-                host.deleteBootstrapFile(
-                    target,
-                    previous_paths[integers.widen(stale[row])]
-                )
-
-                row += 1
+            if (selected) {
+                state.paths = state.paths.push(path)[0]
             }
-        })
 
-        return
-    }
-
-    const files = host.listBootstrapFiles(target)
-
-    const stale = unrecorded({
-        files,
-        index
-    })
-
-    const removed = loop(0, {
-        while: row => row < stale.length,
-        next: row => {
-            host.deleteBootstrapFile(target, stale[row])
-
-            row += 1
-        }
+            state.index += 1
+        },
+        return: state => state.paths
     })
 }

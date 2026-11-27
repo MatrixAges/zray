@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Definition" />
+
+    <Args in={Definition.Objects} out={Definition.Objects} />
+
+    <Call
+        fn="host.compileStoreDefinitionObject"
+        in={[
+            $in.state,
+            $in.row
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

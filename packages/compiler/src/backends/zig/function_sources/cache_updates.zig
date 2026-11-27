@@ -1,4 +1,5 @@
 const std = @import("std");
+const zx = @import("zx");
 const Batch = @import("../batch.zig");
 const Cache = @import("../cache.zig");
 const Result = @import("publication.zig").Result;
@@ -19,22 +20,32 @@ const GeneratedRows = struct {
 pub fn commit(cache: *Cache, lookups: []const Batch.Lookup, results: []Result, positions: []const u64) Error!void {
     const frame: GeneratedRows = .{ .cache = cache, .lookups = lookups, .results = results };
     const entry = @import("generated_commit_pending_sources");
-    const request: std.meta.Child(entry.Input) = .{ .target = @ptrCast(&frame), .positions = positions };
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    entry.executeIn(fixed.allocator(), &request) catch |err| return failure(err);
+    for (0..positions.len) |index| {
+        const request: std.meta.Child(entry.Input) = .{ .positions = positions, .index = index };
+        const update = zx.columns.invoke(entry.executeValue, fixed.allocator(), &request) catch unreachable;
+
+        try commitSource(&frame, @intCast(update.position), @intCast(update.result));
+    }
 }
 
-pub fn recordCachedSource(handle: *const anyopaque, row: u64) Error!void {
-    const frame: *const CachedRows = @ptrCast(@alignCast(handle));
-    const index: usize = @intCast(row);
+fn recordCachedSource(frame: *const CachedRows, index: usize) Error!void {
     const found = frame.lookups[index];
 
     _ = try frame.cache.record(found.name, found.key, &frame.fetched[index]);
 }
 
+pub fn recordCachedPrefix(handle: *const anyopaque, count: u64) Error!void {
+    const frame: *const CachedRows = @ptrCast(@alignCast(handle));
+
+    for (0..@as(usize, @intCast(count))) |index| try recordCachedSource(frame, index);
+}
+
 pub fn tryRecordCachedSource(handle: *const anyopaque, row: u64) bool {
-    recordCachedSource(handle, row) catch return false;
+    const frame: *const CachedRows = @ptrCast(@alignCast(handle));
+
+    recordCachedSource(frame, @intCast(row)) catch return false;
 
     return true;
 }
@@ -49,10 +60,9 @@ pub fn accountCachedSources(handle: *const anyopaque, held: u64, discarded: u64,
     if (last) |index| cache.last_io_error = frame.fetched[@intCast(index)].failure.?;
 }
 
-pub fn commitGeneratedSource(handle: *const anyopaque, position: u64, index: u64) Error!void {
-    const frame: *const GeneratedRows = @ptrCast(@alignCast(handle));
-    const found = frame.lookups[@intCast(position)];
-    const result = &frame.results[@intCast(index)];
+fn commitSource(frame: *const GeneratedRows, position: usize, index: usize) Error!void {
+    const found = frame.lookups[position];
+    const result = &frame.results[index];
     const cache = frame.cache;
     cache.generated += 1;
 
@@ -60,11 +70,4 @@ pub fn commitGeneratedSource(handle: *const anyopaque, position: u64, index: u64
 
     result.source = null;
     result.owned = null;
-}
-
-fn failure(err: anyerror) Error {
-    return switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
-        else => unreachable,
-    };
 }

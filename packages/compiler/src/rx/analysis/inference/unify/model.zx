@@ -26,6 +26,12 @@ export type Frame = Operands & {
     declared: string[]
 }
 
+export type Publication = {
+    target: UnificationTarget,
+    frame: Frame,
+    members: u32[]
+}
+
 export type Row = {
     snapshot: Frame,
     positions: u64[]

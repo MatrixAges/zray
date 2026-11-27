@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import type { TextColumn } from "memory"
+
+export type Table = {
+    keys: TextColumn,
+    buckets: u64[]
+}
+
+export type Input = Table & {
+    key: string
+}
+
+export type Output = {
+    index: u64,
+    row?: u64
+}
+
+export default function (in: Input): Output {
+    const { keys, buckets, key } = in
+
+    const mask = buckets.length - 1
+
+    const missing: u64? = null
+
+    return loop({
+        index: integers.andBits(bytes.hash(bytes.fromText(key)), mask),
+        row: missing,
+        found: false
+    }, {
+        while: state => !state.found,
+        next: state => {
+            const entry = buckets[state.index]
+
+            if (entry == 0 || memory.readTextColumn(keys, entry - 1) == key) {
+                state.row = entry == 0 ? null : entry - 1
+                state.found = true
+            } else {
+                state.index = integers.andBits(state.index + 1, mask)
+            }
+        },
+        return: state => state.omit(["found"])
+    })
+}

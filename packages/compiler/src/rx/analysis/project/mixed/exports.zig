@@ -20,16 +20,24 @@ pub fn collect(state: *State, requested: []const Export, roots: []const usize) S
 
     if (comptime generated) {
         const rule = @import("generated_rx_mixed_exports");
-        const target: Publication = .{ .state = state, .requested = requested, .result = result };
 
         const input: std.meta.Child(rule.Input) = .{
-            .target = @ptrCast(&target),
             .roots = @ptrCast(roots),
             .compiled = state.finished.present,
             .invalid_name = invalid,
         };
 
-        try @import("body.zig").run(rule, &input);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const plan = @import("zx").columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        const count: usize = @intCast(plan.count);
+
+        for (requested[0..count], roots[0..count], result[0..count]) |exported, root, *item| {
+            const loaded = state.finished.getAssumePresent(root);
+
+            item.* = try materialize(state, exported, state.finished.function(root), loaded);
+        }
+
+        if (plan.message) |message| return state.fail(location, message);
 
         return result;
     }
@@ -43,29 +51,6 @@ pub fn collect(state: *State, requested: []const Export, roots: []const usize) S
     }
 
     return result;
-}
-
-const Publication = struct {
-    state: *State,
-    requested: []const Export,
-    result: []frontend.project.compiled.Export,
-    fn borrow(handle: *const anyopaque) *const Publication {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn installMixedExport(handle: *const anyopaque, row: u64, root: u64) std.mem.Allocator.Error!void {
-    const target = Publication.borrow(handle);
-    const index: usize = @intCast(row);
-    const module: usize = @intCast(root);
-    const finished = target.state.finished;
-    const loaded = finished.getAssumePresent(module);
-
-    target.result[index] = try materialize(target.state, target.requested[index], finished.function(module), loaded);
-}
-
-pub fn rejectMixedExport(handle: *const anyopaque, message: []const u8) State.Error!void {
-    return Publication.borrow(handle).state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
 }
 
 fn materialize(state: *const State, exported: Export, function: ?@import("zx").ir.FunctionId, loaded: *const Surface) std.mem.Allocator.Error!frontend.project.compiled.Export {

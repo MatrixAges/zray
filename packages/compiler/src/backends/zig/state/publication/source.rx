@@ -1,12 +1,17 @@
 <Module>
     <Type from="model" as="Publish" />
 
-    <Args in={Publish.Input} out={u8[]} />
+    <Args in={Publish.Input} out={Publish.Source} />
 
     <If on={!$in.cached}>
         <Call fn="index.renderStateSource" in={$in.frame} />
 
-        <Return value={$ctx.renderStateSource} />
+        <Return
+            value={{
+                source: $ctx.renderStateSource,
+                cache_key: null
+            }}
+        />
     </If>
 
     <Call fn="fingerprint" in={$in.key} />
@@ -21,20 +26,20 @@
     />
 
     <If on={$ctx.lookupStateSource != null}>
-        <Return value={$ctx.lookupStateSource} />
+        <Return
+            value={{
+                source: $ctx.lookupStateSource,
+                cache_key: null
+            }}
+        />
     </If>
 
     <Call fn="index.renderStateSource" in={$in.frame} />
 
-    <Call
-        fn="index.cacheStateSource"
-        in={{
-            frame: $in.frame,
-            name: $in.name,
-            key: $ctx.fingerprint,
-            source: $ctx.renderStateSource
+    <Return
+        value={{
+            source: $ctx.renderStateSource,
+            cache_key: $ctx.fingerprint
         }}
     />
-
-    <Return value={$ctx.renderStateSource} />
 </Module>

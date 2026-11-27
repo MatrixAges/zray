@@ -184,12 +184,11 @@ fn runWriter(self: *Self, mode: policy.Mode) void {
 
     if (!active and (mode == .Wait or !waiting)) return;
 
-    if (comptime generated_parser) {
+    const plan: policy.Schedule = if (comptime generated_parser) blk: {
         const entry = @import("generated_run_generation_cache_writer");
         const Input = std.meta.Child(entry.Input);
 
         const input: Input = .{
-            .cache = @ptrCast(self),
             .mode = @fromBackingInt(@intCast(@backingInt(mode))),
             .active = active,
             .threaded = self.writer != null,
@@ -197,37 +196,35 @@ fn runWriter(self: *Self, mode: policy.Mode) void {
         };
 
         var fixed = std.heap.FixedBufferAllocator.init(&.{});
+        const planned = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 
-        entry.executeIn(fixed.allocator(), &input) catch unreachable;
-
-        return;
-    }
-
-    const plan = policy.schedule(mode, active, self.writer != null, waiting);
+        break :blk .{
+            .finish = @fromBackingInt(@intCast(@backingInt(planned.finish))),
+            .start = @fromBackingInt(@intCast(@backingInt(planned.start))),
+        };
+    } else policy.schedule(mode, active, self.writer != null, waiting);
 
     self.completeWrites(plan.finish);
 
-    if (plan.start == .Idle) return;
-    if (!startCacheWriting(@ptrCast(self), plan.start == .Spawn)) self.completeWrites(.Drain);
+    switch (plan.start) {
+        .Idle => {},
+        .Drain => self.startWrites(false),
+        .Spawn => self.startWrites(true),
+        .Join => unreachable,
+    }
 }
 
-pub fn finishCacheWriting(target: *anyopaque, join: bool) void {
-    const self: *Self = @ptrCast(@alignCast(target));
-
-    self.completeWrites(if (join) .Join else .Drain);
-}
-
-pub fn startCacheWriting(target: *anyopaque, background: bool) bool {
-    const self: *Self = @ptrCast(@alignCast(target));
-
+fn startWrites(self: *Self, background: bool) void {
     self.writing = .{ .queue = self.unwritten };
     self.unwritten = .{};
 
-    if (!background) return false;
+    if (background) {
+        self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch null;
 
-    self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch return false;
+        if (self.writer != null) return;
+    }
 
-    return true;
+    self.completeWrites(.Drain);
 }
 
 fn completeWrites(self: *Self, action: policy.Action) void {
@@ -265,25 +262,18 @@ fn completeWrites(self: *Self, action: policy.Action) void {
 fn publishWrites(self: *Self) void {
     const rule = @import("generated_generation_cache_write_publication");
     const Input = std.meta.Child(rule.Input);
-    const shared = self.sourceAllocator(.shared);
     const records = self.writing.queue.records.items;
     const flags = memory.borrowReadColumn(bool, "retired", records);
-    const sources = memory.borrowReadColumn([]u8, "source", records);
-    const owners = memory.borrowReadColumn(Owner, "owner", records);
-
-    const input: Input = .{
-        .flags = @ptrCast(&flags),
-        .sources = @ptrCast(&sources),
-        .owners = @ptrCast(&owners),
-        .count = records.len,
-        .local = @ptrCast(&self.allocator),
-        .shared = @ptrCast(&shared),
-        .shared_owner = @backingInt(Owner.shared),
-    };
-
+    var input: Input = .{ .flags = @ptrCast(&flags), .first = 0, .count = records.len };
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    rule.executeIn(fixed.allocator(), &input) catch unreachable;
+    while (rule.executeIn(fixed.allocator(), &input) catch unreachable) |row| {
+        const item = records[@intCast(row)];
+
+        self.sourceAllocator(item.owner).free(item.source);
+
+        input.first = row + 1;
+    }
 }
 
 const WriteBatch = struct {
@@ -398,12 +388,6 @@ const Record = struct {
     }
 };
 
-pub fn writeGenerationCacheRecord(target: *const anyopaque, pending: ?u64) std.mem.Allocator.Error!void {
-    const binding: *const Record = @ptrCast(@alignCast(target));
-
-    return binding.write(if (pending) |row| @intCast(row) else null);
-}
-
 fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.Allocator.Error!void {
     const found = self.entries.position(name);
     const previous = if (found.row) |row| &self.entries.values.items[row] else null;
@@ -416,13 +400,10 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
         const rule = @import("generated_store_generation_cache_record");
         const Input = std.meta.Child(rule.Input);
         const Prior = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
-        const owner = if (previous) |entry| self.sourceAllocator(entry.owner) else undefined;
-        const prior: Prior = if (previous) |entry| .{ .pending = entry.pending, .source = entry.source, .owner = @ptrCast(&owner) } else undefined;
+        const prior: Prior = if (previous) |entry| .{ .pending = entry.pending, .source = entry.source } else undefined;
         const sources = memory.borrowReadColumn([]u8, "source", self.unwritten.records.items);
 
         const input: Input = .{
-            .target = @ptrCast(&binding),
-            .cache = @ptrCast(self),
             .active = self.writing.queue.records.items.len != 0,
             .threaded = self.writer != null,
             .previous = if (previous != null) &prior else null,
@@ -433,11 +414,19 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
         };
 
         var fixed = std.heap.FixedBufferAllocator.init(&.{});
+        const outcome = zx.columns.invoke(rule.executeValue, fixed.allocator(), &input) catch unreachable;
 
-        const outcome = rule.executeValue(fixed.allocator(), &input) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => unreachable,
-        };
+        self.completeWrites(@fromBackingInt(@intCast(@backingInt(outcome.finish))));
+
+        if (outcome.release) {
+            const entry = previous.?;
+
+            self.sourceAllocator(entry.owner).free(entry.source);
+        }
+
+        const pending: ?usize = if (outcome.append) |row| @intCast(row) else null;
+
+        try binding.write(pending);
 
         if (outcome.retire) |row| {
             self.unwritten.records.items[@intCast(row)].retired = true;
@@ -445,7 +434,7 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
             self.unwritten.has_retired = true;
         }
 
-        if (outcome.append) self.unwritten.records.appendAssumeCapacity(queued);
+        if (pending != null) self.unwritten.records.appendAssumeCapacity(queued);
 
         return;
     }

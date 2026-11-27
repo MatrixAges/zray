@@ -1,9 +1,23 @@
 <Module>
     <Type from="model" as="Tree" />
 
-    <Args in={Tree.Input} out={void} />
+    <Args in={Tree.Input} out={Tree.Output} />
 
-    <Call fn="adapters" in={$in} />
-    <Call fn="roots" in={$in} />
-    <Call fn="partitions" in={$in} />
+    <If on={$in.partitioned}>
+        <Return
+            value={[
+                Tree.Step.Adapters,
+                Tree.Step.Originals,
+                Tree.Step.PartitionedRoot,
+                Tree.Step.Place
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Tree.Step.Adapters,
+            Tree.Step.Root
+        ]}
+    />
 </Module>

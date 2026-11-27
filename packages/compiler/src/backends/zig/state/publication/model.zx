@@ -14,3 +14,13 @@ export type Input = {
     key: Key,
     cached: bool
 }
+
+export type Source = {
+    source: u8[],
+    cache_key?: u8[]
+}
+
+export type Output = Source & {
+    name: string,
+    imports: string[]
+}

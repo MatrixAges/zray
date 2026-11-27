@@ -1,0 +1,20 @@
+<Module>
+    <Type from="reset" as="Reset" />
+
+    <Args in={Reset.Worker} out={Reset.Worker} />
+
+    <Call
+        fn="host.resetMixedWorker"
+        in={[
+            $in.workspace,
+            $in.index
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

@@ -1,6 +1,7 @@
 const std = @import("std");
 const frontend = @import("frontend");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Module = @import("../../module.zig");
 const Flow = @import("../../flow_compile.zig");
 const State = @import("state.zig");
@@ -22,18 +23,22 @@ pub fn capture(flow: *Flow) std.mem.Allocator.Error!?*Self {
     const types = (try flow.takeTypeStorage()).view();
     const functions = options.shared_functions.count();
 
-    if (calls.len != 0) {
-        const context: Capture = .{ .calls = calls, .types = &types };
+    if (comptime generated) {
+        const rule = @import("generated_rx_capture_mixed_observations");
+        const lists = functionRows(calls);
+        var input: std.meta.Child(rule.Input) = .{ .functions = @ptrCast(&lists), .first = 0, .count = calls.len, .shared_functions = functions };
+        const descriptor: *const std.meta.Child(rule.Input) = &input;
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        if (comptime generated) {
-            const rule = @import("generated_rx_capture_mixed_observations");
-            const input: std.meta.Child(rule.Input) = .{ .capture = @ptrCast(&context), .count = calls.len, .functions = functions };
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
+        while (input.first < input.count) {
+            const plan = zx.columns.invoke(rule.executeValue, empty.allocator(), descriptor) catch unreachable;
 
-            rule.executeIn(empty.allocator(), &input) catch unreachable;
-        } else {
-            for (calls, 0..) |*call, index| context.detach(index, call.callee.functions.count() == functions);
+            for (calls[@intCast(input.first)..@intCast(plan.end)]) |*call| detach(call, types, plan.shared);
+
+            input.first = plan.end;
         }
+    } else {
+        for (calls) |*call| detach(call, types, call.callee.functions.count() == functions);
     }
 
     const retained = try flow.allocator.create(Self);
@@ -54,31 +59,18 @@ pub fn capture(flow: *Flow) std.mem.Allocator.Error!?*Self {
     return retained;
 }
 
-const Capture = struct {
-    calls: []Module.Call,
-    types: *const ir.TypeTable,
-    fn borrow(handle: *const anyopaque) *const Capture {
-        return @ptrCast(@alignCast(handle));
-    }
-    fn detach(self: *const Capture, index: usize, shared: bool) void {
-        const call = &self.calls[index];
-
-        if (shared) call.callee.functions = .{};
-
-        call.callee.types = self.types.*;
-        call.callee.native_modules = .{};
-        call.argument.types = self.types.*;
-        call.argument.native_modules = .{};
-        call.store_initializers = &.{};
-    }
-};
-
-pub fn capturedMixedCallFunctions(handle: *const anyopaque, row: u64) u64 {
-    return Capture.borrow(handle).calls[@intCast(row)].callee.functions.count();
+fn functionRows(calls: []const Module.Call) zx.memory.ListColumn {
+    return zx.memory.borrowSliceColumn(&.{ "callee", "functions", "files" }, calls);
 }
 
-pub fn detachMixedCall(handle: *const anyopaque, row: u64, shared: bool) void {
-    Capture.borrow(handle).detach(@intCast(row), shared);
+fn detach(call: *Module.Call, types: ir.TypeTable, shared: bool) void {
+    if (shared) call.callee.functions = .{};
+
+    call.callee.types = types;
+    call.callee.native_modules = .{};
+    call.argument.types = types;
+    call.argument.native_modules = .{};
+    call.store_initializers = &.{};
 }
 
 /// Publishes the prefixes as they stood during analysis, using the project's final backing storage.
@@ -96,19 +88,30 @@ pub fn publish(self: *Self, state: *const State) std.mem.Allocator.Error!void {
 
     if (comptime generated) {
         const rule = @import("generated_rx_restore_mixed_observations");
-        const input: std.meta.Child(rule.Input) = .{ .target = @ptrCast(&target), .count = self.calls.len };
+        const lists = functionRows(self.calls);
+        var input: std.meta.Child(rule.Input) = .{ .functions = @ptrCast(&lists), .first = 0, .count = self.calls.len };
+        const descriptor: *const std.meta.Child(rule.Input) = &input;
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        return rule.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => error.OutOfMemory,
-            else => unreachable,
-        };
-    }
+        while (input.first < input.count) {
+            const plan = zx.columns.invoke(rule.executeValue, empty.allocator(), descriptor) catch unreachable;
+            const first: usize = @intCast(input.first);
+            const end: usize = @intCast(plan.end);
 
-    for (self.calls, 0..) |*call, index| {
-        if (call.callee.functions.count() == 0) try target.restorePrefix(index);
+            for (first..end) |index| {
+                if (plan.shared) try target.restorePrefix(index);
 
-        target.restoreCall(index);
+                target.restoreCall(index);
+            }
+
+            input.first = plan.end;
+        }
+    } else {
+        for (self.calls, 0..) |*call, index| {
+            if (call.callee.functions.count() == 0) try target.restorePrefix(index);
+
+            target.restoreCall(index);
+        }
     }
 
     target.restoreReturn();
@@ -120,9 +123,6 @@ const Publication = struct {
     functions: *const ir.FunctionTable,
     natives: *const ir.NativeModuleTable,
     initializers: @FieldType(frontend.AnalysisResult, "store_initializers"),
-    fn borrow(handle: *const anyopaque) *const Publication {
-        return @ptrCast(@alignCast(handle));
-    }
     fn restorePrefix(self: *const Publication, index: usize) std.mem.Allocator.Error!void {
         const call = &self.observed.calls[index];
 
@@ -146,19 +146,3 @@ const Publication = struct {
         if (self.observed.result) |*result| result.native_modules = self.natives.*;
     }
 };
-
-pub fn mixedCallNeedsPrefix(handle: *const anyopaque, row: u64) bool {
-    return Publication.borrow(handle).observed.calls[@intCast(row)].callee.functions.count() == 0;
-}
-
-pub fn restoreMixedCallPrefix(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!void {
-    try Publication.borrow(handle).restorePrefix(@intCast(row));
-}
-
-pub fn restoreMixedCallContext(handle: *const anyopaque, row: u64) void {
-    Publication.borrow(handle).restoreCall(@intCast(row));
-}
-
-pub fn restoreMixedReturnContext(handle: *const anyopaque) void {
-    Publication.borrow(handle).restoreReturn();
-}

@@ -5,7 +5,6 @@ const partition = @import("../partition.zig");
 const layout = @import("../partition/build.zig");
 const Bundle = @import("../library.zig").Bundle;
 const File = @import("../partition/placement.zig").File;
-const Failure = @import("failure.zig");
 const available = ledger.available;
 
 pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, bundle: Bundle, partitions: u32) !void {
@@ -30,16 +29,16 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
 
         if (comptime available) {
             const entry = @import("generated_bootstrap_tree");
+            const input: std.meta.Child(entry.Input) = .{ .partitioned = partitions != 0 };
+            const steps = try entry.executeIn(scratch.allocator(), &input);
 
-            const input: std.meta.Child(entry.Input) = .{
-                .target = @ptrCast(&frame),
-                .adapters = bundle.public_modules.len,
-                .partitioned = partitions != 0,
+            for (steps) |step| switch (step) {
+                .Adapters => for (0..bundle.public_modules.len) |index| try frame.adapter(index),
+                .Originals => try frame.originals(),
+                .Root => try frame.root(false),
+                .PartitionedRoot => try frame.root(true),
+                .Place => try frame.place(),
             };
-
-            var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-            _ = entry.executeIn(fixed.allocator(), &input) catch |err| return frame.failure.restore(err);
         } else {
             for (0..bundle.public_modules.len) |index| try frame.adapter(index);
             if (partitions != 0) try frame.originals();
@@ -63,10 +62,6 @@ const Frame = struct {
     functions: []const File,
     partitions: u32,
     original: partition.layout.FunctionFiles = undefined,
-    failure: Failure = .{},
-    fn borrow(handle: *anyopaque) *@This() {
-        return @ptrCast(@alignCast(handle));
-    }
     fn adapter(self: *const Frame, index: usize) !void {
         const module = &self.bundle.public_modules[index];
 
@@ -79,7 +74,6 @@ const Frame = struct {
             .constant_only = module.constant_only,
         });
     }
-
     fn originals(self: *Frame) !void {
         const slots = self.tree.sections;
         self.original = try ledger.inventory.originals(self.allocator, self.scratch, self.functions, self.tree.files[slots.originals..slots.original_root]);
@@ -96,27 +90,3 @@ const Frame = struct {
         self.functions = try layout.plan(self.io, self.allocator, self.workspace, self.functions, self.original, self.tree.files[slots.support..slots.signatures], self.partitions);
     }
 };
-
-pub fn renderBootstrapAdapter(handle: *anyopaque, index: u64) Failure.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.adapter(@intCast(index)) catch |err| return frame.failure.save(err);
-}
-
-pub fn renderBootstrapOriginals(handle: *anyopaque) Failure.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.originals() catch |err| return frame.failure.save(err);
-}
-
-pub fn renderBootstrapRoot(handle: *anyopaque, partitioned: bool) Failure.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.root(partitioned) catch |err| return frame.failure.save(err);
-}
-
-pub fn placeBootstrapPartitions(handle: *anyopaque) Failure.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.place() catch |err| return frame.failure.save(err);
-}

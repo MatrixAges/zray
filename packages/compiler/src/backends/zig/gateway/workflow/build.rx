@@ -1,27 +1,42 @@
 <Module>
     <Type from="model" as="Gateway" />
 
-    <Args in={Gateway.Input} out={void} />
+    <Args in={Gateway.Input} out={Gateway.Output} />
+
+    <Call
+        fn="reserve"
+        in={$in.pick([
+            "modules",
+            "public_modules"
+        ])}
+    />
 
     <If on={$in.has_library}>
-        <Call fn="index.bindGatewayState" in={$in.frame} />
-    </If>
-
-    <Call fn="reserve" in={$in} />
-
-    <If on={$in.has_library}>
-        <Call fn="index.appendGatewayModules" in={$in.frame} />
-
-        <Call
-            fn="facades"
-            in={$in.pick([
-                "frame",
-                "public_modules"
-            ])}
+        <Return
+            value={{
+                capacity: $ctx.reserve,
+                steps: [
+                    Gateway.Step.BindState,
+                    Gateway.Step.ReserveFiles,
+                    Gateway.Step.AppendModules,
+                    Gateway.Step.AppendFacades,
+                    Gateway.Step.PublishContract,
+                    Gateway.Step.PublishState,
+                    Gateway.Step.PublishApplication
+                ]
+            }}
         />
     </If>
 
-    <Call fn="index.publishGatewayContract" in={$in.frame} />
-    <Call fn="index.publishGatewayState" in={$in.frame} />
-    <Call fn="index.publishGatewayApplication" in={$in.frame} />
+    <Return
+        value={{
+            capacity: $ctx.reserve,
+            steps: [
+                Gateway.Step.ReserveFiles,
+                Gateway.Step.PublishContract,
+                Gateway.Step.PublishState,
+                Gateway.Step.PublishApplication
+            ]
+        }}
+    />
 </Module>

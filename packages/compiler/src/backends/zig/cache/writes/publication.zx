@@ -1,36 +1,30 @@
 import memory from "memory"
 
-import type { Allocator, ReadColumn, TextColumn } from "memory"
+import type { ReadColumn } from "memory"
 
 export type Input = {
     flags: ReadColumn,
-    sources: TextColumn,
-    owners: ReadColumn,
-    count: u64,
-    local: Allocator,
-    shared: Allocator,
-    shared_owner: u8
+    first: u64,
+    count: u64
 }
 
-export type Output = void
+export type Output = u64?
 
 export default function (in: Input): Output {
-    const { count, flags, sources, owners, local, shared, shared_owner } = in
+    const none: u64? = null
 
-    const released = loop(0, {
-        while: row => row < count,
-        next: row => {
-            if (memory.readColumnBool(flags, row)) {
-                const owner = memory.readColumnU8(owners, row)
-                const allocator = owner == shared_owner ? shared : local
-
-                memory.freeOwnedText(
-                    allocator,
-                    memory.readTextColumn(sources, row)
-                )
+    return loop({
+        row: in.first,
+        retired: none
+    }, {
+        while: state => state.row < in.count && state.retired == null,
+        next: state => {
+            if (memory.readColumnBool(in.flags, state.row)) {
+                state.retired = state.row
             }
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.retired
     })
 }

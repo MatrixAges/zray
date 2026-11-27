@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="Sources" />
+
+    <Args in={Sources.Record} out={bool} />
+
+    <If on={$in.ordered}>
+        <Call
+            fn="host.recordCachedPrefix"
+            in={[
+                $in.target,
+                $in.count
+            ]}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <Loop on={$in.remaining != 0 && $in.failure == null}>
+        <Call
+            module="adopt"
+            in={{
+                target: $in.target,
+                stored: $in.stored,
+                remaining: $in.stored.length,
+                failure: null
+            }}
+        />
+    </Loop>
+
+    <If on={$ctx.adopt.failure != null}>
+        <Call
+            fn="host.recordCachedPrefix"
+            in={[
+                $in.target,
+                $ctx.adopt.failure
+            ]}
+        />
+
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="host.accountCachedSources"
+        in={[
+            $in.target,
+            $in.held,
+            $in.discarded,
+            $in.failures,
+            $in.last_failure
+        ]}
+    />
+
+    <Return value={true} />
+</Module>

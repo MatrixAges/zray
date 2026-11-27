@@ -1,8 +1,14 @@
-import type { GatewayBundle } from "gateway_bundle_host"
+import type { Step } from "gateway_bundle_host"
+
+export { Step } from "gateway_bundle_host"
 
 export type Input = {
-    frame: GatewayBundle,
     has_library: bool,
     modules: u64,
     public_modules: u64
+}
+
+export type Output = {
+    capacity: u64,
+    steps: Step[]
 }

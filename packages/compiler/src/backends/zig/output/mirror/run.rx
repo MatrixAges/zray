@@ -7,17 +7,40 @@
     <Call fn="host.compareBootstrapFiles" in={$in.target} />
 
     <If on={$ctx.compareBootstrapFiles.changed.length != 0}>
-        <Call fn="create_parents" in={$ctx.compareBootstrapFiles} />
+        <Call
+            fn="../parents"
+            in={$ctx.compareBootstrapFiles.pick([
+                "paths",
+                "changed"
+            ])}
+        />
+
+        <Call
+            fn="host.createBootstrapFolders"
+            in={[
+                $in.target,
+                $ctx.parents
+            ]}
+        />
+
         <Call fn="host.writeBootstrapChanges" in={$in.target} />
     </If>
 
     <If on={!$ctx.compareBootstrapFiles.aligned}>
         <Call
-            fn="trim"
+            module="trim"
             in={{
-                plan: $ctx.compareBootstrapFiles,
-                paths: $in.paths
+                ...$in,
+                previous_paths: $ctx.compareBootstrapFiles.previous_paths
             }}
+        />
+
+        <Call
+            fn="host.deleteBootstrapFiles"
+            in={[
+                $in.target,
+                $ctx.trim
+            ]}
         />
     </If>
 

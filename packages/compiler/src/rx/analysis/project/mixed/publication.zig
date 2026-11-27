@@ -20,7 +20,6 @@ pub fn materialize(state: *State, output: *Module.Contract, exports: bool) State
         const rule = @import("generated_rx_mixed_entry");
 
         const input: std.meta.Child(rule.Input) = .{
-            .target = @ptrCast(&frame),
             .present = frame.loaded != null,
             .function = if (function) |id| @backingInt(id) else null,
             .natives = table.native_modules,
@@ -29,7 +28,16 @@ pub fn materialize(state: *State, output: *Module.Contract, exports: bool) State
             .has_members = members,
         };
 
-        return @import("body.zig").run(rule, &input);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const plan = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        if (plan.message) |message| return frame.reject(message);
+
+        const visible: usize = @intCast(plan.visible);
+        const id = plan.function orelse return frame.installType(visible);
+        const entry = if (plan.entry) |value| @as(ir.FunctionId, @fromBackingInt(value)) else null;
+
+        return frame.installFunction(@fromBackingInt(id), visible, entry);
     }
 
     if (frame.loaded == null) return frame.reject("entry source module was not compiled");
@@ -51,9 +59,6 @@ const Entry = struct {
     output: *Module.Contract,
     table: *const ir.FunctionTable,
     loaded: ?*const Source.Surface,
-    fn borrow(handle: *const anyopaque) *const Entry {
-        return @ptrCast(@alignCast(handle));
-    }
     fn installType(self: *const Entry, visible: usize) void {
         const state = self.state;
         const loaded = self.loaded.?;
@@ -112,15 +117,3 @@ const Entry = struct {
         return self.state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
     }
 };
-
-pub fn installMixedTypeEntry(handle: *const anyopaque, visible: u64) void {
-    Entry.borrow(handle).installType(@intCast(visible));
-}
-
-pub fn installMixedFunctionEntry(handle: *const anyopaque, function: u32, visible: u64, entry: ?u32) std.mem.Allocator.Error!void {
-    try Entry.borrow(handle).installFunction(@fromBackingInt(function), @intCast(visible), if (entry) |id| @fromBackingInt(id) else null);
-}
-
-pub fn rejectMixedEntry(handle: *const anyopaque, message: []const u8) State.Error!void {
-    return Entry.borrow(handle).reject(message);
-}

@@ -1,8 +1,8 @@
-import type { GeneratedSourceRows, SourceReuse } from "output_host"
+import type { SourceReuse } from "output_host"
 
 export type Record = SourceReuse.Omit("hits", "pending")
 
-export type Pending = {
-    target: GeneratedSourceRows,
-    positions: u64[]
+export type Adoption = Record.Pick("target", "stored") & {
+    remaining: u64,
+    failure?: u64
 }

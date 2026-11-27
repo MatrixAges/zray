@@ -5,13 +5,22 @@
 
     <Call
         fn="../store_initializers/index_slots"
-        in={$in.initializers.omit([
-            "modules",
-            "types"
-        ])}
+        in={{
+            keys: $in.initializers.keys,
+            count: $in.initializers.count > 1 ? $in.initializers.count : 0
+        }}
     />
 
-    <Call fn="initialize" in={$in} />
+    <Call
+        fn="initialize"
+        in={{
+            ...$in,
+            initializers: {
+                ...$in.initializers,
+                buckets: $ctx.index_slots
+            }
+        }}
+    />
 
     <Call fn="bindings" />
 

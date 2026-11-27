@@ -30,10 +30,20 @@ pub fn run(self: *Self) Error!void {
         .cached = self.cache != null,
     };
 
-    entry.executeIn(self.temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const publication = @import("zx").columns.invoke(entry.executeIn, self.temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (publication.cache_key) |key| {
+        const cache = self.cache.?;
+
+        cache.generated += 1;
+
+        try cache.put(publication.name, key[0..32].*, publication.source);
+    }
+
+    try self.appendFile(.{ .name = publication.name, .source = publication.source, .imports = publication.imports });
 }
 
 fn borrow(handle: *anyopaque) *Self {
@@ -64,23 +74,14 @@ pub fn renderStateSource(handle: *anyopaque) Error![]const u8 {
     return generating.renderWithCapabilities(allocator, objects, self.requirements);
 }
 
-pub fn cacheStateSource(in: *const native.Source) Error!void {
-    const self = borrow(in.frame);
-    const cache = self.cache.?;
-    const key = in.key[0..32].*;
-    cache.generated += 1;
-
-    try cache.put(in.name, key, in.source);
-}
-
-pub fn appendStateFile(in: *const native.File) Error!void {
-    const bundle = borrow(in.frame).bundle;
+fn appendFile(self: *Self, file: modules.File) Error!void {
+    const bundle = self.bundle;
     const old = bundle.modules;
     const files = try bundle.arena.allocator().alloc(modules.File, old.len + 1);
 
     @memcpy(files[0..old.len], old);
 
-    files[old.len] = .{ .name = in.name, .source = in.source, .imports = in.imports };
+    files[old.len] = file;
     bundle.modules = files;
-    bundle.state_module = in.name;
+    bundle.state_module = file.name;
 }

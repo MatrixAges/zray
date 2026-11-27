@@ -4,13 +4,6 @@ const frontend = @import("frontend");
 const Conditions = @import("conditions.zig");
 const Evidence = @import("solver/publication/evidence/output.zig");
 
-const Context = struct {
-    output: *std.Io.Writer,
-    fn borrow(handle: *const anyopaque) *const @This() {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
 pub const Options = struct {
     solver: ?[]const u8 = null,
     output: ?[]const u8 = null,
@@ -38,16 +31,10 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     defer evidence_bytes.deinit();
 
     var evidence = Evidence.init(&evidence_bytes);
-
-    const context: Context = .{
-        .output = writer,
-    };
-
     const symbols = zx.memory.borrowTextColumn("symbol", query.inputs);
     const paths = zx.memory.borrowTextColumn("path", query.inputs);
 
     const input: std.meta.Child(proof.Input) = .{
-        .context = @ptrCast(&context),
         .diagnostic = if (generated.value == .diagnostic) generated.value.diagnostic.message else null,
         .output = options.output,
         .solver = options.solver,
@@ -65,7 +52,11 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         },
     };
 
-    return switch (try proof.executeIn(allocator, &input, io)) {
+    const report = try proof.executeIn(allocator, &input, io);
+
+    for (report.fragments) |fragment| try writer.writeAll(fragment);
+
+    return switch (report.verdict) {
         .Proved => true,
         .Unsupported, .Counterexample, .Infeasible, .Unknown => false,
         .VersionFailed => error.SolverVersionFailed,
@@ -73,8 +64,4 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .InvalidResponse => error.InvalidSolverResponse,
         .Continue => unreachable,
     };
-}
-
-pub fn writeVerificationOutput(handle: *const anyopaque, content: []const u8) std.Io.Writer.Error!void {
-    return Context.borrow(handle).output.writeAll(content);
 }

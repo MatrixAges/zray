@@ -14,7 +14,7 @@
     <If on={$in.candidate.frame.route != Admission.Route.Same}>
         <If on={$in.candidate.frame.action == Application.Action.Adopt}>
             <Call
-                fn="commit"
+                module="commit"
                 in={{
                     target: $in.target,
                     frame: $in.candidate.frame,

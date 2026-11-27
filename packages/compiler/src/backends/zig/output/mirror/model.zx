@@ -1,9 +1,11 @@
 import type { U8ListBuffer } from "memory"
-import type { BootstrapMirror, BootstrapOutputPlan } from "output_host"
-
-export type Plan = BootstrapOutputPlan
+import type { BootstrapMirror } from "output_host"
 
 export type Input = {
     target: BootstrapMirror,
     paths: U8ListBuffer
+}
+
+export type Trimming = Input & {
+    previous_paths?: string[]
 }

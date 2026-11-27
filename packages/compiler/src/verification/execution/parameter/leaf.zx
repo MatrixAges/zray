@@ -1,33 +1,43 @@
 import { max_u64 } from "core/const"
-import host from "verification_program_host"
 
 import name from "../../ports/name"
-import { invalid_parameter_type } from "../program/const"
-import declare from "./declare"
+import parameter from "../../ports/parameter"
 
-import type { Leaf as Input } from "./model"
+import type { Leaf as Input, Publication } from "./model"
 
-export type Output = void
+export type Output = Publication?
 
 export default function (in: Input): Output {
-    const { program, target, type_id, path, index, proof, width, members } = in
+    const { type_id, path, index, proof, width, members } = in
 
     if (width == max_u64) {
-        host.rejectSymbolicProgram(program, invalid_parameter_type)
+        return null
     }
 
-    const symbol = match proof {
-        true => declare({
-            program,
+    if (proof) {
+        const declared = parameter({
             index,
             width,
             members
-        }),
-        _ => name({
-            index,
-            output: false
         })
+
+        return {
+            type_id,
+            path,
+            symbol: declared.symbol,
+            declaration: declared.declaration,
+            domain: declared.domain
+        }
     }
 
-    host.publishSymbolicParameter(program, target, type_id, path, symbol)
+    return {
+        type_id,
+        path,
+        symbol: name({
+            index,
+            output: false
+        }),
+        declaration: null,
+        domain: null
+    }
 }

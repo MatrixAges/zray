@@ -1,6 +1,7 @@
 import type { PathAllocator } from "lexical_path"
 import type { Allocator, TextColumn } from "memory"
-import type { GraphConstruction, GraphVisit } from "rx_graph_host"
+import type { GraphVisit } from "rx_graph_host"
+import type { Cycle } from "../model"
 import type { Ranges as SourceRanges } from "../source"
 
 export type Ranges = SourceRanges & {
@@ -8,7 +9,6 @@ export type Ranges = SourceRanges & {
 }
 
 export type Registration = {
-    target: GraphConstruction,
     ranges: Ranges,
     root: string,
     capacity: u64,
@@ -27,7 +27,7 @@ export type Index = {
     buckets: u64[]
 }
 
-export type RootPaths = Registration.Pick("target", "ranges", "root") & {
+export type RootPaths = Registration.Pick("ranges", "root") & {
     index: Index,
     explicit: TextColumn,
     explicit_count: u64,
@@ -48,7 +48,25 @@ export type Dependencies = {
     targets: u64[]
 }
 
+export type PathIssue = {
+    row: u64,
+    normalized?: string,
+    message: string
+}
+
+export type RootIssue = {
+    path: string,
+    message: string
+}
+
 export type Output = {
+    graph?: Graph,
+    path_issue?: PathIssue,
+    root_issue?: RootIssue,
+    cycle?: Cycle
+}
+
+export type Graph = {
     entry: u64,
     roots: u64[],
     additional: u64,

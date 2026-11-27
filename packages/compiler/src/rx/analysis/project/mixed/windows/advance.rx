@@ -1,0 +1,46 @@
+<Module>
+    <Type from="../windows" as="Windows" />
+    <Type from="host" as="Host" />
+
+    <Args in={Windows.Cursor} out={Windows.Cursor} />
+
+    <Call module="refresh" in={$in} />
+
+    <Call
+        fn="host.restoreMixedPrefix"
+        in={[
+            $in.state,
+            $in.position,
+            $ctx.refresh.limit
+        ]}
+    />
+
+    <Call
+        fn="host.selectMixedBody"
+        in={[
+            $in.state,
+            $ctx.restoreMixedPrefix,
+            $ctx.refresh.limit
+        ]}
+    />
+
+    <Call
+        module="dispatch"
+        in={{
+            state: $in.state,
+            limit: $ctx.refresh.limit,
+            action: $ctx.selectMixedBody
+        }}
+    />
+
+    <If on={$in.retain && $ctx.selectMixedBody != Host.MixedAction.Exhausted}>
+        <Call fn="host.recordMixedBody" in={$in.state} />
+    </If>
+
+    <Return
+        value={{
+            ...$ctx.refresh,
+            position: $ctx.dispatch
+        }}
+    />
+</Module>

@@ -46,13 +46,12 @@ export declare function reserveSymbolicParameter(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function appendSymbolicDeclaration(program: SymbolicProgram, text: string): void
-    throws { OutOfMemory }
-
 export declare function publishSymbolicParameter(
     program: SymbolicProgram,
     target: ParameterTarget,
     type_id: u32,
     path: string,
-    symbol: string
+    symbol: string,
+    declaration: string?,
+    domain: string?
 ): void throws { OutOfMemory }

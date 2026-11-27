@@ -1,12 +1,8 @@
 import integers from "std:integer"
-import host from "rx_project_host"
 
 import { invalid_entry_function, missing_entry } from "./const"
 
-import type { MixedEntry } from "rx_project_host"
-
 export type Input = {
-    target: MixedEntry,
     present: bool,
     function?: u32,
     natives: u32?[],
@@ -15,31 +11,37 @@ export type Input = {
     has_members: bool
 }
 
-export type Output = void
+export type Output = {
+    visible: u64,
+    function?: u32,
+    entry?: u32,
+    message?: string
+}
 
 export default function (in: Input): Output {
-    const target = in.target
     const id = in.function
     const count = in.natives.length
 
     if (!in.present) {
-        host.rejectMixedEntry(target, missing_entry)
-
-        return
+        return {
+            visible: 0,
+            message: missing_entry
+        }
     }
 
     if (id == null) {
-        host.installMixedTypeEntry(target, count)
-
-        return
+        return {
+            visible: count
+        }
     }
 
     const row = integers.widen(id)
 
     if (row >= count) {
-        host.rejectMixedEntry(target, invalid_entry_function)
-
-        return
+        return {
+            visible: 0,
+            message: invalid_entry_function
+        }
     }
 
     const inline_body = (
@@ -49,12 +51,17 @@ export default function (in: Input): Output {
     )
 
     if (inline_body) {
-        host.installMixedFunctionEntry(target, id, row, null)
-
-        return
+        return {
+            visible: row,
+            function: id
+        }
     }
 
     const entry: u32? = in.natives[row] == null ? id : null
 
-    host.installMixedFunctionEntry(target, id, count, entry)
+    return {
+        visible: count,
+        function: id,
+        entry
+    }
 }

@@ -1,6 +1,9 @@
 export {
     hashBootstrapFiles,
     compareBootstrapFiles,
+    createBootstrapFolders,
     writeBootstrapChanges,
+    listBootstrapFiles,
+    deleteBootstrapFiles,
     commitBootstrapManifest
 } from "output_host"

@@ -13,6 +13,11 @@
         }}
     />
 
+    <Call fn="files.writeFileAtomic" in={$ctx.initialize.correctness} />
+    <Call fn="files.writeFileAtomic" in={$ctx.initialize.feasibility} />
+    <Call fn="files.writeFileAtomic" in={$ctx.initialize.source} />
+    <Call fn="files.writeFileAtomic" in={$ctx.initialize.result} />
+    <Call fn="files.writeFileAtomic" in={$ctx.initialize.model} />
     <Call fn="version" in={$in.solver} />
 
     <Call

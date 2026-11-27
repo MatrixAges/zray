@@ -27,5 +27,11 @@
         }}
     />
 
+    <If on={$ctx.record != null}>
+        <Call fn="files.writeFileAtomic" in={$ctx.record} />
+
+        <Return value={$ctx.classify} />
+    </If>
+
     <Return value={$ctx.classify} />
 </Module>

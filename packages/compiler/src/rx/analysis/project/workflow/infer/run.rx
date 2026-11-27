@@ -1,15 +1,17 @@
 <Module>
     <Type from="frame" as="Frame" />
+    <Type from="../model" as="Model" />
 
     <Args in={Frame.Input} out={void} />
 
     <Call fn="frame" in={$in} />
+    <Call fn="host.compileProjectBodies" in={$in.state} />
 
     <Call
-        fn="contract"
-        in={{
-            state: $in.state,
-            reuse: $ctx.frame
-        }}
+        fn="host.publishInferredStores"
+        in={[
+            $in.state,
+            $ctx.frame == Model.Reuse.Frame
+        ]}
     />
 </Module>

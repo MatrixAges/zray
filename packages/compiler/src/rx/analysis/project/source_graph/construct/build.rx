@@ -6,7 +6,6 @@
     <Call
         fn="register"
         in={$in.pick([
-            "target",
             "ranges",
             "root",
             "capacity",
@@ -15,11 +14,18 @@
         ])}
     />
 
+    <If on={$ctx.register.issue != null}>
+        <Return
+            value={{
+                path_issue: $ctx.register.issue
+            }}
+        />
+    </If>
+
     <Call
         fn="roots"
         in={{
             ...$in.pick([
-                "target",
                 "root",
                 "ranges",
                 "explicit",
@@ -28,9 +34,20 @@
                 "temporary",
                 "include_rx"
             ]),
-            index: $ctx.register
+            index: $ctx.register.pick([
+                "keys",
+                "buckets"
+            ])
         }}
     />
+
+    <If on={$ctx.roots.issue != null}>
+        <Return
+            value={{
+                root_issue: $ctx.roots.issue
+            }}
+        />
+    </If>
 
     <Call
         fn="host.openSourceGraphScanner"
@@ -78,27 +95,29 @@
     />
 
     <If on={$ctx.schedule.cycle != null}>
-        <Call
-            fn="host.rejectSourceGraphCycle"
-            in={[
-                $in.target,
-                $ctx.schedule.cycle.owner,
-                $ctx.schedule.cycle.edge -
-                    $ctx.adjacency.starts[$ctx.schedule.cycle.owner]
-            ]}
+        <Return
+            value={{
+                cycle: {
+                    owner: $ctx.schedule.cycle.owner,
+                    edge: $ctx.schedule.cycle.edge -
+                        $ctx.adjacency.starts[$ctx.schedule.cycle.owner]
+                }
+            }}
         />
     </If>
 
     <Return
         value={{
-            entry: $ctx.roots.roots[0],
-            roots: $ctx.roots.roots,
-            additional: $ctx.roots.additional,
-            order: $ctx.schedule.order,
-            count: $ctx.schedule.count,
-            batch_ends: $ctx.schedule.batch_ends,
-            retain_parses: $in.retain_parses,
-            dependencies: $in.retain_dependencies ? $ctx.adjacency : null
+            graph: {
+                entry: $ctx.roots.roots[0],
+                roots: $ctx.roots.roots,
+                additional: $ctx.roots.additional,
+                order: $ctx.schedule.order,
+                count: $ctx.schedule.count,
+                batch_ends: $ctx.schedule.batch_ends,
+                retain_parses: $in.retain_parses,
+                dependencies: $in.retain_dependencies ? $ctx.adjacency : null
+            }
         }}
     />
 </Module>

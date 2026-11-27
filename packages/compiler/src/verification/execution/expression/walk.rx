@@ -5,6 +5,38 @@
 
     <Call fn="prepare" in={$in} />
 
+    <If
+        on={
+        $ctx.prepare.kind == Expression.ExpressionKind.Field ||
+            $ctx.prepare.kind == Expression.ExpressionKind.TupleField
+        }
+    >
+        <Call
+            fn="project"
+            in={{
+                columns: $in.columns,
+                payload: $ctx.prepare.payload
+            }}
+        />
+
+        <Call
+            fn="index.evaluateSymbolicOperand"
+            in={[
+                $in.frame,
+                $ctx.project.slot,
+                $ctx.project.expression
+            ]}
+        />
+
+        <Return
+            value={{
+                scalar: null,
+                safe: $ctx.evaluateSymbolicOperand.safe,
+                projection: $ctx.project.index
+            }}
+        />
+    </If>
+
     <Switch on={$ctx.prepare.kind}>
         <Case value={Expression.ExpressionKind.Reference}>
             <Call
@@ -87,28 +119,6 @@
                     $in.frame,
                     0
                 ]}
-            />
-        </Case>
-
-        <Case value={Expression.ExpressionKind.Field}>
-            <Call
-                fn="project"
-                in={{
-                    frame: $in.frame,
-                    columns: $in.columns,
-                    payload: $ctx.prepare.payload
-                }}
-            />
-        </Case>
-
-        <Case value={Expression.ExpressionKind.TupleField}>
-            <Call
-                fn="project"
-                in={{
-                    frame: $in.frame,
-                    columns: $in.columns,
-                    payload: $ctx.prepare.payload
-                }}
             />
         </Case>
 

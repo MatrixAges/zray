@@ -1,7 +1,8 @@
 <Module>
+    <Type from="../model" as="Schedule" />
     <Type from="model" as="Writing" />
 
-    <Args in={Writing.Input} out={void} />
+    <Args in={Schedule.Input} out={Writing.Output} />
 
     <Call
         fn="../complete"
@@ -12,14 +13,6 @@
     />
 
     <Call
-        fn="finish"
-        in={{
-            cache: $in.cache,
-            action: $ctx.complete
-        }}
-    />
-
-    <Call
         fn="../start"
         in={$in.pick([
             "mode",
@@ -27,11 +20,10 @@
         ])}
     />
 
-    <Call
-        fn="launch"
-        in={{
-            cache: $in.cache,
-            action: $ctx.start
+    <Return
+        value={{
+            finish: $ctx.complete,
+            start: $ctx.start
         }}
     />
 </Module>

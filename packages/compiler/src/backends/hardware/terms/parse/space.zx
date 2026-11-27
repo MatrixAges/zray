@@ -1,25 +1,17 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 
 import { maximum_bit_width, maximum_nodes } from "../../const"
 
-import type { HardwareBuild } from "hardware_graph_host"
-
 export type Input = {
-    build: HardwareBuild,
+    node_count: u64,
     width: u64
 }
 
-export type Output = void
+export type Output = bool
 
 export default function (in: Input): Output {
-    const { build, width } = in
+    const { node_count, width } = in
 
-    if (host.hardwareNodeCount(build) >= maximum_nodes) {
-        host.rejectHardwareTerm()
-    }
-
-    if (width == 0 || width > integers.widenShort(maximum_bit_width)) {
-        host.rejectHardwareTerm()
-    }
+    return node_count < maximum_nodes && width != 0 &&
+        width <= integers.widenShort(maximum_bit_width)
 }

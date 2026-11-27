@@ -1,6 +1,6 @@
 import { Status } from "./model"
 
-import type { Input, State as Output } from "./model"
+import type { Prepared as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
     return {

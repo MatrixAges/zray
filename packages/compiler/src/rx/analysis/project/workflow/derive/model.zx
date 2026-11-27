@@ -6,3 +6,8 @@ export type Input = Signatures & {
 }
 
 export type Resolve = Input.Omit("retained")
+
+export type Deferred = Resolve.Pick("state", "shortcuts") & {
+    count: u64,
+    row: u64
+}

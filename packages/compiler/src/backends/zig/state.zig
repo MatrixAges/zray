@@ -29,7 +29,7 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     const Stores = std.meta.Child(@FieldType(Input, "stores"));
     const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
     const stores = zx.columns.borrow(Stores, &program.stores);
-    var initializers = try InitializerView.init(temporary, bundle.store_initializers);
+    const initializers = InitializerView.init(bundle.store_initializers);
 
     const input: Input = .{
         .stores = &stores,

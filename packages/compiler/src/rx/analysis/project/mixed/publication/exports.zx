@@ -1,38 +1,33 @@
-import host from "rx_project_host"
-
 import { invalid_export_name, missing_export } from "./const"
 
-import type { MixedExports } from "rx_project_host"
-
 export type Input = {
-    target: MixedExports,
     roots: u64[],
     compiled: bool[],
     invalid_name?: u64
 }
 
-export type Output = void
+export type Output = {
+    count: u64,
+    message?: string
+}
 
 export default function (in: Input): Output {
-    const first: u64 = 0
+    const { roots, compiled, invalid_name } = in
 
-    const copied = loop(first, {
-        while: index => index < in.roots.length,
-        next: index => {
-            const { roots, compiled, invalid_name, target } = in
-            if (invalid_name != null && invalid_name == index) {
-                host.rejectMixedExport(target, invalid_export_name)
+    const first: Output = {
+        count: 0
+    }
+
+    return loop(first, {
+        while: state => state.count < roots.length && state.message == null,
+        next: state => {
+            if (invalid_name != null && invalid_name == state.count) {
+                state.message = invalid_export_name
+            } else if (!compiled[roots[state.count]]) {
+                state.message = missing_export
             } else {
-                const root = roots[index]
-
-                if (compiled[root]) {
-                    host.installMixedExport(target, index, root)
-                } else {
-                    host.rejectMixedExport(target, missing_export)
-                }
+                state.count += 1
             }
-
-            index += 1
         }
     })
 }

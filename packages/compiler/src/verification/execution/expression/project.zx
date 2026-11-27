@@ -1,19 +1,21 @@
-import host from "verification_host"
 import { SymbolicOperand } from "verification_host"
 
-import type { Payload as Input } from "./model"
+import type { Payload } from "./model"
 
-export type Output = void
+export type Input = Payload.Pick("columns", "payload")
+
+export type Output = {
+    expression: u32,
+    index: u32,
+    slot: SymbolicOperand
+}
 
 export default function (in: Input): Output {
-    const { frame, columns, payload } = in
+    const { columns, payload } = in
 
-    const safe =
-        host.evaluateSymbolicOperand(
-            frame,
-            SymbolicOperand.First,
-            columns.projection_targets[payload]
-        ).safe
-
-    host.projectSymbolicOperand(frame, columns.projection_indices[payload])
+    return {
+        expression: columns.projection_targets[payload],
+        index: columns.projection_indices[payload],
+        slot: SymbolicOperand.First
+    }
 }

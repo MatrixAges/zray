@@ -6,9 +6,7 @@ const workflow = @import("generated_bind_symbolic_definition");
 
 const Frame = struct {
     graph: *Graph,
-    expression: []const u8,
     origin: Graph.Origin,
-    width: u16,
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
     }
@@ -17,8 +15,6 @@ const Frame = struct {
 pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Origin) zx.Error![]const u8 {
     var frame: Frame = .{
         .graph = graph,
-        .expression = expression,
-        .width = width,
         .origin = origin,
     };
 
@@ -43,34 +39,30 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
         .names = rows.items(.name),
     };
 
-    return workflow.executeIn(graph.allocator, &input) catch |err| return execution.failure(err);
-}
+    const plan = workflow.executeIn(graph.allocator, &input) catch |err| return execution.failure(err);
 
-pub fn reserveSymbolicDefinition(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const graph = Frame.borrow(handle).graph;
+    if (plan.definition) |definition| {
+        try graph.definitions.ensureUnusedCapacity(graph.allocator, 1);
 
-    try graph.definitions.ensureUnusedCapacity(graph.allocator, 1);
-}
+        const owned_buckets = if (definition.resized) try graph.allocator.dupe(u64, definition.buckets) else null;
 
-pub fn commitSymbolicDefinition(handle: *anyopaque, name: []const u8, file: []const u8, resized: bool, buckets: []const u64, slot: u64, value: u64) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const graph = frame.graph;
-    const owned_buckets = if (resized) try graph.allocator.dupe(u64, buckets) else null;
+        graph.appendDefinition(.{
+            .name = definition.name,
+            .expression = expression,
+            .width = width,
+            .origin = .{ .file_name = definition.file, .span = origin.span },
+        });
 
-    graph.appendDefinition(.{
-        .name = name,
-        .expression = frame.expression,
-        .width = frame.width,
-        .origin = .{ .file_name = file, .span = frame.origin.span },
-    });
+        if (owned_buckets) |next| {
+            graph.allocator.free(graph.index);
 
-    if (owned_buckets) |next| {
-        graph.allocator.free(graph.index);
-
-        graph.index = next;
-    } else {
-        graph.index[@intCast(slot)] = value;
+            graph.index = next;
+        } else {
+            graph.index[@intCast(definition.slot)] = definition.value;
+        }
     }
+
+    return plan.name;
 }
 
 pub fn rejectSymbolicDefinition(handle: *anyopaque, message: ?[]const u8) error{InvalidSource}![]const u8 {

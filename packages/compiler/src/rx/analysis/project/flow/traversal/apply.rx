@@ -18,7 +18,7 @@
 
             <If on={$in.returns == null}>
                 <Call
-                    fn="publish_step"
+                    module="write_step"
                     in={{
                         frame: $in.frame,
                         index:
@@ -128,7 +128,7 @@
 
             <If on={$in.returns == null}>
                 <Call
-                    fn="publish_step"
+                    module="write_step"
                     in={{
                         frame: $in.frame,
                         index: $in.cursor.destination,
@@ -143,7 +143,7 @@
                 <Call fn="host.checkFlowSelection" in={$in.frame} />
 
                 <Call
-                    fn="publish_step"
+                    module="write_step"
                     in={{
                         frame: $in.frame,
                         index: $in.cursor.destination,

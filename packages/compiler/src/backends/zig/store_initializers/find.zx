@@ -1,13 +1,13 @@
 import integers from "std:integer"
-import exchange from "core/bytes/index/column"
 import memory from "memory"
 
+import probe from "./index_slots/probe"
 import { Status } from "./model"
 
-import type { Initializers } from "./model"
+import type { Indexed } from "./model"
 
 export type Input = {
-    initializers: Initializers,
+    initializers: Indexed,
     path: string,
     type_names: string[],
     type_id: u32
@@ -22,12 +22,11 @@ export default function (in: Input): Output {
     const { initializers, path } = in
 
     const row = match {
-        initializers.capacity != 0 => exchange({
+        initializers.buckets.length != 0 => probe({
             keys: initializers.keys,
             buckets: initializers.buckets,
-            capacity: initializers.capacity,
             key: path
-        }),
+        }).row,
         initializers.count == 0 => null,
         memory.readTextColumn(initializers.keys, 0) == path => 0,
         _ => null

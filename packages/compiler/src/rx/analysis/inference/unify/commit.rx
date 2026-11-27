@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Walk" />
+
+    <Args in={Walk.Publication} out={void} />
+
+    <Call
+        fn="host.commitUnification"
+        in={[
+            $in.target,
+            $in.frame.parent,
+            $in.frame.child,
+            $in.frame.first_allowed,
+            $in.frame.second_allowed,
+            $in.frame.first_fallback,
+            $in.frame.second_fallback,
+            $in.frame.kind,
+            $in.frame.argument,
+            $in.members
+        ]}
+    />
+</Module>

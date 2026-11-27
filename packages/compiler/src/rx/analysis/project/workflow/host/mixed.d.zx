@@ -57,53 +57,10 @@ export declare function installMixedOrigins(state: MixedState): void
 export declare function installMixedSignatures(state: MixedState): void
     throws { OutOfMemory }
 
-export declare function installMixedTypeEntry(target: MixedEntry, visible: u64): void
-
-export declare function installMixedFunctionEntry(
-    target: MixedEntry,
-    function_id: u32,
-    visible: u64,
-    entry: u32?
-): void throws { OutOfMemory }
-
-export declare function rejectMixedEntry(target: MixedEntry, message: string): void
-    throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function installMixedExport(
-    target: MixedExports,
-    row: u64,
-    root: u64
-): void throws { OutOfMemory }
-
-export declare function rejectMixedExport(target: MixedExports, message: string): void
-    throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function capturedMixedCallFunctions(
-    capture: MixedObservationCapture,
-    row: u64
-): u64
-
-export declare function detachMixedCall(
-    capture: MixedObservationCapture,
-    row: u64,
-    shared: bool
-): void
-
-export declare function mixedCallNeedsPrefix(target: MixedObservationPublish, row: u64): bool
-
-export declare function restoreMixedCallPrefix(target: MixedObservationPublish, row: u64): void
-    throws { OutOfMemory }
-
-export declare function restoreMixedCallContext(target: MixedObservationPublish, row: u64): void
-
-export declare function restoreMixedReturnContext(target: MixedObservationPublish): void
-
 export declare function reserveMixedWorkers(state: MixedPreparation): u64
     throws { OutOfMemory }
 
 export declare function mixedResultIsZX(workspace: MixedWorkspace, row: u64): bool
-
-export declare function releaseMixedZXResult(workspace: MixedWorkspace, row: u64): void
 
 export declare function clearMixedResults(workspace: MixedWorkspace): void
 

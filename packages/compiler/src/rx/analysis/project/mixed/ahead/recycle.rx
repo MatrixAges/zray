@@ -1,0 +1,23 @@
+<Module>
+    <Type from="reset" as="Reset" />
+
+    <Args in={Reset.Request} out={void} />
+
+    <If on={$in.rows != 0}>
+        <Call fn="host.clearMixedResults" in={$in.workspace} />
+        <Call fn="reset" in={$in.omit(["workspace"])} />
+
+        <Loop on={$in.index < $in.count}>
+            <Call
+                module="worker"
+                in={{
+                    workspace: $in.workspace,
+                    count: $ctx.reset,
+                    index: 0
+                }}
+            />
+        </Loop>
+    </If>
+
+    <Call fn="host.resetMixedBindings" in={$in.workspace} />
+</Module>

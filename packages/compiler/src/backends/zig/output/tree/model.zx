@@ -1,7 +1,13 @@
-import type { BootstrapTree } from "output_host"
-
 export type Input = {
-    target: BootstrapTree,
-    adapters: u64,
     partitioned: bool
 }
+
+export enum Step {
+    Adapters,
+    Originals,
+    Root,
+    PartitionedRoot,
+    Place
+}
+
+export type Output = Step[]

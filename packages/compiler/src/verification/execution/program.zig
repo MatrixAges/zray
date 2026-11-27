@@ -179,16 +179,13 @@ pub fn symbolicParameterField(target: *anyopaque, index: u64) *native.ParameterT
     return @ptrCast(&targetValue(target).fields[@intCast(index)]);
 }
 
-pub fn appendSymbolicDeclaration(handle: *anyopaque, text: []const u8) std.mem.Allocator.Error!void {
-    const conditions = Frame.borrow(handle).conditions;
-
-    try conditions.declarations.append(conditions.allocator, text);
-}
-
-pub fn publishSymbolicParameter(handle: *anyopaque, target: *anyopaque, type_id: u32, path: []const u8, symbol: []const u8) std.mem.Allocator.Error!void {
+pub fn publishSymbolicParameter(handle: *anyopaque, target: *anyopaque, type_id: u32, path: []const u8, symbol: []const u8, declaration: ?[]const u8, domain: ?[]const u8) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
+    const conditions = frame.conditions;
 
-    try frame.conditions.inputs.append(frame.result_allocator, .{ .symbol = symbol, .path = path, .type_id = @fromBackingInt(type_id) });
+    if (declaration) |text| try conditions.declarations.append(conditions.allocator, text);
+    if (domain) |text| try conditions.declarations.append(conditions.allocator, text);
+    try conditions.inputs.append(frame.result_allocator, .{ .symbol = symbol, .path = path, .type_id = @fromBackingInt(type_id) });
 
     targetValue(target).* = .{ .scalar = symbol };
 }

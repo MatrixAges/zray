@@ -13,7 +13,18 @@
         }}
     />
 
-    <Call fn="bind" in={$in} />
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="next_binding"
+            in={{
+                block: $in.block,
+                symbols: $in.scope.control.parallel_symbols,
+                first: $ctx.calls.first,
+                count: $ctx.calls.count,
+                index: 0
+            }}
+        />
+    </Loop>
 
-    <Return value={$ctx.calls} />
+    <Return value={$ctx.calls.path} />
 </Module>

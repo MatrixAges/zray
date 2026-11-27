@@ -102,9 +102,6 @@ const Build = struct {
     roots: []u64 = &.{},
     adjacency: model.Adjacency = .{ .starts = &.{}, .ends = &.{} },
     diagnostic: ?@FieldType(model.Value, "diagnostic") = null,
-    fn borrow(handle: *anyopaque) *Build {
-        return @ptrCast(@alignCast(handle));
-    }
     fn deinit(self: *Build) void {
         if (self.opts.retain_source_dependencies) return;
 
@@ -115,7 +112,6 @@ const Build = struct {
         allocator.free(self.adjacency.ends);
         allocator.free(self.adjacency.starts);
     }
-
     fn generate(self: *Build, explicit: anytype) Error!model.Value {
         const rule = @import("generated_rx_construct_source_graph");
         const memory = zx.memory;
@@ -131,7 +127,6 @@ const Build = struct {
         @memset(self.modules.items(.compiled_dependency), false);
 
         const input: std.meta.Child(rule.Input) = .{
-            .target = @ptrCast(self),
             .root = opts.project.root_dir,
             .capacity = self.paths.buckets.len,
             .paths = &.{ .zx = @ptrCast(&zx_paths), .rx = @ptrCast(&rx_paths), .stores = @ptrCast(&stores) },
@@ -151,13 +146,19 @@ const Build = struct {
             .retain_dependencies = opts.retain_source_dependencies,
         };
 
-        const result = rule.executeIn(self.scratch, &input) catch |err| {
+        const output = rule.executeIn(self.scratch, &input) catch |err| {
             return switch (@as(anyerror, err)) {
                 error.InvalidGraph => error.InvalidGraph,
                 error.OutOfMemory, error.Overflow => error.OutOfMemory,
                 else => unreachable,
             };
         };
+
+        if (output.path_issue) |issue| return self.rejectRegistration(@intCast(issue.row), issue.normalized, issue.message);
+        if (output.root_issue) |issue| return self.reject(issue.path, root_location, issue.message);
+        if (output.cycle) |cycle| return self.rejectCycle(@intCast(cycle.owner), @intCast(cycle.edge));
+
+        const result = output.graph.?;
 
         std.debug.assert(result.count == result.order.len);
 
@@ -240,6 +241,24 @@ const Build = struct {
             message,
         );
     }
+    fn rejectCycle(self: *Build, row: usize, edge: usize) error{InvalidGraph} {
+        const module = self.modules.get(row);
+        var source_index: usize = 0;
+
+        for (module.dependencies) |dependency| {
+            if (dependency.target != .source) continue;
+
+            if (source_index == edge) {
+                self.diagnostic = model.cycle(module, self.sources.at(row), dependency, self.opts.sources).diagnostic;
+
+                return error.InvalidGraph;
+            }
+
+            source_index += 1;
+        }
+
+        unreachable;
+    }
     fn resolve(self: *Build, allocator: Allocator, raw: []const u8, message: []const u8) Error!usize {
         const resolved = try std.fs.path.resolve(allocator, &.{ self.opts.project.root_dir, raw });
 
@@ -310,32 +329,3 @@ const Build = struct {
         return self.finish(entry, try self.indices(self.roots[1..][0..additional_count], false), schedule, dependencies, self.opts.prefetched != null);
     }
 };
-
-pub fn rejectSourceGraphPath(handle: *anyopaque, row: u64, normalized: ?[]const u8, message: []const u8) Error!void {
-    return Build.borrow(handle).rejectRegistration(@intCast(row), normalized, message);
-}
-
-pub fn rejectSourceGraphRoot(handle: *anyopaque, path: []const u8, missing: []const u8) Error!u64 {
-    return Build.borrow(handle).reject(path, root_location, missing);
-}
-
-pub fn rejectSourceGraphCycle(handle: *anyopaque, owner: u64, edge: u64) error{InvalidGraph}!void {
-    const state = Build.borrow(handle);
-    const row: usize = @intCast(owner);
-    const module = state.modules.get(row);
-    var source_index: usize = 0;
-
-    for (module.dependencies) |dependency| {
-        if (dependency.target != .source) continue;
-
-        if (source_index == edge) {
-            state.diagnostic = model.cycle(module, state.sources.at(row), dependency, state.opts.sources).diagnostic;
-
-            return error.InvalidGraph;
-        }
-
-        source_index += 1;
-    }
-
-    unreachable;
-}

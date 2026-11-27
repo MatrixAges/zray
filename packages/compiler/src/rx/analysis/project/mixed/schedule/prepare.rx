@@ -3,7 +3,7 @@
 
     <Args in={Preparation.Request} out={u64} />
 
-    <Call fn="../ahead/reset" in={$in.prior} />
+    <Call module="../ahead/recycle" in={$in.prior} />
 
     <Call
         fn="start"

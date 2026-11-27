@@ -1,5 +1,1 @@
-export {
-    finishSourceGraphScan,
-    openSourceGraphScanner,
-    rejectSourceGraphCycle
-} from "rx_graph_host"
+export { finishSourceGraphScan, openSourceGraphScanner } from "rx_graph_host"

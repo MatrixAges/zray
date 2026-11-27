@@ -1,31 +1,51 @@
-import exchange from "core/bytes/index/column"
+import capacityFor from "core/bytes/index/fixed_capacity"
 import memory from "memory"
 
-import type { Table } from "core/bytes/index/column"
+import probe from "./index_slots/probe"
 
-export type Input = Table & {
+import type { TextColumn } from "memory"
+
+export type Input = {
+    keys: TextColumn,
     count: u64
 }
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    if (in.capacity == 0) {
-        return
-    }
+    const capacity = capacityFor(in.count)
+    const zero: u64 = 0
+    const empty: Output = []
 
-    const position = loop(0, {
-        while: row => row < in.count,
-        next: row => {
-            const previous = exchange({
+    const buckets = loop({
+        items: empty
+    }, {
+        while: state => state.items.length < capacity,
+        next: state => {
+            state.items = state.items.push(zero)[0]
+        },
+        return: state => state.items
+    })
+
+    return loop({
+        row: 0,
+        buckets
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const key = memory.readTextColumn(in.keys, state.row)
+            const slot = probe({
                 keys: in.keys,
-                buckets: in.buckets,
-                capacity: in.capacity,
-                key: memory.readTextColumn(in.keys, row),
-                insert: row
+                buckets: state.buckets,
+                key
             })
 
-            row += 1
-        }
+            if (slot.row == null) {
+                state.buckets[slot.index] = state.row + 1
+            }
+
+            state.row += 1
+        },
+        return: state => state.buckets
     })
 }

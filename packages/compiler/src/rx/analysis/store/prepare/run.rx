@@ -10,13 +10,16 @@
     <Call fn="host.resolveStoreDefinitionTypes" in={$in.state} />
     <Call fn="host.reserveStoreDefinitionObjects" in={$in.state} />
 
-    <Call
-        fn="compile"
-        in={{
-            state: $in.state,
-            count: $ctx.reserveStoreDefinitionObjects
-        }}
-    />
+    <Loop on={$in.row < $in.count}>
+        <Call
+            module="compile"
+            in={{
+                state: $in.state,
+                count: $ctx.reserveStoreDefinitionObjects,
+                row: 0
+            }}
+        />
+    </Loop>
 
     <Call fn="host.freezeStoreDefinitionTypes" in={$in.state} />
     <Call fn="host.publishStoreDefinition" in={$in.state} />

@@ -1,13 +1,11 @@
-import host from "gateway_bundle_host"
-
 import { storage_module_count } from "./const"
 
-import type { Input } from "./model"
+import type { Input as Bundle } from "./model"
 
-export type Output = void
+export type Input = Bundle.Pick("modules", "public_modules")
+
+export type Output = u64
 
 export default function (in: Input): Output {
-    const count = in.modules + in.public_modules + storage_module_count
-
-    host.reserveGatewayFiles(in.frame, count)
+    return in.modules + in.public_modules + storage_module_count
 }

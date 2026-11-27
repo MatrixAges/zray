@@ -16,11 +16,16 @@ export type Output = string
 export default function (in: Input): Output {
     const { session, path, safe } = in
 
-    require({
-        session,
-        path,
-        predicate: safe
+    const violation = require({
+        left: path,
+        right: safe
     })
+
+    if (violation != null) {
+        const obligation = host.bindSymbolicBoolean(session, violation)
+
+        host.publishClauseViolation(session, obligation)
+    }
 
     const checked = conjunction({
         left: path,

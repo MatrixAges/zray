@@ -2,18 +2,17 @@
     <Type from="model" as="Publication" />
     <Type from="../model" as="Solver" />
 
-    <Args in={Publication.Input} out={Solver.Verdict} />
+    <Args in={Publication.Input} out={Publication.Output} />
 
     <If on={$in.diagnostic != null}>
-        <Call
-            fn="unsupported"
-            in={$in.pick([
-                "context",
-                "diagnostic"
-            ])}
-        />
+        <Call fn="unsupported" in={$in.diagnostic} />
 
-        <Return value={Solver.Verdict.Unsupported} />
+        <Return
+            value={{
+                verdict: Solver.Verdict.Unsupported,
+                fragments: $ctx.unsupported
+            }}
+        />
     </If>
 
     <Call fn="evidence/write" in={$in.evidence} />
@@ -35,11 +34,12 @@
 
     <Switch on={$ctx.check.verdict}>
         <Case value={Solver.Verdict.Proved}>
-            <Call
-                fn="proved"
-                in={{
-                    context: $in.context,
-                    text: $ctx.prepare.path
+            <Call fn="proved" in={$ctx.prepare.path} />
+
+            <Return
+                value={{
+                    verdict: $ctx.check.verdict,
+                    fragments: $ctx.proved
                 }}
             />
         </Case>
@@ -48,9 +48,15 @@
             <Call
                 fn="counterexample"
                 in={{
-                    context: $in.context,
                     model: $ctx.check.model,
                     bindings: $in.bindings
+                }}
+            />
+
+            <Return
+                value={{
+                    verdict: $ctx.check.verdict,
+                    fragments: $ctx.counterexample
                 }}
             />
         </Case>
@@ -59,9 +65,15 @@
             <Call
                 fn="unproved"
                 in={{
-                    context: $in.context,
                     text: $ctx.check.status,
                     preconditions: true
+                }}
+            />
+
+            <Return
+                value={{
+                    verdict: $ctx.check.verdict,
+                    fragments: $ctx.unproved
                 }}
             />
         </Case>
@@ -70,13 +82,24 @@
             <Call
                 fn="unproved"
                 in={{
-                    context: $in.context,
                     text: $ctx.check.status,
                     preconditions: false
+                }}
+            />
+
+            <Return
+                value={{
+                    verdict: $ctx.check.verdict,
+                    fragments: $ctx.unproved
                 }}
             />
         </Case>
     </Switch>
 
-    <Return value={$ctx.check.verdict} />
+    <Return
+        value={{
+            verdict: $ctx.check.verdict,
+            fragments: []
+        }}
+    />
 </Module>

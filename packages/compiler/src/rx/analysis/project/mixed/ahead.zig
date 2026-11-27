@@ -74,10 +74,22 @@ fn clearResults(self: *Self) void {
 
     if (comptime generated) {
         const rule = @import("generated_rx_retire_mixed_results");
-        const input: std.meta.Child(rule.Input) = .{ .workspace = @ptrCast(self), .rows = self.items.len };
+        const results = self.items.items(.result);
+        var input: std.meta.Child(rule.Input) = .{ .workspace = @ptrCast(self), .rows = results.len, .first = 0 };
+        const descriptor: *const std.meta.Child(rule.Input) = &input;
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        rule.executeIn(empty.allocator(), &input) catch unreachable;
+        while (input.first < input.rows) {
+            const row = zx.columns.invoke(rule.executeValue, empty.allocator(), descriptor) catch unreachable;
+
+            if (row == input.rows) break;
+
+            results[@intCast(row)].zx.release();
+
+            input.first = row + 1;
+        }
+
+        self.items.clearRetainingCapacity();
 
         return;
     }
@@ -101,12 +113,8 @@ pub fn mixedResultIsZX(handle: *anyopaque, row: u64) bool {
     return borrowWorkspace(handle).items.items(.result)[@intCast(row)] == .zx;
 }
 
-pub fn releaseMixedZXResult(handle: *anyopaque, row: u64) void {
-    borrowWorkspace(handle).items.items(.result)[@intCast(row)].zx.release();
-}
-
 pub fn clearMixedResults(handle: *anyopaque) void {
-    borrowWorkspace(handle).items.clearRetainingCapacity();
+    borrowWorkspace(handle).clearResults();
 }
 
 pub fn resetMixedWorker(handle: *anyopaque, index: u64) void {

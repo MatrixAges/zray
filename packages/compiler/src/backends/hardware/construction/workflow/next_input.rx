@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Hardware" />
+
+    <Args in={Hardware.InputWalk} out={Hardware.InputWalk} />
+
+    <Call
+        fn="inputs"
+        in={$in.pick([
+            "input_types",
+            "types",
+            "row"
+        ])}
+    />
+
+    <Call
+        fn="host.writeHardwareInput"
+        in={[
+            $in.build,
+            $in.row,
+            $ctx.inputs
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

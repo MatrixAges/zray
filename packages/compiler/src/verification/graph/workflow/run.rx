@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Graph" />
 
-    <Args in={Graph.Input} out={string} />
+    <Args in={Graph.Input} out={Graph.Output} />
 
     <Call fn="../admit" in={$in.lookup} />
 

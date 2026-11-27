@@ -1,30 +1,18 @@
-import output from "output_host"
-
-import type { LibraryEntries } from "output_host"
-
 export type Input = {
-    entries: LibraryEntries,
-    ends: u64[]
+    ends: u64[],
+    index: u64
 }
 
-export type Output = void
+export type Output = {
+    first: u64,
+    end: u64
+}
 
 export default function (in: Input): Output {
-    const { entries, ends } = in
+    const { ends, index } = in
 
-    const published = loop({
-        index: 0,
-        first: 0
-    }, {
-        while: row => row.index < ends.length,
-        next: row => {
-            const end = ends[row.index]
-
-            output.analyzeLibraryExport(entries, row.index, row.first, end)
-            output.publishLibraryExport(entries, row.index, row.first, end)
-
-            row.index += 1
-            row.first = end
-        }
-    })
+    return {
+        first: index == 0 ? 0 : ends[index - 1],
+        end: ends[index]
+    }
 }

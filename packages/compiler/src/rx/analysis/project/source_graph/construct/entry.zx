@@ -1,20 +1,22 @@
 import bytes from "std:bytes"
 import memory from "memory"
-import { rejectSourceGraphRoot } from "rx_graph_host"
 
 import resolve from "../../../../../zx/modules/project/target/package/path"
 import probe from "./probe"
 
 import type { Allocator } from "memory"
-import type { RootPaths } from "./model"
+import type { RootIssue, RootPaths } from "./model"
 
-export type Input = RootPaths.Pick("target", "index", "root") & {
+export type Input = RootPaths.Pick("index", "root") & {
     allocator: Allocator,
     path: string,
     missing: string
 }
 
-export type Output = u64
+export type Output = {
+    row: u64,
+    issue?: RootIssue
+}
 
 export default function (in: Input): Output {
     const path = resolve(in.pick([
@@ -32,10 +34,18 @@ export default function (in: Input): Output {
     }
 
     if (row == 0) {
-        return rejectSourceGraphRoot(in.target, path, in.missing)
+        return {
+            row: 0,
+            issue: {
+                path,
+                message: in.missing
+            }
+        }
     }
 
     memory.freeOwnedText(in.allocator, path)
 
-    return row - 1
+    return {
+        row: row - 1
+    }
 }

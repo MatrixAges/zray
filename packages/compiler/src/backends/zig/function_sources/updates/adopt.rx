@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Sources" />
+
+    <Args in={Sources.Adoption} out={Sources.Adoption} />
+
+    <Call
+        fn="host.tryRecordCachedSource"
+        in={[
+            $in.target,
+            $in.stored[$in.remaining - 1]
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            remaining: $in.remaining - 1,
+            failure: $ctx.tryRecordCachedSource ? null : $in.stored[$in.remaining - 1]
+        }}
+    />
+</Module>

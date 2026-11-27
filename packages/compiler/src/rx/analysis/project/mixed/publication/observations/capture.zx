@@ -1,26 +1,34 @@
-import host from "rx_project_host"
+import memory from "memory"
 
-import type { MixedObservationCapture } from "rx_project_host"
+import type { ListColumn } from "memory"
 
 export type Input = {
-    capture: MixedObservationCapture,
+    functions: ListColumn,
+    first: u64,
     count: u64,
-    functions: u64
+    shared_functions: u64
 }
 
-export type Output = void
+export type Output = {
+    end: u64,
+    shared: bool
+}
 
 export default function (in: Input): Output {
-    const first: u64 = 0
+    const { functions, first, count, shared_functions } = in
 
-    const detached = loop(first, {
-        while: row => row < in.count,
+    const shared = memory.listLength(functions, first) == shared_functions
+
+    const end = loop(first + 1, {
+        while: row => row < count &&
+            (memory.listLength(functions, row) == shared_functions) == shared,
         next: row => {
-            const functions = host.capturedMixedCallFunctions(in.capture, row)
-
-            host.detachMixedCall(in.capture, row, functions == in.functions)
-
             row += 1
         }
     })
+
+    return {
+        end,
+        shared
+    }
 }

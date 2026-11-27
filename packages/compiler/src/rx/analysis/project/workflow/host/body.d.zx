@@ -9,9 +9,6 @@ export declare function evaluateBodyValue(frame: BodyStatements, row: u32, borro
 export declare function defineBodyTaskBinding(frame: BodyStatements, row: u32, value: u32): u32
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
-export declare function publishBodyBinding(frame: BodyStatements, symbol: u32): void
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
 export declare function evaluateBodyCaseLabel(frame: BodyStatements, row: u32): u32?
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 

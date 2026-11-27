@@ -1,5 +1,5 @@
 import type { Stores } from "core/store_table/model"
-import type { Initializers } from "../store_initializers/model"
+import type { Indexed, Initializers } from "../store_initializers/model"
 
 export enum Status {
     Ready,
@@ -34,8 +34,12 @@ export type Output = {
     imports: string[]
 }
 
+export type Prepared = Input.Omit("initializers") & {
+    initializers: Indexed
+}
+
 export type State = {
-    source: Input,
+    source: Prepared,
     result: Output
 }
 

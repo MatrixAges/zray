@@ -57,6 +57,12 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
 
     const outcome = zx.columns.invoke(rule.executeIn, evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
 
+    if (outcome.projection) |index| {
+        const source = frame.at(.First);
+
+        return .{ .value = source.value.fields[index], .safe = source.safe };
+    }
+
     if (outcome.scalar) |text| {
         frame.at(.Result).* = .{
             .value = .{ .scalar = text },
@@ -98,13 +104,6 @@ pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u3
     };
 
     return outcome;
-}
-
-pub fn projectSymbolicOperand(handle: *anyopaque, index: u32) void {
-    const frame = Frame.borrow(handle);
-    const source = frame.at(.First);
-
-    frame.at(.Result).* = .{ .value = source.value.fields[index], .safe = source.safe };
 }
 
 pub fn selectSymbolicExpression(handle: *anyopaque, condition: []const u8, yes: Operand, no: Operand) zx.Error!void {

@@ -1,4 +1,4 @@
-import lookup from "core/bytes/index/column"
+import probe from "../index_slots/probe"
 
 import type { Mark as Input } from "./model"
 
@@ -31,10 +31,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.paths.length && state.found < in.count,
         next: state => {
-            const entry = lookup({
+            const entry = probe({
                 ...in.index,
                 key: in.paths[state.row]
-            })
+            }).row
 
             if (entry != null && state.marks[entry] == 0) {
                 state.marks[entry] = 1

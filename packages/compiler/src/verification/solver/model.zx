@@ -43,3 +43,9 @@ export type Query = {
 export type Counterexample = Proof.Pick("solver", "path", "correctness") & {
     model: string
 }
+
+export type FileWrite = {
+    path: u8[],
+    data: u8[],
+    make_path: bool
+}

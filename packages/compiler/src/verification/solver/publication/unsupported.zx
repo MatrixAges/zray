@@ -1,20 +1,15 @@
 import bytes from "std:bytes"
-import host from "verification_report_host"
 
 import { line_end, unsupported_prefix } from "./const"
 
-import type { Input as Request } from "./model"
+export type Input = string
 
-export type Input = Request.Pick("context", "diagnostic")
-
-export type Output = void
+export type Output = u8[][]
 
 export default function (in: Input): Output {
-    const { context, diagnostic } = in
-
-    if (diagnostic != null) {
-        host.writeVerificationOutput(context, bytes.fromText(unsupported_prefix))
-        host.writeVerificationOutput(context, bytes.fromText(diagnostic))
-        host.writeVerificationOutput(context, bytes.fromText(line_end))
-    }
+    return [
+        bytes.fromText(unsupported_prefix),
+        bytes.fromText(in),
+        bytes.fromText(line_end)
+    ]
 }

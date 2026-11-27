@@ -5,24 +5,25 @@ import { definition_limit_message } from "../const"
 import identity from "../identity"
 import { Action } from "../model"
 
-import type { Bind as Input } from "./model"
-
-export type Output = string
+import type { Bind as Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const { graph, lookup, names, selected } = in
 
     if (selected.action != Action.Append) {
-        return match selected.action {
+        const name = match selected.action {
             Action.Atom => in.expression,
             Action.Reuse => names[selected.position],
             Action.Limit =>
                 host.rejectSymbolicDefinition(graph, definition_limit_message),
             _ => host.rejectSymbolicDefinition(graph, null)
         }
-    }
 
-    host.reserveSymbolicDefinition(graph)
+        return {
+            name,
+            definition: null
+        }
+    }
 
     const resized = selected.capacity != lookup.capacity
     const created = identity(in.origin)
@@ -35,15 +36,12 @@ export default function (in: Input): Output {
         resized
     })
 
-    host.commitSymbolicDefinition(
-        graph,
-        created.name,
-        created.file,
-        resized,
-        committed.buckets,
-        committed.slot,
-        committed.value
-    )
-
-    return created.name
+    return {
+        name: created.name,
+        definition: {
+            ...created,
+            ...committed,
+            resized
+        }
+    }
 }

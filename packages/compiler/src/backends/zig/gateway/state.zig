@@ -27,12 +27,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
     const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
-    var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
-
-    defer scratch.deinit();
-
-    const temporary = scratch.allocator();
-    var initializers = try InitializerView.init(temporary, bundle.store_initializers);
+    const initializers = InitializerView.init(bundle.store_initializers);
     const types = zx.ir.TypeTable.borrow(Types, library.program.types);
     const functions = zx.columns.borrow(Functions, &library.program.functions);
     const export_names = memory.borrowTextColumn("name", library.exports);

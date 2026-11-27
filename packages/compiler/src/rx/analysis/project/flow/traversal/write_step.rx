@@ -1,0 +1,19 @@
+<Module>
+    <Type from="publish_step" as="Step" />
+
+    <Args in={Step.Request} out={void} />
+
+    <Call fn="publish_step" in={$in.omit(["frame"])} />
+
+    <Call
+        fn="host.writeFlowStep"
+        in={[
+            $in.frame,
+            $ctx.publish_step.index,
+            $ctx.publish_step.kind,
+            $ctx.publish_step.first,
+            $ctx.publish_step.exhaustive,
+            $ctx.publish_step.output
+        ]}
+    />
+</Module>

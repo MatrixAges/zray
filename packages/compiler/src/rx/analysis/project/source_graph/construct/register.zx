@@ -1,7 +1,6 @@
 import bytes from "std:bytes"
 import lexical from "lexical_path"
 import memory from "memory"
-import host from "rx_graph_host"
 
 import { store_suffix } from "../../../../../const"
 import { Kind } from "../../../../path_kind/model"
@@ -10,20 +9,22 @@ import zeroes from "../zeroes"
 import { duplicate_path, duplicate_store, invalid_registration } from "./const"
 import probe from "./probe"
 
-import type { Index, Registration as Input } from "./model"
+import type { Index, PathIssue, Registration as Input } from "./model"
 
-export type Output = Index
+export type Output = Index & {
+    issue?: PathIssue
+}
 
 export default function (in: Input): Output {
-    const { target, ranges, paths, root, path_allocator } = in
+    const { ranges, paths, root, path_allocator } = in
 
-    const keys: string[] = []
-
-    return loop({
-        keys,
+    const initial: Output = {
+        keys: [],
         buckets: zeroes(in.capacity)
-    }, {
-        while: index => index.keys.length < ranges.end,
+    }
+
+    return loop(initial, {
+        while: index => index.issue == null && index.keys.length < ranges.end,
         next: index => {
             const row = index.keys.length
             const is_store = row >= ranges.rx_end
@@ -42,37 +43,38 @@ export default function (in: Input): Output {
                 })
 
                 if (!plan.valid) {
-                    host.rejectSourceGraphPath(
-                        target,
+                    index.issue = {
                         row,
-                        null,
-                        invalid_registration
-                    )
+                        message: invalid_registration
+                    }
                 }
             }
 
-            const absolute = lexical.resolveOwnedPathParts(path_allocator, [
-                root,
-                path
-            ])
+            if (index.issue == null) {
+                const absolute = lexical.resolveOwnedPathParts(path_allocator, [
+                    root,
+                    path
+                ])
 
-            const slot = probe({
-                index,
-                key: bytes.fromText(absolute)
-            })
+                const slot = probe({
+                    index: index.pick([
+                        "keys",
+                        "buckets"
+                    ]),
+                    key: bytes.fromText(absolute)
+                })
 
-            if (index.buckets[slot] != 0) {
-                const message = is_store ? duplicate_store : duplicate_path
-                host.rejectSourceGraphPath(
-                    target,
-                    row,
-                    is_store ? null : absolute,
-                    message
-                )
+                if (index.buckets[slot] != 0) {
+                    index.issue = {
+                        row,
+                        normalized: is_store ? null : absolute,
+                        message: is_store ? duplicate_store : duplicate_path
+                    }
+                } else {
+                    index.keys = index.keys.push(absolute)[0]
+                    index.buckets = index.buckets.with(slot, row + 1)
+                }
             }
-
-            index.keys = index.keys.push(absolute)[0]
-            index.buckets = index.buckets.with(slot, row + 1)
         }
     })
 }

@@ -1,6 +1,5 @@
 import type { TextColumn } from "memory"
-import type { VerificationPublication } from "verification_report_host"
-import type { Proof } from "../model"
+import type { Proof, Verdict } from "../model"
 import type { Input as Evidence } from "./evidence/write"
 
 export type Bindings = {
@@ -10,7 +9,6 @@ export type Bindings = {
 }
 
 export type Input = Proof.Pick("feasibility", "correctness") & {
-    context: VerificationPublication,
     diagnostic?: string,
     output?: string,
     solver?: string,
@@ -24,16 +22,12 @@ export type Prepare =
 
 export type Path = Proof.Pick("feasibility", "correctness", "evidence")
 
-export type Message = {
-    context: VerificationPublication,
-    text: string
-}
-
-export type Failure = Message & {
-    preconditions: bool
-}
-
-export type Counterexample = Message.Pick("context") & {
+export type Counterexample = {
     model: u8[],
     bindings: Bindings
+}
+
+export type Output = {
+    verdict: Verdict,
+    fragments: u8[][]
 }

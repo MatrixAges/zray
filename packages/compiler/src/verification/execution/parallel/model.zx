@@ -1,7 +1,22 @@
+import type { SymbolicBlock } from "verification_host"
 import type { Payload } from "../block/model"
 
 export type Input = Payload
 
 export type Calls = Input & {
     launch: string
+}
+
+export type Completed = {
+    path: string,
+    first: u64,
+    count: u64
+}
+
+export type Bindings = {
+    block: SymbolicBlock,
+    symbols: u32?[],
+    first: u64,
+    count: u64,
+    index: u64
 }

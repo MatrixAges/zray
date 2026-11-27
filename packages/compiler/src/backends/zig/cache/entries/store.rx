@@ -22,36 +22,11 @@
         ])}
     />
 
-    <Call
-        fn="../writes/workflow/finish"
-        in={{
-            cache: $in.cache,
-            action: $ctx.complete
-        }}
-    />
-
-    <If on={$in.previous != null && $ctx.replace.retire == null}>
-        <Call
-            fn="index.freeOwnedText"
-            in={[
-                $in.previous.owner,
-                $in.previous.source
-            ]}
-        />
-    </If>
-
-    <Call
-        fn="index.writeGenerationCacheRecord"
-        in={[
-            $in.target,
-            $ctx.replace.append
-        ]}
-    />
-
     <Return
         value={{
-            append: $ctx.replace.append != null,
-            retire: $ctx.replace.retire
+            ...$ctx.replace,
+            finish: $ctx.complete,
+            release: $in.previous != null && $ctx.replace.retire == null
         }}
     />
 </Module>

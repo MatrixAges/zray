@@ -1,4 +1,4 @@
-import type { HardwareBuild } from "hardware_graph_host"
+import type { HardwareBuild, NodeSort } from "hardware_graph_host"
 import type { ReadColumn, TextColumn } from "memory"
 import type { SymbolicValue } from "verification_host"
 import type { Ports } from "../../../../verification/execution/program/model"
@@ -30,6 +30,10 @@ export type Input = Sizes & {
     output_type: u32,
     output: SymbolicValue,
     safety: string
+}
+
+export type InputWalk = Input.Pick("build", "inputs", "input_types", "types") & {
+    row: u64
 }
 
 export type DefinitionRows = {
@@ -78,7 +82,7 @@ export type OutputSearch = {
 }
 
 export type OutputWrite = {
-    build: HardwareBuild,
+    sort: NodeSort,
     leaf: OutputLeaf,
     node: u32,
     index: u64

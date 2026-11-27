@@ -3,21 +3,22 @@
 
     <Args in={Selection.Input} out={Selection.Output} />
 
-    <If on={$in.indexed != 0}>
-        <Call
-            fn="../index_slots"
-            in={{
-                ...$in.search.index,
-                count: $in.indexed
-            }}
-        />
-    </If>
+    <Call
+        fn="../index_slots"
+        in={{
+            keys: $in.search.keys,
+            count: $in.indexed
+        }}
+    />
 
     <Call
         fn="mark"
         in={{
             paths: $in.search.paths,
-            index: $in.search.index,
+            index: {
+                keys: $in.search.keys,
+                buckets: $ctx.index_slots
+            },
             count: $in.indexed,
             active: $in.search.mode == Selection.Mode.Candidates
         }}
@@ -28,7 +29,12 @@
         in={{
             candidates: $in.candidates,
             search: {
-                ...$in.search,
+                paths: $in.search.paths,
+                mode: $in.search.mode,
+                index: {
+                    keys: $in.search.keys,
+                    buckets: $ctx.index_slots
+                },
                 marks: $ctx.mark
             }
         }}

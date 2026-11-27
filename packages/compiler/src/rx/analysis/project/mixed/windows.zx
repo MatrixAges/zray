@@ -1,10 +1,4 @@
-import host from "rx_project_host"
-import { MixedAction } from "rx_project_host"
-
-import lower from "./body/execute_rx"
-import analyze from "./body/execute_zx"
-
-import type { Mixed } from "rx_project_host"
+import type { Mixed, MixedAction } from "rx_project_host"
 
 export type Input = {
     state: Mixed,
@@ -13,50 +7,15 @@ export type Input = {
     retain: bool
 }
 
-export type Output = void
+export type Cursor = Input.Omit("has_exports") & {
+    position: u64,
+    limit: u64,
+    end: u64,
+    batch: u64
+}
 
-export default function (in: Input): Output {
-    const handle = in.state
-
-    const { length, retain } = in
-
-    const first: u64 = 0
-
-    const finished = loop({
-        position: first,
-        limit: first,
-        end: first,
-        batch: first
-    }, {
-        while: state => state.position < length,
-        next: state => {
-            if (state.position == state.limit) {
-                if (state.position == state.end) {
-                    state.end = host.mixedBatchEnd(handle, state.batch)
-                    state.batch += 1
-                }
-
-                const consumed =
-                    host.prefetchMixedWindow(handle, state.position, state.end)
-
-                state.limit = state.position + consumed
-            }
-
-            const start = host.restoreMixedPrefix(handle, state.position, state.limit)
-            const action = host.selectMixedBody(handle, start, state.limit)
-
-            state.position = match action {
-                MixedAction.Exhausted => state.limit,
-                MixedAction.MissingSignature => host.rejectMixedBody(handle),
-                MixedAction.AnalyzeZX => analyze(handle),
-                MixedAction.LowerRX => lower(handle),
-                _ => host.skipMixedBody(handle)
-            }
-
-            if (retain && action != MixedAction.Exhausted) {
-                host.recordMixedBody(handle)
-            }
-        },
-        return: state => state.position
-    })
+export type Body = {
+    state: Mixed,
+    limit: u64,
+    action: MixedAction
 }

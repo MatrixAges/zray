@@ -1,5 +1,4 @@
-import lookup from "core/bytes/index/column"
-
+import probe from "../index_slots/probe"
 import { Mode } from "./model"
 
 import type { MarkedSearch } from "./model"
@@ -25,10 +24,10 @@ export default function (in: Input): Output {
         })
     }
 
-    const row = lookup({
+    const row = probe({
         ...in.index,
         key: in.identity
-    })
+    }).row
 
     if (row == null) {
         return false

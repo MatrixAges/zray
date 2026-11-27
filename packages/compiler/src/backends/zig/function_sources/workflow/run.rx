@@ -15,7 +15,7 @@
         </If>
 
         <Call
-            fn="../updates/record"
+            module="../updates/record"
             in={$ctx.readFunctionSources.omit([
                 "hits",
                 "pending"

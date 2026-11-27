@@ -98,42 +98,31 @@ pub fn build(comptime Graph: type, allocator: std.mem.Allocator, scratch: std.me
     };
 }
 
-pub fn reserveHardwareVariables(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const terms = &Frame.borrow(handle).terms;
-
-    try terms.variables.ensureTotalCapacity(terms.scratch, @intCast(count));
-}
-
-pub fn reserveHardwareCache(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const terms = &Frame.borrow(handle).terms;
-
-    try terms.cache.ensureTotalCapacity(terms.scratch, @intCast(count));
-}
-
-pub fn reserveHardwareInputs(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn reserveHardwareGraph(handle: *anyopaque, capacity: *const native.GraphCapacity) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
+    const terms = &frame.terms;
 
-    frame.inputs = try frame.terms.allocator.alloc(ir.Port, @intCast(count));
-}
+    try terms.variables.ensureTotalCapacity(terms.scratch, @intCast(capacity.symbols));
+    try terms.cache.ensureTotalCapacity(terms.scratch, @intCast(capacity.definitions));
 
-pub fn reserveHardwareNodes(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
+    frame.inputs = try terms.allocator.alloc(ir.Port, @intCast(capacity.inputs));
 
     switch (frame.nodes) {
-        inline else => |*rows| try rows.ensureTotalCapacity(frame.terms.allocator, @intCast(count)),
+        inline else => |*rows| try rows.ensureTotalCapacity(terms.allocator, @intCast(capacity.nodes)),
     }
 }
 
-pub fn writeHardwareInput(handle: *anyopaque, row: u64, kind: native.Kind, width: u16, boolean: bool, signed: bool) std.mem.Allocator.Error!void {
+pub fn writeHardwareInput(handle: *anyopaque, row: u64, port: ?*const native.InputPort) Terms.Error!void {
+    const planned = port orelse return error.InvalidHardwareTerm;
     const frame = Frame.borrow(handle);
     const index: usize = @intCast(row);
     const input = frame.model.inputs[index];
-    const sort: ir.Sort = .{ .width = width, .boolean = boolean };
+    const sort: ir.Sort = .{ .width = planned.width, .boolean = planned.boolean };
 
     const id = try frame.nodes.append(frame.terms.allocator, &.{
-        .kind = kind,
-        .width = width,
-        .boolean = boolean,
+        .kind = planned.kind,
+        .width = planned.width,
+        .boolean = planned.boolean,
         .first = row,
         .second = 0,
         .third = 0,
@@ -142,7 +131,7 @@ pub fn writeHardwareInput(handle: *anyopaque, row: u64, kind: native.Kind, width
         .signed = false,
     }, frame.terms.origin);
 
-    frame.inputs[index] = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = signed, .node = id };
+    frame.inputs[index] = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = planned.signed, .node = id };
 }
 
 pub fn bindHardwareInputs(handle: *anyopaque) Terms.Error!void {
@@ -232,15 +221,16 @@ pub fn readHardwareSort(handle: *anyopaque, index: u32) *const native.NodeSort {
     return &frame.sort_view;
 }
 
-pub fn writeHardwareOutput(handle: *anyopaque, name: []const u8, path: []const u8, index: u32, width: u64, boolean: bool, signed: bool) std.mem.Allocator.Error!void {
+pub fn writeHardwareOutput(handle: *anyopaque, port: ?*const native.OutputPort) Terms.Error!void {
+    const planned = port orelse return error.InvalidHardwareTerm;
     const frame = Frame.borrow(handle);
 
     try frame.outputs.append(frame.terms.allocator, .{
-        .name = name,
-        .path = path,
-        .sort = .{ .width = @intCast(width), .boolean = boolean },
-        .signed = signed,
-        .node = @fromBackingInt(index),
+        .name = planned.symbol,
+        .path = planned.path,
+        .sort = .{ .width = @intCast(planned.width), .boolean = planned.boolean },
+        .signed = planned.signed,
+        .node = @fromBackingInt(planned.node),
     });
 }
 

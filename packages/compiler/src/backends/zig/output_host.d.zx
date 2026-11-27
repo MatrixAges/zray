@@ -1,12 +1,4 @@
-export type LibraryEntries = opaque
-
 export type CachedSourceRows = opaque
-
-export type GeneratedSourceRows = opaque
-
-export type CacheWriter = mutable_opaque
-
-export type GenerationCacheRecord = opaque
 
 export type FunctionSources = mutable_opaque
 
@@ -48,8 +40,6 @@ export type SourceReuse = {
     pending: u64
 }
 
-export type BootstrapTree = mutable_opaque
-
 export type BootstrapMirror = mutable_opaque
 
 export type BootstrapPartitionJobs = opaque
@@ -67,7 +57,6 @@ export enum PartitionFile {
 }
 
 export type BootstrapOutputPlan = {
-    target: BootstrapMirror,
     paths: string[],
     changed: u32[],
     aligned: bool,
@@ -76,29 +65,7 @@ export type BootstrapOutputPlan = {
 
 export type BootstrapPartition = mutable_opaque
 
-export type BootstrapPartitionPlan = {
-    target: BootstrapPartition,
-    jobs: u64
-}
-
-export declare function analyzeLibraryExport(
-    entries: LibraryEntries,
-    index: u64,
-    first: u64,
-    end: u64
-): void throws {
-    OutOfMemory,
-    InvalidModule
-}
-
-export declare function publishLibraryExport(
-    entries: LibraryEntries,
-    index: u64,
-    first: u64,
-    end: u64
-): void throws { OutOfMemory }
-
-export declare function recordCachedSource(target: CachedSourceRows, row: u64): void
+export declare function recordCachedPrefix(target: CachedSourceRows, count: u64): void
     throws { OutOfMemory }
 
 export declare function tryRecordCachedSource(target: CachedSourceRows, row: u64): bool
@@ -110,21 +77,6 @@ export declare function accountCachedSources(
     failures: u64,
     last: u64?
 ): void
-
-export declare function commitGeneratedSource(
-    target: GeneratedSourceRows,
-    position: u64,
-    index: u64
-): void throws { OutOfMemory }
-
-export declare function finishCacheWriting(cache: CacheWriter, join: bool): void
-
-export declare function startCacheWriting(cache: CacheWriter, background: bool): bool
-
-export declare function writeGenerationCacheRecord(
-    target: GenerationCacheRecord,
-    pending: u64?
-): void throws { OutOfMemory }
 
 export declare function findFunctionSource(
     worker: FunctionSourceWorker,
@@ -194,25 +146,13 @@ export declare function emitLibraryInitializer(
     InvalidNominalOrigin
 }
 
-export declare function renderBootstrapAdapter(target: BootstrapTree, row: u64): void
-    throws { BootstrapOutput }
-
-export declare function renderBootstrapOriginals(target: BootstrapTree): void
-    throws { BootstrapOutput }
-
-export declare function renderBootstrapRoot(target: BootstrapTree, partitioned: bool): void
-    throws { BootstrapOutput }
-
-export declare function placeBootstrapPartitions(target: BootstrapTree): void
-    throws { BootstrapOutput }
-
 export declare function hashBootstrapFiles(target: BootstrapMirror): void
     throws { BootstrapOutput }
 
 export declare function compareBootstrapFiles(target: BootstrapMirror): BootstrapOutputPlan
     throws { BootstrapOutput }
 
-export declare function createBootstrapFolder(target: BootstrapMirror, path: u8[]): void
+export declare function createBootstrapFolders(target: BootstrapMirror, paths: u8[][]): void
     throws { BootstrapOutput }
 
 export declare function writeBootstrapChanges(target: BootstrapMirror): void
@@ -221,7 +161,7 @@ export declare function writeBootstrapChanges(target: BootstrapMirror): void
 export declare function listBootstrapFiles(target: BootstrapMirror): string[]
     throws { BootstrapOutput }
 
-export declare function deleteBootstrapFile(target: BootstrapMirror, path: string): void
+export declare function deleteBootstrapFiles(target: BootstrapMirror, paths: string[]): void
     throws { BootstrapOutput }
 
 export declare function commitBootstrapManifest(target: BootstrapMirror): void
@@ -257,7 +197,4 @@ export declare function planPartitionLayout(target: BootstrapPartition): void
 
 export declare function placePartitionFiles(
     target: BootstrapPartition
-): BootstrapPartitionPlan throws { BootstrapOutput }
-
-export declare function emitPartitionJobs(target: BootstrapPartition): void
-    throws { BootstrapOutput }
+): u64 throws { BootstrapOutput }

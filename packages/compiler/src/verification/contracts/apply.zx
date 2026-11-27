@@ -37,11 +37,15 @@ export default function (in: Input): Output {
                 const only_safety = mode == Mode.Entry
 
                 if (only_safety) {
-                    require({
-                        session,
-                        path,
-                        predicate: clause.safe
+                    const violation = require({
+                        left: path,
+                        right: clause.safe
                     })
+
+                    if (violation != null) {
+                        const obligation = host.bindSymbolicBoolean(session, violation)
+                        host.publishClauseViolation(session, obligation)
+                    }
                 }
 
                 const checked = conjunction({
@@ -51,11 +55,15 @@ export default function (in: Input): Output {
                 const valid = host.bindSymbolicBoolean(session, checked)
 
                 if (!only_safety) {
-                    require({
-                        session,
-                        path,
-                        predicate: valid
+                    const violation = require({
+                        left: path,
+                        right: valid
                     })
+
+                    if (violation != null) {
+                        const obligation = host.bindSymbolicBoolean(session, violation)
+                        host.publishClauseViolation(session, obligation)
+                    }
                 }
 
                 const combined = conjunction({

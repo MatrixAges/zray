@@ -3,7 +3,20 @@
 
     <Args in={Windows.Input} out={void} />
 
-    <Call fn="windows" in={$in} />
+    <Loop on={$in.position < $in.length}>
+        <Call
+            module="windows/advance"
+            in={{
+                state: $in.state,
+                length: $in.length,
+                retain: $in.retain,
+                position: 0,
+                limit: 0,
+                end: 0,
+                batch: 0
+            }}
+        />
+    </Loop>
 
     <Call module="publication/run" in={$in} />
 </Module>

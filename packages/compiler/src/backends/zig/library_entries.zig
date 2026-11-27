@@ -20,9 +20,6 @@ const Frame = struct {
     plan: Plan,
     file_imports: bool,
     published: Published,
-    fn borrow(handle: *const anyopaque) *const Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn create(owned: std.mem.Allocator, workspace: std.mem.Allocator, library: *const Library, batch: *const Batch, plan: Plan, file_imports: bool) Error!Published {
@@ -43,14 +40,15 @@ pub fn create(owned: std.mem.Allocator, workspace: std.mem.Allocator, library: *
 
     if (comptime @import("parser_options").generated_parser) {
         const rule = @import("generated_library_publish_entries");
-        const input: std.meta.Child(rule.Input) = .{ .entries = @ptrCast(&frame), .ends = plan.ends };
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-        rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.InvalidModule => return error.InvalidModule,
-            else => unreachable,
-        };
+        for (0..plan.ends.len) |index| {
+            const input: std.meta.Child(rule.Input) = .{ .ends = plan.ends, .index = index };
+            const range = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+
+            try analyze(&frame, index, @intCast(range.first), @intCast(range.end));
+            try publish(&frame, index, @intCast(range.first), @intCast(range.end));
+        }
     } else {
         var first: usize = 0;
 
@@ -63,14 +61,6 @@ pub fn create(owned: std.mem.Allocator, workspace: std.mem.Allocator, library: *
     }
 
     return frame.published;
-}
-
-pub fn analyzeLibraryExport(handle: *const anyopaque, index: u64, first: u64, end: u64) Error!void {
-    return analyze(Frame.borrow(handle), @intCast(index), @intCast(first), @intCast(end));
-}
-
-pub fn publishLibraryExport(handle: *const anyopaque, index: u64, first: u64, end: u64) std.mem.Allocator.Error!void {
-    return publish(Frame.borrow(handle), @intCast(index), @intCast(first), @intCast(end));
 }
 
 fn analyze(frame: *const Frame, index: usize, first: usize, end: usize) Error!void {

@@ -204,7 +204,6 @@ pub fn compareBootstrapFiles(handle: *anyopaque) Failure.Error!*const Plan {
     const selection = frame.selected.?.value;
 
     frame.plan = .{
-        .target = @ptrCast(frame),
         .paths = frame.hashing.paths,
         .changed = selection.changed,
         .aligned = selection.aligned,
@@ -214,10 +213,10 @@ pub fn compareBootstrapFiles(handle: *anyopaque) Failure.Error!*const Plan {
     return &frame.plan;
 }
 
-pub fn createBootstrapFolder(handle: *anyopaque, folder: []const u8) Failure.Error!void {
+pub fn createBootstrapFolders(handle: *anyopaque, folders: []const []const u8) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
-    frame.directory.createDirPath(frame.io, folder) catch |err| return frame.failure.save(err);
+    for (folders) |folder| frame.directory.createDirPath(frame.io, folder) catch |err| return frame.failure.save(err);
 }
 
 pub fn writeBootstrapChanges(handle: *anyopaque) Failure.Error!void {
@@ -249,10 +248,10 @@ pub fn listBootstrapFiles(handle: *anyopaque) Failure.Error![]const []const u8 {
     return files.items;
 }
 
-pub fn deleteBootstrapFile(handle: *anyopaque, path: []const u8) Failure.Error!void {
+pub fn deleteBootstrapFiles(handle: *anyopaque, paths: []const []const u8) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
-    remove(frame.io, frame.directory, path) catch |err| return frame.failure.save(err);
+    for (paths) |path| remove(frame.io, frame.directory, path) catch |err| return frame.failure.save(err);
 }
 
 pub fn commitBootstrapManifest(handle: *anyopaque) Failure.Error!void {

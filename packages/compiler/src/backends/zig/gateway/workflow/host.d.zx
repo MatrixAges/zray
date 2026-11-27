@@ -1,26 +1,9 @@
-export type GatewayBundle = mutable_opaque
-
-export declare function bindGatewayState(frame: GatewayBundle): void throws {
-    OutOfMemory,
-    MissingNominalOrigin,
-    InvalidNominalOrigin,
-    UnsupportedHostReference,
-    InvalidModule,
-    ConflictingStore,
-    MissingInitializer,
-    InvalidInitializer
+export enum Step {
+    BindState,
+    ReserveFiles,
+    AppendModules,
+    AppendFacades,
+    PublishContract,
+    PublishState,
+    PublishApplication
 }
-
-export declare function reserveGatewayFiles(frame: GatewayBundle, count: u64): void
-    throws { OutOfMemory }
-
-export declare function appendGatewayModules(frame: GatewayBundle): void
-
-export declare function appendGatewayFacade(frame: GatewayBundle, index: u64): void
-
-export declare function publishGatewayContract(frame: GatewayBundle): void throws { OutOfMemory }
-
-export declare function publishGatewayState(frame: GatewayBundle): void throws { OutOfMemory }
-
-export declare function publishGatewayApplication(frame: GatewayBundle): void
-    throws { OutOfMemory }

@@ -1,35 +1,32 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 
 import name from "../../../../verification/ports/name"
 
+import type { OutputPort } from "hardware_graph_host"
 import type { OutputWrite as Input } from "./model"
 
-export type Output = void
+export type Output = OutputPort?
 
 export default function (in: Input): Output {
-    const { build, leaf, node } = in
+    const { sort, leaf, node, index } = in
 
-    const sort = host.readHardwareSort(build, node)
     const width = integers.widenShort(sort.width)
-    const boolean = sort.boolean
 
-    if (width != leaf.width || boolean != leaf.boolean) {
-        host.rejectHardwareTerm()
+    if (width != leaf.width || sort.boolean != leaf.boolean) {
+        return null
     }
 
     const symbol = name({
-        index: in.index,
+        index,
         output: true
     })
 
-    host.writeHardwareOutput(
-        build,
+    return {
         symbol,
-        leaf.path,
+        path: leaf.path,
         node,
-        leaf.width,
-        leaf.boolean,
-        leaf.signed
-    )
+        width: leaf.width,
+        boolean: leaf.boolean,
+        signed: leaf.signed
+    }
 }
