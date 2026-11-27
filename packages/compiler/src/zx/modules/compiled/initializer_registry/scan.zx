@@ -84,7 +84,8 @@ export default function (in: Input): Output {
         },
         return: state => {
             status: state.status,
-            buckets: state.buckets
+            buckets: state.buckets,
+            count: state.count
         }
     })
 }

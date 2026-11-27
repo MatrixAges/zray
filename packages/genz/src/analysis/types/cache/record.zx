@@ -6,18 +6,19 @@ import type { Columns } from "./model"
 
 export type Input = {
     columns: Columns,
-    row: u32
+    row: u32,
+    dirty: u32
 }
 
-export type Output = void
+export type Output = u32
 
 export default function (in: Input): Output {
-    const { columns, row } = in
+    const { columns, row, dirty } = in
 
     const touched = columns.touched
 
     if (touched == null) {
-        return
+        return dirty
     }
 
     const index = integers.widen(row)
@@ -32,11 +33,10 @@ export default function (in: Input): Output {
     )
 
     if (registered) {
-        return
+        return dirty
     }
 
-    const count = memory.readU32(touched.count, 0)
+    memory.writeU32(touched, integers.widen(dirty), row)
 
-    memory.writeU32(touched.rows, integers.widen(count), row)
-    memory.writeU32(touched.count, 0, count + 1)
+    return dirty + 1
 }

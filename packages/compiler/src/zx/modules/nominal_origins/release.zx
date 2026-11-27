@@ -1,16 +1,13 @@
 import { releaseSlots } from "core/owned_text"
-import memory from "memory"
 
-import { completed_members, completed_owners, progress_slot } from "./const"
+import { completed_members, completed_owners } from "./const"
 
-import type { Input } from "./materialize"
+import type { Release as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { allocator, progress, owners_out, members_out } = in
-
-    const completed = memory.readU64(progress, progress_slot)
+    const { allocator, completed, owners_out, members_out } = in
 
     if (completed >= completed_owners) {
         releaseSlots({

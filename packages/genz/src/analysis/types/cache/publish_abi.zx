@@ -8,30 +8,37 @@ import type { Columns } from "./model"
 
 export type Input = {
     nodes: Nodes.Pick("ids", "values", "layouts"),
-    columns: Columns
+    columns: Columns,
+    dirty: u32
 }
 
-export type Output = void
+export type Output = u32
 
 export default function (in: Input): Output {
     const { nodes, columns } = in
 
     const first: u64 = 0
 
-    const written = loop(first, {
-        while: index => index < nodes.ids.length,
-        next: index => {
+    return loop({
+        index: first,
+        dirty: in.dirty
+    }, {
+        while: state => state.index < nodes.ids.length,
+        next: state => {
+            const index = state.index
             const row = nodes.ids[index]
             const position = integers.widen(row)
 
-            record({
+            state.dirty = record({
                 columns,
-                row
+                row,
+                dirty: state.dirty
             })
 
             memory.writeU32(columns.abi_types, position, nodes.values[index])
             memory.writeU32(columns.abi_layouts, position, nodes.layouts[index])
-            index += 1
-        }
+            state.index += 1
+        },
+        return: state => state.dirty
     })
 }

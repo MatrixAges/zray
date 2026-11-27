@@ -1,5 +1,6 @@
-import type { Columns, Touched } from "../model"
+import type { U32Buffer } from "memory"
+import type { Columns } from "../model"
 
 export type Tables = Columns.Omit("touched") & {
-    touched: Touched
+    touched: U32Buffer
 }

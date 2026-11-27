@@ -1,0 +1,17 @@
+import type { Bindings } from "core/type_table/nominal"
+import type { Allocator, StringBuffer } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    source: Bindings,
+    names: string[],
+    labels?: string[],
+    own_origins: bool,
+    owners_out: StringBuffer,
+    members_out: StringBuffer,
+    names_out: StringBuffer
+}
+
+export type Release = Input.Pick("allocator", "owners_out", "members_out") & {
+    completed: u64
+}

@@ -9,7 +9,7 @@
             fn="host.internUnificationType"
             in={[
                 $in.target,
-                $in.stack.operands[1]
+                $in.right
             ]}
         />
 
@@ -17,9 +17,9 @@
             fn="host.prepareUnificationFrame"
             in={[
                 $in.target,
-                $in.stack.operands[0],
+                $in.left,
                 $ctx.internUnificationType,
-                $in.depth + $in.stack.count[0],
+                $in.depth + $in.count,
                 false
             ]}
         />
@@ -30,9 +30,9 @@
             fn="host.prepareUnificationFrame"
             in={[
                 $in.target,
-                $in.stack.operands[0],
-                $in.stack.operands[1],
-                $in.depth + $in.stack.count[0],
+                $in.left,
+                $in.right,
+                $in.depth + $in.count,
                 true
             ]}
         />

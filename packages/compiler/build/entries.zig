@@ -191,7 +191,7 @@ pub const main = [_]Entry{
     constant_fold,
     .{ .path = "zx/analysis/constants/bindings.rx", .name = "constant_bindings" },
     .{ .path = "zx/analysis/semantic/origins.rx", .name = "origin_validation" },
-    .{ .path = "zx/modules/nominal_origins/materialize.zx", .name = "origin_materialization" },
+    .{ .path = "zx/modules/nominal_origins/materialize.rx", .name = "origin_materialization" },
     .{ .path = "zx/modules/nominal_origins/release.zx", .name = "origin_materialization_release" },
     .{ .path = "zx/analysis/semantic/produce.rx", .name = "origin_production" },
     .{ .path = "zx/analysis/semantic/merging/register.rx", .name = "type_merge" },

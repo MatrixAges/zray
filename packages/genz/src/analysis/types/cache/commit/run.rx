@@ -2,7 +2,7 @@
     <Type from="model" as="Commit" />
     <Type from="../../../node_headers/model" as="Headers" />
 
-    <Args in={Commit.Input} out={Headers.Check} />
+    <Args in={Commit.Input} out={Commit.Result} />
 
     <Call module="../../../node_headers/payload/validated" in={$in.ast} />
 
@@ -12,7 +12,15 @@
                 fn="../publish_abi"
                 in={{
                     nodes: $in.abi,
-                    columns: $in.columns
+                    columns: $in.columns,
+                    dirty: $in.dirty
+                }}
+            />
+
+            <Return
+                value={{
+                    check: $ctx.validated,
+                    dirty: $ctx.publish_abi
                 }}
             />
         </If>
@@ -22,11 +30,24 @@
                 fn="../publish_shared"
                 in={{
                     entries: $in.state,
-                    columns: $in.columns
+                    columns: $in.columns,
+                    dirty: $in.dirty
+                }}
+            />
+
+            <Return
+                value={{
+                    check: $ctx.validated,
+                    dirty: $ctx.publish_shared
                 }}
             />
         </If>
     </If>
 
-    <Return value={$ctx.validated} />
+    <Return
+        value={{
+            check: $ctx.validated,
+            dirty: $in.dirty
+        }}
+    />
 </Module>

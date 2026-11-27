@@ -51,9 +51,7 @@ pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
         self.items = next;
     }
 
-    var count_view = self.touchedCount();
-    var touched: Touched(Table) = undefined;
-    const tables = self.borrow(Table, &count_view, &touched);
+    const tables = self.borrow(Table);
 
     const input: BindInput = .{
         .items = @ptrCast(&self.items),
@@ -67,38 +65,39 @@ pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
     return self.columns;
 }
 
-fn Touched(comptime Table: type) type {
-    return std.meta.Child(@FieldType(Table, "touched"));
-}
-
-fn borrow(self: *Self, comptime Table: type, count: *[]u32, touched: *Touched(Table)) Table {
-    touched.* = .{ .rows = @ptrCast(&self.columns.touched), .count = @ptrCast(count) };
-
+fn borrow(self: *Self, comptime Table: type) Table {
     return .{
         .abi_types = @ptrCast(&self.columns.abi_types),
         .abi_layouts = @ptrCast(&self.columns.abi_layouts),
         .state_types = @ptrCast(&self.columns.state_types),
         .state_layouts = @ptrCast(&self.columns.state_layouts),
         .views = @ptrCast(&self.columns.views),
-        .touched = touched,
+        .touched = @ptrCast(&self.columns.touched),
     };
-}
-
-pub fn touchedCount(self: *Self) []u32 {
-    return @as(*[1]u32, @ptrCast(&self.dirty));
 }
 
 pub fn reset(self: *Self) void {
     if (!generated) return @import("scratch_seed.zig").reset(self);
+    if (self.dirty == 0) return;
 
     const entry = @import("generated_type_scratch_reset");
     const Input = std.meta.Child(entry.Input);
-    var count = self.touchedCount();
-    var touched: Touched(Input) = undefined;
-    const input = self.borrow(Input, &count, &touched);
+
+    const input: Input = .{
+        .abi_types = @ptrCast(&self.columns.abi_types),
+        .abi_layouts = @ptrCast(&self.columns.abi_layouts),
+        .state_types = @ptrCast(&self.columns.state_types),
+        .state_layouts = @ptrCast(&self.columns.state_layouts),
+        .views = @ptrCast(&self.columns.views),
+        .touched = @ptrCast(&self.columns.touched),
+        .dirty = self.dirty,
+    };
+
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     entry.executeIn(fixed.allocator(), &input) catch unreachable;
+
+    self.dirty = 0;
 }
 
 pub fn deinit(self: *Self) void {

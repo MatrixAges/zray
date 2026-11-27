@@ -10,7 +10,6 @@ state_types: []u32,
 state_layouts: []u32,
 views: []u32,
 rows: []u32,
-count: []u32,
 pub fn borrow(lower: *const Lower) Self {
     const scratch = lower.type_scratch;
 
@@ -21,26 +20,17 @@ pub fn borrow(lower: *const Lower) Self {
         .state_layouts = @ptrCast(lower.state_layouts),
         .views = @ptrCast(lower.view_types),
         .rows = if (scratch) |storage| storage.columns.touched else &.{},
-        .count = if (scratch) |storage| storage.touchedCount() else &.{},
     };
 }
 
-pub fn Touched(comptime Columns: type) type {
-    return std.meta.Child(@typeInfo(@FieldType(Columns, "touched")).optional.child);
-}
-
-pub fn touch(self: *Self, comptime T: type) T {
-    return .{ .rows = @ptrCast(&self.rows), .count = @ptrCast(&self.count) };
-}
-
-pub fn columns(self: *Self, comptime T: type, tracked: *Touched(T)) T {
+pub fn columns(self: *Self, comptime T: type) T {
     return .{
         .abi_types = @ptrCast(&self.abi_types),
         .abi_layouts = @ptrCast(&self.abi_layouts),
         .state_types = @ptrCast(&self.state_types),
         .state_layouts = @ptrCast(&self.state_layouts),
         .views = @ptrCast(&self.views),
-        .touched = if (self.count.len == 0) null else tracked,
+        .touched = if (self.rows.len == 0) null else @ptrCast(&self.rows),
     };
 }
 
@@ -58,8 +48,7 @@ pub fn publish(lower: *Lower, comptime Output: type, output: anytype, comptime b
     var binding: payloads.Binding(@TypeOf(target), Expressions, .dense) = .{};
     const ast = binding.bind(Bound, &lower.allocator, target, &expressions, true, borrow_text);
     var cache = borrow(lower);
-    var touched = cache.touch(Touched(Columns));
-    const rows = cache.columns(Columns, &touched);
+    const rows = cache.columns(Columns);
     const state = @hasField(Output, "entries");
 
     const input: Input = .{
@@ -67,10 +56,21 @@ pub fn publish(lower: *Lower, comptime Output: type, output: anytype, comptime b
         .columns = &rows,
         .abi = if (state) null else &.{ .ids = output.ids, .values = output.values, .layouts = output.layouts },
         .state = if (state) output.entries else null,
+        .dirty = if (lower.type_scratch) |storage| storage.dirty else 0,
     };
 
-    payloads.invoke(entry.executeValue, &input) catch |err| switch (err) {
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| switch (payloads.failure(err)) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidAst => unreachable,
     };
+
+    switch (result.check) {
+        .Valid => {},
+        .Invalid => unreachable,
+        .Exhausted => return error.OutOfMemory,
+    }
+
+    if (lower.type_scratch) |storage| storage.dirty = result.dirty;
 }

@@ -4,6 +4,14 @@ const data = @import("nominal_data");
 const generated = @import("generated_origin_materialization");
 const release = @import("generated_origin_materialization_release");
 const Input = std.meta.Child(generated.Input);
+const StoreState = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 /// A null labels slice preserves and owns the original names for library admission.
 pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.Table, labels: ?[]const []const u8, own_origins: bool) std.mem.Allocator.Error!void {
@@ -24,8 +32,9 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
     var members = target.members.unusedCapacitySlice()[0..source.members.len];
     var names = target.names.unusedCapacitySlice()[0..name_count];
     const origins = data.Table.borrow(std.meta.Child(@FieldType(Input, "source")), source);
-    var completed: [1]u64 = .{0};
-    var progress: []u64 = &completed;
+    var state_value: std.meta.Child(StoreState) = .{ .completed = 0 };
+    var state_ptr: StoreState = &state_value;
+    var host: StoreHost = .{ .store_0 = &state_ptr };
 
     const input: Input = .{
         .allocator = @ptrCast(&allocator),
@@ -36,16 +45,25 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
         .owners_out = @ptrCast(&owners),
         .members_out = @ptrCast(&members),
         .names_out = @ptrCast(&names),
-        .progress = @ptrCast(&progress),
     };
 
     errdefer {
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        release.executeIn(scratch.allocator(), &input) catch unreachable;
+        const release_input: std.meta.Child(release.Input) = .{
+            .allocator = @ptrCast(&allocator),
+            .owners_out = @ptrCast(&owners),
+            .members_out = @ptrCast(&members),
+            .completed = state_ptr.completed,
+        };
+
+        release.executeIn(empty.allocator(), &release_input) catch unreachable;
     }
 
-    zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    var scratch_buf: [256]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&scratch_buf);
+
+    generated.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

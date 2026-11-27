@@ -74,8 +74,6 @@ const Walk = struct {
     frames: std.mem.Allocator,
     fields: std.mem.Allocator,
     stack: std.ArrayList(Stored) = .empty,
-    count: [1]u64 = .{0},
-    operands: [2]u32 = undefined,
     view: Stack = undefined,
     row: Row = undefined,
     position: []u64 = undefined,
@@ -140,20 +138,13 @@ pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!v
     defer state.stack.deinit(state.frames);
     defer while (state.stack.pop()) |frame| state.fields.free(frame.fields.positions);
 
-    var count: []u64 = &state.count;
-    var operands: []u32 = &state.operands;
-
     state.known = target.graph.pending.known_types.borrow(Known);
 
     state.view = .{
         .frame = &state.row,
         .position = @ptrCast(&state.position),
-        .count = count,
-        .count_slot = @ptrCast(&count),
         .parents = @ptrCast(&target.parents),
         .known = &state.known,
-        .operands = operands,
-        .pair_slot = @ptrCast(&operands),
     };
 
     target.walk = &state;

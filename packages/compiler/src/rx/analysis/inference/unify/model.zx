@@ -44,18 +44,22 @@ export type Merge = {
 export type Stack = {
     frame: Row,
     position: U64Buffer,
-    count: u64[],
-    count_slot: U64Buffer,
     parents: U32Buffer,
-    known: KnownTypes,
-    operands: u32[],
-    pair_slot: U32Buffer
+    known: KnownTypes
 }
 
 export type Request = Merge & {
     stack: Stack
 }
 
-export type Child = Request & {
-    step: Step
+export type Cursor = Request & {
+    count: u64
 }
+
+export type Scan = {
+    step: Step,
+    left: u32,
+    right: u32
+}
+
+export type Child = Cursor & Scan

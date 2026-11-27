@@ -106,10 +106,10 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
     const source_columns = readRows(values);
     const source = source_columns.bind(std.meta.Child(@FieldType(Input, "source")));
     var writer: Writer(std.meta.Child(@FieldType(Input, "registry"))) = undefined;
+    var committed_count = self.rows.items.len;
 
     writer.init(self, own);
-
-    defer writer.finish(self);
+    defer writer.finish(self, committed_count);
 
     const FunctionView = @import("../../ir/compare/linked/host.zig").View(std.meta.Child(@FieldType(Input, "functions")));
     var function_view: FunctionView = undefined;
@@ -129,6 +129,8 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
         else => return error.InvalidModule,
     };
 
+    committed_count = @intCast(result.count);
+
     if (result.buckets) |updated| try self.adoptBuckets(updated);
 
     switch (result.status) {
@@ -147,8 +149,6 @@ pub fn Writer(comptime Storage: type) type {
         reads: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn,
         growth: memory.RowGrowth,
         published: Published,
-        progress: [1]u64,
-        progress_view: []u64,
         input: Storage,
         pub fn init(self: *@This(), registry: *Self, own: bool) void {
             self.target.init();
@@ -164,9 +164,6 @@ pub fn Writer(comptime Storage: type) type {
                 @field(self.published, name) = @ptrCast(&self.reads[index]);
             }
 
-            self.progress = .{registry.rows.items.len};
-            self.progress_view = &self.progress;
-
             self.input = .{
                 .published = &self.published,
                 .target = &self.target.view,
@@ -176,13 +173,12 @@ pub fn Writer(comptime Storage: type) type {
                 .count = registry.rows.items.len,
                 .space = registry.rows.capacity,
                 .own = own,
-                .progress = @ptrCast(&self.progress_view),
             };
         }
-        pub fn finish(self: *const @This(), registry: *Self) void {
+        pub fn finish(self: *const @This(), registry: *Self, count: usize) void {
             const rows = self.target.rows();
 
-            registry.rows.items = rows[0..@intCast(self.progress[0])];
+            registry.rows.items = rows[0..count];
             registry.rows.capacity = rows.len;
         }
     };

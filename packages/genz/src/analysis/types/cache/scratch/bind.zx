@@ -36,5 +36,5 @@ export default function (in: Input): Output {
     )
 
     memory.bindU32Range(items, tables.views, views_column * stride, count)
-    memory.bindU32Range(items, tables.touched.rows, touched_column * stride, count)
+    memory.bindU32Range(items, tables.touched, touched_column * stride, count)
 }

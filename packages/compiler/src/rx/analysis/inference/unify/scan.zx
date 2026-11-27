@@ -3,10 +3,7 @@ import memory from "memory"
 import { Step } from "../unification/application/model"
 import scan from "../unification/application/scan"
 
-import type { Step as Output } from "../unification/application/model"
-import type { Request } from "./model"
-
-export type Input = Request
+import type { Cursor as Input, Scan as Output } from "./model"
 
 export default function (in: Input): Output {
     const stack = in.stack
@@ -25,14 +22,16 @@ export default function (in: Input): Output {
         },
         known: stack.known,
         parents: stack.parents,
-        depth: in.depth + stack.count[0]
+        depth: in.depth + in.count
     })
 
     if (pair.step == Step.Merge || pair.step == Step.MergeKnown) {
         memory.writeU64(stack.position, 0, pair.position)
-        memory.writeU32(stack.pair_slot, 0, pair.left)
-        memory.writeU32(stack.pair_slot, 1, pair.right)
     }
 
-    return pair.step
+    return {
+        step: pair.step,
+        left: pair.left,
+        right: pair.right
+    }
 }

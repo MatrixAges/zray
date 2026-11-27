@@ -3,30 +3,26 @@
     <Type from="../unification/application/model" as="Application" />
     <Type from="../unification/model" as="Admission" />
 
-    <Args in={Walk.Request} out={Walk.Request} />
+    <Args in={Walk.Cursor} out={Walk.Cursor} />
 
     <Call fn="scan" in={$in} />
 
-    <If on={$ctx.scan == Application.Step.Publish}>
-        <Call module="publish" in={$in} />
+    <If on={$ctx.scan.step == Application.Step.Publish}>
+        <Call module="publish" in={$in.omit(["count"])} />
 
-        <Call
-            fn="host.writeU64"
-            in={[
-                $in.stack.count_slot,
-                0,
-                $in.stack.count[0] - 1
-            ]}
+        <Return
+            value={{
+                ...$in,
+                count: $in.count - 1
+            }}
         />
-
-        <Return value={$in} />
     </If>
 
     <Call
         fn="reject_child"
         in={{
             target: $in.target,
-            step: $ctx.scan
+            step: $ctx.scan.step
         }}
     />
 
@@ -34,7 +30,7 @@
         module="child"
         in={{
             ...$in,
-            step: $ctx.scan
+            ...$ctx.scan
         }}
     />
 
@@ -63,16 +59,18 @@
         <Return value={$in} />
     </If>
 
-    <Call module="push" in={$in.omit(["stack"])} />
-
     <Call
-        fn="host.writeU64"
-        in={[
-            $in.stack.count_slot,
-            0,
-            $in.stack.count[0] + 1
-        ]}
+        module="push"
+        in={$in.omit([
+            "stack",
+            "count"
+        ])}
     />
 
-    <Return value={$in} />
+    <Return
+        value={{
+            ...$in,
+            count: $in.count + 1
+        }}
+    />
 </Module>

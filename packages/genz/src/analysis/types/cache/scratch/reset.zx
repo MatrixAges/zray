@@ -4,20 +4,20 @@ import memory from "memory"
 
 import type { Tables } from "./model"
 
-export type Input = Tables
+export type Input = Tables & {
+    dirty: u32
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { count } = in.touched
-
-    const length = integers.widen(memory.readU32(count, 0))
+    const length = integers.widen(in.dirty)
 
     if (length == 0) {
         return
     }
 
-    const rows = memory.u32Views(in.touched.rows)
+    const rows = memory.u32Views(in.touched)
     const first: u64 = 0
 
     const reset = loop(first, {
@@ -32,6 +32,4 @@ export default function (in: Input): Output {
             index += 1
         }
     })
-
-    memory.writeU32(count, 0, 0)
 }

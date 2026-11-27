@@ -5,16 +5,13 @@
 
     <Call module="push" in={$in.omit(["stack"])} />
 
-    <Call
-        fn="host.writeU64"
-        in={[
-            $in.stack.count_slot,
-            0,
-            1
-        ]}
-    />
-
-    <Loop on={$in.stack.count[0] != 0}>
-        <Call module="advance" in={$in} />
+    <Loop on={$in.count != 0}>
+        <Call
+            module="advance"
+            in={{
+                ...$in,
+                count: 1
+            }}
+        />
     </Loop>
 </Module>

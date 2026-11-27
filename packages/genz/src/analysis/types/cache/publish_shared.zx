@@ -9,26 +9,31 @@ import type { Columns } from "./model"
 
 export type Input = {
     entries: Entry[],
-    columns: Columns
+    columns: Columns,
+    dirty: u32
 }
 
-export type Output = void
+export type Output = u32
 
 export default function (in: Input): Output {
     const { entries, columns } = in
 
     const first: u64 = 0
 
-    const written = loop(first, {
-        while: index => index < entries.length,
-        next: index => {
-            const entry = entries[index]
+    return loop({
+        index: first,
+        dirty: in.dirty
+    }, {
+        while: state => state.index < entries.length,
+        next: state => {
+            const entry = entries[state.index]
             const row = entry.request.id
             const position = integers.widen(row)
 
-            record({
+            state.dirty = record({
                 columns,
-                row
+                row,
+                dirty: state.dirty
             })
 
             if (entry.request.mode == Mode.Abi) {
@@ -41,7 +46,8 @@ export default function (in: Input): Output {
                 memory.writeU32(columns.views, position, entry.value)
             }
 
-            index += 1
-        }
+            state.index += 1
+        },
+        return: state => state.dirty
     })
 }

@@ -1,0 +1,62 @@
+<Module>
+    <Type from="model" as="Origin" />
+
+    <Args in={Origin.Input} out={void} />
+
+    <Store from="progress" as="progress" />
+
+    <If on={$in.own_origins}>
+        <Call
+            fn="../../../core/owned_text/into"
+            in={{
+                allocator: $in.allocator,
+                target: $in.owners_out,
+                source: $in.source.owners
+            }}
+        />
+
+        <Call
+            fn="set_completed"
+            in={1}
+            setter={[$store.progress.state]}
+        />
+
+        <Call
+            fn="../../../core/owned_text/into"
+            in={{
+                allocator: $in.allocator,
+                target: $in.members_out,
+                source: $in.source.members
+            }}
+        />
+
+        <Call
+            fn="set_completed"
+            in={2}
+            setter={[$store.progress.state]}
+        />
+    </If>
+
+    <If on={$in.labels == null}>
+        <Call
+            fn="../../../core/owned_text/into"
+            in={{
+                allocator: $in.allocator,
+                target: $in.names_out,
+                source: $in.names
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="bind_names"
+                in={{
+                    origin_ids: $in.source.ids,
+                    base_labels: $in.labels,
+                    delta_labels: [],
+                    origin_names_out: $in.names_out
+                }}
+            />
+        </Else>
+    </If>
+</Module>

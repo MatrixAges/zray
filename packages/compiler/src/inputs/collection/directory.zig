@@ -1,7 +1,6 @@
 const std = @import("std");
 const inputs = @import("../collection.zig");
 const zx = @import("zx");
-const memory = zx.memory;
 const generated = @import("parser_options").generated_parser;
 
 pub const File = struct {
@@ -32,32 +31,22 @@ pub fn file(allocator: std.mem.Allocator, base: []const u8, name: []const u8, pr
     }
 
     const rule = @import("generated_input_directory_file");
-    var storage: [1]File = undefined;
-    const output: []File = &storage;
-    const Input = std.meta.Child(rule.Input);
-
-    var columns = memory.borrowWriteFields(.{
-        .paths = "path",
-        .relatives = "relative",
-        .lookup = "lookup",
-        .retain = "retain",
-    }, output);
 
     const request: std.meta.Child(rule.Input) = .{
         .prefix = base,
         .name = name,
-        .prefix_length = prefix_length,
         .lookup_limit = lookup_limit,
-        .output = &columns.bind(std.meta.Child(@FieldType(Input, "output"))),
     };
 
-    const selected = try zx.columns.invoke(rule.executeValue, allocator, &request);
+    const selected = (try zx.columns.invoke(rule.executeValue, allocator, &request)) orelse return null;
 
-    if (selected == .Ignored) return null;
-
-    storage[0].kind = @fromBackingInt(@intCast(@backingInt(selected)));
-
-    return storage[0];
+    return .{
+        .kind = @fromBackingInt(@intCast(@backingInt(selected.kind))),
+        .path = selected.path,
+        .relative = selected.path[prefix_length..],
+        .lookup = selected.lookup,
+        .retain = selected.retain,
+    };
 }
 
 pub fn seedSchedule(allocator: std.mem.Allocator, parents: []const []const u8, listings: anytype) !Schedule {

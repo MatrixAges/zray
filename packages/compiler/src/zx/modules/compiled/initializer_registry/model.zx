@@ -1,4 +1,4 @@
-import type { U32Buffer, U64Buffer } from "memory"
+import type { U32Buffer } from "memory"
 import type { RowGrowth } from "memory/columns"
 import type { Functions } from "../../../ir/compare/linked/model"
 import type { Source, Target } from "../../link/source/initializers/model"
@@ -32,8 +32,7 @@ export type Storage = {
     capacity: u64,
     own: bool,
     count: u64,
-    space: u64,
-    progress: U64Buffer
+    space: u64
 }
 
 export type Input = {
@@ -53,7 +52,8 @@ export type Selection = {
 
 export type Output = {
     status: Status,
-    buckets?: u32[]
+    buckets?: u32[],
+    count: u64
 }
 
 export type Cursor = {
