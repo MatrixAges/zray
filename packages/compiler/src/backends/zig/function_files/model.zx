@@ -1,23 +1,29 @@
-import type { Table } from "core/bytes/index/fixed"
 import type { Destination, Functions } from "genz/reference_model"
-import type { ReadColumn, TextColumn, U64Buffer, WriteColumn } from "memory"
-import type { RowBuffer, WriteColumn as ListColumn } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 
-export type Input = Table & {
+export type File = {
+    name: string,
+    source: string,
+    imports: string[]
+}
+
+export type FileList = File[]
+
+export type Input = {
+    keys: string[],
     ids: ReadColumn,
-    sources: u8[][],
-    selected: U64Buffer
+    sources: string[],
+    capacity: u64
 }
 
 export type Output = {
     valid: bool,
-    count: u64
+    selected: u64[]
 }
 
-export type Target = {
-    name: WriteColumn,
-    source: WriteColumn,
-    imports: ListColumn
+export type Result = {
+    valid: bool,
+    files: File[]
 }
 
 export type Initializers = {
@@ -34,19 +40,18 @@ export type Assembly = {
     names: string[],
     native_ids: u32?[],
     native_names: string[],
-    destination: Destination,
-    storage: RowBuffer,
-    target: Target
+    destination: Destination
 }
 
 export type Publication = Assembly & {
-    count: u64
+    selected: u64[]
 }
 
 export type Traversal = {
     source: Publication,
     row: u64,
-    running: bool
+    running: bool,
+    files: File[]
 }
 
 export type Selected = {
@@ -58,7 +63,7 @@ export type Selected = {
 export type Write = {
     source: Publication,
     selected: Selected,
-    row: u64,
+    files: File[],
     dependencies: string[]
 }
 

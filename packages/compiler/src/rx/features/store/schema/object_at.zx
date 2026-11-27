@@ -17,7 +17,7 @@ export default function (in: Input): Output {
 
     if (layout == null) {
         return {
-            head: memory.readU64(fragments.request.positions, row),
+            head: fragments.grouped.positions[row],
             rows: []
         }
     }

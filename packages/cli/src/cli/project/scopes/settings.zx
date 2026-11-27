@@ -1,25 +1,27 @@
-import bytes from "std:bytes"
 import memory from "memory"
-import columns from "memory/columns"
 
-import type { Settings as Input } from "./model"
+import type { PublishedSetting, Settings as Input } from "./model"
 
-export type Output = void
+export type Output = PublishedSetting[]
 
 export default function (in: Input): Output {
-    const { output } = in
+    const empty: PublishedSetting[] = []
 
-    const root = bytes.fromText(in.root)
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const name = memory.readTextColumn(in.names, state.row)
 
-    const end = loop(0, {
-        while: row => row < in.count,
-        next: row => {
-            const name = memory.readTextColumn(in.names, row)
-
-            memory.writeColumnBytes(output.names, row, bytes.fromText(name))
-            memory.writeColumnBytes(output.roots, row, root)
-            columns.writeColumnTextList(output.includes, row, in.includes)
-            row += 1
-        }
+            state.items = state.items.push({
+                name,
+                root: in.root,
+                includes: in.includes
+            })[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

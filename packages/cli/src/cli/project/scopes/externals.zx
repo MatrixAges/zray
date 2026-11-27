@@ -1,27 +1,24 @@
-import bytes from "std:bytes"
 import memory from "memory"
-import columns from "memory/columns"
 
-import type { Externals as Input } from "./model"
+import type { ExternalRows as Input } from "./model"
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { rows, output } = in
+    const empty: string[] = []
 
-    const end = loop(0, {
-        while: row => row < rows.count,
-        next: row => {
-            const identity = memory.readOptionalTextColumn(rows.identities, row)
-            const specifier = identity ?? memory.readTextColumn(rows.names, row)
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const identity = memory.readOptionalTextColumn(in.identities, state.row)
+            const specifier = identity ?? memory.readTextColumn(in.names, state.row)
 
-            memory.writeColumnBytes(
-                output.specifiers,
-                row,
-                bytes.fromText(specifier)
-            )
-            columns.writeColumnOptionalText(output.identities, row, null)
-            row += 1
-        }
+            state.items = state.items.push(specifier)[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

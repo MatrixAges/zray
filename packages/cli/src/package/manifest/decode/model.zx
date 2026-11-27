@@ -1,109 +1,74 @@
-import type { RowBuffer, WriteColumn } from "memory/columns"
 import type { Input as Value } from "./value"
 
-export type ExportColumns = {
-    path: WriteColumn,
-    source: WriteColumn,
-    module: WriteColumn
+export type Export = {
+    path: string,
+    source: string,
+    module?: string
 }
 
-export type DependencyColumns = {
-    name: WriteColumn,
-    requirement: WriteColumn
+export type Dependency = {
+    name: string,
+    requirement: string
 }
 
-export type InterfaceColumns = {
-    specifier: WriteColumn,
-    path: WriteColumn,
-    module: WriteColumn,
-    namespace: WriteColumn
+export type NativeInterface = {
+    specifier: string,
+    path: string,
+    module: string,
+    namespace: string[]
 }
 
-export type ModuleColumns = {
-    name: WriteColumn,
-    path: WriteColumn,
-    header: WriteColumn,
-    dependencies: WriteColumn,
-    bundle_files: WriteColumn,
-    include_paths: WriteColumn,
-    abi_aliases: WriteColumn
+export type AbiAlias = {
+    name: string,
+    specifier: string
 }
 
-export type ExternalColumns = {
-    identity: WriteColumn,
-    specifier: WriteColumn,
-    signature: WriteColumn,
-    export_name: WriteColumn,
-    module: WriteColumn,
-    member: WriteColumn,
-    allocator_argument: WriteColumn,
-    io_argument: WriteColumn,
-    process_argument: WriteColumn,
-    expand_tuple: WriteColumn,
-    errors: WriteColumn,
-    fallible: WriteColumn,
-    concurrent: WriteColumn
+export type NativeModule = {
+    name: string,
+    path?: string,
+    header?: string,
+    dependencies: string[],
+    bundle_files: string[],
+    include_paths?: string[],
+    abi_aliases?: AbiAlias[]
 }
 
-export type AliasColumns = {
-    name: WriteColumn,
-    specifier: WriteColumn
+export type ExternalImplementation = {
+    module: string,
+    member: string,
+    allocator_argument: bool,
+    io_argument: bool,
+    process_argument: bool,
+    expand_tuple: bool,
+    errors?: string[],
+    fallible: bool,
+    concurrent: bool
 }
 
-export type ExportOutput = {
-    buffer: RowBuffer,
-    columns: ExportColumns
+export type External = {
+    specifier: string,
+    signature: string,
+    export_name?: string,
+    implementation: ExternalImplementation
 }
 
-export type DependencyOutput = {
-    buffer: RowBuffer,
-    columns: DependencyColumns
-}
-
-export type InterfaceOutput = {
-    buffer: RowBuffer,
-    columns: InterfaceColumns
-}
-
-export type ModuleOutput = {
-    buffer: RowBuffer,
-    columns: ModuleColumns
-}
-
-export type ExternalOutput = {
-    buffer: RowBuffer,
-    columns: ExternalColumns
-}
-
-export type AliasOutput = {
-    buffer: RowBuffer,
-    columns: AliasColumns
-}
-
-export type Tables = {
-    exports: ExportOutput,
-    dependencies: DependencyOutput,
-    dev_dependencies: DependencyOutput,
-    interfaces: InterfaceOutput,
-    modules: ModuleOutput,
-    externals: ExternalOutput,
-    aliases: AliasOutput
-}
-
-export type Input = Value & {
-    tables: Tables
-}
+export type Input = Value
 
 export type Values = {
     name: string,
     version: string,
     entry?: string,
     library?: string,
+    exports: Export[],
     private: bool,
+    dependencies: Dependency[],
+    dev_dependencies: Dependency[],
     workspace?: string[],
+    native_interfaces: NativeInterface[],
+    externals: External[],
+    native_modules: NativeModule[],
     libraries: string[],
     include_paths: string[],
     library_paths: string[],
-    exports: u64,
     compiled_exports: u64
 }

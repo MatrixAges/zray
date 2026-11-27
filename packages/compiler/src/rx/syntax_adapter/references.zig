@@ -229,22 +229,31 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
     const PublishParameter = @typeInfo(@TypeOf(publish)).@"fn".param_types[1].?;
     const Publication = if (@typeInfo(PublishParameter) == .pointer) std.meta.Child(PublishParameter) else PublishParameter;
     const zx = @import("zx");
-    var output: zx.memory.RowOutput(Entry, std.meta.Child(@FieldType(Publication, "destination")), .{}) = undefined;
-
-    output.init();
-    output.bind(entries);
 
     const publication: Publication = .{
         .rows = result.references,
         .slots = slots,
-        .nodes = &.{ .bytes = std.mem.sliceAsBytes(nodes), .width = @sizeOf(ast.Node) },
-        .attributes = &.{ .bytes = std.mem.sliceAsBytes(attributes), .width = @sizeOf(ast.Attribute) },
-        .destination = &output.view,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(temporary);
 
-    zx.columns.invoke(publish, empty.allocator(), &publication) catch unreachable;
+    defer arena.deinit();
+
+    const published = zx.columns.invoke(publish, arena.allocator(), &publication) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    for (published, 0..) |item, i| {
+        entries[i] = .{
+            .node = &nodes[@intCast(item.node_slot)],
+            .attribute = if (item.attribute) |attr| &attributes[@intCast(attr)] else null,
+            .target = @fromBackingInt(@intCast(item.target)),
+            .role = @fromBackingInt(@intCast(item.role)),
+            .package_allowed = item.package_allowed,
+            .graph = item.graph,
+        };
+    }
 
     const index = try allocator.create(Storage);
 

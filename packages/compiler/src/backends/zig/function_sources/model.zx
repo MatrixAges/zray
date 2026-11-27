@@ -1,4 +1,4 @@
-import type { ReadColumn, StringBuffer, U8Buffer, U64Buffer } from "memory"
+import type { ReadColumn } from "memory"
 
 export type Disk = {
     kinds: ReadColumn,
@@ -8,24 +8,20 @@ export type Disk = {
     writer_active: bool
 }
 
-export type Lookup = {
-    disk?: Disk,
-    reused: U64Buffer,
-    pending: U64Buffer
-}
-
 export type Input = {
     count: u64,
     sources: ReadColumn,
-    offsets: U64Buffer,
-    lookup?: Lookup
+    collect_lookup: bool,
+    disk?: Disk
 }
 
 export type Output = {
-    reused: u64,
-    pending: u64,
+    reused: u64[],
+    pending: u64[],
+    pending_count: u64,
+    offsets: u64[],
+    stored: u64[],
     size: u64,
-    stored: u64,
     held: u64,
     discarded: u64,
     failures: u64,
@@ -33,14 +29,22 @@ export type Output = {
     ordered: bool
 }
 
+export type CopyEntry = {
+    position: u64,
+    offset: u64,
+    source: string
+}
+
 export type Copy = {
     items: ReadColumn,
     contiguous: bool,
     positions?: u64[],
     offsets: u64[],
-    data: string,
-    buffer: U8Buffer,
-    target: StringBuffer,
     first: u64,
     end: u64
+}
+
+export type CopyOutput = {
+    valid: bool,
+    entries: CopyEntry[]
 }

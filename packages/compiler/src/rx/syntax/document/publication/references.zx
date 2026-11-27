@@ -1,5 +1,3 @@
-import memory from "memory/columns"
-
 import { Role, Target } from "../../../dependency_graph/reference/model"
 import {
     role_call,
@@ -10,36 +8,36 @@ import {
     target_store
 } from "./const"
 
-import type { WriteColumn } from "memory/columns"
 import type { Reference } from "../../../dependency_graph/reference/model"
-import type { Rows } from "./model"
 
-export type Destination = {
-    node: WriteColumn,
-    attribute: WriteColumn,
-    target: WriteColumn,
-    role: WriteColumn,
-    package_allowed: WriteColumn,
-    graph: WriteColumn
+export type PublishedReference = {
+    node_slot: u64,
+    attribute?: u64,
+    target: u8,
+    role: u8,
+    package_allowed: bool,
+    graph: bool
 }
 
 export type Input = {
     rows: Reference[],
-    slots: u64[],
-    nodes: Rows,
-    attributes: Rows,
-    destination: Destination
+    slots: u64[]
 }
 
-export type Output = void
+export type Output = PublishedReference[]
 
 export default function (in: Input): Output {
-    const { rows, nodes, attributes, slots, destination } = in
+    const { rows, slots } = in
 
-    const published = loop(0, {
-        while: row => row < rows.length,
-        next: row => {
-            const item = rows[row]
+    const empty: PublishedReference[] = []
+
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < rows.length,
+        next: state => {
+            const item = rows[state.row]
             const target = match item.target {
                 Target.Function => target_function,
                 Target.Store => target_store,
@@ -51,29 +49,16 @@ export default function (in: Input): Output {
                 _ => role_dependency
             }
 
-            memory.writeColumnRowReference(
-                destination.node,
-                row,
-                nodes.bytes,
-                nodes.width,
-                slots[item.node]
-            )
-            memory.writeColumnRowReference(
-                destination.attribute,
-                row,
-                attributes.bytes,
-                attributes.width,
-                item.attribute
-            )
-            memory.writeColumnU8(destination.target, row, target)
-            memory.writeColumnU8(destination.role, row, role)
-            memory.writeColumnBool(
-                destination.package_allowed,
-                row,
-                item.package_allowed
-            )
-            memory.writeColumnBool(destination.graph, row, item.graph)
-            row += 1
-        }
+            state.items = state.items.push({
+                node_slot: slots[item.node],
+                attribute: item.attribute,
+                target,
+                role,
+                package_allowed: item.package_allowed,
+                graph: item.graph
+            })[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { name_attribute } from "../../../schema/attribute/const"
 import claim from "../../../schema/keys/claim"
@@ -8,38 +7,34 @@ import attribute from "../../../schema/tree/attribute"
 import next from "../../../schema/tree/next"
 import fieldCount from "./field_count"
 
-import type { Fragments as Input } from "./model"
+import type { Cursor } from "../../../schema/tree/model"
+import type { Grouped as Output, Input as Request } from "./model"
 
-export type Output = u64
+export type Input = {
+    request: Request,
+    first: Cursor,
+    objects: u64
+}
 
 export default function (in: Input): Output {
     const { request, objects } = in
-    const { output, tree, workspace, rows, positions } = request
+    const { tree, workspace } = request
 
-    const temporary = workspace.allocator
-
-    memory.allocateU32Buffer(output.allocator, output.starts, objects)
-
-    memory.allocateOptionalU32WithAllocator(
-        output.allocator,
-        output.next,
-        objects,
-        true
-    )
-
-    memory.allocateU64Buffer(output.allocator, output.offsets, objects + 1)
-    memory.allocateU32Buffer(temporary, rows, objects)
-
-    if (tree.layout == null) {
-        memory.allocateU64Buffer(temporary, positions, objects)
-    }
+    const empty_u32: u32[] = []
+    const empty_next: u32?[] = []
+    const empty_u64: u64[] = []
 
     const grouped = loop({
         node: in.first,
         row: 0,
         field: 0,
         count: 0,
-        keys: emptyKeys()
+        keys: emptyKeys(),
+        starts: empty_u32,
+        next: empty_next,
+        tails: empty_u32,
+        offsets: empty_u64,
+        positions: empty_u64
     }, {
         while: state => state.row < objects,
         next: state => {
@@ -51,11 +46,16 @@ export default function (in: Input): Output {
             }
 
             if (tree.layout == null) {
-                memory.writeU64(positions, row, node.head)
+                state.positions = state.positions.push(node.head)[0]
             }
 
-            memory.writeU64(output.offsets, row, state.field)
+            state.offsets = state.offsets.push(state.field)[0]
             state.field += fieldCount(visit)
+
+            const position = integers.narrow(row)
+
+            state.next = state.next.push(null)[0]
+            state.tails = state.tails.push(position)[0]
 
             const name = attribute({
                 ...visit,
@@ -73,19 +73,17 @@ export default function (in: Input): Output {
                 })
 
                 const first = entered.previous
-                const position = integers.narrow(row)
 
                 state.keys = entered.seen
 
                 if (first == null) {
-                    memory.writeU32(output.starts, state.count, position)
-                    memory.writeU32(rows, row, position)
+                    state.starts = state.starts.push(position)[0]
                     state.count += 1
                 } else {
-                    const tail = integers.widen(memory.readU32(rows, first))
+                    const tail = integers.widen(state.tails[first])
 
-                    memory.writeOptionalU32(output.next, tail, position)
-                    memory.writeU32(rows, first, position)
+                    state.next = state.next.splice(tail, 1, [position])[0]
+                    state.tails = state.tails.splice(first, 1, [position])[0]
                 }
             }
 
@@ -94,8 +92,11 @@ export default function (in: Input): Output {
         }
     })
 
-    memory.writeU64(output.offsets, objects, grouped.field)
-    memory.releaseU32Buffer(temporary, rows)
-
-    return grouped.count
+    return {
+        count: grouped.count,
+        starts: grouped.starts,
+        next: grouped.next,
+        offsets: grouped.offsets.push(grouped.field)[0],
+        positions: grouped.positions
+    }
 }

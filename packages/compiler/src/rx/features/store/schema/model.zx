@@ -1,18 +1,5 @@
-import type {
-    Allocator,
-    OptionalU32Buffer,
-    U32Buffer,
-    U64Buffer
-} from "memory"
 import type { Workspace } from "../../../schema/keys/model"
 import type { Cursor, Input as Children } from "../../../schema/tree/model"
-
-export type Columns = {
-    allocator: Allocator,
-    starts: U32Buffer,
-    next: OptionalU32Buffer,
-    offsets: U64Buffer
-}
 
 export enum Issue {
     None,
@@ -23,10 +10,7 @@ export enum Issue {
 }
 
 export type Input = Children & {
-    workspace: Workspace,
-    rows: U32Buffer,
-    positions: U64Buffer,
-    output: Columns
+    workspace: Workspace
 }
 
 export type Declaration = {
@@ -37,18 +21,30 @@ export type Declaration = {
     objects: u64
 }
 
+export type Grouped = {
+    count: u64,
+    starts: u32[],
+    next: u32?[],
+    offsets: u64[],
+    positions: u64[]
+}
+
 export type Output = {
     issue: Issue,
     where?: Cursor,
     first: u64,
     groups: u64,
-    objects: u64
+    objects: u64,
+    starts: u32[],
+    next: u32?[],
+    offsets: u64[]
 }
 
 export type Fragments = {
     request: Input,
     first: Cursor,
-    objects: u64
+    objects: u64,
+    grouped: Grouped
 }
 
 export type Collision = {

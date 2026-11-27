@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { name_attribute } from "../../../schema/attribute/const"
 import claim from "../../../schema/keys/claim"
@@ -21,24 +20,24 @@ export type Output = Collision?
 
 export default function (in: Input): Output {
     const { fragments } = in
-    const { rows, output, workspace, tree } = fragments.request
+    const { workspace, tree } = fragments.request
 
-    const links = memory.optionalU32Views(output.next)
+    const links = fragments.grouped.next
 
     const count = size({
-        columns: output,
+        grouped: fragments.grouped,
         first: in.first
     })
-
-    memory.allocateU32Buffer(workspace.allocator, rows, count)
 
     const first: u32? = in.first
     const absent: u32? = null
     const missing: Output = null
+    const empty_owners: u32[] = []
 
     const found = loop({
         fragment: first,
         keys: emptyKeys(),
+        owners: empty_owners,
         field: 0,
         finding: missing
     }, {
@@ -59,6 +58,7 @@ export default function (in: Input): Output {
                         node: parent
                     }),
                     keys: state.keys,
+                    owners: state.owners,
                     field: state.field,
                     finding: missing,
                     earlier: absent
@@ -89,10 +89,8 @@ export default function (in: Input): Output {
                             part.keys = entered.seen
                             const previous = entered.previous
 
-                            if (previous == null) {
-                                memory.writeU32(rows, part.field, fragment)
-                            } else {
-                                const owner = memory.readU32(rows, previous)
+                            if (previous != null) {
+                                const owner = part.owners[previous]
                                 const earlier = part.earlier
 
                                 if (earlier == null || owner < earlier) {
@@ -105,12 +103,14 @@ export default function (in: Input): Output {
                             }
                         }
 
+                        part.owners = part.owners.push(fragment)[0]
                         part.field += 1
                         part.node = next(visit)
                     }
                 })
 
                 state.keys = scanned.keys
+                state.owners = scanned.owners
                 state.field = scanned.field
                 state.finding = scanned.finding
                 state.fragment = links[row]
@@ -118,8 +118,6 @@ export default function (in: Input): Output {
         },
         return: state => state.finding
     })
-
-    memory.releaseU32Buffer(workspace.allocator, rows)
 
     return found
 }

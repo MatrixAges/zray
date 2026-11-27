@@ -1,42 +1,89 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import probe from "core/bytes/index/slot"
 import memory from "memory"
 
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
+    const empty_buckets: u64[] = []
+
+    const buckets = loop(empty_buckets, {
+        while: items => items.length < in.capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
+    const mask = in.capacity == 0 ? 0 : in.capacity - 1
+    const empty_selected: u64[] = []
+
     return loop({
         valid: true,
-        count: 0,
+        selected: empty_selected,
+        buckets,
         index: 0
     }, {
         while: current => current.valid && current.index < in.sources.length,
         next: current => {
             const { index } = current
-            const id = memory.readColumnU32(in.ids, index)
-            const found = probe({
-                keys: in.keys,
-                buckets: memory.u64View(in.buckets, null),
-                capacity: in.capacity,
-                rows: in.ids,
-                key: in.keys[integers.widen(id)]
+            const id = integers.widen(memory.readColumnU32(in.ids, index))
+            const key = bytes.fromText(in.keys[id])
+            const found = loop({
+                slot: integers.andBits(bytes.hash(key), mask),
+                entry: 0,
+                done: false
+            }, {
+                while: state => !state.done,
+                next: state => {
+                    const entry = current.buckets[state.slot]
+
+                    if (entry == 0) {
+                        state.done = true
+                    } else {
+                        const existing =
+                            integers.widen(
+                                memory.readColumnU32(
+                                    in.ids,
+                                    entry - 1
+                                )
+                            )
+
+                        if (
+                            bytes.equals(
+                                bytes.fromText(
+                                    in.keys[existing]
+                                ),
+                                key
+                            )
+                        ) {
+                            state.entry = entry
+                            state.done = true
+                        } else {
+                            state.slot = integers.andBits(
+                                state.slot + 1,
+                                mask
+                            )
+                        }
+                    }
+                }
             })
 
             if (found.entry == 0) {
-                memory.writeU64(in.buckets, found.slot, index + 1)
-                memory.writeU64(in.selected, current.count, index)
-                current.count += 1
+                current.buckets =
+                    current.buckets.splice(found.slot, 1, [index + 1])[0]
+                current.selected = current.selected.push(index)[0]
             } else {
-                current.valid =
-                    bytes.equals(in.sources[found.entry - 1], in.sources[index])
+                current.valid = bytes.equals(
+                    bytes.fromText(in.sources[found.entry - 1]),
+                    bytes.fromText(in.sources[index])
+                )
             }
 
             current.index += 1
         },
-        return: current => {
-            valid: current.valid,
-            count: current.count
-        }
+        return: current => current.pick([
+            "valid",
+            "selected"
+        ])
     })
 }

@@ -1,21 +1,32 @@
-import slot from "core/bytes/index/borrowed/wide_slot"
+import bytes from "std:bytes"
+import integers from "std:integer"
 import memory from "memory"
 
 import { Status } from "./model"
 import moduleName from "./module_name"
 
-import type { Modules } from "./model"
+import type { Modules, Result as Output } from "./model"
 
 export type Input = Modules
-
-export type Output = Status
 
 export default function (in: Input): Output {
     const { index, count, paths, headers } = in
 
+    const empty: u64[] = []
+
+    const buckets = loop(empty, {
+        while: items => items.length < index.capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
+    const mask = index.capacity == 0 ? 0 : index.capacity - 1
+
     return loop({
         index: 0,
-        status: Status.Valid
+        status: Status.Valid,
+        buckets
     }, {
         while: current => current.index < count && current.status == Status.Valid,
         next: current => {
@@ -29,18 +40,45 @@ export default function (in: Input): Output {
             }
 
             if (current.status == Status.Valid) {
-                const previous = slot({
-                    ...index.omit(["buckets"]),
-                    buckets: memory.u64View(index.buckets, null),
-                    name
+                const key = bytes.fromText(name)
+                const probe = loop({
+                    slot: integers.andBits(bytes.hash(key), mask),
+                    entry: 0,
+                    done: false
+                }, {
+                    while: state => !state.done,
+                    next: state => {
+                        const row = current.buckets[state.slot]
+
+                        if (row == 0) {
+                            state.done = true
+                        } else {
+                            const candidate =
+                                memory.readTextColumn(index.names, row - 1)
+
+                            if (
+                                bytes.equals(
+                                    bytes.fromText(
+                                        candidate
+                                    ),
+                                    key
+                                )
+                            ) {
+                                state.entry = row
+                                state.done = true
+                            } else {
+                                state.slot = integers.andBits(
+                                    state.slot + 1,
+                                    mask
+                                )
+                            }
+                        }
+                    }
                 })
 
-                if (previous.entry == 0) {
-                    memory.writeU64(
-                        index.buckets,
-                        previous.slot,
-                        current.index + 1
-                    )
+                if (probe.entry == 0) {
+                    current.buckets =
+                        current.buckets.splice(probe.slot, 1, [current.index + 1])[0]
                 } else {
                     current.status = Status.DuplicateNativeModule
                 }
@@ -48,6 +86,9 @@ export default function (in: Input): Output {
 
             current.index += 1
         },
-        return: current => current.status
+        return: current => current.pick([
+            "status",
+            "buckets"
+        ])
     })
 }

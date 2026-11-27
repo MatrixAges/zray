@@ -22,16 +22,15 @@ pub fn restore(owned: std.mem.Allocator, fetched: []const Cache.Fetched, plan: P
 pub fn generated(owned: std.mem.Allocator, scratch: std.mem.Allocator, results: []const Result, positions: ?[]const u64, target: [][]const u8) std.mem.Allocator.Error!void {
     if (results.len == 0) return;
 
-    const offsets = try scratch.alloc(u64, results.len);
     const items = zx.memory.borrowReadColumn(?[]const u8, "source", results);
-    const size = try planning.layout(&items, offsets);
+    const laid_out = try planning.layout(scratch, &items, results.len);
 
     try publish(owned, .{
         .items = @ptrCast(&items),
         .contiguous = true,
         .positions = positions,
-        .offsets = offsets,
-    }, size, target);
+        .offsets = laid_out.offsets,
+    }, laid_out.size, target);
 }
 
 const Sources = struct {
@@ -44,8 +43,7 @@ const Sources = struct {
 fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target_arg: [][]const u8) std.mem.Allocator.Error!void {
     if (sources.offsets.len == 0) return;
 
-    var target = target_arg;
-    var data = try owned.alloc(u8, size);
+    const data = try owned.alloc(u8, size);
 
     errdefer owned.free(data);
 
@@ -55,12 +53,11 @@ fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target_arg: 
             .contiguous = sources.contiguous,
             .positions = sources.positions,
             .offsets = sources.offsets,
-            .data = data,
-            .target = @ptrCast(&target),
-            .buffer = @ptrCast(&data),
             .first = 0,
             .end = 0,
         },
+        .data = data,
+        .target = target_arg,
         .count = sources.offsets.len,
     };
 
@@ -75,29 +72,41 @@ fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target_arg: 
 
 const Workers = struct {
     input: Copy,
+    data: []u8,
+    target: [][]const u8,
     count: usize,
     next: std.atomic.Value(usize) = .init(0),
     error_code: std.atomic.Value(u32) = .init(0),
     fn run(self: *Workers, _: usize) void {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var scratch_bytes: [8192]u8 = undefined;
+        var fba = std.heap.FixedBufferAllocator.init(&scratch_bytes);
 
         while (self.error_code.load(.monotonic) == 0) {
             const first = self.next.fetchAdd(chunk_size, .monotonic);
 
             if (first >= self.count) return;
 
+            fba.reset();
+
             var input = self.input;
 
             input.first = first;
             input.end = first + @min(chunk_size, self.count - first);
 
-            const valid = copying.executeIn(empty.allocator(), &input) catch |err| {
+            const result = copying.executeValue(fba.allocator(), &input) catch |err| {
                 _ = self.error_code.cmpxchgStrong(0, @intFromError(failure(err)), .monotonic, .monotonic);
 
                 return;
             };
 
-            if (!valid) unreachable;
+            if (!result.valid) unreachable;
+
+            for (result.entries) |entry| {
+                const slice = self.data[@intCast(entry.offset)..][0..entry.source.len];
+
+                @memcpy(slice, entry.source);
+                self.target[@intCast(entry.position)] = slice;
+            }
         }
     }
 };

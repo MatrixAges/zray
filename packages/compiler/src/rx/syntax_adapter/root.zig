@@ -11,12 +11,6 @@ pub fn location(input: anytype) dsl.ast.Location {
     return .{ .offset = @intCast(input.offset), .line = @intCast(input.line), .column = @intCast(input.column) };
 }
 
-const coordinates = .{
-    .offset = &.{ "location", "offset" },
-    .line = &.{ "location", "line" },
-    .column = &.{ "location", "column" },
-};
-
 comptime {
     const Kind = @FieldType(ast.Attribute, "kind");
 
@@ -31,48 +25,63 @@ pub fn convert(comptime rules: anytype, allocator: std.mem.Allocator, temporary:
     const text = try allocator.alloc(ast.Text, tree.text.len);
     const Parameter = @typeInfo(@TypeOf(rules.publish)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const memory = zx.memory;
-    var node_output: memory.RowOutput(ast.Node, std.meta.Child(@FieldType(Input, "nodes")), coordinates) = undefined;
-    var text_output: memory.RowOutput(ast.Text, std.meta.Child(@FieldType(Input, "text")), coordinates) = undefined;
-
-    var attribute_output: memory.RowOutput(ast.Attribute, std.meta.Child(@FieldType(Input, "attributes")), .{
-        .offset = coordinates.offset,
-        .line = coordinates.line,
-        .column = coordinates.column,
-        .value_offset = &.{ "value_location", "offset" },
-        .value_line = &.{ "value_location", "line" },
-        .value_column = &.{ "value_location", "column" },
-    }) = undefined;
-
-    node_output.init();
-    text_output.init();
-    attribute_output.init();
-    node_output.bind(nodes);
-    text_output.bind(text);
-    attribute_output.bind(attributes);
-
     const indexed = @TypeOf(rules.scan) != @TypeOf(null);
 
     const publication: Input = .{
         .source = source,
         .decoded = decoded,
-        .tree = tree,
+        .tree = .{
+            .attributes = tree.attributes,
+            .nodes = tree.nodes,
+            .parts = tree.parts,
+            .text = tree.text,
+        },
         .root = input.control.result,
         .indexed = indexed,
-        .nodes = &node_output.view,
-        .attributes = &attribute_output.view,
-        .text = &text_output.view,
-        .storage = &.{
-            .nodes = &.{ .bytes = std.mem.sliceAsBytes(nodes), .width = @sizeOf(ast.Node) },
-            .attributes = &.{ .bytes = std.mem.sliceAsBytes(attributes), .width = @sizeOf(ast.Attribute) },
-            .text = &.{ .bytes = std.mem.sliceAsBytes(text), .width = @sizeOf(ast.Text) },
-        },
     };
 
-    const published = zx.columns.invoke(rules.publish, temporary, &publication) catch |err| switch (err) {
+    const published = (if (comptime @typeInfo(Parameter) == .pointer)
+        rules.publish(temporary, &publication)
+    else
+        rules.publish(temporary, publication)) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
+
+    for (published.attributes, 0..) |item, i| {
+        attributes[i] = .{
+            .kind = @fromBackingInt(@intCast(item.kind)),
+            .name = item.name,
+            .value = item.value,
+            .raw_value = item.raw_value,
+            .location = location(item.location),
+            .value_location = location(item.value_location),
+        };
+    }
+
+    for (published.text) |item| {
+        text[@intCast(item.slot)] = .{
+            .value = item.value,
+            .location = location(item.location),
+        };
+    }
+
+    for (published.nodes) |item| {
+        const attr_start: usize = @intCast(item.attribute_start);
+        const attr_count: usize = @intCast(item.attribute_count);
+        const child_start: usize = @intCast(item.child_start);
+        const child_count: usize = @intCast(item.child_count);
+        const text_start: usize = @intCast(item.text_start);
+        const text_count: usize = @intCast(item.text_count);
+
+        nodes[@intCast(item.slot)] = .{
+            .name = item.name,
+            .location = location(item.location),
+            .attributes = attributes[attr_start..][0..attr_count],
+            .children = nodes[child_start..][0..child_count],
+            .text = text[text_start..][0..text_count],
+        };
+    }
 
     return .{
         .node = nodes[0],

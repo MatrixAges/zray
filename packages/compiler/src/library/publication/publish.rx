@@ -2,30 +2,40 @@
     <Type from="model" as="Publication" />
     <Type from="../interface/model" as="Interface" />
 
-    <Args in={Publication.Input} out={Interface.Status} />
+    <Args in={Publication.Input} out={Publication.Output} />
 
     <Call module="../interface/complete" in={$in.types} />
 
     <If on={$ctx.complete != Interface.Status.Valid}>
-        <Return value={$ctx.complete} />
+        <Return
+            value={{
+                status: $ctx.complete,
+                name: "",
+                path: ""
+            }}
+        />
     </If>
 
     <Call module="../../zx/modules/artifact/surface/own_constants" in={$in.constants} />
     <Call module="../members/build" in={$in.members} />
 
     <If on={!$ctx.build}>
-        <Return value={Interface.Status.InvalidModule} />
+        <Return
+            value={{
+                status: Interface.Status.InvalidModule,
+                name: "",
+                path: ""
+            }}
+        />
     </If>
 
-    <Call
-        fn="row"
-        in={{
-            row: $in.row,
-            types: $in.types.target,
-            constants: $in.constants.storage,
-            members: $in.members.storage
+    <Call fn="row" in={$in.row} />
+
+    <Return
+        value={{
+            status: Interface.Status.Valid,
+            name: $ctx.row.name,
+            path: $ctx.row.path
         }}
     />
-
-    <Return value={Interface.Status.Valid} />
 </Module>

@@ -102,8 +102,6 @@ export type BodyStatements = mutable_opaque
 
 export type ExpressionLink = mutable_opaque
 
-export type ProgramStoreBinding = mutable_opaque
-
 export enum OperandColumn {
     binary_left,
     binary_operators,

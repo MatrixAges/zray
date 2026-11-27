@@ -1,5 +1,22 @@
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { WriteColumn as Column } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
+
+export type PublishedDeclaration = {
+    specifier: string,
+    path: string,
+    module: string,
+    namespace: string[]
+}
+
+export type PublishedSetting = {
+    name: string,
+    root: string,
+    includes: string[]
+}
+
+export type Published = {
+    declarations: PublishedDeclaration[],
+    externals: string[]
+}
 
 export type DeclarationRows = {
     identities: ReadColumn,
@@ -10,17 +27,7 @@ export type DeclarationRows = {
     count: u64
 }
 
-export type DeclarationOutput = {
-    specifiers: WriteColumn,
-    paths: WriteColumn,
-    modules: WriteColumn,
-    namespaces: Column
-}
-
-export type Declarations = {
-    rows: DeclarationRows,
-    output: DeclarationOutput
-}
+export type Declarations = DeclarationRows
 
 export type ExternalRows = {
     identities: ReadColumn,
@@ -28,31 +35,16 @@ export type ExternalRows = {
     count: u64
 }
 
-export type ExternalOutput = {
-    specifiers: WriteColumn,
-    identities: Column
-}
-
-export type Externals = {
-    rows: ExternalRows,
-    output: ExternalOutput
-}
+export type Externals = ExternalRows
 
 export type Publication = {
     declarations: Declarations,
     externals: Externals
 }
 
-export type SettingsOutput = {
-    names: WriteColumn,
-    roots: WriteColumn,
-    includes: Column
-}
-
 export type Settings = {
     names: TextColumn,
     root: string,
     includes: string[],
-    count: u64,
-    output: SettingsOutput
+    count: u64
 }

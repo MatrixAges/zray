@@ -16,11 +16,10 @@ import version from "./version"
 import workspace from "./workspace"
 
 import type { Document } from "manifest_yaml_document"
-import type { Tables, Values } from "./model"
+import type { Values } from "./model"
 
 export type Input = {
     document: Document,
-    tables: Tables,
     pairs: i32[]
 }
 
@@ -32,7 +31,7 @@ export type State = {
 export type Output = Values
 
 export default function (in: Input): Output {
-    const { document, tables, pairs } = in
+    const { document, pairs } = in
 
     const initial: State = {
         index: 0,
@@ -41,12 +40,17 @@ export default function (in: Input): Output {
             version: empty_text,
             entry: null,
             library: null,
+            exports: [],
             private: false,
+            dependencies: [],
+            dev_dependencies: [],
             workspace: null,
+            native_interfaces: [],
+            externals: [],
+            native_modules: [],
             libraries: [],
             include_paths: [],
             library_paths: [],
-            exports: 0,
             compiled_exports: 0
         }
     }
@@ -81,43 +85,24 @@ export default function (in: Input): Output {
                         entry: false
                     })
                 case Field.Exports:
-                    const surface = exports({
-                        ...value,
-                        target: tables.exports
-                    })
+                    const surface = exports(value)
 
-                    state.values.exports = surface.exports
+                    state.values.exports = surface.rows
                     state.values.compiled_exports = surface.compiled_exports
                 case Field.Private:
                     state.values.private = boolean(value)
                 case Field.Dependencies:
-                    dependencies({
-                        ...value,
-                        target: tables.dependencies
-                    })
+                    state.values.dependencies = dependencies(value)
                 case Field.DevDependencies:
-                    dependencies({
-                        ...value,
-                        target: tables.dev_dependencies
-                    })
+                    state.values.dev_dependencies = dependencies(value)
                 case Field.Workspace:
                     state.values.workspace = workspace(value)
                 case Field.NativeInterfaces:
-                    interfaces({
-                        ...value,
-                        target: tables.interfaces
-                    })
+                    state.values.native_interfaces = interfaces(value)
                 case Field.NativeModules:
-                    modules({
-                        ...value,
-                        target: tables.modules,
-                        alias_target: tables.aliases
-                    })
+                    state.values.native_modules = modules(value)
                 case Field.Externals:
-                    externals({
-                        ...value,
-                        target: tables.externals
-                    })
+                    state.values.externals = externals(value)
                 case Field.Libraries:
                     state.values.libraries = strings({
                         ...value,

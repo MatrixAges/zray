@@ -11,7 +11,7 @@ pub fn bind(allocator: std.mem.Allocator, definition: anytype, exports: []const 
 
     const routes = try allocator.alloc(Route, definition.routes.len);
 
-    publish(definition.routes, routes);
+    try publish(allocator, definition.routes, routes);
 
     return routes;
 }
@@ -33,7 +33,9 @@ fn ordered(definition: anytype, exports: []const Export) bool {
     return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 }
 
-fn publish(rows: anytype, routes: []Route) void {
+fn publish(allocator: std.mem.Allocator, rows: anytype, routes: []Route) std.mem.Allocator.Error!void {
+    if (rows.len == 0) return;
+
     const rule = @import("generated_gateway_route_publish");
     const Method = @typeInfo(@FieldType(std.meta.Child(@TypeOf(rows)), "method")).optional.child;
 
@@ -46,18 +48,31 @@ fn publish(rows: anytype, routes: []Route) void {
         break :block result;
     };
 
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
+
     const source = memory.borrowReadFields(.{ .paths = "path", .services = "service_index" }, rows);
-    var target = memory.borrowWriteFields(.{ .output_paths = "path", .output_methods = "method", .output_services = "service" }, routes);
     const methods = memory.borrowOptionalU8Column("method", rows);
     var input: std.meta.Child(rule.Input) = undefined;
 
     source.fill(&input);
-    target.fill(&input);
 
     input.methods = @ptrCast(&methods);
     input.method_names = &names;
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const request = input;
 
-    rule.executeIn(scratch.allocator(), &input) catch unreachable;
+    const published = zx.columns.invoke(rule.executeValue, scratch.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    for (published, 0..) |item, i| {
+        routes[i] = .{
+            .path = item.path,
+            .method = item.method,
+            .service = @intCast(item.service),
+        };
+    }
 }

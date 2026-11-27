@@ -1,24 +1,25 @@
 import encoding from "std:encoding"
-import columns from "memory/columns"
 
 import type { Node } from "../model"
-import type { Input as Publication, Nodes } from "./model"
+import type { Input as Publication, PublishedNode } from "./model"
 
-export type Input = Publication.Pick("source", "storage") & {
+export type Input = Publication.Pick("source") & {
     node_slots: u64[],
-    rows: Node[],
-    target: Nodes
+    rows: Node[]
 }
 
-export type Output = void
+export type Output = PublishedNode[]
 
 export default function (in: Input): Output {
-    const { source, rows, target, node_slots, storage } = in
+    const { source, rows, node_slots } = in
 
-    const published = loop({
+    const empty: PublishedNode[] = []
+
+    return loop({
         row: 0,
         child_start: 1,
-        text_start: 0
+        text_start: 0,
+        items: empty
     }, {
         while: state => state.row < rows.length,
         next: state => {
@@ -27,38 +28,22 @@ export default function (in: Input): Output {
             const { location } = item
             const name = encoding.sliceBytes(source, item.name.start, item.name.end)
 
-            columns.writeColumnText(target.name, slot, name)
-            columns.writeColumnIndex(target.offset, slot, location.offset)
-            columns.writeColumnIndex(target.line, slot, location.line)
-            columns.writeColumnIndex(target.column, slot, location.column)
-            columns.writeColumnRowRange(
-                target.attributes,
+            state.items = state.items.push({
                 slot,
-                storage.attributes.bytes,
-                storage.attributes.width,
-                item.attribute_start,
-                item.attribute_count
-            )
-            columns.writeColumnRowRange(
-                target.children,
-                slot,
-                storage.nodes.bytes,
-                storage.nodes.width,
-                state.child_start,
-                item.child_count
-            )
-            columns.writeColumnRowRange(
-                target.text,
-                slot,
-                storage.text.bytes,
-                storage.text.width,
-                state.text_start,
-                item.text_count
-            )
+                name,
+                location,
+                attribute_start: item.attribute_start,
+                attribute_count: item.attribute_count,
+                child_start: state.child_start,
+                child_count: item.child_count,
+                text_start: state.text_start,
+                text_count: item.text_count
+            })[0]
 
             state.child_start += item.child_count
             state.text_start += item.text_count
             state.row += 1
-        }
+        },
+        return: state => state.items
     })
 }

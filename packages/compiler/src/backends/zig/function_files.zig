@@ -10,34 +10,19 @@ pub fn create(owned: std.mem.Allocator, backing: std.mem.Allocator, functions: *
 
     const minimum = std.math.mul(usize, units.len, 2) catch return error.OutOfMemory;
     const capacity = std.math.ceilPowerOfTwo(usize, minimum) catch return error.OutOfMemory;
-    const size = std.math.add(usize, capacity, units.len) catch return error.OutOfMemory;
-    const indices = try backing.alloc(u64, size);
-
-    defer backing.free(indices);
-
-    var buckets = indices[0..capacity];
-    var selected = indices[capacity..];
-
-    @memset(buckets, 0);
-
     var scratch = std.heap.ArenaAllocator.init(backing);
 
     defer scratch.deinit();
 
     const Input = std.meta.Child(registration.Input);
-    const Target = std.meta.Child(@FieldType(Input, "target"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
     const ids = zx.memory.borrowReadColumn(zx.ir.FunctionId, "id", units);
     const initializer_names = zx.memory.borrowTextColumn("name", initializers);
     const initializer_sources = zx.memory.borrowTextColumn("source", initializers);
     const initializer_imports = zx.memory.borrowReadColumn([]const []const u8, "imports", initializers);
-    var output: zx.memory.RowOutput(File, Target, .{ .name = &.{"name"}, .source = &.{"source"}, .imports = &.{"imports"} }) = undefined;
-
-    output.init();
-    errdefer owned.free(output.rows());
 
     const input: Input = .{
-        .registry = &.{ .keys = names, .ids = @ptrCast(&ids), .sources = sources, .capacity = capacity, .buckets = @ptrCast(&buckets), .selected = @ptrCast(&selected) },
+        .registry = &.{ .keys = names, .ids = @ptrCast(&ids), .sources = sources, .capacity = capacity },
         .functions = &.{
             .expressions = zx.columns.slice(@FieldType(Functions, "expressions"), functions.expressions),
             .contracts = zx.columns.slice(@FieldType(Functions, "contracts"), functions.contracts),
@@ -47,16 +32,24 @@ pub fn create(owned: std.mem.Allocator, backing: std.mem.Allocator, functions: *
         .native_ids = functions.native_modules,
         .native_names = native_names,
         .destination = &.{ .owner = @ptrCast(&owned) },
-        .storage = @ptrCast(&output.buffer),
-        .target = &output.view,
     };
 
-    const valid = zx.columns.invoke(registration.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    const result = zx.columns.invoke(registration.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    if (!valid) return error.ConflictingFunction;
+    if (!result.valid) return error.ConflictingFunction;
 
-    return output.rows();
+    const output = try owned.alloc(File, result.files.len);
+
+    for (result.files, 0..) |item, i| {
+        output[i] = .{
+            .name = item.name,
+            .source = item.source,
+            .imports = item.imports,
+        };
+    }
+
+    return output;
 }

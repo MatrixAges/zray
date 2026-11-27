@@ -34,12 +34,6 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
 
     defer scratch.deinit();
 
-    const Resources = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "resources"));
-
-    const resources: Resources = .{
-        .owner = @ptrCast(&allocator),
-    };
-
     state.workspace = .{
         .externals = &state.external_rows,
         .modules = &state.module_rows,
@@ -49,7 +43,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
         .settings = &state.setting_views.view,
     };
 
-    state.binding = .{ .window = &state.window, .registry = &state.registry_view, .resources = &resources, .library = &state.compiled_view };
+    state.binding = .{ .window = &state.window, .registry = &state.registry_view, .library = &state.compiled_view };
     state.active = &active;
     state.scratch = scratch.allocator();
     state.traversal = .{ .binding = &state.binding, .row = 0, .aliases = &state.alias_input };
@@ -59,7 +53,6 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
         .count = scopes.len,
         .row = 0,
         .workspace = &state.workspace,
-        .resources = &resources,
     }) catch |err| {
         if (state.alias_active and (err == error.Overflow or err == error.IntegerOverflow)) return error.OutOfMemory;
 

@@ -30,18 +30,17 @@ export default function (in: Input): Output {
         dependencies: source.dependencies
     })
 
-    const includes = prepareNativeScopeModule(
+    const includes = paths({
+        frame,
+        source: source.includes
+    })
+
+    prepareNativeScopeModule(
         frame,
         row,
         binding.registry.names[row],
         path,
         dependencies,
-        source.includes.length
+        includes
     )
-
-    paths({
-        frame,
-        source: source.includes,
-        target: includes
-    })
 }

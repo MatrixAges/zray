@@ -26,23 +26,10 @@ pub fn validate(allocator: std.mem.Allocator, children: anytype, node: anytype, 
 
     const temporary = arena.allocator();
     const rule = @import("generated_rx_store_schema");
-    var starts: []u32 = &.{};
-    var next: []?u32 = &.{};
-    var offsets: []u64 = &.{};
     var buckets: []u64 = &.{};
-    var rows: []u32 = &.{};
-    var positions: []u64 = &.{};
     var input: std.meta.Child(rule.Input) = undefined;
-    input.workspace = &.{ .allocator = @ptrCast(&temporary), .buckets = @ptrCast(&buckets) };
-    input.rows = @ptrCast(&rows);
-    input.positions = @ptrCast(&positions);
 
-    input.output = &.{
-        .allocator = @ptrCast(&allocator),
-        .starts = @ptrCast(&starts),
-        .next = @ptrCast(&next),
-        .offsets = @ptrCast(&offsets),
-    };
+    input.workspace = &.{ .allocator = @ptrCast(&temporary), .buckets = @ptrCast(&buckets) };
 
     const result = try tree.invoke(rule, temporary, node, &input);
 
@@ -54,9 +41,9 @@ pub fn validate(allocator: std.mem.Allocator, children: anytype, node: anytype, 
 
             return .{
                 .first = first,
-                .starts = starts[0..@intCast(result.groups)],
-                .next = next,
-                .offsets = offsets,
+                .starts = try allocator.dupe(u32, result.starts),
+                .next = try allocator.dupe(?u32, result.next),
+                .offsets = try allocator.dupe(u64, result.offsets),
             };
         },
         .DuplicateType => return checks.fail(tree.at(node, result.where.?), "as", "Duplicate RX declaration", reporter),

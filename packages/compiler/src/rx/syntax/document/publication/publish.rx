@@ -20,8 +20,7 @@
                 "decoded",
                 "indexed"
             ]),
-            rows: $in.tree.attributes,
-            target: $in.attributes
+            rows: $in.tree.attributes
         }}
     />
 
@@ -35,28 +34,26 @@
             ]),
             text_slots: $ctx.slots.text_slots,
             rows: $in.tree.text,
-            target: $in.text,
-            extent: $ctx.attributes
+            extent: $ctx.attributes.extent
         }}
     />
 
     <Call
         fn="nodes"
         in={{
-            ...$in.pick([
-                "source",
-                "storage"
-            ]),
+            source: $in.source,
             node_slots: $ctx.slots.node_slots,
-            rows: $in.tree.nodes,
-            target: $in.nodes
+            rows: $in.tree.nodes
         }}
     />
 
     <Return
         value={{
-            extent: $ctx.text,
-            node_slots: $ctx.slots.node_slots
+            extent: $ctx.text.extent,
+            node_slots: $ctx.slots.node_slots,
+            attributes: $ctx.attributes.items,
+            text: $ctx.text.items,
+            nodes: $ctx.nodes
         }}
     />
 </Module>

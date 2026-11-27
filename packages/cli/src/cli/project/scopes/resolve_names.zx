@@ -1,40 +1,37 @@
 import memory from "memory"
-import { writeNativeScopeText } from "native_scope_host"
 
 import backend from "./rules/naming/backend"
 
 import type { Rows } from "compiler_rules/project/target/select"
-import type { ScopeTextSlots, ScopeWindow } from "native_scope_host"
-import type { Resources } from "./workflow"
+import type { ScopeWindow } from "native_scope_host"
 
 export type Input = {
     window: ScopeWindow,
-    local: Rows,
-    resolved: ScopeTextSlots,
-    resources: Resources
+    local: Rows
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { local, resolved, resources } = in
+    const { local } = in
 
-    const written = loop(0, {
-        while: row => row < local.length,
-        next: row => {
-            const value = memory.readTextColumn(local.items, row)
+    const empty: string[] = []
+
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < local.length,
+        next: state => {
+            const value = memory.readTextColumn(local.items, state.row)
             const name = backend({
                 scope: in.window.scope,
                 value
             })
 
-            writeNativeScopeText(
-                resolved,
-                row,
-                memory.copyColumnText(resources.owner, name)
-            )
-
-            row += 1
-        }
+            state.items = state.items.push(name)[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

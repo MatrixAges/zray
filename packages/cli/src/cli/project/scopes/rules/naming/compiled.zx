@@ -1,6 +1,5 @@
 import find from "compiler_rules/compiled/identity/declaration"
 import own from "compiler_rules/compiled/identity/own_declaration"
-import memory from "memory"
 import { Admission, requireNativeScopeAdmission } from "native_scope_host"
 
 import type { Binding } from "../../workflow"
@@ -14,7 +13,7 @@ export type Output = string?
 
 export default function (in: Input): Output {
     const { binding, requested } = in
-    const { library, resources, window } = binding
+    const { library, window } = binding
 
     const found = find({
         modules: library.modules,
@@ -36,12 +35,9 @@ export default function (in: Input): Output {
         return null
     }
 
-    return memory.copyColumnText(
-        resources.owner,
-        own({
-            instance: library.instance,
-            value: identity,
-            shared: found.shared
-        })
-    )
+    return own({
+        instance: library.instance,
+        value: identity,
+        shared: found.shared
+    })
 }

@@ -8,20 +8,6 @@ const Input = std.meta.Child(rule.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 const Slots = std.meta.Child(@FieldType(Source, "slots"));
 const Getters = std.meta.Child(@typeInfo(@FieldType(Source, "getters")).optional.child);
-const Tail = std.meta.Child(@FieldType(Input, "tail"));
-
-const Frame = struct {
-    builder: *Builder,
-    registered: Slots = undefined,
-    paths: [][]const u8 = undefined,
-    types: []u32 = undefined,
-    handles: [][]const u8 = undefined,
-    readable: []bool = undefined,
-    writable: []bool = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
 
 pub fn write(builder: *Builder, source: ir.StoreTable, target: []u32) Builder.Error!void {
     std.debug.assert(source.count() == target.len);
@@ -45,59 +31,58 @@ pub fn reads(builder: *Builder, getters: []const Binding, target: []u32) Builder
 fn bind(builder: *Builder, source: *const Source, target_arg: []u32) Builder.Error!void {
     if (target_arg.len == 0) return;
 
-    var target = target_arg;
-    var frame: Frame = .{ .builder = builder };
-    const storage = &builder.stores;
-    const slots = zx.memory.borrowColumnLengths(storage);
-    const lengths: zx.memory.ColumnLengths = &slots;
+    var buffer: [1024]u8 = undefined;
+    var first = std.heap.BufferFirstAllocator.init(&buffer, builder.allocator);
+    var scratch = std.heap.ArenaAllocator.init(first.allocator());
 
-    const tail: Tail = .{
-        .paths = @ptrCast(&frame.paths),
-        .types = @ptrCast(&frame.types),
-        .handles = @ptrCast(&frame.handles),
-        .readable = @ptrCast(&frame.readable),
-        .writable = @ptrCast(&frame.writable),
-        .lengths = @ptrCast(&lengths),
-    };
+    defer scratch.deinit();
+
+    const storage = &builder.stores;
+    const existing = storage.paths.items.len;
+    const registered = zx.columns.view(Slots, storage.view());
 
     const input: Input = .{
-        .frame = @ptrCast(&frame),
-        .allocator = @ptrCast(&builder.allocator),
+        .registered = &registered,
         .source = source,
-        .registered = &frame.registered,
-        .permissions = &.{
-            .readable = @ptrCast(&storage.readable.items),
-            .writable = @ptrCast(&storage.writable.items),
-        },
-        .mapping = @ptrCast(&target),
-        .tail = &tail,
-        .count = target.len,
+        .count = target_arg.len,
     };
 
-    return rule.executeIn(std.mem.Allocator.failing, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => error.OutOfMemory,
-        else => error.InvalidModule,
+    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
     };
-}
 
-pub fn borrowProgramStoreSlots(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
+    if (!result.compatible) return error.InvalidModule;
+    if (existing + result.appended.len > std.math.maxInt(u32)) return error.OutOfMemory;
 
-    frame.registered = zx.columns.view(Slots, frame.builder.stores.view());
-}
+    @memcpy(storage.readable.items, result.readable[0..existing]);
+    @memcpy(storage.writable.items, result.writable[0..existing]);
 
-pub fn reserveProgramStoreSlot(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const builder = frame.builder;
-    const storage = &builder.stores;
+    if (result.appended.len != 0) {
+        const total = existing + result.appended.len;
 
-    inline for (@typeInfo(ir.StoreStorage).@"struct".field_names) |name| {
-        try @field(storage, name).ensureUnusedCapacity(builder.allocator, 1);
+        inline for (@typeInfo(ir.StoreStorage).@"struct".field_names) |name| {
+            try @field(storage, name).ensureTotalCapacity(builder.allocator, total);
+        }
 
-        @field(frame, name) = @field(storage, name).unusedCapacitySlice()[0..1];
+        errdefer {
+            for (storage.paths.items[existing..]) |path| builder.allocator.free(path);
+
+            inline for (@typeInfo(ir.StoreStorage).@"struct".field_names) |name| {
+                @field(storage, name).items.len = existing;
+            }
+        }
+
+        for (result.appended) |item| {
+            const path = if (item.path.len == 0) "" else try builder.allocator.dupe(u8, item.path);
+
+            storage.paths.appendAssumeCapacity(path);
+            storage.types.appendAssumeCapacity(item.type_id);
+            storage.handles.appendAssumeCapacity("");
+            storage.readable.appendAssumeCapacity(item.readable);
+            storage.writable.appendAssumeCapacity(item.writable);
+        }
     }
-}
 
-pub fn requireProgramStoreMatch(compatible: bool) error{InvalidModule}!void {
-    if (!compatible) return error.InvalidModule;
+    @memcpy(target_arg, result.mapping);
 }

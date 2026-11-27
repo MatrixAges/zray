@@ -1,17 +1,16 @@
-import bytes from "std:bytes"
-import encoding from "std:encoding"
 import memory from "memory"
 
-import type { Copy as Input } from "./model"
-
-export type Output = bool
+import type { Copy as Input, CopyEntry, CopyOutput as Output } from "./model"
 
 export default function (in: Input): Output {
     const { positions } = in
 
+    const empty: CopyEntry[] = []
+
     return loop({
         index: in.first,
-        valid: true
+        valid: true,
+        entries: empty
     }, {
         while: current => current.valid && current.index < in.end,
         next: current => {
@@ -23,22 +22,18 @@ export default function (in: Input): Output {
             if (source == null) {
                 current.valid = false
             } else {
-                const offset = in.offsets[index]
-                const length =
-                    memory.copyBytes(
-                        in.buffer,
-                        offset,
-                        bytes.fromText(source),
-                        0,
-                        source.length
-                    )
-                const text = encoding.sliceBytes(in.data, offset, offset + length)
-
-                memory.writeString(in.target, position, text)
+                current.entries = current.entries.push({
+                    position,
+                    offset: in.offsets[index],
+                    source
+                })[0]
             }
 
             current.index += 1
         },
-        return: current => current.valid
+        return: current => current.pick([
+            "valid",
+            "entries"
+        ])
     })
 }

@@ -1,25 +1,28 @@
 import memory from "memory"
 
-import type { StringBuffer, TextColumn } from "memory"
+import type { TextColumn } from "memory"
 
 export type Input = {
+    prefix: string,
     modules: TextColumn,
-    count: u64,
-    imports: StringBuffer
+    count: u64
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const count = loop(0, {
-        while: row => row < in.count,
-        next: row => {
-            memory.writeString(
-                in.imports,
-                row,
-                memory.readTextColumn(in.modules, row)
-            )
-            row += 1
-        }
+    const empty: string[] = [in.prefix]
+
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            state.items =
+                state.items.push(memory.readTextColumn(in.modules, state.row))[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

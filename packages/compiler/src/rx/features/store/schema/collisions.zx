@@ -1,36 +1,35 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import groupCollision from "./group_collision"
 
 import type { Collision, Fragments } from "./model"
 
 export type Input = {
-    fragments: Fragments,
-    groups: u64
+    fragments: Fragments
 }
 
 export type Output = Collision?
 
 export default function (in: Input): Output {
-    const { fragments, groups } = in
-    const { starts, next } = fragments.request.output
+    const { fragments } = in
+    const { starts, next } = fragments.grouped
 
-    const links = memory.optionalU32Views(next)
     const finding: Output = null
 
     return loop({
         finding,
         index: 0
     }, {
-        while: state => state.index < groups,
+        while: state => state.index < starts.length,
         next: state => {
-            const first = memory.readU32(starts, state.index)
-            const next = links[integers.widen(first)]
+            const first = starts[state.index]
+            const following = next[integers.widen(first)]
             const before = state.finding
 
-            if (next != null) {
-                if (before == null || integers.widen(next) < before.fragment) {
+            if (following != null) {
+                if (
+                    before == null || integers.widen(following) < before.fragment
+                ) {
                     const result = groupCollision({
                         fragments,
                         first

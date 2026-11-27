@@ -1,19 +1,24 @@
 <Module>
     <Type from="model" as="Files" />
 
-    <Args in={Files.Assembly} out={bool} />
+    <Args in={Files.Assembly} out={Files.Result} />
 
     <Call fn="collect" in={$in.registry} />
 
     <If on={!$ctx.collect.valid}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                files: []
+            }}
+        />
     </If>
 
     <Call
         module="publication"
         in={{
             ...$in,
-            count: $ctx.collect.count
+            selected: $ctx.collect.selected
         }}
     />
 
@@ -22,11 +27,22 @@
             fn="initializers"
             in={{
                 source: $in.initializers,
-                target: $in.target,
-                first: $ctx.collect.count
+                files: $ctx.publication
+            }}
+        />
+
+        <Return
+            value={{
+                valid: true,
+                files: $ctx.initializers
             }}
         />
     </If>
 
-    <Return value={true} />
+    <Return
+        value={{
+            valid: true,
+            files: $ctx.publication
+        }}
+    />
 </Module>

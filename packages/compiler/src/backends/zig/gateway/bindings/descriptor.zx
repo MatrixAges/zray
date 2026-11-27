@@ -1,29 +1,32 @@
-import memory from "memory"
+import { Status } from "./model"
 
-import type { Descriptors } from "./model"
+import type { State } from "./model"
 
 export type Input = {
-    target: Descriptors,
-    position: u64,
+    state: State,
     input_type: u32,
     output_type: u32,
     requires_io?: bool,
     requires_process: bool
 }
 
-export type Output = bool
+export type Output = State
 
 export default function (in: Input): Output {
-    const { target, position, requires_io } = in
+    const { state, requires_io } = in
 
     if (requires_io == null) {
-        return false
+        return {
+            ...state,
+            status: Status.InvalidModule
+        }
     }
 
-    memory.writeU32(target.input_types, position, in.input_type)
-    memory.writeU32(target.output_types, position, in.output_type)
-    memory.writeU8(target.requires_io, position, requires_io ? 1 : 0)
-    memory.writeU8(target.requires_process, position, in.requires_process ? 1 : 0)
-
-    return true
+    return {
+        ...state,
+        input_types: state.input_types.push(in.input_type)[0],
+        output_types: state.output_types.push(in.output_type)[0],
+        requires_io: state.requires_io.push(requires_io)[0],
+        requires_process: state.requires_process.push(in.requires_process)[0]
+    }
 }

@@ -1,46 +1,50 @@
 import integers from "std:integer"
 import memory from "memory"
-import columns from "memory/columns"
 
-import type { ReadColumn, TextColumn, WriteColumn as U64Column } from "memory"
-import type { WriteColumn } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 
 export type Input = {
     count: u64,
     paths: TextColumn,
     methods: ReadColumn,
     services: ReadColumn,
-    method_names: string[],
-    output_paths: WriteColumn,
-    output_methods: WriteColumn,
-    output_services: U64Column
+    method_names: string[]
 }
 
-export type Output = void
+export type Route = {
+    path: string,
+    method?: string,
+    service: u64
+}
+
+export type Output = Route[]
 
 export default function (in: Input): Output {
-    const published = loop(0, {
-        while: row => row < in.count,
-        next: row => {
+    const empty: Route[] = []
+
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const { row } = state
             const method = memory.readColumnOptionalU8(in.methods, row)
             const name: string? = match {
                 method == null => null,
                 _ => in.method_names[integers.widenByte(method)]
             }
 
-            columns.writeColumnText(
-                in.output_paths,
-                row,
-                memory.readTextColumn(in.paths, row)
-            )
-            columns.writeColumnOptionalText(in.output_methods, row, name)
-            memory.writeColumnU64(
-                in.output_services,
-                row,
-                integers.widen(memory.readColumnU32(in.services, row))
-            )
-
-            row += 1
-        }
+            state.items = state.items.push({
+                path: memory.readTextColumn(in.paths, row),
+                method: name,
+                service: integers.widen(memory.readColumnU32(
+                    in.services,
+                    row
+                ))
+            })[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

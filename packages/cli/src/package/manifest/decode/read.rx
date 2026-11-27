@@ -3,19 +3,12 @@
 
     <Args in={Manifest.Input} out={Manifest.Values} />
 
-    <Call
-        fn="mapping"
-        in={$in.pick([
-            "document",
-            "node"
-        ])}
-    />
+    <Call fn="mapping" in={$in} />
 
     <Call
         fn="fields"
         in={{
             document: $in.document,
-            tables: $in.tables,
             pairs: $ctx.mapping
         }}
     />
@@ -25,7 +18,7 @@
         in={{
             entry: $ctx.fields.entry != null,
             library: $ctx.fields.library != null,
-            exports: $ctx.fields.exports,
+            exports: $ctx.fields.exports.length,
             compiled_exports: $ctx.fields.compiled_exports,
             name: $ctx.fields.name != "",
             version: $ctx.fields.version != ""

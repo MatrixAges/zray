@@ -1,6 +1,4 @@
-import { allocateRows } from "core/row_buffer"
 import yaml from "manifest_yaml_document"
-import columns from "memory/columns"
 
 import { missing_external } from "../../schema/const"
 import field from "../../schema/field"
@@ -11,40 +9,34 @@ import sequence from "../sequence"
 import string from "../string"
 import implementation from "./implementation"
 
-import type { ExternalOutput } from "../model"
+import type { External, ExternalImplementation } from "../model"
 import type { Input as Value } from "../value"
 
-export type Input = Value & {
-    target: ExternalOutput
-}
+export type Input = Value
 
 export type Record = {
     index: u64,
     specifier: string,
     signature: string,
     export_name?: string,
-    implementation: bool
+    implementation?: ExternalImplementation
 }
 
-export type Output = void
+export type Output = External[]
 
 export default function (in: Input): Output {
-    const { document, target } = in
+    const { document } = in
 
-    const items = sequence({
-        document: in.document,
-        node: in.node
-    })
+    const items = sequence(in)
+    const empty: External[] = []
 
-    allocateRows({
-        target: target.buffer,
-        count: items.length
-    })
-
-    const written = loop(0, {
-        while: row => row < items.length,
-        next: row => {
-            const node = yaml.node(document, items[row], null)
+    return loop({
+        row: 0,
+        out: empty
+    }, {
+        while: state => state.row < items.length,
+        next: state => {
+            const node = yaml.node(document, items[state.row], null)
             const pairs = mapping({
                 document,
                 node
@@ -54,13 +46,13 @@ export default function (in: Input): Output {
                 specifier: empty_text,
                 signature: empty_text,
                 export_name: null,
-                implementation: false
+                implementation: null
             }
             const data = loop(initial, {
-                while: state => state.index < pairs.length,
-                next: state => {
-                    const key = yaml.node(document, pairs[state.index], null)
-                    const item = yaml.node(document, pairs[state.index + 1], null)
+                while: pair => pair.index < pairs.length,
+                next: pair => {
+                    const key = yaml.node(document, pairs[pair.index], null)
+                    const item = yaml.node(document, pairs[pair.index + 1], null)
                     const value = {
                         document,
                         node: item
@@ -72,17 +64,13 @@ export default function (in: Input): Output {
 
                     switch (selected) {
                         case Field.Specifier:
-                            state.specifier = string(value)
+                            pair.specifier = string(value)
                         case Field.Signature:
-                            state.signature = string(value)
+                            pair.signature = string(value)
                         case Field.ExportName:
-                            state.export_name = string(value)
+                            pair.export_name = string(value)
                         case Field.Implementation:
-                            state.implementation = implementation({
-                                ...value,
-                                target: target.columns,
-                                row
-                            })
+                            pair.implementation = implementation(value)
                         default:
                             yaml.reject(
                                 document,
@@ -91,29 +79,30 @@ export default function (in: Input): Output {
                             )
                     }
 
-                    state.index += mapping_size
+                    pair.index += mapping_size
                 }
             })
 
+            const parsed = data.implementation
             const missing = (
                 - data.specifier == empty_text
                 - or data.signature == empty_text
-                - or !data.implementation
+                - or parsed == null
             )
 
-            if (missing) {
+            if (missing || parsed == null) {
                 yaml.reject(document, node, missing_external)
+            } else {
+                state.out = state.out.push({
+                    specifier: data.specifier,
+                    signature: data.signature,
+                    export_name: data.export_name,
+                    implementation: parsed
+                })[0]
             }
 
-            columns.writeColumnOptionalText(target.columns.identity, row, null)
-            columns.writeColumnText(target.columns.specifier, row, data.specifier)
-            columns.writeColumnText(target.columns.signature, row, data.signature)
-            columns.writeColumnOptionalText(
-                target.columns.export_name,
-                row,
-                data.export_name
-            )
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.out
     })
 }

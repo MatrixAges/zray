@@ -1,4 +1,3 @@
-import memory from "memory"
 import {
     Admission,
     nativeScopeDeclaration,
@@ -19,7 +18,7 @@ export default function (in: Input): Output {
     const bound = loop(0, {
         while: index => index < in.window.declarations + in.window.externals,
         next: index => {
-            const { window, registry, resources } = in
+            const { window, registry } = in
             const { frame, scope } = window
             const external = index >= window.declarations
             const row = match external {
@@ -46,28 +45,24 @@ export default function (in: Input): Output {
                     Admission.InvalidExternalSpecifier
                 )
             } else {
-                const identity = match scope.compiled {
-                    true => generated,
-                    _ => memory.copyColumnText(resources.owner, generated)
-                }
-
                 const known = registered({
                     registry,
                     value: module
                 })
 
                 const resolved =
-                    known ?? memory.copyColumnText(resources.owner, backend({
+                    known ?? backend({
                         scope,
                         value: module
-                    }))
+                    })
 
                 writeNativeScopeDeclaration(
                     frame,
                     row,
                     external,
-                    identity,
-                    resolved
+                    generated,
+                    resolved,
+                    known == null
                 )
             }
 

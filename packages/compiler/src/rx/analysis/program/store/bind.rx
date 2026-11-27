@@ -1,15 +1,1 @@
-<Module>
-    <Type from="model" as="Store" />
-
-    <Args in={Store.Request} out={void} />
-
-    <Loop on={$in.first < $in.request.count}>
-        <Call
-            module="advance"
-            in={{
-                request: $in,
-                first: 0
-            }}
-        />
-    </Loop>
-</Module>
+<Module fn="bind" />

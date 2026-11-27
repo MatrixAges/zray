@@ -59,14 +59,6 @@ export declare function emitBodyCall(frame: BodyStatements): u32
 export declare function reserveExpressionLink(frame: ExpressionLink, returned: u32?, rows: u32[], bindings: u32[], count: u64): u32
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
-export declare function borrowProgramStoreSlots(frame: ProgramStoreBinding): void
-
-export declare function requireProgramStoreMatch(compatible: bool): void throws { InvalidModule }
-
-export declare function reserveProgramStoreSlot(frame: ProgramStoreBinding): void throws {
-    OutOfMemory
-}
-
 export declare function prepareLinkSymbols(frame: ExpressionLink): bool
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 

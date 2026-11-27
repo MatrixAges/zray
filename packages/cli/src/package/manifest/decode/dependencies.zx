@@ -1,40 +1,31 @@
-import { allocateRows } from "core/row_buffer"
 import yaml from "manifest_yaml_document"
-import columns from "memory/columns"
 
 import { mapping_size } from "./const"
 import mapping from "./mapping"
 import name from "./name"
 import string from "./string"
 
-import type { DependencyOutput } from "./model"
+import type { Dependency } from "./model"
 import type { Input as Value } from "./value"
 
-export type Input = Value & {
-    target: DependencyOutput
-}
+export type Input = Value
 
-export type Output = void
+export type Output = Dependency[]
 
 export default function (in: Input): Output {
-    const { document, target } = in
+    const { document } = in
 
-    const pairs = mapping({
-        document: in.document,
-        node: in.node
-    })
-
+    const pairs = mapping(in)
     const count = pairs.length / mapping_size
+    const empty: Dependency[] = []
 
-    allocateRows({
-        target: target.buffer,
-        count
-    })
-
-    const written = loop(0, {
-        while: row => row < count,
-        next: row => {
-            const offset = row * mapping_size
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const offset = state.row * mapping_size
             const dependency = name({
                 document,
                 node: yaml.node(document, pairs[offset], null)
@@ -44,9 +35,12 @@ export default function (in: Input): Output {
                 node: yaml.node(document, pairs[offset + 1], null)
             })
 
-            columns.writeColumnText(target.columns.name, row, dependency)
-            columns.writeColumnText(target.columns.requirement, row, requirement)
-            row += 1
-        }
+            state.items = state.items.push({
+                name: dependency,
+                requirement
+            })[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

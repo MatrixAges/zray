@@ -1,5 +1,4 @@
 import yaml from "manifest_yaml_document"
-import columns from "memory/columns"
 
 import field from "../../schema/field"
 import { Field, Mapping } from "../../schema/model"
@@ -9,38 +8,23 @@ import mapping from "../mapping"
 import string from "../string"
 import strings from "../strings"
 
-import type { ExternalColumns } from "../model"
+import type { ExternalImplementation } from "../model"
 import type { Input as Value } from "../value"
 
-export type Input = Value & {
-    target: ExternalColumns,
-    row: u64
+export type Input = Value
+
+export type State = ExternalImplementation & {
+    index: u64
 }
 
-export type Implementation = {
-    index: u64,
-    module: string,
-    member: string,
-    allocator_argument: bool,
-    io_argument: bool,
-    process_argument: bool,
-    expand_tuple: bool,
-    fallible: bool,
-    errors?: string[],
-    concurrent: bool
-}
-
-export type Output = bool
+export type Output = ExternalImplementation?
 
 export default function (in: Input): Output {
-    const { document, target, row } = in
+    const { document } = in
 
-    const pairs = mapping({
-        document: in.document,
-        node: in.node
-    })
+    const pairs = mapping(in)
 
-    const initial: Implementation = {
+    const initial: State = {
         index: 0,
         module: empty_text,
         member: empty_text,
@@ -48,8 +32,8 @@ export default function (in: Input): Output {
         io_argument: false,
         process_argument: false,
         expand_tuple: false,
-        fallible: false,
         errors: null,
+        fallible: false,
         concurrent: false
     }
 
@@ -97,15 +81,9 @@ export default function (in: Input): Output {
         }
     })
 
-    columns.writeColumnText(target.module, row, data.module)
-    columns.writeColumnText(target.member, row, data.member)
-    columns.writeColumnBool(target.allocator_argument, row, data.allocator_argument)
-    columns.writeColumnBool(target.io_argument, row, data.io_argument)
-    columns.writeColumnBool(target.process_argument, row, data.process_argument)
-    columns.writeColumnBool(target.expand_tuple, row, data.expand_tuple)
-    columns.writeColumnBool(target.fallible, row, data.fallible)
-    columns.writeColumnBool(target.concurrent, row, data.concurrent)
-    columns.writeColumnOptionalTextList(target.errors, row, data.errors)
+    if (data.module == empty_text || data.member == empty_text) {
+        return null
+    }
 
-    return data.module != empty_text && data.member != empty_text
+    return data.omit(["index"])
 }

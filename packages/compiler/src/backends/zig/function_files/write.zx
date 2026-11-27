@@ -1,21 +1,12 @@
-import bytes from "std:bytes"
-import memory from "memory"
-import columns from "memory/columns"
-
-import type { Write as Input } from "./model"
-
-export type Output = void
+import type { FileList as Output, Write as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { source, selected, row, dependencies } = in
-    const { registry, target } = source
+    const { source, selected, files, dependencies } = in
+    const { registry } = source
 
-    memory.writeColumnBytes(
-        target.name,
-        row,
-        bytes.fromText(source.names[selected.id])
-    )
-
-    memory.writeColumnBytes(target.source, row, registry.sources[selected.position])
-    columns.writeColumnTextList(target.imports, row, dependencies)
+    return files.push({
+        name: source.names[selected.id],
+        source: registry.sources[selected.position],
+        imports: dependencies
+    })[0]
 }

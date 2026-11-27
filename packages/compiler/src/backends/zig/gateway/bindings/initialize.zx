@@ -16,6 +16,10 @@ export default function (in: Input): Output {
         writable: [],
         indices: [],
         access: [],
-        ends: []
+        ends: [],
+        input_types: [],
+        output_types: [],
+        requires_io: [],
+        requires_process: []
     }
 }

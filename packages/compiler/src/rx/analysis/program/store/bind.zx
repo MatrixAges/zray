@@ -1,40 +1,71 @@
-import { Status } from "./model"
-import register from "./register"
+import integers from "std:integer"
 
-import type { Progress, Scan, Slots } from "./model"
+import merge from "./merge"
+import slot from "./slot"
 
-export type Input = Scan & {
-    source: Slots
-}
-
-export type Output = Progress
+import type { Output, Request as Input, Slot } from "./model"
 
 export default function (in: Input): Output {
-    const { source, registered, permissions, mapping } = in
+    const { registered } = in
+
+    const empty_slots: Slot[] = []
+    const empty_mapping: u32[] = []
 
     return loop({
-        next: in.first,
-        status: Status.Ready
+        index: 0,
+        compatible: true,
+        paths: registered.paths,
+        types: registered.types,
+        readable: registered.readable,
+        writable: registered.writable,
+        appended: empty_slots,
+        mapping: empty_mapping
     }, {
-        while: state => state.status == Status.Ready && state.next < source.paths.length,
+        while: state => state.compatible && state.index < in.count,
         next: state => {
-            const index = state.next
-            state.status = register({
-                registered,
-                permissions,
-                mapping,
-                index,
-                slot: {
-                    path: source.paths[index],
-                    type_id: source.types[index],
-                    readable: source.readable[index],
-                    writable: source.writable[index]
-                }
+            const current_slot = slot({
+                source: in.source,
+                index: state.index
             })
-            if (state.status == Status.Ready) {
-                state.next += 1
+            const resolved = merge({
+                registered: {
+                    paths: state.paths,
+                    types: state.types,
+                    readable: state.readable,
+                    writable: state.writable
+                },
+                slot: current_slot
+            })
+
+            const row = resolved.row
+
+            if (row == null) {
+                const id = integers.narrow(state.paths.length)
+
+                state.paths = state.paths.push(current_slot.path)[0]
+                state.types = state.types.push(current_slot.type_id)[0]
+                state.readable = state.readable.push(current_slot.readable)[0]
+                state.writable = state.writable.push(current_slot.writable)[0]
+                state.appended = state.appended.push(current_slot)[0]
+                state.mapping = state.mapping.push(id)[0]
+            } else if (!resolved.compatible) {
+                state.compatible = false
+            } else {
+                state.readable =
+                    state.readable.splice(row, 1, [resolved.readable])[0]
+                state.writable =
+                    state.writable.splice(row, 1, [resolved.writable])[0]
+                state.mapping = state.mapping.push(integers.narrow(row))[0]
             }
+
+            state.index += 1
         },
-        return: state => state
+        return: state => state.pick([
+            "compatible",
+            "readable",
+            "writable",
+            "appended",
+            "mapping"
+        ])
     })
 }

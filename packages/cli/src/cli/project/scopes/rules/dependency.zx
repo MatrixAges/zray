@@ -16,23 +16,18 @@ export type Output = string[]
 
 export default function (in: Input): Output {
     const { binding, dependencies } = in
-    const { resources, registry } = binding
+    const { registry } = binding
 
     if (dependencies.length == 0) {
         return dependencies
     }
 
-    const output = memory.requireTextSlots(
-        memory.allocateTextSlots(
-            resources.owner,
-            dependencies.length,
-            null
-        )
-    )
+    const empty: string[] = []
 
-    const valid = loop({
+    const result = loop({
         index: 0,
-        valid: true
+        valid: true,
+        items: empty
     }, {
         while: current => current.valid && current.index < dependencies.length,
         next: current => {
@@ -52,27 +47,23 @@ export default function (in: Input): Output {
             } else {
                 const alias = memory.borrowTextRange(value, 0, separator ?? size)
 
-                memory.writeTextSlot(
-                    output,
-                    current.index,
-                    memory.copyColumnText(
-                        resources.owner,
-                        `${alias}=${resolved}`
-                    )
-                )
+                current.items = current.items.push(`${alias}=${resolved}`)[0]
             }
 
             current.index += 1
         },
-        return: current => current.valid
+        return: current => current.pick([
+            "valid",
+            "items"
+        ])
     })
 
-    if (!valid) {
+    if (!result.valid) {
         requireNativeScopeAdmission(
             binding.window.frame,
             Admission.UnknownNativeDependency
         )
     }
 
-    return memory.borrowTextSlots(output, dependencies.length)
+    return result.items
 }

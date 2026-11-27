@@ -1,23 +1,21 @@
 import memory from "memory"
 
-import type { Disk, Input, Output } from "./model"
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { lookup } = in
-
-    const disk: Disk? = match {
-        lookup != null => lookup.disk,
-        _ => null
-    }
+    const { disk, collect_lookup } = in
 
     const first_failure: u64? = null
+    const empty: u64[] = []
 
     const result = loop({
         index: 0,
-        reused: 0,
-        pending: 0,
+        reused: empty,
+        pending: empty,
+        pending_count: 0,
+        offsets: empty,
+        stored: empty,
         size: 0,
-        stored: 0,
         discarded: 0,
         failures: 0,
         last_failure: first_failure
@@ -28,29 +26,25 @@ export default function (in: Input): Output {
             const source = memory.readOptionalTextColumn(in.sources, index)
 
             if (source == null) {
-                if (lookup != null) {
-                    memory.writeU64(lookup.pending, state.pending, index)
+                if (collect_lookup) {
+                    state.pending = state.pending.push(index)[0]
                 }
 
-                state.pending += 1
+                state.pending_count += 1
             } else {
-                if (lookup != null) {
-                    memory.writeU64(lookup.reused, state.reused, index)
+                if (collect_lookup) {
+                    state.reused = state.reused.push(index)[0]
                 }
 
-                memory.writeU64(in.offsets, state.reused, state.size)
-                state.reused += 1
+                state.offsets = state.offsets.push(state.size)[0]
                 state.size += source.length
             }
 
             if (disk != null) {
                 const kind = memory.readColumnU8(disk.kinds, index)
 
-                if (kind == disk.stored && lookup != null) {
-                    state.stored += 1
-                    const tail = in.count - state.stored
-
-                    memory.writeU64(lookup.pending, tail, index)
+                if (kind == disk.stored && collect_lookup) {
+                    state.stored = state.stored.push(index)[0]
                 } else if (kind == disk.invalid) {
                     state.discarded += 1
                 } else if (kind == disk.failed) {
@@ -64,7 +58,7 @@ export default function (in: Input): Output {
     })
 
     const has_ordered_error = (
-        - result.stored != 0
+        - result.stored.length != 0
         - and result.last_failure != null
     )
 
@@ -73,9 +67,11 @@ export default function (in: Input): Output {
     return {
         reused: result.reused,
         pending: result.pending,
-        size: result.size,
+        pending_count: result.pending_count,
+        offsets: result.offsets,
         stored: result.stored,
-        held: result.reused - result.stored,
+        size: result.size,
+        held: result.reused.length - result.stored.length,
         discarded: result.discarded,
         failures: result.failures,
         last_failure: result.last_failure,

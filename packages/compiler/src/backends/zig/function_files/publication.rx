@@ -1,16 +1,11 @@
 <Module>
     <Type from="model" as="Files" />
 
-    <Args in={Files.Publication} out={void} />
+    <Args in={Files.Publication} out={Files.FileList} />
 
-    <Call
-        fn="columns.allocateRows"
-        in={{
-            owner: $in.destination.owner,
-            target: $in.storage,
-            count: $in.count + $in.initializers.count
-        }}
-    />
+    <If on={$in.selected.length == 0}>
+        <Return value={[]} />
+    </If>
 
     <Loop on={$in.running}>
         <Call
@@ -18,8 +13,11 @@
             in={{
                 source: $in,
                 row: 0,
-                running: $in.count != 0
+                running: true,
+                files: []
             }}
         />
     </Loop>
+
+    <Return value={$ctx.publish_next.files} />
 </Module>

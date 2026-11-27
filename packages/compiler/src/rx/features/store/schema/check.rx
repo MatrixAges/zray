@@ -14,7 +14,10 @@
                     "objects"
                 ]),
                 first: $ctx.order.aliases,
-                groups: $ctx.order.objects
+                groups: $ctx.order.objects,
+                starts: [],
+                next: [],
+                offsets: []
             }}
         />
     </If>
@@ -30,7 +33,7 @@
         }}
     />
 
-    <If on={$ctx.group != $ctx.order.objects}>
+    <If on={$ctx.group.count != $ctx.order.objects}>
         <Call
             fn="collisions"
             in={{
@@ -39,9 +42,9 @@
                     ...$ctx.order.pick([
                         "first",
                         "objects"
-                    ])
-                },
-                groups: $ctx.group
+                    ]),
+                    grouped: $ctx.group
+                }
             }}
         />
 
@@ -51,8 +54,13 @@
                     issue: Store.Issue.DuplicateField,
                     where: $ctx.collisions.where,
                     first: $ctx.order.aliases,
-                    groups: $ctx.group,
-                    objects: $ctx.order.objects
+                    groups: $ctx.group.count,
+                    objects: $ctx.order.objects,
+                    ...$ctx.group.pick([
+                        "starts",
+                        "next",
+                        "offsets"
+                    ])
                 }}
             />
         </If>
@@ -63,8 +71,13 @@
             issue: Store.Issue.None,
             where: null,
             first: $ctx.order.aliases,
-            groups: $ctx.group,
-            objects: $ctx.order.objects
+            groups: $ctx.group.count,
+            objects: $ctx.order.objects,
+            ...$ctx.group.pick([
+                "starts",
+                "next",
+                "offsets"
+            ])
         }}
     />
 </Module>

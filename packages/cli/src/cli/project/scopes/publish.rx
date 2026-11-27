@@ -1,8 +1,15 @@
 <Module>
     <Type from="model" as="Scope" />
 
-    <Args in={Scope.Publication} out={void} />
+    <Args in={Scope.Publication} out={Scope.Published} />
 
     <Call fn="declarations" in={$in.declarations} />
     <Call fn="externals" in={$in.externals} />
+
+    <Return
+        value={{
+            declarations: $ctx.declarations,
+            externals: $ctx.externals
+        }}
+    />
 </Module>

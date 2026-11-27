@@ -1,32 +1,33 @@
-import memory from "memory"
 import columns from "memory/columns"
 
 import next from "./next"
 
-import type { StringBuffer, U8Buffer } from "memory"
 import type { Cursor } from "./model"
 
 export type Input = {
     cursor: Cursor,
-    references: StringBuffer,
-    packages: U8Buffer,
     capacity: u64
 }
 
 export type Output = {
     pending: u8[],
-    count: u64
+    references: string[],
+    packages: u8[]
 }
 
 export default function (in: Input): Output {
     const { cursor } = in
 
+    const empty_references: string[] = []
+    const empty_packages: u8[] = []
+
     return loop({
         pending: cursor.pending,
-        count: 0,
+        references: empty_references,
+        packages: empty_packages,
         done: false
     }, {
-        while: state => !state.done && state.count < in.capacity,
+        while: state => !state.done && state.references.length < in.capacity,
         next: state => {
             const step = next({
                 cursor: {
@@ -48,18 +49,14 @@ export default function (in: Input): Output {
                     cursor.layout.attribute_value
                 )
 
-                memory.writeString(in.references, state.count, value)
-                memory.writeU8(
-                    in.packages,
-                    state.count,
-                    item.package_allowed ? 1 : 0
-                )
-                state.count += 1
+                state.references = state.references.push(value)[0]
+                state.packages = state.packages.push(item.package_allowed ? 1 : 0)[0]
             }
         },
         return: state => state.pick([
             "pending",
-            "count"
+            "references",
+            "packages"
         ])
     })
 }

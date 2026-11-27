@@ -1,10 +1,10 @@
-import type { ReadColumn, TextColumn, U64Buffer } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
+import type { Admission } from "native_scope_host"
 
 export { Admission as Status } from "native_scope_host"
 
 export type Index = {
     names: TextColumn,
-    buckets: U64Buffer,
     capacity: u64
 }
 
@@ -13,4 +13,9 @@ export type Modules = {
     count: u64,
     paths: ReadColumn,
     headers: ReadColumn
+}
+
+export type Result = {
+    status: Admission,
+    buckets: u64[]
 }

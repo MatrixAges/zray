@@ -1,26 +1,30 @@
 import encoding from "std:encoding"
-import columns from "memory/columns"
 
 import value from "./value"
 
 import type { Text as Row } from "../model"
-import type { Input as Publication, Text } from "./model"
+import type { Input as Publication, PublishedText } from "./model"
 
 export type Input = Publication.Pick("source", "decoded", "indexed") & {
     text_slots: u64[],
     rows: Row[],
-    target: Text,
     extent: u64
 }
 
-export type Output = u64
+export type Output = {
+    extent: u64,
+    items: PublishedText[]
+}
 
 export default function (in: Input): Output {
-    const { source, decoded, indexed, rows, target, text_slots } = in
+    const { source, decoded, indexed, rows, text_slots } = in
+
+    const empty: PublishedText[] = []
 
     return loop({
         row: 0,
-        extent: in.extent
+        extent: in.extent,
+        items: empty
     }, {
         while: state => state.row < rows.length,
         next: state => {
@@ -38,10 +42,11 @@ export default function (in: Input): Output {
             })
             const { location } = item
 
-            columns.writeColumnText(target.value, slot, selected)
-            columns.writeColumnIndex(target.offset, slot, location.offset)
-            columns.writeColumnIndex(target.line, slot, location.line)
-            columns.writeColumnIndex(target.column, slot, location.column)
+            state.items = state.items.push({
+                slot,
+                value: selected,
+                location
+            })[0]
 
             if (indexed) {
                 const end = location.offset + selected.length
@@ -53,6 +58,9 @@ export default function (in: Input): Output {
 
             state.row += 1
         },
-        return: state => state.extent
+        return: state => state.pick([
+            "extent",
+            "items"
+        ])
     })
 }

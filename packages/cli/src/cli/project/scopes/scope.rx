@@ -50,11 +50,9 @@
         fn="index.requireNativeScopeAdmission"
         in={[
             $in.frame,
-            $ctx.checkModules
+            $ctx.checkModules.status
         ]}
     />
-
-    <Call fn="index.reserveNativeScopeNames" in={$in.frame} />
 
     <Call
         fn="resolve_names"
@@ -63,10 +61,17 @@
             local: {
                 items: $in.workspace.modules.index.names,
                 length: $in.workspace.modules.count
-            },
-            resolved: $ctx.reserveNativeScopeNames,
-            resources: $in.resources
+            }
         }}
+    />
+
+    <Call
+        fn="index.publishNativeScopeNames"
+        in={[
+            $in.frame,
+            $ctx.checkModules.buckets,
+            $ctx.resolve_names
+        ]}
     />
 
     <Call fn="bind" in={$in.workspace.binding} />
@@ -74,16 +79,29 @@
 
     <Call module="publish" in={$in.workspace.declarations} />
 
-    <Call fn="index.finishNativeScopeDeclarations" in={$in.frame} />
-    <Call fn="index.reserveNativeScopeLibraryPaths" in={$in.frame} />
+    <Call
+        fn="index.finishNativeScopeDeclarations"
+        in={[
+            $in.frame,
+            $ctx.publish.declarations,
+            $ctx.publish.externals
+        ]}
+    />
 
     <Call
         fn="paths"
         in={{
             frame: $in.frame,
-            source: $ctx.openNativeScope.library_paths,
-            target: $ctx.reserveNativeScopeLibraryPaths
+            source: $ctx.openNativeScope.library_paths
         }}
+    />
+
+    <Call
+        fn="index.publishNativeScopeLibraryPaths"
+        in={[
+            $in.frame,
+            $ctx.paths
+        ]}
     />
 
     <Call fn="index.reserveNativeScopeModules" in={$in.frame} />
@@ -93,6 +111,14 @@
 
         <Call fn="index.reserveNativeScopeSettings" in={$in.frame} />
         <Call fn="settings" in={$in.workspace.settings} />
+
+        <Call
+            fn="index.publishNativeScopeSettings"
+            in={[
+                $in.frame,
+                $ctx.settings
+            ]}
+        />
     </If>
 
     <Call fn="index.closeNativeScope" in={$in.frame} />

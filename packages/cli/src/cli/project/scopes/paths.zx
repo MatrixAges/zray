@@ -1,25 +1,30 @@
-import { resolveNativeScopePath, writeNativeScopeText } from "native_scope_host"
+import { resolveNativeScopePath } from "native_scope_host"
 
-import type { NativeScopeLoad, ScopeTextSlots } from "native_scope_host"
+import type { NativeScopeLoad } from "native_scope_host"
 
 export type Input = {
     frame: NativeScopeLoad,
-    source: string[],
-    target: ScopeTextSlots
+    source: string[]
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { frame, source, target } = in
+    const { frame, source } = in
 
-    const resolved = loop(0, {
-        while: row => row < source.length,
-        next: row => {
-            const path = resolveNativeScopePath(frame, source[row])
+    const empty: string[] = []
 
-            writeNativeScopeText(target, row, path)
-            row += 1
-        }
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < source.length,
+        next: state => {
+            const path = resolveNativeScopePath(frame, source[state.row])
+
+            state.items = state.items.push(path)[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

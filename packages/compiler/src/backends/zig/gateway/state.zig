@@ -16,8 +16,6 @@ pub const Result = struct {
 
 pub const Error = names.Error || error{ UnsupportedHostReference, InvalidModule, ConflictingStore, MissingInitializer, InvalidInitializer };
 
-const Descriptor = struct { input_type: u32, output_type: u32, requires_io: bool, requires_process: bool };
-
 pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bundle) Error!Result {
     if (library.exports.len != bundle.public_modules.len) return error.InvalidModule;
 
@@ -29,22 +27,11 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
     const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
-    const Descriptors = std.meta.Child(@FieldType(Input, "descriptors"));
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
 
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
-    var descriptors: std.MultiArrayList(Descriptor) = .empty;
-
-    try descriptors.resize(allocator, library.exports.len);
-
-    var input_types = descriptors.items(.input_type);
-    var output_types = descriptors.items(.output_type);
-    const requires_io = descriptors.items(.requires_io);
-    const requires_process = descriptors.items(.requires_process);
-    var io_bytes = std.mem.sliceAsBytes(requires_io);
-    var process_bytes = std.mem.sliceAsBytes(requires_process);
     var initializers = try InitializerView.init(temporary, bundle.store_initializers);
     const types = zx.ir.TypeTable.borrow(Types, library.program.types);
     const functions = zx.columns.borrow(Functions, &library.program.functions);
@@ -70,12 +57,6 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         .members = &members,
         .initializers = &initializers.input(Initializers),
         .independent = independent,
-        .descriptors = &Descriptors{
-            .input_types = @ptrCast(&input_types),
-            .output_types = @ptrCast(&output_types),
-            .requires_io = @ptrCast(&io_bytes),
-            .requires_process = @ptrCast(&process_bytes),
-        },
     };
 
     const output = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -111,11 +92,11 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
             .indices = output.indices,
             .writable = output.access,
             .ends = output.ends,
-            .requires_io = requires_io,
-            .requires_process = requires_process,
+            .requires_io = output.requires_io,
+            .requires_process = output.requires_process,
             .types = library.program.types,
-            .input_types = input_types,
-            .output_types = output_types,
+            .input_types = output.input_types,
+            .output_types = output.output_types,
         },
     };
 }

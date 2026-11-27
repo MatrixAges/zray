@@ -48,17 +48,18 @@ pub const Cursor = struct {
         return if (step.reference) |item| fromWire(item) else null;
     }
     pub fn batch(self: *Cursor, allocator: std.mem.Allocator, references_arg: [][]const u8, packages_arg: []u8) std.mem.Allocator.Error!?usize {
-        var references = references_arg;
-        var packages = packages_arg;
+        var buffer: [4096]u8 = undefined;
+        var first = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+        var arena = std.heap.ArenaAllocator.init(first.allocator());
+
+        defer arena.deinit();
+
         const entry = @import("generated_rx_ast_reference_batch");
         const Request = std.meta.Child(entry.Input);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        const result = entry.executeValue(empty.allocator(), &.{
+        const result = entry.executeValue(arena.allocator(), &.{
             .cursor = &self.borrow(std.meta.Child(@FieldType(Request, "cursor")), &allocator),
-            .references = @ptrCast(&references),
-            .packages = @ptrCast(&packages),
-            .capacity = references.len,
+            .capacity = references_arg.len,
         }) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => unreachable,
@@ -66,7 +67,12 @@ pub const Cursor = struct {
 
         self.pending = result.pending;
 
-        return if (result.count == 0) null else @intCast(result.count);
+        if (result.references.len == 0) return null;
+
+        @memcpy(references_arg[0..result.references.len], result.references);
+        @memcpy(packages_arg[0..result.packages.len], result.packages);
+
+        return result.references.len;
     }
 };
 

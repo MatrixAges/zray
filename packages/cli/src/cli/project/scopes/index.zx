@@ -5,14 +5,15 @@ export {
     openNativeScope,
     openNativeScopeArtifact,
     prepareNativeScopeAliases,
+    publishNativeScopeLibraryPaths,
     publishNativeScopeModule,
+    publishNativeScopeNames,
+    publishNativeScopeSettings,
     requireNativeScopeAdmission,
     reserveNativeScopeDeclarations,
     reserveNativeScopeIndex,
     reserveNativeScopeInterfaces,
-    reserveNativeScopeLibraryPaths,
     reserveNativeScopeModules,
-    reserveNativeScopeNames,
     reserveNativeScopeSettings
 } from "native_scope_host"
 

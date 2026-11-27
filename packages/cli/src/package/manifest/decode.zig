@@ -1,126 +1,139 @@
 const std = @import("std");
 const c = @import("yaml.zig").c;
 const model = @import("model.zig");
-const memory = @import("zx").memory;
 const compiler = @import("compiler");
 const rule = @import("cli_source").manifest_decode;
 pub const Document = @import("manifest_yaml_document");
 pub const Error = error{ OutOfMemory, InvalidManifest };
-const Input = std.meta.Child(rule.Input);
-const Tables = std.meta.Child(@FieldType(Input, "tables"));
-
-const Exports = Destination("exports", model.Export, .{
-    .path = &.{"path"},
-    .source = &.{"source"},
-    .module = &.{"module"},
-});
-
-const Dependencies = Destination("dependencies", model.Dependency, .{
-    .name = &.{"name"},
-    .requirement = &.{"requirement"},
-});
-
-const Interfaces = Destination("interfaces", model.NativeInterface, .{
-    .specifier = &.{"specifier"},
-    .path = &.{"path"},
-    .module = &.{"module"},
-    .namespace = &.{"namespace"},
-});
-
-const Modules = Destination("modules", model.NativeModule, .{
-    .name = &.{"name"},
-    .path = &.{"path"},
-    .header = &.{"header"},
-    .dependencies = &.{"dependencies"},
-    .bundle_files = &.{"bundle_files"},
-    .include_paths = &.{"include_paths"},
-    .abi_aliases = &.{"abi_aliases"},
-});
-
-const Aliases = Destination("aliases", model.AbiAlias, .{
-    .name = &.{"name"},
-    .specifier = &.{"specifier"},
-});
-
-const Externals = Destination("externals", compiler.project.External, .{
-    .identity = &.{"identity"},
-    .specifier = &.{"specifier"},
-    .signature = &.{"signature"},
-    .export_name = &.{"export_name"},
-    .module = &.{ "implementation", "module" },
-    .member = &.{ "implementation", "member" },
-    .allocator_argument = &.{ "implementation", "allocator_argument" },
-    .io_argument = &.{ "implementation", "io_argument" },
-    .process_argument = &.{ "implementation", "process_argument" },
-    .expand_tuple = &.{ "implementation", "expand_tuple" },
-    .errors = &.{ "implementation", "errors" },
-    .fallible = &.{ "implementation", "fallible" },
-    .concurrent = &.{ "implementation", "concurrent" },
-});
 
 pub fn read(allocator: std.mem.Allocator, document: *Document, root: *const c.yaml_node_t) Error!model.Manifest {
-    var exports: Exports = undefined;
-    var dependencies: Dependencies = undefined;
-    var dev_dependencies: Dependencies = undefined;
-    var interfaces: Interfaces = undefined;
-    var modules: Modules = undefined;
-    var aliases: Aliases = undefined;
-    var externals: Externals = undefined;
+    var scratch = std.heap.ArenaAllocator.init(allocator);
 
-    exports.rows.init();
-    dependencies.rows.init();
-    dev_dependencies.rows.init();
-    interfaces.rows.init();
-    modules.rows.init();
-    aliases.rows.init();
-    externals.rows.init();
+    defer scratch.deinit();
 
-    const data = rule.executeValue(allocator, &Input{
+    const data = rule.executeValue(scratch.allocator(), .{
         .document = @ptrCast(document),
         .node = @ptrCast(root),
-        .tables = &.{
-            .exports = &exports.view(),
-            .dependencies = &dependencies.view(),
-            .dev_dependencies = &dev_dependencies.view(),
-            .interfaces = &interfaces.view(),
-            .modules = &modules.view(),
-            .aliases = &aliases.view(),
-            .externals = &externals.view(),
-        },
     }) catch |err| switch (err) {
         error.OutOfMemory, error.InvalidManifest => |failure| return failure,
         else => unreachable,
     };
 
+    const exports = try allocator.alloc(model.Export, data.exports.len);
+
+    for (data.exports, 0..) |item, i| {
+        exports[i] = .{
+            .path = try dupeText(allocator, item.path),
+            .source = try dupeText(allocator, item.source),
+            .module = if (item.module) |m| try dupeText(allocator, m) else null,
+        };
+    }
+
+    const dependencies = try dupeDependencies(allocator, data.dependencies);
+    const dev_dependencies = try dupeDependencies(allocator, data.dev_dependencies);
+    const interfaces = try allocator.alloc(model.NativeInterface, data.native_interfaces.len);
+
+    for (data.native_interfaces, 0..) |item, i| {
+        interfaces[i] = .{
+            .specifier = try dupeText(allocator, item.specifier),
+            .path = try dupeText(allocator, item.path),
+            .module = try dupeText(allocator, item.module),
+            .namespace = try dupeTexts(allocator, item.namespace),
+        };
+    }
+
+    const externals = try allocator.alloc(compiler.project.External, data.externals.len);
+
+    for (data.externals, 0..) |item, i| {
+        externals[i] = .{
+            .specifier = try dupeText(allocator, item.specifier),
+            .signature = try dupeText(allocator, item.signature),
+            .export_name = if (item.export_name) |name| try dupeText(allocator, name) else null,
+            .implementation = .{
+                .module = try dupeText(allocator, item.implementation.module),
+                .member = try dupeText(allocator, item.implementation.member),
+                .allocator_argument = item.implementation.allocator_argument,
+                .io_argument = item.implementation.io_argument,
+                .process_argument = item.implementation.process_argument,
+                .expand_tuple = item.implementation.expand_tuple,
+                .errors = if (item.implementation.errors) |errs| try dupeTexts(allocator, errs) else null,
+                .fallible = item.implementation.fallible,
+                .concurrent = item.implementation.concurrent,
+            },
+        };
+    }
+
+    const modules = try allocator.alloc(model.NativeModule, data.native_modules.len);
+
+    for (data.native_modules, 0..) |item, i| {
+        const aliases = if (item.abi_aliases) |list| blk: {
+            const copy = try allocator.alloc(model.AbiAlias, list.len);
+
+            for (list, 0..) |alias, j| {
+                copy[j] = .{
+                    .name = try dupeText(allocator, alias.name),
+                    .specifier = try dupeText(allocator, alias.specifier),
+                };
+            }
+
+            break :blk copy;
+        } else null;
+
+        modules[i] = .{
+            .name = try dupeText(allocator, item.name),
+            .path = if (item.path) |p| try dupeText(allocator, p) else null,
+            .header = if (item.header) |h| try dupeText(allocator, h) else null,
+            .dependencies = try dupeTexts(allocator, item.dependencies),
+            .bundle_files = try dupeTexts(allocator, item.bundle_files),
+            .include_paths = if (item.include_paths) |paths| try dupeTexts(allocator, paths) else null,
+            .abi_aliases = aliases,
+        };
+    }
+
     return .{
-        .name = data.name,
-        .version = data.version,
-        .entry = data.entry,
-        .library = data.library,
-        .exports = exports.rows.rows(),
+        .name = try dupeText(allocator, data.name),
+        .version = try dupeText(allocator, data.version),
+        .entry = if (data.entry) |entry| try dupeText(allocator, entry) else null,
+        .library = if (data.library) |library| try dupeText(allocator, library) else null,
+        .exports = exports,
         .private = data.private,
-        .dependencies = dependencies.rows.rows(),
-        .dev_dependencies = dev_dependencies.rows.rows(),
-        .workspace = if (data.workspace) |packages| .{ .packages = packages } else null,
-        .native_interfaces = interfaces.rows.rows(),
-        .externals = externals.rows.rows(),
-        .native_modules = modules.rows.rows(),
-        .libraries = data.libraries,
-        .include_paths = data.include_paths,
-        .library_paths = data.library_paths,
+        .dependencies = dependencies,
+        .dev_dependencies = dev_dependencies,
+        .workspace = if (data.workspace) |packages| .{ .packages = try dupeTexts(allocator, packages) } else null,
+        .native_interfaces = interfaces,
+        .externals = externals,
+        .native_modules = modules,
+        .libraries = try dupeTexts(allocator, data.libraries),
+        .include_paths = try dupeTexts(allocator, data.include_paths),
+        .library_paths = try dupeTexts(allocator, data.library_paths),
     };
 }
 
-fn Destination(comptime name: []const u8, comptime Row: type, comptime fields: anytype) type {
-    const View = std.meta.Child(@FieldType(Tables, name));
-    const Columns = std.meta.Child(@FieldType(View, "columns"));
+fn dupeText(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
+    return if (value.len == 0) "" else allocator.dupe(u8, value);
+}
 
-    return struct {
-        const Self = @This();
+fn dupeTexts(allocator: std.mem.Allocator, values: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
+    if (values.len == 0) return &.{};
 
-        rows: memory.RowOutput(Row, Columns, fields),
-        fn view(self: *Self) View {
-            return .{ .buffer = @ptrCast(&self.rows.buffer), .columns = &self.rows.view };
-        }
-    };
+    const copy = try allocator.alloc([]const u8, values.len);
+
+    for (values, 0..) |value, i| copy[i] = try dupeText(allocator, value);
+
+    return copy;
+}
+
+fn dupeDependencies(allocator: std.mem.Allocator, values: anytype) std.mem.Allocator.Error![]const model.Dependency {
+    if (values.len == 0) return &.{};
+
+    const copy = try allocator.alloc(model.Dependency, values.len);
+
+    for (values, 0..) |item, i| {
+        copy[i] = .{
+            .name = try dupeText(allocator, item.name),
+            .requirement = try dupeText(allocator, item.requirement),
+        };
+    }
+
+    return copy;
 }

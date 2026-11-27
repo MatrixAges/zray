@@ -1,6 +1,4 @@
-import { allocateRows } from "core/row_buffer"
 import yaml from "manifest_yaml_document"
-import columns from "memory/columns"
 
 import { missing_module_name, missing_module_target } from "../../schema/const"
 import field from "../../schema/field"
@@ -12,44 +10,30 @@ import string from "../string"
 import strings from "../strings"
 import aliases from "./aliases"
 
-import type { AliasOutput, ModuleOutput } from "../model"
+import type { NativeModule } from "../model"
 import type { Input as Value } from "../value"
 
-export type Input = Value & {
-    target: ModuleOutput,
-    alias_target: AliasOutput
+export type Input = Value
+
+export type Record = NativeModule & {
+    index: u64
 }
 
-export type Record = {
-    index: u64,
-    name: string,
-    path?: string,
-    header?: string,
-    dependencies: string[],
-    bundle_files: string[],
-    include_paths?: string[],
-    aliases: bool
-}
-
-export type Output = void
+export type Output = NativeModule[]
 
 export default function (in: Input): Output {
-    const { document, target, alias_target } = in
+    const { document } = in
 
-    const items = sequence({
-        document: in.document,
-        node: in.node
-    })
+    const items = sequence(in)
+    const empty: NativeModule[] = []
 
-    allocateRows({
-        target: target.buffer,
-        count: items.length
-    })
-
-    const written = loop(0, {
-        while: row => row < items.length,
-        next: row => {
-            const node = yaml.node(document, items[row], null)
+    return loop({
+        row: 0,
+        out: empty
+    }, {
+        while: state => state.row < items.length,
+        next: state => {
+            const node = yaml.node(document, items[state.row], null)
             const pairs = mapping({
                 document,
                 node
@@ -62,13 +46,13 @@ export default function (in: Input): Output {
                 dependencies: [],
                 bundle_files: [],
                 include_paths: null,
-                aliases: false
+                abi_aliases: null
             }
             const data = loop(initial, {
-                while: state => state.index < pairs.length,
-                next: state => {
-                    const key = yaml.node(document, pairs[state.index], null)
-                    const item = yaml.node(document, pairs[state.index + 1], null)
+                while: pair => pair.index < pairs.length,
+                next: pair => {
+                    const key = yaml.node(document, pairs[pair.index], null)
+                    const item = yaml.node(document, pairs[pair.index + 1], null)
                     const value = {
                         document,
                         node: item
@@ -80,40 +64,33 @@ export default function (in: Input): Output {
 
                     switch (selected) {
                         case Field.Name:
-                            state.name = string(value)
+                            pair.name = string(value)
                         case Field.Path:
-                            state.path = string(value)
+                            pair.path = string(value)
                         case Field.Header:
-                            state.header = string(value)
+                            pair.header = string(value)
                         case Field.Dependencies:
-                            state.dependencies = strings({
+                            pair.dependencies = strings({
                                 ...value,
                                 workspace: false
                             })
                         case Field.BundleFiles:
-                            state.bundle_files = strings({
+                            pair.bundle_files = strings({
                                 ...value,
                                 workspace: false
                             })
                         case Field.IncludePaths:
-                            state.include_paths = strings({
+                            pair.include_paths = strings({
                                 ...value,
                                 workspace: false
                             })
                         case Field.AbiAliases:
-                            aliases({
-                                ...value,
-                                target: alias_target,
-                                aliases: target.columns.abi_aliases,
-                                row
-                            })
-
-                            state.aliases = true
+                            pair.abi_aliases = aliases(value)
                         default:
                             yaml.reject(document, key, unknown_module_field)
                     }
 
-                    state.index += mapping_size
+                    pair.index += mapping_size
                 }
             })
 
@@ -125,34 +102,9 @@ export default function (in: Input): Output {
                 yaml.reject(document, node, missing_module_target)
             }
 
-            columns.writeColumnText(target.columns.name, row, data.name)
-            columns.writeColumnOptionalText(target.columns.path, row, data.path)
-            columns.writeColumnOptionalText(
-                target.columns.header,
-                row,
-                data.header
-            )
-            columns.writeColumnTextList(
-                target.columns.dependencies,
-                row,
-                data.dependencies
-            )
-            columns.writeColumnTextList(
-                target.columns.bundle_files,
-                row,
-                data.bundle_files
-            )
-            columns.writeColumnOptionalTextList(
-                target.columns.include_paths,
-                row,
-                data.include_paths
-            )
-
-            if (!data.aliases) {
-                columns.clearOptionalRowList(target.columns.abi_aliases, row)
-            }
-
-            row += 1
-        }
+            state.out = state.out.push(data.omit(["index"]))[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
 }

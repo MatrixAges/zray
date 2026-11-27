@@ -1,33 +1,33 @@
-import bytes from "std:bytes"
 import memory from "memory"
-import columns from "memory/columns"
 
-import type { Declarations as Input } from "./model"
+import type { DeclarationRows as Input, PublishedDeclaration } from "./model"
 
-export type Output = void
+export type Output = PublishedDeclaration[]
 
 export default function (in: Input): Output {
-    const { rows, output } = in
+    const empty: PublishedDeclaration[] = []
 
-    const end = loop(0, {
-        while: row => row < rows.count,
-        next: row => {
-            const identity = memory.readOptionalTextColumn(rows.identities, row)
-            const specifier = identity ?? memory.readTextColumn(rows.specifiers, row)
-            const path = memory.readTextColumn(rows.paths, row)
-            const module = memory.readTextColumn(rows.modules, row)
-            const namespace = memory.readTextListColumn(rows.namespaces, row)
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const { row } = state
+            const identity = memory.readOptionalTextColumn(in.identities, row)
+            const specifier = identity ?? memory.readTextColumn(in.specifiers, row)
+            const path = memory.readTextColumn(in.paths, row)
+            const module = memory.readTextColumn(in.modules, row)
+            const namespace = memory.readTextListColumn(in.namespaces, row)
 
-            memory.writeColumnBytes(
-                output.specifiers,
-                row,
-                bytes.fromText(specifier)
-            )
-            memory.writeColumnBytes(output.paths, row, bytes.fromText(path))
-            memory.writeColumnBytes(output.modules, row, bytes.fromText(module))
-            columns.writeColumnTextList(output.namespaces, row, namespace)
-
-            row += 1
-        }
+            state.items = state.items.push({
+                specifier,
+                path,
+                module,
+                namespace
+            })[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

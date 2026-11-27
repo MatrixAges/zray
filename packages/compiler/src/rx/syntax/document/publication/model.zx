@@ -1,45 +1,31 @@
-import type { WriteColumn } from "memory/columns"
+import type { Location } from "../../model"
 import type { Tree } from "../model"
 
-export type Nodes = {
-    name: WriteColumn,
-    offset: WriteColumn,
-    line: WriteColumn,
-    column: WriteColumn,
-    attributes: WriteColumn,
-    children: WriteColumn,
-    text: WriteColumn
+export type PublishedAttribute = {
+    kind: u8,
+    name: string,
+    value: string,
+    raw_value: string,
+    location: Location,
+    value_location: Location
 }
 
-export type Attributes = {
-    kind: WriteColumn,
-    name: WriteColumn,
-    value: WriteColumn,
-    raw_value: WriteColumn,
-    offset: WriteColumn,
-    line: WriteColumn,
-    column: WriteColumn,
-    value_offset: WriteColumn,
-    value_line: WriteColumn,
-    value_column: WriteColumn
+export type PublishedText = {
+    slot: u64,
+    value: string,
+    location: Location
 }
 
-export type Text = {
-    value: WriteColumn,
-    offset: WriteColumn,
-    line: WriteColumn,
-    column: WriteColumn
-}
-
-export type Rows = {
-    bytes: u8[],
-    width: u64
-}
-
-export type Storage = {
-    nodes: Rows,
-    attributes: Rows,
-    text: Rows
+export type PublishedNode = {
+    slot: u64,
+    name: string,
+    location: Location,
+    attribute_start: u64,
+    attribute_count: u64,
+    child_start: u64,
+    child_count: u64,
+    text_start: u64,
+    text_count: u64
 }
 
 export type Input = {
@@ -47,14 +33,13 @@ export type Input = {
     decoded: string,
     tree: Tree,
     root: u64,
-    indexed: bool,
-    nodes: Nodes,
-    attributes: Attributes,
-    text: Text,
-    storage: Storage
+    indexed: bool
 }
 
 export type Output = {
     extent: u64,
-    node_slots: u64[]
+    node_slots: u64[],
+    attributes: PublishedAttribute[],
+    text: PublishedText[],
+    nodes: PublishedNode[]
 }

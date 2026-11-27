@@ -58,8 +58,7 @@
         <Call
             fn="descriptor"
             in={{
-                target: $in.state.source.descriptors,
-                position: $in.position,
+                state: $ctx.stores,
                 input_type: $ctx.signature.input_type,
                 output_type: $ctx.signature.output_type,
                 requires_io: $in.member.requires_io,
@@ -67,16 +66,7 @@
             }}
         />
 
-        <If on={!$ctx.descriptor}>
-            <Return
-                value={{
-                    ...$ctx.stores,
-                    status: Bindings.Status.InvalidModule
-                }}
-            />
-        </If>
-
-        <Return value={$ctx.stores} />
+        <Return value={$ctx.descriptor} />
     </If>
 
     <Return

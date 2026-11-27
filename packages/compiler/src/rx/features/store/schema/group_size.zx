@@ -1,19 +1,17 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { Columns } from "./model"
+import type { Grouped } from "./model"
 
 export type Input = {
-    columns: Columns,
+    grouped: Grouped,
     first: u32
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { next, offsets } = in.columns
+    const { next, offsets } = in.grouped
 
-    const links = memory.optionalU32Views(next)
     const first: u32? = in.first
 
     return loop({
@@ -26,11 +24,11 @@ export default function (in: Input): Output {
 
             if (fragment != null) {
                 const row = integers.widen(fragment)
-                const begin = memory.readU64(offsets, row)
-                const end = memory.readU64(offsets, row + 1)
+                const begin = offsets[row]
+                const end = offsets[row + 1]
 
                 state.count += end - begin
-                state.fragment = links[row]
+                state.fragment = next[row]
             }
         },
         return: state => state.count
